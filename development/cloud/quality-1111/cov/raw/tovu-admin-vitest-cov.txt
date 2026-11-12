@@ -1838,3 +1838,221 @@ Cannot update a component (`RoutedA2uiSurfaceCard`) while rendering a different 
      ✓ says so when the same package was already installed  426ms
  ✓ src/features/posts/__tests__/post-cover-image.unit.test.tsx (13 tests) 945ms
  ✓ src/lib/__tests__/api-themes.unit.test.ts (22 tests) 52ms
+ ✓ src/lib/__tests__/shared-stream-adapters.unit.test.ts (9 tests) 93ms
+ ✓ src/lib/__tests__/post-title-extension.unit.test.ts (8 tests) 355ms
+ ✓ src/components/AssistantDock/__tests__/resolve-composer-discovery-outcome.unit.test.ts (13 tests) 38ms
+ ✓ src/__tests__/unit/nav-wiring.unit.test.ts (17 tests) 17ms
+ ✓ src/features/sites/__tests__/SiteExportTab.static.unit.test.tsx (9 tests) 2115ms
+   ✓ retains a polled job failure through transport, controller and ErrorNotice  548ms
+   ✓ Select all toggles 50 options while the list has a separate scrolling region  697ms
+ ✓ src/features/observability/__tests__/recent-errors-rules.unit.test.ts (28 tests) 45ms
+ ✓ src/components/__tests__/agent-handle-batch1.unit.test.tsx (23 tests) 894ms
+ ✓ src/features/sites/__tests__/rules.unit.test.ts (43 tests) 43ms
+ ✓ src/components/__tests__/AdminByokKeyPanel.unit.test.tsx (24 tests) 621ms
+     ✓ renders the prompt and wires the confirm button to migrateLegacyKey  340ms
+ ✓ src/features/content-analysis/__tests__/use-content-analysis.hooks.unit.test.tsx (13 tests) 925ms
+ ✓ src/features/trash/__tests__/rules.unit.test.ts (23 tests) 31ms
+ ✓ src/lib/__tests__/assistant-transport.turn-delivery.unit.test.ts (9 tests) 54ms
+ ✓ src/components/AssistantDock/__tests__/agent-failure.unit.test.ts (16 tests) 57ms
+ ✓ src/hooks/__tests__/use-settings-slice.refresh.test.ts (11 tests) 288ms
+ ✓ src/features/menus/__tests__/menu-html-mode.unit.test.tsx (16 tests) 1334ms
+     ✓ puts the slug on the title's row and switches Options/HTML tabs by click and arrow key  680ms
+ ✓ src/features/collections/__tests__/use-edit-fields-dialog.unit.test.tsx (14 tests) 744ms
+     ✓ native cancel reaches the domain's current cancel handler  336ms
+ ✓ src/features/observability/__tests__/recent-errors-panel.unit.test.tsx (14 tests) 1974ms
+     ✓ lists one collapsed row per error, newest first, with time, source, tag, count and summary  544ms
+ ✓ src/features/taxonomy/__tests__/use-term-detail-panel.unit.test.tsx (10 tests) 453ms
+ ✓ src/features/media/__tests__/media-tab-counts.unit.test.tsx (13 tests) 2130ms
+     ✓ opens the real provider tab with catalog policy and recognizes legacy provider ids  811ms
+     ✓ shows each content tab's real item count, and External Providers' fixed catalog size  630ms
+     ✓ lists a trashed item on Trash only and updates the Trash count after it is permanently deleted  661ms
+ ✓ src/components/AssistantDock/__tests__/chat-settings-tooltips.unit.test.tsx (51 tests) 1548ms
+     ✓ Tool calls has ONE ⓘ beside its title that lists Show, Collapsed and Hidden; tapping it changes nothing  515ms
+ ✓ src/components/AssistantDock/__tests__/DockSettingsMenu.unit.test.tsx (15 tests) 1182ms
+ ✓ src/features/pages/__tests__/ThemePagesTab.unit.test.tsx (25 tests) 3599ms
+   ✓ shows an initial error instead of loading, then keeps loaded rows visible with a later error  336ms
+   ✓ assigns lock and saving state to the owning row and dispatches the correct publish boolean  345ms
+     ✓ translates the create fallback after the user's action  326ms
+     ✓ translates the publish fallback after the user's action  335ms
+     ✓ translates the delete fallback after the user's action  310ms
+ ✓ src/features/security/hooks/__tests__/other-credentials-dependencies.unit.test.ts (13 tests) 40ms
+ ✓ src/lib/__tests__/admin-failure-channel.unit.test.ts (14 tests) 69ms
+ ✓ src/features/security/__tests__/security-i18n.unit.test.ts (106 tests) 49ms
+ ✓ src/features/posts/__tests__/post-schedule-featured.unit.test.tsx (14 tests) 1045ms
+     ✓ loads both fields, reports scheduled, and a save that did not touch them sends neither key  445ms
+ ✓ src/components/__tests__/JiniMediaPicker.hooks.unit.test.tsx (13 tests) 345ms
+ ✓ src/features/integrations/__tests__/Integrations.unit.test.tsx (9 tests) 2041ms
+     ✓ moves Pause/Delete into a RowMenu, and Delete opens ConfirmDialog instead of window.confirm  729ms
+     ✓ creates a subscription from the three fields  687ms
+ ✓ src/components/AssistantDock/__tests__/use-chat-display-preferences.hooks.unit.test.ts (12 tests) 362ms
+ ✓ src/features/webmcp/__tests__/admin-page-tools.unit.test.ts (24 tests) 63ms
+ ✓ src/components/__tests__/AssistantDock.runtime-access.unit.test.tsx (4 tests) 296ms
+ ✓ src/features/pages/__tests__/embed-placeholder.unit.test.ts (39 tests) 30ms
+ ✓ src/integrations/jini-admin/__tests__/seo-swap.unit.test.tsx (12 tests) 4222ms
+     ✓ mounts defaults, the original loading notice and publish contribution  766ms
+     ✓ changes locale without remounting the uncontrolled defaults form or rereading settings  442ms
+     ✓ retains tab deep links and replacement history through the module bridge  691ms
+     ✓ opens the sitemap modal over the injected raw XML and regenerates through the same API  642ms
+     ✓ formats sitemap dates in the live admin locale without remounting or rewriting XML  652ms
+     ✓ refreshes SEO settings only for matching resources and releases its subscription  472ms
+     ✓ uses the host picker to hydrate a CMS slug before writing the SEO image reference  521ms
+ ✓ src/features/deployment/__tests__/OverviewTab.unit.test.tsx (14 tests) 588ms
+ ✓ src/features/taxonomy/__tests__/TaxonomyRowMenu.hooks.unit.test.tsx (15 tests) 86ms
+ ✓ src/components/TemplateSource/__tests__/TemplateSourceModal.unit.test.tsx (10 tests) 629ms
+ ✓ src/features/media/__tests__/media-i18n.unit.test.ts (16 tests) 2821ms
+     ✓ es: translates preview actions and the sizing fields reached from Edit  789ms
+     ✓ es: localizes file-read failures without starting an upload (null)  331ms
+ ✓ src/features/ai-assistant/__tests__/use-admin-subagents.hooks.unit.test.tsx (20 tests) 1315ms
+ ✓ src/components/__tests__/shared-components-i18n.unit.test.ts (8 tests) 804ms
+     ✓ covers literal t() keys read from the components and hooks that use this dictionary  579ms
+ ✓ src/features/themes/__tests__/rules.unit.test.ts (32 tests) 41ms
+ ✓ src/features/themes/__tests__/theme-explore-dependencies.hooks.unit.test.ts (20 tests) 72ms
+ ✓ src/features/media/__tests__/media-type-filter.unit.test.tsx (18 tests) 2144ms
+     ✓ shows only images on the Images tab  763ms
+     ✓ keeps a trashed item off the All tab and lists it on the Trash tab with Delete permanently  389ms
+stderr | src/features/plugins/__tests__/installed-skills-composer-source.unit.test.ts > createInstalledSkillsComposerCapabilitySource > degrades to an empty list on a non-2xx response, rather than throwing
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only ApiError: nope
+    at buildRequestFailedError (/home/user/Tovu/apps/admin/src/lib/api.ts:2648:17)
+    at requestOnce (/home/user/Tovu/apps/admin/src/lib/api.ts:2679:26)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at requestRidingOutRestart (/home/user/Tovu/apps/admin/src/lib/api.ts:2702:20)
+    at request (/home/user/Tovu/apps/admin/src/lib/api.ts:2723:12)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:51:18)
+    at /home/user/Tovu/apps/admin/src/features/plugins/__tests__/installed-skills-composer-source.unit.test.ts:171:5
+    at file:///home/user/Tovu/apps/admin/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20 {
+  status: 500,
+  code: undefined,
+  body: { error: 'nope' }
+}
+
+stderr | src/features/plugins/__tests__/installed-skills-composer-source.unit.test.ts > createInstalledSkillsComposerCapabilitySource > degrades to an empty list on a network failure, rather than rejecting
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only ApiError: cannot reach the Tovu API — is the server running?
+    at throwTranslatedFetchFailure (/home/user/Tovu/apps/admin/src/lib/api.ts:2474:9)
+    at fetchOrThrowUnreachable (/home/user/Tovu/apps/admin/src/lib/api.ts:2487:12)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at requestOnce (/home/user/Tovu/apps/admin/src/lib/api.ts:2675:15)
+    at requestRidingOutRestart (/home/user/Tovu/apps/admin/src/lib/api.ts:2702:20)
+    at request (/home/user/Tovu/apps/admin/src/lib/api.ts:2723:12)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:51:18) {
+  status: 0,
+  code: 'API_UNREACHABLE',
+  body: { cause: 'fetch failed' }
+}
+
+stderr | src/features/plugins/__tests__/installed-skills-composer-source.unit.test.ts > createInstalledSkillsComposerCapabilitySource > degrades to an empty list on a malformed body — no 'skills' array — rather than throwing
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at /home/user/Tovu/apps/admin/src/features/plugins/__tests__/installed-skills-composer-source.unit.test.ts:187:5
+    at file:///home/user/Tovu/apps/admin/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20
+
+ ✓ src/features/plugins/__tests__/installed-skills-composer-source.unit.test.ts (11 tests) 264ms
+stderr | src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx > mounts the assistant dock and chat FAB by default (flag on)
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx > mounts the assistant dock and chat FAB by default (flag on)
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx > mounts the assistant dock and chat FAB by default (field absent)
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx > mounts the assistant dock and chat FAB by default (field absent)
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx > keeps the assistant dock mounted, outside the expanded post-preview's containing block, while a post's Preview tab is expanded
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx > keeps the assistant dock mounted, outside the expanded post-preview's containing block, while a post's Preview tab is expanded
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+ ✓ src/features/skills/__tests__/skill-dialogs-and-row.unit.test.tsx (10 tests) 842ms
+     ✓ labels an uploaded, enabled skill and routes each control to its own action  431ms
+stderr | src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx > hides the assistant dock and chat FAB once the server reports TOVU_ADMIN_ASSISTANT=off
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx > hides the assistant dock and chat FAB once the server reports TOVU_ADMIN_ASSISTANT=off
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+ ✓ src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx (4 tests) 4404ms
+   ✓ mounts the assistant dock and chat FAB by default (flag on)  1509ms
+   ✓ mounts the assistant dock and chat FAB by default (field absent)  344ms
+   ✓ keeps the assistant dock mounted, outside the expanded post-preview's containing block, while a post's Preview tab is expanded  1898ms
+   ✓ hides the assistant dock and chat FAB once the server reports TOVU_ADMIN_ASSISTANT=off  651ms
+ ✓ __tests__/dev-proxy-upstream-close.unit.test.ts (11 tests) 1613ms
+   ✓ the client's SSE stream ends when the upstream dies mid-stream  509ms
+   ✓ an SSE reconnect while the upstream is down drops the connection, so EventSource keeps retrying  307ms
+   ✓ a non-SSE request to a refusing upstream gets a 503 marked upstream-refused  398ms
+   ✓ a normal response still arrives whole  388ms
+ ✓ src/lib/__tests__/untranslated-copy.unit.test.ts (67 tests) 12ms
+ ✓ src/features/email/__tests__/EmailTemplateEditor.unit.test.tsx (19 tests) 1623ms
+     ✓ confirms back navigation through Pages' dirty guard before the SPA changes routes  426ms
+ ✓ src/hooks/__tests__/use-admin-locale.hooks.test.ts (12 tests) 898ms
+ ✓ src/integrations/jini-admin/__tests__/media-swap.unit.test.tsx (7 tests) 5394ms
+     ✓ honors a direct tab link and keeps tab changes on /media/new with the other query values  704ms
+     ✓ places the host publish control in the page header and hides it when media access is denied  811ms
+     ✓ renders the HTTP library with the host kit, writes partial metadata and refreshes  1132ms
+     ✓ uploads replacement bytes to the existing identity through the rebuilt Jini editor  821ms
+     ✓ hides restore without the host grants and restores trashed media when both Trash gates are present  1046ms
+     ✓ denies missing grants and retires the old scope when grants change  735ms
+ ✓ src/lib/__tests__/api-id-url-encoding.unit.test.ts (49 tests) 36ms
+ ✓ src/lib/__tests__/media-image-extension.unit.test.tsx (12 tests) 966ms
+ ✓ src/features/plugins/__tests__/agent-plugin-memory.hooks.unit.test.ts (12 tests) 759ms
+ ✓ src/features/security/__tests__/use-site-key.unit.test.tsx (15 tests) 961ms
+ ✓ src/components/AssistantDock/__tests__/daemon-starting-label.integration.test.tsx (7 tests) 938ms
+     ✓ a warm activation resolving at 0 ms never flashes the label; the next cold send still shows it  383ms
+ ✓ src/features/sites/__tests__/AllSitesTab.unit.test.tsx (11 tests) 1599ms
+   ✓ shows Saving… on the activating card, hides Make default everywhere meanwhile, then restores it  383ms
+ ✓ src/features/media/__tests__/media-grid-fit.unit.test.tsx (11 tests) 2751ms
+     ✓ a vertical video card is a still frame with a play cue, its shape and its duration — no player controls  726ms
+     ✓ All says image or video; Videos says video and accepts only video; Import keeps its name  553ms
+     ✓ the icon buttons show a real tooltip bubble on hover and on keyboard focus (a bare title does not show reliably)  397ms
+ ✓ src/integrations/jini-admin/__tests__/media-providers-port.unit.test.ts (22 tests) 53ms
+ ✓ src/features/taxonomy/__tests__/use-new-term-form.unit.test.tsx (11 tests) 167ms
+ ✓ src/components/__tests__/WidgetConfigFields.hooks.unit.test.tsx (18 tests) 313ms
+ ✓ src/features/collections/__tests__/collections-agent-drive.unit.test.tsx (7 tests) 1048ms
+     ✓ discovers the draft entry's lifecycle button through its agent handle  362ms
+ ✓ src/lib/__tests__/api-media.unit.test.ts (19 tests) 72ms
+ ✓ src/features/security/__tests__/Security.unit.test.tsx (12 tests) 966ms
+     ✓ renders a page header (Operations kicker, Secrets title) above a TabBar  335ms
+ ✓ src/features/menus/__tests__/menus-i18n.unit.test.ts (50 tests) 923ms
+ ✓ src/features/email/__tests__/use-email-provider.unit.test.ts (13 tests) 932ms
+ ✓ src/features/analytics/__tests__/use-analytics.hooks.unit.test.ts (9 tests) 593ms
+ ✓ src/features/email/__tests__/Email.unit.test.tsx (25 tests) 1784ms
+     ✓ shows five ordered tabs and mounts only Overview by default  499ms
+ ✓ src/features/sites/__tests__/local-site-cards.unit.test.tsx (9 tests) 1264ms
+   ✓ serving card: status, default star, Open in a new tab, and no lifecycle or Delete  392ms
+ ✓ src/features/plugins/__tests__/AgentPluginDetailsModal.unit.test.tsx (9 tests) 1258ms
+     ✓ shows the maturity pill in the package inspector  648ms

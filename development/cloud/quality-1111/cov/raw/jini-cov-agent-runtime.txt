@@ -1,0 +1,8 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-runtime
+      Coverage enabled with v8
+
+ ✓ src/agent-protocol/acp/__tests__/session.test.ts (129 tests) 161ms
+ ✓ src/__tests__/claude-stream.test.ts (188 tests) 78ms
+ ✓ src/__tests__/json-event-stream.test.ts (152 tests) 80ms
+ ✓ src/providers/__tests__/openai-chat.test.ts (108 tests) 122ms

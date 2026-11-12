@@ -3067,3 +3067,1952 @@ ok 388 - an error name cannot impersonate a domain class
   duration_ms: 0.117917
   type: 'test'
   ...
+# Subtest: import rejects invalid before stdin
+ok 389 - import rejects invalid before stdin
+  ---
+  duration_ms: 3.899537
+  type: 'test'
+  ...
+# Subtest: import rejects https://user@admin.example before stdin
+ok 390 - import rejects https://user@admin.example before stdin
+  ---
+  duration_ms: 0.380531
+  type: 'test'
+  ...
+# Subtest: import rejects https://:password@admin.example before stdin
+ok 391 - import rejects https://:password@admin.example before stdin
+  ---
+  duration_ms: 0.39109
+  type: 'test'
+  ...
+# Subtest: import rejects https://admin.example/path before stdin
+ok 392 - import rejects https://admin.example/path before stdin
+  ---
+  duration_ms: 5.072781
+  type: 'test'
+  ...
+# Subtest: import rejects https://admin.example/?q=1 before stdin
+ok 393 - import rejects https://admin.example/?q=1 before stdin
+  ---
+  duration_ms: 0.430604
+  type: 'test'
+  ...
+# Subtest: import rejects https://admin.example/\#hash before stdin
+ok 394 - import rejects https://admin.example/\#hash before stdin
+  ---
+  duration_ms: 0.32049
+  type: 'test'
+  ...
+# Subtest: import rejects ftp://admin.example before stdin
+ok 395 - import rejects ftp://admin.example before stdin
+  ---
+  duration_ms: 7.119925
+  type: 'test'
+  ...
+# Subtest: import rejects http://localhost before stdin
+ok 396 - import rejects http://localhost before stdin
+  ---
+  duration_ms: 12.639185
+  type: 'test'
+  ...
+# Subtest: import rejects http://192.0.2.1 before stdin
+ok 397 - import rejects http://192.0.2.1 before stdin
+  ---
+  duration_ms: 0.806002
+  type: 'test'
+  ...
+# Subtest: import rejects non-object stdin {
+ok 398 - import rejects non-object stdin {
+  ---
+  duration_ms: 0.745296
+  type: 'test'
+  ...
+# Subtest: import rejects non-object stdin null
+ok 399 - import rejects non-object stdin null
+  ---
+  duration_ms: 0.23414
+  type: 'test'
+  ...
+# Subtest: import rejects non-object stdin []
+ok 400 - import rejects non-object stdin []
+  ---
+  duration_ms: 0.148908
+  type: 'test'
+  ...
+# Subtest: import rejects non-object stdin false
+ok 401 - import rejects non-object stdin false
+  ---
+  duration_ms: 0.115264
+  type: 'test'
+  ...
+# Subtest: import rejects non-object stdin 1
+ok 402 - import rejects non-object stdin 1
+  ---
+  duration_ms: 0.133601
+  type: 'test'
+  ...
+# Subtest: import rejects non-object stdin "text"
+ok 403 - import rejects non-object stdin "text"
+  ---
+  duration_ms: 0.115558
+  type: 'test'
+  ...
+# Subtest: import rejects invalid authorization 9
+ok 404 - import rejects invalid authorization 9
+  ---
+  duration_ms: 0.408394
+  type: 'test'
+  ...
+# Subtest: import rejects invalid authorization 1
+ok 405 - import rejects invalid authorization 1
+  ---
+  duration_ms: 0.182152
+  type: 'test'
+  ...
+# Subtest: import rejects invalid authorization 13
+ok 406 - import rejects invalid authorization 13
+  ---
+  duration_ms: 0.262383
+  type: 'test'
+  ...
+# Subtest: import rejects invalid authorization 7
+ok 407 - import rejects invalid authorization 7
+  ---
+  duration_ms: 0.157236
+  type: 'test'
+  ...
+# Subtest: import rejects invalid authorization 11
+ok 408 - import rejects invalid authorization 11
+  ---
+  duration_ms: 0.105865
+  type: 'test'
+  ...
+# Subtest: import rejects invalid authorization 4104
+ok 409 - import rejects invalid authorization 4104
+  ---
+  duration_ms: 0.227086
+  type: 'test'
+  ...
+# Subtest: import requires workspace before stdin
+ok 410 - import requires workspace before stdin
+  ---
+  duration_ms: 1.227549
+  type: 'test'
+  ...
+# Subtest: import https://admin.example preserves/normalizes null
+ok 411 - import https://admin.example preserves/normalizes null
+  ---
+  duration_ms: 1.99456
+  type: 'test'
+  ...
+# Subtest: import https://admin.example preserves/normalizes false
+ok 412 - import https://admin.example preserves/normalizes false
+  ---
+  duration_ms: 0.239713
+  type: 'test'
+  ...
+# Subtest: import https://admin.example preserves/normalizes 0
+ok 413 - import https://admin.example preserves/normalizes 0
+  ---
+  duration_ms: 0.149515
+  type: 'test'
+  ...
+# Subtest: import https://admin.example preserves/normalizes "done"
+ok 414 - import https://admin.example preserves/normalizes "done"
+  ---
+  duration_ms: 0.151042
+  type: 'test'
+  ...
+# Subtest: import https://admin.example preserves/normalizes {}
+ok 415 - import https://admin.example preserves/normalizes {}
+  ---
+  duration_ms: 0.103404
+  type: 'test'
+  ...
+# Subtest: import https://admin.example preserves/normalizes {"setupUrl":4}
+ok 416 - import https://admin.example preserves/normalizes {"setupUrl":4}
+  ---
+  duration_ms: 0.117046
+  type: 'test'
+  ...
+# Subtest: import https://admin.example preserves/normalizes {"setupUrl":"/owner"}
+ok 417 - import https://admin.example preserves/normalizes {"setupUrl":"/owner"}
+  ---
+  duration_ms: 0.133935
+  type: 'test'
+  ...
+# Subtest: import http://127.0.0.1:3010 preserves/normalizes null
+ok 418 - import http://127.0.0.1:3010 preserves/normalizes null
+  ---
+  duration_ms: 0.139248
+  type: 'test'
+  ...
+# Subtest: import http://127.0.0.1:3010 preserves/normalizes false
+ok 419 - import http://127.0.0.1:3010 preserves/normalizes false
+  ---
+  duration_ms: 1.08189
+  type: 'test'
+  ...
+# Subtest: import http://127.0.0.1:3010 preserves/normalizes 0
+ok 420 - import http://127.0.0.1:3010 preserves/normalizes 0
+  ---
+  duration_ms: 0.09993
+  type: 'test'
+  ...
+# Subtest: import http://127.0.0.1:3010 preserves/normalizes "done"
+ok 421 - import http://127.0.0.1:3010 preserves/normalizes "done"
+  ---
+  duration_ms: 0.057333
+  type: 'test'
+  ...
+# Subtest: import http://127.0.0.1:3010 preserves/normalizes {}
+ok 422 - import http://127.0.0.1:3010 preserves/normalizes {}
+  ---
+  duration_ms: 0.263507
+  type: 'test'
+  ...
+# Subtest: import http://127.0.0.1:3010 preserves/normalizes {"setupUrl":4}
+ok 423 - import http://127.0.0.1:3010 preserves/normalizes {"setupUrl":4}
+  ---
+  duration_ms: 0.253161
+  type: 'test'
+  ...
+# Subtest: import http://127.0.0.1:3010 preserves/normalizes {"setupUrl":"/owner"}
+ok 424 - import http://127.0.0.1:3010 preserves/normalizes {"setupUrl":"/owner"}
+  ---
+  duration_ms: 0.18496
+  type: 'test'
+  ...
+# Subtest: import http://[::1]:3010 preserves/normalizes null
+ok 425 - import http://[::1]:3010 preserves/normalizes null
+  ---
+  duration_ms: 1.071104
+  type: 'test'
+  ...
+# Subtest: import http://[::1]:3010 preserves/normalizes false
+ok 426 - import http://[::1]:3010 preserves/normalizes false
+  ---
+  duration_ms: 0.407138
+  type: 'test'
+  ...
+# Subtest: import http://[::1]:3010 preserves/normalizes 0
+ok 427 - import http://[::1]:3010 preserves/normalizes 0
+  ---
+  duration_ms: 0.152086
+  type: 'test'
+  ...
+# Subtest: import http://[::1]:3010 preserves/normalizes "done"
+ok 428 - import http://[::1]:3010 preserves/normalizes "done"
+  ---
+  duration_ms: 0.162573
+  type: 'test'
+  ...
+# Subtest: import http://[::1]:3010 preserves/normalizes {}
+ok 429 - import http://[::1]:3010 preserves/normalizes {}
+  ---
+  duration_ms: 0.080248
+  type: 'test'
+  ...
+# Subtest: import http://[::1]:3010 preserves/normalizes {"setupUrl":4}
+ok 430 - import http://[::1]:3010 preserves/normalizes {"setupUrl":4}
+  ---
+  duration_ms: 0.07736
+  type: 'test'
+  ...
+# Subtest: import http://[::1]:3010 preserves/normalizes {"setupUrl":"/owner"}
+ok 431 - import http://[::1]:3010 preserves/normalizes {"setupUrl":"/owner"}
+  ---
+  duration_ms: 0.06143
+  type: 'test'
+  ...
+# Subtest: import accepts an external setup URL (reported, not fixed)
+ok 432 - import accepts an external setup URL (reported, not fixed)
+  ---
+  duration_ms: 0.283312
+  type: 'test'
+  ...
+# Subtest: import posts to the real daemon client over loopback HTTP and returns a result without a setup URL unchanged
+ok 433 - import posts to the real daemon client over loopback HTTP and returns a result without a setup URL unchanged
+  ---
+  duration_ms: 144.192159
+  type: 'test'
+  ...
+# Subtest: import forwards --server/--workspace and refuses a non-origin before reading stdin
+ok 434 - import forwards --server/--workspace and refuses a non-origin before reading stdin
+  ---
+  duration_ms: 74.152191
+  type: 'test'
+  ...
+# Subtest: init forwards --storage to the storage parser
+ok 435 - init forwards --storage to the storage parser
+  ---
+  duration_ms: 36.662276
+  type: 'test'
+  ...
+# Subtest: storage move forwards --to and refuses a non-postgres target
+ok 436 - storage move forwards --to and refuses a non-postgres target
+  ---
+  duration_ms: 118.507763
+  type: 'test'
+  ...
+# Subtest: plugin integrity forwards the package folder
+ok 437 - plugin integrity forwards the package folder
+  ---
+  duration_ms: 16.577479
+  type: 'test'
+  ...
+# Subtest: plugin install forwards --site and opens that site first
+ok 438 - plugin install forwards --site and opens that site first
+  ---
+  duration_ms: 8.024595
+  type: 'test'
+  ...
+# Subtest: adopt forwards the folder and refuses one that does not exist
+ok 439 - adopt forwards the folder and refuses one that does not exist
+  ---
+  duration_ms: 2.024168
+  type: 'test'
+  ...
+# Subtest: export forwards the folder and refuses a missing site
+ok 440 - export forwards the folder and refuses a missing site
+  ---
+  duration_ms: 92.693846
+  type: 'test'
+  ...
+# Subtest: sites move-home forwards the folder and refuses one outside the former default home
+ok 441 - sites move-home forwards the folder and refuses one outside the former default home
+  ---
+  duration_ms: 52.741104
+  type: 'test'
+  ...
+# Subtest: site rename rejects path traversal before touching the sites home
+ok 442 - site rename rejects path traversal before touching the sites home
+  ---
+  duration_ms: 3.223619
+  type: 'test'
+  ...
+# Subtest: site rename requires both folder names
+ok 443 - site rename requires both folder names
+  ---
+  duration_ms: 1.395973
+  type: 'test'
+  ...
+# Subtest: sites move-home also accepts --projects-path and still refuses a folder outside the former default home
+ok 444 - sites move-home also accepts --projects-path and still refuses a folder outside the former default home
+  ---
+  duration_ms: 20.909075
+  type: 'test'
+  ...
+# Subtest: theme validate forwards --profile
+ok 445 - theme validate forwards --profile
+  ---
+  duration_ms: 1.455156
+  type: 'test'
+  ...
+# Subtest: theme normalize-build forwards --primary-stylesheet
+ok 446 - theme normalize-build forwards --primary-stylesheet
+  ---
+  duration_ms: 1.272746
+  type: 'test'
+  ...
+# Subtest: theme migrate forwards the folder to the migrator, which refuses one with no theme.json
+ok 447 - theme migrate forwards the folder to the migrator, which refuses one with no theme.json
+  ---
+  duration_ms: 1.622313
+  type: 'test'
+  ...
+# Subtest: theme generate-index forwards the folder and --json, skipping a folder that is not a theme
+ok 448 - theme generate-index forwards the folder and --json, skipping a folder that is not a theme
+  ---
+  duration_ms: 6.123543
+  type: 'test'
+  ...
+# Subtest: theme sync-originals forwards --json
+ok 449 - theme sync-originals forwards --json
+  ---
+  duration_ms: 24.44635
+  type: 'test'
+  ...
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: agent-plugins token-sign-in prints the sign-in list
+ok 450 - agent-plugins token-sign-in prints the sign-in list
+  ---
+  duration_ms: 28.390594
+  type: 'test'
+  ...
+# Subtest: introspect forwards --format over the live command tree
+ok 451 - introspect forwards --format over the live command tree
+  ---
+  duration_ms: 2.046477
+  type: 'test'
+  ...
+# Subtest: commander's own error output is suppressed; an unknown option surfaces only as a thrown CommanderError
+ok 452 - commander's own error output is suppressed; an unknown option surfaces only as a thrown CommanderError
+  ---
+  duration_ms: 1.9579
+  type: 'test'
+  ...
+# Subtest: generate-index resolves a relative path, writes a portability page and prints its exact destination
+ok 453 - generate-index resolves a relative path, writes a portability page and prints its exact destination
+  ---
+  duration_ms: 21.388793
+  type: 'test'
+  ...
+# Subtest: generate-index JSON reports the exact written path and still writes the file
+ok 454 - generate-index JSON reports the exact written path and still writes the file
+  ---
+  duration_ms: 7.266649
+  type: 'test'
+  ...
+# Subtest: generate-index reports a load failure (human) as a skip with exit code one
+ok 455 - generate-index reports a load failure (human) as a skip with exit code one
+  ---
+  duration_ms: 2.569996
+  type: 'test'
+  ...
+# Subtest: generate-index reports a load failure (JSON) as a skip with exit code one
+ok 456 - generate-index reports a load failure (JSON) as a skip with exit code one
+  ---
+  duration_ms: 1.278654
+  type: 'test'
+  ...
+# Subtest: generate-index skips a valid declarative theme without creating a portability page
+ok 457 - generate-index skips a valid declarative theme without creating a portability page
+  ---
+  duration_ms: 12.407612
+  type: 'test'
+  ...
+# Subtest: migrate dry-run names the staged output and says the original theme directory is untouched
+ok 458 - migrate dry-run names the staged output and says the original theme directory is untouched
+  ---
+  duration_ms: 21.046052
+  type: 'test'
+  ...
+# Subtest: a failed migration dry-run prints validator and loader findings, sets exit one and preserves the original files
+ok 459 - a failed migration dry-run prints validator and loader findings, sets exit one and preserves the original files
+  ---
+  duration_ms: 16.397427
+  type: 'test'
+  ...
+# Subtest: normalize-build rejects an empty comma-separated page list before changing any files
+ok 460 - normalize-build rejects an empty comma-separated page list before changing any files
+  ---
+  duration_ms: 9.07273
+  type: 'test'
+  ...
+# Subtest: validate uses the requested profile: author advice becomes a publish error
+ok 461 - validate uses the requested profile: author advice becomes a publish error
+  ---
+  duration_ms: 16.199639
+  type: 'test'
+  ...
+# Subtest: validate accepts install and rejects unread runtime fields while retaining polish warnings
+ok 462 - validate accepts install and rejects unread runtime fields while retaining polish warnings
+  ---
+  duration_ms: 5.43104
+  type: 'test'
+  ...
+# Subtest: the wiring guard rejects commented or unused helper calls and checks every spawn
+ok 463 - the wiring guard rejects commented or unused helper calls and checks every spawn
+  ---
+  duration_ms: 10.645794
+  type: 'test'
+  ...
+# Subtest: CLI spawner discovery includes the previously omitted adopt and serve lifecycle entry points
+ok 464 - CLI spawner discovery includes the previously omitted adopt and serve lifecycle entry points
+  ---
+  duration_ms: 0.195226
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/export-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 465 - apps/website/src/cli/__tests__/integration/export-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 22.304876
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/theme-validate-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 466 - apps/website/src/cli/__tests__/integration/theme-validate-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 7.258819
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/theme-normalize-build-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 467 - apps/website/src/cli/__tests__/integration/theme-normalize-build-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 16.411667
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/theme-migrate-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 468 - apps/website/src/cli/__tests__/integration/theme-migrate-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 15.180007
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 469 - apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 9.913442
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/init-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 470 - apps/website/src/cli/__tests__/integration/init-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 8.415952
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/help-and-unknown-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 471 - apps/website/src/cli/__tests__/integration/help-and-unknown-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 13.361696
+  type: 'test'
+  ...
+# Subtest: apps/website/src/features/theme/__tests__/astro-real-bundler-conformance.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 472 - apps/website/src/features/theme/__tests__/astro-real-bundler-conformance.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 19.792696
+  type: 'test'
+  ...
+# Subtest: apps/website/src/platform/db/__tests__/schema-postgres-drift.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 473 - apps/website/src/platform/db/__tests__/schema-postgres-drift.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 8.019671
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 474 - apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 103.401244
+  type: 'test'
+  ...
+# Subtest: apps/website/src/server/inbound/assistant/__tests__/integration/daemon-boots.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 475 - apps/website/src/server/inbound/assistant/__tests__/integration/daemon-boots.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 25.035597
+  type: 'test'
+  ...
+# Subtest: apps/website/src/platform/site-dir/__tests__/integration/init-site-fault-injection.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 476 - apps/website/src/platform/site-dir/__tests__/integration/init-site-fault-injection.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 33.92256
+  type: 'test'
+  ...
+# Subtest: apps/website/src/__tests__/integration/port-in-use.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 477 - apps/website/src/__tests__/integration/port-in-use.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 16.516786
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/adopt-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 478 - apps/website/src/cli/__tests__/integration/adopt-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 92.386786
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/deploy-config-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 479 - apps/website/src/cli/__tests__/integration/deploy-config-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 74.286139
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/export-command-migration-recovery.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 480 - apps/website/src/cli/__tests__/integration/export-command-migration-recovery.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 216.263128
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/export-command-plugin-sdk-resolver.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 481 - apps/website/src/cli/__tests__/integration/export-command-plugin-sdk-resolver.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 4.851266
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/init-admin-password.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 482 - apps/website/src/cli/__tests__/integration/init-admin-password.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 16.624734
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/owner-store.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 483 - apps/website/src/cli/__tests__/integration/owner-store.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 33.895462
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/serve-command-boot-lifecycle.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 484 - apps/website/src/cli/__tests__/integration/serve-command-boot-lifecycle.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 30.342553
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/serve-command-plugin-sdk-resolver.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 485 - apps/website/src/cli/__tests__/integration/serve-command-plugin-sdk-resolver.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 22.406727
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/serve-command-site-key.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 486 - apps/website/src/cli/__tests__/integration/serve-command-site-key.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 36.418924
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/theme-sync-originals-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 487 - apps/website/src/cli/__tests__/integration/theme-sync-originals-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 3.907732
+  type: 'test'
+  ...
+# Subtest: local owner capabilities default on, personal MCP included (2026-11-10), and explicit off choices survive
+ok 488 - local owner capabilities default on, personal MCP included (2026-11-10), and explicit off choices survive
+  ---
+  duration_ms: 5.315763
+  type: 'test'
+  ...
+# Subtest: the master resets every capability default, personal MCP included, and individual switches can override
+ok 489 - the master resets every capability default, personal MCP included, and individual switches can override
+  ---
+  duration_ms: 5.808722
+  type: 'test'
+  ...
+# Subtest: personal MCP honors explicit owner choices with master false
+ok 490 - personal MCP honors explicit owner choices with master false
+  ---
+  duration_ms: 2.942145
+  type: 'test'
+  ...
+# Subtest: personal MCP honors explicit owner choices with master true
+ok 491 - personal MCP honors explicit owner choices with master true
+  ---
+  duration_ms: 0.200628
+  type: 'test'
+  ...
+# Subtest: host restrictions override every individual grant: {"TOVU_HOSTED":"1"}
+ok 492 - host restrictions override every individual grant: {"TOVU_HOSTED":"1"}
+  ---
+  duration_ms: 0.405353
+  type: 'test'
+  ...
+# Subtest: host restrictions override every individual grant: {"TOVU_RUNTIME_MODE":"production"}
+ok 493 - host restrictions override every individual grant: {"TOVU_RUNTIME_MODE":"production"}
+  ---
+  duration_ms: 0.325744
+  type: 'test'
+  ...
+# Subtest: host restrictions override every individual grant: {"TOVU_PUBLIC_URL":"https://tovu.dev"}
+ok 494 - host restrictions override every individual grant: {"TOVU_PUBLIC_URL":"https://tovu.dev"}
+  ---
+  duration_ms: 0.603383
+  type: 'test'
+  ...
+# Subtest: non-owners cannot establish an individual grant
+ok 495 - non-owners cannot establish an individual grant
+  ---
+  duration_ms: 0.221183
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,null,null]
+ok 496 - APP/MACHINE/ALLOC matrix [null,null,null]
+  ---
+  duration_ms: 5.586051
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,null,""]
+ok 497 - APP/MACHINE/ALLOC matrix [null,null,""]
+  ---
+  duration_ms: 0.474892
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,null," "]
+ok 498 - APP/MACHINE/ALLOC matrix [null,null," "]
+  ---
+  duration_ms: 0.454222
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,null,"0"]
+ok 499 - APP/MACHINE/ALLOC matrix [null,null,"0"]
+  ---
+  duration_ms: 0.181987
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,null,"alloc"]
+ok 500 - APP/MACHINE/ALLOC matrix [null,null,"alloc"]
+  ---
+  duration_ms: 0.170735
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,"",null]
+ok 501 - APP/MACHINE/ALLOC matrix [null,"",null]
+  ---
+  duration_ms: 0.174283
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,"",""]
+ok 502 - APP/MACHINE/ALLOC matrix [null,"",""]
+  ---
+  duration_ms: 0.128291
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,""," "]
+ok 503 - APP/MACHINE/ALLOC matrix [null,""," "]
+  ---
+  duration_ms: 0.072334
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,"","0"]
+ok 504 - APP/MACHINE/ALLOC matrix [null,"","0"]
+  ---
+  duration_ms: 0.480726
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,"","alloc"]
+ok 505 - APP/MACHINE/ALLOC matrix [null,"","alloc"]
+  ---
+  duration_ms: 0.313865
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null," ",null]
+ok 506 - APP/MACHINE/ALLOC matrix [null," ",null]
+  ---
+  duration_ms: 0.072386
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null," ",""]
+ok 507 - APP/MACHINE/ALLOC matrix [null," ",""]
+  ---
+  duration_ms: 0.314299
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null," "," "]
+ok 508 - APP/MACHINE/ALLOC matrix [null," "," "]
+  ---
+  duration_ms: 0.089487
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null," ","0"]
+ok 509 - APP/MACHINE/ALLOC matrix [null," ","0"]
+  ---
+  duration_ms: 0.133045
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null," ","alloc"]
+ok 510 - APP/MACHINE/ALLOC matrix [null," ","alloc"]
+  ---
+  duration_ms: 0.048457
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,"0",null]
+ok 511 - APP/MACHINE/ALLOC matrix [null,"0",null]
+  ---
+  duration_ms: 0.746003
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,"0",""]
+ok 512 - APP/MACHINE/ALLOC matrix [null,"0",""]
+  ---
+  duration_ms: 0.682843
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,"0"," "]
+ok 513 - APP/MACHINE/ALLOC matrix [null,"0"," "]
+  ---
+  duration_ms: 0.121835
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,"0","0"]
+ok 514 - APP/MACHINE/ALLOC matrix [null,"0","0"]
+  ---
+  duration_ms: 0.256791
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,"0","alloc"]
+ok 515 - APP/MACHINE/ALLOC matrix [null,"0","alloc"]
+  ---
+  duration_ms: 0.04851
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,"machine",null]
+ok 516 - APP/MACHINE/ALLOC matrix [null,"machine",null]
+  ---
+  duration_ms: 0.044204
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,"machine",""]
+ok 517 - APP/MACHINE/ALLOC matrix [null,"machine",""]
+  ---
+  duration_ms: 0.045958
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,"machine"," "]
+ok 518 - APP/MACHINE/ALLOC matrix [null,"machine"," "]
+  ---
+  duration_ms: 0.053251
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,"machine","0"]
+ok 519 - APP/MACHINE/ALLOC matrix [null,"machine","0"]
+  ---
+  duration_ms: 0.034114
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [null,"machine","alloc"]
+ok 520 - APP/MACHINE/ALLOC matrix [null,"machine","alloc"]
+  ---
+  duration_ms: 0.033262
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["",null,null]
+ok 521 - APP/MACHINE/ALLOC matrix ["",null,null]
+  ---
+  duration_ms: 0.043413
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["",null,""]
+ok 522 - APP/MACHINE/ALLOC matrix ["",null,""]
+  ---
+  duration_ms: 0.03395
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["",null," "]
+ok 523 - APP/MACHINE/ALLOC matrix ["",null," "]
+  ---
+  duration_ms: 0.0342
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["",null,"0"]
+ok 524 - APP/MACHINE/ALLOC matrix ["",null,"0"]
+  ---
+  duration_ms: 0.088892
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["",null,"alloc"]
+ok 525 - APP/MACHINE/ALLOC matrix ["",null,"alloc"]
+  ---
+  duration_ms: 0.039166
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["","",null]
+ok 526 - APP/MACHINE/ALLOC matrix ["","",null]
+  ---
+  duration_ms: 0.040429
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["","",""]
+ok 527 - APP/MACHINE/ALLOC matrix ["","",""]
+  ---
+  duration_ms: 0.605332
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["",""," "]
+ok 528 - APP/MACHINE/ALLOC matrix ["",""," "]
+  ---
+  duration_ms: 0.081405
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["","","0"]
+ok 529 - APP/MACHINE/ALLOC matrix ["","","0"]
+  ---
+  duration_ms: 0.29824
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["","","alloc"]
+ok 530 - APP/MACHINE/ALLOC matrix ["","","alloc"]
+  ---
+  duration_ms: 0.053583
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [""," ",null]
+ok 531 - APP/MACHINE/ALLOC matrix [""," ",null]
+  ---
+  duration_ms: 0.038282
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [""," ",""]
+ok 532 - APP/MACHINE/ALLOC matrix [""," ",""]
+  ---
+  duration_ms: 0.036008
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [""," "," "]
+ok 533 - APP/MACHINE/ALLOC matrix [""," "," "]
+  ---
+  duration_ms: 0.033963
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [""," ","0"]
+ok 534 - APP/MACHINE/ALLOC matrix [""," ","0"]
+  ---
+  duration_ms: 0.031707
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [""," ","alloc"]
+ok 535 - APP/MACHINE/ALLOC matrix [""," ","alloc"]
+  ---
+  duration_ms: 0.032959
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["","0",null]
+ok 536 - APP/MACHINE/ALLOC matrix ["","0",null]
+  ---
+  duration_ms: 0.04041
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["","0",""]
+ok 537 - APP/MACHINE/ALLOC matrix ["","0",""]
+  ---
+  duration_ms: 0.032411
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["","0"," "]
+ok 538 - APP/MACHINE/ALLOC matrix ["","0"," "]
+  ---
+  duration_ms: 0.039585
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["","0","0"]
+ok 539 - APP/MACHINE/ALLOC matrix ["","0","0"]
+  ---
+  duration_ms: 0.039471
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["","0","alloc"]
+ok 540 - APP/MACHINE/ALLOC matrix ["","0","alloc"]
+  ---
+  duration_ms: 0.036297
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["","machine",null]
+ok 541 - APP/MACHINE/ALLOC matrix ["","machine",null]
+  ---
+  duration_ms: 0.034395
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["","machine",""]
+ok 542 - APP/MACHINE/ALLOC matrix ["","machine",""]
+  ---
+  duration_ms: 0.032668
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["","machine"," "]
+ok 543 - APP/MACHINE/ALLOC matrix ["","machine"," "]
+  ---
+  duration_ms: 0.07193
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["","machine","0"]
+ok 544 - APP/MACHINE/ALLOC matrix ["","machine","0"]
+  ---
+  duration_ms: 0.049275
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["","machine","alloc"]
+ok 545 - APP/MACHINE/ALLOC matrix ["","machine","alloc"]
+  ---
+  duration_ms: 0.0397
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ",null,null]
+ok 546 - APP/MACHINE/ALLOC matrix [" ",null,null]
+  ---
+  duration_ms: 0.089344
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ",null,""]
+ok 547 - APP/MACHINE/ALLOC matrix [" ",null,""]
+  ---
+  duration_ms: 0.041073
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ",null," "]
+ok 548 - APP/MACHINE/ALLOC matrix [" ",null," "]
+  ---
+  duration_ms: 0.035028
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ",null,"0"]
+ok 549 - APP/MACHINE/ALLOC matrix [" ",null,"0"]
+  ---
+  duration_ms: 0.039654
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ",null,"alloc"]
+ok 550 - APP/MACHINE/ALLOC matrix [" ",null,"alloc"]
+  ---
+  duration_ms: 0.140279
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ","",null]
+ok 551 - APP/MACHINE/ALLOC matrix [" ","",null]
+  ---
+  duration_ms: 0.047776
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ","",""]
+ok 552 - APP/MACHINE/ALLOC matrix [" ","",""]
+  ---
+  duration_ms: 0.057003
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ",""," "]
+ok 553 - APP/MACHINE/ALLOC matrix [" ",""," "]
+  ---
+  duration_ms: 0.03918
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ","","0"]
+ok 554 - APP/MACHINE/ALLOC matrix [" ","","0"]
+  ---
+  duration_ms: 0.036532
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ","","alloc"]
+ok 555 - APP/MACHINE/ALLOC matrix [" ","","alloc"]
+  ---
+  duration_ms: 0.034916
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" "," ",null]
+ok 556 - APP/MACHINE/ALLOC matrix [" "," ",null]
+  ---
+  duration_ms: 0.043212
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" "," ",""]
+ok 557 - APP/MACHINE/ALLOC matrix [" "," ",""]
+  ---
+  duration_ms: 0.088574
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" "," "," "]
+ok 558 - APP/MACHINE/ALLOC matrix [" "," "," "]
+  ---
+  duration_ms: 0.060103
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" "," ","0"]
+ok 559 - APP/MACHINE/ALLOC matrix [" "," ","0"]
+  ---
+  duration_ms: 0.65574
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" "," ","alloc"]
+ok 560 - APP/MACHINE/ALLOC matrix [" "," ","alloc"]
+  ---
+  duration_ms: 0.108357
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ","0",null]
+ok 561 - APP/MACHINE/ALLOC matrix [" ","0",null]
+  ---
+  duration_ms: 0.137186
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ","0",""]
+ok 562 - APP/MACHINE/ALLOC matrix [" ","0",""]
+  ---
+  duration_ms: 0.05338
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ","0"," "]
+ok 563 - APP/MACHINE/ALLOC matrix [" ","0"," "]
+  ---
+  duration_ms: 0.047208
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ","0","0"]
+ok 564 - APP/MACHINE/ALLOC matrix [" ","0","0"]
+  ---
+  duration_ms: 0.378776
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ","0","alloc"]
+ok 565 - APP/MACHINE/ALLOC matrix [" ","0","alloc"]
+  ---
+  duration_ms: 0.093966
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ","machine",null]
+ok 566 - APP/MACHINE/ALLOC matrix [" ","machine",null]
+  ---
+  duration_ms: 0.180767
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ","machine",""]
+ok 567 - APP/MACHINE/ALLOC matrix [" ","machine",""]
+  ---
+  duration_ms: 0.073207
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ","machine"," "]
+ok 568 - APP/MACHINE/ALLOC matrix [" ","machine"," "]
+  ---
+  duration_ms: 0.054956
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ","machine","0"]
+ok 569 - APP/MACHINE/ALLOC matrix [" ","machine","0"]
+  ---
+  duration_ms: 0.046461
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix [" ","machine","alloc"]
+ok 570 - APP/MACHINE/ALLOC matrix [" ","machine","alloc"]
+  ---
+  duration_ms: 0.068935
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0",null,null]
+ok 571 - APP/MACHINE/ALLOC matrix ["0",null,null]
+  ---
+  duration_ms: 0.045185
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0",null,""]
+ok 572 - APP/MACHINE/ALLOC matrix ["0",null,""]
+  ---
+  duration_ms: 0.042291
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0",null," "]
+ok 573 - APP/MACHINE/ALLOC matrix ["0",null," "]
+  ---
+  duration_ms: 0.08704
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0",null,"0"]
+ok 574 - APP/MACHINE/ALLOC matrix ["0",null,"0"]
+  ---
+  duration_ms: 0.098487
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0",null,"alloc"]
+ok 575 - APP/MACHINE/ALLOC matrix ["0",null,"alloc"]
+  ---
+  duration_ms: 0.053751
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0","",null]
+ok 576 - APP/MACHINE/ALLOC matrix ["0","",null]
+  ---
+  duration_ms: 0.04544
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0","",""]
+ok 577 - APP/MACHINE/ALLOC matrix ["0","",""]
+  ---
+  duration_ms: 0.041377
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0",""," "]
+ok 578 - APP/MACHINE/ALLOC matrix ["0",""," "]
+  ---
+  duration_ms: 0.040481
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0","","0"]
+ok 579 - APP/MACHINE/ALLOC matrix ["0","","0"]
+  ---
+  duration_ms: 0.040566
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0","","alloc"]
+ok 580 - APP/MACHINE/ALLOC matrix ["0","","alloc"]
+  ---
+  duration_ms: 0.03966
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0"," ",null]
+ok 581 - APP/MACHINE/ALLOC matrix ["0"," ",null]
+  ---
+  duration_ms: 0.055549
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0"," ",""]
+ok 582 - APP/MACHINE/ALLOC matrix ["0"," ",""]
+  ---
+  duration_ms: 0.041387
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0"," "," "]
+ok 583 - APP/MACHINE/ALLOC matrix ["0"," "," "]
+  ---
+  duration_ms: 0.041921
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0"," ","0"]
+ok 584 - APP/MACHINE/ALLOC matrix ["0"," ","0"]
+  ---
+  duration_ms: 0.04192
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0"," ","alloc"]
+ok 585 - APP/MACHINE/ALLOC matrix ["0"," ","alloc"]
+  ---
+  duration_ms: 0.056639
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0","0",null]
+ok 586 - APP/MACHINE/ALLOC matrix ["0","0",null]
+  ---
+  duration_ms: 0.039307
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0","0",""]
+ok 587 - APP/MACHINE/ALLOC matrix ["0","0",""]
+  ---
+  duration_ms: 0.042402
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0","0"," "]
+ok 588 - APP/MACHINE/ALLOC matrix ["0","0"," "]
+  ---
+  duration_ms: 0.042561
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0","0","0"]
+ok 589 - APP/MACHINE/ALLOC matrix ["0","0","0"]
+  ---
+  duration_ms: 0.044382
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0","0","alloc"]
+ok 590 - APP/MACHINE/ALLOC matrix ["0","0","alloc"]
+  ---
+  duration_ms: 0.085247
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0","machine",null]
+ok 591 - APP/MACHINE/ALLOC matrix ["0","machine",null]
+  ---
+  duration_ms: 0.047093
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0","machine",""]
+ok 592 - APP/MACHINE/ALLOC matrix ["0","machine",""]
+  ---
+  duration_ms: 0.039407
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0","machine"," "]
+ok 593 - APP/MACHINE/ALLOC matrix ["0","machine"," "]
+  ---
+  duration_ms: 0.042854
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0","machine","0"]
+ok 594 - APP/MACHINE/ALLOC matrix ["0","machine","0"]
+  ---
+  duration_ms: 0.040219
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["0","machine","alloc"]
+ok 595 - APP/MACHINE/ALLOC matrix ["0","machine","alloc"]
+  ---
+  duration_ms: 0.041235
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app",null,null]
+ok 596 - APP/MACHINE/ALLOC matrix ["app",null,null]
+  ---
+  duration_ms: 0.043795
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app",null,""]
+ok 597 - APP/MACHINE/ALLOC matrix ["app",null,""]
+  ---
+  duration_ms: 0.041406
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app",null," "]
+ok 598 - APP/MACHINE/ALLOC matrix ["app",null," "]
+  ---
+  duration_ms: 0.613942
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app",null,"0"]
+ok 599 - APP/MACHINE/ALLOC matrix ["app",null,"0"]
+  ---
+  duration_ms: 0.098128
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app",null,"alloc"]
+ok 600 - APP/MACHINE/ALLOC matrix ["app",null,"alloc"]
+  ---
+  duration_ms: 0.054832
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app","",null]
+ok 601 - APP/MACHINE/ALLOC matrix ["app","",null]
+  ---
+  duration_ms: 0.046296
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app","",""]
+ok 602 - APP/MACHINE/ALLOC matrix ["app","",""]
+  ---
+  duration_ms: 0.266195
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app",""," "]
+ok 603 - APP/MACHINE/ALLOC matrix ["app",""," "]
+  ---
+  duration_ms: 0.074976
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app","","0"]
+ok 604 - APP/MACHINE/ALLOC matrix ["app","","0"]
+  ---
+  duration_ms: 0.061626
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app","","alloc"]
+ok 605 - APP/MACHINE/ALLOC matrix ["app","","alloc"]
+  ---
+  duration_ms: 0.043791
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app"," ",null]
+ok 606 - APP/MACHINE/ALLOC matrix ["app"," ",null]
+  ---
+  duration_ms: 0.039857
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app"," ",""]
+ok 607 - APP/MACHINE/ALLOC matrix ["app"," ",""]
+  ---
+  duration_ms: 0.093083
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app"," "," "]
+ok 608 - APP/MACHINE/ALLOC matrix ["app"," "," "]
+  ---
+  duration_ms: 0.055027
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app"," ","0"]
+ok 609 - APP/MACHINE/ALLOC matrix ["app"," ","0"]
+  ---
+  duration_ms: 0.044374
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app"," ","alloc"]
+ok 610 - APP/MACHINE/ALLOC matrix ["app"," ","alloc"]
+  ---
+  duration_ms: 0.045209
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app","0",null]
+ok 611 - APP/MACHINE/ALLOC matrix ["app","0",null]
+  ---
+  duration_ms: 0.042567
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app","0",""]
+ok 612 - APP/MACHINE/ALLOC matrix ["app","0",""]
+  ---
+  duration_ms: 0.043737
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app","0"," "]
+ok 613 - APP/MACHINE/ALLOC matrix ["app","0"," "]
+  ---
+  duration_ms: 0.045909
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app","0","0"]
+ok 614 - APP/MACHINE/ALLOC matrix ["app","0","0"]
+  ---
+  duration_ms: 0.041206
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app","0","alloc"]
+ok 615 - APP/MACHINE/ALLOC matrix ["app","0","alloc"]
+  ---
+  duration_ms: 0.043542
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app","machine",null]
+ok 616 - APP/MACHINE/ALLOC matrix ["app","machine",null]
+  ---
+  duration_ms: 0.040609
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app","machine",""]
+ok 617 - APP/MACHINE/ALLOC matrix ["app","machine",""]
+  ---
+  duration_ms: 0.039922
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app","machine"," "]
+ok 618 - APP/MACHINE/ALLOC matrix ["app","machine"," "]
+  ---
+  duration_ms: 0.055132
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app","machine","0"]
+ok 619 - APP/MACHINE/ALLOC matrix ["app","machine","0"]
+  ---
+  duration_ms: 0.043754
+  type: 'test'
+  ...
+# Subtest: APP/MACHINE/ALLOC matrix ["app","machine","alloc"]
+ok 620 - APP/MACHINE/ALLOC matrix ["app","machine","alloc"]
+  ---
+  duration_ms: 0.039865
+  type: 'test'
+  ...
+# Subtest: explicit proxy override always wins, even when host defaults conflict
+ok 621 - explicit proxy override always wins, even when host defaults conflict
+  ---
+  duration_ms: 1.342367
+  type: 'test'
+  ...
+# Subtest: packaged desktop exempts only NODE_ENV from hosted install policy
+ok 622 - packaged desktop exempts only NODE_ENV from hosted install policy
+  ---
+  duration_ms: 0.670935
+  type: 'test'
+  ...
+# Subtest: an explicitly empty evaluated declaration has no hints; independent core switches still apply
+ok 623 - an explicitly empty evaluated declaration has no hints; independent core switches still apply
+  ---
+  duration_ms: 0.325905
+  type: 'test'
+  ...
+# Subtest: core fallback is immutable, and complete unambiguous declarations retain their identity
+ok 624 - core fallback is immutable, and complete unambiguous declarations retain their identity
+  ---
+  duration_ms: 0.373891
+  type: 'test'
+  ...
+# Subtest: empty, partial, changed and ambiguous security declarations select the complete fallback
+ok 625 - empty, partial, changed and ambiguous security declarations select the complete fallback
+  ---
+  duration_ms: 0.253309
+  type: 'test'
+  ...
+# Subtest: matched facts only restrict; conflicting proxy hops never grant arbitrary trust
+ok 626 - matched facts only restrict; conflicting proxy hops never grant arbitrary trust
+  ---
+  duration_ms: 0.238251
+  type: 'test'
+  ...
+# Subtest: Google API key (AIza): matches the whole fixed-length value but rejects short, extended and identifier-prefixed values
+ok 627 - Google API key (AIza): matches the whole fixed-length value but rejects short, extended and identifier-prefixed values
+  ---
+  duration_ms: 2.236037
+  type: 'test'
+  ...
+# Subtest: GitHub personal access token (classic, ghp_): matches the whole fixed-length value but rejects short, extended and identifier-prefixed values
+ok 628 - GitHub personal access token (classic, ghp_): matches the whole fixed-length value but rejects short, extended and identifier-prefixed values
+  ---
+  duration_ms: 0.315558
+  type: 'test'
+  ...
+# Subtest: GitHub OAuth token (gho_): matches the whole fixed-length value but rejects short, extended and identifier-prefixed values
+ok 629 - GitHub OAuth token (gho_): matches the whole fixed-length value but rejects short, extended and identifier-prefixed values
+  ---
+  duration_ms: 0.444891
+  type: 'test'
+  ...
+# Subtest: npm access token: matches the whole fixed-length value but rejects short, extended and identifier-prefixed values
+ok 630 - npm access token: matches the whole fixed-length value but rejects short, extended and identifier-prefixed values
+  ---
+  duration_ms: 0.239096
+  type: 'test'
+  ...
+# Subtest: AWS access key ID: matches the whole fixed-length value but rejects short, extended and identifier-prefixed values
+ok 631 - AWS access key ID: matches the whole fixed-length value but rejects short, extended and identifier-prefixed values
+  ---
+  duration_ms: 0.455241
+  type: 'test'
+  ...
+# Subtest: Anthropic API key (sk-ant-): accepts the minimum and longer values in full, but rejects short and embedded values
+ok 632 - Anthropic API key (sk-ant-): accepts the minimum and longer values in full, but rejects short and embedded values
+  ---
+  duration_ms: 0.38675
+  type: 'test'
+  ...
+# Subtest: generic sk- secret key (OpenAI-shaped): accepts the minimum and longer values in full, but rejects short and embedded values
+ok 633 - generic sk- secret key (OpenAI-shaped): accepts the minimum and longer values in full, but rejects short and embedded values
+  ---
+  duration_ms: 0.508861
+  type: 'test'
+  ...
+# Subtest: GitHub fine-grained PAT: accepts the minimum and longer values in full, but rejects short and embedded values
+ok 634 - GitHub fine-grained PAT: accepts the minimum and longer values in full, but rejects short and embedded values
+  ---
+  duration_ms: 0.255915
+  type: 'test'
+  ...
+# Subtest: Slack token: accepts the minimum and longer values in full, but rejects short and embedded values
+ok 635 - Slack token: accepts the minimum and longer values in full, but rejects short and embedded values
+  ---
+  duration_ms: 1.582843
+  type: 'test'
+  ...
+# Subtest: Fastmail app password (fm2_): accepts the minimum and longer values in full, but rejects short and embedded values
+ok 636 - Fastmail app password (fm2_): accepts the minimum and longer values in full, but rejects short and embedded values
+  ---
+  duration_ms: 0.589068
+  type: 'test'
+  ...
+# Subtest: Slack recognizes each supported token subtype and rejects an unsupported subtype
+ok 637 - Slack recognizes each supported token subtype and rejects an unsupported subtype
+  ---
+  duration_ms: 0.274789
+  type: 'test'
+  ...
+# Subtest: PEM recognizes whole untyped, RSA, EC and encrypted private blocks while ignoring public keys
+ok 638 - PEM recognizes whole untyped, RSA, EC and encrypted private blocks while ignoring public keys
+  ---
+  duration_ms: 2.4934
+  type: 'test'
+  ...
+# Subtest: CIC U-005-B1 (Binding): reverting a post-update change set must NOT call postRepo.findBySlug — a save-path-only side effect that reveals an illegal pass-through via updatePost() instead of a raw PostRepoPort.save()
+ok 639 - CIC U-005-B1 (Binding): reverting a post-update change set must NOT call postRepo.findBySlug — a save-path-only side effect that reveals an illegal pass-through via updatePost() instead of a raw PostRepoPort.save()
+  ---
+  duration_ms: 16.201822
+  type: 'test'
+  ...
+# Subtest: AC-17: reverting a post-update restores bodyJson/title/slug/status, increments version by 1, and removes newly introduced ext
+ok 640 - AC-17: reverting a post-update restores bodyJson/title/slug/status, increments version by 1, and removes newly introduced ext
+  ---
+  duration_ms: 2.700699
+  type: 'test'
+  ...
+# Subtest: AC-17: reverting a post-update restores bodyJson/title/slug/status, increments version by 1, and restores historical ext
+ok 641 - AC-17: reverting a post-update restores bodyJson/title/slug/status, increments version by 1, and restores historical ext
+  ---
+  duration_ms: 2.95479
+  type: 'test'
+  ...
+# Subtest: supported form placement persists the complete page-to-widget-to-form reference chain
+ok 642 - supported form placement persists the complete page-to-widget-to-form reference chain
+  ---
+  duration_ms: 3.979808
+  type: 'test'
+  ...
+# Subtest: memory: competing drains execute the full event once within its live lease
+ok 643 - memory: competing drains execute the full event once within its live lease
+  ---
+  duration_ms: 6.582674
+  type: 'test'
+  ...
+# Subtest: sqlite: competing drains execute the full event once within its live lease
+ok 644 - sqlite: competing drains execute the full event once within its live lease
+  ---
+  duration_ms: 274.56235
+  type: 'test'
+  ...
+# Subtest: persisted legacy bytes survive the daemon boundary, failure backoff, and serving delivery
+ok 645 - persisted legacy bytes survive the daemon boundary, failure backoff, and serving delivery
+  ---
+  duration_ms: 124.75943
+  type: 'test'
+  ...
+# Subtest: persisted poison rows get exactly six attempts with the historical retry times and terminal status
+ok 646 - persisted poison rows get exactly six attempts with the historical retry times and terminal status
+  ---
+  duration_ms: 287.20276
+  type: 'test'
+  ...
+# Subtest: only the explicitly started serving drainer executes effects; inline drains and stop cannot duplicate them
+ok 647 - only the explicitly started serving drainer executes effects; inline drains and stop cannot duplicate them
+  ---
+  duration_ms: 6.533563
+  type: 'test'
+  ...
+# Subtest: kysely/sqlite: a timed-out attempt's late success still settles the row its timeout returned to pending
+ok 648 - kysely/sqlite: a timed-out attempt's late success still settles the row its timeout returned to pending
+  ---
+  duration_ms: 347.02182
+  type: 'test'
+  ...
+# Subtest: kysely/pglite: a timed-out attempt's late success still settles the row its timeout returned to pending
+ok 649 - kysely/pglite: a timed-out attempt's late success still settles the row its timeout returned to pending
+  ---
+  duration_ms: 9961.532069
+  type: 'test'
+  ...
+# Subtest: entries chokepoint: createEntry through toEntryOutbox persists workspace_id on the real SqliteOutboxAdapter
+ok 650 - entries chokepoint: createEntry through toEntryOutbox persists workspace_id on the real SqliteOutboxAdapter
+  ---
+  duration_ms: 257.911348
+  type: 'test'
+  ...
+# Subtest: content-types chokepoint: deprecateContentType through toContentTypeOutbox persists workspace_id — NEW: never exercised live before this test (dossier C3)
+ok 651 - content-types chokepoint: deprecateContentType through toContentTypeOutbox persists workspace_id — NEW: never exercised live before this test (dossier C3)
+  ---
+  duration_ms: 109.826143
+  type: 'test'
+  ...
+# Subtest: taxonomy chokepoint: createTaxonomy through toTaxonomyOutbox persists workspace_id — NEW: never exercised live before this test (dossier C3); taxonomy's own events carry NO workspaceId at all, which is why this bridge must source it from deps
+ok 652 - taxonomy chokepoint: createTaxonomy through toTaxonomyOutbox persists workspace_id — NEW: never exercised live before this test (dossier C3); taxonomy's own events carry NO workspaceId at all, which is why this bridge must source it from deps
+  ---
+  duration_ms: 131.501509
+  type: 'test'
+  ...
+# Subtest: taxonomy chokepoint: createTerm through toTaxonomyOutbox persists workspace_id AND the real event name 'taxonomy.term_created', not the toTaxonomyOutbox fallback
+ok 653 - taxonomy chokepoint: createTerm through toTaxonomyOutbox persists workspace_id AND the real event name 'taxonomy.term_created', not the toTaxonomyOutbox fallback
+  ---
+  duration_ms: 150.239823
+  type: 'test'
+  ...
+# Subtest: taxonomy chokepoint: renameTerm through toTaxonomyOutbox persists workspace_id AND the real event name 'taxonomy.term_renamed', not the toTaxonomyOutbox fallback
+ok 654 - taxonomy chokepoint: renameTerm through toTaxonomyOutbox persists workspace_id AND the real event name 'taxonomy.term_renamed', not the toTaxonomyOutbox fallback
+  ---
+  duration_ms: 165.739159
+  type: 'test'
+  ...
+# Subtest: taxonomy chokepoint: assignTerms through toTaxonomyOutbox persists workspace_id AND the real event name 'taxonomy.terms_assigned' — the multi-line-enqueue producer the dossier flagged as unread
+ok 655 - taxonomy chokepoint: assignTerms through toTaxonomyOutbox persists workspace_id AND the real event name 'taxonomy.terms_assigned' — the multi-line-enqueue producer the dossier flagged as unread
+  ---
+  duration_ms: 104.02813
+  type: 'test'
+  ...
+# Subtest: widgets chokepoint: createWidgetInstance binds the RAW SqliteOutboxAdapter exactly as src/server/deps.ts wires it in production, and the entry.created event lands with the correct workspace_id
+ok 656 - widgets chokepoint: createWidgetInstance binds the RAW SqliteOutboxAdapter exactly as src/server/deps.ts wires it in production, and the entry.created event lands with the correct workspace_id
+  ---
+  duration_ms: 207.437164
+  type: 'test'
+  ...
+# Subtest: cross-tenant (dossier C6): two workspaces writing through the same adapter/db never cross-attribute a workspace_id
+ok 657 - cross-tenant (dossier C6): two workspaces writing through the same adapter/db never cross-attribute a workspace_id
+  ---
+  duration_ms: 141.774606
+  type: 'test'
+  ...
+# Subtest: REQ-3: strict TypeScript checking enforces this file's error directives and exhaustiveness proofs
+ok 658 - REQ-3: strict TypeScript checking enforces this file's error directives and exhaustiveness proofs
+  ---
+  duration_ms: 12391.9563
+  type: 'test'
+  ...
+# Subtest: REQ-3: constructing Tiptap props from the un-narrowed AdminPost union is a type error — an html-format row must be excluded by the type system, not a forgettable runtime check
+ok 659 - REQ-3: constructing Tiptap props from the un-narrowed AdminPost union is a type error — an html-format row must be excluded by the type system, not a forgettable runtime check
+  ---
+  duration_ms: 0.543151
+  type: 'test'
+  ...
+# Subtest: REQ-3: narrowing on bodyFormat === 'doc' is what makes the doc branch constructible at all — the union is restrictive, not broken
+ok 660 - REQ-3: narrowing on bodyFormat === 'doc' is what makes the doc branch constructible at all — the union is restrictive, not broken
+  ---
+  duration_ms: 1.824291
+  type: 'test'
+  ...
+# Subtest: REQ-3: exhaustive switch over bodyFormat — a third format value would be a compile error at the 'never' branch below, matching the spec's own exhaustiveness claim
+ok 661 - REQ-3: exhaustive switch over bodyFormat — a third format value would be a compile error at the 'never' branch below, matching the spec's own exhaustiveness claim
+  ---
+  duration_ms: 0.453966
+  type: 'test'
+  ...
+# Subtest: no production file under src/features/ imports src/server/, Express, or the admin app
+ok 662 - no production file under src/features/ imports src/server/, Express, or the admin app
+  ---
+  duration_ms: 8938.336086
+  type: 'test'
+  ...
+# Subtest: the boundary scanner sees bare, static, re-export, dynamic and require imports
+ok 663 - the boundary scanner sees bare, static, re-export, dynamic and require imports
+  ---
+  duration_ms: 13.09003
+  type: 'test'
+  ...
+# Subtest: the shared scanner preserves TSX text and executable import expressions
+ok 664 - the shared scanner preserves TSX text and executable import expressions
+  ---
+  duration_ms: 2.413923
+  type: 'test'
+  ...
+# Subtest: runtime import scanning omits erased types while the feature boundary retains them
+ok 665 - runtime import scanning omits erased types while the feature boundary retains them
+  ---
+  duration_ms: 7.389518
+  type: 'test'
+  ...
+# Subtest: the collector scans JavaScript and module extensions while excluding test fixtures
+ok 666 - the collector scans JavaScript and module extensions while excluding test fixtures
+  ---
+  duration_ms: 96.567811
+  type: 'test'
+  ...
+# Subtest: the catalog's plugins_uninstall entry requires 'family' and 'pluginId', is classified deletes-durable-state, and says it asks the human
+ok 667 - the catalog's plugins_uninstall entry requires 'family' and 'pluginId', is classified deletes-durable-state, and says it asks the human
+  ---
+  duration_ms: 2.891211
+  type: 'test'
+  ...
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: checks admin.plugins.enable for this run's principal, scoped to this workspace
+ok 668 - checks admin.plugins.enable for this run's principal, scoped to this workspace
+  ---
+  duration_ms: 280.091994
+  type: 'test'
+  ...
+# Subtest: the dialog's memory choices are in the calling operator's saved admin language
+ok 669 - the dialog's memory choices are in the calling operator's saved admin language
+  ---
+  duration_ms: 52.626057
+  type: 'test'
+  ...
+# Subtest: a denied principal is rejected before any dialog is raised, and nothing is removed from disk
+ok 670 - a denied principal is rejected before any dialog is raised, and nothing is removed from disk
+  ---
+  duration_ms: 48.823026
+  type: 'test'
+  ...
+# Subtest: an unknown pluginId is reclassified as ToolInputError before any dialog, not a redacted internal error
+ok 671 - an unknown pluginId is reclassified as ToolInputError before any dialog, not a redacted internal error
+  ---
+  duration_ms: 5.179121
+  type: 'test'
+  ...
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: a bundled plugin is refused as ToolInputError before any dialog, naming plugins_set_enabled as the way to turn it off — and nothing is removed
+ok 672 - a bundled plugin is refused as ToolInputError before any dialog, naming plugins_set_enabled as the way to turn it off — and nothing is removed
+  ---
+  duration_ms: 89.331749
+  type: 'test'
+  ...
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: t91 §7.1: a corrupt activations.json reaches the model through the real executor as a path-free result, not an opaque INTERNAL_ERROR; the detail goes to console.warn
+ok 673 - t91 §7.1: a corrupt activations.json reaches the model through the real executor as a path-free result, not an opaque INTERNAL_ERROR; the detail goes to console.warn
+  ---
+  duration_ms: 172.406078
+  type: 'test'
+  ...
+# Subtest: t91 §7.1: activations.json corrupted while the dialog is open: confirm removes nothing and returns the same path-free result
+ok 674 - t91 §7.1: activations.json corrupted while the dialog is open: confirm removes nothing and returns the same path-free result
+  ---
+  duration_ms: 254.059991
+  type: 'test'
+  ...
+# Subtest: FAILS CLOSED: with no interactive confirmation channel (no emitSurface) nothing is removed
+ok 675 - FAILS CLOSED: with no interactive confirmation channel (no emitSurface) nothing is removed
+  ---
+  duration_ms: 51.78251
+  type: 'test'
+  ...
+# Subtest: the dialog names the plugin and its version, targets plugins_uninstall, and carries no host path
+ok 676 - the dialog names the plugin and its version, targets plugins_uninstall, and carries no host path
+  ---
+  duration_ms: 26.02769
+  type: 'test'
+  ...
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: confirm: uninstalls — package root gone, activation record deleted, and the result says a restart is needed
+ok 677 - confirm: uninstalls — package root gone, activation record deleted, and the result says a restart is needed
+  ---
+  duration_ms: 116.833756
+  type: 'test'
+  ...
+# Subtest: confirm: the result note says the plugin's provisioned external MCP connections were NOT removed
+ok 678 - confirm: the result note says the plugin's provisioned external MCP connections were NOT removed
+  ---
+  duration_ms: 24.385324
+  type: 'test'
+  ...
+# Subtest: cancel: nothing is removed and the result reports the cancellation, not an error
+ok 679 - cancel: nothing is removed and the result reports the cancellation, not an error
+  ---
+  duration_ms: 46.481969
+  type: 'test'
+  ...
+# Subtest: an archive installed for the same id while the dialog is open: confirm removes NOTHING and the result says it changed
+ok 680 - an archive installed for the same id while the dialog is open: confirm removes NOTHING and the result says it changed
+  ---
+  duration_ms: 100.828044
+  type: 'test'
+  ...
+# Subtest: a run that ends while the dialog is open closes it, reports 'abandoned', and removes nothing
+ok 681 - a run that ends while the dialog is open closes it, reports 'abandoned', and removes nothing
+  ---
+  duration_ms: 29.328056
+  type: 'test'
+  ...
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: an interrupted update waiting for boot recovery refuses the uninstall as a path-free update-pending result, removing nothing
+ok 682 - an interrupted update waiting for boot recovery refuses the uninstall as a path-free update-pending result, removing nothing
+  ---
+  duration_ms: 50.198557
+  type: 'test'
+  ...
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: an unreadable update recovery record refuses the uninstall with a manual-repair note, never 'restart', removing nothing
+ok 683 - an unreadable update recovery record refuses the uninstall with a manual-repair note, never 'restart', removing nothing
+  ---
+  duration_ms: 22.080983
+  type: 'test'
+  ...
+# Subtest: portable renames: object API, host actor and host plugin listing are used
+ok 684 - portable renames: object API, host actor and host plugin listing are used
+  ---
+  duration_ms: 11.594182
+  type: 'test'
+  ...
+# Subtest: Tovu shim keeps the positional entry and the saved system:tool-renames actor bytes
+ok 685 - Tovu shim keeps the positional entry and the saved system:tool-renames actor bytes
+  ---
+  duration_ms: 0.597607
+  type: 'test'
+  ...
+# Subtest: B1: setAgentPluginActivation maps a lock timeout to AgentPluginActivationsBusyError, writing nothing
+ok 686 - B1: setAgentPluginActivation maps a lock timeout to AgentPluginActivationsBusyError, writing nothing
+  ---
+  duration_ms: 95.898958
+  type: 'test'
+  ...
+# Subtest: B2: recordBundledAgentPluginIfAbsent maps a lock timeout to AgentPluginActivationsBusyError, writing nothing
+ok 687 - B2: recordBundledAgentPluginIfAbsent maps a lock timeout to AgentPluginActivationsBusyError, writing nothing
+  ---
+  duration_ms: 9.274339
+  type: 'test'
+  ...
+# Subtest: B3: deleteAgentPluginActivation maps a lock timeout to AgentPluginActivationsBusyError, writing nothing
+ok 688 - B3: deleteAgentPluginActivation maps a lock timeout to AgentPluginActivationsBusyError, writing nothing
+  ---
+  duration_ms: 22.968842
+  type: 'test'
+  ...
+# Subtest: B4: assertAgentPluginActivationsWritable maps a lock timeout to AgentPluginActivationsBusyError
+ok 689 - B4: assertAgentPluginActivationsWritable maps a lock timeout to AgentPluginActivationsBusyError
+  ---
+  duration_ms: 6.020292
+  type: 'test'
+  ...
+# Subtest: B5: a lock LOST right before the rename maps to AgentPluginActivationsBusyError with lost:true, and leaves no temp file
+ok 690 - B5: a lock LOST right before the rename maps to AgentPluginActivationsBusyError with lost:true, and leaves no temp file
+  ---
+  duration_ms: 34.535505
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-seed-lock-busy-oZHM54/sites/tovu-dev/agent-plugins/ws/44444444-4444-4444-8444-444444444444
+# Subtest: B6: a busy pre-flight fails every bundled plugin with a reason naming the write lock, installing nothing
+ok 691 - B6: a busy pre-flight fails every bundled plugin with a reason naming the write lock, installing nothing
+  ---
+  duration_ms: 110.951159
+  type: 'test'
+  ...
+# Subtest: B7: a REAL lock combined with a corrupt file rejects AgentPluginActivationsUnreadableError, not Busy — non-lock errors are not remapped
+ok 692 - B7: a REAL lock combined with a corrupt file rejects AgentPluginActivationsUnreadableError, not Busy — non-lock errors are not remapped
+  ---
+  duration_ms: 15.223933
+  type: 'test'
+  ...
+# Subtest: normalizeBundledDigests keeps only well-formed entries and rejects a foreign envelope
+ok 693 - normalizeBundledDigests keeps only well-formed entries and rejects a foreign envelope
+  ---
+  duration_ms: 2.827156
+  type: 'test'
+  ...
+# Subtest: preferBundledAgentPluginDigests narrows ONLY an id the ledger can speak for
+ok 694 - preferBundledAgentPluginDigests narrows ONLY an id the ledger can speak for
+  ---
+  duration_ms: 0.679885
+  type: 'test'
+  ...
+# Subtest: recordBundledAgentPluginDigests merges over earlier boots and refuses a self-contradictory build
+ok 695 - recordBundledAgentPluginDigests merges over earlier boots and refuses a self-contradictory build
+  ---
+  duration_ms: 287.344437
+  type: 'test'
+  ...
+# Subtest: a boot that seeded nothing writes no ledger at all
+ok 696 - a boot that seeded nothing writes no ledger at all
+  ---
+  duration_ms: 9.772738
+  type: 'test'
+  ...
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# [agent-plugins] 'ui-ux-design': agent-plugin tools: 'ui-ux-design' is installed under more than one digest (e4e85c50608d9625df43a6f6fc4c083e65a0df048dc8d8922c63a5b7e98756d6 and f3b0d57569e3ac520cfec7b16b26780420e9503fbfc446130426d0bf693fc4c0) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+# Subtest: an OPERATOR-installed plugin under two digests is still refused — the ledger has no say over it
+ok 697 - an OPERATOR-installed plugin under two digests is still refused — the ledger has no say over it
+  ---
+  duration_ms: 285.329144
+  type: 'test'
+  ...
+# Subtest: a ledger naming a digest this workspace does not have leaves the ambiguity refusal standing
+ok 698 - a ledger naming a digest this workspace does not have leaves the ambiguity refusal standing
+  ---
+  duration_ms: 126.028763
+  type: 'test'
+  ...
+# Subtest: an UNREADABLE ledger reads as empty, so the ambiguity refusal still fires
+ok 699 - an UNREADABLE ledger reads as empty, so the ambiguity refusal still fires
+  ---
+  duration_ms: 204.159713
+  type: 'test'
+  ...
+# Subtest: a DISABLED plugin under two digests stays harmless — the activation gate answers first
+ok 700 - a DISABLED plugin under two digests stays harmless — the activation gate answers first
+  ---
+  duration_ms: 378.969272
+  type: 'test'
+  ...
+# Subtest: a first-ever install resolves exactly as before, ledger or no ledger
+ok 701 - a first-ever install resolves exactly as before, ledger or no ledger
+  ---
+  duration_ms: 454.961643
+  type: 'test'
+  ...
+# Subtest: the bundled ledger selects one upgrade's content on both real resolution surfaces
+ok 702 - the bundled ledger selects one upgrade's content on both real resolution surfaces
+  ---
+  duration_ms: 226.46174
+  type: 'test'
+  ...
+# Subtest: Higgsfield setup documents video and its write grant without claiming a deployment-wide ban
+ok 703 - Higgsfield setup documents video and its write grant without claiming a deployment-wide ban
+  ---
+  duration_ms: 24.448727
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-engineering-seed-cDe9KW/agent-plugins/ws/workspace-local
+# Subtest: software-engineering seeds OFF, explicit enablement delivers its skill/overlay, and revocation survives reboots
+ok 704 - software-engineering seeds OFF, explicit enablement delivers its skill/overlay, and revocation survives reboots
+  ---
+  duration_ms: 1022.067817
+  type: 'test'
+  ...
+# Subtest: staged upstream skill tree is byte-identical and the host overlay stays within its budget
+ok 705 - staged upstream skill tree is byte-identical and the host overlay stays within its budget
+  ---
+  duration_ms: 4.666845
+  type: 'test'
+  ...
+# Subtest: completed and skipped sign-in cards need no sign-in URL or credential fields
+ok 706 - completed and skipped sign-in cards need no sign-in URL or credential fields
+  ---
+  duration_ms: 2.569187
+  type: 'test'
+  ...
+# Subtest: one approved operator source stays approved through its expected plugin adoption
+ok 707 - one approved operator source stays approved through its expected plugin adoption
+  ---
+  duration_ms: 31.376624
+  type: 'test'
+  ...
+# Subtest: a declined review preserves earlier decisions: null
+ok 708 - a declined review preserves earlier decisions: null
+  ---
+  duration_ms: 30.076092
+  type: 'test'
+  ...
+# Subtest: a declined review preserves earlier decisions: prior-owner
+ok 709 - a declined review preserves earlier decisions: prior-owner
+  ---
+  duration_ms: 2.896537
+  type: 'test'
+  ...
+# Subtest: approval cannot adopt the reviewed operator source into a different plugin
+ok 710 - approval cannot adopt the reviewed operator source into a different plugin
+  ---
+  duration_ms: 2.827343
+  type: 'test'
+  ...
+# Subtest: a declined proposal keeps the approver of the live write list
+ok 711 - a declined proposal keeps the approver of the live write list
+  ---
+  duration_ms: 5.697309
+  type: 'test'
+  ...

@@ -1,1 +1,2 @@
 admin exit 0 350s
+agent-plugins exit 1 148s

@@ -7702,3 +7702,2172 @@ not ok 1192 - postgres: racing creates of one slug persist one winner and give t
     Test.createHook (node:internal/test_runner/test:1117:33)
     node:internal/test_runner/harness:426:12
   ...
+# Subtest: copy catalog, metadata and risk declarations register one generic recipe surface
+ok 1193 - copy catalog, metadata and risk declarations register one generic recipe surface
+  ---
+  duration_ms: 2.529391
+  type: 'test'
+  ...
+# Subtest: picked → theme copies exact binary bytes, checks theme.edit and reloads without a card
+ok 1194 - picked → theme copies exact binary bytes, checks theme.edit and reloads without a card
+  ---
+  duration_ms: 151.785782
+  type: 'test'
+  ...
+# Subtest: theme and site sources reuse the guarded file reader, preserving folder structure for globs
+ok 1195 - theme and site sources reuse the guarded file reader, preserving folder structure for globs
+  ---
+  duration_ms: 163.505304
+  type: 'test'
+  ...
+# Subtest: folder glob count and bytes are bounded before any destination write
+ok 1196 - folder glob count and bytes are bounded before any destination write
+  ---
+  duration_ms: 515.065212
+  type: 'test'
+  ...
+# Subtest: caps count the combined sources, including individually valid folder globs
+ok 1197 - caps count the combined sources, including individually valid folder globs
+  ---
+  duration_ms: 203.42956
+  type: 'test'
+  ...
+# Subtest: URL source calls the injected safe fetch port and persists its complete binary result
+ok 1198 - URL source calls the injected safe fetch port and persists its complete binary result
+  ---
+  duration_ms: 30.23001
+  type: 'test'
+  ...
+# Subtest: safe fetch refusals propagate in caller-safe form without writing
+ok 1199 - safe fetch refusals propagate in caller-safe form without writing
+  ---
+  duration_ms: 21.97642
+  type: 'test'
+  ...
+# Subtest: denylisted files, symlinks and escapes are refused, including later invalid sources
+ok 1200 - denylisted files, symlinks and escapes are refused, including later invalid sources
+  ---
+  duration_ms: 20.824829
+  type: 'test'
+  ...
+# Subtest: skip, overwrite and rename handle disk collisions and repeated paths within the same batch
+ok 1201 - skip, overwrite and rename handle disk collisions and repeated paths within the same batch
+  ---
+  duration_ms: 110.186454
+  type: 'test'
+  ...
+# Subtest: site destinations share fs_write_files batch approval; picked destinations are never accepted
+ok 1202 - site destinations share fs_write_files batch approval; picked destinations are never accepted
+  ---
+  duration_ms: 61.469622
+  type: 'test'
+  ...
+# Subtest: media destination uses the importer and media sources read original bytes
+ok 1203 - media destination uses the importer and media sources read original bytes
+  ---
+  duration_ms: 35.65449
+  type: 'test'
+  ...
+# Subtest: destination authorization fails before any source read or fetch
+ok 1204 - destination authorization fails before any source read or fetch
+  ---
+  duration_ms: 23.48789
+  type: 'test'
+  ...
+# Subtest: the catalog declares exactly the two documented read tools, both read-only, both content.read-gated, plus the carded picked-folder write
+ok 1205 - the catalog declares exactly the two documented read tools, both read-only, both content.read-gated, plus the carded picked-folder write
+  ---
+  duration_ms: 2.426848
+  type: 'test'
+  ...
+# Subtest: the catalog exposes no other write/edit/delete/rename tool
+ok 1206 - the catalog exposes no other write/edit/delete/rename tool
+  ---
+  duration_ms: 0.30085
+  type: 'test'
+  ...
+# Subtest: fs_read_file's schema requires both root and path; fs_list_files requires only root
+ok 1207 - fs_read_file's schema requires both root and path; fs_list_files requires only root
+  ---
+  duration_ms: 0.196628
+  type: 'test'
+  ...
+# Subtest: fs_list_files refuses a denied principal before resolving readable fixture roots
+ok 1208 - fs_list_files refuses a denied principal before resolving readable fixture roots
+  ---
+  duration_ms: 11.021245
+  type: 'test'
+  ...
+# Subtest: fs_list_files forwards the full authorization context
+ok 1209 - fs_list_files forwards the full authorization context
+  ---
+  duration_ms: 7.36236
+  type: 'test'
+  ...
+# Subtest: fs_read_file refuses a denied principal before resolving readable fixture roots
+ok 1210 - fs_read_file refuses a denied principal before resolving readable fixture roots
+  ---
+  duration_ms: 2.568632
+  type: 'test'
+  ...
+# Subtest: fs_read_file forwards the full authorization context
+ok 1211 - fs_read_file forwards the full authorization context
+  ---
+  duration_ms: 7.050657
+  type: 'test'
+  ...
+# Subtest: fs_list_files explicitly recurses to a real fixture file through the injected resolveRoots seam
+ok 1212 - fs_list_files explicitly recurses to a real fixture file through the injected resolveRoots seam
+  ---
+  duration_ms: 1.702073
+  type: 'test'
+  ...
+# Subtest: fs_read_file reads a real fixture file's content through the injected resolveRoots seam
+ok 1213 - fs_read_file reads a real fixture file's content through the injected resolveRoots seam
+  ---
+  duration_ms: 5.892754
+  type: 'test'
+  ...
+# Subtest: an unrecognized root is refused with the schema attached, not a raw lookup failure
+ok 1214 - an unrecognized root is refused with the schema attached, not a raw lookup failure
+  ---
+  duration_ms: 3.684436
+  type: 'test'
+  ...
+# Subtest: a traversal attempt through the real handler (not just the unit-level resolveFsFilePath) is refused
+ok 1215 - a traversal attempt through the real handler (not just the unit-level resolveFsFilePath) is refused
+  ---
+  duration_ms: 4.000114
+  type: 'test'
+  ...
+# Subtest: a 'secrets' path segment is refused through the real handler
+ok 1216 - a 'secrets' path segment is refused through the real handler
+  ---
+  duration_ms: 2.641104
+  type: 'test'
+  ...
+# Subtest: site agents refuse repo and other-site selectors while allowing picked-folder reads
+ok 1217 - site agents refuse repo and other-site selectors while allowing picked-folder reads
+  ---
+  duration_ms: 13.292612
+  type: 'test'
+  ...
+# Subtest: an in-site custom root reads normally without exposing a sibling canary
+ok 1218 - an in-site custom root reads normally without exposing a sibling canary
+  ---
+  duration_ms: 6.147046
+  type: 'test'
+  ...
+# Subtest: a custom-root symlink replaced between validation and reading cannot establish an outside reader base
+ok 1219 - a custom-root symlink replaced between validation and reading cannot establish an outside reader base
+  ---
+  duration_ms: 7.203856
+  type: 'test'
+  ...
+# Subtest: root: 'custom' before an operator has set one is refused with actionable guidance, not a crash
+ok 1220 - root: 'custom' before an operator has set one is refused with actionable guidance, not a crash
+  ---
+  duration_ms: 3.784434
+  type: 'test'
+  ...
+# Subtest: the denylist still fires inside the 'custom' root — an .env file is refused and excluded from listing
+ok 1221 - the denylist still fires inside the 'custom' root — an .env file is refused and excluded from listing
+  ---
+  duration_ms: 17.371091
+  type: 'test'
+  ...
+# Subtest: fs_list_files pages a directory exceeding the former 2000-file cap
+ok 1222 - fs_list_files pages a directory exceeding the former 2000-file cap
+  ---
+  duration_ms: 1376.520912
+  type: 'test'
+  ...
+# Subtest: fs_list_files bounds crowded root output and pages every entry without losing files
+ok 1223 - fs_list_files bounds crowded root output and pages every entry without losing files
+  ---
+  duration_ms: 68.325589
+  type: 'test'
+  ...
+# Subtest: fs_list_files defaults to navigable directories and preserves a small folder's response
+ok 1224 - fs_list_files defaults to navigable directories and preserves a small folder's response
+  ---
+  duration_ms: 3.122855
+  type: 'test'
+  ...
+# Subtest: fs_list_files refuses an unrecognized root and a traversal path the same way fs_read_file does
+ok 1225 - fs_list_files refuses an unrecognized root and a traversal path the same way fs_read_file does
+  ---
+  duration_ms: 0.899116
+  type: 'test'
+  ...
+# Subtest: without a resolveRoots override, the 'site' root is the bound site directory and 'custom' is unset
+ok 1226 - without a resolveRoots override, the 'site' root is the bound site directory and 'custom' is unset
+  ---
+  duration_ms: 5.472038
+  type: 'test'
+  ...
+# Subtest: contributeFsFilesTools contributes this domain's registrations and derived risk
+ok 1227 - contributeFsFilesTools contributes this domain's registrations and derived risk
+  ---
+  duration_ms: 0.204717
+  type: 'test'
+  ...
+# Subtest: the exported raw handler reaches requireCurrentSite before root resolution
+ok 1228 - the exported raw handler reaches requireCurrentSite before root resolution
+  ---
+  duration_ms: 0.902483
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: the host username tool shares HTTP lifecycle ports, preserves sessions, audits, and hides secrets
+ok 1229 - the host username tool shares HTTP lifecycle ports, preserves sessions, audits, and hides secrets
+  ---
+  duration_ms: 682.20519
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: search_tools discovers the registered username tool for account rename requests
+ok 1230 - search_tools discovers the registered username tool for account rename requests
+  ---
+  duration_ms: 402.730324
+  type: 'test'
+  ...
+# Subtest: the catalog pins role.manage, a read-only risk and a strict one-field input schema
+ok 1231 - the catalog pins role.manage, a read-only risk and a strict one-field input schema
+  ---
+  duration_ms: 3.050308
+  type: 'test'
+  ...
+# Subtest: an allowed caller gets the policy's permissions, read from this workspace
+ok 1232 - an allowed caller gets the policy's permissions, read from this workspace
+  ---
+  duration_ms: 1.249721
+  type: 'test'
+  ...
+# Subtest: a caller without role.manage is refused before any policy is read
+ok 1233 - a caller without role.manage is refused before any policy is read
+  ---
+  duration_ms: 1.021474
+  type: 'test'
+  ...
+# Subtest: missing policyId is refused with the non-empty-string message and reads nothing
+ok 1234 - missing policyId is refused with the non-empty-string message and reads nothing
+  ---
+  duration_ms: 0.406392
+  type: 'test'
+  ...
+# Subtest: empty policyId is refused with the non-empty-string message and reads nothing
+ok 1235 - empty policyId is refused with the non-empty-string message and reads nothing
+  ---
+  duration_ms: 0.439317
+  type: 'test'
+  ...
+# Subtest: blank policyId is refused with the non-empty-string message and reads nothing
+ok 1236 - blank policyId is refused with the non-empty-string message and reads nothing
+  ---
+  duration_ms: 0.219779
+  type: 'test'
+  ...
+# Subtest: numeric policyId is refused with the non-empty-string message and reads nothing
+ok 1237 - numeric policyId is refused with the non-empty-string message and reads nothing
+  ---
+  duration_ms: 0.968488
+  type: 'test'
+  ...
+# Subtest: null policyId is refused with the non-empty-string message and reads nothing
+ok 1238 - null policyId is refused with the non-empty-string message and reads nothing
+  ---
+  duration_ms: 0.263903
+  type: 'test'
+  ...
+# Subtest: array policyId is refused with the non-empty-string message and reads nothing
+ok 1239 - array policyId is refused with the non-empty-string message and reads nothing
+  ---
+  duration_ms: 0.133789
+  type: 'test'
+  ...
+# Subtest: a non-object input is refused as a ToolInputError
+ok 1240 - a non-object input is refused as a ToolInputError
+  ---
+  duration_ms: 0.202171
+  type: 'test'
+  ...
+# Subtest: an unknown policy is refused with lookup guidance and its grants are never listed
+ok 1241 - an unknown policy is refused with lookup guidance and its grants are never listed
+  ---
+  duration_ms: 0.930499
+  type: 'test'
+  ...
+# Subtest: identity_role_delete: the dialog names the role; cancel keeps it, confirm deletes it
+ok 1242 - identity_role_delete: the dialog names the role; cancel keeps it, confirm deletes it
+  ---
+  duration_ms: 68.826757
+  type: 'test'
+  ...
+# Subtest: identity_policy_delete: the dialog names the policy; cancel keeps it, confirm deletes it and its permissions
+ok 1243 - identity_policy_delete: the dialog names the policy; cancel keeps it, confirm deletes it and its permissions
+  ---
+  duration_ms: 12.530661
+  type: 'test'
+  ...
+# Subtest: every gated delete/create is refused outright with no emitSurface
+ok 1244 - every gated delete/create is refused outright with no emitSurface
+  ---
+  duration_ms: 6.04968
+  type: 'test'
+  ...
+# Subtest: identity_user_create: the model's schema has no password field
+ok 1245 - identity_user_create: the model's schema has no password field
+  ---
+  duration_ms: 4.182703
+  type: 'test'
+  ...
+# Subtest: identity_user_create: a model-supplied password is refused and nothing is created
+ok 1246 - identity_user_create: a model-supplied password is refused and nothing is created
+  ---
+  duration_ms: 2.892929
+  type: 'test'
+  ...
+# Subtest: identity_user_create: the form asks for the password; the human's password is the one stored, and the result never carries it
+ok 1247 - identity_user_create: the form asks for the password; the human's password is the one stored, and the result never carries it
+  ---
+  duration_ms: 22.468413
+  type: 'test'
+  ...
+# Subtest: identity_user_create: Cancel creates nothing
+ok 1248 - identity_user_create: Cancel creates nothing
+  ---
+  duration_ms: 19.683367
+  type: 'test'
+  ...
+# Subtest: identity_user_create: abort closes the parked exchange and creates no user
+ok 1249 - identity_user_create: abort closes the parked exchange and creates no user
+  ---
+  duration_ms: 58.136588
+  type: 'test'
+  ...
+# Subtest: identity_user_create: an empty password emits a failure outcome without creating a user
+ok 1250 - identity_user_create: an empty password emits a failure outcome without creating a user
+  ---
+  duration_ms: 43.800952
+  type: 'test'
+  ...
+# Subtest: identity_user_create: a failed creation rejects, reports failure, and preserves the existing user
+ok 1251 - identity_user_create: a failed creation rejects, reports failure, and preserves the existing user
+  ---
+  duration_ms: 28.847554
+  type: 'test'
+  ...
+# Subtest: identity_user_create: a buffered submit followed by abort never hashes or writes
+ok 1252 - identity_user_create: a buffered submit followed by abort never hashes or writes
+  ---
+  duration_ms: 14.559861
+  type: 'test'
+  ...
+# Subtest: identity_user_create: an already-aborted run opens no password card
+ok 1253 - identity_user_create: an already-aborted run opens no password card
+  ---
+  duration_ms: 16.31846
+  type: 'test'
+  ...
+# Subtest: identity_user_create: a hasher error containing the password becomes fixed safe text
+ok 1254 - identity_user_create: a hasher error containing the password becomes fixed safe text
+  ---
+  duration_ms: 26.801977
+  type: 'test'
+  ...
+# Subtest: role deletion refuses a renamed target after the card opens
+ok 1255 - role deletion refuses a renamed target after the card opens
+  ---
+  duration_ms: 46.717862
+  type: 'test'
+  ...
+# Subtest: policy deletion accepts reordered dependency sets
+ok 1256 - policy deletion accepts reordered dependency sets
+  ---
+  duration_ms: 11.743124
+  type: 'test'
+  ...
+# Subtest: policy deletion refuses changed permissions
+ok 1257 - policy deletion refuses changed permissions
+  ---
+  duration_ms: 6.427363
+  type: 'test'
+  ...
+# Subtest: withoutPassword preserves other schema rules and handles an omitted required list
+ok 1258 - withoutPassword preserves other schema rules and handles an omitted required list
+  ---
+  duration_ms: 0.329826
+  type: 'test'
+  ...
+# Subtest: identity contribution exposes the gated builder and the shared risk catalog
+ok 1259 - identity contribution exposes the gated builder and the shared risk catalog
+  ---
+  duration_ms: 0.159482
+  type: 'test'
+  ...
+# Subtest: identity gates reject invalid input with corrective schema guidance before opening a card
+ok 1260 - identity gates reject invalid input with corrective schema guidance before opening a card
+  ---
+  duration_ms: 30.563253
+  type: 'test'
+  ...
+# Subtest: role and policy deletion refuse missing targets before opening confirmation
+ok 1261 - role and policy deletion refuse missing targets before opening confirmation
+  ---
+  duration_ms: 11.748473
+  type: 'test'
+  ...
+# Subtest: identity disable translates owner protection into an actionable refusal
+ok 1262 - identity disable translates owner protection into an actionable refusal
+  ---
+  duration_ms: 11.362469
+  type: 'test'
+  ...
+# Subtest: identity disable preserves unexpected transaction failures
+ok 1263 - identity disable preserves unexpected transaction failures
+  ---
+  duration_ms: 4.524736
+  type: 'test'
+  ...
+# Subtest: identity tools adapt an ISO-only host clock when disabling a user
+ok 1264 - identity tools adapt an ISO-only host clock when disabling a user
+  ---
+  duration_ms: 6.154839
+  type: 'test'
+  ...
+# Subtest: role confirmation lists principal and policy assignments, and cancellation preserves them
+ok 1265 - role confirmation lists principal and policy assignments, and cancellation preserves them
+  ---
+  duration_ms: 3.893263
+  type: 'test'
+  ...
+# Subtest: identity disable translates a self-disable into an actionable SELF_DELETE refusal
+ok 1266 - identity disable translates a self-disable into an actionable SELF_DELETE refusal
+  ---
+  duration_ms: 12.216691
+  type: 'test'
+  ...
+# Subtest: console driver reports false and the exact recovery note
+ok 1267 - console driver reports false and the exact recovery note
+  ---
+  duration_ms: 8.835594
+  type: 'test'
+  ...
+# Subtest: a real SMTP adapter reports available without sending a message
+ok 1268 - a real SMTP adapter reports available without sending a message
+  ---
+  duration_ms: 6.886354
+  type: 'test'
+  ...
+# Subtest: status permission denial precedes reading capabilities
+ok 1269 - status permission denial precedes reading capabilities
+  ---
+  duration_ms: 1.097502
+  type: 'test'
+  ...
+# Subtest: mail status descriptor is readOnly with derived none risk
+ok 1270 - mail status descriptor is readOnly with derived none risk
+  ---
+  duration_ms: 0.249982
+  type: 'test'
+  ...
+# Subtest: with a status source the tool adds state, lanes, warnings and providers
+ok 1271 - with a status source the tool adds state, lanes, warnings and providers
+  ---
+  duration_ms: 2.384544
+  type: 'test'
+  ...
+# Subtest: the contributor registers the diagnostic under its own domain
+ok 1272 - the contributor registers the diagnostic under its own domain
+  ---
+  duration_ms: 0.166683
+  type: 'test'
+  ...
+# Subtest: mail_set_provider and mail_send_test are approval cards, never read-only, with derived write risk
+ok 1273 - mail_set_provider and mail_send_test are approval cards, never read-only, with derived write risk
+  ---
+  duration_ms: 6.6345
+  type: 'test'
+  ...
+# Subtest: mail_set_provider sets both lanes only after the person confirms
+ok 1274 - mail_set_provider sets both lanes only after the person confirms
+  ---
+  duration_ms: 18.983187
+  type: 'test'
+  ...
+# Subtest: mail_set_provider refuses an unknown or keyless provider, bad input, a missing seam and a revoked grant
+ok 1275 - mail_set_provider refuses an unknown or keyless provider, bad input, a missing seam and a revoked grant
+  ---
+  duration_ms: 2.087741
+  type: 'test'
+  ...
+# Subtest: mail_send_test sends one transactional, interactive message to the operator's own address after approval
+ok 1276 - mail_send_test sends one transactional, interactive message to the operator's own address after approval
+  ---
+  duration_ms: 2.812073
+  type: 'test'
+  ...
+# Subtest: mail_send_test's card names the sender and the provider's label, and falls back to the driver
+ok 1277 - mail_send_test's card names the sender and the provider's label, and falls back to the driver
+  ---
+  duration_ms: 12.727084
+  type: 'test'
+  ...
+# Subtest: mail_send_test reports a refusal, uses a username address, and refuses an account with no address
+ok 1278 - mail_send_test reports a refusal, uses a username address, and refuses an account with no address
+  ---
+  duration_ms: 2.724505
+  type: 'test'
+  ...
+# Subtest: mail_send_test without a composed sender resolver falls back to the mailer's own (a delivering mailer then refuses)
+ok 1279 - mail_send_test without a composed sender resolver falls back to the mailer's own (a delivering mailer then refuses)
+  ---
+  duration_ms: 3.584164
+  type: 'test'
+  ...
+# Subtest: mail_set_provider discloses fixed scoped lanes and verifies the human before and after approval
+ok 1280 - mail_set_provider discloses fixed scoped lanes and verifies the human before and after approval
+  ---
+  duration_ms: 2.549493
+  type: 'test'
+  ...
+# Subtest: mail_set_provider refuses when the exact selection snapshot cannot be read
+ok 1281 - mail_set_provider refuses when the exact selection snapshot cannot be read
+  ---
+  duration_ms: 0.36578
+  type: 'test'
+  ...
+# Subtest: flattenHeaders lower-cases names, joins repeated values and drops absent ones
+ok 1282 - flattenHeaders lower-cases names, joins repeated values and drops absent ones
+  ---
+  duration_ms: 2.105914
+  type: 'test'
+  ...
+# Subtest: the route verifies, applies suppression once per event id, and answers 404/503 by provider state
+ok 1283 - the route verifies, applies suppression once per event id, and answers 404/503 by provider state
+  ---
+  duration_ms: 1.621585
+  type: 'test'
+  ...
+# Subtest: the route passes its options to the ingest (body cap, synchronous workspace resolver)
+ok 1284 - the route passes its options to the ingest (body cap, synchronous workspace resolver)
+  ---
+  duration_ms: 0.278091
+  type: 'test'
+  ...
+# Subtest: plugin sources expose a module's parser only when it has verify and parse, and its label
+ok 1285 - plugin sources expose a module's parser only when it has verify and parse, and its label
+  ---
+  duration_ms: 0.75764
+  type: 'test'
+  ...
+# Subtest: vault secrets: current then previous label, skipping unsaved or empty ones
+ok 1286 - vault secrets: current then previous label, skipping unsaved or empty ones
+  ---
+  duration_ms: 0.782545
+  type: 'test'
+  ...
+# Subtest: the site route wires the vault and plugin registry: a known provider with no saved secret is 503
+ok 1287 - the site route wires the vault and plugin registry: a known provider with no saved secret is 503
+  ---
+  duration_ms: 0.710776
+  type: 'test'
+  ...
+# Subtest: a real PNG round-trips byte-for-byte: the bytes fetchImage returns are the exact bytes the client returned, hash included
+ok 1288 - a real PNG round-trips byte-for-byte: the bytes fetchImage returns are the exact bytes the client returned, hash included
+  ---
+  duration_ms: 14.235068
+  type: 'test'
+  ...
+# Subtest: the PNG fixture's bytes are NOT recoverable through a UTF-8 round trip — the contrast that justifies bodyBytes existing at all
+ok 1289 - the PNG fixture's bytes are NOT recoverable through a UTF-8 round trip — the contrast that justifies bodyBytes existing at all
+  ---
+  duration_ms: 0.922771
+  type: 'test'
+  ...
+# Subtest: the outbound request is a bounded GET that asks for an image and nothing else
+ok 1290 - the outbound request is a bounded GET that asks for an image and nothing else
+  ---
+  duration_ms: 0.834778
+  type: 'test'
+  ...
+# Subtest: a truncated response is REFUSED even though its magic bytes are a perfectly valid PNG signature
+ok 1291 - a truncated response is REFUSED even though its magic bytes are a perfectly valid PNG signature
+  ---
+  duration_ms: 0.976937
+  type: 'test'
+  ...
+# Subtest: truncation is checked BEFORE sniffing — a whole, valid PNG flagged truncated is still rejected
+ok 1292 - truncation is checked BEFORE sniffing — a whole, valid PNG flagged truncated is still rejected
+  ---
+  duration_ms: 38.361293
+  type: 'test'
+  ...
+# Subtest: Content-Type: image/png over an HTML body is rejected — the served header is never consulted
+ok 1293 - Content-Type: image/png over an HTML body is rejected — the served header is never consulted
+  ---
+  duration_ms: 0.902051
+  type: 'test'
+  ...
+# Subtest: an MP4 served as image/png round-trips byte-for-byte — the header is still ignored, the bytes still decide, and video is now an importable shape
+ok 1294 - an MP4 served as image/png round-trips byte-for-byte — the header is still ignored, the bytes still decide, and video is now an importable shape
+  ---
+  duration_ms: 0.411275
+  type: 'test'
+  ...
+# Subtest: a WebM served with no content-type header round-trips byte-for-byte and sniffs as video/webm
+ok 1295 - a WebM served with no content-type header round-trips byte-for-byte and sniffs as video/webm
+  ---
+  duration_ms: 0.188201
+  type: 'test'
+  ...
+# Subtest: an SVG served as image/png is detected for downstream ingest sanitization
+ok 1296 - an SVG served as image/png is detected for downstream ingest sanitization
+  ---
+  duration_ms: 0.827915
+  type: 'test'
+  ...
+# Subtest: a '.png.html' double-extension URL is decided by its bytes, not by either extension
+ok 1297 - a '.png.html' double-extension URL is decided by its bytes, not by either extension
+  ---
+  duration_ms: 0.634781
+  type: 'test'
+  ...
+# Subtest: IMPORTABLE_CONTENT_TYPES includes SVG for sanitized ingest alongside raster images and video
+ok 1298 - IMPORTABLE_CONTENT_TYPES includes SVG for sanitized ingest alongside raster images and video
+  ---
+  duration_ms: 0.251341
+  type: 'test'
+  ...
+# Subtest: a body one byte over MEDIA_IMPORT_MAX_BYTES is rejected
+ok 1299 - a body one byte over MEDIA_IMPORT_MAX_BYTES is rejected
+  ---
+  duration_ms: 335.285133
+  type: 'test'
+  ...
+# Subtest: a body exactly AT the cap is accepted — the boundary is inclusive, so the check is not off by one in the rejecting direction
+ok 1300 - a body exactly AT the cap is accepted — the boundary is inclusive, so the check is not off by one in the rejecting direction
+  ---
+  duration_ms: 0.25076
+  type: 'test'
+  ...
+# Subtest: an empty body is rejected with its own message, not mistaken for an unknown format
+ok 1301 - an empty body is rejected with its own message, not mistaken for an unknown format
+  ---
+  duration_ms: 0.261159
+  type: 'test'
+  ...
+# Subtest: a plain http URL is rejected and the HTTP client is NEVER called
+ok 1302 - a plain http URL is rejected and the HTTP client is NEVER called
+  ---
+  duration_ms: 0.445083
+  type: 'test'
+  ...
+# Subtest: a file URL is rejected and the HTTP client is NEVER called
+ok 1303 - a file URL is rejected and the HTTP client is NEVER called
+  ---
+  duration_ms: 0.194477
+  type: 'test'
+  ...
+# Subtest: a data URI URL is rejected and the HTTP client is NEVER called
+ok 1304 - a data URI URL is rejected and the HTTP client is NEVER called
+  ---
+  duration_ms: 0.109766
+  type: 'test'
+  ...
+# Subtest: a gopher URL is rejected and the HTTP client is NEVER called
+ok 1305 - a gopher URL is rejected and the HTTP client is NEVER called
+  ---
+  duration_ms: 0.080223
+  type: 'test'
+  ...
+# Subtest: a relative path is rejected as not-an-absolute-URL, and the HTTP client is NEVER called
+ok 1306 - a relative path is rejected as not-an-absolute-URL, and the HTTP client is NEVER called
+  ---
+  duration_ms: 0.257636
+  type: 'test'
+  ...
+# Subtest: a bare hostname is rejected as not-an-absolute-URL, and the HTTP client is NEVER called
+ok 1307 - a bare hostname is rejected as not-an-absolute-URL, and the HTTP client is NEVER called
+  ---
+  duration_ms: 0.171614
+  type: 'test'
+  ...
+# Subtest: an empty string is rejected as not-an-absolute-URL, and the HTTP client is NEVER called
+ok 1308 - an empty string is rejected as not-an-absolute-URL, and the HTTP client is NEVER called
+  ---
+  duration_ms: 0.093977
+  type: 'test'
+  ...
+# Subtest: a protocol-relative reference is rejected as not-an-absolute-URL, and the HTTP client is NEVER called
+ok 1309 - a protocol-relative reference is rejected as not-an-absolute-URL, and the HTTP client is NEVER called
+  ---
+  duration_ms: 3.006341
+  type: 'test'
+  ...
+# Subtest: a URL embedding credentials is rejected before the network — no token is ever put on the wire
+ok 1310 - a URL embedding credentials is rejected before the network — no token is ever put on the wire
+  ---
+  duration_ms: 0.372496
+  type: 'test'
+  ...
+# Subtest: a password-only URL (no username) is rejected too
+ok 1311 - a password-only URL (no username) is rejected too
+  ---
+  duration_ms: 0.244208
+  type: 'test'
+  ...
+# Subtest: parseImportUrl accepts an ordinary https URL and returns it normalized
+ok 1312 - parseImportUrl accepts an ordinary https URL and returns it normalized
+  ---
+  duration_ms: 0.432285
+  type: 'test'
+  ...
+# Subtest: HTTP 403 is rejected WITH the expired-signed-URL hint, so the model asks for a fresh URL instead of retrying
+ok 1313 - HTTP 403 is rejected WITH the expired-signed-URL hint, so the model asks for a fresh URL instead of retrying
+  ---
+  duration_ms: 3.154315
+  type: 'test'
+  ...
+# Subtest: HTTP 404 is rejected WITH the expired-signed-URL hint, so the model asks for a fresh URL instead of retrying
+ok 1314 - HTTP 404 is rejected WITH the expired-signed-URL hint, so the model asks for a fresh URL instead of retrying
+  ---
+  duration_ms: 0.420471
+  type: 'test'
+  ...
+# Subtest: HTTP 500 is rejected WITHOUT the expiry hint — a broken host is not an expired link
+ok 1315 - HTTP 500 is rejected WITHOUT the expiry hint — a broken host is not an expired link
+  ---
+  duration_ms: 0.417489
+  type: 'test'
+  ...
+# Subtest: a 3xx that reached this layer (redirects exhausted inside the client) is rejected, not treated as a body
+ok 1316 - a 3xx that reached this layer (redirects exhausted inside the client) is rejected, not treated as a body
+  ---
+  duration_ms: 0.1891
+  type: 'test'
+  ...
+# Subtest: a transport-level failure (an EgressPolicy/SSRF refusal) propagates as itself and is NOT relabelled a shape problem
+ok 1317 - a transport-level failure (an EgressPolicy/SSRF refusal) propagates as itself and is NOT relabelled a shape problem
+  ---
+  duration_ms: 0.251964
+  type: 'test'
+  ...
+# Subtest: a client that returns no bodyBytes is REFUSED — the bytes are never reconstructed from the lossy bodyText
+ok 1318 - a client that returns no bodyBytes is REFUSED — the bytes are never reconstructed from the lossy bodyText
+  ---
+  duration_ms: 0.236072
+  type: 'test'
+  ...
+# Subtest: an absent bodyTruncated is simply no signal — it does not trigger the truncation rejection, and it is not read as a positive 'complete'
+ok 1319 - an absent bodyTruncated is simply no signal — it does not trigger the truncation rejection, and it is not read as a positive 'complete'
+  ---
+  duration_ms: 0.143878
+  type: 'test'
+  ...
+# Subtest: the extension comes from the SNIFFED type, never from the URL
+ok 1320 - the extension comes from the SNIFFED type, never from the URL
+  ---
+  duration_ms: 0.502615
+  type: 'test'
+  ...
+# Subtest: a path-traversal segment cannot survive into the filename
+ok 1321 - a path-traversal segment cannot survive into the filename
+  ---
+  duration_ms: 0.117001
+  type: 'test'
+  ...
+# Subtest: an explicit '../../etc/passwd' override cannot escape either
+ok 1322 - an explicit '../../etc/passwd' override cannot escape either
+  ---
+  duration_ms: 0.12284
+  type: 'test'
+  ...
+# Subtest: control characters are stripped rather than carried into the stored name
+ok 1323 - control characters are stripped rather than carried into the stored name
+  ---
+  duration_ms: 0.116853
+  type: 'test'
+  ...
+# Subtest: a 400-character name is length-bounded
+ok 1324 - a 400-character name is length-bounded
+  ---
+  duration_ms: 0.080769
+  type: 'test'
+  ...
+# Subtest: the filename override wins for the STEM but never for the extension
+ok 1325 - the filename override wins for the STEM but never for the extension
+  ---
+  duration_ms: 0.079596
+  type: 'test'
+  ...
+# Subtest: a URL with no usable last segment still produces a real name
+ok 1326 - a URL with no usable last segment still produces a real name
+  ---
+  duration_ms: 0.075587
+  type: 'test'
+  ...
+# Subtest: a percent-encoded human name decodes before sanitizing
+ok 1327 - a percent-encoded human name decodes before sanitizing
+  ---
+  duration_ms: 0.057427
+  type: 'test'
+  ...
+# Subtest: an image whose BYTES are complete is imported even though the response's lossy text half was clipped — the false 'exceeds the import limit' rejection
+ok 1328 - an image whose BYTES are complete is imported even though the response's lossy text half was clipped — the false 'exceeds the import limit' rejection
+  ---
+  duration_ms: 0.571078
+  type: 'test'
+  ...
+# Subtest: bodyBytesTruncated:true is still refused with the exact import-limit message, even when the text half reports itself whole
+ok 1329 - bodyBytesTruncated:true is still refused with the exact import-limit message, even when the text half reports itself whole
+  ---
+  duration_ms: 0.48195
+  type: 'test'
+  ...
+# Subtest: validateImageBytes' third argument is the BYTE half's verdict — a whole PNG flagged there is still rejected
+ok 1330 - validateImageBytes' third argument is the BYTE half's verdict — a whole PNG flagged there is still rejected
+  ---
+  duration_ms: 0.319288
+  type: 'test'
+  ...
+# Subtest: after a redirect the recorded URL is the hop that served the bytes, not the URL the assistant supplied
+ok 1331 - after a redirect the recorded URL is the hop that served the bytes, not the URL the assistant supplied
+  ---
+  duration_ms: 0.260063
+  type: 'test'
+  ...
+# Subtest: an absent finalUrl falls back to the requested URL — a client that does not report the final hop must not blank the provenance
+ok 1332 - an absent finalUrl falls back to the requested URL — a client that does not report the final hop must not blank the provenance
+  ---
+  duration_ms: 0.133232
+  type: 'test'
+  ...
+# Subtest: a finalUrl that does not parse is ignored rather than crashing an otherwise-good import
+ok 1333 - a finalUrl that does not parse is ignored rather than crashing an otherwise-good import
+  ---
+  duration_ms: 0.217743
+  type: 'test'
+  ...
+# Subtest: fetchImage accepts real image/jpeg bytes independently of the served type
+ok 1334 - fetchImage accepts real image/jpeg bytes independently of the served type
+  ---
+  duration_ms: 37.510658
+  type: 'test'
+  ...
+# Subtest: fetchImage accepts real image/gif bytes independently of the served type
+ok 1335 - fetchImage accepts real image/gif bytes independently of the served type
+  ---
+  duration_ms: 28.318008
+  type: 'test'
+  ...
+# Subtest: fetchImage accepts real image/webp bytes independently of the served type
+ok 1336 - fetchImage accepts real image/webp bytes independently of the served type
+  ---
+  duration_ms: 2.250182
+  type: 'test'
+  ...
+# Subtest: fetchImage accepts real image/avif bytes independently of the served type
+ok 1337 - fetchImage accepts real image/avif bytes independently of the served type
+  ---
+  duration_ms: 4.419555
+  type: 'test'
+  ...
+# Subtest: parseable HTTP finalUrl is kept as provenance for already-fetched bytes
+ok 1338 - parseable HTTP finalUrl is kept as provenance for already-fetched bytes
+  ---
+  duration_ms: 0.373646
+  type: 'test'
+  ...
+# Subtest: a harness-listed origin is imported over plain http: the real http URL is sent and recorded
+ok 1339 - a harness-listed origin is imported over plain http: the real http URL is sent and recorded
+  ---
+  duration_ms: 0.373472
+  type: 'test'
+  ...
+# Subtest: plain http stays refused before the network for any origin the harness did not list, and with no list at all
+ok 1340 - plain http stays refused before the network for any origin the harness did not list, and with no list at all
+  ---
+  duration_ms: 0.435812
+  type: 'test'
+  ...
+# Subtest: a listed origin still gets every byte check: HTML served as an image is refused
+ok 1341 - a listed origin still gets every byte check: HTML served as an image is refused
+  ---
+  duration_ms: 0.207304
+  type: 'test'
+  ...
+# Subtest: an empty harness allowlist never permits plain HTTP
+ok 1342 - an empty harness allowlist never permits plain HTTP
+  ---
+  duration_ms: 0.19652
+  type: 'test'
+  ...
+# Subtest: a harness allowlist leaves malformed URLs subject to the absolute URL refusal
+ok 1343 - a harness allowlist leaves malformed URLs subject to the absolute URL refusal
+  ---
+  duration_ms: 0.206102
+  type: 'test'
+  ...
+# Subtest: a harness allowlist leaves HTTPS requests and provenance unchanged
+ok 1344 - a harness allowlist leaves HTTPS requests and provenance unchanged
+  ---
+  duration_ms: 0.160453
+  type: 'test'
+  ...
+# Subtest: an HTTP fixture import preserves the distinct final origin https://cdn.example.com/redirected.png
+ok 1345 - an HTTP fixture import preserves the distinct final origin https://cdn.example.com/redirected.png
+  ---
+  duration_ms: 0.189729
+  type: 'test'
+  ...
+# Subtest: an HTTP fixture import preserves the distinct final origin https://127.0.0.1:41235/redirected.png
+ok 1346 - an HTTP fixture import preserves the distinct final origin https://127.0.0.1:41235/redirected.png
+  ---
+  duration_ms: 0.103574
+  type: 'test'
+  ...
+# Subtest: a caller's import policy and Accept header govern the same guarded transport
+ok 1347 - a caller's import policy and Accept header govern the same guarded transport
+  ---
+  duration_ms: 0.501113
+  type: 'test'
+  ...
+# Subtest: 'media' is a supported resource of content_duplicate, gated on media.upload
+ok 1348 - 'media' is a supported resource of content_duplicate, gated on media.upload
+  ---
+  duration_ms: 11.591083
+  type: 'test'
+  ...
+# Subtest: the copy REFERENCES the source's bytes: same sha256, ONE blob row, ONE stored object
+ok 1349 - the copy REFERENCES the source's bytes: same sha256, ONE blob row, ONE stored object
+  ---
+  duration_ms: 5.63455
+  type: 'test'
+  ...
+# Subtest: the copy is nonetheless an independent row: editing its metadata does not touch the source
+ok 1350 - the copy is nonetheless an independent row: editing its metadata does not touch the source
+  ---
+  duration_ms: 3.944563
+  type: 'test'
+  ...
+# Subtest: the copy gets its OWN rendition rows — renditions are keyed by asset id, so a shared one would 404
+ok 1351 - the copy gets its OWN rendition rows — renditions are keyed by asset id, so a shared one would 404
+  ---
+  duration_ms: 2.519449
+  type: 'test'
+  ...
+# Subtest: every editorial field is carried onto the copy, with the title defaulting to the source's own title with a numeric suffix
+ok 1352 - every editorial field is carried onto the copy, with the title defaulting to the source's own title with a numeric suffix
+  ---
+  duration_ms: 0.973736
+  type: 'test'
+  ...
+# Subtest: copying the same asset twice increments the suffix: '... 2', then '... 3'
+ok 1353 - copying the same asset twice increments the suffix: '... 2', then '... 3'
+  ---
+  duration_ms: 1.823125
+  type: 'test'
+  ...
+# Subtest: an explicit title and slug are honored
+ok 1354 - an explicit title and slug are honored
+  ---
+  duration_ms: 1.065655
+  type: 'test'
+  ...
+# Subtest: T10: a colliding slug override leaves no half-made media copy
+ok 1355 - T10: a colliding slug override leaves no half-made media copy
+  ---
+  duration_ms: 2.439293
+  type: 'test'
+  ...
+# Subtest: a source can be named by its slug, not only its id — media's own identity model
+ok 1356 - a source can be named by its slug, not only its id — media's own identity model
+  ---
+  duration_ms: 1.233964
+  type: 'test'
+  ...
+# Subtest: the copy's content type is recorded against its hash, so it keeps its Images/Videos classification
+ok 1357 - the copy's content type is recorded against its hash, so it keeps its Images/Videos classification
+  ---
+  duration_ms: 1.013266
+  type: 'test'
+  ...
+# Subtest: a TRASHED source is refused — a copy would be a live entry for content already deleted
+ok 1358 - a TRASHED source is refused — a copy would be a live entry for content already deleted
+  ---
+  duration_ms: 0.57755
+  type: 'test'
+  ...
+# Subtest: a source whose blob row is gone fails loudly and writes NOTHING — no half-formed library entry
+ok 1359 - a source whose blob row is gone fails loudly and writes NOTHING — no half-formed library entry
+  ---
+  duration_ms: 0.552105
+  type: 'test'
+  ...
+# Subtest: the draft/published status override is REJECTED for media rather than silently dropped
+ok 1360 - the draft/published status override is REJECTED for media rather than silently dropped
+  ---
+  duration_ms: 0.447917
+  type: 'test'
+  ...
+# Subtest: duplicating a nonexistent asset is rejected as not-found
+ok 1361 - duplicating a nonexistent asset is rejected as not-found
+  ---
+  duration_ms: 0.470317
+  type: 'test'
+  ...
+# Subtest: a caller holding content.write but NOT media.upload cannot copy an asset
+ok 1362 - a caller holding content.write but NOT media.upload cannot copy an asset
+  ---
+  duration_ms: 0.451728
+  type: 'test'
+  ...
+# Subtest: the copy preserves a recorded content type instead of replacing it with the fresh sniff
+ok 1363 - the copy preserves a recorded content type instead of replacing it with the fresh sniff
+  ---
+  duration_ms: 0.48016
+  type: 'test'
+  ...
+# Subtest: media provenance: destination creates use the applying actor and updates keep that actor
+ok 1364 - media provenance: destination creates use the applying actor and updates keep that actor
+  ---
+  duration_ms: 10.845585
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: the imported row is saved under the SOURCE id, never a freshly minted one
+ok 1365 - importMediaEntity: the imported row is saved under the SOURCE id, never a freshly minted one
+  ---
+  duration_ms: 4.167691
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: a slug already held by a different id is blocked and writes nothing — no blob bytes, no blob row, no media row
+ok 1366 - importMediaEntity: a slug already held by a different id is blocked and writes nothing — no blob bytes, no blob row, no media row
+  ---
+  duration_ms: 1.319482
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: re-importing an existing id with a DIFFERENT claimed sha256 is blocked — source.sha256 is write-once, never silently rewritten
+ok 1367 - importMediaEntity: re-importing an existing id with a DIFFERENT claimed sha256 is blocked — source.sha256 is write-once, never silently rewritten
+  ---
+  duration_ms: 16.102333
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: re-importing an existing id with the SAME claimed sha256 is idempotent and succeeds
+ok 1368 - importMediaEntity: re-importing an existing id with the SAME claimed sha256 is idempotent and succeeds
+  ---
+  duration_ms: 1.058574
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: a missing staged byte payload is an authoritative typed block and writes nothing
+ok 1369 - importMediaEntity: a missing staged byte payload is an authoritative typed block and writes nothing
+  ---
+  duration_ms: 3.496061
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: bytes that do not hash to the claimed sha256 are refused before putIfAbsent is ever called
+ok 1370 - importMediaEntity: bytes that do not hash to the claimed sha256 are refused before putIfAbsent is ever called
+  ---
+  duration_ms: 0.667201
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: a malformed (non-hex-64) claimed sha256 is refused before putIfAbsent, same as a real mismatch
+ok 1371 - importMediaEntity: a malformed (non-hex-64) claimed sha256 is refused before putIfAbsent, same as a real mismatch
+  ---
+  duration_ms: 0.261305
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: a blob that already exists at the destination is never re-saved — its original createdByPrincipal survives a re-import by a DIFFERENT operator
+ok 1372 - importMediaEntity: a blob that already exists at the destination is never re-saved — its original createdByPrincipal survives a re-import by a DIFFERENT operator
+  ---
+  duration_ms: 1.044954
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: a brand-new blob IS stamped with the supplied blobCreatedByPrincipal
+ok 1373 - importMediaEntity: a brand-new blob IS stamped with the supplied blobCreatedByPrincipal
+  ---
+  duration_ms: 0.262907
+  type: 'test'
+  ...
+# Subtest: importMediaEntity translates a slug acquired during the write window into a typed block
+ok 1374 - importMediaEntity translates a slug acquired during the write window into a typed block
+  ---
+  duration_ms: 223.047423
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: an empty slug skips the slug lookup entirely and imports
+ok 1375 - importMediaEntity: an empty slug skips the slug lookup entirely and imports
+  ---
+  duration_ms: 0.545531
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: a create against an existing row is an early conflict naming its version
+ok 1376 - importMediaEntity: a create against an existing row is an early conflict naming its version
+  ---
+  duration_ms: 2.040796
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: an update whose row is gone is an early conflict
+ok 1377 - importMediaEntity: an update whose row is gone is an early conflict
+  ---
+  duration_ms: 1.658586
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: an update against a different version is an early conflict naming both
+ok 1378 - importMediaEntity: an update against a different version is an early conflict naming both
+  ---
+  duration_ms: 1.589808
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: an update keeps the destination createdAt and bumps the version past its basis
+ok 1379 - importMediaEntity: an update keeps the destination createdAt and bumps the version past its basis
+  ---
+  duration_ms: 1.729023
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: an update of a legacy row with no recorded creator keeps it honestly unknown
+ok 1380 - importMediaEntity: an update of a legacy row with no recorded creator keeps it honestly unknown
+  ---
+  duration_ms: 0.311842
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: a create that loses the insert race reports the winner's version
+ok 1381 - importMediaEntity: a create that loses the insert race reports the winner's version
+  ---
+  duration_ms: 1.413008
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: a create refused with no row to re-read reports the id as in use
+ok 1382 - importMediaEntity: a create refused with no row to re-read reports the id as in use
+  ---
+  duration_ms: 0.344879
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: an update that loses the version race reports the newer version
+ok 1383 - importMediaEntity: an update that loses the version race reports the newer version
+  ---
+  duration_ms: 0.291391
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: an update refused while the re-read matches its basis (ABA) is still a conflict
+ok 1384 - importMediaEntity: an update refused while the re-read matches its basis (ABA) is still a conflict
+  ---
+  duration_ms: 0.17915
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: a slug race whose holder cannot be re-read names it unknown
+ok 1385 - importMediaEntity: a slug race whose holder cannot be re-read names it unknown
+  ---
+  duration_ms: 0.283114
+  type: 'test'
+  ...
+# Subtest: importMediaEntity: a write failure other than a slug conflict is rethrown unchanged
+ok 1386 - importMediaEntity: a write failure other than a slug conflict is rethrown unchanged
+  ---
+  duration_ms: 0.644235
+  type: 'test'
+  ...
+# [routes/media/where-used] {
+#   errorId: 'fa7797a8-929c-4b61-8712-67cd8ea3e2e7',
+#   diagnostic: 'Error: read failure\\n' +
+#     '    at MediaRepo.mediaRepo.findById (/home/user/Tovu/apps/website/src/features/media/__tests__/mediawidget-where-used.test.ts:47:44)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/media/where-used.ts:17:42)\\n' +
+#     '    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/media/__tests__/mediawidget-where-used.test.ts:48:3)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: usage queries canonical id and slug and combines indexed widgets with current raw and placement post bodies
+ok 1387 - usage queries canonical id and slug and combines indexed widgets with current raw and placement post bodies
+  ---
+  duration_ms: 26.042588
+  type: 'test'
+  ...
+# Subtest: usage HTTP route enforces workspace and media.read before any asset lookup
+ok 1388 - usage HTTP route enforces workspace and media.read before any asset lookup
+  ---
+  duration_ms: 4101.281743
+  type: 'test'
+  ...
+# Subtest: Tovu purge refuses retired slug references from current post bodies and succeeds after removal
+ok 1389 - Tovu purge refuses retired slug references from current post bodies and succeeds after removal
+  ---
+  duration_ms: 5.326301
+  type: 'test'
+  ...
+# Subtest: usage reports an html-format post body under bodyHtml and never counts a soft-deleted post
+ok 1390 - usage reports an html-format post body under bodyHtml and never counts a soft-deleted post
+  ---
+  duration_ms: 0.737433
+  type: 'test'
+  ...
+# Subtest: cleanup usage includes restorable posts when requested and purge refuses their media
+ok 1391 - cleanup usage includes restorable posts when requested and purge refuses their media
+  ---
+  duration_ms: 2.853802
+  type: 'test'
+  ...
+# Subtest: apply() writes the media row under the SOURCE id — the id a post's embed already points at
+ok 1392 - apply() writes the media row under the SOURCE id — the id a post's embed already points at
+  ---
+  duration_ms: 18.404422
+  type: 'test'
+  ...
+# Subtest: apply() + renderDocNode: a post's embed authored against the SOURCE asset id renders a real <img>, never the placeholder
+ok 1393 - apply() + renderDocNode: a post's embed authored against the SOURCE asset id renders a real <img>, never the placeholder
+  ---
+  duration_ms: 6.211873
+  type: 'test'
+  ...
+# Subtest: apply() blocks with 'blocked:missing-blob' when the bundle names a sha this destination never received — and writes nothing
+ok 1394 - apply() blocks with 'blocked:missing-blob' when the bundle names a sha this destination never received — and writes nothing
+  ---
+  duration_ms: 1.711164
+  type: 'test'
+  ...
+# Subtest: apply() never re-stamps an existing asset_blobs row's createdByPrincipal, and reports the reuse as blobWritten:false
+ok 1395 - apply() never re-stamps an existing asset_blobs row's createdByPrincipal, and reports the reuse as blobWritten:false
+  ---
+  duration_ms: 0.862592
+  type: 'test'
+  ...
+# Subtest: apply() attributes a BRAND-NEW asset_blobs row to the importing operator, and reports blobWritten:true
+ok 1396 - apply() attributes a BRAND-NEW asset_blobs row to the importing operator, and reports blobWritten:true
+  ---
+  duration_ms: 5.609448
+  type: 'test'
+  ...
+# Subtest: apply() blocks with 'blocked:slug-taken' when the slug is held by a DIFFERENT id — and writes neither a blob row nor a media row
+ok 1397 - apply() blocks with 'blocked:slug-taken' when the slug is held by a DIFFERENT id — and writes neither a blob row nor a media row
+  ---
+  duration_ms: 5.136327
+  type: 'test'
+  ...
+# Subtest: apply() updates an existing row when expectedVersion matches, recording the prior record as the change set's inverse
+ok 1398 - apply() updates an existing row when expectedVersion matches, recording the prior record as the change set's inverse
+  ---
+  duration_ms: 3.682257
+  type: 'test'
+  ...
+# Subtest: apply() refuses to overwrite a destination row that moved on from expectedVersion
+ok 1399 - apply() refuses to overwrite a destination row that moved on from expectedVersion
+  ---
+  duration_ms: 1.484369
+  type: 'test'
+  ...
+# Subtest: apply() refuses a 'created' row when the destination grew one between plan and apply
+ok 1400 - apply() refuses a 'created' row when the destination grew one between plan and apply
+  ---
+  duration_ms: 10.6275
+  type: 'test'
+  ...
+# Subtest: [sqlite] apply(): two concurrent updates planned against the same version cannot both land — one wins, the other is a conflict
+ok 1401 - [sqlite] apply(): two concurrent updates planned against the same version cannot both land — one wins, the other is a conflict
+  ---
+  duration_ms: 269.407436
+  type: 'test'
+  ...
+# Subtest: [sqlite] apply(): two concurrent creates of the same id cannot both land
+ok 1402 - [sqlite] apply(): two concurrent creates of the same id cannot both land
+  ---
+  duration_ms: 238.765855
+  type: 'test'
+  ...
+# Subtest: [memory] apply(): two concurrent updates planned against the same version cannot both land — one wins, the other is a conflict
+ok 1403 - [memory] apply(): two concurrent updates planned against the same version cannot both land — one wins, the other is a conflict
+  ---
+  duration_ms: 0.868999
+  type: 'test'
+  ...
+# Subtest: [memory] apply(): two concurrent creates of the same id cannot both land
+ok 1404 - [memory] apply(): two concurrent creates of the same id cannot both land
+  ---
+  duration_ms: 8.880312
+  type: 'test'
+  ...
+# Subtest: apply() throws a named error when changeSets/authorize/outbox are not wired
+ok 1405 - apply() throws a named error when changeSets/authorize/outbox are not wired
+  ---
+  duration_ms: 1.872148
+  type: 'test'
+  ...
+# Subtest: apply() throws a named error when ports.media is not wired
+ok 1406 - apply() throws a named error when ports.media is not wired
+  ---
+  duration_ms: 0.942649
+  type: 'test'
+  ...
+# Subtest: apply() no longer throws Task 12's 'not wired yet' stub error
+ok 1407 - apply() no longer throws Task 12's 'not wired yet' stub error
+  ---
+  duration_ms: 1.376832
+  type: 'test'
+  ...
+# Subtest: precheck() reports a missing blob so the planner can emit a 'blocked' row before any apply is attempted
+ok 1408 - precheck() reports a missing blob so the planner can emit a 'blocked' row before any apply is attempted
+  ---
+  duration_ms: 0.658897
+  type: 'test'
+  ...
+# Subtest: precheck() returns null once the blob has been staged and no slug holds the name
+ok 1409 - precheck() returns null once the blob has been staged and no slug holds the name
+  ---
+  duration_ms: 0.33413
+  type: 'test'
+  ...
+# Subtest: apply() compensates the complete create when recording its change set fails after the write
+ok 1410 - apply() compensates the complete create when recording its change set fails after the write
+  ---
+  duration_ms: 1.321067
+  type: 'test'
+  ...
+# Subtest: apply() compensates the complete update when recording its change set fails after the write
+ok 1411 - apply() compensates the complete update when recording its change set fails after the write
+  ---
+  duration_ms: 1.040855
+  type: 'test'
+  ...
+# Subtest: ordinary uploaded media retains its content hash after publishing
+ok 1412 - ordinary uploaded media retains its content hash after publishing
+  ---
+  duration_ms: 0.986299
+  type: 'test'
+  ...
+# Subtest: bug 44: video and poster published between disposable SQLite sites immediately re-plan unchanged
+ok 1413 - bug 44: video and poster published between disposable SQLite sites immediately re-plan unchanged
+  ---
+  duration_ms: 484.473757
+  type: 'test'
+  ...
+# Subtest: ordinary metadata imports retain the destination's complete write-once source
+ok 1414 - ordinary metadata imports retain the destination's complete write-once source
+  ---
+  duration_ms: 0.829738
+  type: 'test'
+  ...
+# Subtest: media_upload_asset records the SNIFFED content type (not the caller's declared string) so the asset is correctly typed afterward
+ok 1415 - media_upload_asset records the SNIFFED content type (not the caller's declared string) so the asset is correctly typed afterward
+  ---
+  duration_ms: 43.817334
+  type: 'test'
+  ...
+# Subtest: two uploads of different bytes each get their own recorded content type
+ok 1416 - two uploads of different bytes each get their own recorded content type
+  ---
+  duration_ms: 12.147488
+  type: 'test'
+  ...
+# Subtest: media_upload_asset accepts a real AVIF from the assistant chat and records image/avif, not video/mp4
+ok 1417 - media_upload_asset accepts a real AVIF from the assistant chat and records image/avif, not video/mp4
+  ---
+  duration_ms: 2.176615
+  type: 'test'
+  ...
+# Subtest: media_upload_asset's published schema offers image/avif as a selectable contentType
+ok 1418 - media_upload_asset's published schema offers image/avif as a selectable contentType
+  ---
+  duration_ms: 1.568435
+  type: 'test'
+  ...
+# Subtest: media_upload_asset accepts a file over the 10 MiB @jini-ai/cms default, up to Tovu's own TOVU_MAX_UPLOAD_BYTES cap
+ok 1419 - media_upload_asset accepts a file over the 10 MiB @jini-ai/cms default, up to Tovu's own TOVU_MAX_UPLOAD_BYTES cap
+  ---
+  duration_ms: 147.491562
+  type: 'test'
+  ...
+# Subtest: media_upload_asset still rejects a file over Tovu's own TOVU_MAX_UPLOAD_BYTES cap
+ok 1420 - media_upload_asset still rejects a file over Tovu's own TOVU_MAX_UPLOAD_BYTES cap
+  ---
+  duration_ms: 827.952777
+  type: 'test'
+  ...
+# Subtest: media_upload_asset attributes analytics to each caller even when bytes are shared
+ok 1421 - media_upload_asset attributes analytics to each caller even when bytes are shared
+  ---
+  duration_ms: 61.493373
+  type: 'test'
+  ...
+# Subtest: client card resolves username/client ID and sealed token/client secret through vault owner
+ok 1422 - client card resolves username/client ID and sealed token/client secret through vault owner
+  ---
+  duration_ms: 28.309533
+  type: 'test'
+  ...
+# Subtest: provider listing does not decrypt; credential payload never falls back to Workspace
+ok 1423 - provider listing does not decrypt; credential payload never falls back to Workspace
+  ---
+  duration_ms: 47.847285
+  type: 'test'
+  ...
+# Subtest: wrong token URL and missing client ID are unavailable
+ok 1424 - wrong token URL and missing client ID are unavailable
+  ---
+  duration_ms: 7.075531
+  type: 'test'
+  ...
+# Subtest: every Members agent tool keeps its exact permission, side effect and strict input schema
+ok 1425 - every Members agent tool keeps its exact permission, side effect and strict input schema
+  ---
+  duration_ms: 5.490682
+  type: 'test'
+  ...
+# Subtest: the member id field tells the model where ids come from
+ok 1426 - the member id field tells the model where ids come from
+  ---
+  duration_ms: 0.386608
+  type: 'test'
+  ...
+# Subtest: [postgres] identity round-trip is scoped and independent of email or tokens
+not ok 1427 - [postgres] identity round-trip is scoped and independent of email or tokens
+  ---
+  duration_ms: 0.789564
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.contract.ts:1:505'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+    <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+  ...
+# Subtest: [postgres] both natural keys reserve ownership, including unlinked rows
+not ok 1428 - [postgres] both natural keys reserve ownership, including unlinked rows
+  ---
+  duration_ms: 0.133251
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.contract.ts:1:1842'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+    <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+  ...
+# Subtest: [postgres] an id cannot move ownership, even during explicit reconnect
+not ok 1429 - [postgres] an id cannot move ownership, even during explicit reconnect
+  ---
+  duration_ms: 0.050635
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.contract.ts:1:2544'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+    <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+  ...
+# Subtest: [postgres] unlink survives stale callbacks and is idempotent and workspace-scoped
+not ok 1430 - [postgres] unlink survives stale callbacks and is idempotent and workspace-scoped
+  ---
+  duration_ms: 0.034553
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.contract.ts:1:3072'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+    <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+  ...
+# Subtest: [postgres] explicit connect reuses the marker row and can change the subject
+not ok 1431 - [postgres] explicit connect reuses the marker row and can change the subject
+  ---
+  duration_ms: 0.033496
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.contract.ts:1:4058'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+    <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+  ...
+# Subtest: [postgres] conflicting concurrent inserts produce exactly one owner
+not ok 1432 - [postgres] conflicting concurrent inserts produce exactly one owner
+  ---
+  duration_ms: 0.036414
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.contract.ts:1:4699'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+    <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+  ...
+# Subtest: [postgres] listing orders multiple providers and active upserts retain a single row
+not ok 1433 - [postgres] listing orders multiple providers and active upserts retain a single row
+  ---
+  duration_ms: 0.032615
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.contract.ts:1:5290'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+    <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+  ...
+# Subtest: [postgres] records cannot mutate storage through input or output references
+not ok 1434 - [postgres] records cannot mutate storage through input or output references
+  ---
+  duration_ms: 0.03502
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.contract.ts:1:5890'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:15:51)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+    <anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:14:1)
+  ...
+not ok 1435 - /home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts
+  ---
+  duration_ms: 71.826497
+  location: '/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:1:750'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_member_external_identities_contract": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts:20:3)
+    async TestHook.run (node:internal/test_runner/test:1409:7)
+    async Test.runHook (node:internal/test_runner/test:1289:9)
+    async after (node:internal/test_runner/test:1342:9)
+    async Test.run (node:internal/test_runner/test:1428:7)
+  ...
+# Subtest: getContact: returns null for an unknown subscriber id
+ok 1436 - getContact: returns null for an unknown subscriber id
+  ---
+  duration_ms: 3.552445
+  type: 'test'
+  ...
+# Subtest: getContact: an active + verified member is emailDeliverable, subscriberId = memberId
+ok 1437 - getContact: an active + verified member is emailDeliverable, subscriberId = memberId
+  ---
+  duration_ms: 1.212915
+  type: 'test'
+  ...
+# Subtest: getContact: an unverified member is not emailDeliverable
+ok 1438 - getContact: an unverified member is not emailDeliverable
+  ---
+  duration_ms: 0.189573
+  type: 'test'
+  ...
+# Subtest: getContact: a pending (not-yet-active) member is not emailDeliverable
+ok 1439 - getContact: a pending (not-yet-active) member is not emailDeliverable
+  ---
+  duration_ms: 0.171387
+  type: 'test'
+  ...
+# Subtest: getContact: a disabled member (even if previously verified) is not emailDeliverable
+ok 1440 - getContact: a disabled member (even if previously verified) is not emailDeliverable
+  ---
+  duration_ms: 9.419424
+  type: 'test'
+  ...
+# Subtest: getContact: a member in another workspace is not visible (workspace scoping)
+ok 1441 - getContact: a member in another workspace is not visible (workspace scoping)
+  ---
+  duration_ms: 0.239935
+  type: 'test'
+  ...
+# Subtest: getContacts: returns one contact per found id, in no particular required order
+ok 1442 - getContacts: returns one contact per found id, in no particular required order
+  ---
+  duration_ms: 0.485544
+  type: 'test'
+  ...
+# Subtest: getContacts: unknown ids are silently omitted from the result, not errored or null-padded
+ok 1443 - getContacts: unknown ids are silently omitted from the result, not errored or null-padded
+  ---
+  duration_ms: 1.099881
+  type: 'test'
+  ...
+# Subtest: getContacts: an empty subscriberIds array returns an empty array
+ok 1444 - getContacts: an empty subscriberIds array returns an empty array
+  ---
+  duration_ms: 0.296201
+  type: 'test'
+  ...
+# Subtest: getContact: a pending but verified member is still not emailDeliverable
+ok 1445 - getContact: a pending but verified member is still not emailDeliverable
+  ---
+  duration_ms: 0.207356
+  type: 'test'
+  ...
+# Subtest: pack(): pinned contentHash and packed state per menu; trashed rows skipped
+ok 1446 - pack(): pinned contentHash and packed state per menu; trashed rows skipped
+  ---
+  duration_ms: 19.978014
+  type: 'test'
+  ...
+# Subtest: inspect(): the destination's hash equals the pinned pack hash
+ok 1447 - inspect(): the destination's hash equals the pinned pack hash
+  ---
+  duration_ms: 0.67981
+  type: 'test'
+  ...
+# Subtest: precheck(): exact reason strings
+ok 1448 - precheck(): exact reason strings
+  ---
+  duration_ms: 1.217238
+  type: 'test'
+  ...
+# Subtest: apply(): exact blocked text, stale version is a conflict, unwired throws naming the port
+ok 1449 - apply(): exact blocked text, stale version is a conflict, unwired throws naming the port
+  ---
+  duration_ms: 6.217625
+  type: 'test'
+  ...
+# Subtest: apply(): create keeps the source id, update bumps the version; changeSetId is the menu id
+ok 1450 - apply(): create keeps the source id, update bumps the version; changeSetId is the menu id
+  ---
+  duration_ms: 3.859357
+  type: 'test'
+  ...
+# Subtest: trash sends the read version, actor and display to the removal port and returns its version
+ok 1451 - trash sends the read version, actor and display to the removal port and returns its version
+  ---
+  duration_ms: 3.132398
+  type: 'test'
+  ...
+# Subtest: trash maps removal not-found to the matching domain error
+ok 1452 - trash maps removal not-found to the matching domain error
+  ---
+  duration_ms: 0.770518
+  type: 'test'
+  ...
+# Subtest: trash maps removal version-changed to the matching domain error
+ok 1453 - trash maps removal version-changed to the matching domain error
+  ---
+  duration_ms: 0.221283
+  type: 'test'
+  ...
+# Subtest: a missing or already-trashed menu never reaches the removal port
+ok 1454 - a missing or already-trashed menu never reaches the removal port
+  ---
+  duration_ms: 0.810209
+  type: 'test'
+  ...
+# Subtest: runHookChain: beforeSend never runs for a row recipient.filter suppressed (EC-01, post-freeze unsubscribe case)
+ok 1455 - runHookChain: beforeSend never runs for a row recipient.filter suppressed (EC-01, post-freeze unsubscribe case)
+  ---
+  duration_ms: 2.16378
+  type: 'test'
+  ...
+# Subtest: runHookChain: a kept row runs beforeSend and returns the transformed message
+ok 1456 - runHookChain: a kept row runs beforeSend and returns the transformed message
+  ---
+  duration_ms: 1.625699
+  type: 'test'
+  ...
+# Subtest: runHookChain: a throwing recipient.filter hook is fail-closed suppression, never 'keep by default' (behavior.spec §7)
+ok 1457 - runHookChain: a throwing recipient.filter hook is fail-closed suppression, never 'keep by default' (behavior.spec §7)
+  ---
+  duration_ms: 0.370138
+  type: 'test'
+  ...
+# Subtest: runHookChain: a throwing beforeSend hook is also fail-closed suppression
+ok 1458 - runHookChain: a throwing beforeSend hook is also fail-closed suppression
+  ---
+  duration_ms: 0.260756
+  type: 'test'
+  ...
+# Subtest: runHookChain: with no hooks registered, the message passes through kept and unmodified
+ok 1459 - runHookChain: with no hooks registered, the message passes through kept and unmodified
+  ---
+  duration_ms: 0.557099
+  type: 'test'
+  ...
+# Subtest: runHookChain: multiple recipient.filter hooks — any single suppress wins, subsequent filters don't override it back to keep
+ok 1460 - runHookChain: multiple recipient.filter hooks — any single suppress wins, subsequent filters don't override it back to keep
+  ---
+  duration_ms: 0.415398
+  type: 'test'
+  ...
+# Subtest: runHookChain: asynchronous suppression and transformations are awaited
+ok 1461 - runHookChain: asynchronous suppression and transformations are awaited
+  ---
+  duration_ms: 0.548247
+  type: 'test'
+  ...
+# Subtest: runHookChain: non-subscribed recipients are suppressed even with no registered filter
+ok 1462 - runHookChain: non-subscribed recipients are suppressed even with no registered filter
+  ---
+  duration_ms: 1.430381
+  type: 'test'
+  ...
+# Subtest: newsletter_get_campaign for an unknown campaign is BAD_REQUEST with the real not-found reason, not a redacted 500
+ok 1463 - newsletter_get_campaign for an unknown campaign is BAD_REQUEST with the real not-found reason, not a redacted 500
+  ---
+  duration_ms: 9.760012
+  type: 'test'
+  ...
+# Subtest: newsletter_update_campaign for an unknown campaign is BAD_REQUEST naming the id, and writes nothing
+ok 1464 - newsletter_update_campaign for an unknown campaign is BAD_REQUEST naming the id, and writes nothing
+  ---
+  duration_ms: 1.849493
+  type: 'test'
+  ...
+# Subtest: the newsletter catalog contributor installs this module's builder and risk map under the newsletter domain
+ok 1465 - the newsletter catalog contributor installs this module's builder and risk map under the newsletter domain
+  ---
+  duration_ms: 0.43776
+  type: 'test'
+  ...
+# Subtest: newsletter_list_send_log for an unknown campaign says so rather than 'an internal error occurred'
+ok 1466 - newsletter_list_send_log for an unknown campaign says so rather than 'an internal error occurred'
+  ---
+  duration_ms: 1.404056
+  type: 'test'
+  ...
+# Subtest: newsletter_remove_subscription for an unknown subscription surfaces its own not-found class
+ok 1467 - newsletter_remove_subscription for an unknown subscription surfaces its own not-found class
+  ---
+  duration_ms: 1.792915
+  type: 'test'
+  ...
+# Subtest: newsletter_create_subscription against an unknown list names the LIST, not a generic failure
+ok 1468 - newsletter_create_subscription against an unknown list names the LIST, not a generic failure
+  ---
+  duration_ms: 1.579863
+  type: 'test'
+  ...
+# Subtest: newsletter_create_campaign against an unknown list names the list
+ok 1469 - newsletter_create_campaign against an unknown list names the list
+  ---
+  duration_ms: 1.143672
+  type: 'test'
+  ...
+# Subtest: every Newsletter tool surfaces a denial with the permission named — the sibling-arm check across all 14
+ok 1470 - every Newsletter tool surfaces a denial with the permission named — the sibling-arm check across all 14
+  ---
+  duration_ms: 18.207652
+  type: 'test'
+  ...
+# Subtest: authorized tools expose reachable validation, conflict, protected-default, subscriber and noneditable errors
+ok 1471 - authorized tools expose reachable validation, conflict, protected-default, subscriber and noneditable errors
+  ---
+  duration_ms: 21.177291
+  type: 'test'
+  ...
+# Subtest: newsletter_update_campaign on an unknown campaign id refuses as NEWSLETTER_CAMPAIGN_NOT_FOUND and writes nothing
+ok 1472 - newsletter_update_campaign on an unknown campaign id refuses as NEWSLETTER_CAMPAIGN_NOT_FOUND and writes nothing
+  ---
+  duration_ms: 0.735175
+  type: 'test'
+  ...
+# Subtest: authorized list and campaign tools return exact views and persist edits
+ok 1473 - authorized list and campaign tools return exact views and persist edits
+  ---
+  duration_ms: 4.947465
+  type: 'test'
+  ...
+# Subtest: authorized subscription, archive, cancel and pause tools persist and return their mapped views
+ok 1474 - authorized subscription, archive, cancel and pause tools persist and return their mapped views
+  ---
+  duration_ms: 8.814025
+  type: 'test'
+  ...
+# Subtest: campaign updates replace supplied fields and preserve omitted fields
+ok 1475 - campaign updates replace supplied fields and preserve omitted fields
+  ---
+  duration_ms: 1.905543
+  type: 'test'
+  ...
+# Subtest: campaign listing filters matching status and leaves absent, empty and non-string status unfiltered
+ok 1476 - campaign listing filters matching status and leaves absent, empty and non-string status unfiltered
+  ---
+  duration_ms: 6.883465
+  type: 'test'
+  ...
+# Subtest: subscription creation preserves an explicit import source
+ok 1477 - subscription creation preserves an explicit import source
+  ---
+  duration_ms: 0.752373
+  type: 'test'
+  ...
+# Subtest: ensureMediaObjectStoreSetting: registers core.storage/mediaObjectStore as a workspace-scoped string defaulting to ''
+ok 1478 - ensureMediaObjectStoreSetting: registers core.storage/mediaObjectStore as a workspace-scoped string defaulting to ''
+  ---
+  duration_ms: 17.51187
+  type: 'test'
+  ...
+# Subtest: readMediaObjectStoreSetting: returns the owner's saved provider id, trimmed
+ok 1479 - readMediaObjectStoreSetting: returns the owner's saved provider id, trimmed
+  ---
+  duration_ms: 1.336144
+  type: 'test'
+  ...
+# Subtest: ensureMediaObjectStoreSetting: running again on the next boot keeps the owner's value
+ok 1480 - ensureMediaObjectStoreSetting: running again on the next boot keeps the owner's value
+  ---
+  duration_ms: 1.057638
+  type: 'test'
+  ...
+# Subtest: readMediaObjectStoreSetting: a blank saved value reads as ''
+ok 1481 - readMediaObjectStoreSetting: a blank saved value reads as ''
+  ---
+  duration_ms: 0.903868
+  type: 'test'
+  ...
+# Subtest: readMediaObjectStoreSetting: an unregistered setting reads as ''
+ok 1482 - readMediaObjectStoreSetting: an unregistered setting reads as ''
+  ---
+  duration_ms: 0.27056
+  type: 'test'
+  ...
+# Subtest: readMediaObjectStoreSetting: a non-string effective value (a definition registered under another schema) reads as ''
+ok 1483 - readMediaObjectStoreSetting: a non-string effective value (a definition registered under another schema) reads as ''
+  ---
+  duration_ms: 0.45533
+  type: 'test'
+  ...
+# Subtest: H2: guidance points to plugin embeds, and owner-authorized page HTML is still saved unchanged
+ok 1484 - H2: guidance points to plugin embeds, and owner-authorized page HTML is still saved unchanged
+  ---
+  duration_ms: 228.686203
+  type: 'test'
+  ...
+# Subtest: page writers refuse unresolved Media widget tokens before saving a broken visitor photo
+ok 1485 - page writers refuse unresolved Media widget tokens before saving a broken visitor photo
+  ---
+  duration_ms: 426.27214
+  type: 'test'
+  ...
+# Subtest: pages_write_region is registered and publishes an input schema
+ok 1486 - pages_write_region is registered and publishes an input schema
+  ---
+  duration_ms: 5.88949
+  type: 'test'
+  ...
+# Subtest: pages_write_region replaces ONLY the addressed region — every other byte of the document survives
+ok 1487 - pages_write_region replaces ONLY the addressed region — every other byte of the document survives
+  ---
+  duration_ms: 37.995448
+  type: 'test'
+  ...
+# Subtest: pages_write_region keeps the region's own tag and attributes — the handle cannot be destroyed by the write that targets it
+ok 1488 - pages_write_region keeps the region's own tag and attributes — the handle cannot be destroyed by the write that targets it
+  ---
+  duration_ms: 18.78365
+  type: 'test'
+  ...
+# Subtest: a handle that is not in the document is refused, and the refusal names the handles that ARE
+ok 1489 - a handle that is not in the document is refused, and the refusal names the handles that ARE
+  ---
+  duration_ms: 8.933746
+  type: 'test'
+  ...
+# Subtest: a handle carried by two elements is refused rather than guessed — an address that resolves to two places is not an address
+ok 1490 - a handle carried by two elements is refused rather than guessed — an address that resolves to two places is not an address
+  ---
+  duration_ms: 2.872021
+  type: 'test'
+  ...
+# Subtest: a region containing a nested same-tag element is replaced whole — the splice does not stop at the first inner </section>
+ok 1491 - a region containing a nested same-tag element is replaced whole — the splice does not stop at the first inner </section>
+  ---
+  duration_ms: 4.50023
+  type: 'test'
+  ...
+# Subtest: writing an OUTER region that contains an addressable nested region removes the nested handle — the tool's own 'check the surviving handles' promise, confirmed at the handler level
+ok 1492 - writing an OUTER region that contains an addressable nested region removes the nested handle — the tool's own 'check the surviving handles' promise, confirmed at the handler level
+  ---
+  duration_ms: 5.190528
+  type: 'test'
+  ...
+# Subtest: pages_write_region rejects a stale expectedVersion and writes NOTHING — two region edits cannot silently clobber each other
+ok 1493 - pages_write_region rejects a stale expectedVersion and writes NOTHING — two region edits cannot silently clobber each other
+  ---
+  duration_ms: 6.299112
+  type: 'test'
+  ...
+# Subtest: pages_write_html rejects a stale expectedVersion and writes NOTHING
+ok 1494 - pages_write_html rejects a stale expectedVersion and writes NOTHING
+  ---
+  duration_ms: 7.121488
+  type: 'test'
+  ...
+# Subtest: a malformed expectedVersion is rejected on both writers rather than coerced to 'no basis sent'
+ok 1495 - a malformed expectedVersion is rejected on both writers rather than coerced to 'no basis sent'
+  ---
+  duration_ms: 4.412159
+  type: 'test'
+  ...
+# Subtest: pages_write_html REFUSES untagged top-level markup instead of warning about it after the fact
+ok 1496 - pages_write_html REFUSES untagged top-level markup instead of warning about it after the fact
+  ---
+  duration_ms: 4.145562
+  type: 'test'
+  ...
+# Subtest: the untagged-markup refusal suggests a handle derived from the section's own heading, never a positional one
+ok 1497 - the untagged-markup refusal suggests a handle derived from the section's own heading, never a positional one
+  ---
+  duration_ms: 1.433286
+  type: 'test'
+  ...
+# Subtest: a <style> block at top level needs no handle — the tagging rule is about sections, not about every node
+ok 1498 - a <style> block at top level needs no handle — the tagging rule is about sections, not about every node
+  ---
+  duration_ms: 1.27694
+  type: 'test'
+  ...
+# Subtest: writing a region fragment that reuses an UNRELATED handle already in the document is refused, naming that handle
+ok 1499 - writing a region fragment that reuses an UNRELATED handle already in the document is refused, naming that handle
+  ---
+  duration_ms: 2.247966
+  type: 'test'
+  ...
+# Subtest: a page that already carries a duplicate handle stays editable in its other regions — only a write that ADDS ambiguity is refused
+ok 1500 - a page that already carries a duplicate handle stays editable in its other regions — only a write that ADDS ambiguity is refused
+  ---
+  duration_ms: 2.135813
+  type: 'test'
+  ...
+# Subtest: pages_write_html refuses a full rewrite that puts one handle on two elements, and leaves the stored page untouched
+ok 1501 - pages_write_html refuses a full rewrite that puts one handle on two elements, and leaves the stored page untouched
+  ---
+  duration_ms: 2.920133
+  type: 'test'
+  ...
+# Subtest: pages_write_html refuses a FIRST write with duplicate handles before converting the row, so the page stays a doc
+ok 1502 - pages_write_html refuses a FIRST write with duplicate handles before converting the row, so the page stays a doc
+  ---
+  duration_ms: 1.014839
+  type: 'test'
+  ...
+# Subtest: pages_write_html still rewrites a legacy page whose existing duplicate it does not make worse
+ok 1503 - pages_write_html still rewrites a legacy page whose existing duplicate it does not make worse
+  ---
+  duration_ms: 3.035559
+  type: 'test'
+  ...
+# Subtest: pages_write_region reports a store CAS race as an actionable input error and preserves the winner
+ok 1504 - pages_write_region reports a store CAS race as an actionable input error and preserves the winner
+  ---
+  duration_ms: 15.686232
+  type: 'test'
+  ...
+# Subtest: pages_write_region refuses doc, trashed, and missing pages without changing rows
+ok 1505 - pages_write_region refuses doc, trashed, and missing pages without changing rows
+  ---
+  duration_ms: 1.831768
+  type: 'test'
+  ...
+# Subtest: normalization: real region alias keeps expectedVersion protection; dual targets fail before writing
+ok 1506 - normalization: real region alias keeps expectedVersion protection; dual targets fail before writing
+  ---
+  duration_ms: 6.547821
+  type: 'test'
+  ...
+# Subtest: delegated normalization: region aliases persist; foreign targets in single, shared and per-item inputs make zero writes
+ok 1507 - delegated normalization: region aliases persist; foreign targets in single, shared and per-item inputs make zero writes
+  ---
+  duration_ms: 792.581328
+  type: 'test'
+  ...
+# Subtest: pages_write_region: regionId preserves DOM handles, placement and versioning
+ok 1508 - pages_write_region: regionId preserves DOM handles, placement and versioning
+  ---
+  duration_ms: 3.201368
+  type: 'test'
+  ...
+# Subtest: pages_write_region: regionId refuses absent and duplicate DOM regions without writes
+ok 1509 - pages_write_region: regionId refuses absent and duplicate DOM regions without writes
+  ---
+  duration_ms: 6.648226
+  type: 'test'
+  ...
+# Subtest: pages_write_region: regionId requires pages.edit_html before opening a store
+ok 1510 - pages_write_region: regionId requires pages.edit_html before opening a store
+  ---
+  duration_ms: 5.176763
+  type: 'test'
+  ...
+# Subtest: pages_write_region: handle preserves DOM handles, placement and versioning
+ok 1511 - pages_write_region: handle preserves DOM handles, placement and versioning
+  ---
+  duration_ms: 2.511997
+  type: 'test'
+  ...
+# Subtest: pages_write_region: handle refuses absent and duplicate DOM regions without writes
+ok 1512 - pages_write_region: handle refuses absent and duplicate DOM regions without writes
+  ---
+  duration_ms: 4.076271
+  type: 'test'
+  ...
+# Subtest: pages_write_region: handle requires pages.edit_html before opening a store
+ok 1513 - pages_write_region: handle requires pages.edit_html before opening a store
+  ---
+  duration_ms: 2.077922
+  type: 'test'
+  ...
+# Subtest: pages_write_region: region preserves DOM handles, placement and versioning
+ok 1514 - pages_write_region: region preserves DOM handles, placement and versioning
+  ---
+  duration_ms: 5.352393
+  type: 'test'
+  ...
+# Subtest: pages_write_region: region refuses absent and duplicate DOM regions without writes
+ok 1515 - pages_write_region: region refuses absent and duplicate DOM regions without writes
+  ---
+  duration_ms: 10.9419
+  type: 'test'
+  ...
+# Subtest: pages_write_region: region requires pages.edit_html before opening a store
+ok 1516 - pages_write_region: region requires pages.edit_html before opening a store
+  ---
+  duration_ms: 5.625306
+  type: 'test'
+  ...
+# Subtest: pages_write_region: only canonical regionId is published; missing or invalid targets cannot write
+ok 1517 - pages_write_region: only canonical regionId is published; missing or invalid targets cannot write
+  ---
+  duration_ms: 5.318407
+  type: 'test'
+  ...
+# Subtest: pages_write_region: all coexisting target spellings are rejected, including equal values, before I/O
+ok 1518 - pages_write_region: all coexisting target spellings are rejected, including equal values, before I/O
+  ---
+  duration_ms: 2.386014
+  type: 'test'
+  ...
+# Subtest: pages_write_region: mixed batch keeps valid canonical/legacy items and refuses conflicting aliases
+ok 1519 - pages_write_region: mixed batch keeps valid canonical/legacy items and refuses conflicting aliases
+  ---
+  duration_ms: 8.983062
+  type: 'test'
+  ...
+# Subtest: site-local source is discovered only after seal/install; enable publishes a namespaced route and assistant tool
+ok 1520 - site-local source is discovered only after seal/install; enable publishes a namespaced route and assistant tool
+  ---
+  duration_ms: 393.955019
+  type: 'test'
+  ...
+# Subtest: host enforces public/member/admin independently and caps JSON, text and form bodies
+ok 1521 - host enforces public/member/admin independently and caps JSON, text and form bodies
+  ---
+  duration_ms: 228.401087
+  type: 'test'
+  ...
+# Subtest: reload replaces route/tool/widget generations; disable removes catalog and handlers without a restart
+ok 1522 - reload replaces route/tool/widget generations; disable removes catalog and handlers without a restart
+  ---
+  duration_ms: 291.74771
+  type: 'test'
+  ...
+# Subtest: a partial marker that names no partial id is left untouched, even with a partial-contributing plugin enabled
+ok 1523 - a partial marker that names no partial id is left untouched, even with a partial-contributing plugin enabled
+  ---
+  duration_ms: 162.248323
+  type: 'test'
+  ...
+# Subtest: claim collision refuses activation before publishing any candidate handler
+ok 1524 - claim collision refuses activation before publishing any candidate handler
+  ---
+  duration_ms: 686.476793
+  type: 'test'
+  ...
+# Subtest: two plugins can declare the same local route and tool names and both reach the assistant catalog
+ok 1525 - two plugins can declare the same local route and tool names and both reach the assistant catalog
+  ---
+  duration_ms: 422.021234
+  type: 'test'
+  ...
