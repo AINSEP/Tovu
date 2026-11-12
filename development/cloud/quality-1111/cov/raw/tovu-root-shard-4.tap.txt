@@ -11892,3 +11892,3783 @@ ok 1714 - static options show installed display titles while keeping theme IDs
   duration_ms: 0.672738
   type: 'test'
   ...
+# Subtest: preparation reports failed snapshot without sanitizing or reading media
+ok 1715 - preparation reports failed snapshot without sanitizing or reading media
+  ---
+  duration_ms: 1805.699893
+  type: 'test'
+  ...
+# Subtest: preparation without settings regenerates portable defaults and preserves watermark
+ok 1716 - preparation without settings regenerates portable defaults and preserves watermark
+  ---
+  duration_ms: 1158.968911
+  type: 'test'
+  ...
+# Subtest: portable settings retain only safe provenance values and never host credentials or identity
+ok 1717 - portable settings retain only safe provenance values and never host credentials or identity
+  ---
+  duration_ms: 1358.762169
+  type: 'test'
+  ...
+# Subtest: settings refuse non-object JSON {
+ok 1718 - settings refuse non-object JSON {
+  ---
+  duration_ms: 1451.378241
+  type: 'test'
+  ...
+# Subtest: settings refuse non-object JSON null
+ok 1719 - settings refuse non-object JSON null
+  ---
+  duration_ms: 1374.615492
+  type: 'test'
+  ...
+# Subtest: settings refuse non-object JSON []
+ok 1720 - settings refuse non-object JSON []
+  ---
+  duration_ms: 1885.860635
+  type: 'test'
+  ...
+# Subtest: settings refuse non-object JSON 42
+ok 1721 - settings refuse non-object JSON 42
+  ---
+  duration_ms: 1291.23221
+  type: 'test'
+  ...
+# Subtest: settings refuse non-object JSON "name"
+ok 1722 - settings refuse non-object JSON "name"
+  ---
+  duration_ms: 2210.556656
+  type: 'test'
+  ...
+# Subtest: oversized settings refuse before JSON parsing
+ok 1723 - oversized settings refuse before JSON parsing
+  ---
+  duration_ms: 1652.855282
+  type: 'test'
+  ...
+# Subtest: linked required content causes a named refusal instead of silently omitting the file
+ok 1724 - linked required content causes a named refusal instead of silently omitting the file
+  ---
+  duration_ms: 1135.427615
+  type: 'test'
+  ...
+# Subtest: media missing refuses before archive creation
+ok 1725 - media missing refuses before archive creation
+  ---
+  duration_ms: 1144.46492
+  type: 'test'
+  ...
+# Subtest: media negative size refuses before archive creation
+ok 1726 - media negative size refuses before archive creation
+  ---
+  duration_ms: 1639.748308
+  type: 'test'
+  ...
+# Subtest: media fractional size refuses before archive creation
+ok 1727 - media fractional size refuses before archive creation
+  ---
+  duration_ms: 1795.864755
+  type: 'test'
+  ...
+# Subtest: media non-finite size refuses before archive creation
+ok 1728 - media non-finite size refuses before archive creation
+  ---
+  duration_ms: 1095.836257
+  type: 'test'
+  ...
+# Subtest: media changed length refuses before archive creation
+ok 1729 - media changed length refuses before archive creation
+  ---
+  duration_ms: 1017.026334
+  type: 'test'
+  ...
+# Subtest: media changed hash refuses before archive creation
+ok 1730 - media changed hash refuses before archive creation
+  ---
+  duration_ms: 1183.512015
+  type: 'test'
+  ...
+# Subtest: media must have a size-aware store
+ok 1731 - media must have a size-aware store
+  ---
+  duration_ms: 1891.120621
+  type: 'test'
+  ...
+# Subtest: Library document size 0 refuses before reading bytes
+ok 1732 - Library document size 0 refuses before reading bytes
+  ---
+  duration_ms: 1267.593755
+  type: 'test'
+  ...
+# Subtest: Library document size 52428801 refuses before reading bytes
+ok 1733 - Library document size 52428801 refuses before reading bytes
+  ---
+  duration_ms: 1507.819966
+  type: 'test'
+  ...
+# Subtest: duplicate media references fetch once and preserve the source bytes
+ok 1734 - duplicate media references fetch once and preserve the source bytes
+  ---
+  duration_ms: 972.82347
+  type: 'test'
+  ...
+# Subtest: settings removed after collection refuse as stale instead of returning a partial share
+ok 1735 - settings removed after collection refuse as stale instead of returning a partial share
+  ---
+  duration_ms: 974.873589
+  type: 'test'
+  ...
+# Subtest: media cap is enforced from reported size before fetching the blob
+ok 1736 - media cap is enforced from reported size before fetching the blob
+  ---
+  duration_ms: 1808.788432
+  type: 'test'
+  ...
+# Subtest: export retains every file, skips identical bundled bytes, and scans changed/custom files
+ok 1737 - export retains every file, skips identical bundled bytes, and scans changed/custom files
+  ---
+  duration_ms: 46.011056
+  type: 'test'
+  ...
+# Subtest: a same-size, same-mtime swap of themes/static/site/index.html after planning refuses before encoding
+ok 1738 - a same-size, same-mtime swap of themes/static/site/index.html after planning refuses before encoding
+  ---
+  duration_ms: 27.278341
+  type: 'test'
+  ...
+# Subtest: a linked directory for themes/static/site/index.html after planning refuses even with matching bytes
+ok 1739 - a linked directory for themes/static/site/index.html after planning refuses even with matching bytes
+  ---
+  duration_ms: 24.201775
+  type: 'test'
+  ...
+# Subtest: a same-size, same-mtime swap of overrides/site/index.html after planning refuses before encoding
+ok 1740 - a same-size, same-mtime swap of overrides/site/index.html after planning refuses before encoding
+  ---
+  duration_ms: 15.924697
+  type: 'test'
+  ...
+# Subtest: a linked directory for overrides/site/index.html after planning refuses even with matching bytes
+ok 1741 - a linked directory for overrides/site/index.html after planning refuses even with matching bytes
+  ---
+  duration_ms: 5.988605
+  type: 'test'
+  ...
+# Subtest: root v2 inventory matches every actual entry and its mapped path
+ok 1742 - root v2 inventory matches every actual entry and its mapped path
+  ---
+  duration_ms: 5.619501
+  type: 'test'
+  ...
+# Subtest: stale disk files and unsafe aliases refuse before encoding
+ok 1743 - stale disk files and unsafe aliases refuse before encoding
+  ---
+  duration_ms: 3.585243
+  type: 'test'
+  ...
+# Subtest: limits refuse and credential-looking files stay included before encoding
+ok 1744 - limits refuse and credential-looking files stay included before encoding
+  ---
+  duration_ms: 4.721927
+  type: 'test'
+  ...
+# Subtest: v2 requires the database and portable settings
+ok 1745 - v2 requires the database and portable settings
+  ---
+  duration_ms: 0.981265
+  type: 'test'
+  ...
+# Subtest: cancellation and encoder failures preserve their error
+ok 1746 - cancellation and encoder failures preserve their error
+  ---
+  duration_ms: 1.719542
+  type: 'test'
+  ...
+# Subtest: buffered files, then the database, then disk files, then the manifest reach the encoder once
+ok 1747 - buffered files, then the database, then disk files, then the manifest reach the encoder once
+  ---
+  duration_ms: 14.24218
+  type: 'test'
+  ...
+# Subtest: each archived entry keeps its exact bytes
+ok 1748 - each archived entry keeps its exact bytes
+  ---
+  duration_ms: 3.543474
+  type: 'test'
+  ...
+# Subtest: the manifest inventories every entry with its size and sha256, in archive order
+ok 1749 - the manifest inventories every entry with its size and sha256, in archive order
+  ---
+  duration_ms: 3.256045
+  type: 'test'
+  ...
+# Subtest: a plan without a database is refused with the exact v2 message before encoding
+ok 1750 - a plan without a database is refused with the exact v2 message before encoding
+  ---
+  duration_ms: 2.004203
+  type: 'test'
+  ...
+# Subtest: progress counts every archived entry and its bytes, not the manifest
+ok 1751 - progress counts every archived entry and its bytes, not the manifest
+  ---
+  duration_ms: 2.686356
+  type: 'test'
+  ...
+# Subtest: the plan's expanded caps are checked before any path claim or read
+ok 1752 - the plan's expanded caps are checked before any path claim or read
+  ---
+  duration_ms: 0.352857
+  type: 'test'
+  ...
+# Subtest: an unsafe path is refused before any entry is scanned
+ok 1753 - an unsafe path is refused before any entry is scanned
+  ---
+  duration_ms: 0.566099
+  type: 'test'
+  ...
+# Subtest: a file at the manifest path is refused as a duplicate
+ok 1754 - a file at the manifest path is refused as a duplicate
+  ---
+  duration_ms: 0.237338
+  type: 'test'
+  ...
+# Subtest: a buffered file and the database at the same path are refused as a duplicate
+ok 1755 - a buffered file and the database at the same path are refused as a duplicate
+  ---
+  duration_ms: 0.219441
+  type: 'test'
+  ...
+# Subtest: credential-shaped bytes stay included with a warning
+ok 1756 - credential-shaped bytes stay included with a warning
+  ---
+  duration_ms: 1.042174
+  type: 'test'
+  ...
+# Subtest: a disk file that changed since the plan is refused as stale
+ok 1757 - a disk file that changed since the plan is refused as stale
+  ---
+  duration_ms: 3.139395
+  type: 'test'
+  ...
+# Subtest: an already-aborted signal stops at the first entry
+ok 1758 - an already-aborted signal stops at the first entry
+  ---
+  duration_ms: 0.539645
+  type: 'test'
+  ...
+# Subtest: an aborted signal stops before encoding even when the plan has no disk files
+ok 1759 - an aborted signal stops before encoding even when the plan has no disk files
+  ---
+  duration_ms: 0.405614
+  type: 'test'
+  ...
+# Subtest: a live signal lets the share encode
+ok 1760 - a live signal lets the share encode
+  ---
+  duration_ms: 1.697907
+  type: 'test'
+  ...
+# Subtest: a manifest over 2 MiB is refused before encoding
+ok 1761 - a manifest over 2 MiB is refused before encoding
+  ---
+  duration_ms: 7.789195
+  type: 'test'
+  ...
+# Subtest: a manifest of exactly 2 MiB is accepted
+ok 1762 - a manifest of exactly 2 MiB is accepted
+  ---
+  duration_ms: 9.000655
+  type: 'test'
+  ...
+# Subtest: the file cap counts the manifest itself after every entry is scanned
+ok 1763 - the file cap counts the manifest itself after every entry is scanned
+  ---
+  duration_ms: 244.751553
+  type: 'test'
+  ...
+# Subtest: an encoder size failure ('Folder is over the upload limit.') is reported as the archive cap
+ok 1764 - an encoder size failure ('Folder is over the upload limit.') is reported as the archive cap
+  ---
+  duration_ms: 5.730534
+  type: 'test'
+  ...
+# Subtest: an encoder size failure ('Too many entries.') is reported as the archive cap
+ok 1765 - an encoder size failure ('Too many entries.') is reported as the archive cap
+  ---
+  duration_ms: 0.387951
+  type: 'test'
+  ...
+# Subtest: an encoder size failure ('Archive too LARGE') is reported as the archive cap
+ok 1766 - an encoder size failure ('Archive too LARGE') is reported as the archive cap
+  ---
+  duration_ms: 0.389121
+  type: 'test'
+  ...
+# Subtest: any other encoder Error propagates unchanged
+ok 1767 - any other encoder Error propagates unchanged
+  ---
+  duration_ms: 0.430167
+  type: 'test'
+  ...
+# Subtest: a non-Error encoder failure propagates unchanged, even if it mentions a limit
+ok 1768 - a non-Error encoder failure propagates unchanged, even if it mentions a limit
+  ---
+  duration_ms: 0.58641
+  type: 'test'
+  ...
+# Subtest: a packaged theme outside the site shares its reviewed bytes (linked bundle: false)
+ok 1769 - a packaged theme outside the site shares its reviewed bytes (linked bundle: false)
+  ---
+  duration_ms: 22.522189
+  type: 'test'
+  ...
+# Subtest: a packaged theme outside the site shares its reviewed bytes (linked bundle: true)
+ok 1770 - a packaged theme outside the site shares its reviewed bytes (linked bundle: true)
+  ---
+  duration_ms: 62.237809
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: real static download exports tovu-starter without colliding paths
+ok 1771 - real static download exports tovu-starter without colliding paths
+  ---
+  duration_ms: 7376.51985
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: real static download exports tovu-theme without colliding paths
+ok 1772 - real static download exports tovu-theme without colliding paths
+  ---
+  duration_ms: 4050.161089
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: real static download exports tovu-starter + tovu-theme without colliding paths
+ok 1773 - real static download exports tovu-starter + tovu-theme without colliding paths
+  ---
+  duration_ms: 7898.58917
+  type: 'test'
+  ...
+# Subtest: observes real rendered evidence from a real page
+not ok 1774 - observes real rendered evidence from a real page
+  ---
+  duration_ms: 6480.593231
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-evidence/__tests__/integration/playwright-browser.integration.test.ts:28:1311'
+  failureType: 'testCodeFailure'
+  error: |-
+    browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+    ╔════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright was just installed or updated.       ║
+    ║ Please run the following command to download new browsers: ║
+    ║                                                            ║
+    ║     npx playwright install                                 ║
+    ║                                                            ║
+    ║ <3 Playwright Team                                         ║
+    ╚════════════════════════════════════════════════════════════╝
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-evidence/__tests__/integration/playwright-browser.integration.test.ts:186:44)
+  ...
+# Subtest: a server-side redirect off the origin is refused after navigation, with the target redacted to its origin
+ok 1775 - a server-side redirect off the origin is refused after navigation, with the target redacted to its origin
+  ---
+  duration_ms: 2383.325081
+  type: 'test'
+  ...
+# Subtest: the packaged hosted form keeps the same consent and fallback markup through static HTML and ZIP
+ok 1776 - the packaged hosted form keeps the same consent and fallback markup through static HTML and ZIP
+  ---
+  duration_ms: 122.507698
+  type: 'test'
+  ...
+# Subtest: the same packaged plan delivers ordinarily in explicit consent-off mode
+ok 1777 - the same packaged plan delivers ordinarily in explicit consent-off mode
+  ---
+  duration_ms: 7.582993
+  type: 'test'
+  ...
+# Subtest: two static form exports agree when time and occurrence identifiers are controlled
+ok 1778 - two static form exports agree when time and occurrence identifiers are controlled
+  ---
+  duration_ms: 142.409427
+  type: 'test'
+  ...
+# Subtest: the static header files carry exactly what the live server sends on a public page
+ok 1779 - the static header files carry exactly what the live server sends on a public page
+  ---
+  duration_ms: 896.104423
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: changing the shared header set changes the live response and every static carrier alike
+ok 1780 - changing the shared header set changes the live response and every static carrier alike
+  ---
+  duration_ms: 91.6895
+  type: 'test'
+  ...
+# Subtest: withSecurityMeta: leaves HTML with no <head> or a set with no Referrer-Policy untouched, and escapes the value
+ok 1781 - withSecurityMeta: leaves HTML with no <head> or a set with no Referrer-Policy untouched, and escapes the value
+  ---
+  duration_ms: 0.566174
+  type: 'test'
+  ...
+# Subtest: profile adapter is lazy, routes every read, and returns the live theme rather than a captured id
+ok 1782 - profile adapter is lazy, routes every read, and returns the live theme rather than a captured id
+  ---
+  duration_ms: 2.793986
+  type: 'test'
+  ...
+# Subtest: settings preserve namespace and false, zero and empty string values, distinguish missing values, and recover after failures
+ok 1783 - settings preserve namespace and false, zero and empty string values, distinguish missing values, and recover after failures
+  ---
+  duration_ms: 22.04993
+  type: 'test'
+  ...
+# Subtest: capabilities keep an unwired tool reader absent and pass a wired live reader through
+ok 1784 - capabilities keep an unwired tool reader absent and pass a wired live reader through
+  ---
+  duration_ms: 0.289548
+  type: 'test'
+  ...
+# Subtest: composition boot does not recreate the obsolete active-theme ledger copy
+ok 1785 - composition boot does not recreate the obsolete active-theme ledger copy
+  ---
+  duration_ms: 14694.523857
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: collection waits for authorization, preserves truncation, and scopes the decision
+ok 1786 - collection waits for authorization, preserves truncation, and scopes the decision
+  ---
+  duration_ms: 2.583542
+  type: 'test'
+  ...
+# Subtest: known unavailable reasons and non-Error throws are safe, and the next read can recover
+ok 1787 - known unavailable reasons and non-Error throws are safe, and the next read can recover
+  ---
+  duration_ms: 1.850762
+  type: 'test'
+  ...
+# Subtest: an authorization backend failure becomes unavailable without reading or leaking its message
+ok 1788 - an authorization backend failure becomes unavailable without reading or leaking its message
+  ---
+  duration_ms: 0.348538
+  type: 'test'
+  ...
+# Subtest: requested sections are deduplicated in vocabulary order, and defaults return a fresh list
+ok 1789 - requested sections are deduplicated in vocabulary order, and defaults return a fresh list
+  ---
+  duration_ms: 0.386916
+  type: 'test'
+  ...
+# Subtest: a denied section reports its authorization reason without collecting data
+ok 1790 - a denied section reports its authorization reason without collecting data
+  ---
+  duration_ms: 0.279741
+  type: 'test'
+  ...
+# Subtest: a held read stays pending before the deadline and reports timed-out at the deadline
+ok 1791 - a held read stays pending before the deadline and reports timed-out at the deadline
+  ---
+  duration_ms: 3.436899
+  type: 'test'
+  ...
+# Subtest: captures the public root at 1280x800 after a settle, resizes to 640, and reuses one browser until close
+ok 1792 - captures the public root at 1280x800 after a settle, resizes to 640, and reuses one browser until close
+  ---
+  duration_ms: 14.352075
+  type: 'test'
+  ...
+# Subtest: default Sharp resizing stores a 640px JPEG and releases the injected browser
+ok 1793 - default Sharp resizing stores a 640px JPEG and releases the injected browser
+  ---
+  duration_ms: 233.624546
+  type: 'test'
+  ...
+# Subtest: default Chromium loading delegates to the host module loader
+ok 1794 - default Chromium loading delegates to the host module loader
+  ---
+  duration_ms: 0.856456
+  type: 'test'
+  ...
+# Subtest: the default logger warns when a capture fails and returns a placeholder
+ok 1795 - the default logger warns when a capture fails and returns a placeholder
+  ---
+  duration_ms: 0.716963
+  type: 'test'
+  ...
+# Subtest: a page that fails to load is a logged null, and its context is still closed
+ok 1796 - a page that fails to load is a logged null, and its context is still closed
+  ---
+  duration_ms: 4.896832
+  type: 'test'
+  ...
+# Subtest: a missing browser is a null capture and close does not throw; the next drain launches again
+ok 1797 - a missing browser is a null capture and close does not throw; the next drain launches again
+  ---
+  duration_ms: 0.436628
+  type: 'test'
+  ...
+# Subtest: with no injected launcher the adapter launches Chromium from the host module loader with the loopback-only flags
+ok 1798 - with no injected launcher the adapter launches Chromium from the host module loader with the loopback-only flags
+  ---
+  duration_ms: 0.721885
+  type: 'test'
+  ...
+# Subtest: default preview capture falls back to system Chrome with the same loopback flags
+ok 1799 - default preview capture falls back to system Chrome with the same loopback flags
+  ---
+  duration_ms: 2.639165
+  type: 'test'
+  ...
+# Subtest: default preview capture returns a placeholder when neither browser can launch
+ok 1800 - default preview capture returns a placeholder when neither browser can launch
+  ---
+  duration_ms: 0.850634
+  type: 'test'
+  ...
+# Subtest: a host with no desktop render bridge configured captures through headless Chromium
+ok 1801 - a host with no desktop render bridge configured captures through headless Chromium
+  ---
+  duration_ms: 0.476109
+  type: 'test'
+  ...
+# Subtest: a native capture failure with no injected logger warns on the console
+ok 1802 - a native capture failure with no injected logger warns on the console
+  ---
+  duration_ms: 0.369803
+  type: 'test'
+  ...
+# Subtest: a native capture with no injected resize stores a 640px JPEG via Sharp
+ok 1803 - a native capture with no injected resize stores a 640px JPEG via Sharp
+  ---
+  duration_ms: 32.441942
+  type: 'test'
+  ...
+# Subtest: switching back to an opened site returns its own URL without restarting the API
+ok 1804 - switching back to an opened site returns its own URL without restarting the API
+  ---
+  duration_ms: 2.305384
+  type: 'test'
+  ...
+# Subtest: a failed warm boot warns and uses the existing restart switch
+ok 1805 - a failed warm boot warns and uses the existing restart switch
+  ---
+  duration_ms: 0.545836
+  type: 'test'
+  ...
+# Subtest: defaults to sites/<DEFAULT_SITE_NAME>/skills under the given cwd
+ok 1806 - defaults to sites/<DEFAULT_SITE_NAME>/skills under the given cwd
+  ---
+  duration_ms: 7.254092
+  type: 'test'
+  ...
+# Subtest: the default root follows TOVU_SITE, so a second local site gets its own skills tree
+ok 1807 - the default root follows TOVU_SITE, so a second local site gets its own skills tree
+  ---
+  duration_ms: 1.66129
+  type: 'test'
+  ...
+# Subtest: the default root follows TOVU_SITE_DIR — a site mounted outside the checkout keeps its skills
+ok 1808 - the default root follows TOVU_SITE_DIR — a site mounted outside the checkout keeps its skills
+  ---
+  duration_ms: 0.259741
+  type: 'test'
+  ...
+# Subtest: TOVU_SKILLS_DIR overrides the default root
+ok 1809 - TOVU_SKILLS_DIR overrides the default root
+  ---
+  duration_ms: 0.109931
+  type: 'test'
+  ...
+# Subtest: a relative TOVU_SKILLS_DIR is rejected
+ok 1810 - a relative TOVU_SKILLS_DIR is rejected
+  ---
+  duration_ms: 0.822723
+  type: 'test'
+  ...
+# Subtest: forWorkspace roots the skills directory entirely under ws/<workspaceId>
+ok 1811 - forWorkspace roots the skills directory entirely under ws/<workspaceId>
+  ---
+  duration_ms: 1.620762
+  type: 'test'
+  ...
+# Subtest: two workspaces resolve to entirely disjoint trees
+ok 1812 - two workspaces resolve to entirely disjoint trees
+  ---
+  duration_ms: 1.99248
+  type: 'test'
+  ...
+# Subtest: forWorkspace accepts this instance's real, non-UUID workspace id
+ok 1813 - forWorkspace accepts this instance's real, non-UUID workspace id
+  ---
+  duration_ms: 1.333791
+  type: 'test'
+  ...
+# Subtest: forWorkspace normalizes an uppercase id to a lowercase path segment
+ok 1814 - forWorkspace normalizes an uppercase id to a lowercase path segment
+  ---
+  duration_ms: 21.267179
+  type: 'test'
+  ...
+# Subtest: forWorkspace rejects every shape that could escape or split the path segment
+ok 1815 - forWorkspace rejects every shape that could escape or split the path segment
+  ---
+  duration_ms: 1.64604
+  type: 'test'
+  ...
+# (node:21812) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:21812) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: L146 result and outcome preserve every unsuccessful run and descriptor-dependent abandonment
+ok 1816 - L146 result and outcome preserve every unsuccessful run and descriptor-dependent abandonment
+  ---
+  duration_ms: 58.598134
+  type: 'test'
+  ...
+# Subtest: L146 saved projections preserve absent hints and connection fallback without exposing extra data
+ok 1817 - L146 saved projections preserve absent hints and connection fallback without exposing extra data
+  ---
+  duration_ms: 22.04694
+  type: 'test'
+  ...
+# Subtest: L146 public input rejects extra keys, missing provider and long labels before authorization
+ok 1818 - L146 public input rejects extra keys, missing provider and long labels before authorization
+  ---
+  duration_ms: 3.53519
+  type: 'test'
+  ...
+# Subtest: L146 public label defaults and the maximum label are preserved in preparation
+ok 1819 - L146 public label defaults and the maximum label are preserved in preparation
+  ---
+  duration_ms: 3.679925
+  type: 'test'
+  ...
+# Subtest: generic owner and repo reject separators, whitespace, controls, dot segments and overlong names
+ok 1820 - generic owner and repo reject separators, whitespace, controls, dot segments and overlong names
+  ---
+  duration_ms: 1.399243
+  type: 'test'
+  ...
+# Subtest: host refusal wins before generic validation, and a host approval still gets generic validation
+ok 1821 - host refusal wins before generic validation, and a host approval still gets generic validation
+  ---
+  duration_ms: 1.184359
+  type: 'test'
+  ...
+# Subtest: a trailing newline is invalid in an owner URL segment
+ok 1822 - a trailing newline is invalid in an owner URL segment
+  ---
+  duration_ms: 0.109463
+  type: 'test'
+  ...
+# Subtest: a trailing newline is invalid in a repository URL segment
+ok 1823 - a trailing newline is invalid in a repository URL segment
+  ---
+  duration_ms: 0.12649
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: resolves term and taxonomy names and sorts by taxonomy then term name
+ok 1824 - resolves term and taxonomy names and sorts by taxonomy then term name
+  ---
+  duration_ms: 723.306559
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: both route permissions are required before assignment reads
+ok 1825 - both route permissions are required before assignment reads
+  ---
+  duration_ms: 301.652433
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: unknown content type refuses with the assign tool's exact validation text
+ok 1826 - unknown content type refuses with the assign tool's exact validation text
+  ---
+  duration_ms: 591.772482
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: input strings match assign validation and the descriptor remains readOnly
+ok 1827 - input strings match assign validation and the descriptor remains readOnly
+  ---
+  duration_ms: 247.882452
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a live collection key uses the same open contentType schema as assignment
+ok 1828 - a live collection key uses the same open contentType schema as assignment
+  ---
+  duration_ms: 241.479966
+  type: 'test'
+  ...
+# Subtest: trashTerm: a missing/already-trashed term (read port returns null) is not-found, remove is never called
+ok 1829 - trashTerm: a missing/already-trashed term (read port returns null) is not-found, remove is never called
+  ---
+  duration_ms: 2.373235
+  type: 'test'
+  ...
+# Subtest: trashTerm: calls remove with the registry's term display (title=name, subtitle=taxonomy name) and the read version
+ok 1830 - trashTerm: calls remove with the registry's term display (title=name, subtitle=taxonomy name) and the read version
+  ---
+  duration_ms: 0.355973
+  type: 'test'
+  ...
+# Subtest: trashTerm: a 'blocked' remove outcome (TERM_HAS_CHILDREN) passes through unchanged
+ok 1831 - trashTerm: a 'blocked' remove outcome (TERM_HAS_CHILDREN) passes through unchanged
+  ---
+  duration_ms: 0.167719
+  type: 'test'
+  ...
+# Subtest: trashTerm: a 'version-changed' remove outcome passes through unchanged
+ok 1832 - trashTerm: a 'version-changed' remove outcome passes through unchanged
+  ---
+  duration_ms: 5.653816
+  type: 'test'
+  ...
+# Subtest: trashTaxonomy: a missing/already-trashed taxonomy is not-found, remove is never called
+ok 1833 - trashTaxonomy: a missing/already-trashed taxonomy is not-found, remove is never called
+  ---
+  duration_ms: 0.306825
+  type: 'test'
+  ...
+# Subtest: trashTaxonomy: calls remove with the registry's taxonomy display ({title: name}, no subtitle) and the read version
+ok 1834 - trashTaxonomy: calls remove with the registry's taxonomy display ({title: name}, no subtitle) and the read version
+  ---
+  duration_ms: 0.394381
+  type: 'test'
+  ...
+# Subtest: trashTaxonomy: not-found from remove passes through unchanged
+ok 1835 - trashTaxonomy: not-found from remove passes through unchanged
+  ---
+  duration_ms: 0.257131
+  type: 'test'
+  ...
+# Subtest: trashTaxonomy: version-changed from remove passes through unchanged
+ok 1836 - trashTaxonomy: version-changed from remove passes through unchanged
+  ---
+  duration_ms: 0.808522
+  type: 'test'
+  ...
+# Subtest: structure-only Starter copies preserve wiring, discard appearance and remain previewable until styled
+ok 1837 - structure-only Starter copies preserve wiring, discard appearance and remain previewable until styled
+  ---
+  duration_ms: 659.513334
+  type: 'test'
+  ...
+# Subtest: structure-only refuses unsupported themes before creating files
+ok 1838 - structure-only refuses unsupported themes before creating files
+  ---
+  duration_ms: 18.209486
+  type: 'test'
+  ...
+# Subtest: structure-only refuses compiled themes and cleans staging after a transform failure
+ok 1839 - structure-only refuses compiled themes and cleans staging after a transform failure
+  ---
+  duration_ms: 243.986283
+  type: 'test'
+  ...
+# Subtest: copies every file; only theme.json changes, to the new identity with lineage
+ok 1840 - copies every file; only theme.json changes, to the new identity with lineage
+  ---
+  duration_ms: 4.735331
+  type: 'test'
+  ...
+# Subtest: the source theme is never modified
+ok 1841 - the source theme is never modified
+  ---
+  duration_ms: 4.195634
+  type: 'test'
+  ...
+# Subtest: duplication rewrites only the source theme's absolute asset prefix in copied text files
+ok 1842 - duplication rewrites only the source theme's absolute asset prefix in copied text files
+  ---
+  duration_ms: 298.841545
+  type: 'test'
+  ...
+# Subtest: duplicateDiscoveredTheme rescans: the copy is in the live themes array and loads valid
+ok 1843 - duplicateDiscoveredTheme rescans: the copy is in the live themes array and loads valid
+  ---
+  duration_ms: 5.65204
+  type: 'test'
+  ...
+# Subtest: an unknown source id is refused with the discovered ids listed
+ok 1844 - an unknown source id is refused with the discovered ids listed
+  ---
+  duration_ms: 6.437053
+  type: 'test'
+  ...
+# Subtest: a derived id is suffixed past every collision: discovered ids, folders, and the catalog
+ok 1845 - a derived id is suffixed past every collision: discovered ids, folders, and the catalog
+  ---
+  duration_ms: 7.134215
+  type: 'test'
+  ...
+# Subtest: an id discovered in ANOTHER tier still counts as taken
+ok 1846 - an id discovered in ANOTHER tier still counts as taken
+  ---
+  duration_ms: 2.854742
+  type: 'test'
+  ...
+# Subtest: an explicit newId that is taken is refused, not suffixed, and nothing is written
+ok 1847 - an explicit newId that is taken is refused, not suffixed, and nothing is written
+  ---
+  duration_ms: 6.099802
+  type: 'test'
+  ...
+# Subtest: path traversal and malformed ids are refused before anything is written
+ok 1848 - path traversal and malformed ids are refused before anything is written
+  ---
+  duration_ms: 1.566956
+  type: 'test'
+  ...
+# Subtest: a name full of path characters only ever becomes a folder-safe id
+ok 1849 - a name full of path characters only ever becomes a folder-safe id
+  ---
+  duration_ms: 7.827577
+  type: 'test'
+  ...
+# Subtest: a name with no Latin letters falls back to '<source>-copy'
+ok 1850 - a name with no Latin letters falls back to '<source>-copy'
+  ---
+  duration_ms: 15.144725
+  type: 'test'
+  ...
+# Subtest: empty, overlong, and control-character names are refused
+ok 1851 - empty, overlong, and control-character names are refused
+  ---
+  duration_ms: 1.566733
+  type: 'test'
+  ...
+# Subtest: a symlink anywhere in the source refuses the whole duplicate and leaves no staging folder
+ok 1852 - a symlink anywhere in the source refuses the whole duplicate and leaves no staging folder
+  ---
+  duration_ms: 25.763327
+  type: 'test'
+  ...
+# Subtest: a source over the total size limit is refused before any copy
+ok 1853 - a source over the total size limit is refused before any copy
+  ---
+  duration_ms: 1.438772
+  type: 'test'
+  ...
+# Subtest: the source's .trash/ folder is not copied
+ok 1854 - the source's .trash/ folder is not copied
+  ---
+  duration_ms: 15.139607
+  type: 'test'
+  ...
+# Subtest: a failure after staging removes the staging folder (unreadable manifest)
+ok 1855 - a failure after staging removes the staging folder (unreadable manifest)
+  ---
+  duration_ms: 22.229632
+  type: 'test'
+  ...
+# Subtest: a folder that appears at the destination mid-copy is refused, never merged into
+ok 1856 - a folder that appears at the destination mid-copy is refused, never merged into
+  ---
+  duration_ms: 11.925114
+  type: 'test'
+  ...
+# Subtest: a source outside the themes root is refused
+ok 1857 - a source outside the themes root is refused
+  ---
+  duration_ms: 1.469858
+  type: 'test'
+  ...
+# Subtest: a real static stock theme duplicates and loads valid
+ok 1858 - a real static stock theme duplicates and loads valid
+  ---
+  duration_ms: 119.322793
+  type: 'test'
+  ...
+# Subtest: the copy gets its own stored original, byte-identical to the copy, so Reset has something to restore
+ok 1859 - the copy gets its own stored original, byte-identical to the copy, so Reset has something to restore
+  ---
+  duration_ms: 4.253467
+  type: 'test'
+  ...
+# Subtest: a failure writing the stored original removes the copy too — never a copy that cannot be reset
+ok 1860 - a failure writing the stored original removes the copy too — never a copy that cannot be reset
+  ---
+  duration_ms: 5.477538
+  type: 'test'
+  ...
+# Subtest: themeIdFromName folds diacritics and punctuation into single hyphens
+ok 1861 - themeIdFromName folds diacritics and punctuation into single hyphens
+  ---
+  duration_ms: 0.182839
+  type: 'test'
+  ...
+# Subtest: an explicit newId that is free is used exactly as given
+ok 1862 - an explicit newId that is free is used exactly as given
+  ---
+  duration_ms: 10.164177
+  type: 'test'
+  ...
+# Subtest: a source nested deeper than the walk limit is refused before any copy
+ok 1863 - a source nested deeper than the walk limit is refused before any copy
+  ---
+  duration_ms: 8.420945
+  type: 'test'
+  ...
+# Subtest: a source with more files than the listing limit is refused before any copy
+ok 1864 - a source with more files than the listing limit is refused before any copy
+  ---
+  duration_ms: 159.728321
+  type: 'test'
+  ...
+# Subtest: a theme.json that is not valid JSON is refused as unreadable and leaves nothing
+ok 1865 - a theme.json that is not valid JSON is refused as unreadable and leaves nothing
+  ---
+  duration_ms: 4.062508
+  type: 'test'
+  ...
+# Subtest: a non-regular entry (a FIFO) in the source is skipped, not copied
+ok 1866 - a non-regular entry (a FIFO) in the source is skipped, not copied
+  ---
+  duration_ms: 52.606347
+  type: 'test'
+  ...
+# Subtest: a theme.json with no version records the discovered source version in lineage
+ok 1867 - a theme.json with no version records the discovered source version in lineage
+  ---
+  duration_ms: 13.137879
+  type: 'test'
+  ...
+# Subtest: an unknown source id with no discovered themes says none were discovered
+ok 1868 - an unknown source id with no discovered themes says none were discovered
+  ---
+  duration_ms: 0.612116
+  type: 'test'
+  ...
+# Subtest: internal links outside any menu marker are found, in document order
+ok 1869 - internal links outside any menu marker are found, in document order
+  ---
+  duration_ms: 3.085723
+  type: 'test'
+  ...
+# Subtest: links inside a menu marker are its fallback, and external, mailto, tel, fragment and templated hrefs are not internal links
+ok 1870 - links inside a menu marker are its fallback, and external, mailto, tel, fragment and templated hrefs are not internal links
+  ---
+  duration_ms: 0.939703
+  type: 'test'
+  ...
+# Subtest: single-quoted and unquoted hrefs are links too; empty and Liquid-templated hrefs are not
+ok 1871 - single-quoted and unquoted hrefs are links too; empty and Liquid-templated hrefs are not
+  ---
+  duration_ms: 0.192095
+  type: 'test'
+  ...
+# Subtest: a list longer than ten links names the first ten and summarises the rest
+ok 1872 - a list longer than ten links names the first ten and summarises the rest
+  ---
+  duration_ms: 0.904452
+  type: 'test'
+  ...
+# Subtest: links in a comment are not markup; links inside a marker of another type still count
+ok 1873 - links in a comment are not markup; links inside a marker of another type still count
+  ---
+  duration_ms: 0.550635
+  type: 'test'
+  ...
+# Subtest: a footer partial with a hard-coded link list gets a warning naming the links and the menu marker to use
+ok 1874 - a footer partial with a hard-coded link list gets a warning naming the links and the menu marker to use
+  ---
+  duration_ms: 0.503305
+  type: 'test'
+  ...
+# Subtest: header, nav and footer partials are checked under any name variant; other files are not
+ok 1875 - header, nav and footer partials are checked under any name variant; other files are not
+  ---
+  duration_ms: 0.322787
+  type: 'test'
+  ...
+# Subtest: fewer links than a list (a brand link, a single CTA) and menu-rendered partials carry no warning
+ok 1876 - fewer links than a list (a brand link, a single CTA) and menu-rendered partials carry no warning
+  ---
+  duration_ms: 0.25505
+  type: 'test'
+  ...
+# Subtest: the shipped starter's nav and footer partials (menu-rendered) carry no warning
+ok 1877 - the shipped starter's nav and footer partials (menu-rendered) carry no warning
+  ---
+  duration_ms: 1.053495
+  type: 'test'
+  ...
+# Subtest: theme_write_file still writes a hard-coded footer but returns the warning
+ok 1878 - theme_write_file still writes a hard-coded footer but returns the warning
+  ---
+  duration_ms: 36.395837
+  type: 'test'
+  ...
+# Subtest: theme_write_file on a menu-rendered footer carries no warning
+ok 1879 - theme_write_file on a menu-rendered footer carries no warning
+  ---
+  duration_ms: 28.167025
+  type: 'test'
+  ...
+# Subtest: theme_edit_file warns when the edited footer ends up hard-coding a link list
+ok 1880 - theme_edit_file warns when the edited footer ends up hard-coding a link list
+  ---
+  duration_ms: 40.067907
+  type: 'test'
+  ...
+# [theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: menu mode html takes the static injection path and emits an unstyled semantic tree
+ok 1881 - menu mode html takes the static injection path and emits an unstyled semantic tree
+  ---
+  duration_ms: 26.619896
+  type: 'test'
+  ...
+# Subtest: HTML menu preserves live descendants and applies the existing public URL policy
+ok 1882 - HTML menu preserves live descendants and applies the existing public URL policy
+  ---
+  duration_ms: 1.585647
+  type: 'test'
+  ...
+# Subtest: missing or empty HTML menus keep authored fallback; default modes keep their established markup
+ok 1883 - missing or empty HTML menus keep authored fallback; default modes keep their established markup
+  ---
+  duration_ms: 1.97889
+  type: 'test'
+  ...
+# Subtest: preview setting validates the whole roster, active membership, duplicates, bounds and shape
+ok 1884 - preview setting validates the whole roster, active membership, duplicates, bounds and shape
+  ---
+  duration_ms: 5.931731
+  type: 'test'
+  ...
+# Subtest: query wins over cookie; reset, unknown and disabled select normal theme
+ok 1885 - query wins over cookie; reset, unknown and disabled select normal theme
+  ---
+  duration_ms: 0.396671
+  type: 'test'
+  ...
+# Subtest: one banner covers live and static, escapes labels and canonicalizes preview documents
+ok 1886 - one banner covers live and static, escapes labels and canonicalizes preview documents
+  ---
+  duration_ms: 36.103765
+  type: 'test'
+  ...
+# Subtest: banner script isolates controls and offsets fixed chrome and body without theme selectors
+ok 1887 - banner script isolates controls and offsets fixed chrome and body without theme selectors
+  ---
+  duration_ms: 182.286114
+  type: 'test'
+  ...
+# Subtest: a workspace whose ledger never registered the setting reads as disabled
+ok 1888 - a workspace whose ledger never registered the setting reads as disabled
+  ---
+  duration_ms: 1.966896
+  type: 'test'
+  ...
+# Subtest: navigation rewriting leaves rel-less links, hrefless and fragment anchors and unparseable URLs alone; origin-less pages canonicalize to a path
+ok 1889 - navigation rewriting leaves rel-less links, hrefless and fragment anchors and unparseable URLs alone; origin-less pages canonicalize to a path
+  ---
+  duration_ms: 4.608063
+  type: 'test'
+  ...
+# Subtest: canary: the starter theme sweep is not vacuous
+ok 1890 - canary: the starter theme sweep is not vacuous
+  ---
+  duration_ms: 1.80918
+  type: 'test'
+  ...
+# Subtest: canary: assets/vendor/kuinetic/kuinetic.all.min.js carries no Tovu Theme branding
+ok 1891 - canary: assets/vendor/kuinetic/kuinetic.all.min.js carries no Tovu Theme branding
+  ---
+  duration_ms: 2071.3563
+  type: 'test'
+  ...
+# Subtest: canary: css/theme.css carries no Tovu Theme branding
+ok 1892 - canary: css/theme.css carries no Tovu Theme branding
+  ---
+  duration_ms: 2.454725
+  type: 'test'
+  ...
+# Subtest: canary: manifest.webmanifest carries no Tovu Theme branding
+ok 1893 - canary: manifest.webmanifest carries no Tovu Theme branding
+  ---
+  duration_ms: 3.160957
+  type: 'test'
+  ...
+# Subtest: canary: render/pages/404.html carries no Tovu Theme branding
+ok 1894 - canary: render/pages/404.html carries no Tovu Theme branding
+  ---
+  duration_ms: 71.870685
+  type: 'test'
+  ...
+# Subtest: canary: render/pages/index.html carries no Tovu Theme branding
+ok 1895 - canary: render/pages/index.html carries no Tovu Theme branding
+  ---
+  duration_ms: 9.965137
+  type: 'test'
+  ...
+# Subtest: canary: render/pages/listing-default.html carries no Tovu Theme branding
+ok 1896 - canary: render/pages/listing-default.html carries no Tovu Theme branding
+  ---
+  duration_ms: 3.076854
+  type: 'test'
+  ...
+# Subtest: canary: render/pages/pages-blank.html carries no Tovu Theme branding
+ok 1897 - canary: render/pages/pages-blank.html carries no Tovu Theme branding
+  ---
+  duration_ms: 0.928977
+  type: 'test'
+  ...
+# Subtest: canary: render/pages/pages-default.html carries no Tovu Theme branding
+ok 1898 - canary: render/pages/pages-default.html carries no Tovu Theme branding
+  ---
+  duration_ms: 1.905774
+  type: 'test'
+  ...
+# Subtest: canary: render/pages/posts-default.html carries no Tovu Theme branding
+ok 1899 - canary: render/pages/posts-default.html carries no Tovu Theme branding
+  ---
+  duration_ms: 1.62814
+  type: 'test'
+  ...
+# Subtest: canary: render/pages/posts-sidebar.html carries no Tovu Theme branding
+ok 1900 - canary: render/pages/posts-sidebar.html carries no Tovu Theme branding
+  ---
+  duration_ms: 3.251756
+  type: 'test'
+  ...
+# Subtest: canary: render/partials/footer-minimal.html carries no Tovu Theme branding
+ok 1901 - canary: render/partials/footer-minimal.html carries no Tovu Theme branding
+  ---
+  duration_ms: 0.966712
+  type: 'test'
+  ...
+# Subtest: canary: render/partials/footer.html carries no Tovu Theme branding
+ok 1902 - canary: render/partials/footer.html carries no Tovu Theme branding
+  ---
+  duration_ms: 0.968738
+  type: 'test'
+  ...
+# Subtest: canary: render/partials/nav.html carries no Tovu Theme branding
+ok 1903 - canary: render/partials/nav.html carries no Tovu Theme branding
+  ---
+  duration_ms: 2.440097
+  type: 'test'
+  ...
+# Subtest: canary: scripts/docs-sidebar.js carries no Tovu Theme branding
+ok 1904 - canary: scripts/docs-sidebar.js carries no Tovu Theme branding
+  ---
+  duration_ms: 9.684598
+  type: 'test'
+  ...
+# Subtest: canary: scripts/docs-toc.js carries no Tovu Theme branding
+ok 1905 - canary: scripts/docs-toc.js carries no Tovu Theme branding
+  ---
+  duration_ms: 9.501341
+  type: 'test'
+  ...
+# Subtest: canary: scripts/main.js carries no Tovu Theme branding
+ok 1906 - canary: scripts/main.js carries no Tovu Theme branding
+  ---
+  duration_ms: 14.42263
+  type: 'test'
+  ...
+# Subtest: canary: scripts/theme-toggle.js carries no Tovu Theme branding
+ok 1907 - canary: scripts/theme-toggle.js carries no Tovu Theme branding
+  ---
+  duration_ms: 2.987441
+  type: 'test'
+  ...
+# Subtest: canary: theme.json carries no Tovu Theme branding
+ok 1908 - canary: theme.json carries no Tovu Theme branding
+  ---
+  duration_ms: 0.227985
+  type: 'test'
+  ...
+# Subtest: canary: tokens.json carries no Tovu Theme branding
+ok 1909 - canary: tokens.json carries no Tovu Theme branding
+  ---
+  duration_ms: 0.087117
+  type: 'test'
+  ...
+# Subtest: canary: tokens.light.json carries no Tovu Theme branding
+ok 1910 - canary: tokens.light.json carries no Tovu Theme branding
+  ---
+  duration_ms: 0.05869
+  type: 'test'
+  ...
+# Subtest: canary: the starter's logo is not tovu-theme's logo
+ok 1911 - canary: the starter's logo is not tovu-theme's logo
+  ---
+  duration_ms: 0.504096
+  type: 'test'
+  ...
+# Subtest: canary scanner preserves branding after URLs and inside strings, and scans SVG
+ok 1912 - canary scanner preserves branding after URLs and inside strings, and scans SVG
+  ---
+  duration_ms: 1.503789
+  type: 'test'
+  ...
+# Subtest: canary image sweep includes the logo, icons and screenshots
+ok 1913 - canary image sweep includes the logo, icons and screenshots
+  ---
+  duration_ms: 0.117246
+  type: 'test'
+  ...
+# Subtest: canary: assets/logo.png does not reuse tovu-theme's image appearance
+ok 1914 - canary: assets/logo.png does not reuse tovu-theme's image appearance
+  ---
+  duration_ms: 113.763267
+  type: 'test'
+  ...
+# Subtest: canary: assets/logo@2x.png does not reuse tovu-theme's image appearance
+ok 1915 - canary: assets/logo@2x.png does not reuse tovu-theme's image appearance
+  ---
+  duration_ms: 5.607901
+  type: 'test'
+  ...
+# Subtest: canary: icons/apple-touch-icon.png does not reuse tovu-theme's image appearance
+ok 1916 - canary: icons/apple-touch-icon.png does not reuse tovu-theme's image appearance
+  ---
+  duration_ms: 3.835378
+  type: 'test'
+  ...
+# Subtest: canary: icons/favicon-16x16.png does not reuse tovu-theme's image appearance
+ok 1917 - canary: icons/favicon-16x16.png does not reuse tovu-theme's image appearance
+  ---
+  duration_ms: 2.298996
+  type: 'test'
+  ...
+# Subtest: canary: icons/favicon-32x32.png does not reuse tovu-theme's image appearance
+ok 1918 - canary: icons/favicon-32x32.png does not reuse tovu-theme's image appearance
+  ---
+  duration_ms: 16.95185
+  type: 'test'
+  ...
+# Subtest: canary: icons/icon-192.png does not reuse tovu-theme's image appearance
+ok 1919 - canary: icons/icon-192.png does not reuse tovu-theme's image appearance
+  ---
+  duration_ms: 24.873214
+  type: 'test'
+  ...
+# Subtest: canary: icons/icon-512.png does not reuse tovu-theme's image appearance
+ok 1920 - canary: icons/icon-512.png does not reuse tovu-theme's image appearance
+  ---
+  duration_ms: 35.000767
+  type: 'test'
+  ...
+# Subtest: canary: icons/maskable-icon-192.png does not reuse tovu-theme's image appearance
+ok 1921 - canary: icons/maskable-icon-192.png does not reuse tovu-theme's image appearance
+  ---
+  duration_ms: 8.7776
+  type: 'test'
+  ...
+# Subtest: canary: icons/maskable-icon-512.png does not reuse tovu-theme's image appearance
+ok 1922 - canary: icons/maskable-icon-512.png does not reuse tovu-theme's image appearance
+  ---
+  duration_ms: 85.846287
+  type: 'test'
+  ...
+# Subtest: canary: screenshots/index-light.png does not reuse tovu-theme's image appearance
+ok 1923 - canary: screenshots/index-light.png does not reuse tovu-theme's image appearance
+  ---
+  duration_ms: 46.100584
+  type: 'test'
+  ...
+# Subtest: canary: screenshots/index.png does not reuse tovu-theme's image appearance
+ok 1924 - canary: screenshots/index.png does not reuse tovu-theme's image appearance
+  ---
+  duration_ms: 39.2452
+  type: 'test'
+  ...
+# Subtest: canary appearance comparison ignores lossless PNG re-encoding
+ok 1925 - canary appearance comparison ignores lossless PNG re-encoding
+  ---
+  duration_ms: 41.063417
+  type: 'test'
+  ...
+# Subtest: post-previews: a card for a preview with a featured image leads with a lazy-loaded cover
+ok 1926 - post-previews: a card for a preview with a featured image leads with a lazy-loaded cover
+  ---
+  duration_ms: 4.599632
+  type: 'test'
+  ...
+# Subtest: post-previews see-more: a keyed batch with a next page keeps the card template, wraps its items and adds the button and script
+ok 1927 - post-previews see-more: a keyed batch with a next page keeps the card template, wraps its items and adds the button and script
+  ---
+  duration_ms: 1.342264
+  type: 'test'
+  ...
+# Subtest: post-previews see-more: the last keyed batch of a card-less listing renders its items with no button or script
+ok 1928 - post-previews see-more: the last keyed batch of a card-less listing renders its items with no button or script
+  ---
+  duration_ms: 0.57045
+  type: 'test'
+  ...
+# Subtest: post-previews see-more: an empty keyed batch leaves the marker's authored fallback untouched, even with previews supplied
+ok 1929 - post-previews see-more: an empty keyed batch leaves the marker's authored fallback untouched, even with previews supplied
+  ---
+  duration_ms: 0.393042
+  type: 'test'
+  ...
+# Subtest: collection see-more: a built-in-layout listing resolves its listing-scoped key and drops the listing key from the marker element (the layout's own wrapper carries it)
+ok 1930 - collection see-more: a built-in-layout listing resolves its listing-scoped key and drops the listing key from the marker element (the layout's own wrapper carries it)
+  ---
+  duration_ms: 0.464756
+  type: 'test'
+  ...
+# Subtest: collection see-more: a templated listing keeps the listing key on the marker element its items sit in
+ok 1931 - collection see-more: a templated listing keeps the listing key on the marker element its items sit in
+  ---
+  duration_ms: 0.424523
+  type: 'test'
+  ...
+# Subtest: a doc-format Post with templateChoice null is eligible — the fallback Posts rely on
+ok 1932 - a doc-format Post with templateChoice null is eligible — the fallback Posts rely on
+  ---
+  duration_ms: 3.473646
+  type: 'test'
+  ...
+# Subtest: a doc-format Post with templateChoice undefined is eligible
+ok 1933 - a doc-format Post with templateChoice undefined is eligible
+  ---
+  duration_ms: 0.280183
+  type: 'test'
+  ...
+# Subtest: an html-format Post is eligible too — Posts have no bodyFormat restriction (though CIC-3 means this never happens in practice)
+ok 1934 - an html-format Post is eligible too — Posts have no bodyFormat restriction (though CIC-3 means this never happens in practice)
+  ---
+  duration_ms: 6.776937
+  type: 'test'
+  ...
+# Subtest: REGRESSION GUARD: a doc-format Page with templateChoice null is NOT eligible
+ok 1935 - REGRESSION GUARD: a doc-format Page with templateChoice null is NOT eligible
+  ---
+  duration_ms: 0.286949
+  type: 'test'
+  ...
+# Subtest: REGRESSION GUARD: a doc-format Page with templateChoice undefined is NOT eligible
+ok 1936 - REGRESSION GUARD: a doc-format Page with templateChoice undefined is NOT eligible
+  ---
+  duration_ms: 0.158619
+  type: 'test'
+  ...
+# Subtest: DEMO GUARD: our-story — a doc-format Page with an explicit templateChoice IS eligible
+ok 1937 - DEMO GUARD: our-story — a doc-format Page with an explicit templateChoice IS eligible
+  ---
+  duration_ms: 0.091525
+  type: 'test'
+  ...
+# Subtest: BARE PAGE: a doc-format Page with templateChoice "" is NOT eligible for the template branch
+ok 1938 - BARE PAGE: a doc-format Page with templateChoice "" is NOT eligible for the template branch
+  ---
+  duration_ms: 0.175873
+  type: 'test'
+  ...
+# Subtest: a Post with templateChoice "" stays eligible — isBarePageChoice is Page-only
+ok 1939 - a Post with templateChoice "" stays eligible — isBarePageChoice is Page-only
+  ---
+  duration_ms: 5.123239
+  type: 'test'
+  ...
+# Subtest: an html-format Page with an explicit templateChoice IS eligible
+ok 1940 - an html-format Page with an explicit templateChoice IS eligible
+  ---
+  duration_ms: 0.212574
+  type: 'test'
+  ...
+# Subtest: BARE PAGE: an html-format Page with templateChoice "" is NOT eligible either — no more doc/html divergence
+ok 1941 - BARE PAGE: an html-format Page with templateChoice "" is NOT eligible either — no more doc/html divergence
+  ---
+  duration_ms: 0.103381
+  type: 'test'
+  ...
+# Subtest: REGRESSION GUARD: an html-format Page with templateChoice null is NOT eligible — no fallback arm for Pages
+ok 1942 - REGRESSION GUARD: an html-format Page with templateChoice null is NOT eligible — no fallback arm for Pages
+  ---
+  duration_ms: 0.089023
+  type: 'test'
+  ...
+# Subtest: REGRESSION GUARD: an html-format Page with templateChoice undefined is NOT eligible
+ok 1943 - REGRESSION GUARD: an html-format Page with templateChoice undefined is NOT eligible
+  ---
+  duration_ms: 0.076835
+  type: 'test'
+  ...
+# Subtest: a non-static theme is NOT eligible even for a Post with a matching templates array
+ok 1944 - a non-static theme is NOT eligible even for a Post with a matching templates array
+  ---
+  duration_ms: 0.120989
+  type: 'test'
+  ...
+# Subtest: a theme with no templates array is NOT eligible
+ok 1945 - a theme with no templates array is NOT eligible
+  ---
+  duration_ms: 0.11621
+  type: 'test'
+  ...
+# Subtest: a theme with an empty templates array is NOT eligible
+ok 1946 - a theme with an empty templates array is NOT eligible
+  ---
+  duration_ms: 0.096033
+  type: 'test'
+  ...
+# Subtest: a failure after staging bytes preserves the live inode and removes the populated temporary file
+ok 1947 - a failure after staging bytes preserves the live inode and removes the populated temporary file
+  ---
+  duration_ms: 70.852007
+  type: 'test'
+  ...
+# Subtest: no file in the catalog at the path: null, and the live file is untouched
+ok 1948 - no file in the catalog at the path: null, and the live file is untouched
+  ---
+  duration_ms: 9.894589
+  type: 'test'
+  ...
+# Subtest: a catalog directory at the path is not an original: null
+ok 1949 - a catalog directory at the path is not an original: null
+  ---
+  duration_ms: 22.366193
+  type: 'test'
+  ...
+# Subtest: a path escaping the catalog folder is null even when it lands on a real catalog file, and nothing is created live
+ok 1950 - a path escaping the catalog folder is null even when it lands on a real catalog file, and nothing is created live
+  ---
+  duration_ms: 0.772
+  type: 'test'
+  ...
+# Subtest: a live directory at the path: ThemePathError, and the directory stays
+ok 1951 - a live directory at the path: ThemePathError, and the directory stays
+  ---
+  duration_ms: 1.0883
+  type: 'test'
+  ...
+# Subtest: identical bytes: wasModified false with the original's size, and the live inode is unchanged
+ok 1952 - identical bytes: wasModified false with the original's size, and the live inode is unchanged
+  ---
+  duration_ms: 1.031932
+  type: 'test'
+  ...
+# Subtest: a missing live file is recreated with its missing parent folders, the original's bytes, and the original's mode
+ok 1953 - a missing live file is recreated with its missing parent folders, the original's bytes, and the original's mode
+  ---
+  duration_ms: 1.199617
+  type: 'test'
+  ...
+# Subtest: an existing live file keeps its own mode when its bytes are replaced
+ok 1954 - an existing live file keeps its own mode when its bytes are replaced
+  ---
+  duration_ms: 6.765756
+  type: 'test'
+  ...
+# Subtest: a read-only live file: EACCES, its bytes are unchanged, and no temp file is left in its folder
+ok 1955 - a read-only live file: EACCES, its bytes are unchanged, and no temp file is left in its folder # SKIP running as root: chmod 444 does not deny root a write
+  ---
+  duration_ms: 0.188193
+  type: 'test'
+  ...
+# Subtest: an unreadable original of a different size: EACCES from the copy, the live bytes are unchanged, and no temp file is left
+ok 1956 - an unreadable original of a different size: EACCES from the copy, the live bytes are unchanged, and no temp file is left # SKIP running as root: chmod 000 does not deny root a read
+  ---
+  duration_ms: 0.162664
+  type: 'test'
+  ...
+# Subtest: a v2-shaped templated theme (render/pages/*.liquid, css/theme.css) loads as valid
+ok 1957 - a v2-shaped templated theme (render/pages/*.liquid, css/theme.css) loads as valid
+  ---
+  duration_ms: 26.903238
+  type: 'test'
+  ...
+# Subtest: a v2-shaped templated theme missing render/pages/home.liquid reports the render/pages/ path, not templates/
+ok 1958 - a v2-shaped templated theme missing render/pages/home.liquid reports the render/pages/ path, not templates/
+  ---
+  duration_ms: 0.961045
+  type: 'test'
+  ...
+# Subtest: a v2-shaped static theme (render/pages/, render/partials/, css/theme.css) loads pages/partials/css correctly
+ok 1959 - a v2-shaped static theme (render/pages/, render/partials/, css/theme.css) loads pages/partials/css correctly
+  ---
+  duration_ms: 1.297687
+  type: 'test'
+  ...
+# Subtest: a v2-shaped static theme missing render/pages/index.html reports the render/pages/ path, not pages/
+ok 1960 - a v2-shaped static theme missing render/pages/index.html reports the render/pages/ path, not pages/
+  ---
+  duration_ms: 0.698433
+  type: 'test'
+  ...
+# Subtest: a v2-shaped static theme with no render/partials/ folder at all (empty slots) loads clean, not a crash
+ok 1961 - a v2-shaped static theme with no render/partials/ folder at all (empty slots) loads clean, not a crash
+  ---
+  duration_ms: 0.790978
+  type: 'test'
+  ...
+# Subtest: restores every generated file from the catalog, leaving sourceDir and theme.json untouched
+ok 1962 - restores every generated file from the catalog, leaving sourceDir and theme.json untouched
+  ---
+  duration_ms: 5.822052
+  type: 'test'
+  ...
+# Subtest: a live-only generated file with no catalog counterpart is removed, not left behind
+ok 1963 - a live-only generated file with no catalog counterpart is removed, not left behind
+  ---
+  duration_ms: 4.347736
+  type: 'test'
+  ...
+# Subtest: throws when the theme has no catalog original at all
+ok 1964 - throws when the theme has no catalog original at all
+  ---
+  duration_ms: 1.037499
+  type: 'test'
+  ...
+# Subtest: throws for a theme that isn't a compiled build at all -- nothing to restore
+ok 1965 - throws for a theme that isn't a compiled build at all -- nothing to restore
+  ---
+  duration_ms: 0.570432
+  type: 'test'
+  ...
+# Subtest: a compiled theme with an empty generated tree (only source + theme.json) restores nothing, without erroring
+ok 1966 - a compiled theme with an empty generated tree (only source + theme.json) restores nothing, without erroring
+  ---
+  duration_ms: 1.004903
+  type: 'test'
+  ...
+# Subtest: sanity: the authored+preview fixture loads valid before any write is attempted
+ok 1967 - sanity: the authored+preview fixture loads valid before any write is attempted
+  ---
+  duration_ms: 3.48961
+  type: 'test'
+  ...
+# Subtest: theme_write_file refuses a write into preview/, matching explore.ts's PUT route
+ok 1968 - theme_write_file refuses a write into preview/, matching explore.ts's PUT route
+  ---
+  duration_ms: 5.571247
+  type: 'test'
+  ...
+# Subtest: theme_write_file refuses creating a NEW file inside preview/
+ok 1969 - theme_write_file refuses creating a NEW file inside preview/
+  ---
+  duration_ms: 1.571256
+  type: 'test'
+  ...
+# Subtest: theme_write_file cannot reach preview/ through a traversal segment
+ok 1970 - theme_write_file cannot reach preview/ through a traversal segment
+  ---
+  duration_ms: 1.577943
+  type: 'test'
+  ...
+# Subtest: theme_write_file still allows an ordinary path outside preview/ on the same theme
+ok 1971 - theme_write_file still allows an ordinary path outside preview/ on the same theme
+  ---
+  duration_ms: 6.409727
+  type: 'test'
+  ...
+# Subtest: tovu-starter: scoped menu open/close and mobile publication use the author convention
+ok 1972 - tovu-starter: scoped menu open/close and mobile publication use the author convention
+  ---
+  duration_ms: 2.188031
+  type: 'test'
+  ...
+# Subtest: tovu-theme: scoped menu open/close and mobile publication use the author convention
+ok 1973 - tovu-theme: scoped menu open/close and mobile publication use the author convention
+  ---
+  duration_ms: 1.150607
+  type: 'test'
+  ...
+# Subtest: FAQ summary publishes an accordion action; unmarked themes have zero DOM handles
+ok 1974 - FAQ summary publishes an accordion action; unmarked themes have zero DOM handles
+  ---
+  duration_ms: 5.054471
+  type: 'test'
+  ...
+# Subtest: walkThemePackage: a real symlink inside the package is refused (structure-symlink-forbidden)
+ok 1975 - walkThemePackage: a real symlink inside the package is refused (structure-symlink-forbidden)
+  ---
+  duration_ms: 2.825991
+  type: 'test'
+  ...
+# Subtest: walkThemePackage: a broken (dangling-target) symlink is refused (structure-symlink-forbidden), same as a real one
+ok 1976 - walkThemePackage: a broken (dangling-target) symlink is refused (structure-symlink-forbidden), same as a real one
+  ---
+  duration_ms: 1.523783
+  type: 'test'
+  ...
+# Subtest: walkThemePackage: a CIRCULAR symlink (a -> b -> a) is refused (structure-symlink-forbidden), never throws ELOOP
+ok 1977 - walkThemePackage: a CIRCULAR symlink (a -> b -> a) is refused (structure-symlink-forbidden), never throws ELOOP
+  ---
+  duration_ms: 1.132609
+  type: 'test'
+  ...
+# Subtest: walkThemePackage: a file over the 16 MiB ceiling is reported (structure-max-file-size)
+ok 1978 - walkThemePackage: a file over the 16 MiB ceiling is reported (structure-max-file-size)
+  ---
+  duration_ms: 19.882514
+  type: 'test'
+  ...
+# Subtest: walkThemePackage: a package nested past the 16-directory depth ceiling is reported (structure-max-depth)
+ok 1979 - walkThemePackage: a package nested past the 16-directory depth ceiling is reported (structure-max-depth)
+  ---
+  duration_ms: 11.698911
+  type: 'test'
+  ...
+# Subtest: walkThemePackage: a package over the 4000-file ceiling is truncated and reported (structure-max-files), and a sibling directory encountered after truncation is skipped
+ok 1980 - walkThemePackage: a package over the 4000-file ceiling is truncated and reported (structure-max-files), and a sibling directory encountered after truncation is skipped
+  ---
+  duration_ms: 197.673863
+  type: 'test'
+  ...
+# Subtest: walkThemePackage: exactly 4000 files are retained without a ceiling issue
+ok 1981 - walkThemePackage: exactly 4000 files are retained without a ceiling issue
+  ---
+  duration_ms: 106.083719
+  type: 'test'
+  ...
+# Subtest: walkThemePackage: a non-regular, non-directory entry (a FIFO) is silently skipped — neither listed as a file nor flagged as an issue
+ok 1982 - walkThemePackage: a non-regular, non-directory entry (a FIFO) is silently skipped — neither listed as a file nor flagged as an issue
+  ---
+  duration_ms: 34.134641
+  type: 'test'
+  ...
+# Subtest: walkThemePackage: an unreadable subdirectory is reported (structure-unreadable-dir) rather than throwing
+ok 1983 - walkThemePackage: an unreadable subdirectory is reported (structure-unreadable-dir) rather than throwing
+  ---
+  duration_ms: 56.9612
+  type: 'test'
+  ...
+# Subtest: checkApprovedRoots: the install-local .tovu-lineage.json sidecar is approved even though no publisher manifest ever declares it
+ok 1984 - checkApprovedRoots: the install-local .tovu-lineage.json sidecar is approved even though no publisher manifest ever declares it
+  ---
+  duration_ms: 0.588665
+  type: 'test'
+  ...
+# Subtest: checkApprovedRoots: a tokens.<mode>.json root file matches the pattern and is approved
+ok 1985 - checkApprovedRoots: a tokens.<mode>.json root file matches the pattern and is approved
+  ---
+  duration_ms: 0.387811
+  type: 'test'
+  ...
+# Subtest: checkApprovedRoots: an unreadable theme directory is reported (structure-unreadable-dir) rather than throwing
+ok 1986 - checkApprovedRoots: an unreadable theme directory is reported (structure-unreadable-dir) rather than throwing
+  ---
+  duration_ms: 13.910497
+  type: 'test'
+  ...
+# Subtest: checkSourceDirContainment: build.source !== 'compiled' is a no-op regardless of sourceDir
+ok 1987 - checkSourceDirContainment: build.source !== 'compiled' is a no-op regardless of sourceDir
+  ---
+  duration_ms: 5.998062
+  type: 'test'
+  ...
+# Subtest: checkSourceDirContainment: build.source 'compiled' with no sourceDir is a no-op
+ok 1988 - checkSourceDirContainment: build.source 'compiled' with no sourceDir is a no-op
+  ---
+  duration_ms: 0.294153
+  type: 'test'
+  ...
+# Subtest: checkSourceDirContainment: an absolute sourceDir is refused (structure-sourcedir-escapes)
+ok 1989 - checkSourceDirContainment: an absolute sourceDir is refused (structure-sourcedir-escapes)
+  ---
+  duration_ms: 0.399037
+  type: 'test'
+  ...
+# Subtest: checkSourceDirContainment: a sourceDir containing '..' is refused (structure-sourcedir-escapes)
+ok 1990 - checkSourceDirContainment: a sourceDir containing '..' is refused (structure-sourcedir-escapes)
+  ---
+  duration_ms: 0.244891
+  type: 'test'
+  ...
+# Subtest: checkSourceDirContainment: a sourceDir that normalizes to the theme root ('./') is refused (structure-sourcedir-root)
+ok 1991 - checkSourceDirContainment: a sourceDir that normalizes to the theme root ('./') is refused (structure-sourcedir-root)
+  ---
+  duration_ms: 0.327145
+  type: 'test'
+  ...
+# Subtest: checkSourceDirContainment: a sourceDir of exactly '.' is refused (structure-sourcedir-root)
+ok 1992 - checkSourceDirContainment: a sourceDir of exactly '.' is refused (structure-sourcedir-root)
+  ---
+  duration_ms: 0.325701
+  type: 'test'
+  ...
+# Subtest: checkSourceDirContainment: a v2 sourceDir naming no reserved root and no generated dir passes clean
+ok 1993 - checkSourceDirContainment: a v2 sourceDir naming no reserved root and no generated dir passes clean
+  ---
+  duration_ms: 8.679206
+  type: 'test'
+  ...
+# Subtest: checkSourceDirContainment: schemaVersion 1 (only reachable via an unsafe cast — the type itself no longer permits constructing this) still skips the v2-only root-conflict rule at runtime, even though sourceDir names a v2 reserved root — pinning current behavior, not endorsing it
+ok 1994 - checkSourceDirContainment: schemaVersion 1 (only reachable via an unsafe cast — the type itself no longer permits constructing this) still skips the v2-only root-conflict rule at runtime, even though sourceDir names a v2 reserved root — pinning current behavior, not endorsing it
+  ---
+  duration_ms: 0.522646
+  type: 'test'
+  ...
+# Subtest: tool-audit types re-export the daemon phase list itself
+ok 1995 - tool-audit types re-export the daemon phase list itself
+  ---
+  duration_ms: 25.526897
+  type: 'test'
+  ...
+# Subtest: trash marker adapters [sqlite]
+    # Subtest: post: hide/unhide flip deleted_at under the version CAS; re-hide is idempotent; purge takes the revisions
+    ok 1 - post: hide/unhide flip deleted_at under the version CAS; re-hide is idempotent; purge takes the revisions
+      ---
+      duration_ms: 243.765292
+      type: 'test'
+      ...
+    # Subtest: post: a failed search-table probe fails that purge and is asked again on the next one
+    ok 2 - post: a failed search-table probe fails that purge and is asked again on the next one
+      ---
+      duration_ms: 304.010572
+      type: 'test'
+      ...
+    # Subtest: redirect: hide disables, unhide re-activates, purge takes revisions and hits
+    ok 3 - redirect: hide disables, unhide re-activates, purge takes revisions and hits
+      ---
+      duration_ms: 231.434757
+      type: 'test'
+      ...
+    # Subtest: a failure after the row delete (inside the purge's transaction) rolls the delete back
+    ok 4 - a failure after the row delete (inside the purge's transaction) rolls the delete back
+      ---
+      duration_ms: 211.325719
+      type: 'test'
+      ...
+    # Subtest: media: hide/unhide flip status; purge checks the version, then delegates the row delete
+    ok 5 - media: hide/unhide flip status; purge checks the version, then delegates the row delete
+      ---
+      duration_ms: 174.550446
+      type: 'test'
+      ...
+    # Subtest: media: unhide restores persisted active status and advances the version
+    ok 6 - media: unhide restores persisted active status and advances the version
+      ---
+      duration_ms: 630.010013
+      type: 'test'
+      ...
+    # Subtest: media: referenced assets stay trashed and unexpected purge errors still propagate
+    ok 7 - media: referenced assets stay trashed and unexpected purge errors still propagate
+      ---
+      duration_ms: 155.321932
+      type: 'test'
+      ...
+    # Subtest: media: an unversioned purge skips the version compare, and a purge that leaves the row reports version-changed
+    ok 8 - media: an unversioned purge skips the version compare, and a purge that leaves the row reports version-changed
+      ---
+      duration_ms: 547.807408
+      type: 'test'
+      ...
+    1..8
+ok 1996 - trash marker adapters [sqlite]
+  ---
+  duration_ms: 2500.31018
+  type: 'suite'
+  ...
+# Subtest: trash marker adapters [pglite]
+    # Subtest: post: hide/unhide flip deleted_at under the version CAS; re-hide is idempotent; purge takes the revisions
+    ok 1 - post: hide/unhide flip deleted_at under the version CAS; re-hide is idempotent; purge takes the revisions
+      ---
+      duration_ms: 11540.557683
+      type: 'test'
+      ...
+    # Subtest: post: a failed search-table probe fails that purge and is asked again on the next one
+    ok 2 - post: a failed search-table probe fails that purge and is asked again on the next one
+      ---
+      duration_ms: 72.363346
+      type: 'test'
+      ...
+    # Subtest: redirect: hide disables, unhide re-activates, purge takes revisions and hits
+    ok 3 - redirect: hide disables, unhide re-activates, purge takes revisions and hits
+      ---
+      duration_ms: 66.511149
+      type: 'test'
+      ...
+    # Subtest: a failure after the row delete (inside the purge's transaction) rolls the delete back
+    ok 4 - a failure after the row delete (inside the purge's transaction) rolls the delete back
+      ---
+      duration_ms: 66.817322
+      type: 'test'
+      ...
+    # Subtest: media: hide/unhide flip status; purge checks the version, then delegates the row delete
+    ok 5 - media: hide/unhide flip status; purge checks the version, then delegates the row delete
+      ---
+      duration_ms: 51.458307
+      type: 'test'
+      ...
+    # Subtest: media: unhide restores persisted active status and advances the version
+    ok 6 - media: unhide restores persisted active status and advances the version
+      ---
+      duration_ms: 51.744184
+      type: 'test'
+      ...
+    # Subtest: media: referenced assets stay trashed and unexpected purge errors still propagate
+    ok 7 - media: referenced assets stay trashed and unexpected purge errors still propagate
+      ---
+      duration_ms: 72.036009
+      type: 'test'
+      ...
+    # Subtest: media: an unversioned purge skips the version compare, and a purge that leaves the row reports version-changed
+    ok 8 - media: an unversioned purge skips the version compare, and a purge that leaves the row reports version-changed
+      ---
+      duration_ms: 53.919104
+      type: 'test'
+      ...
+    1..8
+ok 1997 - trash marker adapters [pglite]
+  ---
+  duration_ms: 11976.368949
+  type: 'suite'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [data-module] newsletter: /tmp/trash-media-evidence-CQ4Ar7/site/content.db is not the database this connection has open (/tmp/trash-media-evidence-CQ4Ar7/site/data.nosync/content.db). Its tables are installed in the open database, and the safety snapshot and disk-space check use it too. Fix the configured database path.
+# [data-module] comments: /tmp/trash-media-evidence-CQ4Ar7/site/content.db is not the database this connection has open (/tmp/trash-media-evidence-CQ4Ar7/site/data.nosync/content.db). Its tables are installed in the open database, and the safety snapshot and disk-space check use it too. Fix the configured database path.
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: Trash hide and restore clear the media access evidence once they commit
+ok 1998 - Trash hide and restore clear the media access evidence once they commit
+  ---
+  duration_ms: 3814.723156
+  type: 'test'
+  ...
+# Subtest: a trashed tag disappears from the taxonomy's term list and from a post's assigned-term read, but the assignment survives saving the post (decision 5's key regression)
+ok 1999 - a trashed tag disappears from the taxonomy's term list and from a post's assigned-term read, but the assignment survives saving the post (decision 5's key regression)
+  ---
+  duration_ms: 401.866388
+  type: 'test'
+  ...
+# Subtest: trashing a taxonomy hides every one of its member terms (hiddenWithParent), and restoring the taxonomy brings them all back
+ok 2000 - trashing a taxonomy hides every one of its member terms (hiddenWithParent), and restoring the taxonomy brings them all back
+  ---
+  duration_ms: 302.156995
+  type: 'test'
+  ...
+# Subtest: purging a trashed term removes its entry_terms assignments and the term row itself
+ok 2001 - purging a trashed term removes its entry_terms assignments and the term row itself
+  ---
+  duration_ms: 205.84158
+  type: 'test'
+  ...
+# Subtest: a term with children is refused as TERM_HAS_CHILDREN with the child count, and is not trashed
+ok 2002 - a term with children is refused as TERM_HAS_CHILDREN with the child count, and is not trashed
+  ---
+  duration_ms: 116.056922
+  type: 'test'
+  ...
+# Subtest: purging a trashed term writes exactly one taxonomy_revisions row and one taxonomy.term_deleted event
+ok 2003 - purging a trashed term writes exactly one taxonomy_revisions row and one taxonomy.term_deleted event
+  ---
+  duration_ms: 145.394326
+  type: 'test'
+  ...
+# Subtest: purging a trashed taxonomy writes exactly one taxonomy_revisions row and one taxonomy.deleted event naming its member term ids
+ok 2004 - purging a trashed taxonomy writes exactly one taxonomy_revisions row and one taxonomy.deleted event naming its member term ids
+  ---
+  duration_ms: 125.005158
+  type: 'test'
+  ...
+# Subtest: RED reference: the existing widget trash primitive still throws on a payload like this
+ok 2005 - RED reference: the existing widget trash primitive still throws on a payload like this
+  ---
+  duration_ms: 2.58232
+  type: 'test'
+  ...
+# Subtest: hide then unhide a post whose body_json is unparseable — both succeed, bytes are byte-identical
+ok 2006 - hide then unhide a post whose body_json is unparseable — both succeed, bytes are byte-identical
+  ---
+  duration_ms: 483.293753
+  type: 'test'
+  ...
+# Subtest: a trashed_items row whose entity row vanished still lists from its snapshot and is still purgeable
+ok 2007 - a trashed_items row whose entity row vanished still lists from its snapshot and is still purgeable
+  ---
+  duration_ms: 366.39629
+  type: 'test'
+  ...
+# Subtest: an entity type with no registered adapter still LISTS, and degrades honestly on restore and purge
+ok 2008 - an entity type with no registered adapter still LISTS, and degrades honestly on restore and purge
+  ---
+  duration_ms: 293.040967
+  type: 'test'
+  ...
+# Subtest: if the index insert fails, the marker flip rolls back — never hidden-but-not-in-trash
+ok 2009 - if the index insert fails, the marker flip rolls back — never hidden-but-not-in-trash
+  ---
+  duration_ms: 462.651384
+  type: 'test'
+  ...
+# Subtest: the transaction runner is reentrant — a domain that already opened one can still call remove
+ok 2010 - the transaction runner is reentrant — a domain that already opened one can still call remove
+  ---
+  duration_ms: 361.884912
+  type: 'test'
+  ...
+# Subtest: adapters resolve at CALL time, not at registration time
+ok 2011 - adapters resolve at CALL time, not at registration time
+  ---
+  duration_ms: 167.815847
+  type: 'test'
+  ...
+# Subtest: a purge whose version moved stands down and leaves the item alive in Trash
+ok 2012 - a purge whose version moved stands down and leaves the item alive in Trash
+  ---
+  duration_ms: 218.629536
+  type: 'test'
+  ...
+# Subtest: purgeSelected reports per item — one bad id never aborts the rest of the selection
+ok 2013 - purgeSelected reports per item — one bad id never aborts the rest of the selection
+  ---
+  duration_ms: 204.582464
+  type: 'test'
+  ...
+# Subtest: purgeSelected gates every row on the SERVER-SIDE row, and a denial neither purges nor drops the index row
+ok 2014 - purgeSelected gates every row on the SERVER-SIDE row, and a denial neither purges nor drops the index row
+  ---
+  duration_ms: 158.448835
+  type: 'test'
+  ...
+# Subtest: purging a post takes its revision ledger and search projection with it
+ok 2015 - purging a post takes its revision ledger and search projection with it
+  ---
+  duration_ms: 170.857957
+  type: 'test'
+  ...
+# Subtest: redirects use status='disabled' as their marker, not the literal the design guessed
+ok 2016 - redirects use status='disabled' as their marker, not the literal the design guessed
+  ---
+  duration_ms: 230.279112
+  type: 'test'
+  ...
+# Subtest: no themeId: the site opens with no theme override (its active theme) and no consent banner
+ok 2017 - no themeId: the site opens with no theme override (its active theme) and no consent banner
+  ---
+  duration_ms: 7.630223
+  type: 'test'
+  ...
+# Subtest: an installed, valid themeId is passed through as the render override, still without the consent banner
+ok 2018 - an installed, valid themeId is passed through as the render override, still without the consent banner
+  ---
+  duration_ms: 0.314041
+  type: 'test'
+  ...
+# Subtest: an unknown themeId is refused with the installed ids, and nothing is booted
+ok 2019 - an unknown themeId is refused with the installed ids, and nothing is booted
+  ---
+  duration_ms: 0.714809
+  type: 'test'
+  ...
+# Subtest: an unknown themeId reports none when every installed theme is invalid, and nothing is booted
+ok 2020 - an unknown themeId reports none when every installed theme is invalid, and nothing is booted
+  ---
+  duration_ms: 8.970937
+  type: 'test'
+  ...
+# Subtest: an installed but invalid theme is refused rather than silently rendered as the default theme
+ok 2021 - an installed but invalid theme is refused rather than silently rendered as the default theme
+  ---
+  duration_ms: 0.18868
+  type: 'test'
+  ...
+# Subtest: the roster is read at call time, so a theme duplicated after boot is accepted
+ok 2022 - the roster is read at call time, so a theme duplicated after boot is accepted
+  ---
+  duration_ms: 0.200065
+  type: 'test'
+  ...
+# Subtest: real document retains code delimiters and formatted table cells as library Markdown
+ok 2023 - real document retains code delimiters and formatted table cells as library Markdown
+  ---
+  duration_ms: 24.568745
+  type: 'test'
+  ...
+# Subtest: the host adapter preserves request identity and clips the library result after projection
+ok 2024 - the host adapter preserves request identity and clips the library result after projection
+  ---
+  duration_ms: 9.732721
+  type: 'test'
+  ...
+# Subtest: env-var override supplies the site key
+ok 2025 - env-var override supplies the site key
+  ---
+  duration_ms: 5.722865
+  type: 'test'
+  ...
+# Subtest: generated-file fallback creates a key outside the caller-specified path only once
+ok 2026 - generated-file fallback creates a key outside the caller-specified path only once
+  ---
+  duration_ms: 6.311704
+  type: 'test'
+  ...
+# Subtest: HKDF determinism: same input yields same output; different inputs diverge
+ok 2027 - HKDF determinism: same input yields same output; different inputs diverge
+  ---
+  duration_ms: 4.476663
+  type: 'test'
+  ...
+# Subtest: HKDF known answers preserve signing and secret-sealer key compatibility
+ok 2028 - HKDF known answers preserve signing and secret-sealer key compatibility
+  ---
+  duration_ms: 2.080392
+  type: 'test'
+  ...
+# Subtest: missing site key throws and never returns a placeholder secret
+ok 2029 - missing site key throws and never returns a placeholder secret
+  ---
+  duration_ms: 0.918017
+  type: 'test'
+  ...
+# Subtest: activeKey returns default keyId or configured keyId
+ok 2030 - activeKey returns default keyId or configured keyId
+  ---
+  duration_ms: 0.318564
+  type: 'test'
+  ...
+# Subtest: invalid hex-encoded env var throws error
+ok 2031 - invalid hex-encoded env var throws error
+  ---
+  duration_ms: 0.756332
+  type: 'test'
+  ...
+# Subtest: allowFileAutoGenerate: false throws rather than minting a file, when neither env var nor file exists
+ok 2032 - allowFileAutoGenerate: false throws rather than minting a file, when neither env var nor file exists
+  ---
+  duration_ms: 2.810585
+  type: 'test'
+  ...
+# Subtest: allowFileAutoGenerate: false still READS a file an explicit generateFileSiteKey already created
+ok 2033 - allowFileAutoGenerate: false still READS a file an explicit generateFileSiteKey already created
+  ---
+  duration_ms: 8.174249
+  type: 'test'
+  ...
+# Subtest: an env-only source list has no file write target
+ok 2034 - an env-only source list has no file write target
+  ---
+  duration_ms: 0.635017
+  type: 'test'
+  ...
+# Subtest: generateFileSiteKey writes a fresh 32-byte key and returns its hex/fingerprint/path
+ok 2035 - generateFileSiteKey writes a fresh 32-byte key and returns its hex/fingerprint/path
+  ---
+  duration_ms: 6.890418
+  type: 'test'
+  ...
+# Subtest: fingerprintSiteKeyHex preserves the SHA-256 stamp of decoded site key bytes
+ok 2036 - fingerprintSiteKeyHex preserves the SHA-256 stamp of decoded site key bytes
+  ---
+  duration_ms: 0.251474
+  type: 'test'
+  ...
+# Subtest: generateFileSiteKey throws SiteKeyFileAlreadyExistsError, and never overwrites, when a file is already there
+ok 2037 - generateFileSiteKey throws SiteKeyFileAlreadyExistsError, and never overwrites, when a file is already there
+  ---
+  duration_ms: 3.646644
+  type: 'test'
+  ...
+# Subtest: generateFileSiteKey refuses a target it did not create, even one existsSync() reports as absent
+ok 2038 - generateFileSiteKey refuses a target it did not create, even one existsSync() reports as absent
+  ---
+  duration_ms: 3.957696
+  type: 'test'
+  ...
+# Subtest: inspectSiteKeyMaterial: none active when neither env var nor file resolves
+ok 2039 - inspectSiteKeyMaterial: none active when neither env var nor file resolves
+  ---
+  duration_ms: 1.482662
+  type: 'test'
+  ...
+# Subtest: inspectSiteKeyMaterial: active via env var, with a fingerprint, and NEVER the raw value
+ok 2040 - inspectSiteKeyMaterial: active via env var, with a fingerprint, and NEVER the raw value
+  ---
+  duration_ms: 0.340123
+  type: 'test'
+  ...
+# Subtest: inspectSiteKeyMaterial: active via file when the env var is unset
+ok 2041 - inspectSiteKeyMaterial: active via file when the env var is unset
+  ---
+  duration_ms: 4.261372
+  type: 'test'
+  ...
+# Subtest: inspectSiteKeyMaterial: invalid hex in the env var reports invalid, not active, and no fingerprint
+ok 2042 - inspectSiteKeyMaterial: invalid hex in the env var reports invalid, not active, and no fingerprint
+  ---
+  duration_ms: 0.300267
+  type: 'test'
+  ...
+# Subtest: revealSiteKeyMaterial: includes the raw hex value when active — the one function in this pair that can
+ok 2043 - revealSiteKeyMaterial: includes the raw hex value when active — the one function in this pair that can
+  ---
+  duration_ms: 0.197669
+  type: 'test'
+  ...
+# Subtest: revealSiteKeyMaterial: no hex field when nothing is active
+ok 2044 - revealSiteKeyMaterial: no hex field when nothing is active
+  ---
+  duration_ms: 0.828527
+  type: 'test'
+  ...
+# Subtest: resolveSiteKey REFUSES a key file containing a pasted 0x prefix — it never seals under truncated bytes
+ok 2045 - resolveSiteKey REFUSES a key file containing a pasted 0x prefix — it never seals under truncated bytes
+  ---
+  duration_ms: 1.216078
+  type: 'test'
+  ...
+# Subtest: resolveSiteKey REFUSES a key file containing wholly non-hex content — it never seals under truncated bytes
+ok 2046 - resolveSiteKey REFUSES a key file containing wholly non-hex content — it never seals under truncated bytes
+  ---
+  duration_ms: 0.890043
+  type: 'test'
+  ...
+# Subtest: resolveSiteKey REFUSES a key file containing a base64 body someone pasted instead of hex — it never seals under truncated bytes
+ok 2047 - resolveSiteKey REFUSES a key file containing a base64 body someone pasted instead of hex — it never seals under truncated bytes
+  ---
+  duration_ms: 0.906618
+  type: 'test'
+  ...
+# Subtest: resolveSiteKey REFUSES a key file containing an odd number of hex digits (a partial write) — it never seals under truncated bytes
+ok 2048 - resolveSiteKey REFUSES a key file containing an odd number of hex digits (a partial write) — it never seals under truncated bytes
+  ---
+  duration_ms: 1.840666
+  type: 'test'
+  ...
+# Subtest: resolveSiteKey REFUSES a key file containing a truncated copy — it never seals under truncated bytes
+ok 2049 - resolveSiteKey REFUSES a key file containing a truncated copy — it never seals under truncated bytes
+  ---
+  duration_ms: 0.859816
+  type: 'test'
+  ...
+# Subtest: resolveSiteKey REFUSES a key file containing an empty file — it never seals under truncated bytes
+ok 2050 - resolveSiteKey REFUSES a key file containing an empty file — it never seals under truncated bytes
+  ---
+  duration_ms: 0.921676
+  type: 'test'
+  ...
+# Subtest: a non-hex key file is refused with a typed UnusableSiteKeyError, not collapsed to the publicly computable zero-length-IKM key
+ok 2051 - a non-hex key file is refused with a typed UnusableSiteKeyError, not collapsed to the publicly computable zero-length-IKM key
+  ---
+  duration_ms: 1.081578
+  type: 'test'
+  ...
+# Subtest: the status screen and the sealer cannot disagree: whatever inspectSiteKeyMaterial calls unusable, resolveSiteKey refuses
+ok 2052 - the status screen and the sealer cannot disagree: whatever inspectSiteKeyMaterial calls unusable, resolveSiteKey refuses
+  ---
+  duration_ms: 10.232997
+  type: 'test'
+  ...
+# Subtest: a hex key shorter than 32 bytes is unusable through BOTH paths — a short env var is not a site key either
+ok 2053 - a hex key shorter than 32 bytes is unusable through BOTH paths — a short env var is not a site key either
+  ---
+  duration_ms: 0.507949
+  type: 'test'
+  ...
+# Subtest: the malformed-key-file error names the file, says what is wrong, and does NOT imply replacing it restores anything
+ok 2054 - the malformed-key-file error names the file, says what is wrong, and does NOT imply replacing it restores anything
+  ---
+  duration_ms: 1.250129
+  type: 'test'
+  ...
+# Subtest: a malformed env var that could never have sealed anything gets no already-sealed warning; a too-short one that could have, does
+ok 2055 - a malformed env var that could never have sealed anything gets no already-sealed warning; a too-short one that could have, does
+  ---
+  duration_ms: 0.758935
+  type: 'test'
+  ...
+# Subtest: inspectSiteKeyMaterial reports the SAME rejection reason resolveSiteKey throws with
+ok 2056 - inspectSiteKeyMaterial reports the SAME rejection reason resolveSiteKey throws with
+  ---
+  duration_ms: 6.368268
+  type: 'test'
+  ...
+# Subtest: a valid key file with a trailing newline is still usable — trimming whitespace around the value is not malformed
+ok 2057 - a valid key file with a trailing newline is still usable — trimming whitespace around the value is not malformed
+  ---
+  duration_ms: 4.028306
+  type: 'test'
+  ...
+# Subtest: sources: the first source with material wins, later sources are never even read
+ok 2058 - sources: the first source with material wins, later sources are never even read
+  ---
+  duration_ms: 4.495207
+  type: 'test'
+  ...
+# Subtest: sources: an env-kind source reads the named env var
+ok 2059 - sources: an env-kind source reads the named env var
+  ---
+  duration_ms: 5.033099
+  type: 'test'
+  ...
+# Subtest: sources: a present-but-invalid source throws immediately — it does not fall through to the next source
+ok 2060 - sources: a present-but-invalid source throws immediately — it does not fall through to the next source
+  ---
+  duration_ms: 1.789084
+  type: 'test'
+  ...
+# Subtest: sources: exhausting every source throws, and never auto-generates a file — a sources-based keyring stays a reader
+ok 2061 - sources: exhausting every source throws, and never auto-generates a file — a sources-based keyring stays a reader
+  ---
+  duration_ms: 2.072546
+  type: 'test'
+  ...
+# Subtest: sources: a blank env var is treated as ABSENT, not present-but-invalid — falls through to the next source
+ok 2062 - sources: a blank env var is treated as ABSENT, not present-but-invalid — falls through to the next source
+  ---
+  duration_ms: 1.727245
+  type: 'test'
+  ...
+# Subtest: sources: a whitespace-only env var is also treated as ABSENT
+ok 2063 - sources: a whitespace-only env var is also treated as ABSENT
+  ---
+  duration_ms: 2.607105
+  type: 'test'
+  ...
+# Subtest: sources: a key file replaced while the process runs takes effect on the next call, without a restart
+ok 2064 - sources: a key file replaced while the process runs takes effect on the next call, without a restart
+  ---
+  duration_ms: 6.393063
+  type: 'test'
+  ...
+# Subtest: inspectSiteKeyMaterial: sources — the first source with material wins and reports active
+ok 2065 - inspectSiteKeyMaterial: sources — the first source with material wins and reports active
+  ---
+  duration_ms: 1.674274
+  type: 'test'
+  ...
+# Subtest: inspectSiteKeyMaterial: sources — an env-kind source reports source 'env'
+ok 2066 - inspectSiteKeyMaterial: sources — an env-kind source reports source 'env'
+  ---
+  duration_ms: 0.37566
+  type: 'test'
+  ...
+# Subtest: inspectSiteKeyMaterial: sources — a present-but-invalid source is reported invalid, never thrown (a status read must not throw)
+ok 2067 - inspectSiteKeyMaterial: sources — a present-but-invalid source is reported invalid, never thrown (a status read must not throw)
+  ---
+  duration_ms: 1.247964
+  type: 'test'
+  ...
+# Subtest: inspectSiteKeyMaterial: sources — a blank env var falls through to the next source, exactly like EnvOrFileKeyring
+ok 2068 - inspectSiteKeyMaterial: sources — a blank env var falls through to the next source, exactly like EnvOrFileKeyring
+  ---
+  duration_ms: 4.9478
+  type: 'test'
+  ...
+# Subtest: inspectSiteKeyMaterial: sources — nothing present anywhere reports inactive, source 'none', not invalid
+ok 2069 - inspectSiteKeyMaterial: sources — nothing present anywhere reports inactive, source 'none', not invalid
+  ---
+  duration_ms: 0.289271
+  type: 'test'
+  ...
+# Subtest: inspectSiteKeyMaterial: sources — keyFilePath is the per-site-file candidate's path, not the legacy default; envVarName/keyFilePath options are ignored
+ok 2070 - inspectSiteKeyMaterial: sources — keyFilePath is the per-site-file candidate's path, not the legacy default; envVarName/keyFilePath options are ignored
+  ---
+  duration_ms: 0.169939
+  type: 'test'
+  ...
+# Subtest: revealSiteKeyMaterial: sources — includes the raw hex when a source resolves
+ok 2071 - revealSiteKeyMaterial: sources — includes the raw hex when a source resolves
+  ---
+  duration_ms: 4.206263
+  type: 'test'
+  ...
+# Subtest: revealSiteKeyMaterial: sources — a present-but-invalid source is reported invalid, never thrown
+ok 2072 - revealSiteKeyMaterial: sources — a present-but-invalid source is reported invalid, never thrown
+  ---
+  duration_ms: 0.214832
+  type: 'test'
+  ...
+# Subtest: a key longer than 32 bytes is still accepted — the floor is a minimum, not an exact length
+ok 2073 - a key longer than 32 bytes is still accepted — the floor is a minimum, not an exact length
+  ---
+  duration_ms: 0.432238
+  type: 'test'
+  ...
+# Subtest: generateFileSiteKey creates a missing key directory at mode 0700 (site-key plan §A.1: the site-keys dir is 0700)
+ok 2074 - generateFileSiteKey creates a missing key directory at mode 0700 (site-key plan §A.1: the site-keys dir is 0700)
+  ---
+  duration_ms: 5.800419
+  type: 'test'
+  ...
+# Subtest: createKeyringBackedSigner produces the same signature createFixedSecretSigner would for an equivalent secret
+ok 2075 - createKeyringBackedSigner produces the same signature createFixedSecretSigner would for an equivalent secret
+  ---
+  duration_ms: 2.164885
+  type: 'test'
+  ...
+# Subtest: createKeyringBackedSigner derives per-subscription using workspaceId/subscriptionId/secretVersion
+ok 2076 - createKeyringBackedSigner derives per-subscription using workspaceId/subscriptionId/secretVersion
+  ---
+  duration_ms: 1.182008
+  type: 'test'
+  ...
+# Subtest: create: a non-array topics value is read as no topics (and refused as such); an array is stringified
+ok 2077 - create: a non-array topics value is read as no topics (and refused as such); an array is stringified
+  ---
+  duration_ms: 9.281632
+  type: 'test'
+  ...
+# Subtest: contributeWebhooksTools contributes these registrations under the integrations domain with their risk
+ok 2078 - contributeWebhooksTools contributes these registrations under the integrations domain with their risk
+  ---
+  duration_ms: 0.286383
+  type: 'test'
+  ...
+# Subtest: list: each row summarises its most recent delivery by createdAt, whatever order the repo returns
+ok 2079 - list: each row summarises its most recent delivery by createdAt, whatever order the repo returns
+  ---
+  duration_ms: 5.35602
+  type: 'test'
+  ...
+# Subtest: get_deliveries: limit is defaulted, floored and capped, and rows come back newest first
+ok 2080 - get_deliveries: limit is defaulted, floored and capped, and rows come back newest first
+  ---
+  duration_ms: 27.039209
+  type: 'test'
+  ...
+# Subtest: update: topics must be an array of strings; a valid update reports the latest delivery
+ok 2081 - update: topics must be an array of strings; a valid update reports the latest delivery
+  ---
+  duration_ms: 1.520057
+  type: 'test'
+  ...
+# Subtest: pause: an omitted 'paused' pauses; paused:false resumes
+ok 2082 - pause: an omitted 'paused' pauses; paused:false resumes
+  ---
+  duration_ms: 0.743913
+  type: 'test'
+  ...
+# Subtest: Gallery in a TipTap post uses the HTML gallery renderer and preserves data-kui while stripping onclick/script URLs
+ok 2083 - Gallery in a TipTap post uses the HTML gallery renderer and preserves data-kui while stripping onclick/script URLs
+  ---
+  duration_ms: 11.786614
+  type: 'test'
+  ...
+# Subtest: Gallery widget media refs retain order and duplicate occurrences, protecting assets even with invalid layout
+ok 2084 - Gallery widget media refs retain order and duplicate occurrences, protecting assets even with invalid layout
+  ---
+  duration_ms: 1.531715
+  type: 'test'
+  ...
+# Subtest: assistant create/update schemas advertise Media and retain Gallery compatibility
+ok 2085 - assistant create/update schemas advertise Media and retain Gallery compatibility
+  ---
+  duration_ms: 0.303443
+  type: 'test'
+  ...
+# Subtest: widgets_insert_embed against a real post host succeeds end to end (golden path, not just RED)
+ok 2086 - widgets_insert_embed against a real post host succeeds end to end (golden path, not just RED)
+  ---
+  duration_ms: 70.144349
+  type: 'test'
+  ...
+# Subtest: removing a missing placement on a valid host returns the intact BAD_REQUEST and preserves the post
+ok 2087 - removing a missing placement on a valid host returns the intact BAD_REQUEST and preserves the post
+  ---
+  duration_ms: 5.825346
+  type: 'test'
+  ...
+# Subtest: a stale region write returns an intact BAD_REQUEST conflict and keeps the winning placements
+ok 2088 - a stale region write returns an intact BAD_REQUEST conflict and keeps the winning placements
+  ---
+  duration_ms: 17.698811
+  type: 'test'
+  ...
+# Subtest: widgets_insert_embed against an unknown host is BAD_REQUEST with the host-not-found message, not a redacted 500
+ok 2089 - widgets_insert_embed against an unknown host is BAD_REQUEST with the host-not-found message, not a redacted 500
+  ---
+  duration_ms: 51.410911
+  type: 'test'
+  ...
+# Subtest: widgets_remove_embed against an unknown host is the SAME BAD_REQUEST text (this arm has no withSchemaOnRejection of its own)
+ok 2090 - widgets_remove_embed against an unknown host is the SAME BAD_REQUEST text (this arm has no withSchemaOnRejection of its own)
+  ---
+  duration_ms: 53.807148
+  type: 'test'
+  ...
+# Subtest: widgets_reorder_embeds against an unknown host is the SAME BAD_REQUEST text
+ok 2091 - widgets_reorder_embeds against an unknown host is the SAME BAD_REQUEST text
+  ---
+  duration_ms: 1.333319
+  type: 'test'
+  ...
+# Subtest: widgets_insert_embed against an HTML-format page host is BAD_REQUEST with the unsupported-host message
+ok 2092 - widgets_insert_embed against an HTML-format page host is BAD_REQUEST with the unsupported-host message
+  ---
+  duration_ms: 0.64482
+  type: 'test'
+  ...
+# Subtest: widgets_insert_embed with a stale baseVersion on a post host is BAD_REQUEST with the version-conflict guidance, not a redacted 500
+ok 2093 - widgets_insert_embed with a stale baseVersion on a post host is BAD_REQUEST with the version-conflict guidance, not a redacted 500
+  ---
+  duration_ms: 6.990161
+  type: 'test'
+  ...
+# Subtest: widgets_insert_embed with an unknown widgetEntryId against a valid post host is BAD_REQUEST with the instance-not-found message
+ok 2094 - widgets_insert_embed with an unknown widgetEntryId against a valid post host is BAD_REQUEST with the instance-not-found message
+  ---
+  duration_ms: 4.688265
+  type: 'test'
+  ...
+# Subtest: widgets_insert_embed denied on the internal content.write chokepoint (widgets.place itself allowed) is BAD_REQUEST with the real permission and reason, not a redacted 500
+ok 2095 - widgets_insert_embed denied on the internal content.write chokepoint (widgets.place itself allowed) is BAD_REQUEST with the real permission and reason, not a redacted 500
+  ---
+  duration_ms: 1.858675
+  type: 'test'
+  ...
+# Subtest: sibling handlers with no host-lookup bug still had the SAME redacted-500 surfacing bug — all now BAD_REQUEST with the message intact
+ok 2096 - sibling handlers with no host-lookup bug still had the SAME redacted-500 surfacing bug — all now BAD_REQUEST with the message intact
+  ---
+  duration_ms: 12.273406
+  type: 'test'
+  ...
+# Subtest: buildWidgetsDeps: maps write-path fields by identity and narrows post reads, including the idGen -> ids rename
+ok 2097 - buildWidgetsDeps: maps write-path fields by identity and narrows post reads, including the idGen -> ids rename
+  ---
+  duration_ms: 8.015275
+  type: 'test'
+  ...
+# Subtest: buildWidgetsDeps: does not carry workspaceId or widgetBindingRepo through — those are not part of this shape
+ok 2098 - buildWidgetsDeps: does not carry workspaceId or widgetBindingRepo through — those are not part of this shape
+  ---
+  duration_ms: 0.462921
+  type: 'test'
+  ...
+# Subtest: buildWidgetsRegionDeps: is buildWidgetsDeps' shape plus one extra field, bindingRepo, sourced from widgetBindingRepo
+ok 2099 - buildWidgetsRegionDeps: is buildWidgetsDeps' shape plus one extra field, bindingRepo, sourced from widgetBindingRepo
+  ---
+  duration_ms: 0.233633
+  type: 'test'
+  ...
+# Subtest: widget composition retains one state per entry store across write, embed, region and recreated bags
+ok 2100 - widget composition retains one state per entry store across write, embed, region and recreated bags
+  ---
+  duration_ms: 0.166031
+  type: 'test'
+  ...
+# Subtest: buildWidgetHostPorts: published-post lookups use the bound postRepo, and fall back to the caller's repo when none is bound
+ok 2101 - buildWidgetHostPorts: published-post lookups use the bound postRepo, and fall back to the caller's repo when none is bound
+  ---
+  duration_ms: 0.832451
+  type: 'test'
+  ...
+# Subtest: buildWidgetHostPorts: error classifiers recognise only their own error classes
+ok 2102 - buildWidgetHostPorts: error classifiers recognise only their own error classes
+  ---
+  duration_ms: 0.458485
+  type: 'test'
+  ...
+# Subtest: buildWidgetHostPorts: each index provisioner is a fresh no-op provisioner
+ok 2103 - buildWidgetHostPorts: each index provisioner is a fresh no-op provisioner
+  ---
+  duration_ms: 0.191624
+  type: 'test'
+  ...
+# Subtest: buildWidgetHostPorts: updatePost and restorePostForward read through the bound postRepo, else the caller's repo
+ok 2104 - buildWidgetHostPorts: updatePost and restorePostForward read through the bound postRepo, else the caller's repo
+  ---
+  duration_ms: 1.143096
+  type: 'test'
+  ...
+# Subtest: widget + widget-area round trip: widgets first with their ids, the region's placements land and bind, then unchanged
+ok 2105 - widget + widget-area round trip: widgets first with their ids, the region's placements land and bind, then unchanged
+  ---
+  duration_ms: 20.172294
+  type: 'test'
+  ...
+# Subtest: widget: a config edit on the source updates the destination widget in place (forced)
+ok 2106 - widget: a config edit on the source updates the destination widget in place (forced)
+  ---
+  duration_ms: 5.732351
+  type: 'test'
+  ...
+# Subtest: widget: a trashed destination widget with the same id is refused at precheck
+ok 2107 - widget: a trashed destination widget with the same id is refused at precheck
+  ---
+  duration_ms: 5.375758
+  type: 'test'
+  ...
+# Subtest: widget: a trashed destination widget holding the same slug under another id is refused at precheck
+ok 2108 - widget: a trashed destination widget holding the same slug under another id is refused at precheck
+  ---
+  duration_ms: 2.06673
+  type: 'test'
+  ...
+# Subtest: widget-area: a region the destination binds after the plan is a conflict
+ok 2109 - widget-area: a region the destination binds after the plan is a conflict
+  ---
+  duration_ms: 2.858054
+  type: 'test'
+  ...
+# Subtest: widget-area: a placement naming a widget the destination lacks is blocked and leaves no empty area bound behind
+ok 2110 - widget-area: a placement naming a widget the destination lacks is blocked and leaves no empty area bound behind
+  ---
+  duration_ms: 1.881284
+  type: 'test'
+  ...
+# Subtest: widget: a contact-form widget's form reference travels as the form's slug and lands as the destination form's id
+ok 2111 - widget: a contact-form widget's form reference travels as the form's slug and lands as the destination form's id
+  ---
+  duration_ms: 4.270562
+  type: 'test'
+  ...
+# Subtest: widget/widget-area references: a widget names the media its config uses; an area names the widgets it places
+ok 2112 - widget/widget-area references: a widget names the media its config uses; an area names the widgets it places
+  ---
+  duration_ms: 41.54055
+  type: 'test'
+  ...
+# Subtest: widget precheck refuses a widget type the destination lacks, and settings its schema rejects
+ok 2113 - widget precheck refuses a widget type the destination lacks, and settings its schema rejects
+  ---
+  duration_ms: 2.085358
+  type: 'test'
+  ...
+# Subtest: widget references name configured form, menu and term references, and tolerate a widget with no config
+ok 2114 - widget references name configured form, menu and term references, and tolerate a widget with no config
+  ---
+  duration_ms: 4.402179
+  type: 'test'
+  ...
+# Subtest: a contact-form reference to a form the source cannot find packs unchanged
+ok 2115 - a contact-form reference to a form the source cannot find packs unchanged
+  ---
+  duration_ms: 1.066065
+  type: 'test'
+  ...
+# Subtest: widget-area: a placement change on the source updates the destination's existing area in place (forced)
+ok 2116 - widget-area: a placement change on the source updates the destination's existing area in place (forced)
+  ---
+  duration_ms: 3.264101
+  type: 'test'
+  ...
+# Subtest: run waits for readiness, forwards its exact input, and returns the port result
+ok 2117 - run waits for readiness, forwards its exact input, and returns the port result
+  ---
+  duration_ms: 13.75391
+  type: 'test'
+  ...
+# Subtest: run rejects with the readiness error without entering the underlying kernel
+ok 2118 - run rejects with the readiness error without entering the underlying kernel
+  ---
+  duration_ms: 0.901357
+  type: 'test'
+  ...
+# Subtest: run propagates the underlying operation error after readiness
+ok 2119 - run propagates the underlying operation error after readiness
+  ---
+  duration_ms: 0.62377
+  type: 'test'
+  ...
+# Subtest: transaction waits for readiness, forwards its exact input, and returns the port result
+ok 2120 - transaction waits for readiness, forwards its exact input, and returns the port result
+  ---
+  duration_ms: 3.351006
+  type: 'test'
+  ...
+# Subtest: transaction rejects with the readiness error without entering the underlying kernel
+ok 2121 - transaction rejects with the readiness error without entering the underlying kernel
+  ---
+  duration_ms: 0.424942
+  type: 'test'
+  ...
+# Subtest: transaction propagates the underlying operation error after readiness
+ok 2122 - transaction propagates the underlying operation error after readiness
+  ---
+  duration_ms: 0.292472
+  type: 'test'
+  ...
+# Subtest: query waits for readiness, forwards its exact input, and returns the port result
+ok 2123 - query waits for readiness, forwards its exact input, and returns the port result
+  ---
+  duration_ms: 1.620586
+  type: 'test'
+  ...
+# Subtest: query rejects with the readiness error without entering the underlying kernel
+ok 2124 - query rejects with the readiness error without entering the underlying kernel
+  ---
+  duration_ms: 0.778236
+  type: 'test'
+  ...
+# Subtest: query propagates the underlying operation error after readiness
+ok 2125 - query propagates the underlying operation error after readiness
+  ---
+  duration_ms: 0.240758
+  type: 'test'
+  ...
+# Subtest: execute waits for readiness, forwards its exact input, and returns the port result
+ok 2126 - execute waits for readiness, forwards its exact input, and returns the port result
+  ---
+  duration_ms: 1.21482
+  type: 'test'
+  ...
+# Subtest: execute rejects with the readiness error without entering the underlying kernel
+ok 2127 - execute rejects with the readiness error without entering the underlying kernel
+  ---
+  duration_ms: 0.92375
+  type: 'test'
+  ...
+# Subtest: execute propagates the underlying operation error after readiness
+ok 2128 - execute propagates the underlying operation error after readiness
+  ---
+  duration_ms: 1.783559
+  type: 'test'
+  ...
+# Subtest: backupTo waits for readiness, forwards its exact input, and returns the port result
+ok 2129 - backupTo waits for readiness, forwards its exact input, and returns the port result
+  ---
+  duration_ms: 5.8027
+  type: 'test'
+  ...
+# Subtest: backupTo rejects with the readiness error without entering the underlying kernel
+ok 2130 - backupTo rejects with the readiness error without entering the underlying kernel
+  ---
+  duration_ms: 0.309939
+  type: 'test'
+  ...
+# Subtest: backupTo propagates the underlying operation error after readiness
+ok 2131 - backupTo propagates the underlying operation error after readiness
+  ---
+  duration_ms: 0.117935
+  type: 'test'
+  ...
+# Subtest: close waits for successful readiness and releases the underlying handle
+ok 2132 - close waits for successful readiness and releases the underlying handle
+  ---
+  duration_ms: 1.758651
+  type: 'test'
+  ...
+# Subtest: close waits for failed readiness and releases the underlying handle
+ok 2133 - close waits for failed readiness and releases the underlying handle
+  ---
+  duration_ms: 0.643546
+  type: 'test'
+  ...
+# Subtest: close propagates a close failure even after the schema open failed
+ok 2134 - close propagates a close failure even after the schema open failed
+  ---
+  duration_ms: 0.873395
+  type: 'test'
+  ...
+# Subtest: vault cascade parity [sqlite]
+    # Subtest: user purge removes only that user's personal key
+    ok 1 - user purge removes only that user's personal key
+      ---
+      duration_ms: 1.815442
+      type: 'test'
+      ...
+    # Subtest: deleting a principal: same accept/reject and the same keys left
+    ok 2 - deleting a principal: same accept/reject and the same keys left
+      ---
+      duration_ms: 0.351619
+      type: 'test'
+      ...
+    # Subtest: deleting a workspace: same accept/reject, and all its keys go with it (site key included)
+    ok 3 - deleting a workspace: same accept/reject, and all its keys go with it (site key included)
+      ---
+      duration_ms: 0.184162
+      type: 'test'
+      ...
+    1..3
+ok 2135 - vault cascade parity [sqlite]
+  ---
+  duration_ms: 1546.93872
+  type: 'suite'
+  ...
+# Subtest: vault cascade parity [pglite]
+    # Subtest: user purge removes only that user's personal key
+    ok 1 - user purge removes only that user's personal key
+      ---
+      duration_ms: 0.989157
+      type: 'test'
+      ...
+    # Subtest: deleting a principal: same accept/reject and the same keys left
+    ok 2 - deleting a principal: same accept/reject and the same keys left
+      ---
+      duration_ms: 0.798792
+      type: 'test'
+      ...
+    # Subtest: deleting a workspace: same accept/reject, and all its keys go with it (site key included)
+    ok 3 - deleting a workspace: same accept/reject, and all its keys go with it (site key included)
+      ---
+      duration_ms: 0.341223
+      type: 'test'
+      ...
+    1..3
+ok 2136 - vault cascade parity [pglite]
+  ---
+  duration_ms: 10966.068127
+  type: 'suite'
+  ...
+# Subtest: 0024 migration: a pre-existing row survives with body_format defaulted to 'doc', body_html NULL, and body_json unchanged
+ok 2137 - 0024 migration: a pre-existing row survives with body_format defaulted to 'doc', body_html NULL, and body_json unchanged
+  ---
+  duration_ms: 308.304799
+  type: 'test'
+  ...
+# Subtest: 0024 migration: row count and the two pre-existing indexes are preserved across the rebuild
+ok 2138 - 0024 migration: row count and the two pre-existing indexes are preserved across the rebuild
+  ---
+  duration_ms: 287.583796
+  type: 'test'
+  ...
+# Subtest: posts_body_format_shape CHECK: rejects a body_format value that is neither 'doc' nor 'html'
+ok 2139 - posts_body_format_shape CHECK: rejects a body_format value that is neither 'doc' nor 'html'
+  ---
+  duration_ms: 158.727471
+  type: 'test'
+  ...
+# Subtest: posts_body_format_shape CHECK: rejects a 'doc' row that also carries body_html
+ok 2140 - posts_body_format_shape CHECK: rejects a 'doc' row that also carries body_html
+  ---
+  duration_ms: 181.762056
+  type: 'test'
+  ...
+# Subtest: posts_body_format_shape CHECK: rejects an 'html' row that still carries body_json
+ok 2141 - posts_body_format_shape CHECK: rejects an 'html' row that still carries body_json
+  ---
+  duration_ms: 159.526742
+  type: 'test'
+  ...
+# Subtest: posts_body_format_shape CHECK: rejects an 'html' row with no body_html at all
+ok 2142 - posts_body_format_shape CHECK: rejects an 'html' row with no body_html at all
+  ---
+  duration_ms: 201.555519
+  type: 'test'
+  ...
+# Subtest: posts_body_format_shape CHECK: accepts a valid 'doc' row and a valid 'html' row, and both round-trip
+ok 2143 - posts_body_format_shape CHECK: accepts a valid 'doc' row and a valid 'html' row, and both round-trip
+  ---
+  duration_ms: 237.038314
+  type: 'test'
+  ...
+# Subtest: vault inventory counts envelopes separately, retains device flow and never emits secrets [sqlite]
+ok 2144 - vault inventory counts envelopes separately, retains device flow and never emits secrets [sqlite]
+  ---
+  duration_ms: 227.759195
+  type: 'test'
+  ...
+# Subtest: inventory covers unknown catalog columns and incomplete quads [sqlite]
+ok 2145 - inventory covers unknown catalog columns and incomplete quads [sqlite]
+  ---
+  duration_ms: 195.396789
+  type: 'test'
+  ...
+# Subtest: wrong key, unavailable key, absent source, unsupported alg and unknown lineage stay distinct [sqlite]
+ok 2146 - wrong key, unavailable key, absent source, unsupported alg and unknown lineage stay distinct [sqlite]
+  ---
+  duration_ms: 263.630252
+  type: 'test'
+  ...
+# Subtest: inventory refuses understated limits and rechecks active key after a failed open [sqlite]
+ok 2147 - inventory refuses understated limits and rechecks active key after a failed open [sqlite]
+  ---
+  duration_ms: 207.709556
+  type: 'test'
+  ...
+# Subtest: inventory is read-only: vault, device and unknown sealed rows are unchanged across every verdict [sqlite]
+ok 2148 - inventory is read-only: vault, device and unknown sealed rows are unchanged across every verdict [sqlite]
+  ---
+  duration_ms: 454.591071
+  type: 'test'
+  ...
+# Subtest: credentials saved through the real Tovu stores are reported as opening, agreeing with each store's read [sqlite]
+ok 2149 - credentials saved through the real Tovu stores are reported as opening, agreeing with each store's read [sqlite]
+  ---
+  duration_ms: 144.763513
+  type: 'test'
+  ...
+# Subtest: an active key that cannot be read leaves every row unknown without sealing or opening anything [sqlite]
+ok 2150 - an active key that cannot be read leaves every row unknown without sealing or opening anything [sqlite]
+  ---
+  duration_ms: 138.258366
+  type: 'test'
+  ...
+# Subtest: a probe that round-trips the wrong plaintext reports unknown, never "does not open" [sqlite]
+ok 2151 - a probe that round-trips the wrong plaintext reports unknown, never "does not open" [sqlite]
+  ---
+  duration_ms: 188.98497
+  type: 'test'
+  ...
+# Subtest: vault inventory counts envelopes separately, retains device flow and never emits secrets [pglite]
+ok 2152 - vault inventory counts envelopes separately, retains device flow and never emits secrets [pglite]
+  ---
+  duration_ms: 11731.02892
+  type: 'test'
+  ...
+# Subtest: inventory covers unknown catalog columns and incomplete quads [pglite]
+ok 2153 - inventory covers unknown catalog columns and incomplete quads [pglite]
+  ---
+  duration_ms: 2639.277692
+  type: 'test'
+  ...
+# Subtest: wrong key, unavailable key, absent source, unsupported alg and unknown lineage stay distinct [pglite]
+ok 2154 - wrong key, unavailable key, absent source, unsupported alg and unknown lineage stay distinct [pglite]
+  ---
+  duration_ms: 12417.580174
+  type: 'test'
+  ...
+# Subtest: inventory refuses understated limits and rechecks active key after a failed open [pglite]
+ok 2155 - inventory refuses understated limits and rechecks active key after a failed open [pglite]
+  ---
+  duration_ms: 5133.653191
+  type: 'test'
+  ...
+# Subtest: inventory is read-only: vault, device and unknown sealed rows are unchanged across every verdict [pglite]
+ok 2156 - inventory is read-only: vault, device and unknown sealed rows are unchanged across every verdict [pglite]
+  ---
+  duration_ms: 17288.445976
+  type: 'test'
+  ...
+# Subtest: credentials saved through the real Tovu stores are reported as opening, agreeing with each store's read [pglite]
+ok 2157 - credentials saved through the real Tovu stores are reported as opening, agreeing with each store's read [pglite]
+  ---
+  duration_ms: 2713.884765
+  type: 'test'
+  ...
+# Subtest: an active key that cannot be read leaves every row unknown without sealing or opening anything [pglite]
+ok 2158 - an active key that cannot be read leaves every row unknown without sealing or opening anything [pglite]
+  ---
+  duration_ms: 2653.364977
+  type: 'test'
+  ...
+# Subtest: a probe that round-trips the wrong plaintext reports unknown, never "does not open" [pglite]
+ok 2159 - a probe that round-trips the wrong plaintext reports unknown, never "does not open" [pglite]
+  ---
+  duration_ms: 2157.887325
+  type: 'test'
+  ...
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: content-database.generated.ts matches the reference database
+ok 2160 - content-database.generated.ts matches the reference database
+  ---
+  duration_ms: 7345.935242
+  type: 'test'
+  ...
+# Subtest: a migrated SQLite content.db has every generated table and column, with compatible storage
+ok 2161 - a migrated SQLite content.db has every generated table and column, with compatible storage
+  ---
+  duration_ms: 638.575969
+  type: 'test'
+  ...
+# Subtest: vault generated contracts expose safe metadata and MCP pointers, with no folded-table types
+ok 2162 - vault generated contracts expose safe metadata and MCP pointers, with no folded-table types
+  ---
+  duration_ms: 0.639
+  type: 'test'
+  ...
+# Subtest: SQLite copyTo from a read-only open includes rows still in the WAL, and never writes the source
+ok 2163 - SQLite copyTo from a read-only open includes rows still in the WAL, and never writes the source
+  ---
+  duration_ms: 71.774112
+  type: 'test'
+  ...
+# Subtest: SQLite copyTo refuses an existing target with the driver's own error
+ok 2164 - SQLite copyTo refuses an existing target with the driver's own error
+  ---
+  duration_ms: 43.373521
+  type: 'test'
+  ...
+# Subtest: SQLite compactAndVerify leaves a WAL-mode file with no sidecar content, and refuses inside a transaction
+ok 2165 - SQLite compactAndVerify leaves a WAL-mode file with no sidecar content, and refuses inside a transaction
+  ---
+  duration_ms: 52.095593
+  type: 'test'
+  ...
+# Subtest: storageOps works on the kernel of a Drizzle-style handle, and closeSqliteConnection closes it
+ok 2166 - storageOps works on the kernel of a Drizzle-style handle, and closeSqliteConnection closes it
+  ---
+  duration_ms: 5.555363
+  type: 'test'
+  ...
+# Subtest: openSqliteFileKernel readOnly requires the file to exist
+ok 2167 - openSqliteFileKernel readOnly requires the file to exist
+  ---
+  duration_ms: 3.469313
+  type: 'test'
+  ...
+# Subtest: PGlite in process: copyTo restores the whole data dir into a new one; compactAndVerify reads the ledger back
+ok 2168 - PGlite in process: copyTo restores the whole data dir into a new one; compactAndVerify reads the ledger back
+  ---
+  duration_ms: 10223.53769
+  type: 'test'
+  ...
+# Subtest: PGlite compactAndVerify refuses an empty migration ledger
+ok 2169 - PGlite compactAndVerify refuses an empty migration ledger
+  ---
+  duration_ms: 5151.329434
+  type: 'test'
+  ...
+# Subtest: PGlite socket client: copyTo goes through the owner's exclusive window, and is refused without it
+ok 2170 - PGlite socket client: copyTo goes through the owner's exclusive window, and is refused without it
+  ---
+  duration_ms: 8446.162952
+  type: 'test'
+  ...
+# Subtest: PGlite socket client: copyTo inside a transaction surfaces the outside-transaction refusal unchanged
+ok 2171 - PGlite socket client: copyTo inside a transaction surfaces the outside-transaction refusal unchanged
+  ---
+  duration_ms: 4507.555389
+  type: 'test'
+  ...
+# Subtest: copyServedPgliteTo restores a served owner's rows into a new data dir without its owner lock
+ok 2172 - copyServedPgliteTo restores a served owner's rows into a new data dir without its owner lock
+  ---
+  duration_ms: 6500.466124
+  type: 'test'
+  ...
+# Subtest: Postgres copyTo is refused with the provider-backup guidance before any connection is opened
+ok 2173 - Postgres copyTo is refused with the provider-backup guidance before any connection is opened
+  ---
+  duration_ms: 1.01345
+  type: 'test'
+  ...
+# Subtest: sqlite: populated core archives the complete related set, warns and permits unchanged 0011
+ok 2174 - sqlite: populated core archives the complete related set, warns and permits unchanged 0011
+  ---
+  duration_ms: 50.812854
+  type: 'test'
+  ...
+# Subtest: sqlite: empty, missing and already-upgraded tables do not create archives
+ok 2175 - sqlite: empty, missing and already-upgraded tables do not create archives
+  ---
+  duration_ms: 11.990052
+  type: 'test'
+  ...
+# Subtest: sqlite: one populated last table protects its empty siblings; partial sets are supported
+ok 2176 - sqlite: one populated last table protects its empty siblings; partial sets are supported
+  ---
+  duration_ms: 4.106532
+  type: 'test'
+  ...
+# Subtest: sqlite: an archive-name collision refuses before any rename and preserves both sets
+ok 2177 - sqlite: an archive-name collision refuses before any rename and preserves both sets
+  ---
+  duration_ms: 19.052095
+  type: 'test'
+  ...
+# Subtest: sqlite: a failed rename rolls back the entire set and its ledger entry
+ok 2178 - sqlite: a failed rename rolls back the entire set and its ledger entry
+  ---
+  duration_ms: 22.721331
+  type: 'test'
+  ...
+# Subtest: pglite: populated core archives the complete related set, warns and permits unchanged 0011
+ok 2179 - pglite: populated core archives the complete related set, warns and permits unchanged 0011
+  ---
+  duration_ms: 9397.139508
+  type: 'test'
+  ...
+# Subtest: pglite: empty, missing and already-upgraded tables do not create archives
+ok 2180 - pglite: empty, missing and already-upgraded tables do not create archives
+  ---
+  duration_ms: 13942.861592
+  type: 'test'
+  ...
+# Subtest: pglite: one populated last table protects its empty siblings; partial sets are supported
+ok 2181 - pglite: one populated last table protects its empty siblings; partial sets are supported
+  ---
+  duration_ms: 4767.422871
+  type: 'test'
+  ...
+# Subtest: pglite: an archive-name collision refuses before any rename and preserves both sets
+ok 2182 - pglite: an archive-name collision refuses before any rename and preserves both sets
+  ---
+  duration_ms: 5916.188155
+  type: 'test'
+  ...
+# Subtest: pglite: a failed rename rolls back the entire set and its ledger entry
+ok 2183 - pglite: a failed rename rolls back the entire set and its ledger entry
+  ---
+  duration_ms: 7477.005617
+  type: 'test'
+  ...
+# Subtest: SQLite: concurrent openers archive once; pre-change and post-change backups restore all rows
+ok 2184 - SQLite: concurrent openers archive once; pre-change and post-change backups restore all rows
+  ---
+  duration_ms: 652.826596
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0024 is registered after 0023 with its pinned checksum and creates its table once
+ok 2185 - [sqlite] 0024 is registered after 0023 with its pinned checksum and creates its table once
+  ---
+  duration_ms: 129.240042
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0024 keeps one binding per (workspace, hostname), defaults to manual, and starts at attempt 0
+ok 2186 - [sqlite] 0024 keeps one binding per (workspace, hostname), defaults to manual, and starts at attempt 0
+  ---
+  duration_ms: 136.42798
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0024 closes the status and delegation sets and refuses a negative attempt
+ok 2187 - [sqlite] 0024 closes the status and delegation sets and refuses a negative attempt
+  ---
+  duration_ms: 112.188105
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0024 rows go with their workspace and require one that exists
+ok 2188 - [sqlite] 0024 rows go with their workspace and require one that exists
+  ---
+  duration_ms: 227.904176
+  type: 'test'
+  ...
+# Subtest: [pglite] 0024 is registered after 0023 with its pinned checksum and creates its table once
+ok 2189 - [pglite] 0024 is registered after 0023 with its pinned checksum and creates its table once
+  ---
+  duration_ms: 9082.11058
+  type: 'test'
+  ...
+# Subtest: [pglite] 0024 keeps one binding per (workspace, hostname), defaults to manual, and starts at attempt 0
+ok 2190 - [pglite] 0024 keeps one binding per (workspace, hostname), defaults to manual, and starts at attempt 0
+  ---
+  duration_ms: 38.058656
+  type: 'test'
+  ...
+# Subtest: [pglite] 0024 closes the status and delegation sets and refuses a negative attempt
+ok 2191 - [pglite] 0024 closes the status and delegation sets and refuses a negative attempt
+  ---
+  duration_ms: 44.648358
+  type: 'test'
+  ...
+# Subtest: [pglite] 0024 rows go with their workspace and require one that exists
+ok 2192 - [pglite] 0024 rows go with their workspace and require one that exists
+  ---
+  duration_ms: 42.959346
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0033 preserves old activity and is applied once
+ok 2193 - [sqlite] 0033 preserves old activity and is applied once
+  ---
+  duration_ms: 294.670216
+  type: 'test'
+  ...
+# Subtest: [pglite] 0033 preserves old activity and is applied once
+ok 2194 - [pglite] 0033 preserves old activity and is applied once
+  ---
+  duration_ms: 8998.286064
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0035 adds only identity metadata, preserves members and applies once
+ok 2195 - [sqlite] 0035 adds only identity metadata, preserves members and applies once
+  ---
+  duration_ms: 213.273812
+  type: 'test'
+  ...
+# Subtest: [pglite] 0035 adds only identity metadata, preserves members and applies once
+ok 2196 - [pglite] 0035 adds only identity metadata, preserves members and applies once
+  ---
+  duration_ms: 7944.717889
+  type: 'test'
+  ...
+# Subtest: 0000_legacy_baseline on Postgres (PGlite)
+    # Subtest: applies on an empty database and matches schema.postgres.ts at head
+    ok 1 - applies on an empty database and matches schema.postgres.ts at head
+      ---
+      duration_ms: 17999.315124
+      type: 'test'
+      ...
+    # Subtest: the frozen baseline creates the composite FK (the 42830 case), then head retires core commerce
+    ok 2 - the frozen baseline creates the composite FK (the 42830 case), then head retires core commerce
+      ---
+      duration_ms: 9177.041293
+      type: 'test'
+      ...
+    # Subtest: a prototype schema with no ledger is refused, not overwritten
+    ok 3 - a prototype schema with no ledger is refused, not overwritten
+      ---
+      duration_ms: 5531.885599
+      type: 'test'
+      ...
+    1..3
+ok 2197 - 0000_legacy_baseline on Postgres (PGlite)
+  ---
+  duration_ms: 32710.173894
+  type: 'suite'
+  ...
+# Subtest: [sqlite] 0027 is registered with its pinned checksum and creates its tables once
+ok 2198 - [sqlite] 0027 is registered with its pinned checksum and creates its tables once
+  ---
+  duration_ms: 228.340064
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0027 keeps one state row per (target, key) with attempts defaulting to 0
+ok 2199 - [sqlite] 0027 keeps one state row per (target, key) with attempts defaulting to 0
+  ---
+  duration_ms: 120.275233
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0027 refuses a status outside the port's union and a non-0/1 boolean
+ok 2200 - [sqlite] 0027 refuses a status outside the port's union and a non-0/1 boolean
+  ---
+  duration_ms: 103.154035
+  type: 'test'
+  ...
+# Subtest: [sqlite] 0027 keeps one watermark per (target, collection) and one pointer row per site, never half a target
+ok 2201 - [sqlite] 0027 keeps one watermark per (target, collection) and one pointer row per site, never half a target
+  ---
+  duration_ms: 118.993544
+  type: 'test'
+  ...
+# Subtest: [pglite] 0027 is registered with its pinned checksum and creates its tables once
+ok 2202 - [pglite] 0027 is registered with its pinned checksum and creates its tables once
+  ---
+  duration_ms: 11979.12887
+  type: 'test'
+  ...
+# Subtest: [pglite] 0027 keeps one state row per (target, key) with attempts defaulting to 0
+ok 2203 - [pglite] 0027 keeps one state row per (target, key) with attempts defaulting to 0
+  ---
+  duration_ms: 12.293774
+  type: 'test'
+  ...
+# Subtest: [pglite] 0027 refuses a status outside the port's union and a non-0/1 boolean
+ok 2204 - [pglite] 0027 refuses a status outside the port's union and a non-0/1 boolean
+  ---
+  duration_ms: 11.823151
+  type: 'test'
+  ...
+# Subtest: [pglite] 0027 keeps one watermark per (target, collection) and one pointer row per site, never half a target
+ok 2205 - [pglite] 0027 keeps one watermark per (target, collection) and one pointer row per site, never half a target
+  ---
+  duration_ms: 12.160347
+  type: 'test'
+  ...
+# Subtest: AdminExecutionCredentialRepoPort [sqlite]
+    # Subtest: findByWorkspaceAndPrincipal returns null when no row exists
+    ok 1 - findByWorkspaceAndPrincipal returns null when no row exists
+      ---
+      duration_ms: 658.291414
+      type: 'test'
+      ...
+    # Subtest: the first execution credential save persists settings in SQL
+    ok 2 - the first execution credential save persists settings in SQL
+      ---
+      duration_ms: 343.410648
+      type: 'test'
+      ...
+    # Subtest: upsert then findByWorkspaceAndPrincipal round-trips a sealed record exactly
+    ok 3 - upsert then findByWorkspaceAndPrincipal round-trips a sealed record exactly
+      ---
+      duration_ms: 290.215232
+      type: 'test'
+      ...
+    # Subtest: upsert is a true upsert — a second call on the same (workspace, principal) updates the one row, not a second row
+    ok 4 - upsert is a true upsert — a second call on the same (workspace, principal) updates the one row, not a second row
+      ---
+      duration_ms: 204.682383
+      type: 'test'
+      ...
+    # Subtest: clearKey nulls the sealed columns and masked, and leaves everything else untouched
+    ok 5 - clearKey nulls the sealed columns and masked, and leaves everything else untouched
+      ---
+      duration_ms: 202.244446
+      type: 'test'
+      ...
+    # Subtest: raw envelope writes withhold unknown-length hints, preserve verified hints, and clear them on envelope changes
+    ok 6 - raw envelope writes withhold unknown-length hints, preserve verified hints, and clear them on envelope changes
+      ---
+      duration_ms: 195.751459
+      type: 'test'
+      ...
+    # Subtest: clearKey on a (workspace, principal) with no row is a harmless no-op
+    ok 7 - clearKey on a (workspace, principal) with no row is a harmless no-op
+      ---
+      duration_ms: 273.523724
+      type: 'test'
+      ...
+    # Subtest: row-level isolation: two principals in the same workspace never collide
+    ok 8 - row-level isolation: two principals in the same workspace never collide
+      ---
+      duration_ms: 336.410477
+      type: 'test'
+      ...
+    1..8
+ok 2206 - AdminExecutionCredentialRepoPort [sqlite]
+  ---
+  duration_ms: 2506.716382
+  type: 'suite'
+  ...
+# Subtest: AdminExecutionCredentialRepoPort [pglite]
+    # Subtest: findByWorkspaceAndPrincipal returns null when no row exists
+    ok 1 - findByWorkspaceAndPrincipal returns null when no row exists
+      ---
+      duration_ms: 10615.78266
+      type: 'test'
+      ...
+    # Subtest: the first execution credential save persists settings in SQL
+    ok 2 - the first execution credential save persists settings in SQL
+      ---
+      duration_ms: 77.214293
+      type: 'test'
+      ...
+    # Subtest: upsert then findByWorkspaceAndPrincipal round-trips a sealed record exactly
+    ok 3 - upsert then findByWorkspaceAndPrincipal round-trips a sealed record exactly
+      ---
+      duration_ms: 72.729268
+      type: 'test'
+      ...
+    # Subtest: upsert is a true upsert — a second call on the same (workspace, principal) updates the one row, not a second row
+    ok 4 - upsert is a true upsert — a second call on the same (workspace, principal) updates the one row, not a second row
+      ---
+      duration_ms: 88.847288
+      type: 'test'
+      ...
+    # Subtest: clearKey nulls the sealed columns and masked, and leaves everything else untouched
+    ok 5 - clearKey nulls the sealed columns and masked, and leaves everything else untouched
+      ---
+      duration_ms: 233.789153
+      type: 'test'
+      ...
+    # Subtest: raw envelope writes withhold unknown-length hints, preserve verified hints, and clear them on envelope changes
+    ok 6 - raw envelope writes withhold unknown-length hints, preserve verified hints, and clear them on envelope changes
+      ---
+      duration_ms: 326.590653
+      type: 'test'
+      ...
+    # Subtest: clearKey on a (workspace, principal) with no row is a harmless no-op
+    ok 7 - clearKey on a (workspace, principal) with no row is a harmless no-op
+      ---
+      duration_ms: 103.927321
+      type: 'test'
+      ...
+    # Subtest: row-level isolation: two principals in the same workspace never collide
+    ok 8 - row-level isolation: two principals in the same workspace never collide
+      ---
+      duration_ms: 92.050227
+      type: 'test'
+      ...
+    1..8
+ok 2207 - AdminExecutionCredentialRepoPort [pglite]
+  ---
+  duration_ms: 11612.637462
+  type: 'suite'
+  ...
+# Subtest: the vault CHECK constraint rejects a half-sealed row written outside this adapter
+ok 2208 - the vault CHECK constraint rejects a half-sealed row written outside this adapter
+  ---
+  duration_ms: 240.811285
+  type: 'test'
+  ...
+# Subtest: the vault FK rejects a row for a principal that does not exist
+ok 2209 - the vault FK rejects a row for a principal that does not exist
+  ---
+  duration_ms: 154.394276
+  type: 'test'
+  ...
+# Subtest: MediaProviderCredentialRepoPort [sqlite]
+    # Subtest: listByWorkspaceId returns an empty array when no rows exist
+    ok 1 - listByWorkspaceId returns an empty array when no rows exist
+      ---
+      duration_ms: 157.638778
+      type: 'test'
+      ...
+    # Subtest: upsert then list round-trips a sealed record exactly
+    ok 2 - upsert then list round-trips a sealed record exactly
+      ---
+      duration_ms: 159.581851
+      type: 'test'
+      ...
+    # Subtest: a keyless row round-trips with sealed and keyTail both null
+    ok 3 - a keyless row round-trips with sealed and keyTail both null
+      ---
+      duration_ms: 227.983596
+      type: 'test'
+      ...
+    # Subtest: a non-default media singleton resolves with one exact-provider query and one open
+    ok 4 - a non-default media singleton resolves with one exact-provider query and one open
+      ---
+      duration_ms: 430.619278
+      type: 'test'
+      ...
+    # Subtest: upsert on the same (workspace, provider) updates the one row rather than adding a second
+    ok 5 - upsert on the same (workspace, provider) updates the one row rather than adding a second
+      ---
+      duration_ms: 278.719561
+      type: 'test'
+      ...
+    # Subtest: two providers coexist in one workspace under the composite key
+    ok 6 - two providers coexist in one workspace under the composite key
+      ---
+      duration_ms: 224.697051
+      type: 'test'
+      ...
+    # Subtest: listByWorkspaceId never returns another workspace's rows
+    ok 7 - listByWorkspaceId never returns another workspace's rows
+      ---
+      duration_ms: 218.399308
+      type: 'test'
+      ...
+    # Subtest: deleteByProviderIds removes only the named ids
+    ok 8 - deleteByProviderIds removes only the named ids
+      ---
+      duration_ms: 266.912086
+      type: 'test'
+      ...
+    # Subtest: deleteByProviderIds on an empty list is a no-op, not an IN () syntax error
+    ok 9 - deleteByProviderIds on an empty list is a no-op, not an IN () syntax error
+      ---
+      duration_ms: 208.683264
+      type: 'test'
+      ...
+    # Subtest: deleteByProviderIds never crosses a workspace boundary
+    ok 10 - deleteByProviderIds never crosses a workspace boundary
+      ---
+      duration_ms: 220.884763
+      type: 'test'
+      ...
+    # Subtest: deleteByProviderIds on ids with no rows is harmless
+    ok 11 - deleteByProviderIds on ids with no rows is harmless
+      ---
+      duration_ms: 239.418145
+      type: 'test'
+      ...
+    # Subtest: replaceWorkspace commits every upsert and the tombstone delete together
+    ok 12 - replaceWorkspace commits every upsert and the tombstone delete together
+      ---
+      duration_ms: 262.456756
+      type: 'test'
+      ...
+    # Subtest: replaceWorkspace rolls back writes it had already applied when a later write in the same transaction fails (atomicity proof)
+    ok 13 - replaceWorkspace rolls back writes it had already applied when a later write in the same transaction fails (atomicity proof)
+      ---
+      duration_ms: 355.202384
+      type: 'test'
+      ...
+    # Subtest: replaceWorkspace applies nothing when the planner itself throws
+    ok 14 - replaceWorkspace applies nothing when the planner itself throws
+      ---
+      duration_ms: 283.804352
+      type: 'test'
+      ...
+    # Subtest: the planner is handed the rows as of the transaction, never a caller's earlier snapshot
+    ok 15 - the planner is handed the rows as of the transaction, never a caller's earlier snapshot
+      ---
+      duration_ms: 225.657494
+      type: 'test'
+      ...
+    # Subtest: replaceWorkspace reads, plans and writes inside the real kernel transaction
+    ok 16 - replaceWorkspace reads, plans and writes inside the real kernel transaction
+      ---
+      duration_ms: 333.071685
+      type: 'test'
+      ...
+    # Subtest: a metadata-only SQL save preserves a rotation committed while its other key was sealing
+    ok 17 - a metadata-only SQL save preserves a rotation committed while its other key was sealing
+      ---
+      duration_ms: 305.69438
+      type: 'test'
+      ...
+    # Subtest: replaceWorkspace never reads or tombstones another workspace's rows
+    ok 18 - replaceWorkspace never reads or tombstones another workspace's rows
+      ---
+      duration_ms: 338.712647
+      type: 'test'
+      ...
+    # Subtest: a reader polling on the shared connection can never observe a half-replaced map
+    ok 19 - a reader polling on the shared connection can never observe a half-replaced map
+      ---
+      duration_ms: 186.938184
+      type: 'test'
+      ...
+    # Subtest: an async planner smuggled past the type system fails closed instead of reopening the interleaving window
+    ok 20 - an async planner smuggled past the type system fails closed instead of reopening the interleaving window
+      ---
+      duration_ms: 224.181348
+      type: 'test'
+      ...
+    1..20
+ok 2210 - MediaProviderCredentialRepoPort [sqlite]
+  ---
+  duration_ms: 5152.249974
+  type: 'suite'
+  ...
+# Subtest: MediaProviderCredentialRepoPort [pglite]
+    # Subtest: listByWorkspaceId returns an empty array when no rows exist
+    ok 1 - listByWorkspaceId returns an empty array when no rows exist
+      ---
+      duration_ms: 10378.368231
+      type: 'test'
+      ...
+    # Subtest: upsert then list round-trips a sealed record exactly
+    ok 2 - upsert then list round-trips a sealed record exactly
+      ---
+      duration_ms: 54.733117
+      type: 'test'
+      ...
+    # Subtest: a keyless row round-trips with sealed and keyTail both null
+    ok 3 - a keyless row round-trips with sealed and keyTail both null
+      ---
+      duration_ms: 62.639142
+      type: 'test'
+      ...
+    # Subtest: a non-default media singleton resolves with one exact-provider query and one open
+    ok 4 - a non-default media singleton resolves with one exact-provider query and one open
+      ---
+      duration_ms: 72.903342
+      type: 'test'
+      ...
+    # Subtest: upsert on the same (workspace, provider) updates the one row rather than adding a second
+    ok 5 - upsert on the same (workspace, provider) updates the one row rather than adding a second
+      ---
+      duration_ms: 60.354896
+      type: 'test'
+      ...
+    # Subtest: two providers coexist in one workspace under the composite key
+    ok 6 - two providers coexist in one workspace under the composite key
+      ---
+      duration_ms: 212.949447
+      type: 'test'
+      ...
+    # Subtest: listByWorkspaceId never returns another workspace's rows
+    ok 7 - listByWorkspaceId never returns another workspace's rows
+      ---
+      duration_ms: 55.527266
+      type: 'test'
+      ...
+    # Subtest: deleteByProviderIds removes only the named ids
+    ok 8 - deleteByProviderIds removes only the named ids
+      ---
+      duration_ms: 321.868702
+      type: 'test'
+      ...
+    # Subtest: deleteByProviderIds on an empty list is a no-op, not an IN () syntax error
+    ok 9 - deleteByProviderIds on an empty list is a no-op, not an IN () syntax error
+      ---
+      duration_ms: 259.08088
+      type: 'test'
+      ...
+    # Subtest: deleteByProviderIds never crosses a workspace boundary
+    ok 10 - deleteByProviderIds never crosses a workspace boundary
+      ---
+      duration_ms: 378.776083
+      type: 'test'
+      ...
+    # Subtest: deleteByProviderIds on ids with no rows is harmless
+    ok 11 - deleteByProviderIds on ids with no rows is harmless
+      ---
+      duration_ms: 40.185789
+      type: 'test'
+      ...
+    # Subtest: replaceWorkspace commits every upsert and the tombstone delete together
+    ok 12 - replaceWorkspace commits every upsert and the tombstone delete together
+      ---
+      duration_ms: 78.346902
+      type: 'test'
+      ...
+    # Subtest: replaceWorkspace rolls back writes it had already applied when a later write in the same transaction fails (atomicity proof)
+    ok 13 - replaceWorkspace rolls back writes it had already applied when a later write in the same transaction fails (atomicity proof)
+      ---
+      duration_ms: 126.536945
+      type: 'test'
+      ...
+    # Subtest: replaceWorkspace applies nothing when the planner itself throws
+    ok 14 - replaceWorkspace applies nothing when the planner itself throws
+      ---
+      duration_ms: 52.187555
+      type: 'test'
+      ...
+    # Subtest: the planner is handed the rows as of the transaction, never a caller's earlier snapshot
+    ok 15 - the planner is handed the rows as of the transaction, never a caller's earlier snapshot
+      ---
+      duration_ms: 46.645944
+      type: 'test'
+      ...
+    # Subtest: replaceWorkspace reads, plans and writes inside the real kernel transaction
+    ok 16 - replaceWorkspace reads, plans and writes inside the real kernel transaction
+      ---
+      duration_ms: 68.808663
+      type: 'test'
+      ...
+    # Subtest: a metadata-only SQL save preserves a rotation committed while its other key was sealing
+    ok 17 - a metadata-only SQL save preserves a rotation committed while its other key was sealing
+      ---
+      duration_ms: 131.462586
+      type: 'test'
+      ...
+    # Subtest: replaceWorkspace never reads or tombstones another workspace's rows
+    ok 18 - replaceWorkspace never reads or tombstones another workspace's rows
+      ---
+      duration_ms: 128.508289
+      type: 'test'
+      ...
+    # Subtest: a reader polling on the shared connection can never observe a half-replaced map
+    ok 19 - a reader polling on the shared connection can never observe a half-replaced map
+      ---
+      duration_ms: 81.338692
+      type: 'test'
+      ...
+    # Subtest: an async planner smuggled past the type system fails closed instead of reopening the interleaving window
+    ok 20 - an async planner smuggled past the type system fails closed instead of reopening the interleaving window
+      ---
+      duration_ms: 97.858305
+      type: 'test'
+      ...
+    1..20
+ok 2211 - MediaProviderCredentialRepoPort [pglite]
+  ---
+  duration_ms: 12714.839971
+  type: 'suite'
+  ...

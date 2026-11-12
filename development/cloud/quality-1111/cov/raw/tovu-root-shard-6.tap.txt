@@ -3273,3 +3273,282 @@ ok 513 - every way an operator asks to see a page ranks web_screenshot_page in t
   duration_ms: 1239.65475
   type: 'test'
   ...
+# Subtest: createSqliteAgentSessionStore
+    # Subtest: returns null for a (conversation, agent) pair with no stored session
+    ok 1 - returns null for a (conversation, agent) pair with no stored session
+      ---
+      duration_ms: 109.549966
+      type: 'test'
+      ...
+    # Subtest: round-trips a stored session id
+    ok 2 - round-trips a stored session id
+      ---
+      duration_ms: 4.615346
+      type: 'test'
+      ...
+    # Subtest: overwrites the prior session id on a second set for the same pair, rather than erroring or duplicating
+    ok 3 - overwrites the prior session id on a second set for the same pair, rather than erroring or duplicating
+      ---
+      duration_ms: 71.372494
+      type: 'test'
+      ...
+    # Subtest: keeps two agent ids for the same conversation independent
+    ok 4 - keeps two agent ids for the same conversation independent
+      ---
+      duration_ms: 2.67687
+      type: 'test'
+      ...
+    # Subtest: cascades the delete of its parent conversation, matching migration 0023's own ai_chat_messages cascade
+    ok 5 - cascades the delete of its parent conversation, matching migration 0023's own ai_chat_messages cascade
+      ---
+      duration_ms: 1.272429
+      type: 'test'
+      ...
+    # Subtest: H1 regression: clearSessionId removes a stored id so the next getSessionId returns null
+    ok 6 - H1 regression: clearSessionId removes a stored id so the next getSessionId returns null
+      ---
+      duration_ms: 2.077228
+      type: 'test'
+      ...
+    # Subtest: clearSessionId only removes the targeted (conversation, agent) pair, leaving a sibling agent's session intact
+    ok 7 - clearSessionId only removes the targeted (conversation, agent) pair, leaving a sibling agent's session intact
+      ---
+      duration_ms: 1.925674
+      type: 'test'
+      ...
+    # Subtest: clearSessionId is a silent no-op when nothing is stored for the pair
+    ok 8 - clearSessionId is a silent no-op when nothing is stored for the pair
+      ---
+      duration_ms: 1.666111
+      type: 'test'
+      ...
+    1..8
+ok 514 - createSqliteAgentSessionStore
+  ---
+  duration_ms: 197.674382
+  type: 'suite'
+  ...
+# Subtest: createInMemoryAgentSessionStore
+    # Subtest: returns null for a pair with no stored session
+    ok 1 - returns null for a pair with no stored session
+      ---
+      duration_ms: 0.358921
+      type: 'test'
+      ...
+    # Subtest: round-trips a stored session id
+    ok 2 - round-trips a stored session id
+      ---
+      duration_ms: 0.235838
+      type: 'test'
+      ...
+    # Subtest: does not let a concatenation-ambiguous id pair collide with a different pair
+    ok 3 - does not let a concatenation-ambiguous id pair collide with a different pair
+      ---
+      duration_ms: 0.17885
+      type: 'test'
+      ...
+    # Subtest: gives two independent store instances two independent maps
+    ok 4 - gives two independent store instances two independent maps
+      ---
+      duration_ms: 0.195184
+      type: 'test'
+      ...
+    # Subtest: H1 regression: clearSessionId removes a stored id so the next getSessionId returns null
+    ok 5 - H1 regression: clearSessionId removes a stored id so the next getSessionId returns null
+      ---
+      duration_ms: 0.111575
+      type: 'test'
+      ...
+    # Subtest: clearSessionId is a silent no-op when nothing is stored for the pair
+    ok 6 - clearSessionId is a silent no-op when nothing is stored for the pair
+      ---
+      duration_ms: 0.071469
+      type: 'test'
+      ...
+    1..6
+ok 515 - createInMemoryAgentSessionStore
+  ---
+  duration_ms: 1.410161
+  type: 'suite'
+  ...
+# Subtest: a run with no attempt row is classified by Tovu's run-ID prefixes
+ok 516 - a run with no attempt row is classified by Tovu's run-ID prefixes
+  ---
+  duration_ms: 96.531516
+  type: 'test'
+  ...
+# Subtest: resolveSiteAssistantMode
+    # Subtest: defaults to byok when nothing is set, and does not report a refusal
+    ok 1 - defaults to byok when nothing is set, and does not report a refusal
+      ---
+      duration_ms: 11.010814
+      type: 'test'
+      ...
+    # Subtest: refuses native CLI execution even when BOTH legacy opt-ins are set
+    ok 2 - refuses native CLI execution even when BOTH legacy opt-ins are set
+      ---
+      duration_ms: 0.526859
+      type: 'test'
+      ...
+    # Subtest: refuses cli when the mode is set but the opt-in is absent
+    ok 3 - refuses cli when the mode is set but the opt-in is absent
+      ---
+      duration_ms: 0.240992
+      type: 'test'
+      ...
+    # Subtest: treats non-'1' opt-in values as refusal, including truthy strings
+    ok 4 - treats non-'1' opt-in values as refusal, including truthy strings
+      ---
+      duration_ms: 0.259448
+      type: 'test'
+      ...
+    # Subtest: refuses cli under NODE_ENV=production even with a correct opt-in
+    ok 5 - refuses cli under NODE_ENV=production even with a correct opt-in
+      ---
+      duration_ms: 0.264418
+      type: 'test'
+      ...
+    # Subtest: falls back to byok on an unrecognized mode rather than throwing or guessing
+    ok 6 - falls back to byok on an unrecognized mode rather than throwing or guessing
+      ---
+      duration_ms: 0.268884
+      type: 'test'
+      ...
+    # Subtest: accepts case and surrounding whitespace on the mode, since env vars are hand-edited
+    ok 7 - accepts case and surrounding whitespace on the mode, since env vars are hand-edited
+      ---
+      duration_ms: 7.292196
+      type: 'test'
+      ...
+    # Subtest: explicit byok is honored silently, not reported as a refusal
+    ok 8 - explicit byok is honored silently, not reported as a refusal
+      ---
+      duration_ms: 0.252284
+      type: 'test'
+      ...
+    1..8
+ok 517 - resolveSiteAssistantMode
+  ---
+  duration_ms: 22.175925
+  type: 'suite'
+  ...
+# Subtest: fill/select and a published submitter always require confirmation, menu clicks do not
+ok 518 - fill/select and a published submitter always require confirmation, menu clicks do not
+  ---
+  duration_ms: 1.324159
+  type: 'test'
+  ...
+# Subtest: Auto fill refuses decline without effects
+ok 519 - Auto fill refuses decline without effects
+  ---
+  duration_ms: 25.935872
+  type: 'test'
+  ...
+# Subtest: Auto fill refuses expire without effects
+ok 520 - Auto fill refuses expire without effects
+  ---
+  duration_ms: 3.109175
+  type: 'test'
+  ...
+# Subtest: Auto fill refuses policy-change without effects
+ok 521 - Auto fill refuses policy-change without effects
+  ---
+  duration_ms: 2.257389
+  type: 'test'
+  ...
+# Subtest: Auto fill refuses cancel without effects
+ok 522 - Auto fill refuses cancel without effects
+  ---
+  duration_ms: 2.022736
+  type: 'test'
+  ...
+# Subtest: approval binds guest/tab and immutable args, consumes once, and never accepts an assistant approval
+ok 523 - approval binds guest/tab and immutable args, consumes once, and never accepts an assistant approval
+  ---
+  duration_ms: 3.910319
+  type: 'test'
+  ...
+# Subtest: Auto fill without a confirmation channel cannot execute
+ok 524 - Auto fill without a confirmation channel cannot execute
+  ---
+  duration_ms: 3.639056
+  type: 'test'
+  ...
+# Subtest: tovu deploy config --target <t> --region <r>: exits 0 and prints the generated config to stdout
+ok 525 - tovu deploy config --target <t> --region <r>: exits 0 and prints the generated config to stdout
+  ---
+  duration_ms: 19300.048887
+  type: 'test'
+  ...
+# Subtest: tovu deploy config --target render --region <r>: exits 0 and prints render.yaml to stdout
+ok 526 - tovu deploy config --target render --region <r>: exits 0 and prints render.yaml to stdout
+  ---
+  duration_ms: 17885.882911
+  type: 'test'
+  ...
+# Subtest: tovu deploy config --target railway --region <r>: exits 0 and prints valid JSON to stdout
+ok 527 - tovu deploy config --target railway --region <r>: exits 0 and prints valid JSON to stdout
+  ---
+  duration_ms: 19846.597739
+  type: 'test'
+  ...
+# Subtest: tovu deploy config --target <bad>: rejected as VALIDATION (exit 2), not a silent fallback
+ok 528 - tovu deploy config --target <bad>: rejected as VALIDATION (exit 2), not a silent fallback
+  ---
+  duration_ms: 21528.546455
+  type: 'test'
+  ...
+# Subtest: tovu deploy config --target render (no --region): rejected as VALIDATION (exit 2), no silent default region
+ok 529 - tovu deploy config --target render (no --region): rejected as VALIDATION (exit 2), no silent default region
+  ---
+  duration_ms: 21603.311459
+  type: 'test'
+  ...
+# Subtest: tovu deploy config --target railway --region <bad>: rejected as VALIDATION (exit 2)
+ok 530 - tovu deploy config --target railway --region <bad>: rejected as VALIDATION (exit 2)
+  ---
+  duration_ms: 21814.261888
+  type: 'test'
+  ...
+# Subtest: tovu deploy config --target <t> --region <r> --out <file>: writes the file instead of printing it
+ok 531 - tovu deploy config --target <t> --region <r> --out <file>: writes the file instead of printing it
+  ---
+  duration_ms: 22095.921392
+  type: 'test'
+  ...
+# Subtest: AC-01/api.spec.md §5: tovu init <dir> --name <name> exits 0, prints the created-site stdout contract, and produces a real install dir
+ok 532 - AC-01/api.spec.md §5: tovu init <dir> --name <name> exits 0, prints the created-site stdout contract, and produces a real install dir
+  ---
+  duration_ms: 21513.947048
+  type: 'test'
+  ...
+# Subtest: BR-03: omitting --name defaults the site name to the directory basename, end to end through the CLI
+ok 533 - BR-03: omitting --name defaults the site name to the directory basename, end to end through the CLI
+  ---
+  duration_ms: 14352.865814
+  type: 'test'
+  ...
+# Subtest: AC-04/EC-01: tovu init against an existing non-empty directory exits 3 with INIT_DIR_NOT_EMPTY, directory left untouched
+ok 534 - AC-04/EC-01: tovu init against an existing non-empty directory exits 3 with INIT_DIR_NOT_EMPTY, directory left untouched
+  ---
+  duration_ms: 22474.111097
+  type: 'test'
+  ...
+# Subtest: EC-02: tovu init against a path that exists as a regular file exits 3 with INIT_DIR_NOT_EMPTY
+ok 535 - EC-02: tovu init against a path that exists as a regular file exits 3 with INIT_DIR_NOT_EMPTY
+  ---
+  duration_ms: 13035.967664
+  type: 'test'
+  ...
+# Subtest: EC-06: an empty --name exits 2 with VALIDATION, nothing created
+ok 536 - EC-06: an empty --name exits 2 with VALIDATION, nothing created
+  ---
+  duration_ms: 20375.823597
+  type: 'test'
+  ...
+# Subtest: VALIDATION: tovu init with no dir argument at all exits 2 with usage (a missing required positional argument is a usage error)
+ok 537 - VALIDATION: tovu init with no dir argument at all exits 2 with usage (a missing required positional argument is a usage error)
+  ---
+  duration_ms: 16277.332899
+  type: 'test'
+  ...

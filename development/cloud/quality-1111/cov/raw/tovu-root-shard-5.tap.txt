@@ -1641,3 +1641,4413 @@ ok 222 - forms_update_definition: a fixable input rejection reaches the model as
 # [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
 #     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
 # {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: projected search, approval and callback metadata exactly matches the reviewed baseline
+ok 223 - projected search, approval and callback metadata exactly matches the reviewed baseline
+  ---
+  duration_ms: 6.326161
+  type: 'test'
+  ...
+# Subtest: every baseline ID retains its exchange and fresh-callback refusal rules
+ok 224 - every baseline ID retains its exchange and fresh-callback refusal rules
+  ---
+  duration_ms: 1.89802
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: the production domain registrations carry their projected action policy
+ok 225 - the production domain registrations carry their projected action policy
+  ---
+  duration_ms: 1041.892286
+  type: 'test'
+  ...
+# Subtest: permanent-delete baseline pins all 13 opt-in ids and the two forbidden operations
+ok 226 - permanent-delete baseline pins all 13 opt-in ids and the two forbidden operations
+  ---
+  duration_ms: 1.781114
+  type: 'test'
+  ...
+# Subtest: exactly the 5 external-mcp operations are wired — list, save, test_connection, oauth_connect, oauth_poll_device
+ok 227 - exactly the 5 external-mcp operations are wired — list, save, test_connection, oauth_connect, oauth_poll_device
+  ---
+  duration_ms: 4.849048
+  type: 'test'
+  ...
+# Subtest: the same 5 ids are reachable through the REAL production assembly path (installFirstPartyToolContributors's own seam)
+ok 228 - the same 5 ids are reachable through the REAL production assembly path (installFirstPartyToolContributors's own seam)
+  ---
+  duration_ms: 45.418153
+  type: 'test'
+  ...
+# Subtest: every wired external-mcp registration publishes its catalog entry's inputSchema and description verbatim
+ok 229 - every wired external-mcp registration publishes its catalog entry's inputSchema and description verbatim
+  ---
+  duration_ms: 0.6482
+  type: 'test'
+  ...
+# Subtest: the independent risk classification agrees with the catalog for all five tools
+ok 230 - the independent risk classification agrees with the catalog for all five tools
+  ---
+  duration_ms: 0.896767
+  type: 'test'
+  ...
+# Subtest: external_mcp_list: calls authorize() with EXTERNAL_MCP_MANAGE_PERMISSION and the run's principal
+ok 231 - external_mcp_list: calls authorize() with EXTERNAL_MCP_MANAGE_PERMISSION and the run's principal
+  ---
+  duration_ms: 0.837906
+  type: 'test'
+  ...
+# Subtest: external_mcp_list: a denied principal is rejected
+ok 232 - external_mcp_list: a denied principal is rejected
+  ---
+  duration_ms: 2.015951
+  type: 'test'
+  ...
+# Subtest: external_mcp_test_connection: calls authorize() with EXTERNAL_MCP_MANAGE_PERMISSION and the run's principal
+ok 233 - external_mcp_test_connection: calls authorize() with EXTERNAL_MCP_MANAGE_PERMISSION and the run's principal
+  ---
+  duration_ms: 0.606319
+  type: 'test'
+  ...
+# Subtest: external_mcp_test_connection: a denied principal is rejected
+ok 234 - external_mcp_test_connection: a denied principal is rejected
+  ---
+  duration_ms: 0.406099
+  type: 'test'
+  ...
+# Subtest: external_mcp_oauth_connect: calls authorize() with EXTERNAL_MCP_MANAGE_PERMISSION and the run's principal
+ok 235 - external_mcp_oauth_connect: calls authorize() with EXTERNAL_MCP_MANAGE_PERMISSION and the run's principal
+  ---
+  duration_ms: 0.472388
+  type: 'test'
+  ...
+# Subtest: external_mcp_oauth_connect: a denied principal is rejected
+ok 236 - external_mcp_oauth_connect: a denied principal is rejected
+  ---
+  duration_ms: 0.329933
+  type: 'test'
+  ...
+# Subtest: external_mcp_oauth_poll_device: calls authorize() with EXTERNAL_MCP_MANAGE_PERMISSION and the run's principal
+ok 237 - external_mcp_oauth_poll_device: calls authorize() with EXTERNAL_MCP_MANAGE_PERMISSION and the run's principal
+  ---
+  duration_ms: 0.351526
+  type: 'test'
+  ...
+# Subtest: external_mcp_oauth_poll_device: a denied principal is rejected
+ok 238 - external_mcp_oauth_poll_device: a denied principal is rejected
+  ---
+  duration_ms: 0.209905
+  type: 'test'
+  ...
+# Subtest: external_mcp_save: authorize() runs BEFORE any form is raised — a denied principal never opens an exchange
+ok 239 - external_mcp_save: authorize() runs BEFORE any form is raised — a denied principal never opens an exchange
+  ---
+  duration_ms: 4.255581
+  type: 'test'
+  ...
+# Subtest: external_mcp_list: reflects what is actually stored, never a credential value
+ok 240 - external_mcp_list: reflects what is actually stored, never a credential value
+  ---
+  duration_ms: 14.685973
+  type: 'test'
+  ...
+# Subtest: with no emitSurface, external_mcp_save is refused outright — no exchange is ever opened, nothing saved
+ok 241 - with no emitSurface, external_mcp_save is refused outright — no exchange is ever opened, nothing saved
+  ---
+  duration_ms: 0.672183
+  type: 'test'
+  ...
+# Subtest: workflow: save a new streamable_http server via the confirmation form, then see it in a fresh list
+ok 242 - workflow: save a new streamable_http server via the confirmation form, then see it in a fresh list
+  ---
+  duration_ms: 80.236398
+  type: 'test'
+  ...
+# Subtest: workflow: a write grant fixed in the proposal survives the credential form and is visible in a fresh list
+ok 243 - workflow: a write grant fixed in the proposal survives the credential form and is visible in a fresh list
+  ---
+  duration_ms: 13.625452
+  type: 'test'
+  ...
+# Subtest: workflow: omitting writeAllowedToolNames on the form still saves with no write grants (the safe default, not a silent drop of an EXISTING grant)
+ok 244 - workflow: omitting writeAllowedToolNames on the form still saves with no write grants (the safe default, not a silent drop of an EXISTING grant)
+  ---
+  duration_ms: 2.25178
+  type: 'test'
+  ...
+# Subtest: an invalid write grant (a tool not in allowedToolNames) is reported as { saved: false, reason: 'invalid', field: 'writeAllowedToolNames' }, not thrown, and nothing is saved
+ok 245 - an invalid write grant (a tool not in allowedToolNames) is reported as { saved: false, reason: 'invalid', field: 'writeAllowedToolNames' }, not thrown, and nothing is saved
+  ---
+  duration_ms: 57.099588
+  type: 'test'
+  ...
+# Subtest: cancelling the form saves nothing
+ok 246 - cancelling the form saves nothing
+  ---
+  duration_ms: 2.320882
+  type: 'test'
+  ...
+# Subtest: an invalid submission (a stdio server with no command) is reported as { saved: false, reason: 'invalid' }, not thrown
+ok 247 - an invalid submission (a stdio server with no command) is reported as { saved: false, reason: 'invalid' }, not thrown
+  ---
+  duration_ms: 7.811085
+  type: 'test'
+  ...
+# Subtest: external_mcp_test_connection: unknown id reports ok:false with a named reason, does not throw
+ok 248 - external_mcp_test_connection: unknown id reports ok:false with a named reason, does not throw
+  ---
+  duration_ms: 0.507561
+  type: 'test'
+  ...
+# Subtest: external_mcp_test_connection: a disabled server reports ok:false without decrypting anything
+ok 249 - external_mcp_test_connection: a disabled server reports ok:false without decrypting anything
+  ---
+  duration_ms: 4.598532
+  type: 'test'
+  ...
+# Subtest: external_mcp_test_connection: an enabled, resolvable server reports ok:true, and never launches or connects
+ok 250 - external_mcp_test_connection: an enabled, resolvable server reports ok:true, and never launches or connects
+  ---
+  duration_ms: 9.959414
+  type: 'test'
+  ...
+# Subtest: external_mcp_oauth_connect: with no OAuth service wired, fails closed with an actionable message rather than silently no-op'ing
+ok 251 - external_mcp_oauth_connect: with no OAuth service wired, fails closed with an actionable message rather than silently no-op'ing
+  ---
+  duration_ms: 0.506489
+  type: 'test'
+  ...
+# Subtest: external_mcp_oauth_poll_device: with no OAuth service wired, fails closed
+ok 252 - external_mcp_oauth_poll_device: with no OAuth service wired, fails closed
+  ---
+  duration_ms: 0.271101
+  type: 'test'
+  ...
+# Subtest: external_mcp_oauth_connect: with TOVU_PUBLIC_URL unset, still reaches the OAuth service — with no redirect URI, not a fabricated one
+ok 253 - external_mcp_oauth_connect: with TOVU_PUBLIC_URL unset, still reaches the OAuth service — with no redirect URI, not a fabricated one
+  ---
+  duration_ms: 0.525422
+  type: 'test'
+  ...
+# Subtest: external_mcp_oauth_connect: a 'redirect URI required' refusal reaches the MODEL, naming TOVU_PUBLIC_URL, instead of being redacted
+ok 254 - external_mcp_oauth_connect: a 'redirect URI required' refusal reaches the MODEL, naming TOVU_PUBLIC_URL, instead of being redacted
+  ---
+  duration_ms: 4.861912
+  type: 'test'
+  ...
+# Subtest: external_mcp_oauth_connect: delegates to the wired OAuth service with an absolute, connection-scoped redirect URI built from TOVU_PUBLIC_URL
+ok 255 - external_mcp_oauth_connect: delegates to the wired OAuth service with an absolute, connection-scoped redirect URI built from TOVU_PUBLIC_URL
+  ---
+  duration_ms: 0.799467
+  type: 'test'
+  ...
+# Subtest: external_mcp_oauth_poll_device: delegates to the wired OAuth service
+ok 256 - external_mcp_oauth_poll_device: delegates to the wired OAuth service
+  ---
+  duration_ms: 0.676228
+  type: 'test'
+  ...
+# Subtest: external_mcp_save: re-saving with a blank env field keeps the previously stored env, not wipes it
+ok 257 - external_mcp_save: re-saving with a blank env field keeps the previously stored env, not wipes it
+  ---
+  duration_ms: 39.64896
+  type: 'test'
+  ...
+# Subtest: external_mcp_save: re-saving with a blank OAuth client secret field keeps the previously stored secret, not wipes it
+ok 258 - external_mcp_save: re-saving with a blank OAuth client secret field keeps the previously stored secret, not wipes it
+  ---
+  duration_ms: 15.868197
+  type: 'test'
+  ...
+# Subtest: external_mcp_save: aborting the run while the form is open closes the exchange, returns abandoned, and saves nothing
+ok 259 - external_mcp_save: aborting the run while the form is open closes the exchange, returns abandoned, and saves nothing
+  ---
+  duration_ms: 1.864022
+  type: 'test'
+  ...
+# Subtest: external_mcp_oauth_poll_device: only the 'connected' transition notifies roster listeners, never a 'pending' poll
+ok 260 - external_mcp_oauth_poll_device: only the 'connected' transition notifies roster listeners, never a 'pending' poll
+  ---
+  duration_ms: 1.66071
+  type: 'test'
+  ...
+# Subtest: external_mcp_save: a forged create ID cannot move the credential to another destination
+ok 261 - external_mcp_save: a forged create ID cannot move the credential to another destination
+  ---
+  duration_ms: 6.841424
+  type: 'test'
+  ...
+# Subtest: external_mcp_save: update identity and auth stay bound despite forged hidden parameters
+ok 262 - external_mcp_save: update identity and auth stay bound despite forged hidden parameters
+  ---
+  duration_ms: 9.457056
+  type: 'test'
+  ...
+# Subtest: external_mcp_save: concurrent validation and driver failures keep separate safe projections
+ok 263 - external_mcp_save: concurrent validation and driver failures keep separate safe projections
+  ---
+  duration_ms: 14.17754
+  type: 'test'
+  ...
+# Subtest: external_mcp_save: secret-bearing model input never opens a form or writes
+ok 264 - external_mcp_save: secret-bearing model input never opens a form or writes
+  ---
+  duration_ms: 0.687376
+  type: 'test'
+  ...
+# Subtest: external_mcp_save: an already aborted run emits no card and saves nothing
+ok 265 - external_mcp_save: an already aborted run emits no card and saves nothing
+  ---
+  duration_ms: 0.669498
+  type: 'test'
+  ...
+# Subtest: credential updates retain saved grants for streamable_http
+ok 266 - credential updates retain saved grants for streamable_http
+  ---
+  duration_ms: 12.169817
+  type: 'test'
+  ...
+# Subtest: credential updates retain saved grants for stdio
+ok 267 - credential updates retain saved grants for stdio
+  ---
+  duration_ms: 15.945628
+  type: 'test'
+  ...
+# Subtest: an invalid new connection leaves no saved row
+ok 268 - an invalid new connection leaves no saved row
+  ---
+  duration_ms: 7.075692
+  type: 'test'
+  ...
+# Subtest: exactly the 14 designed Newsletter tools are wired
+ok 269 - exactly the 14 designed Newsletter tools are wired
+  ---
+  duration_ms: 83.901986
+  type: 'test'
+  ...
+# Subtest: none of the 5 withheld send/schedule/resume/import operations are wired OR even catalogued
+ok 270 - none of the 5 withheld send/schedule/resume/import operations are wired OR even catalogued
+  ---
+  duration_ms: 2.171327
+  type: 'test'
+  ...
+# Subtest: no wired tool description implies it can send/schedule/resume a real campaign send
+ok 271 - no wired tool description implies it can send/schedule/resume a real campaign send
+  ---
+  duration_ms: 17.833152
+  type: 'test'
+  ...
+# Subtest: every wired Newsletter registration publishes its catalog entry's inputSchema and description
+ok 272 - every wired Newsletter registration publishes its catalog entry's inputSchema and description
+  ---
+  duration_ms: 11.189397
+  type: 'test'
+  ...
+# Subtest: the real Newsletter catalog and tool-registrations' independent risk classification agree
+ok 273 - the real Newsletter catalog and tool-registrations' independent risk classification agree
+  ---
+  duration_ms: 8.949179
+  type: 'test'
+  ...
+# Subtest: a Newsletter catalog entry cannot downgrade its own risk
+ok 274 - a Newsletter catalog entry cannot downgrade its own risk
+  ---
+  duration_ms: 7.434773
+  type: 'test'
+  ...
+# Subtest: the ToolPolicy layer is a pass-through 'allow' for every Newsletter registration
+ok 275 - the ToolPolicy layer is a pass-through 'allow' for every Newsletter registration
+  ---
+  duration_ms: 4.768871
+  type: 'test'
+  ...
+# Subtest: every wired Newsletter tool has an input fixture — a newly wired tool must be added here
+ok 276 - every wired Newsletter tool has an input fixture — a newly wired tool must be added here
+  ---
+  duration_ms: 88.449673
+  type: 'test'
+  ...
+# Subtest: newsletter_archive_list: calls authorize() with its catalog's declared permission before any effect
+ok 277 - newsletter_archive_list: calls authorize() with its catalog's declared permission before any effect
+  ---
+  duration_ms: 7.396521
+  type: 'test'
+  ...
+# Subtest: newsletter_archive_list: a denied principal is refused with the real reason and writes nothing
+ok 278 - newsletter_archive_list: a denied principal is refused with the real reason and writes nothing
+  ---
+  duration_ms: 2.567152
+  type: 'test'
+  ...
+# Subtest: newsletter_cancel_campaign: calls authorize() with its catalog's declared permission before any effect
+ok 279 - newsletter_cancel_campaign: calls authorize() with its catalog's declared permission before any effect
+  ---
+  duration_ms: 26.573114
+  type: 'test'
+  ...
+# Subtest: newsletter_cancel_campaign: a denied principal is refused with the real reason and writes nothing
+ok 280 - newsletter_cancel_campaign: a denied principal is refused with the real reason and writes nothing
+  ---
+  duration_ms: 4.964083
+  type: 'test'
+  ...
+# Subtest: newsletter_create_campaign: calls authorize() with its catalog's declared permission before any effect
+ok 281 - newsletter_create_campaign: calls authorize() with its catalog's declared permission before any effect
+  ---
+  duration_ms: 5.114014
+  type: 'test'
+  ...
+# Subtest: newsletter_create_campaign: a denied principal is refused with the real reason and writes nothing
+ok 282 - newsletter_create_campaign: a denied principal is refused with the real reason and writes nothing
+  ---
+  duration_ms: 1.488957
+  type: 'test'
+  ...
+# Subtest: newsletter_create_list: calls authorize() with its catalog's declared permission before any effect
+ok 283 - newsletter_create_list: calls authorize() with its catalog's declared permission before any effect
+  ---
+  duration_ms: 18.048711
+  type: 'test'
+  ...
+# Subtest: newsletter_create_list: a denied principal is refused with the real reason and writes nothing
+ok 284 - newsletter_create_list: a denied principal is refused with the real reason and writes nothing
+  ---
+  duration_ms: 1.690659
+  type: 'test'
+  ...
+# Subtest: newsletter_create_subscription: calls authorize() with its catalog's declared permission before any effect
+ok 285 - newsletter_create_subscription: calls authorize() with its catalog's declared permission before any effect
+  ---
+  duration_ms: 19.702691
+  type: 'test'
+  ...
+# Subtest: newsletter_create_subscription: a denied principal is refused with the real reason and writes nothing
+ok 286 - newsletter_create_subscription: a denied principal is refused with the real reason and writes nothing
+  ---
+  duration_ms: 1.865309
+  type: 'test'
+  ...
+# Subtest: newsletter_get_campaign: calls authorize() with its catalog's declared permission before any effect
+ok 287 - newsletter_get_campaign: calls authorize() with its catalog's declared permission before any effect
+  ---
+  duration_ms: 26.507834
+  type: 'test'
+  ...
+# Subtest: newsletter_get_campaign: a denied principal is refused with the real reason and writes nothing
+ok 288 - newsletter_get_campaign: a denied principal is refused with the real reason and writes nothing
+  ---
+  duration_ms: 1.440175
+  type: 'test'
+  ...
+# Subtest: newsletter_list_campaigns: calls authorize() with its catalog's declared permission before any effect
+ok 289 - newsletter_list_campaigns: calls authorize() with its catalog's declared permission before any effect
+  ---
+  duration_ms: 1.592653
+  type: 'test'
+  ...
+# Subtest: newsletter_list_campaigns: a denied principal is refused with the real reason and writes nothing
+ok 290 - newsletter_list_campaigns: a denied principal is refused with the real reason and writes nothing
+  ---
+  duration_ms: 2.184442
+  type: 'test'
+  ...
+# Subtest: newsletter_list_lists: calls authorize() with its catalog's declared permission before any effect
+ok 291 - newsletter_list_lists: calls authorize() with its catalog's declared permission before any effect
+  ---
+  duration_ms: 2.221812
+  type: 'test'
+  ...
+# Subtest: newsletter_list_lists: a denied principal is refused with the real reason and writes nothing
+ok 292 - newsletter_list_lists: a denied principal is refused with the real reason and writes nothing
+  ---
+  duration_ms: 1.854624
+  type: 'test'
+  ...
+# Subtest: newsletter_list_send_log: calls authorize() with its catalog's declared permission before any effect
+ok 293 - newsletter_list_send_log: calls authorize() with its catalog's declared permission before any effect
+  ---
+  duration_ms: 1.880359
+  type: 'test'
+  ...
+# Subtest: newsletter_list_send_log: a denied principal is refused with the real reason and writes nothing
+ok 294 - newsletter_list_send_log: a denied principal is refused with the real reason and writes nothing
+  ---
+  duration_ms: 1.468746
+  type: 'test'
+  ...
+# Subtest: newsletter_list_subscriptions: calls authorize() with its catalog's declared permission before any effect
+ok 295 - newsletter_list_subscriptions: calls authorize() with its catalog's declared permission before any effect
+  ---
+  duration_ms: 2.056521
+  type: 'test'
+  ...
+# Subtest: newsletter_list_subscriptions: a denied principal is refused with the real reason and writes nothing
+ok 296 - newsletter_list_subscriptions: a denied principal is refused with the real reason and writes nothing
+  ---
+  duration_ms: 1.471284
+  type: 'test'
+  ...
+# Subtest: newsletter_pause_campaign: calls authorize() with its catalog's declared permission before any effect
+ok 297 - newsletter_pause_campaign: calls authorize() with its catalog's declared permission before any effect
+  ---
+  duration_ms: 2.15516
+  type: 'test'
+  ...
+# Subtest: newsletter_pause_campaign: a denied principal is refused with the real reason and writes nothing
+ok 298 - newsletter_pause_campaign: a denied principal is refused with the real reason and writes nothing
+  ---
+  duration_ms: 1.481918
+  type: 'test'
+  ...
+# Subtest: newsletter_remove_subscription: calls authorize() with its catalog's declared permission before any effect
+ok 299 - newsletter_remove_subscription: calls authorize() with its catalog's declared permission before any effect
+  ---
+  duration_ms: 1.765534
+  type: 'test'
+  ...
+# Subtest: newsletter_remove_subscription: a denied principal is refused with the real reason and writes nothing
+ok 300 - newsletter_remove_subscription: a denied principal is refused with the real reason and writes nothing
+  ---
+  duration_ms: 5.850871
+  type: 'test'
+  ...
+# Subtest: newsletter_resend_confirmation: calls authorize() with its catalog's declared permission before any effect
+ok 301 - newsletter_resend_confirmation: calls authorize() with its catalog's declared permission before any effect
+  ---
+  duration_ms: 1.716393
+  type: 'test'
+  ...
+# Subtest: newsletter_resend_confirmation: a denied principal is refused with the real reason and writes nothing
+ok 302 - newsletter_resend_confirmation: a denied principal is refused with the real reason and writes nothing
+  ---
+  duration_ms: 9.619748
+  type: 'test'
+  ...
+# Subtest: newsletter_update_campaign: calls authorize() with its catalog's declared permission before any effect
+ok 303 - newsletter_update_campaign: calls authorize() with its catalog's declared permission before any effect
+  ---
+  duration_ms: 1.560838
+  type: 'test'
+  ...
+# Subtest: newsletter_update_campaign: a denied principal is refused with the real reason and writes nothing
+ok 304 - newsletter_update_campaign: a denied principal is refused with the real reason and writes nothing
+  ---
+  duration_ms: 25.934296
+  type: 'test'
+  ...
+# Subtest: newsletter_get_campaign: an unknown campaign id reaches the model as NEWSLETTER_CAMPAIGN_NOT_FOUND, not a redacted 500
+ok 305 - newsletter_get_campaign: an unknown campaign id reaches the model as NEWSLETTER_CAMPAIGN_NOT_FOUND, not a redacted 500
+  ---
+  duration_ms: 1.76053
+  type: 'test'
+  ...
+# Subtest: newsletter_remove_subscription: a subscriptionId belonging to a different list is refused as not-found, not cross-list removed
+ok 306 - newsletter_remove_subscription: a subscriptionId belonging to a different list is refused as not-found, not cross-list removed
+  ---
+  duration_ms: 18.412666
+  type: 'test'
+  ...
+# Subtest: newsletter_resend_confirmation: sends the confirmation link, preserving the subscription while superseding prior tokens
+ok 307 - newsletter_resend_confirmation: sends the confirmation link, preserving the subscription while superseding prior tokens
+  ---
+  duration_ms: 21.024088
+  type: 'test'
+  ...
+# Subtest: newsletter_resend_confirmation: unknown subscription writes no token or mail
+ok 308 - newsletter_resend_confirmation: unknown subscription writes no token or mail
+  ---
+  duration_ms: 6.911448
+  type: 'test'
+  ...
+# Subtest: newsletter_resend_confirmation: an already subscribed contact retains its consent and status
+ok 309 - newsletter_resend_confirmation: an already subscribed contact retains its consent and status
+  ---
+  duration_ms: 1.379728
+  type: 'test'
+  ...
+# Subtest: newsletter list tools return only rows from the requested list or campaign
+ok 310 - newsletter list tools return only rows from the requested list or campaign
+  ---
+  duration_ms: 7.118019
+  type: 'test'
+  ...
+# Subtest: workflow: newsletter_create_list -> newsletter_create_campaign -> newsletter_update_campaign -> newsletter_get_campaign -> newsletter_cancel_campaign chains correctly
+ok 311 - workflow: newsletter_create_list -> newsletter_create_campaign -> newsletter_update_campaign -> newsletter_get_campaign -> newsletter_cancel_campaign chains correctly
+  ---
+  duration_ms: 15.839403
+  type: 'test'
+  ...
+# Subtest: the settings catalog registers reads and bounded writes, excluding bulk/schema changes
+ok 312 - the settings catalog registers reads and bounded writes, excluding bulk/schema changes
+  ---
+  duration_ms: 39.385415
+  type: 'test'
+  ...
+# Subtest: settings_reset is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification
+ok 313 - settings_reset is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification
+  ---
+  duration_ms: 7.320681
+  type: 'test'
+  ...
+# Subtest: settings_register_definitions is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification
+ok 314 - settings_register_definitions is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification
+  ---
+  duration_ms: 5.521478
+  type: 'test'
+  ...
+# Subtest: bulk and schema writes stay unreachable; old generic names are replaced
+ok 315 - bulk and schema writes stay unreachable; old generic names are replaced
+  ---
+  duration_ms: 1.713308
+  type: 'test'
+  ...
+# Subtest: every wired settings registration publishes its catalog entry's inputSchema and description verbatim
+ok 316 - every wired settings registration publishes its catalog entry's inputSchema and description verbatim
+  ---
+  duration_ms: 1.904485
+  type: 'test'
+  ...
+# Subtest: requiresConfirmation is unset on every wired settings tool
+ok 317 - requiresConfirmation is unset on every wired settings tool
+  ---
+  duration_ms: 16.278307
+  type: 'test'
+  ...
+# Subtest: the independent risk classification agrees with the catalog for all 3 wired settings tools
+ok 318 - the independent risk classification agrees with the catalog for all 3 wired settings tools
+  ---
+  duration_ms: 1.751238
+  type: 'test'
+  ...
+# Subtest: the ToolPolicy layer is a pass-through 'allow' for every wired settings registration
+ok 319 - the ToolPolicy layer is a pass-through 'allow' for every wired settings registration
+  ---
+  duration_ms: 1.369599
+  type: 'test'
+  ...
+# Subtest: every wired settings tool has a known input fixture
+ok 320 - every wired settings tool has a known input fixture
+  ---
+  duration_ms: 10.887913
+  type: 'test'
+  ...
+# Subtest: content_read.setting_definition: calls authorize() with its catalog's declared permission and the run's principal
+ok 321 - content_read.setting_definition: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 35.497959
+  type: 'test'
+  ...
+# Subtest: content_read.setting_definition: a denied principal is rejected
+ok 322 - content_read.setting_definition: a denied principal is rejected
+  ---
+  duration_ms: 3.120802
+  type: 'test'
+  ...
+# Subtest: settings_get_effective: calls authorize() with its catalog's declared permission and the run's principal
+ok 323 - settings_get_effective: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 11.549689
+  type: 'test'
+  ...
+# Subtest: settings_get_effective: a denied principal is rejected
+ok 324 - settings_get_effective: a denied principal is rejected
+  ---
+  duration_ms: 1.634332
+  type: 'test'
+  ...
+# Subtest: settings_get_raw: calls authorize() with its catalog's declared permission and the run's principal
+ok 325 - settings_get_raw: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 1.8519
+  type: 'test'
+  ...
+# Subtest: settings_get_raw: a denied principal is rejected
+ok 326 - settings_get_raw: a denied principal is rejected
+  ---
+  duration_ms: 4.7905
+  type: 'test'
+  ...
+# Subtest: settings_set_ui_preference: calls authorize() with its catalog's declared permission and the run's principal
+ok 327 - settings_set_ui_preference: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 2.38168
+  type: 'test'
+  ...
+# Subtest: settings_set_ui_preference: a denied principal is rejected
+ok 328 - settings_set_ui_preference: a denied principal is rejected
+  ---
+  duration_ms: 13.824877
+  type: 'test'
+  ...
+# Subtest: settings_set_value: calls authorize() with its catalog's declared permission and the run's principal
+ok 329 - settings_set_value: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 10.639458
+  type: 'test'
+  ...
+# Subtest: settings_set_value: a denied principal is rejected
+ok 330 - settings_set_value: a denied principal is rejected
+  ---
+  duration_ms: 4.949699
+  type: 'test'
+  ...
+# Subtest: settings_clear_value: calls authorize() with its catalog's declared permission and the run's principal
+ok 331 - settings_clear_value: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 1.798408
+  type: 'test'
+  ...
+# Subtest: settings_clear_value: a denied principal is rejected
+ok 332 - settings_clear_value: a denied principal is rejected
+  ---
+  duration_ms: 5.695168
+  type: 'test'
+  ...
+# Subtest: settings_get_effective: reading another principal's user layer requires settings.user.read as a SECOND check
+ok 333 - settings_get_effective: reading another principal's user layer requires settings.user.read as a SECOND check
+  ---
+  duration_ms: 2.142478
+  type: 'test'
+  ...
+# Subtest: settings_get_raw: reading another principal's user layer requires settings.user.read as a SECOND check
+ok 334 - settings_get_raw: reading another principal's user layer requires settings.user.read as a SECOND check
+  ---
+  duration_ms: 5.049045
+  type: 'test'
+  ...
+# Subtest: settings_get_effective: omitting principalId reads the CALLER's own user layer, not the default
+ok 335 - settings_get_effective: omitting principalId reads the CALLER's own user layer, not the default
+  ---
+  duration_ms: 2.415275
+  type: 'test'
+  ...
+# Subtest: settings_get_raw: omitting principalId reads the CALLER's own user layer, not the default
+ok 336 - settings_get_raw: omitting principalId reads the CALLER's own user layer, not the default
+  ---
+  duration_ms: 5.863617
+  type: 'test'
+  ...
+# Subtest: settings_get_effective: omitting principalId does NOT trigger the cross-principal permission check
+ok 337 - settings_get_effective: omitting principalId does NOT trigger the cross-principal permission check
+  ---
+  duration_ms: 2.451946
+  type: 'test'
+  ...
+# Subtest: settings_get_effective: reading one's OWN principalId does not trigger the cross-principal check
+ok 338 - settings_get_effective: reading one's OWN principalId does not trigger the cross-principal check
+  ---
+  duration_ms: 3.013022
+  type: 'test'
+  ...
+# Subtest: settings_get_effective: a caller lacking settings.user.read cannot read another principal's layer
+ok 339 - settings_get_effective: a caller lacking settings.user.read cannot read another principal's layer
+  ---
+  duration_ms: 5.475981
+  type: 'test'
+  ...
+# Subtest: settings_get_raw: a caller lacking settings.user.read cannot read another principal's layer
+ok 340 - settings_get_raw: a caller lacking settings.user.read cannot read another principal's layer
+  ---
+  duration_ms: 2.90017
+  type: 'test'
+  ...
+# Subtest: settings_set_ui_preference: the published enum is exactly the allowlist, so an unlisted key is not even describable
+ok 341 - settings_set_ui_preference: the published enum is exactly the allowlist, so an unlisted key is not even describable
+  ---
+  duration_ms: 31.083902
+  type: 'test'
+  ...
+# Subtest: settings_set_ui_preference: a key outside the allowlist is refused by the handler even when the schema is bypassed
+ok 342 - settings_set_ui_preference: a key outside the allowlist is refused by the handler even when the schema is bypassed
+  ---
+  duration_ms: 3.31233
+  type: 'test'
+  ...
+# Subtest: settings_set_ui_preference: core.site.title stays outside the curated tool; generic writes use the host validator (SPEC-050 REQ-08)
+ok 343 - settings_set_ui_preference: core.site.title stays outside the curated tool; generic writes use the host validator (SPEC-050 REQ-08)
+  ---
+  duration_ms: 9.689597
+  type: 'test'
+  ...
+# Subtest: settings_set_ui_preference: writes land on the CALLER's own user layer
+ok 344 - settings_set_ui_preference: writes land on the CALLER's own user layer
+  ---
+  duration_ms: 5.368554
+  type: 'test'
+  ...
+# Subtest: settings_set_ui_preference: scalar Classic writes preserve Glass and remain readable as colors
+ok 345 - settings_set_ui_preference: scalar Classic writes preserve Glass and remain readable as colors
+  ---
+  duration_ms: 9.299932
+  type: 'test'
+  ...
+# Subtest: settings_set_ui_preference: input naming another principal or a wider scope is ignored, not honored
+ok 346 - settings_set_ui_preference: input naming another principal or a wider scope is ignored, not honored
+  ---
+  duration_ms: 14.973884
+  type: 'test'
+  ...
+# Subtest: settings_set_ui_preference: a value of the wrong shape is rejected and nothing is written
+ok 347 - settings_set_ui_preference: a value of the wrong shape is rejected and nothing is written
+  ---
+  duration_ms: 2.056011
+  type: 'test'
+  ...
+# Subtest: settings_set_ui_preference: `false` is a settable value, not a missing one
+ok 348 - settings_set_ui_preference: `false` is a settable value, not a missing one
+  ---
+  duration_ms: 5.917981
+  type: 'test'
+  ...
+# Subtest: settings_set_ui_preference: the write is recorded in the revision ledger, attributed to the caller
+ok 349 - settings_set_ui_preference: the write is recorded in the revision ledger, attributed to the caller
+  ---
+  duration_ms: 1.400702
+  type: 'test'
+  ...
+# Subtest: workflow: list definitions, get the effective value for the namespace one of them belongs to, get its raw per-layer breakdown
+ok 350 - workflow: list definitions, get the effective value for the namespace one of them belongs to, get its raw per-layer breakdown
+  ---
+  duration_ms: 11.511435
+  type: 'test'
+  ...
+# Subtest: exactly the 13 themes entries are registered — nothing else
+ok 351 - exactly the 13 themes entries are registered — nothing else
+  ---
+  duration_ms: 37.857316
+  type: 'test'
+  ...
+# Subtest: no whole-theme or file-delete operation is agent-callable anywhere in the whole assistant tool set
+ok 352 - no whole-theme or file-delete operation is agent-callable anywhere in the whole assistant tool set
+  ---
+  duration_ms: 8.452124
+  type: 'test'
+  ...
+# Subtest: an id with no DERIVED_RISK_BY_TOOL_ID classification cannot be wired (unknown operations are refused, never assumed safe)
+ok 353 - an id with no DERIVED_RISK_BY_TOOL_ID classification cannot be wired (unknown operations are refused, never assumed safe)
+  ---
+  duration_ms: 6.407442
+  type: 'test'
+  ...
+# Subtest: every wired themes registration publishes its catalog entry's inputSchema and description verbatim
+ok 354 - every wired themes registration publishes its catalog entry's inputSchema and description verbatim
+  ---
+  duration_ms: 4.875211
+  type: 'test'
+  ...
+# Subtest: each catalog entry's declared risk matches what this layer derives from its handler
+ok 355 - each catalog entry's declared risk matches what this layer derives from its handler
+  ---
+  duration_ms: 3.935
+  type: 'test'
+  ...
+# Subtest: file writes and rescan declare durable effects; theme and file reads declare none
+ok 356 - file writes and rescan declare durable effects; theme and file reads declare none
+  ---
+  duration_ms: 0.325049
+  type: 'test'
+  ...
+# Subtest: reads and theme lifecycle tools require theme.set; file writes require theme.edit
+ok 357 - reads and theme lifecycle tools require theme.set; file writes require theme.edit
+  ---
+  duration_ms: 1.930443
+  type: 'test'
+  ...
+# Subtest: every themes tool refuses when authorize() denies, and performs no work
+ok 358 - every themes tool refuses when authorize() denies, and performs no work
+  ---
+  duration_ms: 79.506405
+  type: 'test'
+  ...
+# Subtest: each themes tool checks exactly the permission its catalog entry declares
+ok 359 - each themes tool checks exactly the permission its catalog entry declares
+  ---
+  duration_ms: 110.102995
+  type: 'test'
+  ...
+# Subtest: theme_list returns every discovered theme with id/name/tier/status/errors, and never leaks the server's filesystem path
+ok 360 - theme_list returns every discovered theme with id/name/tier/status/errors, and never leaks the server's filesystem path
+  ---
+  duration_ms: 4.553998
+  type: 'test'
+  ...
+# Subtest: theme_list filters by tier and by status
+ok 361 - theme_list filters by tier and by status
+  ---
+  duration_ms: 5.047768
+  type: 'test'
+  ...
+# Subtest: theme_list_files lists every file in one theme's folder, relative to it
+ok 362 - theme_list_files lists every file in one theme's folder, relative to it
+  ---
+  duration_ms: 3.75962
+  type: 'test'
+  ...
+# Subtest: theme_read_file returns the raw file content
+ok 363 - theme_read_file returns the raw file content
+  ---
+  duration_ms: 2.95692
+  type: 'test'
+  ...
+# Subtest: an unknown themeId is a schema-decorated refusal naming the themes that do exist
+ok 364 - an unknown themeId is a schema-decorated refusal naming the themes that do exist
+  ---
+  duration_ms: 10.263212
+  type: 'test'
+  ...
+# Subtest: theme_write_file: missing theme error tells the agent to create it first with theme_duplicate
+ok 365 - theme_write_file: missing theme error tells the agent to create it first with theme_duplicate
+  ---
+  duration_ms: 34.277205
+  type: 'test'
+  ...
+# Subtest: theme_read_file and theme_write_file both refuse a ../ escape out of the theme's folder
+ok 366 - theme_read_file and theme_write_file both refuse a ../ escape out of the theme's folder
+  ---
+  duration_ms: 106.099386
+  type: 'test'
+  ...
+# Subtest: theme_write_file refuses an absolute path
+ok 367 - theme_write_file refuses an absolute path
+  ---
+  duration_ms: 11.862183
+  type: 'test'
+  ...
+# Subtest: theme_write_file writes the file and reports the theme still valid
+ok 368 - theme_write_file writes the file and reports the theme still valid
+  ---
+  duration_ms: 17.317432
+  type: 'test'
+  ...
+# Subtest: theme_write_file refuses to overwrite an existing file past the 1 MB read limit without overwriteOversized, and leaves its bytes
+ok 369 - theme_write_file refuses to overwrite an existing file past the 1 MB read limit without overwriteOversized, and leaves its bytes
+  ---
+  duration_ms: 22.358343
+  type: 'test'
+  ...
+# Subtest: theme_write_file with overwriteOversized: true replaces an existing file past the 1 MB read limit
+ok 370 - theme_write_file with overwriteOversized: true replaces an existing file past the 1 MB read limit
+  ---
+  duration_ms: 38.816375
+  type: 'test'
+  ...
+# Subtest: theme_write_file's published schema and description carry the overwriteOversized flag
+ok 371 - theme_write_file's published schema and description carry the overwriteOversized flag
+  ---
+  duration_ms: 0.225613
+  type: 'test'
+  ...
+# Subtest: writing INVALID JSON reports status 'invalid' with a naming error — the immediate feedback an editing agent needs
+ok 372 - writing INVALID JSON reports status 'invalid' with a naming error — the immediate feedback an editing agent needs
+  ---
+  duration_ms: 12.929861
+  type: 'test'
+  ...
+# Subtest: writing a Handlebars template with a disallowed construct reports status 'invalid' naming the file and the construct
+ok 373 - writing a Handlebars template with a disallowed construct reports status 'invalid' naming the file and the construct
+  ---
+  duration_ms: 9.231191
+  type: 'test'
+  ...
+# Subtest: writing a Liquid template with a disallowed tag into a templated theme is caught by the SAME loader a human edit goes through
+ok 374 - writing a Liquid template with a disallowed tag into a templated theme is caught by the SAME loader a human edit goes through
+  ---
+  duration_ms: 51.097282
+  type: 'test'
+  ...
+# Subtest: a successful write refreshes the live routeDeps.themes entry, so the running site serves the edit
+ok 375 - a successful write refreshes the live routeDeps.themes entry, so the running site serves the edit
+  ---
+  duration_ms: 9.11596
+  type: 'test'
+  ...
+# Subtest: an invalid write is reflected in the live theme list too — theme_list immediately reports what theme_write_file just reported
+ok 376 - an invalid write is reflected in the live theme list too — theme_list immediately reports what theme_write_file just reported
+  ---
+  duration_ms: 37.840805
+  type: 'test'
+  ...
+# Subtest: list -> list_files -> read -> write -> re-read stays consistent across the whole sequence
+ok 377 - list -> list_files -> read -> write -> re-read stays consistent across the whole sequence
+  ---
+  duration_ms: 67.269459
+  type: 'test'
+  ...
+# Subtest: the retired content_post_duplicate key is gone — a keyword entry for a tool that no longer exists is unreachable vocabulary
+ok 378 - the retired content_post_duplicate key is gone — a keyword entry for a tool that no longer exists is unreachable vocabulary
+  ---
+  duration_ms: 6.474291
+  type: 'test'
+  ...
+# Subtest: content_duplicate's keywords name every resource it actually supports, so 'copy that form' reaches it
+ok 379 - content_duplicate's keywords name every resource it actually supports, so 'copy that form' reaches it
+  ---
+  duration_ms: 0.615908
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: 'copy this page' ranks the actual content_duplicate tool first in the full catalog
+ok 380 - 'copy this page' ranks the actual content_duplicate tool first in the full catalog
+  ---
+  duration_ms: 1406.407946
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: web_fetch_page is registered in the real catalog and ranks top-3 for operator phrasings
+ok 381 - web_fetch_page is registered in the real catalog and ranks top-3 for operator phrasings
+  ---
+  duration_ms: 731.156871
+  type: 'test'
+  ...
+# Subtest: agent session store [sqlite]
+    # Subtest: get is null until set; set round-trips and overwrites; clear removes
+    ok 1 - get is null until set; set round-trips and overwrites; clear removes
+      ---
+      duration_ms: 162.694459
+      type: 'test'
+      ...
+    # Subtest: pairs are independent per conversation and per agent
+    ok 2 - pairs are independent per conversation and per agent
+      ---
+      duration_ms: 161.416842
+      type: 'test'
+      ...
+    # Subtest: set fails for a conversation that does not exist (foreign key)
+    ok 3 - set fails for a conversation that does not exist (foreign key)
+      ---
+      duration_ms: 2.160673
+      type: 'test'
+      ...
+    # Subtest: deleting the conversation deletes its sessions
+    ok 4 - deleting the conversation deletes its sessions
+      ---
+      duration_ms: 17.846983
+      type: 'test'
+      ...
+    # Subtest: a set inside a rolled-back transaction leaves nothing
+    ok 5 - a set inside a rolled-back transaction leaves nothing
+      ---
+      duration_ms: 2.643666
+      type: 'test'
+      ...
+    # Subtest: concurrent sets of one pair leave exactly one row holding one of the values
+    ok 6 - concurrent sets of one pair leave exactly one row holding one of the values
+      ---
+      duration_ms: 7.034868
+      type: 'test'
+      ...
+    1..6
+ok 382 - agent session store [sqlite]
+  ---
+  duration_ms: 371.709832
+  type: 'suite'
+  ...
+# Subtest: agent session store [pglite]
+    # Subtest: get is null until set; set round-trips and overwrites; clear removes
+    ok 1 - get is null until set; set round-trips and overwrites; clear removes
+      ---
+      duration_ms: 10388.418375
+      type: 'test'
+      ...
+    # Subtest: pairs are independent per conversation and per agent
+    ok 2 - pairs are independent per conversation and per agent
+      ---
+      duration_ms: 73.743235
+      type: 'test'
+      ...
+    # Subtest: set fails for a conversation that does not exist (foreign key)
+    ok 3 - set fails for a conversation that does not exist (foreign key)
+      ---
+      duration_ms: 54.524951
+      type: 'test'
+      ...
+    # Subtest: deleting the conversation deletes its sessions
+    ok 4 - deleting the conversation deletes its sessions
+      ---
+      duration_ms: 48.472861
+      type: 'test'
+      ...
+    # Subtest: a set inside a rolled-back transaction leaves nothing
+    ok 5 - a set inside a rolled-back transaction leaves nothing
+      ---
+      duration_ms: 22.696253
+      type: 'test'
+      ...
+    # Subtest: concurrent sets of one pair leave exactly one row holding one of the values
+    ok 6 - concurrent sets of one pair leave exactly one row holding one of the values
+      ---
+      duration_ms: 38.420664
+      type: 'test'
+      ...
+    1..6
+ok 383 - agent session store [pglite]
+  ---
+  duration_ms: 10644.712674
+  type: 'suite'
+  ...
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"boot","probe":"dead","decision":"continued","failureClass":"retryable"}
+# Subtest: durable attempts migration and fencing [sqlite]
+    # Subtest: mri: missing Codex rollout reconstructs with prior context and saves no failure or Continuing notice
+    ok 1 - mri: missing Codex rollout reconstructs with prior context and saves no failure or Continuing notice
+      ---
+      duration_ms: 152.986064
+      type: 'test'
+      ...
+    # Subtest: first-turn acceptance persists user before answer when browserFirst=false
+    ok 2 - first-turn acceptance persists user before answer when browserFirst=false
+      ---
+      duration_ms: 45.588873
+      type: 'test'
+      ...
+    # Subtest: first-turn acceptance persists user before answer when browserFirst=true
+    ok 3 - first-turn acceptance persists user before answer when browserFirst=true
+      ---
+      duration_ms: 16.269163
+      type: 'test'
+      ...
+    # Subtest: an occupied slot does not persist the queued request's user payload
+    ok 4 - an occupied slot does not persist the queued request's user payload
+      ---
+      duration_ms: 38.968156
+      type: 'test'
+      ...
+    # Subtest: a colliding question ID cannot commit an answer without its question
+    ok 5 - a colliding question ID cannot commit an answer without its question
+      ---
+      duration_ms: 25.802797
+      type: 'test'
+      ...
+    # Subtest: foreign acceptance cannot persist its user payload
+    ok 6 - foreign acceptance cannot persist its user payload
+      ---
+      duration_ms: 3.096196
+      type: 'test'
+      ...
+    # Subtest: an assistant ID colliding with a user row rolls back the newly appended question
+    ok 7 - an assistant ID colliding with a user row rolls back the newly appended question
+      ---
+      duration_ms: 60.620738
+      type: 'test'
+      ...
+    # Subtest: an invalid user payload or shared user/assistant identity cannot be accepted
+    ok 8 - an invalid user payload or shared user/assistant identity cannot be accepted
+      ---
+      duration_ms: 14.82583
+      type: 'test'
+      ...
+    # Subtest: user and stub appends roll back together when the second write fails
+    ok 9 - user and stub appends roll back together when the second write fails
+      ---
+      duration_ms: 69.093547
+      type: 'test'
+      ...
+    # Subtest: a retry without a divider retains a checkpoint committed after the recovery probe
+    ok 10 - a retry without a divider retains a checkpoint committed after the recovery probe
+      ---
+      duration_ms: 71.498568
+      type: 'test'
+      ...
+    # Subtest: acceptance commits a queued stub and its runtime input once across duplicate POSTs
+    ok 11 - acceptance commits a queued stub and its runtime input once across duplicate POSTs
+      ---
+      duration_ms: 138.676725
+      type: 'test'
+      ...
+    # Subtest: Stop beating acceptance creates a terminal tombstone that no late POST can launch
+    ok 12 - Stop beating acceptance creates a terminal tombstone that no late POST can launch
+      ---
+      duration_ms: 52.610528
+      type: 'test'
+      ...
+    # Subtest: only one CAS wins and stale attempts cannot checkpoint, settle, capture sessions, or invoke tools
+    ok 13 - only one CAS wins and stale attempts cannot checkpoint, settle, capture sessions, or invoke tools
+      ---
+      duration_ms: 17.495245
+      type: 'test'
+      ...
+    # Subtest: a checkpoint landing between recovery's read and CAS remains in the continuation segment
+    ok 14 - a checkpoint landing between recovery's read and CAS remains in the continuation segment
+      ---
+      duration_ms: 20.54708
+      type: 'test'
+      ...
+    # Subtest: a host-minted locator is unconfirmed until the CLI reports it in status
+    ok 15 - a host-minted locator is unconfirmed until the CLI reports it in status
+      ---
+      duration_ms: 37.413354
+      type: 'test'
+      ...
+    # Subtest: progress resets the attempt counter, while init and terminal notices do not
+    ok 16 - progress resets the attempt counter, while init and terminal notices do not
+      ---
+      duration_ms: 54.380053
+      type: 'test'
+      ...
+    # Subtest: recovery time pauses while executing and resumes with its exact remaining budget
+    ok 17 - recovery time pauses while executing and resumes with its exact remaining budget
+      ---
+      duration_ms: 115.416097
+      type: 'test'
+      ...
+    # Subtest: an identical mutating delegated call is blocked after restart while its earlier outcome is unknown
+    ok 18 - an identical mutating delegated call is blocked after restart while its earlier outcome is unknown
+      ---
+      duration_ms: 26.609452
+      type: 'test'
+      ...
+    # Subtest: a completed delegated mutation remains known even if the daemon dies before the trailing checkpoint
+    ok 19 - a completed delegated mutation remains known even if the daemon dies before the trailing checkpoint
+      ---
+      duration_ms: 206.198281
+      type: 'test'
+      ...
+    # Subtest: the slot follows the unfinished logical row and releases on finalization and deletion
+    ok 20 - the slot follows the unfinished logical row and releases on finalization and deletion
+      ---
+      duration_ms: 59.031097
+      type: 'test'
+      ...
+    # Subtest: browser snapshots cannot terminalize, shrink, or restore the old attempt after CAS
+    ok 21 - browser snapshots cannot terminalize, shrink, or restore the old attempt after CAS
+      ---
+      duration_ms: 50.88429
+      type: 'test'
+      ...
+    # Subtest: the dev-restart incident resumes and finalizes the same message even if no browser returns
+    ok 22 - the dev-restart incident resumes and finalizes the same message even if no browser returns
+      ---
+      duration_ms: 125.003123
+      type: 'test'
+      ...
+    1..22
+ok 384 - durable attempts migration and fencing [sqlite]
+  ---
+  duration_ms: 1415.586499
+  type: 'suite'
+  ...
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"boot","probe":"dead","decision":"continued","failureClass":"retryable"}
+# Subtest: durable attempts migration and fencing [pglite]
+    # Subtest: mri: missing Codex rollout reconstructs with prior context and saves no failure or Continuing notice
+    ok 1 - mri: missing Codex rollout reconstructs with prior context and saves no failure or Continuing notice
+      ---
+      duration_ms: 10584.93775
+      type: 'test'
+      ...
+    # Subtest: first-turn acceptance persists user before answer when browserFirst=false
+    ok 2 - first-turn acceptance persists user before answer when browserFirst=false
+      ---
+      duration_ms: 357.304517
+      type: 'test'
+      ...
+    # Subtest: first-turn acceptance persists user before answer when browserFirst=true
+    ok 3 - first-turn acceptance persists user before answer when browserFirst=true
+      ---
+      duration_ms: 321.152092
+      type: 'test'
+      ...
+    # Subtest: an occupied slot does not persist the queued request's user payload
+    ok 4 - an occupied slot does not persist the queued request's user payload
+      ---
+      duration_ms: 218.228953
+      type: 'test'
+      ...
+    # Subtest: a colliding question ID cannot commit an answer without its question
+    ok 5 - a colliding question ID cannot commit an answer without its question
+      ---
+      duration_ms: 107.876392
+      type: 'test'
+      ...
+    # Subtest: foreign acceptance cannot persist its user payload
+    ok 6 - foreign acceptance cannot persist its user payload
+      ---
+      duration_ms: 407.967464
+      type: 'test'
+      ...
+    # Subtest: an assistant ID colliding with a user row rolls back the newly appended question
+    ok 7 - an assistant ID colliding with a user row rolls back the newly appended question
+      ---
+      duration_ms: 199.334583
+      type: 'test'
+      ...
+    # Subtest: an invalid user payload or shared user/assistant identity cannot be accepted
+    ok 8 - an invalid user payload or shared user/assistant identity cannot be accepted
+      ---
+      duration_ms: 32.293583
+      type: 'test'
+      ...
+    # Subtest: user and stub appends roll back together when the second write fails
+    ok 9 - user and stub appends roll back together when the second write fails
+      ---
+      duration_ms: 60.039368
+      type: 'test'
+      ...
+    # Subtest: a retry without a divider retains a checkpoint committed after the recovery probe
+    ok 10 - a retry without a divider retains a checkpoint committed after the recovery probe
+      ---
+      duration_ms: 131.059246
+      type: 'test'
+      ...
+    # Subtest: acceptance commits a queued stub and its runtime input once across duplicate POSTs
+    ok 11 - acceptance commits a queued stub and its runtime input once across duplicate POSTs
+      ---
+      duration_ms: 506.158755
+      type: 'test'
+      ...
+    # Subtest: Stop beating acceptance creates a terminal tombstone that no late POST can launch
+    ok 12 - Stop beating acceptance creates a terminal tombstone that no late POST can launch
+      ---
+      duration_ms: 134.724637
+      type: 'test'
+      ...
+    # Subtest: only one CAS wins and stale attempts cannot checkpoint, settle, capture sessions, or invoke tools
+    ok 13 - only one CAS wins and stale attempts cannot checkpoint, settle, capture sessions, or invoke tools
+      ---
+      duration_ms: 137.060936
+      type: 'test'
+      ...
+    # Subtest: a checkpoint landing between recovery's read and CAS remains in the continuation segment
+    ok 14 - a checkpoint landing between recovery's read and CAS remains in the continuation segment
+      ---
+      duration_ms: 417.14041
+      type: 'test'
+      ...
+    # Subtest: a host-minted locator is unconfirmed until the CLI reports it in status
+    ok 15 - a host-minted locator is unconfirmed until the CLI reports it in status
+      ---
+      duration_ms: 181.424132
+      type: 'test'
+      ...
+    # Subtest: progress resets the attempt counter, while init and terminal notices do not
+    ok 16 - progress resets the attempt counter, while init and terminal notices do not
+      ---
+      duration_ms: 128.680441
+      type: 'test'
+      ...
+    # Subtest: recovery time pauses while executing and resumes with its exact remaining budget
+    ok 17 - recovery time pauses while executing and resumes with its exact remaining budget
+      ---
+      duration_ms: 277.69815
+      type: 'test'
+      ...
+    # Subtest: an identical mutating delegated call is blocked after restart while its earlier outcome is unknown
+    ok 18 - an identical mutating delegated call is blocked after restart while its earlier outcome is unknown
+      ---
+      duration_ms: 82.637855
+      type: 'test'
+      ...
+    # Subtest: a completed delegated mutation remains known even if the daemon dies before the trailing checkpoint
+    ok 19 - a completed delegated mutation remains known even if the daemon dies before the trailing checkpoint
+      ---
+      duration_ms: 148.572288
+      type: 'test'
+      ...
+    # Subtest: the slot follows the unfinished logical row and releases on finalization and deletion
+    ok 20 - the slot follows the unfinished logical row and releases on finalization and deletion
+      ---
+      duration_ms: 417.607085
+      type: 'test'
+      ...
+    # Subtest: browser snapshots cannot terminalize, shrink, or restore the old attempt after CAS
+    ok 21 - browser snapshots cannot terminalize, shrink, or restore the old attempt after CAS
+      ---
+      duration_ms: 580.0826
+      type: 'test'
+      ...
+    # Subtest: the dev-restart incident resumes and finalizes the same message even if no browser returns
+    ok 22 - the dev-restart incident resumes and finalizes the same message even if no browser returns
+      ---
+      duration_ms: 296.034401
+      type: 'test'
+      ...
+    1..22
+ok 385 - durable attempts migration and fencing [pglite]
+  ---
+  duration_ms: 15769.92662
+  type: 'suite'
+  ...
+# Subtest: resolveBoundedHistory
+    # Subtest: happy path
+        # Subtest: converts user/assistant turns into provider-neutral {role, content} turns
+        ok 1 - converts user/assistant turns into provider-neutral {role, content} turns
+          ---
+          duration_ms: 3.185686
+          type: 'test'
+          ...
+        # Subtest: returns an empty array for an empty history
+        ok 2 - returns an empty array for an empty history
+          ---
+          duration_ms: 0.228339
+          type: 'test'
+          ...
+        1..2
+    ok 1 - happy path
+      ---
+      duration_ms: 5.498841
+      type: 'suite'
+      ...
+    # Subtest: fail-soft on malformed input
+        # Subtest: returns [] for a non-array history rather than throwing
+        ok 1 - returns [] for a non-array history rather than throwing
+          ---
+          duration_ms: 0.291882
+          type: 'test'
+          ...
+        # Subtest: skips an entry with a forged/unrecognized role rather than trusting or rejecting the whole array
+        ok 2 - skips an entry with a forged/unrecognized role rather than trusting or rejecting the whole array
+          ---
+          duration_ms: 0.229199
+          type: 'test'
+          ...
+        # Subtest: skips an entry whose content is not a string
+        ok 3 - skips an entry whose content is not a string
+          ---
+          duration_ms: 0.156461
+          type: 'test'
+          ...
+        # Subtest: skips a non-object entry inside an otherwise valid array
+        ok 4 - skips a non-object entry inside an otherwise valid array
+          ---
+          duration_ms: 0.108507
+          type: 'test'
+          ...
+        # Subtest: skips a turn that is empty after trimming
+        ok 5 - skips a turn that is empty after trimming
+          ---
+          duration_ms: 8.348187
+          type: 'test'
+          ...
+        # Subtest: never widens to any role beyond user/assistant regardless of what is forged
+        ok 6 - never widens to any role beyond user/assistant regardless of what is forged
+          ---
+          duration_ms: 0.26922
+          type: 'test'
+          ...
+        1..6
+    ok 2 - fail-soft on malformed input
+      ---
+      duration_ms: 9.76174
+      type: 'suite'
+      ...
+    # Subtest: bounds — count
+        # Subtest: keeps only the most recent maxMessages turns, oldest dropped first
+        ok 1 - keeps only the most recent maxMessages turns, oldest dropped first
+          ---
+          duration_ms: 0.403658
+          type: 'test'
+          ...
+        # Subtest: costs O(maxMessages) regardless of how large the raw array is (resource bound)
+        ok 2 - costs O(maxMessages) regardless of how large the raw array is (resource bound)
+          ---
+          duration_ms: 17.672298
+          type: 'test'
+          ...
+        1..2
+    ok 3 - bounds — count
+      ---
+      duration_ms: 18.228475
+      type: 'suite'
+      ...
+    # Subtest: defaults to the newest 12 turns with at most 2000 characters plus the ellipsis
+    ok 4 - defaults to the newest 12 turns with at most 2000 characters plus the ellipsis
+      ---
+      duration_ms: 0.371646
+      type: 'test'
+      ...
+    # Subtest: bounds — characters
+        # Subtest: truncates an over-length turn rather than rejecting it
+        ok 1 - truncates an over-length turn rather than rejecting it
+          ---
+          duration_ms: 0.406793
+          type: 'test'
+          ...
+        # Subtest: leaves an under-cap turn untouched
+        ok 2 - leaves an under-cap turn untouched
+          ---
+          duration_ms: 0.227794
+          type: 'test'
+          ...
+        1..2
+    ok 5 - bounds — characters
+      ---
+      duration_ms: 0.830231
+      type: 'suite'
+      ...
+    # Subtest: authorization independence (REQ-3's core security property)
+        # Subtest: produces plain text content only — no field here can carry a tool call, tool result, or capability grant
+        ok 1 - produces plain text content only — no field here can carry a tool call, tool result, or capability grant
+          ---
+          duration_ms: 0.207743
+          type: 'test'
+          ...
+        1..1
+    ok 6 - authorization independence (REQ-3's core security property)
+      ---
+      duration_ms: 0.297077
+      type: 'suite'
+      ...
+    1..6
+ok 386 - resolveBoundedHistory
+  ---
+  duration_ms: 35.759392
+  type: 'suite'
+  ...
+# Subtest: credentials refuse Sec-Fetch-Site="cross-site" even with a valid Origin
+ok 387 - credentials refuse Sec-Fetch-Site="cross-site" even with a valid Origin
+  ---
+  duration_ms: 22.564083
+  type: 'test'
+  ...
+# Subtest: credentials refuse Sec-Fetch-Site="same-site" even with a valid Origin
+ok 388 - credentials refuse Sec-Fetch-Site="same-site" even with a valid Origin
+  ---
+  duration_ms: 104.164774
+  type: 'test'
+  ...
+# Subtest: credentials refuse Sec-Fetch-Site="none" even with a valid Origin
+ok 389 - credentials refuse Sec-Fetch-Site="none" even with a valid Origin
+  ---
+  duration_ms: 7.310978
+  type: 'test'
+  ...
+# Subtest: credentials refuse Sec-Fetch-Site="" even with a valid Origin
+ok 390 - credentials refuse Sec-Fetch-Site="" even with a valid Origin
+  ---
+  duration_ms: 1.796318
+  type: 'test'
+  ...
+# Subtest: F3b class guard: confirm and frontend credentials apply identical visitor origin verdicts
+    # Subtest: canonical; metadata="same-origin"
+    ok 1 - canonical; metadata="same-origin"
+      ---
+      duration_ms: 27.765274
+      type: 'test'
+      ...
+    # Subtest: canonical; metadata="cross-site"
+    ok 2 - canonical; metadata="cross-site"
+      ---
+      duration_ms: 15.492417
+      type: 'test'
+      ...
+    # Subtest: canonical; metadata="same-site"
+    ok 3 - canonical; metadata="same-site"
+      ---
+      duration_ms: 10.068444
+      type: 'test'
+      ...
+    # Subtest: canonical; metadata="none"
+    ok 4 - canonical; metadata="none"
+      ---
+      duration_ms: 1.404978
+      type: 'test'
+      ...
+    # Subtest: canonical; metadata=""
+    ok 5 - canonical; metadata=""
+      ---
+      duration_ms: 1.363747
+      type: 'test'
+      ...
+    # Subtest: canonical; metadata=undefined
+    ok 6 - canonical; metadata=undefined
+      ---
+      duration_ms: 10.920812
+      type: 'test'
+      ...
+    # Subtest: serving host https://preview.site.test; metadata="same-origin"
+    ok 7 - serving host https://preview.site.test; metadata="same-origin"
+      ---
+      duration_ms: 6.434702
+      type: 'test'
+      ...
+    # Subtest: serving host https://preview.site.test; metadata="cross-site"
+    ok 8 - serving host https://preview.site.test; metadata="cross-site"
+      ---
+      duration_ms: 3.472735
+      type: 'test'
+      ...
+    # Subtest: serving host https://preview.site.test; metadata="same-site"
+    ok 9 - serving host https://preview.site.test; metadata="same-site"
+      ---
+      duration_ms: 4.311787
+      type: 'test'
+      ...
+    # Subtest: serving host https://preview.site.test; metadata="none"
+    ok 10 - serving host https://preview.site.test; metadata="none"
+      ---
+      duration_ms: 1.50212
+      type: 'test'
+      ...
+    # Subtest: serving host https://preview.site.test; metadata=""
+    ok 11 - serving host https://preview.site.test; metadata=""
+      ---
+      duration_ms: 6.699463
+      type: 'test'
+      ...
+    # Subtest: serving host https://preview.site.test; metadata=undefined
+    ok 12 - serving host https://preview.site.test; metadata=undefined
+      ---
+      duration_ms: 2.092445
+      type: 'test'
+      ...
+    # Subtest: serving host http://localhost:5174; metadata="same-origin"
+    ok 13 - serving host http://localhost:5174; metadata="same-origin"
+      ---
+      duration_ms: 2.779547
+      type: 'test'
+      ...
+    # Subtest: serving host http://localhost:5174; metadata="cross-site"
+    ok 14 - serving host http://localhost:5174; metadata="cross-site"
+      ---
+      duration_ms: 5.669634
+      type: 'test'
+      ...
+    # Subtest: serving host http://localhost:5174; metadata="same-site"
+    ok 15 - serving host http://localhost:5174; metadata="same-site"
+      ---
+      duration_ms: 1.524507
+      type: 'test'
+      ...
+    # Subtest: serving host http://localhost:5174; metadata="none"
+    ok 16 - serving host http://localhost:5174; metadata="none"
+      ---
+      duration_ms: 7.665763
+      type: 'test'
+      ...
+    # Subtest: serving host http://localhost:5174; metadata=""
+    ok 17 - serving host http://localhost:5174; metadata=""
+      ---
+      duration_ms: 1.377487
+      type: 'test'
+      ...
+    # Subtest: serving host http://localhost:5174; metadata=undefined
+    ok 18 - serving host http://localhost:5174; metadata=undefined
+      ---
+      duration_ms: 6.876217
+      type: 'test'
+      ...
+    # Subtest: serving host http://127.0.0.1:4100; metadata="same-origin"
+    ok 19 - serving host http://127.0.0.1:4100; metadata="same-origin"
+      ---
+      duration_ms: 4.347917
+      type: 'test'
+      ...
+    # Subtest: serving host http://127.0.0.1:4100; metadata="cross-site"
+    ok 20 - serving host http://127.0.0.1:4100; metadata="cross-site"
+      ---
+      duration_ms: 5.103585
+      type: 'test'
+      ...
+    # Subtest: serving host http://127.0.0.1:4100; metadata="same-site"
+    ok 21 - serving host http://127.0.0.1:4100; metadata="same-site"
+      ---
+      duration_ms: 2.177315
+      type: 'test'
+      ...
+    # Subtest: serving host http://127.0.0.1:4100; metadata="none"
+    ok 22 - serving host http://127.0.0.1:4100; metadata="none"
+      ---
+      duration_ms: 1.251038
+      type: 'test'
+      ...
+    # Subtest: serving host http://127.0.0.1:4100; metadata=""
+    ok 23 - serving host http://127.0.0.1:4100; metadata=""
+      ---
+      duration_ms: 6.670965
+      type: 'test'
+      ...
+    # Subtest: serving host http://127.0.0.1:4100; metadata=undefined
+    ok 24 - serving host http://127.0.0.1:4100; metadata=undefined
+      ---
+      duration_ms: 2.037625
+      type: 'test'
+      ...
+    # Subtest: host case; metadata="same-origin"
+    ok 25 - host case; metadata="same-origin"
+      ---
+      duration_ms: 3.38103
+      type: 'test'
+      ...
+    # Subtest: host case; metadata="cross-site"
+    ok 26 - host case; metadata="cross-site"
+      ---
+      duration_ms: 1.151718
+      type: 'test'
+      ...
+    # Subtest: host case; metadata="same-site"
+    ok 27 - host case; metadata="same-site"
+      ---
+      duration_ms: 5.393671
+      type: 'test'
+      ...
+    # Subtest: host case; metadata="none"
+    ok 28 - host case; metadata="none"
+      ---
+      duration_ms: 7.274776
+      type: 'test'
+      ...
+    # Subtest: host case; metadata=""
+    ok 29 - host case; metadata=""
+      ---
+      duration_ms: 1.431467
+      type: 'test'
+      ...
+    # Subtest: host case; metadata=undefined
+    ok 30 - host case; metadata=undefined
+      ---
+      duration_ms: 1.45888
+      type: 'test'
+      ...
+    # Subtest: explicit HTTPS default port; metadata="same-origin"
+    ok 31 - explicit HTTPS default port; metadata="same-origin"
+      ---
+      duration_ms: 6.891929
+      type: 'test'
+      ...
+    # Subtest: explicit HTTPS default port; metadata="cross-site"
+    ok 32 - explicit HTTPS default port; metadata="cross-site"
+      ---
+      duration_ms: 5.448099
+      type: 'test'
+      ...
+    # Subtest: explicit HTTPS default port; metadata="same-site"
+    ok 33 - explicit HTTPS default port; metadata="same-site"
+      ---
+      duration_ms: 1.244119
+      type: 'test'
+      ...
+    # Subtest: explicit HTTPS default port; metadata="none"
+    ok 34 - explicit HTTPS default port; metadata="none"
+      ---
+      duration_ms: 3.479943
+      type: 'test'
+      ...
+    # Subtest: explicit HTTPS default port; metadata=""
+    ok 35 - explicit HTTPS default port; metadata=""
+      ---
+      duration_ms: 1.407441
+      type: 'test'
+      ...
+    # Subtest: explicit HTTPS default port; metadata=undefined
+    ok 36 - explicit HTTPS default port; metadata=undefined
+      ---
+      duration_ms: 1.613101
+      type: 'test'
+      ...
+    # Subtest: explicit HTTP default port; metadata="same-origin"
+    ok 37 - explicit HTTP default port; metadata="same-origin"
+      ---
+      duration_ms: 2.505117
+      type: 'test'
+      ...
+    # Subtest: explicit HTTP default port; metadata="cross-site"
+    ok 38 - explicit HTTP default port; metadata="cross-site"
+      ---
+      duration_ms: 1.247474
+      type: 'test'
+      ...
+    # Subtest: explicit HTTP default port; metadata="same-site"
+    ok 39 - explicit HTTP default port; metadata="same-site"
+      ---
+      duration_ms: 7.829032
+      type: 'test'
+      ...
+    # Subtest: explicit HTTP default port; metadata="none"
+    ok 40 - explicit HTTP default port; metadata="none"
+      ---
+      duration_ms: 3.423955
+      type: 'test'
+      ...
+    # Subtest: explicit HTTP default port; metadata=""
+    ok 41 - explicit HTTP default port; metadata=""
+      ---
+      duration_ms: 4.396364
+      type: 'test'
+      ...
+    # Subtest: explicit HTTP default port; metadata=undefined
+    ok 42 - explicit HTTP default port; metadata=undefined
+      ---
+      duration_ms: 1.82083
+      type: 'test'
+      ...
+    # Subtest: matching nondefault port; metadata="same-origin"
+    ok 43 - matching nondefault port; metadata="same-origin"
+      ---
+      duration_ms: 6.458494
+      type: 'test'
+      ...
+    # Subtest: matching nondefault port; metadata="cross-site"
+    ok 44 - matching nondefault port; metadata="cross-site"
+      ---
+      duration_ms: 4.517758
+      type: 'test'
+      ...
+    # Subtest: matching nondefault port; metadata="same-site"
+    ok 45 - matching nondefault port; metadata="same-site"
+      ---
+      duration_ms: 3.856636
+      type: 'test'
+      ...
+    # Subtest: matching nondefault port; metadata="none"
+    ok 46 - matching nondefault port; metadata="none"
+      ---
+      duration_ms: 1.286277
+      type: 'test'
+      ...
+    # Subtest: matching nondefault port; metadata=""
+    ok 47 - matching nondefault port; metadata=""
+      ---
+      duration_ms: 5.769378
+      type: 'test'
+      ...
+    # Subtest: matching nondefault port; metadata=undefined
+    ok 48 - matching nondefault port; metadata=undefined
+      ---
+      duration_ms: 1.877847
+      type: 'test'
+      ...
+    # Subtest: missing nondefault serving port; metadata="same-origin"
+    ok 49 - missing nondefault serving port; metadata="same-origin"
+      ---
+      duration_ms: 5.83916
+      type: 'test'
+      ...
+    # Subtest: missing nondefault serving port; metadata="cross-site"
+    ok 50 - missing nondefault serving port; metadata="cross-site"
+      ---
+      duration_ms: 1.748664
+      type: 'test'
+      ...
+    # Subtest: missing nondefault serving port; metadata="same-site"
+    ok 51 - missing nondefault serving port; metadata="same-site"
+      ---
+      duration_ms: 9.058208
+      type: 'test'
+      ...
+    # Subtest: missing nondefault serving port; metadata="none"
+    ok 52 - missing nondefault serving port; metadata="none"
+      ---
+      duration_ms: 3.860957
+      type: 'test'
+      ...
+    # Subtest: missing nondefault serving port; metadata=""
+    ok 53 - missing nondefault serving port; metadata=""
+      ---
+      duration_ms: 4.439853
+      type: 'test'
+      ...
+    # Subtest: missing nondefault serving port; metadata=undefined
+    ok 54 - missing nondefault serving port; metadata=undefined
+      ---
+      duration_ms: 1.343755
+      type: 'test'
+      ...
+    # Subtest: foreign; metadata="same-origin"
+    ok 55 - foreign; metadata="same-origin"
+      ---
+      duration_ms: 6.873868
+      type: 'test'
+      ...
+    # Subtest: foreign; metadata="cross-site"
+    ok 56 - foreign; metadata="cross-site"
+      ---
+      duration_ms: 2.113425
+      type: 'test'
+      ...
+    # Subtest: foreign; metadata="same-site"
+    ok 57 - foreign; metadata="same-site"
+      ---
+      duration_ms: 6.129078
+      type: 'test'
+      ...
+    # Subtest: foreign; metadata="none"
+    ok 58 - foreign; metadata="none"
+      ---
+      duration_ms: 1.35069
+      type: 'test'
+      ...
+    # Subtest: foreign; metadata=""
+    ok 59 - foreign; metadata=""
+      ---
+      duration_ms: 3.83516
+      type: 'test'
+      ...
+    # Subtest: foreign; metadata=undefined
+    ok 60 - foreign; metadata=undefined
+      ---
+      duration_ms: 5.548054
+      type: 'test'
+      ...
+    # Subtest: wrong port; metadata="same-origin"
+    ok 61 - wrong port; metadata="same-origin"
+      ---
+      duration_ms: 1.49303
+      type: 'test'
+      ...
+    # Subtest: wrong port; metadata="cross-site"
+    ok 62 - wrong port; metadata="cross-site"
+      ---
+      duration_ms: 1.234846
+      type: 'test'
+      ...
+    # Subtest: wrong port; metadata="same-site"
+    ok 63 - wrong port; metadata="same-site"
+      ---
+      duration_ms: 5.88284
+      type: 'test'
+      ...
+    # Subtest: wrong port; metadata="none"
+    ok 64 - wrong port; metadata="none"
+      ---
+      duration_ms: 4.842018
+      type: 'test'
+      ...
+    # Subtest: wrong port; metadata=""
+    ok 65 - wrong port; metadata=""
+      ---
+      duration_ms: 3.210271
+      type: 'test'
+      ...
+    # Subtest: wrong port; metadata=undefined
+    ok 66 - wrong port; metadata=undefined
+      ---
+      duration_ms: 6.441283
+      type: 'test'
+      ...
+    # Subtest: wrong scheme; metadata="same-origin"
+    ok 67 - wrong scheme; metadata="same-origin"
+      ---
+      duration_ms: 4.521165
+      type: 'test'
+      ...
+    # Subtest: wrong scheme; metadata="cross-site"
+    ok 68 - wrong scheme; metadata="cross-site"
+      ---
+      duration_ms: 3.383691
+      type: 'test'
+      ...
+    # Subtest: wrong scheme; metadata="same-site"
+    ok 69 - wrong scheme; metadata="same-site"
+      ---
+      duration_ms: 1.903499
+      type: 'test'
+      ...
+    # Subtest: wrong scheme; metadata="none"
+    ok 70 - wrong scheme; metadata="none"
+      ---
+      duration_ms: 1.228961
+      type: 'test'
+      ...
+    # Subtest: wrong scheme; metadata=""
+    ok 71 - wrong scheme; metadata=""
+      ---
+      duration_ms: 1.492773
+      type: 'test'
+      ...
+    # Subtest: wrong scheme; metadata=undefined
+    ok 72 - wrong scheme; metadata=undefined
+      ---
+      duration_ms: 10.230672
+      type: 'test'
+      ...
+    # Subtest: missing Origin with matching Referer; metadata="same-origin"
+    ok 73 - missing Origin with matching Referer; metadata="same-origin"
+      ---
+      duration_ms: 4.523965
+      type: 'test'
+      ...
+    # Subtest: missing Origin with matching Referer; metadata="cross-site"
+    ok 74 - missing Origin with matching Referer; metadata="cross-site"
+      ---
+      duration_ms: 1.342158
+      type: 'test'
+      ...
+    # Subtest: missing Origin with matching Referer; metadata="same-site"
+    ok 75 - missing Origin with matching Referer; metadata="same-site"
+      ---
+      duration_ms: 1.230785
+      type: 'test'
+      ...
+    # Subtest: missing Origin with matching Referer; metadata="none"
+    ok 76 - missing Origin with matching Referer; metadata="none"
+      ---
+      duration_ms: 5.411895
+      type: 'test'
+      ...
+    # Subtest: missing Origin with matching Referer; metadata=""
+    ok 77 - missing Origin with matching Referer; metadata=""
+      ---
+      duration_ms: 1.278396
+      type: 'test'
+      ...
+    # Subtest: missing Origin with matching Referer; metadata=undefined
+    ok 78 - missing Origin with matching Referer; metadata=undefined
+      ---
+      duration_ms: 5.865933
+      type: 'test'
+      ...
+    # Subtest: empty Origin; metadata="same-origin"
+    ok 79 - empty Origin; metadata="same-origin"
+      ---
+      duration_ms: 2.4265
+      type: 'test'
+      ...
+    # Subtest: empty Origin; metadata="cross-site"
+    ok 80 - empty Origin; metadata="cross-site"
+      ---
+      duration_ms: 3.404311
+      type: 'test'
+      ...
+    # Subtest: empty Origin; metadata="same-site"
+    ok 81 - empty Origin; metadata="same-site"
+      ---
+      duration_ms: 9.477344
+      type: 'test'
+      ...
+    # Subtest: empty Origin; metadata="none"
+    ok 82 - empty Origin; metadata="none"
+      ---
+      duration_ms: 1.907338
+      type: 'test'
+      ...
+    # Subtest: empty Origin; metadata=""
+    ok 83 - empty Origin; metadata=""
+      ---
+      duration_ms: 5.44142
+      type: 'test'
+      ...
+    # Subtest: empty Origin; metadata=undefined
+    ok 84 - empty Origin; metadata=undefined
+      ---
+      duration_ms: 1.942611
+      type: 'test'
+      ...
+    # Subtest: opaque Origin; metadata="same-origin"
+    ok 85 - opaque Origin; metadata="same-origin"
+      ---
+      duration_ms: 1.357093
+      type: 'test'
+      ...
+    # Subtest: opaque Origin; metadata="cross-site"
+    ok 86 - opaque Origin; metadata="cross-site"
+      ---
+      duration_ms: 1.927657
+      type: 'test'
+      ...
+    # Subtest: opaque Origin; metadata="same-site"
+    ok 87 - opaque Origin; metadata="same-site"
+      ---
+      duration_ms: 1.170563
+      type: 'test'
+      ...
+    # Subtest: opaque Origin; metadata="none"
+    ok 88 - opaque Origin; metadata="none"
+      ---
+      duration_ms: 2.609458
+      type: 'test'
+      ...
+    # Subtest: opaque Origin; metadata=""
+    ok 89 - opaque Origin; metadata=""
+      ---
+      duration_ms: 6.853284
+      type: 'test'
+      ...
+    # Subtest: opaque Origin; metadata=undefined
+    ok 90 - opaque Origin; metadata=undefined
+      ---
+      duration_ms: 1.336874
+      type: 'test'
+      ...
+    # Subtest: malformed Origin; metadata="same-origin"
+    ok 91 - malformed Origin; metadata="same-origin"
+      ---
+      duration_ms: 1.166522
+      type: 'test'
+      ...
+    # Subtest: malformed Origin; metadata="cross-site"
+    ok 92 - malformed Origin; metadata="cross-site"
+      ---
+      duration_ms: 6.329697
+      type: 'test'
+      ...
+    # Subtest: malformed Origin; metadata="same-site"
+    ok 93 - malformed Origin; metadata="same-site"
+      ---
+      duration_ms: 2.043753
+      type: 'test'
+      ...
+    # Subtest: malformed Origin; metadata="none"
+    ok 94 - malformed Origin; metadata="none"
+      ---
+      duration_ms: 4.074176
+      type: 'test'
+      ...
+    # Subtest: malformed Origin; metadata=""
+    ok 95 - malformed Origin; metadata=""
+      ---
+      duration_ms: 1.287431
+      type: 'test'
+      ...
+    # Subtest: malformed Origin; metadata=undefined
+    ok 96 - malformed Origin; metadata=undefined
+      ---
+      duration_ms: 1.1615
+      type: 'test'
+      ...
+    # Subtest: userinfo; metadata="same-origin"
+    ok 97 - userinfo; metadata="same-origin"
+      ---
+      duration_ms: 6.737606
+      type: 'test'
+      ...
+    # Subtest: userinfo; metadata="cross-site"
+    ok 98 - userinfo; metadata="cross-site"
+      ---
+      duration_ms: 2.033546
+      type: 'test'
+      ...
+    # Subtest: userinfo; metadata="same-site"
+    ok 99 - userinfo; metadata="same-site"
+      ---
+      duration_ms: 4.371089
+      type: 'test'
+      ...
+    # Subtest: userinfo; metadata="none"
+    ok 100 - userinfo; metadata="none"
+      ---
+      duration_ms: 4.562944
+      type: 'test'
+      ...
+    # Subtest: userinfo; metadata=""
+    ok 101 - userinfo; metadata=""
+      ---
+      duration_ms: 10.693671
+      type: 'test'
+      ...
+    # Subtest: userinfo; metadata=undefined
+    ok 102 - userinfo; metadata=undefined
+      ---
+      duration_ms: 2.197091
+      type: 'test'
+      ...
+    # Subtest: GET serving Referer only; metadata="same-origin"
+    ok 103 - GET serving Referer only; metadata="same-origin"
+      ---
+      duration_ms: 6.222082
+      type: 'test'
+      ...
+    # Subtest: GET serving Referer only; metadata="cross-site"
+    ok 104 - GET serving Referer only; metadata="cross-site"
+      ---
+      duration_ms: 2.223289
+      type: 'test'
+      ...
+    # Subtest: GET serving Referer only; metadata="same-site"
+    ok 105 - GET serving Referer only; metadata="same-site"
+      ---
+      duration_ms: 1.077772
+      type: 'test'
+      ...
+    # Subtest: GET serving Referer only; metadata="none"
+    ok 106 - GET serving Referer only; metadata="none"
+      ---
+      duration_ms: 1.73798
+      type: 'test'
+      ...
+    # Subtest: GET serving Referer only; metadata=""
+    ok 107 - GET serving Referer only; metadata=""
+      ---
+      duration_ms: 2.893723
+      type: 'test'
+      ...
+    # Subtest: GET serving Referer only; metadata=undefined
+    ok 108 - GET serving Referer only; metadata=undefined
+      ---
+      duration_ms: 2.931648
+      type: 'test'
+      ...
+    # Subtest: GET serving Referer with normalized Host; metadata="same-origin"
+    ok 109 - GET serving Referer with normalized Host; metadata="same-origin"
+      ---
+      duration_ms: 1.163762
+      type: 'test'
+      ...
+    # Subtest: GET serving Referer with normalized Host; metadata="cross-site"
+    ok 110 - GET serving Referer with normalized Host; metadata="cross-site"
+      ---
+      duration_ms: 2.377196
+      type: 'test'
+      ...
+    # Subtest: GET serving Referer with normalized Host; metadata="same-site"
+    ok 111 - GET serving Referer with normalized Host; metadata="same-site"
+      ---
+      duration_ms: 4.040735
+      type: 'test'
+      ...
+    # Subtest: GET serving Referer with normalized Host; metadata="none"
+    ok 112 - GET serving Referer with normalized Host; metadata="none"
+      ---
+      duration_ms: 0.800248
+      type: 'test'
+      ...
+    # Subtest: GET serving Referer with normalized Host; metadata=""
+    ok 113 - GET serving Referer with normalized Host; metadata=""
+      ---
+      duration_ms: 0.773318
+      type: 'test'
+      ...
+    # Subtest: GET serving Referer with normalized Host; metadata=undefined
+    ok 114 - GET serving Referer with normalized Host; metadata=undefined
+      ---
+      duration_ms: 0.789106
+      type: 'test'
+      ...
+    # Subtest: GET canonical Referer only; metadata="same-origin"
+    ok 115 - GET canonical Referer only; metadata="same-origin"
+      ---
+      duration_ms: 5.776037
+      type: 'test'
+      ...
+    # Subtest: GET canonical Referer only; metadata="cross-site"
+    ok 116 - GET canonical Referer only; metadata="cross-site"
+      ---
+      duration_ms: 1.252462
+      type: 'test'
+      ...
+    # Subtest: GET canonical Referer only; metadata="same-site"
+    ok 117 - GET canonical Referer only; metadata="same-site"
+      ---
+      duration_ms: 1.860972
+      type: 'test'
+      ...
+    # Subtest: GET canonical Referer only; metadata="none"
+    ok 118 - GET canonical Referer only; metadata="none"
+      ---
+      duration_ms: 3.892395
+      type: 'test'
+      ...
+    # Subtest: GET canonical Referer only; metadata=""
+    ok 119 - GET canonical Referer only; metadata=""
+      ---
+      duration_ms: 1.128017
+      type: 'test'
+      ...
+    # Subtest: GET canonical Referer only; metadata=undefined
+    ok 120 - GET canonical Referer only; metadata=undefined
+      ---
+      duration_ms: 0.971563
+      type: 'test'
+      ...
+    # Subtest: GET foreign Referer only; metadata="same-origin"
+    ok 121 - GET foreign Referer only; metadata="same-origin"
+      ---
+      duration_ms: 2.028518
+      type: 'test'
+      ...
+    # Subtest: GET foreign Referer only; metadata="cross-site"
+    ok 122 - GET foreign Referer only; metadata="cross-site"
+      ---
+      duration_ms: 3.521404
+      type: 'test'
+      ...
+    # Subtest: GET foreign Referer only; metadata="same-site"
+    ok 123 - GET foreign Referer only; metadata="same-site"
+      ---
+      duration_ms: 1.371017
+      type: 'test'
+      ...
+    # Subtest: GET foreign Referer only; metadata="none"
+    ok 124 - GET foreign Referer only; metadata="none"
+      ---
+      duration_ms: 2.265876
+      type: 'test'
+      ...
+    # Subtest: GET foreign Referer only; metadata=""
+    ok 125 - GET foreign Referer only; metadata=""
+      ---
+      duration_ms: 3.979743
+      type: 'test'
+      ...
+    # Subtest: GET foreign Referer only; metadata=undefined
+    ok 126 - GET foreign Referer only; metadata=undefined
+      ---
+      duration_ms: 1.126078
+      type: 'test'
+      ...
+    # Subtest: GET neither Origin nor Referer; metadata="same-origin"
+    ok 127 - GET neither Origin nor Referer; metadata="same-origin"
+      ---
+      duration_ms: 1.009239
+      type: 'test'
+      ...
+    # Subtest: GET neither Origin nor Referer; metadata="cross-site"
+    ok 128 - GET neither Origin nor Referer; metadata="cross-site"
+      ---
+      duration_ms: 5.451381
+      type: 'test'
+      ...
+    # Subtest: GET neither Origin nor Referer; metadata="same-site"
+    ok 129 - GET neither Origin nor Referer; metadata="same-site"
+      ---
+      duration_ms: 0.887761
+      type: 'test'
+      ...
+    # Subtest: GET neither Origin nor Referer; metadata="none"
+    ok 130 - GET neither Origin nor Referer; metadata="none"
+      ---
+      duration_ms: 0.965283
+      type: 'test'
+      ...
+    # Subtest: GET neither Origin nor Referer; metadata=""
+    ok 131 - GET neither Origin nor Referer; metadata=""
+      ---
+      duration_ms: 0.873595
+      type: 'test'
+      ...
+    # Subtest: GET neither Origin nor Referer; metadata=undefined
+    ok 132 - GET neither Origin nor Referer; metadata=undefined
+      ---
+      duration_ms: 5.202201
+      type: 'test'
+      ...
+    # Subtest: GET matching Origin beats foreign Referer; metadata="same-origin"
+    ok 133 - GET matching Origin beats foreign Referer; metadata="same-origin"
+      ---
+      duration_ms: 1.226372
+      type: 'test'
+      ...
+    # Subtest: GET matching Origin beats foreign Referer; metadata="cross-site"
+    ok 134 - GET matching Origin beats foreign Referer; metadata="cross-site"
+      ---
+      duration_ms: 0.873725
+      type: 'test'
+      ...
+    # Subtest: GET matching Origin beats foreign Referer; metadata="same-site"
+    ok 135 - GET matching Origin beats foreign Referer; metadata="same-site"
+      ---
+      duration_ms: 0.828628
+      type: 'test'
+      ...
+    # Subtest: GET matching Origin beats foreign Referer; metadata="none"
+    ok 136 - GET matching Origin beats foreign Referer; metadata="none"
+      ---
+      duration_ms: 4.991017
+      type: 'test'
+      ...
+    # Subtest: GET matching Origin beats foreign Referer; metadata=""
+    ok 137 - GET matching Origin beats foreign Referer; metadata=""
+      ---
+      duration_ms: 0.844238
+      type: 'test'
+      ...
+    # Subtest: GET matching Origin beats foreign Referer; metadata=undefined
+    ok 138 - GET matching Origin beats foreign Referer; metadata=undefined
+      ---
+      duration_ms: 48.23766
+      type: 'test'
+      ...
+    # Subtest: GET foreign Origin beats matching Referer; metadata="same-origin"
+    ok 139 - GET foreign Origin beats matching Referer; metadata="same-origin"
+      ---
+      duration_ms: 6.199571
+      type: 'test'
+      ...
+    # Subtest: GET foreign Origin beats matching Referer; metadata="cross-site"
+    ok 140 - GET foreign Origin beats matching Referer; metadata="cross-site"
+      ---
+      duration_ms: 1.002355
+      type: 'test'
+      ...
+    # Subtest: GET foreign Origin beats matching Referer; metadata="same-site"
+    ok 141 - GET foreign Origin beats matching Referer; metadata="same-site"
+      ---
+      duration_ms: 0.848996
+      type: 'test'
+      ...
+    # Subtest: GET foreign Origin beats matching Referer; metadata="none"
+    ok 142 - GET foreign Origin beats matching Referer; metadata="none"
+      ---
+      duration_ms: 0.79628
+      type: 'test'
+      ...
+    # Subtest: GET foreign Origin beats matching Referer; metadata=""
+    ok 143 - GET foreign Origin beats matching Referer; metadata=""
+      ---
+      duration_ms: 4.160635
+      type: 'test'
+      ...
+    # Subtest: GET foreign Origin beats matching Referer; metadata=undefined
+    ok 144 - GET foreign Origin beats matching Referer; metadata=undefined
+      ---
+      duration_ms: 0.919278
+      type: 'test'
+      ...
+    # Subtest: GET empty Origin blocks Referer fallback; metadata="same-origin"
+    ok 145 - GET empty Origin blocks Referer fallback; metadata="same-origin"
+      ---
+      duration_ms: 0.754981
+      type: 'test'
+      ...
+    # Subtest: GET empty Origin blocks Referer fallback; metadata="cross-site"
+    ok 146 - GET empty Origin blocks Referer fallback; metadata="cross-site"
+      ---
+      duration_ms: 4.488788
+      type: 'test'
+      ...
+    # Subtest: GET empty Origin blocks Referer fallback; metadata="same-site"
+    ok 147 - GET empty Origin blocks Referer fallback; metadata="same-site"
+      ---
+      duration_ms: 1.767616
+      type: 'test'
+      ...
+    # Subtest: GET empty Origin blocks Referer fallback; metadata="none"
+    ok 148 - GET empty Origin blocks Referer fallback; metadata="none"
+      ---
+      duration_ms: 0.820225
+      type: 'test'
+      ...
+    # Subtest: GET empty Origin blocks Referer fallback; metadata=""
+    ok 149 - GET empty Origin blocks Referer fallback; metadata=""
+      ---
+      duration_ms: 3.202278
+      type: 'test'
+      ...
+    # Subtest: GET empty Origin blocks Referer fallback; metadata=undefined
+    ok 150 - GET empty Origin blocks Referer fallback; metadata=undefined
+      ---
+      duration_ms: 3.084216
+      type: 'test'
+      ...
+    # Subtest: GET malformed Referer; metadata="same-origin"
+    ok 151 - GET malformed Referer; metadata="same-origin"
+      ---
+      duration_ms: 3.567587
+      type: 'test'
+      ...
+    # Subtest: GET malformed Referer; metadata="cross-site"
+    ok 152 - GET malformed Referer; metadata="cross-site"
+      ---
+      duration_ms: 0.861714
+      type: 'test'
+      ...
+    # Subtest: GET malformed Referer; metadata="same-site"
+    ok 153 - GET malformed Referer; metadata="same-site"
+      ---
+      duration_ms: 0.793235
+      type: 'test'
+      ...
+    # Subtest: GET malformed Referer; metadata="none"
+    ok 154 - GET malformed Referer; metadata="none"
+      ---
+      duration_ms: 0.746385
+      type: 'test'
+      ...
+    # Subtest: GET malformed Referer; metadata=""
+    ok 155 - GET malformed Referer; metadata=""
+      ---
+      duration_ms: 5.461113
+      type: 'test'
+      ...
+    # Subtest: GET malformed Referer; metadata=undefined
+    ok 156 - GET malformed Referer; metadata=undefined
+      ---
+      duration_ms: 0.744119
+      type: 'test'
+      ...
+    # Subtest: HEAD serving Referer only; metadata="same-origin"
+    ok 157 - HEAD serving Referer only; metadata="same-origin"
+      ---
+      duration_ms: 0.921316
+      type: 'test'
+      ...
+    # Subtest: HEAD serving Referer only; metadata="cross-site"
+    ok 158 - HEAD serving Referer only; metadata="cross-site"
+      ---
+      duration_ms: 4.922952
+      type: 'test'
+      ...
+    # Subtest: HEAD serving Referer only; metadata="same-site"
+    ok 159 - HEAD serving Referer only; metadata="same-site"
+      ---
+      duration_ms: 0.782956
+      type: 'test'
+      ...
+    # Subtest: HEAD serving Referer only; metadata="none"
+    ok 160 - HEAD serving Referer only; metadata="none"
+      ---
+      duration_ms: 0.760663
+      type: 'test'
+      ...
+    # Subtest: HEAD serving Referer only; metadata=""
+    ok 161 - HEAD serving Referer only; metadata=""
+      ---
+      duration_ms: 0.763354
+      type: 'test'
+      ...
+    # Subtest: HEAD serving Referer only; metadata=undefined
+    ok 162 - HEAD serving Referer only; metadata=undefined
+      ---
+      duration_ms: 0.806133
+      type: 'test'
+      ...
+    # Subtest: HEAD serving Referer with normalized Host; metadata="same-origin"
+    ok 163 - HEAD serving Referer with normalized Host; metadata="same-origin"
+      ---
+      duration_ms: 5.031137
+      type: 'test'
+      ...
+    # Subtest: HEAD serving Referer with normalized Host; metadata="cross-site"
+    ok 164 - HEAD serving Referer with normalized Host; metadata="cross-site"
+      ---
+      duration_ms: 0.827405
+      type: 'test'
+      ...
+    # Subtest: HEAD serving Referer with normalized Host; metadata="same-site"
+    ok 165 - HEAD serving Referer with normalized Host; metadata="same-site"
+      ---
+      duration_ms: 0.779314
+      type: 'test'
+      ...
+    # Subtest: HEAD serving Referer with normalized Host; metadata="none"
+    ok 166 - HEAD serving Referer with normalized Host; metadata="none"
+      ---
+      duration_ms: 0.750612
+      type: 'test'
+      ...
+    # Subtest: HEAD serving Referer with normalized Host; metadata=""
+    ok 167 - HEAD serving Referer with normalized Host; metadata=""
+      ---
+      duration_ms: 5.181674
+      type: 'test'
+      ...
+    # Subtest: HEAD serving Referer with normalized Host; metadata=undefined
+    ok 168 - HEAD serving Referer with normalized Host; metadata=undefined
+      ---
+      duration_ms: 1.83517
+      type: 'test'
+      ...
+    # Subtest: HEAD canonical Referer only; metadata="same-origin"
+    ok 169 - HEAD canonical Referer only; metadata="same-origin"
+      ---
+      duration_ms: 0.824821
+      type: 'test'
+      ...
+    # Subtest: HEAD canonical Referer only; metadata="cross-site"
+    ok 170 - HEAD canonical Referer only; metadata="cross-site"
+      ---
+      duration_ms: 4.923482
+      type: 'test'
+      ...
+    # Subtest: HEAD canonical Referer only; metadata="same-site"
+    ok 171 - HEAD canonical Referer only; metadata="same-site"
+      ---
+      duration_ms: 0.724857
+      type: 'test'
+      ...
+    # Subtest: HEAD canonical Referer only; metadata="none"
+    ok 172 - HEAD canonical Referer only; metadata="none"
+      ---
+      duration_ms: 0.736693
+      type: 'test'
+      ...
+    # Subtest: HEAD canonical Referer only; metadata=""
+    ok 173 - HEAD canonical Referer only; metadata=""
+      ---
+      duration_ms: 0.671365
+      type: 'test'
+      ...
+    # Subtest: HEAD canonical Referer only; metadata=undefined
+    ok 174 - HEAD canonical Referer only; metadata=undefined
+      ---
+      duration_ms: 4.871863
+      type: 'test'
+      ...
+    # Subtest: HEAD foreign Referer only; metadata="same-origin"
+    ok 175 - HEAD foreign Referer only; metadata="same-origin"
+      ---
+      duration_ms: 0.757037
+      type: 'test'
+      ...
+    # Subtest: HEAD foreign Referer only; metadata="cross-site"
+    ok 176 - HEAD foreign Referer only; metadata="cross-site"
+      ---
+      duration_ms: 0.793198
+      type: 'test'
+      ...
+    # Subtest: HEAD foreign Referer only; metadata="same-site"
+    ok 177 - HEAD foreign Referer only; metadata="same-site"
+      ---
+      duration_ms: 6.043316
+      type: 'test'
+      ...
+    # Subtest: HEAD foreign Referer only; metadata="none"
+    ok 178 - HEAD foreign Referer only; metadata="none"
+      ---
+      duration_ms: 0.791864
+      type: 'test'
+      ...
+    # Subtest: HEAD foreign Referer only; metadata=""
+    ok 179 - HEAD foreign Referer only; metadata=""
+      ---
+      duration_ms: 0.792549
+      type: 'test'
+      ...
+    # Subtest: HEAD foreign Referer only; metadata=undefined
+    ok 180 - HEAD foreign Referer only; metadata=undefined
+      ---
+      duration_ms: 0.876371
+      type: 'test'
+      ...
+    # Subtest: HEAD neither Origin nor Referer; metadata="same-origin"
+    ok 181 - HEAD neither Origin nor Referer; metadata="same-origin"
+      ---
+      duration_ms: 1.532482
+      type: 'test'
+      ...
+    # Subtest: HEAD neither Origin nor Referer; metadata="cross-site"
+    ok 182 - HEAD neither Origin nor Referer; metadata="cross-site"
+      ---
+      duration_ms: 0.820138
+      type: 'test'
+      ...
+    # Subtest: HEAD neither Origin nor Referer; metadata="same-site"
+    ok 183 - HEAD neither Origin nor Referer; metadata="same-site"
+      ---
+      duration_ms: 0.744076
+      type: 'test'
+      ...
+    # Subtest: HEAD neither Origin nor Referer; metadata="none"
+    ok 184 - HEAD neither Origin nor Referer; metadata="none"
+      ---
+      duration_ms: 0.837729
+      type: 'test'
+      ...
+    # Subtest: HEAD neither Origin nor Referer; metadata=""
+    ok 185 - HEAD neither Origin nor Referer; metadata=""
+      ---
+      duration_ms: 0.736516
+      type: 'test'
+      ...
+    # Subtest: HEAD neither Origin nor Referer; metadata=undefined
+    ok 186 - HEAD neither Origin nor Referer; metadata=undefined
+      ---
+      duration_ms: 0.766133
+      type: 'test'
+      ...
+    # Subtest: HEAD matching Origin beats foreign Referer; metadata="same-origin"
+    ok 187 - HEAD matching Origin beats foreign Referer; metadata="same-origin"
+      ---
+      duration_ms: 0.767565
+      type: 'test'
+      ...
+    # Subtest: HEAD matching Origin beats foreign Referer; metadata="cross-site"
+    ok 188 - HEAD matching Origin beats foreign Referer; metadata="cross-site"
+      ---
+      duration_ms: 6.314496
+      type: 'test'
+      ...
+    # Subtest: HEAD matching Origin beats foreign Referer; metadata="same-site"
+    ok 189 - HEAD matching Origin beats foreign Referer; metadata="same-site"
+      ---
+      duration_ms: 0.780689
+      type: 'test'
+      ...
+    # Subtest: HEAD matching Origin beats foreign Referer; metadata="none"
+    ok 190 - HEAD matching Origin beats foreign Referer; metadata="none"
+      ---
+      duration_ms: 0.767077
+      type: 'test'
+      ...
+    # Subtest: HEAD matching Origin beats foreign Referer; metadata=""
+    ok 191 - HEAD matching Origin beats foreign Referer; metadata=""
+      ---
+      duration_ms: 4.654498
+      type: 'test'
+      ...
+    # Subtest: HEAD matching Origin beats foreign Referer; metadata=undefined
+    ok 192 - HEAD matching Origin beats foreign Referer; metadata=undefined
+      ---
+      duration_ms: 3.544002
+      type: 'test'
+      ...
+    # Subtest: HEAD foreign Origin beats matching Referer; metadata="same-origin"
+    ok 193 - HEAD foreign Origin beats matching Referer; metadata="same-origin"
+      ---
+      duration_ms: 0.862882
+      type: 'test'
+      ...
+    # Subtest: HEAD foreign Origin beats matching Referer; metadata="cross-site"
+    ok 194 - HEAD foreign Origin beats matching Referer; metadata="cross-site"
+      ---
+      duration_ms: 0.77921
+      type: 'test'
+      ...
+    # Subtest: HEAD foreign Origin beats matching Referer; metadata="same-site"
+    ok 195 - HEAD foreign Origin beats matching Referer; metadata="same-site"
+      ---
+      duration_ms: 0.737101
+      type: 'test'
+      ...
+    # Subtest: HEAD foreign Origin beats matching Referer; metadata="none"
+    ok 196 - HEAD foreign Origin beats matching Referer; metadata="none"
+      ---
+      duration_ms: 0.765978
+      type: 'test'
+      ...
+    # Subtest: HEAD foreign Origin beats matching Referer; metadata=""
+    ok 197 - HEAD foreign Origin beats matching Referer; metadata=""
+      ---
+      duration_ms: 4.931151
+      type: 'test'
+      ...
+    # Subtest: HEAD foreign Origin beats matching Referer; metadata=undefined
+    ok 198 - HEAD foreign Origin beats matching Referer; metadata=undefined
+      ---
+      duration_ms: 0.795906
+      type: 'test'
+      ...
+    # Subtest: HEAD empty Origin blocks Referer fallback; metadata="same-origin"
+    ok 199 - HEAD empty Origin blocks Referer fallback; metadata="same-origin"
+      ---
+      duration_ms: 0.729311
+      type: 'test'
+      ...
+    # Subtest: HEAD empty Origin blocks Referer fallback; metadata="cross-site"
+    ok 200 - HEAD empty Origin blocks Referer fallback; metadata="cross-site"
+      ---
+      duration_ms: 5.307637
+      type: 'test'
+      ...
+    # Subtest: HEAD empty Origin blocks Referer fallback; metadata="same-site"
+    ok 201 - HEAD empty Origin blocks Referer fallback; metadata="same-site"
+      ---
+      duration_ms: 1.753371
+      type: 'test'
+      ...
+    # Subtest: HEAD empty Origin blocks Referer fallback; metadata="none"
+    ok 202 - HEAD empty Origin blocks Referer fallback; metadata="none"
+      ---
+      duration_ms: 4.070662
+      type: 'test'
+      ...
+    # Subtest: HEAD empty Origin blocks Referer fallback; metadata=""
+    ok 203 - HEAD empty Origin blocks Referer fallback; metadata=""
+      ---
+      duration_ms: 0.742526
+      type: 'test'
+      ...
+    # Subtest: HEAD empty Origin blocks Referer fallback; metadata=undefined
+    ok 204 - HEAD empty Origin blocks Referer fallback; metadata=undefined
+      ---
+      duration_ms: 4.91082
+      type: 'test'
+      ...
+    # Subtest: HEAD malformed Referer; metadata="same-origin"
+    ok 205 - HEAD malformed Referer; metadata="same-origin"
+      ---
+      duration_ms: 0.761142
+      type: 'test'
+      ...
+    # Subtest: HEAD malformed Referer; metadata="cross-site"
+    ok 206 - HEAD malformed Referer; metadata="cross-site"
+      ---
+      duration_ms: 1.541943
+      type: 'test'
+      ...
+    # Subtest: HEAD malformed Referer; metadata="same-site"
+    ok 207 - HEAD malformed Referer; metadata="same-site"
+      ---
+      duration_ms: 0.718177
+      type: 'test'
+      ...
+    # Subtest: HEAD malformed Referer; metadata="none"
+    ok 208 - HEAD malformed Referer; metadata="none"
+      ---
+      duration_ms: 4.858613
+      type: 'test'
+      ...
+    # Subtest: HEAD malformed Referer; metadata=""
+    ok 209 - HEAD malformed Referer; metadata=""
+      ---
+      duration_ms: 0.772905
+      type: 'test'
+      ...
+    # Subtest: HEAD malformed Referer; metadata=undefined
+    ok 210 - HEAD malformed Referer; metadata=undefined
+      ---
+      duration_ms: 0.784315
+      type: 'test'
+      ...
+    # Subtest: POST serving Referer only; metadata="same-origin"
+    ok 211 - POST serving Referer only; metadata="same-origin"
+      ---
+      duration_ms: 0.702395
+      type: 'test'
+      ...
+    # Subtest: POST serving Referer only; metadata="cross-site"
+    ok 212 - POST serving Referer only; metadata="cross-site"
+      ---
+      duration_ms: 4.805047
+      type: 'test'
+      ...
+    # Subtest: POST serving Referer only; metadata="same-site"
+    ok 213 - POST serving Referer only; metadata="same-site"
+      ---
+      duration_ms: 0.794519
+      type: 'test'
+      ...
+    # Subtest: POST serving Referer only; metadata="none"
+    ok 214 - POST serving Referer only; metadata="none"
+      ---
+      duration_ms: 0.922026
+      type: 'test'
+      ...
+    # Subtest: POST serving Referer only; metadata=""
+    ok 215 - POST serving Referer only; metadata=""
+      ---
+      duration_ms: 0.782932
+      type: 'test'
+      ...
+    # Subtest: POST serving Referer only; metadata=undefined
+    ok 216 - POST serving Referer only; metadata=undefined
+      ---
+      duration_ms: 0.780972
+      type: 'test'
+      ...
+    # Subtest: POST serving Referer with normalized Host; metadata="same-origin"
+    ok 217 - POST serving Referer with normalized Host; metadata="same-origin"
+      ---
+      duration_ms: 0.794136
+      type: 'test'
+      ...
+    # Subtest: POST serving Referer with normalized Host; metadata="cross-site"
+    ok 218 - POST serving Referer with normalized Host; metadata="cross-site"
+      ---
+      duration_ms: 1.726943
+      type: 'test'
+      ...
+    # Subtest: POST serving Referer with normalized Host; metadata="same-site"
+    ok 219 - POST serving Referer with normalized Host; metadata="same-site"
+      ---
+      duration_ms: 0.782712
+      type: 'test'
+      ...
+    # Subtest: POST serving Referer with normalized Host; metadata="none"
+    ok 220 - POST serving Referer with normalized Host; metadata="none"
+      ---
+      duration_ms: 0.892653
+      type: 'test'
+      ...
+    # Subtest: POST serving Referer with normalized Host; metadata=""
+    ok 221 - POST serving Referer with normalized Host; metadata=""
+      ---
+      duration_ms: 0.738665
+      type: 'test'
+      ...
+    # Subtest: POST serving Referer with normalized Host; metadata=undefined
+    ok 222 - POST serving Referer with normalized Host; metadata=undefined
+      ---
+      duration_ms: 0.661625
+      type: 'test'
+      ...
+    # Subtest: POST canonical Referer only; metadata="same-origin"
+    ok 223 - POST canonical Referer only; metadata="same-origin"
+      ---
+      duration_ms: 0.753543
+      type: 'test'
+      ...
+    # Subtest: POST canonical Referer only; metadata="cross-site"
+    ok 224 - POST canonical Referer only; metadata="cross-site"
+      ---
+      duration_ms: 5.620475
+      type: 'test'
+      ...
+    # Subtest: POST canonical Referer only; metadata="same-site"
+    ok 225 - POST canonical Referer only; metadata="same-site"
+      ---
+      duration_ms: 0.834687
+      type: 'test'
+      ...
+    # Subtest: POST canonical Referer only; metadata="none"
+    ok 226 - POST canonical Referer only; metadata="none"
+      ---
+      duration_ms: 0.793795
+      type: 'test'
+      ...
+    # Subtest: POST canonical Referer only; metadata=""
+    ok 227 - POST canonical Referer only; metadata=""
+      ---
+      duration_ms: 0.798284
+      type: 'test'
+      ...
+    # Subtest: POST canonical Referer only; metadata=undefined
+    ok 228 - POST canonical Referer only; metadata=undefined
+      ---
+      duration_ms: 0.790425
+      type: 'test'
+      ...
+    # Subtest: POST foreign Referer only; metadata="same-origin"
+    ok 229 - POST foreign Referer only; metadata="same-origin"
+      ---
+      duration_ms: 0.768419
+      type: 'test'
+      ...
+    # Subtest: POST foreign Referer only; metadata="cross-site"
+    ok 230 - POST foreign Referer only; metadata="cross-site"
+      ---
+      duration_ms: 0.756259
+      type: 'test'
+      ...
+    # Subtest: POST foreign Referer only; metadata="same-site"
+    ok 231 - POST foreign Referer only; metadata="same-site"
+      ---
+      duration_ms: 0.783231
+      type: 'test'
+      ...
+    # Subtest: POST foreign Referer only; metadata="none"
+    ok 232 - POST foreign Referer only; metadata="none"
+      ---
+      duration_ms: 8.371631
+      type: 'test'
+      ...
+    # Subtest: POST foreign Referer only; metadata=""
+    ok 233 - POST foreign Referer only; metadata=""
+      ---
+      duration_ms: 0.849952
+      type: 'test'
+      ...
+    # Subtest: POST foreign Referer only; metadata=undefined
+    ok 234 - POST foreign Referer only; metadata=undefined
+      ---
+      duration_ms: 0.787951
+      type: 'test'
+      ...
+    # Subtest: POST neither Origin nor Referer; metadata="same-origin"
+    ok 235 - POST neither Origin nor Referer; metadata="same-origin"
+      ---
+      duration_ms: 0.747094
+      type: 'test'
+      ...
+    # Subtest: POST neither Origin nor Referer; metadata="cross-site"
+    ok 236 - POST neither Origin nor Referer; metadata="cross-site"
+      ---
+      duration_ms: 0.800106
+      type: 'test'
+      ...
+    # Subtest: POST neither Origin nor Referer; metadata="same-site"
+    ok 237 - POST neither Origin nor Referer; metadata="same-site"
+      ---
+      duration_ms: 4.947343
+      type: 'test'
+      ...
+    # Subtest: POST neither Origin nor Referer; metadata="none"
+    ok 238 - POST neither Origin nor Referer; metadata="none"
+      ---
+      duration_ms: 0.779546
+      type: 'test'
+      ...
+    # Subtest: POST neither Origin nor Referer; metadata=""
+    ok 239 - POST neither Origin nor Referer; metadata=""
+      ---
+      duration_ms: 3.280467
+      type: 'test'
+      ...
+    # Subtest: POST neither Origin nor Referer; metadata=undefined
+    ok 240 - POST neither Origin nor Referer; metadata=undefined
+      ---
+      duration_ms: 2.901507
+      type: 'test'
+      ...
+    # Subtest: POST matching Origin beats foreign Referer; metadata="same-origin"
+    ok 241 - POST matching Origin beats foreign Referer; metadata="same-origin"
+      ---
+      duration_ms: 1.000263
+      type: 'test'
+      ...
+    # Subtest: POST matching Origin beats foreign Referer; metadata="cross-site"
+    ok 242 - POST matching Origin beats foreign Referer; metadata="cross-site"
+      ---
+      duration_ms: 2.792031
+      type: 'test'
+      ...
+    # Subtest: POST matching Origin beats foreign Referer; metadata="same-site"
+    ok 243 - POST matching Origin beats foreign Referer; metadata="same-site"
+      ---
+      duration_ms: 0.984393
+      type: 'test'
+      ...
+    # Subtest: POST matching Origin beats foreign Referer; metadata="none"
+    ok 244 - POST matching Origin beats foreign Referer; metadata="none"
+      ---
+      duration_ms: 2.989478
+      type: 'test'
+      ...
+    # Subtest: POST matching Origin beats foreign Referer; metadata=""
+    ok 245 - POST matching Origin beats foreign Referer; metadata=""
+      ---
+      duration_ms: 0.877967
+      type: 'test'
+      ...
+    # Subtest: POST matching Origin beats foreign Referer; metadata=undefined
+    ok 246 - POST matching Origin beats foreign Referer; metadata=undefined
+      ---
+      duration_ms: 2.630221
+      type: 'test'
+      ...
+    # Subtest: POST foreign Origin beats matching Referer; metadata="same-origin"
+    ok 247 - POST foreign Origin beats matching Referer; metadata="same-origin"
+      ---
+      duration_ms: 1.314301
+      type: 'test'
+      ...
+    # Subtest: POST foreign Origin beats matching Referer; metadata="cross-site"
+    ok 248 - POST foreign Origin beats matching Referer; metadata="cross-site"
+      ---
+      duration_ms: 2.628539
+      type: 'test'
+      ...
+    # Subtest: POST foreign Origin beats matching Referer; metadata="same-site"
+    ok 249 - POST foreign Origin beats matching Referer; metadata="same-site"
+      ---
+      duration_ms: 3.670692
+      type: 'test'
+      ...
+    # Subtest: POST foreign Origin beats matching Referer; metadata="none"
+    ok 250 - POST foreign Origin beats matching Referer; metadata="none"
+      ---
+      duration_ms: 3.903903
+      type: 'test'
+      ...
+    # Subtest: POST foreign Origin beats matching Referer; metadata=""
+    ok 251 - POST foreign Origin beats matching Referer; metadata=""
+      ---
+      duration_ms: 1.426493
+      type: 'test'
+      ...
+    # Subtest: POST foreign Origin beats matching Referer; metadata=undefined
+    ok 252 - POST foreign Origin beats matching Referer; metadata=undefined
+      ---
+      duration_ms: 0.875661
+      type: 'test'
+      ...
+    # Subtest: POST empty Origin blocks Referer fallback; metadata="same-origin"
+    ok 253 - POST empty Origin blocks Referer fallback; metadata="same-origin"
+      ---
+      duration_ms: 0.780082
+      type: 'test'
+      ...
+    # Subtest: POST empty Origin blocks Referer fallback; metadata="cross-site"
+    ok 254 - POST empty Origin blocks Referer fallback; metadata="cross-site"
+      ---
+      duration_ms: 4.903559
+      type: 'test'
+      ...
+    # Subtest: POST empty Origin blocks Referer fallback; metadata="same-site"
+    ok 255 - POST empty Origin blocks Referer fallback; metadata="same-site"
+      ---
+      duration_ms: 0.773362
+      type: 'test'
+      ...
+    # Subtest: POST empty Origin blocks Referer fallback; metadata="none"
+    ok 256 - POST empty Origin blocks Referer fallback; metadata="none"
+      ---
+      duration_ms: 0.768359
+      type: 'test'
+      ...
+    # Subtest: POST empty Origin blocks Referer fallback; metadata=""
+    ok 257 - POST empty Origin blocks Referer fallback; metadata=""
+      ---
+      duration_ms: 0.754757
+      type: 'test'
+      ...
+    # Subtest: POST empty Origin blocks Referer fallback; metadata=undefined
+    ok 258 - POST empty Origin blocks Referer fallback; metadata=undefined
+      ---
+      duration_ms: 5.099551
+      type: 'test'
+      ...
+    # Subtest: POST malformed Referer; metadata="same-origin"
+    ok 259 - POST malformed Referer; metadata="same-origin"
+      ---
+      duration_ms: 1.165094
+      type: 'test'
+      ...
+    # Subtest: POST malformed Referer; metadata="cross-site"
+    ok 260 - POST malformed Referer; metadata="cross-site"
+      ---
+      duration_ms: 1.167925
+      type: 'test'
+      ...
+    # Subtest: POST malformed Referer; metadata="same-site"
+    ok 261 - POST malformed Referer; metadata="same-site"
+      ---
+      duration_ms: 4.930911
+      type: 'test'
+      ...
+    # Subtest: POST malformed Referer; metadata="none"
+    ok 262 - POST malformed Referer; metadata="none"
+      ---
+      duration_ms: 0.817693
+      type: 'test'
+      ...
+    # Subtest: POST malformed Referer; metadata=""
+    ok 263 - POST malformed Referer; metadata=""
+      ---
+      duration_ms: 0.760537
+      type: 'test'
+      ...
+    # Subtest: POST malformed Referer; metadata=undefined
+    ok 264 - POST malformed Referer; metadata=undefined
+      ---
+      duration_ms: 0.79087
+      type: 'test'
+      ...
+    # Subtest: PUT serving Referer only; metadata="same-origin"
+    ok 265 - PUT serving Referer only; metadata="same-origin"
+      ---
+      duration_ms: 0.736113
+      type: 'test'
+      ...
+    # Subtest: PUT serving Referer only; metadata="cross-site"
+    ok 266 - PUT serving Referer only; metadata="cross-site"
+      ---
+      duration_ms: 5.116747
+      type: 'test'
+      ...
+    # Subtest: PUT serving Referer only; metadata="same-site"
+    ok 267 - PUT serving Referer only; metadata="same-site"
+      ---
+      duration_ms: 0.948709
+      type: 'test'
+      ...
+    # Subtest: PUT serving Referer only; metadata="none"
+    ok 268 - PUT serving Referer only; metadata="none"
+      ---
+      duration_ms: 0.922424
+      type: 'test'
+      ...
+    # Subtest: PUT serving Referer only; metadata=""
+    ok 269 - PUT serving Referer only; metadata=""
+      ---
+      duration_ms: 2.423542
+      type: 'test'
+      ...
+    # Subtest: PUT serving Referer only; metadata=undefined
+    ok 270 - PUT serving Referer only; metadata=undefined
+      ---
+      duration_ms: 3.392113
+      type: 'test'
+      ...
+    # Subtest: PUT serving Referer with normalized Host; metadata="same-origin"
+    ok 271 - PUT serving Referer with normalized Host; metadata="same-origin"
+      ---
+      duration_ms: 2.933401
+      type: 'test'
+      ...
+    # Subtest: PUT serving Referer with normalized Host; metadata="cross-site"
+    ok 272 - PUT serving Referer with normalized Host; metadata="cross-site"
+      ---
+      duration_ms: 3.869426
+      type: 'test'
+      ...
+    # Subtest: PUT serving Referer with normalized Host; metadata="same-site"
+    ok 273 - PUT serving Referer with normalized Host; metadata="same-site"
+      ---
+      duration_ms: 0.946515
+      type: 'test'
+      ...
+    # Subtest: PUT serving Referer with normalized Host; metadata="none"
+    ok 274 - PUT serving Referer with normalized Host; metadata="none"
+      ---
+      duration_ms: 1.045591
+      type: 'test'
+      ...
+    # Subtest: PUT serving Referer with normalized Host; metadata=""
+    ok 275 - PUT serving Referer with normalized Host; metadata=""
+      ---
+      duration_ms: 1.593335
+      type: 'test'
+      ...
+    # Subtest: PUT serving Referer with normalized Host; metadata=undefined
+    ok 276 - PUT serving Referer with normalized Host; metadata=undefined
+      ---
+      duration_ms: 3.912136
+      type: 'test'
+      ...
+    # Subtest: PUT canonical Referer only; metadata="same-origin"
+    ok 277 - PUT canonical Referer only; metadata="same-origin"
+      ---
+      duration_ms: 1.213472
+      type: 'test'
+      ...
+    # Subtest: PUT canonical Referer only; metadata="cross-site"
+    ok 278 - PUT canonical Referer only; metadata="cross-site"
+      ---
+      duration_ms: 0.922531
+      type: 'test'
+      ...
+    # Subtest: PUT canonical Referer only; metadata="same-site"
+    ok 279 - PUT canonical Referer only; metadata="same-site"
+      ---
+      duration_ms: 5.514503
+      type: 'test'
+      ...
+    # Subtest: PUT canonical Referer only; metadata="none"
+    ok 280 - PUT canonical Referer only; metadata="none"
+      ---
+      duration_ms: 0.974128
+      type: 'test'
+      ...
+    # Subtest: PUT canonical Referer only; metadata=""
+    ok 281 - PUT canonical Referer only; metadata=""
+      ---
+      duration_ms: 2.855705
+      type: 'test'
+      ...
+    # Subtest: PUT canonical Referer only; metadata=undefined
+    ok 282 - PUT canonical Referer only; metadata=undefined
+      ---
+      duration_ms: 0.9795
+      type: 'test'
+      ...
+    # Subtest: PUT foreign Referer only; metadata="same-origin"
+    ok 283 - PUT foreign Referer only; metadata="same-origin"
+      ---
+      duration_ms: 2.767905
+      type: 'test'
+      ...
+    # Subtest: PUT foreign Referer only; metadata="cross-site"
+    ok 284 - PUT foreign Referer only; metadata="cross-site"
+      ---
+      duration_ms: 1.7123
+      type: 'test'
+      ...
+    # Subtest: PUT foreign Referer only; metadata="same-site"
+    ok 285 - PUT foreign Referer only; metadata="same-site"
+      ---
+      duration_ms: 2.026197
+      type: 'test'
+      ...
+    # Subtest: PUT foreign Referer only; metadata="none"
+    ok 286 - PUT foreign Referer only; metadata="none"
+      ---
+      duration_ms: 3.890469
+      type: 'test'
+      ...
+    # Subtest: PUT foreign Referer only; metadata=""
+    ok 287 - PUT foreign Referer only; metadata=""
+      ---
+      duration_ms: 1.233953
+      type: 'test'
+      ...
+    # Subtest: PUT foreign Referer only; metadata=undefined
+    ok 288 - PUT foreign Referer only; metadata=undefined
+      ---
+      duration_ms: 1.030176
+      type: 'test'
+      ...
+    # Subtest: PUT neither Origin nor Referer; metadata="same-origin"
+    ok 289 - PUT neither Origin nor Referer; metadata="same-origin"
+      ---
+      duration_ms: 2.396535
+      type: 'test'
+      ...
+    # Subtest: PUT neither Origin nor Referer; metadata="cross-site"
+    ok 290 - PUT neither Origin nor Referer; metadata="cross-site"
+      ---
+      duration_ms: 3.060427
+      type: 'test'
+      ...
+    # Subtest: PUT neither Origin nor Referer; metadata="same-site"
+    ok 291 - PUT neither Origin nor Referer; metadata="same-site"
+      ---
+      duration_ms: 0.968895
+      type: 'test'
+      ...
+    # Subtest: PUT neither Origin nor Referer; metadata="none"
+    ok 292 - PUT neither Origin nor Referer; metadata="none"
+      ---
+      duration_ms: 2.651112
+      type: 'test'
+      ...
+    # Subtest: PUT neither Origin nor Referer; metadata=""
+    ok 293 - PUT neither Origin nor Referer; metadata=""
+      ---
+      duration_ms: 3.999839
+      type: 'test'
+      ...
+    # Subtest: PUT neither Origin nor Referer; metadata=undefined
+    ok 294 - PUT neither Origin nor Referer; metadata=undefined
+      ---
+      duration_ms: 0.87155
+      type: 'test'
+      ...
+    # Subtest: PUT matching Origin beats foreign Referer; metadata="same-origin"
+    ok 295 - PUT matching Origin beats foreign Referer; metadata="same-origin"
+      ---
+      duration_ms: 0.84177
+      type: 'test'
+      ...
+    # Subtest: PUT matching Origin beats foreign Referer; metadata="cross-site"
+    ok 296 - PUT matching Origin beats foreign Referer; metadata="cross-site"
+      ---
+      duration_ms: 0.74712
+      type: 'test'
+      ...
+    # Subtest: PUT matching Origin beats foreign Referer; metadata="same-site"
+    ok 297 - PUT matching Origin beats foreign Referer; metadata="same-site"
+      ---
+      duration_ms: 0.76507
+      type: 'test'
+      ...
+    # Subtest: PUT matching Origin beats foreign Referer; metadata="none"
+    ok 298 - PUT matching Origin beats foreign Referer; metadata="none"
+      ---
+      duration_ms: 5.282935
+      type: 'test'
+      ...
+    # Subtest: PUT matching Origin beats foreign Referer; metadata=""
+    ok 299 - PUT matching Origin beats foreign Referer; metadata=""
+      ---
+      duration_ms: 2.899771
+      type: 'test'
+      ...
+    # Subtest: PUT matching Origin beats foreign Referer; metadata=undefined
+    ok 300 - PUT matching Origin beats foreign Referer; metadata=undefined
+      ---
+      duration_ms: 3.709833
+      type: 'test'
+      ...
+    # Subtest: PUT foreign Origin beats matching Referer; metadata="same-origin"
+    ok 301 - PUT foreign Origin beats matching Referer; metadata="same-origin"
+      ---
+      duration_ms: 1.714635
+      type: 'test'
+      ...
+    # Subtest: PUT foreign Origin beats matching Referer; metadata="cross-site"
+    ok 302 - PUT foreign Origin beats matching Referer; metadata="cross-site"
+      ---
+      duration_ms: 2.664904
+      type: 'test'
+      ...
+    # Subtest: PUT foreign Origin beats matching Referer; metadata="same-site"
+    ok 303 - PUT foreign Origin beats matching Referer; metadata="same-site"
+      ---
+      duration_ms: 4.131562
+      type: 'test'
+      ...
+    # Subtest: PUT foreign Origin beats matching Referer; metadata="none"
+    ok 304 - PUT foreign Origin beats matching Referer; metadata="none"
+      ---
+      duration_ms: 4.017908
+      type: 'test'
+      ...
+    # Subtest: PUT foreign Origin beats matching Referer; metadata=""
+    ok 305 - PUT foreign Origin beats matching Referer; metadata=""
+      ---
+      duration_ms: 15.294097
+      type: 'test'
+      ...
+    # Subtest: PUT foreign Origin beats matching Referer; metadata=undefined
+    ok 306 - PUT foreign Origin beats matching Referer; metadata=undefined
+      ---
+      duration_ms: 1.292456
+      type: 'test'
+      ...
+    # Subtest: PUT empty Origin blocks Referer fallback; metadata="same-origin"
+    ok 307 - PUT empty Origin blocks Referer fallback; metadata="same-origin"
+      ---
+      duration_ms: 4.226702
+      type: 'test'
+      ...
+    # Subtest: PUT empty Origin blocks Referer fallback; metadata="cross-site"
+    ok 308 - PUT empty Origin blocks Referer fallback; metadata="cross-site"
+      ---
+      duration_ms: 5.559857
+      type: 'test'
+      ...
+    # Subtest: PUT empty Origin blocks Referer fallback; metadata="same-site"
+    ok 309 - PUT empty Origin blocks Referer fallback; metadata="same-site"
+      ---
+      duration_ms: 1.851792
+      type: 'test'
+      ...
+    # Subtest: PUT empty Origin blocks Referer fallback; metadata="none"
+    ok 310 - PUT empty Origin blocks Referer fallback; metadata="none"
+      ---
+      duration_ms: 0.842454
+      type: 'test'
+      ...
+    # Subtest: PUT empty Origin blocks Referer fallback; metadata=""
+    ok 311 - PUT empty Origin blocks Referer fallback; metadata=""
+      ---
+      duration_ms: 1.216336
+      type: 'test'
+      ...
+    # Subtest: PUT empty Origin blocks Referer fallback; metadata=undefined
+    ok 312 - PUT empty Origin blocks Referer fallback; metadata=undefined
+      ---
+      duration_ms: 3.576989
+      type: 'test'
+      ...
+    # Subtest: PUT malformed Referer; metadata="same-origin"
+    ok 313 - PUT malformed Referer; metadata="same-origin"
+      ---
+      duration_ms: 3.869129
+      type: 'test'
+      ...
+    # Subtest: PUT malformed Referer; metadata="cross-site"
+    ok 314 - PUT malformed Referer; metadata="cross-site"
+      ---
+      duration_ms: 1.322981
+      type: 'test'
+      ...
+    # Subtest: PUT malformed Referer; metadata="same-site"
+    ok 315 - PUT malformed Referer; metadata="same-site"
+      ---
+      duration_ms: 0.918037
+      type: 'test'
+      ...
+    # Subtest: PUT malformed Referer; metadata="none"
+    ok 316 - PUT malformed Referer; metadata="none"
+      ---
+      duration_ms: 5.415354
+      type: 'test'
+      ...
+    # Subtest: PUT malformed Referer; metadata=""
+    ok 317 - PUT malformed Referer; metadata=""
+      ---
+      duration_ms: 0.85924
+      type: 'test'
+      ...
+    # Subtest: PUT malformed Referer; metadata=undefined
+    ok 318 - PUT malformed Referer; metadata=undefined
+      ---
+      duration_ms: 0.754459
+      type: 'test'
+      ...
+    # Subtest: PATCH serving Referer only; metadata="same-origin"
+    ok 319 - PATCH serving Referer only; metadata="same-origin"
+      ---
+      duration_ms: 0.710762
+      type: 'test'
+      ...
+    # Subtest: PATCH serving Referer only; metadata="cross-site"
+    ok 320 - PATCH serving Referer only; metadata="cross-site"
+      ---
+      duration_ms: 0.713918
+      type: 'test'
+      ...
+    # Subtest: PATCH serving Referer only; metadata="same-site"
+    ok 321 - PATCH serving Referer only; metadata="same-site"
+      ---
+      duration_ms: 4.958635
+      type: 'test'
+      ...
+    # Subtest: PATCH serving Referer only; metadata="none"
+    ok 322 - PATCH serving Referer only; metadata="none"
+      ---
+      duration_ms: 0.64594
+      type: 'test'
+      ...
+    # Subtest: PATCH serving Referer only; metadata=""
+    ok 323 - PATCH serving Referer only; metadata=""
+      ---
+      duration_ms: 0.695661
+      type: 'test'
+      ...
+    # Subtest: PATCH serving Referer only; metadata=undefined
+    ok 324 - PATCH serving Referer only; metadata=undefined
+      ---
+      duration_ms: 0.708967
+      type: 'test'
+      ...
+    # Subtest: PATCH serving Referer with normalized Host; metadata="same-origin"
+    ok 325 - PATCH serving Referer with normalized Host; metadata="same-origin"
+      ---
+      duration_ms: 0.73591
+      type: 'test'
+      ...
+    # Subtest: PATCH serving Referer with normalized Host; metadata="cross-site"
+    ok 326 - PATCH serving Referer with normalized Host; metadata="cross-site"
+      ---
+      duration_ms: 6.248605
+      type: 'test'
+      ...
+    # Subtest: PATCH serving Referer with normalized Host; metadata="same-site"
+    ok 327 - PATCH serving Referer with normalized Host; metadata="same-site"
+      ---
+      duration_ms: 0.968528
+      type: 'test'
+      ...
+    # Subtest: PATCH serving Referer with normalized Host; metadata="none"
+    ok 328 - PATCH serving Referer with normalized Host; metadata="none"
+      ---
+      duration_ms: 4.809761
+      type: 'test'
+      ...
+    # Subtest: PATCH serving Referer with normalized Host; metadata=""
+    ok 329 - PATCH serving Referer with normalized Host; metadata=""
+      ---
+      duration_ms: 0.809052
+      type: 'test'
+      ...
+    # Subtest: PATCH serving Referer with normalized Host; metadata=undefined
+    ok 330 - PATCH serving Referer with normalized Host; metadata=undefined
+      ---
+      duration_ms: 0.806695
+      type: 'test'
+      ...
+    # Subtest: PATCH canonical Referer only; metadata="same-origin"
+    ok 331 - PATCH canonical Referer only; metadata="same-origin"
+      ---
+      duration_ms: 0.734139
+      type: 'test'
+      ...
+    # Subtest: PATCH canonical Referer only; metadata="cross-site"
+    ok 332 - PATCH canonical Referer only; metadata="cross-site"
+      ---
+      duration_ms: 0.793715
+      type: 'test'
+      ...
+    # Subtest: PATCH canonical Referer only; metadata="same-site"
+    ok 333 - PATCH canonical Referer only; metadata="same-site"
+      ---
+      duration_ms: 5.149778
+      type: 'test'
+      ...
+    # Subtest: PATCH canonical Referer only; metadata="none"
+    ok 334 - PATCH canonical Referer only; metadata="none"
+      ---
+      duration_ms: 1.07065
+      type: 'test'
+      ...
+    # Subtest: PATCH canonical Referer only; metadata=""
+    ok 335 - PATCH canonical Referer only; metadata=""
+      ---
+      duration_ms: 1.783529
+      type: 'test'
+      ...
+    # Subtest: PATCH canonical Referer only; metadata=undefined
+    ok 336 - PATCH canonical Referer only; metadata=undefined
+      ---
+      duration_ms: 3.893059
+      type: 'test'
+      ...
+    # Subtest: PATCH foreign Referer only; metadata="same-origin"
+    ok 337 - PATCH foreign Referer only; metadata="same-origin"
+      ---
+      duration_ms: 1.061041
+      type: 'test'
+      ...
+    # Subtest: PATCH foreign Referer only; metadata="cross-site"
+    ok 338 - PATCH foreign Referer only; metadata="cross-site"
+      ---
+      duration_ms: 1.045694
+      type: 'test'
+      ...
+    # Subtest: PATCH foreign Referer only; metadata="same-site"
+    ok 339 - PATCH foreign Referer only; metadata="same-site"
+      ---
+      duration_ms: 5.119723
+      type: 'test'
+      ...
+    # Subtest: PATCH foreign Referer only; metadata="none"
+    ok 340 - PATCH foreign Referer only; metadata="none"
+      ---
+      duration_ms: 0.77558
+      type: 'test'
+      ...
+    # Subtest: PATCH foreign Referer only; metadata=""
+    ok 341 - PATCH foreign Referer only; metadata=""
+      ---
+      duration_ms: 1.649398
+      type: 'test'
+      ...
+    # Subtest: PATCH foreign Referer only; metadata=undefined
+    ok 342 - PATCH foreign Referer only; metadata=undefined
+      ---
+      duration_ms: 1.063888
+      type: 'test'
+      ...
+    # Subtest: PATCH neither Origin nor Referer; metadata="same-origin"
+    ok 343 - PATCH neither Origin nor Referer; metadata="same-origin"
+      ---
+      duration_ms: 4.069098
+      type: 'test'
+      ...
+    # Subtest: PATCH neither Origin nor Referer; metadata="cross-site"
+    ok 344 - PATCH neither Origin nor Referer; metadata="cross-site"
+      ---
+      duration_ms: 1.15602
+      type: 'test'
+      ...
+    # Subtest: PATCH neither Origin nor Referer; metadata="same-site"
+    ok 345 - PATCH neither Origin nor Referer; metadata="same-site"
+      ---
+      duration_ms: 5.662561
+      type: 'test'
+      ...
+    # Subtest: PATCH neither Origin nor Referer; metadata="none"
+    ok 346 - PATCH neither Origin nor Referer; metadata="none"
+      ---
+      duration_ms: 5.413132
+      type: 'test'
+      ...
+    # Subtest: PATCH neither Origin nor Referer; metadata=""
+    ok 347 - PATCH neither Origin nor Referer; metadata=""
+      ---
+      duration_ms: 0.806179
+      type: 'test'
+      ...
+    # Subtest: PATCH neither Origin nor Referer; metadata=undefined
+    ok 348 - PATCH neither Origin nor Referer; metadata=undefined
+      ---
+      duration_ms: 0.76989
+      type: 'test'
+      ...
+    # Subtest: PATCH matching Origin beats foreign Referer; metadata="same-origin"
+    ok 349 - PATCH matching Origin beats foreign Referer; metadata="same-origin"
+      ---
+      duration_ms: 0.809306
+      type: 'test'
+      ...
+    # Subtest: PATCH matching Origin beats foreign Referer; metadata="cross-site"
+    ok 350 - PATCH matching Origin beats foreign Referer; metadata="cross-site"
+      ---
+      duration_ms: 5.130991
+      type: 'test'
+      ...
+    # Subtest: PATCH matching Origin beats foreign Referer; metadata="same-site"
+    ok 351 - PATCH matching Origin beats foreign Referer; metadata="same-site"
+      ---
+      duration_ms: 0.732429
+      type: 'test'
+      ...
+    # Subtest: PATCH matching Origin beats foreign Referer; metadata="none"
+    ok 352 - PATCH matching Origin beats foreign Referer; metadata="none"
+      ---
+      duration_ms: 1.872037
+      type: 'test'
+      ...
+    # Subtest: PATCH matching Origin beats foreign Referer; metadata=""
+    ok 353 - PATCH matching Origin beats foreign Referer; metadata=""
+      ---
+      duration_ms: 1.101822
+      type: 'test'
+      ...
+    # Subtest: PATCH matching Origin beats foreign Referer; metadata=undefined
+    ok 354 - PATCH matching Origin beats foreign Referer; metadata=undefined
+      ---
+      duration_ms: 3.276564
+      type: 'test'
+      ...
+    # Subtest: PATCH foreign Origin beats matching Referer; metadata="same-origin"
+    ok 355 - PATCH foreign Origin beats matching Referer; metadata="same-origin"
+      ---
+      duration_ms: 1.201058
+      type: 'test'
+      ...
+    # Subtest: PATCH foreign Origin beats matching Referer; metadata="cross-site"
+    ok 356 - PATCH foreign Origin beats matching Referer; metadata="cross-site"
+      ---
+      duration_ms: 2.554674
+      type: 'test'
+      ...
+    # Subtest: PATCH foreign Origin beats matching Referer; metadata="same-site"
+    ok 357 - PATCH foreign Origin beats matching Referer; metadata="same-site"
+      ---
+      duration_ms: 1.640227
+      type: 'test'
+      ...
+    # Subtest: PATCH foreign Origin beats matching Referer; metadata="none"
+    ok 358 - PATCH foreign Origin beats matching Referer; metadata="none"
+      ---
+      duration_ms: 2.284741
+      type: 'test'
+      ...
+    # Subtest: PATCH foreign Origin beats matching Referer; metadata=""
+    ok 359 - PATCH foreign Origin beats matching Referer; metadata=""
+      ---
+      duration_ms: 4.926157
+      type: 'test'
+      ...
+    # Subtest: PATCH foreign Origin beats matching Referer; metadata=undefined
+    ok 360 - PATCH foreign Origin beats matching Referer; metadata=undefined
+      ---
+      duration_ms: 0.782089
+      type: 'test'
+      ...
+    # Subtest: PATCH empty Origin blocks Referer fallback; metadata="same-origin"
+    ok 361 - PATCH empty Origin blocks Referer fallback; metadata="same-origin"
+      ---
+      duration_ms: 0.715279
+      type: 'test'
+      ...
+    # Subtest: PATCH empty Origin blocks Referer fallback; metadata="cross-site"
+    ok 362 - PATCH empty Origin blocks Referer fallback; metadata="cross-site"
+      ---
+      duration_ms: 4.036938
+      type: 'test'
+      ...
+    # Subtest: PATCH empty Origin blocks Referer fallback; metadata="same-site"
+    ok 363 - PATCH empty Origin blocks Referer fallback; metadata="same-site"
+      ---
+      duration_ms: 89.374003
+      type: 'test'
+      ...
+    # Subtest: PATCH empty Origin blocks Referer fallback; metadata="none"
+    ok 364 - PATCH empty Origin blocks Referer fallback; metadata="none"
+      ---
+      duration_ms: 1.839089
+      type: 'test'
+      ...
+    # Subtest: PATCH empty Origin blocks Referer fallback; metadata=""
+    ok 365 - PATCH empty Origin blocks Referer fallback; metadata=""
+      ---
+      duration_ms: 17.245908
+      type: 'test'
+      ...
+    # Subtest: PATCH empty Origin blocks Referer fallback; metadata=undefined
+    ok 366 - PATCH empty Origin blocks Referer fallback; metadata=undefined
+      ---
+      duration_ms: 1.000537
+      type: 'test'
+      ...
+    # Subtest: PATCH malformed Referer; metadata="same-origin"
+    ok 367 - PATCH malformed Referer; metadata="same-origin"
+      ---
+      duration_ms: 0.911539
+      type: 'test'
+      ...
+    # Subtest: PATCH malformed Referer; metadata="cross-site"
+    ok 368 - PATCH malformed Referer; metadata="cross-site"
+      ---
+      duration_ms: 4.885056
+      type: 'test'
+      ...
+    # Subtest: PATCH malformed Referer; metadata="same-site"
+    ok 369 - PATCH malformed Referer; metadata="same-site"
+      ---
+      duration_ms: 1.153696
+      type: 'test'
+      ...
+    # Subtest: PATCH malformed Referer; metadata="none"
+    ok 370 - PATCH malformed Referer; metadata="none"
+      ---
+      duration_ms: 1.023058
+      type: 'test'
+      ...
+    # Subtest: PATCH malformed Referer; metadata=""
+    ok 371 - PATCH malformed Referer; metadata=""
+      ---
+      duration_ms: 0.901062
+      type: 'test'
+      ...
+    # Subtest: PATCH malformed Referer; metadata=undefined
+    ok 372 - PATCH malformed Referer; metadata=undefined
+      ---
+      duration_ms: 4.184387
+      type: 'test'
+      ...
+    # Subtest: DELETE serving Referer only; metadata="same-origin"
+    ok 373 - DELETE serving Referer only; metadata="same-origin"
+      ---
+      duration_ms: 0.782161
+      type: 'test'
+      ...
+    # Subtest: DELETE serving Referer only; metadata="cross-site"
+    ok 374 - DELETE serving Referer only; metadata="cross-site"
+      ---
+      duration_ms: 0.707575
+      type: 'test'
+      ...
+    # Subtest: DELETE serving Referer only; metadata="same-site"
+    ok 375 - DELETE serving Referer only; metadata="same-site"
+      ---
+      duration_ms: 1.273386
+      type: 'test'
+      ...
+    # Subtest: DELETE serving Referer only; metadata="none"
+    ok 376 - DELETE serving Referer only; metadata="none"
+      ---
+      duration_ms: 4.911464
+      type: 'test'
+      ...
+    # Subtest: DELETE serving Referer only; metadata=""
+    ok 377 - DELETE serving Referer only; metadata=""
+      ---
+      duration_ms: 0.756792
+      type: 'test'
+      ...
+    # Subtest: DELETE serving Referer only; metadata=undefined
+    ok 378 - DELETE serving Referer only; metadata=undefined
+      ---
+      duration_ms: 0.703736
+      type: 'test'
+      ...
+    # Subtest: DELETE serving Referer with normalized Host; metadata="same-origin"
+    ok 379 - DELETE serving Referer with normalized Host; metadata="same-origin"
+      ---
+      duration_ms: 0.759214
+      type: 'test'
+      ...
+    # Subtest: DELETE serving Referer with normalized Host; metadata="cross-site"
+    ok 380 - DELETE serving Referer with normalized Host; metadata="cross-site"
+      ---
+      duration_ms: 0.71633
+      type: 'test'
+      ...
+    # Subtest: DELETE serving Referer with normalized Host; metadata="same-site"
+    ok 381 - DELETE serving Referer with normalized Host; metadata="same-site"
+      ---
+      duration_ms: 4.993999
+      type: 'test'
+      ...
+    # Subtest: DELETE serving Referer with normalized Host; metadata="none"
+    ok 382 - DELETE serving Referer with normalized Host; metadata="none"
+      ---
+      duration_ms: 0.903796
+      type: 'test'
+      ...
+    # Subtest: DELETE serving Referer with normalized Host; metadata=""
+    ok 383 - DELETE serving Referer with normalized Host; metadata=""
+      ---
+      duration_ms: 0.979067
+      type: 'test'
+      ...
+    # Subtest: DELETE serving Referer with normalized Host; metadata=undefined
+    ok 384 - DELETE serving Referer with normalized Host; metadata=undefined
+      ---
+      duration_ms: 4.90665
+      type: 'test'
+      ...
+    # Subtest: DELETE canonical Referer only; metadata="same-origin"
+    ok 385 - DELETE canonical Referer only; metadata="same-origin"
+      ---
+      duration_ms: 1.357061
+      type: 'test'
+      ...
+    # Subtest: DELETE canonical Referer only; metadata="cross-site"
+    ok 386 - DELETE canonical Referer only; metadata="cross-site"
+      ---
+      duration_ms: 2.34043
+      type: 'test'
+      ...
+    # Subtest: DELETE canonical Referer only; metadata="same-site"
+    ok 387 - DELETE canonical Referer only; metadata="same-site"
+      ---
+      duration_ms: 1.578716
+      type: 'test'
+      ...
+    # Subtest: DELETE canonical Referer only; metadata="none"
+    ok 388 - DELETE canonical Referer only; metadata="none"
+      ---
+      duration_ms: 11.036814
+      type: 'test'
+      ...
+    # Subtest: DELETE canonical Referer only; metadata=""
+    ok 389 - DELETE canonical Referer only; metadata=""
+      ---
+      duration_ms: 0.742064
+      type: 'test'
+      ...
+    # Subtest: DELETE canonical Referer only; metadata=undefined
+    ok 390 - DELETE canonical Referer only; metadata=undefined
+      ---
+      duration_ms: 0.700375
+      type: 'test'
+      ...
+    # Subtest: DELETE foreign Referer only; metadata="same-origin"
+    ok 391 - DELETE foreign Referer only; metadata="same-origin"
+      ---
+      duration_ms: 0.720411
+      type: 'test'
+      ...
+    # Subtest: DELETE foreign Referer only; metadata="cross-site"
+    ok 392 - DELETE foreign Referer only; metadata="cross-site"
+      ---
+      duration_ms: 3.974877
+      type: 'test'
+      ...
+    # Subtest: DELETE foreign Referer only; metadata="same-site"
+    ok 393 - DELETE foreign Referer only; metadata="same-site"
+      ---
+      duration_ms: 4.892492
+      type: 'test'
+      ...
+    # Subtest: DELETE foreign Referer only; metadata="none"
+    ok 394 - DELETE foreign Referer only; metadata="none"
+      ---
+      duration_ms: 0.712548
+      type: 'test'
+      ...
+    # Subtest: DELETE foreign Referer only; metadata=""
+    ok 395 - DELETE foreign Referer only; metadata=""
+      ---
+      duration_ms: 1.236018
+      type: 'test'
+      ...
+    # Subtest: DELETE foreign Referer only; metadata=undefined
+    ok 396 - DELETE foreign Referer only; metadata=undefined
+      ---
+      duration_ms: 4.573755
+      type: 'test'
+      ...
+    # Subtest: DELETE neither Origin nor Referer; metadata="same-origin"
+    ok 397 - DELETE neither Origin nor Referer; metadata="same-origin"
+      ---
+      duration_ms: 0.920936
+      type: 'test'
+      ...
+    # Subtest: DELETE neither Origin nor Referer; metadata="cross-site"
+    ok 398 - DELETE neither Origin nor Referer; metadata="cross-site"
+      ---
+      duration_ms: 1.036661
+      type: 'test'
+      ...
+    # Subtest: DELETE neither Origin nor Referer; metadata="same-site"
+    ok 399 - DELETE neither Origin nor Referer; metadata="same-site"
+      ---
+      duration_ms: 4.702921
+      type: 'test'
+      ...
+    # Subtest: DELETE neither Origin nor Referer; metadata="none"
+    ok 400 - DELETE neither Origin nor Referer; metadata="none"
+      ---
+      duration_ms: 0.963096
+      type: 'test'
+      ...
+    # Subtest: DELETE neither Origin nor Referer; metadata=""
+    ok 401 - DELETE neither Origin nor Referer; metadata=""
+      ---
+      duration_ms: 3.427495
+      type: 'test'
+      ...
+    # Subtest: DELETE neither Origin nor Referer; metadata=undefined
+    ok 402 - DELETE neither Origin nor Referer; metadata=undefined
+      ---
+      duration_ms: 0.953723
+      type: 'test'
+      ...
+    # Subtest: DELETE matching Origin beats foreign Referer; metadata="same-origin"
+    ok 403 - DELETE matching Origin beats foreign Referer; metadata="same-origin"
+      ---
+      duration_ms: 19.083602
+      type: 'test'
+      ...
+    # Subtest: DELETE matching Origin beats foreign Referer; metadata="cross-site"
+    ok 404 - DELETE matching Origin beats foreign Referer; metadata="cross-site"
+      ---
+      duration_ms: 0.975949
+      type: 'test'
+      ...
+    # Subtest: DELETE matching Origin beats foreign Referer; metadata="same-site"
+    ok 405 - DELETE matching Origin beats foreign Referer; metadata="same-site"
+      ---
+      duration_ms: 0.695633
+      type: 'test'
+      ...
+    # Subtest: DELETE matching Origin beats foreign Referer; metadata="none"
+    ok 406 - DELETE matching Origin beats foreign Referer; metadata="none"
+      ---
+      duration_ms: 0.832872
+      type: 'test'
+      ...
+    # Subtest: DELETE matching Origin beats foreign Referer; metadata=""
+    ok 407 - DELETE matching Origin beats foreign Referer; metadata=""
+      ---
+      duration_ms: 26.32191
+      type: 'test'
+      ...
+    # Subtest: DELETE matching Origin beats foreign Referer; metadata=undefined
+    ok 408 - DELETE matching Origin beats foreign Referer; metadata=undefined
+      ---
+      duration_ms: 0.893118
+      type: 'test'
+      ...
+    # Subtest: DELETE foreign Origin beats matching Referer; metadata="same-origin"
+    ok 409 - DELETE foreign Origin beats matching Referer; metadata="same-origin"
+      ---
+      duration_ms: 0.816134
+      type: 'test'
+      ...
+    # Subtest: DELETE foreign Origin beats matching Referer; metadata="cross-site"
+    ok 410 - DELETE foreign Origin beats matching Referer; metadata="cross-site"
+      ---
+      duration_ms: 17.499228
+      type: 'test'
+      ...
+    # Subtest: DELETE foreign Origin beats matching Referer; metadata="same-site"
+    ok 411 - DELETE foreign Origin beats matching Referer; metadata="same-site"
+      ---
+      duration_ms: 0.6974
+      type: 'test'
+      ...
+    # Subtest: DELETE foreign Origin beats matching Referer; metadata="none"
+    ok 412 - DELETE foreign Origin beats matching Referer; metadata="none"
+      ---
+      duration_ms: 0.672211
+      type: 'test'
+      ...
+    # Subtest: DELETE foreign Origin beats matching Referer; metadata=""
+    ok 413 - DELETE foreign Origin beats matching Referer; metadata=""
+      ---
+      duration_ms: 0.669899
+      type: 'test'
+      ...
+    # Subtest: DELETE foreign Origin beats matching Referer; metadata=undefined
+    ok 414 - DELETE foreign Origin beats matching Referer; metadata=undefined
+      ---
+      duration_ms: 1.264382
+      type: 'test'
+      ...
+    # Subtest: DELETE empty Origin blocks Referer fallback; metadata="same-origin"
+    ok 415 - DELETE empty Origin blocks Referer fallback; metadata="same-origin"
+      ---
+      duration_ms: 0.736306
+      type: 'test'
+      ...
+    # Subtest: DELETE empty Origin blocks Referer fallback; metadata="cross-site"
+    ok 416 - DELETE empty Origin blocks Referer fallback; metadata="cross-site"
+      ---
+      duration_ms: 0.717859
+      type: 'test'
+      ...
+    # Subtest: DELETE empty Origin blocks Referer fallback; metadata="same-site"
+    ok 417 - DELETE empty Origin blocks Referer fallback; metadata="same-site"
+      ---
+      duration_ms: 2.27811
+      type: 'test'
+      ...
+    # Subtest: DELETE empty Origin blocks Referer fallback; metadata="none"
+    ok 418 - DELETE empty Origin blocks Referer fallback; metadata="none"
+      ---
+      duration_ms: 6.206834
+      type: 'test'
+      ...
+    # Subtest: DELETE empty Origin blocks Referer fallback; metadata=""
+    ok 419 - DELETE empty Origin blocks Referer fallback; metadata=""
+      ---
+      duration_ms: 7.985239
+      type: 'test'
+      ...
+    # Subtest: DELETE empty Origin blocks Referer fallback; metadata=undefined
+    ok 420 - DELETE empty Origin blocks Referer fallback; metadata=undefined
+      ---
+      duration_ms: 0.712537
+      type: 'test'
+      ...
+    # Subtest: DELETE malformed Referer; metadata="same-origin"
+    ok 421 - DELETE malformed Referer; metadata="same-origin"
+      ---
+      duration_ms: 0.690466
+      type: 'test'
+      ...
+    # Subtest: DELETE malformed Referer; metadata="cross-site"
+    ok 422 - DELETE malformed Referer; metadata="cross-site"
+      ---
+      duration_ms: 6.48058
+      type: 'test'
+      ...
+    # Subtest: DELETE malformed Referer; metadata="same-site"
+    ok 423 - DELETE malformed Referer; metadata="same-site"
+      ---
+      duration_ms: 0.725434
+      type: 'test'
+      ...
+    # Subtest: DELETE malformed Referer; metadata="none"
+    ok 424 - DELETE malformed Referer; metadata="none"
+      ---
+      duration_ms: 0.658667
+      type: 'test'
+      ...
+    # Subtest: DELETE malformed Referer; metadata=""
+    ok 425 - DELETE malformed Referer; metadata=""
+      ---
+      duration_ms: 0.682361
+      type: 'test'
+      ...
+    # Subtest: DELETE malformed Referer; metadata=undefined
+    ok 426 - DELETE malformed Referer; metadata=undefined
+      ---
+      duration_ms: 0.688299
+      type: 'test'
+      ...
+    # Subtest: OPTIONS serving Referer only; metadata="same-origin"
+    ok 427 - OPTIONS serving Referer only; metadata="same-origin"
+      ---
+      duration_ms: 13.416366
+      type: 'test'
+      ...
+    # Subtest: OPTIONS serving Referer only; metadata="cross-site"
+    ok 428 - OPTIONS serving Referer only; metadata="cross-site"
+      ---
+      duration_ms: 10.838254
+      type: 'test'
+      ...
+    # Subtest: OPTIONS serving Referer only; metadata="same-site"
+    ok 429 - OPTIONS serving Referer only; metadata="same-site"
+      ---
+      duration_ms: 0.95253
+      type: 'test'
+      ...
+    # Subtest: OPTIONS serving Referer only; metadata="none"
+    ok 430 - OPTIONS serving Referer only; metadata="none"
+      ---
+      duration_ms: 0.732377
+      type: 'test'
+      ...
+    # Subtest: OPTIONS serving Referer only; metadata=""
+    ok 431 - OPTIONS serving Referer only; metadata=""
+      ---
+      duration_ms: 0.776845
+      type: 'test'
+      ...
+    # Subtest: OPTIONS serving Referer only; metadata=undefined
+    ok 432 - OPTIONS serving Referer only; metadata=undefined
+      ---
+      duration_ms: 5.188439
+      type: 'test'
+      ...
+    # Subtest: OPTIONS serving Referer with normalized Host; metadata="same-origin"
+    ok 433 - OPTIONS serving Referer with normalized Host; metadata="same-origin"
+      ---
+      duration_ms: 0.969814
+      type: 'test'
+      ...
+    # Subtest: OPTIONS serving Referer with normalized Host; metadata="cross-site"
+    ok 434 - OPTIONS serving Referer with normalized Host; metadata="cross-site"
+      ---
+      duration_ms: 1.076736
+      type: 'test'
+      ...
+    # Subtest: OPTIONS serving Referer with normalized Host; metadata="same-site"
+    ok 435 - OPTIONS serving Referer with normalized Host; metadata="same-site"
+      ---
+      duration_ms: 1.585478
+      type: 'test'
+      ...
+    # Subtest: OPTIONS serving Referer with normalized Host; metadata="none"
+    ok 436 - OPTIONS serving Referer with normalized Host; metadata="none"
+      ---
+      duration_ms: 3.895521
+      type: 'test'
+      ...
+    # Subtest: OPTIONS serving Referer with normalized Host; metadata=""
+    ok 437 - OPTIONS serving Referer with normalized Host; metadata=""
+      ---
+      duration_ms: 0.891334
+      type: 'test'
+      ...
+    # Subtest: OPTIONS serving Referer with normalized Host; metadata=undefined
+    ok 438 - OPTIONS serving Referer with normalized Host; metadata=undefined
+      ---
+      duration_ms: 0.726756
+      type: 'test'
+      ...
+    # Subtest: OPTIONS canonical Referer only; metadata="same-origin"
+    ok 439 - OPTIONS canonical Referer only; metadata="same-origin"
+      ---
+      duration_ms: 0.797515
+      type: 'test'
+      ...
+    # Subtest: OPTIONS canonical Referer only; metadata="cross-site"
+    ok 440 - OPTIONS canonical Referer only; metadata="cross-site"
+      ---
+      duration_ms: 0.75356
+      type: 'test'
+      ...
+    # Subtest: OPTIONS canonical Referer only; metadata="same-site"
+    ok 441 - OPTIONS canonical Referer only; metadata="same-site"
+      ---
+      duration_ms: 7.224198
+      type: 'test'
+      ...
+    # Subtest: OPTIONS canonical Referer only; metadata="none"
+    ok 442 - OPTIONS canonical Referer only; metadata="none"
+      ---
+      duration_ms: 0.948547
+      type: 'test'
+      ...
+    # Subtest: OPTIONS canonical Referer only; metadata=""
+    ok 443 - OPTIONS canonical Referer only; metadata=""
+      ---
+      duration_ms: 3.834089
+      type: 'test'
+      ...
+    # Subtest: OPTIONS canonical Referer only; metadata=undefined
+    ok 444 - OPTIONS canonical Referer only; metadata=undefined
+      ---
+      duration_ms: 0.747385
+      type: 'test'
+      ...
+    # Subtest: OPTIONS foreign Referer only; metadata="same-origin"
+    ok 445 - OPTIONS foreign Referer only; metadata="same-origin"
+      ---
+      duration_ms: 1.337485
+      type: 'test'
+      ...
+    # Subtest: OPTIONS foreign Referer only; metadata="cross-site"
+    ok 446 - OPTIONS foreign Referer only; metadata="cross-site"
+      ---
+      duration_ms: 5.557941
+      type: 'test'
+      ...
+    # Subtest: OPTIONS foreign Referer only; metadata="same-site"
+    ok 447 - OPTIONS foreign Referer only; metadata="same-site"
+      ---
+      duration_ms: 0.742863
+      type: 'test'
+      ...
+    # Subtest: OPTIONS foreign Referer only; metadata="none"
+    ok 448 - OPTIONS foreign Referer only; metadata="none"
+      ---
+      duration_ms: 0.691991
+      type: 'test'
+      ...
+    # Subtest: OPTIONS foreign Referer only; metadata=""
+    ok 449 - OPTIONS foreign Referer only; metadata=""
+      ---
+      duration_ms: 0.680569
+      type: 'test'
+      ...
+    # Subtest: OPTIONS foreign Referer only; metadata=undefined
+    ok 450 - OPTIONS foreign Referer only; metadata=undefined
+      ---
+      duration_ms: 0.648404
+      type: 'test'
+      ...
+    # Subtest: OPTIONS neither Origin nor Referer; metadata="same-origin"
+    ok 451 - OPTIONS neither Origin nor Referer; metadata="same-origin"
+      ---
+      duration_ms: 5.299042
+      type: 'test'
+      ...
+    # Subtest: OPTIONS neither Origin nor Referer; metadata="cross-site"
+    ok 452 - OPTIONS neither Origin nor Referer; metadata="cross-site"
+      ---
+      duration_ms: 1.565378
+      type: 'test'
+      ...
+    # Subtest: OPTIONS neither Origin nor Referer; metadata="same-site"
+    ok 453 - OPTIONS neither Origin nor Referer; metadata="same-site"
+      ---
+      duration_ms: 1.599935
+      type: 'test'
+      ...
+    # Subtest: OPTIONS neither Origin nor Referer; metadata="none"
+    ok 454 - OPTIONS neither Origin nor Referer; metadata="none"
+      ---
+      duration_ms: 11.865397
+      type: 'test'
+      ...
+    # Subtest: OPTIONS neither Origin nor Referer; metadata=""
+    ok 455 - OPTIONS neither Origin nor Referer; metadata=""
+      ---
+      duration_ms: 0.981256
+      type: 'test'
+      ...
+    # Subtest: OPTIONS neither Origin nor Referer; metadata=undefined
+    ok 456 - OPTIONS neither Origin nor Referer; metadata=undefined
+      ---
+      duration_ms: 0.860087
+      type: 'test'
+      ...
+    # Subtest: OPTIONS matching Origin beats foreign Referer; metadata="same-origin"
+    ok 457 - OPTIONS matching Origin beats foreign Referer; metadata="same-origin"
+      ---
+      duration_ms: 0.847555
+      type: 'test'
+      ...
+    # Subtest: OPTIONS matching Origin beats foreign Referer; metadata="cross-site"
+    ok 458 - OPTIONS matching Origin beats foreign Referer; metadata="cross-site"
+      ---
+      duration_ms: 13.02828
+      type: 'test'
+      ...
+    # Subtest: OPTIONS matching Origin beats foreign Referer; metadata="same-site"
+    ok 459 - OPTIONS matching Origin beats foreign Referer; metadata="same-site"
+      ---
+      duration_ms: 0.785708
+      type: 'test'
+      ...
+    # Subtest: OPTIONS matching Origin beats foreign Referer; metadata="none"
+    ok 460 - OPTIONS matching Origin beats foreign Referer; metadata="none"
+      ---
+      duration_ms: 0.644713
+      type: 'test'
+      ...
+    # Subtest: OPTIONS matching Origin beats foreign Referer; metadata=""
+    ok 461 - OPTIONS matching Origin beats foreign Referer; metadata=""
+      ---
+      duration_ms: 0.659777
+      type: 'test'
+      ...
+    # Subtest: OPTIONS matching Origin beats foreign Referer; metadata=undefined
+    ok 462 - OPTIONS matching Origin beats foreign Referer; metadata=undefined
+      ---
+      duration_ms: 0.705441
+      type: 'test'
+      ...
+    # Subtest: OPTIONS foreign Origin beats matching Referer; metadata="same-origin"
+    ok 463 - OPTIONS foreign Origin beats matching Referer; metadata="same-origin"
+      ---
+      duration_ms: 13.081163
+      type: 'test'
+      ...
+    # Subtest: OPTIONS foreign Origin beats matching Referer; metadata="cross-site"
+    ok 464 - OPTIONS foreign Origin beats matching Referer; metadata="cross-site"
+      ---
+      duration_ms: 0.90896
+      type: 'test'
+      ...
+    # Subtest: OPTIONS foreign Origin beats matching Referer; metadata="same-site"
+    ok 465 - OPTIONS foreign Origin beats matching Referer; metadata="same-site"
+      ---
+      duration_ms: 0.767731
+      type: 'test'
+      ...
+    # Subtest: OPTIONS foreign Origin beats matching Referer; metadata="none"
+    ok 466 - OPTIONS foreign Origin beats matching Referer; metadata="none"
+      ---
+      duration_ms: 0.760224
+      type: 'test'
+      ...
+    # Subtest: OPTIONS foreign Origin beats matching Referer; metadata=""
+    ok 467 - OPTIONS foreign Origin beats matching Referer; metadata=""
+      ---
+      duration_ms: 12.989555
+      type: 'test'
+      ...
+    # Subtest: OPTIONS foreign Origin beats matching Referer; metadata=undefined
+    ok 468 - OPTIONS foreign Origin beats matching Referer; metadata=undefined
+      ---
+      duration_ms: 0.861014
+      type: 'test'
+      ...
+    # Subtest: OPTIONS empty Origin blocks Referer fallback; metadata="same-origin"
+    ok 469 - OPTIONS empty Origin blocks Referer fallback; metadata="same-origin"
+      ---
+      duration_ms: 0.705186
+      type: 'test'
+      ...
+    # Subtest: OPTIONS empty Origin blocks Referer fallback; metadata="cross-site"
+    ok 470 - OPTIONS empty Origin blocks Referer fallback; metadata="cross-site"
+      ---
+      duration_ms: 0.679281
+      type: 'test'
+      ...
+    # Subtest: OPTIONS empty Origin blocks Referer fallback; metadata="same-site"
+    ok 471 - OPTIONS empty Origin blocks Referer fallback; metadata="same-site"
+      ---
+      duration_ms: 17.097197
+      type: 'test'
+      ...
+    # Subtest: OPTIONS empty Origin blocks Referer fallback; metadata="none"
+    ok 472 - OPTIONS empty Origin blocks Referer fallback; metadata="none"
+      ---
+      duration_ms: 0.94322
+      type: 'test'
+      ...
+    # Subtest: OPTIONS empty Origin blocks Referer fallback; metadata=""
+    ok 473 - OPTIONS empty Origin blocks Referer fallback; metadata=""
+      ---
+      duration_ms: 0.742747
+      type: 'test'
+      ...
+    # Subtest: OPTIONS empty Origin blocks Referer fallback; metadata=undefined
+    ok 474 - OPTIONS empty Origin blocks Referer fallback; metadata=undefined
+      ---
+      duration_ms: 0.636033
+      type: 'test'
+      ...
+    # Subtest: OPTIONS malformed Referer; metadata="same-origin"
+    ok 475 - OPTIONS malformed Referer; metadata="same-origin"
+      ---
+      duration_ms: 0.636109
+      type: 'test'
+      ...
+    # Subtest: OPTIONS malformed Referer; metadata="cross-site"
+    ok 476 - OPTIONS malformed Referer; metadata="cross-site"
+      ---
+      duration_ms: 11.948042
+      type: 'test'
+      ...
+    # Subtest: OPTIONS malformed Referer; metadata="same-site"
+    ok 477 - OPTIONS malformed Referer; metadata="same-site"
+      ---
+      duration_ms: 4.002214
+      type: 'test'
+      ...
+    # Subtest: OPTIONS malformed Referer; metadata="none"
+    ok 478 - OPTIONS malformed Referer; metadata="none"
+      ---
+      duration_ms: 1.07717
+      type: 'test'
+      ...
+    # Subtest: OPTIONS malformed Referer; metadata=""
+    ok 479 - OPTIONS malformed Referer; metadata=""
+      ---
+      duration_ms: 2.412227
+      type: 'test'
+      ...
+    # Subtest: OPTIONS malformed Referer; metadata=undefined
+    ok 480 - OPTIONS malformed Referer; metadata=undefined
+      ---
+      duration_ms: 0.84749
+      type: 'test'
+      ...
+    1..480
+ok 391 - F3b class guard: confirm and frontend credentials apply identical visitor origin verdicts
+  ---
+  duration_ms: 1631.146188
+  type: 'test'
+  ...
+# Subtest: F3c real site-chat GET stream shape resolves its visitor owner without Origin
+ok 392 - F3c real site-chat GET stream shape resolves its visitor owner without Origin
+  ---
+  duration_ms: 44.74761
+  type: 'test'
+  ...
+# Subtest: Origin/Host validation refuses forged same-origin metadata on credentials and streams
+ok 393 - Origin/Host validation refuses forged same-origin metadata on credentials and streams
+  ---
+  duration_ms: 662.674656
+  type: 'test'
+  ...
+# Subtest: new guest cookies cannot bypass the IP session cap or exhaust another client
+ok 394 - new guest cookies cannot bypass the IP session cap or exhaust another client
+  ---
+  duration_ms: 221.454662
+  type: 'test'
+  ...
+# Subtest: changing IP cannot bypass an authenticated guest session cap
+ok 395 - changing IP cannot bypass an authenticated guest session cap
+  ---
+  duration_ms: 23.392729
+  type: 'test'
+  ...
+# Subtest: credentials is rate limited per IP before mint/attach
+ok 396 - credentials is rate limited per IP before mint/attach
+  ---
+  duration_ms: 45.781696
+  type: 'test'
+  ...
+# Subtest: stream is rate limited per IP before mint/attach
+ok 397 - stream is rate limited per IP before mint/attach
+  ---
+  duration_ms: 63.475272
+  type: 'test'
+  ...
+# Subtest: credential minting is rate limited per authenticated guest across IPs
+ok 398 - credential minting is rate limited per authenticated guest across IPs
+  ---
+  duration_ms: 240.439828
+  type: 'test'
+  ...
