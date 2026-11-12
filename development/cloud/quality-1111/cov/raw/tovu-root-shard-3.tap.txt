@@ -34715,3 +34715,237 @@ not ok 3942 - a receiver trickling bytes forever is cut off by the total deadlin
     async Test.run (node:internal/test_runner/test:1409:7)
     async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
   ...
+# Subtest: each usage event gets the time since the previous one, so the turn's events sum to its elapsed time
+ok 3943 - each usage event gets the time since the previous one, so the turn's events sum to its elapsed time
+  ---
+  duration_ms: 2.487327
+  type: 'test'
+  ...
+# Subtest: non-usage events pass through untouched and do not move the mark
+ok 3944 - non-usage events pass through untouched and do not move the mark
+  ---
+  duration_ms: 0.294024
+  type: 'test'
+  ...
+# Subtest: a clock that steps backwards never yields a negative duration
+ok 3945 - a clock that steps backwards never yields a negative duration
+  ---
+  duration_ms: 0.188441
+  type: 'test'
+  ...
+# Subtest: availability and rescan read the API inventory, preserving models, capabilities and discoveryPending without a daemon
+ok 3946 - availability and rescan read the API inventory, preserving models, capabilities and discoveryPending without a daemon
+  ---
+  duration_ms: 3.119096
+  type: 'test'
+  ...
+# Subtest: known-failed latch still fails /api/agents without waking or reading the inventory
+ok 3947 - known-failed latch still fails /api/agents without waking or reading the inventory
+  ---
+  duration_ms: 0.519727
+  type: 'test'
+  ...
+# Subtest: a parked page stream refuses without a session; an explicit wake reaches the real bind-token response
+ok 3948 - a parked page stream refuses without a session; an explicit wake reaches the real bind-token response
+  ---
+  duration_ms: 5.105239
+  type: 'test'
+  ...
+# Subtest: first proxy request waits before forwarding and succeeds once ready
+ok 3949 - first proxy request waits before forwarding and succeeds once ready
+  ---
+  duration_ms: 1.681329
+  type: 'test'
+  ...
+# Subtest: activation racing park waits for an accepting daemon before allowing frontend rebind
+ok 3950 - activation racing park waits for an accepting daemon before allowing frontend rebind
+  ---
+  duration_ms: 21.10993
+  type: 'test'
+  ...
+# Subtest: admissions reads the server while the daemon stays stopped
+ok 3951 - admissions reads the server while the daemon stays stopped
+  ---
+  duration_ms: 1.7561
+  type: 'test'
+  ...
+# Subtest: activation keeps the upstream refusal status and redacted recovery details
+ok 3952 - activation keeps the upstream refusal status and redacted recovery details
+  ---
+  duration_ms: 7.929207
+  type: 'test'
+  ...
+# Subtest: confirmed Stop is acknowledged without waiting for optional discovery reload
+ok 3953 - confirmed Stop is acknowledged without waiting for optional discovery reload
+  ---
+  duration_ms: 4.877682
+  type: 'test'
+  ...
+# Subtest: the credential label is the fixed prefix plus the provider label
+ok 3954 - the credential label is the fixed prefix plus the provider label
+  ---
+  duration_ms: 4.951878
+  type: 'test'
+  ...
+# Subtest: with no built-in provider and no plugins, search is not configured and the default 'builtin' shows as unregistered
+ok 3955 - with no built-in provider and no plugins, search is not configured and the default 'builtin' shows as unregistered
+  ---
+  duration_ms: 51.2896
+  type: 'test'
+  ...
+# Subtest: a registered built-in is seeded as core, filled by the boot rebuild, promoted, and queried with its full context
+ok 3956 - a registered built-in is seeded as core, filled by the boot rebuild, promoted, and queried with its full context
+  ---
+  duration_ms: 8.110678
+  type: 'test'
+  ...
+# Subtest: no storage handle means the context carries none; timeoutMs is overridable
+ok 3957 - no storage handle means the context carries none; timeoutMs is overridable
+  ---
+  duration_ms: 1.090244
+  type: 'test'
+  ...
+# Subtest: plugin providers join after settingsReady; loader, reserved-id and registry refusals are all logged
+ok 3958 - plugin providers join after settingsReady; loader, reserved-id and registry refusals are all logged
+  ---
+  duration_ms: 3.497319
+  type: 'test'
+  ...
+# Subtest: a failed settings chain still lets plugin providers load, and ready still resolves
+ok 3959 - a failed settings chain still lets plugin providers load, and ready still resolves
+  ---
+  duration_ms: 1.328868
+  type: 'test'
+  ...
+# Subtest: a loader that throws is logged and leaves only the built-in; ready still resolves
+ok 3960 - a loader that throws is logged and leaves only the built-in; ready still resolves
+  ---
+  duration_ms: 0.472197
+  type: 'test'
+  ...
+# Subtest: a vendor without a saved credential is not configured; a saved one supplies exactly its declared keys
+ok 3961 - a vendor without a saved credential is not configured; a saved one supplies exactly its declared keys
+  ---
+  duration_ms: 1.122699
+  type: 'test'
+  ...
+# Subtest: a plugin provider disabled after boot is revoked at its next use, restored when re-enabled; an unreadable activation fails closed
+ok 3962 - a plugin provider disabled after boot is revoked at its next use, restored when re-enabled; an unreadable activation fails closed
+  ---
+  duration_ms: 3.294983
+  type: 'test'
+  ...
+# Subtest: a core (built-in) provider never consults plugin activation
+ok 3963 - a core (built-in) provider never consults plugin activation
+  ---
+  duration_ms: 2.326545
+  type: 'test'
+  ...
+# Subtest: an unreadable credential and an unsupported credential key are logged and leave the vendor unconfigured
+ok 3964 - an unreadable credential and an unsupported credential key are logged and leave the vendor unconfigured
+  ---
+  duration_ms: 0.624987
+  type: 'test'
+  ...
+# Subtest: a missing install id is logged once and leaves every target unconfigured
+ok 3965 - a missing install id is logged once and leaves every target unconfigured
+  ---
+  duration_ms: 0.409006
+  type: 'test'
+  ...
+# Subtest: the context resolver answers null for a provider the registry does not hold, without touching the vault or install id
+ok 3966 - the context resolver answers null for a provider the registry does not hold, without touching the vault or install id
+  ---
+  duration_ms: 0.295171
+  type: 'test'
+  ...
+# Subtest: events are written only for this site's own workspace
+ok 3967 - events are written only for this site's own workspace
+  ---
+  duration_ms: 0.77639
+  type: 'test'
+  ...
+# Subtest: audiences, provider-setting read and write delegate to the ports
+ok 3968 - audiences, provider-setting read and write delegate to the ports
+  ---
+  duration_ms: 0.399506
+  type: 'test'
+  ...
+# Subtest: the default logger is console.error
+ok 3969 - the default logger is console.error
+  ---
+  duration_ms: 1.778637
+  type: 'test'
+  ...
+# Subtest: subscribeSiteSearchIndexer subscribes once per source event, waits for ready, and propagates handler errors
+ok 3970 - subscribeSiteSearchIndexer subscribes once per source event, waits for ready, and propagates handler errors
+  ---
+  duration_ms: 8.672107
+  type: 'test'
+  ...
+# Subtest: maintenance: no runtime is a no-op handle
+ok 3971 - maintenance: no runtime is a no-op handle
+  ---
+  duration_ms: 0.212472
+  type: 'test'
+  ...
+# Subtest: maintenance: boot rebuild once for the configured provider, then bounded reconcile + backfill every pass
+ok 3972 - maintenance: boot rebuild once for the configured provider, then bounded reconcile + backfill every pass
+  ---
+  duration_ms: 1.180983
+  type: 'test'
+  ...
+# Subtest: maintenance: a site with an active or building target is not rebuilt; defaults are 50 rows and 5 pages
+ok 3973 - maintenance: a site with an active or building target is not rebuilt; defaults are 50 rows and 5 pages
+  ---
+  duration_ms: 3.396778
+  type: 'test'
+  ...
+# Subtest: maintenance: failures are logged, never thrown, and a failed boot rebuild is retried on the next pass
+ok 3974 - maintenance: failures are logged, never thrown, and a failed boot rebuild is retried on the next pass
+  ---
+  duration_ms: 1.968482
+  type: 'test'
+  ...
+# Subtest: maintenance: stop during a pass skips the remaining steps and schedules nothing more
+ok 3975 - maintenance: stop during a pass skips the remaining steps and schedules nothing more
+  ---
+  duration_ms: 3.739591
+  type: 'test'
+  ...
+# Subtest: maintenance: a pass whose ready rejects is logged and rescheduled; the default logger is console.error
+ok 3976 - maintenance: a pass whose ready rejects is logged and rescheduled; the default logger is console.error
+  ---
+  duration_ms: 3.416598
+  type: 'test'
+  ...
+# Subtest: maintenance: the default timers run a real unref'd pass and stop cleanly
+ok 3977 - maintenance: the default timers run a real unref'd pass and stop cleanly
+  ---
+  duration_ms: 13.1354
+  type: 'test'
+  ...
+# Subtest: bindSiteSearchPorts wires the CMS sources, the SQL stores, the vault, member sessions, settings and the plugin loader
+ok 3978 - bindSiteSearchPorts wires the CMS sources, the SQL stores, the vault, member sessions, settings and the plugin loader
+  ---
+  duration_ms: 4.40252
+  type: 'test'
+  ...
+# Subtest: registry discovery and publication share the same path when binding directory
+ok 3979 - registry discovery and publication share the same path when binding directory
+  ---
+  duration_ms: 2.566223
+  type: 'test'
+  ...
+# Subtest: registry discovery and publication share the same path when TOVU_SITE_DIR differs from binding directory
+ok 3980 - registry discovery and publication share the same path when TOVU_SITE_DIR differs from binding directory
+  ---
+  duration_ms: 0.261423
+  type: 'test'
+  ...
+# Subtest: default ports read the real registry file and fall back to process.env
+ok 3981 - default ports read the real registry file and fall back to process.env
+  ---
+  duration_ms: 242.055859
+  type: 'test'
+  ...

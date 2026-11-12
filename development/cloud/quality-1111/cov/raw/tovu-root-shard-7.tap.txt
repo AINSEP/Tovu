@@ -34865,3 +34865,112 @@ ok 3771 - resend-confirmation: an unknown subscription id is 404 NEWSLETTER_SUBS
 # [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
 #     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
 # {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: step 5: metadata points only to digest-pinned admitted bytes; disable retires metadata and URLs
+not ok 3772 - step 5: metadata points only to digest-pinned admitted bytes; disable retires metadata and URLs
+  ---
+  duration_ms: 790.009643
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/integration/browser-provider.integration.test.ts:1:524'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'plugin.recharts'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'plugin.recharts'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/integration/browser-provider.integration.test.ts:26:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: site plugin end to end: remove -> list in Trash -> restore disabled -> remove -> purge
+ok 3773 - site plugin end to end: remove -> list in Trash -> restore disabled -> remove -> purge
+  ---
+  duration_ms: 1893.338578
+  type: 'test'
+  ...
+# Subtest: PLUGIN_NOT_FOUND: DELETE .../plugins/:pluginId for an id absent from discovery is 404
+ok 3774 - PLUGIN_NOT_FOUND: DELETE .../plugins/:pluginId for an id absent from discovery is 404
+  ---
+  duration_ms: 387.28548
+  type: 'test'
+  ...
+# Subtest: PLUGIN_NOT_UNINSTALLABLE: DELETE .../plugins/word-count (a built-in) is 422, and its files (there are none) are untouched
+ok 3775 - PLUGIN_NOT_UNINSTALLABLE: DELETE .../plugins/word-count (a built-in) is 422, and its files (there are none) are untouched
+  ---
+  duration_ms: 437.140037
+  type: 'test'
+  ...
+# Subtest: PLUGIN_ENABLED: DELETE .../plugins/:pluginId while still enabled is 409, refuses, and the files remain on disk
+ok 3776 - PLUGIN_ENABLED: DELETE .../plugins/:pluginId while still enabled is 409, refuses, and the files remain on disk
+  ---
+  duration_ms: 964.645568
+  type: 'test'
+  ...
+# Subtest: PLUGIN_IN_TRASH: a newly copied live folder cannot replace the same plugin already in Trash
+ok 3777 - PLUGIN_IN_TRASH: a newly copied live folder cannot replace the same plugin already in Trash
+  ---
+  duration_ms: 420.685241
+  type: 'test'
+  ...
+# Subtest: path traversal (no matching plugin, raw wire request): DELETE .../plugins/.. with nothing installed under that id is 404, never reaches the filesystem removal at all
+ok 3778 - path traversal (no matching plugin, raw wire request): DELETE .../plugins/.. with nothing installed under that id is 404, never reaches the filesystem removal at all
+  ---
+  duration_ms: 352.669557
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: path traversal: folder-bound discovery cannot hide an unsafe-record uninstall path-guard regression
+ok 3779 - path traversal: folder-bound discovery cannot hide an unsafe-record uninstall path-guard regression
+  ---
+  duration_ms: 353.825255
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] boot re-attach failed for 'still-enabled-plugin': plugin 'still-enabled-plugin' failed to load (PLUGIN_EXPORT_INVALID)
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: REST create uses the account default and update saves credit and false independently from creator attribution
+ok 3780 - REST create uses the account default and update saves credit and false independently from creator attribution
+  ---
+  duration_ms: 142.958745
+  type: 'test'
+  ...
+# Subtest: REST standing draft retains byline edits without changing the saved post
+ok 3781 - REST standing draft retains byline edits without changing the saved post
+  ---
+  duration_ms: 56.435277
+  type: 'test'
+  ...
+# Subtest: REST create, update and autosave reject overlong credit with the same error and no writes
+ok 3782 - REST create, update and autosave reject overlong credit with the same error and no writes
+  ---
+  duration_ms: 34.134231
+  type: 'test'
+  ...
