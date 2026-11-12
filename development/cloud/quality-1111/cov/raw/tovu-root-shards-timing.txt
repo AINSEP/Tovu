@@ -25,3 +25,13 @@ shard 6ax exit 1 205s
 shard 5ax exit 1 247s
 SUBSHARDS-DONE 02:12:54
 (note 02:13:23: 5ax/6ax done in ~4 min; remaining 5a/6a files except src/cli/__tests__/integration/* started as 5ay/5az/6ay/6az (25m cap))
+shard 6b exit 1 2560s
+shard 6ay exit 1 477s
+shard 5ay exit 0 552s
+shard 5az exit 0 561s
+shard 5b exit 1 2697s
+SUBSHARDS-DONE 02:22:52
+(note 02:23:24: the 6 src/cli/__tests__/integration files of 5a/6a started one-per-process as cli1..cli6 (15m cap))
+shard 6az exit 0 606s
+SUBSHARDS-DONE 02:23:38
+shard cli2 exit 0 14s

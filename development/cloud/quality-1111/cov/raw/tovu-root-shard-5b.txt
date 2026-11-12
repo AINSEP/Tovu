@@ -57,4 +57,306 @@
 ....................
 ....................
 ....................
-........
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+..X.X...............
+....................
+....................
+....................
+....................
+....................
+X..................X
+X...................
+....................
+....................
+.................X..
+................X...
+....................
+..............X.....
+...
+
+Failed tests:
+
+✖ runner-to-head, then prepare twice: one watermark row, one seeded workspace with its posts and presentation (136.396659ms)
+  Error: failed to drop fixture database "tovu_seed_content_store_pg_fixture_twice": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at freshKernels (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:37:15)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:56:26)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+✖ a restart never overwrites operator edits: edited, deleted and re-themed rows survive a second prepare byte for byte (88.489702ms)
+  Error: failed to drop fixture database "tovu_seed_content_store_pg_fixture_edits": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at freshKernels (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:37:15)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:71:26)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+✖ an existing workspace with the seed's SLUG but a different id is never seeded over: no second workspace, no demo posts (87.201278ms)
+  Error: failed to drop fixture database "tovu_seed_content_store_pg_fixture_same_slug": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at freshKernels (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:37:15)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:86:26)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ two processes booting at once: the second prepare WAITS on the seed lock the first holds, then seeds nothing twice (66.754123ms)
+  Error: failed to drop fixture database "tovu_seed_content_store_pg_fixture_concurrent": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at freshKernels (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:37:15)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:98:33)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ browser virtual authenticator verifies registration, assertions, UV, signatures, counters and local port changes (57.259892ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/__tests__/owner-passkey-browser.integration.test.ts:21:32) {
+    name: 'Error',
+    log: []
+  }
+✖ step 5: boot enables and admits the bundled provider; disable/reboot preserves the owner's row (44.696619ms)
+  AssertionError [ERR_ASSERTION]: the reviewed bundled provider initializes without integrity warnings
+  + actual - expected
+  
+  + [
+  +   [Object: null prototype] {
+  +     arguments: [
+  +       "[plugin-runtime] bundled initialization failed for 'charts-recharts'",
+  +       "PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)\n" +
+  +         '    at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)\n' +
+  +         '{"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}'
+  +     ],
+  +     error: undefined,
+  +     result: undefined,
+  +     stack: Error
+  +         at Object.apply (node:internal/test_runner/mock/mock:816:20)
+  +         at initializeBootDefaults (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:646:55)
+  +         at async Object.attachEnabledPluginsAtBoot (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:652:25)
+  +         at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/browser-provider.integration.test.ts:21:3)
+  +         at async Test.run (node:internal/test_runner/test:1409:7)
+  +         at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3),
+  +     target: undefined,
+  +     this: Object [console] {
+  +       Console: [Function: Console],
+  +       assert: [Function: assert],
+  +       clear: [Function: clear],
+  +       context: [Function: context],
+  +       count: [Function: count],
+  +       countReset: [Function: countReset],
+  +       createTask: [Function: createTask],
+  +       debug: [Function: debug],
+  +       dir: [Function: dir],
+  +       dirxml: [Function: dirxml],
+  +       error: [Function: error],
+  +       group: [Function: group],
+  +       groupCollapsed: [Function: groupCollapsed],
+  +       groupEnd: [Function: groupEnd],
+  +       info: [Function: info],
+  +       log: [Function: log],
+  +       profile: [Function: profile],
+  +       profileEnd: [Function: profileEnd],
+  +       table: [Function: table],
+  +       time: [Function: time],
+  +       timeEnd: [Function: timeEnd],
+  +       timeLog: [Function: timeLog],
+  +       timeStamp: [Function: timeStamp],
+  +       trace: [Function: trace],
+  +       warn: [Function: warn]
+  +     }
+  +   }
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/browser-provider.integration.test.ts:22:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Array],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ N-1: an enabled 0.1.0 row boots, admits the packaged provider and serves the packaged bytes (6.713537ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'plugin.recharts'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/browser-provider.integration.test.ts:64:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'plugin.recharts',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+✖ createSiteApp() on a SQLite composition adds no second copy of the serving app's event handlers (1894.742914ms)
+  AssertionError [ERR_ASSERTION]: sanity: forms analytics, forms notify and webhook fan-out each subscribe once
+  
+  2 !== 3
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/sqlite-create-site-app-module-identity.integration.test.ts:171:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+✖ a refused parked mutation waits for replacement and is dispatched once (1.936923ms)
+  Error: agent daemon origin requested before ensure() resolved a self-allocated port — call ensure() before createApp()
+      at Object.getUrl (/home/user/Tovu/apps/website/src/server/runtime/lifecycle/agent-daemon-port.ts:129:13)
+      at getAgentDaemonUrl (/home/user/Tovu/apps/website/src/server/runtime/lifecycle/agent-daemon-port.ts:150:80)
+      at resolveDaemonRequest (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/assistant-daemon-client.ts:147:23)
+      at fetchAgentDaemon (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/assistant-daemon-client.ts:224:22)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-daemon-client.unit.test.ts:138:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ a passive frontend stream cannot wake a daemon racing park (0.692409ms)
+  Error: agent daemon origin requested before ensure() resolved a self-allocated port — call ensure() before createApp()
+      at Object.getUrl (/home/user/Tovu/apps/website/src/server/runtime/lifecycle/agent-daemon-port.ts:129:13)
+      at getAgentDaemonUrl (/home/user/Tovu/apps/website/src/server/runtime/lifecycle/agent-daemon-port.ts:150:80)
+      at resolveDaemonRequest (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/assistant-daemon-client.ts:147:23)
+      at fetchAgentDaemon (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/assistant-daemon-client.ts:224:22)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-daemon-client.unit.test.ts:148:26)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+✖ the live tree has no idle-CPU offenders and no stale allowlist entries (827.931999ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   {
+  +     detail: 'setInterval( — use a visibility-aware timer or allowlist it with a reason',
+  +     file: 'apps/desktop/src/main/index.ts',
+  +     line: 1005,
+  +     rule: 'bare-interval'
+  +   },
+  +   {
+  +     detail: 'setInterval( — use a visibility-aware timer or allowlist it with a reason',
+  +     file: 'content/themes/static/tovu-starter/scripts/theme-toggle.js',
+  +     line: 25,
+  +     rule: 'bare-interval'
+  +   },
+  +   {
+  +     detail: 'INFINITE_ANIMATION_ALLOWLIST entry matches nothing: apps/desktop/src/renderer/app.css::.card.is-starting .state__dot,\n' +
+  +       '.card.is-stopping .state__dot',
+  +     file: 'apps/desktop/src/renderer/app.css',
+  +     line: 0,
+  +     rule: 'stale-allowlist'
+  +   }
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/check-idle-motion.test.ts:36:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { rule: 'bare-interval', file: 'apps/desktop/src/main/index.ts', line: 1005, detail: 'setInterval( — use a visibility-aware timer or allowlist it with a reason' }, { rule: 'bare-interval', file: 'content/themes/static/tovu-starter/scripts/theme-toggle.js', line: 25, detail: 'setInterval( — use a visibility-aware timer or allowlist it with a reason' }, { rule: 'stale-allowlist', file: 'apps/desktop/src/renderer/app.css', line: 0, detail: 'INFINITE_ANIMATION_ALLOWLIST entry matches nothing: apps/desktop/src/renderer/app.css::.card.is-starting .state__dot,\n.card.is-stopping .state__dot' } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ dead-path sweep: no path reference outside the known-broken register resolves to nothing (5654.000601ms)
+  AssertionError [ERR_ASSERTION]: a path reference under development/scripts or the db tooling points at a file that does not exist
+  + actual - expected
+  
+  + [
+  +   'development/scripts/check-coverage-integrity.ts:167 [repo-relative-string] "development/coverage/lcov.info" -> none of development/coverage exist',
+  +   'development/scripts/check-test-baseline.ts:90 [repo-relative-string] "development/coverage/test-results.tap" -> none of development/coverage exist',
+  +   'development/scripts/coverage-changed.ts:33 [repo-relative-string] "ADS-memory/.local-artifacts/test-slots/run-gated.sh" -> none of ADS-memory/.local-artifacts/test-slots exist',
+  +   'development/scripts/coverage-changed.ts:34 [repo-relative-string] "ADS-memory/.local-artifacts/codex-waves/features-2026-10-04/common.md" -> none of ADS-memory/.local-artifacts/codex-waves/features-2026-10-04 exist',
+  +   'development/scripts/coverage-changed.ts:478 [repo-relative-string] "ADS-memory/.local-artifacts/coverage-changed" -> none of ADS-memory/.local-artifacts exist',
+  +   'development/scripts/route-coverage-lib.ts:33 [repo-relative-string] "development/coverage/lcov.info" -> none of development/coverage exist',
+  +   'development/scripts/route-coverage-lib.ts:36 [repo-relative-string] "development/coverage/lcov.unit.info" -> none of development/coverage exist',
+  +   'development/scripts/route-coverage-lib.ts:39 [repo-relative-string] "development/coverage/lcov.integration.info" -> none of development/coverage exist'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/dead-path-sweep.test.ts:230:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'development/scripts/check-coverage-integrity.ts:167 [repo-relative-string] "development/coverage/lcov.info" -> none of development/coverage exist', 'development/scripts/check-test-baseline.ts:90 [repo-relative-string] "development/coverage/test-results.tap" -> none of development/coverage exist', 'development/scripts/coverage-changed.ts:33 [repo-relative-string] "ADS-memory/.local-artifacts/test-slots/run-gated.sh" -> none of ADS-memory/.local-artifacts/test-slots exist', 'development/scripts/coverage-changed.ts:34 [repo-relative-string] "ADS-memory/.local-artifacts/codex-waves/features-2026-10-04/common.md" -> none of ADS-memory/.local-artifacts/codex-waves/features-2026-10-04 exist', 'development/scripts/coverage-changed.ts:478 [repo-relative-string] "ADS-memory/.local-artifacts/coverage-changed" -> none of ADS-memory/.local-artifacts exist', 'development/scripts/route-coverage-lib.ts:33 [repo-relative-string] "development/coverage/lcov.info" -> none of development/coverage exist', 'development/scripts/route-coverage-lib.ts:36 [repo-relative-string] "development/coverage/lcov.unit.info" -> none of development/coverage exist', 'development/scripts/route-coverage-lib.ts:39 [repo-relative-string] "development/coverage/lcov.integration.info" -> none of development/coverage exist' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ generated coverage artifacts are not reported as dead paths (0.628411ms)
+  AssertionError [ERR_ASSERTION]: development/coverage/lcov.unit.info's parent directory should exist
+      at TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/dead-path-sweep.test.ts:807:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+shard 5b exit 1 2697s

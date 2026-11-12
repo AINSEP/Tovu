@@ -64,4 +64,309 @@ X...................
 ....................
 ....................
 ....................
-............
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+......XX............
+............X.......
+....................
+....................
+....................
+.X..................
+....................
+....................
+....................
+..X.................
+....................
+....................
+...................
+
+Failed tests:
+
+✖ the transcript covers every golden key and nothing else
+  'test did not finish before its parent and was cancelled'
+✖ site-assistant
+  'test did not finish before its parent and was cancelled'
+✖ personal-execution
+  'test did not finish before its parent and was cancelled'
+✖ media-provider
+  'test did not finish before its parent and was cancelled'
+✖ custom
+  'test did not finish before its parent and was cancelled'
+✖ publish-peer
+  'test did not finish before its parent and was cancelled'
+✖ database-destination
+  'test did not finish before its parent and was cancelled'
+✖ vendor (with the folded publish_credential_sets)
+  'test did not finish before its parent and was cancelled'
+✖ source-control
+  'test did not finish before its parent and was cancelled'
+✖ mcp-env (enabled configs)
+  'test did not finish before its parent and was cancelled'
+✖ mcp-auth (server views)
+  'test did not finish before its parent and was cancelled'
+✖ isolation: a second and an empty workspace see only their own rows
+  'test did not finish before its parent and was cancelled'
+✖ isolation: personal keys stay per principal and per workspace
+  'test did not finish before its parent and was cancelled'
+✖ order: custom-credential and peer lists
+  'test did not finish before its parent and was cancelled'
+✖ order: vendor and source-control lists, defaults first-class
+  'test did not finish before its parent and was cancelled'
+✖ order: MCP server views and enabled configs
+  'test did not finish before its parent and was cancelled'
+✖ vault read parity [postgres] (1638.114682ms)
+  Error: failed to drop fixture database "tovu_vault_parity": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:30:66)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+✖ vendor group default repository lookup: one LIMIT 1 read on the default index, no group scan
+  'test did not finish before its parent and was cancelled'
+✖ publish compatibility selection: one inventory per kind and one selected row read
+  'test did not finish before its parent and was cancelled'
+✖ MCP server list: statement count does not grow with the number of servers
+  'test did not finish before its parent and was cancelled'
+✖ vault hot paths [postgres] (0.046422ms)
+  Error: failed to drop fixture database "tovu_vault_parity": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:30:66)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+✖ /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts (189.496268ms)
+  Error: failed to drop fixture database "tovu_vault_parity": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:36:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async after (node:internal/test_runner/test:1342:9)
+      at async Test.run (node:internal/test_runner/test:1428:7)
+✖ a Postgres database holding one foreign table is refused by name, before any folder is made (148.862022ms)
+  Error: failed to drop fixture database "tovu_init_site_occupied": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/init-site.postgres.test.ts:22:28)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+✖ /home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/init-site.postgres.test.ts (94.948084ms)
+  Error: failed to drop fixture database "tovu_init_site_occupied": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/init-site.postgres.test.ts:17:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.runHook (node:internal/test_runner/test:1289:20)
+      at after (node:internal/test_runner/test:1342:20)
+      at Test.run (node:internal/test_runner/test:1428:13)
+✖ boot redemption rejects a missing owner before minting a session (262.511876ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be partially and strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error 956e0156-7e47-4e63-9a7b-ebd4fa55fc34)',
+  +   errorId: '956e0156-7e47-4e63-9a7b-ebd4fa55fc34'
+  -   details: {
+  -     failure: {
+  -       message: 'Sign-in could not finish.',
+  -       step: 'auth-boot-session'
+  -     }
+  -   }
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:62:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: '956e0156-7e47-4e63-9a7b-ebd4fa55fc34', error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error 956e0156-7e47-4e63-9a7b-ebd4fa55fc34)' },
+    expected: { code: 'INTERNAL_ERROR', details: { failure: [Object] } },
+    operator: 'partialDeepStrictEqual',
+    diff: 'simple'
+  }
+✖ boot redemption rejects a disabled owner before minting a session (225.894039ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be partially and strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error 6274876e-3d26-4e16-aeef-36e6ae4d2fd7)',
+  +   errorId: '6274876e-3d26-4e16-aeef-36e6ae4d2fd7'
+  -   details: {
+  -     failure: {
+  -       message: 'Sign-in could not finish.',
+  -       step: 'auth-boot-session'
+  -     }
+  -   }
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:62:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: '6274876e-3d26-4e16-aeef-36e6ae4d2fd7', error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error 6274876e-3d26-4e16-aeef-36e6ae4d2fd7)' },
+    expected: { code: 'INTERNAL_ERROR', details: { failure: [Object] } },
+    operator: 'partialDeepStrictEqual',
+    diff: 'simple'
+  }
+✖ boot redemption rejects a member owner before minting a session (203.203255ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be partially and strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error 1fbbd995-0825-49a8-9018-e23e9149dd0d)',
+  +   errorId: '1fbbd995-0825-49a8-9018-e23e9149dd0d'
+  -   details: {
+  -     failure: {
+  -       message: 'Sign-in could not finish.',
+  -       step: 'auth-boot-session'
+  -     }
+  -   }
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:62:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: '1fbbd995-0825-49a8-9018-e23e9149dd0d', error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error 1fbbd995-0825-49a8-9018-e23e9149dd0d)' },
+    expected: { code: 'INTERNAL_ERROR', details: { failure: [Object] } },
+    operator: 'partialDeepStrictEqual',
+    diff: 'simple'
+  }
+✖ boot redemption refuses a minted session that Jini cannot validate before setting a cookie (219.58815ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be partially and strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error 2b4fa015-72fc-4706-a4e4-bf1b627f83ac)',
+  +   errorId: '2b4fa015-72fc-4706-a4e4-bf1b627f83ac'
+  -   details: {
+  -     failure: {
+  -       message: 'Sign-in could not finish.',
+  -       step: 'auth-boot-session'
+  -     }
+  -   }
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:121:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: '2b4fa015-72fc-4706-a4e4-bf1b627f83ac', error: 'The request could not be completed. Check the result before repeating this operation. Report this error ID. (error 2b4fa015-72fc-4706-a4e4-bf1b627f83ac)' },
+    expected: { code: 'INTERNAL_ERROR', details: { failure: [Object] } },
+    operator: 'partialDeepStrictEqual',
+    diff: 'simple'
+  }
+✖ real HTTP/browser TOTP enrollment and passkey registration/login withhold cookies until factor completion (604.365806ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/__tests__/owner-passkey-http.integration.test.ts:44:34) {
+    name: 'Error',
+    log: []
+  }
+✖ a failed preparation closes the pool: no session on the site's database survives the rejection (0.67316ms)
+  Error: failed to drop fixture database "tovu_open_site_store_failure": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/open-site-store.postgres.test.ts:25:22)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/open-site-store.postgres.test.ts:24:1)
+✖ /home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/open-site-store.postgres.test.ts (45.67509ms)
+  TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string or an instance of Buffer or URL. Received undefined
+      at Object.rmSync (node:fs:1282:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/open-site-store.postgres.test.ts:31:6)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.runHook (node:internal/test_runner/test:1289:20)
+      at after (node:internal/test_runner/test:1342:20)
+      at Test.run (node:internal/test_runner/test:1428:13) {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }
+✖ daemon dev mode passes bypass in the executor's options bag (46.579151ms)
+  ReferenceError [Error]: pluginIds is not defined
+      at eval (eval at evaluateDaemonExpression (file:///home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:3944), <anonymous>:16:34)
+      at evaluateDaemonExpression (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:68:59)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/process-root-parity.test.ts:378:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✖ a committed write whose response is dropped is OUTCOME UNKNOWN, ran once, and blocks a blind repeat (369.424677ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  TypeError: lifecycle.waitForTerminal is not a function
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec.integration.test.ts:216:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: lifecycle.waitForTerminal is not a function
+        at linkCancellation (/home/user/Jini/packages/daemon/src/delegated-tool-bridge.ts:122:18)
+        at Object.execute (/home/user/Jini/packages/daemon/src/delegated-tool-bridge.ts:278:26)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec.integration.test.ts:216:3)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+✖ Render guidance opens its own card, deploys only through the tools and never offers an unasked replacement (1.347949ms)
+  AssertionError [ERR_ASSERTION]: false == true
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/render/__tests__/credential-card.test.mjs:36:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+shard 6b exit 1 2560s
