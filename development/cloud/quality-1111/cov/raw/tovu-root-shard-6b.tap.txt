@@ -1,0 +1,31 @@
+TAP version 13
+# Subtest: WebMCP annotations on real forms and actions pass; comments and scripts are inert
+ok 1 - WebMCP annotations on real forms and actions pass; comments and scripts are inert
+  ---
+  duration_ms: 23.377404
+  type: 'test'
+  ...
+# Subtest: WebMCP validator rejects misplaced, incomplete, invalid and duplicate action annotations
+ok 2 - WebMCP validator rejects misplaced, incomplete, invalid and duplicate action annotations
+  ---
+  duration_ms: 2.066919
+  type: 'test'
+  ...
+# Subtest: WebMCP validator rejects automatic writes, secrets, cross-origin targets and retired handles
+ok 3 - WebMCP validator rejects automatic writes, secrets, cross-origin targets and retired handles
+  ---
+  duration_ms: 5.768015
+  type: 'test'
+  ...
+# Subtest: hide bumps version without parsing content, and restore sends spam back to pending moderation
+ok 4 - hide bumps version without parsing content, and restore sends spam back to pending moderation
+  ---
+  duration_ms: 105.594707
+  type: 'test'
+  ...
+# Subtest: stale and foreign writes preserve the row; purge deletes only the comment and retains its moderation log
+ok 5 - stale and foreign writes preserve the row; purge deletes only the comment and retains its moderation log
+  ---
+  duration_ms: 34.277514
+  type: 'test'
+  ...

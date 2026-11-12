@@ -3552,3 +3552,93 @@ ok 537 - VALIDATION: tovu init with no dir argument at all exits 2 with usage (a
   duration_ms: 16277.332899
   type: 'test'
   ...
+# Subtest: behavior.spec.md §4: --port outside 1..65535, or non-integer, is rejected as VALIDATION (exit 2) rather than falling through to a default — boundary-value coverage of the documented range
+ok 538 - behavior.spec.md §4: --port outside 1..65535, or non-integer, is rejected as VALIDATION (exit 2) rather than falling through to a default — boundary-value coverage of the documented range
+  ---
+  duration_ms: 139530.661797
+  type: 'test'
+  ...
+# Subtest: behavior.spec.md §4: --port at the exact boundary values 1 and 65535 is ACCEPTED (not a validation error) — proves the range check is inclusive, not off-by-one
+ok 539 - behavior.spec.md §4: --port at the exact boundary values 1 and 65535 is ACCEPTED (not a validation error) — proves the range check is inclusive, not off-by-one
+  ---
+  duration_ms: 79938.305444
+  type: 'test'
+  ...
+# Subtest: AC-05: serve against a dir missing .site-meta.json (crashed init) exits 3 with SITE_DIR_INVALID
+ok 540 - AC-05: serve against a dir missing .site-meta.json (crashed init) exits 3 with SITE_DIR_INVALID
+  ---
+  duration_ms: 17823.590589
+  type: 'test'
+  ...
+# Subtest: AC-06: serve against a site with a newer schemaVersion than the runtime exits 4 with SITE_NEWER_THAN_RUNTIME
+ok 541 - AC-06: serve against a site with a newer schemaVersion than the runtime exits 4 with SITE_NEWER_THAN_RUNTIME
+  ---
+  duration_ms: 43949.886152
+  type: 'test'
+  ...
+# Subtest: AC-09: serve against a site whose content.db has zero workspace rows exits 5 with SITE_CORRUPT
+ok 542 - AC-09: serve against a site whose content.db has zero workspace rows exits 5 with SITE_CORRUPT
+  ---
+  duration_ms: 41573.976255
+  type: 'test'
+  ...
+# Subtest: EC-04: serve exits 1 with PORT_IN_USE when the resolved port is already bound
+ok 543 - EC-04: serve exits 1 with PORT_IN_USE when the resolved port is already bound
+  ---
+  duration_ms: 59982.576473
+  type: 'test'
+  ...
+# Subtest: BR-02/AC-11: --port flag takes precedence over config.json.port
+ok 544 - BR-02/AC-11: --port flag takes precedence over config.json.port
+  ---
+  duration_ms: 52147.609868
+  type: 'test'
+  ...
+# Subtest: BR-02/AC-11: config.json.port is used when no --port flag is given
+ok 545 - BR-02/AC-11: config.json.port is used when no --port flag is given
+  ---
+  duration_ms: 47875.226193
+  type: 'test'
+  ...
+# Subtest: BR-07: SIGTERM triggers a graceful stop (exit 0), and BR-04/EC-08: an explicit dir argument overrides TOVU_CONTENT_DB with a logged warning, serving the DIR's real content rather than the (nonexistent) env-var path
+ok 546 - BR-07: SIGTERM triggers a graceful stop (exit 0), and BR-04/EC-08: an explicit dir argument overrides TOVU_CONTENT_DB with a logged warning, serving the DIR's real content rather than the (nonexistent) env-var path
+  ---
+  duration_ms: 54811.833185
+  type: 'test'
+  ...
+# Subtest: B1: serve against a site whose content.db has 2 workspace rows succeeds (boots + responds), defaulting to the oldest — no more boot-bricking on a legitimately multi-workspace install
+ok 547 - B1: serve against a site whose content.db has 2 workspace rows succeeds (boots + responds), defaulting to the oldest — no more boot-bricking on a legitimately multi-workspace install
+  ---
+  duration_ms: 87070.870302
+  type: 'test'
+  ...
+# Subtest: B1: --workspace <id> selects a non-default workspace explicitly
+ok 548 - B1: --workspace <id> selects a non-default workspace explicitly
+  ---
+  duration_ms: 52822.979518
+  type: 'test'
+  ...
+# Subtest: --workspace <id> naming no existing workspace is rejected as VALIDATION (exit 2)
+ok 549 - --workspace <id> naming no existing workspace is rejected as VALIDATION (exit 2)
+  ---
+  duration_ms: 33065.632988
+  type: 'test'
+  ...
+# Subtest: CR-R04/CR-R01 (systemic gap): tovu serve spawned from a DIFFERENT cwd than the install dir still finds built-in themes and never leaks a themes/uploads dir into that foreign cwd — the whole suite otherwise always spawns from the repo root, which accidentally made the process.cwd()-relative bug invisible
+ok 550 - CR-R04/CR-R01 (systemic gap): tovu serve spawned from a DIFFERENT cwd than the install dir still finds built-in themes and never leaks a themes/uploads dir into that foreign cwd — the whole suite otherwise always spawns from the repo root, which accidentally made the process.cwd()-relative bug invisible
+  ---
+  duration_ms: 42104.639894
+  type: 'test'
+  ...
+# Subtest: AC-08 (CLI-specific slice): a real HTTP request against a spawned tovu serve process reaches the seeded content end to end
+ok 551 - AC-08 (CLI-specific slice): a real HTTP request against a spawned tovu serve process reaches the seeded content end to end
+  ---
+  duration_ms: 52976.9087
+  type: 'test'
+  ...
+# Subtest: an identity re-seed failure from a non-built-in owner role conflict must be logged while the serve process continues serving content
+ok 552 - an identity re-seed failure from a non-built-in owner role conflict must be logged while the serve process continues serving content
+  ---
+  duration_ms: 86254.153772
+  type: 'test'
+  ...

@@ -1,0 +1,156 @@
+TAP version 13
+# Subtest: hook discards expiry, repeated clicks and teardown without posting an approval
+ok 1 - hook discards expiry, repeated clicks and teardown without posting an approval
+  ---
+  duration_ms: 164.041835
+  type: 'test'
+  ...
+# Subtest: transcript-storage
+    # Subtest: loadPersistedState — fail-soft rehydrate
+        # Subtest: returns the empty default when nothing is stored
+        ok 1 - returns the empty default when nothing is stored
+          ---
+          duration_ms: 6.105239
+          type: 'test'
+          ...
+        # Subtest: rehydrates a validly-shaped entry
+        ok 2 - rehydrates a validly-shaped entry
+          ---
+          duration_ms: 0.366368
+          type: 'test'
+          ...
+        # Subtest: clears the key and starts empty on malformed JSON
+        ok 3 - clears the key and starts empty on malformed JSON
+          ---
+          duration_ms: 1.145982
+          type: 'test'
+          ...
+        # Subtest: clears the key and starts empty when the envelope is not an object
+        ok 4 - clears the key and starts empty when the envelope is not an object
+          ---
+          duration_ms: 0.335085
+          type: 'test'
+          ...
+        # Subtest: clears the key and starts empty when open is the wrong type
+        ok 5 - clears the key and starts empty when open is the wrong type
+          ---
+          duration_ms: 0.328443
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when a message's id is not a string
+        ok 6 - clears the whole entry when a message's id is not a string
+          ---
+          duration_ms: 0.266899
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when a message's content is not a string
+        ok 7 - clears the whole entry when a message's content is not a string
+          ---
+          duration_ms: 0.416315
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when a message entry is not an object at all
+        ok 8 - clears the whole entry when a message entry is not an object at all
+          ---
+          duration_ms: 0.276345
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when even one message in the array is wrong-shaped
+        ok 9 - clears the whole entry when even one message in the array is wrong-shaped
+          ---
+          duration_ms: 0.673301
+          type: 'test'
+          ...
+        # Subtest: never throws when storage access itself throws
+        ok 10 - never throws when storage access itself throws
+          ---
+          duration_ms: 1.203758
+          type: 'test'
+          ...
+        1..10
+    ok 1 - loadPersistedState — fail-soft rehydrate
+      ---
+      duration_ms: 12.783683
+      type: 'suite'
+      ...
+    # Subtest: savePersistedState — bounded, oldest-dropped-first
+        # Subtest: round-trips through loadPersistedState
+        ok 1 - round-trips through loadPersistedState
+          ---
+          duration_ms: 4.924778
+          type: 'test'
+          ...
+        # Subtest: drops the oldest messages first once the count cap is exceeded
+        ok 2 - drops the oldest messages first once the count cap is exceeded
+          ---
+          duration_ms: 0.372425
+          type: 'test'
+          ...
+        # Subtest: drops oldest messages first once the byte cap is exceeded, even under the count cap
+        ok 3 - drops oldest messages first once the byte cap is exceeded, even under the count cap
+          ---
+          duration_ms: 3.019173
+          type: 'test'
+          ...
+        # Subtest: drops a single message larger than the byte cap while retaining pane state
+        ok 4 - drops a single message larger than the byte cap while retaining pane state
+          ---
+          duration_ms: 4.773555
+          type: 'test'
+          ...
+        # Subtest: enforces the UTF-8 byte cap for 界 transcripts
+        ok 5 - enforces the UTF-8 byte cap for 界 transcripts
+          ---
+          duration_ms: 1.845045
+          type: 'test'
+          ...
+        # Subtest: enforces the UTF-8 byte cap for 🙂 transcripts
+        ok 6 - enforces the UTF-8 byte cap for 🙂 transcripts
+          ---
+          duration_ms: 10.95997
+          type: 'test'
+          ...
+        # Subtest: never throws when the underlying setItem throws (e.g. quota exceeded)
+        ok 7 - never throws when the underlying setItem throws (e.g. quota exceeded)
+          ---
+          duration_ms: 0.292074
+          type: 'test'
+          ...
+        1..7
+    ok 2 - savePersistedState — bounded, oldest-dropped-first
+      ---
+      duration_ms: 26.701696
+      type: 'suite'
+      ...
+    # Subtest: clearPersistedState
+        # Subtest: removes the stored key
+        ok 1 - removes the stored key
+          ---
+          duration_ms: 2.597911
+          type: 'test'
+          ...
+        # Subtest: never throws when the underlying removeItem throws
+        ok 2 - never throws when the underlying removeItem throws
+          ---
+          duration_ms: 0.207819
+          type: 'test'
+          ...
+        1..2
+    ok 3 - clearPersistedState
+      ---
+      duration_ms: 2.922454
+      type: 'suite'
+      ...
+    1..3
+ok 2 - transcript-storage
+  ---
+  duration_ms: 42.923674
+  type: 'suite'
+  ...
+# Subtest: real-sessionStorage-bound wrappers
+    # Subtest: react: a fresh unopened chat writes no browser storage and loads only after activation
+    ok 1 - react: a fresh unopened chat writes no browser storage and loads only after activation
+      ---
+      duration_ms: 876.246859
+      type: 'test'
+      ...

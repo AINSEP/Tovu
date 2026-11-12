@@ -6,3 +6,6 @@ shard 0 exit 137 3272s
 shard 4 exit 137 1725s
 shard 3 exit 137 1731s
 (note 01:10: the five 'exit 137' lines above are the 80m timeout WRAPPERS being SIGKILLed on purpose so shards 0-4 could run past 80 min; the node test processes kept running. Real completion times are recorded below by shard-watch.)
+shard 5 exit 137 1682s
+shard 6 exit 137 1679s
+(note 01:37:43: shards 5 and 6 were stopped at file 67/394 and 39/394 and their files re-run as sub-shards 5a/5b/6a/6b (each half of the original list, from the start) so they finish inside the cap; their partial TAP/stdout is in raw/aborted/ and is NOT used for failures)
