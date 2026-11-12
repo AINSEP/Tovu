@@ -1,1 +1,82 @@
 TAP version 13
+# Subtest: AC-01/api.spec.md §5: tovu init <dir> --name <name> exits 0, prints the created-site stdout contract, and produces a real install dir
+ok 1 - AC-01/api.spec.md §5: tovu init <dir> --name <name> exits 0, prints the created-site stdout contract, and produces a real install dir
+  ---
+  duration_ms: 16206.12984
+  type: 'test'
+  ...
+# Subtest: BR-03: omitting --name defaults the site name to the directory basename, end to end through the CLI
+ok 2 - BR-03: omitting --name defaults the site name to the directory basename, end to end through the CLI
+  ---
+  duration_ms: 12590.532627
+  type: 'test'
+  ...
+# Subtest: AC-04/EC-01: tovu init against an existing non-empty directory exits 3 with INIT_DIR_NOT_EMPTY, directory left untouched
+ok 3 - AC-04/EC-01: tovu init against an existing non-empty directory exits 3 with INIT_DIR_NOT_EMPTY, directory left untouched
+  ---
+  duration_ms: 10907.282819
+  type: 'test'
+  ...
+# Subtest: EC-02: tovu init against a path that exists as a regular file exits 3 with INIT_DIR_NOT_EMPTY
+ok 4 - EC-02: tovu init against a path that exists as a regular file exits 3 with INIT_DIR_NOT_EMPTY
+  ---
+  duration_ms: 11139.682538
+  type: 'test'
+  ...
+# Subtest: EC-06: an empty --name exits 2 with VALIDATION, nothing created
+ok 5 - EC-06: an empty --name exits 2 with VALIDATION, nothing created
+  ---
+  duration_ms: 11079.055543
+  type: 'test'
+  ...
+# Subtest: VALIDATION: tovu init with no dir argument at all exits 2 with usage (a missing required positional argument is a usage error)
+ok 6 - VALIDATION: tovu init with no dir argument at all exits 2 with usage (a missing required positional argument is a usage error)
+  ---
+  duration_ms: 11871.569147
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 74607.280989
+# start of coverage report
+# ------------------------------------------------------------------------------------------------
+# file                                    | line % | branch % | funcs % | uncovered lines
+# ------------------------------------------------------------------------------------------------
+# apps                                    |        |          |         | 
+#  website                                |        |          |         | 
+#   src                                   |        |          |         | 
+#    cli                                  |        |          |         | 
+#     __tests__                           |        |          |         | 
+#      integration                        |        |          |         | 
+#       init-command.integration.test.ts  | 100.00 |   100.00 |  100.00 | 
+#    contracts                            |        |          |         | 
+#     core                                |        |          |         | 
+#      __tests__                          |        |          |         | 
+#       helpers                           |        |          |         | 
+#        child-process-coverage-env.ts    | 100.00 |   100.00 |  100.00 | 
+#    features                             |        |          |         | 
+#     agent-plugins                       |        |          |         | 
+#      __tests__                          |        |          |         | 
+#       fixtures                          |        |          |         | 
+#        bundled-source-root.ts           |  80.68 |    85.71 |   50.00 | 14-15 17-25 28-29 35-38
+#        force-remove.ts                  |  86.67 |   100.00 |   50.00 | 7-10
+#      bundled-catalog.ts                 |  92.86 |   100.00 |   40.00 | 19-30
+#    platform                             |        |          |         | 
+#     site-dir                            |        |          |         | 
+#      __tests__                          |        |          |         | 
+#       helpers                           |        |          |         | 
+#        isolated-catalog-home.ts         |  90.91 |   100.00 |   66.67 | 22-25
+# development                             |        |          |         | 
+#  test-support                           |        |          |         | 
+#   agent-plugin-source.mjs               | 100.00 |    66.67 |  100.00 | 
+#   composed-bundle-env.ts                | 100.00 |   100.00 |  100.00 | 
+# ------------------------------------------------------------------------------------------------
+# all files                               |  93.02 |    93.94 |   70.97 | 
+# ------------------------------------------------------------------------------------------------
+# end of coverage report

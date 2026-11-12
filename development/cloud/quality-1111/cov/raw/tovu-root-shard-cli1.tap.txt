@@ -1,1 +1,190 @@
 TAP version 13
+# Subtest: the whole point: a marker-less but working site directory is REFUSED by serve, and tovu adopt is what makes it servable
+ok 1 - the whole point: a marker-less but working site directory is REFUSED by serve, and tovu adopt is what makes it servable
+  ---
+  duration_ms: 64912.604745
+  type: 'test'
+  ...
+# Subtest: adopt DERIVES the schema stamp from the db's own applied migrations — a db behind this runtime is stamped with ITS index, never the runtime's latest
+ok 2 - adopt DERIVES the schema stamp from the db's own applied migrations — a db behind this runtime is stamped with ITS index, never the runtime's latest
+  ---
+  duration_ms: 23729.144705
+  type: 'test'
+  ...
+# Subtest: --dry-run prints the exact stamp it would write and writes NOTHING
+ok 3 - --dry-run prints the exact stamp it would write and writes NOTHING
+  ---
+  duration_ms: 17409.280071
+  type: 'test'
+  ...
+# Subtest: adopt is idempotent: a re-run is a no-op that exits 0 and leaves both markers BYTE-identical (never a rewrite with a fresh siteId)
+ok 4 - adopt is idempotent: a re-run is a no-op that exits 0 and leaves both markers BYTE-identical (never a rewrite with a fresh siteId)
+  ---
+  duration_ms: 23781.827103
+  type: 'test'
+  ...
+# Subtest: adopt is reversible: deleting the two markers returns the directory to exactly its prior state
+ok 5 - adopt is reversible: deleting the two markers returns the directory to exactly its prior state
+  ---
+  duration_ms: 16046.086297
+  type: 'test'
+  ...
+# Subtest: adopt leaves content.db byte-identical — markers are written BESIDE the database, never into it
+ok 6 - adopt leaves content.db byte-identical — markers are written BESIDE the database, never into it
+  ---
+  duration_ms: 15922.643914
+  type: 'test'
+  ...
+# Subtest: a PARTIALLY adopted directory is refused by name, and neither completed nor overwritten
+ok 7 - a PARTIALLY adopted directory is refused by name, and neither completed nor overwritten
+  ---
+  duration_ms: 23549.499593
+  type: 'test'
+  ...
+# Subtest: config.json beside a key-only .site-meta.json (a dev site) is adopted by completing the meta, keeping the key fields and config.json
+ok 8 - config.json beside a key-only .site-meta.json (a dev site) is adopted by completing the meta, keeping the key fields and config.json
+  ---
+  duration_ms: 31004.978232
+  type: 'test'
+  ...
+# Subtest: a key-only .site-meta.json with no config.json is adopted like a marker-less dir, carrying the key fields forward
+ok 9 - a key-only .site-meta.json with no config.json is adopted like a marker-less dir, carrying the key fields forward
+  ---
+  duration_ms: 16113.676995
+  type: 'test'
+  ...
+# Subtest: a directory with no content.db is refused, and any other .db files present are named as candidates rather than silently adopted
+ok 10 - a directory with no content.db is refused, and any other .db files present are named as candidates rather than silently adopted
+  ---
+  duration_ms: 7964.577925
+  type: 'test'
+  ...
+# Subtest: a content.db that has never been migrated is refused rather than stamped with an invented version
+ok 11 - a content.db that has never been migrated is refused rather than stamped with an invented version
+  ---
+  duration_ms: 7895.509045
+  type: 'test'
+  ...
+# Subtest: a DIVERGENT schema lineage is refused with SITE_NEWER_THAN_RUNTIME (exit 4), not silently stamped — the case a wrong stamp would turn into data loss
+ok 12 - a DIVERGENT schema lineage is refused with SITE_NEWER_THAN_RUNTIME (exit 4), not silently stamped — the case a wrong stamp would turn into data loss
+  ---
+  duration_ms: 16083.007147
+  type: 'test'
+  ...
+# Subtest: adopt --name sets the display name config.json carries, and defaults to the directory basename without it
+ok 13 - adopt --name sets the display name config.json carries, and defaults to the directory basename without it
+  ---
+  duration_ms: 32155.271363
+  type: 'test'
+  ...
+# Subtest: adopt on a path that is not an existing directory is refused, never created
+ok 14 - adopt on a path that is not an existing directory is refused, never created
+  ---
+  duration_ms: 7587.25151
+  type: 'test'
+  ...
+# Subtest: adopt is a discoverable, registered command: it appears in --help and in the introspect manifest a programmatic caller reads
+ok 15 - adopt is a discoverable, registered command: it appears in --help and in the introspect manifest a programmatic caller reads
+  ---
+  duration_ms: 15138.940842
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 320718.092038
+# start of coverage report
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# file                                     | line % | branch % | funcs % | uncovered lines
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# ..                                       |        |          |         | 
+#  Jini                                    |        |          |         | 
+#   packages                               |        |          |         | 
+#    core                                  |        |          |         | 
+#     dist                                 |        |          |         | 
+#      filesystem.js                       | 100.00 |   100.00 |    0.00 | 
+#      primitives                          |        |          |         | 
+#       http.js                            | 100.00 |   100.00 |  100.00 | 
+#       ids.js                             |  60.00 |   100.00 |    0.00 | 3-4
+#       index.js                           | 100.00 |   100.00 |  100.00 | 
+#       json.js                            | 100.00 |   100.00 |  100.00 | 
+#       logger.js                          |  17.65 |   100.00 |    0.00 | 3-16
+#       paths.js                           |  30.43 |   100.00 |    0.00 | 3-5 7-18 20-27 37-45
+#       result.js                          | 100.00 |   100.00 |  100.00 | 
+#       sse.js                             |  30.08 |   100.00 |    0.00 | 22-53 56-60 68-111 118-122
+#       tasks.js                           |  75.00 |   100.00 |    0.00 | 6-7
+#       time.js                            |  53.85 |   100.00 |    0.00 | 3-4 7-8 11-12
+#       trim-chars.js                      |  57.14 |   100.00 |    0.00 | 10-14 18-22 26-27
+#    platform                              |        |          |         | 
+#     dist                                 |        |          |         | 
+#      fs.js                               |  45.97 |   100.00 |    0.00 | 15-20 22-24 34-38 40-44 58-89 99-106 116-123
+#      fs                                  |        |          |         | 
+#       atomic-write.js                    |  15.81 |   100.00 |    0.00 | 9-20 22-28 30-49 51-70 72-82 84-105 107-126 133-148 153-168 176-209 212-214 218-249 254-266 269-271
+#       backup-once.js                     |  63.64 |   100.00 |    0.00 | 7-10
+#       boot-identity.js                   |  42.67 |   100.00 |    0.00 | 6-10 12-22 29-37 50-54 56-60 67-74
+#       directory-home.js                  | 100.00 |    37.50 |  100.00 | 
+#       directory-registry.js              |   9.43 |   100.00 |    0.00 | 7-82 86-105
+#       directory-running-lock.js          |   9.00 |   100.00 |    0.00 | 8-83 85-99
+#       directory-sync.js                  |  58.59 |    57.14 |   57.14 | 6-32 41 46-53 56 62-65
+#       directory-user-config.js           |  57.76 |    40.82 |   45.71 | 23-29 48-63 83-90 92-96 98-106 108-124 126-131 142 145-150 156-159 169-172 197-201 222-231
+#       directory-workspace.js             |  44.81 |    58.82 |   18.92 | 34-40 45-70 75-89 92-96 106-110 123-126 129-132 144-151 159-199 203-216 220-237 240-241
+#       durable-json.js                    |  40.91 |    55.56 |   15.38 | 23-31 63-68 73-74 81-85 89-101 111-118 126-140 145-175 184-189 191-197 199-207 209-226 228-241
+#       env-text.js                        |  18.18 |   100.00 |    0.00 | 3-16 18-21
+#       errno.js                           |  57.14 |    66.67 |   33.33 | 4-7 11-14 19
+#       file-lock.js                       |  15.71 |    33.33 |    0.00 | 29 32-37 42-45 49-77 84-121 124 130-142 144-154 160-194 196-241 243-318 323-337 339-410 413-419
+#       guarded-reader.js                  |   5.64 |   100.00 |    0.00 | 16-372 374-383 385-389 394-409 411-419 421-430 432-434 436-460
+#       index.js                           | 100.00 |   100.00 |  100.00 | 
+#       reviewed-file.js                   |  25.00 |    25.00 |    0.00 | 7-8 18-34 36-47 49-63 65-75
+#       strict-containment.js              |  30.77 |   100.00 |    0.00 | 4-12
+#       user-data-directories.js           |  71.64 |    43.75 |   66.67 | 31-35 51-54 57-66
+#       verified-directory-move.js         |  15.38 |   100.00 |    0.00 | 11-39 46-60 67-105 107-141 144-168
+#       verified-file-relocation.js        |   8.66 |   100.00 |    0.00 | 11-126
+#       workspace-directory.js             |  36.36 |   100.00 |    0.00 | 11-26 32-43
+#      messages.js                         | 100.00 |   100.00 |    0.00 | 
+#      windows-system-tools.js             |  75.00 |   100.00 |    0.00 | 10-11 14-15
+# apps                                     |        |          |         | 
+#  website                                 |        |          |         | 
+#   src                                    |        |          |         | 
+#    cli                                   |        |          |         | 
+#     __tests__                            |        |          |         | 
+#      helpers                             |        |          |         | 
+#       remove-fixture-tree.ts             |  91.67 |    75.00 |   50.00 | 16-22 24-26
+#      integration                         |        |          |         | 
+#       adopt-command.integration.test.ts  |  98.99 |    90.38 |   97.67 | 51 64-66 226
+#    contracts                             |        |          |         | 
+#     core                                 |        |          |         | 
+#      __tests__                           |        |          |         | 
+#       helpers                            |        |          |         | 
+#        child-process-coverage-env.ts     | 100.00 |   100.00 |  100.00 | 
+#    features                              |        |          |         | 
+#     agent-plugins                        |        |          |         | 
+#      __tests__                           |        |          |         | 
+#       fixtures                           |        |          |         | 
+#        bundled-source-root.ts            |  80.68 |    85.71 |   50.00 | 14-15 17-25 28-29 35-38
+#        force-remove.ts                   |  86.67 |   100.00 |   50.00 | 7-10
+#      bundled-catalog.ts                  |  92.86 |   100.00 |   40.00 | 19-30
+#    platform                              |        |          |         | 
+#     site-dir                             |        |          |         | 
+#      __tests__                           |        |          |         | 
+#       helpers                            |        |          |         | 
+#        isolated-catalog-home.ts          |  90.91 |   100.00 |   66.67 | 22-25
+#      nested-sites-root.ts                |  77.78 |   100.00 |   25.00 | 9-12 17-21 25-29
+#      site-databases.ts                   |  83.75 |    50.00 |   50.00 | 19-20 23-28 37-41
+#      site-root.ts                        |  87.85 |   100.00 |   25.00 | 9-17 21-24
+#      sites-home.ts                       |  95.83 |    75.00 |   50.00 | 29-30
+#      sites-project-references.ts         |  80.33 |    60.00 |   25.00 | 8 13-19 21-22 25 28
+#      sites-workspace-options.ts          |  94.29 |    64.29 |  100.00 | 16-17
+#     test-home-isolation.ts               |  95.65 |    70.00 |  100.00 | 15
+# development                              |        |          |         | 
+#  test-support                            |        |          |         | 
+#   agent-plugin-source.mjs                | 100.00 |    66.67 |  100.00 | 
+#   composed-bundle-env.ts                 | 100.00 |   100.00 |  100.00 | 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# all files                                |  48.91 |    66.67 |   30.60 | 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# end of coverage report

@@ -1,1 +1,88 @@
 TAP version 13
+# Subtest: tovu deploy config --target <t> --region <r>: exits 0 and prints the generated config to stdout
+ok 1 - tovu deploy config --target <t> --region <r>: exits 0 and prints the generated config to stdout
+  ---
+  duration_ms: 17684.704324
+  type: 'test'
+  ...
+# Subtest: tovu deploy config --target render --region <r>: exits 0 and prints render.yaml to stdout
+ok 2 - tovu deploy config --target render --region <r>: exits 0 and prints render.yaml to stdout
+  ---
+  duration_ms: 12015.646134
+  type: 'test'
+  ...
+# Subtest: tovu deploy config --target railway --region <r>: exits 0 and prints valid JSON to stdout
+ok 3 - tovu deploy config --target railway --region <r>: exits 0 and prints valid JSON to stdout
+  ---
+  duration_ms: 11106.096048
+  type: 'test'
+  ...
+# Subtest: tovu deploy config --target <bad>: rejected as VALIDATION (exit 2), not a silent fallback
+ok 4 - tovu deploy config --target <bad>: rejected as VALIDATION (exit 2), not a silent fallback
+  ---
+  duration_ms: 10676.073354
+  type: 'test'
+  ...
+# Subtest: tovu deploy config --target render (no --region): rejected as VALIDATION (exit 2), no silent default region
+ok 5 - tovu deploy config --target render (no --region): rejected as VALIDATION (exit 2), no silent default region
+  ---
+  duration_ms: 10373.118841
+  type: 'test'
+  ...
+# Subtest: tovu deploy config --target railway --region <bad>: rejected as VALIDATION (exit 2)
+ok 6 - tovu deploy config --target railway --region <bad>: rejected as VALIDATION (exit 2)
+  ---
+  duration_ms: 10795.819387
+  type: 'test'
+  ...
+# Subtest: tovu deploy config --target <t> --region <r> --out <file>: writes the file instead of printing it
+ok 7 - tovu deploy config --target <t> --region <r> --out <file>: writes the file instead of printing it
+  ---
+  duration_ms: 10126.135378
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 83726.12067
+# start of coverage report
+# ---------------------------------------------------------------------------------------------------------
+# file                                             | line % | branch % | funcs % | uncovered lines
+# ---------------------------------------------------------------------------------------------------------
+# apps                                             |        |          |         | 
+#  website                                         |        |          |         | 
+#   src                                            |        |          |         | 
+#    cli                                           |        |          |         | 
+#     __tests__                                    |        |          |         | 
+#      integration                                 |        |          |         | 
+#       deploy-config-command.integration.test.ts  | 100.00 |   100.00 |  100.00 | 
+#    contracts                                     |        |          |         | 
+#     core                                         |        |          |         | 
+#      __tests__                                   |        |          |         | 
+#       helpers                                    |        |          |         | 
+#        child-process-coverage-env.ts             | 100.00 |   100.00 |  100.00 | 
+#    features                                      |        |          |         | 
+#     agent-plugins                                |        |          |         | 
+#      __tests__                                   |        |          |         | 
+#       fixtures                                   |        |          |         | 
+#        bundled-source-root.ts                    |  80.68 |    85.71 |   50.00 | 14-15 17-25 28-29 35-38
+#        force-remove.ts                           |  86.67 |   100.00 |   50.00 | 7-10
+#      bundled-catalog.ts                          |  92.86 |   100.00 |   40.00 | 19-30
+#    platform                                      |        |          |         | 
+#     site-dir                                     |        |          |         | 
+#      __tests__                                   |        |          |         | 
+#       helpers                                    |        |          |         | 
+#        isolated-catalog-home.ts                  |  90.91 |   100.00 |   66.67 | 22-25
+# development                                      |        |          |         | 
+#  test-support                                    |        |          |         | 
+#   agent-plugin-source.mjs                        | 100.00 |    66.67 |  100.00 | 
+#   composed-bundle-env.ts                         | 100.00 |   100.00 |  100.00 | 
+# ---------------------------------------------------------------------------------------------------------
+# all files                                        |  92.76 |    93.94 |   70.97 | 
+# ---------------------------------------------------------------------------------------------------------
+# end of coverage report

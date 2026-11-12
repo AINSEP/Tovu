@@ -2,11 +2,11 @@
 
 | Metric | TRUE: all files | RUNNER: records only |
 | --- | --- | --- |
-| lines | 341848/355488 (96.16%) | 341848/345080 (99.06%) |
-| branches | 89231/101311 (88.08%) | 89231/93601 (95.33%) |
-| functions | 34867/41886 (83.24%) | 34867/39398 (88.50%) |
+| lines | 342195/355552 (96.24%) | 342195/345150 (99.14%) |
+| branches | 89959/101813 (88.36%) | 89959/94103 (95.60%) |
+| functions | 34928/41898 (83.36%) | 34928/39410 (88.63%) |
 
-Never-loaded files: **146** / 3367
+Never-loaded files: **145** / 3367
 
 - NEVER-LOADED denominators are AST estimates (distinct executable statement start lines, function bodies, branch arms).
 - LCOV lacks columns: functions/branches merge by source line and ordinal; different instrumentation layouts may not correspond.
@@ -415,6 +415,10 @@ Never-loaded files: **146** / 3367
 - /tmp/claude-0/cov/abs/tovu-shard-6ay.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/contracts/core/credential-copy.ts
 - /tmp/claude-0/cov/abs/tovu-shard-6ay.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/features/agent-plugins/memory-i18n.ts
 - /tmp/claude-0/cov/abs/tovu-shard-6ay.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/server/inbound/public-http/http/site/form-validation-i18n.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/contracts/core/approval-i18n.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/contracts/core/credential-copy.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/features/agent-plugins/memory-i18n.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/server/inbound/public-http/http/site/form-validation-i18n.ts
 - /tmp/claude-0/cov/abs/tovu-shard-6b.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/contracts/core/approval-i18n.ts
 - /tmp/claude-0/cov/abs/tovu-shard-6b.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/contracts/core/credential-copy.ts
 - /tmp/claude-0/cov/abs/tovu-shard-6b.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/features/agent-plugins/memory-i18n.ts
@@ -423,6 +427,8 @@ Never-loaded files: **146** / 3367
 - /tmp/claude-0/cov/abs/tovu-shard-7.lcov.info: skipped malformed LCOV record — LCOV BRH does not match detail records in /home/user/Tovu/apps/website/src/contracts/core/credential-copy.ts
 - /tmp/claude-0/cov/abs/tovu-shard-7.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/features/agent-plugins/memory-i18n.ts
 - /tmp/claude-0/cov/abs/tovu-shard-7.lcov.info: skipped malformed LCOV record — LCOV BRH does not match detail records in /home/user/Tovu/apps/website/src/server/inbound/public-http/http/site/form-validation-i18n.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/contracts/core/approval-i18n.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/contracts/core/credential-copy.ts
 - /tmp/claude-0/cov/abs/desktop-a.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/contracts/core/approval-i18n.ts
 - /tmp/claude-0/cov/abs/desktop-a.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/contracts/core/credential-copy.ts
 - /tmp/claude-0/cov/abs/desktop-a.lcov.info: skipped malformed LCOV record — LCOV FNH does not match detail records in /home/user/Tovu/apps/website/src/features/agent-plugins/memory-i18n.ts
@@ -434,7 +440,7 @@ Never-loaded files: **146** / 3367
 
 | Group | Files | Up to 5 examples |
 | --- | ---: | --- |
-| explicit | 495 | development/cloud/2026-11-01-verify-and-fix.md, development/cloud/quality-1111/BRIEF-COV.md, development/cloud/quality-1111/BRIEF-STATIC.md, development/cloud/quality-1111/COMMON.md, development/cloud/quality-1111/cov/RESULTS-head.md |
+| explicit | 503 | development/cloud/2026-11-01-verify-and-fix.md, development/cloud/quality-1111/BRIEF-COV.md, development/cloud/quality-1111/BRIEF-STATIC.md, development/cloud/quality-1111/COMMON.md, development/cloud/quality-1111/cov/RESULTS-head.md |
 | vendor | 36 | apps/desktop/src/renderer/public/vendor/fonts/dm-sans-OFL.txt, apps/desktop/src/renderer/public/vendor/fonts/dm-sans-variable.ttf, apps/desktop/src/renderer/public/vendor/fonts/jetbrains-mono-OFL.txt, apps/desktop/src/renderer/public/vendor/fonts/jetbrains-mono-variable.ttf, apps/desktop/src/renderer/public/vendor/fonts/space-grotesk-OFL.txt |
 | non-source | 6188 | .claude/.ads-initialized, .claude/agents/opus-high.md, .claude/agents/opus-low.md, .claude/agents/opus-medium.md, .claude/agents/sonnet-xhigh.md |
 | dependencies/build/output | 0 |  |
@@ -454,7 +460,7 @@ Never-loaded files: **146** / 3367
 | apps/admin | 825 | 6 | 19732/20038 (98.47%) | 15975/16436 (97.20%) | 8508/8694 (97.86%) |
 | apps/desktop | 262 | 8 | 37482/38617 (97.06%) | 8374/8739 (95.82%) | 3101/3527 (87.92%) |
 | apps/site-chat | 28 | 4 | 1868/1908 (97.90%) | 529/558 (94.80%) | 214/232 (92.24%) |
-| apps/website | 2069 | 8 | 268682/270333 (99.39%) | 61419/64806 (94.77%) | 21932/25874 (84.76%) |
+| apps/website | 2069 | 7 | 269029/270397 (99.49%) | 62147/65308 (95.16%) | 21993/25886 (84.96%) |
 | cloud | 1 | 1 | 0/38 (0.00%) | 0/22 (0.00%) | 0/4 (0.00%) |
 | content | 16 | 16 | 0/1238 (0.00%) | 0/606 (0.00%) | 0/257 (0.00%) |
 | development | 147 | 89 | 13191/22039 (59.85%) | 2889/9968 (28.98%) | 1083/3177 (34.09%) |
@@ -516,10 +522,8 @@ Never-loaded files: **146** / 3367
 | development/scripts/report-churn-hotspots.ts | LOADED | 77 | 203/280 (72.50%) | 24/25 (96.00%) | 6/10 (60.00%) |
 | development/scripts/coverage-changed.ts | LOADED | 76 | 406/482 (84.23%) | 228/274 (83.21%) | 66/72 (91.67%) |
 | development/scripts/check-admin-api-routes.ts | NEVER-LOADED | 75 | 0/75 (0.00%) | 0/44 (0.00%) | 0/5 (0.00%) |
-| apps/website/src/features/publish-content/apply-loop.ts | LOADED | 72 | 917/989 (92.72%) | 146/172 (84.88%) | 44/49 (89.80%) |
 | development/scripts/mutation-sweep.mjs | LOADED | 72 | 251/323 (77.71%) | 45/78 (57.69%) | 23/33 (69.70%) |
 | development/evals/tool-search-quality.eval.ts | NEVER-LOADED | 71 | 0/71 (0.00%) | 0/24 (0.00%) | 0/18 (0.00%) |
-| apps/website/src/features/site-backup/backup-service.ts | LOADED | 66 | 720/786 (91.60%) | 72/134 (53.73%) | 40/48 (83.33%) |
 | apps/admin/src/features/plugins/Plugins.tsx | NEVER-LOADED | 64 | 0/64 (0.00%) | 0/40 (0.00%) | 0/25 (0.00%) |
 | development/scripts/rewrite-deep-imports.ts | NEVER-LOADED | 64 | 0/64 (0.00%) | 0/26 (0.00%) | 0/7 (0.00%) |
 | development/scripts/write-path-inventory.ts | LOADED | 61 | 401/462 (86.80%) | 79/112 (70.54%) | 34/38 (89.47%) |
@@ -542,8 +546,6 @@ Never-loaded files: **146** / 3367
 | development/scripts/dev-sites-home.mjs | LOADED | 47 | 76/123 (61.79%) | 5/10 (50.00%) | 3/8 (37.50%) |
 | development/scripts/link-jini.mjs | NEVER-LOADED | 45 | 0/45 (0.00%) | 0/24 (0.00%) | 0/5 (0.00%) |
 | development/evals/tool-search-doc2query-canary.eval.ts | NEVER-LOADED | 44 | 0/44 (0.00%) | 0/18 (0.00%) | 0/13 (0.00%) |
-| apps/website/src/features/theme/publish-content.ts | LOADED | 43 | 783/826 (94.79%) | 147/183 (80.33%) | 55/59 (93.22%) |
-| apps/website/src/features/sites/tool-registrations.ts | LOADED | 42 | 267/309 (86.41%) | 49/53 (92.45%) | 27/32 (84.38%) |
 | development/evals/tool-search-credential-save.eval.ts | NEVER-LOADED | 42 | 0/42 (0.00%) | 0/26 (0.00%) | 0/17 (0.00%) |
 | content/themes/__original-themes__/static/tovu-starter/scripts/docs-sidebar.js | NEVER-LOADED | 41 | 0/41 (0.00%) | 0/24 (0.00%) | 0/13 (0.00%) |
 | content/themes/__original-themes__/static/tovu-theme/scripts/docs-sidebar.js | NEVER-LOADED | 41 | 0/41 (0.00%) | 0/24 (0.00%) | 0/13 (0.00%) |
@@ -562,6 +564,7 @@ Never-loaded files: **146** / 3367
 | development/evals/tool-search-argument-fill-adversarial.ts | NEVER-LOADED | 30 | 0/30 (0.00%) | 0/14 (0.00%) | 0/21 (0.00%) |
 | development/scripts/unlink-jini.mjs | NEVER-LOADED | 30 | 0/30 (0.00%) | 0/16 (0.00%) | 0/2 (0.00%) |
 | development/scripts/migrate-page-embed-markers.ts | LOADED | 29 | 314/343 (91.55%) | 25/36 (69.44%) | 20/25 (80.00%) |
+| apps/website/src/features/publish-content/apply-loop.ts | LOADED | 28 | 961/989 (97.17%) | 158/193 (81.87%) | 50/51 (98.04%) |
 | development/evals/tool-search-caller2-score-captures.ts | NEVER-LOADED | 28 | 0/28 (0.00%) | 0/16 (0.00%) | 0/6 (0.00%) |
 | content/themes/static/tovu-starter/scripts/theme-toggle.js | NEVER-LOADED | 27 | 0/27 (0.00%) | 0/16 (0.00%) | 0/6 (0.00%) |
 | development/scripts/check-governance-adr-scope-drift.ts | LOADED | 27 | 333/360 (92.50%) | 59/61 (96.72%) | 18/19 (94.74%) |
@@ -574,7 +577,6 @@ Never-loaded files: **146** / 3367
 | .dependency-cruiser.mjs | NEVER-LOADED | 22 | 0/22 (0.00%) | 0/6 (0.00%) | 0/9 (0.00%) |
 | apps/website/src/server/runtime/composition/commerce.ts | LOADED | 22 | 315/337 (93.47%) | 166/190 (87.37%) | 64/72 (88.89%) |
 | apps/website/src/server/runtime/composition/reset-owner.ts | LOADED | 22 | 24/46 (52.17%) | 2/2 (100.00%) | 1/2 (50.00%) |
-| apps/website/src/features/theme/migration/migrate-theme.ts | LOADED | 21 | 355/376 (94.41%) | 22/39 (56.41%) | 15/18 (83.33%) |
 | apps/website/src/server/runtime/composition/move-site-storage.ts | LOADED | 21 | 109/130 (83.85%) | 10/14 (71.43%) | 5/5 (100.00%) |
 | content/themes/__original-themes__/static/tovu-starter/scripts/theme-toggle.js | NEVER-LOADED | 21 | 0/21 (0.00%) | 0/10 (0.00%) | 0/5 (0.00%) |
 | content/themes/__original-themes__/static/tovu-theme/scripts/theme-toggle.js | NEVER-LOADED | 21 | 0/21 (0.00%) | 0/10 (0.00%) | 0/5 (0.00%) |
@@ -616,8 +618,6 @@ Never-loaded files: **146** / 3367
 | .claude/skills/tovu-demo-video/scripts/make-state.mjs | NEVER-LOADED | 12 | 0/12 (0.00%) | 0/2 (0.00%) | 0/1 (0.00%) |
 | apps/desktop/src/renderer/main.tsx | NEVER-LOADED | 12 | 0/12 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | apps/site-chat/scripts/check-bundle-mounts.d.mts | NEVER-LOADED | 12 | 0/12 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| apps/website/src/features/publish-content/peer-transport.ts | LOADED | 12 | 937/949 (98.74%) | 168/186 (90.32%) | 38/38 (100.00%) |
-| apps/website/src/features/site-backup/tool-registrations.ts | LOADED | 12 | 246/258 (95.35%) | 24/27 (88.89%) | 11/17 (64.71%) |
 | apps/website/src/features/theme/preview-switcher.ts | LOADED | 12 | 95/107 (88.79%) | 80/83 (96.39%) | 31/50 (62.00%) |
 | apps/website/src/server/inbound/public-http/routes/commerce/purchase.ts | LOADED | 12 | 180/192 (93.75%) | 82/102 (80.39%) | 18/19 (94.74%) |
 | apps/website/src/server/runtime/boot/bootstrap.ts | LOADED | 12 | 383/395 (96.96%) | 64/67 (95.52%) | 34/36 (94.44%) |
@@ -629,10 +629,9 @@ Never-loaded files: **146** / 3367
 | apps/admin/dev-jini-deps.ts | NEVER-LOADED | 10 | 0/10 (0.00%) | 0/2 (0.00%) | 0/4 (0.00%) |
 | apps/admin/src/lib/api.ts | LOADED | 10 | 350/360 (97.22%) | 252/254 (99.21%) | 244/254 (96.06%) |
 | apps/desktop/src/renderer/source-test-harness.ts | LOADED | 10 | 66/76 (86.84%) | 23/25 (92.00%) | 9/12 (75.00%) |
-| apps/website/src/features/post/content-stats-tool.ts | LOADED | 10 | 162/172 (94.19%) | 18/29 (62.07%) | 17/24 (70.83%) |
 | development/playwright.memory-soak.config.ts | NEVER-LOADED | 10 | 0/10 (0.00%) | 0/4 (0.00%) | 0/2 (0.00%) |
 | apps/website/src/features/publish-content/publish-tool.ts | LOADED | 9 | 184/193 (95.34%) | 99/121 (81.82%) | 33/34 (97.06%) |
-| apps/website/src/features/source-control/store.ts | LOADED | 9 | 542/551 (98.37%) | 219/235 (93.19%) | 62/62 (100.00%) |
+| apps/website/src/features/source-control/store.ts | LOADED | 9 | 542/551 (98.37%) | 221/237 (93.25%) | 62/62 (100.00%) |
 | apps/website/src/server/inbound/public-http/http/site/form-validation-i18n.ts | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/12 (0.00%) | 0/2 (0.00%) |
 | development/playwright.journeys.config.ts | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/14 (0.00%) | 0/2 (0.00%) |
 | development/scripts/check-coverage-integrity.ts | LOADED | 9 | 684/693 (98.70%) | 77/88 (87.50%) | 33/33 (100.00%) |
@@ -650,7 +649,6 @@ Never-loaded files: **146** / 3367
 | apps/admin/src/features/email/EmailOverviewTab.tsx | LOADED | 7 | 17/24 (70.83%) | 17/28 (60.71%) | 5/10 (50.00%) |
 | apps/admin/src/features/email/EmailTemplatesTab.tsx | LOADED | 7 | 13/20 (65.00%) | 9/14 (64.29%) | 12/19 (63.16%) |
 | apps/site-chat/scripts/measure-bundles.d.mts | NEVER-LOADED | 7 | 0/7 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| apps/website/src/cli/commands/agent-plugin-tokens.ts | LOADED | 7 | 103/110 (93.64%) | 13/18 (72.22%) | 11/11 (100.00%) |
 | apps/website/src/features/deployments/publish-agent-tools.ts | LOADED | 7 | 1185/1192 (99.41%) | 302/316 (95.57%) | 75/75 (100.00%) |
 | apps/website/src/features/theme/validation/webmcp-markup.ts | LOADED | 7 | 187/194 (96.39%) | 115/120 (95.83%) | 30/30 (100.00%) |
 | apps/website/src/features/theme/visitor-publication.ts | LOADED | 7 | 142/149 (95.30%) | 79/90 (87.78%) | 33/56 (58.93%) |
@@ -669,8 +667,6 @@ Never-loaded files: **146** / 3367
 | apps/desktop/vite.config.mts | NEVER-LOADED | 6 | 0/6 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | apps/site-chat/vite.vanilla.config.ts | NEVER-LOADED | 6 | 0/6 (0.00%) | 0/4 (0.00%) | 0/2 (0.00%) |
 | apps/website/src/features/publish-content/peers.ts | LOADED | 6 | 631/637 (99.06%) | 178/186 (95.70%) | 57/62 (91.94%) |
-| apps/website/src/features/publish-content/planner.ts | LOADED | 6 | 586/592 (98.99%) | 95/106 (89.62%) | 21/21 (100.00%) |
-| apps/website/src/features/publish-content/ui/index.ts | NEVER-LOADED | 6 | 0/6 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | development/scripts/check-idle-motion.ts | LOADED | 6 | 224/230 (97.39%) | 65/68 (95.59%) | 14/14 (100.00%) |
 | development/scripts/check-test-baseline.ts | LOADED | 6 | 235/241 (97.51%) | 15/24 (62.50%) | 12/12 (100.00%) |
 | development/scripts/compose-bundled-agent-plugins.mjs | LOADED | 6 | 153/159 (96.23%) | 39/41 (95.12%) | 18/18 (100.00%) |
@@ -686,7 +682,7 @@ Never-loaded files: **146** / 3367
 | apps/website/src/assistant/site/visitor-page-tools.ts | LOADED | 5 | 94/99 (94.95%) | 32/46 (69.57%) | 17/21 (80.95%) |
 | apps/website/src/cli/commands/import-local.ts | LOADED | 5 | 178/183 (97.27%) | 57/67 (85.07%) | 16/19 (84.21%) |
 | apps/website/src/cli/program.ts | LOADED | 5 | 276/281 (98.22%) | 26/29 (89.66%) | 23/27 (85.19%) |
-| apps/website/src/features/publish-content/tool-registrations.ts | LOADED | 5 | 484/489 (98.98%) | 146/155 (94.19%) | 52/56 (92.86%) |
+| apps/website/src/features/publish-content/tool-registrations.ts | LOADED | 5 | 484/489 (98.98%) | 147/155 (94.84%) | 52/56 (92.86%) |
 | apps/website/src/features/site-evidence/tool-registrations.ts | LOADED | 5 | 231/236 (97.88%) | 32/36 (88.89%) | 8/10 (80.00%) |
 | apps/website/src/features/theme/template-applicability.ts | LOADED | 5 | 42/47 (89.36%) | 18/22 (81.82%) | 6/6 (100.00%) |
 | apps/website/src/server/inbound/admin-http/routes/system/sites.ts | LOADED | 5 | 456/461 (98.92%) | 102/107 (95.33%) | 17/18 (94.44%) |
@@ -708,10 +704,9 @@ Never-loaded files: **146** / 3367
 | apps/website/src/cli/commands/theme/migrate.ts | LOADED | 4 | 77/81 (95.06%) | 19/21 (90.48%) | 6/6 (100.00%) |
 | apps/website/src/features/media/import-media-entity.ts | LOADED | 4 | 438/442 (99.10%) | 89/95 (93.68%) | 13/13 (100.00%) |
 | apps/website/src/features/project-keys/tools.ts | LOADED | 4 | 60/64 (93.75%) | 23/27 (85.19%) | 12/13 (92.31%) |
-| apps/website/src/features/site-backup/share-backend.ts | LOADED | 4 | 237/241 (98.34%) | 98/114 (85.96%) | 31/32 (96.88%) |
 | apps/website/src/features/site-backup/share-database/repo.sqlite.ts | LOADED | 4 | 439/443 (99.10%) | 219/231 (94.81%) | 76/76 (100.00%) |
-| apps/website/src/features/site-backup/share-service.ts | LOADED | 4 | 143/147 (97.28%) | 74/79 (93.67%) | 13/13 (100.00%) |
-| apps/website/src/features/site-inspection/published-page.ts | LOADED | 4 | 530/534 (99.25%) | 79/92 (85.87%) | 24/24 (100.00%) |
+| apps/website/src/features/site-backup/share-service.ts | LOADED | 4 | 143/147 (97.28%) | 81/85 (95.29%) | 13/13 (100.00%) |
+| apps/website/src/features/site-inspection/published-page.ts | LOADED | 4 | 530/534 (99.25%) | 83/94 (88.30%) | 24/24 (100.00%) |
 | apps/website/src/platform/db/client/open-site-db-client.ts | LOADED | 4 | 159/163 (97.55%) | 26/30 (86.67%) | 12/13 (92.31%) |
 | apps/website/src/server/inbound/admin-http/routes/plugins/chart-providers.ts | LOADED | 4 | 48/52 (92.31%) | 15/17 (88.24%) | 5/8 (62.50%) |
 | apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts | LOADED | 4 | 665/669 (99.40%) | 148/154 (96.10%) | 48/51 (94.12%) |
@@ -746,11 +741,10 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/media/attachment-tools.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | apps/website/src/features/project-keys/attached-vault.ts | LOADED | 3 | 57/60 (95.00%) | 22/26 (84.62%) | 12/13 (92.31%) |
 | apps/website/src/features/publish-content/publish-backstop-file.ts | LOADED | 3 | 150/153 (98.04%) | 75/81 (92.59%) | 19/20 (95.00%) |
-| apps/website/src/features/publish-content/repo-handler.ts | LOADED | 3 | 345/348 (99.14%) | 135/140 (96.43%) | 35/35 (100.00%) |
+| apps/website/src/features/publish-content/repo-handler.ts | LOADED | 3 | 345/348 (99.14%) | 140/144 (97.22%) | 35/35 (100.00%) |
 | apps/website/src/features/site-backup/archive-manifest.ts | LOADED | 3 | 172/175 (98.29%) | 85/96 (88.54%) | 22/22 (100.00%) |
-| apps/website/src/features/site-backup/import-backend-steps.ts | LOADED | 3 | 166/169 (98.22%) | 95/102 (93.14%) | 22/22 (100.00%) |
+| apps/website/src/features/site-backup/import-backend-steps.ts | LOADED | 3 | 166/169 (98.22%) | 99/104 (95.19%) | 22/22 (100.00%) |
 | apps/website/src/features/site-backup/static-download-landing.ts | LOADED | 3 | 105/108 (97.22%) | 46/50 (92.00%) | 15/17 (88.24%) |
-| apps/website/src/features/site-export/media-original-urls.ts | LOADED | 3 | 95/98 (96.94%) | 25/27 (92.59%) | 7/10 (70.00%) |
 | apps/website/src/features/site-inspection/tool-registrations.ts | LOADED | 3 | 210/213 (98.59%) | 26/35 (74.29%) | 19/21 (90.48%) |
 | apps/website/src/features/sites/site-admin.ts | LOADED | 3 | 334/337 (99.11%) | 74/79 (93.67%) | 13/13 (100.00%) |
 | apps/website/src/features/theme/handlebars-allowlist.ts | LOADED | 3 | 421/424 (99.29%) | 71/80 (88.75%) | 23/43 (53.49%) |
@@ -797,15 +791,13 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/forms/protect-existing-files.ts | LOADED | 2 | 56/58 (96.55%) | 22/24 (91.67%) | 11/11 (100.00%) |
 | apps/website/src/features/fs-files/write-files.ts | LOADED | 2 | 137/139 (98.56%) | 68/73 (93.15%) | 20/20 (100.00%) |
 | apps/website/src/features/media/read-chat-attachment.ts | LOADED | 2 | 367/369 (99.46%) | 70/72 (97.22%) | 15/15 (100.00%) |
-| apps/website/src/features/post/post.ts | LOADED | 2 | 2607/2609 (99.92%) | 469/484 (96.90%) | 102/211 (48.34%) |
+| apps/website/src/features/post/post.ts | LOADED | 2 | 2607/2609 (99.92%) | 477/489 (97.55%) | 102/211 (48.34%) |
 | apps/website/src/features/post/reverters.ts | LOADED | 2 | 336/338 (99.41%) | 52/55 (94.55%) | 18/18 (100.00%) |
 | apps/website/src/features/project-keys/service.ts | LOADED | 2 | 153/155 (98.71%) | 96/106 (90.57%) | 26/26 (100.00%) |
 | apps/website/src/features/project-keys/site-references.ts | LOADED | 2 | 83/85 (97.65%) | 26/28 (92.86%) | 12/12 (100.00%) |
 | apps/website/src/features/publish-content/raw-row-contributor.ts | LOADED | 2 | 230/232 (99.14%) | 144/159 (90.57%) | 44/46 (95.65%) |
 | apps/website/src/features/recovery/tool-registrations.ts | LOADED | 2 | 412/414 (99.52%) | 44/49 (89.80%) | 26/26 (100.00%) |
 | apps/website/src/features/site-backup/import-restore.ts | LOADED | 2 | 102/104 (98.08%) | 37/42 (88.10%) | 11/11 (100.00%) |
-| apps/website/src/features/site-backup/push-engine.ts | LOADED | 2 | 188/190 (98.95%) | 25/40 (62.50%) | 17/17 (100.00%) |
-| apps/website/src/features/site-backup/share-registry.ts | LOADED | 2 | 144/146 (98.63%) | 67/71 (94.37%) | 21/21 (100.00%) |
 | apps/website/src/features/site-backup/sources.ts | LOADED | 2 | 710/712 (99.72%) | 267/272 (98.16%) | 52/56 (92.86%) |
 | apps/website/src/features/sites/warm-switch.ts | LOADED | 2 | 29/31 (93.55%) | 7/11 (63.64%) | 3/3 (100.00%) |
 | apps/website/src/features/source-control/credential-setup.ts | LOADED | 2 | 211/213 (99.06%) | 74/84 (88.10%) | 20/34 (58.82%) |
@@ -857,7 +849,7 @@ Never-loaded files: **146** / 3367
 | apps/website/src/assistant/byok-meta-tool-result.ts | LOADED | 1 | 127/128 (99.22%) | 53/55 (96.36%) | 10/10 (100.00%) |
 | apps/website/src/assistant/content-read-tool.ts | LOADED | 1 | 698/699 (99.86%) | 181/187 (96.79%) | 52/52 (100.00%) |
 | apps/website/src/assistant/subagent-settings.ts | LOADED | 1 | 94/95 (98.95%) | 43/53 (81.13%) | 10/10 (100.00%) |
-| apps/website/src/cli/commands/init.ts | LOADED | 1 | 172/173 (99.42%) | 54/57 (94.74%) | 10/10 (100.00%) |
+| apps/website/src/cli/commands/init.ts | LOADED | 1 | 172/173 (99.42%) | 55/59 (93.22%) | 10/10 (100.00%) |
 | apps/website/src/cli/commands/reset-owner.ts | LOADED | 1 | 28/29 (96.55%) | 7/8 (87.50%) | 2/2 (100.00%) |
 | apps/website/src/contracts/core/public-page-security-headers.ts | LOADED | 1 | 84/85 (98.82%) | 26/29 (89.66%) | 16/25 (64.00%) |
 | apps/website/src/features/agent-plugins/install-upload.ts | LOADED | 1 | 382/383 (99.74%) | 130/135 (96.30%) | 32/32 (100.00%) |
@@ -868,15 +860,12 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/members/repo.sqlite.ts | LOADED | 1 | 68/69 (98.55%) | 15/15 (100.00%) | 14/15 (93.33%) |
 | apps/website/src/features/post/author.ts | NEVER-LOADED | 1 | 0/1 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | apps/website/src/features/post/repo.ts | LOADED | 1 | 357/358 (99.72%) | 63/64 (98.44%) | 46/47 (97.87%) |
-| apps/website/src/features/settings/mail-provider.ts | LOADED | 1 | 125/126 (99.21%) | 21/27 (77.78%) | 9/9 (100.00%) |
-| apps/website/src/features/site-backup/archive-extensions.ts | LOADED | 1 | 115/116 (99.14%) | 60/64 (93.75%) | 21/21 (100.00%) |
+| apps/website/src/features/site-backup/share-registry.ts | LOADED | 1 | 145/146 (99.32%) | 79/82 (96.34%) | 21/21 (100.00%) |
 | apps/website/src/features/site-backup/static-copy.ts | LOADED | 1 | 168/169 (99.41%) | 67/74 (90.54%) | 31/31 (100.00%) |
 | apps/website/src/features/site-backup/static-download-layout.ts | LOADED | 1 | 305/306 (99.67%) | 148/158 (93.67%) | 37/37 (100.00%) |
 | apps/website/src/features/site-inspection/live-url.ts | LOADED | 1 | 182/183 (99.45%) | 84/91 (92.31%) | 17/17 (100.00%) |
-| apps/website/src/features/skills/tool-registrations.ts | LOADED | 1 | 422/423 (99.76%) | 73/83 (87.95%) | 25/25 (100.00%) |
 | apps/website/src/features/taxonomy/html-render.ts | NEVER-LOADED | 1 | 0/1 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| apps/website/src/features/theme/entry-list-render.ts | LOADED | 1 | 374/375 (99.73%) | 74/92 (80.43%) | 36/65 (55.38%) |
-| apps/website/src/features/theme/theme-files.ts | LOADED | 1 | 1346/1347 (99.93%) | 262/275 (95.27%) | 66/138 (47.83%) |
+| apps/website/src/features/theme/theme-files.ts | LOADED | 1 | 1346/1347 (99.93%) | 263/276 (95.29%) | 66/138 (47.83%) |
 | apps/website/src/features/trash/table-adapter.ts | LOADED | 1 | 359/360 (99.72%) | 106/114 (92.98%) | 37/37 (100.00%) |
 | apps/website/src/platform/db/migration/manifest.ts | LOADED | 1 | 949/950 (99.89%) | 85/90 (94.44%) | 31/31 (100.00%) |
 | apps/website/src/platform/dev-supervisor/dev-restart.ts | LOADED | 1 | 113/114 (99.12%) | 35/37 (94.59%) | 10/12 (83.33%) |
@@ -2050,6 +2039,7 @@ Never-loaded files: **146** / 3367
 | apps/website/src/assistant/tool-search-keywords.ts | LOADED | 0 | 159/159 (100.00%) | 36/37 (97.30%) | 10/10 (100.00%) |
 | apps/website/src/assistant/visitor-services.ts | LOADED | 0 | 4/4 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
 | apps/website/src/cli/commands/adopt.ts | LOADED | 0 | 200/200 (100.00%) | 31/31 (100.00%) | 11/11 (100.00%) |
+| apps/website/src/cli/commands/agent-plugin-tokens.ts | LOADED | 0 | 110/110 (100.00%) | 20/21 (95.24%) | 11/11 (100.00%) |
 | apps/website/src/cli/commands/export.ts | LOADED | 0 | 196/196 (100.00%) | 28/37 (75.68%) | 6/6 (100.00%) |
 | apps/website/src/cli/commands/import-site.ts | LOADED | 0 | 53/53 (100.00%) | 34/34 (100.00%) | 5/5 (100.00%) |
 | apps/website/src/cli/commands/introspect.ts | LOADED | 0 | 47/47 (100.00%) | 10/10 (100.00%) | 3/3 (100.00%) |
@@ -2676,16 +2666,17 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/plugins/plugin-identity.ts | LOADED | 0 | 4/4 (100.00%) | 2/2 (100.00%) | 1/2 (50.00%) |
 | apps/website/src/features/plugins/plugin-store.ts | LOADED | 0 | 4/4 (100.00%) | 3/3 (100.00%) | 2/2 (100.00%) |
 | apps/website/src/features/plugins/restore.ts | LOADED | 0 | 1/1 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
-| apps/website/src/features/plugins/snapshot.ts | LOADED | 0 | 5/5 (100.00%) | 3/3 (100.00%) | 2/3 (66.67%) |
+| apps/website/src/features/plugins/snapshot.ts | LOADED | 0 | 5/5 (100.00%) | 4/4 (100.00%) | 3/3 (100.00%) |
 | apps/website/src/features/plugins/store/manifest.ts | LOADED | 0 | 29/29 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
 | apps/website/src/features/post/agent-tools.ts | LOADED | 0 | 1005/1005 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
 | apps/website/src/features/post/capability-card.ts | LOADED | 0 | 29/29 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
+| apps/website/src/features/post/content-stats-tool.ts | LOADED | 0 | 172/172 (100.00%) | 72/72 (100.00%) | 24/24 (100.00%) |
 | apps/website/src/features/post/cover-image.ts | LOADED | 0 | 260/260 (100.00%) | 146/148 (98.65%) | 33/57 (57.89%) |
 | apps/website/src/features/post/duplicate-embeds.ts | LOADED | 0 | 110/110 (100.00%) | 25/25 (100.00%) | 9/9 (100.00%) |
 | apps/website/src/features/post/expected-version.ts | LOADED | 0 | 76/76 (100.00%) | 11/11 (100.00%) | 3/3 (100.00%) |
 | apps/website/src/features/post/featured-image.ts | LOADED | 0 | 79/79 (100.00%) | 25/25 (100.00%) | 6/6 (100.00%) |
 | apps/website/src/features/post/go-live.ts | LOADED | 0 | 185/185 (100.00%) | 42/43 (97.67%) | 19/32 (59.38%) |
-| apps/website/src/features/post/html-plain-text.ts | LOADED | 0 | 99/99 (100.00%) | 37/40 (92.50%) | 14/21 (66.67%) |
+| apps/website/src/features/post/html-plain-text.ts | LOADED | 0 | 99/99 (100.00%) | 39/41 (95.12%) | 14/21 (66.67%) |
 | apps/website/src/features/post/index.ts | LOADED | 0 | 85/85 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
 | apps/website/src/features/post/preview-tool.ts | LOADED | 0 | 85/85 (100.00%) | 31/31 (100.00%) | 7/7 (100.00%) |
 | apps/website/src/features/post/publish-content.ts | LOADED | 0 | 577/577 (100.00%) | 131/132 (99.24%) | 39/40 (97.50%) |
@@ -2695,12 +2686,12 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/post/repo.rows.ts | LOADED | 0 | 257/257 (100.00%) | 50/50 (100.00%) | 12/12 (100.00%) |
 | apps/website/src/features/post/repo.sqlite.ts | LOADED | 0 | 17/17 (100.00%) | 4/4 (100.00%) | 3/3 (100.00%) |
 | apps/website/src/features/post/search-index.contract.ts | LOADED | 0 | 49/49 (100.00%) | 3/3 (100.00%) | 2/2 (100.00%) |
-| apps/website/src/features/post/search-index.memory.ts | LOADED | 0 | 91/91 (100.00%) | 12/12 (100.00%) | 10/10 (100.00%) |
+| apps/website/src/features/post/search-index.memory.ts | LOADED | 0 | 91/91 (100.00%) | 13/13 (100.00%) | 10/10 (100.00%) |
 | apps/website/src/features/post/search-index.postgres.ts | LOADED | 0 | 110/110 (100.00%) | 11/12 (91.67%) | 8/8 (100.00%) |
 | apps/website/src/features/post/search-index.sqlite.ts | LOADED | 0 | 138/138 (100.00%) | 10/10 (100.00%) | 7/7 (100.00%) |
 | apps/website/src/features/post/search-index.ts | LOADED | 0 | 274/274 (100.00%) | 53/54 (98.15%) | 26/26 (100.00%) |
 | apps/website/src/features/post/search.ts | LOADED | 0 | 279/279 (100.00%) | 36/36 (100.00%) | 8/8 (100.00%) |
-| apps/website/src/features/post/slug.ts | LOADED | 0 | 23/23 (100.00%) | 6/8 (75.00%) | 3/3 (100.00%) |
+| apps/website/src/features/post/slug.ts | LOADED | 0 | 23/23 (100.00%) | 9/10 (90.00%) | 3/3 (100.00%) |
 | apps/website/src/features/post/template-options.ts | LOADED | 0 | 31/31 (100.00%) | 8/8 (100.00%) | 2/2 (100.00%) |
 | apps/website/src/features/post/tool-registrations.ts | LOADED | 0 | 1539/1539 (100.00%) | 261/273 (95.60%) | 86/86 (100.00%) |
 | apps/website/src/features/presentation/active-theme-id.ts | LOADED | 0 | 58/58 (100.00%) | 12/14 (85.71%) | 8/11 (72.73%) |
@@ -2721,7 +2712,7 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/publish-content/backstop-service.ts | LOADED | 0 | 116/116 (100.00%) | 105/105 (100.00%) | 25/25 (100.00%) |
 | apps/website/src/features/publish-content/baseline-repo.ts | LOADED | 0 | 82/82 (100.00%) | 9/9 (100.00%) | 6/6 (100.00%) |
 | apps/website/src/features/publish-content/blob-staging.ts | LOADED | 0 | 70/70 (100.00%) | 5/5 (100.00%) | 4/4 (100.00%) |
-| apps/website/src/features/publish-content/bundle-staging.ts | LOADED | 0 | 220/220 (100.00%) | 22/22 (100.00%) | 10/10 (100.00%) |
+| apps/website/src/features/publish-content/bundle-staging.ts | LOADED | 0 | 220/220 (100.00%) | 24/24 (100.00%) | 10/10 (100.00%) |
 | apps/website/src/features/publish-content/composite-blob-source.ts | LOADED | 0 | 112/112 (100.00%) | 25/25 (100.00%) | 7/7 (100.00%) |
 | apps/website/src/features/publish-content/connect-destination.ts | LOADED | 0 | 185/185 (100.00%) | 21/21 (100.00%) | 4/4 (100.00%) |
 | apps/website/src/features/publish-content/content-hash.ts | LOADED | 0 | 152/152 (100.00%) | 18/18 (100.00%) | 5/5 (100.00%) |
@@ -2731,14 +2722,16 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/publish-content/execute-import.ts | LOADED | 0 | 58/58 (100.00%) | 7/7 (100.00%) | 4/4 (100.00%) |
 | apps/website/src/features/publish-content/export-bundle.ts | LOADED | 0 | 344/344 (100.00%) | 65/65 (100.00%) | 18/18 (100.00%) |
 | apps/website/src/features/publish-content/file-blob-index.ts | LOADED | 0 | 109/109 (100.00%) | 13/13 (100.00%) | 6/6 (100.00%) |
-| apps/website/src/features/publish-content/file-tree-policy.ts | LOADED | 0 | 499/499 (100.00%) | 141/146 (96.58%) | 23/23 (100.00%) |
+| apps/website/src/features/publish-content/file-tree-policy.ts | LOADED | 0 | 499/499 (100.00%) | 158/158 (100.00%) | 23/23 (100.00%) |
 | apps/website/src/features/publish-content/gated-hooks.ts | LOADED | 0 | 351/351 (100.00%) | 25/25 (100.00%) | 9/9 (100.00%) |
 | apps/website/src/features/publish-content/live-site-policy.ts | LOADED | 0 | 25/25 (100.00%) | 3/3 (100.00%) | 2/2 (100.00%) |
 | apps/website/src/features/publish-content/media-references.ts | LOADED | 0 | 228/228 (100.00%) | 113/115 (98.26%) | 28/48 (58.33%) |
-| apps/website/src/features/publish-content/peer-url.ts | LOADED | 0 | 140/140 (100.00%) | 34/34 (100.00%) | 6/6 (100.00%) |
+| apps/website/src/features/publish-content/peer-transport.ts | LOADED | 0 | 949/949 (100.00%) | 198/203 (97.54%) | 38/38 (100.00%) |
+| apps/website/src/features/publish-content/peer-url.ts | LOADED | 0 | 140/140 (100.00%) | 34/35 (97.14%) | 6/6 (100.00%) |
 | apps/website/src/features/publish-content/permissions.ts | LOADED | 0 | 107/107 (100.00%) | 3/3 (100.00%) | 2/2 (100.00%) |
+| apps/website/src/features/publish-content/planner.ts | LOADED | 0 | 592/592 (100.00%) | 117/119 (98.32%) | 21/21 (100.00%) |
 | apps/website/src/features/publish-content/precheck-reasons.ts | LOADED | 0 | 83/83 (100.00%) | 10/10 (100.00%) | 9/9 (100.00%) |
-| apps/website/src/features/publish-content/publish-backstop-row.sqlite.ts | LOADED | 0 | 83/83 (100.00%) | 61/63 (96.83%) | 29/29 (100.00%) |
+| apps/website/src/features/publish-content/publish-backstop-row.sqlite.ts | LOADED | 0 | 83/83 (100.00%) | 62/64 (96.88%) | 29/29 (100.00%) |
 | apps/website/src/features/publish-content/publish-content-peer-repo.sqlite.ts | LOADED | 0 | 8/8 (100.00%) | 3/3 (100.00%) | 2/2 (100.00%) |
 | apps/website/src/features/publish-content/publish-content-peer-repo.ts | LOADED | 0 | 12/12 (100.00%) | 4/4 (100.00%) | 3/3 (100.00%) |
 | apps/website/src/features/publish-content/publish-readiness.ts | LOADED | 0 | 155/155 (100.00%) | 15/16 (93.75%) | 4/4 (100.00%) |
@@ -2750,6 +2743,7 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/publish-content/seed-hash.ts | LOADED | 0 | 74/74 (100.00%) | 17/17 (100.00%) | 5/5 (100.00%) |
 | apps/website/src/features/publish-content/type-registry.ts | LOADED | 0 | 683/683 (100.00%) | 43/43 (100.00%) | 20/20 (100.00%) |
 | apps/website/src/features/publish-content/ui/criteria.ts | LOADED | 0 | 317/317 (100.00%) | 86/86 (100.00%) | 21/21 (100.00%) |
+| apps/website/src/features/publish-content/ui/index.ts | LOADED | 0 | 70/70 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
 | apps/website/src/features/publish-content/ui/phase.ts | LOADED | 0 | 104/104 (100.00%) | 23/24 (95.83%) | 6/6 (100.00%) |
 | apps/website/src/features/publish-content/ui/publish-order.ts | LOADED | 0 | 90/90 (100.00%) | 17/17 (100.00%) | 6/6 (100.00%) |
 | apps/website/src/features/publish-content/ui/replan.ts | LOADED | 0 | 106/106 (100.00%) | 44/44 (100.00%) | 17/17 (100.00%) |
@@ -2759,7 +2753,7 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/publish-trust/connect.ts | LOADED | 0 | 197/197 (100.00%) | 20/21 (95.24%) | 7/7 (100.00%) |
 | apps/website/src/features/publish-trust/grant.ts | LOADED | 0 | 318/318 (100.00%) | 100/103 (97.09%) | 24/50 (48.00%) |
 | apps/website/src/features/publish-trust/handshake-client.ts | LOADED | 0 | 344/344 (100.00%) | 69/69 (100.00%) | 16/16 (100.00%) |
-| apps/website/src/features/publish-trust/keys.ts | LOADED | 0 | 205/205 (100.00%) | 27/30 (90.00%) | 16/28 (57.14%) |
+| apps/website/src/features/publish-trust/keys.ts | LOADED | 0 | 205/205 (100.00%) | 28/30 (93.33%) | 16/28 (57.14%) |
 | apps/website/src/features/publish-trust/provisioning.node-io.ts | LOADED | 0 | 83/83 (100.00%) | 10/10 (100.00%) | 4/4 (100.00%) |
 | apps/website/src/features/publish-trust/provisioning.ts | LOADED | 0 | 562/562 (100.00%) | 115/118 (97.46%) | 36/65 (55.38%) |
 | apps/website/src/features/publish-trust/publish-trust-revocations.ts | LOADED | 0 | 141/141 (100.00%) | 51/51 (100.00%) | 19/19 (100.00%) |
@@ -2777,7 +2771,7 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/redirects/agent-tools.ts | LOADED | 0 | 236/236 (100.00%) | 3/3 (100.00%) | 2/2 (100.00%) |
 | apps/website/src/features/redirects/index.ts | LOADED | 0 | 5/5 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
 | apps/website/src/features/redirects/phase-handler.ts | LOADED | 0 | 95/95 (100.00%) | 11/11 (100.00%) | 6/6 (100.00%) |
-| apps/website/src/features/redirects/publish-content.ts | LOADED | 0 | 151/151 (100.00%) | 30/31 (96.77%) | 15/15 (100.00%) |
+| apps/website/src/features/redirects/publish-content.ts | LOADED | 0 | 151/151 (100.00%) | 31/31 (100.00%) | 15/15 (100.00%) |
 | apps/website/src/features/redirects/repo.sqlite.ts | LOADED | 0 | 32/32 (100.00%) | 3/3 (100.00%) | 2/2 (100.00%) |
 | apps/website/src/features/redirects/tool-registrations.ts | LOADED | 0 | 282/282 (100.00%) | 41/42 (97.62%) | 12/12 (100.00%) |
 | apps/website/src/features/seo/agent-tools.ts | LOADED | 0 | 273/273 (100.00%) | 3/3 (100.00%) | 2/2 (100.00%) |
@@ -2799,6 +2793,7 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/settings/form-delivery.ts | LOADED | 0 | 205/205 (100.00%) | 80/82 (97.56%) | 29/62 (46.77%) |
 | apps/website/src/features/settings/form-destination.ts | LOADED | 0 | 35/35 (100.00%) | 7/7 (100.00%) | 3/3 (100.00%) |
 | apps/website/src/features/settings/index.ts | LOADED | 0 | 162/162 (100.00%) | 10/10 (100.00%) | 4/5 (80.00%) |
+| apps/website/src/features/settings/mail-provider.ts | LOADED | 0 | 126/126 (100.00%) | 41/41 (100.00%) | 9/9 (100.00%) |
 | apps/website/src/features/settings/mail-sender.ts | LOADED | 0 | 50/50 (100.00%) | 19/21 (90.48%) | 11/21 (52.38%) |
 | apps/website/src/features/settings/operator-locale.ts | LOADED | 0 | 42/42 (100.00%) | 15/16 (93.75%) | 8/12 (66.67%) |
 | apps/website/src/features/settings/publish-content.ts | LOADED | 0 | 152/152 (100.00%) | 58/58 (100.00%) | 18/18 (100.00%) |
@@ -2812,30 +2807,34 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/settings/tool-registrations.ts | LOADED | 0 | 148/148 (100.00%) | 34/35 (97.14%) | 11/11 (100.00%) |
 | apps/website/src/features/settings/ui-locales-tool.ts | LOADED | 0 | 82/82 (100.00%) | 9/9 (100.00%) | 5/5 (100.00%) |
 | apps/website/src/features/settings/visitor-tools-agent-tools.ts | LOADED | 0 | 25/25 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
-| apps/website/src/features/settings/visitor-tools-configure.ts | LOADED | 0 | 55/55 (100.00%) | 32/36 (88.89%) | 8/8 (100.00%) |
+| apps/website/src/features/settings/visitor-tools-configure.ts | LOADED | 0 | 55/55 (100.00%) | 40/40 (100.00%) | 8/8 (100.00%) |
 | apps/website/src/features/settings/visitor-tools-permissions.ts | LOADED | 0 | 14/14 (100.00%) | 4/4 (100.00%) | 2/2 (100.00%) |
 | apps/website/src/features/settings/visitor-tools-registrations.ts | LOADED | 0 | 98/98 (100.00%) | 40/40 (100.00%) | 23/23 (100.00%) |
 | apps/website/src/features/settings/visitor-tools-service.ts | LOADED | 0 | 135/135 (100.00%) | 70/70 (100.00%) | 25/25 (100.00%) |
 | apps/website/src/features/settings/visitor-tools-write.ts | LOADED | 0 | 104/104 (100.00%) | 40/43 (93.02%) | 18/33 (54.55%) |
+| apps/website/src/features/site-backup/archive-extensions.ts | LOADED | 0 | 116/116 (100.00%) | 60/64 (93.75%) | 21/21 (100.00%) |
 | apps/website/src/features/site-backup/archive-media.ts | LOADED | 0 | 93/93 (100.00%) | 33/39 (84.62%) | 9/9 (100.00%) |
 | apps/website/src/features/site-backup/archive-paths.ts | LOADED | 0 | 88/88 (100.00%) | 54/56 (96.43%) | 12/12 (100.00%) |
+| apps/website/src/features/site-backup/backup-service.ts | LOADED | 0 | 786/786 (100.00%) | 210/215 (97.67%) | 50/50 (100.00%) |
 | apps/website/src/features/site-backup/bundled-export-file-policy.ts | LOADED | 0 | 41/41 (100.00%) | 18/18 (100.00%) | 4/4 (100.00%) |
 | apps/website/src/features/site-backup/credential-warnings.ts | LOADED | 0 | 43/43 (100.00%) | 17/20 (85.00%) | 4/4 (100.00%) |
 | apps/website/src/features/site-backup/import-archive-reader.ts | LOADED | 0 | 85/85 (100.00%) | 32/32 (100.00%) | 11/11 (100.00%) |
-| apps/website/src/features/site-backup/import-backend.ts | LOADED | 0 | 193/193 (100.00%) | 62/69 (89.86%) | 26/26 (100.00%) |
+| apps/website/src/features/site-backup/import-backend.ts | LOADED | 0 | 193/193 (100.00%) | 73/76 (96.05%) | 26/26 (100.00%) |
 | apps/website/src/features/site-backup/import-database.ts | LOADED | 0 | 127/127 (100.00%) | 49/49 (100.00%) | 13/14 (92.86%) |
 | apps/website/src/features/site-backup/import-keep-off.ts | LOADED | 0 | 161/161 (100.00%) | 92/100 (92.00%) | 26/26 (100.00%) |
 | apps/website/src/features/site-backup/import-plugin-state.ts | LOADED | 0 | 82/82 (100.00%) | 29/31 (93.55%) | 10/10 (100.00%) |
-| apps/website/src/features/site-backup/import-registry.ts | LOADED | 0 | 162/162 (100.00%) | 90/92 (97.83%) | 27/27 (100.00%) |
+| apps/website/src/features/site-backup/import-registry.ts | LOADED | 0 | 162/162 (100.00%) | 91/93 (97.85%) | 27/27 (100.00%) |
 | apps/website/src/features/site-backup/import-restore-placement.ts | LOADED | 0 | 122/122 (100.00%) | 49/49 (100.00%) | 9/9 (100.00%) |
 | apps/website/src/features/site-backup/import-verifier-inventory.ts | LOADED | 0 | 263/263 (100.00%) | 112/118 (94.92%) | 26/26 (100.00%) |
 | apps/website/src/features/site-backup/import-verifier-projection.ts | LOADED | 0 | 97/97 (100.00%) | 48/49 (97.96%) | 12/12 (100.00%) |
 | apps/website/src/features/site-backup/import-verifier.ts | LOADED | 0 | 67/67 (100.00%) | 33/33 (100.00%) | 8/8 (100.00%) |
 | apps/website/src/features/site-backup/package-file-inventory.ts | LOADED | 0 | 60/60 (100.00%) | 10/13 (76.92%) | 7/8 (87.50%) |
-| apps/website/src/features/site-backup/plan-store.ts | LOADED | 0 | 138/138 (100.00%) | 8/12 (66.67%) | 7/10 (70.00%) |
+| apps/website/src/features/site-backup/plan-store.ts | LOADED | 0 | 138/138 (100.00%) | 27/27 (100.00%) | 10/10 (100.00%) |
+| apps/website/src/features/site-backup/push-engine.ts | LOADED | 0 | 190/190 (100.00%) | 64/64 (100.00%) | 17/17 (100.00%) |
 | apps/website/src/features/site-backup/push-jobs.ts | LOADED | 0 | 121/121 (100.00%) | 32/32 (100.00%) | 15/15 (100.00%) |
 | apps/website/src/features/site-backup/saved-keys-port.ts | LOADED | 0 | 18/18 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
 | apps/website/src/features/site-backup/saved-keys.ts | LOADED | 0 | 43/43 (100.00%) | 8/9 (88.89%) | 6/6 (100.00%) |
+| apps/website/src/features/site-backup/share-backend.ts | LOADED | 0 | 241/241 (100.00%) | 106/118 (89.83%) | 31/32 (96.88%) |
 | apps/website/src/features/site-backup/share-export-failure.ts | LOADED | 0 | 26/26 (100.00%) | 5/5 (100.00%) | 4/4 (100.00%) |
 | apps/website/src/features/site-backup/share-file-policy.ts | LOADED | 0 | 146/146 (100.00%) | 74/75 (98.67%) | 23/23 (100.00%) |
 | apps/website/src/features/site-backup/share-hosting.ts | LOADED | 0 | 137/137 (100.00%) | 81/82 (98.78%) | 19/19 (100.00%) |
@@ -2844,17 +2843,19 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/site-backup/share-preparation.ts | LOADED | 0 | 46/46 (100.00%) | 23/27 (85.19%) | 8/8 (100.00%) |
 | apps/website/src/features/site-backup/share-zip.ts | LOADED | 0 | 149/149 (100.00%) | 71/74 (95.95%) | 21/21 (100.00%) |
 | apps/website/src/features/site-backup/static-export-selection.ts | LOADED | 0 | 73/73 (100.00%) | 48/48 (100.00%) | 9/9 (100.00%) |
+| apps/website/src/features/site-backup/tool-registrations.ts | LOADED | 0 | 258/258 (100.00%) | 51/53 (96.23%) | 19/19 (100.00%) |
 | apps/website/src/features/site-evidence/agent-tools.ts | LOADED | 0 | 99/99 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
 | apps/website/src/features/site-evidence/collect-page-evidence.ts | LOADED | 0 | 162/162 (100.00%) | 21/23 (91.30%) | 15/15 (100.00%) |
 | apps/website/src/features/site-export/export-failure-summary.ts | LOADED | 0 | 56/56 (100.00%) | 3/3 (100.00%) | 2/2 (100.00%) |
 | apps/website/src/features/site-export/export-html-policy.ts | LOADED | 0 | 244/244 (100.00%) | 133/146 (91.10%) | 31/31 (100.00%) |
 | apps/website/src/features/site-export/index.ts | LOADED | 0 | 18/18 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
+| apps/website/src/features/site-export/media-original-urls.ts | LOADED | 0 | 98/98 (100.00%) | 41/42 (97.62%) | 10/10 (100.00%) |
 | apps/website/src/features/site-export/public-origin-policy.ts | LOADED | 0 | 57/57 (100.00%) | 37/39 (94.87%) | 8/8 (100.00%) |
 | apps/website/src/features/site-export/route-manifest.ts | LOADED | 0 | 339/339 (100.00%) | 41/42 (97.62%) | 11/11 (100.00%) |
 | apps/website/src/features/site-export/site-exporter.ts | LOADED | 0 | 631/631 (100.00%) | 73/76 (96.05%) | 29/29 (100.00%) |
 | apps/website/src/features/site-export/static-security-headers.ts | LOADED | 0 | 48/48 (100.00%) | 8/8 (100.00%) | 5/5 (100.00%) |
 | apps/website/src/features/site-export/theme-preview-manifest.ts | LOADED | 0 | 32/32 (100.00%) | 17/17 (100.00%) | 8/8 (100.00%) |
-| apps/website/src/features/site-export/theme-preview-report.ts | LOADED | 0 | 29/29 (100.00%) | 20/23 (86.96%) | 15/15 (100.00%) |
+| apps/website/src/features/site-export/theme-preview-report.ts | LOADED | 0 | 29/29 (100.00%) | 27/28 (96.43%) | 15/15 (100.00%) |
 | apps/website/src/features/site-guide/capability-card.ts | LOADED | 0 | 22/22 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
 | apps/website/src/features/site-guide/facts.ts | LOADED | 0 | 81/81 (100.00%) | 47/48 (97.92%) | 12/12 (100.00%) |
 | apps/website/src/features/site-guide/index.ts | LOADED | 0 | 3/3 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
@@ -2865,7 +2866,7 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/site-inspection/page-body.ts | LOADED | 0 | 108/108 (100.00%) | 63/63 (100.00%) | 9/9 (100.00%) |
 | apps/website/src/features/site-inspection/section-collector.ts | LOADED | 0 | 177/177 (100.00%) | 29/29 (100.00%) | 10/10 (100.00%) |
 | apps/website/src/features/site-inspection/site-capabilities.ts | LOADED | 0 | 317/317 (100.00%) | 50/50 (100.00%) | 22/22 (100.00%) |
-| apps/website/src/features/site-inspection/site-profile.ts | LOADED | 0 | 664/664 (100.00%) | 57/66 (86.36%) | 35/35 (100.00%) |
+| apps/website/src/features/site-inspection/site-profile.ts | LOADED | 0 | 664/664 (100.00%) | 69/70 (98.57%) | 35/35 (100.00%) |
 | apps/website/src/features/site-search/access.ts | LOADED | 0 | 77/77 (100.00%) | 27/27 (100.00%) | 10/10 (100.00%) |
 | apps/website/src/features/site-search/cms-document-source.ts | LOADED | 0 | 173/173 (100.00%) | 54/54 (100.00%) | 21/21 (100.00%) |
 | apps/website/src/features/site-search/index-state-store.ts | LOADED | 0 | 252/252 (100.00%) | 87/87 (100.00%) | 52/52 (100.00%) |
@@ -2877,12 +2878,14 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/sites/site-preview/playwright-site-preview-capture.ts | LOADED | 0 | 139/139 (100.00%) | 27/27 (100.00%) | 15/15 (100.00%) |
 | apps/website/src/features/sites/site-preview/site-preview-service.ts | LOADED | 0 | 140/140 (100.00%) | 43/43 (100.00%) | 14/14 (100.00%) |
 | apps/website/src/features/sites/site-preview/site-preview-store.ts | LOADED | 0 | 103/103 (100.00%) | 22/22 (100.00%) | 7/7 (100.00%) |
+| apps/website/src/features/sites/tool-registrations.ts | LOADED | 0 | 309/309 (100.00%) | 66/69 (95.65%) | 36/36 (100.00%) |
 | apps/website/src/features/skills/install-adapters.ts | LOADED | 0 | 7/7 (100.00%) | 3/3 (100.00%) | 2/2 (100.00%) |
 | apps/website/src/features/skills/install-service.ts | LOADED | 0 | 52/52 (100.00%) | 21/21 (100.00%) | 15/15 (100.00%) |
 | apps/website/src/features/skills/install-tool.ts | LOADED | 0 | 108/108 (100.00%) | 23/23 (100.00%) | 9/9 (100.00%) |
 | apps/website/src/features/skills/layout.ts | LOADED | 0 | 90/90 (100.00%) | 10/10 (100.00%) | 3/3 (100.00%) |
 | apps/website/src/features/skills/live-registration.ts | LOADED | 0 | 39/39 (100.00%) | 22/22 (100.00%) | 18/18 (100.00%) |
 | apps/website/src/features/skills/state.ts | LOADED | 0 | 7/7 (100.00%) | 3/3 (100.00%) | 2/2 (100.00%) |
+| apps/website/src/features/skills/tool-registrations.ts | LOADED | 0 | 423/423 (100.00%) | 79/86 (91.86%) | 25/25 (100.00%) |
 | apps/website/src/features/source-control/commit-schema.ts | LOADED | 0 | 31/31 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
 | apps/website/src/features/source-control/commit-site.ts | LOADED | 0 | 539/539 (100.00%) | 70/72 (97.22%) | 15/15 (100.00%) |
 | apps/website/src/features/source-control/credential-form.ts | LOADED | 0 | 108/108 (100.00%) | 71/71 (100.00%) | 10/10 (100.00%) |
@@ -2900,7 +2903,7 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/taxonomy/content-targets.ts | LOADED | 0 | 2/2 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
 | apps/website/src/features/taxonomy/gated-hooks.ts | LOADED | 0 | 103/103 (100.00%) | 8/8 (100.00%) | 4/4 (100.00%) |
 | apps/website/src/features/taxonomy/index.ts | LOADED | 0 | 60/60 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
-| apps/website/src/features/taxonomy/publish-content.ts | LOADED | 0 | 116/116 (100.00%) | 29/32 (90.63%) | 24/24 (100.00%) |
+| apps/website/src/features/taxonomy/publish-content.ts | LOADED | 0 | 116/116 (100.00%) | 37/37 (100.00%) | 24/24 (100.00%) |
 | apps/website/src/features/taxonomy/publish-term-ids.ts | LOADED | 0 | 116/116 (100.00%) | 44/44 (100.00%) | 14/14 (100.00%) |
 | apps/website/src/features/taxonomy/render-entry.ts | LOADED | 0 | 38/38 (100.00%) | 20/20 (100.00%) | 6/6 (100.00%) |
 | apps/website/src/features/taxonomy/repo.rows.ts | LOADED | 0 | 81/81 (100.00%) | 12/12 (100.00%) | 6/6 (100.00%) |
@@ -2921,6 +2924,7 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/theme/code-tier-asset-normalizer.ts | LOADED | 0 | 407/407 (100.00%) | 59/62 (95.16%) | 18/18 (100.00%) |
 | apps/website/src/features/theme/duplicate-theme-tool.ts | LOADED | 0 | 174/174 (100.00%) | 29/31 (93.55%) | 8/8 (100.00%) |
 | apps/website/src/features/theme/duplicate-theme.ts | LOADED | 0 | 420/420 (100.00%) | 96/97 (98.97%) | 26/26 (100.00%) |
+| apps/website/src/features/theme/entry-list-render.ts | LOADED | 0 | 375/375 (100.00%) | 113/115 (98.26%) | 43/67 (64.18%) |
 | apps/website/src/features/theme/file-identity-lock.ts | LOADED | 0 | 296/296 (100.00%) | 65/66 (98.48%) | 15/15 (100.00%) |
 | apps/website/src/features/theme/file-mutation-tools.ts | LOADED | 0 | 64/64 (100.00%) | 17/18 (94.44%) | 8/8 (100.00%) |
 | apps/website/src/features/theme/font-links.ts | LOADED | 0 | 36/36 (100.00%) | 26/28 (92.86%) | 17/22 (77.27%) |
@@ -2928,14 +2932,16 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/theme/import-theme-file-tool.ts | LOADED | 0 | 178/178 (100.00%) | 17/18 (94.44%) | 10/10 (100.00%) |
 | apps/website/src/features/theme/index.ts | LOADED | 0 | 221/221 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
 | apps/website/src/features/theme/liquid-allowlist.ts | LOADED | 0 | 303/303 (100.00%) | 50/52 (96.15%) | 15/29 (51.72%) |
-| apps/website/src/features/theme/migration/theme-migration-plan.ts | LOADED | 0 | 286/286 (100.00%) | 74/75 (98.67%) | 19/19 (100.00%) |
+| apps/website/src/features/theme/migration/migrate-theme.ts | LOADED | 0 | 376/376 (100.00%) | 63/63 (100.00%) | 18/18 (100.00%) |
+| apps/website/src/features/theme/migration/theme-migration-plan.ts | LOADED | 0 | 286/286 (100.00%) | 75/75 (100.00%) | 19/19 (100.00%) |
 | apps/website/src/features/theme/page-publication.ts | LOADED | 0 | 60/60 (100.00%) | 18/18 (100.00%) | 7/7 (100.00%) |
 | apps/website/src/features/theme/page-publish-tool.ts | LOADED | 0 | 55/55 (100.00%) | 18/18 (100.00%) | 4/4 (100.00%) |
 | apps/website/src/features/theme/preview-refresh.ts | LOADED | 0 | 81/81 (100.00%) | 37/38 (97.37%) | 7/7 (100.00%) |
 | apps/website/src/features/theme/preview-switcher-html.ts | LOADED | 0 | 127/127 (100.00%) | 70/72 (97.22%) | 23/35 (65.71%) |
 | apps/website/src/features/theme/preview-switcher-tools.ts | LOADED | 0 | 65/65 (100.00%) | 14/14 (100.00%) | 8/8 (100.00%) |
 | apps/website/src/features/theme/public-page-security-headers.ts | LOADED | 0 | 51/51 (100.00%) | 15/15 (100.00%) | 7/7 (100.00%) |
-| apps/website/src/features/theme/render-contract.ts | LOADED | 0 | 361/361 (100.00%) | 29/31 (93.55%) | 12/22 (54.55%) |
+| apps/website/src/features/theme/publish-content.ts | LOADED | 0 | 826/826 (100.00%) | 255/256 (99.61%) | 59/59 (100.00%) |
+| apps/website/src/features/theme/render-contract.ts | LOADED | 0 | 361/361 (100.00%) | 30/32 (93.75%) | 12/22 (54.55%) |
 | apps/website/src/features/theme/rendering.ts | LOADED | 0 | 18/18 (100.00%) | 1/1 (100.00%) | 0/0 (100.00%) |
 | apps/website/src/features/theme/save-theme-original.ts | LOADED | 0 | 54/54 (100.00%) | 9/9 (100.00%) | 2/2 (100.00%) |
 | apps/website/src/features/theme/set-active-theme-tool.ts | LOADED | 0 | 192/192 (100.00%) | 20/23 (86.96%) | 7/7 (100.00%) |
@@ -2951,7 +2957,7 @@ Never-loaded files: **146** / 3367
 | apps/website/src/features/theme/theme-roster-sync.ts | LOADED | 0 | 89/89 (100.00%) | 25/27 (92.59%) | 10/15 (66.67%) |
 | apps/website/src/features/theme/theme-trash.ts | LOADED | 0 | 211/211 (100.00%) | 64/64 (100.00%) | 23/23 (100.00%) |
 | apps/website/src/features/theme/theme-watcher.ts | LOADED | 0 | 97/97 (100.00%) | 28/28 (100.00%) | 12/12 (100.00%) |
-| apps/website/src/features/theme/theme.ts | LOADED | 0 | 1180/1180 (100.00%) | 311/327 (95.11%) | 83/150 (55.33%) |
+| apps/website/src/features/theme/theme.ts | LOADED | 0 | 1180/1180 (100.00%) | 311/328 (94.82%) | 83/150 (55.33%) |
 | apps/website/src/features/theme/token-aliases.ts | LOADED | 0 | 53/53 (100.00%) | 16/17 (94.12%) | 10/13 (76.92%) |
 | apps/website/src/features/theme/tool-registrations.ts | LOADED | 0 | 1011/1011 (100.00%) | 232/242 (95.87%) | 65/65 (100.00%) |
 | apps/website/src/features/theme/trash-theme-tool.ts | LOADED | 0 | 190/190 (100.00%) | 32/32 (100.00%) | 10/10 (100.00%) |
@@ -3268,7 +3274,7 @@ Never-loaded files: **146** / 3367
 | apps/website/src/server/inbound/admin-http/http/workspace.ts | LOADED | 0 | 25/25 (100.00%) | 3/3 (100.00%) | 2/2 (100.00%) |
 | apps/website/src/server/inbound/admin-http/local-admin-request.ts | LOADED | 0 | 27/27 (100.00%) | 19/19 (100.00%) | 4/4 (100.00%) |
 | apps/website/src/server/inbound/admin-http/owner-mfa-deps.ts | LOADED | 0 | 32/32 (100.00%) | 9/10 (90.00%) | 5/5 (100.00%) |
-| apps/website/src/server/inbound/admin-http/publish-trust-auth.ts | LOADED | 0 | 437/437 (100.00%) | 65/67 (97.01%) | 21/34 (61.76%) |
+| apps/website/src/server/inbound/admin-http/publish-trust-auth.ts | LOADED | 0 | 437/437 (100.00%) | 66/68 (97.06%) | 21/34 (61.76%) |
 | apps/website/src/server/inbound/admin-http/range.ts | LOADED | 0 | 105/105 (100.00%) | 30/32 (93.75%) | 10/15 (66.67%) |
 | apps/website/src/server/inbound/admin-http/routes/agent-plugins/admin-surfaces.ts | LOADED | 0 | 131/131 (100.00%) | 47/47 (100.00%) | 18/18 (100.00%) |
 | apps/website/src/server/inbound/admin-http/routes/agent-plugins/connection-sign-in.ts | LOADED | 0 | 26/26 (100.00%) | 10/10 (100.00%) | 3/3 (100.00%) |
@@ -3492,7 +3498,7 @@ Never-loaded files: **146** / 3367
 | apps/website/src/server/inbound/admin-http/routes/system/site-backups.ts | LOADED | 0 | 55/55 (100.00%) | 21/22 (95.45%) | 6/6 (100.00%) |
 | apps/website/src/server/inbound/admin-http/routes/system/site-key.ts | LOADED | 0 | 619/619 (100.00%) | 139/158 (87.97%) | 34/34 (100.00%) |
 | apps/website/src/server/inbound/admin-http/routes/system/site-share-password.ts | LOADED | 0 | 44/44 (100.00%) | 20/21 (95.24%) | 4/4 (100.00%) |
-| apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts | LOADED | 0 | 146/146 (100.00%) | 94/103 (91.26%) | 22/22 (100.00%) |
+| apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts | LOADED | 0 | 146/146 (100.00%) | 94/104 (90.38%) | 22/22 (100.00%) |
 | apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts | LOADED | 0 | 210/210 (100.00%) | 61/63 (96.83%) | 11/11 (100.00%) |
 | apps/website/src/server/inbound/admin-http/routes/system/tool-gaps.ts | LOADED | 0 | 19/19 (100.00%) | 11/11 (100.00%) | 3/3 (100.00%) |
 | apps/website/src/server/inbound/admin-http/routes/taxonomy/assign-terms.ts | LOADED | 0 | 143/143 (100.00%) | 41/44 (93.18%) | 13/13 (100.00%) |
@@ -3954,7 +3960,6 @@ Never-loaded files: **146** / 3367
 - development/scripts/lib/secret-patterns.ts
 - apps/desktop/vite.config.mts
 - apps/site-chat/vite.vanilla.config.ts
-- apps/website/src/features/publish-content/ui/index.ts
 - .semgrep/tests/no-as-any.ts
 - apps/site-chat/vite.config.ts
 - packages/contracts/src/secret-redaction.ts
@@ -25383,6 +25388,1660 @@ Never-loaded files: **146** / 3367
 - /tmp/claude-0/cov/abs/tovu-shard-6ay.lcov.info: /home/user/Tovu/packages/contracts/dist/site-share-limits.js
 - /tmp/claude-0/cov/abs/tovu-shard-6ay.lcov.info: /home/user/Tovu/packages/sdk/dist/hooks.js
 - /tmp/claude-0/cov/abs/tovu-shard-6ay.lcov.info: /home/user/Tovu/packages/sdk/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/core/persistent-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/action-dispatcher.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/action-schema.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/action-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/callback-field-inbox.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/capability-declarations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/connections/connections.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/connections/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/contribution.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/delivery-bindings.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/descriptor.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/external-links.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/host-validator.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/plugin-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/protocol.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/sandbox.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/settings-value.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/surface-capabilities.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/surface-handlers.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/theme.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/access-token-tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/apply-connect-defaults.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/apply-tool-renames.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/connect-card-ui.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/connect-destination.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/connect-sign-in-wait.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/connect-tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/connection-status.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/credential-cards.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/credential-save-tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/enable-access.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/executable/approval.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/executable/host-capabilities.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/executable/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/executable/register.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/federate-mcp.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/grant-signed-in-defaults.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/import-access-token.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/plugin-credential-card.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/plugin-host/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/switch-on-saved-token.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/token-sign-in.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/contracts/admin-surface-action-schema.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/core/identity-namespace.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/core/plugin-name.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/folder-zip-node.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/folder-zip.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/activation-reader.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/activation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/automatic-use.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/bundled-digests.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/bundled-file-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/bundled-source-archive.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/capability-projection.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/compatibility-metadata.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/compatibility.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/contribution-loader.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/credential-card-metadata.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/enable-grants.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/exports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/fetch-archive.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/identity.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/memory-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/provider-status-tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/search-tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/skill-tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/write-note-tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/install-errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/install-from-url.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/install.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/installed-package-index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/installed-package-roots.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/layout.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/mail/adapter-descriptors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/mail/catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/mail/configuration.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/mail/contribution.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/mail/host-mailer.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/mail/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/mail/selection.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/mcp-provisioning.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/metadata.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/node.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/package-paths.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/persistent-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/provider-contribution.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/resolve-agent-plugin-refs.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/retire-bundled.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/search-projection.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/search.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/seed-bundled.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/set-enabled.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/skill-file-reader.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/tools/capabilities.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/tools/definition.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/tools/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/tools/manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/tools/projection.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/trusted-plugin-files.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/uninstall.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/update-plan.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/update-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/update.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/yauzl-archive-reader.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/dist/manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/persistent-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/acp-model-probe.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/account-failure.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/constants.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/json.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/models.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/rpc.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/session-params.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/session.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/text-suppression.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/updates.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/core/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/core/json-line-stream.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/pi-rpc/events.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/pi-rpc/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/pi-rpc/internal.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/pi-rpc/models.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/pi-rpc/session.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/ai-trace/capture.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/ai-trace/classify.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/ai-trace/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/ai-trace/recorder.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/ai-trace/sinks.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/ai-trace/usage.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/amr-model-cache.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/amr-profile-resolver.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/anthropic-live-models.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/artifact-taxonomy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/auth.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/capabilities.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/claude-code-models.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/claude-filesystem-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/claude-segment-usage.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/claude-stream.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/core/bounded-line-stream.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/core/model-discovery-shared.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/core/omit-keys.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/aider.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/amp.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/amr.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/antigravity/event-stream.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/antigravity/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/auggie.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/claude-compatible-args.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/claude.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/cline.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/codebuddy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/codex.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/crush.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/cursor-agent.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/deepseek.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/devin.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/droid.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/goose.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/grok-build.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/hermes.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/kilo.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/kimi.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/kiro.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/mimo.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/opencode.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/pi.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/qoder.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/qwen.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/reasonix.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/shared.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/trae-cli.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/vibe.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/detection.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/diagnostics.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/env.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/executables.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/invocation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/json-event-stream.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/launch.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/log-file.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/mcp.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/metadata.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/mmd-routes.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-catalog-cache.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-discovery-adapters.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-discovery-config.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-discovery-native.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-discovery-sdk.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-discovery-shared.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-discovery-yaml.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-discovery.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-loading-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/models.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/native-runtime.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/native-tool-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/opencode-log.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/paths.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/pi-models.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/probe-scheduler.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/prompt-augmenter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/prompt-budget.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/prompt-file.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/aihubmix.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/anthropic-messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/azure-chat.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/connection-guard.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/connection-test.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/elevenlabs.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/google-messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/google-schema.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/google.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/model-catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/oauth-callback-server.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/oauth-credentials.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/oauth-provider.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/oauth-tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/ollama-chat.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/openai-chat.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/operation-schema.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/pkce.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/response-text.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/sse-decode.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/token-params.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/tool-loop-verdict.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/tool-turn.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/turn-end-guard.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/qoder-stream.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/resolution.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/role-marker-guard.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/runtime-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/telemetry-sink.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/terminal-launch.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-runtime/dist/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/agent-to-renderer.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/common-types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/interpreter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/json-pointer.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/renderer-to-agent.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/resolve.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/surface-properties.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/tree.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/ag-ui.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/annotated-actions-script.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/capability.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/element-handles.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/gen-ui/encoder.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/gen-ui/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/guards.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/handle.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/list-handles.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/mcp-ui-apps.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/omit-keys.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/page-capabilities.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/page-executor.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/page-navigation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/page-publication.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/site-guide/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/site-guide/site-guide.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/site-guide/topic-schema.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/site-guide/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/core/webmcp.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/skills/install/archive.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/skills/install/fetch-adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/skills/install/github.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/skills/install/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/skills/install/install-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/skills/install/layout.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/skills/install/live-registration.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/skills/install/node-filesystem.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/skills/install/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/skills/install/state.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/skills/install/unsafe-chars.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/skills/install/validation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agentic/dist/skills/install/yauzl-archive-reader.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/analytics/dist/forwarding.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/analytics/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/analytics/dist/ingest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/analytics/dist/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/analytics/dist/privacy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/analytics/dist/product/ai-generations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/analytics/dist/product/browser.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/analytics/dist/product/fanout.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/analytics/dist/product/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/analytics/dist/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/analytics/dist/salt.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/analytics/dist/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/capability-providers/dist/comments/definitions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/capability-providers/dist/comments/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/capability-providers/dist/comments/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/capability-providers/dist/comments/registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/capability-providers/dist/comments/tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/contracts/chat-bubble-style.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/accepted-input.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/ag-ui/entry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/agentic/chat-capabilities.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/agentic/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/antigravity/tool-presentation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/assistant-content.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/checkpoint-interval.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/compact-events.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/composer-history.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/conversation-title.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/durable-projection.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/durable-runs/continuation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/durable-runs/policies.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/durable-runs/run-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/events.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/history-tool-metadata.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/partial-json.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/persistence/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/persistence/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/persistence/title.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/question-answer.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/question-form.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/question-form/format.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/question-form/normalize.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/question-form/scan.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/question-form/secret-answers.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/run-activity.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/run-events/entry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/surface-expiry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/surface-recovery.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/todos.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/tool-call-detail.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/tool-events.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/tool-output.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/tool-presentation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/transcript.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/transport.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/turn-usage.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/usage-format.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/user-text-redaction.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/util/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/util/manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/util/markdown-context.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/util/markup-attributes.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/util/parser.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/util/pointer.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/util/recover.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/util/strip.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/util/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/core/util/validate.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/embed-widget/browser/lazy-loader.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/server/durable-runs/accept.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/server/durable-runs/entry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/server/durable-runs/recover.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/pglite/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/postgres/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/runtime/chat-expiry-sweep.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/runtime/chat-history-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/runtime/checkpoint-delta.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/runtime/durable-run-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/runtime/entry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/runtime/events-json.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/runtime/history-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/runtime/run-guarded-chat-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/runtime/run-ledger.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/sql/boundary.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/sql/cursor.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/sql/maintenance.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/sql/read-version.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/sql/store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/sqlite/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/chat/dist/store/sqlite/schema.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/comments/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/comments/express/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/comments/express/submit-handler.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/comments/hooks.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/comments/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/comments/ingress.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/comments/module.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/comments/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/comments/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/comments/sanitize.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/comments/spam.heuristic.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/comments/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/comments/write-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/content-types/agent-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/content-types/cleanup.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/content-types/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/content-types/field-defs.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/content-types/index-provisioning.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/content-types/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/content-types/lifecycle-dispatch.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/content-types/lifecycle.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/content-types/list.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/content-types/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/content-types/tool-registrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/content-types/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/content-types/write-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/contracts/consent-category.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/core/commands/appliers.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/core/commands/command.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/core/commands/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/core/commands/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/core/commands/revert.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/core/entity-liveness.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/core/form-collection.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/core/form-schema.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/core/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/core/keyset-cursor.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/core/tools/args.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/core/tools/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/core/transform-format.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/entries/agent-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/entries/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/entries/field-validation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/entries/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/entries/lifecycle-dispatch.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/entries/list.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/entries/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/entries/tool-registrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/entries/write-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/attachment-cleanup.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/attachment-purge.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/delete-submission.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/delivery/deliver-job.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/delivery/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/delivery/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/delivery/planner.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/delivery/pull-lease.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/delivery/pull-trigger.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/delivery/retry-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/delivery/status.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/delivery/subscriptions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/delivery/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/descriptor-rules.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/destination-contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/destination-descriptors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/duplicate-slug.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/email-format.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/express/handler.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/express/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/field-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/fields-json.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/forms.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/html-render.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/html/authoring-adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/html/html-authoring.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/html/html-submission-adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/html/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/html/retry-draft.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/notify-subscriber.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/portable-validation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/provider.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/rate-limit-key.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/reconcile-attachments.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/request-admission.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/sql/create-tables.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/sql/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/sql/repo.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/sql/repo.rows.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/sql/submission-ip-retention-repo.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/sql/tables.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/stale-form.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/submission-attempts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/submission-email-validation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/submission-evidence.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/submission-ip-retention.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/submission-json.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/submit-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/forms/write-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/listing/batch.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/listing/html.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/listing/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/listing/paging.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/listing/paths.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/listing/see-more-script.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/agent-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/blob-gc-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/blob-gc.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/blob-key.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/blob-store.fs.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/blob-store.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/blob-store.object-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/content-type-sniffer.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/created-by.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/document-ingress.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/document-read.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/document-text.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/file-extension.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/html-attributes.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/image-transformer.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/image-transformer.sharp.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/import/fetch-image.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/import/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/import/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/list-page.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/media-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/node.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/provenance.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/rendition-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/replace-media-file.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/sanitize-svg.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/slug.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/tool-registrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/transform-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/transform-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/transform-types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/video-frames.ffmpeg.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/media/video-frames.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/navigation/agent-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/navigation/contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/navigation/dropdown.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/navigation/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/navigation/link-rel.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/navigation/menu-html.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/navigation/menu-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/navigation/node/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/navigation/read-model.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/navigation/reconcile.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/navigation/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/navigation/resolver.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/navigation/tool-registrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/navigation/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/presentation/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/presentation/presentation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/presentation/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/capture.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/hit-sink.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/matcher.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/order.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/path-key.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/ports.internal.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/redirects.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/referrer-alias.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/reserved-destination.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/resolver.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/sql/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/sql/repo.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/sql/repo.rows.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/target-gate.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/redirects/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/routing/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/routing/routing.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/seo/absolute-url.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/seo/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/seo/feed.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/seo/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/seo/media.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/seo/page-head.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/seo/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/seo/seo.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/seo/sitemap.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/seo/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/seo/write-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/seo/xml-escape.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/taxonomy/agent-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/taxonomy/content-lookup.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/taxonomy/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/taxonomy/list.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/taxonomy/merge-term.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/taxonomy/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/taxonomy/validation-chain.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/taxonomy/write-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/trash/adapters/record-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/trash/cursor.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/trash/follow-ups.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/trash/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/trash/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/trash/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/trash/sweeper.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/trash/write-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/authorize-helper.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/concurrency.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/config-validation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/date-label.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/embed-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/embed-validation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/entry-payload.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/gallery-resolver.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/host-ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/html/gallery-render.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/html/html-embeds.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/html/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/html/legacy-widget-markers.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/html/plugin-export.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/html/resolve-html-page-embeds.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/html/server-fragment.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/markers/gallery.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/markers/html-attributes.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/markers/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/markers/marker.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/markers/media-reference.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/page-embed-types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/read-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/region-area-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolver-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/contact-form.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/create-core-resolvers.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/gallery.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/menu.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/recent-entries.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/taxonomy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/where-used.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/widgets/write-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/workspace/agent-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/workspace/create.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/workspace/delete.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/workspace/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/workspace/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/workspace/tool-registrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cms/dist/workspace/update.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/browser/checkout.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/catalog-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/catalog/buyer-order.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/catalog/checkout.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/catalog/contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/catalog/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/catalog/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/catalog/load-payable-order.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/catalog/order-projection.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/catalog/pay-order.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/catalog/plugin-server.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/catalog/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/catalog/settle-order-payment.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/catalog/status.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/catalog/storefront.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/catalog/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/core/tool-input.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/http/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/http/payments-webhook.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/money/money.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/accounting/apply-evidence.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/accounting/plan-evidence.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/contract/alerts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/contract/evidence.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/contract/payments-port.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/contract/provider.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/contract/risk.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/contract/scope.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/contract/tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ingest/outbox-relay.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ingest/receive.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ingest/settlement-worker.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ingest/worker.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/kernel.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ledger/repo.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ledger/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ledger/rows.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ops/capture-void.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ops/common.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ops/deps.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ops/grants.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ops/intent-recovery.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ops/intent.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ops/operator.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ops/reconcile-attempts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ops/reconcile-snapshot.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ops/reconciler.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ops/refund.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ops/service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/ops/view.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/provider-contexts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/provider-contract.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/provider-module-guard.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/provider-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/payments/state/status.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/commerce/dist/tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cookie-consent/dist/contract.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cookie-consent/dist/contracts/policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cookie-consent/dist/contracts/scripts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cookie-consent/dist/node/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cookie-consent/dist/policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cookie-consent/dist/render/banner.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cookie-consent/dist/render/base-css.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cookie-consent/dist/render/css-parser.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cookie-consent/dist/render/css.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cookie-consent/dist/render/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cookie-consent/dist/render/scripts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cookie-consent/dist/server/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cookie-consent/dist/server/receipt.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/cookie-consent/dist/server/region.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/api-token-auth.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/approval.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/batch-tool-inputs.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/bindings.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/composition.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/contracts/hosted-mcp.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/contribution-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/daemon.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/feature-flags.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/filesystem.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/gated-mutations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/gated-mutations/actor-identity.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/gated-mutations/gateway.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/gated-mutations/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/gated-mutations/token.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/model-facing-tool-errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/naming.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/native-regexp.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/object-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/optional-peer.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/origin-validation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/pack-lifecycle.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/pack.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/primitives/http.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/primitives/ids.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/primitives/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/primitives/json.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/primitives/logger.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/primitives/paths.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/primitives/result.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/primitives/sse.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/primitives/tasks.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/primitives/time.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/primitives/trim-chars.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/principal.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/provider-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/records.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/redact.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/registration-kit.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/agent-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/agent-value-write-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/agent-writable-preferences.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/agent-write-denylist.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/change-feed.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/definitions-dispatch.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.ar.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.bn.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.de.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.es.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.fa.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.fr.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.hi.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.hu.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.id.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.it.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.ja.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.ko.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.pl.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.pt-BR.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.ru.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.th.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.tr.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.uk.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.ur.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.zh-CN.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.zh-TW.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/ensure-definitions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/express/cms-adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/express/http-request.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/express/http.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/express/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/express/shared.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/express/stream.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/purge-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/settings.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/tool-registrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/ui-tab-definitions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/settings/write-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/surface-exchanges.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/target-scope.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/teardown.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/text/descriptor-i18n.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/text/escape.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/text/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/text/line-tail.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/text/sanitize-untrusted-text.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/token.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/tool-exposure.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/tool-input-envelope.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/tool-input-errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/tool-input-normalization.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/tool-metadata.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/tool-permissions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/tool-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/tool-tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/dist/user-facing-error.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/core/plugin-directory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/agent-env.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/antigravity-permissions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/claude/mcp-config.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/claude/subagent-start.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/codex/home-config.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/codex/home-staging.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/codex/isolation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/event-translation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/events.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/gemini/tool-calls.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/handoff.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/http-mcp.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/launch.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/live-session-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/mcp-bridge-probe.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/mcp-bridge.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/message-relay.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/model-receipts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/opencode/mcp-config.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/opencode/tool-calls.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/run-output.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/sanitized-line-stream.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/tool-call-receipts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/values.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/ai-trace-lifecycle.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/attachment-content.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/close-status.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/continuation/continuation-transport.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/continuation/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/continuation/journal.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/continuation/run-scoped-context-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/continuation/run-start-handler.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/core/omit-keys.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/core/read-only-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/core/tool-audit.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/core/tool-candidates.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/core/tool-gaps.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/delegated-result-correlation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/delegated-tool-bridge.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/event-log.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/frontend-capability-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/frontend-session-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/active-context.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/agents.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/attachment-lookup-routes.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/attachments.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/cancel-owned-runs.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/component-catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/connectors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/daemon-status.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/db-ops.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/delegated-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/frontend-control.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/frontend-guest-scope.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/frontend-request-route.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/frontend-sessions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/health.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/host-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/media.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/message-relay.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/model-proxy-fields.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/model-proxy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/remote-run-events.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/research.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/resource-request.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/route-manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/routines.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/run-credentials.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/runs.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/surface-callback.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/surface-restoration.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/terminals.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/tool-catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/tool-execution-routes.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/workspace-root.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/http/xai.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/idle-monitor.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/image-prompt-delivery.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/legacy-data-migration.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/read-only-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/remote-attachment-lookup.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/remote-tool-bridge.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/remote-tool-executor.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/routines/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/routines/routine-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/routines/schedule.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/routines/scheduler.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/routines/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/routing-tool-executor.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/run-credentials.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/run-lifecycle.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/run-tool-consent.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/run/core/failure-taxonomy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/run/core/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/run/core/result.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/run/core/retry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/run/diagnostics/diagnostics.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/run/diagnostics/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/run/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/scheduler.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/session-coordination.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/store/agent-sessions/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/store/agent-sessions/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/store/agent-sessions/pglite.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/store/agent-sessions/postgres.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/store/agent-sessions/schema.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/store/agent-sessions/sql.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/store/agent-sessions/sqlite.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/surface-exchanges.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/surface-restoration.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/terminal-session.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tool-access-lowering.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tool-audit.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tool-executor.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tool-recovery/analytics.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tool-recovery/diagnostics.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tool-recovery/federated-refusal.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tool-recovery/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tool-recovery/observability.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tool-recovery/recovery.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tool-recovery/redaction.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tool-recovery/stack.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tool-recovery/surface-lifetime.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tool-result-diagnostics.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tool-result-media.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/daemon/dist/tool-result-surfaces.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/core/artifact-naming.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/core/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/core/messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/core/pg-types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/core/row-values.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/core/socket.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/data-modules/data-module.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/data-modules/disk-headroom.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/data-modules/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/data-modules/migration-journal.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/data-modules/migration-recovery.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/data-modules/plugin-identity.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/data-modules/plugin-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/data-modules/restore.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/data-modules/snapshot.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/dialect.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/kernel-core.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/ops.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/owned-transaction.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/pglite/dialect.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/pglite/driver.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/pglite/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/pglite/ops.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/port.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/postgres-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/postgres/driver.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/postgres/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/postgres/ops.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/postgres/pglite-socket.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/schema-scope.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/schema-shape.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/session-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/sqlite/driver.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/sqlite/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/sqlite/ops.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/store-copy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/turn-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/kernel/typegen.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/migrate/checksum.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/migrate/ddl.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/migrate/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/migrate/legacy-ledger.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/migrate/runner.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/migrate/step.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/pglite/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/pglite/owner.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/pglite/socket-server.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/recovery/deep-link.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/recovery/degraded-banners.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/recovery/disclosure.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/recovery/lookup-adapters.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/recovery/migrate-forward-execute.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/recovery/migrate-forward-hooks.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/recovery/operation-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/recovery/recovery-orchestrator.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/recovery/restore-hooks.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/recovery/restore-point-create.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/secrets-vault/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/secrets-vault/repo.sql.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/sqlite/backup-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/sqlite/checked-client.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/sqlite/checked-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/sqlite/db-ops.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/sqlite/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/sqlite/inspect.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/sqlite/open.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/sqlite/transaction.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/tools/database-catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/tools/destination-port.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/tools/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/tools/plan-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/tools/read-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/tools/registration.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/tools/restore-points.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/tools/timeline.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/tools/transfer-catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/tools/transfer-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/transfer/copy-engine.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/transfer/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/transfer/internal-ddl.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/transfer/plan.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/transfer/postgres-ddl.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/transfer/postgres-target.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/transfer/signals.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/transfer/sqlite-source.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/transfer/table-catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/db/dist/transfer/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/desktop-host/dist/bridge.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/desktop-host/dist/config.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/desktop-host/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/desktop-host/dist/logging.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/desktop-host/dist/paths.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/desktop-host/dist/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/desktop-host/dist/protocol.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/desktop-host/dist/render-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/desktop-host/dist/shell.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/desktop-host/dist/sidecar.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/desktop-host/dist/single-instance.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/desktop-host/dist/tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/desktop-host/dist/url-capture.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/desktop-host/dist/window-lifecycle.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/desktop-host/dist/windows-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/core/deploy-types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/core/export-failure-summary.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/core/redirect-guard.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/config-contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/config-descriptors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/host-kit.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/naming.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/node.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-descriptors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-runner.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-secret-card.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-secrets.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-tool-contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/publish-jobs.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/reachability.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/target-contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/target-descriptors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/deploy/tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/dns/approval.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/dns/contract.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/dns/delegation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/dns/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/dns/manual.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/dns/node/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/dns/node/resolver.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/dns/node/udp.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/dns/node/wire.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/dns/plan.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/dns/records.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/dns/registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/dns/spf.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/dns/verify.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/local-dev/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/local-dev/node-runtime.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/local-dev/server-retirement.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/local-dev/source-tree-stamp.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/source-control/commit.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/source-control/contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/source-control/entry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/source-control/kit.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/source-control/registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/source-control/repository-path.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/source-control/repository-target.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/static-export/contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/static-export/css-urls.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/static-export/entry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/static-export/fetch-adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/static-export/html-url-locations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/static-export/node-adapters.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/static-export/runner.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/devops/dist/static-export/transforms.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/agent-logs.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/contract.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/core/secrets-only.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/discovery-filesystem.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/domain-dns/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/memory-growth.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/node-ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/config.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/delivery.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/export-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/fanout.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/hooks.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/instrumentation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/node.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/noop.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/otel.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/report-error.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/telemetry-test.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/tracker-noop.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/tracker.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/redaction.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/redaction/secrets-only.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/sources.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/web-evidence/browser-port.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/web-evidence/collect-page-evidence.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/web-evidence/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/web-evidence/lazy-browser.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/web-evidence/page-performance-script.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/web-evidence/page-structure-script.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/web-evidence/page-work-budget.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/web-evidence/playwright-browser.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/web-evidence/playwright-runtime.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/web-evidence/public-page.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/web-evidence/render-page.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/web-evidence/request-guard.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/web-evidence/same-origin.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/diagnostics/dist/zip.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/api-security-middleware.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/compat.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/html-response.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/local-daemon-request.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/middleware.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/observability.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/origin.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/pack-http.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/rate-limit.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/raw-sse.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/request.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/response.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/route-registration-guard.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/sse.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin/configured-origin.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin/loopback-host.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin/origin.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin/site-path.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/infra/dist/events/outbox/drainer.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/infra/dist/events/outbox/enqueue-only.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/infra/dist/events/outbox/fenced-conformance.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/infra/dist/events/outbox/in-memory-fenced.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/infra/dist/events/outbox/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/infra/dist/events/outbox/node-scheduler.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/infra/dist/events/outbox/policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/infra/dist/events/outbox/request-digest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/infra/dist/events/outbox/worker.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/access-token.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/account-actions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/attempt-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/authorization.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/budgets.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/byo-client.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/connect.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/declarations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/deps.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/descriptor.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/finish-authorization.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/hook-http.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/host.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/hosted-mcp/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/hosted-mcp/shared-sign-in.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/hosted-mcp/sign-in.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/hosted-sign-in.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/install-credential.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/keys.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/records.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/request-checks.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/shared.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/status.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/token-store/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/token-store/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/token-store/record.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/token-store/vault-token-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/args.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/argument-error.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/contracts/credentialed-request-errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/auth-schemes.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/credentialed-request.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/response-redaction.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/sets/host.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/sets/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/sets/store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/sets/vault-repo.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/tools/credential-copy-tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/tools/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/tools/tool-registrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/capability-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/async-operation-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/builtin-vendors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/context.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/credentials.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/engine.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/media-provider-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/openai-compatible.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/operation-runtime.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/outbound.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/polling-adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/providers/aihubmix-shared.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/providers/aihubmix.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/providers/custom-image.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/providers/elevenlabs.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/providers/fishaudio.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/providers/grok.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/providers/imagerouter-video-async.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/providers/imagerouter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/providers/minimax.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/providers/nanobanana.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/providers/openai.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/providers/openrouter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/providers/senseaudio.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/providers/volcengine.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/response-parsers.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/sqlite-async-operation-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/ssrf-guard.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/stub.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/vendor-adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/vendor-registry-core.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/dispatch/vendor-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/providers.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/seed.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/sqlite-driver.adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/sqlite-task-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/staging.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/task-lifecycle.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/task-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/ui-defaults.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/video-request.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/webhooks/delivery.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/webhooks/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/webhooks/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/webhooks/signing.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/webhooks/signing.keyring.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/webhooks/subscriptions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/webhooks/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/integrations/dist/webhooks/worker.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/adapter.http.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/approvals/call-confirmation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/approvals/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/approvals/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/approvals/remembered-approval.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/approvals/revocation-reason.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/approvals/revocation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/approvals/scope-option.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/bootstrap.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/config.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/frozen-grants.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/access.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/auth.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/connection-gate.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/projections.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/revocation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/store.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/unconfigured-error.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/validation-error.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/vault.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/vocabulary.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/mcp-protocol.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/presets.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/refusal-notice.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/registrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/reload.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/result-secrets.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/stdio/adapter.stdio.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/stdio/default-connect.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/stdio/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/stdio/stdio-launch-resolver.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/testing/adapter.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/testing/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/testing/tool-approvals.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/tool-approvals.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/federation/trust.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/tools/ask-choice/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/tools/ask-choice/pending.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/tools/ask-choice/question.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/mcp/dist/tools/ask-choice/schema.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/authorization-code.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/bounded-json.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/device-code.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/discovery-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/discovery.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/dns-pinned-transport.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/endpoint-safety.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/file-registration-cache.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/flow-operations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/guarded-transport.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/loopback-callback.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/loopback-receiver.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/node-file-cache.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/oidc.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/options.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/pending-authorizations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/pkce.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/protocol-error-codes.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/redact.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/refresh.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/registration-cache.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/registration.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/resource.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/revocation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/sealed-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/oauth/dist/token-endpoint.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/asset-cache.adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/asset-cache.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/aws-sigv4.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/blob-storage.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/child-environment.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/command.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/core/effective-port.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/download.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fetch-with-timeout.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/atomic-write.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/backup-once.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/boot-identity.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-home.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-running-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-sync.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-user-config.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-workspace.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/durable-json.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/env-text.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/errno.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/file-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/guarded-reader.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/reviewed-file.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/strict-containment.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/user-data-directories.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/verified-directory-move.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/verified-file-relocation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/fs/workspace-directory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/home-expansion.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/http.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/http/guarded/client.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/http/guarded/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/http/guarded/fetch-adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/http/guarded/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/http/guarded/node-ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/http/guarded/transport.fetch.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/http/multipart.adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/adapter-module.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/builtin-providers.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/delivery-availability.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/delivery-wrapper.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/domain-read.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/email-sender-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/email-sender.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/feedback.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/mail-status-cache.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/plugin-abi.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/prepare-sender-email.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/provider-error.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/provider-mailer.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/provider-setup.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/provider.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/purpose-scoped-mailer.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/rate-limit.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/resolve-mailer.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/sender-domain-verification.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/sender-identity.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/senders.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/mail/smtp.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/net/address.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/net/endpoint-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/net/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/net/local-http-probe.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/net/local-http-request.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/process.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/proxy-env.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/resource-paths.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/sandbox-env.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/secrets/aad.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/provider-matches.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/vault-archive.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/vault.aad.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/vault.meta.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/vault.repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/vault.service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/vault.types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-token.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/secrets/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/secrets/keyring.env.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/secrets/passphrase-envelope.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/secrets/secret-sealer.aesgcm.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/shell.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/terminal.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/toolchain.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/web/first-distinct.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/web/html-document.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/web/html-resource.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/web/html-to-markdown.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/web/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/web/strip-html-presentation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/web/web-page.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/platform/dist/windows-system-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/activation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/admin-response.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/attach-loaded-plugin.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/browser-providers.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/bundled-initialization.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/capability-sdk.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/capability-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/claim-conflicts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/contributions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/declarative-content-types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/declarative-enable.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/discovery-types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/hook-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/node/archive-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/node/browser-provider-assets.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/node/discovery.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/node/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/node/install.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/node/invocation-binding.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/node/loader.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/node/module-snapshot.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/node/open-flags.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/node/package-files.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/node/provider-artifact.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/node/runtime-core.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/node/source-drafts.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/plugin-claims.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/plugin-format.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/plugin-tool-errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/provider-contributions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/provider-host.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/provider-setting-required.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/provider-settings-migrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/quarantine.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/source-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/tool-contributions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/tools/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/tools/install.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/tools/management.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/tools/source.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/uninstall.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/worker/import-seam.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/worker/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/worker/protocol.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/worker/run-call.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/plugins/dist/host/worker/start.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/protocol/dist/agent-catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/protocol/dist/common.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/protocol/dist/delegated-result.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/protocol/dist/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/protocol/dist/event-log.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/protocol/dist/events.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/protocol/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/protocol/dist/journal.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/protocol/dist/registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/protocol/dist/run-context.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/protocol/dist/run.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/registry/dist/tool-catalog-builder/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/registry/dist/tool-catalog-builder/input-signature.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/registry/dist/tool-catalog-builder/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/registry/dist/tool-catalog-builder/query.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/registry/dist/tool-catalog-builder/search-enricher.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/registry/dist/tool-catalog-builder/sqlite.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/registry/dist/tool-catalog/sqlite.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/sandbox/dist/node-worker.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/search/dist/api.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/search/dist/contract.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/search/dist/contribution.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/search/dist/digest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/search/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/search/dist/indexer.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/search/dist/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/search/dist/registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/search/dist/service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/search/dist/tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/search/dist/tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/sidecar/dist/bootstrap.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/sidecar/dist/daemon-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/sidecar/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/sidecar/dist/ipc-path.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/sidecar/dist/json-file.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/sidecar/dist/json-ipc.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/sidecar/dist/net.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/sidecar/dist/paths.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/sidecar/dist/port.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/sidecar/dist/supervision/respawn-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/sidecar/dist/supervision/supervisor-node.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/sidecar/dist/supervision/supervisor.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/core/theme/default.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/charts/catalog-manifests.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/charts/contract.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/charts/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/charts/registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/charts/wire.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/interactive-ui/manifests.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/interactive-ui/providers/native/data-table.manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/interactive-ui/providers/shadcn/action-button.manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/interactive-ui/providers/shadcn/checkbox-field.manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/interactive-ui/providers/shadcn/content-card.manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/interactive-ui/providers/shadcn/data-table.manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/interactive-ui/providers/shadcn/radio-group-field.manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/interactive-ui/providers/shadcn/select-field.manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/interactive-ui/providers/shadcn/text-input-field.manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/interactive-ui/registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/cards.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/confirmation-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/credential-card.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/early-message-buffer.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/escape.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/protocol.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/resource.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/sandbox-proxy-link-forwarder.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/sandbox-proxy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/secret-card.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/sign-in-card.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/access-approval.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/bridge.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/checkbox.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/choice-group.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/confirmation.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/document.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/fields.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/form.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/host-theme.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/outcome.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/select.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/structured-details.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/text-input.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/tool-approval.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/utils/trim-chars.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/ui/dist/utils/unhandled-case.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/core/builtin-permissions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/core/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/core/permissions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/core/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/core/principal-kind-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/core/runtime-ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/core/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/admin-crud-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/agent-tool-input.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/agent-tool-registrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/agent-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/auth-challenge.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/auth-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/authorize.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/grant-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/hasher.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/identity-transaction.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/login-providers.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/login-types.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/mfa/passkey-adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/mfa/passkey-ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/mfa/passkey-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/mfa/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/mfa/secret-adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/mfa/service.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/mfa/totp-adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/owner-reset-input.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/password-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/permission-migrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/recovery-codes.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/repo.memory-transactions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/seed.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/session-tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/user-management/dist/server/username.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/vibecoding/dist/html/edit.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/vibecoding/dist/html/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/vibecoding/dist/html/node/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/vibecoding/dist/html/node/parse5-region-parser.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/vibecoding/dist/html/regions.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/packages/contracts/dist/admin-failure-copy.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/packages/contracts/dist/admin-locales.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/packages/contracts/dist/secret-redaction.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/packages/contracts/dist/site-share-limits.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/packages/sdk/dist/hooks.js
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/packages/sdk/dist/index.js
 - /tmp/claude-0/cov/abs/tovu-shard-6b.lcov.info: /home/user/Jini/packages/agent-plugins/core/persistent-state.js
 - /tmp/claude-0/cov/abs/tovu-shard-6b.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/action-dispatcher.js
 - /tmp/claude-0/cov/abs/tovu-shard-6b.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/action-schema.js
@@ -28853,6 +30512,1179 @@ Never-loaded files: **146** / 3367
 - /tmp/claude-0/cov/abs/tovu-shard-7.lcov.info: /home/user/Tovu/packages/contracts/dist/site-share-limits.js
 - /tmp/claude-0/cov/abs/tovu-shard-7.lcov.info: /home/user/Tovu/packages/sdk/dist/hooks.js
 - /tmp/claude-0/cov/abs/tovu-shard-7.lcov.info: /home/user/Tovu/packages/sdk/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/core/dist/filesystem.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/core/dist/primitives/http.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/core/dist/primitives/ids.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/core/dist/primitives/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/core/dist/primitives/json.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/core/dist/primitives/logger.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/core/dist/primitives/paths.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/core/dist/primitives/result.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/core/dist/primitives/sse.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/core/dist/primitives/tasks.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/core/dist/primitives/time.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/core/dist/primitives/trim-chars.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/atomic-write.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/backup-once.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/boot-identity.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-home.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-running-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-sync.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-user-config.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-workspace.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/durable-json.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/env-text.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/errno.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/file-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/guarded-reader.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/reviewed-file.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/strict-containment.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/user-data-directories.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/verified-directory-move.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/verified-file-relocation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/fs/workspace-directory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Jini/packages/platform/dist/windows-system-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/core/persistent-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/access-token-tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/apply-connect-defaults.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/apply-tool-renames.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/connect-card-ui.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/connect-destination.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/connect-sign-in-wait.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/connect-tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/connection-status.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/credential-cards.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/credential-save-tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/enable-access.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/federate-mcp.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/grant-signed-in-defaults.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/import-access-token.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/plugin-credential-card.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/switch-on-saved-token.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/connect/token-sign-in.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/contracts/admin-surface-action-schema.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/core/identity-namespace.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/core/plugin-name.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/activation-reader.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/activation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/automatic-use.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/bundled-digests.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/bundled-file-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/bundled-source-archive.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/capability-projection.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/compatibility-metadata.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/compatibility.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/contribution-loader.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/credential-card-metadata.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/enable-grants.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/exports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/fetch-archive.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/identity.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/memory-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/provider-status-tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/search-tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/skill-tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/host-tools/write-note-tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/install-errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/install-from-url.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/install.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/installed-package-index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/installed-package-roots.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/layout.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/mcp-provisioning.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/metadata.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/node.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/package-paths.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/persistent-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/provider-contribution.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/resolve-agent-plugin-refs.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/retire-bundled.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/search-projection.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/search.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/seed-bundled.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/set-enabled.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/skill-file-reader.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/trusted-plugin-files.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/uninstall.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/update-plan.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/update-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/lifecycle/update.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/dist/manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-plugins/persistent-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/acp-model-probe.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/account-failure.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/constants.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/json.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/models.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/rpc.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/session-params.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/session.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/text-suppression.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/acp/updates.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/core/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/core/json-line-stream.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/pi-rpc/events.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/pi-rpc/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/pi-rpc/internal.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/pi-rpc/models.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/agent-protocol/pi-rpc/session.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/ai-trace/capture.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/ai-trace/classify.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/ai-trace/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/ai-trace/recorder.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/ai-trace/sinks.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/ai-trace/usage.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/amr-model-cache.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/amr-profile-resolver.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/anthropic-live-models.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/artifact-taxonomy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/auth.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/capabilities.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/claude-code-models.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/claude-filesystem-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/claude-segment-usage.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/claude-stream.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/core/bounded-line-stream.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/core/model-discovery-shared.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/core/omit-keys.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/aider.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/amp.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/amr.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/antigravity/event-stream.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/antigravity/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/auggie.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/claude-compatible-args.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/claude.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/cline.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/codebuddy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/codex.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/crush.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/cursor-agent.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/deepseek.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/devin.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/droid.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/goose.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/grok-build.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/hermes.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/kilo.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/kimi.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/kiro.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/mimo.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/opencode.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/pi.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/qoder.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/qwen.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/reasonix.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/shared.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/trae-cli.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/defs/vibe.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/detection.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/diagnostics.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/env.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/executables.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/invocation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/json-event-stream.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/launch.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/log-file.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/mcp.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/metadata.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/mmd-routes.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-catalog-cache.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-discovery-adapters.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-discovery-config.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-discovery-native.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-discovery-sdk.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-discovery-shared.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-discovery-yaml.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-discovery.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-loading-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/model-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/models.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/native-runtime.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/native-tool-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/opencode-log.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/paths.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/pi-models.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/probe-scheduler.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/prompt-augmenter.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/prompt-budget.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/prompt-file.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/aihubmix.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/anthropic-messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/azure-chat.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/connection-guard.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/connection-test.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/elevenlabs.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/google-messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/google-schema.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/google.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/model-catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/oauth-callback-server.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/oauth-credentials.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/oauth-provider.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/oauth-tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/ollama-chat.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/openai-chat.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/operation-schema.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/pkce.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/response-text.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/sse-decode.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/token-params.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/tool-loop-verdict.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/tool-turn.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/turn-end-guard.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/providers/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/qoder-stream.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/resolution.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/role-marker-guard.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/runtime-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/telemetry-sink.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/terminal-launch.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agent-runtime/dist/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/agent-to-renderer.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/common-types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/interpreter.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/json-pointer.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/renderer-to-agent.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/resolve.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/surface-properties.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/a2ui/tree.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/ag-ui.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/annotated-actions-script.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/capability.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/element-handles.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/gen-ui/encoder.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/gen-ui/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/guards.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/handle.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/list-handles.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/mcp-ui-apps.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/omit-keys.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/page-capabilities.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/page-executor.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/page-navigation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/page-publication.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/site-guide/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/site-guide/site-guide.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/site-guide/topic-schema.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/site-guide/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/core/webmcp.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/agentic/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/accepted-input.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/agentic/chat-capabilities.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/agentic/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/antigravity/tool-presentation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/assistant-content.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/checkpoint-interval.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/compact-events.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/composer-history.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/conversation-title.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/durable-projection.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/events.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/history-tool-metadata.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/partial-json.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/persistence/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/persistence/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/persistence/title.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/question-answer.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/question-form.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/question-form/format.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/question-form/normalize.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/question-form/scan.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/question-form/secret-answers.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/run-activity.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/surface-expiry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/todos.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/tool-call-detail.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/tool-events.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/tool-output.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/tool-presentation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/transcript.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/transport.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/turn-usage.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/usage-format.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/user-text-redaction.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/util/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/util/manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/util/markdown-context.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/util/markup-attributes.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/util/parser.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/util/pointer.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/util/recover.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/util/strip.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/util/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/chat/dist/core/util/validate.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/comments/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/comments/hooks.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/comments/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/comments/ingress.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/comments/module.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/comments/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/comments/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/comments/sanitize.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/comments/spam.heuristic.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/comments/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/comments/write-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/content-types/agent-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/content-types/cleanup.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/content-types/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/content-types/field-defs.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/content-types/index-provisioning.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/content-types/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/content-types/lifecycle-dispatch.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/content-types/lifecycle.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/content-types/list.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/content-types/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/content-types/tool-registrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/content-types/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/content-types/write-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/core/commands/command.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/core/entity-liveness.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/core/form-collection.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/core/form-schema.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/core/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/core/keyset-cursor.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/core/tools/args.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/core/tools/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/core/transform-format.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/listing/batch.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/listing/html.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/listing/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/listing/paging.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/listing/paths.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/listing/see-more-script.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/agent-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/blob-gc-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/blob-gc.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/blob-key.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/blob-store.fs.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/blob-store.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/blob-store.object-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/content-type-sniffer.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/created-by.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/document-ingress.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/document-read.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/document-text.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/file-extension.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/html-attributes.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/image-transformer.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/image-transformer.sharp.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/import/fetch-image.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/import/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/import/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/list-page.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/media-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/node.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/provenance.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/rendition-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/replace-media-file.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/sanitize-svg.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/slug.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/tool-registrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/transform-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/transform-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/transform-types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/video-frames.ffmpeg.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/media/video-frames.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/navigation/dropdown.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/capture.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/hit-sink.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/matcher.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/order.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/path-key.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/ports.internal.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/redirects.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/referrer-alias.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/reserved-destination.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/resolver.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/sql/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/sql/repo.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/sql/repo.rows.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/target-gate.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/redirects/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/routing/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/routing/routing.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/trash/adapters/record-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/trash/cursor.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/trash/follow-ups.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/trash/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/trash/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/trash/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/trash/sweeper.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/trash/write-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/authorize-helper.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/concurrency.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/config-validation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/date-label.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/embed-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/embed-validation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/entry-payload.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/gallery-resolver.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/host-ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/markers/gallery.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/markers/html-attributes.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/markers/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/markers/marker.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/markers/media-reference.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/page-embed-types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/read-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/region-area-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolver-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/contact-form.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/create-core-resolvers.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/gallery.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/menu.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/recent-entries.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/resolvers/taxonomy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/where-used.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cms/dist/widgets/write-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cookie-consent/dist/contract.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cookie-consent/dist/contracts/policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cookie-consent/dist/contracts/scripts.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/cookie-consent/dist/policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/api-token-auth.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/approval.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/batch-tool-inputs.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/bindings.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/composition.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/contracts/hosted-mcp.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/contribution-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/daemon.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/feature-flags.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/filesystem.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/gated-mutations.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/gated-mutations/actor-identity.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/gated-mutations/gateway.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/gated-mutations/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/gated-mutations/token.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/model-facing-tool-errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/naming.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/native-regexp.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/object-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/optional-peer.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/origin-validation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/pack-lifecycle.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/pack.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/primitives/http.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/primitives/ids.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/primitives/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/primitives/json.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/primitives/logger.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/primitives/paths.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/primitives/result.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/primitives/sse.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/primitives/tasks.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/primitives/time.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/primitives/trim-chars.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/principal.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/provider-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/records.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/redact.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/registration-kit.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/agent-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/agent-value-write-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/agent-writable-preferences.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/agent-write-denylist.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/change-feed.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/definitions-dispatch.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.ar.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.bn.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.de.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.es.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.fa.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.fr.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.hi.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.hu.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.id.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.it.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.ja.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.ko.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.pl.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.pt-BR.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.ru.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.th.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.tr.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.uk.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.ur.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.zh-CN.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/dictionaries/settings-dialog.zh-TW.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/ensure-definitions.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/purge-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/settings.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/tool-registrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/ui-tab-definitions.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/settings/write-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/surface-exchanges.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/target-scope.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/teardown.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/text/descriptor-i18n.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/text/escape.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/text/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/text/line-tail.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/text/sanitize-untrusted-text.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/token.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/tool-exposure.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/tool-input-envelope.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/tool-input-errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/tool-input-normalization.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/tool-metadata.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/tool-permissions.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/tool-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/tool-tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/dist/user-facing-error.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/core/plugin-directory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/agent-env.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/antigravity-permissions.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/claude/mcp-config.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/claude/subagent-start.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/codex/home-config.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/codex/home-staging.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/codex/isolation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/event-translation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/events.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/gemini/tool-calls.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/handoff.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/http-mcp.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/launch.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/live-session-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/mcp-bridge-probe.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/mcp-bridge.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/message-relay.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/model-receipts.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/opencode/mcp-config.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/opencode/tool-calls.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/run-output.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/sanitized-line-stream.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/tool-call-receipts.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/agent-executor/values.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/ai-trace-lifecycle.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/attachment-content.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/close-status.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/continuation/continuation-transport.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/continuation/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/continuation/journal.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/continuation/run-scoped-context-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/continuation/run-start-handler.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/core/omit-keys.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/core/read-only-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/core/tool-candidates.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/delegated-result-correlation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/delegated-tool-bridge.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/event-log.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/frontend-capability-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/frontend-session-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/active-context.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/agents.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/attachment-lookup-routes.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/attachments.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/cancel-owned-runs.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/component-catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/connectors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/daemon-status.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/db-ops.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/delegated-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/frontend-control.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/frontend-guest-scope.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/frontend-request-route.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/frontend-sessions.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/health.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/host-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/media.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/message-relay.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/model-proxy-fields.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/model-proxy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/remote-run-events.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/research.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/resource-request.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/route-manifest.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/routines.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/run-credentials.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/runs.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/surface-callback.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/surface-restoration.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/terminals.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/tool-catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/tool-execution-routes.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/workspace-root.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/http/xai.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/idle-monitor.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/image-prompt-delivery.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/legacy-data-migration.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/remote-attachment-lookup.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/remote-tool-bridge.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/remote-tool-executor.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/routines/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/routines/routine-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/routines/schedule.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/routines/scheduler.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/routines/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/routing-tool-executor.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/run-lifecycle.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/run-tool-consent.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/run/core/failure-taxonomy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/run/core/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/run/core/result.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/run/core/retry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/run/diagnostics/diagnostics.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/run/diagnostics/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/run/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/scheduler.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/surface-exchanges.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/surface-restoration.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/terminal-session.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/tool-access-lowering.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/tool-executor.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/tool-result-diagnostics.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/tool-result-media.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/daemon/dist/tool-result-surfaces.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/core/artifact-naming.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/core/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/core/pg-types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/core/row-values.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/core/socket.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/data-modules/data-module.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/data-modules/disk-headroom.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/data-modules/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/data-modules/migration-journal.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/data-modules/migration-recovery.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/data-modules/plugin-identity.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/data-modules/plugin-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/data-modules/restore.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/data-modules/snapshot.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/dialect.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/kernel-core.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/ops.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/owned-transaction.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/pglite/dialect.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/pglite/driver.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/pglite/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/pglite/ops.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/port.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/postgres-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/postgres/driver.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/postgres/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/postgres/ops.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/postgres/pglite-socket.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/schema-scope.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/schema-shape.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/session-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/sqlite/driver.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/sqlite/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/sqlite/ops.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/store-copy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/turn-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/kernel/typegen.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/migrate/checksum.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/migrate/ddl.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/migrate/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/migrate/legacy-ledger.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/migrate/runner.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/migrate/step.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/pglite/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/pglite/owner.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/pglite/socket-server.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/recovery/operation-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/secrets-vault/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/secrets-vault/repo.sql.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/sqlite/backup-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/sqlite/checked-client.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/sqlite/checked-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/sqlite/db-ops.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/sqlite/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/sqlite/inspect.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/sqlite/open.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/db/dist/sqlite/transaction.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/core/deploy-types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/core/redirect-guard.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/config-contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/config-descriptors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/host-kit.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/naming.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-descriptors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-runner.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-secret-card.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-secrets.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-tool-contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/ops-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/publish-jobs.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/reachability.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/target-contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/target-descriptors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/devops/dist/deploy/tool.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/diagnostics/dist/core/secrets-only.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/config.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/delivery.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/export-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/fanout.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/hooks.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/instrumentation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/noop.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/otel.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/diagnostics/dist/observability/tracker-noop.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/diagnostics/dist/redaction/secrets-only.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/api-security-middleware.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/compat.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/local-daemon-request.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/middleware.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/observability.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/origin.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/pack-http.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/rate-limit.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/raw-sse.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/request.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/response.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/route-registration-guard.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/sse.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin/configured-origin.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin/loopback-host.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin/origin.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin/site-path.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/http-kit/dist/verified-origin/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/access-token.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/account-actions.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/attempt-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/authorization.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/budgets.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/byo-client.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/connect.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/declarations.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/deps.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/descriptor.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/finish-authorization.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/hook-http.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/host.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/hosted-sign-in.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/install-credential.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/keys.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/records.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/request-checks.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/shared.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/status.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/token-store/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/token-store/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/token-store/record.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/api-connections/token-store/vault-token-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/argument-error.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/contracts/credentialed-request-errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/auth-schemes.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/credentialed-request.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/response-redaction.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/sets/host.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/sets/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/sets/store.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/credentialed-http/sets/vault-repo.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/providers.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/integrations/dist/media-providers/ui-defaults.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/mcp/dist/federation/config.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/access.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/auth.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/connection-gate.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/projections.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/revocation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/store.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/store.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/unconfigured-error.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/validation-error.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/vault.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/mcp/dist/federation/hosted/vocabulary.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/mcp/dist/federation/trust.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/authorization-code.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/bounded-json.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/device-code.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/discovery-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/discovery.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/dns-pinned-transport.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/endpoint-safety.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/file-registration-cache.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/flow-operations.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/guarded-transport.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/loopback-callback.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/loopback-receiver.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/node-file-cache.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/oidc.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/options.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/pending-authorizations.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/pkce.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/protocol-error-codes.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/redact.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/refresh.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/registration-cache.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/registration.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/resource.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/revocation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/sealed-state.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/oauth/dist/token-endpoint.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/asset-cache.adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/asset-cache.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/aws-sigv4.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/blob-storage.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/child-environment.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/command.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/core/effective-port.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/download.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fetch-with-timeout.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/atomic-write.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/backup-once.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/boot-identity.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-home.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-running-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-sync.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-user-config.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-workspace.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/durable-json.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/env-text.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/errno.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/file-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/guarded-reader.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/reviewed-file.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/strict-containment.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/user-data-directories.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/verified-directory-move.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/verified-file-relocation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/fs/workspace-directory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/home-expansion.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/http.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/http/guarded/client.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/http/guarded/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/http/guarded/fetch-adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/http/guarded/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/http/guarded/node-ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/http/guarded/transport.fetch.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/adapter-module.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/builtin-providers.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/delivery-availability.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/delivery-wrapper.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/domain-read.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/email-sender-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/email-sender.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/feedback.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/mail-status-cache.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/plugin-abi.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/prepare-sender-email.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/provider-error.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/provider-mailer.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/provider-setup.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/provider.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/purpose-scoped-mailer.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/rate-limit.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/resolve-mailer.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/sender-domain-verification.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/sender-identity.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/senders.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/mail/smtp.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/net/address.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/net/endpoint-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/net/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/net/local-http-probe.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/net/local-http-request.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/process.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/proxy-env.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/resource-paths.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/sandbox-env.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/secrets/aad.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/contracts.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/provider-matches.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/vault-archive.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/vault.aad.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/vault.meta.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/vault.repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/vault.service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-sets/vault.types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-token.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/secrets/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/secrets/keyring.env.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/secrets/passphrase-envelope.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/secrets/secret-sealer.aesgcm.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/shell.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/terminal.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/toolchain.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/web/first-distinct.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/web/html-document.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/web/html-resource.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/web/html-to-markdown.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/web/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/web/strip-html-presentation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/web/web-page.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/platform/dist/windows-system-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/protocol/dist/agent-catalog.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/protocol/dist/common.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/protocol/dist/delegated-result.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/protocol/dist/errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/protocol/dist/event-log.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/protocol/dist/events.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/protocol/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/protocol/dist/journal.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/protocol/dist/registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/protocol/dist/run-context.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/protocol/dist/run.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/core/theme/default.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/cards.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/confirmation-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/credential-card.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/early-message-buffer.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/escape.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/protocol.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/resource.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/sandbox-proxy-link-forwarder.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/sandbox-proxy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/secret-card.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/sign-in-card.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/access-approval.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/bridge.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/checkbox.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/choice-group.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/confirmation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/document.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/fields.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/form.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/host-theme.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/outcome.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/select.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/structured-details.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/text-input.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/tool-approval.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/utils/trim-chars.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/ui/dist/utils/unhandled-case.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/core/builtin-permissions.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/core/permissions.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/core/principal-kind-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/core/types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/admin-crud-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/agent-tool-input.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/agent-tool-registrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/agent-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/auth-challenge.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/auth-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/authorize.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/grant-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/hasher.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/identity-transaction.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/login-providers.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/login-types.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/mfa/passkey-adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/mfa/passkey-ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/mfa/passkey-service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/mfa/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/mfa/secret-adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/mfa/service.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/mfa/totp-adapter.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/owner-reset-input.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/password-policy.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/permission-migrations.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/recovery-codes.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/repo.memory-transactions.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/repo.memory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/seed.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/session-tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Jini/packages/user-management/dist/server/username.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Tovu/packages/contracts/dist/secret-redaction.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/core/dist/filesystem.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/core/dist/primitives/http.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/core/dist/primitives/ids.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/core/dist/primitives/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/core/dist/primitives/json.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/core/dist/primitives/logger.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/core/dist/primitives/paths.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/core/dist/primitives/result.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/core/dist/primitives/sse.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/core/dist/primitives/tasks.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/core/dist/primitives/time.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/core/dist/primitives/trim-chars.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/atomic-write.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/backup-once.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/boot-identity.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-home.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-running-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-sync.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-user-config.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-workspace.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/durable-json.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/env-text.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/errno.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/file-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/guarded-reader.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/reviewed-file.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/strict-containment.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/user-data-directories.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/verified-directory-move.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/verified-file-relocation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/fs/workspace-directory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/secrets/aad.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/secrets/credential-token.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/secrets/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/secrets/keyring.env.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/secrets/passphrase-envelope.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/secrets/secret-sealer.aesgcm.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Jini/packages/platform/dist/windows-system-tools.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/api-token-auth.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/approval.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/batch-tool-inputs.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/bindings.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/contribution-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/daemon.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/feature-flags.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/filesystem.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/gated-mutations.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/gated-mutations/actor-identity.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/gated-mutations/gateway.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/gated-mutations/ports.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/gated-mutations/token.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/model-facing-tool-errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/naming.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/native-regexp.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/object-store.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/origin-validation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/pack-lifecycle.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/pack.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/primitives/http.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/primitives/ids.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/primitives/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/primitives/json.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/primitives/logger.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/primitives/paths.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/primitives/result.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/primitives/sse.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/primitives/tasks.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/primitives/time.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/primitives/trim-chars.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/principal.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/provider-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/records.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/redact.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/registration-kit.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/surface-exchanges.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/target-scope.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/teardown.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/token.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/tool-exposure.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/tool-input-envelope.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/tool-input-errors.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/tool-input-normalization.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/tool-metadata.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/tool-permissions.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/tool-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/tool-tokens.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/core/dist/user-facing-error.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/atomic-write.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/backup-once.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/boot-identity.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-home.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-registry.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-running-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-sync.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-user-config.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/directory-workspace.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/durable-json.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/env-text.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/errno.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/file-lock.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/guarded-reader.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/index.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/reviewed-file.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/strict-containment.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/user-data-directories.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/verified-directory-move.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/verified-file-relocation.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/fs/workspace-directory.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/messages.js
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Jini/packages/platform/dist/windows-system-tools.js
 - /tmp/claude-0/cov/abs/desktop-a.lcov.info: /home/user/Jini/packages/agent-plugins/core/persistent-state.js
 - /tmp/claude-0/cov/abs/desktop-a.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/action-dispatcher.js
 - /tmp/claude-0/cov/abs/desktop-a.lcov.info: /home/user/Jini/packages/agent-plugins/dist/admin-surfaces/action-schema.js
@@ -34908,6 +37740,102 @@ Never-loaded files: **146** / 3367
 - /tmp/claude-0/cov/abs/tovu-shard-6ay.lcov.info: /home/user/Tovu/apps/website/src/server/__tests__/helpers/http-test-server.ts → apps/website/src/server/__tests__/helpers/http-test-server.ts
 - /tmp/claude-0/cov/abs/tovu-shard-6ay.lcov.info: /home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts → apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts
 - /tmp/claude-0/cov/abs/tovu-shard-6ay.lcov.info: /home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/peer-site-reads.fixture.ts → apps/website/src/server/runtime/composition/__tests__/peer-site-reads.fixture.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/github/source-control/backup-push.mjs → sites/tovu-dev/agent-plugins/ws/workspace-local/github/package/sha256/22a7c883ea81d386c754284d091a83c282af37194e6a2b3bc1919153e7ae56e6/source-control/backup-push.mjs
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/github/source-control/commit-site.mjs → sites/tovu-dev/agent-plugins/ws/workspace-local/github/package/sha256/22a7c883ea81d386c754284d091a83c282af37194e6a2b3bc1919153e7ae56e6/source-control/commit-site.mjs
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/github/source-control/github.mjs → sites/tovu-dev/agent-plugins/ws/workspace-local/github/package/sha256/22a7c883ea81d386c754284d091a83c282af37194e6a2b3bc1919153e7ae56e6/source-control/github.mjs
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Jini/packages/agent-plugins/github/source-control/write-files.mjs → sites/tovu-dev/agent-plugins/ws/workspace-local/github/package/sha256/22a7c883ea81d386c754284d091a83c282af37194e6a2b3bc1919153e7ae56e6/source-control/write-files.mjs
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/__tests__/fixtures/teardown.ts → apps/website/src/__tests__/fixtures/teardown.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/__tests__/support/fake-clock.ts → apps/website/src/__tests__/support/fake-clock.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/contracts/core/__tests__/helpers/child-process-coverage-env.ts → apps/website/src/contracts/core/__tests__/helpers/child-process-coverage-env.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/build-zip.ts → apps/website/src/features/agent-plugins/__tests__/fixtures/build-zip.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts → apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts → apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture.ts → apps/website/src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/plugins/__tests__/snapshot.test.ts → apps/website/src/features/plugins/__tests__/snapshot.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/post/__tests__/content-stats-tool.test.ts → apps/website/src/features/post/__tests__/content-stats-tool.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/post/__tests__/html-plain-text.pb1.test.ts → apps/website/src/features/post/__tests__/html-plain-text.pb1.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/post/__tests__/pglite-repo.fixture.ts → apps/website/src/features/post/__tests__/pglite-repo.fixture.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/post/__tests__/post-record.fixture.ts → apps/website/src/features/post/__tests__/post-record.fixture.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/post/__tests__/post.body-format.test.ts → apps/website/src/features/post/__tests__/post.body-format.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/post/__tests__/post.restore-forward.test.ts → apps/website/src/features/post/__tests__/post.restore-forward.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/post/__tests__/post.trashed-slug-release.test.ts → apps/website/src/features/post/__tests__/post.trashed-slug-release.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/post/__tests__/remove-post-double.ts → apps/website/src/features/post/__tests__/remove-post-double.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/post/__tests__/repo.author.test.ts → apps/website/src/features/post/__tests__/repo.author.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/post/__tests__/search-index.memory.test.ts → apps/website/src/features/post/__tests__/search-index.memory.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/post/__tests__/slug.test.ts → apps/website/src/features/post/__tests__/slug.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/post/__tests__/tool-registrations.kind-status-validation-status.integration.test.ts → apps/website/src/features/post/__tests__/tool-registrations.kind-status-validation-status.integration.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/post/__tests__/tool-registrations.published-where.test.ts → apps/website/src/features/post/__tests__/tool-registrations.published-where.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/project-keys/__tests__/create-abort.unit.test.ts → apps/website/src/features/project-keys/__tests__/create-abort.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/project-keys/__tests__/helpers.ts → apps/website/src/features/project-keys/__tests__/helpers.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts → apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/publish-content/__tests__/bundle-staging.test.ts → apps/website/src/features/publish-content/__tests__/bundle-staging.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/publish-content/__tests__/execute-pull-tool.plugin-hook-refusal.test.ts → apps/website/src/features/publish-content/__tests__/execute-pull-tool.plugin-hook-refusal.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/publish-content/__tests__/file-tree-policy.l044.test.ts → apps/website/src/features/publish-content/__tests__/file-tree-policy.l044.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/publish-content/__tests__/peer-transport.test.ts → apps/website/src/features/publish-content/__tests__/peer-transport.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/publish-content/__tests__/planner.test.ts → apps/website/src/features/publish-content/__tests__/planner.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/publish-content/__tests__/pull-tool-fixture.ts → apps/website/src/features/publish-content/__tests__/pull-tool-fixture.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/publish-content/__tests__/repo-handler.test.ts → apps/website/src/features/publish-content/__tests__/repo-handler.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/publish-content/__tests__/round-trip-harness.ts → apps/website/src/features/publish-content/__tests__/round-trip-harness.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/publish-content/ui/__tests__/index.test.ts → apps/website/src/features/publish-content/ui/__tests__/index.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts → apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/publish-trust/__tests__/keys.test.ts → apps/website/src/features/publish-trust/__tests__/keys.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/recovery/__tests__/unit/agent-tools.unit.test.ts → apps/website/src/features/recovery/__tests__/unit/agent-tools.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/recovery/__tests__/unit/restore-points.unit.test.ts → apps/website/src/features/recovery/__tests__/unit/restore-points.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/redirects/__tests__/publish-content.characterization.test.ts → apps/website/src/features/redirects/__tests__/publish-content.characterization.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/redirects/__tests__/remove-redirect-double.ts → apps/website/src/features/redirects/__tests__/remove-redirect-double.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/seo/__tests__/settings.definitions.test.ts → apps/website/src/features/seo/__tests__/settings.definitions.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/settings/__tests__/admin-interface.unit.test.ts → apps/website/src/features/settings/__tests__/admin-interface.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/settings/__tests__/mail-provider.unit.test.ts → apps/website/src/features/settings/__tests__/mail-provider.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/settings/__tests__/site-timezone-local-fallback.unit.test.ts → apps/website/src/features/settings/__tests__/site-timezone-local-fallback.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/settings/__tests__/visitor-tools-configure.unit.test.ts → apps/website/src/features/settings/__tests__/visitor-tools-configure.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/settings/__tests__/visitor-tools-management.fixture.ts → apps/website/src/features/settings/__tests__/visitor-tools-management.fixture.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/settings/__tests__/visitor-tools.fixture.ts → apps/website/src/features/settings/__tests__/visitor-tools.fixture.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-backup/__tests__/archive.fixture.ts → apps/website/src/features/site-backup/__tests__/archive.fixture.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-backup/__tests__/fixtures/fake-github.ts → apps/website/src/features/site-backup/__tests__/fixtures/fake-github.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-backup/__tests__/fixtures/site-plugin.fixture.ts → apps/website/src/features/site-backup/__tests__/fixtures/site-plugin.fixture.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts → apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-private-rows.integration.test.ts → apps/website/src/features/site-backup/__tests__/import-private-rows.integration.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-backup/__tests__/import.fixture.ts → apps/website/src/features/site-backup/__tests__/import.fixture.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-backup/__tests__/integration/archive-sanitization.integration.test.ts → apps/website/src/features/site-backup/__tests__/integration/archive-sanitization.integration.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-backup/__tests__/plan-store.unit.test.ts → apps/website/src/features/site-backup/__tests__/plan-store.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-delivery.integration.test.ts → apps/website/src/features/site-backup/__tests__/share-delivery.integration.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-refusals.integration.test.ts → apps/website/src/features/site-backup/__tests__/share-refusals.integration.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-backup/__tests__/sources-no-follow.unit.test.ts → apps/website/src/features/site-backup/__tests__/sources-no-follow.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts → apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-evidence/__tests__/unit/page-structure-script.unit.test.ts → apps/website/src/features/site-evidence/__tests__/unit/page-structure-script.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-export/__tests__/media-original-urls.test.ts → apps/website/src/features/site-export/__tests__/media-original-urls.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-export/__tests__/theme-preview-report.test.ts → apps/website/src/features/site-export/__tests__/theme-preview-report.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-guide/contracts.ts → apps/website/src/features/site-guide/contracts.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-inspection/__tests__/loopback-site-server.unit.test.ts → apps/website/src/features/site-inspection/__tests__/loopback-site-server.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-inspection/__tests__/site-profile.unit.test.ts → apps/website/src/features/site-inspection/__tests__/site-profile.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/site-inspection/admin-screens.generated.ts → apps/website/src/features/site-inspection/admin-screens.generated.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/sites/__tests__/site-admin-tools.unit.test.ts → apps/website/src/features/sites/__tests__/site-admin-tools.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/skills/__tests__/unit/archive.unit.test.ts → apps/website/src/features/skills/__tests__/unit/archive.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/skills/__tests__/unit/tool-handler-characterization.unit.test.ts → apps/website/src/features/skills/__tests__/unit/tool-handler-characterization.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/source-control/__tests__/fixtures/example-provider.ts → apps/website/src/features/source-control/__tests__/fixtures/example-provider.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/source-control/__tests__/fixtures/github-from-source.ts → apps/website/src/features/source-control/__tests__/fixtures/github-from-source.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/source-control/__tests__/github-backup-secrets.integration.test.ts → apps/website/src/features/source-control/__tests__/github-backup-secrets.integration.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/source-control/__tests__/store.resolve.unit.test.ts → apps/website/src/features/source-control/__tests__/store.resolve.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/taxonomy/__tests__/publish-content.test.ts → apps/website/src/features/taxonomy/__tests__/publish-content.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/theme/__tests__/astro-real-bundler-conformance.test.ts → apps/website/src/features/theme/__tests__/astro-real-bundler-conformance.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/theme/__tests__/chromeless-templates.fixture.ts → apps/website/src/features/theme/__tests__/chromeless-templates.fixture.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/theme/__tests__/entry-list-render.test.ts → apps/website/src/features/theme/__tests__/entry-list-render.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/theme/__tests__/inject-current-entity-content-id.test.ts → apps/website/src/features/theme/__tests__/inject-current-entity-content-id.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/theme/__tests__/next-available-theme-id.test.ts → apps/website/src/features/theme/__tests__/next-available-theme-id.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/theme/__tests__/publish-content.apply.test.ts → apps/website/src/features/theme/__tests__/publish-content.apply.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/theme/__tests__/static-render-api-version.test.ts → apps/website/src/features/theme/__tests__/static-render-api-version.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/theme/__tests__/static-render-paging.test.ts → apps/website/src/features/theme/__tests__/static-render-paging.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/theme/__tests__/template-render.canary.test.ts → apps/website/src/features/theme/__tests__/template-render.canary.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/theme/__tests__/theme-file-write-scope.test.ts → apps/website/src/features/theme/__tests__/theme-file-write-scope.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/theme/__tests__/theme-page-publish.test.ts → apps/website/src/features/theme/__tests__/theme-page-publish.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/theme/__tests__/theme-slot-honors-current-page.test.ts → apps/website/src/features/theme/__tests__/theme-slot-honors-current-page.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/theme/__tests__/theme-write-preflight.unit.test.ts → apps/website/src/features/theme/__tests__/theme-write-preflight.unit.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/theme/__tests__/visitor-tool-marks.fixture.ts → apps/website/src/features/theme/__tests__/visitor-tool-marks.fixture.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/theme/migration/__tests__/migrate-theme.test.ts → apps/website/src/features/theme/migration/__tests__/migrate-theme.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/features/webmcp/generated/annotated-actions-script.ts → apps/website/src/features/webmcp/generated/annotated-actions-script.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/dialect-matrix.ts → apps/website/src/platform/db/kernel/__tests__/dialect-matrix.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts → apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts
+- /tmp/claude-0/cov/abs/tovu-shard-6az.lcov.info: /home/user/Tovu/apps/website/src/server/__tests__/helpers/http-test-server.ts → apps/website/src/server/__tests__/helpers/http-test-server.ts
 - /tmp/claude-0/cov/abs/tovu-shard-6b.lcov.info: /home/user/Jini/packages/agent-plugins/fly/deploy-ops/fly.mjs → sites/tovu-dev/agent-plugins/ws/workspace-local/fly/package/sha256/0120b55e784a7e886decf69ddd78f09a537ea66ddc89b9d433df3b40c6c28db8/deploy-ops/fly.mjs
 - /tmp/claude-0/cov/abs/tovu-shard-6b.lcov.info: /home/user/Jini/packages/agent-plugins/github/source-control/backup-push.mjs → sites/tovu-dev/agent-plugins/ws/workspace-local/github/package/sha256/22a7c883ea81d386c754284d091a83c282af37194e6a2b3bc1919153e7ae56e6/source-control/backup-push.mjs
 - /tmp/claude-0/cov/abs/tovu-shard-6b.lcov.info: /home/user/Jini/packages/agent-plugins/github/source-control/commit-site.mjs → sites/tovu-dev/agent-plugins/ws/workspace-local/github/package/sha256/22a7c883ea81d386c754284d091a83c282af37194e6a2b3bc1919153e7ae56e6/source-control/commit-site.mjs
@@ -35716,6 +38644,40 @@ Never-loaded files: **146** / 3367
 - /tmp/claude-0/cov/abs/tovu-shard-7.lcov.info: /home/user/Tovu/development/scripts/__tests__/legal-owner-inputs.unit.test.ts → development/scripts/__tests__/legal-owner-inputs.unit.test.ts
 - /tmp/claude-0/cov/abs/tovu-shard-7.lcov.info: /home/user/Tovu/development/scripts/__tests__/route-tool-parity.unit.test.ts → development/scripts/__tests__/route-tool-parity.unit.test.ts
 - /tmp/claude-0/cov/abs/tovu-shard-7.lcov.info: /home/user/Tovu/development/scripts/__tests__/test-site-catalog-isolation.guard.test.ts → development/scripts/__tests__/test-site-catalog-isolation.guard.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Tovu/apps/website/src/cli/__tests__/helpers/remove-fixture-tree.ts → apps/website/src/cli/__tests__/helpers/remove-fixture-tree.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Tovu/apps/website/src/cli/__tests__/integration/adopt-command.integration.test.ts → apps/website/src/cli/__tests__/integration/adopt-command.integration.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Tovu/apps/website/src/contracts/core/__tests__/helpers/child-process-coverage-env.ts → apps/website/src/contracts/core/__tests__/helpers/child-process-coverage-env.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts → apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts → apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli1.lcov.info: /home/user/Tovu/apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts → apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Tovu/apps/website/src/cli/__tests__/integration/init-agent-plugin-tokens.integration.test.ts → apps/website/src/cli/__tests__/integration/init-agent-plugin-tokens.integration.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts → apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts → apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli2.lcov.info: /home/user/Tovu/apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts → apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Tovu/apps/website/src/cli/__tests__/helpers/remove-fixture-tree.ts → apps/website/src/cli/__tests__/helpers/remove-fixture-tree.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Tovu/apps/website/src/cli/__tests__/integration/serve-command-site-key.integration.test.ts → apps/website/src/cli/__tests__/integration/serve-command-site-key.integration.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Tovu/apps/website/src/contracts/core/__tests__/helpers/child-process-coverage-env.ts → apps/website/src/contracts/core/__tests__/helpers/child-process-coverage-env.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts → apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts → apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli3.lcov.info: /home/user/Tovu/apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts → apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli4.lcov.info: /home/user/Tovu/apps/website/src/cli/__tests__/integration/deploy-config-command.integration.test.ts → apps/website/src/cli/__tests__/integration/deploy-config-command.integration.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli4.lcov.info: /home/user/Tovu/apps/website/src/contracts/core/__tests__/helpers/child-process-coverage-env.ts → apps/website/src/contracts/core/__tests__/helpers/child-process-coverage-env.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli4.lcov.info: /home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts → apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli4.lcov.info: /home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts → apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli4.lcov.info: /home/user/Tovu/apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts → apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli5.lcov.info: /home/user/Tovu/apps/website/src/cli/__tests__/integration/init-command.integration.test.ts → apps/website/src/cli/__tests__/integration/init-command.integration.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli5.lcov.info: /home/user/Tovu/apps/website/src/contracts/core/__tests__/helpers/child-process-coverage-env.ts → apps/website/src/contracts/core/__tests__/helpers/child-process-coverage-env.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli5.lcov.info: /home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts → apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli5.lcov.info: /home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts → apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli5.lcov.info: /home/user/Tovu/apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts → apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Tovu/apps/website/src/__tests__/fixtures/teardown.ts → apps/website/src/__tests__/fixtures/teardown.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Tovu/apps/website/src/cli/__tests__/helpers/remove-fixture-tree.ts → apps/website/src/cli/__tests__/helpers/remove-fixture-tree.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Tovu/apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts → apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Tovu/apps/website/src/contracts/core/__tests__/helpers/child-process-coverage-env.ts → apps/website/src/contracts/core/__tests__/helpers/child-process-coverage-env.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts → apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts → apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Tovu/apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts → apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts
+- /tmp/claude-0/cov/abs/tovu-shard-cli6.lcov.info: /home/user/Tovu/apps/website/src/server/__tests__/helpers/http-test-server.ts → apps/website/src/server/__tests__/helpers/http-test-server.ts
 - /tmp/claude-0/cov/abs/desktop-a.lcov.info: /home/user/Tovu/apps/website/src/features/site-guide/contracts.ts → apps/website/src/features/site-guide/contracts.ts
 - /tmp/claude-0/cov/abs/desktop-a.lcov.info: /home/user/Tovu/apps/website/src/features/site-inspection/admin-screens.generated.ts → apps/website/src/features/site-inspection/admin-screens.generated.ts
 - /tmp/claude-0/cov/abs/desktop-a.lcov.info: /home/user/Tovu/apps/website/src/features/webmcp/generated/annotated-actions-script.ts → apps/website/src/features/webmcp/generated/annotated-actions-script.ts

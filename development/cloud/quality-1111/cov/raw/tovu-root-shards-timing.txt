@@ -35,3 +35,9 @@ SUBSHARDS-DONE 02:22:52
 shard 6az exit 0 606s
 SUBSHARDS-DONE 02:23:38
 shard cli2 exit 0 14s
+shard cli5 exit 0 75s
+shard cli4 exit 0 84s
+shard cli3 exit 0 100s
+shard cli1 exit 0 321s
+shard cli6 exit 0 472s
+SUBSHARDS-DONE 02:31:31
