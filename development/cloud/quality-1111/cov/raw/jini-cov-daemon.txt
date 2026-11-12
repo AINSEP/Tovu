@@ -1,0 +1,173 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/daemon
+      Coverage enabled with v8
+
+stderr | src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — a single failed queued emit does not block the run from reaching a terminal state > swallows an emit() race against an already-terminal run instead of leaving an unhandled rejection
+[daemon] Queued lifecycle event could not be delivered.
+[daemon] Queued lifecycle event could not be delivered.
+
+stderr | src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — ACP dispatch (fake attachAcpSession) > swallows an emit() race against an already-terminal run on the ACP path without an unhandled rejection
+[daemon] Queued lifecycle event could not be delivered.
+
+stderr | src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — pi-rpc dispatch (fake attachPiRpcSession) > swallows an emit() race against an already-terminal run on the pi-rpc path without an unhandled rejection
+[daemon] Queued lifecycle event could not be delivered.
+
+ ✓ src/agent-executor/__tests__/agent-executor.test.ts (389 tests) 1736ms
+ ✓ src/http/__tests__/attachments.test.ts (154 tests) 3152ms
+   ✓ createDiskAttachmentStore — retainAcrossRestarts > drops a record whose sidecar is unreadable or is not JSON at all 368ms
+   ✓ handleAttachmentUpload > refuses one byte past the default 20 MB cap with 413 490ms
+stderr | src/http/__tests__/model-proxy.test.ts > POST /api/proxy/anthropic/stream > does not leak an unhandled rejection when the pre-stream origin check throws, and keeps serving requests after
+[@jini-ai/http-kit] internal error (model-proxy/anthropic, correlationId=fd82f1ac-1b56-4e85-b8c0-c27055cb4a0f) Error: same-origin check exploded unexpectedly
+    at Proxy.<anonymous> (/home/user/Jini/packages/daemon/src/http/__tests__/model-proxy.test.ts:463:15)
+    at Proxy.mockCall (file:///home/user/Jini/node_modules/.pnpm/@vitest+spy@2.1.9/node_modules/@vitest/spy/dist/index.js:61:17)
+    at Proxy.spy (file:///home/user/Jini/node_modules/.pnpm/tinyspy@3.0.2/node_modules/tinyspy/dist/index.js:45:80)
+    at Module.guardSameOrigin (/home/user/Jini/packages/http-kit/src/origin.ts:33:7)
+    at runProxyStream (/home/user/Jini/packages/daemon/src/http/model-proxy.ts:421:20)
+    at /home/user/Jini/packages/daemon/src/http/model-proxy.ts:653:7
+    at /home/user/Jini/packages/daemon/src/http/__tests__/model-proxy.test.ts:468:15
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+
+stderr | src/http/__tests__/model-proxy.test.ts > POST /api/proxy/:provider/stream — the generic catch-all > does not leak an unhandled rejection when the pre-stream origin check throws on the catch-all route, and keeps serving requests after
+[@jini-ai/http-kit] internal error (model-proxy/anthropic, correlationId=4186eb85-1747-48f8-9f7f-52976f446611) Error: same-origin check exploded unexpectedly
+    at Proxy.<anonymous> (/home/user/Jini/packages/daemon/src/http/__tests__/model-proxy.test.ts:976:15)
+    at Proxy.mockCall (file:///home/user/Jini/node_modules/.pnpm/@vitest+spy@2.1.9/node_modules/@vitest/spy/dist/index.js:61:17)
+    at Proxy.spy (file:///home/user/Jini/node_modules/.pnpm/tinyspy@3.0.2/node_modules/tinyspy/dist/index.js:45:80)
+    at Module.guardSameOrigin (/home/user/Jini/packages/http-kit/src/origin.ts:33:7)
+    at /home/user/Jini/packages/daemon/src/http/model-proxy.ts:621:22
+    at /home/user/Jini/packages/daemon/src/http/__tests__/model-proxy.test.ts:979:15
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+
+ ✓ src/http/__tests__/model-proxy.test.ts (345 tests) 1876ms
+stderr | src/http/__tests__/xai.test.ts > xaiOauthCompleteRoute — non-Error failures and token defaults > rejects a token response with no token_type without persisting it
+[@jini-ai/http-kit] internal error (xai/oauth-complete, correlationId=cb409530-6adb-4759-a279-d92818f5c30c) Error: the authorization server's response did not contain a supported OAuth token set
+    at redactError (/home/user/Jini/packages/daemon/src/http/xai.ts:308:10)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/xai.ts:520:82)
+    at /home/user/Jini/packages/daemon/src/http/__tests__/xai.test.ts:446:5
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file:///home/user/Jini/node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11
+
+ ✓ src/http/__tests__/xai.test.ts (80 tests) 1276ms
+   ✓ registerXaiRoutes — real Express server on a real socket > drives the whole OAuth handshake over the wire: start -> complete -> status -> disconnect 358ms
+ ✓ src/__tests__/run-lifecycle.test.ts (67 tests) 107ms
+ ✓ src/http/__tests__/runs.test.ts (69 tests) 153ms
+stderr | src/http/__tests__/routines.test.ts > registerRoutineRoutes > confirmed-bug regression: GET/:id, DELETE/:id, and GET/:id/runs must not crash (or silently 500-loop) on a throwing store, matching every sibling route's try/catch discipline > GET /api/routines/:id returns 500 INTERNAL_ERROR instead of throwing
+[@jini-ai/http-kit] internal error (GET /api/routines/:id, correlationId=953fcb84-493c-442a-b45b-2da931bf18a3) Error: store exploded
+    at Object.boom (/home/user/Jini/packages/daemon/src/http/__tests__/routines.test.ts:906:15)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/routines.ts:305:38)
+    at Object.GET /api/routines/:id (/home/user/Jini/packages/http-kit/src/adapter.ts:135:33)
+    at /home/user/Jini/packages/daemon/src/http/__tests__/routines.test.ts:925:45
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stderr | src/http/__tests__/routines.test.ts > registerRoutineRoutes > confirmed-bug regression: GET/:id, DELETE/:id, and GET/:id/runs must not crash (or silently 500-loop) on a throwing store, matching every sibling route's try/catch discipline > DELETE /api/routines/:id returns 500 INTERNAL_ERROR instead of throwing
+[@jini-ai/http-kit] internal error (DELETE /api/routines/:id, correlationId=5cd64223-3e86-4399-91e9-5f68de077a30) Error: store exploded
+    at Object.boom (/home/user/Jini/packages/daemon/src/http/__tests__/routines.test.ts:906:15)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/routines.ts:332:38)
+    at Object.DELETE /api/routines/:id (/home/user/Jini/packages/http-kit/src/adapter.ts:135:33)
+    at /home/user/Jini/packages/daemon/src/http/__tests__/routines.test.ts:937:48
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stderr | src/http/__tests__/routines.test.ts > registerRoutineRoutes > confirmed-bug regression: GET/:id, DELETE/:id, and GET/:id/runs must not crash (or silently 500-loop) on a throwing store, matching every sibling route's try/catch discipline > GET /api/routines/:id/runs returns 500 INTERNAL_ERROR instead of throwing
+[@jini-ai/http-kit] internal error (GET /api/routines/:id/runs, correlationId=91a0d997-d5e2-41cf-8838-626bf20b5521) Error: store exploded
+    at Object.boom (/home/user/Jini/packages/daemon/src/http/__tests__/routines.test.ts:906:15)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/routines.ts:377:39)
+    at Object.GET /api/routines/:id/runs (/home/user/Jini/packages/http-kit/src/adapter.ts:135:33)
+    at /home/user/Jini/packages/daemon/src/http/__tests__/routines.test.ts:947:50
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ ✓ src/http/__tests__/routines.test.ts (87 tests) 300ms
+stderr | src/http/__tests__/terminals.test.ts > terminalCreateRoute.handle > reports a timeout as a redacted INTERNAL_ERROR
+[@jini-ai/http-kit] internal error (terminal-create, correlationId=a4d2e8f0-709f-4015-9169-5db82766a62d) 'timed-out'
+
+stderr | src/http/__tests__/terminals.test.ts > terminalCreateRoute.handle > reports a cancellation as a redacted INTERNAL_ERROR
+[@jini-ai/http-kit] internal error (terminal-create, correlationId=38d2ec74-0ec7-4f6b-8a59-143c78b1744a) 'cancelled'
+
+ ✓ src/http/__tests__/terminals.test.ts (99 tests) 151ms
+ ✓ src/__tests__/tool-executor.test.ts (46 tests) 120ms
+ ✓ src/http/__tests__/connectors.test.ts (98 tests) 330ms
+stderr | src/http/__tests__/delegated-tools.test.ts > delegatedToolExecuteRoute.handle > propagates a caller-supplied abort signal through the bridge into ToolExecutor, cancelling a pending confirmation
+[@jini-ai/http-kit] internal error (delegated-tool-execute, correlationId=2275038b-e76e-4b7d-827b-99b404ad425c) 'cancelled'
+
+stderr | src/http/__tests__/delegated-tools.test.ts > registerDelegatedToolRoutes > a real HTTP request close (client disconnect) reaches ToolExecutor and cancels a pending confirmation, end to end through mountJsonRoute
+[@jini-ai/http-kit] internal error (delegated-tool-execute, correlationId=6cd6083e-7659-4ac9-811c-4ef1e68f032f) 'cancelled'
+
+ ✓ src/http/__tests__/delegated-tools.test.ts (40 tests) 168ms
+ ✓ src/routines/__tests__/scheduler.test.ts (34 tests) 94ms
+ ✓ src/http/__tests__/memory.test.ts (75 tests) 348ms
+ ✓ src/http/__tests__/host-tools.test.ts (80 tests) 105ms
+ ✓ src/http/__tests__/media.test.ts (63 tests) 898ms
+ ✓ src/__tests__/frontend-session-registry.test.ts (47 tests) 58ms
+ ✓ src/http/__tests__/remote-run-events.test.ts (89 tests) 537ms
+ ✓ src/agent-executor/__tests__/mid-run-user-message.test.ts (26 tests) 555ms
+ ✓ src/__tests__/terminal-session.test.ts (44 tests) 139ms
+ ✓ src/__tests__/delegated-tool-bridge.test.ts (23 tests) 107ms
+ ✓ src/http/__tests__/tool-execution-rpc.test.ts (38 tests) 998ms
+ ✓ src/__tests__/surface-exchanges.test.ts (48 tests) 31ms
+ ✓ src/http/__tests__/research.test.ts (36 tests) 368ms
+stderr | src/http/__tests__/db-ops.test.ts > daemonDbInspectRoute > reports a timeout as a redacted INTERNAL_ERROR
+[@jini-ai/http-kit] internal error (db-inspect, correlationId=b2cfd61d-ffbc-479f-89cb-27997a60ab50) 'timed-out'
+
+stderr | src/http/__tests__/db-ops.test.ts > daemonDbInspectRoute > reports a cancellation as a redacted INTERNAL_ERROR
+[@jini-ai/http-kit] internal error (db-inspect, correlationId=f85897d4-7c9e-4029-8db6-5f2a922868c9) 'cancelled'
+
+ ✓ src/http/__tests__/db-ops.test.ts (37 tests) 202ms
+ ✓ src/tool-recovery/__tests__/recovery-branches.test.ts (66 tests) 54ms
+ ✓ src/__tests__/read-only-tools.test.ts (24 tests) 21ms
+ ✓ src/__tests__/legacy-data-migration.test.ts (41 tests) 445ms
+ ✓ src/__tests__/tool-executor.dispatch.test.ts (36 tests) 175ms
+ ✓ src/http/__tests__/frontend-sessions.test.ts (27 tests) 222ms
+ ✓ src/agent-executor/__tests__/agent-executor-helpers.test.ts (53 tests) 26ms
+ ✓ src/run/core/__tests__/retry.test.ts (66 tests) 29ms
+ ✓ src/agent-executor/__tests__/launch-defaults-and-staging.test.ts (18 tests) 310ms
+ ✓ src/__tests__/tool-input-normalization.test.ts (17 tests) 46ms
+ ✓ src/core/__tests__/tool-gaps.test.ts (53 tests) 27ms
+ ✓ src/agent-executor/__tests__/agent-executor-filesystem-policy.test.ts (14 tests) 423ms
+ ✓ src/__tests__/ai-trace-lifecycle-regressions.test.ts (24 tests) 602ms
+ ✓ src/routines/__tests__/schedule.test.ts (35 tests) 43ms
+ ✓ src/__tests__/run-lifecycle-slow-run-watchdog.test.ts (12 tests) 46ms
+ ✓ src/agent-executor/__tests__/runtime-policy.test.ts (26 tests) 221ms
+ ✓ src/__tests__/tool-executor-audit.test.ts (18 tests) 112ms
+ ✓ src/http/__tests__/active-context.test.ts (29 tests) 94ms
+ ✓ src/agent-executor/__tests__/starting-model.test.ts (16 tests) 49ms
+ ✓ src/store/event-log/__tests__/sqlite.test.ts (27 tests) 1772ms
+   ✓ createSqliteEventLog — eviction + replay-gap adversarial cases > caps retention at the documented default of 2000 when maxEntriesPerRun is omitted 412ms
+ ✓ src/__tests__/run-credentials.f1-guards.test.ts (38 tests) 22ms
+ ✓ src/__tests__/delegated-tool-bridge.mcp-ui.test.ts (12 tests) 33ms
+ ✓ src/routines/__tests__/routine-store.test.ts (24 tests) 39ms
+ ✓ src/http/__tests__/frontend-control.test.ts (13 tests) 344ms
+ ✓ src/agent-executor/__tests__/agent-executor-acp.integration.test.ts (4 tests) 571ms
+ ✓ src/__tests__/frontend-capability-tools.test.ts (23 tests) 39ms
+ ✓ src/agent-executor/__tests__/mcp-bridge-probe.unit.test.ts (21 tests) 34ms
+ ✓ src/__tests__/run-credentials.pins.test.ts (49 tests) 32ms
+ ✓ src/__tests__/delegated-result-correlation.test.ts (32 tests) 51ms
+ ✓ src/agent-executor/__tests__/access-approval-transport.test.ts (65 tests) 105ms
+ ✓ src/http/__tests__/run-credentials.test.ts (18 tests) 27ms
+ ✓ src/agent-executor/codex/__tests__/mcp-sources-isolation.test.ts (17 tests) 24ms
+ ✓ src/__tests__/run-lifecycle-helpers.test.ts (26 tests) 23ms
+ ✓ src/store/event-log/__tests__/sqlite-kernel.test.ts (7 tests) 127ms
+ ✓ src/agent-executor/__tests__/run-output.test.ts (17 tests) 29ms
+ ✓ src/agent-executor/__tests__/mcp-bridge-staging.test.ts (8 tests) 60ms

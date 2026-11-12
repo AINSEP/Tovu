@@ -1,0 +1,23 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/commerce
+      Coverage enabled with v8
+
+ ✓ src/react/__tests__/Payments.unit.test.tsx (3 tests) 232ms
+ ✓ src/react/__tests__/Payments.boundaries.unit.test.tsx (5 tests) 337ms
+ ✓ src/react/__tests__/Payments.locale.unit.test.tsx (2 tests) 204ms
+
+ Test Files  3 passed (3)
+      Tests  10 passed (10)
+   Start at  00:55:26
+   Duration  10.10s (transform 994ms, setup 378ms, collect 1.58s, tests 773ms, environment 1.64s, prepare 515ms)
+
+JSON report written to /tmp/claude-0/cov/jini/commerce.results.json
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 3.26% ( 168/5144 )
+Branches     : 36.66% ( 33/90 )
+Functions    : 35.95% ( 32/89 )
+Lines        : 3.26% ( 168/5144 )
+================================================================================
+commerce exit 0 12s

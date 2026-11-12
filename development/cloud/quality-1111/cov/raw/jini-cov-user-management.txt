@@ -103,3 +103,57 @@
  ✓ src/react/members/__tests__/use-members.ported.test.ts (10 tests) 1156ms
  ✓ src/react/users/__tests__/account-protections.ported.test.tsx (19 tests) 1768ms
  ✓ src/admin/react/__tests__/UsersTab.hooks.pins.test.tsx (19 tests) 294ms
+ ✓ src/admin/react/__tests__/roles.test.tsx (7 tests) 4318ms
+   ✓ composable roles React screen > loads a read-only screen without grants and exposes readable permissions without any write controls 815ms
+   ✓ composable roles React screen > creates roles and policies, renames inline, and hides builtin/frozen mutation controls 2085ms
+   ✓ composable roles React screen > requires confirmation for revocation and policy deletion 812ms
+ ✓ src/react/users/__tests__/change-username.hooks.test.tsx (7 tests) 1236ms
+   ✓ marks the own row inline without a username role badge and keeps renames in the row menu 646ms
+ ✓ src/react/__tests__/testing.fakes.test.ts (11 tests) 29ms
+ ✓ src/admin/react/__tests__/RolesPage.hooks.pins.test.tsx (9 tests) 182ms
+ ✓ src/react/users/__tests__/UserRowParts.unit.test.tsx (16 tests) 418ms
+ ✓ src/react/auth/__tests__/passkeys.unit.test.tsx (5 tests) 1152ms
+   ✓ settings require password and TOTP, confirm registration before listing, and clear management proofs 789ms
+ ✓ src/react/__tests__/screens.test.tsx (5 tests) 1920ms
+   ✓ login has caller branding, no preset operator name, and submits only through the port 1012ms
+   ✓ users retain the new-password autofill protection and create through their port 640ms
+ ✓ src/admin/react/__tests__/RolesPage.pins.test.tsx (12 tests) 600ms
+ ✓ src/react/members/__tests__/Members.ported.test.tsx (5 tests) 824ms
+ ✓ src/admin/react/__tests__/UsersPage.pins.test.tsx (13 tests) 755ms
+ ✓ src/react/auth/__tests__/use-login.hooks.unit.test.ts (8 tests) 101ms
+ ✓ src/react/members/__tests__/Members.detail.test.tsx (7 tests) 1528ms
+   ✓ Members detail panel > shows a loading notice while the detail request is in flight, then the fetched fields 716ms
+ ✓ src/react/auth/__tests__/Login.unit.test.tsx (9 tests) 913ms
+   ✓ Login > puts the eye toggle inside the password field, named by the host translator, kept out of the input's name 499ms
+ ✓ src/react/auth/__tests__/mfa.unit.test.tsx (5 tests) 943ms
+   ✓ owner authenticator UI > withholds onLogin until the code succeeds and allows cancellation 344ms
+ ✓ src/admin/react/__tests__/MemberRow.pins.test.tsx (11 tests) 538ms
+ ✓ src/react/__tests__/errors.pins.test.ts (18 tests) 9ms
+ ✓ src/admin/react/__tests__/admin-rows.branches.test.tsx (3 tests) 724ms
+   ✓ UserRow management panel > shows only the email editor to a user manager without role.manage 348ms
+   ✓ UserRow management panel > shows only grant controls to a role manager, and the grant failure inside the panel 320ms
+ ✓ src/react/members/__tests__/fqfix-disable.unit.test.ts (3 tests) 240ms
+ ✓ src/react/users/__tests__/use-reset-password-fields.unit.test.tsx (5 tests) 192ms
+ ✓ src/react/__tests__/integration-reconcile.test.tsx (3 tests) 734ms
+   ✓ user creation, grants, email and status writes preserve exact port payloads and refresh the roster 665ms
+ ✓ src/react/auth/__tests__/passkey-browser.unit.test.ts (3 tests) 8ms
+ ✓ src/react/members/__tests__/Members.host-ports.test.tsx (2 tests) 221ms
+ ✓ src/react/users/__tests__/rules.labels.unit.test.ts (3 tests) 6ms
+ ✓ src/react/users/__tests__/ChangeUsernameDialog.unit.test.tsx (2 tests) 143ms
+ ✓ src/react/members/__tests__/rules.busy.unit.test.ts (2 tests) 6ms
+
+ Test Files  101 passed (101)
+      Tests  1217 passed (1217)
+   Start at  00:48:23
+   Duration  118.00s (transform 11.82s, setup 25.91s, collect 50.29s, tests 57.27s, environment 27.01s, prepare 14.80s)
+
+JSON report written to /tmp/claude-0/cov/jini/user-management.results.json
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.3% ( 6746/6793 )
+Branches     : 98.77% ( 3074/3112 )
+Functions    : 99.62% ( 805/808 )
+Lines        : 99.3% ( 6746/6793 )
+================================================================================
+user-management exit 0 120s

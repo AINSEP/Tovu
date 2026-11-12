@@ -8,3 +8,9 @@ capability-providers exit 0 13s
 chat exit 1 947s
 cli exit 1 21s
 vibecoding exit 0 30s
+user-management exit 0 120s
+ui-kit exit 0 19s
+cms exit 1 453s
+commerce exit 0 12s
+cookie-consent exit 0 22s
+core exit 1 133s

@@ -16412,3 +16412,2504 @@ ok 2433 - unsupported column modifiers and SQL defaults fail closed
   duration_ms: 3.320242
   type: 'test'
   ...
+# [migrations] /tmp/w1l-db-client-1dnfxJ/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: W1-L: the client's import graph (static, plus its driver import()s) reaches no migration, seed, repair, recovery or PGlite-owner module
+ok 2434 - W1-L: the client's import graph (static, plus its driver import()s) reaches no migration, seed, repair, recovery or PGlite-owner module
+  ---
+  duration_ms: 216.770069
+  type: 'test'
+  ...
+# Subtest: W1-L: platform never depends on server: the client names no server/ module, even in a type, and loads none
+ok 2435 - W1-L: platform never depends on server: the client names no server/ module, even in a type, and loads none
+  ---
+  duration_ms: 253.792963
+  type: 'test'
+  ...
+# Subtest: W1-L: sqlite opens an already-migrated site and reads a settings row and the chat tables, loading only the sqlite driver
+ok 2436 - W1-L: sqlite opens an already-migrated site and reads a settings row and the chat tables, loading only the sqlite driver
+  ---
+  duration_ms: 2331.443715
+  type: 'test'
+  ...
+# Subtest: W1-L: sqlite never migrates: an existing empty file stays empty (default driver loader)
+ok 2437 - W1-L: sqlite never migrates: an existing empty file stays empty (default driver loader)
+  ---
+  duration_ms: 10.322576
+  type: 'test'
+  ...
+# Subtest: W1-L: sqlite refuses a missing file and creates nothing
+ok 2438 - W1-L: sqlite refuses a missing file and creates nothing
+  ---
+  duration_ms: 7.352437
+  type: 'test'
+  ...
+# Subtest: W1-L: TOVU_DB=memory is refused before any driver loads
+ok 2439 - W1-L: TOVU_DB=memory is refused before any driver loads
+  ---
+  duration_ms: 0.328508
+  type: 'test'
+  ...
+# Subtest: W1-L: pglite connects to the owner's socket from TOVU_PG_SOCKET, loading only the pglite driver; chat is ai_chat-scoped
+ok 2440 - W1-L: pglite connects to the owner's socket from TOVU_PG_SOCKET, loading only the pglite driver; chat is ai_chat-scoped
+  ---
+  duration_ms: 0.58052
+  type: 'test'
+  ...
+# Subtest: W1-L: pglite without TOVU_PG_SOCKET is refused and never opens a data dir
+ok 2441 - W1-L: pglite without TOVU_PG_SOCKET is refused and never opens a data dir
+  ---
+  duration_ms: 0.191662
+  type: 'test'
+  ...
+# Subtest: W1-L: postgres resolves the site's connection string through the injected resolver and opens one pool, loading only the postgres driver
+ok 2442 - W1-L: postgres resolves the site's connection string through the injected resolver and opens one pool, loading only the postgres driver
+  ---
+  duration_ms: 0.407967
+  type: 'test'
+  ...
+# Subtest: storage kernel [sqlite]
+    # Subtest: a transaction commits on resolve and rolls back on throw
+    ok 1 - a transaction commits on resolve and rolls back on throw
+      ---
+      duration_ms: 108.506902
+      type: 'test'
+      ...
+    # Subtest: a nested transaction joins the outer one: an outer throw rolls back the inner write
+    ok 2 - a nested transaction joins the outer one: an outer throw rolls back the inner write
+      ---
+      duration_ms: 10.297561
+      type: 'test'
+      ...
+    # Subtest: transaction() inside a run() body is refused, not deadlocked
+    ok 3 - transaction() inside a run() body is refused, not deadlocked
+      ---
+      duration_ms: 1.644622
+      type: 'test'
+      ...
+    # Subtest: an unrelated caller's write waits for an open transaction instead of landing inside it
+    ok 4 - an unrelated caller's write waits for an open transaction instead of landing inside it
+      ---
+      duration_ms: 3.259821
+      type: 'test'
+      ...
+    # Subtest: lockKey works inside a transaction and is refused outside one
+    ok 5 - lockKey works inside a transaction and is refused outside one
+      ---
+      duration_ms: 2.526409
+      type: 'test'
+      ...
+    # Subtest: one query body: booleans, JSON text and an ON CONFLICT upsert read back the same
+    ok 6 - one query body: booleans, JSON text and an ON CONFLICT upsert read back the same
+      ---
+      duration_ms: 3.923749
+      type: 'test'
+      ...
+    # Subtest: jsonText reads scalars with the same spelling on both dialects; jsonSet writes
+    ok 7 - jsonText reads scalars with the same spelling on both dialects; jsonSet writes
+      ---
+      duration_ms: 10.755201
+      type: 'test'
+      ...
+    # Subtest: nowIso is Date\#toISOString text
+    ok 8 - nowIso is Date\#toISOString text
+      ---
+      duration_ms: 1.12694
+      type: 'test'
+      ...
+    # Subtest: introspection lists tables and columns
+    ok 9 - introspection lists tables and columns
+      ---
+      duration_ms: 2.185892
+      type: 'test'
+      ...
+    1..9
+ok 2443 - storage kernel [sqlite]
+  ---
+  duration_ms: 156.499021
+  type: 'suite'
+  ...
+# Subtest: storage kernel [pglite]
+    # Subtest: a transaction commits on resolve and rolls back on throw
+    ok 1 - a transaction commits on resolve and rolls back on throw
+      ---
+      duration_ms: 11283.800212
+      type: 'test'
+      ...
+    # Subtest: a nested transaction joins the outer one: an outer throw rolls back the inner write
+    ok 2 - a nested transaction joins the outer one: an outer throw rolls back the inner write
+      ---
+      duration_ms: 16.251089
+      type: 'test'
+      ...
+    # Subtest: transaction() inside a run() body is refused, not deadlocked
+    ok 3 - transaction() inside a run() body is refused, not deadlocked
+      ---
+      duration_ms: 4.680388
+      type: 'test'
+      ...
+    # Subtest: an unrelated caller's write waits for an open transaction instead of landing inside it
+    ok 4 - an unrelated caller's write waits for an open transaction instead of landing inside it
+      ---
+      duration_ms: 17.80388
+      type: 'test'
+      ...
+    # Subtest: lockKey works inside a transaction and is refused outside one
+    ok 5 - lockKey works inside a transaction and is refused outside one
+      ---
+      duration_ms: 12.148448
+      type: 'test'
+      ...
+    # Subtest: one query body: booleans, JSON text and an ON CONFLICT upsert read back the same
+    ok 6 - one query body: booleans, JSON text and an ON CONFLICT upsert read back the same
+      ---
+      duration_ms: 78.834175
+      type: 'test'
+      ...
+    # Subtest: jsonText reads scalars with the same spelling on both dialects; jsonSet writes
+    ok 7 - jsonText reads scalars with the same spelling on both dialects; jsonSet writes
+      ---
+      duration_ms: 287.489139
+      type: 'test'
+      ...
+    # Subtest: nowIso is Date\#toISOString text
+    ok 8 - nowIso is Date\#toISOString text
+      ---
+      duration_ms: 85.68916
+      type: 'test'
+      ...
+    # Subtest: introspection lists tables and columns
+    ok 9 - introspection lists tables and columns
+      ---
+      duration_ms: 309.58485
+      type: 'test'
+      ...
+    1..9
+ok 2444 - storage kernel [pglite]
+  ---
+  duration_ms: 12097.287969
+  type: 'suite'
+  ...
+# Subtest: sqlite: one kernel per connection, and a legacy BEGIN IMMEDIATE is joined, not nested
+ok 2445 - sqlite: one kernel per connection, and a legacy BEGIN IMMEDIATE is joined, not nested
+  ---
+  duration_ms: 1.400476
+  type: 'test'
+  ...
+# Subtest: a missing capability is an explicit error, never a silent downgrade
+ok 2446 - a missing capability is an explicit error, never a silent downgrade
+  ---
+  duration_ms: 1.341609
+  type: 'test'
+  ...
+# Subtest: toBool / toBytes accept each driver's shape and refuse anything else
+ok 2447 - toBool / toBytes accept each driver's shape and refuse anything else
+  ---
+  duration_ms: 0.272511
+  type: 'test'
+  ...
+# Subtest: TurnLock: a queued transaction goes before later readers (FIFO, no starvation)
+ok 2448 - TurnLock: a queued transaction goes before later readers (FIFO, no starvation)
+  ---
+  duration_ms: 0.164299
+  type: 'test'
+  ...
+# Subtest: archive schema inspection preserves generated/hidden columns and exact metadata with the installed Jini driver
+ok 2449 - archive schema inspection preserves generated/hidden columns and exact metadata with the installed Jini driver
+  ---
+  duration_ms: 56.62942
+  type: 'test'
+  ...
+# Subtest: sqliteSchemaObjects keeps exact DDL, internal indexes, views and triggers in catalog order
+ok 2450 - sqliteSchemaObjects keeps exact DDL, internal indexes, views and triggers in catalog order
+  ---
+  duration_ms: 3.211839
+  type: 'test'
+  ...
+# Subtest: sqliteTableInfo: declaration order, declared type case and the pk ORDINAL, exactly as table_info reports them
+ok 2451 - sqliteTableInfo: declaration order, declared type case and the pk ORDINAL, exactly as table_info reports them
+  ---
+  duration_ms: 1.191346
+  type: 'test'
+  ...
+# Subtest: sqliteTableInfo: null for a missing table and for a VIEW (only ordinary tables are rows to send)
+ok 2452 - sqliteTableInfo: null for a missing table and for a VIEW (only ordinary tables are rows to send)
+  ---
+  duration_ms: 9.538611
+  type: 'test'
+  ...
+# Subtest: sqliteTableInfo: the table name is bound, so a hostile name is just a missing table
+ok 2453 - sqliteTableInfo: the table name is bound, so a hostile name is just a missing table
+  ---
+  duration_ms: 3.607044
+  type: 'test'
+  ...
+# Subtest: sqliteForeignKeyCheckedTransaction: a dangling reference throws onViolation's error and rolls back ALL of work
+ok 2454 - sqliteForeignKeyCheckedTransaction: a dangling reference throws onViolation's error and rolls back ALL of work
+  ---
+  duration_ms: 4.552909
+  type: 'test'
+  ...
+# Subtest: sqliteForeignKeyCheckedTransaction: deferral lets work insert a child before its parent, and commits
+ok 2455 - sqliteForeignKeyCheckedTransaction: deferral lets work insert a child before its parent, and commits
+  ---
+  duration_ms: 3.475175
+  type: 'test'
+  ...
+# Subtest: SQLite primitives refuse a non-SQLite kernel before touching it
+ok 2456 - SQLite primitives refuse a non-SQLite kernel before touching it
+  ---
+  duration_ms: 12346.588352
+  type: 'test'
+  ...
+# Subtest: [sqlite] activation creates exactly the borrowed catalog once without importing historical rows
+ok 2457 - [sqlite] activation creates exactly the borrowed catalog once without importing historical rows
+  ---
+  duration_ms: 56.634308
+  type: 'test'
+  ...
+# Subtest: [pglite] activation creates exactly the borrowed catalog once without importing historical rows
+ok 2458 - [pglite] activation creates exactly the borrowed catalog once without importing historical rows
+  ---
+  duration_ms: 14263.330875
+  type: 'test'
+  ...
+# Subtest: [postgres] activation creates exactly the borrowed catalog once without importing historical rows
+not ok 2459 - [postgres] activation creates exactly the borrowed catalog once without importing historical rows
+  ---
+  duration_ms: 80.40232
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/commerce-catalog-step.test.ts:1:1967'
+  failureType: 'testCodeFailure'
+  error: 'connect ENOENT /tmp/.s.PGSQL.5432'
+  code: 'ENOENT'
+  stack: |-
+    /home/user/Tovu/node_modules/pg-pool/index.js:45:11
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async BoundPool.pool.connect (/home/user/Jini/packages/db/src/kernel/postgres/driver.ts:42:20)
+    async PostgresDriver.acquireConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/postgres/postgres-driver.js:21:24)
+    async RuntimeDriver.acquireConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/runtime-driver.js:54:28)
+    async DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:8:28)
+    async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+    async Object.execute (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:154:7)
+    async kernelFor (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/commerce-catalog-step.test.ts:29:3)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/commerce-catalog-step.test.ts:42:20)
+  ...
+# Subtest: shape comparison keeps ordered bidirectional differences and tolerates only absent optional tables
+ok 2460 - shape comparison keeps ordered bidirectional differences and tolerates only absent optional tables
+  ---
+  duration_ms: 2.594933
+  type: 'test'
+  ...
+# Subtest: unification preserves previous provenance, null providers, and already canonical vendors
+ok 2461 - unification preserves previous provenance, null providers, and already canonical vendors
+  ---
+  duration_ms: 1589.849585
+  type: 'test'
+  ...
+# Subtest: [sqlite] media creator migration leaves existing attribution NULL and applies once
+ok 2462 - [sqlite] media creator migration leaves existing attribution NULL and applies once
+  ---
+  duration_ms: 572.137619
+  type: 'test'
+  ...
+# Subtest: [pglite] media creator migration leaves existing attribution NULL and applies once
+ok 2463 - [pglite] media creator migration leaves existing attribution NULL and applies once
+  ---
+  duration_ms: 20402.025931
+  type: 'test'
+  ...
+# Subtest: [sqlite] recovery migration adds only scoped hashes, enforces uniqueness, and applies once
+ok 2464 - [sqlite] recovery migration adds only scoped hashes, enforces uniqueness, and applies once
+  ---
+  duration_ms: 612.997033
+  type: 'test'
+  ...
+# Subtest: [pglite] recovery migration adds only scoped hashes, enforces uniqueness, and applies once
+ok 2465 - [pglite] recovery migration adds only scoped hashes, enforces uniqueness, and applies once
+  ---
+  duration_ms: 23262.443888
+  type: 'test'
+  ...
+# Subtest: two connections migrating at once apply a step exactly once
+not ok 2466 - two connections migrating at once apply a step exactly once
+  ---
+  duration_ms: 0.590743
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:1:1231'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_migrations_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:34:15)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+    <anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:33:1)
+  ...
+# Subtest: the content history through the current head applies on real Postgres
+not ok 2467 - the content history through the current head applies on real Postgres
+  ---
+  duration_ms: 0.07564
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:1:1778'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_migrations_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:34:15)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+    <anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:33:1)
+  ...
+# Subtest: the chat history lands in ai_chat with its own ledger there; public gets no chat table
+not ok 2468 - the chat history lands in ai_chat with its own ledger there; public gets no chat table
+  ---
+  duration_ms: 0.047701
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:2:1507'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_migrations_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:34:15)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+    <anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:33:1)
+  ...
+not ok 2469 - /home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts
+  ---
+  duration_ms: 89.652436
+  location: '/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:1:1037'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_migrations_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:44:3)
+    async TestHook.run (node:internal/test_runner/test:1409:7)
+    async Test.runHook (node:internal/test_runner/test:1289:9)
+    async after (node:internal/test_runner/test:1342:9)
+    async Test.run (node:internal/test_runner/test:1428:7)
+  ...
+# Subtest: SqlChangeSetRepo.insert [sqlite]
+    # Subtest: a fully populated header is written column-for-column
+    ok 1 - a fully populated header is written column-for-column
+      ---
+      duration_ms: 581.982932
+      type: 'test'
+      ...
+    # Subtest: every absent optional header field is written as SQL NULL
+    ok 2 - every absent optional header field is written as SQL NULL
+      ---
+      duration_ms: 595.473699
+      type: 'test'
+      ...
+    # Subtest: a fully populated item is written column-for-column, its inverse payload as JSON text
+    ok 3 - a fully populated item is written column-for-column, its inverse payload as JSON text
+      ---
+      duration_ms: 245.289176
+      type: 'test'
+      ...
+    # Subtest: every absent optional item field is written as SQL NULL
+    ok 4 - every absent optional item field is written as SQL NULL
+      ---
+      duration_ms: 468.636708
+      type: 'test'
+      ...
+    # Subtest: every item of a multi-item change set is written
+    ok 5 - every item of a multi-item change set is written
+      ---
+      duration_ms: 333.643985
+      type: 'test'
+      ...
+    # Subtest: a supplied event is co-persisted as a pending outbox row
+    ok 6 - a supplied event is co-persisted as a pending outbox row
+      ---
+      duration_ms: 307.981824
+      type: 'test'
+      ...
+    # Subtest: no event means no outbox row
+    ok 7 - no event means no outbox row
+      ---
+      duration_ms: 301.775882
+      type: 'test'
+      ...
+    # Subtest: a failing item write rolls back the header and the event with it
+    ok 8 - a failing item write rolls back the header and the event with it
+      ---
+      duration_ms: 268.282258
+      type: 'test'
+      ...
+    # Subtest: a failing event write rolls back the header and every item
+    ok 9 - a failing event write rolls back the header and every item
+      ---
+      duration_ms: 131.638852
+      type: 'test'
+      ...
+    1..9
+ok 2470 - SqlChangeSetRepo.insert [sqlite]
+  ---
+  duration_ms: 3236.830533
+  type: 'suite'
+  ...
+# Subtest: SqlChangeSetRepo.insert [pglite]
+    # Subtest: a fully populated header is written column-for-column
+    ok 1 - a fully populated header is written column-for-column
+      ---
+      duration_ms: 19416.420568
+      type: 'test'
+      ...
+    # Subtest: every absent optional header field is written as SQL NULL
+    ok 2 - every absent optional header field is written as SQL NULL
+      ---
+      duration_ms: 9.201026
+      type: 'test'
+      ...
+    # Subtest: a fully populated item is written column-for-column, its inverse payload as JSON text
+    ok 3 - a fully populated item is written column-for-column, its inverse payload as JSON text
+      ---
+      duration_ms: 12.082809
+      type: 'test'
+      ...
+    # Subtest: every absent optional item field is written as SQL NULL
+    ok 4 - every absent optional item field is written as SQL NULL
+      ---
+      duration_ms: 10.000443
+      type: 'test'
+      ...
+    # Subtest: every item of a multi-item change set is written
+    ok 5 - every item of a multi-item change set is written
+      ---
+      duration_ms: 14.46932
+      type: 'test'
+      ...
+    # Subtest: a supplied event is co-persisted as a pending outbox row
+    ok 6 - a supplied event is co-persisted as a pending outbox row
+      ---
+      duration_ms: 10.59993
+      type: 'test'
+      ...
+    # Subtest: no event means no outbox row
+    ok 7 - no event means no outbox row
+      ---
+      duration_ms: 9.579431
+      type: 'test'
+      ...
+    # Subtest: a failing item write rolls back the header and the event with it
+    ok 8 - a failing item write rolls back the header and the event with it
+      ---
+      duration_ms: 14.113881
+      type: 'test'
+      ...
+    # Subtest: a failing event write rolls back the header and every item
+    ok 9 - a failing event write rolls back the header and every item
+      ---
+      duration_ms: 15.629121
+      type: 'test'
+      ...
+    1..9
+ok 2471 - SqlChangeSetRepo.insert [pglite]
+  ---
+  duration_ms: 19513.714731
+  type: 'suite'
+  ...
+# Subtest: form submission remote receipts [sqlite]
+    # Subtest: the first claim records the receipt; a repeat for the same key is refused without an error
+    ok 1 - the first claim records the receipt; a repeat for the same key is refused without an error
+      ---
+      duration_ms: 289.459216
+      type: 'test'
+      ...
+    # Subtest: a refused claim inside a transaction leaves the transaction usable and rolls back with it
+    ok 2 - a refused claim inside a transaction leaves the transaction usable and rolls back with it
+      ---
+      duration_ms: 380.377376
+      type: 'test'
+      ...
+    1..2
+ok 2472 - form submission remote receipts [sqlite]
+  ---
+  duration_ms: 684.035203
+  type: 'suite'
+  ...
+# Subtest: form submission remote receipts [pglite]
+    # Subtest: the first claim records the receipt; a repeat for the same key is refused without an error
+    ok 1 - the first claim records the receipt; a repeat for the same key is refused without an error
+      ---
+      duration_ms: 15198.879534
+      type: 'test'
+      ...
+    # Subtest: a refused claim inside a transaction leaves the transaction usable and rolls back with it
+    ok 2 - a refused claim inside a transaction leaves the transaction usable and rolls back with it
+      ---
+      duration_ms: 31.551892
+      type: 'test'
+      ...
+    1..2
+ok 2473 - form submission remote receipts [pglite]
+  ---
+  duration_ms: 15230.885426
+  type: 'suite'
+  ...
+# Subtest: publish trust revocations [sqlite]
+    # Subtest: revoke without a note returns null in both the write result and the stored list
+    ok 1 - revoke without a note returns null in both the write result and the stored list
+      ---
+      duration_ms: 414.679353
+      type: 'test'
+      ...
+    # Subtest: revoke is durable and idempotent, list is ordered, restore removes
+    ok 2 - revoke is durable and idempotent, list is ordered, restore removes
+      ---
+      duration_ms: 874.929201
+      type: 'test'
+      ...
+    # Subtest: concurrent revokes of one computer write one row
+    ok 3 - concurrent revokes of one computer write one row
+      ---
+      duration_ms: 135.414255
+      type: 'test'
+      ...
+    1..3
+ok 2474 - publish trust revocations [sqlite]
+  ---
+  duration_ms: 1426.651822
+  type: 'suite'
+  ...
+# Subtest: publish trust revocations [pglite]
+    # Subtest: revoke without a note returns null in both the write result and the stored list
+    ok 1 - revoke without a note returns null in both the write result and the stored list
+      ---
+      duration_ms: 21977.541973
+      type: 'test'
+      ...
+    # Subtest: revoke is durable and idempotent, list is ordered, restore removes
+    ok 2 - revoke is durable and idempotent, list is ordered, restore removes
+      ---
+      duration_ms: 99.579357
+      type: 'test'
+      ...
+    # Subtest: concurrent revokes of one computer write one row
+    ok 3 - concurrent revokes of one computer write one row
+      ---
+      duration_ms: 52.478881
+      type: 'test'
+      ...
+    1..3
+ok 2475 - publish trust revocations [pglite]
+  ---
+  duration_ms: 22130.166695
+  type: 'suite'
+  ...
+# Subtest: publish trust revocation failures [sqlite]
+    # Subtest: an unavailable table rejects boot and refuses reads and writes
+    ok 1 - an unavailable table rejects boot and refuses reads and writes
+      ---
+      duration_ms: 688.896247
+      type: 'test'
+      ...
+    # Subtest: capacity refuses a new disconnect without changing the stored deny list
+    ok 2 - capacity refuses a new disconnect without changing the stored deny list
+      ---
+      duration_ms: 899.640961
+      type: 'test'
+      ...
+    # Subtest: a refused insert reports a write error and keeps the deny list empty
+    ok 3 - a refused insert reports a write error and keeps the deny list empty
+      ---
+      duration_ms: 714.450325
+      type: 'test'
+      ...
+    1..3
+ok 2476 - publish trust revocation failures [sqlite]
+  ---
+  duration_ms: 2303.418514
+  type: 'suite'
+  ...
+# Subtest: publish trust revocation failures [pglite]
+    # Subtest: an unavailable table rejects boot and refuses reads and writes
+    ok 1 - an unavailable table rejects boot and refuses reads and writes
+      ---
+      duration_ms: 124.864613
+      type: 'test'
+      ...
+    # Subtest: capacity refuses a new disconnect without changing the stored deny list
+    ok 2 - capacity refuses a new disconnect without changing the stored deny list
+      ---
+      duration_ms: 288.483103
+      type: 'test'
+      ...
+    # Subtest: a refused insert reports a write error and keeps the deny list empty
+    ok 3 - a refused insert reports a write error and keeps the deny list empty
+      ---
+      duration_ms: 74.811731
+      type: 'test'
+      ...
+    1..3
+ok 2477 - publish trust revocation failures [pglite]
+  ---
+  duration_ms: 488.517356
+  type: 'suite'
+  ...
+# Subtest: a refused restore reports a write error and preserves the disconnected computer
+ok 2478 - a refused restore reports a write error and preserves the disconnected computer
+  ---
+  duration_ms: 17.705518
+  type: 'test'
+  ...
+# Subtest: a driver rejecting with a non-Error value is reported as an unknown error at boot, on read and on write
+ok 2479 - a driver rejecting with a non-Error value is reported as an unknown error at boot, on read and on write
+  ---
+  duration_ms: 157.552821
+  type: 'test'
+  ...
+# Subtest: checkForOrphanedChatRows reports the exact per-table counts still sitting in content.db
+ok 2480 - checkForOrphanedChatRows reports the exact per-table counts still sitting in content.db
+  ---
+  duration_ms: 63.483045
+  type: 'test'
+  ...
+# Subtest: checkForOrphanedChatRows never writes: it succeeds against a strictly read-only connection
+ok 2481 - checkForOrphanedChatRows never writes: it succeeds against a strictly read-only connection
+  ---
+  duration_ms: 28.373128
+  type: 'test'
+  ...
+# Subtest: warnOnOrphanedChatRows is a silent no-op when content.db holds no chat rows
+ok 2482 - warnOnOrphanedChatRows is a silent no-op when content.db holds no chat rows
+  ---
+  duration_ms: 220.706504
+  type: 'test'
+  ...
+# Subtest: warnOnOrphanedChatRows tolerates a content.db that has no chat tables at all
+ok 2483 - warnOnOrphanedChatRows tolerates a content.db that has no chat tables at all
+  ---
+  duration_ms: 40.324784
+  type: 'test'
+  ...
+# Subtest: warnOnOrphanedChatRows names the counts, both database paths, and the exact recovery command
+ok 2484 - warnOnOrphanedChatRows names the counts, both database paths, and the exact recovery command
+  ---
+  duration_ms: 107.202245
+  type: 'test'
+  ...
+# Subtest: warnOnOrphanedChatRows still reports when SOME rows were already copied into chat.db (interrupted migration)
+ok 2485 - warnOnOrphanedChatRows still reports when SOME rows were already copied into chat.db (interrupted migration)
+  ---
+  duration_ms: 283.843748
+  type: 'test'
+  ...
+# Subtest: warnOnOrphanedChatRows is safe to run twice: same result, and neither database changes
+ok 2486 - warnOnOrphanedChatRows is safe to run twice: same result, and neither database changes
+  ---
+  duration_ms: 93.598492
+  type: 'test'
+  ...
+# Subtest: formatOrphanedChatRowsWarning renders nothing-to-say state as an empty string
+ok 2487 - formatOrphanedChatRowsWarning renders nothing-to-say state as an empty string
+  ---
+  duration_ms: 0.26359
+  type: 'test'
+  ...
+# Subtest: deps.ts wires the check into createSiteRouteDeps right where chat.db is opened
+ok 2488 - deps.ts wires the check into createSiteRouteDeps right where chat.db is opened
+  ---
+  duration_ms: 0.975576
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: createSiteRouteDeps emits the orphan warning with this isolated site's counts
+ok 2489 - createSiteRouteDeps emits the orphan warning with this isolated site's counts
+  ---
+  duration_ms: 37017.66819
+  type: 'test'
+  ...
+# Subtest: an empty database is built at head with both ledgers in step order
+ok 2490 - an empty database is built at head with both ledgers in step order
+  ---
+  duration_ms: 1072.100887
+  type: 'test'
+  ...
+# Subtest: 0036 records the Postgres-only conversion while SQLite keeps nullable config text
+ok 2491 - 0036 records the Postgres-only conversion while SQLite keeps nullable config text
+  ---
+  duration_ms: 308.218999
+  type: 'test'
+  ...
+# Subtest: 0006 relaxes form_submissions.source_ip and keeps the table's indexes
+ok 2492 - 0006 relaxes form_submissions.source_ip and keeps the table's indexes
+  ---
+  duration_ms: 349.09017
+  type: 'test'
+  ...
+# Subtest: a database that already has any table is left untouched
+ok 2493 - a database that already has any table is left untouched
+  ---
+  duration_ms: 1.784907
+  type: 'test'
+  ...
+# Subtest: a second call on a built database is a no-op
+ok 2494 - a second call on a built database is a no-op
+  ---
+  duration_ms: 567.29185
+  type: 'test'
+  ...
+# Subtest: a step list the bootstrap does not know refuses before writing anything
+ok 2495 - a step list the bootstrap does not know refuses before writing anything
+  ---
+  duration_ms: 14.99919
+  type: 'test'
+  ...
+# Subtest: a failing step rolls the whole build back, leaving an empty database that can be retried
+ok 2496 - a failing step rolls the whole build back, leaving an empty database that can be retried
+  ---
+  duration_ms: 622.091756
+  type: 'test'
+  ...
+# Subtest: if another connection built the file while this one waited for the write lock, nothing is written
+ok 2497 - if another connection built the file while this one waited for the write lock, nothing is written
+  ---
+  duration_ms: 3.889704
+  type: 'test'
+  ...
+# Subtest: SQLite staging sweeps rows strictly older than the staging clock
+ok 2498 - SQLite staging sweeps rows strictly older than the staging clock
+  ---
+  duration_ms: 1370.676366
+  type: 'test'
+  ...
+# Subtest: [InMemoryWebhookSubscriptionRepo] insert + findById round-trips every field
+ok 2499 - [InMemoryWebhookSubscriptionRepo] insert + findById round-trips every field
+  ---
+  duration_ms: 6.085347
+  type: 'test'
+  ...
+# Subtest: [InMemoryWebhookSubscriptionRepo] findById returns null for an unknown id or wrong workspace
+ok 2500 - [InMemoryWebhookSubscriptionRepo] findById returns null for an unknown id or wrong workspace
+  ---
+  duration_ms: 0.315701
+  type: 'test'
+  ...
+# Subtest: [InMemoryWebhookSubscriptionRepo] save updates an existing row in place
+ok 2501 - [InMemoryWebhookSubscriptionRepo] save updates an existing row in place
+  ---
+  duration_ms: 0.277271
+  type: 'test'
+  ...
+# Subtest: [InMemoryWebhookSubscriptionRepo] listByWorkspace scopes strictly by workspace
+ok 2502 - [InMemoryWebhookSubscriptionRepo] listByWorkspace scopes strictly by workspace
+  ---
+  duration_ms: 1.038859
+  type: 'test'
+  ...
+# Subtest: [InMemoryWebhookSubscriptionRepo] findMatching only returns active subscriptions whose topics match
+ok 2503 - [InMemoryWebhookSubscriptionRepo] findMatching only returns active subscriptions whose topics match
+  ---
+  duration_ms: 8.873067
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookSubscriptionRepo] insert + findById round-trips every field
+ok 2504 - [SqliteWebhookSubscriptionRepo] insert + findById round-trips every field
+  ---
+  duration_ms: 1276.746097
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookSubscriptionRepo] findById returns null for an unknown id or wrong workspace
+ok 2505 - [SqliteWebhookSubscriptionRepo] findById returns null for an unknown id or wrong workspace
+  ---
+  duration_ms: 493.422188
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookSubscriptionRepo] save updates an existing row in place
+ok 2506 - [SqliteWebhookSubscriptionRepo] save updates an existing row in place
+  ---
+  duration_ms: 828.157347
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookSubscriptionRepo] listByWorkspace scopes strictly by workspace
+ok 2507 - [SqliteWebhookSubscriptionRepo] listByWorkspace scopes strictly by workspace
+  ---
+  duration_ms: 1094.180074
+  type: 'test'
+  ...
+# Subtest: [SqliteWebhookSubscriptionRepo] findMatching only returns active subscriptions whose topics match
+ok 2508 - [SqliteWebhookSubscriptionRepo] findMatching only returns active subscriptions whose topics match
+  ---
+  duration_ms: 777.159514
+  type: 'test'
+  ...
+# Subtest: ADR-046 Phase 1: SqliteWebhookSubscriptionRepo persists across a simulated process restart (real on-disk file, fresh repo instance)
+ok 2509 - ADR-046 Phase 1: SqliteWebhookSubscriptionRepo persists across a simulated process restart (real on-disk file, fresh repo instance)
+  ---
+  duration_ms: 805.509324
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] insert + findById round-trips every field
+ok 2510 - [kysely/sqlite] insert + findById round-trips every field
+  ---
+  duration_ms: 818.059612
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] findById returns null for an unknown id or wrong workspace
+ok 2511 - [kysely/sqlite] findById returns null for an unknown id or wrong workspace
+  ---
+  duration_ms: 134.883251
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] save updates an existing row in place
+ok 2512 - [kysely/sqlite] save updates an existing row in place
+  ---
+  duration_ms: 108.330249
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] listByWorkspace scopes strictly by workspace
+ok 2513 - [kysely/sqlite] listByWorkspace scopes strictly by workspace
+  ---
+  duration_ms: 445.967646
+  type: 'test'
+  ...
+# Subtest: [kysely/sqlite] findMatching only returns active subscriptions whose topics match
+ok 2514 - [kysely/sqlite] findMatching only returns active subscriptions whose topics match
+  ---
+  duration_ms: 497.982825
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] insert + findById round-trips every field
+ok 2515 - [kysely/pglite] insert + findById round-trips every field
+  ---
+  duration_ms: 18930.134241
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] findById returns null for an unknown id or wrong workspace
+ok 2516 - [kysely/pglite] findById returns null for an unknown id or wrong workspace
+  ---
+  duration_ms: 13.638567
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] save updates an existing row in place
+ok 2517 - [kysely/pglite] save updates an existing row in place
+  ---
+  duration_ms: 35.97339
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] listByWorkspace scopes strictly by workspace
+ok 2518 - [kysely/pglite] listByWorkspace scopes strictly by workspace
+  ---
+  duration_ms: 54.23935
+  type: 'test'
+  ...
+# Subtest: [kysely/pglite] findMatching only returns active subscriptions whose topics match
+ok 2519 - [kysely/pglite] findMatching only returns active subscriptions whose topics match
+  ---
+  duration_ms: 117.062278
+  type: 'test'
+  ...
+# Subtest: bodyBytes survives createHttpClient uncorrupted for a body that is invalid UTF-8
+ok 2520 - bodyBytes survives createHttpClient uncorrupted for a body that is invalid UTF-8
+  ---
+  duration_ms: 44.997585
+  type: 'test'
+  ...
+# Subtest: bodyText for that SAME body is lossy — this contrast is the entire reason bodyBytes exists
+ok 2521 - bodyText for that SAME body is lossy — this contrast is the entire reason bodyBytes exists
+  ---
+  duration_ms: 0.757188
+  type: 'test'
+  ...
+# Subtest: an untruncated response reports bodyTruncated:false — the flag is a real answer, not merely absent
+ok 2522 - an untruncated response reports bodyTruncated:false — the flag is a real answer, not merely absent
+  ---
+  duration_ms: 0.37345
+  type: 'test'
+  ...
+# Subtest: a body over the policy cap is clipped in BOTH shapes and flagged bodyTruncated:true
+ok 2523 - a body over the policy cap is clipped in BOTH shapes and flagged bodyTruncated:true
+  ---
+  duration_ms: 0.433728
+  type: 'test'
+  ...
+# Subtest: the tighter of maxResponseBytes/maxDecompressedBytes wins for the byte half too
+ok 2524 - the tighter of maxResponseBytes/maxDecompressedBytes wins for the byte half too
+  ---
+  duration_ms: 0.409965
+  type: 'test'
+  ...
+# Subtest: a transport that reports its own truncation keeps that flag set even when the body is under the cap
+ok 2525 - a transport that reports its own truncation keeps that flag set even when the body is under the cap
+  ---
+  duration_ms: 0.447412
+  type: 'test'
+  ...
+# Subtest: a legacy transport that returns no bodyBytes still works — the field is additive, and absence is not fabricated into a value
+ok 2526 - a legacy transport that returns no bodyBytes still works — the field is additive, and absence is not fabricated into a value
+  ---
+  duration_ms: 0.372127
+  type: 'test'
+  ...
+# Subtest: a body whose LOSSY TEXT decode blows the cap while its raw bytes fit whole reports bodyBytesTruncated:false — nothing was clipped from the bytes, and a binary consumer must not be told otherwise
+ok 2527 - a body whose LOSSY TEXT decode blows the cap while its raw bytes fit whole reports bodyBytesTruncated:false — nothing was clipped from the bytes, and a binary consumer must not be told otherwise
+  ---
+  duration_ms: 0.39886
+  type: 'test'
+  ...
+# Subtest: when the BYTES are the half that got clipped, bodyBytesTruncated is true — the new flag is a real answer, not a constant false
+ok 2528 - when the BYTES are the half that got clipped, bodyBytesTruncated is true — the new flag is a real answer, not a constant false
+  ---
+  duration_ms: 9.630622
+  type: 'test'
+  ...
+# Subtest: an untruncated response reports bodyBytesTruncated:false, so absence never has to be interpreted
+ok 2529 - an untruncated response reports bodyBytesTruncated:false, so absence never has to be interpreted
+  ---
+  duration_ms: 0.316442
+  type: 'test'
+  ...
+# Subtest: a producer reporting only the coarse bodyTruncated is NOT downgraded to bodyBytesTruncated:false — a truncation report that names no shape has to count against both halves
+ok 2530 - a producer reporting only the coarse bodyTruncated is NOT downgraded to bodyBytesTruncated:false — a truncation report that names no shape has to count against both halves
+  ---
+  duration_ms: 0.29274
+  type: 'test'
+  ...
+# Subtest: a legacy transport that returns no bodyBytes gets no fabricated bodyBytesTruncated either — there is no byte half to report on
+ok 2531 - a legacy transport that returns no bodyBytes gets no fabricated bodyBytesTruncated either — there is no byte half to report on
+  ---
+  duration_ms: 0.344472
+  type: 'test'
+  ...
+# Subtest: redacts exact credentials, URL tokens and bearer values before capping
+ok 2532 - redacts exact credentials, URL tokens and bearer values before capping
+  ---
+  duration_ms: 11.377559
+  type: 'test'
+  ...
+# Subtest: redacts bare URL tokens and fragment suffixes before the cap can split their values
+ok 2533 - redacts bare URL tokens and fragment suffixes before the cap can split their values
+  ---
+  duration_ms: 24.337573
+  type: 'test'
+  ...
+# Subtest: provider send and batch diagnostics redact their actual credential, retaining useful copy
+ok 2534 - provider send and batch diagnostics redact their actual credential, retaining useful copy
+  ---
+  duration_ms: 1.206557
+  type: 'test'
+  ...
+# Subtest: a provider throw is scrubbed while its exact credential is still known
+ok 2535 - a provider throw is scrubbed while its exact credential is still known
+  ---
+  duration_ms: 0.996144
+  type: 'test'
+  ...
+# Subtest: registration POSTs an RFC 7591 client-metadata document as JSON
+ok 2536 - registration POSTs an RFC 7591 client-metadata document as JSON
+  ---
+  duration_ms: 161.453856
+  type: 'test'
+  ...
+# Subtest: a public client is the default — no client secret is requested and none is required back
+ok 2537 - a public client is the default — no client secret is requested and none is required back
+  ---
+  duration_ms: 33.88934
+  type: 'test'
+  ...
+# Subtest: a server that volunteers a client secret anyway has it carried back, with the auth method it echoed
+ok 2538 - a server that volunteers a client secret anyway has it carried back, with the auth method it echoed
+  ---
+  duration_ms: 25.438318
+  type: 'test'
+  ...
+# Subtest: an echoed token_endpoint_auth_method outside the supported vocabulary falls back to the requested one
+ok 2539 - an echoed token_endpoint_auth_method outside the supported vocabulary falls back to the requested one
+  ---
+  duration_ms: 14.426789
+  type: 'test'
+  ...
+# Subtest: a response with no client id is a malformed response, not a silently broken connection
+ok 2540 - a response with no client id is a malformed response, not a silently broken connection
+  ---
+  duration_ms: 6.268966
+  type: 'test'
+  ...
+# Subtest: a refusal is reported with its RFC 7591 error code and WITHOUT the server's free text
+ok 2541 - a refusal is reported with its RFC 7591 error code and WITHOUT the server's free text
+  ---
+  duration_ms: 10.547815
+  type: 'test'
+  ...
+# Subtest: a refusal a hostile server labels slow_down is still terminal — registration never loops
+ok 2542 - a refusal a hostile server labels slow_down is still terminal — registration never loops
+  ---
+  duration_ms: 15.611819
+  type: 'test'
+  ...
+# Subtest: a registration endpoint on an internal address is refused before anything is sent to it
+ok 2543 - a registration endpoint on an internal address is refused before anything is sent to it
+  ---
+  duration_ms: 0.91206
+  type: 'test'
+  ...
+# Subtest: an unreachable registration endpoint reports unreachable, names the host, and is not retried
+ok 2544 - an unreachable registration endpoint reports unreachable, names the host, and is not retried
+  ---
+  duration_ms: 6.99277
+  type: 'test'
+  ...
+# Subtest: a registration endpoint that redirects is refused rather than followed
+ok 2545 - a registration endpoint that redirects is refused rather than followed
+  ---
+  duration_ms: 15.075244
+  type: 'test'
+  ...
+# Subtest: an oversized registration response is capped rather than buffered
+ok 2546 - an oversized registration response is capped rather than buffered
+  ---
+  duration_ms: 9.516668
+  type: 'test'
+  ...
+# Subtest: requested grant types and auth method are honoured when the caller names them
+ok 2547 - requested grant types and auth method are honoured when the caller names them
+  ---
+  duration_ms: 4.755982
+  type: 'test'
+  ...
+# Subtest: secret without an echoed method resolves undefined to client_secret_basic
+ok 2548 - secret without an echoed method resolves undefined to client_secret_basic
+  ---
+  duration_ms: 1.433577
+  type: 'test'
+  ...
+# Subtest: secret without an echoed method resolves [] to client_secret_basic
+ok 2549 - secret without an echoed method resolves [] to client_secret_basic
+  ---
+  duration_ms: 0.591361
+  type: 'test'
+  ...
+# Subtest: secret without an echoed method resolves ["client_secret_basic"] to client_secret_basic
+ok 2550 - secret without an echoed method resolves ["client_secret_basic"] to client_secret_basic
+  ---
+  duration_ms: 0.40889
+  type: 'test'
+  ...
+# Subtest: secret without an echoed method resolves ["client_secret_post"] to client_secret_post
+ok 2551 - secret without an echoed method resolves ["client_secret_post"] to client_secret_post
+  ---
+  duration_ms: 0.614593
+  type: 'test'
+  ...
+# Subtest: secret without an echoed method resolves ["client_secret_post","client_secret_basic"] to client_secret_basic
+ok 2552 - secret without an echoed method resolves ["client_secret_post","client_secret_basic"] to client_secret_basic
+  ---
+  duration_ms: 0.515529
+  type: 'test'
+  ...
+# Subtest: secret without an echoed method resolves ["none","private_key_jwt"] to none
+ok 2553 - secret without an echoed method resolves ["none","private_key_jwt"] to none
+  ---
+  duration_ms: 0.464661
+  type: 'test'
+  ...
+# Subtest: an unreachable registration is attempted exactly once
+ok 2554 - an unreachable registration is attempted exactly once
+  ---
+  duration_ms: 0.72865
+  type: 'test'
+  ...
+# Subtest: HTTPS private IPv4 endpoints and device links are refused, including numeric spellings
+ok 2555 - HTTPS private IPv4 endpoints and device links are refused, including numeric spellings
+  ---
+  duration_ms: 33.613053
+  type: 'test'
+  ...
+# Subtest: HTTPS unique-local IPv6 endpoints are refused
+ok 2556 - HTTPS unique-local IPv6 endpoints are refused
+  ---
+  duration_ms: 18.795533
+  type: 'test'
+  ...
+# Subtest: public HTTPS endpoints normalize safely while plaintext and userinfo links are refused
+ok 2557 - public HTTPS endpoints normalize safely while plaintext and userinfo links are refused
+  ---
+  duration_ms: 18.300598
+  type: 'test'
+  ...
+# Subtest: plaintext loopback requires the explicit development option
+ok 2558 - plaintext loopback requires the explicit development option
+  ---
+  duration_ms: 18.883765
+  type: 'test'
+  ...
+# fast-check seed=20261020, numRuns=150
+# Subtest: derive delegates its input to the injected keyring
+ok 2559 - derive delegates its input to the injected keyring
+  ---
+  duration_ms: 12.662546
+  type: 'test'
+  ...
+# Subtest: deriveSigningSecret delegates its input to the injected keyring
+ok 2560 - deriveSigningSecret delegates its input to the injected keyring
+  ---
+  duration_ms: 3.195481
+  type: 'test'
+  ...
+# Subtest: activeKey asks the injected keyring with an empty request
+ok 2561 - activeKey asks the injected keyring with an empty request
+  ---
+  duration_ms: 0.315249
+  type: 'test'
+  ...
+# Subtest: derive without a keyring rejects with the storage error translated a second time
+ok 2562 - derive without a keyring rejects with the storage error translated a second time
+  ---
+  duration_ms: 0.771415
+  type: 'test'
+  ...
+# Subtest: deriveSigningSecret without a keyring rejects with the storage error translated a second time
+ok 2563 - deriveSigningSecret without a keyring rejects with the storage error translated a second time
+  ---
+  duration_ms: 0.551866
+  type: 'test'
+  ...
+# Subtest: activeKey without a keyring rejects with the storage error translated a second time
+ok 2564 - activeKey without a keyring rejects with the storage error translated a second time
+  ---
+  duration_ms: 0.163731
+  type: 'test'
+  ...
+# Subtest: a keyring failure reaches the storage error translator as its argument
+ok 2565 - a keyring failure reaches the storage error translator as its argument
+  ---
+  duration_ms: 0.326557
+  type: 'test'
+  ...
+# Subtest: the keyring is read when called, not when the guard is created
+ok 2566 - the keyring is read when called, not when the guard is created
+  ---
+  duration_ms: 2.108811
+  type: 'test'
+  ...
+# Subtest: protectStorage returns the operation's result untouched
+ok 2567 - protectStorage returns the operation's result untouched
+  ---
+  duration_ms: 0.706668
+  type: 'test'
+  ...
+# Subtest: protectStorage translates a synchronous throw from the operation
+ok 2568 - protectStorage translates a synchronous throw from the operation
+  ---
+  duration_ms: 0.527283
+  type: 'test'
+  ...
+# Subtest: a new starter site stores one empty Gallery in content.db and a restart preserves edits/deletion
+ok 2569 - a new starter site stores one empty Gallery in content.db and a restart preserves edits/deletion
+  ---
+  duration_ms: 674.832658
+  type: 'test'
+  ...
+# Subtest: sample content opt-in includes the same single Gallery default
+ok 2570 - sample content opt-in includes the same single Gallery default
+  ---
+  duration_ms: 1.102265
+  type: 'test'
+  ...
+# Subtest: new sqlite site keeps only the Blog listing page after init and two boots
+ok 2571 - new sqlite site keeps only the Blog listing page after init and two boots
+  ---
+  duration_ms: 3292.372297
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: new pglite site keeps only the Blog listing page after init and two boots
+ok 2572 - new pglite site keeps only the Blog listing page after init and two boots
+  ---
+  duration_ms: 36766.032833
+  type: 'test'
+  ...
+# created site 'cli-site' at /tmp/tovu-cli-seed-i4H5bZ/cli-site
+# next: tovu serve /tmp/tovu-cli-seed-i4H5bZ/cli-site
+# Subtest: CLI init sample-content opt-in=false reaches the real template seed
+ok 2573 - CLI init sample-content opt-in=false reaches the real template seed
+  ---
+  duration_ms: 2412.702687
+  type: 'test'
+  ...
+# created site 'cli-site' at /tmp/tovu-cli-seed-y0jVAL/cli-site
+# next: tovu serve /tmp/tovu-cli-seed-y0jVAL/cli-site
+# Subtest: CLI init sample-content opt-in=true reaches the real template seed
+ok 2574 - CLI init sample-content opt-in=true reaches the real template seed
+  ---
+  duration_ms: 2014.503893
+  type: 'test'
+  ...
+# Subtest: planning without a nested-default sites folder finds nothing to move
+ok 2575 - planning without a nested-default sites folder finds nothing to move
+  ---
+  duration_ms: 103.961034
+  type: 'test'
+  ...
+# Subtest: planning refuses a source root outside the former default sites folder
+ok 2576 - planning refuses a source root outside the former default sites folder
+  ---
+  duration_ms: 120.374842
+  type: 'test'
+  ...
+# Subtest: planning skips a nested root that vanished after discovery
+ok 2577 - planning skips a nested root that vanished after discovery
+  ---
+  duration_ms: 187.003287
+  type: 'test'
+  ...
+# Subtest: planning refuses a symlinked nested sites folder
+ok 2578 - planning refuses a symlinked nested sites folder
+  ---
+  duration_ms: 318.031431
+  type: 'test'
+  ...
+# Subtest: planning skips a source root that already is the sites home
+ok 2579 - planning skips a source root that already is the sites home
+  ---
+  duration_ms: 68.300417
+  type: 'test'
+  ...
+# Subtest: planning refuses a checkout sites folder that contains the sites home
+ok 2580 - planning refuses a checkout sites folder that contains the sites home
+  ---
+  duration_ms: 111.98933
+  type: 'test'
+  ...
+# Subtest: planning refuses a checkout sites folder that is the sites home
+ok 2581 - planning refuses a checkout sites folder that is the sites home
+  ---
+  duration_ms: 231.439608
+  type: 'test'
+  ...
+# Subtest: planning moves sites from a checkout sites folder kept outside the sites home
+ok 2582 - planning moves sites from a checkout sites folder kept outside the sites home
+  ---
+  duration_ms: 269.390377
+  type: 'test'
+  ...
+# Subtest: planning ignores loose files beside nested sites
+ok 2583 - planning ignores loose files beside nested sites
+  ---
+  duration_ms: 213.689308
+  type: 'test'
+  ...
+# Subtest: planning skips a folder that has only the site metadata marker
+ok 2584 - planning skips a folder that has only the site metadata marker
+  ---
+  duration_ms: 25.836834
+  type: 'test'
+  ...
+# Subtest: planning skips a stray folder when nobody listens for skips
+ok 2585 - planning skips a stray folder when nobody listens for skips
+  ---
+  duration_ms: 18.799097
+  type: 'test'
+  ...
+# Subtest: planning skips a dot-folder even when it carries both site markers
+ok 2586 - planning skips a dot-folder even when it carries both site markers
+  ---
+  duration_ms: 193.102477
+  type: 'test'
+  ...
+# Subtest: planning limits the batch to the selected folder names
+ok 2587 - planning limits the batch to the selected folder names
+  ---
+  duration_ms: 228.344091
+  type: 'test'
+  ...
+# Subtest: planning refuses a site whose target already exists
+ok 2588 - planning refuses a site whose target already exists
+  ---
+  duration_ms: 230.173641
+  type: 'test'
+  ...
+# Subtest: planning rethrows a target probe failure other than a missing path
+ok 2589 - planning rethrows a target probe failure other than a missing path
+  ---
+  duration_ms: 77.065489
+  type: 'test'
+  ...
+# Subtest: planning refuses app-data databases that would live inside the site being moved
+ok 2590 - planning refuses app-data databases that would live inside the site being moved
+  ---
+  duration_ms: 242.506882
+  type: 'test'
+  ...
+# Subtest: planning refuses a database sidecar that is not a regular file
+ok 2591 - planning refuses a database sidecar that is not a regular file
+  ---
+  duration_ms: 76.505437
+  type: 'test'
+  ...
+# Subtest: planning refuses an app-data database target that already exists
+ok 2592 - planning refuses an app-data database target that already exists
+  ---
+  duration_ms: 106.680554
+  type: 'test'
+  ...
+# Subtest: planning in-site placement brings app-data databases into the moved site folder
+ok 2593 - planning in-site placement brings app-data databases into the moved site folder
+  ---
+  duration_ms: 99.001492
+  type: 'test'
+  ...
+# Subtest: planning a site without databases plans no database moves
+ok 2594 - planning a site without databases plans no database moves
+  ---
+  duration_ms: 116.184042
+  type: 'test'
+  ...
+# Subtest: planning defaults to the ambient sites workspace for the checkout
+ok 2595 - planning defaults to the ambient sites workspace for the checkout
+  ---
+  duration_ms: 162.778472
+  type: 'test'
+  ...
+# Subtest: a dry run defaults to the ambient sites workspace and moves nothing
+ok 2596 - a dry run defaults to the ambient sites workspace and moves nothing
+  ---
+  duration_ms: 91.687982
+  type: 'test'
+  ...
+# Subtest: apply refuses an unavailable sites home before taking any lock
+ok 2597 - apply refuses an unavailable sites home before taking any lock
+  ---
+  duration_ms: 133.87436
+  type: 'test'
+  ...
+# Subtest: apply with nothing to move takes the lock and returns no moves
+ok 2598 - apply with nothing to move takes the lock and returns no moves
+  ---
+  duration_ms: 500.853085
+  type: 'test'
+  ...
+# Subtest: apply warns about a running site by default and keeps it in place
+ok 2599 - apply warns about a running site by default and keeps it in place
+  ---
+  duration_ms: 435.735001
+  type: 'test'
+  ...
+# Subtest: apply refuses a batch whose every site is running
+ok 2600 - apply refuses a batch whose every site is running
+  ---
+  duration_ms: 99.647259
+  type: 'test'
+  ...
+# Subtest: apply refuses a site that starts running after the batch was planned
+ok 2601 - apply refuses a site that starts running after the batch was planned
+  ---
+  duration_ms: 743.306671
+  type: 'test'
+  ...
+# Subtest: apply refuses when another app claims the site between the check and the reservation
+ok 2602 - apply refuses when another app claims the site between the check and the reservation
+  ---
+  duration_ms: 216.433419
+  type: 'test'
+  ...
+# Subtest: apply refuses a move target another app has claimed and releases the source reservation
+ok 2603 - apply refuses a move target another app has claimed and releases the source reservation
+  ---
+  duration_ms: 244.279902
+  type: 'test'
+  ...
+# Subtest: apply refuses to commit a moved site whose identity changed
+ok 2604 - apply refuses to commit a moved site whose identity changed
+  ---
+  duration_ms: 254.743233
+  type: 'test'
+  ...
+# Subtest: apply moves app-data databases next to the relocated site folder
+ok 2605 - apply moves app-data databases next to the relocated site folder
+  ---
+  duration_ms: 488.419794
+  type: 'test'
+  ...
+# Subtest: apply relocates app-data databases into the moved site under in-site placement
+ok 2606 - apply relocates app-data databases into the moved site under in-site placement
+  ---
+  duration_ms: 471.304514
+  type: 'test'
+  ...
+# Subtest: moveLegacySite returns the verified destination of one nested-default site
+ok 2607 - moveLegacySite returns the verified destination of one nested-default site
+  ---
+  duration_ms: 618.98595
+  type: 'test'
+  ...
+# Subtest: moveLegacySite defaults to the ambient sites workspace
+ok 2608 - moveLegacySite defaults to the ambient sites workspace
+  ---
+  duration_ms: 300.748479
+  type: 'test'
+  ...
+# Subtest: moveLegacySite refuses a site outside the former default sites folder
+ok 2609 - moveLegacySite refuses a site outside the former default sites folder
+  ---
+  duration_ms: 221.811948
+  type: 'test'
+  ...
+# Subtest: moveLegacySite reports a selected folder without site markers as no match
+ok 2610 - moveLegacySite reports a selected folder without site markers as no match
+  ---
+  duration_ms: 43.339591
+  type: 'test'
+  ...
+# Subtest: moveLegacySite refuses a symlinked source site
+ok 2611 - moveLegacySite refuses a symlinked source site
+  ---
+  duration_ms: 137.155789
+  type: 'test'
+  ...
+# Subtest: assertDatabaseStopped refuses a database another connection holds open
+ok 2612 - assertDatabaseStopped refuses a database another connection holds open
+  ---
+  duration_ms: 259.3523
+  type: 'test'
+  ...
+# Subtest: assertDatabaseStopped rethrows a non-busy SQLite failure
+ok 2613 - assertDatabaseStopped rethrows a non-busy SQLite failure
+  ---
+  duration_ms: 117.963466
+  type: 'test'
+  ...
+# Subtest: assertDatabaseStopped refuses a journal that survives the exclusive probe
+ok 2614 - assertDatabaseStopped refuses a journal that survives the exclusive probe
+  ---
+  duration_ms: 129.689463
+  type: 'test'
+  ...
+# Subtest: assertDatabaseStopped checkpoints a stopped database and leaves no sidecars
+ok 2615 - assertDatabaseStopped checkpoints a stopped database and leaves no sidecars
+  ---
+  duration_ms: 157.450982
+  type: 'test'
+  ...
+# Subtest: inspectStoppedDatabase reports a missing database without creating sidecars
+ok 2616 - inspectStoppedDatabase reports a missing database without creating sidecars
+  ---
+  duration_ms: 72.203545
+  type: 'test'
+  ...
+# Subtest: inspectStoppedDatabase refuses a database whose integrity check fails
+ok 2617 - inspectStoppedDatabase refuses a database whose integrity check fails
+  ---
+  duration_ms: 67.847341
+  type: 'test'
+  ...
+# Subtest: inspectStoppedDatabase refuses an inspector build without strict row counts
+ok 2618 - inspectStoppedDatabase refuses an inspector build without strict row counts
+  ---
+  duration_ms: 57.521362
+  type: 'test'
+  ...
+# Subtest: inspectStoppedDatabase returns the strict row counts as JSON
+ok 2619 - inspectStoppedDatabase returns the strict row counts as JSON
+  ---
+  duration_ms: 86.556444
+  type: 'test'
+  ...
+# Subtest: an in-site layout resolves both databases under data.nosync
+ok 2620 - an in-site layout resolves both databases under data.nosync
+  ---
+  duration_ms: 68.78924
+  type: 'test'
+  ...
+# Subtest: a markerless folder uses its path identity
+ok 2621 - a markerless folder uses its path identity
+  ---
+  duration_ms: 121.873397
+  type: 'test'
+  ...
+# Subtest: metadata with only a siteKeyId uses it as the identity
+ok 2622 - metadata with only a siteKeyId uses it as the identity
+  ---
+  duration_ms: 52.502729
+  type: 'test'
+  ...
+# Subtest: metadata without any identity falls back to the path identity
+ok 2623 - metadata without any identity falls back to the path identity
+  ---
+  duration_ms: 28.531053
+  type: 'test'
+  ...
+# Subtest: an explicit siteId wins over the folder's metadata
+ok 2624 - an explicit siteId wins over the folder's metadata
+  ---
+  duration_ms: 46.79824
+  type: 'test'
+  ...
+# Subtest: unparseable metadata is surfaced
+ok 2625 - unparseable metadata is surfaced
+  ---
+  duration_ms: 43.825013
+  type: 'test'
+  ...
+# Subtest: unreadable metadata is surfaced
+ok 2626 - unreadable metadata is surfaced
+  ---
+  duration_ms: 52.147681
+  type: 'test'
+  ...
+# Subtest: a non-SQLite site keeps its named files in the folder whatever the placement
+ok 2627 - a non-SQLite site keeps its named files in the folder whatever the placement
+  ---
+  duration_ms: 87.798574
+  type: 'test'
+  ...
+# Subtest: an explicit SQLite storage follows the configured placement
+ok 2628 - an explicit SQLite storage follows the configured placement
+  ---
+  duration_ms: 155.661852
+  type: 'test'
+  ...
+# Subtest: app-data placement refuses a folder without a stable identity
+ok 2629 - app-data placement refuses a folder without a stable identity
+  ---
+  duration_ms: 32.109043
+  type: 'test'
+  ...
+# Subtest: app-data placement refuses an explicit placement without a minted siteId on a markerless folder
+ok 2630 - app-data placement refuses an explicit placement without a minted siteId on a markerless folder
+  ---
+  duration_ms: 24.212699
+  type: 'test'
+  ...
+# Subtest: initSite's minted siteId and explicit placement resolve app-data paths without reserving them
+ok 2631 - initSite's minted siteId and explicit placement resolve app-data paths without reserving them
+  ---
+  duration_ms: 20.412692
+  type: 'test'
+  ...
+# Subtest: boot-time app-data resolution reserves the identity for this folder
+ok 2632 - boot-time app-data resolution reserves the identity for this folder
+  ---
+  duration_ms: 89.025026
+  type: 'test'
+  ...
+# Subtest: move planning resolves app-data paths without reserving the identity
+ok 2633 - move planning resolves app-data paths without reserving the identity
+  ---
+  duration_ms: 12.91133
+  type: 'test'
+  ...
+# Subtest: a folder already owning its app-data identity resolves without a second reservation
+ok 2634 - a folder already owning its app-data identity resolves without a second reservation
+  ---
+  duration_ms: 23.411933
+  type: 'test'
+  ...
+# Subtest: a copied folder whose app-data identity belongs to another folder is refused
+ok 2635 - a copied folder whose app-data identity belongs to another folder is refused
+  ---
+  duration_ms: 24.044945
+  type: 'test'
+  ...
+# Subtest: an app-data chat database beside an in-site content database still requires a stable identity
+ok 2636 - an app-data chat database beside an in-site content database still requires a stable identity
+  ---
+  duration_ms: 21.450966
+  type: 'test'
+  ...
+# Subtest: resolveSiteDatabasePaths defaults to the ambient workspace
+ok 2637 - resolveSiteDatabasePaths defaults to the ambient workspace
+  ---
+  duration_ms: 17.772576
+  type: 'test'
+  ...
+# Subtest: resolveSiteDirForDatabase returns an explicit site folder as given
+ok 2638 - resolveSiteDirForDatabase returns an explicit site folder as given
+  ---
+  duration_ms: 1.1249
+  type: 'test'
+  ...
+# Subtest: resolveSiteDirForDatabase maps a data.nosync database to its site folder
+ok 2639 - resolveSiteDirForDatabase maps a data.nosync database to its site folder
+  ---
+  duration_ms: 5.223623
+  type: 'test'
+  ...
+# Subtest: resolveSiteDirForDatabase maps a legacy in-folder database to its folder
+ok 2640 - resolveSiteDirForDatabase maps a legacy in-folder database to its folder
+  ---
+  duration_ms: 18.569267
+  type: 'test'
+  ...
+# Subtest: resolveSiteDirForDatabase maps an app-data database through the catalog
+ok 2641 - resolveSiteDirForDatabase maps an app-data database through the catalog
+  ---
+  duration_ms: 73.369152
+  type: 'test'
+  ...
+# Subtest: resolveSiteDirForDatabase falls back to the selected site for an uncatalogued app-data database
+ok 2642 - resolveSiteDirForDatabase falls back to the selected site for an uncatalogued app-data database
+  ---
+  duration_ms: 23.90198
+  type: 'test'
+  ...
+# Subtest: SQLite: content.db is still open while the composition's close runs, and closed after it
+ok 2643 - SQLite: content.db is still open while the composition's close runs, and closed after it
+  ---
+  duration_ms: 439.872199
+  type: 'test'
+  ...
+# Subtest: SQLite: a composition close that rejects still releases content.db and surfaces its error
+ok 2644 - SQLite: a composition close that rejects still releases content.db and surfaces its error
+  ---
+  duration_ms: 111.267594
+  type: 'test'
+  ...
+# Subtest: resolveProductRoot finds an ancestor several levels up that has both package.json and content/
+ok 2645 - resolveProductRoot finds an ancestor several levels up that has both package.json and content/
+  ---
+  duration_ms: 37.925091
+  type: 'test'
+  ...
+# Subtest: resolveProductRoot resolves correctly from two DIFFERENT depths (the exact source-vs-dist asymmetry that caused the original bug)
+ok 2646 - resolveProductRoot resolves correctly from two DIFFERENT depths (the exact source-vs-dist asymmetry that caused the original bug)
+  ---
+  duration_ms: 35.015141
+  type: 'test'
+  ...
+# Subtest: resolveProductRoot returns fromDir itself when it already has both package.json and content/
+ok 2647 - resolveProductRoot returns fromDir itself when it already has both package.json and content/
+  ---
+  duration_ms: 2.143697
+  type: 'test'
+  ...
+# Subtest: resolveProductRoot does NOT stop at an ancestor with only ONE of the two markers
+ok 2648 - resolveProductRoot does NOT stop at an ancestor with only ONE of the two markers
+  ---
+  duration_ms: 5.246667
+  type: 'test'
+  ...
+# Subtest: resolveProductRoot throws a clear error when no ancestor has both markers
+ok 2649 - resolveProductRoot throws a clear error when no ancestor has both markers
+  ---
+  duration_ms: 3.592553
+  type: 'test'
+  ...
+# Subtest: resolveProductRoot(), called with no argument from a real file inside apps/website/src, finds the actual repo root
+ok 2650 - resolveProductRoot(), called with no argument from a real file inside apps/website/src, finds the actual repo root
+  ---
+  duration_ms: 0.478768
+  type: 'test'
+  ...
+# Subtest: resolveAppDistDir finds apps/<app>/dist from BOTH the source and the compiled composition dirs
+ok 2651 - resolveAppDistDir finds apps/<app>/dist from BOTH the source and the compiled composition dirs
+  ---
+  duration_ms: 96.054433
+  type: 'test'
+  ...
+# Subtest: resolveAppDistDir does not need the dist folder to exist yet (an unbuilt app still resolves, so /admin can say 'not built')
+ok 2652 - resolveAppDistDir does not need the dist folder to exist yet (an unbuilt app still resolves, so /admin can say 'not built')
+  ---
+  duration_ms: 57.471935
+  type: 'test'
+  ...
+# Subtest: resolveAppDistDir never throws: with no apps/<app> ancestor it returns a path under fromDir that does not exist
+ok 2653 - resolveAppDistDir never throws: with no apps/<app> ancestor it returns a path under fromDir that does not exist
+  ---
+  duration_ms: 4.047448
+  type: 'test'
+  ...
+# Subtest: resolveAppDistDir(), called with no fromDir from a real file inside apps/website/src, finds this checkout's apps/admin/dist
+ok 2654 - resolveAppDistDir(), called with no fromDir from a real file inside apps/website/src, finds this checkout's apps/admin/dist
+  ---
+  duration_ms: 1.240447
+  type: 'test'
+  ...
+# Subtest: resolveCheckoutRoot finds the checkout from BOTH the source and the compiled entry/composition dirs
+ok 2655 - resolveCheckoutRoot finds the checkout from BOTH the source and the compiled entry/composition dirs
+  ---
+  duration_ms: 11.450694
+  type: 'test'
+  ...
+# Subtest: resolveCheckoutRoot never throws: with no apps/website ancestor it returns fromDir itself
+ok 2656 - resolveCheckoutRoot never throws: with no apps/website ancestor it returns fromDir itself
+  ---
+  duration_ms: 2.502358
+  type: 'test'
+  ...
+# Subtest: resolveCheckoutRoot(), called with no fromDir from a real file inside apps/website/src, finds this checkout
+ok 2657 - resolveCheckoutRoot(), called with no fromDir from a real file inside apps/website/src, finds this checkout
+  ---
+  duration_ms: 0.378536
+  type: 'test'
+  ...
+# Subtest: resolveProductRoot still finds a root exactly MAX_WALK_UP (12) levels above fromDir
+ok 2658 - resolveProductRoot still finds a root exactly MAX_WALK_UP (12) levels above fromDir
+  ---
+  duration_ms: 11.569873
+  type: 'test'
+  ...
+# Subtest: resolveProductRoot gives up on a root 13 levels above fromDir, one past the walk-up cap
+ok 2659 - resolveProductRoot gives up on a root 13 levels above fromDir, one past the walk-up cap
+  ---
+  duration_ms: 11.069722
+  type: 'test'
+  ...
+# Subtest: resolveAppDistDir falls back to fromDir when apps/<app> is 13 levels up, one past the walk-up cap
+ok 2660 - resolveAppDistDir falls back to fromDir when apps/<app> is 13 levels up, one past the walk-up cap
+  ---
+  duration_ms: 7.907142
+  type: 'test'
+  ...
+# Subtest: resolveCheckoutRoot falls back to fromDir when apps/website is 13 levels up, one past the walk-up cap
+ok 2661 - resolveCheckoutRoot falls back to fromDir when apps/website is 13 levels up, one past the walk-up cap
+  ---
+  duration_ms: 12.749599
+  type: 'test'
+  ...
+# Subtest: workerProductRoot returns the parent-supplied absolute root inside a worker
+ok 2662 - workerProductRoot returns the parent-supplied absolute root inside a worker
+  ---
+  duration_ms: 0.160244
+  type: 'test'
+  ...
+# Subtest: workerProductRoot ignores workerData on the main thread
+ok 2663 - workerProductRoot ignores workerData on the main thread
+  ---
+  duration_ms: 0.082185
+  type: 'test'
+  ...
+# Subtest: workerProductRoot ignores workerData when the caller passes an explicit fromDir
+ok 2664 - workerProductRoot ignores workerData when the caller passes an explicit fromDir
+  ---
+  duration_ms: 0.054131
+  type: 'test'
+  ...
+# Subtest: workerProductRoot ignores a non-string productRoot
+ok 2665 - workerProductRoot ignores a non-string productRoot
+  ---
+  duration_ms: 0.047395
+  type: 'test'
+  ...
+# Subtest: workerProductRoot ignores a worker started without workerData
+ok 2666 - workerProductRoot ignores a worker started without workerData
+  ---
+  duration_ms: 0.121522
+  type: 'test'
+  ...
+# Subtest: workerProductRoot refuses a relative root, naming it and the fix
+ok 2667 - workerProductRoot refuses a relative root, naming it and the fix
+  ---
+  duration_ms: 0.829546
+  type: 'test'
+  ...
+# Subtest: workerProductRoot defaults to this thread's real context (the main thread here)
+ok 2668 - workerProductRoot defaults to this thread's real context (the main thread here)
+  ---
+  duration_ms: 0.194053
+  type: 'test'
+  ...
+# Subtest: resolveProductRoot, inside a worker given an absolute productRoot, returns it without walking the filesystem
+ok 2669 - resolveProductRoot, inside a worker given an absolute productRoot, returns it without walking the filesystem
+  ---
+  duration_ms: 0.211342
+  type: 'test'
+  ...
+# Subtest: resolves the one workspace row and rejects an unknown explicit id
+not ok 2670 - resolves the one workspace row and rejects an unknown explicit id
+  ---
+  duration_ms: 0.614917
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/unit/resolve-workspace.postgres.test.ts:1:493'
+  failureType: 'hookFailed'
+  error: |-
+    failed to drop fixture database "tovu_resolve_workspace_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+    freshPostgresContentDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:31:15)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/unit/resolve-workspace.postgres.test.ts:20:68)
+    TestHook.runInAsyncScope (node:async_hooks:227:14)
+    TestHook.run (node:internal/test_runner/test:1402:25)
+    TestHook.run (node:internal/test_runner/test:1757:18)
+    TestHook.run (node:internal/util:581:20)
+    Test.createHook (node:internal/test_runner/test:1117:33)
+    node:internal/test_runner/harness:426:12
+  ...
+# Subtest: site creation and import reject every Windows device name, mixed case and extensions before I/O
+ok 2671 - site creation and import reject every Windows device name, mixed case and extensions before I/O
+  ---
+  duration_ms: 108.729833
+  type: 'test'
+  ...
+# Subtest: site creation and import reject trailing dots/spaces instead of trimming them away
+ok 2672 - site creation and import reject trailing dots/spaces instead of trimming them away
+  ---
+  duration_ms: 0.90109
+  type: 'test'
+  ...
+# Subtest: Windows workspace membership resolves case and separators for the home and catalog
+ok 2673 - Windows workspace membership resolves case and separators for the home and catalog
+  ---
+  duration_ms: 0.644016
+  type: 'test'
+  ...
+# Subtest: POSIX workspace membership resolves paths but preserves case
+ok 2674 - POSIX workspace membership resolves paths but preserves case
+  ---
+  duration_ms: 0.19164
+  type: 'test'
+  ...
+# Subtest: content and chat resolve legacy, data.nosync and app-data independently without relocating files
+ok 2675 - content and chat resolve legacy, data.nosync and app-data independently without relocating files
+  ---
+  duration_ms: 69.950216
+  type: 'test'
+  ...
+# Subtest: multiple content databases refuse startup rather than choose potentially stale data
+ok 2676 - multiple content databases refuse startup rather than choose potentially stale data
+  ---
+  duration_ms: 9.620164
+  type: 'test'
+  ...
+# Subtest: legacy sidecars and recovery backups never compete with the live data.nosync databases
+ok 2677 - legacy sidecars and recovery backups never compete with the live data.nosync databases
+  ---
+  duration_ms: 35.272624
+  type: 'test'
+  ...
+# Subtest: extra nested roots are discovered and a root-selected site resolves before registration
+ok 2678 - extra nested roots are discovered and a root-selected site resolves before registration
+  ---
+  duration_ms: 60.544205
+  type: 'test'
+  ...
+# Subtest: non-iCloud synced sites home offers appData or local home, default appData keeps a safety notice and a local home clears it
+ok 2679 - non-iCloud synced sites home offers appData or local home, default appData keeps a safety notice and a local home clears it
+  ---
+  duration_ms: 28.546771
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# Recovered interrupted database move using /tmp/tovu-sites-config-MfKwbt/alpha/content.db. Keep the backup files (/tmp/tovu-sites-config-MfKwbt/alpha/content.db.home2-backup); finish the move before changing database placement.
+# Recovered interrupted database move using /tmp/tovu-sites-config-MfKwbt/alpha/content.db. Keep the backup files (/tmp/tovu-sites-config-MfKwbt/alpha/content.db.home2-backup); finish the move before changing database placement.
+# Recovered interrupted database move using /tmp/tovu-sites-config-MfKwbt/alpha/data.nosync/content.db. Keep the backup files (/tmp/tovu-sites-config-MfKwbt/alpha/content.db.home2-backup); finish the move before changing database placement.
+# Recovered interrupted database move using /tmp/tovu-sites-config-MfKwbt/alpha/data.nosync/content.db. Keep the backup files (/tmp/tovu-sites-config-MfKwbt/alpha/content.db.home2-backup); finish the move before changing database placement.
+# Subtest: init and CLI boot share the new data.nosync and appData layouts
+ok 2680 - init and CLI boot share the new data.nosync and appData layouts
+  ---
+  duration_ms: 7170.081457
+  type: 'test'
+  ...
+# Subtest: web config endpoint checks capability and permission, validates atomically, and persists for desktop
+ok 2681 - web config endpoint checks capability and permission, validates atomically, and persists for desktop
+  ---
+  duration_ms: 1686.320093
+  type: 'test'
+  ...
+# Subtest: copied appData folders cannot acquire the incumbent database, and markerless boot cannot create one
+ok 2682 - copied appData folders cannot acquire the incumbent database, and markerless boot cannot create one
+  ---
+  duration_ms: 440.450602
+  type: 'test'
+  ...
+# Subtest: interrupted relocation uses its known authoritative DB and explains recovery
+ok 2683 - interrupted relocation uses its known authoritative DB and explains recovery
+  ---
+  duration_ms: 137.464155
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: all 4 routes require a session — an unauthenticated caller never reaches them
+ok 2684 - all 4 routes require a session — an unauthenticated caller never reaches them
+  ---
+  duration_ms: 1548.593476
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: all 4 routes require admin.assistant.manage — a signed-in principal without it gets 403
+ok 2685 - all 4 routes require admin.assistant.manage — a signed-in principal without it gets 403
+  ---
+  duration_ms: 843.595686
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a workspace id that is not this site's is 404, on all 4 routes
+ok 2686 - a workspace id that is not this site's is 404, on all 4 routes
+  ---
+  duration_ms: 674.579764
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: detect-agents returns a data array (real, no-network local-CLI probe)
+ok 2687 - detect-agents returns a data array (real, no-network local-CLI probe)
+  ---
+  duration_ms: 1221.362119
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: test-agent rejects a missing agentId with 400 before any PATH probe
+ok 2688 - test-agent rejects a missing agentId with 400 before any PATH probe
+  ---
+  duration_ms: 1259.390199
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: test-agent rejects a blank/whitespace-only agentId with 400, same as missing
+ok 2689 - test-agent rejects a blank/whitespace-only agentId with 400, same as missing
+  ---
+  duration_ms: 1311.053064
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: test-agent reports ok:false for an agentId not present in the real detectAgents() result (real, no-network local-CLI probe)
+ok 2690 - test-agent reports ok:false for an agentId not present in the real detectAgents() result (real, no-network local-CLI probe)
+  ---
+  duration_ms: 931.130981
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: test-connection rejects an unsupported protocol with 400 before any network access
+ok 2691 - test-connection rejects an unsupported protocol with 400 before any network access
+  ---
+  duration_ms: 838.446539
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: test-connection rejects a missing baseUrl/model with 400
+ok 2692 - test-connection rejects a missing baseUrl/model with 400
+  ---
+  duration_ms: 932.684834
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: test-connection surfaces the real SSRF guard as ok:false for an internal base url, proving real delegation
+ok 2693 - test-connection surfaces the real SSRF guard as ok:false for an internal base url, proving real delegation
+  ---
+  duration_ms: 1429.393375
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: test-connection surfaces the real local empty-api-key guard as ok:false, not a raw upstream call
+ok 2694 - test-connection surfaces the real local empty-api-key guard as ok:false, not a raw upstream call
+  ---
+  duration_ms: 1251.9031
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: list-models surfaces the real local empty-api-key guard as ok:false, not a raw upstream call
+ok 2695 - list-models surfaces the real local empty-api-key guard as ok:false, not a raw upstream call
+  ---
+  duration_ms: 992.091909
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: list-models rejects an unsupported protocol with 400 before any network access
+ok 2696 - list-models rejects an unsupported protocol with 400 before any network access
+  ---
+  duration_ms: 828.754984
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: list-models surfaces the real SSRF guard as ok:false for an internal base url
+ok 2697 - list-models surfaces the real SSRF guard as ok:false for an internal base url
+  ---
+  duration_ms: 841.51153
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: test-connection never sends the stored site key to a baseUrl the request body chose
+ok 2698 - test-connection never sends the stored site key to a baseUrl the request body chose
+  ---
+  duration_ms: 1167.605607
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: list-models never sends the stored site key to a baseUrl the request body chose
+ok 2699 - list-models never sends the stored site key to a baseUrl the request body chose
+  ---
+  duration_ms: 1509.158211
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a stored credential with no saved endpoint is refused rather than sent to the requested one
+ok 2700 - a stored credential with no saved endpoint is refused rather than sent to the requested one
+  ---
+  duration_ms: 1031.313961
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: the stored key IS sent when the requested endpoint matches the one saved for it
+ok 2701 - the stored key IS sent when the requested endpoint matches the one saved for it
+  ---
+  duration_ms: 1026.143681
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: test-connection sends the stored key to the matching endpoint
+ok 2702 - test-connection sends the stored key to the matching endpoint
+  ---
+  duration_ms: 596.597045
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: test-connection sends the typed key to the matching endpoint
+ok 2703 - test-connection sends the typed key to the matching endpoint
+  ---
+  duration_ms: 1244.255092
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a trailing-slash difference is the same endpoint, not a mismatch
+ok 2704 - a trailing-slash difference is the same endpoint, not a mismatch
+  ---
+  duration_ms: 1079.948159
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a key typed into THIS request still goes wherever the caller named — the pin binds only the stored one
+ok 2705 - a key typed into THIS request still goes wherever the caller named — the pin binds only the stored one
+  ---
+  duration_ms: 697.188479
+  type: 'test'
+  ...
