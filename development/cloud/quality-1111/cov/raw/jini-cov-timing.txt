@@ -32,3 +32,13 @@ platform exit 1 81s
 oauth exit 0 21s
 desktop-host exit 1 43s
 memory exit 0 10s
+mcp exit 1 52s
+integrations exit 1 48s
+infra exit 1 19s
+http-kit exit 1 17s
+devops exit 1 141s
+diagnostics exit 1 23s
+lane rev done
+commerce-kernel exit 0 69s
+commerce-nodetest exit 0 2s
+ALL-DONE

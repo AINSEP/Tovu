@@ -26946,3 +26946,458 @@ ok 2862 - a provider's { ok: false } result is logged with its message alone
   duration_ms: 4.056753
   type: 'test'
   ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# [site-assistant] {
+#   errorId: '868bf2e2-5bad-4ba4-851f-dd56b93eb584',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# Subtest: visitorai: both admin write APIs refuse enabling with key and persist neither field
+ok 2863 - visitorai: both admin write APIs refuse enabling with key and persist neither field
+  ---
+  duration_ms: 2626.222954
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# [site-assistant] {
+#   errorId: '8e7b5f14-32ff-4dc9-84c5-dccdd4b94d5c',
+#   code: 'MODEL_NOT_CONFIGURED',
+#   diagnostic: 'site assistant has no saved model — choose one in AI Assistant before enabling the public assistant.'
+# }
+# Subtest: visitorai: both admin write APIs refuse enabling with model and persist neither field
+ok 2864 - visitorai: both admin write APIs refuse enabling with model and persist neither field
+  ---
+  duration_ms: 1551.916763
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# [site-assistant] {
+#   errorId: 'bf8beb9c-c2a2-4aea-9cb6-5c288e3f4fb2',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'SecretOpenError: Unsupported state or unable to authenticate data\\n' +
+#     '    at AesGcmSecretSealer.open (/home/user/Tovu/apps/website/src/features/webhooks/secret-sealer.aesgcm.ts:152:36)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async protectStorage (/home/user/Tovu/apps/website/src/platform/secrets/store-vault-guards.ts:18:16)\\n' +
+#     '    at async SecretsVaultService.open (/home/user/Jini/packages/platform/src/secrets/credential-sets/vault.service.ts:148:23)\\n' +
+#     '    at async SecretsVaultService.findOne (/home/user/Jini/packages/platform/src/secrets/credential-sets/vault.service.ts:234:49)\\n' +
+#     '    at async resolveSiteAssistantApiKey (/home/user/Tovu/apps/website/src/assistant/site-credential-store.ts:160:20)\\n' +
+#     '    at async resolvePublicAssistantAvailability (/home/user/Tovu/apps/website/src/assistant/public-assistant-availability.ts:19:22)\\n' +
+#     '    at async resolveProviderConfigOrRespond (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/site-assistant.ts:427:24)\\n' +
+#     '    at async runSiteAssistantPreflight (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/site-assistant.ts:564:20)\\n' +
+#     '    at async handleChat (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/site-assistant.ts:662:27)'
+# }
+# Subtest: visitorai: both admin write APIs refuse enabling with unreadable-key and persist neither field
+ok 2865 - visitorai: both admin write APIs refuse enabling with unreadable-key and persist neither field
+  ---
+  duration_ms: 790.429302
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# [site-assistant] {
+#   errorId: 'a64fb864-ff4a-403f-92c3-afc9aba113f0',
+#   code: 'PROVIDER_UNSUPPORTED',
+#   diagnostic: 'site assistant is configured for an unsupported provider "cohere" — supported providers are anthropic, openai, azure, google.'
+# }
+# Subtest: visitorai: both admin write APIs refuse enabling with unsupported-provider and persist neither field
+ok 2866 - visitorai: both admin write APIs refuse enabling with unsupported-provider and persist neither field
+  ---
+  duration_ms: 1153.219545
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# [site-assistant] {
+#   errorId: '265ba763-c39e-4edb-9eab-1f411b5f4951',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# Subtest: visitorai: react widget and chat stop after saved key removal despite flag and env defaults
+ok 2867 - visitorai: react widget and chat stop after saved key removal despite flag and env defaults
+  ---
+  duration_ms: 1643.681684
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# [site-assistant] {
+#   errorId: 'fdbada48-33bd-42ac-a8cd-8d274524e437',
+#   code: 'MODEL_NOT_CONFIGURED',
+#   diagnostic: 'site assistant has no saved model — choose one in AI Assistant before enabling the public assistant.'
+# }
+# Subtest: visitorai: react widget and chat stop after saved model removal despite flag and env defaults
+ok 2868 - visitorai: react widget and chat stop after saved model removal despite flag and env defaults
+  ---
+  duration_ms: 2044.209538
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# [site-assistant] {
+#   errorId: '6c2a9820-3d81-4d2f-a9fe-cb4bc74154c9',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# Subtest: visitorai: vanilla widget and chat stop after saved key removal despite flag and env defaults
+ok 2869 - visitorai: vanilla widget and chat stop after saved key removal despite flag and env defaults
+  ---
+  duration_ms: 1721.570379
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# [site-assistant] {
+#   errorId: '63159e97-9c53-4878-8635-f1c465f43d58',
+#   code: 'MODEL_NOT_CONFIGURED',
+#   diagnostic: 'site assistant has no saved model — choose one in AI Assistant before enabling the public assistant.'
+# }
+# Subtest: visitorai: vanilla widget and chat stop after saved model removal despite flag and env defaults
+ok 2870 - visitorai: vanilla widget and chat stop after saved model removal despite flag and env defaults
+  ---
+  duration_ms: 1665.558406
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+# [site-assistant] {
+#   errorId: 'c7e9df01-7ff2-4302-977c-596e46153dc4',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# [site-assistant] {
+#   errorId: '11c752ae-6744-4833-8968-208fc7538574',
+#   code: 'ASSISTANT_DISABLED',
+#   diagnostic: 'site assistant is disabled'
+# }
+# Subtest: visitorai: imported enabled state with no credential emits no widget and cannot consume an env key
+ok 2871 - visitorai: imported enabled state with no credential emits no widget and cannot consume an env key
+  ---
+  duration_ms: 739.691417
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: visitorai: an alias cannot bypass credential validation on the generic write API
+ok 2872 - visitorai: an alias cannot bypass credential validation on the generic write API
+  ---
+  duration_ms: 1148.465711
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: visitorai: generic definition batches cannot replace the code-owned off default
+ok 2873 - visitorai: generic definition batches cannot replace the code-owned off default
+  ---
+  duration_ms: 1277.735883
+  type: 'test'
+  ...
+# Subtest: no production file under server/inbound/ imports site-key-ensure (the one site-key writer)
+ok 2874 - no production file under server/inbound/ imports site-key-ensure (the one site-key writer)
+  ---
+  duration_ms: 9260.459092
+  type: 'test'
+  ...
+# Subtest: the boundary scanner sees every supported import syntax and ignores comments and ordinary strings
+ok 2875 - the boundary scanner sees every supported import syntax and ignores comments and ordinary strings
+  ---
+  duration_ms: 13.692781
+  type: 'test'
+  ...
+# Subtest: getAuthedPrincipal throws the wiring error when absent and returns the attached record unchanged
+ok 2876 - getAuthedPrincipal throws the wiring error when absent and returns the attached record unchanged
+  ---
+  duration_ms: 2.073363
+  type: 'test'
+  ...
+# Subtest: getAuthedCredentialKind throws the wiring error when absent and returns the attached api_key kind
+ok 2877 - getAuthedCredentialKind throws the wiring error when absent and returns the attached api_key kind
+  ---
+  duration_ms: 0.23046
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: requests without a key resolve to null and receive the exact 401 without calling next
+ok 2878 - requests without a key resolve to null and receive the exact 401 without calling next
+  ---
+  duration_ms: 1821.328442
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: GET /auth/me directly returns the exact 401 for an unauthenticated request
+ok 2879 - GET /auth/me directly returns the exact 401 for an unauthenticated request
+  ---
+  duration_ms: 979.309253
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: GET /auth/me/password-status directly returns the exact 401 for an unauthenticated request
+ok 2880 - GET /auth/me/password-status directly returns the exact 401 for an unauthenticated request
+  ---
+  duration_ms: 1020.078247
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: malformed authorization schemes never authenticate and invalid bearer keys fail closed
+ok 2881 - malformed authorization schemes never authenticate and invalid bearer keys fail closed
+  ---
+  duration_ms: 792.693097
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: password login without a User-Agent still creates a usable session without invented client metadata
+ok 2882 - password login without a User-Agent still creates a usable session without invented client metadata
+  ---
+  duration_ms: 1616.918799
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a request a publishing token already authenticated skips the session lookup and continues
+ok 2883 - a request a publishing token already authenticated skips the session lookup and continues
+  ---
+  duration_ms: 826.467828
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a credential lookup that fails is forwarded to Express's error handling instead of answering 401
+ok 2884 - a credential lookup that fails is forwarded to Express's error handling instead of answering 401
+  ---
+  duration_ms: 768.559913
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a local owner cookie on a listener without a TCP port (a unix socket) is keyed to port 0
+ok 2885 - a local owner cookie on a listener without a TCP port (a unix socket) is keyed to port 0
+  ---
+  duration_ms: 1407.264772
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a login body without username or password fields is the same uniform 401 as a wrong password
+ok 2886 - a login body without username or password fields is the same uniform 401 as a wrong password
+  ---
+  duration_ms: 747.297973
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: login attempts beyond the per-client minute budget are refused with 429 and Retry-After before any password check
+ok 2887 - login attempts beyond the per-client minute budget are refused with 429 and Retry-After before any password check
+  ---
+  duration_ms: 2789.582066
+  type: 'test'
+  ...
+# Subtest: staff cannot issue kits or use desktop owner reset even when the launch is trusted
+ok 2888 - staff cannot issue kits or use desktop owner reset even when the launch is trusted
+  ---
+  duration_ms: 3.284828
+  type: 'test'
+  ...
+# Subtest: owner reset requires the desktop launch policy as well as an owner session
+ok 2889 - owner reset requires the desktop launch policy as well as an owner session
+  ---
+  duration_ms: 0.888281
+  type: 'test'
+  ...
+# Subtest: the shared login limiter and cross-origin admission refuse before any code lookup
+ok 2890 - the shared login limiter and cross-origin admission refuse before any code lookup
+  ---
+  duration_ms: 1.66444
+  type: 'test'
+  ...
+# Subtest: status exposes no codes and hides owner actions from staff; unavailable storage gives safe details
+ok 2891 - status exposes no codes and hides owner actions from staff; unavailable storage gives safe details
+  ---
+  duration_ms: 1.723522
+  type: 'test'
+  ...
+# Subtest: a copied owner cookie cannot reset without this request’s local launch capability
+ok 2892 - a copied owner cookie cannot reset without this request’s local launch capability
+  ---
+  duration_ms: 2.931602
+  type: 'test'
+  ...
+# Subtest: TLS forwarded by a same-origin host passes origin admission without trust proxy
+ok 2893 - TLS forwarded by a same-origin host passes origin admission without trust proxy
+  ---
+  duration_ms: 0.816799
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] 'throwing-plugin' hook refused a request: create filter failed: boom
+# Subtest: HTTP: creating a page through a throwing beforeSave filter returns 500 PLUGIN_HOOK_FAILED, not a bare 'internal error'
+ok 2894 - HTTP: creating a page through a throwing beforeSave filter returns 500 PLUGIN_HOOK_FAILED, not a bare 'internal error'
+  ---
+  duration_ms: 1621.306024
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] 'throwing-plugin' hook refused a request: update filter failed: boom
+# Subtest: HTTP: updating a page through a throwing beforeSave filter returns PLUGIN_HOOK_FAILED and leaves the stored page unchanged
+ok 2895 - HTTP: updating a page through a throwing beforeSave filter returns PLUGIN_HOOK_FAILED and leaves the stored page unchanged
+  ---
+  duration_ms: 770.341857
+  type: 'test'
+  ...
+# Subtest: widget permission preserves the authenticated principal and passes the exact scope
+ok 2896 - widget permission preserves the authenticated principal and passes the exact scope
+  ---
+  duration_ms: 2.267158
+  type: 'test'
+  ...
+# Subtest: widget permission denial returns null and the actionable 403 envelope
+ok 2897 - widget permission denial returns null and the actionable 403 envelope
+  ---
+  duration_ms: 0.327166
+  type: 'test'
+  ...
+# Subtest: widget and area DTOs retain the supplied entries under their distinct envelope keys
+ok 2898 - widget and area DTOs retain the supplied entries under their distinct envelope keys
+  ---
+  duration_ms: 0.221988
+  type: 'test'
+  ...
+# Plugin 'example-media' has no publisher-qualified id; using 'unknown/example-media'.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: Agent Plugins HTTP response exposes saved sign-in independently of the enable switch
+ok 2899 - Agent Plugins HTTP response exposes saved sign-in independently of the enable switch
+  ---
+  duration_ms: 1656.123109
+  type: 'test'
+  ...
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Plugin 'example-host-deploy' has no publisher-qualified id; using 'unknown/example-host-deploy'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keywords, and per-workspace enabled state
+ok 2900 - AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keywords, and per-workspace enabled state
+  ---
+  duration_ms: 819.817284
+  type: 'test'
+  ...
+# Plugin 'minimal-plugin' has no publisher-qualified id; using 'unknown/minimal-plugin'.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: AGENT_PLUGINS_LIST: absent version and description are explicit nulls
+ok 2901 - AGENT_PLUGINS_LIST: absent version and description are explicit nulls
+  ---
+  duration_ms: 1052.19767
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: AGENT_PLUGINS_LIST: requires an authenticated session
+ok 2902 - AGENT_PLUGINS_LIST: requires an authenticated session
+  ---
+  duration_ms: 539.108825
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: AGENT_PLUGINS_LIST: a workspace id that does not match the route's own workspace is 404
+ok 2903 - AGENT_PLUGINS_LIST: a workspace id that does not match the route's own workspace is 404
+  ---
+  duration_ms: 728.868013
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [routes/agent-plugins/list] {
+#   errorId: '680a3013-c2a1-468c-ae65-2274cb864030',
+#   diagnostic: 'Error: private /secret/packages\\n' +
+#     '    at Object.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugins-http.integration.test.ts:267:97)\\n' +
+#     '    at Object.apply (node:internal/test_runner/mock/mock:805:20)\\n' +
+#     '    at Object.forWorkspace (/home/user/Tovu/apps/website/src/features/agent-plugins/host-tool-ports.ts:59:57)\\n' +
+#     '    at loadAgentPluginSearchCandidates (/home/user/Jini/packages/agent-plugins/src/lifecycle/host-tools/search-tool.ts:186:44)\\n' +
+#     '    at loadAgentPluginSearchCandidates (/home/user/Tovu/apps/website/src/features/agent-plugins/tool-registrations.ts:106:28)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/agent-plugins/list.ts:57:32)'
+# }
+# Subtest: AGENT_PLUGINS_LIST: discovery failure is redacted
+ok 2904 - AGENT_PLUGINS_LIST: discovery failure is redacted
+  ---
+  duration_ms: 924.900718
+  type: 'test'
+  ...
+# Plugin 'future-only' has no publisher-qualified id; using 'unknown/future-only'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'needs-db' has no publisher-qualified id; using 'unknown/needs-db'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'consumer' has no publisher-qualified id; using 'unknown/consumer'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Plugin 'mailer' has no publisher-qualified id; using 'unknown/mailer'.
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: AGENT_PLUGINS_LIST: rows carry origin, host compatibility, unmet and dependent capabilities, and the installed digest
+ok 2905 - AGENT_PLUGINS_LIST: rows carry origin, host compatibility, unmet and dependent capabilities, and the installed digest
+  ---
+  duration_ms: 1469.521334
+  type: 'test'
+  ...
+# Subtest: AGENT_PLUGINS_LIST: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404
+ok 2906 - AGENT_PLUGINS_LIST: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404
+  ---
+  duration_ms: 239.690661
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}

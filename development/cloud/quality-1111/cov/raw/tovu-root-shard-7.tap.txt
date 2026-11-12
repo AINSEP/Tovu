@@ -572,3 +572,1189 @@ ok 52 - an invalid rendered form is refused with the renderer error
   duration_ms: 0.554556
   type: 'test'
   ...
+# Subtest: EVERY wired tool's outbound Gemini schema is structurally valid — the whole catalog, not a sample
+ok 53 - EVERY wired tool's outbound Gemini schema is structurally valid — the whole catalog, not a sample
+  ---
+  duration_ms: 533.522104
+  type: 'test'
+  ...
+# Subtest: the 3 meta-tool descriptors are structurally valid for Gemini too — they are what a BYOK turn actually sends
+ok 54 - the 3 meta-tool descriptors are structurally valid for Gemini too — they are what a BYOK turn actually sends
+  ---
+  duration_ms: 0.347703
+  type: 'test'
+  ...
+# Subtest: the meta-tool set is the payload reduction it claims to be, measured against the real catalog
+ok 55 - the meta-tool set is the payload reduction it claims to be, measured against the real catalog
+  ---
+  duration_ms: 526.285468
+  type: 'test'
+  ...
+# Subtest: search finds the data-table providers by a capability-term match
+ok 56 - search finds the data-table providers by a capability-term match
+  ---
+  duration_ms: 2.296695
+  type: 'test'
+  ...
+# Subtest: step 5: live catalog preserves wire IDs and resolves each specific capability, then falls back after disable
+ok 57 - step 5: live catalog preserves wire IDs and resolves each specific capability, then falls back after disable
+  ---
+  duration_ms: 5.776591
+  type: 'test'
+  ...
+# Subtest: search returns an empty array, not an error, for no matches
+ok 58 - search returns an empty array, not an error, for no matches
+  ---
+  duration_ms: 1.107982
+  type: 'test'
+  ...
+# Subtest: search respects the limit argument
+ok 59 - search respects the limit argument
+  ---
+  duration_ms: 0.210588
+  type: 'test'
+  ...
+# Subtest: tabular searches prefer the styled table and retain the native fallback
+ok 60 - tabular searches prefer the styled table and retain the native fallback
+  ---
+  duration_ms: 0.490906
+  type: 'test'
+  ...
+# Subtest: describe steers tabular data to shadcn and documents native as the styled fallback
+ok 61 - describe steers tabular data to shadcn and documents native as the styled fallback
+  ---
+  duration_ms: 0.494474
+  type: 'test'
+  ...
+# Subtest: describe returns null for an unknown id
+ok 62 - describe returns null for an unknown id
+  ---
+  duration_ms: 0.268532
+  type: 'test'
+  ...
+# Subtest: describe returns the full entry, including a JSON-Schema propsSchema, for a known id
+ok 63 - describe returns the full entry, including a JSON-Schema propsSchema, for a known id
+  ---
+  duration_ms: 0.236876
+  type: 'test'
+  ...
+# Subtest: the live catalog lists chart.spec once, describable as JSON Schema, with and without providers
+ok 64 - the live catalog lists chart.spec once, describable as JSON Schema, with and without providers
+  ---
+  duration_ms: 3.18562
+  type: 'test'
+  ...
+# Subtest: the live catalog keeps every non-chart manifest and adds per-provider entries next to the legacy ids
+ok 65 - the live catalog keeps every non-chart manifest and adds per-provider entries next to the legacy ids
+  ---
+  duration_ms: 0.642554
+  type: 'test'
+  ...
+# Subtest: a manifest with no description is searchable by its other fields and is projected without a description key
+ok 66 - a manifest with no description is searchable by its other fields and is projected without a description key
+  ---
+  duration_ms: 2.22763
+  type: 'test'
+  ...
+# [theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# [theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# [theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# Subtest: shared content target input resolves preview slug, root id, and legacy postId in default batches
+ok 67 - shared content target input resolves preview slug, root id, and legacy postId in default batches
+  ---
+  duration_ms: 767.867032
+  type: 'test'
+  ...
+# Subtest: shared content target input handles media card reads and list batches, metadata edits and trash
+ok 68 - shared content target input handles media card reads and list batches, metadata edits and trash
+  ---
+  duration_ms: 443.429023
+  type: 'test'
+  ...
+# Subtest: shared lookup follows authorization for reads and writes
+ok 69 - shared lookup follows authorization for reads and writes
+  ---
+  duration_ms: 493.546977
+  type: 'test'
+  ...
+# Subtest: a post update resolves its id while preserving the requested new slug
+ok 70 - a post update resolves its id while preserving the requested new slug
+  ---
+  duration_ms: 704.984872
+  type: 'test'
+  ...
+# Subtest: SEO entryId uses the same post resolver and retains its SEO authorization resource
+ok 71 - SEO entryId uses the same post resolver and retains its SEO authorization resource
+  ---
+  duration_ms: 1154.950552
+  type: 'test'
+  ...
+# Subtest: page writes use the shared root resolver and still validate page kind and version
+ok 72 - page writes use the shared root resolver and still validate page kind and version
+  ---
+  duration_ms: 675.147665
+  type: 'test'
+  ...
+# Subtest: combined media deletion plans resolve all slugs after admission and preserve one plan
+ok 73 - combined media deletion plans resolve all slugs after admission and preserve one plan
+  ---
+  duration_ms: 202.51429
+  type: 'test'
+  ...
+# Subtest: seo_analyze_entry resolves its id through the post resolver and authorizes seo-entry
+ok 74 - seo_analyze_entry resolves its id through the post resolver and authorizes seo-entry
+  ---
+  duration_ms: 100.534863
+  type: 'test'
+  ...
+# Subtest: content_read.seo_entry_meta resolves its id through the post resolver and authorizes seo-entry
+ok 75 - content_read.seo_entry_meta resolves its id through the post resolver and authorizes seo-entry
+  ---
+  duration_ms: 2.415591
+  type: 'test'
+  ...
+# Subtest: pages_update resolves its id through the post resolver and authorizes post
+ok 76 - pages_update resolves its id through the post resolver and authorizes post
+  ---
+  duration_ms: 11.462706
+  type: 'test'
+  ...
+# Subtest: content_post_read resolves its id through the post resolver and authorizes post
+ok 77 - content_post_read resolves its id through the post resolver and authorizes post
+  ---
+  duration_ms: 23.299543
+  type: 'test'
+  ...
+# Subtest: content_read.content_post resolves its id through the post resolver and authorizes post
+ok 78 - content_read.content_post resolves its id through the post resolver and authorizes post
+  ---
+  duration_ms: 111.488849
+  type: 'test'
+  ...
+# Subtest: media_update_metadata resolves its id through the media resolver and authorizes media
+ok 79 - media_update_metadata resolves its id through the media resolver and authorizes media
+  ---
+  duration_ms: 6.63108
+  type: 'test'
+  ...
+# Subtest: content_read.media_asset resolves its id through the media resolver and authorizes media
+ok 80 - content_read.media_asset resolves its id through the media resolver and authorizes media
+  ---
+  duration_ms: 5.515155
+  type: 'test'
+  ...
+# Subtest: library_read resolves its id through the media resolver and authorizes media
+ok 81 - library_read resolves its id through the media resolver and authorizes media
+  ---
+  duration_ms: 135.095326
+  type: 'test'
+  ...
+# Subtest: tools outside the CMS target families, or without a target key, are returned untouched
+ok 82 - tools outside the CMS target families, or without a target key, are returned untouched
+  ---
+  duration_ms: 4.190816
+  type: 'test'
+  ...
+# Subtest: each target key is recognised, in its priority order
+ok 83 - each target key is recognised, in its priority order
+  ---
+  duration_ms: 152.72166
+  type: 'test'
+  ...
+# Subtest: slug is a target alias unless the schema writes a slug — except pages_ and media_view_ tools
+ok 84 - slug is a target alias unless the schema writes a slug — except pages_ and media_view_ tools
+  ---
+  duration_ms: 8.31086
+  type: 'test'
+  ...
+# Subtest: a second selector beside the alias is refused naming both keys; a missing target passes through
+ok 85 - a second selector beside the alias is refused naming both keys; a missing target passes through
+  ---
+  duration_ms: 12.292801
+  type: 'test'
+  ...
+# Subtest: a media slug resolving to another workspace's asset is passed through as the slug; the same workspace resolves it
+ok 86 - a media slug resolving to another workspace's asset is passed through as the slug; the same workspace resolves it
+  ---
+  duration_ms: 21.061918
+  type: 'test'
+  ...
+# Subtest: batched items are prepared one by one; more than the batch cap is refused before any lookup
+ok 87 - batched items are prepared one by one; more than the batch cap is refused before any lookup
+  ---
+  duration_ms: 1.591888
+  type: 'test'
+  ...
+# Subtest: permanent-delete tools run beforeLookup with the tool and principal before the permission check
+ok 88 - permanent-delete tools run beforeLookup with the tool and principal before the permission check
+  ---
+  duration_ms: 1.265848
+  type: 'test'
+  ...
+# Subtest: content_post_preview keeps legacy postId precedence and refuses a blank or non-string target
+ok 89 - content_post_preview keeps legacy postId precedence and refuses a blank or non-string target
+  ---
+  duration_ms: 1.318805
+  type: 'test'
+  ...
+# Subtest: pages_read_html needs one of id or slug
+ok 90 - pages_read_html needs one of id or slug
+  ---
+  duration_ms: 0.737757
+  type: 'test'
+  ...
+# Subtest: media_view_video: slug is refused as a path, beside attachmentRef, or when it disagrees with mediaId
+ok 91 - media_view_video: slug is refused as a path, beside attachmentRef, or when it disagrees with mediaId
+  ---
+  duration_ms: 1.385998
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [assistant] resolveCustomInstructions failed; treating as unset Error: boot registration failed
+#     at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/custom-instructions.test.ts:122:60)
+#     at async Test.run (node:internal/test_runner/test:1409:7)
+#     at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+# [assistant] resolveCustomInstructions failed; treating as unset Error: boot registration failed
+#     at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/custom-instructions.test.ts:172:60)
+#     at Test.runInAsyncScope (node:async_hooks:227:14)
+#     at Test.run (node:internal/test_runner/test:1402:25)
+#     at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+#     at Test.postRun (node:internal/test_runner/test:1542:19)
+#     at Test.run (node:internal/test_runner/test:1467:12)
+#     at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+# Subtest: resolveCustomInstructions reads '' when the definition has not been registered yet
+ok 92 - resolveCustomInstructions reads '' when the definition has not been registered yet
+  ---
+  duration_ms: 6.880362
+  type: 'test'
+  ...
+# Subtest: resolveCustomInstructions reads the registered default ('') when no value has been set
+ok 93 - resolveCustomInstructions reads the registered default ('') when no value has been set
+  ---
+  duration_ms: 11.273006
+  type: 'test'
+  ...
+# Subtest: resolveCustomInstructions sees a value written directly to the repo, bypassing write-service's own cache invalidation
+ok 94 - resolveCustomInstructions sees a value written directly to the repo, bypassing write-service's own cache invalidation
+  ---
+  duration_ms: 2.023058
+  type: 'test'
+  ...
+# Subtest: resolveCustomInstructions is workspace-scoped — one workspace's instructions do not leak into another's
+ok 95 - resolveCustomInstructions is workspace-scoped — one workspace's instructions do not leak into another's
+  ---
+  duration_ms: 2.680492
+  type: 'test'
+  ...
+# Subtest: resolveCustomInstructions fails open ('') when settingsReady rejects, rather than throwing
+ok 96 - resolveCustomInstructions fails open ('') when settingsReady rejects, rather than throwing
+  ---
+  duration_ms: 17.389061
+  type: 'test'
+  ...
+# Subtest: formatCustomInstructionsOverlay returns null for empty or whitespace-only text
+ok 97 - formatCustomInstructionsOverlay returns null for empty or whitespace-only text
+  ---
+  duration_ms: 0.298182
+  type: 'test'
+  ...
+# Subtest: formatCustomInstructionsOverlay wraps non-empty, trimmed text in the overlay header
+ok 98 - formatCustomInstructionsOverlay wraps non-empty, trimmed text in the overlay header
+  ---
+  duration_ms: 0.261748
+  type: 'test'
+  ...
+# Subtest: createCustomInstructionsCache.readOverlay() is null before the first refresh()
+ok 99 - createCustomInstructionsCache.readOverlay() is null before the first refresh()
+  ---
+  duration_ms: 0.234681
+  type: 'test'
+  ...
+# Subtest: createCustomInstructionsCache.refresh() makes the latest ledger value readable synchronously
+ok 100 - createCustomInstructionsCache.refresh() makes the latest ledger value readable synchronously
+  ---
+  duration_ms: 1.045993
+  type: 'test'
+  ...
+# Subtest: createCustomInstructionsCache.refresh() never rejects, even when the underlying read fails
+ok 101 - createCustomInstructionsCache.refresh() never rejects, even when the underlying read fails
+  ---
+  duration_ms: 1.144938
+  type: 'test'
+  ...
+# Subtest: the call stays open after the form is shown, and the human's selections become its result
+ok 102 - the call stays open after the form is shown, and the human's selections become its result
+  ---
+  duration_ms: 67.685943
+  type: 'test'
+  ...
+# Subtest: the surface reaches the human while the call is still open, carrying the id that answers it
+ok 103 - the surface reaches the human while the call is still open, carrying the id that answers it
+  ---
+  duration_ms: 19.95136
+  type: 'test'
+  ...
+# Subtest: an empty checklist is a real answer, not a missing one
+ok 104 - an empty checklist is a real answer, not a missing one
+  ---
+  duration_ms: 48.468331
+  type: 'test'
+  ...
+# Subtest: Cancel resolves the call immediately instead of stranding it until the TTL
+ok 105 - Cancel resolves the call immediately instead of stranding it until the TTL
+  ---
+  duration_ms: 1.564561
+  type: 'test'
+  ...
+# Subtest: an unanswered form returns an explicit no-answer result, not a hang or a throw
+ok 106 - an unanswered form returns an explicit no-answer result, not a hang or a throw
+  ---
+  duration_ms: 1.170674
+  type: 'test'
+  ...
+# Subtest: a cancelled run closes the exchange rather than holding the handler to the deadline
+ok 107 - a cancelled run closes the exchange rather than holding the handler to the deadline
+  ---
+  duration_ms: 0.770819
+  type: 'test'
+  ...
+# Subtest: with no emit seam the tool falls back to returning the surface, and opens no exchange
+ok 108 - with no emit seam the tool falls back to returning the surface, and opens no exchange
+  ---
+  duration_ms: 0.543491
+  type: 'test'
+  ...
+# Subtest: the fallback's second call still echoes the human's selections to the agent
+ok 109 - the fallback's second call still echoes the human's selections to the agent
+  ---
+  duration_ms: 80.539533
+  type: 'test'
+  ...
+# Subtest: the fallback surface carries no exchange id, since nothing is waiting on it
+ok 110 - the fallback surface carries no exchange id, since nothing is waiting on it
+  ---
+  duration_ms: 0.77394
+  type: 'test'
+  ...
+# Subtest: registers unconditionally — no environment can switch this tool off
+ok 111 - registers unconditionally — no environment can switch this tool off
+  ---
+  duration_ms: 0.380604
+  type: 'test'
+  ...
+# Subtest: a call with no input at all is treated as a first call and falls back to returning the surface
+ok 112 - a call with no input at all is treated as a first call and falls back to returning the surface
+  ---
+  duration_ms: 0.470425
+  type: 'test'
+  ...
+# Subtest: an answer that omits the plan reports it as undefined rather than inventing one
+ok 113 - an answer that omits the plan reports it as undefined rather than inventing one
+  ---
+  duration_ms: 40.337598
+  type: 'test'
+  ...
+# Subtest: ensureExecutionSettingDefinitions registers localCli.reasoning, so the effort pick has somewhere to land
+ok 114 - ensureExecutionSettingDefinitions registers localCli.reasoning, so the effort pick has somewhere to land
+  ---
+  duration_ms: 7.608996
+  type: 'test'
+  ...
+# Subtest: ensureExecutionSettingDefinitions registers localCli.reasoning with the same shape as localCli.model
+ok 115 - ensureExecutionSettingDefinitions registers localCli.reasoning with the same shape as localCli.model
+  ---
+  duration_ms: 0.564704
+  type: 'test'
+  ...
+# Subtest: ensureExecutionSettingDefinitions registers every localCli key the admin ledger writer sends
+ok 116 - ensureExecutionSettingDefinitions registers every localCli key the admin ledger writer sends
+  ---
+  duration_ms: 0.334016
+  type: 'test'
+  ...
+# Subtest: the native composer axes permit personal overrides while retaining workspace inheritance
+ok 117 - the native composer axes permit personal overrides while retaining workspace inheritance
+  ---
+  duration_ms: 5.149073
+  type: 'test'
+  ...
+# Subtest: mode and every BYOK ledger key have the expected schema and default
+ok 118 - mode and every BYOK ledger key have the expected schema and default
+  ---
+  duration_ms: 1.154965
+  type: 'test'
+  ...
+# Subtest: registering the same key twice keeps only the last listener, so one call
+ok 119 - registering the same key twice keeps only the last listener, so one call
+  ---
+  duration_ms: 9.759322
+  type: 'test'
+  ...
+# Subtest: a listener that never resolves makes notify({waitMs: 20}) resolve within 200ms
+ok 120 - a listener that never resolves makes notify({waitMs: 20}) resolve within 200ms
+  ---
+  duration_ms: 25.679849
+  type: 'test'
+  ...
+# Subtest: a throwing listener does not reject notify
+ok 121 - a throwing listener does not reject notify
+  ---
+  duration_ms: 2.196826
+  type: 'test'
+  ...
+# Subtest: lowering carries source IDs, waits for cleanup, and reports a failed stop
+ok 122 - lowering carries source IDs, waits for cleanup, and reports a failed stop
+  ---
+  duration_ms: 5.559352
+  type: 'test'
+  ...
+# Subtest: a stuck lowering rejects instead of claiming the answer stopped
+ok 123 - a stuck lowering rejects instead of claiming the answer stopped
+  ---
+  duration_ms: 11.021492
+  type: 'test'
+  ...
+# Subtest: an anthropic credential with no stored baseUrl defaults the live call to the real Anthropic API host
+ok 124 - an anthropic credential with no stored baseUrl defaults the live call to the real Anthropic API host
+  ---
+  duration_ms: 17.651431
+  type: 'test'
+  ...
+# Subtest: no stored credential resolves to null and makes zero network calls
+ok 125 - no stored credential resolves to null and makes zero network calls
+  ---
+  duration_ms: 0.553215
+  type: 'test'
+  ...
+# Subtest: a stored credential for a protocol other than anthropic resolves to null and makes zero network calls
+ok 126 - a stored credential for a protocol other than anthropic resolves to null and makes zero network calls
+  ---
+  duration_ms: 2.648787
+  type: 'test'
+  ...
+# Subtest: an anthropic credential with a reachable provider returns its live models
+ok 127 - an anthropic credential with a reachable provider returns its live models
+  ---
+  duration_ms: 123.11748
+  type: 'test'
+  ...
+# [assistant] live Claude model discovery failed (upstream_unavailable: internal error) — falling back to the static model list
+# Subtest: a failed live call (provider 500) resolves to null, not a throw
+ok 128 - a failed live call (provider 500) resolves to null, not a throw
+  ---
+  duration_ms: 35.599911
+  type: 'test'
+  ...
+# Subtest: a second call within the TTL reuses the cached result instead of re-issuing the live call
+ok 129 - a second call within the TTL reuses the cached result instead of re-issuing the live call
+  ---
+  duration_ms: 33.335619
+  type: 'test'
+  ...
+# Subtest: a call after the TTL has expired re-issues the live call
+ok 130 - a call after the TTL has expired re-issues the live call
+  ---
+  duration_ms: 23.836917
+  type: 'test'
+  ...
+# Subtest: cache entries for two tenants never collide, even when their ids would join to the same string under a delimiter-joined key
+ok 131 - cache entries for two tenants never collide, even when their ids would join to the same string under a delimiter-joined key
+  ---
+  duration_ms: 22.303322
+  type: 'test'
+  ...
+# Subtest: a failed live call logs one warning naming the failure kind — the case an operator needs to see
+ok 132 - a failed live call logs one warning naming the failure kind — the case an operator needs to see
+  ---
+  duration_ms: 25.025074
+  type: 'test'
+  ...
+# Subtest: a failed live call with an empty error body names only the failure kind, with no empty detail suffix
+ok 133 - a failed live call with an empty error body names only the failure kind, with no empty detail suffix
+  ---
+  duration_ms: 13.329411
+  type: 'test'
+  ...
+# Subtest: a failed listing that carries a detail names both the failure kind and the detail, then falls back
+ok 134 - a failed listing that carries a detail names both the failure kind and the detail, then falls back
+  ---
+  duration_ms: 0.365827
+  type: 'test'
+  ...
+# Subtest: a successful listing returns its models unchanged
+ok 135 - a successful listing returns its models unchanged
+  ---
+  duration_ms: 0.177398
+  type: 'test'
+  ...
+# Subtest: a successful listing that carries no models array resolves to null rather than an empty catalog
+ok 136 - a successful listing that carries no models array resolves to null rather than an empty catalog
+  ---
+  duration_ms: 0.142474
+  type: 'test'
+  ...
+# Subtest: the quiet paths (no credential, wrong protocol) log nothing — only an attempted-and-failed live call is worth an operator's attention
+ok 137 - the quiet paths (no credential, wrong protocol) log nothing — only an attempted-and-failed live call is worth an operator's attention
+  ---
+  duration_ms: 0.875706
+  type: 'test'
+  ...
+# Subtest: unionModels keeps every fallback entry unchanged when live discovery returns nothing
+ok 138 - unionModels keeps every fallback entry unchanged when live discovery returns nothing
+  ---
+  duration_ms: 4.81741
+  type: 'test'
+  ...
+# Subtest: unionModels appends a live id not already in fallback, after every fallback entry
+ok 139 - unionModels appends a live id not already in fallback, after every fallback entry
+  ---
+  duration_ms: 0.199449
+  type: 'test'
+  ...
+# Subtest: unionModels dedupes by id — a live entry matching a fallback id is dropped, not duplicated or overwritten
+ok 140 - unionModels dedupes by id — a live entry matching a fallback id is dropped, not duplicated or overwritten
+  ---
+  duration_ms: 0.110918
+  type: 'test'
+  ...
+# Subtest: unionModels never drops the sonnet/opus/haiku aliases or the default sentinel, even with live entries present
+ok 141 - unionModels never drops the sonnet/opus/haiku aliases or the default sentinel, even with live entries present
+  ---
+  duration_ms: 0.102954
+  type: 'test'
+  ...
+# Subtest: the handshake sends initialize first, then notifications/initialized with no id
+ok 142 - the handshake sends initialize first, then notifications/initialized with no id
+  ---
+  duration_ms: 4.22559
+  type: 'test'
+  ...
+# Subtest: initialize advertises no client capabilities, so the remote may not ask Tovu to run inference
+ok 143 - initialize advertises no client capabilities, so the remote may not ask Tovu to run inference
+  ---
+  duration_ms: 1.257491
+  type: 'test'
+  ...
+# Subtest: every request carries the operator's configured auth header and both accepted content types
+ok 144 - every request carries the operator's configured auth header and both accepted content types
+  ---
+  duration_ms: 1.178394
+  type: 'test'
+  ...
+# Subtest: a failed handshake rejects rather than returning a half-built session
+ok 145 - a failed handshake rejects rather than returning a half-built session
+  ---
+  duration_ms: 8.62971
+  type: 'test'
+  ...
+# Subtest: the session id the server issues at initialize is echoed on every later request
+ok 146 - the session id the server issues at initialize is echoed on every later request
+  ---
+  duration_ms: 0.555282
+  type: 'test'
+  ...
+# Subtest: a server that issues no session id gets no session header back, rather than an empty one
+ok 147 - a server that issues no session id gets no session header back, rather than an empty one
+  ---
+  duration_ms: 0.450818
+  type: 'test'
+  ...
+# Subtest: a session id containing CRLF is refused — it would inject headers into every later request
+ok 148 - a session id containing CRLF is refused — it would inject headers into every later request
+  ---
+  duration_ms: 0.222928
+  type: 'test'
+  ...
+# Subtest: a session id containing a space is refused too — the spec's own visible-ASCII rule
+ok 149 - a session id containing a space is refused too — the spec's own visible-ASCII rule
+  ---
+  duration_ms: 0.246852
+  type: 'test'
+  ...
+# Subtest: a plain application/json response is read
+ok 150 - a plain application/json response is read
+  ---
+  duration_ms: 0.513827
+  type: 'test'
+  ...
+# Subtest: an SSE-framed response carries the same frame and is read identically
+ok 151 - an SSE-framed response carries the same frame and is read identically
+  ---
+  duration_ms: 1.83171
+  type: 'test'
+  ...
+# Subtest: an SSE payload split across several data: lines is rejoined before parsing
+ok 152 - an SSE payload split across several data: lines is rejoined before parsing
+  ---
+  duration_ms: 0.832132
+  type: 'test'
+  ...
+# Subtest: a charset parameter on the SSE content type does not defeat the match
+ok 153 - a charset parameter on the SSE content type does not defeat the match
+  ---
+  duration_ms: 4.237987
+  type: 'test'
+  ...
+# Subtest: a paginated tools/list is drained across pages and the cursor is sent back
+ok 154 - a paginated tools/list is drained across pages and the cursor is sent back
+  ---
+  duration_ms: 0.702015
+  type: 'test'
+  ...
+# Subtest: a server that paginates forever is abandoned rather than followed
+ok 155 - a server that paginates forever is abandoned rather than followed
+  ---
+  duration_ms: 19.782657
+  type: 'test'
+  ...
+# Subtest: a 401 names the real cause — the authorization expired — and points at the fix
+ok 156 - a 401 names the real cause — the authorization expired — and points at the fix
+  ---
+  duration_ms: 0.962675
+  type: 'test'
+  ...
+# Subtest: a tools/call 401 retains the auth-failure class used by the reauthorization hook
+ok 157 - a tools/call 401 retains the auth-failure class used by the reauthorization hook
+  ---
+  duration_ms: 0.538162
+  type: 'test'
+  ...
+# Subtest: a 403 is reported as a protocol error, NOT an authorization failure — a scoped token is not a stale one
+ok 158 - a 403 is reported as a protocol error, NOT an authorization failure — a scoped token is not a stale one
+  ---
+  duration_ms: 0.568025
+  type: 'test'
+  ...
+# Subtest: a 500 is reported as a status, NOT as an authorization problem
+ok 159 - a 500 is reported as a status, NOT as an authorization problem
+  ---
+  duration_ms: 21.021213
+  type: 'test'
+  ...
+# Subtest: a body that is not JSON is refused rather than surfaced as a result
+ok 160 - a body that is not JSON is refused rather than surfaced as a result
+  ---
+  duration_ms: 0.55657
+  type: 'test'
+  ...
+# Subtest: an empty body where a frame was required is refused
+ok 161 - an empty body where a frame was required is refused
+  ---
+  duration_ms: 11.040781
+  type: 'test'
+  ...
+# Subtest: an SSE stream with no data: line at all is refused
+ok 162 - an SSE stream with no data: line at all is refused
+  ---
+  duration_ms: 3.090672
+  type: 'test'
+  ...
+# Subtest: an oversized body is refused before it is parsed
+ok 163 - an oversized body is refused before it is parsed
+  ---
+  duration_ms: 6.610343
+  type: 'test'
+  ...
+# Subtest: a successful hosted call sends the remote name and arguments and returns the complete result
+ok 164 - a successful hosted call sends the remote name and arguments and returns the complete result
+  ---
+  duration_ms: 3.259335
+  type: 'test'
+  ...
+# Subtest: a JSON-RPC error frame becomes a protocol error carrying the remote's own code and message
+ok 165 - a JSON-RPC error frame becomes a protocol error carrying the remote's own code and message
+  ---
+  duration_ms: 0.532223
+  type: 'test'
+  ...
+# Subtest: a server that never answers is abandoned at the timeout rather than awaited forever
+ok 166 - a server that never answers is abandoned at the timeout rather than awaited forever
+  ---
+  duration_ms: 26.601099
+  type: 'test'
+  ...
+# Subtest: a caller's own abort signal cancels the call, and is reported as an abort not a timeout
+ok 167 - a caller's own abort signal cancels the call, and is reported as an abort not a timeout
+  ---
+  duration_ms: 1.366839
+  type: 'test'
+  ...
+# Subtest: a signal that is already aborted before the call starts aborts it immediately, without waiting for a later abort event
+ok 168 - a signal that is already aborted before the call starts aborts it immediately, without waiting for a later abort event
+  ---
+  duration_ms: 1.02757
+  type: 'test'
+  ...
+# Subtest: a raw transport failure (not a timeout or an abort) is reported as a request failure, carrying the underlying Error's message
+ok 169 - a raw transport failure (not a timeout or an abort) is reported as a request failure, carrying the underlying Error's message
+  ---
+  duration_ms: 0.635856
+  type: 'test'
+  ...
+# Subtest: a raw transport failure that throws a non-Error value still produces a readable message, via String()
+ok 170 - a raw transport failure that throws a non-Error value still produces a readable message, via String()
+  ---
+  duration_ms: 0.369115
+  type: 'test'
+  ...
+# Subtest: close tells the server to drop the session, carrying the id it issued
+ok 171 - close tells the server to drop the session, carrying the id it issued
+  ---
+  duration_ms: 0.597032
+  type: 'test'
+  ...
+# Subtest: a server that refuses the shutdown DELETE does not make close throw
+ok 172 - a server that refuses the shutdown DELETE does not make close throw
+  ---
+  duration_ms: 0.347025
+  type: 'test'
+  ...
+# Subtest: close does not throw when the DELETE fails at the transport level, not just with a refusal status
+ok 173 - close does not throw when the DELETE fails at the transport level, not just with a refusal status
+  ---
+  duration_ms: 0.752704
+  type: 'test'
+  ...
+# Subtest: a failed handshake that already had a session id issued still cleans it up, even when the cleanup DELETE itself fails
+ok 174 - a failed handshake that already had a session id issued still cleans it up, even when the cleanup DELETE itself fails
+  ---
+  duration_ms: 0.534782
+  type: 'test'
+  ...
+# Subtest: a closed session refuses further calls instead of reopening one
+ok 175 - a closed session refuses further calls instead of reopening one
+  ---
+  duration_ms: 0.28219
+  type: 'test'
+  ...
+# Subtest: close is idempotent — a second call issues no second DELETE
+ok 176 - close is idempotent — a second call issues no second DELETE
+  ---
+  duration_ms: 0.277464
+  type: 'test'
+  ...
+# Subtest: the fetch exchange refuses to follow redirects, so a bearer token is never re-sent to a host the server nominated
+ok 177 - the fetch exchange refuses to follow redirects, so a bearer token is never re-sent to a host the server nominated
+  ---
+  duration_ms: 34.594534
+  type: 'test'
+  ...
+# Subtest: the fetch exchange lowercases the content type and surfaces the session id header
+ok 178 - the fetch exchange lowercases the content type and surfaces the session id header
+  ---
+  duration_ms: 0.826127
+  type: 'test'
+  ...
+# Subtest: the fetch exchange sends no body on a DELETE
+ok 179 - the fetch exchange sends no body on a DELETE
+  ---
+  duration_ms: 0.788071
+  type: 'test'
+  ...
+# Subtest: run cancellation reaches the outbound fetch through the canonical session and exchange
+ok 180 - run cancellation reaches the outbound fetch through the canonical session and exchange
+  ---
+  duration_ms: 1.658986
+  type: 'test'
+  ...
+# Subtest: MCP_UI_SANDBOX_PROXY_PATH is unchanged
+ok 181 - MCP_UI_SANDBOX_PROXY_PATH is unchanged
+  ---
+  duration_ms: 1.066618
+  type: 'test'
+  ...
+# Subtest: AssistantDock.tsx no longer builds its iframe URL as a same-origin route — the admin-origin-authority fix
+ok 182 - AssistantDock.tsx no longer builds its iframe URL as a same-origin route — the admin-origin-authority fix
+  ---
+  duration_ms: 0.751393
+  type: 'test'
+  ...
+# Subtest: GET returns 200, html content-type, and the exact SANDBOX_PROXY_HTML body
+ok 183 - GET returns 200, html content-type, and the exact SANDBOX_PROXY_HTML body
+  ---
+  duration_ms: 323.801391
+  type: 'test'
+  ...
+# Subtest: GET is reachable with no principal header or session cookie at all
+ok 184 - GET is reachable with no principal header or session cookie at all
+  ---
+  duration_ms: 34.489502
+  type: 'test'
+  ...
+# Subtest: GET carries the exact framing-protection headers
+ok 185 - GET carries the exact framing-protection headers
+  ---
+  duration_ms: 13.89649
+  type: 'test'
+  ...
+# Subtest: the served body only accepts sandbox-resource-ready from its own host window
+ok 186 - the served body only accepts sandbox-resource-ready from its own host window
+  ---
+  duration_ms: 22.339941
+  type: 'test'
+  ...
+# Subtest: executing the served sandbox script rejects foreign windows and origins and accepts its host
+ok 187 - executing the served sandbox script rejects foreign windows and origins and accepts its host
+  ---
+  duration_ms: 11.018007
+  type: 'test'
+  ...
+# Subtest: real round trip: an exchange delivery from the SAME principal that opened it actually deletes the subscription
+ok 188 - real round trip: an exchange delivery from the SAME principal that opened it actually deletes the subscription
+  ---
+  duration_ms: 181.004771
+  type: 'test'
+  ...
+# Subtest: SECURITY: a delivery from a DIFFERENT principal than the one that opened the exchange is refused, and nothing is delivered
+ok 189 - SECURITY: a delivery from a DIFFERENT principal than the one that opened the exchange is refused, and nothing is delivered
+  ---
+  duration_ms: 37.462017
+  type: 'test'
+  ...
+# Subtest: a delivery cannot be replayed through this route — the exchange's single-use guarantee holds end to end, not just at the store level
+ok 190 - a delivery cannot be replayed through this route — the exchange's single-use guarantee holds end to end, not just at the store level
+  ---
+  duration_ms: 39.554211
+  type: 'test'
+  ...
+# Subtest: buildUIToolResult
+    # Subtest: puts the model text first and the UI resource second — MCP Apps' security-relevant order
+    ok 1 - puts the model text first and the UI resource second — MCP Apps' security-relevant order
+      ---
+      duration_ms: 2.492251
+      type: 'test'
+      ...
+    # Subtest: omits result-level _meta entirely when spec.meta is not supplied
+    ok 2 - omits result-level _meta entirely when spec.meta is not supplied
+      ---
+      duration_ms: 0.302484
+      type: 'test'
+      ...
+    # Subtest: carries spec.meta through as the result's own _meta when supplied
+    ok 3 - carries spec.meta through as the result's own _meta when supplied
+      ---
+      duration_ms: 0.241089
+      type: 'test'
+      ...
+    1..3
+ok 191 - buildUIToolResult
+  ---
+  duration_ms: 5.166836
+  type: 'suite'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Subtest: moved tools, cards, approvals and counters match the golden recorded before any move
+not ok 192 - moved tools, cards, approvals and counters match the golden recorded before any move
+  ---
+  duration_ms: 2720.148455
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/assistant/__tests__/moved-tools.golden.test.ts:1:10757'
+  failureType: 'testCodeFailure'
+  error: |-
+    catalog
+    + actual - expected
+    
+      {
+    +   bytes: 752572,
+    -   bytes: 752240,
+        names: 328
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    names: 328
+    bytes: 752240
+  actual:
+    names: 328
+    bytes: 752572
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/moved-tools.golden.test.ts:163:53)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: forwards a model present in contextRef
+ok 193 - forwards a model present in contextRef
+  ---
+  duration_ms: 19.483308
+  type: 'test'
+  ...
+# Subtest: omits model when absent from contextRef
+ok 194 - omits model when absent from contextRef
+  ---
+  duration_ms: 0.387672
+  type: 'test'
+  ...
+# Subtest: a non-string model is not forwarded
+ok 195 - a non-string model is not forwarded
+  ---
+  duration_ms: 0.28931
+  type: 'test'
+  ...
+# Subtest: an empty-string model is not forwarded
+ok 196 - an empty-string model is not forwarded
+  ---
+  duration_ms: 0.219494
+  type: 'test'
+  ...
+# Subtest: still requires prompt and principalId, unchanged
+ok 197 - still requires prompt and principalId, unchanged
+  ---
+  duration_ms: 10.662603
+  type: 'test'
+  ...
+# Subtest: still filters attachmentIds down to non-empty strings, unchanged
+ok 198 - still filters attachmentIds down to non-empty strings, unchanged
+  ---
+  duration_ms: 2.043274
+  type: 'test'
+  ...
+# Subtest: forwards pluginRefIds present in contextRef
+ok 199 - forwards pluginRefIds present in contextRef
+  ---
+  duration_ms: 0.3369
+  type: 'test'
+  ...
+# Subtest: defaults pluginRefIds to an empty array when absent from contextRef
+ok 200 - defaults pluginRefIds to an empty array when absent from contextRef
+  ---
+  duration_ms: 0.325542
+  type: 'test'
+  ...
+# Subtest: filters pluginRefIds down to non-empty strings, same as attachmentIds
+ok 201 - filters pluginRefIds down to non-empty strings, same as attachmentIds
+  ---
+  duration_ms: 0.49206
+  type: 'test'
+  ...
+# Subtest: a non-array pluginRefIds is not forwarded
+ok 202 - a non-array pluginRefIds is not forwarded
+  ---
+  duration_ms: 0.229157
+  type: 'test'
+  ...
+# Subtest: forwards a conversationId present in contextRef
+ok 203 - forwards a conversationId present in contextRef
+  ---
+  duration_ms: 0.230969
+  type: 'test'
+  ...
+# Subtest: omits conversationId when absent from contextRef
+ok 204 - omits conversationId when absent from contextRef
+  ---
+  duration_ms: 0.21557
+  type: 'test'
+  ...
+# Subtest: a non-string conversationId is not forwarded
+ok 205 - a non-string conversationId is not forwarded
+  ---
+  duration_ms: 0.197909
+  type: 'test'
+  ...
+# Subtest: an empty-string conversationId is not forwarded
+ok 206 - an empty-string conversationId is not forwarded
+  ---
+  duration_ms: 0.186729
+  type: 'test'
+  ...
+# Subtest: forwards a reasoning level present in contextRef
+ok 207 - forwards a reasoning level present in contextRef
+  ---
+  duration_ms: 0.167996
+  type: 'test'
+  ...
+# Subtest: omits reasoning when absent from contextRef
+ok 208 - omits reasoning when absent from contextRef
+  ---
+  duration_ms: 0.145654
+  type: 'test'
+  ...
+# Subtest: a non-string reasoning is not forwarded
+ok 209 - a non-string reasoning is not forwarded
+  ---
+  duration_ms: 0.240171
+  type: 'test'
+  ...
+# Subtest: an empty-string reasoning is not forwarded
+ok 210 - an empty-string reasoning is not forwarded
+  ---
+  duration_ms: 0.18798
+  type: 'test'
+  ...
+# Subtest: model and reasoning both survive the same envelope
+ok 211 - model and reasoning both survive the same envelope
+  ---
+  duration_ms: 0.192484
+  type: 'test'
+  ...
+# Subtest: invalid JSON and non-object envelopes cannot start a run
+ok 212 - invalid JSON and non-object envelopes cannot start a run
+  ---
+  duration_ms: 0.281802
+  type: 'test'
+  ...
+# Subtest: daemon model prompt removes pasted credentials and preserves the request
+ok 213 - daemon model prompt removes pasted credentials and preserves the request
+  ---
+  duration_ms: 0.382742
+  type: 'test'
+  ...
+# Subtest: carries validated per-chat plugin decisions and the actual current request
+ok 214 - carries validated per-chat plugin decisions and the actual current request
+  ---
+  duration_ms: 8.570414
+  type: 'test'
+  ...
+# Subtest: missing, empty or non-string prompt/principalId is refused naming the field
+ok 215 - missing, empty or non-string prompt/principalId is refused naming the field
+  ---
+  duration_ms: 0.620447
+  type: 'test'
+  ...
+# Subtest: recovery fields pass only in their documented shapes
+ok 216 - recovery fields pass only in their documented shapes
+  ---
+  duration_ms: 0.364483
+  type: 'test'
+  ...
+# Subtest: optional strings are kept only when non-empty, and the cold-start and user-prompt texts are capped
+ok 217 - optional strings are kept only when non-empty, and the cold-start and user-prompt texts are capped
+  ---
+  duration_ms: 58.011801
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: plan and execute pulls are reachable through the real catalog and rank in the top three
+ok 218 - plan and execute pulls are reachable through the real catalog and rank in the top three
+  ---
+  duration_ms: 1027.367817
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: publishing setup still ranks status first
+ok 219 - publishing setup still ranks status first
+  ---
+  duration_ms: 764.386941
+  type: 'test'
+  ...
+# Subtest: parseRunStartContextRef forwards the screen the message was sent from
+ok 220 - parseRunStartContextRef forwards the screen the message was sent from
+  ---
+  duration_ms: 17.53227
+  type: 'test'
+  ...
+# Subtest: parseRunStartContextRef omits pageContext when absent or malformed, without failing the run
+ok 221 - parseRunStartContextRef omits pageContext when absent or malformed, without failing the run
+  ---
+  duration_ms: 10.115007
+  type: 'test'
+  ...
+# Subtest: the prompt block names the open entry by title, id, kind, slug and status
+ok 222 - the prompt block names the open entry by title, id, kind, slug and status
+  ---
+  duration_ms: 0.465141
+  type: 'test'
+  ...
+# Subtest: a screen with no open entry still reports where the operator is, and says nothing is open
+ok 223 - a screen with no open entry still reports where the operator is, and says nothing is open
+  ---
+  duration_ms: 0.328335
+  type: 'test'
+  ...
+# Subtest: no page context renders no block at all
+ok 224 - no page context renders no block at all
+  ---
+  duration_ms: 0.101086
+  type: 'test'
+  ...
+# Subtest: an entry title cannot break out of its quoted field
+ok 225 - an entry title cannot break out of its quoted field
+  ---
+  duration_ms: 0.192479
+  type: 'test'
+  ...
+# Subtest: readRunPageContext drops a malformed entry but keeps the screen, and caps long strings
+ok 226 - readRunPageContext drops a malformed entry but keeps the screen, and caps long strings
+  ---
+  duration_ms: 0.183816
+  type: 'test'
+  ...
+# Subtest: readRunPageContext rejects a context without a path or section
+ok 227 - readRunPageContext rejects a context without a path or section
+  ---
+  duration_ms: 0.152126
+  type: 'test'
+  ...
+# Subtest: the block says where drawings appear: on the screen's canvas, or in the chat
+ok 228 - the block says where drawings appear: on the screen's canvas, or in the chat
+  ---
+  duration_ms: 0.187572
+  type: 'test'
+  ...
+# Subtest: readRunPageContext keeps only a known drawingSurface
+ok 229 - readRunPageContext keeps only a known drawingSurface
+  ---
+  duration_ms: 0.163847
+  type: 'test'
+  ...
+# Subtest: withPageContextBlock puts the screen block in front of the newest user message only (BYOK turns)
+ok 230 - withPageContextBlock puts the screen block in front of the newest user message only (BYOK turns)
+  ---
+  duration_ms: 0.406168
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: four site-insight tools rank top three through the full production FTS catalog
+ok 231 - four site-insight tools rank top three through the full production FTS catalog
+  ---
+  duration_ms: 905.024862
+  type: 'test'
+  ...
+# Subtest: TW3 local classification preserves each dynamic rule and rejects inherited ids
+ok 232 - TW3 local classification preserves each dynamic rule and rejects inherited ids
+  ---
+  duration_ms: 1.97526
+  type: 'test'
+  ...
+# Subtest: TW3 a rule name that is only inherited (not an own classifier) falls back to the static class
+ok 233 - TW3 a rule name that is only inherited (not an own classifier) falls back to the static class
+  ---
+  duration_ms: 0.210644
+  type: 'test'
+  ...
+# Subtest: TW3 federated classification pins action, declaration, hint and fallback precedence
+ok 234 - TW3 federated classification pins action, declaration, hint and fallback precedence
+  ---
+  duration_ms: 2.837666
+  type: 'test'
+  ...

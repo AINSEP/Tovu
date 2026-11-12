@@ -1,0 +1,62 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/infra
+      Coverage enabled with v8
+
+ ✓ src/events/outbox/__tests__/fenced-worker.test.ts (27 tests) 44ms
+ ✓ src/events/outbox/__tests__/fenced-enqueue.test.ts (46 tests) 129ms
+ ✓ src/events/outbox/__tests__/worker.test.ts (17 tests) 32ms
+ ✓ src/events/outbox/__tests__/retry-policy.test.ts (12 tests) 42ms
+ ✓ src/events/outbox/__tests__/serial-pump.test.ts (8 tests) 13ms
+ ✓ src/events/outbox/__tests__/drainer.test.ts (7 tests) 70ms
+ ✓ src/__tests__/optional-db-peer.test.ts (1 test) 1453ms
+   ✓ outbox works without db; both compatibility entries work when the host installs db 1451ms
+ ✓ src/__tests__/args-convention.dbpkg-infra.test.ts (3 tests) 4ms
+ ✓ src/events/outbox/__tests__/retry-defaults.test.ts (10 tests) 14ms
+ ✓ src/events/outbox/__tests__/batch-parity.dbpkg-infra.test.ts (2 tests) 16ms
+ ✓ src/events/outbox/__tests__/enqueue-only.test.ts (3 tests) 16ms
+ ✓ src/__tests__/merge-surface.dbpkg-infra.test.ts (2 tests) 4ms
+ ❯ src/__tests__/shim-surface.test.ts (4 tests | 1 failed) 12666ms
+   ✓ infra 0.3.3 shim surface > keeps exactly the original names including erased types 12650ms
+   × infra 0.3.3 shim surface > is an ESM-only shim with an optional database peer 13ms
+     → expected { '@jini-ai/db': '^0.7.0' } to deeply equal { '@jini-ai/db': '^0.6.10' }
+ ✓ src/events/outbox/__tests__/node-scheduler.test.ts (2 tests) 6ms
+JSON report written to /tmp/claude-0/cov/jini/infra.results.json
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/shim-surface.test.ts > infra 0.3.3 shim surface > is an ESM-only shim with an optional database peer
+AssertionError: expected { '@jini-ai/db': '^0.7.0' } to deeply equal { '@jini-ai/db': '^0.6.10' }
+
+- Expected
++ Received
+
+  Object {
+-   "@jini-ai/db": "^0.6.10",
++   "@jini-ai/db": "^0.7.0",
+  }
+
+ ❯ src/__tests__/shim-surface.test.ts:39:39
+     37|     expect(manifest.scripts.build).toBe("tsc -p tsconfig.json");
+     38|     expect(JSON.stringify(manifest.exports)).not.toContain('"require"'…
+     39|     expect(manifest.peerDependencies).toEqual({ "@jini-ai/db": "^0.6.1…
+       |                                       ^
+     40|     expect(manifest.peerDependenciesMeta).toEqual({ "@jini-ai/db": { o…
+     41|     expect(manifest.devDependencies["@jini-ai/db"]).toBe("workspace:^"…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 13 passed (14)
+      Tests  1 failed | 143 passed (144)
+   Start at  01:12:28
+   Duration  18.16s (transform 868ms, setup 0ms, collect 3.00s, tests 14.51s, environment 3ms, prepare 2.09s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 571/571 )
+Branches     : 99.02% ( 304/307 )
+Functions    : 100% ( 97/97 )
+Lines        : 100% ( 571/571 )
+================================================================================
+ERROR: Coverage for branches (99.02%) does not meet global threshold (100%)
+infra exit 1 19s

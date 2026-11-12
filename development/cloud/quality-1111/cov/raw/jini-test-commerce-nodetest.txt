@@ -1,0 +1,330 @@
+TAP version 13
+# Subtest: a zero compare-at price is preserved in both directions rather than treated as absent
+ok 1 - a zero compare-at price is preserved in both directions rather than treated as absent
+  ---
+  duration_ms: 2.222077
+  type: 'test'
+  ...
+# Subtest: an absent compare-at price and billing interval use SQL null and decode as undefined
+ok 2 - an absent compare-at price and billing interval use SQL null and decode as undefined
+  ---
+  duration_ms: 0.439207
+  type: 'test'
+  ...
+# Subtest: checkout: snapshots the price as Money into a pending order whose total passes the payments kernel's moneyProblem
+ok 3 - checkout: snapshots the price as Money into a pending order whose total passes the payments kernel's moneyProblem
+  ---
+  duration_ms: 2.409962
+  type: 'test'
+  ...
+# Subtest: checkout: quantity defaults to 1
+ok 4 - checkout: quantity defaults to 1
+  ---
+  duration_ms: 1.829431
+  type: 'test'
+  ...
+# Subtest: checkout: refuses a quantity that is not an integer in 1..MAX_CHECKOUT_QUANTITY, writing nothing
+ok 5 - checkout: refuses a quantity that is not an integer in 1..MAX_CHECKOUT_QUANTITY, writing nothing
+  ---
+  duration_ms: 0.962806
+  type: 'test'
+  ...
+# Subtest: checkout: a missing or archived price is not found
+ok 6 - checkout: a missing or archived price is not found
+  ---
+  duration_ms: 0.313858
+  type: 'test'
+  ...
+# Subtest: checkout: a missing or archived product is not found
+ok 7 - checkout: a missing or archived product is not found
+  ---
+  duration_ms: 0.676243
+  type: 'test'
+  ...
+# Subtest: checkout: a line total past the safe-integer range is refused, never rounded
+ok 8 - checkout: a line total past the safe-integer range is refused, never rounded
+  ---
+  duration_ms: 0.376027
+  type: 'test'
+  ...
+# Subtest: orderTotal: sums same-currency lines with exact integer arithmetic
+ok 9 - orderTotal: sums same-currency lines with exact integer arithmetic
+  ---
+  duration_ms: 0.315588
+  type: 'test'
+  ...
+# Subtest: orderTotal: mixed currencies are refused with a typed error, never summed
+ok 10 - orderTotal: mixed currencies are refused with a typed error, never summed
+  ---
+  duration_ms: 0.455329
+  type: 'test'
+  ...
+# Subtest: orderTotal: a sum past the safe-integer range is refused with the typed validation error
+ok 11 - orderTotal: a sum past the safe-integer range is refused with the typed validation error
+  ---
+  duration_ms: 0.477513
+  type: 'test'
+  ...
+# Subtest: orderTotal: validates each line itself (public API) — quantity positive integer, unit amount normalized Money
+ok 12 - orderTotal: validates each line itself (public API) — quantity positive integer, unit amount normalized Money
+  ---
+  duration_ms: 1.421037
+  type: 'test'
+  ...
+# Subtest: commerce errors
+    # Subtest: instantiates CommerceProductNotFoundError as an Error
+    ok 1 - instantiates CommerceProductNotFoundError as an Error
+      ---
+      duration_ms: 2.601055
+      type: 'test'
+      ...
+    # Subtest: instantiates CommercePriceNotFoundError as an Error
+    ok 2 - instantiates CommercePriceNotFoundError as an Error
+      ---
+      duration_ms: 0.218048
+      type: 'test'
+      ...
+    # Subtest: instantiates CommerceOrderNotFoundError as an Error
+    ok 3 - instantiates CommerceOrderNotFoundError as an Error
+      ---
+      duration_ms: 0.267981
+      type: 'test'
+      ...
+    # Subtest: instantiates CommerceCheckoutValidationError with default and custom fieldErrors
+    ok 4 - instantiates CommerceCheckoutValidationError with default and custom fieldErrors
+      ---
+      duration_ms: 0.720543
+      type: 'test'
+      ...
+    # Subtest: instantiates CommerceProductSlugConflictError carrying the conflicting slug
+    ok 5 - instantiates CommerceProductSlugConflictError carrying the conflicting slug
+      ---
+      duration_ms: 0.237617
+      type: 'test'
+      ...
+    # Subtest: instantiates CommerceCurrencyMismatchError carrying both currencies
+    ok 6 - instantiates CommerceCurrencyMismatchError carrying both currencies
+      ---
+      duration_ms: 0.146373
+      type: 'test'
+      ...
+    1..6
+ok 13 - commerce errors
+  ---
+  duration_ms: 8.311318
+  type: 'suite'
+  ...
+# Subtest: restart with changed account/mode/origin preserves durable original scope and blocks new checkout
+ok 14 - restart with changed account/mode/origin preserves durable original scope and blocks new checkout
+  ---
+  duration_ms: 3.879938
+  type: 'test'
+  ...
+# Subtest: removing configuration during restart still reconstructs the original credential-free scope
+ok 15 - removing configuration during restart still reconstructs the original credential-free scope
+  ---
+  duration_ms: 0.281265
+  type: 'test'
+  ...
+# Subtest: restoring original settings enables checkout, and settled work permits a new selection
+ok 16 - restoring original settings enables checkout, and settled work permits a new selection
+  ---
+  duration_ms: 0.189489
+  type: 'test'
+  ...
+# Subtest: equivalent deployed origin spelling does not block an original account
+ok 17 - equivalent deployed origin spelling does not block an original account
+  ---
+  duration_ms: 0.117286
+  type: 'test'
+  ...
+# Subtest: removed configuration without pending work retains read access but disables new checkout
+ok 18 - removed configuration without pending work retains read access but disables new checkout
+  ---
+  duration_ms: 0.104016
+  type: 'test'
+  ...
+# Subtest: old non-replayable rows require original configuration instead of inventing callback URLs
+ok 19 - old non-replayable rows require original configuration instead of inventing callback URLs
+  ---
+  duration_ms: 0.089499
+  type: 'test'
+  ...
+# Subtest: price, order and order-item Money round-trips through the unchanged *_cents columns
+ok 20 - price, order and order-item Money round-trips through the unchanged *_cents columns
+  ---
+  duration_ms: 11.633733
+  type: 'test'
+  ...
+# Subtest: an order with no provider refs or event cursor writes SQL null and decodes as undefined
+ok 21 - an order with no provider refs or event cursor writes SQL null and decodes as undefined
+  ---
+  duration_ms: 0.226038
+  type: 'test'
+  ...
+# Subtest: legacy lowercase rows read back UPPERCASE
+ok 22 - legacy lowercase rows read back UPPERCASE
+  ---
+  duration_ms: 0.334738
+  type: 'test'
+  ...
+# Subtest: lowercase currency on write is normalized once, at the row boundary, and stored UPPERCASE
+ok 23 - lowercase currency on write is normalized once, at the row boundary, and stored UPPERCASE
+  ---
+  duration_ms: 0.197717
+  type: 'test'
+  ...
+# Subtest: a value that is not Money is refused on write, before any row is produced
+ok 24 - a value that is not Money is refused on write, before any row is produced
+  ---
+  duration_ms: 0.657329
+  type: 'test'
+  ...
+# Subtest: a compare-at amount in a different currency than the unit amount is refused with a typed error
+ok 25 - a compare-at amount in a different currency than the unit amount is refused with a typed error
+  ---
+  duration_ms: 0.312098
+  type: 'test'
+  ...
+# Subtest: a stored row whose currency is not an alpha-3 code fails loudly on read instead of returning non-Money
+ok 26 - a stored row whose currency is not an alpha-3 code fails loudly on read instead of returning non-Money
+  ---
+  duration_ms: 0.270554
+  type: 'test'
+  ...
+# Subtest: product and product-image rows map every column; NULL columns decode as undefined and specs round-trip as compact JSON
+ok 27 - product and product-image rows map every column; NULL columns decode as undefined and specs round-trip as compact JSON
+  ---
+  duration_ms: 0.382221
+  type: 'test'
+  ...
+# Subtest: webhook row preserves provider event identity, raw payload and independent occurrence and receipt times
+ok 28 - webhook row preserves provider event identity, raw payload and independent occurrence and receipt times
+  ---
+  duration_ms: 1.530021
+  type: 'test'
+  ...
+# Subtest: an unexpected payment-adapter failure propagates instead of reporting an unavailable runtime
+ok 29 - an unexpected payment-adapter failure propagates instead of reporting an unavailable runtime
+  ---
+  duration_ms: 1.149938
+  type: 'test'
+  ...
+# Subtest: an available runtime with no providers still exposes discovery and a fresh configuration snapshot
+ok 30 - an available runtime with no providers still exposes discovery and a fresh configuration snapshot
+  ---
+  duration_ms: 0.846457
+  type: 'test'
+  ...
+# Subtest: commerce status tool remains read-only
+ok 31 - commerce status tool remains read-only
+  ---
+  duration_ms: 1.236454
+  type: 'test'
+  ...
+# Subtest: commerce status tool refuses before entering provider code
+ok 32 - commerce status tool refuses before entering provider code
+  ---
+  duration_ms: 1.493415
+  type: 'test'
+  ...
+# Subtest: commerce status: truthful absence; available runtime only enables provider discovery
+ok 33 - commerce status: truthful absence; available runtime only enables provider discovery
+  ---
+  duration_ms: 0.501051
+  type: 'test'
+  ...
+# Subtest: commerce status: reports an honest unavailable snapshot when no payment runtime is composed
+ok 34 - commerce status: reports an honest unavailable snapshot when no payment runtime is composed
+  ---
+  duration_ms: 1.67313
+  type: 'test'
+  ...
+# Subtest: commerce status: preserves runtime provider declarations without promoting them to operational readiness
+ok 35 - commerce status: preserves runtime provider declarations without promoting them to operational readiness
+  ---
+  duration_ms: 0.597825
+  type: 'test'
+  ...
+# Subtest: pickDisplayPrice: returns null when no price is active
+ok 36 - pickDisplayPrice: returns null when no price is active
+  ---
+  duration_ms: 0.965768
+  type: 'test'
+  ...
+# Subtest: pickDisplayPrice: prefers a one-time price over a recurring one
+ok 37 - pickDisplayPrice: prefers a one-time price over a recurring one
+  ---
+  duration_ms: 0.195252
+  type: 'test'
+  ...
+# Subtest: pickDisplayPrice: among ties, picks the cheapest
+ok 38 - pickDisplayPrice: among ties, picks the cheapest
+  ---
+  duration_ms: 0.131191
+  type: 'test'
+  ...
+# Subtest: pickDisplayPrice: an archived price is never picked even if it's cheaper
+ok 39 - pickDisplayPrice: an archived price is never picked even if it's cheaper
+  ---
+  duration_ms: 0.098026
+  type: 'test'
+  ...
+# Subtest: toSiteProduct: maps name -> title, unitAmount.minorUnits -> price, compareAtAmount.minorUnits -> compareAtPrice, unitAmount.currency -> currency
+ok 40 - toSiteProduct: maps name -> title, unitAmount.minorUnits -> price, compareAtAmount.minorUnits -> compareAtPrice, unitAmount.currency -> currency
+  ---
+  duration_ms: 0.806752
+  type: 'test'
+  ...
+# Subtest: toSiteProduct: specs pass through unchanged, in author-chosen order -- safe because product.liquid renders spec.label/spec.value escaped (no `| raw`), unlike description
+ok 41 - toSiteProduct: specs pass through unchanged, in author-chosen order -- safe because product.liquid renders spec.label/spec.value escaped (no `| raw`), unlike description
+  ---
+  duration_ms: 4.584981
+  type: 'test'
+  ...
+# Subtest: toSiteProduct: specs is undefined, not an empty array, when the product has none
+ok 42 - toSiteProduct: specs is undefined, not an empty array, when the product has none
+  ---
+  duration_ms: 0.208284
+  type: 'test'
+  ...
+# Subtest: toSiteProduct: compareAtPrice is undefined, not present-but-null, when not on sale
+ok 43 - toSiteProduct: compareAtPrice is undefined, not present-but-null, when not on sale
+  ---
+  duration_ms: 0.141602
+  type: 'test'
+  ...
+# Subtest: toSiteProducts: a product with no active price is skipped, not thrown or rendered priceless
+ok 44 - toSiteProducts: a product with no active price is skipped, not thrown or rendered priceless
+  ---
+  duration_ms: 0.586393
+  type: 'test'
+  ...
+# Subtest: toSiteProducts: images/stock are absent from the mapped shape (not fabricated -- see file header)
+ok 45 - toSiteProducts: images/stock are absent from the mapped shape (not fabricated -- see file header)
+  ---
+  duration_ms: 1.347586
+  type: 'test'
+  ...
+# Subtest: toSiteProducts: description is absent from the mapped shape even when the source product has one -- product.liquid renders description via `| raw` (unescaped), and Commerce's description column has no HTML-sanitization contract (see file header); wiring it through here would be a live XSS hole the moment any text containing markup reaches it
+ok 46 - toSiteProducts: description is absent from the mapped shape even when the source product has one -- product.liquid renders description via `| raw` (unescaped), and Commerce's description column has no HTML-sanitization contract (see file header); wiring it through here would be a live XSS hole the moment any text containing markup reaches it
+  ---
+  duration_ms: 0.292257
+  type: 'test'
+  ...
+# Subtest: recurring-only products use the cheapest active price across billing intervals
+ok 47 - recurring-only products use the cheapest active price across billing intervals
+  ---
+  duration_ms: 0.223667
+  type: 'test'
+  ...
+1..47
+# tests 52
+# suites 1
+# pass 52
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2083.62918
+commerce-nodetest exit 0 2s

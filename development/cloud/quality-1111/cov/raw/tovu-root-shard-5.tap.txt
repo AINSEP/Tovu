@@ -516,3 +516,533 @@ ok 54 - a checklist's hint is rendered with the multi-select field it describes
   duration_ms: 73.699233
   type: 'test'
   ...
+# Subtest: a single call without items reaches the original handler untouched
+ok 55 - a single call without items reaches the original handler untouched
+  ---
+  duration_ms: 15.655437
+  type: 'test'
+  ...
+# Subtest: a batch runs every item in order with defaults < shared fields < the item's own fields
+ok 56 - a batch runs every item in order with defaults < shared fields < the item's own fields
+  ---
+  duration_ms: 2.189518
+  type: 'test'
+  ...
+# Subtest: a failing item does not stop the rest, and its error drops the appended schema
+ok 57 - a failing item does not stop the rest, and its error drops the appended schema
+  ---
+  duration_ms: 16.962569
+  type: 'test'
+  ...
+# Subtest: malformed items are refused with the exact message before any item runs
+ok 58 - malformed items are refused with the exact message before any item runs
+  ---
+  duration_ms: 2.01285
+  type: 'test'
+  ...
+# Subtest: a cancelled call stops before the next item
+ok 59 - a cancelled call stops before the next item
+  ---
+  duration_ms: 7.641953
+  type: 'test'
+  ...
+# Subtest: the published descriptor adds items and moves the top-level required list into its description
+ok 60 - the published descriptor adds items and moves the top-level required list into its description
+  ---
+  duration_ms: 0.431886
+  type: 'test'
+  ...
+# Subtest: a tool that already takes an 'items' field is refused at composition time
+ok 61 - a tool that already takes an 'items' field is refused at composition time
+  ---
+  duration_ms: 0.278676
+  type: 'test'
+  ...
+# Subtest: applyBatchInputs wraps only the listed tools and returns every other registration as the same object
+ok 62 - applyBatchInputs wraps only the listed tools and returns every other registration as the same object
+  ---
+  duration_ms: 0.363738
+  type: 'test'
+  ...
+# Subtest: a pure read with only optional selectors batches by default; native items stay unshadowed
+ok 63 - a pure read with only optional selectors batches by default; native items stay unshadowed
+  ---
+  duration_ms: 43.507632
+  type: 'test'
+  ...
+# Subtest: guard: every production pure read batches; other tools retain explicit write opt-outs
+ok 64 - guard: every production pure read batches; other tools retain explicit write opt-outs
+  ---
+  duration_ms: 1494.318708
+  type: 'test'
+  ...
+# Subtest: the real composition: every default batchable tool publishes items with its cap
+ok 65 - the real composition: every default batchable tool publishes items with its cap
+  ---
+  duration_ms: 1102.493696
+  type: 'test'
+  ...
+# Subtest: a theme batch validates every destination before writing, then reads the completed files
+ok 66 - a theme batch validates every destination before writing, then reads the completed files
+  ---
+  duration_ms: 113.956315
+  type: 'test'
+  ...
+# Subtest: approval runs per item, inside the batch: an item whose class asks is refused alone, the rest still run
+ok 67 - approval runs per item, inside the batch: an item whose class asks is refused alone, the rest still run
+  ---
+  duration_ms: 318.537883
+  type: 'test'
+  ...
+# Subtest: web fetch batches refuse screenshots from shared or item fields before rendering and continue other items
+ok 68 - web fetch batches refuse screenshots from shared or item fields before rendering and continue other items
+  ---
+  duration_ms: 5.700724
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: local theme asset plans retain completed effects, stop on refusal and accept a valid retry
+ok 69 - local theme asset plans retain completed effects, stop on refusal and accept a valid retry
+  ---
+  duration_ms: 318.650711
+  type: 'test'
+  ...
+# Subtest: launch permissions are read per site/owner and freshly on every turn
+ok 70 - launch permissions are read per site/owner and freshly on every turn
+  ---
+  duration_ms: 2.957627
+  type: 'test'
+  ...
+# Subtest: a missing owner snapshot preserves the existing boolean; failures and malformed snapshots deny all
+ok 71 - a missing owner snapshot preserves the existing boolean; failures and malformed snapshots deny all
+  ---
+  duration_ms: 0.881902
+  type: 'test'
+  ...
+# Subtest: the real composition publishes exactly the 32 content_read cards
+ok 72 - the real composition publishes exactly the 32 content_read cards
+  ---
+  duration_ms: 1706.346183
+  type: 'test'
+  ...
+# Subtest: content_read.menu publishes optional canonical id and documents its legacy selector
+ok 73 - content_read.menu publishes optional canonical id and documents its legacy selector
+  ---
+  duration_ms: 1182.001834
+  type: 'test'
+  ...
+# Subtest: the execution gate accepts canonical and legacy menu selectors and rejects conflicts before reading
+ok 74 - the execution gate accepts canonical and legacy menu selectors and rejects conflicts before reading
+  ---
+  duration_ms: 1688.992325
+  type: 'test'
+  ...
+# Subtest: canonical selector guidance covers get-only and list-lookup cards without changing canonical-id cards
+ok 75 - canonical selector guidance covers get-only and list-lookup cards without changing canonical-id cards
+  ---
+  duration_ms: 419.447966
+  type: 'test'
+  ...
+# Subtest: not one of the 41 retired Tier-1 read ids survives into the collapsed catalog
+ok 76 - not one of the 41 retired Tier-1 read ids survives into the collapsed catalog
+  ---
+  duration_ms: 583.381491
+  type: 'test'
+  ...
+# Subtest: the collapse is a net -9: 41 member tools become 32 cards, and nothing else changes count
+ok 77 - the collapse is a net -9: 41 member tools become 32 cards, and nothing else changes count
+  ---
+  duration_ms: 1340.523595
+  type: 'test'
+  ...
+# Subtest: includeContentReadCollapse:false reconstructs the true PRE-collapse catalog — the eval's baseline depends on it
+ok 78 - includeContentReadCollapse:false reconstructs the true PRE-collapse catalog — the eval's baseline depends on it
+  ---
+  duration_ms: 527.20961
+  type: 'test'
+  ...
+# Subtest: RETIRED_READ_TOOL_TO_CARD is the single authority, and covers every retired id exactly once
+ok 79 - RETIRED_READ_TOOL_TO_CARD is the single authority, and covers every retired id exactly once
+  ---
+  duration_ms: 1.190228
+  type: 'test'
+  ...
+# Subtest: every retired member's SEARCH VOCABULARY survives into its card's indexed description
+ok 80 - every retired member's SEARCH VOCABULARY survives into its card's indexed description
+  ---
+  duration_ms: 1081.296266
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# Subtest: complete production catalog classifies every reader and exercises every scoped read on B
+ok 81 - complete production catalog classifies every reader and exercises every scoped read on B
+  ---
+  duration_ms: 21459.720883
+  type: 'test'
+  ...
+# 63 cross-site tools, 91 EXCLUDED tools
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: settings reads refuse another site: they would hand back its provider configuration (core.comments.provider, core.mail.provider)
+ok 82 - settings reads refuse another site: they would hand back its provider configuration (core.comments.provider, core.mail.provider)
+  ---
+  duration_ms: 3441.586593
+  type: 'test'
+  ...
+# Subtest: mixed-scope card does not advertise a site supported by only one dispatch branch
+ok 83 - mixed-scope card does not advertise a site supported by only one dispatch branch
+  ---
+  duration_ms: 1.076302
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: reviewed baseline pins registry guidance and scoped schema; hermetic roots have no generic site input
+ok 84 - reviewed baseline pins registry guidance and scoped schema; hermetic roots have no generic site input
+  ---
+  duration_ms: 1958.15137
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: form provider inventory stays available on the active site without opening a peer
+ok 85 - form provider inventory stays available on the active site without opening a peer
+  ---
+  duration_ms: 3872.183861
+  type: 'test'
+  ...
+# Subtest: ROUTE: an unknown tool id (the executor throws) reaches the model as its real reason, not a bare 500
+ok 86 - ROUTE: an unknown tool id (the executor throws) reaches the model as its real reason, not a bare 500
+  ---
+  duration_ms: 18.594635
+  type: 'test'
+  ...
+# Subtest: ROUTE: a tool that runs past its timeout says it timed out
+ok 87 - ROUTE: a tool that runs past its timeout says it timed out
+  ---
+  duration_ms: 174.502015
+  type: 'test'
+  ...
+# Subtest: ROUTE: a call abandoned before it ran says it was cancelled
+ok 88 - ROUTE: a call abandoned before it ran says it was cancelled
+  ---
+  duration_ms: 2.360789
+  type: 'test'
+  ...
+# Subtest: ROUTE: a resolvePrincipal throw carries its reason, with secret-shaped values blanked
+ok 89 - ROUTE: a resolvePrincipal throw carries its reason, with secret-shaped values blanked
+  ---
+  duration_ms: 0.696874
+  type: 'test'
+  ...
+# Subtest: ROUTE: a failed result that skipped the redaction layer is redacted here instead of becoming a bare 500
+ok 90 - ROUTE: a failed result that skipped the redaction layer is redacted here instead of becoming a bare 500
+  ---
+  duration_ms: 1.056152
+  type: 'test'
+  ...
+# Subtest: ROUTE: a failure the redaction layer already ID-tagged keeps its 422 TOOL_EXECUTION_FAILED
+ok 91 - ROUTE: a failure the redaction layer already ID-tagged keeps its 422 TOOL_EXECUTION_FAILED
+  ---
+  duration_ms: 4.527381
+  type: 'test'
+  ...
+# Subtest: describeDelegatedInternalError: a non-Error, empty-message, or missing error falls back to naming the tool
+ok 92 - describeDelegatedInternalError: a non-Error, empty-message, or missing error falls back to naming the tool
+  ---
+  duration_ms: 0.609933
+  type: 'test'
+  ...
+# Subtest: describeDelegatedInternalError: the server-side record correlates to http-kit's own log line
+ok 93 - describeDelegatedInternalError: the server-side record correlates to http-kit's own log line
+  ---
+  duration_ms: 0.379986
+  type: 'test'
+  ...
+# Subtest: no production file under src/{analytics,features,identity,media,navigation,origin,seo,widgets}/ value-imports from src/assistant/ (type-only ToolContributor imports are fine)
+ok 94 - no production file under src/{analytics,features,identity,media,navigation,origin,seo,widgets}/ value-imports from src/assistant/ (type-only ToolContributor imports are fine)
+  ---
+  duration_ms: 14010.164682
+  type: 'test'
+  ...
+# Subtest: plugin sign-in defaults and token persistence receive assistant effects from the host
+ok 95 - plugin sign-in defaults and token persistence receive assistant effects from the host
+  ---
+  duration_ms: 20.319427
+  type: 'test'
+  ...
+# Subtest: the boundary sees each runtime syntax and exempts only type-only edges
+ok 96 - the boundary sees each runtime syntax and exempts only type-only edges
+  ---
+  duration_ms: 25.055297
+  type: 'test'
+  ...
+# Subtest: plugin production services cross feature boundaries only through injected ports
+ok 97 - plugin production services cross feature boundaries only through injected ports
+  ---
+  duration_ms: 1122.552636
+  type: 'test'
+  ...
+# Subtest: plugin boundary rejects every runtime spelling, including mixed types and re-exports
+ok 98 - plugin boundary rejects every runtime spelling, including mixed types and re-exports
+  ---
+  duration_ms: 4.279688
+  type: 'test'
+  ...
+# Subtest: Agent Plugins reject assistant types while plugin-runtime permits type-only contracts
+ok 99 - Agent Plugins reject assistant types while plugin-runtime permits type-only contracts
+  ---
+  duration_ms: 4.318701
+  type: 'test'
+  ...
+# Subtest: plugin boundary preserves owned modules, shared contracts, pure platform helpers and dependencies
+ok 100 - plugin boundary preserves owned modules, shared contracts, pure platform helpers and dependencies
+  ---
+  duration_ms: 1.596282
+  type: 'test'
+  ...
+# [assistant-byok] mcp-federation: 'hosted' registered 1 federated tool(s): mcp__hosted__echo
+# [assistant-byok] mcp-federation: 'hosted' admitted WRITE tool 'echo' (operator-authorized)
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: roster change before first chat admits on the server
+ok 101 - roster change before first chat admits on the server
+  ---
+  duration_ms: 854.704722
+  type: 'test'
+  ...
+# Subtest: reload() before start() never reads the roster and resolves an empty result
+ok 102 - reload() before start() never reads the roster and resolves an empty result
+  ---
+  duration_ms: 1.713064
+  type: 'test'
+  ...
+# [test] mcp-federation: 'x' failed, continuing without its tools — Error: connect timed out after 15000ms
+#     at connect (/home/user/Tovu/apps/website/src/assistant/__tests__/external-mcp-federation-runtime.test.ts:345:13)
+#     at connect (/home/user/Tovu/apps/website/src/assistant/mcp-federation/bootstrap.ts:199:34)
+#     at attachOneFederatedConnection (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:300:21)
+#     at attachFederatedMcpTools (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:199:28)
+#     at attachFederatedMcpTools (/home/user/Tovu/apps/website/src/assistant/mcp-federation/bootstrap.ts:194:24)
+#     at runStart (/home/user/Tovu/apps/website/src/assistant/external-mcp-federation-runtime.ts:138:30)
+#     at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/external-mcp-federation-runtime.test.ts:349:3)
+#     at async Test.run (node:internal/test_runner/test:1409:7)
+#     at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+# [test] mcp-federation: boot pass failed, continuing without federated tools — roster read failed
+# [test] mcp-federation: boot pass failed, continuing without federated tools — installed-extension registration failed
+# [test] mcp-federation: boot pass failed, continuing without federated tools — roster read failed
+# Subtest: start() called twice calls attach exactly once — single-flight and idempotent
+ok 103 - start() called twice calls attach exactly once — single-flight and idempotent
+  ---
+  duration_ms: 4.681588
+  type: 'test'
+  ...
+# Subtest: start() awaits `after` before calling attach
+ok 104 - start() awaits `after` before calling attach
+  ---
+  duration_ms: 0.453627
+  type: 'test'
+  ...
+# Subtest: a reload that admits a new connection calls onAdmitted once and recomputes refusalPrefix()
+ok 105 - a reload that admits a new connection calls onAdmitted once and recomputes refusalPrefix()
+  ---
+  duration_ms: 0.799592
+  type: 'test'
+  ...
+# Subtest: a no-op reload (nothing new in the roster) never calls onAdmitted
+ok 106 - a no-op reload (nothing new in the roster) never calls onAdmitted
+  ---
+  duration_ms: 0.372504
+  type: 'test'
+  ...
+# Subtest: the logger prints the daemon's exact byte-identical line, prefixed with the caller's own log tag
+ok 107 - the logger prints the daemon's exact byte-identical line, prefixed with the caller's own log tag
+  ---
+  duration_ms: 1.031043
+  type: 'test'
+  ...
+# Subtest: a reload merges its reports onto the boot pass's and never re-admits a boot connection
+ok 108 - a reload merges its reports onto the boot pass's and never re-admits a boot connection
+  ---
+  duration_ms: 0.558523
+  type: 'test'
+  ...
+# Subtest: reload() called while start() is in flight waits for the boot pass before settling
+ok 109 - reload() called while start() is in flight waits for the boot pass before settling
+  ---
+  duration_ms: 0.380628
+  type: 'test'
+  ...
+# Subtest: the logger prefixes warnings with the caller's own log tag too
+ok 110 - the logger prefixes warnings with the caller's own log tag too
+  ---
+  duration_ms: 0.955671
+  type: 'test'
+  ...
+# Subtest: a connect failure at boot is reported by connectFailures(), with reports() left untouched
+ok 111 - a connect failure at boot is reported by connectFailures(), with reports() left untouched
+  ---
+  duration_ms: 4.438627
+  type: 'test'
+  ...
+# Subtest: a reload's own connect failure is merged onto connectFailures() even though nothing was newly admitted
+ok 112 - a reload's own connect failure is merged onto connectFailures() even though nothing was newly admitted
+  ---
+  duration_ms: 0.820737
+  type: 'test'
+  ...
+# Subtest: a connection that failed at boot and then admits on a reload is no longer listed in connectFailures()
+ok 113 - a connection that failed at boot and then admits on a reload is no longer listed in connectFailures()
+  ---
+  duration_ms: 0.565734
+  type: 'test'
+  ...
+# Subtest: a boot pass whose resolveConnections() rejects still settles: start() resolves and started becomes true, not stuck false forever
+ok 114 - a boot pass whose resolveConnections() rejects still settles: start() resolves and started becomes true, not stuck false forever
+  ---
+  duration_ms: 0.376628
+  type: 'test'
+  ...
+# Subtest: a boot pass whose 'after' rejects also settles rather than leaving started() false forever
+ok 115 - a boot pass whose 'after' rejects also settles rather than leaving started() false forever
+  ---
+  duration_ms: 0.265998
+  type: 'test'
+  ...
+# Subtest: a failed boot pass logs the underlying error instead of swallowing it silently
+ok 116 - a failed boot pass logs the underlying error instead of swallowing it silently
+  ---
+  duration_ms: 0.275889
+  type: 'test'
+  ...
+# Subtest: reload() after a failed boot resolves an empty no-op result rather than hanging or throwing
+ok 117 - reload() after a failed boot resolves an empty no-op result rather than hanging or throwing
+  ---
+  duration_ms: 0.617038
+  type: 'test'
+  ...
+# Subtest: configuredConnectionIds() is undefined before resolveConnections() resolves, then the resolved roster's ids once known
+ok 118 - configuredConnectionIds() is undefined before resolveConnections() resolves, then the resolved roster's ids once known
+  ---
+  duration_ms: 0.330372
+  type: 'test'
+  ...
+# Subtest: a connection that fails again on every reload is listed once, with its latest reason
+ok 119 - a connection that fails again on every reload is listed once, with its latest reason
+  ---
+  duration_ms: 0.312843
+  type: 'test'
+  ...
+# Subtest: a boot pass rejecting with a non-Error value logs that raw value and still settles
+ok 120 - a boot pass rejecting with a non-Error value logs that raw value and still settles
+  ---
+  duration_ms: 0.280913
+  type: 'test'
+  ...
+# Subtest: every registered image-returning viewer is excluded from batching
+ok 121 - every registered image-returning viewer is excluded from batching
+  ---
+  duration_ms: 1.679303
+  type: 'test'
+  ...
+# Subtest: G3 admission: a destructiveHint tool on the operator allowlist is admitted behind a destructive confirmation
+ok 122 - G3 admission: a destructiveHint tool on the operator allowlist is admitted behind a destructive confirmation
+  ---
+  duration_ms: 19.35165
+  type: 'test'
+  ...
+# Subtest: G3 admission: a ordinary write remains admitted without a card
+ok 123 - G3 admission: a ordinary write remains admitted without a card
+  ---
+  duration_ms: 0.510187
+  type: 'test'
+  ...
+# Subtest: G3 admission: a tool without hints is admitted without a card but gains no read-only permission
+ok 124 - G3 admission: a tool without hints is admitted without a card but gains no read-only permission
+  ---
+  duration_ms: 5.572206
+  type: 'test'
+  ...
+# Subtest: G3 admission: a server-marked read-only tool runs with no confirmation
+ok 125 - G3 admission: a server-marked read-only tool runs with no confirmation
+  ---
+  duration_ms: 0.264433
+  type: 'test'
+  ...
+# Subtest: G3 admission: readOnlyHint:true cannot cancel destructiveHint:true — hints only add friction
+ok 126 - G3 admission: readOnlyHint:true cannot cancel destructiveHint:true — hints only add friction
+  ---
+  duration_ms: 0.146035
+  type: 'test'
+  ...
+# Subtest: G3 admission: a destructive tool NOT on the operator allowlist stays refused, reason not-in-operator-allowlist
+ok 127 - G3 admission: a destructive tool NOT on the operator allowlist stays refused, reason not-in-operator-allowlist
+  ---
+  duration_ms: 1.082215
+  type: 'test'
+  ...
+# Subtest: G3 per-call grants: an allowlisted destructive tool needs 'may write'; removed from the allowlist it is refused
+ok 128 - G3 per-call grants: an allowlisted destructive tool needs 'may write'; removed from the allowlist it is refused
+  ---
+  duration_ms: 0.316555
+  type: 'test'
+  ...
+# Subtest: G3 card: an unconfirmed call never reaches the remote — nothing is sent while the card waits, one call after Confirm
+ok 129 - G3 card: an unconfirmed call never reaches the remote — nothing is sent while the card waits, one call after Confirm
+  ---
+  duration_ms: 56.732991
+  type: 'test'
+  ...
+# Subtest: G3 card: Cancel sends nothing and tells the model in words
+ok 130 - G3 card: Cancel sends nothing and tells the model in words
+  ---
+  duration_ms: 4.023879
+  type: 'test'
+  ...
+# Subtest: G3 card: an expired card sends nothing and says it expired
+ok 131 - G3 card: an expired card sends nothing and says it expired
+  ---
+  duration_ms: 27.64761
+  type: 'test'
+  ...

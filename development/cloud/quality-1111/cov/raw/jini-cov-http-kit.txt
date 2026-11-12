@@ -1,0 +1,70 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/http-kit
+      Coverage enabled with v8
+
+ ✓ src/__tests__/rate-limit.test.ts (31 tests) 59ms
+ ✓ src/__tests__/api-security-middleware.test.ts (57 tests) 140ms
+stderr | src/__tests__/adapter.test.ts > http adapter > leaves no dangling close listener after a route that throws
+[@jini-ai/http-kit] internal error (GET /boom-cleanup, correlationId=10b797d3-3919-4baa-9625-1a511b7ed901) Error: boom
+    at Object.handle (/home/user/Jini/packages/http-kit/src/__tests__/adapter.test.ts:340:15)
+    at Object.GET /boom-cleanup (/home/user/Jini/packages/http-kit/src/adapter.ts:135:33)
+    at /home/user/Jini/packages/http-kit/src/__tests__/adapter.test.ts:347:43
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ ✓ src/__tests__/adapter.test.ts (16 tests) 200ms
+ ✓ src/__tests__/origin-validation.test.ts (69 tests) 31ms
+ ✓ src/__tests__/sse.test.ts (29 tests) 70ms
+ ✓ src/__tests__/adapter-pins.test.ts (21 tests) 73ms
+ ✓ src/__tests__/verified-origin-registry.test.ts (29 tests) 33ms
+ ✓ src/__tests__/local-daemon-request.test.ts (61 tests) 35ms
+ ✓ src/__tests__/raw-sse.test.ts (19 tests) 640ms
+   ✓ createSseResponse — client-disconnect detection over a real socket > keeps the stream open while a bodyless GET client stays connected 313ms
+   ✓ createSseResponse — client-disconnect detection over a real socket > closes the stream when the client actually disconnects 306ms
+ ✓ src/__tests__/verified-origin-configured.test.ts (24 tests) 7ms
+ ✓ src/__tests__/verified-origin-site-path.test.ts (36 tests) 7ms
+ ✓ src/__tests__/loopback-guards.negative.test.ts (73 tests) 45ms
+ ✓ src/__tests__/route-registration-guard.test.ts (15 tests) 9ms
+ ✓ src/__tests__/verified-origin.hostile.test.ts (36 tests) 21ms
+ ✓ src/__tests__/adapter-ports.test.ts (8 tests) 11ms
+ ✓ src/__tests__/observability.test.ts (19 tests) 55ms
+ ✓ src/__tests__/verified-origin-branches.test.ts (8 tests) 10ms
+ ✓ src/__tests__/body-size-limit.test.ts (7 tests) 4ms
+ ✓ src/__tests__/html-response.test.ts (4 tests) 259ms
+ ✓ src/__tests__/pack-http.test.ts (4 tests) 55ms
+ ✓ src/__tests__/http-error-log-redaction.test.ts (24 tests) 5807ms
+   ✓ HTTP exception logging class guard > requires the shared redactor at every exception log in HTTP packages 3558ms
+   ✓ HTTP exception logging class guard > requires shared redaction for caught errors across the remaining packages 2173ms
+ ✓ src/__tests__/local-daemon-request-pins.test.ts (37 tests) 25ms
+ ✓ src/__tests__/verified-origin-normalize.test.ts (13 tests) 16ms
+ ✓ src/__tests__/origin.test.ts (4 tests) 17ms
+ ✓ src/__tests__/verified-origin-repo.test.ts (5 tests) 8ms
+ ✓ src/__tests__/compat.test.ts (5 tests) 7ms
+ ✓ src/__tests__/index.test.ts (16 tests) 13ms
+ ✓ src/__tests__/verified-origin-allowlist-boundaries.unit.test.ts (10 tests) 7ms
+ ✓ src/__tests__/response.test.ts (4 tests) 8ms
+ ✓ src/__tests__/request.test.ts (4 tests) 4ms
+JSON report written to /tmp/claude-0/cov/jini/http-kit.results.json
+
+ Test Files  30 passed (30)
+      Tests  688 passed (688)
+   Start at  01:12:48
+   Duration  16.17s (transform 2.17s, setup 0ms, collect 7.69s, tests 7.68s, environment 6ms, prepare 4.25s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.9% ( 1013/1014 )
+Branches     : 98.78% ( 570/577 )
+Functions    : 100% ( 130/130 )
+Lines        : 99.9% ( 1013/1014 )
+================================================================================
+ERROR: Coverage for lines (99.9%) does not meet global threshold (100%)
+ERROR: Coverage for statements (99.9%) does not meet global threshold (100%)
+ERROR: Coverage for branches (98.78%) does not meet global threshold (100%)
+http-kit exit 1 17s

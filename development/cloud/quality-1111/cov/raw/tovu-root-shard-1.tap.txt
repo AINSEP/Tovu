@@ -27104,3 +27104,2473 @@ ok 2829 - [unrun] redirects [sqlite]: an invalid status code is 400 VALIDATION_E
   duration_ms: 6144.548573
   type: 'test'
   ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# Subtest: [unrun] redirects [pglite]: a rule written through the admin API is persisted, listed, and served by the live site
+ok 2830 - [unrun] redirects [pglite]: a rule written through the admin API is persisted, listed, and served by the live site
+  ---
+  duration_ms: 40621.681272
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# Subtest: [unrun] redirects [pglite]: PATCH changes the served status code; a second exact rule for the same path is 409 REDIRECT_CONFLICT
+ok 2831 - [unrun] redirects [pglite]: PATCH changes the served status code; a second exact rule for the same path is 409 REDIRECT_CONFLICT
+  ---
+  duration_ms: 31039.789311
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# Subtest: [unrun] redirects [pglite]: DELETE moves the rule to the Trash and the site stops redirecting; restoring it from the Trash brings the redirect back
+ok 2832 - [unrun] redirects [pglite]: DELETE moves the rule to the Trash and the site stops redirecting; restoring it from the Trash brings the redirect back
+  ---
+  duration_ms: 29666.973398
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# Subtest: [unrun] redirects [pglite]: an invalid status code is 400 VALIDATION_ERROR and writes nothing
+ok 2833 - [unrun] redirects [pglite]: an invalid status code is 400 VALIDATION_ERROR and writes nothing
+  ---
+  duration_ms: 32795.8783
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: [unrun] taxonomy [sqlite]: a hierarchical taxonomy, a parent and a child term persist and list with their parent link; rename bumps the version
+ok 2834 - [unrun] taxonomy [sqlite]: a hierarchical taxonomy, a parent and a child term persist and list with their parent link; rename bumps the version
+  ---
+  duration_ms: 6038.780466
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: [unrun] taxonomy [sqlite]: parent refusals — non-hierarchical, unknown parent, cross-taxonomy parent — are 400 VALIDATION_ERROR and write nothing
+ok 2835 - [unrun] taxonomy [sqlite]: parent refusals — non-hierarchical, unknown parent, cross-taxonomy parent — are 400 VALIDATION_ERROR and write nothing
+  ---
+  duration_ms: 4586.790365
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: [unrun] taxonomy [sqlite]: a parent term with a child is refused 409 TERM_HAS_CHILDREN; trashing the child first then the parent succeeds
+ok 2836 - [unrun] taxonomy [sqlite]: a parent term with a child is refused 409 TERM_HAS_CHILDREN; trashing the child first then the parent succeeds
+  ---
+  duration_ms: 4147.823694
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: [unrun] taxonomy [sqlite]: terms assigned to a post are hidden while the term is trashed and come back assigned after restore
+ok 2837 - [unrun] taxonomy [sqlite]: terms assigned to a post are hidden while the term is trashed and come back assigned after restore
+  ---
+  duration_ms: 3317.130919
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: [unrun] taxonomy [sqlite]: DELETE taxonomy moves it to the Trash and hides it with its terms; restore brings both back
+ok 2838 - [unrun] taxonomy [sqlite]: DELETE taxonomy moves it to the Trash and hides it with its terms; restore brings both back
+  ---
+  duration_ms: 2748.796839
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# Subtest: [unrun] taxonomy [pglite]: a hierarchical taxonomy, a parent and a child term persist and list with their parent link; rename bumps the version
+ok 2839 - [unrun] taxonomy [pglite]: a hierarchical taxonomy, a parent and a child term persist and list with their parent link; rename bumps the version
+  ---
+  duration_ms: 21193.134328
+  type: 'test'
+  ...

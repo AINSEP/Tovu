@@ -11652,3 +11652,69 @@ ok 1674 - B hard interruption restored reconciles under locks: inSite
   duration_ms: 31633.773399
   type: 'test'
   ...
+# Subtest: B hard interruption before-register reconciles under locks: inSite
+ok 1675 - B hard interruption before-register reconciles under locks: inSite
+  ---
+  duration_ms: 33628.174262
+  type: 'test'
+  ...
+# Subtest: B hard interruption registered reconciles under locks: inSite
+ok 1676 - B hard interruption registered reconciles under locks: inSite
+  ---
+  duration_ms: 24489.247986
+  type: 'test'
+  ...
+# Subtest: B hard interruption allocated reconciles under locks: appData
+ok 1677 - B hard interruption allocated reconciles under locks: appData
+  ---
+  duration_ms: 27489.979471
+  type: 'test'
+  ...
+# Subtest: B hard interruption restored reconciles under locks: appData
+ok 1678 - B hard interruption restored reconciles under locks: appData
+  ---
+  duration_ms: 29993.615626
+  type: 'test'
+  ...
+# Subtest: B hard interruption before-register reconciles under locks: appData
+ok 1679 - B hard interruption before-register reconciles under locks: appData
+  ---
+  duration_ms: 26711.298724
+  type: 'test'
+  ...
+# Subtest: B hard interruption registered reconciles under locks: appData
+ok 1680 - B hard interruption registered reconciles under locks: appData
+  ---
+  duration_ms: 22428.260987
+  type: 'test'
+  ...
+# Subtest: verified media moves only after hash checks, and conflicting destination claims refuse
+ok 1681 - verified media moves only after hash checks, and conflicting destination claims refuse
+  ---
+  duration_ms: 18.297781
+  type: 'test'
+  ...
+# Subtest: two media items sharing exact bytes may share the recipient blob
+ok 1682 - two media items sharing exact bytes may share the recipient blob
+  ---
+  duration_ms: 2.865835
+  type: 'test'
+  ...
+# Subtest: L3 local: share/import preserves private documents and deduplicates blobs
+ok 1683 - L3 local: share/import preserves private documents and deduplicates blobs
+  ---
+  duration_ms: 15873.378787
+  type: 'test'
+  ...
+# Subtest: L3 s3: share/import preserves private documents and deduplicates blobs
+ok 1684 - L3 s3: share/import preserves private documents and deduplicates blobs
+  ---
+  duration_ms: 10826.114058
+  type: 'test'
+  ...
+# Subtest: L3 import explicitly rejects missing document before creating a site
+ok 1685 - L3 import explicitly rejects missing document before creating a site
+  ---
+  duration_ms: 9945.014034
+  type: 'test'
+  ...

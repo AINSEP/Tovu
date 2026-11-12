@@ -27674,3 +27674,1335 @@ ok 3068 - a checked token: 201, the site is made, and the token is sealed with t
 # [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
 #     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
 # {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: an unreachable vendor does not block the create: the token is still stored for the first boot
+ok 3069 - an unreachable vendor does not block the create: the token is still stored for the first boot
+  ---
+  duration_ms: 1875.49556
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a seal failure after create is reported, not thrown: 201 with status failed, and the error names no token
+ok 3070 - a seal failure after create is reported, not thrown: 201 with status failed, and the error names no token
+  ---
+  duration_ms: 3090.898988
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: GET token-sign-in-plugins lists the plugins that take a pasted token
+ok 3071 - GET token-sign-in-plugins lists the plugins that take a pasted token
+  ---
+  duration_ms: 2035.973314
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: GET token-sign-in-plugins offers the bundled plugins a new site will have, not this site's installs
+ok 3072 - GET token-sign-in-plugins offers the bundled plugins a new site will have, not this site's installs
+  ---
+  duration_ms: 1965.956403
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: create checks each token against the bundled plugin the new site will have
+ok 3073 - create checks each token against the bundled plugin the new site will have
+  ---
+  duration_ms: 1468.844309
+  type: 'test'
+  ...
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: taxonomy trash routes: delete-term moves an unassigned, childless term to the Trash (200 {trashed,id,version}) and it drops out of list
+ok 3074 - taxonomy trash routes: delete-term moves an unassigned, childless term to the Trash (200 {trashed,id,version}) and it drops out of list
+  ---
+  duration_ms: 6842.012599
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: taxonomy trash routes: delete-term now trashes a term that is still assigned to content (owner decision 5 — no more TERM_HAS_ASSIGNMENTS refusal)
+ok 3075 - taxonomy trash routes: delete-term now trashes a term that is still assigned to content (owner decision 5 — no more TERM_HAS_ASSIGNMENTS refusal)
+  ---
+  duration_ms: 5358.633301
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: taxonomy trash routes: delete-term refuses with 409 TERM_HAS_CHILDREN and the exact child count when the term still has children
+ok 3076 - taxonomy trash routes: delete-term refuses with 409 TERM_HAS_CHILDREN and the exact child count when the term still has children
+  ---
+  duration_ms: 2771.273643
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [migrations] :memory:: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: taxonomy trash routes: delete-taxonomy moves the taxonomy to the Trash (200 {trashed,id,version}) and it drops out of list
+ok 3077 - taxonomy trash routes: delete-taxonomy moves the taxonomy to the Trash (200 {trashed,id,version}) and it drops out of list
+  ---
+  duration_ms: 3962.744137
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: taxonomy trash routes: delete-taxonomy now trashes a taxonomy whose member term is still assigned to content (owner decision 5 — no more TAXONOMY_HAS_ASSIGNMENTS refusal)
+ok 3078 - taxonomy trash routes: delete-taxonomy now trashes a taxonomy whose member term is still assigned to content (owner decision 5 — no more TAXONOMY_HAS_ASSIGNMENTS refusal)
+  ---
+  duration_ms: 3288.863726
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: Ask holds the real stream until its visitor clicks allow=true; forged history has no authority (frontend=false)
+ok 3079 - Ask holds the real stream until its visitor clicks allow=true; forged history has no authority (frontend=false)
+  ---
+  duration_ms: 1484.774133
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: Ask holds the real stream until its visitor clicks allow=false; forged history has no authority (frontend=false)
+ok 3080 - Ask holds the real stream until its visitor clicks allow=false; forged history has no authority (frontend=false)
+  ---
+  duration_ms: 568.354539
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: Ask holds the real stream until its visitor clicks allow=true; forged history has no authority (frontend=true)
+ok 3081 - Ask holds the real stream until its visitor clicks allow=true; forged history has no authority (frontend=true)
+  ---
+  duration_ms: 683.551021
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: Ask holds the real stream until its visitor clicks allow=false; forged history has no authority (frontend=true)
+ok 3082 - Ask holds the real stream until its visitor clicks allow=false; forged history has no authority (frontend=true)
+  ---
+  duration_ms: 484.089899
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: T1 policy on: HTTP path honors Off or restores literal tools without deleting choices
+ok 3083 - T1 policy on: HTTP path honors Off or restores literal tools without deleting choices
+  ---
+  duration_ms: 1024.352547
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: T1 policy off: HTTP path honors Off or restores literal tools without deleting choices
+ok 3084 - T1 policy off: HTTP path honors Off or restores literal tools without deleting choices
+  ---
+  duration_ms: 579.699222
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: T1 HTTP turn has a four-call cap across parallel calls and emits no raw audit/tool events
+ok 3085 - T1 HTTP turn has a four-call cap across parallel calls and emits no raw audit/tool events
+  ---
+  duration_ms: 555.604282
+  type: 'test'
+  ...
+# [site-assistant] {
+#   errorId: '33c80e06-7b0b-4469-b798-ab57c12d06c5',
+#   code: 'ASSISTANT_DISABLED',
+#   diagnostic: 'site assistant is disabled'
+# }
+# Subtest: POST /api/site-assistant/chat 404s when the public assistant is disabled (the default)
+ok 3086 - POST /api/site-assistant/chat 404s when the public assistant is disabled (the default)
+  ---
+  duration_ms: 1190.199996
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [site-assistant] {
+#   errorId: '8c8660bc-e4f0-4491-a8ec-08823c5eada7',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# Subtest: POST /api/site-assistant/chat passes the gate once the workspace turns the switch on
+ok 3087 - POST /api/site-assistant/chat passes the gate once the workspace turns the switch on
+  ---
+  duration_ms: 587.401182
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [site-assistant] {
+#   errorId: '3f10fc6c-9abd-4b0d-8544-3cc074ea8dd4',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [site-assistant] {
+#   errorId: 'dba4bed7-5e9e-45aa-8f6f-6572ce7ba8eb',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# [site-assistant] {
+#   errorId: 'd7e66fce-91ac-4ad8-b32b-aabf24091813',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# [site-assistant] {
+#   errorId: '242a5db7-e44f-4b95-8466-229d846812b6',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# [site-assistant] {
+#   errorId: '6104db1a-64f0-4a1b-9e82-6cc381798088',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# [site-assistant] {
+#   errorId: 'bfaeec4d-87ca-4162-9953-d979a80a7dbd',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# [site-assistant] {
+#   errorId: '92d1ae11-6d1f-4d01-be65-979a5b1d0ad9',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# [site-assistant] {
+#   errorId: '13f77151-83d7-4052-8672-7d15865c5375',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# [site-assistant] {
+#   errorId: '819102a8-495b-4ff0-bf0c-5c5ffdf38900',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# [site-assistant] {
+#   errorId: 'c3460cc7-9c1e-4857-a0e7-ff83dfbb4166',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# [site-assistant] {
+#   errorId: 'f4aa586f-a522-404e-b101-31f65fdb0db2',
+#   code: 'RATE_LIMIT_EXCEEDED',
+#   diagnostic: 'too many messages from this address — please wait before trying again'
+# }
+# Subtest: POST /api/site-assistant/chat: the 11th request from one IP within the window is rejected with 429 before touching the provider
+ok 3088 - POST /api/site-assistant/chat: the 11th request from one IP within the window is rejected with 429 before touching the provider
+  ---
+  duration_ms: 1122.422409
+  type: 'test'
+  ...
+# [site-assistant] {
+#   errorId: 'a5850a01-ea71-4baa-b426-c8561bac9f1c',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# Subtest: POST /api/site-assistant/chat accepts a well-formed history alongside message
+ok 3089 - POST /api/site-assistant/chat accepts a well-formed history alongside message
+  ---
+  duration_ms: 708.383285
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [site-assistant] {
+#   errorId: 'de984145-1383-4975-bdd8-6997762937b5',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# [site-assistant] {
+#   errorId: 'fa3cd4c1-449b-4ace-ae50-4b12e7a7e9e0',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [site-assistant] {
+#   errorId: 'e9140bee-a70f-4e90-bc3d-77d66782dc93',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# [site-assistant] {
+#   errorId: '48b89f0a-401f-4308-9321-1adfe63867f8',
+#   code: 'NOT_CONFIGURED',
+#   diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+# }
+# Subtest: POST /api/site-assistant/chat degrades a hostile/malformed history to no context, never a 4xx or 500
+ok 3090 - POST /api/site-assistant/chat degrades a hostile/malformed history to no context, never a 4xx or 500
+  ---
+  duration_ms: 441.246409
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: POST /api/site-assistant/chat sends only bounded, sanitized history to the provider
+ok 3091 - POST /api/site-assistant/chat sends only bounded, sanitized history to the provider
+  ---
+  duration_ms: 601.33388
+  type: 'test'
+  ...
+# [site-assistant] {
+#   errorId: 'f6eda78a-5021-4a9f-9fd9-9a2f688d3eff',
+#   code: 'PAYLOAD_TOO_LARGE',
+#   diagnostic: 'PayloadTooLargeError: request entity too large\\n' +
+#     '    at readStream (/home/user/Tovu/node_modules/raw-body/index.js:163:17)\\n' +
+#     '    at getRawBody (/home/user/Tovu/node_modules/raw-body/index.js:116:12)\\n' +
+#     '    at read (/home/user/Tovu/node_modules/body-parser/lib/read.js:79:3)\\n' +
+#     '    at jsonParser (/home/user/Tovu/node_modules/body-parser/lib/types/json.js:138:5)\\n' +
+#     '    at parsePublicJsonBody (/home/user/Tovu/apps/website/src/server/inbound/shared/json-body-parsers.ts:93:3)\\n' +
+#     '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\\n' +
+#     '    at trim_prefix (/home/user/Tovu/node_modules/express/lib/router/index.js:328:13)\\n' +
+#     '    at /home/user/Tovu/node_modules/express/lib/router/index.js:286:9\\n' +
+#     '    at router.process_params (/home/user/Tovu/node_modules/express/lib/router/index.js:346:12)\\n' +
+#     '    at next (/home/user/Tovu/node_modules/express/lib/router/index.js:280:10)'
+# }
+# Subtest: POST /api/site-assistant/chat answers a body over the public 128 KB limit with a JSON 413
+ok 3092 - POST /api/site-assistant/chat answers a body over the public 128 KB limit with a JSON 413
+  ---
+  duration_ms: 422.673966
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [site-assistant] {
+#   errorId: '9ade8dde-2cd7-432e-80c7-029c3881a1c8',
+#   code: 'visitor_tools_audit',
+#   diagnostic: 'Error: Unpublished page\\n' +
+#     '    at resolveVisitorPageTarget (/home/user/Tovu/apps/website/src/assistant/site/visitor-page-tools.ts:29:22)\\n' +
+#     '    at Object.execute (/home/user/Tovu/apps/website/src/assistant/site/visitor-page-tools.ts:70:70)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async handler (/home/user/Tovu/apps/website/src/assistant/site/visitor-executor.ts:141:18)\\n' +
+#     '    at async runHandler (/home/user/Jini/packages/daemon/src/tool-executor.ts:650:25)\\n' +
+#     '    at async Object.execute (/home/user/Jini/packages/daemon/src/tool-executor.ts:744:20)\\n' +
+#     '    at async Object.execute (/home/user/Jini/packages/daemon/src/core/tool-audit.ts:118:22)\\n' +
+#     '    at async Object.invoke (/home/user/Tovu/apps/website/src/assistant/site/visitor-executor.ts:95:25)\\n' +
+#     '    at async Object.executeTool (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/site-assistant.ts:741:27)\\n' +
+#     '    at async executeTool (/home/user/Jini/packages/agent-runtime/src/providers/tool-turn.ts:278:20)'
+# }
+# [site-assistant] {
+#   errorId: 'b750368d-e541-463f-8255-83b2c12390fc',
+#   code: 'unavailable',
+#   diagnostic: 'Unpublished page'
+# }
+# [site-assistant] {
+#   errorId: '571fa5a2-684a-4273-81eb-1361453627e1',
+#   code: 'visitor_tools_audit',
+#   diagnostic: 'Error: Unpublished page\\n' +
+#     '    at resolveVisitorPageTarget (/home/user/Tovu/apps/website/src/assistant/site/visitor-page-tools.ts:29:22)\\n' +
+#     '    at Object.execute (/home/user/Tovu/apps/website/src/assistant/site/visitor-page-tools.ts:70:70)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async handler (/home/user/Tovu/apps/website/src/assistant/site/visitor-executor.ts:141:18)\\n' +
+#     '    at async runHandler (/home/user/Jini/packages/daemon/src/tool-executor.ts:650:25)\\n' +
+#     '    at async Object.execute (/home/user/Jini/packages/daemon/src/tool-executor.ts:744:20)\\n' +
+#     '    at async Object.execute (/home/user/Jini/packages/daemon/src/core/tool-audit.ts:118:22)\\n' +
+#     '    at async Object.invoke (/home/user/Tovu/apps/website/src/assistant/site/visitor-executor.ts:95:25)\\n' +
+#     '    at async Object.executeTool (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/site-assistant.ts:741:27)\\n' +
+#     '    at async executeTool (/home/user/Jini/packages/agent-runtime/src/providers/tool-turn.ts:278:20)'
+# }
+# [site-assistant] {
+#   errorId: '3a6416b1-5f80-40a8-8681-4edfa97db562',
+#   code: 'unavailable',
+#   diagnostic: 'Unpublished page'
+# }
+# [site-assistant] {
+#   errorId: '65f79b0b-bf9c-4911-9d5b-5aefadf59af5',
+#   code: 'visitor_tools_audit',
+#   diagnostic: 'Error: Unpublished page\\n' +
+#     '    at resolveVisitorPageTarget (/home/user/Tovu/apps/website/src/assistant/site/visitor-page-tools.ts:29:22)\\n' +
+#     '    at Object.execute (/home/user/Tovu/apps/website/src/assistant/site/visitor-page-tools.ts:70:70)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\\n' +
+#     '    at async handler (/home/user/Tovu/apps/website/src/assistant/site/visitor-executor.ts:141:18)\\n' +
+#     '    at async runHandler (/home/user/Jini/packages/daemon/src/tool-executor.ts:650:25)\\n' +
+#     '    at async Object.execute (/home/user/Jini/packages/daemon/src/tool-executor.ts:744:20)\\n' +
+#     '    at async Object.execute (/home/user/Jini/packages/daemon/src/core/tool-audit.ts:118:22)\\n' +
+#     '    at async Object.invoke (/home/user/Tovu/apps/website/src/assistant/site/visitor-executor.ts:95:25)\\n' +
+#     '    at async Object.executeTool (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/site-assistant.ts:741:27)\\n' +
+#     '    at async executeTool (/home/user/Jini/packages/agent-runtime/src/providers/tool-turn.ts:278:20)'
+# }
+# [site-assistant] {
+#   errorId: '7a93a047-e55f-47b6-befe-6bf880fbeecb',
+#   code: 'unavailable',
+#   diagnostic: 'Unpublished page'
+# }
+# Subtest: POST /api/site-assistant/chat never emits a client_directive for a trashed-but-published, unpublished, or nonexistent page ID (SPEC-046 Task 2 AC5)
+ok 3093 - POST /api/site-assistant/chat never emits a client_directive for a trashed-but-published, unpublished, or nonexistent page ID (SPEC-046 Task 2 AC5)
+  ---
+  duration_ms: 441.572193
+  type: 'test'
+  ...
+# Subtest: site assistant cancels a pending upstream stream when the visitor disconnects
+ok 3094 - site assistant cancels a pending upstream stream when the visitor disconnects
+  ---
+  duration_ms: 871.085506
+  type: 'test'
+  ...
+# [site-assistant] {
+#   errorId: 'd4f67838-2194-4544-884b-c278732b8fd1',
+#   code: 'unavailable',
+#   diagnostic: 'Error: aborted\\n' +
+#     '    at Socket.socketCloseListener (node:_http_client:734:19)\\n' +
+#     '    at Socket.emit (node:events:526:24)\\n' +
+#     '    at TCP.<anonymous> (node:net:362:12)'
+# }
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: isAssistantDaemonKnownFailed is false before anything has latched
+ok 3095 - isAssistantDaemonKnownFailed is false before anything has latched
+  ---
+  duration_ms: 2.389288
+  type: 'test'
+  ...
+# Subtest: recordAssistantDaemonFailure latches a visible, optional, failed module entry
+ok 3096 - recordAssistantDaemonFailure latches a visible, optional, failed module entry
+  ---
+  duration_ms: 0.539281
+  type: 'test'
+  ...
+# Subtest: recordAssistantDaemonFailure never flips the rest of the app's own readiness to false
+ok 3097 - recordAssistantDaemonFailure never flips the rest of the app's own readiness to false
+  ---
+  duration_ms: 5.532581
+  type: 'test'
+  ...
+# Subtest: recordAssistantDaemonFailure called twice replaces the entry rather than duplicating it
+ok 3098 - recordAssistantDaemonFailure called twice replaces the entry rather than duplicating it
+  ---
+  duration_ms: 0.358432
+  type: 'test'
+  ...
+# Subtest: clearAssistantDaemonFailure removes the latch
+ok 3099 - clearAssistantDaemonFailure removes the latch
+  ---
+  duration_ms: 0.822358
+  type: 'test'
+  ...
+# Subtest: clearAssistantDaemonFailure on an already-clear snapshot is a safe no-op
+ok 3100 - clearAssistantDaemonFailure on an already-clear snapshot is a safe no-op
+  ---
+  duration_ms: 0.260721
+  type: 'test'
+  ...
+# Subtest: getAssistantDaemonFailureReasonCode is null before anything has latched
+ok 3101 - getAssistantDaemonFailureReasonCode is null before anything has latched
+  ---
+  duration_ms: 0.149541
+  type: 'test'
+  ...
+# Subtest: getAssistantDaemonFailureReasonCode returns the exact latched string — proving a 'gave up after crash-looping' reason is distinguishable from a 'never started' one, not just a generic true/false
+ok 3102 - getAssistantDaemonFailureReasonCode returns the exact latched string — proving a 'gave up after crash-looping' reason is distinguishable from a 'never started' one, not just a generic true/false
+  ---
+  duration_ms: 8.93228
+  type: 'test'
+  ...
+# Subtest: getAssistantDaemonFailureReasonCode returns null again once the latch is cleared
+ok 3103 - getAssistantDaemonFailureReasonCode returns null again once the latch is cleared
+  ---
+  duration_ms: 0.328418
+  type: 'test'
+  ...
+# Subtest: WidgetForbiddenError: an unrecognized message keeps empty permission and reason details
+ok 3104 - WidgetForbiddenError: an unrecognized message keeps empty permission and reason details
+  ---
+  duration_ms: 2.346346
+  type: 'test'
+  ...
+# Subtest: widgetErrorToResponse maps embed-reorder, embed-guardrail and referenced errors with their details
+ok 3105 - widgetErrorToResponse maps embed-reorder, embed-guardrail and referenced errors with their details
+  ---
+  duration_ms: 0.504322
+  type: 'test'
+  ...
+# Subtest: WidgetInstanceNotFoundError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+ok 3106 - WidgetInstanceNotFoundError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+  ---
+  duration_ms: 2.461938
+  type: 'test'
+  ...
+# Subtest: WidgetAreaNotFoundError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+ok 3107 - WidgetAreaNotFoundError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+  ---
+  duration_ms: 1.439358
+  type: 'test'
+  ...
+# Subtest: WidgetEmbedHostNotFoundError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+ok 3108 - WidgetEmbedHostNotFoundError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+  ---
+  duration_ms: 0.690028
+  type: 'test'
+  ...
+# Subtest: WidgetEmbedHostUnsupportedError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+ok 3109 - WidgetEmbedHostUnsupportedError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+  ---
+  duration_ms: 6.405389
+  type: 'test'
+  ...
+# Subtest: WidgetEmbedPlacementNotFoundError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+ok 3110 - WidgetEmbedPlacementNotFoundError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+  ---
+  duration_ms: 0.674583
+  type: 'test'
+  ...
+# Subtest: WidgetVersionConflictError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+ok 3111 - WidgetVersionConflictError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+  ---
+  duration_ms: 0.420287
+  type: 'test'
+  ...
+# Subtest: WidgetAreaConflictError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+ok 3112 - WidgetAreaConflictError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+  ---
+  duration_ms: 0.315853
+  type: 'test'
+  ...
+# Subtest: WidgetForbiddenError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+ok 3113 - WidgetForbiddenError: the model-facing code prefix and the HTTP-facing widgetErrorToResponse code agree
+  ---
+  duration_ms: 0.529206
+  type: 'test'
+  ...
+# Subtest: registerAdminStatic dev-proxy mode: forwards /admin/* to the configured Vite origin, unmodified path and body
+ok 3114 - registerAdminStatic dev-proxy mode: forwards /admin/* to the configured Vite origin, unmodified path and body
+  ---
+  duration_ms: 256.348328
+  type: 'test'
+  ...
+# Subtest: stripHopByHopHeaders: drops connection/transfer-encoding/upgrade but keeps every other header untouched
+ok 3115 - stripHopByHopHeaders: drops connection/transfer-encoding/upgrade but keeps every other header untouched
+  ---
+  duration_ms: 1.426384
+  type: 'test'
+  ...
+# Subtest: registerAdminStatic dev-proxy mode: does not relay the upstream's own Connection header value to the client — that header describes the proxy's hop to Vite, not the client's hop to this server, and (on an HTTP/2 client) forwarding it verbatim would throw ERR_HTTP2_INVALID_CONNECTION_HEADER outright; the fake Vite below sets `Connection: close`, a value the admin server's own keep-alive hop to the client would never choose on its own, to make a leak observable over plain HTTP/1.1 too
+ok 3116 - registerAdminStatic dev-proxy mode: does not relay the upstream's own Connection header value to the client — that header describes the proxy's hop to Vite, not the client's hop to this server, and (on an HTTP/2 client) forwarding it verbatim would throw ERR_HTTP2_INVALID_CONNECTION_HEADER outright; the fake Vite below sets `Connection: close`, a value the admin server's own keep-alive hop to the client would never choose on its own, to make a leak observable over plain HTTP/1.1 too
+  ---
+  duration_ms: 23.106999
+  type: 'test'
+  ...
+# Subtest: registerAdminStatic dev-proxy mode: rewrites a bare /admin to /admin/ before it reaches Vite (Vite's own base match is exact)
+ok 3117 - registerAdminStatic dev-proxy mode: rewrites a bare /admin to /admin/ before it reaches Vite (Vite's own base match is exact)
+  ---
+  duration_ms: 33.223685
+  type: 'test'
+  ...
+# Subtest: registerAdminStatic dev-proxy mode: an unreachable Vite origin gets a 502, not a hang or a crash
+ok 3118 - registerAdminStatic dev-proxy mode: an unreachable Vite origin gets a 502, not a hang or a crash
+  ---
+  duration_ms: 31.053244
+  type: 'test'
+  ...
+# Subtest: registerAdminStatic: falls back to the 'admin shell not built' pointer page when TOVU_ADMIN_DEV_PROXY_URL is unset and no build exists (unchanged by this change)
+ok 3119 - registerAdminStatic: falls back to the 'admin shell not built' pointer page when TOVU_ADMIN_DEV_PROXY_URL is unset and no build exists (unchanged by this change)
+  ---
+  duration_ms: 17.794205
+  type: 'test'
+  ...
+# Subtest: registerAdminDevProxyUpgrade: forwards HMR data in both directions through a real http upstream (immediate frame: false)
+ok 3120 - registerAdminDevProxyUpgrade: forwards HMR data in both directions through a real http upstream (immediate frame: false)
+  ---
+  duration_ms: 16.672404
+  type: 'test'
+  ...
+# Subtest: registerAdminDevProxyUpgrade: forwards HMR data in both directions through a real http upstream (immediate frame: true)
+ok 3121 - registerAdminDevProxyUpgrade: forwards HMR data in both directions through a real http upstream (immediate frame: true)
+  ---
+  duration_ms: 12.516988
+  type: 'test'
+  ...
+# Subtest: registerAdminDevProxyUpgrade: forwards HMR data in both directions through a real https upstream (immediate frame: false)
+ok 3122 - registerAdminDevProxyUpgrade: forwards HMR data in both directions through a real https upstream (immediate frame: false)
+  ---
+  duration_ms: 103.391135
+  type: 'test'
+  ...
+# Subtest: registerAdminDevProxyUpgrade: forwards HMR data in both directions through a real https upstream (immediate frame: true)
+ok 3123 - registerAdminDevProxyUpgrade: forwards HMR data in both directions through a real https upstream (immediate frame: true)
+  ---
+  duration_ms: 35.049652
+  type: 'test'
+  ...
+# Subtest: registerAdminDevProxyUpgrade: no-ops (no 'upgrade' listener added) when TOVU_ADMIN_DEV_PROXY_URL is unset
+ok 3124 - registerAdminDevProxyUpgrade: no-ops (no 'upgrade' listener added) when TOVU_ADMIN_DEV_PROXY_URL is unset
+  ---
+  duration_ms: 0.975424
+  type: 'test'
+  ...
+# Subtest: registerAdminDevProxyUpgrade: ignores an upgrade request outside /admin, leaving the socket untouched for any other listener
+ok 3125 - registerAdminDevProxyUpgrade: ignores an upgrade request outside /admin, leaving the socket untouched for any other listener
+  ---
+  duration_ms: 0.843068
+  type: 'test'
+  ...
+# Subtest: registerAdminStatic proxies HTTPS content through a self-signed development certificate
+ok 3126 - registerAdminStatic proxies HTTPS content through a self-signed development certificate
+  ---
+  duration_ms: 13.088834
+  type: 'test'
+  ...
+# Subtest: upgrade to an unavailable upstream closes the client socket
+ok 3127 - upgrade to an unavailable upstream closes the client socket
+  ---
+  duration_ms: 8.148388
+  type: 'test'
+  ...
+# Subtest: registerAdminStatic dev-proxy mode: an upstream that dies after its response headers were relayed tears the client response down instead of writing a second (502) head
+ok 3128 - registerAdminStatic dev-proxy mode: an upstream that dies after its response headers were relayed tears the client response down instead of writing a second (502) head
+  ---
+  duration_ms: 156.36788
+  type: 'test'
+  ...
+# Subtest: MFA crypto composes lazily and refuses both missing ports before seal or open
+ok 3129 - MFA crypto composes lazily and refuses both missing ports before seal or open
+  ---
+  duration_ms: 2.967453
+  type: 'test'
+  ...
+# Subtest: MFA crypto composes lazily and refuses keyring missing ports before seal or open
+ok 3130 - MFA crypto composes lazily and refuses keyring missing ports before seal or open
+  ---
+  duration_ms: 0.305122
+  type: 'test'
+  ...
+# Subtest: MFA crypto composes lazily and refuses sealer missing ports before seal or open
+ok 3131 - MFA crypto composes lazily and refuses sealer missing ports before seal or open
+  ---
+  duration_ms: 0.160011
+  type: 'test'
+  ...
+# Subtest: MFA resolves late-bound ports and preserves the exact owner scope AAD for seal and open
+ok 3132 - MFA resolves late-bound ports and preserves the exact owner scope AAD for seal and open
+  ---
+  duration_ms: 1.147943
+  type: 'test'
+  ...
+# Subtest: plain Node exposes no embedded asset API
+ok 3133 - plain Node exposes no embedded asset API
+  ---
+  duration_ms: 1.592268
+  type: 'test'
+  ...
+# Subtest: a SEA process exposes the native asset API and reports SEA runtime
+ok 3134 - a SEA process exposes the native asset API and reports SEA runtime
+  ---
+  duration_ms: 1.291252
+  type: 'test'
+  ...
+# Subtest: a failed native SEA probe safely falls back to a non-SEA runtime
+ok 3135 - a failed native SEA probe safely falls back to a non-SEA runtime
+  ---
+  duration_ms: 0.471598
+  type: 'test'
+  ...
+# [plugin-runtime] 'word-count' hook refused a request: provider request failed; token=[REDACTED:labeled_secret]
+# Subtest: sendPluginHookFailedError: a PluginHookFailedError is mapped to 500 with code PLUGIN_HOOK_FAILED and the plugin id
+ok 3136 - sendPluginHookFailedError: a PluginHookFailedError is mapped to 500 with code PLUGIN_HOOK_FAILED and the plugin id
+  ---
+  duration_ms: 10.570257
+  type: 'test'
+  ...
+# Subtest: sendPluginHookFailedError: any other error is left unhandled (writes nothing, returns false)
+ok 3137 - sendPluginHookFailedError: any other error is left unhandled (writes nothing, returns false)
+  ---
+  duration_ms: 0.239429
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] 'throwing-plugin' hook refused a request: plugin 'throwing-plugin' content.entry.beforeSave filter failed: boom
+# Subtest: HTTP: creating a post through a throwing beforeSave filter returns 500 PLUGIN_HOOK_FAILED, not a bare 'internal error'
+ok 3138 - HTTP: creating a post through a throwing beforeSave filter returns 500 PLUGIN_HOOK_FAILED, not a bare 'internal error'
+  ---
+  duration_ms: 1657.834048
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] 'throwing-plugin' hook refused a request: update filter failed: boom
+# [plugin-runtime] 'seo' hook refused a request: plugin 'seo' content.entry.beforeSave filter failed: token=[REDACTED:labeled_secret]
+# Subtest: HTTP: updating a post through a throwing beforeSave filter returns PLUGIN_HOOK_FAILED and leaves the stored post unchanged
+ok 3139 - HTTP: updating a post through a throwing beforeSave filter returns PLUGIN_HOOK_FAILED and leaves the stored post unchanged
+  ---
+  duration_ms: 961.632284
+  type: 'test'
+  ...
+# Subtest: widgetErrorToResponse: a hook refusal behind a widget embed/tool route is PLUGIN_HOOK_FAILED naming the plugin, not a bare 500
+ok 3140 - widgetErrorToResponse: a hook refusal behind a widget embed/tool route is PLUGIN_HOOK_FAILED naming the plugin, not a bare 500
+  ---
+  duration_ms: 0.654541
+  type: 'test'
+  ...

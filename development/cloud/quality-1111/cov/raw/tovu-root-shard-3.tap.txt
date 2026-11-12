@@ -13300,3 +13300,1179 @@ ok 1951 - populated undeclared plugin tables still refuse by name beside declare
   duration_ms: 2864.349828
   type: 'test'
   ...
+# Subtest: import refuses tampered portable plugin DDL and private plugin tables
+ok 1952 - import refuses tampered portable plugin DDL and private plugin tables
+  ---
+  duration_ms: 38231.184633
+  type: 'test'
+  ...
+# Subtest: import refuses a portable row owned by a workspace the archive does not contain
+ok 1953 - import refuses a portable row owned by a workspace the archive does not contain
+  ---
+  duration_ms: 16292.514274
+  type: 'test'
+  ...
+# Subtest: export snapshots the database into the injected private folder, never the source site, and leaves nothing behind
+ok 1954 - export snapshots the database into the injected private folder, never the source site, and leaves nothing behind
+  ---
+  duration_ms: 696.1366
+  type: 'test'
+  ...
+# Subtest: the private snapshot folder is removed even when the capture fails
+ok 1955 - the private snapshot folder is removed even when the capture fails
+  ---
+  duration_ms: 463.253115
+  type: 'test'
+  ...
+# Subtest: a missing snapshot root refuses with the caller-safe message and captures nothing
+ok 1956 - a missing snapshot root refuses with the caller-safe message and captures nothing
+  ---
+  duration_ms: 527.263444
+  type: 'test'
+  ...
+# Subtest: static selection preserves ordered IDs, legacy start and resume; rejects malformed batches
+ok 1957 - static selection preserves ordered IDs, legacy start and resume; rejects malformed batches
+  ---
+  duration_ms: 18.435552
+  type: 'test'
+  ...
+# Subtest: folder allocation strips branding, avoids case/Unicode aliases and stays stable across roster order
+ok 1958 - folder allocation strips branding, avoids case/Unicode aliases and stays stable across roster order
+  ---
+  duration_ms: 6.977771
+  type: 'test'
+  ...
+# Subtest: a public URL belongs only to a static export start, never a poll
+ok 1959 - a public URL belongs only to a static export start, never a poll
+  ---
+  duration_ms: 0.467807
+  type: 'test'
+  ...
+# Subtest: theme tiers and original tiers round-trip from each staged manifest
+ok 1960 - theme tiers and original tiers round-trip from each staged manifest
+  ---
+  duration_ms: 6.240215
+  type: 'test'
+  ...
+# Subtest: a theme named overrides and the overrides folder map to distinct archive paths and units
+ok 1961 - a theme named overrides and the overrides folder map to distinct archive paths and units
+  ---
+  duration_ms: 0.566851
+  type: 'test'
+  ...
+# Subtest: plugin package digest and workspace flatten; runtime ledgers never ship
+ok 1962 - plugin package digest and workspace flatten; runtime ledgers never ship
+  ---
+  duration_ms: 4.989544
+  type: 'test'
+  ...
+# Subtest: a site package file is already its archive path; tier folders are not remapped
+ok 1963 - a site package file is already its archive path; tier folders are not remapped
+  ---
+  duration_ms: 0.927849
+  type: 'test'
+  ...
+# Subtest: skills flatten out of their workspace folder; a skill folder is one code unit
+ok 1964 - skills flatten out of their workspace folder; a skill folder is one code unit
+  ---
+  duration_ms: 0.422143
+  type: 'test'
+  ...
+# Subtest: a folder name never makes a site plugin version: the mapping and the private-data exclusion keep it
+ok 1965 - a folder name never makes a site plugin version: the mapping and the private-data exclusion keep it
+  ---
+  duration_ms: 2.082686
+  type: 'test'
+  ...
+# Subtest: route precedence reports the route collection count even when more assets also failed
+ok 1966 - route precedence reports the route collection count even when more assets also failed
+  ---
+  duration_ms: 2.216426
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: configured public origin replaces every render origin; exporter layout and root links stay pinned
+ok 1967 - configured public origin replaces every render origin; exporter layout and root links stay pinned
+  ---
+  duration_ms: 2631.622884
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: no public origin omits sitemap and feed, removes identity metadata, and keeps root-relative llms and images
+ok 1968 - no public origin omits sitemap and feed, removes identity metadata, and keeps root-relative llms and images
+  ---
+  duration_ms: 762.693211
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: download removes server form actions, reports only actual removals, and writes a plain dated README
+ok 1969 - download removes server form actions, reports only actual removals, and writes a plain dated README
+  ---
+  duration_ms: 463.830269
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: static publish pins about/index.html, media and theme paths, root links and working form actions
+ok 1970 - static publish pins about/index.html, media and theme paths, root links and working form actions
+  ---
+  duration_ms: 1790.114161
+  type: 'test'
+  ...
+# Subtest: origin replacement handles remote render authorities, loopback aliases, JSON escaping and origin-only links
+ok 1971 - origin replacement handles remote render authorities, loopback aliases, JSON escaping and origin-only links
+  ---
+  duration_ms: 1.153835
+  type: 'test'
+  ...
+# Subtest: registry absence, dev evidence and configured loopback never provide export identity
+ok 1972 - registry absence, dev evidence and configured loopback never provide export identity
+  ---
+  duration_ms: 0.700636
+  type: 'test'
+  ...
+# Subtest: download form edits preserve external and mailto actions, theme attributes and unrelated script bytes
+ok 1973 - download form edits preserve external and mailto actions, theme attributes and unrelated script bytes
+  ---
+  duration_ms: 1.792595
+  type: 'test'
+  ...
+# Subtest: fallback metadata removes nested JSON-LD identity and invalid blocks without serializing theme HTML
+ok 1974 - fallback metadata removes nested JSON-LD identity and invalid blocks without serializing theme HTML
+  ---
+  duration_ms: 0.838229
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: static download excludes a saved private Library document and removes every HTML and CSS reference to it
+ok 1975 - static download excludes a saved private Library document and removes every HTML and CSS reference to it
+  ---
+  duration_ms: 3440.811872
+  type: 'test'
+  ...
+# Subtest: L131: option validation preserves boundaries, omitted keys and first failure
+ok 1976 - L131: option validation preserves boundaries, omitted keys and first failure
+  ---
+  duration_ms: 3.416555
+  type: 'test'
+  ...
+# Subtest: L131: visible traversal keeps inline order, block gaps and decoded text while omitting inert nodes
+ok 1977 - L131: visible traversal keeps inline order, block gaps and decoded text while omitting inert nodes
+  ---
+  duration_ms: 1245.266682
+  type: 'test'
+  ...
+# Subtest: L131: origin sources retain keyed peers and latest connected peer, normalize, sort and deduplicate
+ok 1978 - L131: origin sources retain keyed peers and latest connected peer, normalize, sort and deduplicate
+  ---
+  duration_ms: 1.486956
+  type: 'test'
+  ...
+# Subtest: L131: configured origins include only workspace settings and suppress only missing verification
+ok 1979 - L131: configured origins include only workspace settings and suppress only missing verification
+  ---
+  duration_ms: 1.878197
+  type: 'test'
+  ...
+# Subtest: L131: live response projection preserves status edges, headers, cookie shapes and read caps
+ok 1980 - L131: live response projection preserves status edges, headers, cookie shapes and read caps
+  ---
+  duration_ms: 9.111472
+  type: 'test'
+  ...
+# Subtest: L131: live redirect loop stops at three hops or off-origin and returns final evidence
+ok 1981 - L131: live redirect loop stops at three hops or off-origin and returns final evidence
+  ---
+  duration_ms: 0.758169
+  type: 'test'
+  ...
+# Subtest: L131: published rendering keeps manual redirects, cookie redaction and legacy/shaped byte counts
+ok 1982 - L131: published rendering keeps manual redirects, cookie redaction and legacy/shaped byte counts
+  ---
+  duration_ms: 8.212227
+  type: 'test'
+  ...
+# Subtest: L131: published transport maps only timeout/abort errors and always closes
+ok 1983 - L131: published transport maps only timeout/abort errors and always closes
+  ---
+  duration_ms: 0.847022
+  type: 'test'
+  ...
+# Subtest: L131: published body timeout escapes transport error mapping (reported, not fixed)
+ok 1984 - L131: published body timeout escapes transport error mapping (reported, not fixed)
+  ---
+  duration_ms: 2.238986
+  type: 'test'
+  ...
+# Subtest: resolveSameOriginPath: accepts ordinary root-relative site paths
+ok 1985 - resolveSameOriginPath: accepts ordinary root-relative site paths
+  ---
+  duration_ms: 1.899206
+  type: 'test'
+  ...
+# Subtest: resolveSameOriginPath: refuses an absolute URL, whatever the scheme
+ok 1986 - resolveSameOriginPath: refuses an absolute URL, whatever the scheme
+  ---
+  duration_ms: 0.594726
+  type: 'test'
+  ...
+# Subtest: resolveSameOriginPath: refuses a protocol-relative path — the classic same-origin bypass
+ok 1987 - resolveSameOriginPath: refuses a protocol-relative path — the classic same-origin bypass
+  ---
+  duration_ms: 0.140688
+  type: 'test'
+  ...
+# Subtest: resolveSameOriginPath: refuses a backslash, which URL parsers treat as a slash
+ok 1988 - resolveSameOriginPath: refuses a backslash, which URL parsers treat as a slash
+  ---
+  duration_ms: 0.117439
+  type: 'test'
+  ...
+# Subtest: resolveSameOriginPath: refuses control characters, including CR/LF request splitting
+ok 1989 - resolveSameOriginPath: refuses control characters, including CR/LF request splitting
+  ---
+  duration_ms: 0.165774
+  type: 'test'
+  ...
+# Subtest: resolveSameOriginPath: refuses traversal, raw and percent-encoded
+ok 1990 - resolveSameOriginPath: refuses traversal, raw and percent-encoded
+  ---
+  duration_ms: 0.177272
+  type: 'test'
+  ...
+# Subtest: resolveSameOriginPath: refuses a malformed percent-encoding rather than silently repairing it
+ok 1991 - resolveSameOriginPath: refuses a malformed percent-encoding rather than silently repairing it
+  ---
+  duration_ms: 0.108761
+  type: 'test'
+  ...
+# Subtest: resolveSameOriginPath: refuses the authenticated API surface
+ok 1992 - resolveSameOriginPath: refuses the authenticated API surface
+  ---
+  duration_ms: 0.212524
+  type: 'test'
+  ...
+# Subtest: resolveSameOriginPath: refuses empty, non-string and oversized paths
+ok 1993 - resolveSameOriginPath: refuses empty, non-string and oversized paths
+  ---
+  duration_ms: 0.186756
+  type: 'test'
+  ...
+# Subtest: resolveSameOriginPath: a rejection names the rule so a model can fix the input in one turn
+ok 1994 - resolveSameOriginPath: a rejection names the rule so a model can fix the input in one turn
+  ---
+  duration_ms: 0.136868
+  type: 'test'
+  ...
+# Subtest: toCookieShapes: keeps the cookie name and attributes and drops the value
+ok 1995 - toCookieShapes: keeps the cookie name and attributes and drops the value
+  ---
+  duration_ms: 1.839864
+  type: 'test'
+  ...
+# Subtest: readBoundedBody: stops at the cap and reports it, rather than buffering the whole response
+ok 1996 - readBoundedBody: stops at the cap and reports it, rather than buffering the whole response
+  ---
+  duration_ms: 3.09177
+  type: 'test'
+  ...
+# Subtest: readBoundedBody: a response under the cap is returned whole and not flagged
+ok 1997 - readBoundedBody: a response under the cap is returned whole and not flagged
+  ---
+  duration_ms: 1.897774
+  type: 'test'
+  ...
+# Subtest: fetchPublishedPage: returns the live status, headers and body of a real route
+ok 1998 - fetchPublishedPage: returns the live status, headers and body of a real route
+  ---
+  duration_ms: 175.998905
+  type: 'test'
+  ...
+# Subtest: fetchPublishedPage: reports cookie SHAPES and never a cookie value, in headers or anywhere else
+ok 1999 - fetchPublishedPage: reports cookie SHAPES and never a cookie value, in headers or anywhere else
+  ---
+  duration_ms: 149.292965
+  type: 'test'
+  ...
+# Subtest: fetchPublishedPage: preserves the query string through validation
+ok 2000 - fetchPublishedPage: preserves the query string through validation
+  ---
+  duration_ms: 82.392621
+  type: 'test'
+  ...
+# Subtest: fetchPublishedPage: a 404 is a RESULT, not a thrown error
+ok 2001 - fetchPublishedPage: a 404 is a RESULT, not a thrown error
+  ---
+  duration_ms: 33.242043
+  type: 'test'
+  ...
+# Subtest: fetchPublishedPage: a redirect is reported, never followed
+ok 2002 - fetchPublishedPage: a redirect is reported, never followed
+  ---
+  duration_ms: 23.96862
+  type: 'test'
+  ...
+# Subtest: fetchPublishedPage: caps the body at maxBytes and flags the truncation
+ok 2003 - fetchPublishedPage: caps the body at maxBytes and flags the truncation
+  ---
+  duration_ms: 43.894424
+  type: 'test'
+  ...
+# Subtest: fetchPublishedPage: maxBytes is clamped to the hard maximum and defaulted for nonsense
+ok 2004 - fetchPublishedPage: maxBytes is clamped to the hard maximum and defaulted for nonsense
+  ---
+  duration_ms: 63.400618
+  type: 'test'
+  ...
+# Subtest: fetchPublishedPage: refuses an off-site path and never issues the request
+ok 2005 - fetchPublishedPage: refuses an off-site path and never issues the request
+  ---
+  duration_ms: 11.447491
+  type: 'test'
+  ...
+# Subtest: fetchPublishedPage: the /api guard holds even though the admin API is mounted on the same app
+ok 2006 - fetchPublishedPage: the /api guard holds even though the admin API is mounted on the same app
+  ---
+  duration_ms: 1.350453
+  type: 'test'
+  ...
+# Subtest: fetchPublishedPage: the same guard covers /admin, the admin SPA mounted on that same app
+ok 2007 - fetchPublishedPage: the same guard covers /admin, the admin SPA mounted on that same app
+  ---
+  duration_ms: 3.186428
+  type: 'test'
+  ...
+# Subtest: fetchPublishedPage: a published page whose slug merely starts with 'admin' still fetches
+ok 2008 - fetchPublishedPage: a published page whose slug merely starts with 'admin' still fetches
+  ---
+  duration_ms: 97.826245
+  type: 'test'
+  ...
+# Subtest: fetchPublishedPage: closes the server after success, validation rejection and a stalled render timeout
+ok 2009 - fetchPublishedPage: closes the server after success, validation rejection and a stalled render timeout
+  ---
+  duration_ms: 534.225824
+  type: 'test'
+  ...
+# Subtest: Sites/Themes preview passes the native PNG through the established JPEG resize
+ok 2010 - Sites/Themes preview passes the native PNG through the established JPEG resize
+  ---
+  duration_ms: 2.391919
+  type: 'test'
+  ...
+# Subtest: native preview failure remains a null preview with a safe diagnostic
+ok 2011 - native preview failure remains a null preview with a safe diagnostic
+  ---
+  duration_ms: 0.405679
+  type: 'test'
+  ...
+# Subtest: sites: the catalog wires in full, with a published schema and a cross-checked risk class
+ok 2012 - sites: the catalog wires in full, with a published schema and a cross-checked risk class
+  ---
+  duration_ms: 80.700032
+  type: 'test'
+  ...
+# Subtest: sites: the contributor registers under its own domain key, idempotently
+ok 2013 - sites: the contributor registers under its own domain key, idempotently
+  ---
+  duration_ms: 0.434346
+  type: 'test'
+  ...
+# Subtest: sites_duplicate_site: happy path resolves sourceName/targetName to real dirs and calls duplicateSite
+ok 2014 - sites_duplicate_site: happy path resolves sourceName/targetName to real dirs and calls duplicateSite
+  ---
+  duration_ms: 98.390284
+  type: 'test'
+  ...
+# Subtest: sites_duplicate_site: displayName is optional — omitting it passes undefined through, not a default string
+ok 2015 - sites_duplicate_site: displayName is optional — omitting it passes undefined through, not a default string
+  ---
+  duration_ms: 78.592284
+  type: 'test'
+  ...
+# Subtest: sites_duplicate_site: refuses when site switching is disabled, without ever calling duplicateSite or authorize
+ok 2016 - sites_duplicate_site: refuses when site switching is disabled, without ever calling duplicateSite or authorize
+  ---
+  duration_ms: 6.032616
+  type: 'test'
+  ...
+# Subtest: sites_duplicate_site: refuses when siteBinding.switcherCompatible is false (install-dir boot), without ever calling duplicateSite or authorize
+ok 2017 - sites_duplicate_site: refuses when siteBinding.switcherCompatible is false (install-dir boot), without ever calling duplicateSite or authorize
+  ---
+  duration_ms: 3.849322
+  type: 'test'
+  ...
+# Subtest: sites_duplicate_site: refuses when the caller lacks system.write, without ever calling duplicateSite
+ok 2018 - sites_duplicate_site: refuses when the caller lacks system.write, without ever calling duplicateSite
+  ---
+  duration_ms: 35.774767
+  type: 'test'
+  ...
+# Subtest: sites_duplicate_site: refuses a targetName outside the folder-name pattern, without calling listSites or duplicateSite
+ok 2019 - sites_duplicate_site: refuses a targetName outside the folder-name pattern, without calling listSites or duplicateSite
+  ---
+  duration_ms: 2.006604
+  type: 'test'
+  ...
+# Subtest: sites_duplicate_site: refuses a sourceName that does not name a real site, without calling duplicateSite
+ok 2020 - sites_duplicate_site: refuses a sourceName that does not name a real site, without calling duplicateSite
+  ---
+  duration_ms: 5.967021
+  type: 'test'
+  ...
+# Subtest: sites_duplicate_site: an absent capability reader defaults to disabled before authorization
+ok 2021 - sites_duplicate_site: an absent capability reader defaults to disabled before authorization
+  ---
+  duration_ms: 2.221172
+  type: 'test'
+  ...
+# Subtest: sites_duplicate_site: ValidationError is returned as a schema-decorated input error
+ok 2022 - sites_duplicate_site: ValidationError is returned as a schema-decorated input error
+  ---
+  duration_ms: 5.519078
+  type: 'test'
+  ...
+# Subtest: sites_duplicate_site: InitDirNotEmptyError is returned as a schema-decorated input error
+ok 2023 - sites_duplicate_site: InitDirNotEmptyError is returned as a schema-decorated input error
+  ---
+  duration_ms: 1.939979
+  type: 'test'
+  ...
+# Subtest: sites_duplicate_site: SiteDirInvalidError is returned as a schema-decorated input error
+ok 2024 - sites_duplicate_site: SiteDirInvalidError is returned as a schema-decorated input error
+  ---
+  duration_ms: 5.9646
+  type: 'test'
+  ...
+# Subtest: sites_duplicate_site: an unexpected copy failure propagates unchanged and never registers a target
+ok 2025 - sites_duplicate_site: an unexpected copy failure propagates unchanged and never registers a target
+  ---
+  duration_ms: 1.955244
+  type: 'test'
+  ...
+# Subtest: sites_duplicate_site: the default workspace stores copies in the isolated home catalog
+ok 2026 - sites_duplicate_site: the default workspace stores copies in the isolated home catalog
+  ---
+  duration_ms: 40.132329
+  type: 'test'
+  ...
+# Subtest: sites_list: default capability and persisted choice readers use the binding's tree
+ok 2027 - sites_list: default capability and persisted choice readers use the binding's tree
+  ---
+  duration_ms: 6.228054
+  type: 'test'
+  ...
+# Subtest: sites_list: an install-directory binding has no persisted switcher choice
+ok 2028 - sites_list: an install-directory binding has no persisted switcher choice
+  ---
+  duration_ms: 7.358861
+  type: 'test'
+  ...
+# Subtest: the host registry adapter forwards execution options and hides disabled slots
+ok 2029 - the host registry adapter forwards execution options and hides disabled slots
+  ---
+  duration_ms: 3.505742
+  type: 'test'
+  ...
+# Subtest: the host registry adapter forwards authorization to the live skill's own policy
+ok 2030 - the host registry adapter forwards authorization to the live skill's own policy
+  ---
+  duration_ms: 0.583233
+  type: 'test'
+  ...
+# Subtest: the refresh middleware treats a registry without a skill refresher as unchanged and still continues the request
+ok 2031 - the refresh middleware treats a registry without a skill refresher as unchanged and still continues the request
+  ---
+  duration_ms: 0.449382
+  type: 'test'
+  ...
+# Subtest: the refresh middleware reports a changed skill set and forwards a refresh failure to next
+ok 2032 - the refresh middleware reports a changed skill set and forwards a refresh failure to next
+  ---
+  duration_ms: 0.406122
+  type: 'test'
+  ...
+# Subtest: ids that were never a skill slot still answer from the host registry's own has
+ok 2033 - ids that were never a skill slot still answer from the host registry's own has
+  ---
+  duration_ms: 0.328142
+  type: 'test'
+  ...
+# Subtest: absent is none; a full block parses and tokenField defaults to 'token'
+ok 2034 - absent is none; a full block parses and tokenField defaults to 'token'
+  ---
+  duration_ms: 2.669909
+  type: 'test'
+  ...
+# Subtest: malformed blocks are refused with the exact reason
+ok 2035 - malformed blocks are refused with the exact reason
+  ---
+  duration_ms: 8.065289
+  type: 'test'
+  ...
+# Subtest: non-object credential fields are refused with their field location
+ok 2036 - non-object credential fields are refused with their field location
+  ---
+  duration_ms: 0.259242
+  type: 'test'
+  ...
+# Subtest: non-boolean required flags are refused instead of silently becoming optional
+ok 2037 - non-boolean required flags are refused instead of silently becoming optional
+  ---
+  duration_ms: 0.157151
+  type: 'test'
+  ...
+# Subtest: non-boolean secret flags on non-token fields are refused
+ok 2038 - non-boolean secret flags on non-token fields are refused
+  ---
+  duration_ms: 0.532835
+  type: 'test'
+  ...
+# Subtest: token page URLs must be strings of at most 500 characters
+ok 2039 - token page URLs must be strings of at most 500 characters
+  ---
+  duration_ms: 0.437286
+  type: 'test'
+  ...
+# Subtest: a custom tokenField selects the declared alternate secret with all field flags preserved
+ok 2040 - a custom tokenField selects the declared alternate secret with all field flags preserved
+  ---
+  duration_ms: 0.235071
+  type: 'test'
+  ...
+# Subtest: L146 validation preserves bounds, optional flags and first-error ordering
+ok 2041 - L146 validation preserves bounds, optional flags and first-error ordering
+  ---
+  duration_ms: 0.434979
+  type: 'test'
+  ...
+# Plugin 'fixture-git' has no publisher-qualified id; using 'unknown/fixture-git'.
+# Subtest: lists a provider from an enabled, Tovu-bundled plugin and builds it from its module
+ok 2042 - lists a provider from an enabled, Tovu-bundled plugin and builds it from its module
+  ---
+  duration_ms: 158.097039
+  type: 'test'
+  ...
+# Subtest: refuses a plugin whose installed digest is not the one Tovu shipped
+ok 2043 - refuses a plugin whose installed digest is not the one Tovu shipped
+  ---
+  duration_ms: 29.19045
+  type: 'test'
+  ...
+# Subtest: a switched-off bundled plugin contributes nothing, is not an error, and is remembered by provider id
+ok 2044 - a switched-off bundled plugin contributes nothing, is not an error, and is remembered by provider id
+  ---
+  duration_ms: 27.409166
+  type: 'test'
+  ...
+# Subtest: a module without create() is refused, and a module path escaping the plugin root is refused
+ok 2045 - a module without create() is refused, and a module path escaping the plugin root is refused
+  ---
+  duration_ms: 25.050925
+  type: 'test'
+  ...
+# Subtest: parseSourceControlProvidersFile rejects bad JSON, a bad schema version, a non-.mjs module, an empty label, a duplicate id, a bad apiOrigin and a bad maxFileBytes
+ok 2046 - parseSourceControlProvidersFile rejects bad JSON, a bad schema version, a non-.mjs module, an empty label, a duplicate id, a bad apiOrigin and a bad maxFileBytes
+  ---
+  duration_ms: 1.124997
+  type: 'test'
+  ...
+# Subtest: reservedPaths: parsed from the descriptor, carried on the built provider, and a malformed list refuses the file
+ok 2047 - reservedPaths: parsed from the descriptor, carried on the built provider, and a malformed list refuses the file
+  ---
+  duration_ms: 1.078785
+  type: 'test'
+  ...
+# Subtest: findReservedPath matches the folder itself or anything under it, case-insensitively, and nothing that merely shares a prefix
+ok 2048 - findReservedPath matches the folder itself or anything under it, case-insensitively, and nothing that merely shares a prefix
+  ---
+  duration_ms: 0.345526
+  type: 'test'
+  ...
+# Subtest: workflowPaths: parsed from the descriptor, carried on the built provider, and a malformed list refuses the file
+ok 2049 - workflowPaths: parsed from the descriptor, carried on the built provider, and a malformed list refuses the file
+  ---
+  duration_ms: 0.468655
+  type: 'test'
+  ...
+# Subtest: isUnderWorkflowPath matches exactly the declared directory, from the repository root, case-sensitively
+ok 2050 - isUnderWorkflowPath matches exactly the declared directory, from the repository root, case-sensitively
+  ---
+  duration_ms: 0.30722
+  type: 'test'
+  ...
+# Subtest: a module whose validateTarget is not a function is refused
+ok 2051 - a module whose validateTarget is not a function is refused
+  ---
+  duration_ms: 26.020839
+  type: 'test'
+  ...
+# Subtest: pickSourceControlProviderForApi matches by API origin, falls back to a sole provider, and otherwise says why
+ok 2052 - pickSourceControlProviderForApi matches by API origin, falls back to a sole provider, and otherwise says why
+  ---
+  duration_ms: 0.685653
+  type: 'test'
+  ...
+# Subtest: provider builders load the requested workspace, forward HTTP, select by origin and preserve refusals
+ok 2053 - provider builders load the requested workspace, forward HTTP, select by origin and preserve refusals
+  ---
+  duration_ms: 1.243058
+  type: 'test'
+  ...
+# Subtest: bundled sources aggregate neutral providers in source order and refuse every duplicate claimant
+ok 2054 - bundled sources aggregate neutral providers in source order and refuse every duplicate claimant
+  ---
+  duration_ms: 2.028621
+  type: 'test'
+  ...
+# Subtest: missing bundled sources and empty payloads never prevent boot or load executable code
+ok 2055 - missing bundled sources and empty payloads never prevent boot or load executable code
+  ---
+  duration_ms: 0.526016
+  type: 'test'
+  ...
+# Subtest: a rejected package load refuses only that package and never logs exception details
+ok 2056 - a rejected package load refuses only that package and never logs exception details
+  ---
+  duration_ms: 0.796284
+  type: 'test'
+  ...
+# Subtest: bundled malformed data drops only its package, while valid sources remain available
+ok 2057 - bundled malformed data drops only its package, while valid sources remain available
+  ---
+  duration_ms: 14.574388
+  type: 'test'
+  ...
+# Subtest: merge recomputes overlap and persists deprecation, an advanced version and a complete audit record
+ok 2058 - merge recomputes overlap and persists deprecation, an advanced version and a complete audit record
+  ---
+  duration_ms: 15.437595
+  type: 'test'
+  ...
+# Subtest: a repoint failure propagates before term updates or audit writes
+ok 2059 - a repoint failure propagates before term updates or audit writes
+  ---
+  duration_ms: 0.917531
+  type: 'test'
+  ...
+# Subtest: an absent source term still returns the repointed count without inventing a revision
+ok 2060 - an absent source term still returns the repointed count without inventing a revision
+  ---
+  duration_ms: 8.52799
+  type: 'test'
+  ...
+# Subtest: term card owns a single-item read with the taxonomy permission and full term view
+ok 2061 - term card owns a single-item read with the taxonomy permission and full term view
+  ---
+  duration_ms: 19.386589
+  type: 'test'
+  ...
+# Subtest: discoverThemes: excludes .tovu-migrate-staging-* siblings, even though they declare the same manifest id as the real theme
+ok 2062 - discoverThemes: excludes .tovu-migrate-staging-* siblings, even though they declare the same manifest id as the real theme
+  ---
+  duration_ms: 78.411332
+  type: 'test'
+  ...
+# Subtest: discoverThemes: a staging-prefixed directory that fails to parse is still excluded (exclusion happens before loadTheme, not because it errors)
+ok 2063 - discoverThemes: a staging-prefixed directory that fails to parse is still excluded (exclusion happens before loadTheme, not because it errors)
+  ---
+  duration_ms: 62.593157
+  type: 'test'
+  ...
+# Subtest: discoverAllBuiltInThemes: staging siblings under an engine subfolder (the real on-disk shape under themes/static) are excluded from the combined list
+ok 2064 - discoverAllBuiltInThemes: staging siblings under an engine subfolder (the real on-disk shape under themes/static) are excluded from the combined list
+  ---
+  duration_ms: 23.865588
+  type: 'test'
+  ...
+# Subtest: migration staging prefix keeps its persisted historical spelling
+ok 2065 - migration staging prefix keeps its persisted historical spelling
+  ---
+  duration_ms: 0.246833
+  type: 'test'
+  ...
+# Subtest: discoverAllBuiltInThemes: excludes dot-folders at root for built-in themes
+ok 2066 - discoverAllBuiltInThemes: excludes dot-folders at root for built-in themes
+  ---
+  duration_ms: 27.421383
+  type: 'test'
+  ...
+# Subtest: discoverAllBuiltInThemes: excludes dot-folders at static for built-in themes
+ok 2067 - discoverAllBuiltInThemes: excludes dot-folders at static for built-in themes
+  ---
+  duration_ms: 24.189018
+  type: 'test'
+  ...
+# Subtest: discoverAllBuiltInThemes: excludes dot-folders at root for site themes
+ok 2068 - discoverAllBuiltInThemes: excludes dot-folders at root for site themes
+  ---
+  duration_ms: 43.828661
+  type: 'test'
+  ...
+# Subtest: discoverAllBuiltInThemes: excludes dot-folders at static for site themes
+ok 2069 - discoverAllBuiltInThemes: excludes dot-folders at static for site themes
+  ---
+  duration_ms: 19.768571
+  type: 'test'
+  ...
+# Subtest: a clean template with no expressions at all reports no violations
+ok 2070 - a clean template with no expressions at all reports no violations
+  ---
+  duration_ms: 15.761869
+  type: 'test'
+  ...
+# Subtest: the live themes/handlebars/ledger home template uses only allowed helpers/expressions
+ok 2071 - the live themes/handlebars/ledger home template uses only allowed helpers/expressions
+  ---
+  duration_ms: 13.515309
+  type: 'test'
+  ...
+# Subtest: the live themes/handlebars/ledger entry template uses only allowed helpers/expressions
+ok 2072 - the live themes/handlebars/ledger entry template uses only allowed helpers/expressions
+  ---
+  duration_ms: 1.266277
+  type: 'test'
+  ...
+# Subtest: every helper the ledger templates actually use is on the allowlist (sanity check on the allowlist itself)
+ok 2073 - every helper the ledger templates actually use is on the allowlist (sanity check on the allowlist itself)
+  ---
+  duration_ms: 0.346447
+  type: 'test'
+  ...
+# Subtest: a partial reference ({{> name}}) is rejected
+ok 2074 - a partial reference ({{> name}}) is rejected
+  ---
+  duration_ms: 6.313893
+  type: 'test'
+  ...
+# Subtest: a partial BLOCK ({{\#> name}}…{{/name}}) is rejected too — the block form is not an escape hatch
+ok 2075 - a partial BLOCK ({{\#> name}}…{{/name}}) is rejected too — the block form is not an escape hatch
+  ---
+  duration_ms: 0.434445
+  type: 'test'
+  ...
+# Subtest: a partial pointing at a filesystem-shaped name is rejected without the lint ever touching the filesystem
+ok 2076 - a partial pointing at a filesystem-shaped name is rejected without the lint ever touching the filesystem
+  ---
+  duration_ms: 0.282033
+  type: 'test'
+  ...
+# Subtest: an inline decorator ({{\#*inline}}) is rejected
+ok 2077 - an inline decorator ({{\#*inline}}) is rejected
+  ---
+  duration_ms: 0.446003
+  type: 'test'
+  ...
+# Subtest: a triple-stash raw output is rejected for an ordinary path
+ok 2078 - a triple-stash raw output is rejected for an ordinary path
+  ---
+  duration_ms: 0.419145
+  type: 'test'
+  ...
+# Subtest: the {{&x}} ampersand form is the same unescaped output and is rejected identically
+ok 2079 - the {{&x}} ampersand form is the same unescaped output and is rejected identically
+  ---
+  duration_ms: 0.248989
+  type: 'test'
+  ...
+# Subtest: {{{post.content}}} — and only it — is permitted raw, because it is server-rendered pre-sanitized HTML
+ok 2080 - {{{post.content}}} — and only it — is permitted raw, because it is server-rendered pre-sanitized HTML
+  ---
+  duration_ms: 0.439919
+  type: 'test'
+  ...
+# Subtest: the escaped form of the same expression is always fine
+ok 2081 - the escaped form of the same expression is always fine
+  ---
+  duration_ms: 0.213085
+  type: 'test'
+  ...
+# Subtest: the built-in log helper (console I/O from template text) is rejected
+ok 2082 - the built-in log helper (console I/O from template text) is rejected
+  ---
+  duration_ms: 4.325097
+  type: 'test'
+  ...
+# Subtest: the built-in lookup helper (dynamic property access by computed key) is rejected
+ok 2083 - the built-in lookup helper (dynamic property access by computed key) is rejected
+  ---
+  duration_ms: 0.307888
+  type: 'test'
+  ...
+# Subtest: an unknown block helper is rejected — a theme cannot register one, so there is nothing it could resolve to
+ok 2084 - an unknown block helper is rejected — a theme cannot register one, so there is nothing it could resolve to
+  ---
+  duration_ms: 0.261586
+  type: 'test'
+  ...
+# Subtest: a raw block ({{{{name}}}}…{{{{/name}}}}) goes through the same block-helper allowlist
+ok 2085 - a raw block ({{{{name}}}}…{{{{/name}}}}) goes through the same block-helper allowlist
+  ---
+  duration_ms: 0.461961
+  type: 'test'
+  ...
+# Subtest: Tovu's own render_block seam is allowed, in both its component and region forms
+ok 2086 - Tovu's own render_block seam is allowed, in both its component and region forms
+  ---
+  duration_ms: 0.297274
+  type: 'test'
+  ...
+# Subtest: a bare {{render_block}} with no params/hash at all is still allowed — isInvocation() is false here, so it is the allowlisted-helper-name arm of the OR, not the invocation arm, that lets it through
+ok 2087 - a bare {{render_block}} with no params/hash at all is still allowed — isInvocation() is false here, so it is the allowlisted-helper-name arm of the OR, not the invocation arm, that lets it through
+  ---
+  duration_ms: 0.153492
+  type: 'test'
+  ...
+# Subtest: a disallowed helper inside an if/each body is still caught (nested AST walk, not just top level)
+ok 2088 - a disallowed helper inside an if/each body is still caught (nested AST walk, not just top level)
+  ---
+  duration_ms: 0.292854
+  type: 'test'
+  ...
+# Subtest: a disallowed partial inside an each body is still caught
+ok 2089 - a disallowed partial inside an each body is still caught
+  ---
+  duration_ms: 0.184082
+  type: 'test'
+  ...
+# Subtest: a raw output inside an each body is still caught
+ok 2090 - a raw output inside an each body is still caught
+  ---
+  duration_ms: 0.221666
+  type: 'test'
+  ...
+# Subtest: a disallowed partial smuggled into an {{else}} inverse branch is still caught
+ok 2091 - a disallowed partial smuggled into an {{else}} inverse branch is still caught
+  ---
+  duration_ms: 0.242821
+  type: 'test'
+  ...
+# Subtest: a disallowed helper smuggled into a subexpression argument of an ALLOWED block is still caught
+ok 2092 - a disallowed helper smuggled into a subexpression argument of an ALLOWED block is still caught
+  ---
+  duration_ms: 0.292535
+  type: 'test'
+  ...
+# Subtest: a disallowed helper smuggled into a hash value of the render_block seam is still caught
+ok 2093 - a disallowed helper smuggled into a hash value of the render_block seam is still caught
+  ---
+  duration_ms: 0.184285
+  type: 'test'
+  ...
+# Subtest: a path traversing constructor is rejected
+ok 2094 - a path traversing constructor is rejected
+  ---
+  duration_ms: 0.175986
+  type: 'test'
+  ...
+# Subtest: a path traversing __proto__ is rejected, including nested inside a loop body
+ok 2095 - a path traversing __proto__ is rejected, including nested inside a loop body
+  ---
+  duration_ms: 0.174862
+  type: 'test'
+  ...
+# Subtest: @root is rejected (scope escape), while the loop data variables a real theme needs are allowed
+ok 2096 - @root is rejected (scope escape), while the loop data variables a real theme needs are allowed
+  ---
+  duration_ms: 3.17119
+  type: 'test'
+  ...
+# Subtest: a forbidden path segment past an allowlisted @-data head is rejected — {{@index.constructor}} and {{@key.__proto__.polluted}} get the same treatment {{this.constructor}} already gets, not a free pass because parts[0] is an allowed loop variable
+ok 2097 - a forbidden path segment past an allowlisted @-data head is rejected — {{@index.constructor}} and {{@key.__proto__.polluted}} get the same treatment {{this.constructor}} already gets, not a free pass because parts[0] is an allowed loop variable
+  ---
+  duration_ms: 0.332562
+  type: 'test'
+  ...
+# Subtest: a parent-scope path (../) is ordinary scoping, not a violation
+ok 2098 - a parent-scope path (../) is ordinary scoping, not a violation
+  ---
+  duration_ms: 0.306704
+  type: 'test'
+  ...
+# Subtest: a Handlebars syntax error is reported as a violation message rather than thrown
+ok 2099 - a Handlebars syntax error is reported as a violation message rather than thrown
+  ---
+  duration_ms: 0.337576
+  type: 'test'
+  ...
+# Subtest: a pathologically deeply nested template is rejected rather than recursing without bound
+ok 2100 - a pathologically deeply nested template is rejected rather than recursing without bound
+  ---
+  duration_ms: 6.176547
+  type: 'test'
+  ...
+# Subtest: nesting well within the depth cap is allowed
+ok 2101 - nesting well within the depth cap is allowed
+  ---
+  duration_ms: 0.885001
+  type: 'test'
+  ...
+# Subtest: a template with subexpression nesting past the depth cap is rejected the same way block nesting is, not left to recurse unbounded
+ok 2102 - a template with subexpression nesting past the depth cap is rejected the same way block nesting is, not left to recurse unbounded
+  ---
+  duration_ms: 11.337704
+  type: 'test'
+  ...
+# Subtest: subexpression nesting well within the depth cap is allowed
+ok 2103 - subexpression nesting well within the depth cap is allowed
+  ---
+  duration_ms: 0.481155
+  type: 'test'
+  ...
+# Subtest: an unexpected exception during the AST walk itself is caught and reported as a violation rather than escaping — defense in depth for the documented 'total, non-throwing predicate' contract, independent of the depth guard above
+ok 2104 - an unexpected exception during the AST walk itself is caught and reported as a violation rather than escaping — defense in depth for the documented 'total, non-throwing predicate' contract, independent of the depth guard above
+  ---
+  duration_ms: 0.317655
+  type: 'test'
+  ...
+# Subtest: an oversized template source is rejected before it is ever parsed
+ok 2105 - an oversized template source is rejected before it is ever parsed
+  ---
+  duration_ms: 0.574223
+  type: 'test'
+  ...
+# Subtest: the live themes/handlebars/ledger demonstrator theme loads as valid end-to-end
+ok 2106 - the live themes/handlebars/ledger demonstrator theme loads as valid end-to-end
+  ---
+  duration_ms: 3.595386
+  type: 'test'
+  ...
+# Subtest: handles unknown statement kinds by traversing nested program and inverse bodies
+ok 2107 - handles unknown statement kinds by traversing nested program and inverse bodies
+  ---
+  duration_ms: 1.296762
+  type: 'test'
+  ...
+# Subtest: handles empty or missing program body safely
+ok 2108 - handles empty or missing program body safely
+  ---
+  duration_ms: 0.243598
+  type: 'test'
+  ...
+# Subtest: a node with no 'type' at all falls back to handleUnknownStatement rather than throwing — real Handlebars.parse() output always sets 'type' on every node, so this arm is unreachable except through a mocked parse like this one
+ok 2109 - a node with no 'type' at all falls back to handleUnknownStatement rather than throwing — real Handlebars.parse() output always sets 'type' on every node, so this arm is unreachable except through a mocked parse like this one
+  ---
+  duration_ms: 0.24178
+  type: 'test'
+  ...
+# [theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: an html-mode menu renders its stored markup inside the theme's marker element
+ok 2110 - an html-mode menu renders its stored markup inside the theme's marker element
+  ---
+  duration_ms: 654.976941
+  type: 'test'
+  ...
+# Subtest: stored html is kept but not rendered while the menu is in items mode
+ok 2111 - stored html is kept but not rendered while the menu is in items mode
+  ---
+  duration_ms: 293.965354
+  type: 'test'
+  ...
+# Subtest: an html-mode menu with empty html keeps the theme's authored fallback
+ok 2112 - an html-mode menu with empty html keeps the theme's authored fallback
+  ---
+  duration_ms: 370.892803
+  type: 'test'
+  ...
+# Subtest: a bare Copy-HTML-embed marker is replaced by the menu's html alone
+ok 2113 - a bare Copy-HTML-embed marker is replaced by the menu's html alone
+  ---
+  duration_ms: 339.940876
+  type: 'test'
+  ...
+# Subtest: html is placed as stored: a closing tag smuggled past the save path still renders inside the wrapper
+ok 2114 - html is placed as stored: a closing tag smuggled past the save path still renders inside the wrapper
+  ---
+  duration_ms: 1.24493
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: workspace setting defaults disabled; generic writes validate installed roster, aliases, scope and theme.set before revisions
+ok 2115 - workspace setting defaults disabled; generic writes validate installed roster, aliases, scope and theme.set before revisions
+  ---
+  duration_ms: 648.32353
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: the raw settings writer, uncomposed with the theme policy, refuses a preview write instead of storing it
+ok 2116 - the raw settings writer, uncomposed with the theme policy, refuses a preview write instead of storing it
+  ---
+  duration_ms: 726.510837
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: assistant tools sync the roster from the site folder first, and pass unexpected write faults through unchanged
+ok 2117 - assistant tools sync the roster from the site folder first, and pass unexpected write faults through unchanged
+  ---
+  duration_ms: 773.159079
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: assistant get/update use the ledger and active-theme permission; denied and invalid tools never write
+ok 2118 - assistant get/update use the ledger and active-theme permission; denied and invalid tools never write
+  ---
+  duration_ms: 385.59576
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: live server chooses per request; cookie persists, reset clears, canonical and no-store hold; disabled is inert
+ok 2119 - live server chooses per request; cookie persists, reset clears, canonical and no-store hold; disabled is inert
+  ---
+  duration_ms: 1336.517038
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: portable static copies export only the active theme when the preview switcher is enabled
+ok 2120 - portable static copies export only the active theme when the preview switcher is enabled
+  ---
+  duration_ms: 1575.187702
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [export] Theme previews: 2 themes, 10 additional pages, 1.93x export bytes (1.96x HTML); shared assets are deduplicated.
+# Subtest: static manifest and real export include themed pages/assets, noindex, canonical, prefixed navigation and size multiplier
+ok 2121 - static manifest and real export include themed pages/assets, noindex, canonical, prefixed navigation and size multiplier
+  ---
+  duration_ms: 1804.059823
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: static-export variants: unknown theme 404s, a bare variant path renders the variant root, and queries survive the prefix strip
+ok 2122 - static-export variants: unknown theme 404s, a bare variant path renders the variant root, and queries survive the prefix strip
+  ---
+  duration_ms: 302.178101
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Error: presentation store offline
+#     at InMemoryPresentationSettingsRepo.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts:224:98)
+#     at Object.apply (node:internal/test_runner/mock/mock:805:20)
+#     at getPresentationSettings (/home/user/Jini/packages/cms/src/presentation/presentation.ts:82:45)
+#     at resolveActiveThemeId (/home/user/Tovu/apps/website/src/features/presentation/active-theme-id.ts:49:32)
+#     at preparePreviewPage (/home/user/Tovu/apps/website/src/server/inbound/public-http/middleware/theme-preview-switcher.ts:41:49)
+#     at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/middleware/theme-preview-switcher.ts:64:26)
+#     at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+#     at trim_prefix (/home/user/Tovu/node_modules/express/lib/router/index.js:328:13)
+#     at /home/user/Tovu/node_modules/express/lib/router/index.js:286:9
+#     at router.process_params (/home/user/Tovu/node_modules/express/lib/router/index.js:346:12)
+# [theme] active theme 'preview-one' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# [theme] active theme 'preview-one' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# Subtest: an enabled switcher is inert when styling is off or no theme is installed, and a failing theme lookup reaches the error handler
+ok 2123 - an enabled switcher is inert when styling is off or no theme is installed, and a failing theme lookup reaches the error handler
+  ---
+  duration_ms: 570.023089
+  type: 'test'
+  ...
+# Subtest: canary: the shipped-theme sweep is not vacuous
+ok 2124 - canary: the shipped-theme sweep is not vacuous
+  ---
+  duration_ms: 1.395274
+  type: 'test'
+  ...
+# Subtest: canary: shipped theme templated/fashion-modern's committed original matches what the generator produces from it
+ok 2125 - canary: shipped theme templated/fashion-modern's committed original matches what the generator produces from it
+  ---
+  duration_ms: 244.04133
+  type: 'test'
+  ...
+# Subtest: canary: shipped theme templated/storefront's committed original matches what the generator produces from it
+ok 2126 - canary: shipped theme templated/storefront's committed original matches what the generator produces from it
+  ---
+  duration_ms: 45.10174
+  type: 'test'
+  ...
+# Subtest: canary: shipped theme static/tovu-starter's committed original matches what the generator produces from it
+not ok 2127 - canary: shipped theme static/tovu-starter's committed original matches what the generator produces from it
+  ---
+  duration_ms: 47.799385
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/theme/__tests__/shipped-theme-original-drift.canary.test.ts:1:1316'
+  failureType: 'testCodeFailure'
+  error: |-
+    content/themes/__original-themes__/static/tovu-starter no longer matches what 'tovu theme sync-originals' generates from content/themes/static/tovu-starter.
+      generated but not committed: (none)
+      committed but not generated: (none)
+      byte-different: scripts/theme-toggle.js
+    Run 'tovu theme sync-originals content/themes' and commit the result — the catalog is a generated artifact now, never hand-edited.
+    + actual - expected
+    
+      {
+        added: [],
+    +   changed: [
+    +     'scripts/theme-toggle.js'
+    +   ],
+    -   changed: [],
+        removed: []
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    added:
+    removed:
+    changed:
+  actual:
+    added:
+    removed:
+    changed:
+      0: 'scripts/theme-toggle.js'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/shipped-theme-original-drift.canary.test.ts:129:14)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: canary: shipped theme static/tovu-theme's committed original matches what the generator produces from it
+ok 2128 - canary: shipped theme static/tovu-theme's committed original matches what the generator produces from it
+  ---
+  duration_ms: 76.075046
+  type: 'test'
+  ...
