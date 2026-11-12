@@ -1,0 +1,2647 @@
+TAP version 13
+# Subtest: React activation preserves page focus on closed mount and focuses explicit opens
+ok 1 - React activation preserves page focus on closed mount and focuses explicit opens
+  ---
+  duration_ms: 127.823775
+  type: 'test'
+  ...
+# Subtest: React activation preserves page focus on resume and focuses explicit opens
+ok 2 - React activation preserves page focus on resume and focuses explicit opens
+  ---
+  duration_ms: 26.588627
+  type: 'test'
+  ...
+# Subtest: React activation without a mount root still toggles, and touches no page element
+ok 3 - React activation without a mount root still toggles, and touches no page element
+  ---
+  duration_ms: 19.7979
+  type: 'test'
+  ...
+# Subtest: a focus request while already open and with no enabled composer leaves focus where it was
+ok 4 - a focus request while already open and with no enabled composer leaves focus where it was
+  ---
+  duration_ms: 47.586309
+  type: 'test'
+  ...
+# Subtest: loader-entry binds the lazy loader to the page button; activating it loads the React widget assets
+ok 5 - loader-entry binds the lazy loader to the page button; activating it loads the React widget assets
+  ---
+  duration_ms: 126.021195
+  type: 'test'
+  ...
+# Subtest: vanilla-entry mounts the vanilla widget into the page root
+ok 6 - vanilla-entry mounts the vanilla widget into the page root
+  ---
+  duration_ms: 414.426901
+  type: 'test'
+  ...
+# Subtest: main mounts the React widget and creates its own root without replaying stored actions
+ok 7 - main mounts the React widget and creates its own root without replaying stored actions
+  ---
+  duration_ms: 1339.899699
+  type: 'test'
+  ...
+# Subtest: visitor copy covers every admin locale and binds to the page language
+ok 8 - visitor copy covers every admin locale and binds to the page language
+  ---
+  duration_ms: 132.42375
+  type: 'test'
+  ...
+# Subtest: fills Jini chat's {name} placeholders and keeps unknown ones
+ok 9 - fills Jini chat's {name} placeholders and keeps unknown ones
+  ---
+  duration_ms: 10.311343
+  type: 'test'
+  ...
+# Subtest: visitor page actions recover after a dropped stream before the next message is sent
+ok 10 - visitor page actions recover after a dropped stream before the next message is sent
+  ---
+  duration_ms: 341.098726
+  type: 'test'
+  ...
+# Subtest: rejects a call with no principal header — 401, and nothing is delivered
+ok 11 - rejects a call with no principal header — 401, and nothing is delivered
+  ---
+  duration_ms: 91.205998
+  type: 'test'
+  ...
+# Subtest: rejects a missing or empty exchangeId — 400
+ok 12 - rejects a missing or empty exchangeId — 400
+  ---
+  duration_ms: 30.02905
+  type: 'test'
+  ...
+# Subtest: rejects an invalid exchangeId even when a valid functionResponse has no surfaceId
+ok 13 - rejects an invalid exchangeId even when a valid functionResponse has no surfaceId
+  ---
+  duration_ms: 0.426814
+  type: 'test'
+  ...
+# Subtest: rejects a null or absent A2UI body with a validation error
+ok 14 - rejects a null or absent A2UI body with a validation error
+  ---
+  duration_ms: 0.158189
+  type: 'test'
+  ...
+# Subtest: rejects a message that fails A2UI's own renderer->agent schema — 400, with the schema's own reason
+ok 15 - rejects a message that fails A2UI's own renderer->agent schema — 400, with the schema's own reason
+  ---
+  duration_ms: 8.131369
+  type: 'test'
+  ...
+# Subtest: rejects a message whose declared surfaceId disagrees with the route's exchangeId
+ok 16 - rejects a message whose declared surfaceId disagrees with the route's exchangeId
+  ---
+  duration_ms: 4.430917
+  type: 'test'
+  ...
+# Subtest: delivers a matching action to the held-open exchange, and never needs a toolId
+ok 17 - delivers a matching action to the held-open exchange, and never needs a toolId
+  ---
+  duration_ms: 5.820858
+  type: 'test'
+  ...
+# Subtest: a functionResponse message (no surfaceId at all) delivers without tripping the cross-check
+ok 18 - a functionResponse message (no surfaceId at all) delivers without tripping the cross-check
+  ---
+  duration_ms: 11.011089
+  type: 'test'
+  ...
+# Subtest: an error message carrying surfaceId is cross-checked against exchangeId, same as an action
+ok 19 - an error message carrying surfaceId is cross-checked against exchangeId, same as an action
+  ---
+  duration_ms: 27.695064
+  type: 'test'
+  ...
+# Subtest: an error message declaring the WRONG surfaceId is rejected, just like a mismatched action
+ok 20 - an error message declaring the WRONG surfaceId is rejected, just like a mismatched action
+  ---
+  duration_ms: 5.390287
+  type: 'test'
+  ...
+# Subtest: a generic error message keyed by functionCallId (no surfaceId) delivers without tripping the cross-check
+ok 21 - a generic error message keyed by functionCallId (no surfaceId) delivers without tripping the cross-check
+  ---
+  duration_ms: 7.557296
+  type: 'test'
+  ...
+# Subtest: an unknown, expired, or already-closed exchange is 409, not 404 or a silent success
+ok 22 - an unknown, expired, or already-closed exchange is 409, not 404 or a silent success
+  ---
+  duration_ms: 9.606715
+  type: 'test'
+  ...
+# Subtest: an actually expired exchange rejects delivery with 409
+ok 23 - an actually expired exchange rejects delivery with 409
+  ---
+  duration_ms: 6.833892
+  type: 'test'
+  ...
+# Subtest: an answered exchange rejects a replay with 409 after the handler closes it
+ok 24 - an answered exchange rejects a replay with 409 after the handler closes it
+  ---
+  duration_ms: 5.936178
+  type: 'test'
+  ...
+# Subtest: an action from the wrong principal is refused and leaves the call still waiting
+ok 25 - an action from the wrong principal is refused and leaves the call still waiting
+  ---
+  duration_ms: 4.748083
+  type: 'test'
+  ...
+# Subtest: an A2UI post cannot answer or cancel a pending MCP-UI confirmation of the same principal
+ok 26 - an A2UI post cannot answer or cancel a pending MCP-UI confirmation of the same principal
+  ---
+  duration_ms: 4.106971
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents projects fallback models and reasoning options for claude
+ok 27 - listAssistantAgents projects fallback models and reasoning options for claude
+  ---
+  duration_ms: 31.228623
+  type: 'test'
+  ...
+# Subtest: agent discovery exposes native-policy support for every CLI before a chat is sent
+ok 28 - agent discovery exposes native-policy support for every CLI before a chat is sent
+  ---
+  duration_ms: 0.483668
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents' carriesOwnMemory exactly matches each def's own resumesSessionViaCli/resumesSessionViaAcpLoad declaration
+ok 29 - listAssistantAgents' carriesOwnMemory exactly matches each def's own resumesSessionViaCli/resumesSessionViaAcpLoad declaration
+  ---
+  duration_ms: 0.297713
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents' supportsTools exactly matches each def's own runtimeSupportsExternalTools() result
+ok 30 - listAssistantAgents' supportsTools exactly matches each def's own runtimeSupportsExternalTools() result
+  ---
+  duration_ms: 0.357414
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents' supportsSubagents/supportsClaudeInChrome exactly match each def's own runtime support helpers
+ok 31 - listAssistantAgents' supportsSubagents/supportsClaudeInChrome exactly match each def's own runtime support helpers
+  ---
+  duration_ms: 2.060418
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents never returns an agent with an empty id/name
+ok 32 - listAssistantAgents never returns an agent with an empty id/name
+  ---
+  duration_ms: 0.324764
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents memoizes — two back-to-back calls reuse the same in-flight/settled probe
+ok 33 - listAssistantAgents memoizes — two back-to-back calls reuse the same in-flight/settled probe
+  ---
+  duration_ms: 0.157109
+  type: 'test'
+  ...
+# Subtest: rescanAssistantAgents forces a fresh probe, and a later listAssistantAgents call picks up that fresh result
+ok 34 - rescanAssistantAgents forces a fresh probe, and a later listAssistantAgents call picks up that fresh result
+  ---
+  duration_ms: 34.465918
+  type: 'test'
+  ...
+# Subtest: assistantAgentDiscoveryPending reports the process inventory's forced scan only while it is in flight
+ok 35 - assistantAgentDiscoveryPending reports the process inventory's forced scan only while it is in flight
+  ---
+  duration_ms: 34.277393
+  type: 'test'
+  ...
+# Subtest: rescanAssistantAgents surfaces the live model list the prober returns for an available def
+ok 36 - rescanAssistantAgents surfaces the live model list the prober returns for an available def
+  ---
+  duration_ms: 28.95236
+  type: 'test'
+  ...
+# Subtest: known runtime capabilities retain their memory and tool semantics
+ok 37 - known runtime capabilities retain their memory and tool semantics
+  ---
+  duration_ms: 6.258964
+  type: 'test'
+  ...
+# Subtest: assistant inventory preserves dynamic catalog and resolved default for the chat picker
+ok 38 - assistant inventory preserves dynamic catalog and resolved default for the chat picker
+  ---
+  duration_ms: 34.567494
+  type: 'test'
+  ...
+# Subtest: assistant rescan forces model discovery and preserves an unresolved default without guessing
+ok 39 - assistant rescan forces model discovery and preserves an unresolved default without guessing
+  ---
+  duration_ms: 26.407943
+  type: 'test'
+  ...
+# Subtest: live discovery reissues on credential rotation inside the same TTL
+ok 40 - live discovery reissues on credential rotation inside the same TTL
+  ---
+  duration_ms: 6.432345
+  type: 'test'
+  ...
+# Subtest: live discovery contains rejection, keeps the failure TTL, then recovers at expiry
+ok 41 - live discovery contains rejection, keeps the failure TTL, then recovers at expiry
+  ---
+  duration_ms: 1.191297
+  type: 'test'
+  ...
+# Subtest: live discovery never calls the provider for absent, wrong-protocol or blank credentials
+ok 42 - live discovery never calls the provider for absent, wrong-protocol or blank credentials
+  ---
+  duration_ms: 1.078304
+  type: 'test'
+  ...
+# Subtest: live discovery instances own their state and delimiter-containing tenant IDs cannot collide
+ok 43 - live discovery instances own their state and delimiter-containing tenant IDs cannot collide
+  ---
+  duration_ms: 1.522567
+  type: 'test'
+  ...
+# Subtest: live discovery coalesces concurrent calls while the provider is still responding
+ok 44 - live discovery coalesces concurrent calls while the provider is still responding
+  ---
+  duration_ms: 8.527798
+  type: 'test'
+  ...
+# Subtest: live discovery retries a cached failure when the stored baseUrl changes
+ok 45 - live discovery retries a cached failure when the stored baseUrl changes
+  ---
+  duration_ms: 0.970516
+  type: 'test'
+  ...
+# Subtest: Settings and chat share one background inventory while both requests return cached data
+ok 46 - Settings and chat share one background inventory while both requests return cached data
+  ---
+  duration_ms: 15.05173
+  type: 'test'
+  ...
+# Subtest: assistantVaultRepo refuses a repository object with no vault property
+ok 47 - assistantVaultRepo refuses a repository object with no vault property
+  ---
+  duration_ms: 2.021051
+  type: 'test'
+  ...
+# Subtest: assistantVaultRepo refuses an undefined vault
+ok 48 - assistantVaultRepo refuses an undefined vault
+  ---
+  duration_ms: 0.222158
+  type: 'test'
+  ...
+# Subtest: assistantVaultRepo refuses a vault without singleton lookup
+ok 49 - assistantVaultRepo refuses a vault without singleton lookup
+  ---
+  duration_ms: 0.191338
+  type: 'test'
+  ...
+# Subtest: assistantVaultRepo returns the exposed vault port itself
+ok 50 - assistantVaultRepo returns the exposed vault port itself
+  ---
+  duration_ms: 0.183648
+  type: 'test'
+  ...
+# Subtest: assistantVaultContext pins Tovu ownership, no binding and a null principal by default
+ok 51 - assistantVaultContext pins Tovu ownership, no binding and a null principal by default
+  ---
+  duration_ms: 0.887077
+  type: 'test'
+  ...
+# Subtest: assistantVaultId encodes kind and principal as the migration's singleton ID
+ok 52 - assistantVaultId encodes kind and principal as the migration's singleton ID
+  ---
+  duration_ms: 0.226939
+  type: 'test'
+  ...
+# Subtest: createAssistantVault mints the singleton ID for new personal-execution records
+ok 53 - createAssistantVault mints the singleton ID for new personal-execution records
+  ---
+  duration_ms: 5.305516
+  type: 'test'
+  ...
+# Subtest: createAssistantVault without a sealer refuses to seal a payload
+ok 54 - createAssistantVault without a sealer refuses to seal a payload
+  ---
+  duration_ms: 0.707493
+  type: 'test'
+  ...
+# Subtest: createAssistantVault without a sealer refuses to open a stored envelope
+ok 55 - createAssistantVault without a sealer refuses to open a stored envelope
+  ---
+  duration_ms: 1.790664
+  type: 'test'
+  ...
+# Subtest: createAssistantVault maps a non-Error storage failure to invalid-record
+ok 56 - createAssistantVault maps a non-Error storage failure to invalid-record
+  ---
+  duration_ms: 0.982226
+  type: 'test'
+  ...
+# Subtest: createAssistantVault hands crypto failures to onSealFailure
+ok 57 - createAssistantVault hands crypto failures to onSealFailure
+  ---
+  duration_ms: 0.544581
+  type: 'test'
+  ...
+# Subtest: readAssistantVault returns an empty read when no singleton exists
+ok 58 - readAssistantVault returns an empty read when no singleton exists
+  ---
+  duration_ms: 0.213295
+  type: 'test'
+  ...
+# Subtest: readAssistantVault opens the stored envelope and derives the token hint
+ok 59 - readAssistantVault opens the stored envelope and derives the token hint
+  ---
+  duration_ms: 1.80916
+  type: 'test'
+  ...
+# Subtest: readAssistantVault uses a supplied snapshot instead of reading the repository
+ok 60 - readAssistantVault uses a supplied snapshot instead of reading the repository
+  ---
+  duration_ms: 1.457049
+  type: 'test'
+  ...
+# Subtest: readAssistantVault refuses a row whose identity is outside the requested scope
+ok 61 - readAssistantVault refuses a row whose identity is outside the requested scope
+  ---
+  duration_ms: 0.735414
+  type: 'test'
+  ...
+# Subtest: readAssistantVault keeps settings but drops the hint when the envelope cannot be opened
+ok 62 - readAssistantVault keeps settings but drops the hint when the envelope cannot be opened
+  ---
+  duration_ms: 1.490979
+  type: 'test'
+  ...
+# Subtest: readAssistantVault gives no hint when the opened payload has no string apiKey
+ok 63 - readAssistantVault gives no hint when the opened payload has no string apiKey
+  ---
+  duration_ms: 1.944011
+  type: 'test'
+  ...
+# Subtest: readAssistantVault does not open a keyless row
+ok 64 - readAssistantVault does not open a keyless row
+  ---
+  duration_ms: 0.654577
+  type: 'test'
+  ...
+# Subtest: readAssistantVault refuses a repository without singleton lookup
+ok 65 - readAssistantVault refuses a repository without singleton lookup
+  ---
+  duration_ms: 0.397952
+  type: 'test'
+  ...
+# Subtest: a declined confirmation maps to the BYOK confirmation refusal naming the tool
+ok 66 - a declined confirmation maps to the BYOK confirmation refusal naming the tool
+  ---
+  duration_ms: 2.728802
+  type: 'test'
+  ...
+# Subtest: a failure with no error text falls back to a message naming the tool
+ok 67 - a failure with no error text falls back to a message naming the tool
+  ---
+  duration_ms: 0.253212
+  type: 'test'
+  ...
+# Subtest: a failure with error text passes that text through unchanged
+ok 68 - a failure with error text passes that text through unchanged
+  ---
+  duration_ms: 0.330905
+  type: 'test'
+  ...
+# Subtest: a time-out maps to a message naming the tool
+ok 69 - a time-out maps to a message naming the tool
+  ---
+  duration_ms: 0.139486
+  type: 'test'
+  ...
+# Subtest: a denial maps to the generic caller-denied message
+ok 70 - a denial maps to the generic caller-denied message
+  ---
+  duration_ms: 0.167914
+  type: 'test'
+  ...
+# Subtest: a completed run renders its output through ok
+ok 71 - a completed run renders its output through ok
+  ---
+  duration_ms: 0.273566
+  type: 'test'
+  ...
+# Subtest: err flags its message as an error result
+ok 72 - err flags its message as an error result
+  ---
+  duration_ms: 1.01876
+  type: 'test'
+  ...
+# Subtest: ok keeps an image-bearing envelope as provider content blocks
+ok 73 - ok keeps an image-bearing envelope as provider content blocks
+  ---
+  duration_ms: 0.34331
+  type: 'test'
+  ...
+# Subtest: ok renders a null output as the JSON text null
+ok 74 - ok renders a null output as the JSON text null
+  ---
+  duration_ms: 0.259139
+  type: 'test'
+  ...
+# Subtest: isRecord rejects arrays and null but accepts a plain object
+ok 75 - isRecord rejects arrays and null but accepts a plain object
+  ---
+  duration_ms: 0.141916
+  type: 'test'
+  ...
+# Subtest: resolveDelegatedInput treats a blank string as no input
+ok 76 - resolveDelegatedInput treats a blank string as no input
+  ---
+  duration_ms: 0.169863
+  type: 'test'
+  ...
+# Subtest: resolveDelegatedInput refuses an unparseable string, naming the fix
+ok 77 - resolveDelegatedInput refuses an unparseable string, naming the fix
+  ---
+  duration_ms: 0.155703
+  type: 'test'
+  ...
+# Subtest: resolveDelegatedInput refuses a boolean, naming its type
+ok 78 - resolveDelegatedInput refuses a boolean, naming its type
+  ---
+  duration_ms: 1.112899
+  type: 'test'
+  ...
+# Subtest: a cancellation maps to a message naming the tool
+ok 79 - a cancellation maps to a message naming the tool
+  ---
+  duration_ms: 0.494747
+  type: 'test'
+  ...
+# Subtest: ok renders a string output verbatim and a plain object as JSON text
+ok 80 - ok renders a string output verbatim and a plain object as JSON text
+  ---
+  duration_ms: 0.124611
+  type: 'test'
+  ...
+# Subtest: ok keeps text and image blocks together as provider content when at least one is an image
+ok 81 - ok keeps text and image blocks together as provider content when at least one is an image
+  ---
+  duration_ms: 0.175586
+  type: 'test'
+  ...
+# Subtest: ok falls back to JSON text when the content envelope has no image, an unknown block, or a malformed block
+ok 82 - ok falls back to JSON text when the content envelope has no image, an unknown block, or a malformed block
+  ---
+  duration_ms: 0.167509
+  type: 'test'
+  ...
+# Subtest: resolveDelegatedInput accepts absent input and a record, and parses a JSON-object string
+ok 83 - resolveDelegatedInput accepts absent input and a record, and parses a JSON-object string
+  ---
+  duration_ms: 0.167343
+  type: 'test'
+  ...
+# Subtest: resolveDelegatedInput refuses JSON that is not an object, and an array value, naming each
+ok 84 - resolveDelegatedInput refuses JSON that is not an object, and an array value, naming each
+  ---
+  duration_ms: 0.393322
+  type: 'test'
+  ...
+# Subtest: ordinary requested work is not sent through an extra choice confirmation
+ok 85 - ordinary requested work is not sent through an extra choice confirmation
+  ---
+  duration_ms: 11.092275
+  type: 'test'
+  ...
+# Subtest: known publishing accounts are used without reconfirming them
+ok 86 - known publishing accounts are used without reconfirming them
+  ---
+  duration_ms: 1261.757559
+  type: 'test'
+  ...
+# Subtest: resetting the visible conversation does not ask the operator for confirmation
+ok 87 - resetting the visible conversation does not ask the operator for confirmation
+  ---
+  duration_ms: 12.210314
+  type: 'test'
+  ...
+# Subtest: daemon and BYOK pin the same credential-card policy
+ok 88 - daemon and BYOK pin the same credential-card policy
+  ---
+  duration_ms: 1.387109
+  type: 'test'
+  ...
+# Subtest: fails closed with 503 when the token env var is unset — never a silent pass-through
+ok 89 - fails closed with 503 when the token env var is unset — never a silent pass-through
+  ---
+  duration_ms: 56.32345
+  type: 'test'
+  ...
+# Subtest: fails closed with 503 when the token env var is set but empty
+ok 90 - fails closed with 503 when the token env var is set but empty
+  ---
+  duration_ms: 12.010362
+  type: 'test'
+  ...
+# Subtest: 401s a request carrying no Authorization header at all, even though the peer is 127.0.0.1
+ok 91 - 401s a request carrying no Authorization header at all, even though the peer is 127.0.0.1
+  ---
+  duration_ms: 6.542763
+  type: 'test'
+  ...
+# Subtest: 401s a wrong token, and never parses the unauthenticated caller's body
+ok 92 - 401s a wrong token, and never parses the unauthenticated caller's body
+  ---
+  duration_ms: 5.990465
+  type: 'test'
+  ...
+# Subtest: 401s tokens that are a prefix, a suffix, or a different length of the real one
+ok 93 - 401s tokens that are a prefix, a suffix, or a different length of the real one
+  ---
+  duration_ms: 10.977355
+  type: 'test'
+  ...
+# Subtest: 401s a malformed Authorization header (wrong scheme, or a bare scheme with no token)
+ok 94 - 401s a malformed Authorization header (wrong scheme, or a bare scheme with no token)
+  ---
+  duration_ms: 9.664952
+  type: 'test'
+  ...
+# Subtest: passes an exact Bearer match through to the route handler
+ok 95 - passes an exact Bearer match through to the route handler
+  ---
+  duration_ms: 19.817896
+  type: 'test'
+  ...
+# Subtest: accepts the case-insensitive scheme spelling RFC 7235 permits, but not a case-shifted token
+ok 96 - accepts the case-insensitive scheme spelling RFC 7235 permits, but not a case-shifted token
+  ---
+  duration_ms: 6.98281
+  type: 'test'
+  ...
+# Subtest: re-reads the env var per request — a token minted after the middleware was constructed still works
+ok 97 - re-reads the env var per request — a token minted after the middleware was constructed still works
+  ---
+  duration_ms: 6.010931
+  type: 'test'
+  ...
+# Subtest: no path is exempt by default — the middleware is a gate-everything primitive
+ok 98 - no path is exempt by default — the middleware is a gate-everything primitive
+  ---
+  duration_ms: 4.21415
+  type: 'test'
+  ...
+# Subtest: an opted-in exempt path passes through without a token — the jini-mcp subprocess has none to send
+ok 99 - an opted-in exempt path passes through without a token — the jini-mcp subprocess has none to send
+  ---
+  duration_ms: 5.214734
+  type: 'test'
+  ...
+# Subtest: an exemption does not leak to sibling routes, nor to paths merely prefixed by it
+ok 100 - an exemption does not leak to sibling routes, nor to paths merely prefixed by it
+  ---
+  duration_ms: 5.163849
+  type: 'test'
+  ...
+# Subtest: an exempt path still works when the token env var is unset — it does not depend on the token at all
+ok 101 - an exempt path still works when the token env var is unset — it does not depend on the token at all
+  ---
+  duration_ms: 5.345407
+  type: 'test'
+  ...
+# Subtest: ensureAgentDaemonToken mints a 64-char hex token when the env var is unset
+ok 102 - ensureAgentDaemonToken mints a 64-char hex token when the env var is unset
+  ---
+  duration_ms: 0.983379
+  type: 'test'
+  ...
+# Subtest: ensureAgentDaemonToken is idempotent — a second call never rotates a token the daemon child may already hold
+ok 103 - ensureAgentDaemonToken is idempotent — a second call never rotates a token the daemon child may already hold
+  ---
+  duration_ms: 0.216741
+  type: 'test'
+  ...
+# Subtest: ensureAgentDaemonToken preserves an operator-supplied token and overwrites an empty one
+ok 104 - ensureAgentDaemonToken preserves an operator-supplied token and overwrites an empty one
+  ---
+  duration_ms: 0.167189
+  type: 'test'
+  ...
+# Subtest: two mints are distinct — the token is random per boot, not a fixed constant
+ok 105 - two mints are distinct — the token is random per boot, not a fixed constant
+  ---
+  duration_ms: 0.205603
+  type: 'test'
+  ...
+# Subtest: omitting options.env entirely falls back to the real process.env, not just an explicitly-passed one
+ok 106 - omitting options.env entirely falls back to the real process.env, not just an explicitly-passed one
+  ---
+  duration_ms: 5.374611
+  type: 'test'
+  ...
+# Subtest: exemption ignores the query but does not normalize slashes or case
+ok 107 - exemption ignores the query but does not normalize slashes or case
+  ---
+  duration_ms: 9.099112
+  type: 'test'
+  ...
+# Subtest: registers unconditionally — no environment can switch this tool off
+ok 108 - registers unconditionally — no environment can switch this tool off
+  ---
+  duration_ms: 1.540579
+  type: 'test'
+  ...
+# Subtest: returns a text block and a well-formed image block
+ok 109 - returns a text block and a well-formed image block
+  ---
+  duration_ms: 2.470495
+  type: 'test'
+  ...
+# Subtest: the image block's data is a real, decodable PNG — not a stub string
+ok 110 - the image block's data is a real, decodable PNG — not a stub string
+  ---
+  duration_ms: 12.130235
+  type: 'test'
+  ...
+# Subtest: two calls produce byte-identical images — the swatch is deterministic, not randomly generated
+ok 111 - two calls produce byte-identical images — the swatch is deterministic, not randomly generated
+  ---
+  duration_ms: 0.837038
+  type: 'test'
+  ...
+# Subtest: the catalog entry publishes an empty-object inputSchema — the model must call it with no arguments
+ok 112 - the catalog entry publishes an empty-object inputSchema — the model must call it with no arguments
+  ---
+  duration_ms: 0.315719
+  type: 'test'
+  ...
+# Subtest: the risk classification declares no side effects
+ok 113 - the risk classification declares no side effects
+  ---
+  duration_ms: 0.122205
+  type: 'test'
+  ...
+# (node:4023) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:4023) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: execution settings use the provider catalog endpoint when its default changes
+ok 114 - execution settings use the provider catalog endpoint when its default changes
+  ---
+  duration_ms: 225.943118
+  type: 'test'
+  ...
+# Subtest: live model discovery uses the provider catalog when a saved key has no custom endpoint
+ok 115 - live model discovery uses the provider catalog when a saved key has no custom endpoint
+  ---
+  duration_ms: 400.418336
+  type: 'test'
+  ...
+# [approval-policy-test] mcp-federation: 'test' registered 1 federated tool(s): mcp__test__action
+# [approval-policy-test] mcp-federation: 'test' admitted WRITE tool 'action' (operator-authorized)
+# [approval-policy-test] mcp-federation: 'test' registered 1 federated tool(s): mcp__test__action
+# [approval-policy-test] mcp-federation: 'test' admitted WRITE tool 'action' (operator-authorized)
+# Subtest: declared publish, unpublish and deploy are gated even with an opaque tool name
+ok 116 - declared publish, unpublish and deploy are gated even with an opaque tool name
+  ---
+  duration_ms: 6.898911
+  type: 'test'
+  ...
+# Subtest: deletion declared by an opaque remote tool requires approval before execution
+ok 117 - deletion declared by an opaque remote tool requires approval before execution
+  ---
+  duration_ms: 2.007053
+  type: 'test'
+  ...
+# Subtest: named permanent deletes retain their delete approval class
+ok 118 - named permanent deletes retain their delete approval class
+  ---
+  duration_ms: 1.277728
+  type: 'test'
+  ...
+# Subtest: a selected destructive or publish action needs approval, ordinary edits do not
+ok 119 - a selected destructive or publish action needs approval, ordinary edits do not
+  ---
+  duration_ms: 6.089036
+  type: 'test'
+  ...
+# Subtest: trash and restore keep Jini's card when a remote marks every write destructive; Jini-named trash runs directly
+ok 120 - trash and restore keep Jini's card when a remote marks every write destructive; Jini-named trash runs directly
+  ---
+  duration_ms: 2.949
+  type: 'test'
+  ...
+# Subtest: Jini-named reversible federation runs without a confirmation channel but still checks permissions and liveness
+ok 121 - Jini-named reversible federation runs without a confirmation channel but still checks permissions and liveness
+  ---
+  duration_ms: 1.944123
+  type: 'test'
+  ...
+# Subtest: destructive declarations cannot skip approval with read-shaped SQL and ask only once
+ok 122 - destructive declarations cannot skip approval with read-shaped SQL and ask only once
+  ---
+  duration_ms: 0.519487
+  type: 'test'
+  ...
+# Subtest: protected federation remains fail closed without a confirmer
+ok 123 - protected federation remains fail closed without a confirmer
+  ---
+  duration_ms: 0.761697
+  type: 'test'
+  ...
+# Subtest: publication declarations veto reviewed read-only metadata
+ok 124 - publication declarations veto reviewed read-only metadata
+  ---
+  duration_ms: 1.851434
+  type: 'test'
+  ...
+# Subtest: mandatory publication and trash cards retain their actual action wording and offer no remembered scopes
+ok 125 - mandatory publication and trash cards retain their actual action wording and offer no remembered scopes
+  ---
+  duration_ms: 0.743639
+  type: 'test'
+  ...
+# Subtest: boot and reload register policy-gated tools from one enumeration per connection
+ok 126 - boot and reload register policy-gated tools from one enumeration per connection
+  ---
+  duration_ms: 10.856524
+  type: 'test'
+  ...
+# Subtest: policy approval checks the same connection permission before asking and after the answer
+ok 127 - policy approval checks the same connection permission before asking and after the answer
+  ---
+  duration_ms: 0.981484
+  type: 'test'
+  ...
+# Subtest: restore-over-existing cards are marked dangerous with their own wording; an unclassified call keeps the generic card
+ok 128 - restore-over-existing cards are marked dangerous with their own wording; an unclassified call keeps the generic card
+  ---
+  duration_ms: 0.466387
+  type: 'test'
+  ...
+# Downloading Electron binary...
+# Subtest: a packaged desktop app's bridge answers initialize
+ok 129 - a packaged desktop app's bridge answers initialize
+  ---
+  duration_ms: 431.948779
+  type: 'test'
+  ...
+# Subtest: the real Electron binary, given the entry's env, runs the bridge as Node and answers initialize
+ok 130 - the real Electron binary, given the entry's env, runs the bridge as Node and answers initialize
+  ---
+  duration_ms: 7235.403024
+  type: 'test'
+  ...
+# Subtest: selectUnadmittedConnections keeps only connections whose id is not already admitted
+ok 131 - selectUnadmittedConnections keeps only connections whose id is not already admitted
+  ---
+  duration_ms: 2.183972
+  type: 'test'
+  ...
+# Subtest: selectUnadmittedConnections returns everything when nothing has been admitted yet
+ok 132 - selectUnadmittedConnections returns everything when nothing has been admitted yet
+  ---
+  duration_ms: 0.367518
+  type: 'test'
+  ...
+# Subtest: reload() is a no-op — attach is never called — when the roster has nothing beyond what was already admitted
+ok 133 - reload() is a no-op — attach is never called — when the roster has nothing beyond what was already admitted
+  ---
+  duration_ms: 1.047647
+  type: 'test'
+  ...
+# Subtest: reload() admits only the NEW connection — attach's extraConnections excludes the already-admitted one, and connections is always empty
+ok 134 - reload() admits only the NEW connection — attach's extraConnections excludes the already-admitted one, and connections is always empty
+  ---
+  duration_ms: 0.650826
+  type: 'test'
+  ...
+# Subtest: a failed connect remains retryable and is admitted by the next successful reload
+ok 135 - a failed connect remains retryable and is admitted by the next successful reload
+  ---
+  duration_ms: 0.751318
+  type: 'test'
+  ...
+# Subtest: admittedConnectionIds() grows after a successful reload, so a second reload never re-attempts the same connection
+ok 136 - admittedConnectionIds() grows after a successful reload, so a second reload never re-attempts the same connection
+  ---
+  duration_ms: 0.364759
+  type: 'test'
+  ...
+# Subtest: two reload() calls racing while one is already in flight never double-register the SAME newly-appeared connection
+ok 137 - two reload() calls racing while one is already in flight never double-register the SAME newly-appeared connection
+  ---
+  duration_ms: 1.214971
+  type: 'test'
+  ...
+# Subtest: a reload() call that arrives after one is already in flight sees roster state committed AFTER it was called, not a stale snapshot
+ok 138 - a reload() call that arrives after one is already in flight sees roster state committed AFTER it was called, not a stale snapshot
+  ---
+  duration_ms: 0.547627
+  type: 'test'
+  ...
+# Subtest: a pass that throws does not wedge a queued follow-up caller behind a permanently-rejected chain
+ok 139 - a pass that throws does not wedge a queued follow-up caller behind a permanently-rejected chain
+  ---
+  duration_ms: 1.258136
+  type: 'test'
+  ...
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# Subtest: real round trip: a browser 'confirm' click for plugins_uninstall (family: agent-plugin) is admitted by the allowlist (202, not 403) and resolves the parked call
+ok 140 - real round trip: a browser 'confirm' click for plugins_uninstall (family: agent-plugin) is admitted by the allowlist (202, not 403) and resolves the parked call
+  ---
+  duration_ms: 196.271599
+  type: 'test'
+  ...
+# Subtest: real round trip: a browser 'cancel' click for plugins_uninstall (family: agent-plugin) is admitted by the allowlist (202, not 403) and resolves the parked call
+ok 141 - real round trip: a browser 'cancel' click for plugins_uninstall (family: agent-plugin) is admitted by the allowlist (202, not 403) and resolves the parked call
+  ---
+  duration_ms: 51.663472
+  type: 'test'
+  ...
+# Subtest: trash_empty: browser callback confirms a parked call; fresh execution and wrong principal are refused
+ok 142 - trash_empty: browser callback confirms a parked call; fresh execution and wrong principal are refused
+  ---
+  duration_ms: 99.883697
+  type: 'test'
+  ...
+# Subtest: trash_purge_item: browser callback confirms a parked call; fresh execution and wrong principal are refused
+ok 143 - trash_purge_item: browser callback confirms a parked call; fresh execution and wrong principal are refused
+  ---
+  duration_ms: 16.430194
+  type: 'test'
+  ...
+# Subtest: media_purge_asset: browser callback confirms a parked call; fresh execution and wrong principal are refused
+ok 144 - media_purge_asset: browser callback confirms a parked call; fresh execution and wrong principal are refused
+  ---
+  duration_ms: 10.680569
+  type: 'test'
+  ...
+# Subtest: comments_purge_comment: browser callback confirms a parked call; fresh execution and wrong principal are refused
+ok 145 - comments_purge_comment: browser callback confirms a parked call; fresh execution and wrong principal are refused
+  ---
+  duration_ms: 12.755462
+  type: 'test'
+  ...
+# Subtest: identity_user_delete: browser callback confirms a parked call; fresh execution and wrong principal are refused
+ok 146 - identity_user_delete: browser callback confirms a parked call; fresh execution and wrong principal are refused
+  ---
+  duration_ms: 10.919269
+  type: 'test'
+  ...
+# Subtest: external_mcp_delete: browser callback confirms a parked call; fresh execution and wrong principal are refused
+ok 147 - external_mcp_delete: browser callback confirms a parked call; fresh execution and wrong principal are refused
+  ---
+  duration_ms: 9.571662
+  type: 'test'
+  ...
+# Subtest: custom_credential_delete: browser callback confirms a parked call; fresh execution and wrong principal are refused
+ok 148 - custom_credential_delete: browser callback confirms a parked call; fresh execution and wrong principal are refused
+  ---
+  duration_ms: 8.489338
+  type: 'test'
+  ...
+# Subtest: deployment_delete_provider_credential: browser callback confirms a parked call; fresh execution and wrong principal are refused
+ok 149 - deployment_delete_provider_credential: browser callback confirms a parked call; fresh execution and wrong principal are refused
+  ---
+  duration_ms: 9.564935
+  type: 'test'
+  ...
+# Subtest: source_control_delete_credential: browser callback confirms a parked call; fresh execution and wrong principal are refused
+ok 150 - source_control_delete_credential: browser callback confirms a parked call; fresh execution and wrong principal are refused
+  ---
+  duration_ms: 8.548999
+  type: 'test'
+  ...
+# Subtest: 'save the image at this link into the media library' finds media_import_from_url in the top 3
+ok 151 - 'save the image at this link into the media library' finds media_import_from_url in the top 3
+  ---
+  duration_ms: 22.960826
+  type: 'test'
+  ...
+# Subtest: 'can you download this picture from the web and add it to our files' finds media_import_from_url in the top 3
+ok 152 - 'can you download this picture from the web and add it to our files' finds media_import_from_url in the top 3
+  ---
+  duration_ms: 2.11717
+  type: 'test'
+  ...
+# Subtest: 'I have a URL for an image, put it in the media library' finds media_import_from_url in the top 3
+ok 153 - 'I have a URL for an image, put it in the media library' finds media_import_from_url in the top 3
+  ---
+  duration_ms: 2.809161
+  type: 'test'
+  ...
+# Subtest: 'grab that photo from the CDN and store it with our other images' finds media_import_from_url in the top 3
+ok 154 - 'grab that photo from the CDN and store it with our other images' finds media_import_from_url in the top 3
+  ---
+  duration_ms: 1.964947
+  type: 'test'
+  ...
+# Subtest: 'import an image from a remote address' finds media_import_from_url in the top 3
+ok 155 - 'import an image from a remote address' finds media_import_from_url in the top 3
+  ---
+  duration_ms: 1.902736
+  type: 'test'
+  ...
+# Subtest: the incident's own phrasing outranks the two tools the assistant actually reached for and could not use
+ok 156 - the incident's own phrasing outranks the two tools the assistant actually reached for and could not use
+  ---
+  duration_ms: 2.365522
+  type: 'test'
+  ...
+# Subtest: 'import from url' is not confused with redirects_create or webhooks_create_subscription, the other two URL-shaped tools
+ok 157 - 'import from url' is not confused with redirects_create or webhooks_create_subscription, the other two URL-shaped tools
+  ---
+  duration_ms: 1.787797
+  type: 'test'
+  ...
+# Subtest: asking to GENERATE an image still finds media_generate_asset, not the importer — adding this tool did not cannibalize its sibling
+ok 158 - asking to GENERATE an image still finds media_generate_asset, not the importer — adding this tool did not cannibalize its sibling
+  ---
+  duration_ms: 1.963771
+  type: 'test'
+  ...
+# Subtest: asking to upload bytes still finds media_upload_asset — the importer does not displace it either
+ok 159 - asking to upload bytes still finds media_upload_asset — the importer does not displace it either
+  ---
+  duration_ms: 2.01772
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: media_import_from_url ranks first for operator phrasings against the full registered catalog
+ok 160 - media_import_from_url ranks first for operator phrasings against the full registered catalog
+  ---
+  duration_ms: 454.683731
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: draft a newsletter about our new menu finds campaign creation in the first three tools
+ok 161 - draft a newsletter about our new menu finds campaign creation in the first three tools
+  ---
+  duration_ms: 717.052183
+  type: 'test'
+  ...
+# Subtest: OFF and unchecked deletes are hidden from search and describe; checked results retain their rank
+ok 162 - OFF and unchecked deletes are hidden from search and describe; checked results retain their rank
+  ---
+  duration_ms: 4.385207
+  type: 'test'
+  ...
+# Subtest: per-request fresh reads isolate concurrent runs and a revoked grant on the next call
+ok 163 - per-request fresh reads isolate concurrent runs and a revoked grant on the next call
+  ---
+  duration_ms: 0.70144
+  type: 'test'
+  ...
+# Subtest: guidance is judged by the tools it points at, so an alias to an unchecked delete is hidden
+ok 164 - guidance is judged by the tools it points at, so an alias to an unchecked delete is hidden
+  ---
+  duration_ms: 0.313358
+  type: 'test'
+  ...
+# Subtest: PREMISE: custom_credential_verify is registered read-only and custom_credential_set_username is not
+ok 165 - PREMISE: custom_credential_verify is registered read-only and custom_credential_set_username is not
+  ---
+  duration_ms: 14.668188
+  type: 'test'
+  ...
+# [custom-credentials] request label=name.com host=api.name.com method=GET status=401 bodyBytes=0 at=2026-09-02T00:00:00.000Z
+# [custom-credentials] request label=name.com host=api.name.com method=GET status=401 bodyBytes=0 at=2026-09-02T00:00:00.000Z
+# [custom-credentials] request label=name.com host=api.name.com method=GET status=401 bodyBytes=0 at=2026-09-02T00:00:00.000Z
+# [custom-credentials] request label=name.com host=api.name.com method=GET status=401 bodyBytes=0 at=2026-09-02T00:00:00.000Z
+# Subtest: READ-ONLY: a verify call whose remedy writes performs NO durable write — asserted against the repo, not the status
+ok 166 - READ-ONLY: a verify call whose remedy writes performs NO durable write — asserted against the repo, not the status
+  ---
+  duration_ms: 33.431408
+  type: 'test'
+  ...
+# Subtest: READ-ONLY: the refusal is reported, not swallowed — the caller gets the original failure AND why the remedy was not attempted
+ok 167 - READ-ONLY: the refusal is reported, not swallowed — the caller gets the original failure AND why the remedy was not attempted
+  ---
+  duration_ms: 6.670997
+  type: 'test'
+  ...
+# Subtest: READ-ONLY: the same constraint refuses a write tool the caller names DIRECTLY, with no remedy involved
+ok 168 - READ-ONLY: the same constraint refuses a write tool the caller names DIRECTLY, with no remedy involved
+  ---
+  duration_ms: 2.338983
+  type: 'test'
+  ...
+# Subtest: UNCONSTRAINED: the identical call still asks a human, applies the remedy, and DOES perform the durable write
+ok 169 - UNCONSTRAINED: the identical call still asks a human, applies the remedy, and DOES perform the durable write
+  ---
+  duration_ms: 26.769362
+  type: 'test'
+  ...
+# Subtest: READ-ONLY: a remedy that is itself registered read-only still runs, and the original is still retried
+ok 170 - READ-ONLY: a remedy that is itself registered read-only still runs, and the original is still retried
+  ---
+  duration_ms: 3.156382
+  type: 'test'
+  ...
+# Subtest: FAIL CLOSED: a gate wired without a registry refuses every constrained dispatch rather than waiving it
+ok 171 - FAIL CLOSED: a gate wired without a registry refuses every constrained dispatch rather than waiving it
+  ---
+  duration_ms: 0.486476
+  type: 'test'
+  ...
+# Subtest: FAIL CLOSED: an unregistered id is refused under a read-only execution — silence is never read as safety
+ok 172 - FAIL CLOSED: an unregistered id is refused under a read-only execution — silence is never read as safety
+  ---
+  duration_ms: 6.284819
+  type: 'test'
+  ...
+# Subtest: DEFECT CLASS: ANY decorator that dispatches an id the caller did not name is gated — not just the recovery loop
+ok 173 - DEFECT CLASS: ANY decorator that dispatches an id the caller did not name is gated — not just the recovery loop
+  ---
+  duration_ms: 1.799717
+  type: 'test'
+  ...
+# Subtest: run start preserves bounded cold-session history alongside the compact prompt
+ok 174 - run start preserves bounded cold-session history alongside the compact prompt
+  ---
+  duration_ms: 5.220595
+  type: 'test'
+  ...
+# Subtest: isTrashed is true only for a present, non-null deletedAt stamp
+ok 175 - isTrashed is true only for a present, non-null deletedAt stamp
+  ---
+  duration_ms: 2.91675
+  type: 'test'
+  ...
+# Subtest: credential view fields report presence from the sealed envelope and mask only a real last4
+ok 176 - credential view fields report presence from the sealed envelope and mask only a real last4
+  ---
+  duration_ms: 1.19144
+  type: 'test'
+  ...
+# Subtest: credential write fields: a first save seals the key, an omitted key preserves the envelope, an existing row is CAS-bound
+ok 177 - credential write fields: a first save seals the key, an omitted key preserves the envelope, an existing row is CAS-bound
+  ---
+  duration_ms: 0.360769
+  type: 'test'
+  ...
+# Subtest: duplicate handlers register in order and a second contributor for one resource replaces the first in place
+ok 178 - duplicate handlers register in order and a second contributor for one resource replaces the first in place
+  ---
+  duration_ms: 0.986004
+  type: 'test'
+  ...
+# Subtest: the site-guide pointer routes agents to site_guide directly and through the delegated read-only proxy
+ok 179 - the site-guide pointer routes agents to site_guide directly and through the delegated read-only proxy
+  ---
+  duration_ms: 0.164111
+  type: 'test'
+  ...
+# Subtest: query delegates to the initially-bound catalog before any rebind
+ok 180 - query delegates to the initially-bound catalog before any rebind
+  ---
+  duration_ms: 2.362465
+  type: 'test'
+  ...
+# Subtest: rebind swaps what the SAME query object delegates to — object identity never changes
+ok 181 - rebind swaps what the SAME query object delegates to — object identity never changes
+  ---
+  duration_ms: 0.492632
+  type: 'test'
+  ...
+# Subtest: multiple rebinds always reflect the MOST RECENT catalog, never an earlier one
+ok 182 - multiple rebinds always reflect the MOST RECENT catalog, never an earlier one
+  ---
+  duration_ms: 0.215406
+  type: 'test'
+  ...
+# Subtest: search preserves an explicit limit before and after rebind
+ok 183 - search preserves an explicit limit before and after rebind
+  ---
+  duration_ms: 0.391779
+  type: 'test'
+  ...
+# Subtest: server admission refreshes the next daemon run while retaining boot tools
+ok 184 - server admission refreshes the next daemon run while retaining boot tools
+  ---
+  duration_ms: 4125.633226
+  type: 'test'
+  ...
+# Subtest: the daemon describe route exposes the read family and refreshes its registered cards
+ok 185 - the daemon describe route exposes the read family and refreshes its registered cards
+  ---
+  duration_ms: 11.962628
+  type: 'test'
+  ...
+# [tool-failure] ERR-AAAA-BBBB-CCCC-DDDD tool=t run=run-1 execution=exec-3 principal=principal-1 redactions=0: boom
+# [tool-failure] ERR-A176-5A23-9F56-5A93 tool=t run=run-1 execution=e1 principal=principal-1 redactions=0: boom 1
+# [tool-failure] ERR-370E-C6C4-F875-8515 tool=t run=run-1 execution=e2 principal=principal-1 redactions=0: boom 2
+# Subtest: an internal failure whose text holds secrets is redacted, ID-prefixed, and recorded
+ok 186 - an internal failure whose text holds secrets is redacted, ID-prefixed, and recorded
+  ---
+  duration_ms: 4.058204
+  type: 'test'
+  ...
+# Subtest: an internal failure with no secret gives exactly 'Error <ID>: <original>', with redactions: 0
+ok 187 - an internal failure with no secret gives exactly 'Error <ID>: <original>', with redactions: 0
+  ---
+  duration_ms: 0.40042
+  type: 'test'
+  ...
+# Subtest: a missing errorKind is treated as internal
+ok 188 - a missing errorKind is treated as internal
+  ---
+  duration_ms: 0.967287
+  type: 'test'
+  ...
+# Subtest: a validation failure is redacted with no ID minted and onFailure never called
+ok 189 - a validation failure is redacted with no ID minted and onFailure never called
+  ---
+  duration_ms: 0.287215
+  type: 'test'
+  ...
+# Subtest: a validation failure whose message holds a secret is still blanked, with no ID
+ok 190 - a validation failure whose message holds a secret is still blanked, with no ID
+  ---
+  duration_ms: 0.404965
+  type: 'test'
+  ...
+# Subtest: every non-failed status is returned strictly unchanged
+ok 191 - every non-failed status is returned strictly unchanged
+  ---
+  duration_ms: 0.271712
+  type: 'test'
+  ...
+# Subtest: the inner executor throwing is rethrown untouched, and onFailure is never called
+ok 192 - the inner executor throwing is rethrown untouched, and onFailure is never called
+  ---
+  duration_ms: 0.430386
+  type: 'test'
+  ...
+# Subtest: with the default minter, two internal failures get two different IDs, and both match the pattern
+ok 193 - with the default minter, two internal failures get two different IDs, and both match the pattern
+  ---
+  duration_ms: 1.073197
+  type: 'test'
+  ...
+# Subtest: mintToolErrorId always matches TOOL_ERROR_ID_PATTERN
+ok 194 - mintToolErrorId always matches TOOL_ERROR_ID_PATTERN
+  ---
+  duration_ms: 0.513055
+  type: 'test'
+  ...
+# Subtest: an onFailure that throws still returns the redacted result
+ok 195 - an onFailure that throws still returns the redacted result
+  ---
+  duration_ms: 0.278098
+  type: 'test'
+  ...
+# Subtest: resumeConfirmation, cancel and getAuditRecord delegate straight through
+ok 196 - resumeConfirmation, cancel and getAuditRecord delegate straight through
+  ---
+  duration_ms: 0.321892
+  type: 'test'
+  ...
+# Subtest: redaction forwards every execute argument, including the cancellation and surface channels
+ok 197 - redaction forwards every execute argument, including the cancellation and surface channels
+  ---
+  duration_ms: 0.483282
+  type: 'test'
+  ...
+# Subtest: every tool description and explicit prompt call names only declared input arguments
+ok 198 - every tool description and explicit prompt call names only declared input arguments
+  ---
+  duration_ms: 595.220585
+  type: 'test'
+  ...
+# Subtest: CATALOGS_BY_DOMAIN has an entry for every domain the tool-contribution registry actually has installed — not just the domains this file remembered to add
+ok 199 - CATALOGS_BY_DOMAIN has an entry for every domain the tool-contribution registry actually has installed — not just the domains this file remembered to add
+  ---
+  duration_ms: 1.457147
+  type: 'test'
+  ...
+# Subtest: every wired registration publishes the inputSchema from its catalog entry — the descriptor no longer carries only {id, description}
+ok 200 - every wired registration publishes the inputSchema from its catalog entry — the descriptor no longer carries only {id, description}
+  ---
+  duration_ms: 438.557461
+  type: 'test'
+  ...
+# Subtest: every content_read card preserves member inputs through published properties or canonical selector aliases
+ok 201 - every content_read card preserves member inputs through published properties or canonical selector aliases
+  ---
+  duration_ms: 329.815754
+  type: 'test'
+  ...
+# Subtest: identity_user_create's published schema/description are a real derivation of its catalog entry, not an accidental mismatch — password stripped, dialog suffix appended
+ok 202 - identity_user_create's published schema/description are a real derivation of its catalog entry, not an accidental mismatch — password stripped, dialog suffix appended
+  ---
+  duration_ms: 341.670112
+  type: 'test'
+  ...
+# Subtest: requiresConfirmation is still unset on every wired tool — setting it with no ExecutionDelegate would park the execution forever
+ok 203 - requiresConfirmation is still unset on every wired tool — setting it with no ExecutionDelegate would park the execution forever
+  ---
+  duration_ms: 775.20984
+  type: 'test'
+  ...
+# Subtest: a rejected 'fields' payload returns the tool's own schema plus an explicit non-retryable instruction, so the model can correct in one turn
+ok 204 - a rejected 'fields' payload returns the tool's own schema plus an explicit non-retryable instruction, so the model can correct in one turn
+  ---
+  duration_ms: 523.056393
+  type: 'test'
+  ...
+# Subtest: the schema-bearing rejection happens for the update-fields tool too, naming that tool's own schema
+ok 205 - the schema-bearing rejection happens for the update-fields tool too, naming that tool's own schema
+  ---
+  duration_ms: 549.307508
+  type: 'test'
+  ...
+# Subtest: no rejection message echoes the offending value — a fields payload can carry operator content
+ok 206 - no rejection message echoes the offending value — a fields payload can carry operator content
+  ---
+  duration_ms: 334.869348
+  type: 'test'
+  ...
+# Subtest: a tool result is an explicit model-facing view: workspaceId is dropped, version is kept for the next call's expectedVersion
+ok 207 - a tool result is an explicit model-facing view: workspaceId is dropped, version is kept for the next call's expectedVersion
+  ---
+  duration_ms: 487.421368
+  type: 'test'
+  ...
+# Subtest: tombstonedAt appears only when set, so an active type's payload carries no always-null key
+ok 208 - tombstonedAt appears only when set, so an active type's payload carries no always-null key
+  ---
+  duration_ms: 912.30551
+  type: 'test'
+  ...
+# Subtest: content_read.collection_content_type returns every content type as the same model-facing view, regardless of status
+ok 209 - content_read.collection_content_type returns every content type as the same model-facing view, regardless of status
+  ---
+  duration_ms: 544.525824
+  type: 'test'
+  ...
+# Subtest: content_read.collection_content_type returns an empty list rather than an error when the workspace has none
+ok 210 - content_read.collection_content_type returns an empty list rather than an error when the workspace has none
+  ---
+  duration_ms: 413.153783
+  type: 'test'
+  ...
+# Subtest: the returned fields array is a copy — a tool caller cannot mutate domain state through it
+ok 211 - the returned fields array is a copy — a tool caller cannot mutate domain state through it
+  ---
+  duration_ms: 512.12419
+  type: 'test'
+  ...
+# Subtest: the real catalog and this layer's independent classification agree for every wired tool
+ok 212 - the real catalog and this layer's independent classification agree for every wired tool
+  ---
+  duration_ms: 370.112787
+  type: 'test'
+  ...
+# Subtest: a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for a mutating handler fails the build
+ok 213 - a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for a mutating handler fails the build
+  ---
+  duration_ms: 1.993661
+  type: 'test'
+  ...
+# Subtest: an unclassified tool id is refused rather than assumed safe — the conservative default is 'refuse'
+ok 214 - an unclassified tool id is refused rather than assumed safe — the conservative default is 'refuse'
+  ---
+  duration_ms: 5.439455
+  type: 'test'
+  ...
+# Subtest: the mismatch check is symmetric — an over-declared risk fails too, so the two sources must genuinely agree
+ok 215 - the mismatch check is symmetric — an over-declared risk fails too, so the two sources must genuinely agree
+  ---
+  duration_ms: 1.215612
+  type: 'test'
+  ...
+# Subtest: a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired with a plain handler
+ok 216 - a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired with a plain handler
+  ---
+  duration_ms: 6.228195
+  type: 'test'
+  ...
+# Subtest: the only wired tools carrying a confirmation-requiring actor-class rule are the four that ask the human in chat
+ok 217 - the only wired tools carrying a confirmation-requiring actor-class rule are the four that ask the human in chat
+  ---
+  duration_ms: 231.224335
+  type: 'test'
+  ...
+# Subtest: collections_execute_cleanup — the one catalog entry that DOES carry the rule — is still not wired
+ok 218 - collections_execute_cleanup — the one catalog entry that DOES carry the rule — is still not wired
+  ---
+  duration_ms: 298.87228
+  type: 'test'
+  ...
+# Subtest: an actorClassRule that does NOT require confirmation is wirable — the guard is specific, not a blanket ban on actor-class rules
+ok 219 - an actorClassRule that does NOT require confirmation is wirable — the guard is specific, not a blanket ban on actor-class rules
+  ---
+  duration_ms: 13.646083
+  type: 'test'
+  ...
+# Subtest: deployment_execute_static_publish and deployment_get_static_publish_capabilities are present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it — not merely in the source catalog array
+ok 220 - deployment_execute_static_publish and deployment_get_static_publish_capabilities are present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it — not merely in the source catalog array
+  ---
+  duration_ms: 1167.926844
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: both tools are discoverable through the real search_tools/describe_tool catalog — the actual channel a model uses to find a tool id before calling it
+ok 221 - both tools are discoverable through the real search_tools/describe_tool catalog — the actual channel a model uses to find a tool id before calling it
+  ---
+  duration_ms: 349.515232
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: deployment_get_static_publish_capabilities actually executes through the REAL ToolExecutor and returns real per-provider data — presence in the registry is not the same as being callable
+ok 222 - deployment_get_static_publish_capabilities actually executes through the REAL ToolExecutor and returns real per-provider data — presence in the registry is not the same as being callable
+  ---
+  duration_ms: 624.878735
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: search_components and describe_component are present in the REAL ToolRegistry, built the same way agent-daemon-server.ts and byok-tool-surface.ts both build it
+ok 223 - search_components and describe_component are present in the REAL ToolRegistry, built the same way agent-daemon-server.ts and byok-tool-surface.ts both build it
+  ---
+  duration_ms: 286.689679
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: both are discoverable through the real search_tools/describe_tool catalog — the ONLY channel a BYOK turn has to reach them
+ok 224 - both are discoverable through the real search_tools/describe_tool catalog — the ONLY channel a BYOK turn has to reach them
+  ---
+  duration_ms: 334.709476
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: search_components actually executes through the REAL ToolExecutor and returns real manifest hits — the same gate execute_delegated_tool routes through
+ok 225 - search_components actually executes through the REAL ToolExecutor and returns real manifest hits — the same gate execute_delegated_tool routes through
+  ---
+  duration_ms: 256.490819
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: describe_component executes through the REAL ToolExecutor and returns a known button's manifest
+ok 226 - describe_component executes through the REAL ToolExecutor and returns a known button's manifest
+  ---
+  duration_ms: 311.670477
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: describe_component actually executes and rejects an unknown id with a plain, non-crashing error — presence in the registry is not the same as being callable
+ok 227 - describe_component actually executes and rejects an unknown id with a plain, non-crashing error — presence in the registry is not the same as being callable
+  ---
+  duration_ms: 204.97168
+  type: 'test'
+  ...
+# Subtest: assistant_admin_screen_link is wired into the real assistant tool registry, read-only, with no confirmation requirement
+ok 228 - assistant_admin_screen_link is wired into the real assistant tool registry, read-only, with no confirmation requirement
+  ---
+  duration_ms: 217.926262
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: plugins_uninstall is present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it, and the deleted agent_plugins_uninstall id is not
+ok 229 - plugins_uninstall is present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it, and the deleted agent_plugins_uninstall id is not
+  ---
+  duration_ms: 451.107054
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: plugins_uninstall's Agent Plugin family is discoverable through the real search_tools/describe_tool catalog
+ok 230 - plugins_uninstall's Agent Plugin family is discoverable through the real search_tools/describe_tool catalog
+  ---
+  duration_ms: 258.251223
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: plugins_uninstall (family agent-plugin) actually executes through the REAL ToolExecutor and rejects an unknown pluginId as a validation failure, not a crash
+ok 231 - plugins_uninstall (family agent-plugin) actually executes through the REAL ToolExecutor and rejects an unknown pluginId as a validation failure, not a crash
+  ---
+  duration_ms: 247.395805
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: publish pull tools are wired with honest risk and the human-confirmed execute contract
+ok 232 - publish pull tools are wired with honest risk and the human-confirmed execute contract
+  ---
+  duration_ms: 811.472103
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: root-added load_agent_plugin is discoverable and publishes the shared domain approval contract
+ok 233 - root-added load_agent_plugin is discoverable and publishes the shared domain approval contract
+  ---
+  duration_ms: 954.571708
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [@jini-ai/http-kit] internal error (delegated-tool-execute, correlationId=e1d42f7b-c9a7-4b6a-8ce0-f652aece69be) 'getaddrinfo EAI_AGAIN cdn.example.com'
+# Subtest: an SSRF refusal reaches the caller as a BAD_REQUEST naming the blocked address, not a redacted INTERNAL_ERROR
+ok 234 - an SSRF refusal reaches the caller as a BAD_REQUEST naming the blocked address, not a redacted INTERNAL_ERROR
+  ---
+  duration_ms: 9.463505
+  type: 'test'
+  ...
+# Subtest: the refusal is a refusal, not an invitation to retry the identical call
+ok 235 - the refusal is a refusal, not an invitation to retry the identical call
+  ---
+  duration_ms: 5.945188
+  type: 'test'
+  ...
+# Subtest: a scheme refusal from the policy layer surfaces the same way — the classification is by TYPE, not by one message
+ok 236 - a scheme refusal from the policy layer surfaces the same way — the classification is by TYPE, not by one message
+  ---
+  duration_ms: 9.952197
+  type: 'test'
+  ...
+# Subtest: a genuine transport failure is STILL a redacted INTERNAL_ERROR — the fix must not reclassify every failure as the caller's fault
+ok 237 - a genuine transport failure is STILL a redacted INTERNAL_ERROR — the fix must not reclassify every failure as the caller's fault
+  ---
+  duration_ms: 46.305748
+  type: 'test'
+  ...
+# Subtest: the address a named host resolved to never reaches the caller; the full refusal is kept in the server log
+ok 238 - the address a named host resolved to never reaches the caller; the full refusal is kept in the server log
+  ---
+  duration_ms: 2.25681
+  type: 'test'
+  ...
+# Subtest: exactly the 3 plugin-runtime operations are wired — list, set-enabled, and uninstall (2026-09-07), nothing else
+ok 239 - exactly the 3 plugin-runtime operations are wired — list, set-enabled, and uninstall (2026-09-07), nothing else
+  ---
+  duration_ms: 61.991139
+  type: 'test'
+  ...
+# Subtest: no install/upload tool exists — this codebase has no admin route for either operation (uninstall now DOES, see tool-registrations.plugins-uninstall.test.ts)
+ok 240 - no install/upload tool exists — this codebase has no admin route for either operation (uninstall now DOES, see tool-registrations.plugins-uninstall.test.ts)
+  ---
+  duration_ms: 16.108271
+  type: 'test'
+  ...
+# Subtest: every wired plugins registration publishes its catalog entry's inputSchema and description verbatim
+ok 241 - every wired plugins registration publishes its catalog entry's inputSchema and description verbatim
+  ---
+  duration_ms: 29.471355
+  type: 'test'
+  ...
+# Subtest: requiresConfirmation is unset on every wired plugins tool
+ok 242 - requiresConfirmation is unset on every wired plugins tool
+  ---
+  duration_ms: 14.193841
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled's description is honest about ADR-023 DDL risk — it is not advertised as a pure metadata toggle
+ok 243 - plugins_set_enabled's description is honest about ADR-023 DDL risk — it is not advertised as a pure metadata toggle
+  ---
+  duration_ms: 0.432694
+  type: 'test'
+  ...
+# Subtest: the independent risk classification agrees with the catalog for both wired tools
+ok 244 - the independent risk classification agrees with the catalog for both wired tools
+  ---
+  duration_ms: 20.465051
+  type: 'test'
+  ...
+# Subtest: a plugins catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for set_enabled fails the build
+ok 245 - a plugins catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for set_enabled fails the build
+  ---
+  duration_ms: 4.301036
+  type: 'test'
+  ...
+# Subtest: the ToolPolicy layer is a pass-through 'allow' for both plugins registrations
+ok 246 - the ToolPolicy layer is a pass-through 'allow' for both plugins registrations
+  ---
+  duration_ms: 21.501564
+  type: 'test'
+  ...
+# Subtest: every wired plugins tool except plugins_uninstall has a known input fixture — uninstall cannot be dodged into a non-confirming input the way set-enabled can
+ok 247 - every wired plugins tool except plugins_uninstall has a known input fixture — uninstall cannot be dodged into a non-confirming input the way set-enabled can
+  ---
+  duration_ms: 7.904955
+  type: 'test'
+  ...
+# Subtest: content_read.plugin: calls authorize() with its catalog's declared permission and the run's principal
+ok 248 - content_read.plugin: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 31.188205
+  type: 'test'
+  ...
+# Subtest: content_read.plugin: a denied principal is rejected and nothing is written
+ok 249 - content_read.plugin: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 38.590673
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: calls authorize() with its catalog's declared permission and the run's principal
+ok 250 - plugins_set_enabled: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 193.229728
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: a denied principal is rejected and nothing is written
+ok 251 - plugins_set_enabled: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 23.079333
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: authorize() runs before any write
+ok 252 - plugins_set_enabled: authorize() runs before any write
+  ---
+  duration_ms: 34.041835
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: refuses to enable a plugin whose discovery status is 'invalid'
+ok 253 - plugins_set_enabled: refuses to enable a plugin whose discovery status is 'invalid'
+  ---
+  duration_ms: 19.003191
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: refuses to enable an unknown plugin id
+ok 254 - plugins_set_enabled: refuses to enable an unknown plugin id
+  ---
+  duration_ms: 8.189853
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: disabling has no validity precondition — a currently-invalid plugin can still be disabled
+ok 255 - plugins_set_enabled: disabling has no validity precondition — a currently-invalid plugin can still be disabled
+  ---
+  duration_ms: 19.482753
+  type: 'test'
+  ...
+# Subtest: workflow: list plugins, enable one the list returned, list again to confirm the state change is reflected
+ok 256 - workflow: list plugins, enable one the list returned, list again to confirm the state change is reflected
+  ---
+  duration_ms: 59.173048
+  type: 'test'
+  ...
+# Subtest: theme_set_active: a marked structure copy refuses without saving, then activates after styling
+ok 257 - theme_set_active: a marked structure copy refuses without saving, then activates after styling
+  ---
+  duration_ms: 27.655677
+  type: 'test'
+  ...
+# Subtest: theme_set_active: wires with a published schema and a cross-checked risk class
+ok 258 - theme_set_active: wires with a published schema and a cross-checked risk class
+  ---
+  duration_ms: 10.798803
+  type: 'test'
+  ...
+# Subtest: switching a theme advertises themeId as the single canonical argument before the first call
+ok 259 - switching a theme advertises themeId as the single canonical argument before the first call
+  ---
+  duration_ms: 13.577646
+  type: 'test'
+  ...
+# Subtest: switching a theme accepts activeThemeId through the shared execution gate
+ok 260 - switching a theme accepts activeThemeId through the shared execution gate
+  ---
+  duration_ms: 19.855649
+  type: 'test'
+  ...
+# Subtest: theme_set_active: the contributor registers under its own domain key, distinct from the themes file-op domain
+ok 261 - theme_set_active: the contributor registers under its own domain key, distinct from the themes file-op domain
+  ---
+  duration_ms: 0.461846
+  type: 'test'
+  ...
+# Subtest: theme_set_active: switches from basic to a second valid theme, returning the previous id, and resolveActiveThemeId reflects the switch
+ok 262 - theme_set_active: switches from basic to a second valid theme, returning the previous id, and resolveActiveThemeId reflects the switch
+  ---
+  duration_ms: 12.739383
+  type: 'test'
+  ...
+# Subtest: theme_set_active: accepts the no-theme sentinel — the write allowlist `writableThemeIds` shares with the admin PATCH route
+ok 263 - theme_set_active: accepts the no-theme sentinel — the write allowlist `writableThemeIds` shares with the admin PATCH route
+  ---
+  duration_ms: 15.156039
+  type: 'test'
+  ...
+# Subtest: theme_set_active: an unknown theme id is rejected by name, and settings are left unchanged
+ok 264 - theme_set_active: an unknown theme id is rejected by name, and settings are left unchanged
+  ---
+  duration_ms: 20.205838
+  type: 'test'
+  ...
+# Subtest: theme_set_active: refuses a principal without theme.set, without writing
+ok 265 - theme_set_active: refuses a principal without theme.set, without writing
+  ---
+  duration_ms: 32.856843
+  type: 'test'
+  ...
+# Subtest: theme_set_active: checks exactly the theme.set permission
+ok 266 - theme_set_active: checks exactly the theme.set permission
+  ---
+  duration_ms: 26.947864
+  type: 'test'
+  ...
+# Subtest: theme_set_active: activates a theme another process created after this one booted (2026-10-08 luvira)
+ok 267 - theme_set_active: activates a theme another process created after this one booted (2026-10-08 luvira)
+  ---
+  duration_ms: 13.563823
+  type: 'test'
+  ...
+# Subtest: theme_set_active: fails loudly — and restores the previous theme — when the public render of / would not resolve the theme
+ok 268 - theme_set_active: fails loudly — and restores the previous theme — when the public render of / would not resolve the theme
+  ---
+  duration_ms: 6.805037
+  type: 'test'
+  ...
+# Subtest: exactly the 12 safe widgets operations are wired — no invented purge/force-delete tool
+ok 269 - exactly the 12 safe widgets operations are wired — no invented purge/force-delete tool
+  ---
+  duration_ms: 14.429558
+  type: 'test'
+  ...
+# Subtest: no wired widgets tool is named or claims a purge/force-delete of a widget instance
+ok 270 - no wired widgets tool is named or claims a purge/force-delete of a widget instance
+  ---
+  duration_ms: 3.994124
+  type: 'test'
+  ...
+# Subtest: every wired Widgets registration publishes its catalog entry's inputSchema and description
+ok 271 - every wired Widgets registration publishes its catalog entry's inputSchema and description
+  ---
+  duration_ms: 4.122983
+  type: 'test'
+  ...
+# Subtest: requiresConfirmation is unset on every wired Widgets tool
+ok 272 - requiresConfirmation is unset on every wired Widgets tool
+  ---
+  duration_ms: 1.915126
+  type: 'test'
+  ...
+# Subtest: an unregistered widgetType is rejected with the schema attached for retry
+ok 273 - an unregistered widgetType is rejected with the schema attached for retry
+  ---
+  duration_ms: 3.164256
+  type: 'test'
+  ...
+# Subtest: an invalid config bag is rejected with the schema attached for retry
+ok 274 - an invalid config bag is rejected with the schema attached for retry
+  ---
+  duration_ms: 4.30561
+  type: 'test'
+  ...
+# Subtest: widgets_reorder_embeds rejects a count mismatch before writing anything
+ok 275 - widgets_reorder_embeds rejects a count mismatch before writing anything
+  ---
+  duration_ms: 6.495235
+  type: 'test'
+  ...
+# Subtest: a widgets_create_instance result is an explicit model-facing view: workspaceId dropped, id kept for follow-up calls
+ok 276 - a widgets_create_instance result is an explicit model-facing view: workspaceId dropped, id kept for follow-up calls
+  ---
+  duration_ms: 5.322167
+  type: 'test'
+  ...
+# Subtest: widgets_get_instance folds in the where-used disclosure, sourced from the real entry_refs index
+ok 277 - widgets_get_instance folds in the where-used disclosure, sourced from the real entry_refs index
+  ---
+  duration_ms: 12.898762
+  type: 'test'
+  ...
+# Subtest: the real Widgets catalog and tool-registrations' independent classification agree for all 12 wired tools
+ok 278 - the real Widgets catalog and tool-registrations' independent classification agree for all 12 wired tools
+  ---
+  duration_ms: 1.805429
+  type: 'test'
+  ...
+# Subtest: a Widgets catalog entry cannot downgrade its own risk — declaring sideEffects:'none' fails the build
+ok 279 - a Widgets catalog entry cannot downgrade its own risk — declaring sideEffects:'none' fails the build
+  ---
+  duration_ms: 0.233932
+  type: 'test'
+  ...
+# Subtest: no wired Widgets tool carries a confirmation-requiring actor-class rule
+ok 280 - no wired Widgets tool carries a confirmation-requiring actor-class rule
+  ---
+  duration_ms: 2.147321
+  type: 'test'
+  ...
+# Subtest: workflow: create a widget instance, bind a region, place the widget into it, then read the region back fully resolved
+ok 281 - workflow: create a widget instance, bind a region, place the widget into it, then read the region back fully resolved
+  ---
+  duration_ms: 18.275534
+  type: 'test'
+  ...
+# Subtest: workflow: insert an inline embed referencing a freshly-created widget, then remove it — the host entry's version advances consistently across both calls
+ok 282 - workflow: insert an inline embed referencing a freshly-created widget, then remove it — the host entry's version advances consistently across both calls
+  ---
+  duration_ms: 9.742337
+  type: 'test'
+  ...
+# Subtest: widgets_update_instance persists the new config and advances its version
+ok 283 - widgets_update_instance persists the new config and advances its version
+  ---
+  duration_ms: 10.503662
+  type: 'test'
+  ...
+# Subtest: widgets_reorder_embeds persists the requested order of two distinct widgets
+ok 284 - widgets_reorder_embeds persists the requested order of two distinct widgets
+  ---
+  duration_ms: 18.496498
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: asking what is waiting to be published finds the Publish dialog capability in the top 3
+ok 285 - asking what is waiting to be published finds the Publish dialog capability in the top 3
+  ---
+  duration_ms: 1589.499744
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: the added vocabulary does not displace the static-site dry run or the comment queue
+ok 286 - the added vocabulary does not displace the static-site dry run or the comment queue
+  ---
+  duration_ms: 744.200842
+  type: 'test'
+  ...
+# Subtest: n06: create_project ordinary call needs no card
+ok 287 - n06: create_project ordinary call needs no card
+  ---
+  duration_ms: 32.412455
+  type: 'test'
+  ...
+# Subtest: n06: generate_image ordinary call needs no card
+ok 288 - n06: generate_image ordinary call needs no card
+  ---
+  duration_ms: 0.9798
+  type: 'test'
+  ...
+# Subtest: n06: search ordinary call needs no card
+ok 289 - n06: search ordinary call needs no card
+  ---
+  duration_ms: 0.413988
+  type: 'test'
+  ...
+# Subtest: n06: execute_sql ordinary call needs no card
+ok 290 - n06: execute_sql ordinary call needs no card
+  ---
+  duration_ms: 0.649963
+  type: 'test'
+  ...
+# Subtest: n06: apply_migration ordinary call needs no card
+ok 291 - n06: apply_migration ordinary call needs no card
+  ---
+  duration_ms: 0.395824
+  type: 'test'
+  ...
+# Subtest: n06: execute_sql destructive declaration stays gated: {"query":"select 1"}
+ok 292 - n06: execute_sql destructive declaration stays gated: {"query":"select 1"}
+  ---
+  duration_ms: 4.11116
+  type: 'test'
+  ...
+# Subtest: n06: apply_migration destructive declaration stays gated: {"query":"create table demo (id integer)"}
+ok 293 - n06: apply_migration destructive declaration stays gated: {"query":"create table demo (id integer)"}
+  ---
+  duration_ms: 4.609806
+  type: 'test'
+  ...
+# Subtest: n06: trash_item destructive declaration stays gated: {"id":"one"}
+ok 294 - n06: trash_item destructive declaration stays gated: {"id":"one"}
+  ---
+  duration_ms: 0.392697
+  type: 'test'
+  ...
+# Subtest: n06: execute_sql destructive declaration stays gated: {"query":"select 'drop table demo' as example"}
+ok 295 - n06: execute_sql destructive declaration stays gated: {"query":"select 'drop table demo' as example"}
+  ---
+  duration_ms: 0.483651
+  type: 'test'
+  ...
+# Subtest: n06: delete_project protected action stays gated
+ok 296 - n06: delete_project protected action stays gated
+  ---
+  duration_ms: 0.450409
+  type: 'test'
+  ...
+# Subtest: n06: execute_sql protected action stays gated
+ok 297 - n06: execute_sql protected action stays gated
+  ---
+  duration_ms: 0.260017
+  type: 'test'
+  ...
+# Subtest: n06: apply_migration protected action stays gated
+ok 298 - n06: apply_migration protected action stays gated
+  ---
+  duration_ms: 0.276206
+  type: 'test'
+  ...
+# Subtest: n06: send_email protected action stays gated
+ok 299 - n06: send_email protected action stays gated
+  ---
+  duration_ms: 0.212295
+  type: 'test'
+  ...
+# Subtest: n06: assistant_set_instructions protected action stays gated
+ok 300 - n06: assistant_set_instructions protected action stays gated
+  ---
+  duration_ms: 0.494312
+  type: 'test'
+  ...
+# Subtest: n06: ordinary writes still enforce authorization
+ok 301 - n06: ordinary writes still enforce authorization
+  ---
+  duration_ms: 0.854947
+  type: 'test'
+  ...
+# Subtest: n06: destructive SQL is gated: truncate demo
+ok 302 - n06: destructive SQL is gated: truncate demo
+  ---
+  duration_ms: 0.582385
+  type: 'test'
+  ...
+# Subtest: n06: destructive SQL is gated: drop /* comment */ table demo
+ok 303 - n06: destructive SQL is gated: drop /* comment */ table demo
+  ---
+  duration_ms: 0.355431
+  type: 'test'
+  ...
+# Subtest: n06: destructive SQL is gated: select 1; delete from subscribers
+ok 304 - n06: destructive SQL is gated: select 1; delete from subscribers
+  ---
+  duration_ms: 0.238966
+  type: 'test'
+  ...
+# Subtest: n06: destructive SQL is gated: DO $$ BEGIN EXECUTE 'drop table demo'; END $$
+ok 305 - n06: destructive SQL is gated: DO $$ BEGIN EXECUTE 'drop table demo'; END $$
+  ---
+  duration_ms: 0.126998
+  type: 'test'
+  ...
+# Subtest: n06: SQL literal text without a destructive declaration does not require confirmation
+ok 306 - n06: SQL literal text without a destructive declaration does not require confirmation
+  ---
+  duration_ms: 0.223797
+  type: 'test'
+  ...
+# Subtest: n06: protected alternate name reply_to_email stays gated
+ok 307 - n06: protected alternate name reply_to_email stays gated
+  ---
+  duration_ms: 0.210645
+  type: 'test'
+  ...
+# Subtest: n06: protected alternate name forward_email stays gated
+ok 308 - n06: protected alternate name forward_email stays gated
+  ---
+  duration_ms: 0.110063
+  type: 'test'
+  ...
+# Subtest: n06: protected alternate name post_message stays gated
+ok 309 - n06: protected alternate name post_message stays gated
+  ---
+  duration_ms: 0.290808
+  type: 'test'
+  ...
+# Subtest: n06: protected alternate name publish_newsletter stays gated
+ok 310 - n06: protected alternate name publish_newsletter stays gated
+  ---
+  duration_ms: 0.793679
+  type: 'test'
+  ...
+# Subtest: n06: protected alternate name set_system_prompt stays gated
+ok 311 - n06: protected alternate name set_system_prompt stays gated
+  ---
+  duration_ms: 0.293925
+  type: 'test'
+  ...
+# Subtest: n06: reading the assistant's permissions needs no confirmation
+ok 312 - n06: reading the assistant's permissions needs no confirmation
+  ---
+  duration_ms: 0.366584
+  type: 'test'
+  ...
+# Subtest: n06: assistant_set_instructions card marks permanent deletion accurately
+ok 313 - n06: assistant_set_instructions card marks permanent deletion accurately
+  ---
+  duration_ms: 0.402877
+  type: 'test'
+  ...
+# Subtest: n06: assistant_set_privacy card marks permanent deletion accurately
+ok 314 - n06: assistant_set_privacy card marks permanent deletion accurately
+  ---
+  duration_ms: 0.236879
+  type: 'test'
+  ...
+# Subtest: n06: assistant_set_permissions card marks permanent deletion accurately
+ok 315 - n06: assistant_set_permissions card marks permanent deletion accurately
+  ---
+  duration_ms: 0.529424
+  type: 'test'
+  ...
+# Subtest: n06: set_system_prompt card marks permanent deletion accurately
+ok 316 - n06: set_system_prompt card marks permanent deletion accurately
+  ---
+  duration_ms: 0.236484
+  type: 'test'
+  ...
+# Subtest: n06: send_email card marks permanent deletion accurately
+ok 317 - n06: send_email card marks permanent deletion accurately
+  ---
+  duration_ms: 0.197103
+  type: 'test'
+  ...
+# Subtest: n06: delete_project card marks permanent deletion accurately
+ok 318 - n06: delete_project card marks permanent deletion accurately
+  ---
+  duration_ms: 0.148089
+  type: 'test'
+  ...
+# Subtest: n06: execute_sql card marks permanent deletion accurately
+ok 319 - n06: execute_sql card marks permanent deletion accurately
+  ---
+  duration_ms: 0.123735
+  type: 'test'
+  ...
+# Subtest: a pglite-socket kernel sweeps expired chats with Postgres-dialect maintenance
+ok 320 - a pglite-socket kernel sweeps expired chats with Postgres-dialect maintenance
+  ---
+  duration_ms: 7152.952146
+  type: 'test'
+  ...
+# Subtest: a node-postgres kernel sweeps expired chats with Postgres-dialect maintenance
+ok 321 - a node-postgres kernel sweeps expired chats with Postgres-dialect maintenance
+  ---
+  duration_ms: 33.170615
+  type: 'test'
+  ...
+# Subtest: ChatRunLedger [sqlite]
+    # Subtest: checkpoint persists repeated Claude tool IDs once and retains saved tool progress
+    ok 1 - checkpoint persists repeated Claude tool IDs once and retains saved tool progress
+      ---
+      duration_ms: 197.445797
+      type: 'test'
+      ...
+    # Subtest: settle deduplicates tool IDs after merging checkpoints (shorter replay: false)
+    ok 2 - settle deduplicates tool IDs after merging checkpoints (shorter replay: false)
+      ---
+      duration_ms: 6.457053
+      type: 'test'
+      ...
+    # Subtest: settle deduplicates tool IDs after merging checkpoints (shorter replay: true)
+    ok 3 - settle deduplicates tool IDs after merging checkpoints (shorter replay: true)
+      ---
+      duration_ms: 5.20395
+      type: 'test'
+      ...
+    # Subtest: settle writes the final state once and touches the conversation; later settles are ignored
+    ok 4 - settle writes the final state once and touches the conversation; later settles are ignored
+      ---
+      duration_ms: 6.447874
+      type: 'test'
+      ...
+    # Subtest: settle refuses another run id, a user row, and an unknown row
+    ok 5 - settle refuses another run id, a user row, and an unknown row
+      ---
+      duration_ms: 4.273914
+      type: 'test'
+      ...
+    # Subtest: unlessSettled runs the write while unsettled and skips it once settled
+    ok 6 - unlessSettled runs the write while unsettled and skips it once settled
+      ---
+      duration_ms: 15.415955
+      type: 'test'
+      ...
+    # Subtest: a write that throws inside unlessSettled rolls back everything it wrote
+    ok 7 - a write that throws inside unlessSettled rolls back everything it wrote
+      ---
+      duration_ms: 9.841178
+      type: 'test'
+      ...
+    # Subtest: checkpoint saves progress without changing the status, and never touches a settled row
+    ok 8 - checkpoint saves progress without changing the status, and never touches a settled row
+      ---
+      duration_ms: 11.93896
+      type: 'test'
+      ...
+    # Subtest: checkpoint marks a queued row running: a run that is streaming must not read as queued
+    ok 9 - checkpoint marks a queued row running: a run that is streaming must not read as queued
+      ---
+      duration_ms: 3.154044
+      type: 'test'
+      ...
+    # Subtest: boot cancels unfinished rows when a recovery port is unavailable, preserving saved work
+    ok 10 - boot cancels unfinished rows when a recovery port is unavailable, preserving saved work
+      ---
+      duration_ms: 15.455522
+      type: 'test'
+      ...
+    # Subtest: reconcileInterrupted offers the stored owner and stub to recovery and keeps adopted rows running
+    ok 11 - reconcileInterrupted offers the stored owner and stub to recovery and keeps adopted rows running
+      ---
+      duration_ms: 19.212757
+      type: 'test'
+      ...
+    # Subtest: reconcileInterrupted cannot cancel a retry that replaced the probed run
+    ok 12 - reconcileInterrupted cannot cancel a retry that replaced the probed run
+      ---
+      duration_ms: 10.983818
+      type: 'test'
+      ...
+    # Subtest: reconcileInterrupted preserves a checkpoint written during the daemon probe
+    ok 13 - reconcileInterrupted preserves a checkpoint written during the daemon probe
+      ---
+      duration_ms: 7.749392
+      type: 'test'
+      ...
+    # Subtest: boot cancellation fences a missing run id when acceptance supplies one during discovery
+    ok 14 - boot cancellation fences a missing run id when acceptance supplies one during discovery
+      ---
+      duration_ms: 15.868138
+      type: 'test'
+      ...
+    # Subtest: a browser restart notice cannot terminalize a live daemon row or erase its checkpoint
+    ok 15 - a browser restart notice cannot terminalize a live daemon row or erase its checkpoint
+      ---
+      duration_ms: 11.978805
+      type: 'test'
+      ...
+    # Subtest: two concurrent settles of one run: exactly one wins, and the row holds the winner
+    ok 16 - two concurrent settles of one run: exactly one wins, and the row holds the winner
+      ---
+      duration_ms: 11.851176
+      type: 'test'
+      ...
+    # Subtest: a browser save racing the finalizer's settle never overwrites the settled answer
+    ok 17 - a browser save racing the finalizer's settle never overwrites the settled answer
+      ---
+      duration_ms: 2.124633
+      type: 'test'
+      ...
+    1..17
+ok 322 - ChatRunLedger [sqlite]
+  ---
+  duration_ms: 360.99748
+  type: 'suite'
+  ...
+# Subtest: ChatRunLedger [pglite]
+    # Subtest: checkpoint persists repeated Claude tool IDs once and retains saved tool progress
+    ok 1 - checkpoint persists repeated Claude tool IDs once and retains saved tool progress
+      ---
+      duration_ms: 6529.547461
+      type: 'test'
+      ...
+    # Subtest: settle deduplicates tool IDs after merging checkpoints (shorter replay: false)
+    ok 2 - settle deduplicates tool IDs after merging checkpoints (shorter replay: false)
+      ---
+      duration_ms: 35.211078
+      type: 'test'
+      ...
+    # Subtest: settle deduplicates tool IDs after merging checkpoints (shorter replay: true)
+    ok 3 - settle deduplicates tool IDs after merging checkpoints (shorter replay: true)
+      ---
+      duration_ms: 34.53297
+      type: 'test'
+      ...
+    # Subtest: settle writes the final state once and touches the conversation; later settles are ignored
+    ok 4 - settle writes the final state once and touches the conversation; later settles are ignored
+      ---
+      duration_ms: 35.739293
+      type: 'test'
+      ...
+    # Subtest: settle refuses another run id, a user row, and an unknown row
+    ok 5 - settle refuses another run id, a user row, and an unknown row
+      ---
+      duration_ms: 38.114742
+      type: 'test'
+      ...
+    # Subtest: unlessSettled runs the write while unsettled and skips it once settled
+    ok 6 - unlessSettled runs the write while unsettled and skips it once settled
+      ---
+      duration_ms: 40.343008
+      type: 'test'
+      ...
+    # Subtest: a write that throws inside unlessSettled rolls back everything it wrote
+    ok 7 - a write that throws inside unlessSettled rolls back everything it wrote
+      ---
+      duration_ms: 24.05713
+      type: 'test'
+      ...
+    # Subtest: checkpoint saves progress without changing the status, and never touches a settled row
+    ok 8 - checkpoint saves progress without changing the status, and never touches a settled row
+      ---
+      duration_ms: 63.176654
+      type: 'test'
+      ...
+    # Subtest: checkpoint marks a queued row running: a run that is streaming must not read as queued
+    ok 9 - checkpoint marks a queued row running: a run that is streaming must not read as queued
+      ---
+      duration_ms: 40.75684
+      type: 'test'
+      ...
+    # Subtest: boot cancels unfinished rows when a recovery port is unavailable, preserving saved work
+    ok 10 - boot cancels unfinished rows when a recovery port is unavailable, preserving saved work
+      ---
+      duration_ms: 73.54905
+      type: 'test'
+      ...
+    # Subtest: reconcileInterrupted offers the stored owner and stub to recovery and keeps adopted rows running
+    ok 11 - reconcileInterrupted offers the stored owner and stub to recovery and keeps adopted rows running
+      ---
+      duration_ms: 35.699196
+      type: 'test'
+      ...
+    # Subtest: reconcileInterrupted cannot cancel a retry that replaced the probed run
+    ok 12 - reconcileInterrupted cannot cancel a retry that replaced the probed run
+      ---
+      duration_ms: 19.690707
+      type: 'test'
+      ...
+    # Subtest: reconcileInterrupted preserves a checkpoint written during the daemon probe
+    ok 13 - reconcileInterrupted preserves a checkpoint written during the daemon probe
+      ---
+      duration_ms: 119.704247
+      type: 'test'
+      ...
+    # Subtest: boot cancellation fences a missing run id when acceptance supplies one during discovery
+    ok 14 - boot cancellation fences a missing run id when acceptance supplies one during discovery
+      ---
+      duration_ms: 30.374097
+      type: 'test'
+      ...
+    # Subtest: a browser restart notice cannot terminalize a live daemon row or erase its checkpoint
+    ok 15 - a browser restart notice cannot terminalize a live daemon row or erase its checkpoint
+      ---
+      duration_ms: 62.286709
+      type: 'test'
+      ...
+    # Subtest: two concurrent settles of one run: exactly one wins, and the row holds the winner
+    ok 16 - two concurrent settles of one run: exactly one wins, and the row holds the winner
+      ---
+      duration_ms: 29.095983
+      type: 'test'
+      ...
+    # Subtest: a browser save racing the finalizer's settle never overwrites the settled answer
+    ok 17 - a browser save racing the finalizer's settle never overwrites the settled answer
+      ---
+      duration_ms: 45.184833
+      type: 'test'
+      ...
+    1..17
+ok 323 - ChatRunLedger [pglite]
+  ---
+  duration_ms: 7275.065832
+  type: 'suite'
+  ...
+# Subtest: delegate refuses {"mode":"null"}
+ok 324 - delegate refuses {"mode":"null"}
+  ---
+  duration_ms: 2.645355
+  type: 'test'
+  ...
+# Subtest: delegate refuses {"channel":false}
+ok 325 - delegate refuses {"channel":false}
+  ---
+  duration_ms: 0.82071
+  type: 'test'
+  ...
+# Subtest: delegate refuses {"mode":"auto"}
+ok 326 - delegate refuses {"mode":"auto"}
+  ---
+  duration_ms: 0.301891
+  type: 'test'
+  ...
+# Subtest: delegate refuses {"allow":false}
+ok 327 - delegate refuses {"allow":false}
+  ---
+  duration_ms: 12.903797
+  type: 'test'
+  ...
+# Subtest: delegate refuses {"fail":true}
+ok 328 - delegate refuses {"fail":true}
+  ---
+  duration_ms: 0.484379
+  type: 'test'
+  ...
+# Subtest: an approved execution cannot be retargeted to another ID, input or replayed
+ok 329 - an approved execution cannot be retargeted to another ID, input or replayed
+  ---
+  duration_ms: 28.437118
+  type: 'test'
+  ...
+# Subtest: pre-effect storage errors and abort are refusals; forgetting cannot leave a live grant
+ok 330 - pre-effect storage errors and abort are refusals; forgetting cannot leave a live grant
+  ---
+  duration_ms: 1.830858
+  type: 'test'
+  ...
+# Subtest: the handler's input must match the approved input even when the delegate's object is unchanged
+ok 331 - the handler's input must match the approved input even when the delegate's object is unchanged
+  ---
+  duration_ms: 1.802859
+  type: 'test'
+  ...
+# Subtest: reordered nested argument keys retain approval while array order and value changes are refused
+ok 332 - reordered nested argument keys retain approval while array order and value changes are refused
+  ---
+  duration_ms: 15.752613
+  type: 'test'
+  ...
+# Subtest: non-JSON arguments are denied before a confirmation is offered
+ok 333 - non-JSON arguments are denied before a confirmation is offered
+  ---
+  duration_ms: 0.962536
+  type: 'test'
+  ...
+# Subtest: a resume racing another cancellation is reported without an unhandled rejection
+ok 334 - a resume racing another cancellation is reported without an unhandled rejection
+  ---
+  duration_ms: 1.392288
+  type: 'test'
+  ...
+# Subtest: confirmation copy projects only declared fields and strips controls, links and excess text
+ok 335 - confirmation copy projects only declared fields and strips controls, links and excess text
+  ---
+  duration_ms: 3.606997
+  type: 'test'
+  ...
+# Subtest: safe per-tool copy for get_published_entry
+ok 336 - safe per-tool copy for get_published_entry
+  ---
+  duration_ms: 1.871506
+  type: 'test'
+  ...
+# Subtest: safe per-tool copy for page.navigate
+ok 337 - safe per-tool copy for page.navigate
+  ---
+  duration_ms: 0.713353
+  type: 'test'
+  ...
+# Subtest: safe per-tool copy for page.scroll_to
+ok 338 - safe per-tool copy for page.scroll_to
+  ---
+  duration_ms: 1.108433
+  type: 'test'
+  ...
+# Subtest: safe per-tool copy for page.highlight
+ok 339 - safe per-tool copy for page.highlight
+  ---
+  duration_ms: 0.64972
+  type: 'test'
+  ...
+# Subtest: safe per-tool copy for site_guide
+ok 340 - safe per-tool copy for site_guide
+  ---
+  duration_ms: 0.612771
+  type: 'test'
+  ...
+# Subtest: safe per-tool copy for list_categories
+ok 341 - safe per-tool copy for list_categories
+  ---
+  duration_ms: 0.931488
+  type: 'test'
+  ...
+# Subtest: safe per-tool copy for search_published_entries
+ok 342 - safe per-tool copy for search_published_entries
+  ---
+  duration_ms: 0.946007
+  type: 'test'
+  ...
+# Subtest: safe per-tool copy for search_published_entries
+ok 343 - safe per-tool copy for search_published_entries
+  ---
+  duration_ms: 0.928426
+  type: 'test'
+  ...
+# Subtest: visitor navigation requires published public IDs and rejects encoded reserved paths and queries
+ok 344 - visitor navigation requires published public IDs and rejects encoded reserved paths and queries
+  ---
+  duration_ms: 2.844756
+  type: 'test'
+  ...
+# Subtest: tovu export --public-url writes absolute discovery and SEO; omitting it keeps the copy domainless
+ok 345 - tovu export --public-url writes absolute discovery and SEO; omitting it keeps the copy domainless
+  ---
+  duration_ms: 60149.53795
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}

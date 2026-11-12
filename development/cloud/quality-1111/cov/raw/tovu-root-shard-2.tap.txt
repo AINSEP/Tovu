@@ -1,0 +1,3073 @@
+TAP version 13
+# Subtest: SiteAssistantHeader
+    # Subtest: renders the public title and New thread without a workspace kicker
+    ok 1 - renders the public title and New thread without a workspace kicker
+      ---
+      duration_ms: 79.808925
+      type: 'test'
+      ...
+    # Subtest: resets immediately with no confirm step when the transcript is empty
+    ok 2 - resets immediately with no confirm step when the transcript is empty
+      ---
+      duration_ms: 54.245436
+      type: 'test'
+      ...
+    # Subtest: shows a two-step confirm, without resetting yet, when the transcript has messages
+    ok 3 - shows a two-step confirm, without resetting yet, when the transcript has messages
+      ---
+      duration_ms: 30.906081
+      type: 'test'
+      ...
+    # Subtest: protects a typed draft in an empty transcript and restores focus after Cancel or Escape
+    ok 4 - protects a typed draft in an empty transcript and restores focus after Cancel or Escape
+      ---
+      duration_ms: 42.454952
+      type: 'test'
+      ...
+    # Subtest: autofocuses Cancel (the safe choice), not the destructive Discard button, once the confirm step appears
+    ok 5 - autofocuses Cancel (the safe choice), not the destructive Discard button, once the confirm step appears
+      ---
+      duration_ms: 21.005229
+      type: 'test'
+      ...
+    # Subtest: backs out on Cancel without resetting, restoring the plain New thread button
+    ok 6 - backs out on Cancel without resetting, restoring the plain New thread button
+      ---
+      duration_ms: 24.384877
+      type: 'test'
+      ...
+    # Subtest: resets and closes the confirm step when Discard is clicked
+    ok 7 - resets and closes the confirm step when Discard is clicked
+      ---
+      duration_ms: 55.003252
+      type: 'test'
+      ...
+    # Subtest: backs out on Escape (from anywhere in the pane) without resetting
+    ok 8 - backs out on Escape (from anywhere in the pane) without resetting
+      ---
+      duration_ms: 32.501033
+      type: 'test'
+      ...
+    # Subtest: keeps confirmation open on non-Escape keydown without resetting
+    ok 9 - keeps confirmation open on non-Escape keydown without resetting
+      ---
+      duration_ms: 24.969514
+      type: 'test'
+      ...
+    # Subtest: Escape is inert when the confirm step is not open (no listener attached, nothing to dismiss)
+    ok 10 - Escape is inert when the confirm step is not open (no listener attached, nothing to dismiss)
+      ---
+      duration_ms: 16.971215
+      type: 'test'
+      ...
+    # Subtest: removes its Escape listener on unmount — a later Escape after unmount touches nothing
+    ok 11 - removes its Escape listener on unmount — a later Escape after unmount touches nothing
+      ---
+      duration_ms: 22.646389
+      type: 'test'
+      ...
+    1..11
+ok 1 - SiteAssistantHeader
+  ---
+  duration_ms: 408.605718
+  type: 'suite'
+  ...
+# Subtest: loader host binds react assets only on demand and preserves open intent
+ok 2 - loader host binds react assets only on demand and preserves open intent
+  ---
+  duration_ms: 228.293097
+  type: 'test'
+  ...
+# Subtest: loader host binds vanilla assets only on demand and preserves open intent
+ok 3 - loader host binds vanilla assets only on demand and preserves open intent
+  ---
+  duration_ms: 23.309716
+  type: 'test'
+  ...
+# Subtest: explicit deep link /\#open-chat opens lazily
+ok 4 - explicit deep link /\#open-chat opens lazily
+  ---
+  duration_ms: 31.365793
+  type: 'test'
+  ...
+# Subtest: explicit deep link /?open-chat=1 opens lazily
+ok 5 - explicit deep link /?open-chat=1 opens lazily
+  ---
+  duration_ms: 33.66857
+  type: 'test'
+  ...
+# Subtest: react: pending destination effects preload only the lightweight widget while closed
+ok 6 - react: pending destination effects preload only the lightweight widget while closed
+  ---
+  duration_ms: 10.197173
+  type: 'test'
+  ...
+# Subtest: vanilla: pending destination effects preload only the lightweight widget while closed
+ok 7 - vanilla: pending destination effects preload only the lightweight widget while closed
+  ---
+  duration_ms: 9.199638
+  type: 'test'
+  ...
+# Subtest: React chat with queued=false inserts no assets until open, then loads CSS and the bundle once
+ok 8 - React chat with queued=false inserts no assets until open, then loads CSS and the bundle once
+  ---
+  duration_ms: 61.493827
+  type: 'test'
+  ...
+# Subtest: React chat with queued=true inserts no assets until open, then loads CSS and the bundle once
+ok 9 - React chat with queued=true inserts no assets until open, then loads CSS and the bundle once
+  ---
+  duration_ms: 22.078298
+  type: 'test'
+  ...
+# Subtest: an open-chat anchor activates after loading even when its hash is already selected
+ok 10 - an open-chat anchor activates after loading even when its hash is already selected
+  ---
+  duration_ms: 21.66821
+  type: 'test'
+  ...
+# Subtest: host passes the root as the mount-readiness boundary
+ok 11 - host passes the root as the mount-readiness boundary
+  ---
+  duration_ms: 8.452416
+  type: 'test'
+  ...
+# Subtest: loader requires both mount and button: <button data-jini-chat-loader></button>
+ok 12 - loader requires both mount and button: <button data-jini-chat-loader></button>
+  ---
+  duration_ms: 11.09536
+  type: 'test'
+  ...
+# Subtest: loader requires both mount and button: <div id="tovu-site-assistant-root"></div>
+ok 13 - loader requires both mount and button: <div id="tovu-site-assistant-root"></div>
+  ---
+  duration_ms: 8.392553
+  type: 'test'
+  ...
+# Subtest: loader requires both mount and button: 
+ok 14 - loader requires both mount and button: 
+  ---
+  duration_ms: 12.62463
+  type: 'test'
+  ...
+# Subtest: loader pins widget precedence and open intent: {"widget":"vanilla","compare":"react","open":false,"search":"?open-chat=0","hash":"","expected":"site-assistant","deep":false}
+ok 15 - loader pins widget precedence and open intent: {"widget":"vanilla","compare":"react","open":false,"search":"?open-chat=0","hash":"","expected":"site-assistant","deep":false}
+  ---
+  duration_ms: 12.260962
+  type: 'test'
+  ...
+# Subtest: loader pins widget precedence and open intent: {"widget":"react","compare":"vanilla","open":true,"search":"","hash":"","expected":"site-assistant-vanilla","deep":false}
+ok 16 - loader pins widget precedence and open intent: {"widget":"react","compare":"vanilla","open":true,"search":"","hash":"","expected":"site-assistant-vanilla","deep":false}
+  ---
+  duration_ms: 17.251023
+  type: 'test'
+  ...
+# Subtest: loader pins widget precedence and open intent: {"widget":"unknown","compare":"invalid","open":false,"search":"?open-chat=true","hash":"\#other","expected":"site-assistant","deep":false}
+ok 17 - loader pins widget precedence and open intent: {"widget":"unknown","compare":"invalid","open":false,"search":"?open-chat=true","hash":"\#other","expected":"site-assistant","deep":false}
+  ---
+  duration_ms: 11.351485
+  type: 'test'
+  ...
+# Subtest: loader pins widget precedence and open intent: {"widget":"vanilla","compare":"","open":false,"search":"?open-chat=1","hash":"","expected":"site-assistant-vanilla","deep":true}
+ok 18 - loader pins widget precedence and open intent: {"widget":"vanilla","compare":"","open":false,"search":"?open-chat=1","hash":"","expected":"site-assistant-vanilla","deep":true}
+  ---
+  duration_ms: 17.902116
+  type: 'test'
+  ...
+# Subtest: loader pins widget precedence and open intent: {"widget":"vanilla","compare":"","open":false,"search":"","hash":"","expected":"site-assistant-vanilla","deep":false}
+ok 19 - loader pins widget precedence and open intent: {"widget":"vanilla","compare":"","open":false,"search":"","hash":"","expected":"site-assistant-vanilla","deep":false}
+  ---
+  duration_ms: 12.519742
+  type: 'test'
+  ...
+# Subtest: loader defaults use the browser document, location, events and session state
+ok 20 - loader defaults use the browser document, location, events and session state
+  ---
+  duration_ms: 9.440618
+  type: 'test'
+  ...
+# Subtest: a later hash change to \#open-chat activates the loader; any other hash does not
+ok 21 - a later hash change to \#open-chat activates the loader; any other hash does not
+  ---
+  duration_ms: 9.124244
+  type: 'test'
+  ...
+# Subtest: a focused open still announces itself in a document with no window of its own
+ok 22 - a focused open still announces itself in a document with no window of its own
+  ---
+  duration_ms: 13.124618
+  type: 'test'
+  ...
+# Subtest: only a bounded typed server directive narrows; text, malformed data and executable objects do not
+ok 23 - only a bounded typed server directive narrows; text, malformed data and executable objects do not
+  ---
+  duration_ms: 1.847205
+  type: 'test'
+  ...
+# Subtest: a click posts only ID and literal allow, relative with same-origin mode, no redirect or retry
+ok 24 - a click posts only ID and literal allow, relative with same-origin mode, no redirect or retry
+  ---
+  duration_ms: 33.306981
+  type: 'test'
+  ...
+# Subtest: two widget instances supply their own live confirmation credentials
+ok 25 - two widget instances supply their own live confirmation credentials
+  ---
+  duration_ms: 1.994062
+  type: 'test'
+  ...
+# Subtest: live challenges stay out of events, completed transcripts and the next provider history
+ok 26 - live challenges stay out of events, completed transcripts and the next provider history
+  ---
+  duration_ms: 13.958319
+  type: 'test'
+  ...
+# Subtest: without a renderer a challenge remains non-persistent, and late challenges after end stay silent
+ok 27 - without a renderer a challenge remains non-persistent, and late challenges after end stay silent
+  ---
+  duration_ms: 4.939994
+  type: 'test'
+  ...
+# Subtest: visitor navigation uses normalized, same-site public paths and never arbitrary query state
+ok 28 - visitor navigation uses normalized, same-site public paths and never arbitrary query state
+  ---
+  duration_ms: 1.510043
+  type: 'test'
+  ...
+# Subtest: access always asks once, binds person and tool, and applies only after the exact click
+ok 29 - access always asks once, binds person and tool, and applies only after the exact click
+  ---
+  duration_ms: 21.938359
+  type: 'test'
+  ...
+# Subtest: deactivation while reading the access card prevents effects
+ok 30 - deactivation while reading the access card prevents effects
+  ---
+  duration_ms: 9.041024
+  type: 'test'
+  ...
+# Subtest: cancel never writes access
+ok 31 - cancel never writes access
+  ---
+  duration_ms: 3.945229
+  type: 'test'
+  ...
+# Subtest: abort never writes access
+ok 32 - abort never writes access
+  ---
+  duration_ms: 1.13785
+  type: 'test'
+  ...
+# Subtest: an access card cannot address another person or omit the live approver check
+ok 33 - an access card cannot address another person or omit the live approver check
+  ---
+  duration_ms: 1.420827
+  type: 'test'
+  ...
+# Subtest: expiry closes the access card without writes
+ok 34 - expiry closes the access card without writes
+  ---
+  duration_ms: 7.306643
+  type: 'test'
+  ...
+# Subtest: every schema field title on an approval card is translated in every supported locale
+ok 35 - every schema field title on an approval card is translated in every supported locale
+  ---
+  duration_ms: 626.293729
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: plugin ask-choice: checked matching options and use round trip
+ok 36 - plugin ask-choice: checked matching options and use round trip
+  ---
+  duration_ms: 10.521728
+  type: 'test'
+  ...
+# Subtest: plugin ask-choice: checked matching options and skip round trip
+ok 37 - plugin ask-choice: checked matching options and skip round trip
+  ---
+  duration_ms: 1.384674
+  type: 'test'
+  ...
+# Subtest: plugin ask-choice: checked matching options and auto round trip
+ok 38 - plugin ask-choice: checked matching options and auto round trip
+  ---
+  duration_ms: 1.523913
+  type: 'test'
+  ...
+# Subtest: plugin ask-choice rejects an unoffered selection even with the Auto action
+ok 39 - plugin ask-choice rejects an unoffered selection even with the Auto action
+  ---
+  duration_ms: 1.501785
+  type: 'test'
+  ...
+# Subtest: the adopted provider mapper preserves an adapter-reported tool error without a fold marker
+ok 40 - the adopted provider mapper preserves an adapter-reported tool error without a fold marker
+  ---
+  duration_ms: 3.187949
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema strips additionalProperties/$schema/$ref/$defs at the top level
+ok 41 - sanitizeGoogleSchema strips additionalProperties/$schema/$ref/$defs at the top level
+  ---
+  duration_ms: 0.718937
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema strips the same keys when nested in properties/items/anyOf, and preserves everything else
+ok 42 - sanitizeGoogleSchema strips the same keys when nested in properties/items/anyOf, and preserves everything else
+  ---
+  duration_ms: 0.639922
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema leaves non-schema values (primitives, empty object) untouched
+ok 43 - sanitizeGoogleSchema leaves non-schema values (primitives, empty object) untouched
+  ---
+  duration_ms: 4.539055
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema converts const to enum, top-level and nested
+ok 44 - sanitizeGoogleSchema converts const to enum, top-level and nested
+  ---
+  duration_ms: 0.287984
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema converts a const nested exactly 2 properties-levels deep, matching the owner's real error path (declaration[102].parameters.properties[4].value.properties[0].value)
+ok 45 - sanitizeGoogleSchema converts a const nested exactly 2 properties-levels deep, matching the owner's real error path (declaration[102].parameters.properties[4].value.properties[0].value)
+  ---
+  duration_ms: 0.171051
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema collapses a type array (JSON-Schema nullable idiom) to a single type plus nullable, top-level and nested
+ok 46 - sanitizeGoogleSchema collapses a type array (JSON-Schema nullable idiom) to a single type plus nullable, top-level and nested
+  ---
+  duration_ms: 0.35118
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema stringifies a numeric enum and forces type to string, top-level and nested
+ok 47 - sanitizeGoogleSchema stringifies a numeric enum and forces type to string, top-level and nested
+  ---
+  duration_ms: 0.365257
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema converts oneOf to anyOf, merging with a sibling anyOf if present, and preserving arbitrary property names inside each branch
+ok 48 - sanitizeGoogleSchema converts oneOf to anyOf, merging with a sibling anyOf if present, and preserving arbitrary property names inside each branch
+  ---
+  duration_ms: 0.517331
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema inlines a non-recursive $ref/$defs pointer by value
+ok 49 - sanitizeGoogleSchema inlines a non-recursive $ref/$defs pointer by value
+  ---
+  duration_ms: 0.199364
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema inlines a genuinely recursive $ref/$defs schema up to MAX_GOOGLE_REF_DEPTH, then substitutes a valid non-recursive stub instead of looping forever
+ok 50 - sanitizeGoogleSchema inlines a genuinely recursive $ref/$defs schema up to MAX_GOOGLE_REF_DEPTH, then substitutes a valid non-recursive stub instead of looping forever
+  ---
+  duration_ms: 0.642838
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema, applied to the REAL menusAgentToolCatalog (@jini-ai/cms/navigation), postAgentToolCatalog, and getRedirectsAgentToolCatalog() (this repo), never emits a Gemini-unsupported key or shape anywhere
+ok 51 - sanitizeGoogleSchema, applied to the REAL menusAgentToolCatalog (@jini-ai/cms/navigation), postAgentToolCatalog, and getRedirectsAgentToolCatalog() (this repo), never emits a Gemini-unsupported key or shape anywhere
+  ---
+  duration_ms: 63.009706
+  type: 'test'
+  ...
+# Subtest: on the REAL redirects catalog: sanitizeGoogleSchema converts statusCode's numeric enum to strings, and findNumericEnumPaths finds exactly that field on both affected tools
+ok 52 - on the REAL redirects catalog: sanitizeGoogleSchema converts statusCode's numeric enum to strings, and findNumericEnumPaths finds exactly that field on both affected tools
+  ---
+  duration_ms: 0.664414
+  type: 'test'
+  ...
+# Subtest: coerceNumericEnumStringsToNumbers converts a numeric-looking string at a found path back to a number, and leaves everything else alone
+ok 53 - coerceNumericEnumStringsToNumbers converts a numeric-looking string at a found path back to a number, and leaves everything else alone
+  ---
+  duration_ms: 0.384971
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(google): the outbound Gemini request has additionalProperties/$schema stripped, top-level and nested
+ok 54 - runByokProviderTurn(google): the outbound Gemini request has additionalProperties/$schema stripped, top-level and nested
+  ---
+  duration_ms: 43.5269
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(anthropic): strict projection closes nested fields and preserves the authoritative schema
+ok 55 - runByokProviderTurn(anthropic): strict projection closes nested fields and preserves the authoritative schema
+  ---
+  duration_ms: 7.12332
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(google): a numeric-enum tool (redirects_create) round-trips end to end — Gemini sends back statusCode as a STRING, and the tool executor still receives a NUMBER
+ok 56 - runByokProviderTurn(google): a numeric-enum tool (redirects_create) round-trips end to end — Gemini sends back statusCode as a STRING, and the tool executor still receives a NUMBER
+  ---
+  duration_ms: 8.473573
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(azure): refuses with stopReason 'error' when no baseUrl is supplied, rather than attempting a request (every Azure OpenAI resource has its own endpoint — there is no sane global default)
+ok 57 - runByokProviderTurn(azure): refuses with stopReason 'error' when no baseUrl is supplied, rather than attempting a request (every Azure OpenAI resource has its own endpoint — there is no sane global default)
+  ---
+  duration_ms: 0.417769
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(openai): strict projection closes nested fields and retains required nullable omission guidance
+ok 58 - runByokProviderTurn(openai): strict projection closes nested fields and retains required nullable omission guidance
+  ---
+  duration_ms: 10.567101
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(openai): a failed tool result is folded into the outbound message with the [tool error] prefix, a successful one passes through unprefixed, and isError on the reported tool_result event is derived from that fold marker — not the adapter's own (nonexistent) isError field
+ok 59 - runByokProviderTurn(openai): a failed tool result is folded into the outbound message with the [tool error] prefix, a successful one passes through unprefixed, and isError on the reported tool_result event is derived from that fold marker — not the adapter's own (nonexistent) isError field
+  ---
+  duration_ms: 6.11468
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(anthropic): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+ok 60 - runByokProviderTurn(anthropic): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+  ---
+  duration_ms: 2.823677
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(openai): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+ok 61 - runByokProviderTurn(openai): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+  ---
+  duration_ms: 3.442906
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(azure): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+ok 62 - runByokProviderTurn(azure): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+  ---
+  duration_ms: 4.025928
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(google): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+ok 63 - runByokProviderTurn(google): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+  ---
+  duration_ms: 3.390161
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(azure): the same [tool error]-prefix fold/derive as openai, in azure's own copy of that logic
+ok 64 - runByokProviderTurn(azure): the same [tool error]-prefix fold/derive as openai, in azure's own copy of that logic
+  ---
+  duration_ms: 5.114366
+  type: 'test'
+  ...
+# Subtest: anthropic preserves success and failure in the tool-result return leg and host events
+ok 65 - anthropic preserves success and failure in the tool-result return leg and host events
+  ---
+  duration_ms: 5.168264
+  type: 'test'
+  ...
+# (node:3937) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:3937) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: google preserves success and failure in the tool-result return leg and host events
+ok 66 - google preserves success and failure in the tool-result return leg and host events
+  ---
+  duration_ms: 3.335079
+  type: 'test'
+  ...
+# Subtest: T2 BYOK forwards the live snapshot: search → describe → strict typed call within one turn
+ok 67 - T2 BYOK forwards the live snapshot: search → describe → strict typed call within one turn
+  ---
+  duration_ms: 11.251089
+  type: 'test'
+  ...
+# Subtest: T2 BYOK strict-prefer fallback keeps open maps and reports only value-free reasons
+ok 68 - T2 BYOK strict-prefer fallback keeps open maps and reports only value-free reasons
+  ---
+  duration_ms: 3.062342
+  type: 'test'
+  ...
+# Subtest: resolveByokProtocol narrows a stored provider string to a dispatchable protocol, case- and whitespace-insensitively
+ok 69 - resolveByokProtocol narrows a stored provider string to a dispatchable protocol, case- and whitespace-insensitively
+  ---
+  duration_ms: 0.465157
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn forwards maxTokens and sends the live tool snapshot instead of the initial tools
+ok 70 - runByokProviderTurn forwards maxTokens and sends the live tool snapshot instead of the initial tools
+  ---
+  duration_ms: 4.366424
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn honours an already-aborted signal: no provider request is sent
+ok 71 - runByokProviderTurn honours an already-aborted signal: no provider request is sent
+  ---
+  duration_ms: 2.107429
+  type: 'test'
+  ...
+# Subtest: no id: the list member runs with the caller's input and its result is returned unchanged
+ok 72 - no id: the list member runs with the caller's input and its result is returned unchanged
+  ---
+  duration_ms: 5.847892
+  type: 'test'
+  ...
+# Subtest: an id: the list member runs WITHOUT the id, and only the matching item comes back in the list's own shape
+ok 73 - an id: the list member runs WITHOUT the id, and only the matching item comes back in the list's own shape
+  ---
+  duration_ms: 0.890421
+  type: 'test'
+  ...
+# Subtest: the other list filters still pass through alongside the id
+ok 74 - the other list filters still pass through alongside the id
+  ---
+  duration_ms: 1.578289
+  type: 'test'
+  ...
+# Subtest: not found: exact model-facing text, as a ToolInputError
+ok 75 - not found: exact model-facing text, as a ToolInputError
+  ---
+  duration_ms: 1.435111
+  type: 'test'
+  ...
+# Subtest: a non-string or empty id is refused before the list runs
+ok 76 - a non-string or empty id is refused before the list runs
+  ---
+  duration_ms: 0.676981
+  type: 'test'
+  ...
+# Subtest: a truncated list makes a miss inconclusive, and the message says so
+ok 77 - a truncated list makes a miss inconclusive, and the message says so
+  ---
+  duration_ms: 1.287128
+  type: 'test'
+  ...
+# Subtest: a list with two item families searches both, each by its own id field
+ok 78 - a list with two item families searches both, each by its own id field
+  ---
+  duration_ms: 0.570528
+  type: 'test'
+  ...
+# Subtest: a nested id path (taxonomy rows are { taxonomy, terms })
+ok 79 - a nested id path (taxonomy rows are { taxonomy, terms })
+  ---
+  duration_ms: 0.414812
+  type: 'test'
+  ...
+# Subtest: the list reader's own permission refusal is the answer, and the id path leaks nothing
+ok 80 - the list reader's own permission refusal is the answer, and the id path leaks nothing
+  ---
+  duration_ms: 1.081405
+  type: 'test'
+  ...
+# Subtest: a list result missing its declared items key is an internal error, not a silent 'not found'
+ok 81 - a list result missing its declared items key is an internal error, not a silent 'not found'
+  ---
+  duration_ms: 2.03736
+  type: 'test'
+  ...
+# Subtest: the card schema gains the id as an OPTIONAL property; the list's own properties stay
+ok 82 - the card schema gains the id as an OPTIONAL property; the list's own properties stay
+  ---
+  duration_ms: 0.536442
+  type: 'test'
+  ...
+# Subtest: a card with a hand-written get keeps dispatching to it; the list is never consulted for an id
+ok 83 - a card with a hand-written get keeps dispatching to it; the list is never consulted for an id
+  ---
+  duration_ms: 0.716755
+  type: 'test'
+  ...
+# Subtest: themes (real handler): read one by themeId
+ok 84 - themes (real handler): read one by themeId
+  ---
+  duration_ms: 6.97205
+  type: 'test'
+  ...
+# Subtest: themes (real handler): the same permission refusal by id as by list, no theme data
+ok 85 - themes (real handler): the same permission refusal by id as by list, no theme data
+  ---
+  duration_ms: 2.020268
+  type: 'test'
+  ...
+# Subtest: media (real handler): canonical id and mediaId select one scoped asset, including trashed media
+ok 86 - media (real handler): canonical id and mediaId select one scoped asset, including trashed media
+  ---
+  duration_ms: 10.311114
+  type: 'test'
+  ...
+# Subtest: media (real handler): list and id lookup retain the same permission refusal before repo access
+ok 87 - media (real handler): list and id lookup retain the same permission refusal before repo access
+  ---
+  duration_ms: 0.976766
+  type: 'test'
+  ...
+# Subtest: forms (real handler): read one definition by formId; a miss is the exact not-found text
+ok 88 - forms (real handler): read one definition by formId; a miss is the exact not-found text
+  ---
+  duration_ms: 2.045105
+  type: 'test'
+  ...
+# Subtest: the real composition: every list-lookup card publishes its id as an optional string property
+ok 89 - the real composition: every list-lookup card publishes its id as an optional string property
+  ---
+  duration_ms: 350.439524
+  type: 'test'
+  ...
+# Subtest: comment: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 90 - comment: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 2.96303
+  type: 'test'
+  ...
+# Subtest: content_post: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 91 - content_post: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 5.137776
+  type: 'test'
+  ...
+# Subtest: member: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 92 - member: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 2.97168
+  type: 'test'
+  ...
+# Subtest: menu: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 93 - menu: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 29.671014
+  type: 'test'
+  ...
+# Subtest: newsletter_campaign: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 94 - newsletter_campaign: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 1.107149
+  type: 'test'
+  ...
+# Subtest: redirect: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 95 - redirect: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 6.639957
+  type: 'test'
+  ...
+# Subtest: seo_entry_meta: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 96 - seo_entry_meta: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 1.325717
+  type: 'test'
+  ...
+# Subtest: site: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 97 - site: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 1.7025
+  type: 'test'
+  ...
+# Subtest: term: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 98 - term: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 1.077898
+  type: 'test'
+  ...
+# Subtest: widget_instance: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 99 - widget_instance: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 0.933069
+  type: 'test'
+  ...
+# Subtest: widget_region: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 100 - widget_region: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 1.304183
+  type: 'test'
+  ...
+# Subtest: workspace: canonical/legacy selectors preserve the source ABI, dispatch and required context
+ok 101 - workspace: canonical/legacy selectors preserve the source ABI, dispatch and required context
+  ---
+  duration_ms: 2.372726
+  type: 'test'
+  ...
+# Subtest: backup_restore_point: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 102 - backup_restore_point: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 1.8456
+  type: 'test'
+  ...
+# Subtest: collection_content_type: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 103 - collection_content_type: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 7.061938
+  type: 'test'
+  ...
+# Subtest: collection_entry: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 104 - collection_entry: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.960991
+  type: 'test'
+  ...
+# Subtest: custom_credential: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 105 - custom_credential: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.671015
+  type: 'test'
+  ...
+# Subtest: external_mcp: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 106 - external_mcp: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.785665
+  type: 'test'
+  ...
+# Subtest: form_definition: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 107 - form_definition: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.939001
+  type: 'test'
+  ...
+# Subtest: identity_policy: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 108 - identity_policy: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.751393
+  type: 'test'
+  ...
+# Subtest: identity_role: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 109 - identity_role: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.996545
+  type: 'test'
+  ...
+# Subtest: identity_user: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 110 - identity_user: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.627762
+  type: 'test'
+  ...
+# Subtest: media_asset: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 111 - media_asset: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.501811
+  type: 'test'
+  ...
+# Subtest: plugin: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 112 - plugin: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.820744
+  type: 'test'
+  ...
+# Subtest: taxonomy: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 113 - taxonomy: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.898501
+  type: 'test'
+  ...
+# Subtest: theme: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 114 - theme: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 2.546582
+  type: 'test'
+  ...
+# Subtest: theme_page_publication: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 115 - theme_page_publication: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.704471
+  type: 'test'
+  ...
+# Subtest: webhook_subscription: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+ok 116 - webhook_subscription: canonical/legacy lookup preserves natural keys, filters, misses and conflicts
+  ---
+  duration_ms: 0.563075
+  type: 'test'
+  ...
+# Subtest: canonical truncated misses and permission refusals preserve the list owner's answer
+ok 117 - canonical truncated misses and permission refusals preserve the list owner's answer
+  ---
+  duration_ms: 6.96075
+  type: 'test'
+  ...
+# Subtest: batch canonical and legacy selectors reach the original gated get; missing ids never list
+ok 118 - batch canonical and legacy selectors reach the original gated get; missing ids never list
+  ---
+  duration_ms: 3.145663
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: assembled history is sanitized without reporting a new paste on the current request
+ok 119 - assembled history is sanitized without reporting a new paste on the current request
+  ---
+  duration_ms: 4.497687
+  type: 'test'
+  ...
+# Subtest: direct daemon parsing does not turn a newly sanitized historical key into a current notice
+ok 120 - direct daemon parsing does not turn a newly sanitized historical key into a current notice
+  ---
+  duration_ms: 0.481927
+  type: 'test'
+  ...
+# Subtest: public DKIM history cannot flag a current public deployment URL as a paste
+ok 121 - public DKIM history cannot flag a current public deployment URL as a paste
+  ---
+  duration_ms: 1.879796
+  type: 'test'
+  ...
+# Subtest: a real current secret is sanitized before acceptance and warns on both CLI prompt choices
+ok 122 - a real current secret is sanitized before acceptance and warns on both CLI prompt choices
+  ---
+  duration_ms: 0.484174
+  type: 'test'
+  ...
+# Subtest: BYOK sanitizes old secrets but warns only for the current user turn
+ok 123 - BYOK sanitizes old secrets but warns only for the current user turn
+  ---
+  duration_ms: 1.918566
+  type: 'test'
+  ...
+# Subtest: BYOK current-message selection tolerates invalid entries and repeated message references
+ok 124 - BYOK current-message selection tolerates invalid entries and repeated message references
+  ---
+  duration_ms: 0.451868
+  type: 'test'
+  ...
+# Subtest: credential guidance requires current-message evidence and preserves a configured provider
+ok 125 - credential guidance requires current-message evidence and preserves a configured provider
+  ---
+  duration_ms: 0.34236
+  type: 'test'
+  ...
+# Subtest: first failure retries at the fast end of the backoff ladder
+ok 126 - first failure retries at the fast end of the backoff ladder
+  ---
+  duration_ms: 2.311887
+  type: 'test'
+  ...
+# Subtest: backoff escalates 1s,2s,4s,8s,16s,30s and then holds at the 30s cap
+ok 127 - backoff escalates 1s,2s,4s,8s,16s,30s and then holds at the 30s cap
+  ---
+  duration_ms: 0.372728
+  type: 'test'
+  ...
+# Subtest: the generic crash-loop cap trips on the 5th failure inside the window, with a distinct reason
+ok 128 - the generic crash-loop cap trips on the 5th failure inside the window, with a distinct reason
+  ---
+  duration_ms: 0.326572
+  type: 'test'
+  ...
+# Subtest: failures that fall outside the rolling window stop counting toward the cap
+ok 129 - failures that fall outside the rolling window stop counting toward the cap
+  ---
+  duration_ms: 0.209312
+  type: 'test'
+  ...
+# Subtest: PORT_IN_USE trips its own tighter, consecutive-only cap before the generic cap would fire
+ok 130 - PORT_IN_USE trips its own tighter, consecutive-only cap before the generic cap would fire
+  ---
+  duration_ms: 0.287281
+  type: 'test'
+  ...
+# Subtest: a non-port failure resets the consecutive port-conflict counter instead of it accumulating across unrelated failures
+ok 131 - a non-port failure resets the consecutive port-conflict counter instead of it accumulating across unrelated failures
+  ---
+  duration_ms: 0.173117
+  type: 'test'
+  ...
+# Subtest: reset() clears both counters and the tripped flag so a manual restart always gets a fresh ladder
+ok 132 - reset() clears both counters and the tripped flag so a manual restart always gets a fresh ladder
+  ---
+  duration_ms: 0.485771
+  type: 'test'
+  ...
+# Subtest: desktop MCP capability keeps canonical loopback spelling, TCP bounds and exact tokens
+ok 133 - desktop MCP capability keeps canonical loopback spelling, TCP bounds and exact tokens
+  ---
+  duration_ms: 1.511923
+  type: 'test'
+  ...
+# Subtest: generated guidance and memory tools carry explicit classification from their real handler family
+ok 134 - generated guidance and memory tools carry explicit classification from their real handler family
+  ---
+  duration_ms: 4.014972
+  type: 'test'
+  ...
+# Subtest: an unclassified registration cannot enter the host policy adapter
+ok 135 - an unclassified registration cannot enter the host policy adapter
+  ---
+  duration_ms: 0.616124
+  type: 'test'
+  ...
+# Subtest: extension registrations reject unclassified behavior families
+ok 136 - extension registrations reject unclassified behavior families
+  ---
+  duration_ms: 0.576723
+  type: 'test'
+  ...
+# Subtest: installed registration rejects a new unclassified family and admits explicit behavior metadata
+ok 137 - installed registration rejects a new unclassified family and admits explicit behavior metadata
+  ---
+  duration_ms: 1.589386
+  type: 'test'
+  ...
+# Subtest: an attempted call to a not-in-operator-allowlist federated tool comes back naming the tool, the server, and the fix — not a bare 'unknown tool'
+ok 138 - an attempted call to a not-in-operator-allowlist federated tool comes back naming the tool, the server, and the fix — not a bare 'unknown tool'
+  ---
+  duration_ms: 3.696249
+  type: 'test'
+  ...
+# Subtest: this is a REAL 400-mappable outcome, not a thrown exception — the property that lets it reach the model at all
+ok 139 - this is a REAL 400-mappable outcome, not a thrown exception — the property that lets it reach the model at all
+  ---
+  duration_ms: 0.51038
+  type: 'test'
+  ...
+# Subtest: a refused tool whose remote-advertised name is secret-shaped is redacted, not leaked verbatim
+ok 140 - a refused tool whose remote-advertised name is secret-shaped is redacted, not leaked verbatim
+  ---
+  duration_ms: 0.459
+  type: 'test'
+  ...
+# Subtest: a write-grant refusal attempted directly is also legible, with its own distinct fix text
+ok 141 - a write-grant refusal attempted directly is also legible, with its own distinct fix text
+  ---
+  duration_ms: 0.382918
+  type: 'test'
+  ...
+# Subtest: an admitted federated tool's normal completion is untouched
+ok 142 - an admitted federated tool's normal completion is untouched
+  ---
+  duration_ms: 1.088144
+  type: 'test'
+  ...
+# Subtest: a native (non-federated) unknown tool id still throws unchanged — this decorator only ever touches mcp__-prefixed ids
+ok 143 - a native (non-federated) unknown tool id still throws unchanged — this decorator only ever touches mcp__-prefixed ids
+  ---
+  duration_ms: 1.305781
+  type: 'test'
+  ...
+# Subtest: a federated-SHAPED id this boot never refused still throws unchanged — no snapshot entry means nothing to diagnose
+ok 144 - a federated-SHAPED id this boot never refused still throws unchanged — no snapshot entry means nothing to diagnose
+  ---
+  duration_ms: 0.436215
+  type: 'test'
+  ...
+# Subtest: a genuinely unrelated throw (not 'unknown tool') passes straight through, never reinterpreted as a refusal
+ok 145 - a genuinely unrelated throw (not 'unknown tool') passes straight through, never reinterpreted as a refusal
+  ---
+  duration_ms: 0.228635
+  type: 'test'
+  ...
+# Subtest: the snapshot is read LIVE at call time — a refusal that only exists after boot is still diagnosed
+ok 146 - the snapshot is read LIVE at call time — a refusal that only exists after boot is still diagnosed
+  ---
+  duration_ms: 0.470588
+  type: 'test'
+  ...
+# Subtest: a federated id with no snapshot refusal, while the boot pass has not settled, is diagnosed as still connecting
+ok 147 - a federated id with no snapshot refusal, while the boot pass has not settled, is diagnosed as still connecting
+  ---
+  duration_ms: 0.396054
+  type: 'test'
+  ...
+# Subtest: a federated id with no snapshot refusal, once the boot pass has settled with a recorded connect failure, gets that failure's own reason
+ok 148 - a federated id with no snapshot refusal, once the boot pass has settled with a recorded connect failure, gets that failure's own reason
+  ---
+  duration_ms: 1.284155
+  type: 'test'
+  ...
+# Subtest: a federated id whose connectionId IS in the known boot roster, while the boot pass has not settled, is still diagnosed as still connecting
+ok 149 - a federated id whose connectionId IS in the known boot roster, while the boot pass has not settled, is still diagnosed as still connecting
+  ---
+  duration_ms: 0.34357
+  type: 'test'
+  ...
+# Subtest: a federated id whose connectionId is NOT in the known boot roster, while the boot pass has not settled, still throws unchanged — a server that was never configured is not told to 'wait'
+ok 150 - a federated id whose connectionId is NOT in the known boot roster, while the boot pass has not settled, still throws unchanged — a server that was never configured is not told to 'wait'
+  ---
+  duration_ms: 0.405612
+  type: 'test'
+  ...
+# Subtest: configuredConnectionIds omitted (the boot roster is not yet known) still defaults to 'still connecting' — same as before this field existed
+ok 151 - configuredConnectionIds omitted (the boot roster is not yet known) still defaults to 'still connecting' — same as before this field existed
+  ---
+  duration_ms: 0.32779
+  type: 'test'
+  ...
+# Subtest: a settled boot pass with no matching connect failure still throws unchanged — a genuinely unrelated/hallucinated id is not reinterpreted as 'still connecting'
+ok 152 - a settled boot pass with no matching connect failure still throws unchanged — a genuinely unrelated/hallucinated id is not reinterpreted as 'still connecting'
+  ---
+  duration_ms: 0.267501
+  type: 'test'
+  ...
+# Subtest: getBootStatus omitted (the daemon's own call site) is byte-identical to before this parameter existed — still throws for an undiagnosed federated id
+ok 153 - getBootStatus omitted (the daemon's own call site) is byte-identical to before this parameter existed — still throws for an undiagnosed federated id
+  ---
+  duration_ms: 0.202792
+  type: 'test'
+  ...
+# Subtest: resumeConfirmation, cancel, and getAuditRecord are untouched pass-throughs
+ok 154 - resumeConfirmation, cancel, and getAuditRecord are untouched pass-throughs
+  ---
+  duration_ms: 0.396977
+  type: 'test'
+  ...
+# Subtest: InMemoryMcpSession: with no onCall supplied, callTool falls back to echoing the call back as text
+ok 155 - InMemoryMcpSession: with no onCall supplied, callTool falls back to echoing the call back as text
+  ---
+  duration_ms: 2.156744
+  type: 'test'
+  ...
+# Subtest: ScriptedMcpStdioChannel: send() after close() throws, rather than silently accepting a message on a dead channel
+ok 156 - ScriptedMcpStdioChannel: send() after close() throws, rather than silently accepting a message on a dead channel
+  ---
+  duration_ms: 0.787198
+  type: 'test'
+  ...
+# Subtest: ScriptedMcpStdioChannel: fail() is idempotent — a second call does not re-notify close listeners or overwrite the first reason
+ok 157 - ScriptedMcpStdioChannel: fail() is idempotent — a second call does not re-notify close listeners or overwrite the first reason
+  ---
+  duration_ms: 0.280668
+  type: 'test'
+  ...
+# Subtest: ScriptedMcpStdioChannel: idFor returns undefined for a method the client never sent
+ok 158 - ScriptedMcpStdioChannel: idFor returns undefined for a method the client never sent
+  ---
+  duration_ms: 0.241374
+  type: 'test'
+  ...
+# Subtest: G3 remembered: a non-destructive card offers Allow / Allow for this chat / Always allow / Cancel
+ok 159 - G3 remembered: a non-destructive card offers Allow / Allow for this chat / Always allow / Cancel
+  ---
+  duration_ms: 43.570859
+  type: 'test'
+  ...
+# Subtest: G3 remembered: delivery ignores a forged chat choice and asks on every call
+ok 160 - G3 remembered: delivery ignores a forged chat choice and asks on every call
+  ---
+  duration_ms: 14.217966
+  type: 'test'
+  ...
+# Subtest: G3 remembered: delivery ignores a forged always choice and asks on every call
+ok 161 - G3 remembered: delivery ignores a forged always choice and asks on every call
+  ---
+  duration_ms: 14.180958
+  type: 'test'
+  ...
+# Subtest: G3 remembered: delivery ignores existing matching chat and Always allow grants
+ok 162 - G3 remembered: delivery ignores existing matching chat and Always allow grants
+  ---
+  duration_ms: 4.763384
+  type: 'test'
+  ...
+# Subtest: G3 remembered: a destructive card never offers Always allow or Allow for this chat
+ok 163 - G3 remembered: a destructive card never offers Always allow or Allow for this chat
+  ---
+  duration_ms: 2.520951
+  type: 'test'
+  ...
+# Subtest: G3 remembered: the spec builder never offers a remember choice for a destructive tool, even when asked to
+ok 164 - G3 remembered: the spec builder never offers a remember choice for a destructive tool, even when asked to
+  ---
+  duration_ms: 0.50765
+  type: 'test'
+  ...
+# Subtest: G3 remembered: with no conversation to remember in, the card offers no Allow for this chat
+ok 165 - G3 remembered: with no conversation to remember in, the card offers no Allow for this chat
+  ---
+  duration_ms: 1.664142
+  type: 'test'
+  ...
+# Subtest: G3 remembered: a person who may not manage integrations is not offered Always allow
+ok 166 - G3 remembered: a person who may not manage integrations is not offered Always allow
+  ---
+  duration_ms: 1.640295
+  type: 'test'
+  ...
+# Subtest: G3 remembered: a connection with no saved row (a preset) is not offered Always allow
+ok 167 - G3 remembered: a connection with no saved row (a preset) is not offered Always allow
+  ---
+  duration_ms: 3.155232
+  type: 'test'
+  ...
+# Subtest: G3 remembered: long or multi-line arguments render as a scrolling code block; short ones stay inline
+ok 168 - G3 remembered: long or multi-line arguments render as a scrolling code block; short ones stay inline
+  ---
+  duration_ms: 0.54931
+  type: 'test'
+  ...
+# Subtest: G3 remembered: Allow runs exactly this call and remembers nothing — the next call asks again
+ok 169 - G3 remembered: Allow runs exactly this call and remembers nothing — the next call asks again
+  ---
+  duration_ms: 2.932845
+  type: 'test'
+  ...
+# Subtest: G3 remembered: Allow for this chat runs this call, then the same tool runs without a card in the same chat
+ok 170 - G3 remembered: Allow for this chat runs this call, then the same tool runs without a card in the same chat
+  ---
+  duration_ms: 2.428632
+  type: 'test'
+  ...
+# Subtest: G3 remembered: a forged Allow for this chat on a destructive card runs that one call and the next call asks again
+ok 171 - G3 remembered: a forged Allow for this chat on a destructive card runs that one call and the next call asks again
+  ---
+  duration_ms: 2.229665
+  type: 'test'
+  ...
+# Subtest: G3 remembered: a new conversation asks again after Allow for this chat
+ok 172 - G3 remembered: a new conversation asks again after Allow for this chat
+  ---
+  duration_ms: 1.876927
+  type: 'test'
+  ...
+# Subtest: G3 remembered: Allow for this chat covers only that tool, and only that person
+ok 173 - G3 remembered: Allow for this chat covers only that tool, and only that person
+  ---
+  duration_ms: 2.592523
+  type: 'test'
+  ...
+# Subtest: G3 remembered: Allow for this chat survives a restart — it is kept in chat.db with the conversation
+ok 174 - G3 remembered: Allow for this chat survives a restart — it is kept in chat.db with the conversation
+  ---
+  duration_ms: 38.314965
+  type: 'test'
+  ...
+# [external-mcp] could not remember the "chat" approval for mcp__supabase__assistant_set_instructions; this call runs, the next one asks again — FOREIGN KEY constraint failed
+# Subtest: G3 remembered: a chat the store cannot record in (not in ai_chats) still runs the approved call once, then asks again
+ok 175 - G3 remembered: a chat the store cannot record in (not in ai_chats) still runs the approved call once, then asks again
+  ---
+  duration_ms: 11.987498
+  type: 'test'
+  ...
+# Subtest: G3 remembered: Always allow runs this call, is saved per site + connection + tool, and later calls in any chat run without a card
+ok 176 - G3 remembered: Always allow runs this call, is saved per site + connection + tool, and later calls in any chat run without a card
+  ---
+  duration_ms: 2.908701
+  type: 'test'
+  ...
+# Subtest: G3 remembered: a forged Always allow on a destructive card runs that one call and saves nothing
+ok 177 - G3 remembered: a forged Always allow on a destructive card runs that one call and saves nothing
+  ---
+  duration_ms: 1.864324
+  type: 'test'
+  ...
+# Subtest: G3 remembered: a remember value on a Cancel runs nothing and saves nothing
+ok 178 - G3 remembered: a remember value on a Cancel runs nothing and saves nothing
+  ---
+  duration_ms: 2.354593
+  type: 'test'
+  ...
+# Subtest: G3 remembered: revoking an Always allow makes the tool ask again
+ok 179 - G3 remembered: revoking an Always allow makes the tool ask again
+  ---
+  duration_ms: 2.039114
+  type: 'test'
+  ...
+# Subtest: G3 remembered: a destructive annotation voids an Always allow and requires approval for every call
+ok 180 - G3 remembered: a destructive annotation voids an Always allow and requires approval for every call
+  ---
+  duration_ms: 4.215296
+  type: 'test'
+  ...
+# Subtest: G3 remembered: a changed annotation voids an Allow for this chat
+ok 181 - G3 remembered: a changed annotation voids an Allow for this chat
+  ---
+  duration_ms: 2.116648
+  type: 'test'
+  ...
+# Subtest: G3 remembered: publication requires each call's approval and never offers a remembered scope
+ok 182 - G3 remembered: publication requires each call's approval and never offers a remembered scope
+  ---
+  duration_ms: 2.631283
+  type: 'test'
+  ...
+# Subtest: G3 remembered: a changed server (a new admission revision) voids an Always allow
+ok 183 - G3 remembered: a changed server (a new admission revision) voids an Always allow
+  ---
+  duration_ms: 1.999307
+  type: 'test'
+  ...
+# Subtest: G3 remembered: the fingerprint ignores hint key order but not hint values
+ok 184 - G3 remembered: the fingerprint ignores hint key order but not hint values
+  ---
+  duration_ms: 0.699989
+  type: 'test'
+  ...
+# Subtest: remembered chat approvals use the live tracker conversation lookup and stay isolated
+ok 185 - remembered chat approvals use the live tracker conversation lookup and stay isolated
+  ---
+  duration_ms: 2.829146
+  type: 'test'
+  ...
+# Subtest: G3 remembered: a host with no approval stores and no conversation lookup offers only Allow / Cancel
+ok 186 - G3 remembered: a host with no approval stores and no conversation lookup offers only Allow / Cancel
+  ---
+  duration_ms: 3.275648
+  type: 'test'
+  ...
+# Subtest: G3 remembered: an Allow for this chat is stamped with the injected approval clock
+ok 187 - G3 remembered: an Allow for this chat is stamped with the injected approval clock
+  ---
+  duration_ms: 1.74296
+  type: 'test'
+  ...
+# Subtest: G3 remembered: a chat store failing with a non-Error value still runs the approved call and logs the raw reason
+ok 188 - G3 remembered: a chat store failing with a non-Error value still runs the approved call and logs the raw reason
+  ---
+  duration_ms: 2.790623
+  type: 'test'
+  ...
+# Subtest: a typed chat message resolves a parked assistant_ask_choice instead of leaving it to time out
+ok 189 - a typed chat message resolves a parked assistant_ask_choice instead of leaving it to time out
+  ---
+  duration_ms: 92.748232
+  type: 'test'
+  ...
+# Subtest: a typed answer is reported as the administrator's words, never as one of the options the model offered
+ok 190 - a typed answer is reported as the administrator's words, never as one of the options the model offered
+  ---
+  duration_ms: 23.99364
+  type: 'test'
+  ...
+# Subtest: a typed answer that is not a string is refused rather than delivered as an answer
+ok 191 - a typed answer that is not a string is refused rather than delivered as an answer
+  ---
+  duration_ms: 7.047667
+  type: 'test'
+  ...
+# Subtest: an empty typed answer is not treated as an answer at all
+ok 192 - an empty typed answer is not treated as an answer at all
+  ---
+  duration_ms: 5.806036
+  type: 'test'
+  ...
+# Subtest: a parked ask-choice rejects a non-string typed answer without inventing a submission
+ok 193 - a parked ask-choice rejects a non-string typed answer without inventing a submission
+  ---
+  duration_ms: 4.231715
+  type: 'test'
+  ...
+# Subtest: a parked ask-choice rejects a whitespace typed answer without inventing a submission
+ok 194 - a parked ask-choice rejects a whitespace typed answer without inventing a submission
+  ---
+  duration_ms: 1.282057
+  type: 'test'
+  ...
+# Subtest: a typed answer that names no exchange still reaches the one question outstanding for that human
+ok 195 - a typed answer that names no exchange still reaches the one question outstanding for that human
+  ---
+  duration_ms: 9.434882
+  type: 'test'
+  ...
+# Subtest: a typed answer with nothing outstanding is refused, not executed as a fresh tool call
+ok 196 - a typed answer with nothing outstanding is refused, not executed as a fresh tool call
+  ---
+  duration_ms: 9.964113
+  type: 'test'
+  ...
+# Subtest: a typed answer never reaches another human's open question
+ok 197 - a typed answer never reaches another human's open question
+  ---
+  duration_ms: 6.593755
+  type: 'test'
+  ...
+# Subtest: a late credential answer restores the same request and saves once without asking the owner to re-ask
+ok 198 - a late credential answer restores the same request and saves once without asking the owner to re-ask
+  ---
+  duration_ms: 61.965483
+  type: 'test'
+  ...
+# Subtest: a different owner cannot restore someone else's expired credential card
+ok 199 - a different owner cannot restore someone else's expired credential card
+  ---
+  duration_ms: 17.652462
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: owner replacement requests find the in-place tool among the competing upload and metadata tools
+ok 200 - owner replacement requests find the in-place tool among the competing upload and metadata tools
+  ---
+  duration_ms: 564.955527
+  type: 'test'
+  ...
+# Subtest: Claude Edit spellings preserve exact replacement bytes and empty deletions
+ok 201 - Claude Edit spellings preserve exact replacement bytes and empty deletions
+  ---
+  duration_ms: 3.240942
+  type: 'test'
+  ...
+# Subtest: media query remains the declared search filter rather than being dropped
+ok 202 - media query remains the declared search filter rather than being dropped
+  ---
+  duration_ms: 5.176442
+  type: 'test'
+  ...
+# Subtest: URL import title uses its declared filename field
+ok 203 - URL import title uses its declared filename field
+  ---
+  duration_ms: 0.346231
+  type: 'test'
+  ...
+# Subtest: preview accepts agreeing find and kind while rejecting disagreements
+ok 204 - preview accepts agreeing find and kind while rejecting disagreements
+  ---
+  duration_ms: 1.223128
+  type: 'test'
+  ...
+# Subtest: published page context rejection tells the model exactly which supported selectors to use
+ok 205 - published page context rejection tells the model exactly which supported selectors to use
+  ---
+  duration_ms: 0.87738
+  type: 'test'
+  ...
+# Subtest: several guide topics get an actionable one-call-per-topic correction
+ok 206 - several guide topics get an actionable one-call-per-topic correction
+  ---
+  duration_ms: 0.714113
+  type: 'test'
+  ...
+# Subtest: a one-element guide topic array keeps the existing scalar service contract
+ok 207 - a one-element guide topic array keeps the existing scalar service contract
+  ---
+  duration_ms: 1.055788
+  type: 'test'
+  ...
+# Subtest: the shared system pointer names tool alternatives to shell for routine site work
+ok 208 - the shared system pointer names tool alternatives to shell for routine site work
+  ---
+  duration_ms: 0.378312
+  type: 'test'
+  ...
+# Subtest: picked folders are JSON-quoted context appended after text redaction, with exact path bytes
+ok 209 - picked folders are JSON-quoted context appended after text redaction, with exact path bytes
+  ---
+  duration_ms: 7.932639
+  type: 'test'
+  ...
+# Subtest: run start rejects every malformed folder collection and every non-directory or relative path
+ok 210 - run start rejects every malformed folder collection and every non-directory or relative path
+  ---
+  duration_ms: 3.065546
+  type: 'test'
+  ...
+# Subtest: invalid folders are refused before the run envelope is durably accepted
+ok 211 - invalid folders are refused before the run envelope is durably accepted
+  ---
+  duration_ms: 3.470065
+  type: 'test'
+  ...
+# Subtest: the same quoted folder block reaches BYOK after the text guard, without mutating saved history
+ok 212 - the same quoted folder block reaches BYOK after the text guard, without mutating saved history
+  ---
+  duration_ms: 3.182074
+  type: 'test'
+  ...
+# Subtest: Tovu directs unknown read-only tool ids to discovery with candidates and preserves write refusal wording
+ok 213 - Tovu directs unknown read-only tool ids to discovery with candidates and preserves write refusal wording
+  ---
+  duration_ms: 1.604804
+  type: 'test'
+  ...
+# Subtest: defaults: subagent delegation ON, Claude in Chrome ON
+ok 214 - defaults: subagent delegation ON, Claude in Chrome ON
+  ---
+  duration_ms: 6.532612
+  type: 'test'
+  ...
+# Subtest: reads the person's stored value from core.interface at their scope
+ok 215 - reads the person's stored value from core.interface at their scope
+  ---
+  duration_ms: 0.719604
+  type: 'test'
+  ...
+# Subtest: an absent or non-boolean value reads the default
+ok 216 - an absent or non-boolean value reads the default
+  ---
+  duration_ms: 0.328126
+  type: 'test'
+  ...
+# Subtest: a failed read or a failed definition boot falls back to the defaults instead of blocking the launch
+ok 217 - a failed read or a failed definition boot falls back to the defaults instead of blocking the launch
+  ---
+  duration_ms: 1.790966
+  type: 'test'
+  ...
+# Subtest: waits for the definitions before reading
+ok 218 - waits for the definitions before reading
+  ---
+  duration_ms: 0.774029
+  type: 'test'
+  ...
+# Subtest: reads stored reply length: short
+ok 219 - reads stored reply length: short
+  ---
+  duration_ms: 0.271386
+  type: 'test'
+  ...
+# Subtest: reads stored reply length: normal
+ok 220 - reads stored reply length: normal
+  ---
+  duration_ms: 0.361943
+  type: 'test'
+  ...
+# Subtest: reads stored reply length: detailed
+ok 221 - reads stored reply length: detailed
+  ---
+  duration_ms: 0.183623
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: undefined
+ok 222 - invalid reply length falls back to Normal: undefined
+  ---
+  duration_ms: 0.202253
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: null
+ok 223 - invalid reply length falls back to Normal: null
+  ---
+  duration_ms: 0.127554
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: true
+ok 224 - invalid reply length falls back to Normal: true
+  ---
+  duration_ms: 0.070181
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: 1
+ok 225 - invalid reply length falls back to Normal: 1
+  ---
+  duration_ms: 0.060692
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: ""
+ok 226 - invalid reply length falls back to Normal: ""
+  ---
+  duration_ms: 0.059773
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: "SHORT"
+ok 227 - invalid reply length falls back to Normal: "SHORT"
+  ---
+  duration_ms: 0.05915
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: "verbose"
+ok 228 - invalid reply length falls back to Normal: "verbose"
+  ---
+  duration_ms: 0.116767
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: {}
+ok 229 - invalid reply length falls back to Normal: {}
+  ---
+  duration_ms: 0.075766
+  type: 'test'
+  ...
+# Subtest: a snapshot saved with personal MCP on by default preserves personal MCP false
+ok 230 - a snapshot saved with personal MCP on by default preserves personal MCP false
+  ---
+  duration_ms: 2.326461
+  type: 'test'
+  ...
+# Subtest: a snapshot saved with personal MCP on by default preserves personal MCP true
+ok 231 - a snapshot saved with personal MCP on by default preserves personal MCP true
+  ---
+  duration_ms: 0.265469
+  type: 'test'
+  ...
+# Subtest: a snapshot saved before personal MCP defaulted on reads its stored false as the default
+ok 232 - a snapshot saved before personal MCP defaulted on reads its stored false as the default
+  ---
+  duration_ms: 0.298261
+  type: 'test'
+  ...
+# Subtest: a per-agent personal MCP choice is kept from a snapshot saved before personal MCP defaulted on
+ok 233 - a per-agent personal MCP choice is kept from a snapshot saved before personal MCP defaulted on
+  ---
+  duration_ms: 0.542337
+  type: 'test'
+  ...
+# Subtest: a snapshot from the definition default inherits the legacy boolean
+ok 234 - a snapshot from the definition default inherits the legacy boolean
+  ---
+  duration_ms: 0.288433
+  type: 'test'
+  ...
+# Subtest: a snapshot with a null value inherits the legacy boolean
+ok 235 - a snapshot with a null value inherits the legacy boolean
+  ---
+  duration_ms: 0.186223
+  type: 'test'
+  ...
+# Subtest: no snapshot and no legacy value defaults full CLI access ON with personal MCP ON
+ok 236 - no snapshot and no legacy value defaults full CLI access ON with personal MCP ON
+  ---
+  duration_ms: 0.17414
+  type: 'test'
+  ...
+# Subtest: a snapshot with a non-boolean enabled flag denies all access and logs only the safe warning
+ok 237 - a snapshot with a non-boolean enabled flag denies all access and logs only the safe warning
+  ---
+  duration_ms: 0.351954
+  type: 'test'
+  ...
+# Subtest: a snapshot with missing capabilities denies all access and logs only the safe warning
+ok 238 - a snapshot with missing capabilities denies all access and logs only the safe warning
+  ---
+  duration_ms: 0.19143
+  type: 'test'
+  ...
+# Subtest: a snapshot with a non-boolean capability denies all access and logs only the safe warning
+ok 239 - a snapshot with a non-boolean capability denies all access and logs only the safe warning
+  ---
+  duration_ms: 0.102926
+  type: 'test'
+  ...
+# Subtest: a snapshot with a missing capability denies all access and logs only the safe warning
+ok 240 - a snapshot with a missing capability denies all access and logs only the safe warning
+  ---
+  duration_ms: 0.108584
+  type: 'test'
+  ...
+# Subtest: a malformed snapshot rethrows the validation error when the caller opts into propagation
+ok 241 - a malformed snapshot rethrows the validation error when the caller opts into propagation
+  ---
+  duration_ms: 1.24251
+  type: 'test'
+  ...
+# Subtest: a failed legacy fallback denies all access instead of defaulting ON
+ok 242 - a failed legacy fallback denies all access instead of defaulting ON
+  ---
+  duration_ms: 0.327346
+  type: 'test'
+  ...
+# Subtest: a settings-ready failure rethrows the original error when propagation is requested
+ok 243 - a settings-ready failure rethrows the original error when propagation is requested
+  ---
+  duration_ms: 0.231411
+  type: 'test'
+  ...
+# Subtest: without a warn port the CLI permissions denial is logged through console.warn
+ok 244 - without a warn port the CLI permissions denial is logged through console.warn
+  ---
+  duration_ms: 0.755823
+  type: 'test'
+  ...
+# Subtest: the legacy boolean reads the workspace-scoped enabled key
+ok 245 - the legacy boolean reads the workspace-scoped enabled key
+  ---
+  duration_ms: 0.178841
+  type: 'test'
+  ...
+# Subtest: the legacy boolean value true reads as true
+ok 246 - the legacy boolean value true reads as true
+  ---
+  duration_ms: 0.136482
+  type: 'test'
+  ...
+# Subtest: the legacy boolean value false reads as false
+ok 247 - the legacy boolean value false reads as false
+  ---
+  duration_ms: 0.0528
+  type: 'test'
+  ...
+# Subtest: the legacy boolean value "true" reads as false
+ok 248 - the legacy boolean value "true" reads as false
+  ---
+  duration_ms: 0.037239
+  type: 'test'
+  ...
+# Subtest: a failed legacy read denies access with the safe warning and no storage detail
+ok 249 - a failed legacy read denies access with the safe warning and no storage detail
+  ---
+  duration_ms: 0.162095
+  type: 'test'
+  ...
+# Subtest: a failed legacy read rethrows the original error when propagation is requested
+ok 250 - a failed legacy read rethrows the original error when propagation is requested
+  ---
+  duration_ms: 0.155287
+  type: 'test'
+  ...
+# Subtest: without a warn port the legacy denial is logged through console.warn
+ok 251 - without a warn port the legacy denial is logged through console.warn
+  ---
+  duration_ms: 0.206014
+  type: 'test'
+  ...
+# Subtest: per-agent choices survive reads and apply only to the selected agent after the host gate
+ok 252 - per-agent choices survive reads and apply only to the selected agent after the host gate
+  ---
+  duration_ms: 1.262047
+  type: 'test'
+  ...
+# Subtest: listToolCatalogEntries: each entry's source and description equal describe_tool's for the same id
+ok 253 - listToolCatalogEntries: each entry's source and description equal describe_tool's for the same id
+  ---
+  duration_ms: 24.051944
+  type: 'test'
+  ...
+# Subtest: listToolCatalogEntries: reads the registry on every call, so a tool registered later is included
+ok 254 - listToolCatalogEntries: reads the registry on every call, so a tool registered later is included
+  ---
+  duration_ms: 0.436877
+  type: 'test'
+  ...
+# Subtest: describe_tool: content_read.content_region only points to a registered content_read.widget_region and never becomes a callable search hit
+ok 255 - describe_tool: content_read.content_region only points to a registered content_read.widget_region and never becomes a callable search hit
+  ---
+  duration_ms: 3.104068
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: describe_tool HTTP path: content_read.content_region describes the sub-read or points to content_read.widget_region
+ok 256 - describe_tool HTTP path: content_read.content_region describes the sub-read or points to content_read.widget_region
+  ---
+  duration_ms: 1103.34721
+  type: 'test'
+  ...
+# Subtest: describe_tool: content_read.form only points to a registered content_read.form_definition and never becomes a callable search hit
+ok 257 - describe_tool: content_read.form only points to a registered content_read.form_definition and never becomes a callable search hit
+  ---
+  duration_ms: 2.264619
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: describe_tool HTTP path: content_read.form describes the sub-read or points to content_read.form_definition
+ok 258 - describe_tool HTTP path: content_read.form describes the sub-read or points to content_read.form_definition
+  ---
+  duration_ms: 826.4612
+  type: 'test'
+  ...
+# Subtest: describe_tool guidance declares its target tools so a read-only caller sees only read-only targets
+ok 259 - describe_tool guidance declares its target tools so a read-only caller sees only read-only targets
+  ---
+  duration_ms: 4.716754
+  type: 'test'
+  ...
+# Subtest: source is the id's first `_` segment, falling back to tovu for an id with no prefix
+ok 260 - source is the id's first `_` segment, falling back to tovu for an id with no prefix
+  ---
+  duration_ms: 1.386654
+  type: 'test'
+  ...
+# Subtest: describe('content_read') synthesizes the card family only when cards exist, naming each card's first sentence
+ok 261 - describe('content_read') synthesizes the card family only when cards exist, naming each card's first sentence
+  ---
+  duration_ms: 2.622425
+  type: 'test'
+  ...
+# Subtest: tool_gaps_list is read-only and the real executor refuses other admins before a read
+ok 262 - tool_gaps_list is read-only and the real executor refuses other admins before a read
+  ---
+  duration_ms: 5.051969
+  type: 'test'
+  ...
+# Subtest: tool_gaps_list without audit storage fails with a clear error for the owner
+ok 263 - tool_gaps_list without audit storage fails with a clear error for the owner
+  ---
+  duration_ms: 0.935931
+  type: 'test'
+  ...
+# Subtest: the handler re-checks ownership even when reached without the registry policy
+ok 264 - the handler re-checks ownership even when reached without the registry policy
+  ---
+  duration_ms: 0.925416
+  type: 'test'
+  ...
+# [custom-credentials] request label=github host=api.github.com method=GET status=0 bodyBytes=0 at=2026-09-10T00:00:00.000Z egressRefusal="egress to '169.254.169.254' (169.254.169.254) rejected: resolved address is link-local"
+# [custom-credentials] request label=github host=api.github.com method=GET status=0 bodyBytes=0 at=2026-09-10T00:00:00.000Z egressRefusal="egress to '169.254.169.254' (169.254.169.254) rejected: resolved address is link-local"
+# [custom-credentials] request label=github host=api.github.com method=GET status=0 bodyBytes=0 at=2026-09-10T00:00:00.000Z egressRefusal="scheme 'http:' is not in the allowed egress schemes"
+# [custom-credentials] request label=github host=api.github.com method=GET status=0 bodyBytes=0 at=2026-09-10T00:00:00.000Z
+# [@jini-ai/http-kit] internal error (delegated-tool-execute, correlationId=2a07a811-fdf6-4456-9786-bc94b3b53ddb) "request to 'github' failed: getaddrinfo EAI_AGAIN api.github.com"
+# Subtest: an SSRF refusal on a redirect hop reaches the caller as a BAD_REQUEST naming the blocked host, not a redacted INTERNAL_ERROR
+ok 265 - an SSRF refusal on a redirect hop reaches the caller as a BAD_REQUEST naming the blocked host, not a redacted INTERNAL_ERROR
+  ---
+  duration_ms: 72.503708
+  type: 'test'
+  ...
+# Subtest: the refusal names the tool's own schema, not just a bare rejection
+ok 266 - the refusal names the tool's own schema, not just a bare rejection
+  ---
+  duration_ms: 19.396744
+  type: 'test'
+  ...
+# Subtest: an off-allowlist redirect target refuses the same way a bad scheme does — classified by TYPE, not by one message
+ok 267 - an off-allowlist redirect target refuses the same way a bad scheme does — classified by TYPE, not by one message
+  ---
+  duration_ms: 10.386495
+  type: 'test'
+  ...
+# Subtest: a genuine transport failure is STILL a redacted INTERNAL_ERROR — the fix must not reclassify every failure as the caller's fault
+ok 268 - a genuine transport failure is STILL a redacted INTERNAL_ERROR — the fix must not reclassify every failure as the caller's fault
+  ---
+  duration_ms: 29.696703
+  type: 'test'
+  ...
+# Subtest: an egress refusal tells the model WHICH host was refused and why, but never the address that host resolved to
+ok 269 - an egress refusal tells the model WHICH host was refused and why, but never the address that host resolved to
+  ---
+  duration_ms: 23.213233
+  type: 'test'
+  ...
+# Subtest: the address the model is not told stays available server-side, in the audit trail
+ok 270 - the address the model is not told stays available server-side, in the audit trail
+  ---
+  duration_ms: 13.755895
+  type: 'test'
+  ...
+# Subtest: exactly the four safe media-service.ts operations are wired — no invented purge or transform-registry tool
+ok 271 - exactly the four safe media-service.ts operations are wired — no invented purge or transform-registry tool
+  ---
+  duration_ms: 16.750979
+  type: 'test'
+  ...
+# Subtest: no wired media tool is named or described for a hard purge/force-delete
+ok 272 - no wired media tool is named or described for a hard purge/force-delete
+  ---
+  duration_ms: 3.676184
+  type: 'test'
+  ...
+# Subtest: every wired Media registration publishes its catalog entry's inputSchema and description
+ok 273 - every wired Media registration publishes its catalog entry's inputSchema and description
+  ---
+  duration_ms: 2.738231
+  type: 'test'
+  ...
+# Subtest: requiresConfirmation is unset on every wired Media tool
+ok 274 - requiresConfirmation is unset on every wired Media tool
+  ---
+  duration_ms: 1.549711
+  type: 'test'
+  ...
+# Subtest: an out-of-vocabulary content type is rejected with the schema attached for retry
+ok 275 - an out-of-vocabulary content type is rejected with the schema attached for retry
+  ---
+  duration_ms: 3.60776
+  type: 'test'
+  ...
+# Subtest: base64 that decodes to zero bytes is rejected as an empty upload, with the schema attached for retry
+ok 276 - base64 that decodes to zero bytes is rejected as an empty upload, with the schema attached for retry
+  ---
+  duration_ms: 1.47861
+  type: 'test'
+  ...
+# Subtest: a tool result is an explicit model-facing view: workspaceId/timestamps dropped, id kept for the next call's mediaId
+ok 277 - a tool result is an explicit model-facing view: workspaceId/timestamps dropped, id kept for the next call's mediaId
+  ---
+  duration_ms: 5.750203
+  type: 'test'
+  ...
+# Subtest: media_upload_asset's publicUrl is the ADR-027 §4 public-transform URL for an image asset, keyed by its slug (readable-slugs S4)
+ok 278 - media_upload_asset's publicUrl is the ADR-027 §4 public-transform URL for an image asset, keyed by its slug (readable-slugs S4)
+  ---
+  duration_ms: 2.970175
+  type: 'test'
+  ...
+# Subtest: media_list_assets' publicUrl matches media_upload_asset's for the same asset, resolved in one batch
+ok 279 - media_list_assets' publicUrl matches media_upload_asset's for the same asset, resolved in one batch
+  ---
+  duration_ms: 8.185988
+  type: 'test'
+  ...
+# Subtest: media_list_assets' publicUrl is the byte-passthrough /original URL for a video asset, keyed by its slug, resolved from the content-type store
+ok 280 - media_list_assets' publicUrl is the byte-passthrough /original URL for a video asset, keyed by its slug, resolved from the content-type store
+  ---
+  duration_ms: 2.916064
+  type: 'test'
+  ...
+# Subtest: a trashed asset's publicUrl is null, never a link a visitor would 404 on
+ok 281 - a trashed asset's publicUrl is null, never a link a visitor would 404 on
+  ---
+  duration_ms: 6.493358
+  type: 'test'
+  ...
+# Subtest: media_trash_asset is a status flip, and is the ONLY delete-adjacent tool
+ok 282 - media_trash_asset is a status flip, and is the ONLY delete-adjacent tool
+  ---
+  duration_ms: 3.259507
+  type: 'test'
+  ...
+# Subtest: media_update_metadata never touches the write-once sha256 — there is no field for it in the tool's schema
+ok 283 - media_update_metadata never touches the write-once sha256 — there is no field for it in the tool's schema
+  ---
+  duration_ms: 0.147438
+  type: 'test'
+  ...
+# Subtest: the real Media catalog and tool-registrations' independent classification agree for all four wired tools
+ok 284 - the real Media catalog and tool-registrations' independent classification agree for all four wired tools
+  ---
+  duration_ms: 1.518465
+  type: 'test'
+  ...
+# Subtest: a Media catalog entry cannot downgrade its own risk — declaring sideEffects:'none' fails the build
+ok 285 - a Media catalog entry cannot downgrade its own risk — declaring sideEffects:'none' fails the build
+  ---
+  duration_ms: 0.469558
+  type: 'test'
+  ...
+# Subtest: no wired Media tool carries a confirmation-requiring actor-class rule
+ok 286 - no wired Media tool carries a confirmation-requiring actor-class rule
+  ---
+  duration_ms: 1.208416
+  type: 'test'
+  ...
+# Subtest: workflow: upload, update its metadata, then trash it — list reflects the whole chain consistently under the SAME id
+ok 287 - workflow: upload, update its metadata, then trash it — list reflects the whole chain consistently under the SAME id
+  ---
+  duration_ms: 5.458693
+  type: 'test'
+  ...
+# Subtest: media_update_metadata persists each remaining metadata field and rejects an unknown id
+ok 288 - media_update_metadata persists each remaining metadata field and rejects an unknown id
+  ---
+  duration_ms: 8.847796
+  type: 'test'
+  ...
+# Subtest: every wired Media tool has a known input fixture and expected permission — a newly wired tool must be added here, not silently skipped
+ok 289 - every wired Media tool has a known input fixture and expected permission — a newly wired tool must be added here, not silently skipped
+  ---
+  duration_ms: 1.278345
+  type: 'test'
+  ...
+# Subtest: content_read.media_asset: calls authorize() with the catalog's declared permission and the run's principal
+ok 290 - content_read.media_asset: calls authorize() with the catalog's declared permission and the run's principal
+  ---
+  duration_ms: 2.869522
+  type: 'test'
+  ...
+# Subtest: content_read.media_asset: a denied principal is rejected and NOTHING is written
+ok 291 - content_read.media_asset: a denied principal is rejected and NOTHING is written
+  ---
+  duration_ms: 3.213301
+  type: 'test'
+  ...
+# Subtest: media_upload_asset: calls authorize() with the catalog's declared permission and the run's principal
+ok 292 - media_upload_asset: calls authorize() with the catalog's declared permission and the run's principal
+  ---
+  duration_ms: 2.720758
+  type: 'test'
+  ...
+# Subtest: media_upload_asset: a denied principal is rejected and NOTHING is written
+ok 293 - media_upload_asset: a denied principal is rejected and NOTHING is written
+  ---
+  duration_ms: 3.103291
+  type: 'test'
+  ...
+# Subtest: media_update_metadata: calls authorize() with the catalog's declared permission and the run's principal
+ok 294 - media_update_metadata: calls authorize() with the catalog's declared permission and the run's principal
+  ---
+  duration_ms: 8.275564
+  type: 'test'
+  ...
+# Subtest: media_update_metadata: a denied principal is rejected and NOTHING is written
+ok 295 - media_update_metadata: a denied principal is rejected and NOTHING is written
+  ---
+  duration_ms: 2.552719
+  type: 'test'
+  ...
+# Subtest: media_trash_asset: calls authorize() with the catalog's declared permission and the run's principal
+ok 296 - media_trash_asset: calls authorize() with the catalog's declared permission and the run's principal # SKIP authorized twice by design (Trash shim + package handler) — see comment
+  ---
+  duration_ms: 0.358378
+  type: 'test'
+  ...
+# Subtest: media_trash_asset: a denied principal is rejected and NOTHING is written
+ok 297 - media_trash_asset: a denied principal is rejected and NOTHING is written
+  ---
+  duration_ms: 2.545319
+  type: 'test'
+  ...
+# Subtest: the ToolPolicy layer is a pass-through 'allow' for every Media registration — enforcement is this file's own inline requireMediaPermission call, by design
+ok 298 - the ToolPolicy layer is a pass-through 'allow' for every Media registration — enforcement is this file's own inline requireMediaPermission call, by design
+  ---
+  duration_ms: 1.912773
+  type: 'test'
+  ...
+# Subtest: exactly the 6 Posts/Pages operations are wired — the entire catalog
+ok 299 - exactly the 6 Posts/Pages operations are wired — the entire catalog
+  ---
+  duration_ms: 32.540793
+  type: 'test'
+  ...
+# Subtest: no purge/publish/unpublish tool exists — post.ts still has no hard-delete and no separate lifecycle function
+ok 300 - no purge/publish/unpublish tool exists — post.ts still has no hard-delete and no separate lifecycle function
+  ---
+  duration_ms: 10.656276
+  type: 'test'
+  ...
+# Subtest: the delete tool is a SOFT delete and says so — its description must not promise permanence
+ok 301 - the delete tool is a SOFT delete and says so — its description must not promise permanence
+  ---
+  duration_ms: 0.41014
+  type: 'test'
+  ...
+# Subtest: the delete tool's description tells the model the SAME call reports the outcome — not a stale 'wait for a second call' instruction (ADR-055 Decision 2)
+ok 302 - the delete tool's description tells the model the SAME call reports the outcome — not a stale 'wait for a second call' instruction (ADR-055 Decision 2)
+  ---
+  duration_ms: 0.164084
+  type: 'test'
+  ...
+# Subtest: every wired Posts/Pages registration publishes its catalog contract except retired read-tool references
+ok 303 - every wired Posts/Pages registration publishes its catalog contract except retired read-tool references
+  ---
+  duration_ms: 11.94252
+  type: 'test'
+  ...
+# Subtest: requiresConfirmation is unset on every wired Posts/Pages tool
+ok 304 - requiresConfirmation is unset on every wired Posts/Pages tool
+  ---
+  duration_ms: 5.778335
+  type: 'test'
+  ...
+# Subtest: content_post_create's and content_post_update's published bodyJson schema names every renderDocNode node type
+ok 305 - content_post_create's and content_post_update's published bodyJson schema names every renderDocNode node type
+  ---
+  duration_ms: 1.603869
+  type: 'test'
+  ...
+# Subtest: the independent risk classification agrees with the catalog for all 6 wired Posts/Pages tools
+ok 306 - the independent risk classification agrees with the catalog for all 6 wired Posts/Pages tools
+  ---
+  duration_ms: 7.794557
+  type: 'test'
+  ...
+# Subtest: a catalog entry cannot downgrade its own risk — declaring content_post_create sideEffects:'none' fails the build
+ok 307 - a catalog entry cannot downgrade its own risk — declaring content_post_create sideEffects:'none' fails the build
+  ---
+  duration_ms: 0.624207
+  type: 'test'
+  ...
+# Subtest: content_post_delete is classified as genuinely destructive, distinctly from an edit
+ok 308 - content_post_delete is classified as genuinely destructive, distinctly from an edit
+  ---
+  duration_ms: 0.18975
+  type: 'test'
+  ...
+# Subtest: content_post_delete cannot soften itself to a mere mutation — the independent check refuses it
+ok 309 - content_post_delete cannot soften itself to a mere mutation — the independent check refuses it
+  ---
+  duration_ms: 0.154038
+  type: 'test'
+  ...
+# Subtest: content_post_delete cannot downgrade itself to 'none' either
+ok 310 - content_post_delete cannot downgrade itself to 'none' either
+  ---
+  duration_ms: 0.110496
+  type: 'test'
+  ...
+# Subtest: no OTHER Posts/Pages tool may claim the destructive classification
+ok 311 - no OTHER Posts/Pages tool may claim the destructive classification
+  ---
+  duration_ms: 2.425298
+  type: 'test'
+  ...
+# Subtest: content_post_delete does NOT use requiresConfirmation — its gate is a real MCP-UI resource, not the unwired boolean
+ok 312 - content_post_delete does NOT use requiresConfirmation — its gate is a real MCP-UI resource, not the unwired boolean
+  ---
+  duration_ms: 6.313226
+  type: 'test'
+  ...
+# Subtest: the ToolPolicy layer is a pass-through 'allow' for every wired Posts/Pages registration
+ok 313 - the ToolPolicy layer is a pass-through 'allow' for every wired Posts/Pages registration
+  ---
+  duration_ms: 6.160866
+  type: 'test'
+  ...
+# Subtest: content_post_list: calls authorize() with content.read, inline (listAdminPosts has no authorize of its own)
+ok 314 - content_post_list: calls authorize() with content.read, inline (listAdminPosts has no authorize of its own)
+  ---
+  duration_ms: 8.21953
+  type: 'test'
+  ...
+# Subtest: content_post_list: a denied principal is rejected
+ok 315 - content_post_list: a denied principal is rejected
+  ---
+  duration_ms: 3.086511
+  type: 'test'
+  ...
+# Subtest: content_post_get: calls authorize() with content.read, inline
+ok 316 - content_post_get: calls authorize() with content.read, inline
+  ---
+  duration_ms: 9.65442
+  type: 'test'
+  ...
+# Subtest: content_post_get: a denied principal is rejected
+ok 317 - content_post_get: a denied principal is rejected
+  ---
+  duration_ms: 11.959638
+  type: 'test'
+  ...
+# Subtest: content_post_create: calls authorize() with content.write via executeCommand
+ok 318 - content_post_create: calls authorize() with content.write via executeCommand
+  ---
+  duration_ms: 17.799299
+  type: 'test'
+  ...
+# Subtest: content_post_create: a denied principal is rejected and nothing is written
+ok 319 - content_post_create: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 17.813313
+  type: 'test'
+  ...
+# Subtest: content_post_update: a denied principal is rejected and nothing is written
+ok 320 - content_post_update: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 11.303994
+  type: 'test'
+  ...
+# Subtest: content_post_create rejects a malformed slug, with the schema attached for retry
+ok 321 - content_post_create rejects a malformed slug, with the schema attached for retry
+  ---
+  duration_ms: 2.862178
+  type: 'test'
+  ...
+# Subtest: content_post_update rejects a non-JSON-object bodyJson
+ok 322 - content_post_update rejects a non-JSON-object bodyJson
+  ---
+  duration_ms: 2.926509
+  type: 'test'
+  ...
+# Subtest: content_post_get: kind:'page' rejects a row whose actual kind is 'post' (the guarded, pages/get-by-id.ts-mirroring branch)
+ok 323 - content_post_get: kind:'page' rejects a row whose actual kind is 'post' (the guarded, pages/get-by-id.ts-mirroring branch)
+  ---
+  duration_ms: 6.417458
+  type: 'test'
+  ...
+# Subtest: content_post_get: kind:'post' still returns a row whose actual kind is 'page' (the disclosed, posts/get-by-id.ts-mirroring legacy laxity)
+ok 324 - content_post_get: kind:'post' still returns a row whose actual kind is 'page' (the disclosed, posts/get-by-id.ts-mirroring legacy laxity)
+  ---
+  duration_ms: 1.905616
+  type: 'test'
+  ...
+# Subtest: workflow (post): create a post, give it a real TipTap body, publish it, then confirm it appears in the published list
+ok 325 - workflow (post): create a post, give it a real TipTap body, publish it, then confirm it appears in the published list
+  ---
+  duration_ms: 73.20642
+  type: 'test'
+  ...
+# Subtest: workflow (page): create a page, give it a real TipTap body, publish it, then confirm it appears in the published list — and is invisible to the post list
+ok 326 - workflow (page): create a page, give it a real TipTap body, publish it, then confirm it appears in the published list — and is invisible to the post list
+  ---
+  duration_ms: 40.85756
+  type: 'test'
+  ...
+# Subtest: content_post_search: ranks a title/slug match above a passing body mention
+ok 327 - content_post_search: ranks a title/slug match above a passing body mention
+  ---
+  duration_ms: 361.710442
+  type: 'test'
+  ...
+# Subtest: content_post_search: returns summaries only — never bodyJson
+ok 328 - content_post_search: returns summaries only — never bodyJson
+  ---
+  duration_ms: 110.486294
+  type: 'test'
+  ...
+# Subtest: content_post_search: kind and status narrow the result set
+ok 329 - content_post_search: kind and status narrow the result set
+  ---
+  duration_ms: 161.300133
+  type: 'test'
+  ...
+# Subtest: content_post_search: limit is honored and clamped rather than rejected
+ok 330 - content_post_search: limit is honored and clamped rather than rejected
+  ---
+  duration_ms: 142.180527
+  type: 'test'
+  ...
+# Subtest: content_post_search: a trashed post disappears from results
+ok 331 - content_post_search: a trashed post disappears from results
+  ---
+  duration_ms: 155.889824
+  type: 'test'
+  ...
+# Subtest: content_post_search: an edit changes what the post is findable by
+ok 332 - content_post_search: an edit changes what the post is findable by
+  ---
+  duration_ms: 204.318402
+  type: 'test'
+  ...
+# Subtest: content_post_search: calls authorize() with content.read, inline (searchAdminPosts has no authorize of its own)
+ok 333 - content_post_search: calls authorize() with content.read, inline (searchAdminPosts has no authorize of its own)
+  ---
+  duration_ms: 211.106031
+  type: 'test'
+  ...
+# Subtest: content_post_search: a denied principal is rejected
+ok 334 - content_post_search: a denied principal is rejected
+  ---
+  duration_ms: 24.90822
+  type: 'test'
+  ...
+# Subtest: content_post_search: a query with no searchable term is rejected, with the schema attached for retry
+ok 335 - content_post_search: a query with no searchable term is rejected, with the schema attached for retry
+  ---
+  duration_ms: 15.713314
+  type: 'test'
+  ...
+# Subtest: content_post_search: an empty corpus returns no hits rather than failing
+ok 336 - content_post_search: an empty corpus returns no hits rather than failing
+  ---
+  duration_ms: 210.433722
+  type: 'test'
+  ...
+# Subtest: chat-input regression: theme_edit_file deletes exact text with an empty replacement through the gate
+ok 337 - chat-input regression: theme_edit_file deletes exact text with an empty replacement through the gate
+  ---
+  duration_ms: 175.531964
+  type: 'test'
+  ...
+# Subtest: theme_edit_file: zero matches is refused, and the file is left untouched
+ok 338 - theme_edit_file: zero matches is refused, and the file is left untouched
+  ---
+  duration_ms: 49.1735
+  type: 'test'
+  ...
+# Subtest: theme_edit_file: an ambiguous match (2+ occurrences) is refused when replaceAll is left false
+ok 339 - theme_edit_file: an ambiguous match (2+ occurrences) is refused when replaceAll is left false
+  ---
+  duration_ms: 18.938563
+  type: 'test'
+  ...
+# Subtest: theme_edit_file: replaceAll changes every occurrence of an ambiguous match
+ok 340 - theme_edit_file: replaceAll changes every occurrence of an ambiguous match
+  ---
+  duration_ms: 28.898645
+  type: 'test'
+  ...
+# Subtest: theme_edit_file: a unique match is replaced, leaving the rest of the file byte-identical
+ok 341 - theme_edit_file: a unique match is replaced, leaving the rest of the file byte-identical
+  ---
+  duration_ms: 19.575003
+  type: 'test'
+  ...
+# Subtest: theme_edit_file: writing invalid JSON via an edit reports status 'invalid', same as theme_write_file
+ok 342 - theme_edit_file: writing invalid JSON via an edit reports status 'invalid', same as theme_write_file
+  ---
+  duration_ms: 29.919341
+  type: 'test'
+  ...
+# Subtest: theme_edit_file: a script (.js) file is editable — content editability has no group-based restriction, matching theme_write_file
+ok 343 - theme_edit_file: a script (.js) file is editable — content editability has no group-based restriction, matching theme_write_file
+  ---
+  duration_ms: 39.533739
+  type: 'test'
+  ...
+# Subtest: theme_edit_file refuses when authorize() denies, and never reads or writes
+ok 344 - theme_edit_file refuses when authorize() denies, and never reads or writes
+  ---
+  duration_ms: 18.298133
+  type: 'test'
+  ...
+# Subtest: theme_rename_file: renames an ordinary style file within the same folder
+ok 345 - theme_rename_file: renames an ordinary style file within the same folder
+  ---
+  duration_ms: 43.760134
+  type: 'test'
+  ...
+# Subtest: theme_rename_file: renaming to the same name is a no-op, not a NAME_TAKEN collision against itself
+ok 346 - theme_rename_file: renaming to the same name is a no-op, not a NAME_TAKEN collision against itself
+  ---
+  duration_ms: 32.781671
+  type: 'test'
+  ...
+# Subtest: theme_rename_file: a required file (theme.json) is refused — renaming it would invalidate the theme
+ok 347 - theme_rename_file: a required file (theme.json) is refused — renaming it would invalidate the theme
+  ---
+  duration_ms: 8.945489
+  type: 'test'
+  ...
+# Subtest: theme_rename_file: a script (.js) file is refused — content is editable but identity is locked
+ok 348 - theme_rename_file: a script (.js) file is refused — content is editable but identity is locked
+  ---
+  duration_ms: 13.122359
+  type: 'test'
+  ...
+# Subtest: theme_rename_file: an 'other'-group file (.md) is refused
+ok 349 - theme_rename_file: an 'other'-group file (.md) is refused
+  ---
+  duration_ms: 5.220115
+  type: 'test'
+  ...
+# Subtest: theme_rename_file: changing the extension is refused even for an otherwise-writable file
+ok 350 - theme_rename_file: changing the extension is refused even for an otherwise-writable file
+  ---
+  duration_ms: 12.519143
+  type: 'test'
+  ...
+# Subtest: theme_rename_file: a name that already exists in the folder is refused (checked before the extension rule)
+ok 351 - theme_rename_file: a name that already exists in the folder is refused (checked before the extension rule)
+  ---
+  duration_ms: 20.788002
+  type: 'test'
+  ...
+# Subtest: theme_rename_file: a path-shaped name (containing '/') is refused as a shape error, not attempted as a move
+ok 352 - theme_rename_file: a path-shaped name (containing '/') is refused as a shape error, not attempted as a move
+  ---
+  duration_ms: 15.68768
+  type: 'test'
+  ...
+# Subtest: theme_rename_file refuses when authorize() denies, and never touches disk
+ok 353 - theme_rename_file refuses when authorize() denies, and never touches disk
+  ---
+  duration_ms: 23.906797
+  type: 'test'
+  ...
+# Subtest: theme_rename_file refreshes the live routeDeps.themes entry, matching theme_write_file's live-state coupling
+ok 354 - theme_rename_file refreshes the live routeDeps.themes entry, matching theme_write_file's live-state coupling
+  ---
+  duration_ms: 22.243344
+  type: 'test'
+  ...
+# Subtest: performThemeFileRename: a destPath that resolves generated-readonly throws -- provably unreachable through the theme_rename_file TOOL (destPath always shares sourcePath's own already-editable directory, per this function's own comment), exercised directly by passing a destPath in a DIFFERENT directory than the tool itself would ever construct
+ok 355 - performThemeFileRename: a destPath that resolves generated-readonly throws -- provably unreachable through the theme_rename_file TOOL (destPath always shares sourcePath's own already-editable directory, per this function's own comment), exercised directly by passing a destPath in a DIFFERENT directory than the tool itself would ever construct
+  ---
+  duration_ms: 0.386874
+  type: 'test'
+  ...
+# Subtest: theme_edit_file: an empty replacement deletes the exact match
+ok 356 - theme_edit_file: an empty replacement deletes the exact match
+  ---
+  duration_ms: 17.52149
+  type: 'test'
+  ...
+# Subtest: theme_edit_file: a deletion that would leave the file empty is refused without intent 'delete', and the file is untouched
+ok 357 - theme_edit_file: a deletion that would leave the file empty is refused without intent 'delete', and the file is untouched
+  ---
+  duration_ms: 38.043936
+  type: 'test'
+  ...
+# Subtest: theme_edit_file: intent 'delete' confirms emptying the whole file
+ok 358 - theme_edit_file: intent 'delete' confirms emptying the whole file
+  ---
+  duration_ms: 31.837514
+  type: 'test'
+  ...
+# Subtest: theme_edit_file: the schema documents intent 'delete' and empty-string deletion
+ok 359 - theme_edit_file: the schema documents intent 'delete' and empty-string deletion
+  ---
+  duration_ms: 17.917461
+  type: 'test'
+  ...
+# Subtest: workspace get and list share a card alongside update
+ok 360 - workspace get and list share a card alongside update
+  ---
+  duration_ms: 27.952395
+  type: 'test'
+  ...
+# Subtest: workspace_create is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification
+ok 361 - workspace_create is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification
+  ---
+  duration_ms: 2.494772
+  type: 'test'
+  ...
+# Subtest: workspace_delete is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification
+ok 362 - workspace_delete is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification
+  ---
+  duration_ms: 2.499709
+  type: 'test'
+  ...
+# Subtest: no tool name across the whole assistant tool set implies a workspace can be created or deleted by an agent
+ok 363 - no tool name across the whole assistant tool set implies a workspace can be created or deleted by an agent
+  ---
+  duration_ms: 12.308687
+  type: 'test'
+  ...
+# Subtest: every wired workspace registration publishes its catalog entry's inputSchema and description verbatim
+ok 364 - every wired workspace registration publishes its catalog entry's inputSchema and description verbatim
+  ---
+  duration_ms: 7.769576
+  type: 'test'
+  ...
+# Subtest: requiresConfirmation is unset on every wired workspace tool
+ok 365 - requiresConfirmation is unset on every wired workspace tool
+  ---
+  duration_ms: 1.93968
+  type: 'test'
+  ...
+# Subtest: the independent risk classification agrees with the catalog for both wired workspace tools
+ok 366 - the independent risk classification agrees with the catalog for both wired workspace tools
+  ---
+  duration_ms: 2.102921
+  type: 'test'
+  ...
+# Subtest: a workspace catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for update fails the build
+ok 367 - a workspace catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for update fails the build
+  ---
+  duration_ms: 4.233393
+  type: 'test'
+  ...
+# Subtest: the ToolPolicy layer is a pass-through 'allow' for both wired workspace registrations
+ok 368 - the ToolPolicy layer is a pass-through 'allow' for both wired workspace registrations
+  ---
+  duration_ms: 4.330146
+  type: 'test'
+  ...
+# Subtest: every wired workspace tool has a known input fixture
+ok 369 - every wired workspace tool has a known input fixture
+  ---
+  duration_ms: 6.283335
+  type: 'test'
+  ...
+# Subtest: content_read.workspace: calls authorize() with 'workspace.manage' and the run's principal
+ok 370 - content_read.workspace: calls authorize() with 'workspace.manage' and the run's principal
+  ---
+  duration_ms: 3.043405
+  type: 'test'
+  ...
+# Subtest: content_read.workspace: a denied principal is rejected and nothing is written
+ok 371 - content_read.workspace: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 10.650043
+  type: 'test'
+  ...
+# Subtest: workspace_update: calls authorize() with 'workspace.manage' and the run's principal
+ok 372 - workspace_update: calls authorize() with 'workspace.manage' and the run's principal
+  ---
+  duration_ms: 1.611222
+  type: 'test'
+  ...
+# Subtest: workspace_update: a denied principal is rejected and nothing is written
+ok 373 - workspace_update: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 1.868452
+  type: 'test'
+  ...
+# Subtest: workspace_update: rejects an empty update the same way the domain function does
+ok 374 - workspace_update: rejects an empty update the same way the domain function does
+  ---
+  duration_ms: 1.557785
+  type: 'test'
+  ...
+# Subtest: workspace_update: rejects a slug collision the same way the domain function does
+ok 375 - workspace_update: rejects a slug collision the same way the domain function does
+  ---
+  duration_ms: 2.369085
+  type: 'test'
+  ...
+# Subtest: workflow: get the current workspace, rename it, get again to confirm the rename is reflected
+ok 376 - workflow: get the current workspace, rename it, get again to confirm the rename is reflected
+  ---
+  duration_ms: 7.060875
+  type: 'test'
+  ...
+# Subtest: folds both keywords and doc2query questions in by default
+ok 377 - folds both keywords and doc2query questions in by default
+  ---
+  duration_ms: 6.72005
+  type: 'test'
+  ...
+# Subtest: includeDoc2query: false folds keywords only, omitting the doc2query questions
+ok 378 - includeDoc2query: false folds keywords only, omitting the doc2query questions
+  ---
+  duration_ms: 0.325306
+  type: 'test'
+  ...
+# Subtest: a tool id with neither keywords nor a doc2query entry is returned unchanged, with no marker appended
+ok 379 - a tool id with neither keywords nor a doc2query entry is returned unchanged, with no marker appended
+  ---
+  duration_ms: 2.196352
+  type: 'test'
+  ...
+# Subtest: an empty description with nothing to fold returns the empty string, not the marker alone
+ok 380 - an empty description with nothing to fold returns the empty string, not the marker alone
+  ---
+  duration_ms: 0.133869
+  type: 'test'
+  ...
+# Subtest: an empty description WITH something to fold returns just the tail, with no leading marker
+ok 381 - an empty description WITH something to fold returns just the tail, with no leading marker
+  ---
+  duration_ms: 5.179461
+  type: 'test'
+  ...
+# Subtest: stripSearchKeywords recovers the exact authored description from a folded string
+ok 382 - stripSearchKeywords recovers the exact authored description from a folded string
+  ---
+  duration_ms: 0.403328
+  type: 'test'
+  ...
+# Subtest: stripSearchKeywords returns text with no marker unchanged — most tools have no keywords entry at all
+ok 383 - stripSearchKeywords returns text with no marker unchanged — most tools have no keywords entry at all
+  ---
+  duration_ms: 1.988693
+  type: 'test'
+  ...
+# Subtest: admin.capture_screenshot folds visual/screenshot vocabulary an operator would actually type
+ok 384 - admin.capture_screenshot folds visual/screenshot vocabulary an operator would actually type
+  ---
+  duration_ms: 3.028774
+  type: 'test'
+  ...
+# Subtest: assistant_ask_choice folds decision/confirmation vocabulary an operator would actually type
+ok 385 - assistant_ask_choice folds decision/confirmation vocabulary an operator would actually type
+  ---
+  duration_ms: 0.733944
+  type: 'test'
+  ...
+# Subtest: toJiniFederationDeps binds Tovu's messages, the EXTERNAL_MCP code and the workspace as Jini scope
+ok 386 - toJiniFederationDeps binds Tovu's messages, the EXTERNAL_MCP code and the workspace as Jini scope
+  ---
+  duration_ms: 2.575794
+  type: 'test'
+  ...
+# Subtest: toJiniFederationDeps' permission gate asks the CMS evaluator about the principal, permission and entity
+ok 387 - toJiniFederationDeps' permission gate asks the CMS evaluator about the principal, permission and entity
+  ---
+  duration_ms: 1.772214
+  type: 'test'
+  ...
+# Subtest: toJiniFederationDeps' permission gate refuses a denied principal with the evaluator's reason
+ok 388 - toJiniFederationDeps' permission gate refuses a denied principal with the evaluator's reason
+  ---
+  duration_ms: 2.519497
+  type: 'test'
+  ...
+# Subtest: toJiniFederationDeps omits the liveness and confirmation ports the host did not wire
+ok 389 - toJiniFederationDeps omits the liveness and confirmation ports the host did not wire
+  ---
+  duration_ms: 0.285185
+  type: 'test'
+  ...
+# Subtest: toJiniFederationDeps forwards the liveness gate as (connectionId, call)
+ok 390 - toJiniFederationDeps forwards the liveness gate as (connectionId, call)
+  ---
+  duration_ms: 0.556164
+  type: 'test'
+  ...
+# Subtest: toJiniFederationDeps rethrows a live auth failure unchanged when the host wires no onAuthFailed
+ok 391 - toJiniFederationDeps rethrows a live auth failure unchanged when the host wires no onAuthFailed
+  ---
+  duration_ms: 0.466837
+  type: 'test'
+  ...
+# Subtest: toJiniFederationDeps hands a live auth failure to onAuthFailed, whose error replaces it
+ok 392 - toJiniFederationDeps hands a live auth failure to onAuthFailed, whose error replaces it
+  ---
+  duration_ms: 0.704118
+  type: 'test'
+  ...
+# Subtest: toJiniFederationDeps forwards confirmation as (context, request) and returns the host's outcome
+ok 393 - toJiniFederationDeps forwards confirmation as (context, request) and returns the host's outcome
+  ---
+  duration_ms: 0.919008
+  type: 'test'
+  ...
+# Subtest: a Jini-gated action Tovu classifies as a reversible Trash still asks the host — policy cannot remove Jini's card
+ok 394 - a Jini-gated action Tovu classifies as a reversible Trash still asks the host — policy cannot remove Jini's card
+  ---
+  duration_ms: 7.581517
+  type: 'test'
+  ...
+# Subtest: a Jini-gated assistant-access change Tovu classifies as an ordinary restore still asks the host
+ok 395 - a Jini-gated assistant-access change Tovu classifies as an ordinary restore still asks the host
+  ---
+  duration_ms: 2.365141
+  type: 'test'
+  ...
+# Subtest: a Jini-gated action Tovu classifies as a reversible Trash is refused, unsent, with no host confirmer
+ok 396 - a Jini-gated action Tovu classifies as a reversible Trash is refused, unsent, with no host confirmer
+  ---
+  duration_ms: 0.820061
+  type: 'test'
+  ...
+# Subtest: a Jini-gated protected action with no host confirmer is refused before anything is sent
+ok 397 - a Jini-gated protected action with no host confirmer is refused before anything is sent
+  ---
+  duration_ms: 1.029616
+  type: 'test'
+  ...
+# Subtest: a Jini-gated action Tovu's policy also asks about is sent to the host as destructive with its approval class
+ok 398 - a Jini-gated action Tovu's policy also asks about is sent to the host as destructive with its approval class
+  ---
+  duration_ms: 0.510208
+  type: 'test'
+  ...
+# Subtest: a Jini-gated action Tovu's policy would not ask about reaches the host exactly as Jini built it
+ok 399 - a Jini-gated action Tovu's policy would not ask about reaches the host exactly as Jini built it
+  ---
+  duration_ms: 0.889505
+  type: 'test'
+  ...
+# Subtest: a remote declaring publication loses reviewed read-only metadata
+ok 400 - a remote declaring publication loses reviewed read-only metadata
+  ---
+  duration_ms: 0.53401
+  type: 'test'
+  ...
+# Subtest: an operator-listed read tool keeps its read-only descriptor
+ok 401 - an operator-listed read tool keeps its read-only descriptor
+  ---
+  duration_ms: 0.28663
+  type: 'test'
+  ...
+# Subtest: federated arguments that are a string are refused before any check or call
+ok 402 - federated arguments that are a string are refused before any check or call
+  ---
+  duration_ms: 0.793836
+  type: 'test'
+  ...
+# Subtest: federated arguments that are an array are refused before any check or call
+ok 403 - federated arguments that are an array are refused before any check or call
+  ---
+  duration_ms: 0.22043
+  type: 'test'
+  ...
+# Subtest: federated arguments that are a number are refused before any check or call
+ok 404 - federated arguments that are a number are refused before any check or call
+  ---
+  duration_ms: 0.325265
+  type: 'test'
+  ...
+# Subtest: null federated arguments run as an empty object
+ok 405 - null federated arguments run as an empty object
+  ---
+  duration_ms: 1.43848
+  type: 'test'
+  ...
+# Subtest: undefined federated arguments run as an empty object
+ok 406 - undefined federated arguments run as an empty object
+  ---
+  duration_ms: 0.488173
+  type: 'test'
+  ...
+# Subtest: a policy-gated call re-checks liveness and permission before asking, then Jini re-checks after approval
+ok 407 - a policy-gated call re-checks liveness and permission before asking, then Jini re-checks after approval
+  ---
+  duration_ms: 1.878863
+  type: 'test'
+  ...
+# Subtest: a policy-gated call for a denied principal is refused before any card opens
+ok 408 - a policy-gated call for a denied principal is refused before any card opens
+  ---
+  duration_ms: 0.702816
+  type: 'test'
+  ...
+# Subtest: a policy-gated call with no host confirmer is refused after the checks and nothing is sent
+ok 409 - a policy-gated call with no host confirmer is refused after the checks and nothing is sent
+  ---
+  duration_ms: 0.813583
+  type: 'test'
+  ...
+# Subtest: a policy-gated call asks the host with the full, destructive publication request
+ok 410 - a policy-gated call asks the host with the full, destructive publication request
+  ---
+  duration_ms: 0.947822
+  type: 'test'
+  ...
+# Subtest: a policy-gated card lists schema-declared and argument-derived write-shaped inputs
+ok 411 - a policy-gated card lists schema-declared and argument-derived write-shaped inputs
+  ---
+  duration_ms: 0.459377
+  type: 'test'
+  ...
+# Subtest: a declined policy-gated call returns the host's result verbatim and sends nothing
+ok 412 - a declined policy-gated call returns the host's result verbatim and sends nothing
+  ---
+  duration_ms: 0.312659
+  type: 'test'
+  ...
+# Subtest: a policy-gated call abandoned while the card was open is not sent
+ok 413 - a policy-gated call abandoned while the card was open is not sent
+  ---
+  duration_ms: 0.575474
+  type: 'test'
+  ...
+# Subtest: an approved policy-gated call is sent once, with the approved arguments, without a second card
+ok 414 - an approved policy-gated call is sent once, with the approved arguments, without a second card
+  ---
+  duration_ms: 0.386433
+  type: 'test'
+  ...
+# Subtest: an ordinary call skips the host policy and runs through Jini's own checks once
+ok 415 - an ordinary call skips the host policy and runs through Jini's own checks once
+  ---
+  duration_ms: 0.298996
+  type: 'test'
+  ...
+# Subtest: federateSession enumerates the session once and registers through the host policy adapter
+ok 416 - federateSession enumerates the session once and registers through the host policy adapter
+  ---
+  duration_ms: 0.454406
+  type: 'test'
+  ...
+# Subtest: chat history store [sqlite]
+    # Subtest: legacy reversed first turn reads question then answer without changing stored positions
+    ok 1 - legacy reversed first turn reads question then answer without changing stored positions
+      ---
+      duration_ms: 97.29053
+      type: 'test'
+      ...
+    # Subtest: read repair preserves a later follow-up and request-bound answers
+    ok 2 - read repair preserves a later follow-up and request-bound answers
+      ---
+      duration_ms: 26.307293
+      type: 'test'
+      ...
+    # Subtest: equal-clock legacy first turn is repaired without stealing a correctly ordered follow-up
+    ok 3 - equal-clock legacy first turn is repaired without stealing a correctly ordered follow-up
+      ---
+      duration_ms: 30.379595
+      type: 'test'
+      ...
+    # Subtest: create then get and list round-trip every conversation field
+    ok 4 - create then get and list round-trip every conversation field
+      ---
+      duration_ms: 16.830322
+      type: 'test'
+      ...
+    # Subtest: list is most-recently-updated first and counts messages
+    ok 5 - list is most-recently-updated first and counts messages
+      ---
+      duration_ms: 24.058976
+      type: 'test'
+      ...
+    # Subtest: messages round-trip every stored field, in position order
+    ok 6 - messages round-trip every stored field, in position order
+      ---
+      duration_ms: 49.774797
+      type: 'test'
+      ...
+    # Subtest: a malformed events column reads as no events, not an error
+    ok 7 - a malformed events column reads as no events, not an error
+      ---
+      duration_ms: 18.600803
+      type: 'test'
+      ...
+    # Subtest: appending an existing id updates it in place at the same position
+    ok 8 - appending an existing id updates it in place at the same position
+      ---
+      duration_ms: 43.420773
+      type: 'test'
+      ...
+    # Subtest: appending bumps the conversation's updatedAt
+    ok 9 - appending bumps the conversation's updatedAt
+      ---
+      duration_ms: 65.011432
+      type: 'test'
+      ...
+    # Subtest: rename: a generated title replaces a fallback one but never a manual one
+    ok 10 - rename: a generated title replaces a fallback one but never a manual one
+      ---
+      duration_ms: 3.720521
+      type: 'test'
+      ...
+    # Subtest: touch bumps updatedAt and, when asked, the expiry
+    ok 11 - touch bumps updatedAt and, when asked, the expiry
+      ---
+      duration_ms: 2.814447
+      type: 'test'
+      ...
+    # Subtest: delete cascades to messages, agent sessions and tool approvals
+    ok 12 - delete cascades to messages, agent sessions and tool approvals
+      ---
+      duration_ms: 7.974238
+      type: 'test'
+      ...
+    # Subtest: another owner, workspace or owner kind sees nothing and changes nothing
+    ok 13 - another owner, workspace or owner kind sees nothing and changes nothing
+      ---
+      duration_ms: 11.758802
+      type: 'test'
+      ...
+    # Subtest: appending an id that lives in another owner's chat never overwrites that row
+    ok 14 - appending an id that lives in another owner's chat never overwrites that row
+      ---
+      duration_ms: 10.441895
+      type: 'test'
+      ...
+    # Subtest: an append inside a rolled-back transaction leaves nothing
+    ok 15 - an append inside a rolled-back transaction leaves nothing
+      ---
+      duration_ms: 3.531589
+      type: 'test'
+      ...
+    # Subtest: concurrent appends to one chat get distinct, gap-free positions
+    ok 16 - concurrent appends to one chat get distinct, gap-free positions
+      ---
+      duration_ms: 26.164229
+      type: 'test'
+      ...
+    1..16
+ok 417 - chat history store [sqlite]
+  ---
+  duration_ms: 440.479996
+  type: 'suite'
+  ...
+# Subtest: chat history store [pglite]
+    # Subtest: legacy reversed first turn reads question then answer without changing stored positions
+    ok 1 - legacy reversed first turn reads question then answer without changing stored positions
+      ---
+      duration_ms: 8784.607333
+      type: 'test'
+      ...
+    # Subtest: read repair preserves a later follow-up and request-bound answers
+    ok 2 - read repair preserves a later follow-up and request-bound answers
+      ---
+      duration_ms: 169.794459
+      type: 'test'
+      ...
+    # Subtest: equal-clock legacy first turn is repaired without stealing a correctly ordered follow-up
+    ok 3 - equal-clock legacy first turn is repaired without stealing a correctly ordered follow-up
+      ---
+      duration_ms: 173.045697
+      type: 'test'
+      ...
+    # Subtest: create then get and list round-trip every conversation field
+    ok 4 - create then get and list round-trip every conversation field
+      ---
+      duration_ms: 45.189649
+      type: 'test'
+      ...
+    # Subtest: list is most-recently-updated first and counts messages
+    ok 5 - list is most-recently-updated first and counts messages
+      ---
+      duration_ms: 50.582923
+      type: 'test'
+      ...
+    # Subtest: messages round-trip every stored field, in position order
+    ok 6 - messages round-trip every stored field, in position order
+      ---
+      duration_ms: 40.026545
+      type: 'test'
+      ...
+    # Subtest: a malformed events column reads as no events, not an error
+    ok 7 - a malformed events column reads as no events, not an error
+      ---
+      duration_ms: 81.584136
+      type: 'test'
+      ...
+    # Subtest: appending an existing id updates it in place at the same position
+    ok 8 - appending an existing id updates it in place at the same position
+      ---
+      duration_ms: 175.47683
+      type: 'test'
+      ...
+    # Subtest: appending bumps the conversation's updatedAt
+    ok 9 - appending bumps the conversation's updatedAt
+      ---
+      duration_ms: 49.344904
+      type: 'test'
+      ...
+    # Subtest: rename: a generated title replaces a fallback one but never a manual one
+    ok 10 - rename: a generated title replaces a fallback one but never a manual one
+      ---
+      duration_ms: 47.568947
+      type: 'test'
+      ...
+    # Subtest: touch bumps updatedAt and, when asked, the expiry
+    ok 11 - touch bumps updatedAt and, when asked, the expiry
+      ---
+      duration_ms: 40.990975
+      type: 'test'
+      ...
+    # Subtest: delete cascades to messages, agent sessions and tool approvals
+    ok 12 - delete cascades to messages, agent sessions and tool approvals
+      ---
+      duration_ms: 68.490926
+      type: 'test'
+      ...
+    # Subtest: another owner, workspace or owner kind sees nothing and changes nothing
+    ok 13 - another owner, workspace or owner kind sees nothing and changes nothing
+      ---
+      duration_ms: 187.33719
+      type: 'test'
+      ...
+    # Subtest: appending an id that lives in another owner's chat never overwrites that row
+    ok 14 - appending an id that lives in another owner's chat never overwrites that row
+      ---
+      duration_ms: 112.264422
+      type: 'test'
+      ...
+    # Subtest: an append inside a rolled-back transaction leaves nothing
+    ok 15 - an append inside a rolled-back transaction leaves nothing
+      ---
+      duration_ms: 106.750859
+      type: 'test'
+      ...
+    # Subtest: concurrent appends to one chat get distinct, gap-free positions
+    ok 16 - concurrent appends to one chat get distinct, gap-free positions
+      ---
+      duration_ms: 239.169437
+      type: 'test'
+      ...
+    1..16
+ok 418 - chat history store [pglite]
+  ---
+  duration_ms: 10389.95153
+  type: 'suite'
+  ...
+# Subtest: createChatStoreFactory
+    # Subtest: returns a store scoped to the given principal, backed by the supplied db
+    ok 1 - returns a store scoped to the given principal, backed by the supplied db
+      ---
+      duration_ms: 208.044058
+      type: 'test'
+      ...
+    # Subtest: returns a fresh scoped store per call, all against the SAME db handle
+    ok 2 - returns a fresh scoped store per call, all against the SAME db handle
+      ---
+      duration_ms: 9.938015
+      type: 'test'
+      ...
+    1..2
+ok 419 - createChatStoreFactory
+  ---
+  duration_ms: 219.483187
+  type: 'suite'
+  ...
+# Subtest: createInMemoryChatHistory
+    # Subtest: opens its db lazily and reuses it across calls, so writes persist between calls
+    ok 1 - opens its db lazily and reuses it across calls, so writes persist between calls
+      ---
+      duration_ms: 3.763168
+      type: 'test'
+      ...
+    # Subtest: gives two independent factory instances two independent in-memory dbs
+    ok 2 - gives two independent factory instances two independent in-memory dbs
+      ---
+      duration_ms: 10.021787
+      type: 'test'
+      ...
+    # Subtest: enables foreign_keys, so deleting a conversation cascades to its messages
+    ok 3 - enables foreign_keys, so deleting a conversation cascades to its messages
+      ---
+      duration_ms: 14.806477
+      type: 'test'
+      ...
+    1..3
+ok 420 - createInMemoryChatHistory
+  ---
+  duration_ms: 28.928195
+  type: 'suite'
+  ...
+# Subtest: the lazy ledger forwards checkpoint receipts and expected lengths
+ok 421 - the lazy ledger forwards checkpoint receipts and expected lengths
+  ---
+  duration_ms: 18.074635
+  type: 'test'
+  ...
+# Subtest: in-memory idle probe
+    # Subtest: is false before lazy open and protects an active row from any principal
+    ok 1 - is false before lazy open and protects an active row from any principal
+      ---
+      duration_ms: 12.37109
+      type: 'test'
+      ...
+    1..1
+ok 422 - in-memory idle probe
+  ---
+  duration_ms: 12.671594
+  type: 'suite'
+  ...
+# Subtest: only a single live ID can deliver allow=true
+ok 423 - only a single live ID can deliver allow=true
+  ---
+  duration_ms: 9.229256
+  type: 'test'
+  ...
+# Subtest: only a single live ID can deliver allow=false
+ok 424 - only a single live ID can deliver allow=false
+  ---
+  duration_ms: 0.639039
+  type: 'test'
+  ...
+# Subtest: 60-second expiry and disconnect deny, close and dispose every timer
+ok 425 - 60-second expiry and disconnect deny, close and dispose every timer
+  ---
+  duration_ms: 0.989521
+  type: 'test'
+  ...
+# Subtest: changed plan, validation error, expiry during validation and simultaneous replay never allow
+ok 426 - changed plan, validation error, expiry during validation and simultaneous replay never allow
+  ---
+  duration_ms: 137.720724
+  type: 'test'
+  ...
+# Subtest: headless emission failure, pre-abort, one per turn and bounded site prompts fail closed
+ok 427 - headless emission failure, pre-abort, one per turn and bounded site prompts fail closed
+  ---
+  duration_ms: 2.002193
+  type: 'test'
+  ...
+# Subtest: two pending prompts per IP leave capacity for other visitors and release slots on every terminal path
+ok 428 - two pending prompts per IP leave capacity for other visitors and release slots on every terminal path
+  ---
+  duration_ms: 176.656244
+  type: 'test'
+  ...
+# Subtest: an abort after the claim but before delivery is not accepted
+ok 429 - an abort after the claim but before delivery is not accepted
+  ---
+  duration_ms: 1.290567
+  type: 'test'
+  ...
+# Subtest: claimed replies still count toward site capacity while validation is pending
+ok 430 - claimed replies still count toward site capacity while validation is pending
+  ---
+  duration_ms: 6.835089
+  type: 'test'
+  ...
+# Subtest: two visitors remain independent and a restarted process refuses every old ID
+ok 431 - two visitors remain independent and a restarted process refuses every old ID
+  ---
+  duration_ms: 0.598427
+  type: 'test'
+  ...
+# Subtest: every schema offered to site visitors fits Gemini's function-declaration subset
+ok 432 - every schema offered to site visitors fits Gemini's function-declaration subset
+  ---
+  duration_ms: 8.832269
+  type: 'test'
+  ...
+# Subtest: the admin site_guide entry stays inside Gemini's subset after the real provider projection
+ok 433 - the admin site_guide entry stays inside Gemini's subset after the real provider projection
+  ---
+  duration_ms: 1.397336
+  type: 'test'
+  ...
+# Subtest: tovu --help exits 0 and prints usage
+ok 434 - tovu --help exits 0 and prints usage
+  ---
+  duration_ms: 19293.21164
+  type: 'test'
+  ...
+# Subtest: tovu with no arguments at all exits 0 and prints usage
+ok 435 - tovu with no arguments at all exits 0 and prints usage
+  ---
+  duration_ms: 18486.292252
+  type: 'test'
+  ...
+# Subtest: AC-12: tovu <unknown-command> exits 2 with usage printed
+ok 436 - AC-12: tovu <unknown-command> exits 2 with usage printed
+  ---
+  duration_ms: 22627.746606
+  type: 'test'
+  ...
+# Subtest: desktop project saves and inventory share project_keys_list without opening owner.db or attaching
+ok 437 - desktop project saves and inventory share project_keys_list without opening owner.db or attaching
+  ---
+  duration_ms: 180.030291
+  type: 'test'
+  ...
+# Subtest: status and import on a profile without owner.db report none/empty and create no owner file
+ok 438 - status and import on a profile without owner.db report none/empty and create no owner file
+  ---
+  duration_ms: 3.637442
+  type: 'test'
+  ...
+# Subtest: an empty legacy store (0 entries, 0 grants) reports empty and the CLI leaves deleting it to the desktop
+ok 439 - an empty legacy store (0 entries, 0 grants) reports empty and the CLI leaves deleting it to the desktop
+  ---
+  duration_ms: 21.220416
+  type: 'test'
+  ...
+# Subtest: a legacy store imports only on apply, non-default, reports site copies, and is never modified
+ok 440 - a legacy store imports only on apply, non-default, reports site copies, and is never modified
+  ---
+  duration_ms: 200.732006
+  type: 'test'
+  ...
+# Subtest: an import whose label is already a project key reports label-taken and writes nothing
+ok 441 - an import whose label is already a project key reports label-taken and writes nothing
+  ---
+  duration_ms: 129.420385
+  type: 'test'
+  ...
+# Subtest: an apply is bound to the dry run the user confirmed: a source replaced meanwhile, or no digest, is refused and writes nothing
+ok 442 - an apply is bound to the dry run the user confirmed: a source replaced meanwhile, or no digest, is refused and writes nothing
+  ---
+  duration_ms: 32771.834759
+  type: 'test'
+  ...
+# Subtest: missing owner.key with saved credentials requires recovery and never generates a replacement
+ok 443 - missing owner.key with saved credentials requires recovery and never generates a replacement
+  ---
+  duration_ms: 44.207335
+  type: 'test'
+  ...
+# Subtest: relative and traversal paths are refused before any owner file is created or read
+ok 444 - relative and traversal paths are refused before any owner file is created or read
+  ---
+  duration_ms: 3.483207
+  type: 'test'
+  ...
+# Subtest: a backup import never moves or rewrites the file; empty imports nothing and damaged is refused
+ok 445 - a backup import never moves or rewrites the file; empty imports nothing and damaged is refused
+  ---
+  duration_ms: 58.528153
+  type: 'test'
+  ...
+# Subtest: the registered CLI consumes secrets only on stdin and sanitizes malformed JSON
+ok 446 - the registered CLI consumes secrets only on stdin and sanitizes malformed JSON
+  ---
+  duration_ms: 12564.997708
+  type: 'test'
+  ...
+# Subtest: Shared Keys lists custom and provider rows, replaces them without losing metadata, and deletes only unused rows
+ok 447 - Shared Keys lists custom and provider rows, replaces them without losing metadata, and deletes only unused rows
+  ---
+  duration_ms: 194.618913
+  type: 'test'
+  ...
+# Subtest: owner shared OAuth disconnect reviews real SQLite grants, rejects stale approval, and keeps tokens disabled for retry
+ok 448 - owner shared OAuth disconnect reviews real SQLite grants, rejects stale approval, and keeps tokens disabled for retry
+  ---
+  duration_ms: 139.883043
+  type: 'test'
+  ...
+# Subtest: tovu theme normalize-build <dir> --primary-stylesheet styles.css: relocates assets and rewrites the page in place, exits 0
+ok 449 - tovu theme normalize-build <dir> --primary-stylesheet styles.css: relocates assets and rewrites the page in place, exits 0
+  ---
+  duration_ms: 12978.186758
+  type: 'test'
+  ...
+# Subtest: tovu theme normalize-build <dir> --json: prints the machine-readable plan and result
+ok 450 - tovu theme normalize-build <dir> --json: prints the machine-readable plan and result
+  ---
+  duration_ms: 16038.566001
+  type: 'test'
+  ...
+# Subtest: tovu theme normalize-build <dir>: missing --primary-stylesheet exits 2 (VALIDATION) and never touches the directory
+ok 451 - tovu theme normalize-build <dir>: missing --primary-stylesheet exits 2 (VALIDATION) and never touches the directory
+  ---
+  duration_ms: 14834.822337
+  type: 'test'
+  ...
+# Subtest: tovu theme normalize-build <dir> --pages a.html,b.html: rewrites every named page file, defaulting off just index.html
+ok 452 - tovu theme normalize-build <dir> --pages a.html,b.html: rewrites every named page file, defaulting off just index.html
+  ---
+  duration_ms: 15932.458104
+  type: 'test'
+  ...
+# Subtest: tovu theme normalize-build <dir>: a precondition violation (Beasties-shape critical-CSS inlining left enabled) surfaces as INTERNAL, not a silent no-op
+ok 453 - tovu theme normalize-build <dir>: a precondition violation (Beasties-shape critical-CSS inlining left enabled) surfaces as INTERNAL, not a silent no-op
+  ---
+  duration_ms: 13712.952883
+  type: 'test'
+  ...
+# Subtest: export result and CLI explain path precedence (publicUrl=https://export.example/docs/, basePath=/requested)
+ok 454 - export result and CLI explain path precedence (publicUrl=https://export.example/docs/, basePath=/requested)
+  ---
+  duration_ms: 829.800791
+  type: 'test'
+  ...
+# Subtest: export result and CLI explain path precedence (publicUrl=https://export.example/, basePath=/requested)
+ok 455 - export result and CLI explain path precedence (publicUrl=https://export.example/, basePath=/requested)
+  ---
+  duration_ms: 341.507836
+  type: 'test'
+  ...
+# Subtest: export result and CLI explain path precedence (publicUrl=https://export.example/docs/, basePath=)
+ok 456 - export result and CLI explain path precedence (publicUrl=https://export.example/docs/, basePath=)
+  ---
+  duration_ms: 403.427085
+  type: 'test'
+  ...
+# Subtest: export result and CLI explain path precedence (publicUrl=https://export.example/docs/, basePath=undefined)
+ok 457 - export result and CLI explain path precedence (publicUrl=https://export.example/docs/, basePath=undefined)
+  ---
+  duration_ms: 390.181751
+  type: 'test'
+  ...
+# Subtest: export result and CLI explain path precedence (publicUrl=undefined, basePath=/requested)
+ok 458 - export result and CLI explain path precedence (publicUrl=undefined, basePath=/requested)
+  ---
+  duration_ms: 226.241544
+  type: 'test'
+  ...

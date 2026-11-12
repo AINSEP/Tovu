@@ -1,0 +1,26 @@
+{
+  "Tovu": {
+    "files": 4396,
+    "tests": 42025,
+    "no_assert": 27,
+    "weak_only": 605,
+    "snapshot_only": 0,
+    "indirect": 251,
+    "mocks_uut": 0,
+    "skip": 77,
+    "only": 0,
+    "todo": 3
+  },
+  "Jini": {
+    "files": 3787,
+    "tests": 45153,
+    "no_assert": 23,
+    "weak_only": 395,
+    "snapshot_only": 11,
+    "indirect": 148,
+    "mocks_uut": 0,
+    "skip": 77,
+    "only": 0,
+    "todo": 13
+  }
+}

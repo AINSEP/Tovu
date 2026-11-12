@@ -1,0 +1,8 @@
+
+> tovu@0.1.0 check:test-safety
+> tsx development/scripts/check-test-safety-diff.ts origin/main
+
+check:test-safety — FAIL: message-less assertions added (give each assert.ok/assert a message):
+  - apps/website/src/assistant/__tests__/ask-choice-custom-answer.test.ts: 0 -> 1
+  - apps/website/src/features/plugin-runtime/__tests__/unit/plugins-tool-registrations.unit.test.ts: 2 -> 4
+exit 1

@@ -1,0 +1,68 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/admin
+      Coverage enabled with v8
+
+stderr | src/seo/react/__tests__/Seo.unit.test.tsx > SeoEntryPanel > the checkbox reflects fieldValue() falling back to false when neither touched nor resolved sets it
+Received `false` for a non-boolean attribute `placeholder`.
+
+If you want to write it to the DOM, pass a string instead: placeholder="false" or placeholder={value.toString()}.
+
+If you used to conditionally omit it with placeholder={condition && value}, pass placeholder={condition ? value : undefined} instead.
+
+ ✓ src/seo/react/__tests__/Seo.unit.test.tsx (72 tests) 3777ms
+ ✓ src/widgets/react/__tests__/use-widget-instance-editor.hooks.unit.test.ts (36 tests) 1528ms
+ ✓ src/comments/react/__tests__/use-comment-queue.unit.test.tsx (26 tests) 2634ms
+ ✓ src/forms/react/__tests__/FormsList.unit.test.tsx (16 tests) 1938ms
+ ✓ src/react/__tests__/components/ConfirmDialog.test.tsx (41 tests) 809ms
+ ✓ src/forms/react/__tests__/FormEditor.unit.test.tsx (14 tests) 3260ms
+   ✓ field attributes modal > opens from the row's kebab trigger, and round-trips a CSS class + an allowlisted attribute into the save payload 932ms
+   ✓ field attributes modal > rejects a non-allowlisted attribute name client-side, keeping the modal open with an error 508ms
+   ✓ field attributes modal > Cancel discards edits without touching the field 682ms
+ ✓ src/redirects/react/__tests__/use-redirects.hooks.unit.test.tsx (20 tests) 1501ms
+ ✓ src/seo/react/__tests__/share-image-warning.unit.test.tsx (37 tests) 1038ms
+ ✓ src/react/components/RowMenu/__tests__/RowMenu.test.tsx (35 tests) 684ms
+ ✓ src/media/react/__tests__/edit-parity.test.tsx (24 tests) 2350ms
+   ✓ legacy metadata fields and partial patches > prefills separate title and slug fields and sends slug alone without changing title 302ms
+   ✓ legacy server-authoritative save failures > shows full server error 400: server rejected data-motion independently of the client hint for client-valid metadata 324ms
+ ✓ src/security/react/__tests__/security-hooks.test.tsx (29 tests) 1535ms
+ ✓ src/media/react/__tests__/library-tab-hooks.test.tsx (23 tests) 747ms
+ ✓ src/media/react/__tests__/library-parity.test.tsx (15 tests) 5803ms
+   ✓ legacy library presentation guards > keeps full counts across search/type tabs, preserves sorting, and avoids filter rereads 1082ms
+   ✓ legacy library presentation guards > distinguishes initial unknown counts from authoritative zero and gives type-specific empty copy 700ms
+   ✓ legacy library presentation guards > honors the all deep link and defaults invalid links to All 468ms
+   ✓ legacy library presentation guards > honors the images deep link and defaults invalid links to All 421ms
+   ✓ legacy library presentation guards > honors the videos deep link and defaults invalid links to All 385ms
+   ✓ legacy library presentation guards > falls back to the first visible tab when the deep-linked tab is hidden by permissions 488ms
+   ✓ legacy library presentation guards > rejects an invalid tab and publishes unchanged literal tab handles through a host callback 477ms
+   ✓ legacy library presentation guards > rereads injected refresh events and releases the subscription on unmount 416ms
+   ✓ legacy library presentation guards > publishes distinct original row handles and opens one form from eye and menu actions 811ms
+   ✓ legacy library presentation guards > does not read protected media when the page grant is absent 305ms
+ ✓ src/agent-plugins/react/__tests__/agent-plugins-hooks.test.tsx (23 tests) 552ms
+ ✓ src/react/__tests__/components/DataTable.test.tsx (32 tests) 519ms
+ ✓ src/media/react/__tests__/providers-tab-hooks.test.tsx (16 tests) 1653ms
+ ✓ src/react/components/__tests__/Sidebar.test.tsx (26 tests) 634ms
+ ✓ src/media/react/__tests__/media.test.tsx (11 tests) 2879ms
+   ✓ media React slice > lazily switches library presets and hides the optional Providers tab 1293ms
+   ✓ renders the optional credential tab without exposing saved secrets 805ms
+   ✓ renders a read-only media page when write grants are absent 437ms
+ ✓ src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts (15 tests) 954ms
+ ✓ src/forms/react/__tests__/submissions-states.unit.test.tsx (19 tests) 1805ms
+   ✓ forms module editor page > opens the editor for a formId prop 374ms
+   ✓ forms module editor page > opens the editor for a route param on the submissions tab 330ms
+   ✓ forms module editor page > refuses to render the editor without a form id 309ms
+ ✓ src/consent/react/__tests__/ConsentFields.test.tsx (22 tests) 1230ms
+ ✓ src/widgets/react/__tests__/use-widgets-library.hooks.unit.test.tsx (13 tests) 1235ms
+ ✓ src/react/shell/__tests__/AdminShell.test.tsx (22 tests) 705ms
+ ✓ src/seo/react/__tests__/SitemapModal.unit.test.tsx (17 tests) 1114ms
+ ✓ src/forms/react/__tests__/use-forms-list.unit.test.tsx (14 tests) 1146ms
+ ✓ src/media/react/__tests__/upload-button-hooks.test.tsx (23 tests) 89ms
+ ✓ src/redirects/react/__tests__/use-import-redirects-form.hooks.unit.test.tsx (15 tests) 104ms
+ ✓ src/forms/react/__tests__/FormEditorFieldsBody.unit.test.tsx (19 tests) 834ms
+ ✓ src/comments/__tests__/rules.unit.test.ts (31 tests) 18ms
+ ✓ src/widgets/react/__tests__/WidgetsLibrary.unit.test.tsx (13 tests) 1026ms
+   ✓ Trash opens a confirm dialog and sends no request until confirmed 304ms
+ ✓ src/redirects/react/__tests__/redirects-binding.unit.test.tsx (14 tests) 1577ms
+   ✓ redirects React binding > mounts the lazy list page and cancelling a delete keeps the rule 743ms
+   ✓ redirects React binding > prefers live host options over the factory defaults 328ms
+   ✓ redirects React binding > blocks the screen with the load error when the first list read fails 309ms
+ ✓ src/widgets/react/__tests__/use-widget-region-editor.hooks.unit.test.tsx (8 tests) 551ms

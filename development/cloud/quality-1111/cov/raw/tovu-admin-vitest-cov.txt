@@ -1,0 +1,1534 @@
+
+ RUN  v4.1.11 /home/user/Tovu/apps/admin
+      Coverage enabled with v8
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > U1: injected page readiness reaches the captured protected-card describer
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 9864 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > U1: injected page readiness reaches the captured protected-card describer
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 9869 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() on a doc-format Page (the F01 regression) > never calls the HTML writer, and preserves the page's real bodyFormat/bodyJson
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 9933 }
+
+stderr | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() on a doc-format Page (the F01 regression) > never calls the HTML writer, and preserves the page's real bodyFormat/bodyJson
+standing-draft autosave: request failed
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() on a doc-format Page (the F01 regression) > still saves title/slug/status even though the body can't be edited here
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 9997 }
+
+stderr | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() on a doc-format Page (the F01 regression) > still saves title/slug/status even though the body can't be edited here
+standing-draft autosave: request failed
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() on a doc-format Page (the F01 regression) > does not send bodyJson at all for an html-format Page (would be meaningless)
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10063 }
+
+stderr | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() on a doc-format Page (the F01 regression) > does not send bodyJson at all for an html-format Page (would be meaningless)
+standing-draft autosave: request failed
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() on an html-format Page > calls the metadata writer before the HTML writer, so the version guard runs first
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10126 }
+
+stderr | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() on an html-format Page > calls the metadata writer before the HTML writer, so the version guard runs first
+standing-draft autosave: request failed
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > dirty (the F07 regression: metadata-only edits used to be invisible) > is true when only the title changes, even though html is untouched
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10193 }
+
+stderr | src/features/pages/__tests__/use-page-editor.unit.test.ts > dirty (the F07 regression: metadata-only edits used to be invisible) > is true when only the title changes, even though html is untouched
+standing-draft autosave: request failed
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > dirty (the F07 regression: metadata-only edits used to be invisible) > on a doc-format Page, does not go dirty just because the unusable html field is poked
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10258 }
+
+stderr | src/features/pages/__tests__/use-page-editor.unit.test.ts > dirty (the F07 regression: metadata-only edits used to be invisible) > on a doc-format Page, does not go dirty just because the unusable html field is poked
+standing-draft autosave: request failed
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > dirty (the F07 regression: metadata-only edits used to be invisible) > switching to the HTML tab reformats draftHtml but never marks the page dirty
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10319 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > contentDirty (template-preview fix, 2026-08-11) > stays false when only templateChoice changes, even though dirty goes true
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10380 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > contentDirty (template-preview fix, 2026-08-11) > stays false when only templateChoice changes, even though dirty goes true
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10436 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > contentDirty (template-preview fix, 2026-08-11) > goes true when the title changes, same as dirty
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10449 }
+
+stderr | src/features/pages/__tests__/use-page-editor.unit.test.ts > contentDirty (template-preview fix, 2026-08-11) > goes true when the title changes, same as dirty
+standing-draft autosave: request failed
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > contentDirty (template-preview fix, 2026-08-11) > goes true when the html body changes on an html-format Page
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10503 }
+
+stderr | src/features/pages/__tests__/use-page-editor.unit.test.ts > contentDirty (template-preview fix, 2026-08-11) > goes true when the html body changes on an html-format Page
+standing-draft autosave: request failed
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > contentDirty (template-preview fix, 2026-08-11) > stays false when both templateChoice and html change on a doc-format Page (html isn't real content there)
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10568 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > contentDirty (template-preview fix, 2026-08-11) > stays false when both templateChoice and html change on a doc-format Page (html isn't real content there)
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10618 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > replaces the browser route after renaming a 'doc' page, then writes again by id
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10626 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > replaces the browser route after renaming a 'html' page, then writes again by id
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10687 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > a server failure shows a short plain line, not the raw server string the failure notice already carries
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10747 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > keeps the old browser route when a slug rename is rejected
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10808 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > loads the seeded page with zero fetch calls
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10867 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > save() writes through the injected port, not lib/api
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10927 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > save() writes through the injected port, not lib/api
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10979 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > says 'No changes found' when the save comes back with the same version, 'Saved' when it bumps
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 10987 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > onSave with nothing changed opens the warning; Cancel writes nothing; Save anyway writes once
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 11046 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > remove() calls port.deletePage then the injected navigate
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 11214 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > a save failure surfaces the injected t()'s message and never calls navigate
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 11274 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > slug redirect on load > replace-navigates to the slug URL when routeSlug is the page's raw (UUID-shaped) id
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 11328 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > slug redirect on load > does not navigate when routeSlug already IS the page's slug
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 11382 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > slug redirect on load > loads the root page through the '/' API handle for route 'home' without redirecting
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 11437 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > slug redirect on load > replace-navigates a root page id bookmark to '/pages/home'
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 11492 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > slug redirect on load > keeps a real 'home' page on its id URL without redirecting into the root alias
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 11547 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > once the page loads, previewFormTarget names that page's id
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 11638 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > Interactive flush — the last RTE edit is never lost > save() flushes the Interactive editor first, and writes the flushed HTML
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 11672 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > Interactive flush — the last RTE edit is never lost > save('published') also flushes first, and publishes the flushed HTML
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 11732 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > Interactive flush — the last RTE edit is never lost > setView flushes before switching, and applies the flushed HTML once it resolves
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 11791 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > Interactive flush — the last RTE edit is never lost > setTemplateChoice flushes before changing, and applies the flushed HTML once it resolves
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 11905 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > Interactive flush — the last RTE edit is never lost > setTemplateChoice flushes before changing, and applies the flushed HTML once it resolves
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 11953 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > injected port — usePageEditor with no fetch stub > Interactive flush — the last RTE edit is never lost > a flush that resolves undefined leaves html unchanged, and save() writes the existing working copy
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 12010 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > standing-draft autosave + unsaved-work guard, wired into usePageEditor > a seeded standing draft is exposed as recoverableDraft on load, and never silently applied to the working copy
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 12073 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > standing-draft autosave + unsaved-work guard, wired into usePageEditor > restoreRecoveredDraft applies the draft into the working copy and dismisses the banner, without telling the server
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 12129 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > standing-draft autosave + unsaved-work guard, wired into usePageEditor > restoreRecoveredDraft re-seeds the HTML tab's text and remounts the Interactive canvas
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 12190 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > standing-draft autosave + unsaved-work guard, wired into usePageEditor > discardRecoveredDraft clears the standing draft server-side and dismisses the banner
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 12254 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > standing-draft autosave + unsaved-work guard, wired into usePageEditor > editing schedules a debounced autosave PUT matching buildPageAutosaveDraft's own shape
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 0 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > standing-draft autosave + unsaved-work guard, wired into usePageEditor > a successful save clears the standing draft, even when nothing was ever recovered
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 12329 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > standing-draft autosave + unsaved-work guard, wired into usePageEditor > a Save issued while an autosave PUT is still in flight leaves the DISCARD as the last write the server sees
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 0 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > standing-draft autosave + unsaved-work guard, wired into usePageEditor > navigating away mid-edit parks the pending draft instead of dropping it
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 0 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > standing-draft autosave + unsaved-work guard, wired into usePageEditor > a refused autosave surfaces autosaveStaleBasis carrying the refused text, and leaves the working copy untouched
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 0 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > standing-draft autosave + unsaved-work guard, wired into usePageEditor > autosaveStaleBasis clears once a write is accepted again, rather than sticking for the session
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 0 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > standing-draft autosave + unsaved-work guard, wired into usePageEditor > the back link flushes an open Interactive edit, then asks before leaving and stays if the operator cancels
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 12437 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > standing-draft autosave + unsaved-work guard, wired into usePageEditor > the back link navigates to the list after flushing when the Interactive editor has nothing unsaved
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 12489 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > standing-draft autosave + unsaved-work guard, wired into usePageEditor > confirmLeave is true when nothing is dirty, and defers to window.confirm once the operator has edited something
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 12544 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() stale-settlement guard (2026-09-05 sweep) > a slower Save settling after a faster Publish must not revert the just-published status
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 12600 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > canvasStyling (Interactive-tab page-shell fallback, 2026-09-02) > derives the page-shell content wrapper for an untemplated (null) html Page
+[page-editor] interactive { phase: 'styling:ready', ms: 12666 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > canvasStyling (Interactive-tab page-shell fallback, 2026-09-02) > still degrades to no wrapper when the theme ships no page-shell.html (pre-existing no-op preserved)
+[page-editor] interactive { phase: 'styling:ready', ms: 12716 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > canvasStyling (Interactive-tab page-shell fallback, 2026-09-02) > does not fall back for a doc-format Page, even when the theme ships a page-shell.html
+[page-editor] interactive { phase: 'styling:ready', ms: 12773 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > canvasStyling (Interactive-tab page-shell fallback, 2026-09-02) > an explicit templateChoice still wins over the page-shell fallback
+[page-editor] interactive { phase: 'styling:ready', ms: 12831 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > canvasStyling (Interactive-tab page-shell fallback, 2026-09-02) > an explicit templateChoice still wins over the page-shell fallback
+[page-editor] interactive { phase: 'styling:ready', ms: 12883 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > frameRef / paneWidth (preview-scale regression — frame mounts after the first render) > measures the frame once it mounts, even though it did not exist yet on the hook's first render
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 12939 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > per-tab scroll memory (HTML textarea and Preview iframe each remember their own position) > restores the HTML textarea's scrollTop on the next mount, using the last position saved before it unmounted
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 12949 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > per-tab scroll memory (HTML textarea and Preview iframe each remember their own position) > restores the HTML textarea's scrollTop on the next mount, using the last position saved before it unmounted
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 12950 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > per-tab scroll memory (HTML textarea and Preview iframe each remember their own position) > keeps the Preview tab's position independent of the HTML tab's — switching one never moves the other
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13007 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > per-tab scroll memory (HTML textarea and Preview iframe each remember their own position) > keeps the Preview tab's position independent of the HTML tab's — switching one never moves the other
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13008 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > per-tab scroll memory (HTML textarea and Preview iframe each remember their own position) > Preview iframe (same-origin — the template-preview branch) > restores the saved scrollY on load and keeps tracking it via a scroll listener on the iframe's window
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13062 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > per-tab scroll memory (HTML textarea and Preview iframe each remember their own position) > Preview iframe (same-origin — the template-preview branch) > restores the saved scrollY on load and keeps tracking it via a scroll listener on the iframe's window
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13063 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > per-tab scroll memory (HTML textarea and Preview iframe each remember their own position) > Preview iframe (cross-origin — the live-site branch) > does not throw when the browser blocks reading/driving scroll on a foreign window
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13122 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > per-tab scroll memory (HTML textarea and Preview iframe each remember their own position) > Preview iframe (cross-origin — the live-site branch) > does not throw when the browser blocks reading/driving scroll on a foreign window
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13130 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > per-tab scroll memory (HTML textarea and Preview iframe each remember their own position) > Preview iframe (cross-origin — the live-site branch) > does not throw when contentWindow itself is null (e.g. a detached/about:blank frame)
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13177 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > per-tab scroll memory (HTML textarea and Preview iframe each remember their own position) > Preview iframe (cross-origin — the live-site branch) > does not throw when contentWindow itself is null (e.g. a detached/about:blank frame)
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13179 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > HTML authoring into a newly created (doc-format, empty-document) Page > sends the authored HTML to updatePageHtml on Save
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13232 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > HTML authoring into a newly created (doc-format, empty-document) Page > sends the authored HTML to updatePageHtml on Save
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13284 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > HTML authoring into a newly created (doc-format, empty-document) Page > sends the authored HTML on Publish too, and publishes in the same action
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13290 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > HTML authoring into a newly created (doc-format, empty-document) Page > sends the authored HTML on Publish too, and publishes in the same action
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13343 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > HTML authoring into a newly created (doc-format, empty-document) Page > marks the editor dirty as soon as HTML is typed, so the Save dot and the leave guard both see it
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13347 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > HTML authoring into a newly created (doc-format, empty-document) Page > parks an html-format standing draft carrying the typed markup
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 0 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > HTML authoring into a newly created (doc-format, empty-document) Page > still writes no HTML when the operator saves a new page without authoring any
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13413 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > HTML authoring into a newly created (doc-format, empty-document) Page > refuses to convert a doc-format Page that carries a real Tiptap document (the F01 guard)
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13470 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() guards against a concurrent save > sends the loaded version as the basis of the metadata write
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13532 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() guards against a concurrent save > refuses the whole save — body included — once another operator has saved
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13594 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() guards against a concurrent save > saveOverwritingConflict() replays the original intent against the fresh version
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13654 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() guards against a concurrent save > saveOverwritingConflict() flushes the Interactive editor first and writes the flushed HTML
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13720 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() guards against a concurrent save > dismissSaveConflict() hides the banner without writing anything
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13780 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() when the body write fails after the metadata write landed > advances the version basis and keeps the body dirty
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13848 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() when the body write fails after the metadata write landed > a retry after a partial save does not raise a self-conflict
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13911 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > save() when the body write fails after the metadata write landed > a metadata-write failure is still the plain error, with no partial-save banner and no version advance
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 13970 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — pending-html preview debounce (2026-09-09) > submits an untouched DRAFT's pending html on returning to Preview — the widened branch that replaced the raw fallback
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 14026 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — pending-html preview debounce (2026-09-09) > re-submits when only the TEMPLATE changes, against the newly chosen template's URL
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 14082 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — pending-html preview debounce (2026-09-09) > re-submits when only the TEMPLATE changes, against the newly chosen template's URL
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 1000 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — pending-html preview debounce (2026-09-09) > cancels the pending submit when the operator leaves Preview before it fires
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 14140 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — pending-html preview debounce (2026-09-09) > cancels the pending submit when the operator leaves Preview before it fires
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 1300 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — pending-html preview debounce (2026-09-09) > re-submits into a NEWLY attached form when nothing else changed — a remounted iframe starts empty
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 14198 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — pending-html preview debounce (2026-09-09) > leaves a CLEAN PUBLISHED page alone — that branch shows the real live site, not a POSTed preview
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 14264 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > clean editor: an assistant write replaces the working copy and preview baseline without a reload
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 14318 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > clean editor: an assistant write replaces the working copy and preview baseline without a reload
+[page-editor] interactive { phase: 'contentRevision:increment', ms: 14373 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > clean editor: an assistant write replaces the working copy and preview baseline without a reload
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 14375 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > clean editor: contentRevision moves on an applied refresh and NOT on the editor's own save
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 14431 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > clean editor: contentRevision moves on an applied refresh and NOT on the editor's own save
+[page-editor] interactive { phase: 'contentRevision:increment', ms: 14489 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > clean editor on the HTML tab: draftHtml shows the new body
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 14553 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > clean editor on the HTML tab: draftHtml shows the new body
+[page-editor] interactive { phase: 'contentRevision:increment', ms: 14605 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > a refresh that finds no newer version changes nothing
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 14663 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > a notification naming only other resources costs no fetch
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 14722 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > a notification naming only other resources costs no fetch
+[page-editor] interactive { phase: 'contentRevision:increment', ms: 14775 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > clean-looking editor on the Interactive tab: a refresh asks instead of remounting the canvas
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 14874 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > clean-looking editor on the Interactive tab: a refresh asks instead of remounting the canvas
+[page-editor] interactive { phase: 'contentRevision:increment', ms: 14937 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > typing that lands while the re-read is in flight is kept: dirty is judged when the fetch settles
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 14946 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > dirty editor: a refresh never touches the working copy and raises pendingExternalVersion
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 15057 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > loadExternalChange replaces the working copy, discards the standing draft, and clears the notice
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 15160 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > loadExternalChange replaces the working copy, discards the standing draft, and clears the notice
+[page-editor] interactive { phase: 'contentRevision:increment', ms: 15264 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > loadExternalChange replaces the working copy, discards the standing draft, and clears the notice
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 15265 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > dismissExternalChange keeps edits, stays quiet on the next agent write, and an explicit Save still hits the version conflict
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 15270 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > Save anyway after a notice hides the notice
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 15380 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > an applied refresh supersedes an autosave still queued on the replaced version: nothing is refused, paused, or mirrored
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 0 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > an applied refresh supersedes an autosave still queued on the replaced version: nothing is refused, paused, or mirrored
+[page-editor] interactive { phase: 'contentRevision:increment', ms: 0 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > templateFor — saved page template remains selectable > keeps a filtered-out saved choice visible with [ 'page.html' ]
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 15499 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > templateFor — saved page template remains selectable > keeps a filtered-out saved choice visible with [ 'page.html' ]
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 15499 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > templateFor — saved page template remains selectable > keeps a filtered-out saved choice visible with []
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 15554 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > templateFor — saved page template remains selectable > keeps a filtered-out saved choice visible with []
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 15555 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > keeps pending edits when the locale changes after hydration
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 15720 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > reports a redirect failure with translated load text when navigation throws a non-Error
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 15792 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > ignores a superseded route load that later resolves
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 15903 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > ignores a superseded route load that later rejects
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16015 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > shows translated fallback text plus the real details for a non-Error save refusal and retains the working copy
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16075 }
+
+Not implemented: Window's confirm() method
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > shows an object refusal's contents, and adds nothing when none was thrown
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16131 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a delete failure closes confirmation and leaves the page and route intact: Error: delete refused
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16187 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a delete failure closes confirmation and leaves the page and route intact: offline
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16243 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a failed conflict re-read keeps the rejected draft and conflict for retry
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16299 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > overwrite without a conflict uses the fresh basis without changing the draft status
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16356 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > an external Load latest failure preserves local work and reports the recovery action
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16415 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a superseded save failure cannot clear the newer save's pending state or show an error
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16469 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a slug-only edit is dirty and saving establishes a new clean baseline
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16633 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a status-only edit is dirty and saving establishes a new clean baseline
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16684 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > restoring 'doc' metadata without an HTML body leaves the intact body and canvas revision alone
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16743 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > restoring 'html' metadata without an HTML body leaves the intact body and canvas revision alone
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16795 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > preview expansion preserves the selected device, ignores other keys, and collapses on Escape or tab exit
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16851 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > opens and closes template source with the selected template intact
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16909 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a dirty Save button persists through the same port as direct Save
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 16965 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a clean Save button flushes <p>hello</p> before deciding whether to warn
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 17074 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a clean Save button flushes <p>unreported edit</p> before deciding whether to warn
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 17128 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a source integrity failure during save keeps the intact HTML and prevents unsafe actions
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 17186 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a source integrity failure during onSave keeps the intact HTML and prevents unsafe actions
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 17242 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a source integrity failure during saveOverwritingConflict keeps the intact HTML and prevents unsafe actions
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 17297 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a source integrity failure during back keeps the intact HTML and prevents unsafe actions
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 17359 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a source integrity failure during template keeps the intact HTML and prevents unsafe actions
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 17416 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a source integrity failure during preview keeps the intact HTML and prevents unsafe actions
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 17472 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > a source integrity failure during html keeps the intact HTML and prevents unsafe actions
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 17529 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > the ordinary back link prevents navigation only when the dirty guard is cancelled
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 17587 }
+
+stdout | src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > Edit HTML preserves verbatim source when jumping from an Interactive block
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 17642 }
+
+ ✓ src/features/pages/__tests__/use-page-editor.unit.test.ts (126 tests) 7934ms
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js" points to missing source files
+ ✓ src/features/themes/__tests__/use-theme-explore.hooks.unit.test.ts (284 tests) 15041ms
+ ✓ src/components/__tests__/AssistantDock.hooks.unit.test.tsx (174 tests) 2189ms
+ ✓ src/features/publish-content/__tests__/PublishContentDialog.unit.test.tsx (118 tests) 9729ms
+     ✓ renders the conflict's own reason text  433ms
+     ✓ a click that lands as the confirm appears publishes nothing; a later one publishes  400ms
+ ✓ src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx (95 tests) 7689ms
+     ✓ Publish clicked during the first Save publishes the one created post  393ms
+ ✓ src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx (99 tests) 6479ms
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — mark and block-type toggles > clicking 'Heading 1' toggles its own aria-pressed state on
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — mark and block-type toggles > clicking 'Heading 2' toggles its own aria-pressed state on
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — mark and block-type toggles > clicking 'Heading 3' toggles its own aria-pressed state on
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — mark and block-type toggles > clicking 'Bullet list' toggles its own aria-pressed state on
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — mark and block-type toggles > clicking 'Numbered list' toggles its own aria-pressed state on
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — mark and block-type toggles > clicking 'Task list' toggles its own aria-pressed state on
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — mark and block-type toggles > clicking 'Quote' toggles its own aria-pressed state on
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — mark and block-type toggles > clicking 'Code block' toggles its own aria-pressed state on
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Selection bubble menu — mark toggles > clicking the bubble menu's 'Bold' applies that mark to the selected text
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Selection bubble menu — mark toggles > clicking the bubble menu's 'Italic' applies that mark to the selected text
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Selection bubble menu — mark toggles > clicking the bubble menu's 'Underline' applies that mark to the selected text
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Selection bubble menu — mark toggles > clicking the bubble menu's 'Highlight' applies that mark to the selected text
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — alignment button clicks > clicking 'Align left' sets its own aria-pressed state on
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — alignment button clicks > clicking 'Align center' sets its own aria-pressed state on
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — alignment button clicks > clicking 'Align right' sets its own aria-pressed state on
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — alignment button clicks > clicking 'Justify' sets its own aria-pressed state on
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — Link button > validates the URL dialog, focuses its input and applies a link on Enter
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — Link button > removes the link on a second click while it is already active
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — text/background color > setting a text color shows the clear button; clearing it removes the color and the button
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — text/background color > setting a background color shows the clear button; clearing it removes the color and the button
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — insert image by URL > inserts a media-image node with the dialog src/alt
+standing-draft autosave: request failed
+
+ ✓ src/features/themes/__tests__/ThemeExplore.unit.test.tsx (116 tests) 17471ms
+     ✓ shows a readable 'SCRIPT (JS)' file's Preview as read-only code, not the scaled iframe  397ms
+     ✓ shows a readable 'CONFIG (JSON)' file's Preview as read-only code, not the scaled iframe  330ms
+     ✓ toggles the code Preview's line wrapping from the toolbar  495ms
+     ✓ clicking Tablet presses Tablet, un-presses Desktop, and updates the width readout  542ms
+     ✓ opens the dialog when the fullscreen trigger is clicked  334ms
+     ✓ closes on a click on the dialog's own backdrop area (not a click on its content)  304ms
+     ✓ closes via its own close button and returns focus to the trigger  489ms
+     ✓ collapses a long group behind Show all, and expands it on click  782ms
+     ✓ publishes a distinct, clickable handle per file, path-derived and shared across groups  389ms
+     ✓ confirming calls confirmDelete; cancelling calls closeDeleteConfirm without it  348ms
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — insert YouTube video > inserts a YouTube embed for a recognized URL
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — mention picker > inserts a mention node for the chosen post, excluding the post being edited from the options
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — code block language picker > choosing a language converts the current block to a code block set to that language
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — divider and table inserts > Divider inserts a horizontal rule
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — divider and table inserts > Table inserts a 3x3 table with a header row
+standing-draft autosave: request failed
+
+stderr | src/features/posts/__tests__/PostEditor.unit.test.tsx > Formatting toolbar — Undo/Redo > Undo reverts the toggled mark and enables Redo; Redo restores the document mark
+standing-draft autosave: request failed
+
+ ✓ src/features/posts/__tests__/PostEditor.unit.test.tsx (140 tests) 29156ms
+     ✓ is offered for a draft post, saves and sets status to published in one request, then disappears  1663ms
+     ✓ is not offered for an already-published post  392ms
+     ✓ opens the ConfirmDialog instead of window.confirm, and only deletes on explicit confirm  781ms
+     ✓ deletes and navigates away only after the dialog's own confirm action  625ms
+     ✓ align buttons keep their accessible name via aria-label, with no visible text label left in the button  637ms
+     ✓ shows the live character count once the editor has mounted  352ms
+     ✓ clicking 'Italic (⌘I)' toggles its own aria-pressed state on  323ms
+     ✓ clicking 'Strikethrough' toggles its own aria-pressed state on  410ms
+     ✓ clicking 'Highlight' toggles its own aria-pressed state on  485ms
+     ✓ clicking 'Superscript' toggles its own aria-pressed state on  368ms
+     ✓ clicking 'Code block' toggles its own aria-pressed state on  544ms
+     ✓ clicking the bubble menu's 'Bold' applies that mark to the selected text  518ms
+     ✓ clicking the bubble menu's 'Italic' applies that mark to the selected text  415ms
+     ✓ clicking the bubble menu's 'Underline' applies that mark to the selected text  358ms
+     ✓ clicking the bubble menu's 'Highlight' applies that mark to the selected text  640ms
+     ✓ clicking 'Align left' sets its own aria-pressed state on  492ms
+     ✓ clicking 'Align center' sets its own aria-pressed state on  379ms
+     ✓ clicking 'Align right' sets its own aria-pressed state on  367ms
+     ✓ validates the URL dialog, focuses its input and applies a link on Enter  594ms
+     ✓ removes the link on a second click while it is already active  562ms
+     ✓ setting a text color shows the clear button; clearing it removes the color and the button  592ms
+     ✓ setting a background color shows the clear button; clearing it removes the color and the button  730ms
+     ✓ inserts a media-image node with the dialog src/alt  929ms
+     ✓ inserts nothing when the URL dialog is cancelled  402ms
+     ✓ inserts a YouTube embed for a recognized URL  989ms
+     ✓ inserts nothing when the URL dialog is cancelled  301ms
+     ✓ Undo reverts the toggled mark and enables Redo; Redo restores the document mark  329ms
+     ✓ defaults an unset post to the theme's first template rather than 'No template chosen'  408ms
+     ✓ persists an explicit "No template chosen" as "" so the opt-out is distinguishable from never-chosen  550ms
+     ✓ clicking Desktop renders the preview iframe at 1280px  372ms
+     ✓ names the control for the direction it goes, and never both ways at once  537ms
+     ✓ expanded view wraps the pane AND the control in .post-preview-expanded  371ms
+     ✓ leaves no form control on the real edit screen without an accessible name  329ms
+   ✓ typing in a new post then clicking Save creates the edited document once  701ms
+ ✓ src/features/deployment/__tests__/StaticSiteTab.unit.test.tsx (105 tests) 8288ms
+     ✓ titles the card with both ways to build (here or a terminal), lists what survives it, and every host the registry lists  422ms
+     ✓ writes the export command to the clipboard and swaps the label to 'Copied!'  448ms
+ ✓ src/features/deployment/hooks/__tests__/use-publish-credentials.unit.test.tsx (61 tests) 3705ms
+ ✓ src/features/ai-assistant/__tests__/use-visitor-credential-form.unit.test.ts (64 tests) 446ms
+ ✓ src/features/media/__tests__/Media.unit.test.tsx (52 tests) 15641ms
+     ✓ uses the shared .page-header primitive with the Content kicker  799ms
+     ✓ uploads the selected file bytes and trimmed alt, refreshes the grid, and clears the chooser  733ms
+     ✓ shows a refused upload inside the dialog and keeps it open with the chosen file  384ms
+     ✓ confirming the purge dialog DELETEs the asset  641ms
+     ✓ canceling the purge dialog sends no DELETE and closes the dialog  537ms
+     ✓ editing only the alt field sends {alt: ...} and nothing else  799ms
+     ✓ setting width/height sends {width, height} as numbers; leaving them blank sends nothing (native size)  586ms
+     ✓ clearing existing width and height sends null for native size  539ms
+     ✓ shows B's own values (not A's stale draft) after an unsaved A->B switch, and PATCHes only what was actually changed on B  1702ms
+     ✓ renders pre-filled with the item's current slug, as its own field distinct from Title  649ms
+     ✓ editing the slug alone PATCHes only slug, leaving title untouched in the payload  785ms
+     ✓ renaming ONLY the title leaves slug out of the patch entirely — slug is not recomputed from title  631ms
+     ✓ a 409 slug conflict from the server surfaces through the same save-error banner other failures use, naming the conflict  377ms
+     ✓ a valid value PATCHes htmlAttributes verbatim — proves the client actually sends the field, not just that the server would accept it  352ms
+     ✓ clicking Save while HTML-attributes is invalid still sends the patch — the exact a7cce060 regression, corrected: the OLD code returned from save() before this request was ever attempted  605ms
+     ✓ displays the server's full 400 rejection for a value the client-side check accepts  381ms
+     ✓ sends typed Caption and CSS class values, labelling Save as Saving… until the PATCH answers  551ms
+ ✓ src/features/roles/__tests__/use-roles.unit.test.tsx (59 tests) 4192ms
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/openid-client@6.8.8/node_modules/openid-client/build/index.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/oauth4webapi@3.8.8/node_modules/oauth4webapi/build/index.js" points to missing source files
+Sourcemap for "/home/user/Tovu/apps/admin/node_modules/untruncate-json/dist/cjs/index.js" points to missing source files
+ ✓ src/lib/__tests__/execution-settings.test.ts (97 tests) 8484ms
+     ✓ confirms a real settings write, reloads the composer, and uses it only on the next send  8356ms
+ ✓ src/features/pages/__tests__/Pages.unit.test.tsx (78 tests) 7502ms
+     ✓ shows an inline banner ABOVE the table, not a blank screen, once pages have loaded and a later error occurs  342ms
+     ✓ renders a root-slug ('/') page's Slug column as '/' and its edit links via the home alias  371ms
+ ✓ src/features/security/__tests__/AccessTokensTab.credential-flows.unit.test.tsx (87 tests) 5507ms
+   ✓ renders and clears raw saved Works for ids for publish rows  358ms
+ ✓ src/components/__tests__/AssistantDock.unit.test.tsx (46 tests) 4644ms
+     ✓ a mode switch from the rendered picker round-trips into the next ChatPane render  438ms
+     ✓ the forwarded agentControl makes the real ChatPane subscribe to the bridge and unsubscribe on unmount  596ms
+     ✓ waits for the in-app dialog, cancels without deletion, then deletes exactly once on confirmation  396ms
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > View Template button and modal > disables the View Template button when no template is chosen
+[page-editor] interactive { phase: 'surface:preview', ms: 3608 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > View Template button and modal > disables the View Template button for the explicit bare 'No template' choice
+[page-editor] interactive { phase: 'surface:preview', ms: 3953 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > View Template button and modal > enables the button once a template is chosen, and clicking it calls onViewTemplateClick
+[page-editor] interactive { phase: 'surface:preview', ms: 4050 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > View Template button and modal > opens the read-only modal wired to the selected template once showTemplateModal is true
+[page-editor] interactive { phase: 'surface:preview', ms: 4337 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > header > renders the fixed 'Edit page' heading regardless of the page's title
+[page-editor] interactive { phase: 'surface:preview', ms: 4441 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > header > back link points at the Pages list
+[page-editor] interactive { phase: 'surface:preview', ms: 4498 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > header > back link delegates to a controller that allows navigation without confirming
+[page-editor] interactive { phase: 'surface:preview', ms: 4540 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > header > back link delegates to a controller that prompts and cancels navigation
+[page-editor] interactive { phase: 'surface:preview', ms: 4603 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > standing-draft autosave recovery banner > renders nothing when there is no recoverable draft
+[page-editor] interactive { phase: 'surface:preview', ms: 4658 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > standing-draft autosave recovery banner > shows the banner with Restore/Discard actions when a draft was recovered
+[page-editor] interactive { phase: 'surface:preview', ms: 4724 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > standing-draft autosave recovery banner > compares the recovered capture time with the loaded server timestamp
+[page-editor] interactive { phase: 'surface:preview', ms: 4802 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > standing-draft autosave recovery banner > clicking Restore calls the controller's restoreRecoveredDraft
+[page-editor] interactive { phase: 'surface:preview', ms: 4839 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > standing-draft autosave recovery banner > clicking Discard calls the controller's discardRecoveredDraft
+[page-editor] interactive { phase: 'surface:preview', ms: 4939 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > standing-draft autosave stale-basis notice > renders nothing while autosave is healthy
+[page-editor] interactive { phase: 'surface:preview', ms: 5218 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > standing-draft autosave stale-basis notice > tells the operator autosaving has paused, their work is unsaved, and it is still in the editor
+[page-editor] interactive { phase: 'surface:preview', ms: 5254 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > standing-draft autosave stale-basis notice > offers no button that could silence it or discard the operator's text
+[page-editor] interactive { phase: 'surface:preview', ms: 5279 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > standing-draft autosave stale-basis notice > yields to the outside-change notice, which reports the same moved version with its choices
+[page-editor] interactive { phase: 'surface:preview', ms: 5307 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > version-conflict banner > states that the work was not saved, is still in the editor, and that saving again replaces theirs
+[page-editor] interactive { phase: 'surface:preview', ms: 5336 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > version-conflict banner > renders nothing at all when there is no conflict
+[page-editor] interactive { phase: 'surface:preview', ms: 5362 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > version-conflict banner > "Save anyway" calls saveOverwritingConflict, and nothing else
+[page-editor] interactive { phase: 'surface:preview', ms: 5386 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > version-conflict banner > "Keep editing" dismisses without writing anything
+[page-editor] interactive { phase: 'surface:preview', ms: 5487 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > title and slug fields > reflects the controller's title and slug values
+[page-editor] interactive { phase: 'surface:preview', ms: 5594 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > title and slug fields > typing in the title field calls setTitle
+[page-editor] interactive { phase: 'surface:preview', ms: 5624 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > title and slug fields > Enter in the single-line title is swallowed, while other keys type normally
+[page-editor] interactive { phase: 'surface:preview', ms: 5679 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > title and slug fields > typing in the slug field calls setSlug
+[page-editor] interactive { phase: 'surface:preview', ms: 5705 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > title and slug fields > the 'view live' link is built from the last-saved slug, not an unsaved slug edit
+[page-editor] interactive { phase: 'surface:preview', ms: 5775 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > title and slug fields > the 'view live' link renders a single '/' for the root-slug page, not '//'
+[page-editor] interactive { phase: 'surface:preview', ms: 5807 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > status, publish, save > shows Publish only while the page is a draft
+[page-editor] interactive { phase: 'surface:preview', ms: 5838 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > status, publish, save > hides Publish once the page is published
+[page-editor] interactive { phase: 'surface:preview', ms: 5897 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > status, publish, save > clicking Publish calls save('published')
+[page-editor] interactive { phase: 'surface:preview', ms: 5948 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > status, publish, save > clicking Save calls the controller's onSave, not save() directly
+[page-editor] interactive { phase: 'surface:preview', ms: 6020 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > status, publish, save > shows no tip beside Save while nothing changed
+[page-editor] interactive { phase: 'surface:preview', ms: 6136 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > status, publish, save > the 'Nothing changed' warning's Save anyway and Cancel call their controller handlers
+[page-editor] interactive { phase: 'surface:preview', ms: 6214 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > status, publish, save > Save reads 'Saving…' while a save is in flight
+[page-editor] interactive { phase: 'surface:preview', ms: 6464 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > status, publish, save > Save reads 'Save •' when dirty and not saving
+[page-editor] interactive { phase: 'surface:preview', ms: 6549 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > status, publish, save > Save reads plain 'Save' when neither saving nor dirty
+[page-editor] interactive { phase: 'surface:preview', ms: 6601 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > status, publish, save > changing the status select calls setStatus
+[page-editor] interactive { phase: 'surface:preview', ms: 6675 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > status, publish, save > gives the status select a translated accessible name
+[page-editor] interactive { phase: 'surface:preview', ms: 6724 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > Accessible names > names the template select when the theme declares templates
+[page-editor] interactive { phase: 'surface:preview', ms: 6759 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > Accessible names > names the disabled template select when the theme declares none
+[page-editor] interactive { phase: 'surface:preview', ms: 6794 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > Accessible names > leaves no form control in the preview view without an accessible name
+[page-editor] interactive { phase: 'surface:preview', ms: 6827 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > Accessible names > leaves no form control in the html view without an accessible name
+[page-editor] interactive { phase: 'surface:html', ms: 6921 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > Accessible names > leaves no form control in the interactive view without an accessible name
+[page-editor] interactive { phase: 'surface:interactive', ms: 6968 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > delete confirmation > opens the ConfirmDialog on Delete, without touching window.confirm
+[page-editor] interactive { phase: 'surface:preview', ms: 7019 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > delete confirmation > renders the dialog body with the page's title when confirmingDelete is true
+[page-editor] interactive { phase: 'surface:preview', ms: 7077 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > delete confirmation > cancelling the dialog calls setConfirmingDelete(false), not remove
+[page-editor] interactive { phase: 'surface:preview', ms: 7112 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > delete confirmation > confirming the dialog calls remove
+[page-editor] interactive { phase: 'surface:preview', ms: 7194 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > marks the active view tab as selected
+[page-editor] interactive { phase: 'surface:preview', ms: 7252 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > clicking the HTML tab calls setView('html')
+[page-editor] interactive { phase: 'surface:preview', ms: 7281 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > clicking the Interactive tab calls setView('interactive')
+[page-editor] interactive { phase: 'surface:preview', ms: 7323 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > ArrowRight moves to the next view tab and takes focus with it
+[page-editor] interactive { phase: 'surface:html', ms: 7358 }
+
+ ✓ src/hooks/__tests__/use-admin-execution-credential.hooks.test.ts (50 tests) 3415ms
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > End moves to the last view tab and Home back to the first
+[page-editor] interactive { phase: 'surface:html', ms: 7379 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > keeps one roving tab stop: only the active view tab is in the native Tab order
+[page-editor] interactive { phase: 'surface:preview', ms: 7420 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > renders the rendered preview (not a textarea) in preview view
+[page-editor] interactive { phase: 'surface:preview', ms: 7453 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > clean published preview uses the authenticated render path, where consent is excluded
+[page-editor] interactive { phase: 'surface:preview', ms: 7489 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > refreshes the authenticated preview when a saved page version changes
+[page-editor] interactive { phase: 'surface:preview', ms: 7512 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > keeps pending page content on the authenticated route after tool navigation
+[page-editor] interactive { phase: 'surface:preview', ms: 7668 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > shows one translated muted consent note only in preview
+[page-editor] interactive { phase: 'surface:preview', ms: 7714 }
+[page-editor] interactive { phase: 'surface:html', ms: 7731 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > sandboxes the live-site preview iframe with the shared flag set
+[page-editor] interactive { phase: 'surface:preview', ms: 7760 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > sandboxes the template-preview iframe with the shared flag set
+[page-editor] interactive { phase: 'surface:preview', ms: 7784 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > preview POSTs into templatePreviewUrl for a clean draft page, not the raw-body sandbox
+[page-editor] interactive { phase: 'surface:preview', ms: 7804 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > preview POSTs the pending template choice, in the URL, when only the template choice is dirty on a published page
+[page-editor] interactive { phase: 'surface:preview', ms: 7836 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > preview form's action is exactly the controller's templatePreviewUrl, not one this component computed itself
+[page-editor] interactive { phase: 'surface:preview', ms: 7858 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > the hidden form's bodyHtml field carries the current working-copy html, not the last-saved value
+[page-editor] interactive { phase: 'surface:preview', ms: 7886 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > preview POSTs into templatePreviewUrl, with an 'unsaved edits' notice, when the page body itself has unsaved edits
+[page-editor] interactive { phase: 'surface:preview', ms: 7910 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > preview POSTs into templatePreviewUrl, with an 'unsaved edits' notice, for a draft page with unsaved edits
+[page-editor] interactive { phase: 'surface:preview', ms: 7937 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > shows no notice line above the preview frame
+[page-editor] interactive { phase: 'surface:preview', ms: 7963 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > renders an editable HTML textarea (not the preview) in html view
+[page-editor] interactive { phase: 'surface:html', ms: 7979 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > typing in the HTML textarea calls setHtml
+[page-editor] interactive { phase: 'surface:html', ms: 8026 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > hides the device width toggle in html view
+[page-editor] interactive { phase: 'surface:html', ms: 8083 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > waits for the theme's canvas styling instead of mounting the editor unstyled
+[page-editor] interactive { phase: 'surface:interactive-pending', ms: 8115 }
+[page-editor] interactive { phase: 'surface:interactive', ms: 8131 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > device toggle (preview view only) > marks the active device as pressed and shows its pixel width
+[page-editor] interactive { phase: 'surface:preview', ms: 8165 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > device toggle (preview view only) > clicking a device button calls setDevice
+[page-editor] interactive { phase: 'surface:preview', ms: 8232 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > save/error messages > shows the save-ok message when present
+[page-editor] interactive { phase: 'surface:preview', ms: 8337 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > save/error messages > shows the save-error message when present
+[page-editor] interactive { phase: 'surface:preview', ms: 8369 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > save/error messages > shows neither when both are null
+[page-editor] interactive { phase: 'surface:preview', ms: 8390 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > sanity > mounts the editor shell once a page is loaded
+[page-editor] interactive { phase: 'surface:preview', ms: 8415 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > Template picker (bare-page ruling) > labels the bare option 'No template — HTML only', not the old 'No template chosen'
+[page-editor] interactive { phase: 'surface:preview', ms: 8530 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > Template picker (bare-page ruling) > shows no hint line beside the select, even with 'No template — HTML only' chosen
+[page-editor] interactive { phase: 'surface:preview', ms: 8596 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > Template picker (bare-page ruling) > a null Page whose theme ships a page-shell template shows that template selected, not bare or the sentinel
+[page-editor] interactive { phase: 'surface:preview', ms: 8719 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > Template picker (bare-page ruling) > a null Page whose theme ships no page-shell template shows the 'Theme default' sentinel option
+[page-editor] interactive { phase: 'surface:preview', ms: 8783 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > Template picker (bare-page ruling) > picking the bare option calls setTemplateChoice('')
+[page-editor] interactive { phase: 'surface:preview', ms: 8923 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > Template picker (bare-page ruling) > picking 'Theme default' calls setTemplateChoice(null)
+[page-editor] interactive { phase: 'surface:preview', ms: 9006 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > external-change notice > shows no notice when pendingExternalVersion is null
+[page-editor] interactive { phase: 'surface:preview', ms: 9086 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > external-change notice > shows the notice with Load latest and Keep my edits when pendingExternalVersion is set
+[page-editor] interactive { phase: 'surface:preview', ms: 9141 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > external-change notice > renders the notice's message through the editor's translator
+[page-editor] interactive { phase: 'surface:preview', ms: 9267 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > external-change notice > Load latest calls loadExternalChange; Keep my edits calls dismissExternalChange
+[page-editor] interactive { phase: 'surface:preview', ms: 9372 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > external-change notice > saved preview uses the authenticated route even after an external write
+[page-editor] interactive { phase: 'surface:preview', ms: 9757 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > Categories & Tags > mounts the shared box for the open page, by its kind and id
+[page-editor] interactive { phase: 'surface:preview', ms: 9781 }
+
+stdout | src/features/pages/__tests__/PageEditor.unit.test.tsx > doc-format pages and production logging > offers no template picker for a doc-format page
+[page-editor] interactive { phase: 'surface:preview', ms: 9802 }
+
+ ✓ src/features/pages/__tests__/PageEditor.unit.test.tsx (94 tests) 6450ms
+     ✓ disables the View Template button when no template is chosen  391ms
+ ✓ src/features/security/__tests__/rules.unit.test.ts (142 tests) 72ms
+ ✓ src/features/users/__tests__/use-users.unit.test.tsx (59 tests) 3937ms
+ ✓ src/features/taxonomy/__tests__/Taxonomy.unit.test.tsx (58 tests) 5072ms
+     ✓ shows an error banner above an already-loaded screen, not a full blank  311ms
+     ✓ walks idle -> planned -> confirmed, rendering each step's own markup, not just the idle one  380ms
+ ✓ src/features/deployment/hooks/__tests__/use-static-publish.unit.test.tsx (37 tests) 2526ms
+ ✓ src/features/roles/__tests__/Roles.unit.test.tsx (62 tests) 4101ms
+     ✓ shows the rowError banner above the tables without blanking the screen  432ms
+     ✓ clicking Remove asks first and leaves the permission in place until confirmed  562ms
+ ✓ src/features/collections/__tests__/use-collection-entry-editor.unit.test.tsx (57 tests) 4341ms
+ ✓ src/features/settings/hooks/__tests__/use-external-mcp.unit.test.ts (64 tests) 464ms
+ ✓ src/features/sites/__tests__/site-transfer-tabs.unit.test.tsx (49 tests) 3176ms
+     ✓ labels export columns, preserves the full link and scopes pending revoke to the right row  324ms
+stderr | src/components/AssistantDock/__tests__/AssistantDock.hooks.unit.test.tsx > useComposerCapabilities > ignores a nonempty projection from the cleaned-up effect after StrictMode remount
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only ApiError: cannot reach the Tovu API — is the server running?
+    at throwTranslatedFetchFailure (/home/user/Tovu/apps/admin/src/lib/api.ts:2474:9)
+    at fetchOrThrowUnreachable (/home/user/Tovu/apps/admin/src/lib/api.ts:2487:12)
+    at requestOnce (/home/user/Tovu/apps/admin/src/lib/api.ts:2675:15)
+    at requestRidingOutRestart (/home/user/Tovu/apps/admin/src/lib/api.ts:2702:20)
+    at request (/home/user/Tovu/apps/admin/src/lib/api.ts:2723:12)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:51:18)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:39:20) {
+  status: 0,
+  code: 'API_UNREACHABLE',
+  body: {
+    cause: 'Failed to parse URL from /api/admin/v1/workspaces/workspace-local/skills'
+  }
+}
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only ApiError: cannot reach the Tovu API — is the server running?
+    at throwTranslatedFetchFailure (/home/user/Tovu/apps/admin/src/lib/api.ts:2474:9)
+    at fetchOrThrowUnreachable (/home/user/Tovu/apps/admin/src/lib/api.ts:2487:12)
+    at requestOnce (/home/user/Tovu/apps/admin/src/lib/api.ts:2675:15)
+    at requestRidingOutRestart (/home/user/Tovu/apps/admin/src/lib/api.ts:2702:20)
+    at request (/home/user/Tovu/apps/admin/src/lib/api.ts:2723:12)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:51:18)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:39:20) {
+  status: 0,
+  code: 'API_UNREACHABLE',
+  body: {
+    cause: 'Failed to parse URL from /api/admin/v1/workspaces/workspace-local/skills'
+  }
+}
+
+stderr | src/components/AssistantDock/__tests__/AssistantDock.hooks.unit.test.tsx > useComposerCapabilities > does not update composerCapabilities after unmount, once a successful projection settles late
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only ApiError: cannot reach the Tovu API — is the server running?
+    at throwTranslatedFetchFailure (/home/user/Tovu/apps/admin/src/lib/api.ts:2474:9)
+    at fetchOrThrowUnreachable (/home/user/Tovu/apps/admin/src/lib/api.ts:2487:12)
+    at requestOnce (/home/user/Tovu/apps/admin/src/lib/api.ts:2675:15)
+    at requestRidingOutRestart (/home/user/Tovu/apps/admin/src/lib/api.ts:2702:20)
+    at request (/home/user/Tovu/apps/admin/src/lib/api.ts:2723:12)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:51:18)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:39:20) {
+  status: 0,
+  code: 'API_UNREACHABLE',
+  body: {
+    cause: 'Failed to parse URL from /api/admin/v1/workspaces/workspace-local/skills'
+  }
+}
+
+ ✓ src/components/AssistantDock/__tests__/AssistantDock.hooks.unit.test.tsx (40 tests) 805ms
+ ✓ src/features/plugins/__tests__/Plugins.unit.test.tsx (42 tests) 5078ms
+     ✓ renders exactly those four tabs in that order, with Installed selected  423ms
+     ✓ lists what turning a plugin on would clash with, and says a boot-quarantined plugin was turned off automatically  428ms
+     ✓ opens a confirm dialog naming the plugin and does not call DELETE until Confirm is pressed  407ms
+stderr | src/hooks/__tests__/use-settings-slice.hooks.test.ts > hasUnsavedEdits — unmount flushes a pending debounced edit instead of dropping it > swallows a rejection from the fire-and-forget unmount flush without throwing
+[settings] Final save failed after unmount.
+
+ ✓ src/hooks/__tests__/use-settings-slice.hooks.test.ts (56 tests) 1128ms
+     ✓ flushes a revert made WHILE a save was in flight, diffing against the base that save left behind  614ms
+ ✓ src/features/library/__tests__/Library.unit.test.tsx (90 tests) 3600ms
+     ✓ renders the Upload and Documents tabs, Upload first  402ms
+stderr | src/hooks/__tests__/use-standing-draft-autosave.unit.test.ts > useStandingDraftAutosave > preserves the newest text after a 401 and offers it after re-login without changing the server
+standing-draft autosave: request failed
+
+stderr | src/hooks/__tests__/use-standing-draft-autosave.unit.test.ts > useStandingDraftAutosave > a late 401 cannot recreate a backup after Save or Discard clears it
+standing-draft autosave: request failed
+
+stderr | src/hooks/__tests__/use-standing-draft-autosave.unit.test.ts > useStandingDraftAutosave > a failed autosave PUT does not permanently wedge the chain — the next tick still reaches the server
+standing-draft autosave: request failed
+
+ ✓ src/hooks/__tests__/use-standing-draft-autosave.unit.test.ts (42 tests) 248ms
+ ✓ src/features/plugins/__tests__/AgentPlugins.unit.test.tsx (38 tests) 6360ms
+     ✓ opens the URL add tab and follows subsequent URL tab changes  790ms
+     ✓ renders the first horizontal tab as Installed, ahead of Downloaded and Marketplace, listing every installed plugin  366ms
+     ✓ Downloaded's row shows Remove/Enable, not a switch  343ms
+     ✓ does not open a confirm dialog when enabling a disabled plugin — only disabling asks first  384ms
+     ✓ Downloaded's Turn off opens a matching confirm dialog and calls the controller once confirmed  332ms
+     ✓ handles "bring up the agentic plugin for ui ux design" then "no can you open it for me" with navigation and a published details click  404ms
+stderr | src/hooks/__tests__/use-assistant-chats.unit.test.ts > a failed message write is retried > does not retry a 400, and does not re-queue it on every later delta
+[admin] message permanently rejected, not persisted {
+  conversationId: 'fake-1',
+  messageId: 'm1',
+  error: HttpError: 400 Bad Request
+      at Object.onSaveMessage (/home/user/Tovu/apps/admin/src/hooks/__tests__/use-assistant-chats.unit.test.ts:211:15)
+      at Object.saveMessage (/home/user/Tovu/apps/admin/src/hooks/assistant-chats-dependencies.hooks.ts:208:15)
+      at Object.saveMessage (/home/user/Tovu/apps/admin/src/hooks/use-assistant-chats.hooks.ts:60:56)
+      at attemptSave (/home/user/Jini/packages/chat/src/react/hooks/assistant-chats.ts:174:18)
+      at saveWithRetry (/home/user/Jini/packages/chat/src/react/hooks/assistant-chats.ts:201:22)
+      at /home/user/Jini/packages/chat/src/react/hooks/assistant-chats.ts:777:16 {
+    status: 400,
+    code: undefined,
+    body: undefined
+  }
+}
+
+stderr | src/hooks/__tests__/use-assistant-chats.unit.test.ts > a failed message write is retried > does not retry a 400, and does not re-queue it on every later delta
+[admin] message permanently rejected, not persisted {
+  conversationId: 'fake-1',
+  messageId: 'm2',
+  error: HttpError: 400 Bad Request
+      at Object.onSaveMessage (/home/user/Tovu/apps/admin/src/hooks/__tests__/use-assistant-chats.unit.test.ts:211:15)
+      at Object.saveMessage (/home/user/Tovu/apps/admin/src/hooks/assistant-chats-dependencies.hooks.ts:208:15)
+      at Object.saveMessage (/home/user/Tovu/apps/admin/src/hooks/use-assistant-chats.hooks.ts:60:56)
+      at attemptSave (/home/user/Jini/packages/chat/src/react/hooks/assistant-chats.ts:174:18)
+      at saveWithRetry (/home/user/Jini/packages/chat/src/react/hooks/assistant-chats.ts:201:22)
+      at /home/user/Jini/packages/chat/src/react/hooks/assistant-chats.ts:777:16 {
+    status: 400,
+    code: undefined,
+    body: undefined
+  }
+}
+
+stderr | src/hooks/__tests__/use-assistant-chats.unit.test.ts > a failed message write is retried > does not retry a 400, and does not re-queue it on every later delta
+[admin] message permanently rejected, not persisted {
+  conversationId: 'fake-1',
+  messageId: 'm3',
+  error: HttpError: 400 Bad Request
+      at Object.onSaveMessage (/home/user/Tovu/apps/admin/src/hooks/__tests__/use-assistant-chats.unit.test.ts:211:15)
+      at Object.saveMessage (/home/user/Tovu/apps/admin/src/hooks/assistant-chats-dependencies.hooks.ts:208:15)
+      at Object.saveMessage (/home/user/Tovu/apps/admin/src/hooks/use-assistant-chats.hooks.ts:60:56)
+      at attemptSave (/home/user/Jini/packages/chat/src/react/hooks/assistant-chats.ts:174:18)
+      at saveWithRetry (/home/user/Jini/packages/chat/src/react/hooks/assistant-chats.ts:201:22)
+      at /home/user/Jini/packages/chat/src/react/hooks/assistant-chats.ts:777:16 {
+    status: 400,
+    code: undefined,
+    body: undefined
+  }
+}
+
+stderr | src/hooks/__tests__/use-assistant-chats.unit.test.ts > a failed message write is retried > does not retry a 400, and does not re-queue it on every later delta
+[admin] message permanently rejected, not persisted {
+  conversationId: 'fake-1',
+  messageId: 'm4',
+  error: HttpError: 400 Bad Request
+      at Object.onSaveMessage (/home/user/Tovu/apps/admin/src/hooks/__tests__/use-assistant-chats.unit.test.ts:211:15)
+      at Object.saveMessage (/home/user/Tovu/apps/admin/src/hooks/assistant-chats-dependencies.hooks.ts:208:15)
+      at Object.saveMessage (/home/user/Tovu/apps/admin/src/hooks/use-assistant-chats.hooks.ts:60:56)
+      at attemptSave (/home/user/Jini/packages/chat/src/react/hooks/assistant-chats.ts:174:18)
+      at saveWithRetry (/home/user/Jini/packages/chat/src/react/hooks/assistant-chats.ts:201:22)
+      at /home/user/Jini/packages/chat/src/react/hooks/assistant-chats.ts:777:16 {
+    status: 400,
+    code: undefined,
+    body: undefined
+  }
+}
+
+ ✓ src/hooks/__tests__/use-assistant-chats.unit.test.ts (24 tests) 338ms
+ ✓ src/features/fs-files/hooks/__tests__/use-folder-drop.hooks.unit.test.ts (40 tests) 2461ms
+     ✓ keeps dropped folder chips without editing text when the root write fails=false  1042ms
+     ✓ keeps dropped folder chips without editing text when the root write fails=true  703ms
+stdout | src/__measurements__/request-volume.measurement.test.tsx > redirects > initial load
+MEASURE	redirects	initial load	1	["GET /api/admin/v1/workspaces/workspace-local/redirects"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > redirects > create redirect (save)
+MEASURE	redirects	create (save)	2	["POST /api/admin/v1/workspaces/workspace-local/redirects","GET /api/admin/v1/workspaces/workspace-local/redirects"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > redirects > delete (tombstone)
+MEASURE	redirects	delete	2	["DELETE /api/admin/v1/workspaces/workspace-local/redirects/r1","GET /api/admin/v1/workspaces/workspace-local/redirects"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > redirects > PREFIX-FAN-OUT PROBE: does creating a redirect refetch an already-loaded hit-count cell for a DIFFERENT row?
+MEASURE	redirects	PREFIX PROBE: create -> did /hits/rA refetch?	3	["POST /api/admin/v1/workspaces/workspace-local/redirects","GET /api/admin/v1/workspaces/workspace-local/redirects","GET /api/admin/v1/workspaces/workspace-local/redirects/rA/hits"]
+MEASURE	redirects	PREFIX PROBE hits refetched=true
+
+ ✓ src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts (51 tests) 103ms
+stdout | src/__measurements__/request-volume.measurement.test.tsx > taxonomy > initial load
+MEASURE	taxonomy	initial load	1	["GET /api/admin/v1/taxonomy"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > collections > content-types list initial load
+MEASURE	collections	content-types list initial load	1	["GET /api/admin/v1/content-types"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > collections > entry editor: open existing entry (detail panel)
+MEASURE	collections	entry editor open (detail panel)	2	["GET /api/admin/v1/content-types","GET /api/admin/v1/entries?type=recipe"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > collections > entry editor: save an existing entry — historical '3 extra requests' regression check
+MEASURE	collections	entry editor save (this hook in isolation)	1	["PUT /api/admin/v1/entries/e1"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > roles > initial load
+MEASURE	roles	initial load	2	["GET /api/admin/v1/workspaces/workspace-local/roles","GET /api/admin/v1/workspaces/workspace-local/policies"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > roles > create role (save)
+MEASURE	roles	create role (save)	3	["POST /api/admin/v1/workspaces/workspace-local/roles","GET /api/admin/v1/workspaces/workspace-local/roles","GET /api/admin/v1/workspaces/workspace-local/policies"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > roles > delete role
+MEASURE	roles	delete role	3	["DELETE /api/admin/v1/workspaces/workspace-local/roles/r1","GET /api/admin/v1/workspaces/workspace-local/roles","GET /api/admin/v1/workspaces/workspace-local/policies"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > users > initial load
+MEASURE	users	initial load	4	["GET /api/admin/v1/auth/me","GET /api/admin/v1/workspaces/workspace-local/users","GET /api/admin/v1/workspaces/workspace-local/roles","GET /api/admin/v1/workspaces/workspace-local/policies"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > forms > list initial load
+MEASURE	forms	list initial load	1	["GET /api/admin/v1/workspaces/workspace-local/forms"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > forms > editor: open existing form (detail panel)
+MEASURE	forms	editor open (detail panel)	2	["GET /api/admin/v1/workspaces/workspace-local/forms/_providers","GET /api/admin/v1/workspaces/workspace-local/forms/f1"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > forms > editor: save an existing form — checks for the same KEYS.form-vs-KEYS.list shape collections had
+MEASURE	forms	editor save (list mounted alongside)	2	["PUT /api/admin/v1/workspaces/workspace-local/forms/f1","GET /api/admin/v1/workspaces/workspace-local/forms"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > media > initial load
+MEASURE	media	initial load (full screen)	1	["GET /api/admin/v1/workspaces/workspace-local/media"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > media > edit metadata save, list mounted alongside (production shape)
+MEASURE	media	edit metadata save (list mounted alongside, production shape)	2	["PATCH /api/admin/v1/workspaces/workspace-local/media/m1","GET /api/admin/v1/workspaces/workspace-local/media"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > integrations > initial load
+MEASURE	integrations	initial load	1	["GET /api/admin/v1/workspaces/workspace-local/integrations/subscriptions"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > integrations > create subscription (save)
+MEASURE	integrations	create subscription (save)	2	["POST /api/admin/v1/workspaces/workspace-local/integrations/subscriptions","GET /api/admin/v1/workspaces/workspace-local/integrations/subscriptions"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > database > timeline: initial load
+MEASURE	database	timeline initial load	1	["GET /api/admin/v1/database/timeline"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > database > timeline: filter change
+MEASURE	database	timeline filter change	1	["GET /api/admin/v1/database/timeline?kind=core.migration"]
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > remount / re-navigation — same QueryClient shared across visits > redirects: navigate away (unmount the whole screen) and back (remount) — does visit 2 refetch?
+MEASURE	redirects	remount visit 1=1 requests	0	[]
+MEASURE	redirects	remount visit 2 (same client, cache entry reused)	0	[]
+MEASURE	redirects	remount cost: visit2Requests=0 (gcTime not a factor — elapsed time is ms)
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > remount / re-navigation — same QueryClient shared across visits > collections entry editor: open a detail panel, close it, reopen the SAME record — does the reopen refetch?
+MEASURE	collections	entry editor reopen visit 1=2 requests	0	[]
+MEASURE	collections	entry editor reopen visit 2 (same record, same client)	0	[]
+MEASURE	collections	detail-panel reopen cost: visit2Requests=0
+
+stdout | src/__measurements__/request-volume.measurement.test.tsx > remount / re-navigation — same QueryClient shared across visits > media: close the edit-metadata panel and reopen the SAME item — control case, no query of its own
+MEASURE	media	edit panel close+reopen SAME item — no independent query, expect 0	0	[]
+MEASURE	media	detail-panel reopen cost: 0 (EditMediaPanel has no useFetchQuery of its own — item arrives as a prop already resolved from the cached list)
+
+ ✓ src/__measurements__/request-volume.measurement.test.tsx (24 tests) 5057ms
+     ✓ entry editor: open existing entry (detail panel)  309ms
+     ✓ edit metadata save, list mounted alongside (production shape)  1097ms
+     ✓ redirects: navigate away (unmount the whole screen) and back (remount) — does visit 2 refetch?  660ms
+     ✓ media: close the edit-metadata panel and reopen the SAME item — control case, no query of its own  589ms
+ ✓ src/features/security/hooks/__tests__/use-other-credentials.unit.test.tsx (28 tests) 1922ms
+ ✓ src/features/posts/__tests__/rules.unit.test.ts (90 tests) 246ms
+ ✓ src/components/__tests__/WidgetConfigFields.unit.test.tsx (65 tests) 3081ms
+     ✓ typing calls onChange with the rest of the config spread through, plus the new body  309ms
+     ✓ Add link is disabled at the 20-link cap and does not call onChange  511ms
+ ✓ src/features/sites/__tests__/use-site-transfer.hooks.unit.test.tsx (63 tests) 1414ms
+ ✓ src/features/pages/__tests__/rules.unit.test.ts (92 tests) 112ms
+ ✓ src/features/collections/__tests__/Collections.unit.test.tsx (69 tests) 4044ms
+     ✓ keeps create actions outside the scrolling field body with Cancel first  394ms
+ ✓ src/features/users/__tests__/Users.unit.test.tsx (22 tests) 8156ms
+     ✓ has no standalone Manage button; the menu item opens the expanded panel  571ms
+     ✓ selecting Manage a second time closes the panel again (still a toggle, just a static label)  387ms
+     ✓ submits the typed password and shows a success notice, once New/Confirm match  749ms
+     ✓ keeps the dialog open and shows the error on failure, preserving the typed password  949ms
+     ✓ Cancel closes the dialog and clears the typed password and error — UserResetPasswordDialog's onCancel branch  1059ms
+       ✓ blocks submit and shows an inline message while New and Confirm differ  683ms
+       ✓ fixing the mismatch clears the message and lets submit proceed  720ms
+       ✓ a live mismatch message takes over the slot a stale server error was showing  682ms
+       ✓ each toggle reveals only its own field, and both start hidden  351ms
+       ✓ reveal state resets to hidden every time the dialog re-opens  610ms
+ ✓ src/lib/__tests__/widget-embed-extension.unit.test.tsx (41 tests) 4211ms
+     ✓ Style's attribute rows save back as the node's htmlAttributes string  407ms
+     ✓ mints a Date.now()+Math.random placementId when crypto.randomUUID is unavailable  637ms
+ ✓ src/lib/__tests__/settings-tabs.test.ts (68 tests) 37ms
+ ✓ src/features/sites/__tests__/Sites.unit.test.tsx (57 tests) 2435ms
+     ✓ explains the deployment cannot switch sites and offers no Make default anywhere  562ms
+ ✓ src/features/settings/__tests__/SettingsUi.unit.test.tsx (36 tests) 3611ms
+     ✓ merges NotificationsTab's onChange patch onto the current value rather than replacing it wholesale  330ms
+     ✓ explains the policy and allows the existing consent decision  358ms
+ ✓ src/features/trash/__tests__/use-trash.unit.test.tsx (28 tests) 2160ms
+ ✓ src/features/menus/__tests__/MenuEditor.unit.test.tsx (34 tests) 2792ms
+     ✓ round-trips a typed CSS class (and the other four fields) through Save into the PUT body  697ms
+ ✓ src/lib/__tests__/assistant-transport.byok.unit.test.ts (36 tests) 235ms
+ ✓ src/components/__tests__/Select.unit.test.tsx (35 tests) 1601ms
+ ✓ src/features/taxonomy/__tests__/use-term-picker.unit.test.tsx (39 tests) 2720ms
+ ✓ src/features/deployment/hooks/__tests__/use-dockerfile-source.unit.test.tsx (25 tests) 1571ms
+ ✓ src/features/menus/__tests__/use-menu-editor.hooks.unit.test.tsx (38 tests) 2175ms
+ ✓ src/features/pages/__tests__/use-pages.unit.test.ts (32 tests) 2177ms
+ ✓ src/features/themes/__tests__/Themes.unit.test.tsx (53 tests) 2568ms
+ ✓ src/features/dashboard/__tests__/Dashboard.unit.test.tsx (28 tests) 2370ms
+   ✓ Publish All availability follows the live-site flag false  610ms
+   ✓ puts Publish All before View site in the header actions row  393ms
+ ✓ src/features/taxonomy/__tests__/use-taxonomy.unit.test.tsx (34 tests) 2307ms
+ ✓ src/features/posts/__tests__/use-posts.unit.test.ts (32 tests) 2091ms
+ ✓ src/lib/__tests__/api-long-tail-endpoints.unit.test.ts (56 tests) 62ms
+ ✓ src/features/media/__tests__/use-media.hooks.unit.test.tsx (25 tests) 1843ms
+ ✓ src/features/plugins/__tests__/use-plugins.hooks.unit.test.ts (21 tests) 1665ms
+ ✓ src/features/collections/__tests__/CollectionEntryEditor.dynamic-field.unit.test.tsx (65 tests) 1652ms
+ ✓ src/features/settings/__tests__/external-mcp-admissions-rules.unit.test.ts (60 tests) 22ms
+ ✓ src/lib/__tests__/fetch-query.contract.test.tsx (29 tests) 1167ms
+ ✓ src/features/recovery/__tests__/use-recovery.unit.test.ts (35 tests) 2390ms
+ ✓ src/features/recovery/__tests__/Recovery.unit.test.tsx (45 tests) 3796ms
+ ✓ src/features/themes/__tests__/use-themes.hooks.unit.test.ts (24 tests) 1842ms
+ ✓ src/features/ai-assistant/__tests__/VisitorCredentialForm.unit.test.tsx (47 tests) 1952ms
+     ✓ disables Save key on a blank field  464ms
+     ✓ forwards edited keys and provider selections to the controller  448ms
+ ✓ src/features/database/__tests__/Database.unit.test.tsx (47 tests) 2067ms
+ ✓ src/lib/__tests__/assistant-transport.daemon.unit.test.ts (32 tests) 76ms
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling > settles ready without styling when every default token is unusable
+[page-editor] interactive { phase: 'styling:no-usable-tokens', ms: 1559 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling > keeps the new theme when an obsolete request resolves
+[page-editor] interactive { phase: 'styling:ready', ms: 1618 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling > keeps the new theme when an obsolete request rejects
+[page-editor] interactive { phase: 'styling:ready', ms: 1676 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling > resolves to the theme's stylesheet plus its token CSS
+[page-editor] interactive { phase: 'styling:ready', ms: 1732 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling > still resolves for a theme that ships no light token file
+[page-editor] interactive { phase: 'styling:ready', ms: 1786 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling > falls back to no canvas styling at all when the required token file cannot be read
+[page-editor] interactive { phase: 'styling:fetch-error', ms: 1840 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling > reads the tokens through the injected port, never through fetch
+[page-editor] interactive { phase: 'styling:ready', ms: 1894 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling > warms the theme's stylesheet URL in parallel with the token fetches (Bug B, Slice B1)
+[page-editor] interactive { phase: 'styling:ready', ms: 1957 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling > still resolves ready styling when the stylesheet warm-up request rejects — it is fire-and-forget, never fatal
+[page-editor] interactive { phase: 'styling:ready', ms: 1973 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling — bounded pending state (Bug B, Slice B2) > keeps the timed-out state when the required token request later rejects
+[page-editor] interactive { phase: 'styling:timeout', ms: 8000 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling — bounded pending state (Bug B, Slice B2) > resolves to no canvas styling after the 8s timeout when the token fetch never settles
+[page-editor] interactive { phase: 'styling:timeout', ms: 8000 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling — bounded pending state (Bug B, Slice B2) > does not let a token fetch that resolves right after the timeout override the timed-out state — the timeout is final for that mount
+[page-editor] interactive { phase: 'styling:timeout', ms: 8000 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling — bounded pending state (Bug B, Slice B2) > resolves immediately to ready with no styling when themeId is "" — a loaded presentation with no theme configured, not "still loading"
+[page-editor] interactive { phase: 'styling:empty-theme', ms: 2047 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling — bare-page short-circuit (templateChoice === "", owner ruling 2026-09-23, S6) > resolves immediately to ready with no styling for a bare Page ("" templateChoice) on a REAL, loaded theme
+[page-editor] interactive { phase: 'styling:bare-page', ms: 2048 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling — bare-page short-circuit (templateChoice === "", owner ruling 2026-09-23, S6) > does not fetch tokens, template markup, or warm the stylesheet for a bare Page
+[page-editor] interactive { phase: 'styling:bare-page', ms: 2050 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling — bare-page short-circuit (templateChoice === "", owner ruling 2026-09-23, S6) > still resolves to no styling if templateChoice changes to bare AFTER a real theme was already ready
+[page-editor] interactive { phase: 'styling:ready', ms: 2052 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling — bare-page short-circuit (templateChoice === "", owner ruling 2026-09-23, S6) > still resolves to no styling if templateChoice changes to bare AFTER a real theme was already ready
+[page-editor] interactive { phase: 'styling:bare-page', ms: 2150 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling — content wrapper (templateChoice) > includes the derived content wrapper when a template is chosen and its markup carries a content marker
+[page-editor] interactive { phase: 'styling:ready', ms: 2236 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling — content wrapper (templateChoice) > has no content wrapper when templateChoice is null — the default, pre-existing call shape
+[page-editor] interactive { phase: 'styling:ready', ms: 2300 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling — content wrapper (templateChoice) > falls back to no content wrapper when the template markup fetch fails, without failing the whole canvas
+[page-editor] interactive { phase: 'styling:ready', ms: 2354 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling — content wrapper (templateChoice) > falls back to no content wrapper when the template's markup has no content marker
+[page-editor] interactive { phase: 'styling:ready', ms: 2413 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling — content wrapper (templateChoice) > reads template markup through the injected port, never through fetch
+[page-editor] interactive { phase: 'styling:ready', ms: 2465 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling — legacy page-shell candidate fallback (2026-09-03 posts-*/pages-* rename) > retries the legacy page-shell.html candidate when the new pages-default.html 404s (an installed legacy theme)
+[page-editor] interactive { phase: 'styling:ready', ms: 2520 }
+
+stdout | src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts > useThemeCanvasStyling — legacy page-shell candidate fallback (2026-09-03 posts-*/pages-* rename) > does not retry an explicit, non-shim templateChoice that 404s — only the page-shell shim's primary candidate does
+[page-editor] interactive { phase: 'styling:ready', ms: 2571 }
+
+ ✓ src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts (44 tests) 1111ms
+ ✓ src/features/deployment/hooks/__tests__/use-static-export.unit.test.tsx (19 tests) 1545ms
+ ✓ src/features/source-control/__tests__/SourceControl.unit.test.tsx (30 tests) 2643ms
+     ✓ renders a page header (Operations kicker, Source Control title) above a TabBar  370ms
+     ✓ typing updates each provider's own token and declared fields before saving  718ms
+ ✓ src/features/plugins/__tests__/plugin-provider-settings.unit.test.tsx (22 tests) 1926ms
+     ✓ keeps saved legacy headers private while they satisfy the token requirement through save  481ms
+ ✓ src/lib/__tests__/api-endpoint-option-branches.unit.test.ts (56 tests) 92ms
+ ✓ src/features/deployment/__tests__/rules.unit.test.ts (65 tests) 79ms
+ ✓ src/__tests__/unit/panels-render.unit.test.tsx (97 tests | 2 skipped) 57ms
+ ✓ src/features/settings/__tests__/ExternalMcpSettingsPanel.unit.test.tsx (27 tests) 4025ms
+     ✓ opens to the stdio default: Command is present, URL and the OAuth block are absent  493ms
+     ✓ switching Credentials to OAuth reveals the OAuth identity fields, and switching back hides them again  305ms
+     ✓ Cancel closes the form without adding a server, and reopening starts from a blank draft  433ms
+     ✓ shows the add form's submit failure inline  377ms
+ ✓ src/features/settings/__tests__/rules.unit.test.ts (48 tests) 25ms
+ ✓ src/features/email/__tests__/EmailTabs.unit.test.tsx (29 tests) 3698ms
+     ✓ maps missing credentials to plain localized copy without server detail (en)  339ms
+     ✓ renders only declared key fields, hides secrets, saves without switching and disables an unselectable provider  479ms
+     ✓ shows DNS expected/observed values, treats unknown separately from mismatch, and saves sender explicitly  420ms
+     ✓ requires reason then confirmation in the rendered unblock dialog and shows the owner-only refusal  392ms
+     ✓ adds a provider through the injected ports, selects its key card and preserves drafts across segments  542ms
+12:20:56 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/typescript/lib/typescript.js.
+Error: An error occurred while trying to read the map file at typescript.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/typescript/lib/typescript.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+ ✓ src/features/settings/__tests__/external-mcp-tool-picker-rules.unit.test.ts (40 tests) 14ms
+ ✓ src/features/sites/__tests__/use-sites.hooks.unit.test.tsx (22 tests) 1380ms
+ ✓ src/hooks/__tests__/use-external-entry-refresh.unit.test.ts (24 tests) 116ms
+ ✓ src/lib/__tests__/dictionary-lookup-sinks.unit.test.ts (15 tests) 8248ms
+     ✓ every locale dictionary is consumed only through its own translator  8158ms
+ ✓ src/features/recovery/__tests__/use-restore-flow.unit.test.ts (27 tests) 1840ms
+ ✓ src/features/sites/__tests__/use-local-sites.unit.test.tsx (21 tests) 168ms
+ ✓ src/components/__tests__/EmbedInsertControl.unit.test.tsx (19 tests) 2221ms
+     ✓ mints a fresh placementId per insertion — two inserts never reuse the same id  332ms
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > the Sites nav row follows the deployment's site-switcher capability > keeps the Sites row when the server reports the switcher on (a developer's own npm run dev)
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > the Sites nav row follows the deployment's site-switcher capability > keeps the Sites row when the server reports the switcher on (a developer's own npm run dev)
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > the Sites nav row follows the deployment's site-switcher capability > drops the Sites row when the server reports the switcher off (the desktop app's own server)
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > the Sites nav row follows the deployment's site-switcher capability > drops the Sites row when the server reports the switcher off (the desktop app's own server)
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > the /admin/sites route itself, not just its nav row > hides the Sites row and redirects inside the shell (tovuVoice) even when the server enables switching
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > the /admin/sites route itself, not just its nav row > hides the Sites row and redirects inside the shell (tovuVoice) even when the server enables switching
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > the /admin/sites route itself, not just its nav row > hides the Sites row and redirects inside the shell (tovuFiles) even when the server enables switching
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > the /admin/sites route itself, not just its nav row > hides the Sites row and redirects inside the shell (tovuFiles) even when the server enables switching
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > the /admin/sites route itself, not just its nav row > still renders Sites, and stays on the URL, when the switcher is on
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > the /admin/sites route itself, not just its nav row > still renders Sites, and stays on the URL, when the switcher is on
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > the /admin/sites route itself, not just its nav row > redirects a direct visit to the default section when the switcher is off
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > the /admin/sites route itself, not just its nav row > redirects a direct visit to the default section when the switcher is off
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > Import & Export inside the desktop shell (owner, 2026-10-25, option A) > is reachable and opens on Export, with no Publish button (owner removed it, 2026-10-25)
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > Import & Export inside the desktop shell (owner, 2026-10-25, option A) > is reachable and opens on Export, with no Publish button (owner removed it, 2026-10-25)
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > Import & Export inside the desktop shell (owner, 2026-10-25, option A) > still reaches publishing from the dashboard's Publish All and the Deployment row
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > Import & Export inside the desktop shell (owner, 2026-10-25, option A) > still reaches publishing from the dashboard's Publish All and the Deployment row
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > Import & Export inside the desktop shell (owner, 2026-10-25, option A) > renders Import, without the New site link the shell has no route for
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > Import & Export inside the desktop shell (owner, 2026-10-25, option A) > renders Import, without the New site link the shell has no route for
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+ ✓ src/features/consent/__tests__/CookieConsent.unit.test.tsx (32 tests) 2902ms
+     ✓ ?tab=banner shows its fields, with the preview only beside Banner and Look  371ms
+     ✓ autosaves each server-supplied banner mode and restores the saved choice on reload  340ms
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > Import & Export inside the desktop shell (owner, 2026-10-25, option A) > sends an old /sites?tab=export link to the new tab, not the dashboard
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > Import & Export inside the desktop shell (owner, 2026-10-25, option A) > sends an old /sites?tab=export link to the new tab, not the dashboard
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > Import & Export inside the desktop shell (owner, 2026-10-25, option A) > sends an old /sites?tab=import link to the new tab, not the dashboard
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > Import & Export inside the desktop shell (owner, 2026-10-25, option A) > sends an old /sites?tab=import link to the new tab, not the dashboard
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > Import & Export inside the desktop shell (owner, 2026-10-25, option A) > keeps the query on a legacy /section/sites?tab=export link, so it reaches the new tab too
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > Import & Export inside the desktop shell (owner, 2026-10-25, option A) > keeps the query on a legacy /section/sites?tab=export link, so it reaches the new tab too
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > Import & Export inside the desktop shell (owner, 2026-10-25, option A) > keeps the query on a legacy /section/sites?tab=import link, so it reaches the new tab too
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-sites-section-visibility.unit.test.tsx > Import & Export inside the desktop shell (owner, 2026-10-25, option A) > keeps the query on a legacy /section/sites?tab=import link, so it reaches the new tab too
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:178:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:197:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+ ✓ src/__tests__/unit/app-sites-section-visibility.unit.test.tsx (28 tests) 7404ms
+     ✓ keeps the Sites row when the server reports the switcher on (a developer's own npm run dev)  1478ms
+     ✓ drops the Sites row when the server reports the switcher off (the desktop app's own server)  531ms
+     ✓ hides the Sites row and redirects inside the shell (tovuVoice) even when the server enables switching  486ms
+     ✓ hides the Sites row and redirects inside the shell (tovuFiles) even when the server enables switching  348ms
+     ✓ still renders Sites, and stays on the URL, when the switcher is on  438ms
+     ✓ redirects a direct visit to the default section when the switcher is off  302ms
+     ✓ is reachable and opens on Export, with no Publish button (owner removed it, 2026-10-25)  1053ms
+     ✓ still reaches publishing from the dashboard's Publish All and the Deployment row  466ms
+     ✓ renders Import, without the New site link the shell has no route for  605ms
+     ✓ sends an old /sites?tab=export link to the new tab, not the dashboard  450ms
+     ✓ sends an old /sites?tab=import link to the new tab, not the dashboard  395ms
+     ✓ keeps the query on a legacy /section/sites?tab=export link, so it reaches the new tab too  311ms

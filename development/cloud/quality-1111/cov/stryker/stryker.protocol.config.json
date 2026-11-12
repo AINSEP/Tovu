@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker-js/master/packages/core/schema/stryker-schema.json",
+  "_comment": "Mutation pilot (report-only): Jini packages/protocol, default mutators, vitest runner. Run with cwd=/home/user/Jini/packages/protocol.",
+  "testRunner": "vitest",
+  "vitest": { "configFile": "vitest.config.ts" },
+  "mutate": ["src/**/*.ts", "!src/**/*.test.ts", "!src/**/__tests__/**"],
+  "coverageAnalysis": "perTest",
+  "concurrency": 3,
+  "timeoutMS": 30000,
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": { "fileName": "/tmp/claude-0/stryker-protocol/mutation.json" },
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": "always",
+  "ignoreStatic": false
+}
