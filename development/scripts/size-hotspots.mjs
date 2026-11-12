@@ -5,7 +5,7 @@
 //
 // Usage:
 //   node development/scripts/size-hotspots.mjs [--repo name=dir ...] [--out dir]
-//        [--file-limit 500] [--fn-limits 80,100]
+//        [--file-limit 500] [--fn-limits 80,100] [--exceptions development/scripts/size-exceptions.json]
 // Defaults: tovu=/Users/la/Programming/Tovu, jini=/Users/la/Programming/tovu-integration-clones/ui-jini,
 //           out=<Tovu>/ADS-memory/.local-artifacts/extraction-survey/<today>/size-hotspots
 // Read-only on the repos (git ls-files + git log + file reads). Writes only into --out.
@@ -25,6 +25,9 @@
 //
 // Exception CANDIDATES (not decisions): generated, migration, i18n, data-table, wiring,
 // embedded-text. Each gets a one-line suggested reason for the owner to accept or reject.
+// ACCEPTED exceptions live in size-exceptions.json (owner 11-11); rows matching it get an `exempt`
+// reason, counts show what stays over the limit, and entries that no longer match are listed so
+// the list can shrink (ratchet).
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -40,6 +43,16 @@ const REPOS = (repoArgs.length ? repoArgs : [
 const FILE_LIMIT = Number(opt("--file-limit") ?? 500);
 const FN_LIMITS = String(opt("--fn-limits") ?? "80,100").split(",").map(Number).sort((a, b) => a - b);
 const FN_MIN = FN_LIMITS[0];
+const EXC_PATH = path.resolve(opt("--exceptions") ?? path.join(import.meta.dirname, "size-exceptions.json"));
+const EXC = fs.existsSync(EXC_PATH) ? JSON.parse(fs.readFileSync(EXC_PATH, "utf8")) : { pathExclusions: [], entries: [] };
+const excUsed = new Set();
+function exemptReason(repo, kind, file, fn) {
+  for (const x of EXC.pathExclusions ?? []) if ((x.repo === "*" || x.repo === repo) && new RegExp(x.pattern).test(file)) return x.reason;
+  const i = (EXC.entries ?? []).findIndex((e) => e.repo === repo && e.file === file && (kind === "file" ? !e.function : e.function === fn));
+  if (i < 0) return "";
+  excUsed.add(i);
+  return EXC.entries[i].reason;
+}
 const today = new Date().toLocaleDateString("en-CA"); // local YYYY-MM-DD
 const OUT = path.resolve(opt("--out") ?? `/Users/la/Programming/Tovu/ADS-memory/.local-artifacts/extraction-survey/${today}/size-hotspots`);
 const ts = createRequire(path.join(REPOS[0].dir, "package.json"))("typescript");
@@ -195,7 +208,7 @@ summary.push(`# Size hotspots — ${today}`, "",
   `Limits: file > ${FILE_LIMIT} lines; function > ${FN_LIMITS.join(" / ")} lines. Lines = non-blank, non-comment (ESLint max-lines skipBlankLines+skipComments). Nested functions counted separately.`,
   `Hotspot score = lines × commits in last 90 days (functions use their file's commits). Exception categories are CANDIDATES for the owner to accept or reject.`,
   `Script: development/scripts/size-hotspots.mjs (read-only).`, "");
-const countsTable = [["repo", "prod files", `files>${FILE_LIMIT}`, "…minus candidates", ...FN_LIMITS.flatMap((l) => [`fns>${l}`, "…minus candidates"])]];
+const countsTable = [["repo", "prod files", `files>${FILE_LIMIT}`, "…minus candidates", "…minus accepted", ...FN_LIMITS.flatMap((l) => [`fns>${l}`, "…minus candidates", "…minus accepted"])]];
 
 for (const repo of REPOS) {
   const files = prodFiles(repo);
@@ -214,17 +227,17 @@ for (const repo of REPOS) {
       rows.push({ kind: "function", file: f, fn: fn.name, line: fn.line, lines: fn.lines, ...c, cand });
     }
   }
-  for (const r of rows) r.score = r.lines * r.c90;
+  for (const r of rows) { r.score = r.lines * r.c90; r.exempt = exemptReason(repo.name, r.kind, r.file, r.fn); }
   rows.sort((a, b) => b.score - a.score || b.lines - a.lines);
-  const head = ["rank", "kind", "file", "function", "line", "lines", ...FN_LIMITS.map((l) => `fn_over_${l}`), "churn90", "churn365", "days90", "authors365", "score", "candidate", "suggested_reason"];
+  const head = ["rank", "kind", "file", "function", "line", "lines", ...FN_LIMITS.map((l) => `fn_over_${l}`), "churn90", "churn365", "days90", "authors365", "score", "candidate", "suggested_reason", "exempt_reason"];
   fs.writeFileSync(path.join(OUT, `hotspots-${repo.name}.tsv`), tsv([head, ...rows.map((r, i) => [i + 1, r.kind, r.file, r.fn, r.line, r.lines,
-    ...FN_LIMITS.map((l) => (r.kind === "function" ? (r.lines > l ? "yes" : "no") : "")), r.c90, r.c365, r.days90, r.authors, r.score, r.cand?.[0] ?? "", r.cand?.[1] ?? ""])]));
+    ...FN_LIMITS.map((l) => (r.kind === "function" ? (r.lines > l ? "yes" : "no") : "")), r.c90, r.c365, r.days90, r.authors, r.score, r.cand?.[0] ?? "", r.cand?.[1] ?? "", r.exempt])]));
   for (const r of rows) if (r.cand) candRows.push([repo.name, r.kind, r.file, r.fn, r.line, r.lines, r.cand[0], r.cand[1]]);
 
   const fileRows = rows.filter((r) => r.kind === "file");
   const fnRows = rows.filter((r) => r.kind === "function");
-  countsTable.push([repo.name, files.length, fileRows.length, fileRows.filter((r) => !r.cand).length,
-    ...FN_LIMITS.flatMap((l) => { const o = fnRows.filter((r) => r.lines > l); return [o.length, o.filter((r) => !r.cand).length]; })]);
+  countsTable.push([repo.name, files.length, fileRows.length, fileRows.filter((r) => !r.cand).length, fileRows.filter((r) => !r.exempt).length,
+    ...FN_LIMITS.flatMap((l) => { const o = fnRows.filter((r) => r.lines > l); return [o.length, o.filter((r) => !r.cand).length, o.filter((r) => !r.exempt).length]; })]);
 
   const byCat = {};
   for (const r of rows) if (r.cand) { const k = `${r.kind}:${r.cand[0]}`; byCat[k] = (byCat[k] ?? 0) + 1; }
@@ -234,12 +247,15 @@ for (const repo of REPOS) {
 }
 summary.splice(6, 0, "## Counts", "", `| ${countsTable[0].join(" | ")} |`, `|${countsTable[0].map(() => "---").join("|")}|`,
   ...countsTable.slice(1).map((r) => `| ${r.join(" | ")} |`), "",
-  "\"…minus candidates\" = what stays over the limit if every exception candidate is accepted.", "");
+  "\"…minus candidates\" = what stays over the limit if every exception candidate is accepted; \"…minus accepted\" = what stays over after the owner-accepted list (size-exceptions.json).", "");
 summary.push("## Notes", "",
   "- Churn counts commits by path, no rename following; a file renamed recently shows low churn.",
   "- days90 = distinct commit days in 90 days (stand-in for sessions); authors365 is near-useless here (owner + agent identities).",
   "- Cloud scan (11-11) counted raw lines; these counts drop blanks/comments, so totals are lower.",
   "- Full lists: hotspots-<repo>.tsv, exceptions-candidates.tsv.");
+const stale = (EXC.entries ?? []).filter((_, i) => !excUsed.has(i));
+summary.push("", "## Accepted exceptions no longer over the limit (delete from size-exceptions.json)", "",
+  ...(stale.length ? stale.map((e) => `- ${e.repo}: \`${e.file}\`${e.function ? ` \`${e.function}\`` : ""}`) : ["- none"]));
 fs.writeFileSync(path.join(OUT, "exceptions-candidates.tsv"), tsv(candRows));
 fs.writeFileSync(path.join(OUT, "summary.md"), summary.join("\n") + "\n");
 console.log(countsTable.map((r) => r.join("\t")).join("\n"));
