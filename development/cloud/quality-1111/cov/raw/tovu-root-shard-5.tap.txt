@@ -1046,3 +1046,598 @@ ok 131 - G3 card: an expired card sends nothing and says it expired
   duration_ms: 27.64761
   type: 'test'
   ...
+# Subtest: G3 card: a run that ends while the card waits sends nothing
+ok 132 - G3 card: a run that ends while the card waits sends nothing
+  ---
+  duration_ms: 2.314968
+  type: 'test'
+  ...
+# Subtest: G3 card: the displayed arguments are exactly what is sent — mutating the input after the card is shown changes nothing
+ok 133 - G3 card: the displayed arguments are exactly what is sent — mutating the input after the card is shown changes nothing
+  ---
+  duration_ms: 2.41323
+  type: 'test'
+  ...
+# Subtest: G3 card: one confirmation authorizes exactly one call — a second call gets its own card, and re-sending the first Confirm is refused
+ok 134 - G3 card: one confirmation authorizes exactly one call — a second call gets its own card, and re-sending the first Confirm is refused
+  ---
+  duration_ms: 2.302697
+  type: 'test'
+  ...
+# Subtest: G3 card: another principal or tool cannot confirm the call
+ok 135 - G3 card: another principal or tool cannot confirm the call
+  ---
+  duration_ms: 1.534563
+  type: 'test'
+  ...
+# Subtest: G3 card: destructive tools get the danger-styled card with the stronger warning; plain writes do not
+ok 136 - G3 card: destructive tools get the danger-styled card with the stronger warning; plain writes do not
+  ---
+  duration_ms: 12.111206
+  type: 'test'
+  ...
+# Subtest: G3 card: a server-marked read-only tool runs with no card
+ok 137 - G3 card: a server-marked read-only tool runs with no card
+  ---
+  duration_ms: 0.743634
+  type: 'test'
+  ...
+# Subtest: G3 card: with no way to ask a human (no emitSurface), a confirm-gated tool is refused and nothing is sent
+ok 138 - G3 card: with no way to ask a human (no emitSurface), a confirm-gated tool is refused and nothing is sent
+  ---
+  duration_ms: 1.841715
+  type: 'test'
+  ...
+# Subtest: G3 card: a composition root that wires no confirmer refuses every confirm-gated tool and sends nothing
+ok 139 - G3 card: a composition root that wires no confirmer refuses every confirm-gated tool and sends nothing
+  ---
+  duration_ms: 0.609274
+  type: 'test'
+  ...
+# Subtest: G3 route rule: a federated id is permitted only as an answer to an open card
+ok 140 - G3 route rule: a federated id is permitted only as an answer to an open card
+  ---
+  duration_ms: 0.41392
+  type: 'test'
+  ...
+# Subtest: G3 route: a federated tool call with no exchange is refused 403 and never executed
+ok 141 - G3 route: a federated tool call with no exchange is refused 403 and never executed
+  ---
+  duration_ms: 75.932977
+  type: 'test'
+  ...
+# Subtest: G3 route: Confirm on an open federated card is delivered (202) and the held call runs once
+ok 142 - G3 route: Confirm on an open federated card is delivered (202) and the held call runs once
+  ---
+  duration_ms: 36.770123
+  type: 'test'
+  ...
+# Subtest: under Electron, launches the bridge with the app binary and ELECTRON_RUN_AS_NODE=1
+ok 143 - under Electron, launches the bridge with the app binary and ELECTRON_RUN_AS_NODE=1
+  ---
+  duration_ms: 6.781715
+  type: 'test'
+  ...
+# Subtest: treats an inherited ELECTRON_RUN_AS_NODE as Electron even without process.versions.electron
+ok 144 - treats an inherited ELECTRON_RUN_AS_NODE as Electron even without process.versions.electron
+  ---
+  duration_ms: 0.585461
+  type: 'test'
+  ...
+# Subtest: under plain Node, launches the bridge with node and adds no env
+ok 145 - under plain Node, launches the bridge with node and adds no env
+  ---
+  duration_ms: 0.367414
+  type: 'test'
+  ...
+# Subtest: defaults to this process's own runtime
+ok 146 - defaults to this process's own runtime
+  ---
+  duration_ms: 0.299482
+  type: 'test'
+  ...
+# Subtest: hands the bridge the per-run credential minted for that run, never the proxy's boot-wide token
+ok 147 - hands the bridge the per-run credential minted for that run, never the proxy's boot-wide token
+  ---
+  duration_ms: 0.592998
+  type: 'test'
+  ...
+# Subtest: HTTP preparation receives only run-scoped inputs
+ok 148 - HTTP preparation receives only run-scoped inputs
+  ---
+  duration_ms: 0.972527
+  type: 'test'
+  ...
+# Subtest: unavailable HTTP support preserves stdio delivery
+ok 149 - unavailable HTTP support preserves stdio delivery
+  ---
+  duration_ms: 37.669993
+  type: 'test'
+  ...
+# Subtest: stateless HTTP support is refused before minting a callback credential
+ok 150 - stateless HTTP support is refused before minting a callback credential
+  ---
+  duration_ms: 22.852118
+  type: 'test'
+  ...
+# Subtest: real round trip: a browser confirmation click for webhooks_delete_subscription is accepted by the allowlist
+ok 151 - real round trip: a browser confirmation click for webhooks_delete_subscription is accepted by the allowlist
+  ---
+  duration_ms: 190.204015
+  type: 'test'
+  ...
+# Subtest: SECURITY: a Cancel click for webhooks_delete_subscription also reaches the allowlist and reports the cancellation, not a 403
+ok 152 - SECURITY: a Cancel click for webhooks_delete_subscription also reaches the allowlist and reports the cancellation, not a 403
+  ---
+  duration_ms: 16.873841
+  type: 'test'
+  ...
+# Subtest: comments_trash_comment completes in one call and emits no dialog
+ok 153 - comments_trash_comment completes in one call and emits no dialog
+  ---
+  duration_ms: 3.614754
+  type: 'test'
+  ...
+# Subtest: SECURITY: a surface callback cannot run comments_trash_comment — the route refuses it with 403 and never reaches the executor
+ok 154 - SECURITY: a surface callback cannot run comments_trash_comment — the route refuses it with 403 and never reaches the executor
+  ---
+  duration_ms: 7.481443
+  type: 'test'
+  ...
+# Subtest: widgets_trash_instance completes in one call and emits no dialog
+ok 155 - widgets_trash_instance completes in one call and emits no dialog
+  ---
+  duration_ms: 17.378312
+  type: 'test'
+  ...
+# Subtest: SECURITY: a surface callback cannot run widgets_trash_instance — the route refuses it with 403 and never reaches the executor
+ok 156 - SECURITY: a surface callback cannot run widgets_trash_instance — the route refuses it with 403 and never reaches the executor
+  ---
+  duration_ms: 105.815349
+  type: 'test'
+  ...
+# Subtest: theme_trash_file completes in one call and emits no dialog
+ok 157 - theme_trash_file completes in one call and emits no dialog
+  ---
+  duration_ms: 36.45611
+  type: 'test'
+  ...
+# Subtest: SECURITY: a surface callback cannot run theme_trash_file — the route refuses it with 403 and never reaches the executor
+ok 158 - SECURITY: a surface callback cannot run theme_trash_file — the route refuses it with 403 and never reaches the executor
+  ---
+  duration_ms: 18.981466
+  type: 'test'
+  ...
+# Subtest: redirects_tombstone completes in one call and emits no dialog
+ok 159 - redirects_tombstone completes in one call and emits no dialog
+  ---
+  duration_ms: 58.811658
+  type: 'test'
+  ...
+# Subtest: SECURITY: a surface callback cannot run redirects_tombstone — the route refuses it with 403 and never reaches the executor
+ok 160 - SECURITY: a surface callback cannot run redirects_tombstone — the route refuses it with 403 and never reaches the executor
+  ---
+  duration_ms: 54.512943
+  type: 'test'
+  ...
+# Subtest: rejects a call with no principal header — 401, and the executor is never invoked
+ok 161 - rejects a call with no principal header — 401, and the executor is never invoked
+  ---
+  duration_ms: 188.99058
+  type: 'test'
+  ...
+# Subtest: rejects a non-string or empty toolName — 400, and the executor is never invoked
+ok 162 - rejects a non-string or empty toolName — 400, and the executor is never invoked
+  ---
+  duration_ms: 56.52602
+  type: 'test'
+  ...
+# Subtest: SECURITY-CRITICAL: rejects a toolName that is not on the allowlist — 403, and the executor is never invoked
+ok 163 - SECURITY-CRITICAL: rejects a toolName that is not on the allowlist — 403, and the executor is never invoked
+  ---
+  duration_ms: 28.213255
+  type: 'test'
+  ...
+# Subtest: executes an allowlisted toolName, passing the header principal, a synthetic run, and the given params through
+ok 164 - executes an allowlisted toolName, passing the header principal, a synthetic run, and the given params through
+  ---
+  duration_ms: 14.674275
+  type: 'test'
+  ...
+# Subtest: surfaces a 'failed' execution result as 400 with the tool's own message
+ok 165 - surfaces a 'failed' execution result as 400 with the tool's own message
+  ---
+  duration_ms: 14.536134
+  type: 'test'
+  ...
+# Subtest: maps a non-object params to an empty object rather than forwarding an unexpected shape
+ok 166 - maps a non-object params to an empty object rather than forwarding an unexpected shape
+  ---
+  duration_ms: 75.014392
+  type: 'test'
+  ...
+# Subtest: a body carrying an exchange id delivers to the held-open call and never invokes the executor
+ok 167 - a body carrying an exchange id delivers to the held-open call and never invokes the executor
+  ---
+  duration_ms: 13.587761
+  type: 'test'
+  ...
+# Subtest: the delivery response carries no tool output — the agent's own call returns that, to the model
+ok 168 - the delivery response carries no tool output — the agent's own call returns that, to the model
+  ---
+  duration_ms: 66.719767
+  type: 'test'
+  ...
+# Subtest: an unknown, expired or already-closed exchange is 409, not 404 or a silent success
+ok 169 - an unknown, expired or already-closed exchange is 409, not 404 or a silent success
+  ---
+  duration_ms: 50.878957
+  type: 'test'
+  ...
+# Subtest: an exchange delivery from the wrong principal is refused and leaves the call still waiting
+ok 170 - an exchange delivery from the wrong principal is refused and leaves the call still waiting
+  ---
+  duration_ms: 10.008019
+  type: 'test'
+  ...
+# Subtest: the allowlist gate still applies to an exchange delivery, before the exchange is even looked up
+ok 171 - the allowlist gate still applies to an exchange delivery, before the exchange is even looked up
+  ---
+  duration_ms: 6.062938
+  type: 'test'
+  ...
+# Subtest: SECURITY: a protected setting callback without an exchange never executes
+ok 172 - SECURITY: a protected setting callback without an exchange never executes
+  ---
+  duration_ms: 4.122674
+  type: 'test'
+  ...
+# Subtest: SECURITY: an empty or non-string exchange id cannot execute a protected setting
+ok 173 - SECURITY: an empty or non-string exchange id cannot execute a protected setting
+  ---
+  duration_ms: 6.054313
+  type: 'test'
+  ...
+# Subtest: a top-level exchangeId works without any tool-call params — the channel-neutral carrier
+ok 174 - a top-level exchangeId works without any tool-call params — the channel-neutral carrier
+  ---
+  duration_ms: 4.829992
+  type: 'test'
+  ...
+# Subtest: a top-level exchangeId wins over a params-borne one, so one body cannot name two exchanges
+ok 175 - a top-level exchangeId wins over a params-borne one, so one body cannot name two exchanges
+  ---
+  duration_ms: 4.802401
+  type: 'test'
+  ...
+# Subtest: a different allowlisted tool cannot answer another tool's exchange
+ok 176 - a different allowlisted tool cannot answer another tool's exchange
+  ---
+  duration_ms: 13.691894
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends completed (no output/error) to HTTP 200
+ok 177 - maps a legacy redemption that ends completed (no output/error) to HTTP 200
+  ---
+  duration_ms: 8.380644
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends denied (no output/error) to HTTP 403
+ok 178 - maps a legacy redemption that ends denied (no output/error) to HTTP 403
+  ---
+  duration_ms: 26.089089
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends confirmation-denied (no output/error) to HTTP 409
+ok 179 - maps a legacy redemption that ends confirmation-denied (no output/error) to HTTP 409
+  ---
+  duration_ms: 4.727865
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends timed-out (no output/error) to HTTP 504
+ok 180 - maps a legacy redemption that ends timed-out (no output/error) to HTTP 504
+  ---
+  duration_ms: 9.094932
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends cancelled (no output/error) to HTTP 500
+ok 181 - maps a legacy redemption that ends cancelled (no output/error) to HTTP 500
+  ---
+  duration_ms: 4.841305
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends failed (no output/error) to HTTP 400
+ok 182 - maps a legacy redemption that ends failed (no output/error) to HTTP 400
+  ---
+  duration_ms: 4.27891
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends completed to HTTP 200
+ok 183 - maps a legacy redemption that ends completed to HTTP 200
+  ---
+  duration_ms: 4.480478
+  type: 'test'
+  ...
+# Subtest: maps a legacy redemption that ends failed to HTTP 400
+ok 184 - maps a legacy redemption that ends failed to HTTP 400
+  ---
+  duration_ms: 4.591468
+  type: 'test'
+  ...
+# Subtest: an executor that throws is reported as a 500 with its message, never a crash
+ok 185 - an executor that throws is reported as a 500 with its message, never a crash
+  ---
+  duration_ms: 13.316322
+  type: 'test'
+  ...
+# Subtest: a request with no JSON body is a 400 validation error, and the executor is never invoked
+ok 186 - a request with no JSON body is a 400 validation error, and the executor is never invoked
+  ---
+  duration_ms: 4.745555
+  type: 'test'
+  ...
+# Subtest: agent_plugin_set_access_token (credential_save, agent-plugin-token): text, real cards, outcomes and counters match the golden recorded before any move
+ok 187 - agent_plugin_set_access_token (credential_save, agent-plugin-token): text, real cards, outcomes and counters match the golden recorded before any move
+  ---
+  duration_ms: 102.91063
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: live checks, unsaved draft previews and finding text rank in the top three
+ok 188 - live checks, unsaved draft previews and finding text rank in the top three
+  ---
+  duration_ms: 668.144772
+  type: 'test'
+  ...
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Subtest: enabling a plugin mid-session makes its guidance discoverable through reload without a restart (federation started: true)
+ok 189 - enabling a plugin mid-session makes its guidance discoverable through reload without a restart (federation started: true)
+  ---
+  duration_ms: 389.132078
+  type: 'test'
+  ...
+# Subtest: enabling a plugin mid-session makes its guidance discoverable through reload without a restart (federation started: false)
+ok 190 - enabling a plugin mid-session makes its guidance discoverable through reload without a restart (federation started: false)
+  ---
+  duration_ms: 251.90555
+  type: 'test'
+  ...
+# Subtest: STORE: nothing recorded reads as inactive
+ok 191 - STORE: nothing recorded reads as inactive
+  ---
+  duration_ms: 5.266335
+  type: 'test'
+  ...
+# Subtest: STORE: a live run's screen is the active resource, its entry id the resourceRef
+ok 192 - STORE: a live run's screen is the active resource, its entry id the resourceRef
+  ---
+  duration_ms: 0.376077
+  type: 'test'
+  ...
+# Subtest: STORE: a screen with no open entry uses its path as the resourceRef and has no name
+ok 193 - STORE: a screen with no open entry uses its path as the resourceRef and has no name
+  ---
+  duration_ms: 0.145258
+  type: 'test'
+  ...
+# Subtest: STORE: a finished run's screen is forgotten
+ok 194 - STORE: a finished run's screen is forgotten
+  ---
+  duration_ms: 0.167758
+  type: 'test'
+  ...
+# Subtest: STORE: a screen older than http-kit's active-context TTL reads as inactive
+ok 195 - STORE: a screen older than http-kit's active-context TTL reads as inactive
+  ---
+  duration_ms: 7.19366
+  type: 'test'
+  ...
+# Subtest: STORE: two live runs on DIFFERENT screens are ambiguous — inactive, never the wrong screen
+ok 196 - STORE: two live runs on DIFFERENT screens are ambiguous — inactive, never the wrong screen
+  ---
+  duration_ms: 0.340359
+  type: 'test'
+  ...
+# Subtest: STORE: two live runs on the SAME screen agree, and the newer recording wins
+ok 197 - STORE: two live runs on the SAME screen agree, and the newer recording wins
+  ---
+  duration_ms: 0.499764
+  type: 'test'
+  ...
+# Subtest: STORE: a stale run on another screen does not make a fresh one ambiguous
+ok 198 - STORE: a stale run on another screen does not make a fresh one ambiguous
+  ---
+  duration_ms: 0.342421
+  type: 'test'
+  ...
+# Subtest: STORE: a screen exactly at the TTL is still live
+ok 199 - STORE: a screen exactly at the TTL is still live
+  ---
+  duration_ms: 0.197041
+  type: 'test'
+  ...
+# Subtest: STORE: equal recording times resolve to the run recorded last
+ok 200 - STORE: equal recording times resolve to the run recorded last
+  ---
+  duration_ms: 0.134275
+  type: 'test'
+  ...
+# Subtest: STORE: the newest recording wins even when an older run re-records later in map order
+ok 201 - STORE: the newest recording wins even when an older run re-records later in map order
+  ---
+  duration_ms: 0.106012
+  type: 'test'
+  ...
+# Subtest: STORE: the same path with a different open entry is a different screen
+ok 202 - STORE: the same path with a different open entry is a different screen
+  ---
+  duration_ms: 0.112106
+  type: 'test'
+  ...
+# Subtest: MCP: get_active_context against the daemon route returns the run's screen instead of a 404
+ok 203 - MCP: get_active_context against the daemon route returns the run's screen instead of a 404
+  ---
+  duration_ms: 130.877933
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: the owner's name for it, 'describe_site_capabilities', ranks site_describe_capabilities first
+ok 204 - the owner's name for it, 'describe_site_capabilities', ranks site_describe_capabilities first
+  ---
+  duration_ms: 1145.800994
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: the tool id itself ranks site_describe_capabilities first
+ok 205 - the tool id itself ranks site_describe_capabilities first
+  ---
+  duration_ms: 900.988516
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: 'what can this site do' ranks site_describe_capabilities in the top 3
+ok 206 - 'what can this site do' ranks site_describe_capabilities in the top 3
+  ---
+  duration_ms: 469.617071
+  type: 'test'
+  ...
+# Subtest: every approval-gated native tool declares a friendly title and summary on its actual registration
+ok 207 - every approval-gated native tool declares a friendly title and summary on its actual registration
+  ---
+  duration_ms: 388.180454
+  type: 'test'
+  ...
+# Subtest: every first-party registration has a reviewed action classification before read collapse
+ok 208 - every first-party registration has a reviewed action classification before read collapse
+  ---
+  duration_ms: 53.026231
+  type: 'test'
+  ...
+# Subtest: registering a new tool without classification fails construction
+ok 209 - registering a new tool without classification fails construction
+  ---
+  duration_ms: 18.588339
+  type: 'test'
+  ...
+# Subtest: the final registered read cards and every frontend capability have classifications
+ok 210 - the final registered read cards and every frontend capability have classifications
+  ---
+  duration_ms: 30.120757
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: forms_create_definition -> forms_set_definition_status through the real ToolExecutor
+ok 211 - forms_create_definition -> forms_set_definition_status through the real ToolExecutor
+  ---
+  duration_ms: 800.666024
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: forms_create_definition through the real ToolExecutor refuses a principal with no grants
+ok 212 - forms_create_definition through the real ToolExecutor refuses a principal with no grants
+  ---
+  duration_ms: 547.191511
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: content_read.form_definition resolves a form by name to its id, closing the loop forms_set_definition_status needs
+ok 213 - content_read.form_definition resolves a form by name to its id, closing the loop forms_set_definition_status needs
+  ---
+  duration_ms: 521.940129
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: content_read.form_definition through the real ToolExecutor refuses a principal with no grants
+ok 214 - content_read.form_definition through the real ToolExecutor refuses a principal with no grants
+  ---
+  duration_ms: 718.302813
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a submissions-only grant does not authorize creating or reading form definitions
+ok 215 - a submissions-only grant does not authorize creating or reading form definitions
+  ---
+  duration_ms: 561.398546
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: forms_list_submissions accepts the default and both explicit limit boundaries through ToolExecutor
+ok 216 - forms_list_submissions accepts the default and both explicit limit boundaries through ToolExecutor
+  ---
+  duration_ms: 684.618899
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: forms_update_definition persists name, fields and notify while preserving the slug
+ok 217 - forms_update_definition persists name, fields and notify while preserving the slug
+  ---
+  duration_ms: 672.28647
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: forms_list_submissions: a fixable input rejection reaches the model as errorKind 'validation', not a redacted internal failure
+ok 218 - forms_list_submissions: a fixable input rejection reaches the model as errorKind 'validation', not a redacted internal failure
+  ---
+  duration_ms: 608.244991
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: forms_list_submissions: a fixable input rejection reaches the model as errorKind 'validation', not a redacted internal failure
+ok 219 - forms_list_submissions: a fixable input rejection reaches the model as errorKind 'validation', not a redacted internal failure
+  ---
+  duration_ms: 848.249392
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: forms_list_submissions: a fixable input rejection reaches the model as errorKind 'validation', not a redacted internal failure
+ok 220 - forms_list_submissions: a fixable input rejection reaches the model as errorKind 'validation', not a redacted internal failure
+  ---
+  duration_ms: 509.211913
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: forms_set_definition_status: a fixable input rejection reaches the model as errorKind 'validation', not a redacted internal failure
+ok 221 - forms_set_definition_status: a fixable input rejection reaches the model as errorKind 'validation', not a redacted internal failure
+  ---
+  duration_ms: 576.367183
+  type: 'test'
+  ...
+# Subtest: forms_update_definition: a fixable input rejection reaches the model as errorKind 'validation', not a redacted internal failure
+ok 222 - forms_update_definition: a fixable input rejection reaches the model as errorKind 'validation', not a redacted internal failure
+  ---
+  duration_ms: 502.031812
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}

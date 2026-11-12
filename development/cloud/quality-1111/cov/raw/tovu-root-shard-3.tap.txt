@@ -14476,3 +14476,1923 @@ ok 2128 - canary: shipped theme static/tovu-theme's committed original matches w
   duration_ms: 76.075046
   type: 'test'
   ...
+# Subtest: a featured-image marker becomes the image, keeping the authored wrapper and dropping the marker
+ok 2129 - a featured-image marker becomes the image, keeping the authored wrapper and dropping the marker
+  ---
+  duration_ms: 2.623976
+  type: 'test'
+  ...
+# Subtest: unknown dimensions are omitted rather than written as empty attributes
+ok 2130 - unknown dimensions are omitted rather than written as empty attributes
+  ---
+  duration_ms: 0.550809
+  type: 'test'
+  ...
+# Subtest: no featured image removes the whole marker element, fallback included
+ok 2131 - no featured image removes the whole marker element, fallback included
+  ---
+  duration_ms: 0.182408
+  type: 'test'
+  ...
+# Subtest: other markers are left alone
+ok 2132 - other markers are left alone
+  ---
+  duration_ms: 0.577603
+  type: 'test'
+  ...
+# Subtest: canary: every tovu-theme post template carries one featured-image marker, ahead of the content marker
+ok 2133 - canary: every tovu-theme post template carries one featured-image marker, ahead of the content marker
+  ---
+  duration_ms: 3.156271
+  type: 'test'
+  ...
+# Subtest: canary: every tovu-starter post template carries one featured-image marker, ahead of the content marker
+ok 2134 - canary: every tovu-starter post template carries one featured-image marker, ahead of the content marker
+  ---
+  duration_ms: 2.667007
+  type: 'test'
+  ...
+# Subtest: bundled tovu-theme static: editors offer only templates for the content kind
+ok 2135 - bundled tovu-theme static: editors offer only templates for the content kind
+  ---
+  duration_ms: 10.662081
+  type: 'test'
+  ...
+# Subtest: bundled tovu-theme __original-themes__/static: editors offer only templates for the content kind
+ok 2136 - bundled tovu-theme __original-themes__/static: editors offer only templates for the content kind
+  ---
+  duration_ms: 4.00948
+  type: 'test'
+  ...
+# Subtest: templateFor: schema accepts declared kinds and loader preserves the mapping
+ok 2137 - templateFor: schema accepts declared kinds and loader preserves the mapping
+  ---
+  duration_ms: 9.181117
+  type: 'test'
+  ...
+# Subtest: templateFor: schema and loader parser reject null
+ok 2138 - templateFor: schema and loader parser reject null
+  ---
+  duration_ms: 1.551585
+  type: 'test'
+  ...
+# Subtest: templateFor: schema and loader parser reject []
+ok 2139 - templateFor: schema and loader parser reject []
+  ---
+  duration_ms: 0.153858
+  type: 'test'
+  ...
+# Subtest: templateFor: schema and loader parser reject "post"
+ok 2140 - templateFor: schema and loader parser reject "post"
+  ---
+  duration_ms: 0.128053
+  type: 'test'
+  ...
+# Subtest: templateFor: schema and loader parser reject {"post.html":"post"}
+ok 2141 - templateFor: schema and loader parser reject {"post.html":"post"}
+  ---
+  duration_ms: 0.169533
+  type: 'test'
+  ...
+# Subtest: templateFor: schema and loader parser reject {"post.html":[]}
+ok 2142 - templateFor: schema and loader parser reject {"post.html":[]}
+  ---
+  duration_ms: 1.169452
+  type: 'test'
+  ...
+# Subtest: templateFor: schema and loader parser reject {"post.html":["product"]}
+ok 2143 - templateFor: schema and loader parser reject {"post.html":["product"]}
+  ---
+  duration_ms: 0.75302
+  type: 'test'
+  ...
+# Subtest: templateFor: schema and loader parser reject {"post.html":["post","post"]}
+ok 2144 - templateFor: schema and loader parser reject {"post.html":["post","post"]}
+  ---
+  duration_ms: 0.273899
+  type: 'test'
+  ...
+# Subtest: templateFor: schema and loader parser reject {"missing.html":["page"]}
+ok 2145 - templateFor: schema and loader parser reject {"missing.html":["page"]}
+  ---
+  duration_ms: 0.234679
+  type: 'test'
+  ...
+# Subtest: templateFor: filters by kind in manifest order, sharing omitted and explicitly dual-kind entries
+ok 2146 - templateFor: filters by kind in manifest order, sharing omitted and explicitly dual-kind entries
+  ---
+  duration_ms: 0.209505
+  type: 'test'
+  ...
+# Subtest: templateFor: inherited object names remain unlisted and apply to both kinds
+ok 2147 - templateFor: inherited object names remain unlisted and apply to both kinds
+  ---
+  duration_ms: 0.402184
+  type: 'test'
+  ...
+# Subtest: templateFor without any declared templates: an empty mapping parses, any named template is refused
+ok 2148 - templateFor without any declared templates: an empty mapping parses, any named template is refused
+  ---
+  duration_ms: 0.573801
+  type: 'test'
+  ...
+# Subtest: sniffThemeImportType names every font family by its magic bytes and defers images to the media sniffer
+ok 2149 - sniffThemeImportType names every font family by its magic bytes and defers images to the media sniffer
+  ---
+  duration_ms: 1.879594
+  type: 'test'
+  ...
+# Subtest: a woff2 is written byte for byte at the requested path, creating its folders
+ok 2150 - a woff2 is written byte for byte at the requested path, creating its folders
+  ---
+  duration_ms: 7.264318
+  type: 'test'
+  ...
+# Subtest: each font and image type lands under its own extension; .otf and .ttf share the sfnt family
+ok 2151 - each font and image type lands under its own extension; .otf and .ttf share the sfnt family
+  ---
+  duration_ms: 16.610698
+  type: 'test'
+  ...
+# Subtest: bytes that are not a font or image are refused whatever the header says, and nothing is written
+ok 2152 - bytes that are not a font or image are refused whatever the header says, and nothing is written
+  ---
+  duration_ms: 4.429334
+  type: 'test'
+  ...
+# Subtest: bytes whose type does not match the path's extension are refused, and nothing is written
+ok 2153 - bytes whose type does not match the path's extension are refused, and nothing is written
+  ---
+  duration_ms: 2.248457
+  type: 'test'
+  ...
+# Subtest: an escaping path or a non-font/image extension is refused before any network call
+ok 2154 - an escaping path or a non-font/image extension is refused before any network call
+  ---
+  duration_ms: 12.419012
+  type: 'test'
+  ...
+# Subtest: a non-https URL is refused before any network call
+ok 2155 - a non-https URL is refused before any network call
+  ---
+  duration_ms: 1.922001
+  type: 'test'
+  ...
+# Subtest: an over-cap or clipped body is refused rather than written as a corrupt file
+ok 2156 - an over-cap or clipped body is refused rather than written as a corrupt file
+  ---
+  duration_ms: 2.026442
+  type: 'test'
+  ...
+# Subtest: an existing file at the path is replaced, not refused
+ok 2157 - an existing file at the path is replaced, not refused
+  ---
+  duration_ms: 8.700593
+  type: 'test'
+  ...
+# Subtest: local fonts and icons share byte validation/persistence and leave the source unchanged
+ok 2158 - local fonts and icons share byte validation/persistence and leave the source unchanged
+  ---
+  duration_ms: 98.517441
+  type: 'test'
+  ...
+# Subtest: local import refuses secrets, escapes, symlinks, empty and mismatched bytes without replacing a file
+ok 2159 - local import refuses secrets, escapes, symlinks, empty and mismatched bytes without replacing a file
+  ---
+  duration_ms: 51.131676
+  type: 'test'
+  ...
+# Subtest: local import rejects an oversized font at the guarded reader's import limit without replacing a file
+ok 2160 - local import rejects an oversized font at the guarded reader's import limit without replacing a file
+  ---
+  duration_ms: 38.757525
+  type: 'test'
+  ...
+# Subtest: an authored theme (no build field) has no author/build keys in theme_list's view
+ok 2161 - an authored theme (no build field) has no author/build keys in theme_list's view
+  ---
+  duration_ms: 64.148671
+  type: 'test'
+  ...
+# Subtest: a compiled theme's author and trimmed build info are surfaced in theme_list
+ok 2162 - a compiled theme's author and trimmed build info are surfaced in theme_list
+  ---
+  duration_ms: 62.664464
+  type: 'test'
+  ...
+# Subtest: (a) a package-sourced reset succeeds byte-exact and the live file matches the package original
+ok 2163 - (a) a package-sourced reset succeeds byte-exact and the live file matches the package original
+  ---
+  duration_ms: 32.226617
+  type: 'test'
+  ...
+# Subtest: (b) a theme with no site-level original (no stored original) becomes resettable via the package slot
+ok 2164 - (b) a theme with no site-level original (no stored original) becomes resettable via the package slot
+  ---
+  duration_ms: 25.453001
+  type: 'test'
+  ...
+# Subtest: (c) go/no-go: package original v1, live v1: allowed
+ok 2165 - (c) go/no-go: package original v1, live v1: allowed
+  ---
+  duration_ms: 16.60172
+  type: 'test'
+  ...
+# Subtest: (c) go/no-go: package original v2, live v2: allowed
+ok 2166 - (c) go/no-go: package original v2, live v2: allowed
+  ---
+  duration_ms: 21.055353
+  type: 'test'
+  ...
+# Subtest: (c) go/no-go: package original v1, live v2: REFUSED, not silently reset across layouts
+ok 2167 - (c) go/no-go: package original v1, live v2: REFUSED, not silently reset across layouts
+  ---
+  duration_ms: 9.336192
+  type: 'test'
+  ...
+# Subtest: (c) go/no-go: package original v2, live v1: REFUSED, not silently reset across layouts
+ok 2168 - (c) go/no-go: package original v2, live v1: REFUSED, not silently reset across layouts
+  ---
+  duration_ms: 3.795106
+  type: 'test'
+  ...
+# Subtest: sanity: the compiled fixture loads valid before any write is attempted
+ok 2169 - sanity: the compiled fixture loads valid before any write is attempted
+  ---
+  duration_ms: 8.263433
+  type: 'test'
+  ...
+# Subtest: writing to a compiled theme's generated output is refused, and the file is left untouched
+ok 2170 - writing to a compiled theme's generated output is refused, and the file is left untouched
+  ---
+  duration_ms: 7.274791
+  type: 'test'
+  ...
+# Subtest: writing a NEW file into the compiled theme's generated tree (outside sourceDir) is also refused
+ok 2171 - writing a NEW file into the compiled theme's generated tree (outside sourceDir) is also refused
+  ---
+  duration_ms: 3.341543
+  type: 'test'
+  ...
+# Subtest: writing inside a compiled theme's declared sourceDir is still allowed
+ok 2172 - writing inside a compiled theme's declared sourceDir is still allowed
+  ---
+  duration_ms: 9.107384
+  type: 'test'
+  ...
+# Subtest: writing a NEW file inside a compiled theme's sourceDir, with an extension the framework allowlist excludes, is refused
+ok 2173 - writing a NEW file inside a compiled theme's sourceDir, with an extension the framework allowlist excludes, is refused
+  ---
+  duration_ms: 6.548812
+  type: 'test'
+  ...
+# Subtest: writing a compiled theme's own theme.json is still allowed
+ok 2174 - writing a compiled theme's own theme.json is still allowed
+  ---
+  duration_ms: 16.1877
+  type: 'test'
+  ...
+# Subtest: a compiled manifest cannot redefine its write boundary and unlock generated output
+ok 2175 - a compiled manifest cannot redefine its write boundary and unlock generated output
+  ---
+  duration_ms: 18.65544
+  type: 'test'
+  ...
+# Subtest: an authored theme's write behavior is completely unaffected — every path stays writable
+ok 2176 - an authored theme's write behavior is completely unaffected — every path stays writable
+  ---
+  duration_ms: 4.734812
+  type: 'test'
+  ...
+# Subtest: the no-theme sentinel has nothing to resolve: no error and no write, even with an empty roster
+ok 2177 - the no-theme sentinel has nothing to resolve: no error and no write, even with an empty roster
+  ---
+  duration_ms: 14.115925
+  type: 'test'
+  ...
+# Subtest: a theme the next render resolves itself passes without touching the stored setting
+ok 2178 - a theme the next render resolves itself passes without touching the stored setting
+  ---
+  duration_ms: 3.613536
+  type: 'test'
+  ...
+# Subtest: a theme missing from the roster restores the previous theme and says its folder is gone
+ok 2179 - a theme missing from the roster restores the previous theme and says its folder is gone
+  ---
+  duration_ms: 4.20831
+  type: 'test'
+  ...
+# Subtest: an invalid theme restores the previous theme and quotes every validation error
+ok 2180 - an invalid theme restores the previous theme and quotes every validation error
+  ---
+  duration_ms: 3.538184
+  type: 'test'
+  ...
+# Subtest: an invalid theme with no recorded errors still fails, naming the absence of detail
+ok 2181 - an invalid theme with no recorded errors still fails, naming the absence of detail
+  ---
+  duration_ms: 7.475301
+  type: 'test'
+  ...
+# Subtest: variants and page sources are checked against disk with exact logical ownership
+ok 2182 - variants and page sources are checked against disk with exact logical ownership
+  ---
+  duration_ms: 12.386784
+  type: 'test'
+  ...
+# Subtest: non-object maps and non-source entries produce no reference findings
+ok 2183 - non-object maps and non-source entries produce no reference findings
+  ---
+  duration_ms: 0.238488
+  type: 'test'
+  ...
+# Subtest: one partial may reuse its own source for a variant without a duplicate-owner finding
+ok 2184 - one partial may reuse its own source for a variant without a duplicate-owner finding
+  ---
+  duration_ms: 6.555003
+  type: 'test'
+  ...
+# Subtest: repeated variants count each logical owner once for both manifest maps
+ok 2185 - repeated variants count each logical owner once for both manifest maps
+  ---
+  duration_ms: 3.937656
+  type: 'test'
+  ...
+# Subtest: tool gap audit read [sqlite]
+    # Subtest: A7: a real Bash event is redacted before storage and returned by the tool and Observability endpoint
+    ok 1 - A7: a real Bash event is redacted before storage and returned by the tool and Observability endpoint
+      ---
+      duration_ms: 260.40402
+      type: 'test'
+      ...
+    # Subtest: keeps latest explanations and filters workspace, principal and non-gap events before limiting
+    ok 2 - keeps latest explanations and filters workspace, principal and non-gap events before limiting
+      ---
+      duration_ms: 127.320352
+      type: 'test'
+      ...
+    # Subtest: skips rows whose detail is not a tool-gap entry, and clamps the limit to 1..200 (non-finite falls back to 100)
+    ok 3 - skips rows whose detail is not a tool-gap entry, and clamps the limit to 1..200 (non-finite falls back to 100)
+      ---
+      duration_ms: 160.166844
+      type: 'test'
+      ...
+    1..3
+ok 2186 - tool gap audit read [sqlite]
+  ---
+  duration_ms: 549.358317
+  type: 'suite'
+  ...
+# Subtest: tool gap audit read [pglite]
+    # Subtest: A7: a real Bash event is redacted before storage and returned by the tool and Observability endpoint
+    ok 1 - A7: a real Bash event is redacted before storage and returned by the tool and Observability endpoint
+      ---
+      duration_ms: 11369.634221
+      type: 'test'
+      ...
+    # Subtest: keeps latest explanations and filters workspace, principal and non-gap events before limiting
+    ok 2 - keeps latest explanations and filters workspace, principal and non-gap events before limiting
+      ---
+      duration_ms: 35.717918
+      type: 'test'
+      ...
+    # Subtest: skips rows whose detail is not a tool-gap entry, and clamps the limit to 1..200 (non-finite falls back to 100)
+    ok 3 - skips rows whose detail is not a tool-gap entry, and clamps the limit to 1..200 (non-finite falls back to 100)
+      ---
+      duration_ms: 84.826535
+      type: 'test'
+      ...
+    1..3
+ok 2187 - tool gap audit read [pglite]
+  ---
+  duration_ms: 11490.932057
+  type: 'suite'
+  ...
+# Subtest: a trashed form is gone from the Forms list and from a by-id read
+ok 2188 - a trashed form is gone from the Forms list and from a by-id read
+  ---
+  duration_ms: 357.54295
+  type: 'test'
+  ...
+# Subtest: public submit to a trashed form is refused as not-found, and writes no submission
+ok 2189 - public submit to a trashed form is refused as not-found, and writes no submission
+  ---
+  duration_ms: 146.831748
+  type: 'test'
+  ...
+# Subtest: a contact-form widget embedding a trashed form renders the target-disabled placeholder
+ok 2190 - a contact-form widget embedding a trashed form renders the target-disabled placeholder
+  ---
+  duration_ms: 354.13813
+  type: 'test'
+  ...
+# Subtest: restore brings the form back with its submissions untouched
+ok 2191 - restore brings the form back with its submissions untouched
+  ---
+  duration_ms: 299.326462
+  type: 'test'
+  ...
+# Subtest: purge removes the form and every one of its submissions
+ok 2192 - purge removes the form and every one of its submissions
+  ---
+  duration_ms: 296.421017
+  type: 'test'
+  ...
+# Subtest: a form_submission moved to the Trash shows the form's name and the time, never the data, and leaves the Forms list
+ok 2193 - a form_submission moved to the Trash shows the form's name and the time, never the data, and leaves the Forms list
+  ---
+  duration_ms: 230.650147
+  type: 'test'
+  ...
+# Subtest: purge of a form removes the Trash row of a submission that was independently trashed first (the phantom-row gap, T1 item 5)
+ok 2194 - purge of a form removes the Trash row of a submission that was independently trashed first (the phantom-row gap, T1 item 5)
+  ---
+  duration_ms: 105.50969
+  type: 'test'
+  ...
+# Subtest: failed restore revision preserves the real Trash index and the trashed row
+ok 2195 - failed restore revision preserves the real Trash index and the trashed row
+  ---
+  duration_ms: 291.158508
+  type: 'test'
+  ...
+# Subtest: failed restore forget preserves the real Trash index and the trashed row
+ok 2196 - failed restore forget preserves the real Trash index and the trashed row
+  ---
+  duration_ms: 632.392091
+  type: 'test'
+  ...
+# Subtest: rollback of a delete drops the Trash index row, so the Trash cannot list a live post
+ok 2197 - rollback of a delete drops the Trash index row, so the Trash cannot list a live post
+  ---
+  duration_ms: 279.446003
+  type: 'test'
+  ...
+# Subtest: reverting the recorded delete change set drops the Trash index row too
+ok 2198 - reverting the recorded delete change set drops the Trash index row too
+  ---
+  duration_ms: 245.569252
+  type: 'test'
+  ...
+# Subtest: an update rollback never touches the Trash index — the write it undoes was not a trash
+ok 2199 - an update rollback never touches the Trash index — the write it undoes was not a trash
+  ---
+  duration_ms: 663.822537
+  type: 'test'
+  ...
+# Subtest: compensating a landed update of an independently trashed post preserves its existing index
+ok 2200 - compensating a landed update of an independently trashed post preserves its existing index
+  ---
+  duration_ms: 811.89765
+  type: 'test'
+  ...
+# Subtest: hide sets deleted_at and bumps version; a row with unparseable fields_json is hidden and unhidden byte-identical
+ok 2201 - hide sets deleted_at and bumps version; a row with unparseable fields_json is hidden and unhidden byte-identical
+  ---
+  duration_ms: 559.455609
+  type: 'test'
+  ...
+# Subtest: unhide clears deleted_at
+ok 2202 - unhide clears deleted_at
+  ---
+  duration_ms: 206.970683
+  type: 'test'
+  ...
+# Subtest: purge at the recorded version deletes that form's submissions and the definition, and leaves another form's submissions intact
+ok 2203 - purge at the recorded version deletes that form's submissions and the definition, and leaves another form's submissions intact
+  ---
+  duration_ms: 219.895732
+  type: 'test'
+  ...
+# Subtest: purge at a stale version reports version-changed and leaves the submissions intact
+ok 2204 - purge at a stale version reports version-changed and leaves the submissions intact
+  ---
+  duration_ms: 197.510602
+  type: 'test'
+  ...
+# Subtest: hide, unhide, purge and snapshot reads cannot reach a foreign workspace's form
+ok 2205 - hide, unhide, purge and snapshot reads cannot reach a foreign workspace's form
+  ---
+  duration_ms: 264.878027
+  type: 'test'
+  ...
+# Subtest: a purge raced after its initial read preserves the parent and every child row
+ok 2206 - a purge raced after its initial read preserves the parent and every child row
+  ---
+  duration_ms: 342.940445
+  type: 'test'
+  ...
+# Subtest: purge of a LIVE form at a matching version reports version-changed and deletes nothing (decision 6's extra guard)
+ok 2207 - purge of a LIVE form at a matching version reports version-changed and deletes nothing (decision 6's extra guard)
+  ---
+  duration_ms: 352.424571
+  type: 'test'
+  ...
+# Subtest: purge of a missing row reports already-gone
+ok 2208 - purge of a missing row reports already-gone
+  ---
+  duration_ms: 275.188266
+  type: 'test'
+  ...
+# Subtest: through createTrashService: trash lists the form snapshot, and restore leaves it readable with submissions unchanged
+ok 2209 - through createTrashService: trash lists the form snapshot, and restore leaves it readable with submissions unchanged
+  ---
+  duration_ms: 225.16464
+  type: 'test'
+  ...
+# Subtest: status marker: hide flips to the trashed value and records the prior status as priorMarker
+ok 2210 - status marker: hide flips to the trashed value and records the prior status as priorMarker
+  ---
+  duration_ms: 345.428839
+  type: 'test'
+  ...
+# Subtest: status marker: unhide restores the recorded priorMarker rather than the entry's restoreFallback
+ok 2211 - status marker: unhide restores the recorded priorMarker rather than the entry's restoreFallback
+  ---
+  duration_ms: 290.181906
+  type: 'test'
+  ...
+# Subtest: status marker: unhide with no recorded priorMarker falls back to the entry's restoreFallback
+ok 2212 - status marker: unhide with no recorded priorMarker falls back to the entry's restoreFallback
+  ---
+  duration_ms: 227.792556
+  type: 'test'
+  ...
+# Subtest: status marker: through createTrashService, trash records priorMarker and restore puts the status back
+ok 2213 - status marker: through createTrashService, trash records priorMarker and restore puts the status back
+  ---
+  duration_ms: 116.277063
+  type: 'test'
+  ...
+# Subtest: real menu entry: hide flips status to the entry's own 'trash' value and bumps version; unhide restores the recorded prior status
+ok 2214 - real menu entry: hide flips status to the entry's own 'trash' value and bumps version; unhide restores the recorded prior status
+  ---
+  duration_ms: 118.34551
+  type: 'test'
+  ...
+# Subtest: real menu entry: unhide with no recorded prior status falls back to 'published', the entry's own restoreFallback
+ok 2215 - real menu entry: unhide with no recorded prior status falls back to 'published', the entry's own restoreFallback
+  ---
+  duration_ms: 146.8048
+  type: 'test'
+  ...
+# Subtest: real menu entry: purge removes its location bindings and leaves another menu's bindings untouched
+ok 2216 - real menu entry: purge removes its location bindings and leaves another menu's bindings untouched
+  ---
+  duration_ms: 198.408067
+  type: 'test'
+  ...
+# Subtest: real menu entry: hide and unhide never touch its location bindings — they survive the round trip untouched
+ok 2217 - real menu entry: hide and unhide never touch its location bindings — they survive the round trip untouched
+  ---
+  duration_ms: 273.639068
+  type: 'test'
+  ...
+# Subtest: real menu entry: a purge that fails after removing bindings rolls back the whole transaction — the menu row and its bindings both survive together
+ok 2218 - real menu entry: a purge that fails after removing bindings rolls back the whole transaction — the menu row and its bindings both survive together
+  ---
+  duration_ms: 121.555156
+  type: 'test'
+  ...
+# Subtest: term: a LIVE child blocks hide with TERM_HAS_CHILDREN and count 1, and the parent's status is left untouched
+ok 2219 - term: a LIVE child blocks hide with TERM_HAS_CHILDREN and count 1, and the parent's status is left untouched
+  ---
+  duration_ms: 115.003303
+  type: 'test'
+  ...
+# Subtest: term: a TRASHED child still blocks hide (the blocker counts both live and trashed children, so a purge can never orphan a parent_id)
+ok 2220 - term: a TRASHED child still blocks hide (the blocker counts both live and trashed children, so a purge can never orphan a parent_id)
+  ---
+  duration_ms: 194.387298
+  type: 'test'
+  ...
+# Subtest: term: a childless term hides normally (the blocker check does not fire when the count is 0)
+ok 2221 - term: a childless term hides normally (the blocker check does not fire when the count is 0)
+  ---
+  duration_ms: 327.797754
+  type: 'test'
+  ...
+# Subtest: term: purge at a stale version reports version-changed and leaves the row and its entry_terms intact
+ok 2222 - term: purge at a stale version reports version-changed and leaves the row and its entry_terms intact
+  ---
+  duration_ms: 166.094742
+  type: 'test'
+  ...
+# Subtest: term: purge of a LIVE term at a matching version reports version-changed and deletes nothing, even its entry_terms
+ok 2223 - term: purge of a LIVE term at a matching version reports version-changed and deletes nothing, even its entry_terms
+  ---
+  duration_ms: 281.02607
+  type: 'test'
+  ...
+# Subtest: taxonomy: purge removes its terms' entry_terms then the terms then the taxonomy, leaves another taxonomy's rows untouched, and cleans up a member term's own phantom Trash row
+ok 2224 - taxonomy: purge removes its terms' entry_terms then the terms then the taxonomy, leaves another taxonomy's rows untouched, and cleans up a member term's own phantom Trash row
+  ---
+  duration_ms: 200.400613
+  type: 'test'
+  ...
+# Subtest: taxonomy: purge of a missing row reports already-gone
+ok 2225 - taxonomy: purge of a missing row reports already-gone
+  ---
+  duration_ms: 202.311104
+  type: 'test'
+  ...
+# Subtest: hide: a writer that bumps the version between the read and the write makes hide report version-changed and leaves the row live
+ok 2226 - hide: a writer that bumps the version between the read and the write makes hide report version-changed and leaves the row live
+  ---
+  duration_ms: 198.364536
+  type: 'test'
+  ...
+# Subtest: unhide: a writer that bumps the version between the read and the write makes unhide report version-changed and leaves the row trashed
+ok 2227 - unhide: a writer that bumps the version between the read and the write makes unhide report version-changed and leaves the row trashed
+  ---
+  duration_ms: 211.053351
+  type: 'test'
+  ...
+# Subtest: hide with no expected version: a writer that changes the status between the read and the write is not overwritten, and priorMarker is never recorded from a stale read
+ok 2228 - hide with no expected version: a writer that changes the status between the read and the write is not overwritten, and priorMarker is never recorded from a stale read
+  ---
+  duration_ms: 187.849517
+  type: 'test'
+  ...
+# Subtest: hide: stale versions win over an already-in-target marker; null skips the version check
+ok 2229 - hide: stale versions win over an already-in-target marker; null skips the version check
+  ---
+  duration_ms: 272.963071
+  type: 'test'
+  ...
+# Subtest: unhide: stale versions win over an already-in-target marker; null skips the version check
+ok 2230 - unhide: stale versions win over an already-in-target marker; null skips the version check
+  ---
+  duration_ms: 165.683209
+  type: 'test'
+  ...
+# Subtest: hide: an already-trashed term with children is a no-op, but a stale version is refused first
+ok 2231 - hide: an already-trashed term with children is a no-op, but a stale version is refused first
+  ---
+  duration_ms: 140.561036
+  type: 'test'
+  ...
+# Subtest: purge: null expectedVersion permits a hidden row but never permits a live row
+ok 2232 - purge: null expectedVersion permits a hidden row but never permits a live row
+  ---
+  duration_ms: 262.211144
+  type: 'test'
+  ...
+# Subtest: a snapshot read for an entry with no version column returns the display lines and no version
+ok 2233 - a snapshot read for an entry with no version column returns the display lines and no version
+  ---
+  duration_ms: 219.506121
+  type: 'test'
+  ...
+# Subtest: trash_list_items ends with the exact confirmed-purge and automatic-removal guidance
+ok 2234 - trash_list_items ends with the exact confirmed-purge and automatic-removal guidance
+  ---
+  duration_ms: 2.098456
+  type: 'test'
+  ...
+# Subtest: passes viewport/full-page settings and cancellation to the native port, preserves PNG facts
+ok 2235 - passes viewport/full-page settings and cancellation to the native port, preserves PNG facts
+  ---
+  duration_ms: 2.664416
+  type: 'test'
+  ...
+# Subtest: public reference URLs never reach native Electron
+ok 2236 - public reference URLs never reach native Electron
+  ---
+  duration_ms: 1.038053
+  type: 'test'
+  ...
+# Subtest: maps native timeout, cancellation, refusal and failure onto screenshot errors
+ok 2237 - maps native timeout, cancellation, refusal and failure onto screenshot errors
+  ---
+  duration_ms: 0.658598
+  type: 'test'
+  ...
+# Subtest: an absent desktop channel retains lazy Playwright and its unavailable-browser error
+ok 2238 - an absent desktop channel retains lazy Playwright and its unavailable-browser error
+  ---
+  duration_ms: 1.847452
+  type: 'test'
+  ...
+# Subtest: the host selects native own-site captures and preserves guarded Playwright for public references
+ok 2239 - the host selects native own-site captures and preserves guarded Playwright for public references
+  ---
+  duration_ms: 2.045203
+  type: 'test'
+  ...
+# Subtest: a malformed channel cannot silently choose Playwright
+ok 2240 - a malformed channel cannot silently choose Playwright
+  ---
+  duration_ms: 87.414876
+  type: 'test'
+  ...
+# Subtest: native option guards precede transport and numeric waits override settling without a signal
+ok 2241 - native option guards precede transport and numeric waits override settling without a signal
+  ---
+  duration_ms: 13.433601
+  type: 'test'
+  ...
+# Subtest: native unexpected failures discard transport details while all render codes retain their message
+ok 2242 - native unexpected failures discard transport details while all render codes retain their message
+  ---
+  duration_ms: 1.273901
+  type: 'test'
+  ...
+# Subtest: the contributor uses its supplied clock, observer and workspace-host limiter
+ok 2243 - the contributor uses its supplied clock, observer and workspace-host limiter
+  ---
+  duration_ms: 9.569872
+  type: 'test'
+  ...
+# Subtest: the contributor defaults to system time and structured fetch logging
+ok 2244 - the contributor defaults to system time and structured fetch logging
+  ---
+  duration_ms: 3.048353
+  type: 'test'
+  ...
+# Subtest: web_fetch_page is wired read-only from its catalog entry, with the catalog's schema
+ok 2245 - web_fetch_page is wired read-only from its catalog entry, with the catalog's schema
+  ---
+  duration_ms: 0.505932
+  type: 'test'
+  ...
+# Subtest: the handler checks admin.assistant.use for the calling principal before any network call
+ok 2246 - the handler checks admin.assistant.use for the calling principal before any network call
+  ---
+  duration_ms: 0.601657
+  type: 'test'
+  ...
+# Subtest: an authorized call fetches and returns the untrusted page projection
+ok 2247 - an authorized call fetches and returns the untrusted page projection
+  ---
+  duration_ms: 0.677866
+  type: 'test'
+  ...
+# Subtest: malformed input is refused before the permission check or the network
+ok 2248 - malformed input is refused before the permission check or the network
+  ---
+  duration_ms: 0.331002
+  type: 'test'
+  ...
+# Subtest: contributeWebTools contributes the 'web' domain with its risk map and a default per-host limiter
+ok 2249 - contributeWebTools contributes the 'web' domain with its risk map and a default per-host limiter
+  ---
+  duration_ms: 3.192951
+  type: 'test'
+  ...
+# Subtest: render schema publishes browser options on the existing tool; screenshot returns image with text
+ok 2250 - render schema publishes browser options on the existing tool; screenshot returns image with text
+  ---
+  duration_ms: 10.092302
+  type: 'test'
+  ...
+# Subtest: the existing batch wrapper carries shared render options and per-item overrides without a mirrored schema
+ok 2251 - the existing batch wrapper carries shared render options and per-item overrides without a mirrored schema
+  ---
+  duration_ms: 10.213441
+  type: 'test'
+  ...
+# Subtest: render filtering schema and guidance flow through single and batch registrations
+ok 2252 - render filtering schema and guidance flow through single and batch registrations
+  ---
+  duration_ms: 1.704867
+  type: 'test'
+  ...
+# Subtest: batch render filters inherit shared fields and let each item override filtering and textMode
+ok 2253 - batch render filters inherit shared fields and let each item override filtering and textMode
+  ---
+  duration_ms: 9.240215
+  type: 'test'
+  ...
+# Subtest: find returns literal case-insensitive snippets and offsets beyond the default content window
+ok 2254 - find returns literal case-insensitive snippets and offsets beyond the default content window
+  ---
+  duration_ms: 0.940661
+  type: 'test'
+  ...
+# Subtest: find validates the shared contract before authorization or network access
+ok 2255 - find validates the shared contract before authorization or network access
+  ---
+  duration_ms: 0.535056
+  type: 'test'
+  ...
+# Subtest: find reports no matches without returning full content
+ok 2256 - find reports no matches without returning full content
+  ---
+  duration_ms: 0.412674
+  type: 'test'
+  ...
+# Subtest: find counts all matches while bounding snippets by count and the explicit output budget
+ok 2257 - find counts all matches while bounding snippets by count and the explicit output budget
+  ---
+  duration_ms: 0.690454
+  type: 'test'
+  ...
+# Subtest: find retains truncation when the reader cannot capture the whole page
+ok 2258 - find retains truncation when the reader cannot capture the whole page
+  ---
+  duration_ms: 8.808371
+  type: 'test'
+  ...
+# Subtest: single default truncates at 20000 characters while batch items retain 8000 and explicit overrides
+ok 2259 - single default truncates at 20000 characters while batch items retain 8000 and explicit overrides
+  ---
+  duration_ms: 1.393562
+  type: 'test'
+  ...
+# Subtest: rendered find keeps snippets in screenshot text without repeating page content or image bytes
+ok 2260 - rendered find keeps snippets in screenshot text without repeating page content or image bytes
+  ---
+  duration_ms: 0.791083
+  type: 'test'
+  ...
+# Subtest: pin: a non-hex env value is refused naming TOVU_SITE_KEY, with no already-sealed warning
+ok 2261 - pin: a non-hex env value is refused naming TOVU_SITE_KEY, with no already-sealed warning
+  ---
+  duration_ms: 88.515204
+  type: 'test'
+  ...
+# Subtest: pin: an odd-length env value is refused with no already-sealed warning
+ok 2262 - pin: an odd-length env value is refused with no already-sealed warning
+  ---
+  duration_ms: 0.467227
+  type: 'test'
+  ...
+# Subtest: pin: a too-short env value carries the already-sealed warning for 'this value'
+ok 2263 - pin: a too-short env value carries the already-sealed warning for 'this value'
+  ---
+  duration_ms: 0.284607
+  type: 'test'
+  ...
+# Subtest: pin: an empty key file is refused as source 'file' with the already-sealed warning for 'this file'
+ok 2264 - pin: an empty key file is refused as source 'file' with the already-sealed warning for 'this file'
+  ---
+  duration_ms: 10.713497
+  type: 'test'
+  ...
+# Subtest: pin: a non-hex legacy shared file is refused as source 'file', naming its path
+ok 2265 - pin: a non-hex legacy shared file is refused as source 'file', naming its path
+  ---
+  duration_ms: 5.754168
+  type: 'test'
+  ...
+# Subtest: pin: no source resolving lists every configured source, in order, by name only
+ok 2266 - pin: no source resolving lists every configured source, in order, by name only
+  ---
+  duration_ms: 1.148378
+  type: 'test'
+  ...
+# Subtest: pin: an empty source list is refused with an empty source list in the message
+ok 2267 - pin: an empty source list is refused with an empty source list in the message
+  ---
+  duration_ms: 0.304813
+  type: 'test'
+  ...
+# Subtest: pin: with no deps the keyring reads process.env on every derivation, not once at construction
+ok 2268 - pin: with no deps the keyring reads process.env on every derivation, not once at construction
+  ---
+  duration_ms: 5.232794
+  type: 'test'
+  ...
+# Subtest: pin: keyId defaults to v1 and is configurable
+ok 2269 - pin: keyId defaults to v1 and is configurable
+  ---
+  duration_ms: 0.530078
+  type: 'test'
+  ...
+# Subtest: pin: EnvOrFileKeyring and FixedSiteKeyKeyring derive the same bytes for the same key, both methods
+ok 2270 - pin: EnvOrFileKeyring and FixedSiteKeyKeyring derive the same bytes for the same key, both methods
+  ---
+  duration_ms: 5.116854
+  type: 'test'
+  ...
+# Subtest: pin: FixedSiteKeyKeyring keyId defaults to v1 and is configurable
+ok 2271 - pin: FixedSiteKeyKeyring keyId defaults to v1 and is configurable
+  ---
+  duration_ms: 0.201653
+  type: 'test'
+  ...
+# Subtest: pin: FixedSiteKeyKeyring refuses invalid hex at construction
+ok 2272 - pin: FixedSiteKeyKeyring refuses invalid hex at construction
+  ---
+  duration_ms: 0.158765
+  type: 'test'
+  ...
+# Subtest: pin: parseSiteKeyHex trims surrounding whitespace and reports digits for a rejection
+ok 2273 - pin: parseSiteKeyHex trims surrounding whitespace and reports digits for a rejection
+  ---
+  duration_ms: 0.179018
+  type: 'test'
+  ...
+# Subtest: pin: status of an active env key — exact key order, no hex
+ok 2274 - pin: status of an active env key — exact key order, no hex
+  ---
+  duration_ms: 0.451521
+  type: 'test'
+  ...
+# Subtest: pin: reveal of an active env key — exact key order, hex included
+ok 2275 - pin: reveal of an active env key — exact key order, hex included
+  ---
+  duration_ms: 0.211966
+  type: 'test'
+  ...
+# Subtest: pin: status and reveal of an active file key — no envVarName key at all
+ok 2276 - pin: status and reveal of an active file key — no envVarName key at all
+  ---
+  duration_ms: 7.984833
+  type: 'test'
+  ...
+# Subtest: pin: status and reveal of an invalid env key — invalid + reason, envVarName kept, no hex/fingerprint
+ok 2277 - pin: status and reveal of an invalid env key — invalid + reason, envVarName kept, no hex/fingerprint
+  ---
+  duration_ms: 7.297099
+  type: 'test'
+  ...
+# Subtest: pin: status and reveal of an invalid legacy file — source 'file', never falls through to a later valid source
+ok 2278 - pin: status and reveal of an invalid legacy file — source 'file', never falls through to a later valid source
+  ---
+  duration_ms: 3.926388
+  type: 'test'
+  ...
+# Subtest: pin: status and reveal with nothing present — source 'none', no invalid/reason/envVarName keys
+ok 2279 - pin: status and reveal with nothing present — source 'none', no invalid/reason/envVarName keys
+  ---
+  duration_ms: 0.454092
+  type: 'test'
+  ...
+# Subtest: pin: inspectSiteKeyMaterial with no deps reads process.env
+ok 2280 - pin: inspectSiteKeyMaterial with no deps reads process.env
+  ---
+  duration_ms: 0.622806
+  type: 'test'
+  ...
+# Subtest: pin: revealSiteKeyMaterial with no deps reads process.env
+ok 2281 - pin: revealSiteKeyMaterial with no deps reads process.env
+  ---
+  duration_ms: 0.372668
+  type: 'test'
+  ...
+# Subtest: pin: generateFileSiteKey over an existing file throws SiteKeyFileAlreadyExistsError with the exact message
+ok 2282 - pin: generateFileSiteKey over an existing file throws SiteKeyFileAlreadyExistsError with the exact message
+  ---
+  duration_ms: 1.682977
+  type: 'test'
+  ...
+# Subtest: pin: generateFileSiteKey whose directory path is occupied by a file propagates the raw fs error, not 'already exists'
+ok 2283 - pin: generateFileSiteKey whose directory path is occupied by a file propagates the raw fs error, not 'already exists'
+  ---
+  duration_ms: 7.442666
+  type: 'test'
+  ...
+# Subtest: pin: generateFileSiteKey returns hex, its fingerprint and the path it wrote
+ok 2284 - pin: generateFileSiteKey returns hex, its fingerprint and the path it wrote
+  ---
+  duration_ms: 1.793819
+  type: 'test'
+  ...
+# Subtest: seal then open round-trips the plaintext exactly
+ok 2285 - seal then open round-trips the plaintext exactly
+  ---
+  duration_ms: 44.978294
+  type: 'test'
+  ...
+# Subtest: two seals of the same plaintext produce different ciphertext and nonce (fresh IV every call)
+ok 2286 - two seals of the same plaintext produce different ciphertext and nonce (fresh IV every call)
+  ---
+  duration_ms: 0.783953
+  type: 'test'
+  ...
+# Subtest: a tampered ciphertext fails auth-tag verification rather than opening to garbage
+ok 2287 - a tampered ciphertext fails auth-tag verification rather than opening to garbage
+  ---
+  duration_ms: 15.317324
+  type: 'test'
+  ...
+# Subtest: a tampered nonce also fails — GCM authenticates against the exact IV used to seal
+ok 2288 - a tampered nonce also fails — GCM authenticates against the exact IV used to seal
+  ---
+  duration_ms: 0.731481
+  type: 'test'
+  ...
+# Subtest: an unsupported alg is rejected before any key derivation
+ok 2289 - an unsupported alg is rejected before any key derivation
+  ---
+  duration_ms: 0.416694
+  type: 'test'
+  ...
+# Subtest: backward compatibility: a value sealed with no aad still opens with no aad (existing rows keep working)
+ok 2290 - backward compatibility: a value sealed with no aad still opens with no aad (existing rows keep working)
+  ---
+  duration_ms: 3.519065
+  type: 'test'
+  ...
+# Subtest: a value sealed with aad opens correctly when the SAME aad is supplied
+ok 2291 - a value sealed with aad opens correctly when the SAME aad is supplied
+  ---
+  duration_ms: 0.386295
+  type: 'test'
+  ...
+# Subtest: a value sealed with aad A throws when opened with aad B (cross-tenant/cross-record transplant is rejected)
+ok 2292 - a value sealed with aad A throws when opened with aad B (cross-tenant/cross-record transplant is rejected)
+  ---
+  duration_ms: 0.655506
+  type: 'test'
+  ...
+# Subtest: a value sealed with aad A throws when opened with NO aad
+ok 2293 - a value sealed with aad A throws when opened with NO aad
+  ---
+  duration_ms: 1.040269
+  type: 'test'
+  ...
+# Subtest: a value sealed with NO aad throws when opened WITH an aad (asymmetry fails both directions)
+ok 2294 - a value sealed with NO aad throws when opened WITH an aad (asymmetry fails both directions)
+  ---
+  duration_ms: 0.511873
+  type: 'test'
+  ...
+# Subtest: open() re-derives from the sealed row's own keyId, not the keyring's CURRENT active key
+ok 2295 - open() re-derives from the sealed row's own keyId, not the keyring's CURRENT active key
+  ---
+  duration_ms: 0.740438
+  type: 'test'
+  ...
+# Subtest: empty plaintext round-trips with aad=undefined
+ok 2296 - empty plaintext round-trips with aad=undefined
+  ---
+  duration_ms: 0.367416
+  type: 'test'
+  ...
+# Subtest: empty plaintext round-trips with aad=workspace-1:empty-verifier
+ok 2297 - empty plaintext round-trips with aad=workspace-1:empty-verifier
+  ---
+  duration_ms: 0.212401
+  type: 'test'
+  ...
+# Subtest: ciphertext shorter than a complete authentication tag is rejected
+ok 2298 - ciphertext shorter than a complete authentication tag is rejected
+  ---
+  duration_ms: 0.475972
+  type: 'test'
+  ...
+# Subtest: every failure to open the sealed value itself carries SECRET_OPEN_FAILED (wrong key, tampered, damaged, unknown alg); its message is kept
+ok 2299 - every failure to open the sealed value itself carries SECRET_OPEN_FAILED (wrong key, tampered, damaged, unknown alg); its message is kept
+  ---
+  duration_ms: 7.46485
+  type: 'test'
+  ...
+# Subtest: a keyring that can't derive (no key, an unusable key) is NOT an open failure: its error passes through as itself
+ok 2300 - a keyring that can't derive (no key, an unusable key) is NOT an open failure: its error passes through as itself
+  ---
+  duration_ms: 0.576528
+  type: 'test'
+  ...
+# Subtest: createSubscription trims label, de-dupes topics, and starts active at secretVersion 1
+ok 2301 - createSubscription trims label, de-dupes topics, and starts active at secretVersion 1
+  ---
+  duration_ms: 5.09173
+  type: 'test'
+  ...
+# Subtest: createSubscription rejects a non-https target_url
+ok 2302 - createSubscription rejects a non-https target_url
+  ---
+  duration_ms: 2.296539
+  type: 'test'
+  ...
+# Subtest: createSubscription rejects a target the injected allowlist check disallows
+ok 2303 - createSubscription rejects a target the injected allowlist check disallows
+  ---
+  duration_ms: 0.735694
+  type: 'test'
+  ...
+# Subtest: createSubscription rejects an empty topic list after normalization
+ok 2304 - createSubscription rejects an empty topic list after normalization
+  ---
+  duration_ms: 0.263664
+  type: 'test'
+  ...
+# Subtest: updateSubscription overwrites label/targetUrl/topics and bumps updatedAt
+ok 2305 - updateSubscription overwrites label/targetUrl/topics and bumps updatedAt
+  ---
+  duration_ms: 1.349596
+  type: 'test'
+  ...
+# Subtest: updateSubscription rejects non-HTTPS target and preserves the stored row
+ok 2306 - updateSubscription rejects non-HTTPS target and preserves the stored row
+  ---
+  duration_ms: 1.896124
+  type: 'test'
+  ...
+# Subtest: updateSubscription rejects disallowed target and preserves the stored row
+ok 2307 - updateSubscription rejects disallowed target and preserves the stored row
+  ---
+  duration_ms: 0.294498
+  type: 'test'
+  ...
+# Subtest: updateSubscription rejects blank label and preserves the stored row
+ok 2308 - updateSubscription rejects blank label and preserves the stored row
+  ---
+  duration_ms: 0.159357
+  type: 'test'
+  ...
+# Subtest: updateSubscription rejects empty topics and preserves the stored row
+ok 2309 - updateSubscription rejects empty topics and preserves the stored row
+  ---
+  duration_ms: 1.834484
+  type: 'test'
+  ...
+# Subtest: updateSubscription on an unknown id throws WebhookSubscriptionNotFoundError
+ok 2310 - updateSubscription on an unknown id throws WebhookSubscriptionNotFoundError
+  ---
+  duration_ms: 2.298997
+  type: 'test'
+  ...
+# Subtest: pauseSubscription toggles active <-> paused
+ok 2311 - pauseSubscription toggles active <-> paused
+  ---
+  duration_ms: 0.435132
+  type: 'test'
+  ...
+# Subtest: pauseSubscription rejects a disabled subscription
+ok 2312 - pauseSubscription rejects a disabled subscription
+  ---
+  duration_ms: 0.477851
+  type: 'test'
+  ...
+# Subtest: deleteSubscription soft-disables rather than removing the row
+ok 2313 - deleteSubscription soft-disables rather than removing the row
+  ---
+  duration_ms: 2.189717
+  type: 'test'
+  ...
+# Subtest: createSubscription records the creating plugin when createdByPluginId is supplied, and null otherwise
+ok 2314 - createSubscription records the creating plugin when createdByPluginId is supplied, and null otherwise
+  ---
+  duration_ms: 0.2415
+  type: 'test'
+  ...
+# Subtest: REQ-44 post-host fix: insertWidgetEmbed against a kind:'post' doc host succeeds — one change set (entityType 'post'), refs extracted
+ok 2315 - REQ-44 post-host fix: insertWidgetEmbed against a kind:'post' doc host succeeds — one change set (entityType 'post'), refs extracted
+  ---
+  duration_ms: 70.617059
+  type: 'test'
+  ...
+# Subtest: REQ-44 post-host fix: insertWidgetEmbed against a post host also appends a post_revisions row, proving the ledger covers this executeCommand-wrapped updatePost() call
+ok 2316 - REQ-44 post-host fix: insertWidgetEmbed against a post host also appends a post_revisions row, proving the ledger covers this executeCommand-wrapped updatePost() call
+  ---
+  duration_ms: 1.972144
+  type: 'test'
+  ...
+# Subtest: REQ-44 post-host fix: insertWidgetEmbed against a kind:'page' doc host succeeds the same way
+ok 2317 - REQ-44 post-host fix: insertWidgetEmbed against a kind:'page' doc host succeeds the same way
+  ---
+  duration_ms: 7.496519
+  type: 'test'
+  ...
+# Subtest: REQ-44 post-host fix: removeWidgetEmbed and reorderWidgetEmbeds against a post host succeed, version bumps, body updated
+ok 2318 - REQ-44 post-host fix: removeWidgetEmbed and reorderWidgetEmbeds against a post host succeed, version bumps, body updated
+  ---
+  duration_ms: 9.589057
+  type: 'test'
+  ...
+# Subtest: unknown host is a typed WidgetEmbedHostNotFoundError, for insert, remove and reorder alike
+ok 2319 - unknown host is a typed WidgetEmbedHostNotFoundError, for insert, remove and reorder alike
+  ---
+  duration_ms: 1.147133
+  type: 'test'
+  ...
+# Subtest: a TRASHED post host is rejected as not-found, same name/message pattern as an unknown host, and left unchanged
+ok 2320 - a TRASHED post host is rejected as not-found, same name/message pattern as an unknown host, and left unchanged
+  ---
+  duration_ms: 0.366794
+  type: 'test'
+  ...
+# Subtest: a post that exists only in a DIFFERENT workspace is rejected as not-found, never cross-workspace visible
+ok 2321 - a post that exists only in a DIFFERENT workspace is rejected as not-found, never cross-workspace visible
+  ---
+  duration_ms: 0.30824
+  type: 'test'
+  ...
+# Subtest: an HTML-format page host is rejected as unsupported (no rich-text body to embed into), row untouched
+ok 2322 - an HTML-format page host is rejected as unsupported (no rich-text body to embed into), row untouched
+  ---
+  duration_ms: 0.318516
+  type: 'test'
+  ...
+# Subtest: a widget_area entry can never be an embed HOST (D4) — rejected as unsupported, not silently written into
+ok 2323 - a widget_area entry can never be an embed HOST (D4) — rejected as unsupported, not silently written into
+  ---
+  duration_ms: 0.764877
+  type: 'test'
+  ...
+# Subtest: a stale baseVersion against a post host is a typed WidgetVersionConflictError naming the current version; nothing written
+ok 2324 - a stale baseVersion against a post host is a typed WidgetVersionConflictError naming the current version; nothing written
+  ---
+  duration_ms: 1.503842
+  type: 'test'
+  ...
+# Subtest: authorize() denying ONLY content.write on a post host is a typed WidgetForbiddenError; nothing written
+ok 2325 - authorize() denying ONLY content.write on a post host is a typed WidgetForbiddenError; nothing written
+  ---
+  duration_ms: 0.934391
+  type: 'test'
+  ...
+# Subtest: an unknown widgetEntryId against a valid post host still rejects with the existing WidgetInstanceNotFoundError, post unchanged
+ok 2326 - an unknown widgetEntryId against a valid post host still rejects with the existing WidgetInstanceNotFoundError, post unchanged
+  ---
+  duration_ms: 0.46152
+  type: 'test'
+  ...
+# Subtest: a failed post embed change-set write compensates content forward and preserves refs
+ok 2327 - a failed post embed change-set write compensates content forward and preserves refs
+  ---
+  duration_ms: 8.78961
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "widget" embed resolves to the referenced widget's real IR, batched through the same resolveWidgetInstances resolvePageWidgets uses
+ok 2328 - resolveHtmlPageEmbeds: a "widget" embed resolves to the referenced widget's real IR, batched through the same resolveWidgetInstances resolvePageWidgets uses
+  ---
+  duration_ms: 16.928539
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "widget" embed referencing a nonexistent id never throws — it is simply absent from the resolved map (the caller degrades it to the REQ-28 placeholder)
+ok 2329 - resolveHtmlPageEmbeds: a "widget" embed referencing a nonexistent id never throws — it is simply absent from the resolved map (the caller degrades it to the REQ-28 placeholder)
+  ---
+  duration_ms: 0.517789
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a contact-form WIDGET instance resolves through the REAL contact-form resolver — the mechanism that replaced the removed "form" embed type, producing the identical contact-form IR
+ok 2330 - resolveHtmlPageEmbeds: a contact-form WIDGET instance resolves through the REAL contact-form resolver — the mechanism that replaced the removed "form" embed type, producing the identical contact-form IR
+  ---
+  duration_ms: 39.423175
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the RESTORED "form" embed type resolves by form id AND slug through the SAME contact-form resolver, producing the identical IR a contact-form widget produces
+ok 2331 - resolveHtmlPageEmbeds: the RESTORED "form" embed type resolves by form id AND slug through the SAME contact-form resolver, producing the identical IR a contact-form widget produces
+  ---
+  duration_ms: 65.126185
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a contact-form widget referencing a DISABLED form definition degrades to the REQ-28 placeholder IR (REQ-38's EC-05 taxonomy), never throws
+ok 2332 - resolveHtmlPageEmbeds: a contact-form widget referencing a DISABLED form definition degrades to the REQ-28 placeholder IR (REQ-38's EC-05 taxonomy), never throws
+  ---
+  duration_ms: 3.195941
+  type: 'test'
+  ...
+# [widgets] resolveHtmlPageEmbeds: unknown embed type, every occurrence degrades to the placeholder {
+#   type: 'some-future-type',
+#   workspaceId: 'ws-html-embeds',
+#   occurrences: 1
+# }
+# [widgets] resolveHtmlPageEmbeds: unresolved "widget" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'ws-html-embeds' }
+# Subtest: resolveHtmlPageEmbeds: a text widget and a contact-form widget on the same page each resolve to their own type's IR in ONE batched pass
+ok 2333 - resolveHtmlPageEmbeds: a text widget and a contact-form widget on the same page each resolve to their own type's IR in ONE batched pass
+  ---
+  duration_ms: 11.215386
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a page with more than MAX_HTML_EMBEDS_PER_PAGE distinct widget refs only resolves the first cap-worth (resource bound, REQ-25-style)
+ok 2334 - resolveHtmlPageEmbeds: a page with more than MAX_HTML_EMBEDS_PER_PAGE distinct widget refs only resolves the first cap-worth (resource bound, REQ-25-style)
+  ---
+  duration_ms: 1.694439
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: no embeds in the html resolves to an empty result, no repo calls beyond what an empty referencedIds set needs
+ok 2335 - resolveHtmlPageEmbeds: no embeds in the html resolves to an empty result, no repo calls beyond what an empty referencedIds set needs
+  ---
+  duration_ms: 0.604151
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: an unregistered/future embed type produces no entry in the result at all — HTML_EMBED_RESOLVERS has no arm for it, so the caller (render.ts) leaves every occurrence as authored
+ok 2336 - resolveHtmlPageEmbeds: an unregistered/future embed type produces no entry in the result at all — HTML_EMBED_RESOLVERS has no arm for it, so the caller (render.ts) leaves every occurrence as authored
+  ---
+  duration_ms: 1.08224
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: "menu"/"partial" markers — theme-structural types resolved by a LATER stage (features/theme/static-render.ts), never by this registry — do not log the "unknown embed type" warning, even though HTML_EMBED_RESOLVERS has no entry for either
+ok 2337 - resolveHtmlPageEmbeds: "menu"/"partial" markers — theme-structural types resolved by a LATER stage (features/theme/static-render.ts), never by this registry — do not log the "unknown embed type" warning, even though HTML_EMBED_RESOLVERS has no entry for either
+  ---
+  duration_ms: 0.505687
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "post-author" marker, filled later by static-render.ts's injectPostAuthor, does not log the "unknown embed type" warning
+ok 2338 - resolveHtmlPageEmbeds: a "post-author" marker, filled later by static-render.ts's injectPostAuthor, does not log the "unknown embed type" warning
+  ---
+  duration_ms: 0.363012
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs the "unknown embed type" warning — the menu/partial carve-out must not silence a real author mistake
+ok 2339 - resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs the "unknown embed type" warning — the menu/partial carve-out must not silence a real author mistake
+  ---
+  duration_ms: 0.330572
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "widget" embed with no id key never throws and resolves nothing for that occurrence
+ok 2340 - resolveHtmlPageEmbeds: a "widget" embed with no id key never throws and resolves nothing for that occurrence
+  ---
+  duration_ms: 0.466184
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "widget" embed addressed by SLUG resolves to the same real IR an id-addressed embed would — the concrete form/contact-form use case this feature exists for
+ok 2341 - resolveHtmlPageEmbeds: a "widget" embed addressed by SLUG resolves to the same real IR an id-addressed embed would — the concrete form/contact-form use case this feature exists for
+  ---
+  duration_ms: 9.526154
+  type: 'test'
+  ...
+# [widgets] resolveHtmlPageEmbeds: unresolved "widget" reference — no widget with that slug { workspaceId: 'ws-html-embeds', slug: 'does-not-exist' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "widget" reference — no widget with that slug { workspaceId: 'ws-html-embeds', slug: 'shared-slug-name' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'ws-html-embeds', assetId: 'does-not-exist' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — transform not registered {
+#   workspaceId: 'ws-html-embeds',
+#   assetId: 'asset-1',
+#   transformName: 'public'
+# }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — missing or invalid "id"/"slug"/"variant" in data-embed-config { workspaceId: 'ws-html-embeds' }
+# [widgets] resolveHtmlPageEmbeds: "media" embeds present but no mediaRepo/transformRepo dependency was supplied — every occurrence degrades to the placeholder { workspaceId: 'ws-html-embeds', occurrences: 1 }
+# Subtest: resolveHtmlPageEmbeds: a slug-addressed "widget" marker re-serialized by a DOM (double-quoted, &quot;-encoded, as the Interactive canvas saves it) still resolves
+ok 2342 - resolveHtmlPageEmbeds: a slug-addressed "widget" marker re-serialized by a DOM (double-quoted, &quot;-encoded, as the Interactive canvas saves it) still resolves
+  ---
+  duration_ms: 5.045723
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "widget" embed referencing an UNKNOWN slug never throws — absent from the resolved map, degrading exactly like a dangling id (render.ts substitutes the REQ-28 placeholder)
+ok 2343 - resolveHtmlPageEmbeds: a "widget" embed referencing an UNKNOWN slug never throws — absent from the resolved map, degrading exactly like a dangling id (render.ts substitutes the REQ-28 placeholder)
+  ---
+  duration_ms: 0.616135
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: "id" is authoritative over "slug" when a marker carries both — the slug is not even looked up
+ok 2344 - resolveHtmlPageEmbeds: "id" is authoritative over "slug" when a marker carries both — the slug is not even looked up
+  ---
+  duration_ms: 0.335444
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: slug lookups are workspace+type scoped — a same-slug widget in a DIFFERENT workspace never resolves across the boundary
+ok 2345 - resolveHtmlPageEmbeds: slug lookups are workspace+type scoped — a same-slug widget in a DIFFERENT workspace never resolves across the boundary
+  ---
+  duration_ms: 0.432006
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: two DIFFERENT slug-addressed widgets on the same page each resolve independently in ONE batched pass (mirrors the pre-existing multi-id coverage above)
+ok 2346 - resolveHtmlPageEmbeds: two DIFFERENT slug-addressed widgets on the same page each resolve independently in ONE batched pass (mirrors the pre-existing multi-id coverage above)
+  ---
+  duration_ms: 0.385613
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "media" embed with no variant resolves against CORE_PUBLIC_TRANSFORM_NAME ("public") by default
+ok 2347 - resolveHtmlPageEmbeds: a "media" embed with no variant resolves against CORE_PUBLIC_TRANSFORM_NAME ("public") by default
+  ---
+  duration_ms: 1.616417
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "media" embed whose asset is a recorded VIDEO resolves to a video IR — contentType present, no transformName/version, and no transform needs to be registered at all
+ok 2348 - resolveHtmlPageEmbeds: a "media" embed whose asset is a recorded VIDEO resolves to a video IR — contentType present, no transformName/version, and no transform needs to be registered at all
+  ---
+  duration_ms: 0.560871
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "media" embed with mediaContentTypeStore supplied but no recorded type for this asset's sha256 falls through to the ordinary image path unchanged
+ok 2349 - resolveHtmlPageEmbeds: a "media" embed with mediaContentTypeStore supplied but no recorded type for this asset's sha256 falls through to the ordinary image path unchanged
+  ---
+  duration_ms: 0.308739
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "media" embed with an explicit variant resolves against that transform name, not the default
+ok 2350 - resolveHtmlPageEmbeds: a "media" embed with an explicit variant resolves against that transform name, not the default
+  ---
+  duration_ms: 7.091681
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "media" embed referencing a nonexistent asset never throws — absent from the resolved map, degrades to the REQ-28 placeholder
+ok 2351 - resolveHtmlPageEmbeds: a "media" embed referencing a nonexistent asset never throws — absent from the resolved map, degrades to the REQ-28 placeholder
+  ---
+  duration_ms: 0.527025
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "media" embed whose asset exists but whose transform was never registered never throws — absent from the resolved map
+ok 2352 - resolveHtmlPageEmbeds: a "media" embed whose asset exists but whose transform was never registered never throws — absent from the resolved map
+  ---
+  duration_ms: 0.489324
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "media" embed with a slash-smuggling variant never reaches the transform lookup — shape-rejected before becoming a /m/ URL path segment
+ok 2353 - resolveHtmlPageEmbeds: a "media" embed with a slash-smuggling variant never reaches the transform lookup — shape-rejected before becoming a /m/ URL path segment
+  ---
+  duration_ms: 0.442295
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: with NO mediaRepo/transformRepo dependency supplied, a "media" embed never throws and simply cannot resolve — widget embeds on the same page are unaffected
+ok 2354 - resolveHtmlPageEmbeds: with NO mediaRepo/transformRepo dependency supplied, a "media" embed never throws and simply cannot resolve — widget embeds on the same page are unaffected
+  ---
+  duration_ms: 0.603245
+  type: 'test'
+  ...
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'ws-html-embeds', assetId: 'does-not-exist' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity { workspaceId: 'ws-content-embeds', entityId: 'draft-1' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity { workspaceId: 'ws-content-embeds', entityId: 'trashed-1' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-embeds', entityId: 'html-1' }
+# [widgets] resolveHtmlPageEmbeds: "content" embeds present but no postRepo dependency was supplied — every occurrence degrades to the placeholder { workspaceId: 'ws-content-embeds', occurrences: 1 }
+# [widgets] resolveHtmlPageEmbeds: unresolved "post" reference — no such published post { workspaceId: 'ws-content-embeds', postId: 'draft-2' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity { workspaceId: 'ws-content-embeds', entityId: 'draft-slug' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity { workspaceId: 'ws-content-embeds', entityId: 'trashed-slug' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'ws-html-embeds', assetId: 'missing-media' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity { workspaceId: 'ws-html-embeds', entityId: 'missing-content' }
+# Subtest: resolveHtmlPageEmbeds: media and widget embeds on the same page all resolve independently, keyed by type
+ok 2355 - resolveHtmlPageEmbeds: media and widget embeds on the same page all resolve independently, keyed by type
+  ---
+  duration_ms: 2.882163
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a media marker with only "slug" resolves to that asset, keyed by the slug
+ok 2356 - resolveHtmlPageEmbeds: a media marker with only "slug" resolves to that asset, keyed by the slug
+  ---
+  duration_ms: 1.495288
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a media marker with both id and slug uses id and never consults slug
+ok 2357 - resolveHtmlPageEmbeds: a media marker with both id and slug uses id and never consults slug
+  ---
+  duration_ms: 2.661848
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: an unknown media slug degrades to no entry (placeholder), never a throw
+ok 2358 - resolveHtmlPageEmbeds: an unknown media slug degrades to no entry (placeholder), never a throw
+  ---
+  duration_ms: 0.526708
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: an asset whose stored slug is EMPTY (a pre-backfill row) emits slug: null, the IR's documented "has no slug"; a real slug still passes through
+ok 2359 - resolveHtmlPageEmbeds: an asset whose stored slug is EMPTY (a pre-backfill row) emits slug: null, the IR's documented "has no slug"; a real slug still passes through
+  ---
+  duration_ms: 1.68281
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed resolves a published, "doc"-format row (Post OR Page) to real data
+ok 2360 - resolveHtmlPageEmbeds: a "content" embed resolves a published, "doc"-format row (Post OR Page) to real data
+  ---
+  duration_ms: 1.80052
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed with NO header key in its marker resolves props.header: true — the no-silent-behavior-change default
+ok 2361 - resolveHtmlPageEmbeds: a "content" embed with NO header key in its marker resolves props.header: true — the no-silent-behavior-change default
+  ---
+  duration_ms: 0.518935
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed with "header":false in its marker resolves props.header: false
+ok 2362 - resolveHtmlPageEmbeds: a "content" embed with "header":false in its marker resolves props.header: false
+  ---
+  duration_ms: 0.332566
+  type: 'test'
+  ...
+# Subtest: GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a DRAFT row never resolves, regardless of kind
+ok 2363 - GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a DRAFT row never resolves, regardless of kind
+  ---
+  duration_ms: 0.507284
+  type: 'test'
+  ...
+# Subtest: GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a TRASHED row never resolves
+ok 2364 - GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a TRASHED row never resolves
+  ---
+  duration_ms: 0.43153
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed referencing an "html"-format row does not resolve at the registry stage — it is the recursive pre-splice pass's target, not this one's
+ok 2365 - resolveHtmlPageEmbeds: a "content" embed referencing an "html"-format row does not resolve at the registry stage — it is the recursive pre-splice pass's target, not this one's
+  ---
+  duration_ms: 4.597248
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: with NO postRepo dependency supplied, a "content" embed never throws and simply cannot resolve
+ok 2366 - resolveHtmlPageEmbeds: with NO postRepo dependency supplied, a "content" embed never throws and simply cannot resolve
+  ---
+  duration_ms: 0.366812
+  type: 'test'
+  ...
+# Subtest: GUARD 2: resolveHtmlPageEmbeds — the legacy "post" embed type also refuses a DRAFT (retrofitted alongside "content", same hazard)
+ok 2367 - GUARD 2: resolveHtmlPageEmbeds — the legacy "post" embed type also refuses a DRAFT (retrofitted alongside "content", same hazard)
+  ---
+  duration_ms: 0.610187
+  type: 'test'
+  ...
+# Subtest: GUARD 2 NEGATIVE VERIFICATION: a published row DOES resolve via "content" and "post" — proves the guard filters on status, not merely "postRepo present"
+ok 2368 - GUARD 2 NEGATIVE VERIFICATION: a published row DOES resolve via "content" and "post" — proves the guard filters on status, not merely "postRepo present"
+  ---
+  duration_ms: 6.932495
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed addressed by SLUG resolves the same published row an id-addressed embed would, keyed by the slug
+ok 2369 - resolveHtmlPageEmbeds: a "content" embed addressed by SLUG resolves the same published row an id-addressed embed would, keyed by the slug
+  ---
+  duration_ms: 0.550599
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "post" embed addressed by SLUG resolves the same way "content" does
+ok 2370 - resolveHtmlPageEmbeds: a "post" embed addressed by SLUG resolves the same way "content" does
+  ---
+  duration_ms: 0.321594
+  type: 'test'
+  ...
+# Subtest: GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed by a slug naming a DRAFT row never resolves
+ok 2371 - GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed by a slug naming a DRAFT row never resolves
+  ---
+  duration_ms: 0.355883
+  type: 'test'
+  ...
+# Subtest: GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed by a slug naming a TRASHED row never resolves
+ok 2372 - GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed by a slug naming a TRASHED row never resolves
+  ---
+  duration_ms: 0.490539
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed with both id and slug uses id and never consults slug — same precedent as the media/widget resolvers
+ok 2373 - resolveHtmlPageEmbeds: a "content" embed with both id and slug uses id and never consults slug — same precedent as the media/widget resolvers
+  ---
+  duration_ms: 0.399784
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: pendingContentOverride matches a slug-only ref by override.slug, the same way it already matches an id-only ref by override.id
+ok 2374 - resolveHtmlPageEmbeds: pendingContentOverride matches a slug-only ref by override.slug, the same way it already matches an id-only ref by override.id
+  ---
+  duration_ms: 0.319672
+  type: 'test'
+  ...
+# Subtest: collectMediaRefAssetIds resolves media at depth 10000 without truncating or overflowing
+ok 2375 - collectMediaRefAssetIds resolves media at depth 10000 without truncating or overflowing
+  ---
+  duration_ms: 17.272686
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed's bodyJson containing a ref-based image resolves mediaTransformVersions/mediaAssetMetadata into its IR props — the exact data renderWidgetPostContent needs to render a real <img> instead of the placeholder
+ok 2376 - resolveHtmlPageEmbeds: a "content" embed's bodyJson containing a ref-based image resolves mediaTransformVersions/mediaAssetMetadata into its IR props — the exact data renderWidgetPostContent needs to render a real <img> instead of the placeholder
+  ---
+  duration_ms: 0.524543
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME mediaTransformVersions/mediaAssetMetadata for its bodyJson's ref-based images (both "post-content" IR builders shared the same gap, not just "content")
+ok 2377 - resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME mediaTransformVersions/mediaAssetMetadata for its bodyJson's ref-based images (both "post-content" IR builders shared the same gap, not just "content")
+  ---
+  duration_ms: 0.397667
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed's bodyJson with a ref-based image, but NO mediaRepo/transformRepo supplied, still resolves the post data — mediaTransformVersions/mediaAssetMetadata degrade to empty rather than the whole embed failing (REQ-27, same never-throws discipline every resolver here follows)
+ok 2378 - resolveHtmlPageEmbeds: a "content" embed's bodyJson with a ref-based image, but NO mediaRepo/transformRepo supplied, still resolves the post data — mediaTransformVersions/mediaAssetMetadata degrade to empty rather than the whole embed failing (REQ-27, same never-throws discipline every resolver here follows)
+  ---
+  duration_ms: 0.25999
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (template-preview's unsaved-edit path) ALSO resolves mediaTransformVersions/mediaAssetMetadata for its override bodyJson — this is the editor's own "Preview" tab, the other surface the owner reported as broken alongside the published page
+ok 2379 - resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (template-preview's unsaved-edit path) ALSO resolves mediaTransformVersions/mediaAssetMetadata for its override bodyJson — this is the editor's own "Preview" tab, the other surface the owner reported as broken alongside the published page
+  ---
+  duration_ms: 0.300718
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (the admin Preview tab's own path) resolves mediaTransformVersions/mediaAssetMetadata for a GENERIC "media" node too, not just the legacy "image" node — otherwise a real image/video referenced through `media` renders as a placeholder in Preview even though the asset is fine
+ok 2380 - resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (the admin Preview tab's own path) resolves mediaTransformVersions/mediaAssetMetadata for a GENERIC "media" node too, not just the legacy "image" node — otherwise a real image/video referenced through `media` renders as a placeholder in Preview even though the asset is fine
+  ---
+  duration_ms: 0.403519
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME mediaTransformVersions for a "media" node in its own bodyJson (both "post-content" IR builders share the one collector, so both share the fix)
+ok 2381 - resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME mediaTransformVersions for a "media" node in its own bodyJson (both "post-content" IR builders share the one collector, so both share the fix)
+  ---
+  duration_ms: 0.468227
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed's DB branch resolves contentType for a "media" node's asset, so a VIDEO asset renders a real <video> through render.ts's renderWidgetIr — the exact path a live post rendered through a static-tier theme's own template takes for its OWN body, not only a page that embeds the post
+ok 2382 - resolveHtmlPageEmbeds: a "content" embed's DB branch resolves contentType for a "media" node's asset, so a VIDEO asset renders a real <video> through render.ts's renderWidgetIr — the exact path a live post rendered through a static-tier theme's own template takes for its OWN body, not only a page that embeds the post
+  ---
+  duration_ms: 28.670406
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: CONTROL for the test above — the same "content" DB branch still renders a real <img>, not <video>, for an image/* asset through the identical path (proves the fix does not make everything look like a video)
+ok 2383 - resolveHtmlPageEmbeds: CONTROL for the test above — the same "content" DB branch still renders a real <img>, not <video>, for an image/* asset through the identical path (proves the fix does not make everything look like a video)
+  ---
+  duration_ms: 10.009309
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch resolves props.header from the SAME marker's header:false, exactly like the DB branch — the two branches must not disagree (html-embeds.ts's own doc names this exact divergence class)
+ok 2384 - resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch resolves props.header from the SAME marker's header:false, exactly like the DB branch — the two branches must not disagree (html-embeds.ts's own doc names this exact divergence class)
+  ---
+  duration_ms: 0.334675
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch defaults props.header to true when the marker has no header key, matching the DB branch's default
+ok 2385 - resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch defaults props.header to true when the marker has no header key, matching the DB branch's default
+  ---
+  duration_ms: 0.260279
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed's DB branch resolves the post body's inline widgetEmbed nodes, so renderWidgetIr renders the real widget (trashed/missing widgets still degrade to the placeholder) — the path every post rendered through a static-tier theme template takes
+ok 2386 - resolveHtmlPageEmbeds: a "content" embed's DB branch resolves the post body's inline widgetEmbed nodes, so renderWidgetIr renders the real widget (trashed/missing widgets still degrade to the placeholder) — the path every post rendered through a static-tier theme template takes
+  ---
+  duration_ms: 1.108436
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (the admin Preview tab) resolves inline widgetEmbed nodes the same way as the DB branch
+ok 2387 - resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (the admin Preview tab) resolves inline widgetEmbed nodes the same way as the DB branch
+  ---
+  duration_ms: 4.842919
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the legacy "post" embed type resolves inline widgetEmbed nodes in its bodyJson too (all three "post-content" IR builders share one context helper)
+ok 2388 - resolveHtmlPageEmbeds: the legacy "post" embed type resolves inline widgetEmbed nodes in its bodyJson too (all three "post-content" IR builders share one context helper)
+  ---
+  duration_ms: 0.74795
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a missing explicit id never falls back to a valid competing slug for widget, media or content
+ok 2389 - resolveHtmlPageEmbeds: a missing explicit id never falls back to a valid competing slug for widget, media or content
+  ---
+  duration_ms: 0.792276
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed's DB branch dates a live post by its publishAt, not updatedAt
+ok 2390 - resolveHtmlPageEmbeds: a "content" embed's DB branch dates a live post by its publishAt, not updatedAt
+  ---
+  duration_ms: 7.717644
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (a scheduled post's Preview) dates the post by its future publishAt
+ok 2391 - resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (a scheduled post's Preview) dates the post by its future publishAt
+  ---
+  duration_ms: 0.750537
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a post with no publishAt keeps dating by updatedAt (unchanged)
+ok 2392 - resolveHtmlPageEmbeds: a post with no publishAt keeps dating by updatedAt (unchanged)
+  ---
+  duration_ms: 0.681665
+  type: 'test'
+  ...
+# Subtest: createCoreResolvers: returns the built-in dynamic resolver type keys including Gallery, each with a callable resolveMany
+ok 2393 - createCoreResolvers: returns the built-in dynamic resolver type keys including Gallery, each with a callable resolveMany
+  ---
+  duration_ms: 5.628705
+  type: 'test'
+  ...
+# Subtest: createCoreResolvers: each assembled resolver is wired to the deps it was given, not a shared/global default
+ok 2394 - createCoreResolvers: each assembled resolver is wired to the deps it was given, not a shared/global default
+  ---
+  duration_ms: 40.794728
+  type: 'test'
+  ...
+# Subtest: public dynamic menu widgets resolve renamed pages and omit unpublished page leaves
+ok 2395 - public dynamic menu widgets resolve renamed pages and omit unpublished page leaves
+  ---
+  duration_ms: 13.609075
+  type: 'test'
+  ...
+# Subtest: every journal entry has a snapshot in one unbroken prevId chain from 0000
+ok 2396 - every journal entry has a snapshot in one unbroken prevId chain from 0000
+  ---
+  duration_ms: 197.695406
+  type: 'test'
+  ...
+# Subtest: vault boundary parity [sqlite]
+    # Subtest: a transfer copies the same tables as before minus the retired ones
+    ok 1 - a transfer copies the same tables as before minus the retired ones
+      ---
+      duration_ms: 2.111411
+      type: 'test'
+      ...
+    # Subtest: the vault is never copied; it is left out next to what was left out before
+    ok 2 - the vault is never copied; it is left out next to what was left out before
+      ---
+      duration_ms: 0.35067
+      type: 'test'
+      ...
+    # Subtest: whole-table transfer exclusions: the vault joins the list; the retired names stay on it
+    ok 3 - whole-table transfer exclusions: the vault joins the list; the retired names stay on it
+      ---
+      duration_ms: 0.285555
+      type: 'test'
+      ...
+    # Subtest: partially excluded (secret-column) tables are unchanged
+    ok 4 - partially excluded (secret-column) tables are unchanged
+      ---
+      duration_ms: 0.119909
+      type: 'test'
+      ...
+    # Subtest: the key-dependent-data probe gives the same answer on the upgraded rows
+    ok 5 - the key-dependent-data probe gives the same answer on the upgraded rows
+      ---
+      duration_ms: 0.291813
+      type: 'test'
+      ...
+    1..5
+ok 2397 - vault boundary parity [sqlite]
+  ---
+  duration_ms: 1363.559392
+  type: 'suite'
+  ...
+# Subtest: vault boundary parity [pglite]
+    # Subtest: the key-dependent-data probe gives the same answer on the upgraded rows
+    ok 1 - the key-dependent-data probe gives the same answer on the upgraded rows
+      ---
+      duration_ms: 14151.86941
+      type: 'test'
+      ...
+    1..1
+ok 2398 - vault boundary parity [pglite]
+  ---
+  duration_ms: 14152.429592
+  type: 'suite'
+  ...
+# Subtest: seed-site's credential prune list covers the vault
+ok 2399 - seed-site's credential prune list covers the vault
+  ---
+  duration_ms: 0.644326
+  type: 'test'
+  ...
+# Subtest: psql() returns ok:true with stdout for a successful query
+not ok 2400 - psql() returns ok:true with stdout for a successful query
+  ---
+  duration_ms: 92.246292
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts:1:330'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts:30:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.start (node:internal/test_runner/test:1262:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+# Subtest: psql() returns ok:false with stderr populated, never throwing, for a failing statement
+not ok 2401 - psql() returns ok:false with stderr populated, never throwing, for a failing statement
+  ---
+  duration_ms: 54.917606
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts:1:527'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /this_table_does_not_exist_xyz/. Input:
+    
+    'psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory\n' +
+      '\tIs the server running locally and accepting connections on that socket?\n'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts:37:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: psql() throws when the psql binary cannot be found on PATH
+ok 2402 - psql() throws when the psql binary cannot be found on PATH
+  ---
+  duration_ms: 4.166321
+  type: 'test'
+  ...
+# Subtest: dropDatabase() throws the exact wrapped message when the underlying DROP fails
+ok 2403 - dropDatabase() throws the exact wrapped message when the underlying DROP fails
+  ---
+  duration_ms: 183.765945
+  type: 'test'
+  ...
+# Subtest: recreateDatabase() throws the exact wrapped DROP message and never attempts CREATE when DROP fails
+not ok 2404 - recreateDatabase() throws the exact wrapped DROP message and never attempts CREATE when DROP fails
+  ---
+  duration_ms: 164.019595
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts:1:1755'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts:83:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: recreateDatabase() + dropDatabase() happy path round-trips a real throwaway database
+not ok 2405 - recreateDatabase() + dropDatabase() happy path round-trips a real throwaway database
+  ---
+  duration_ms: 47.563794
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts:1:2338'
+  failureType: 'testCodeFailure'
+  error: |-
+    failed to drop fixture database "tovu_pg_fixture_unit_15027": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+    	Is the server running locally and accepting connections on that socket?
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts:88:3)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: discard preserves settings/metadata-only rows, deletes required kinds and promotes defaults [sqlite]
+ok 2406 - discard preserves settings/metadata-only rows, deletes required kinds and promotes defaults [sqlite]
+  ---
+  duration_ms: 445.193225
+  type: 'test'
+  ...
+# Subtest: AAD selection: a throwing codec counts as unreadable without opening; a legacy row the recovery codec opens is kept [sqlite]
+ok 2407 - AAD selection: a throwing codec counts as unreadable without opening; a legacy row the recovery codec opens is kept [sqlite]
+  ---
+  duration_ms: 327.133146
+  type: 'test'
+  ...
+# Subtest: MCP discard unlinks only its matching pointer before deletion and retains the roster [sqlite]
+ok 2408 - MCP discard unlinks only its matching pointer before deletion and retains the roster [sqlite]
+  ---
+  duration_ms: 215.344446
+  type: 'test'
+  ...
+# Subtest: MCP env discard clears only the env pointer before deleting the unreadable env secret [sqlite]
+ok 2409 - MCP env discard clears only the env pointer before deleting the unreadable env secret [sqlite]
+  ---
+  duration_ms: 324.166478
+  type: 'test'
+  ...
+# Subtest: reseal normalizes a legacy row that already opens under the recovered key, reading it with that key [sqlite]
+ok 2410 - reseal normalizes a legacy row that already opens under the recovered key, reading it with that key [sqlite]
+  ---
+  duration_ms: 228.096981
+  type: 'test'
+  ...
+# Subtest: a metadata revision change after snapshot survives discard [sqlite]
+ok 2411 - a metadata revision change after snapshot survives discard [sqlite]
+  ---
+  duration_ms: 329.522113
+  type: 'test'
+  ...
+# Subtest: a metadata revision change after snapshot survives reseal [sqlite]
+ok 2412 - a metadata revision change after snapshot survives reseal [sqlite]
+  ---
+  duration_ms: 252.766488
+  type: 'test'
+  ...
+# Subtest: reseal uses Jini lifecycle, moves device codes and keeps a third key's envelope [sqlite]
+ok 2413 - reseal uses Jini lifecycle, moves device codes and keeps a third key's envelope [sqlite]
+  ---
+  duration_ms: 161.326969
+  type: 'test'
+  ...
+# Subtest: reseal refuses changed plaintext and preserves the original device credential [sqlite]
+ok 2414 - reseal refuses changed plaintext and preserves the original device credential [sqlite]
+  ---
+  duration_ms: 188.972197
+  type: 'test'
+  ...
+# Subtest: a later reseal failure rolls back the earlier vault write [sqlite]
+ok 2415 - a later reseal failure rolls back the earlier vault write [sqlite]
+  ---
+  duration_ms: 231.026282
+  type: 'test'
+  ...
+# Subtest: discard failure rolls back earlier deletes and default promotion [sqlite]
+ok 2416 - discard failure rolls back earlier deletes and default promotion [sqlite]
+  ---
+  duration_ms: 411.686383
+  type: 'test'
+  ...
+# Subtest: an unknown row with a NULL envelope column is matched by IS NULL and cleared [sqlite]
+ok 2417 - an unknown row with a NULL envelope column is matched by IS NULL and cleared [sqlite]
+  ---
+  duration_ms: 313.69473
+  type: 'test'
+  ...
+# Subtest: unknown columns remain in discard coverage while restore artifacts stay untouched [sqlite]
+ok 2418 - unknown columns remain in discard coverage while restore artifacts stay untouched [sqlite]
+  ---
+  duration_ms: 229.260231
+  type: 'test'
+  ...

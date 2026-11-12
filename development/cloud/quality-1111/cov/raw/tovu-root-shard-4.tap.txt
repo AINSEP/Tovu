@@ -11718,3 +11718,177 @@ ok 1685 - L3 import explicitly rejects missing document before creating a site
   duration_ms: 9945.014034
   type: 'test'
   ...
+# Subtest: L3 import explicitly rejects corrupt document before creating a site
+ok 1686 - L3 import explicitly rejects corrupt document before creating a site
+  ---
+  duration_ms: 11071.736232
+  type: 'test'
+  ...
+# Subtest: L3 import explicitly rejects invalid-json document before creating a site
+ok 1687 - L3 import explicitly rejects invalid-json document before creating a site
+  ---
+  duration_ms: 9505.882929
+  type: 'test'
+  ...
+# Subtest: L3 import explicitly rejects invalid-docx document before creating a site
+ok 1688 - L3 import explicitly rejects invalid-docx document before creating a site
+  ---
+  duration_ms: 11384.872765
+  type: 'test'
+  ...
+# Subtest: L3 import explicitly rejects bad-key document before creating a site
+ok 1689 - L3 import explicitly rejects bad-key document before creating a site
+  ---
+  duration_ms: 9748.945915
+  type: 'test'
+  ...
+# Subtest: L3 a v1 archive is refused without creating a site
+ok 1690 - L3 a v1 archive is refused without creating a site
+  ---
+  duration_ms: 1862.115162
+  type: 'test'
+  ...
+# Subtest: L3 document-first deduplication strips mixed blob uploader attribution (active)
+ok 1691 - L3 document-first deduplication strips mixed blob uploader attribution (active)
+  ---
+  duration_ms: 2806.880512
+  type: 'test'
+  ...
+# Subtest: L3 document-first deduplication strips mixed blob uploader attribution (trashed)
+ok 1692 - L3 document-first deduplication strips mixed blob uploader attribution (trashed)
+  ---
+  duration_ms: 2352.428964
+  type: 'test'
+  ...
+# Subtest: L3 rejects invented manifest identity 13
+ok 1693 - L3 rejects invented manifest identity 13
+  ---
+  duration_ms: 1964.397591
+  type: 'test'
+  ...
+# Subtest: L3 rejects invented manifest identity 14
+ok 1694 - L3 rejects invented manifest identity 14
+  ---
+  duration_ms: 1839.295572
+  type: 'test'
+  ...
+# Subtest: L3 forged ordinary rendition cannot expose a private document through anonymous media retrieval
+ok 1695 - L3 forged ordinary rendition cannot expose a private document through anonymous media retrieval
+  ---
+  duration_ms: 10418.446869
+  type: 'test'
+  ...
+# Subtest: L3 genuine pre-L3 share omits Trash and orphan payloads but rejects arbitrary uploads
+ok 1696 - L3 genuine pre-L3 share omits Trash and orphan payloads but rejects arbitrary uploads
+  ---
+  duration_ms: 11282.079464
+  type: 'test'
+  ...
+# Subtest: L3 valid DOCX package expansion is bounded within entry limits
+ok 1697 - L3 valid DOCX package expansion is bounded within entry limits
+  ---
+  duration_ms: 11943.400888
+  type: 'test'
+  ...
+# Subtest: L3 isolated guard: oversize
+ok 1698 - L3 isolated guard: oversize
+  ---
+  duration_ms: 17201.294908
+  type: 'test'
+  ...
+# Subtest: L3 isolated guard: wrong-signature
+ok 1699 - L3 isolated guard: wrong-signature
+  ---
+  duration_ms: 11477.648011
+  type: 'test'
+  ...
+# Subtest: L3 isolated guard: secret-sentinel
+ok 1700 - L3 isolated guard: secret-sentinel
+  ---
+  duration_ms: 12817.03875
+  type: 'test'
+  ...
+# Subtest: L3 isolated guard: destination-collision
+ok 1701 - L3 isolated guard: destination-collision
+  ---
+  duration_ms: 10349.388098
+  type: 'test'
+  ...
+# Subtest: L3 isolated guard: forged-cross-owner
+ok 1702 - L3 isolated guard: forged-cross-owner
+  ---
+  duration_ms: 10842.952688
+  type: 'test'
+  ...
+# Subtest: a prepare exception keeps its actual step when collected by a later job poll
+ok 1703 - a prepare exception keeps its actual step when collected by a later job poll
+  ---
+  duration_ms: 16.557521
+  type: 'test'
+  ...
+# Subtest: a archive exception keeps its actual step when collected by a later job poll
+ok 1704 - a archive exception keeps its actual step when collected by a later job poll
+  ---
+  duration_ms: 11.233853
+  type: 'test'
+  ...
+# Subtest: a delivery exception keeps its actual step when collected by a later job poll
+ok 1705 - a delivery exception keeps its actual step when collected by a later job poll
+  ---
+  duration_ms: 5.851904
+  type: 'test'
+  ...
+# Subtest: a create without a wait budget waits for a quick export and returns the ZIP-only share
+ok 1706 - a create without a wait budget waits for a quick export and returns the ZIP-only share
+  ---
+  duration_ms: 124.214676
+  type: 'test'
+  ...
+# Subtest: archive progress reaches its totals: buffered files plus the database, and the planned bytes
+ok 1707 - archive progress reaches its totals: buffered files plus the database, and the planned bytes
+  ---
+  duration_ms: 19.164226
+  type: 'test'
+  ...
+# Subtest: a share plan without a database is refused before delivery
+ok 1708 - a share plan without a database is refused before delivery
+  ---
+  duration_ms: 11.373356
+  type: 'test'
+  ...
+# Subtest: static selection snapshots roster, active identity and time, captures sequentially and encodes once across polling
+ok 1709 - static selection snapshots roster, active identity and time, captures sequentially and encodes once across polling
+  ---
+  duration_ms: 72.267417
+  type: 'test'
+  ...
+# Subtest: static backend refuses unknown selections before rendering and unusable captures without creating a ZIP
+ok 1710 - static backend refuses unknown selections before rendering and unusable captures without creating a ZIP
+  ---
+  duration_ms: 16.275685
+  type: 'test'
+  ...
+# Subtest: theme none offers only Current site and preserves both legacy and picked unstyled exports
+ok 1711 - theme none offers only Current site and preserves both legacy and picked unstyled exports
+  ---
+  duration_ms: 53.915513
+  type: 'test'
+  ...
+# Subtest: static completion discloses omitted discovery only without a request domain (none)
+ok 1712 - static completion discloses omitted discovery only without a request domain (none)
+  ---
+  duration_ms: 29.638804
+  type: 'test'
+  ...
+# Subtest: static completion discloses omitted discovery only without a request domain (https://download.example)
+ok 1713 - static completion discloses omitted discovery only without a request domain (https://download.example)
+  ---
+  duration_ms: 21.465066
+  type: 'test'
+  ...
+# Subtest: static options show installed display titles while keeping theme IDs
+ok 1714 - static options show installed display titles while keeping theme IDs
+  ---
+  duration_ms: 0.672738
+  type: 'test'
+  ...

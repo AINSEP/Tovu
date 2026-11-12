@@ -1758,3 +1758,1435 @@ ok 234 - TW3 federated classification pins action, declaration, hint and fallbac
   duration_ms: 2.837666
   type: 'test'
   ...
+# [tool-failure] ERR-1111-2222-3333-4444 tool=throws_secret run=run-failure-redaction execution=75b2fe05-98c0-4902-89b4-4402abe76204 principal=principal-failure-redaction redactions=2: upstream call failed: key=[REDACTED:stripe_key] (Authorization: Bearer [REDACTED:auth_header])
+# Subtest: EXECUTOR: a real handler throw is redacted and ID-tagged by the production composition
+ok 235 - EXECUTOR: a real handler throw is redacted and ID-tagged by the production composition
+  ---
+  duration_ms: 6.971693
+  type: 'test'
+  ...
+# Subtest: BRIDGE: the persisted tool_result event and http-kit's internal-error log both carry the ID with no secret
+ok 236 - BRIDGE: the persisted tool_result event and http-kit's internal-error log both carry the ID with no secret
+  ---
+  duration_ms: 11.594738
+  type: 'test'
+  ...
+# Subtest: ROUTE: with the daemon's isModelSafeToolFailure wiring, the model gets 'Error <ID>: …' with no secret, not INTERNAL_ERROR
+ok 237 - ROUTE: with the daemon's isModelSafeToolFailure wiring, the model gets 'Error <ID>: …' with no secret, not INTERNAL_ERROR
+  ---
+  duration_ms: 30.633921
+  type: 'test'
+  ...
+# Subtest: ROUTE: a failure with no minted ID stays the redacted INTERNAL_ERROR even with the wiring
+ok 238 - ROUTE: a failure with no minted ID stays the redacted INTERNAL_ERROR even with the wiring
+  ---
+  duration_ms: 0.797406
+  type: 'test'
+  ...
+# Subtest: AUDIT LINK: the failed attempt row's detail is exactly errorId=<ID>, never the message
+ok 239 - AUDIT LINK: the failed attempt row's detail is exactly errorId=<ID>, never the message
+  ---
+  duration_ms: 4.278769
+  type: 'test'
+  ...
+# [tool-failure] ERR-1111-2222-3333-4444 tool=content_post_search run=mcp-ui-redemption:b0ce0608-653b-49d9-ac60-947d6a71d221 execution=278a6ad6-03b0-4951-93fd-7269c4f8ce6b principal=principal-1 redactions=2: upstream call failed: key=[REDACTED:stripe_key] (Authorization: Bearer [REDACTED:auth_header])
+# Subtest: MCP-UI ROUTE: a redeemable tool's internal failure is redacted and ID-tagged in the 400 body
+ok 240 - MCP-UI ROUTE: a redeemable tool's internal failure is redacted and ID-tagged in the 400 body
+  ---
+  duration_ms: 188.612811
+  type: 'test'
+  ...
+# Subtest: ALLOWLIST: a reclassified ForbiddenError is redacted but keeps its exact code prefix, with no ID and no record
+ok 241 - ALLOWLIST: a reclassified ForbiddenError is redacted but keeps its exact code prefix, with no ID and no record
+  ---
+  duration_ms: 1.846645
+  type: 'test'
+  ...
+# Subtest: READ-ONLY: the recovery remedy-refusal message on a completed result is byte-for-byte unchanged
+ok 242 - READ-ONLY: the recovery remedy-refusal message on a completed result is byte-for-byte unchanged
+  ---
+  duration_ms: 1.798519
+  type: 'test'
+  ...
+# Subtest: BYOK: execute_delegated_tool's error carries the SAME ID as the default [tool-failure] log line, with no secret in either
+ok 243 - BYOK: execute_delegated_tool's error carries the SAME ID as the default [tool-failure] log line, with no secret in either
+  ---
+  duration_ms: 45.552177
+  type: 'test'
+  ...
+# Subtest: every wired CONTENT-TYPES tool has a known input fixture — a newly wired tool must be added here, not silently skipped
+ok 244 - every wired CONTENT-TYPES tool has a known input fixture — a newly wired tool must be added here, not silently skipped
+  ---
+  duration_ms: 17.357843
+  type: 'test'
+  ...
+# Subtest: content_read.collection_content_type is wired alongside the five mutations — the 6th of 7 catalog entries
+ok 245 - content_read.collection_content_type is wired alongside the five mutations — the 6th of 7 catalog entries
+  ---
+  duration_ms: 4.45846
+  type: 'test'
+  ...
+# Subtest: collections_content_type_define: calls authorize() with its catalog's declared permission and the run's principal
+ok 246 - collections_content_type_define: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 4.698224
+  type: 'test'
+  ...
+# Subtest: collections_content_type_define: a denied principal is rejected and NOTHING is written
+ok 247 - collections_content_type_define: a denied principal is rejected and NOTHING is written
+  ---
+  duration_ms: 5.577228
+  type: 'test'
+  ...
+# Subtest: collections_content_type_define: authorize() runs before the repo is even read
+ok 248 - collections_content_type_define: authorize() runs before the repo is even read
+  ---
+  duration_ms: 2.344474
+  type: 'test'
+  ...
+# Subtest: collections_content_type_update_fields: calls authorize() with its catalog's declared permission and the run's principal
+ok 249 - collections_content_type_update_fields: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 3.622604
+  type: 'test'
+  ...
+# Subtest: collections_content_type_update_fields: a denied principal is rejected and NOTHING is written
+ok 250 - collections_content_type_update_fields: a denied principal is rejected and NOTHING is written
+  ---
+  duration_ms: 3.427165
+  type: 'test'
+  ...
+# Subtest: collections_content_type_update_fields: authorize() runs before the repo is even read
+ok 251 - collections_content_type_update_fields: authorize() runs before the repo is even read
+  ---
+  duration_ms: 2.623393
+  type: 'test'
+  ...
+# Subtest: collections_content_type_deprecate: calls authorize() with its catalog's declared permission and the run's principal
+ok 252 - collections_content_type_deprecate: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 4.176681
+  type: 'test'
+  ...
+# Subtest: collections_content_type_deprecate: a denied principal is rejected and NOTHING is written
+ok 253 - collections_content_type_deprecate: a denied principal is rejected and NOTHING is written
+  ---
+  duration_ms: 2.896236
+  type: 'test'
+  ...
+# Subtest: collections_content_type_deprecate: authorize() runs before the repo is even read
+ok 254 - collections_content_type_deprecate: authorize() runs before the repo is even read
+  ---
+  duration_ms: 2.619297
+  type: 'test'
+  ...
+# Subtest: collections_content_type_reactivate: calls authorize() with its catalog's declared permission and the run's principal
+ok 255 - collections_content_type_reactivate: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 2.54431
+  type: 'test'
+  ...
+# Subtest: collections_content_type_reactivate: a denied principal is rejected and NOTHING is written
+ok 256 - collections_content_type_reactivate: a denied principal is rejected and NOTHING is written
+  ---
+  duration_ms: 1.73403
+  type: 'test'
+  ...
+# Subtest: collections_content_type_reactivate: authorize() runs before the repo is even read
+ok 257 - collections_content_type_reactivate: authorize() runs before the repo is even read
+  ---
+  duration_ms: 2.64822
+  type: 'test'
+  ...
+# Subtest: collections_content_type_tombstone: calls authorize() with its catalog's declared permission and the run's principal
+ok 258 - collections_content_type_tombstone: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 4.421349
+  type: 'test'
+  ...
+# Subtest: collections_content_type_tombstone: a denied principal is rejected and NOTHING is written
+ok 259 - collections_content_type_tombstone: a denied principal is rejected and NOTHING is written
+  ---
+  duration_ms: 3.394828
+  type: 'test'
+  ...
+# Subtest: collections_content_type_tombstone: authorize() runs before the repo is even read
+ok 260 - collections_content_type_tombstone: authorize() runs before the repo is even read
+  ---
+  duration_ms: 6.269068
+  type: 'test'
+  ...
+# Subtest: ToolPolicy passes through domain authorization; the owner-only audit tool denies other principals
+ok 261 - ToolPolicy passes through domain authorization; the owner-only audit tool denies other principals
+  ---
+  duration_ms: 2.44881
+  type: 'test'
+  ...
+# Subtest: all five wired tools declare admin.collections.manage — the mutating permission, never the read one
+ok 262 - all five wired tools declare admin.collections.manage — the mutating permission, never the read one
+  ---
+  duration_ms: 0.245139
+  type: 'test'
+  ...
+# Subtest: collections_content_type_list declares admin.collections.read — the read permission, never the mutating one
+ok 263 - collections_content_type_list declares admin.collections.read — the read permission, never the mutating one
+  ---
+  duration_ms: 0.103795
+  type: 'test'
+  ...
+# Subtest: content_read.collection_content_type: calls authorize() with 'admin.collections.read' and the run's principal, before touching the repo
+ok 264 - content_read.collection_content_type: calls authorize() with 'admin.collections.read' and the run's principal, before touching the repo
+  ---
+  duration_ms: 41.108139
+  type: 'test'
+  ...
+# Subtest: content_read.collection_content_type: a denied principal is rejected and the repo is never read
+ok 265 - content_read.collection_content_type: a denied principal is rejected and the repo is never read
+  ---
+  duration_ms: 2.456737
+  type: 'test'
+  ...
+# Subtest: content_read.collection_content_type: a populated input is refused — this tool accepts no arguments
+ok 266 - content_read.collection_content_type: a populated input is refused — this tool accepts no arguments
+  ---
+  duration_ms: 1.324877
+  type: 'test'
+  ...
+# Subtest: every wired identity tool has an input fixture here — wiring one without adding it fails rather than going untested
+ok 267 - every wired identity tool has an input fixture here — wiring one without adding it fails rather than going untested
+  ---
+  duration_ms: 42.541256
+  type: 'test'
+  ...
+# Subtest: identity_user_list: a principal holding NO permissions is refused
+ok 268 - identity_user_list: a principal holding NO permissions is refused
+  ---
+  duration_ms: 28.368286
+  type: 'test'
+  ...
+# Subtest: identity_user_list: the refusal happens before any durable write
+ok 269 - identity_user_list: the refusal happens before any durable write
+  ---
+  duration_ms: 11.882232
+  type: 'test'
+  ...
+# Subtest: identity_user_list: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 270 - identity_user_list: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 8.386509
+  type: 'test'
+  ...
+# Subtest: identity_role_list: a principal holding NO permissions is refused
+ok 271 - identity_role_list: a principal holding NO permissions is refused
+  ---
+  duration_ms: 4.557847
+  type: 'test'
+  ...
+# Subtest: identity_role_list: the refusal happens before any durable write
+ok 272 - identity_role_list: the refusal happens before any durable write
+  ---
+  duration_ms: 6.239042
+  type: 'test'
+  ...
+# Subtest: identity_role_list: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 273 - identity_role_list: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 11.98309
+  type: 'test'
+  ...
+# Subtest: identity_policy_list: a principal holding NO permissions is refused
+ok 274 - identity_policy_list: a principal holding NO permissions is refused
+  ---
+  duration_ms: 9.135016
+  type: 'test'
+  ...
+# Subtest: identity_policy_list: the refusal happens before any durable write
+ok 275 - identity_policy_list: the refusal happens before any durable write
+  ---
+  duration_ms: 16.920636
+  type: 'test'
+  ...
+# Subtest: identity_policy_list: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 276 - identity_policy_list: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 23.709851
+  type: 'test'
+  ...
+# Subtest: identity_user_create: a principal holding NO permissions is refused
+ok 277 - identity_user_create: a principal holding NO permissions is refused
+  ---
+  duration_ms: 7.547089
+  type: 'test'
+  ...
+# Subtest: identity_user_create: the refusal happens before any durable write
+ok 278 - identity_user_create: the refusal happens before any durable write
+  ---
+  duration_ms: 15.611464
+  type: 'test'
+  ...
+# Subtest: identity_user_create: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 279 - identity_user_create: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 23.929562
+  type: 'test'
+  ...
+# Subtest: identity_user_update_email: a principal holding NO permissions is refused
+ok 280 - identity_user_update_email: a principal holding NO permissions is refused
+  ---
+  duration_ms: 5.468974
+  type: 'test'
+  ...
+# Subtest: identity_user_update_email: the refusal happens before any durable write
+ok 281 - identity_user_update_email: the refusal happens before any durable write
+  ---
+  duration_ms: 7.613972
+  type: 'test'
+  ...
+# Subtest: identity_user_update_email: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 282 - identity_user_update_email: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 6.523909
+  type: 'test'
+  ...
+# Subtest: identity_user_change_username: a principal holding NO permissions is refused
+ok 283 - identity_user_change_username: a principal holding NO permissions is refused
+  ---
+  duration_ms: 47.726329
+  type: 'test'
+  ...
+# Subtest: identity_user_change_username: the refusal happens before any durable write
+ok 284 - identity_user_change_username: the refusal happens before any durable write
+  ---
+  duration_ms: 52.116009
+  type: 'test'
+  ...
+# Subtest: identity_user_change_username: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 285 - identity_user_change_username: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 11.7624
+  type: 'test'
+  ...
+# Subtest: identity_user_disable: a principal holding NO permissions is refused
+ok 286 - identity_user_disable: a principal holding NO permissions is refused
+  ---
+  duration_ms: 9.934864
+  type: 'test'
+  ...
+# Subtest: identity_user_disable: the refusal happens before any durable write
+ok 287 - identity_user_disable: the refusal happens before any durable write
+  ---
+  duration_ms: 32.784021
+  type: 'test'
+  ...
+# Subtest: identity_user_disable: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 288 - identity_user_disable: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 7.881322
+  type: 'test'
+  ...
+# Subtest: identity_user_enable: a principal holding NO permissions is refused
+ok 289 - identity_user_enable: a principal holding NO permissions is refused
+  ---
+  duration_ms: 7.849924
+  type: 'test'
+  ...
+# Subtest: identity_user_enable: the refusal happens before any durable write
+ok 290 - identity_user_enable: the refusal happens before any durable write
+  ---
+  duration_ms: 6.306097
+  type: 'test'
+  ...
+# Subtest: identity_user_enable: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 291 - identity_user_enable: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 5.854209
+  type: 'test'
+  ...
+# Subtest: identity_role_create: a principal holding NO permissions is refused
+ok 292 - identity_role_create: a principal holding NO permissions is refused
+  ---
+  duration_ms: 6.912015
+  type: 'test'
+  ...
+# Subtest: identity_role_create: the refusal happens before any durable write
+ok 293 - identity_role_create: the refusal happens before any durable write
+  ---
+  duration_ms: 11.985713
+  type: 'test'
+  ...
+# Subtest: identity_role_create: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 294 - identity_role_create: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 61.313229
+  type: 'test'
+  ...
+# Subtest: identity_role_assign: a principal holding NO permissions is refused
+ok 295 - identity_role_assign: a principal holding NO permissions is refused
+  ---
+  duration_ms: 11.740548
+  type: 'test'
+  ...
+# Subtest: identity_role_assign: the refusal happens before any durable write
+ok 296 - identity_role_assign: the refusal happens before any durable write
+  ---
+  duration_ms: 21.43949
+  type: 'test'
+  ...
+# Subtest: identity_role_assign: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 297 - identity_role_assign: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 22.615136
+  type: 'test'
+  ...
+# Subtest: identity_role_rename: a principal holding NO permissions is refused
+ok 298 - identity_role_rename: a principal holding NO permissions is refused
+  ---
+  duration_ms: 12.178785
+  type: 'test'
+  ...
+# Subtest: identity_role_rename: the refusal happens before any durable write
+ok 299 - identity_role_rename: the refusal happens before any durable write
+  ---
+  duration_ms: 9.843666
+  type: 'test'
+  ...
+# Subtest: identity_role_rename: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 300 - identity_role_rename: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 8.509471
+  type: 'test'
+  ...
+# Subtest: identity_role_delete: a principal holding NO permissions is refused
+ok 301 - identity_role_delete: a principal holding NO permissions is refused
+  ---
+  duration_ms: 15.047499
+  type: 'test'
+  ...
+# Subtest: identity_role_delete: the refusal happens before any durable write
+ok 302 - identity_role_delete: the refusal happens before any durable write
+  ---
+  duration_ms: 14.765502
+  type: 'test'
+  ...
+# Subtest: identity_role_delete: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 303 - identity_role_delete: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 13.297668
+  type: 'test'
+  ...
+# Subtest: identity_policy_create: a principal holding NO permissions is refused
+ok 304 - identity_policy_create: a principal holding NO permissions is refused
+  ---
+  duration_ms: 8.249334
+  type: 'test'
+  ...
+# Subtest: identity_policy_create: the refusal happens before any durable write
+ok 305 - identity_policy_create: the refusal happens before any durable write
+  ---
+  duration_ms: 19.685875
+  type: 'test'
+  ...
+# Subtest: identity_policy_create: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 306 - identity_policy_create: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 8.306208
+  type: 'test'
+  ...
+# Subtest: identity_policy_update: a principal holding NO permissions is refused
+ok 307 - identity_policy_update: a principal holding NO permissions is refused
+  ---
+  duration_ms: 27.221028
+  type: 'test'
+  ...
+# Subtest: identity_policy_update: the refusal happens before any durable write
+ok 308 - identity_policy_update: the refusal happens before any durable write
+  ---
+  duration_ms: 16.794525
+  type: 'test'
+  ...
+# Subtest: identity_policy_update: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 309 - identity_policy_update: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 39.535204
+  type: 'test'
+  ...
+# Subtest: identity_policy_delete: a principal holding NO permissions is refused
+ok 310 - identity_policy_delete: a principal holding NO permissions is refused
+  ---
+  duration_ms: 110.015474
+  type: 'test'
+  ...
+# Subtest: identity_policy_delete: the refusal happens before any durable write
+ok 311 - identity_policy_delete: the refusal happens before any durable write
+  ---
+  duration_ms: 45.642443
+  type: 'test'
+  ...
+# Subtest: identity_policy_delete: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 312 - identity_policy_delete: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 386.763031
+  type: 'test'
+  ...
+# Subtest: identity_policy_attach: a principal holding NO permissions is refused
+ok 313 - identity_policy_attach: a principal holding NO permissions is refused
+  ---
+  duration_ms: 147.414485
+  type: 'test'
+  ...
+# Subtest: identity_policy_attach: the refusal happens before any durable write
+ok 314 - identity_policy_attach: the refusal happens before any durable write
+  ---
+  duration_ms: 11.491996
+  type: 'test'
+  ...
+# Subtest: identity_policy_attach: a principal holding exactly the permission its catalog entry declares gets past the gate
+ok 315 - identity_policy_attach: a principal holding exactly the permission its catalog entry declares gets past the gate
+  ---
+  duration_ms: 34.850128
+  type: 'test'
+  ...
+# Subtest: the catalog declares an OR gate for exactly the user-list and own-email tools
+ok 316 - the catalog declares an OR gate for exactly the user-list and own-email tools
+  ---
+  duration_ms: 1.165785
+  type: 'test'
+  ...
+# Subtest: identity_user_list: 'user.manage' ALONE satisfies the gate — the declared OR is real, not decoration
+ok 317 - identity_user_list: 'user.manage' ALONE satisfies the gate — the declared OR is real, not decoration
+  ---
+  duration_ms: 12.880084
+  type: 'test'
+  ...
+# Subtest: identity_user_list: 'member.manage' ALONE satisfies the gate — the declared OR is real, not decoration
+ok 318 - identity_user_list: 'member.manage' ALONE satisfies the gate — the declared OR is real, not decoration
+  ---
+  duration_ms: 5.427778
+  type: 'test'
+  ...
+# Subtest: identity_user_update_email: 'user.manage' ALONE satisfies the gate — the declared OR is real, not decoration
+ok 319 - identity_user_update_email: 'user.manage' ALONE satisfies the gate — the declared OR is real, not decoration
+  ---
+  duration_ms: 4.660994
+  type: 'test'
+  ...
+# Subtest: identity_user_update_email: 'member.manage' ALONE satisfies the gate — the declared OR is real, not decoration
+ok 320 - identity_user_update_email: 'member.manage' ALONE satisfies the gate — the declared OR is real, not decoration
+  ---
+  duration_ms: 6.888872
+  type: 'test'
+  ...
+# Subtest: identity_user_create: member.manage alone cannot create an operator or write any state
+ok 321 - identity_user_create: member.manage alone cannot create an operator or write any state
+  ---
+  duration_ms: 5.664277
+  type: 'test'
+  ...
+# Subtest: a tool with no declared OR really is single-permission — role.manage holders cannot reach the user tools
+ok 322 - a tool with no declared OR really is single-permission — role.manage holders cannot reach the user tools
+  ---
+  duration_ms: 5.079957
+  type: 'test'
+  ...
+# Subtest: identity_role_assign: a non-owner caller cannot assign the built-in owner role — the INV-07 clamp survives the tool path
+ok 323 - identity_role_assign: a non-owner caller cannot assign the built-in owner role — the INV-07 clamp survives the tool path
+  ---
+  duration_ms: 5.332016
+  type: 'test'
+  ...
+# Subtest: identity_role_assign: the OWNER can assign the owner role — the clamp is a bound on the caller, not a blanket ban
+ok 324 - identity_role_assign: the OWNER can assign the owner role — the clamp is a bound on the caller, not a blanket ban
+  ---
+  duration_ms: 6.002859
+  type: 'test'
+  ...
+# Subtest: identity_policy_attach: a non-owner caller cannot attach the built-in owner policy — the INV-07 clamp survives this tool path too, identically to identity_role_assign
+ok 325 - identity_policy_attach: a non-owner caller cannot attach the built-in owner policy — the INV-07 clamp survives this tool path too, identically to identity_role_assign
+  ---
+  duration_ms: 6.88581
+  type: 'test'
+  ...
+# Subtest: identity_policy_delete / identity_policy_update: built-in policies are refused, so a tool cannot escalate by relabelling or removing one
+ok 326 - identity_policy_delete / identity_policy_update: built-in policies are refused, so a tool cannot escalate by relabelling or removing one
+  ---
+  duration_ms: 7.012861
+  type: 'test'
+  ...
+# Subtest: identity_user_disable: the seeded owner cannot be disabled through a tool, even by the owner itself
+ok 327 - identity_user_disable: the seeded owner cannot be disabled through a tool, even by the owner itself
+  ---
+  duration_ms: 4.159138
+  type: 'test'
+  ...
+# Subtest: identity_role_rename / identity_role_delete: built-in roles are refused, so a tool cannot escalate 'viewer' by relabelling or removing it
+ok 328 - identity_role_rename / identity_role_delete: built-in roles are refused, so a tool cannot escalate 'viewer' by relabelling or removing it
+  ---
+  duration_ms: 10.594123
+  type: 'test'
+  ...
+# Subtest: the ToolPolicy layer is a pass-through 'allow' for every identity registration — enforcement is the domain layer's, by design
+ok 329 - the ToolPolicy layer is a pass-through 'allow' for every identity registration — enforcement is the domain layer's, by design
+  ---
+  duration_ms: 6.760103
+  type: 'test'
+  ...
+# Subtest: no password-reset tool is wired — the one identity transition with no INV-07 clamp stays human-UI-only
+ok 330 - no password-reset tool is wired — the one identity transition with no INV-07 clamp stays human-UI-only
+  ---
+  duration_ms: 5.426371
+  type: 'test'
+  ...
+# Subtest: identity_policy_list/create/update/delete/attach are wired, but identity_policy_write_permission is NOT — the one policy transition with a shared-object blast radius stays human-UI-only
+ok 331 - identity_policy_list/create/update/delete/attach are wired, but identity_policy_write_permission is NOT — the one policy transition with a shared-object blast radius stays human-UI-only
+  ---
+  duration_ms: 4.428687
+  type: 'test'
+  ...
+# Subtest: every wired identity tool declares user.manage or role.manage — never a read-only or unrelated permission
+ok 332 - every wired identity tool declares user.manage or role.manage — never a read-only or unrelated permission
+  ---
+  duration_ms: 2.912811
+  type: 'test'
+  ...
+# Subtest: chat delete policy defaults off; checked identity deletes retain a plan confirmation
+ok 333 - chat delete policy defaults off; checked identity deletes retain a plan confirmation
+  ---
+  duration_ms: 42.279157
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled is present in the BUILT registration list, reached through the real contributor seam
+ok 334 - plugins_set_enabled is present in the BUILT registration list, reached through the real contributor seam
+  ---
+  duration_ms: 46.041476
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled has a DERIVED_RISK_BY_TOOL_ID entry — the wiring gate fails closed without one
+ok 335 - plugins_set_enabled has a DERIVED_RISK_BY_TOOL_ID entry — the wiring gate fails closed without one
+  ---
+  duration_ms: 0.225723
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled is redeemable from the MCP-UI callback endpoint — its confirmation dialog posts back through it
+ok 336 - plugins_set_enabled is redeemable from the MCP-UI callback endpoint — its confirmation dialog posts back through it
+  ---
+  duration_ms: 0.10022
+  type: 'test'
+  ...
+# Subtest: the catalog schema requires 'family' and enumerates exactly the two real plugin systems
+ok 337 - the catalog schema requires 'family' and enumerates exactly the two real plugin systems
+  ---
+  duration_ms: 1.059428
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: a missing 'family' is a ToolInputError, not an opaque 500
+ok 338 - plugins_set_enabled: a missing 'family' is a ToolInputError, not an opaque 500
+  ---
+  duration_ms: 6.501236
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: an unrecognized 'family' is a ToolInputError naming both valid values
+ok 339 - plugins_set_enabled: an unrecognized 'family' is a ToolInputError naming both valid values
+  ---
+  duration_ms: 3.692195
+  type: 'test'
+  ...
+# Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+# Subtest: plugins_set_enabled: enabling refuses outright when the execution context has no confirmation channel
+ok 340 - plugins_set_enabled: enabling refuses outright when the execution context has no confirmation channel
+  ---
+  duration_ms: 102.122565
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: disabling an Agent Plugin needs no confirmation — it only ever removes capability
+ok 341 - plugins_set_enabled: disabling an Agent Plugin needs no confirmation — it only ever removes capability
+  ---
+  duration_ms: 174.850353
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: disabling an explicitly enabled Agent Plugin persists false without a confirmation channel
+ok 342 - plugins_set_enabled: disabling an explicitly enabled Agent Plugin persists false without a confirmation channel
+  ---
+  duration_ms: 212.900316
+  type: 'test'
+  ...
+# [agent-plugins] 'higgsfield-media': plugins_set_enabled refused — agent-plugin activation: activations.json is not valid JSON (Expected property name or '}' in JSON at position 2 (line 1 column 3)) (/tmp/tovu-plugin-family-CO5O3g/ws/55555555-5555-4555-8555-555555555555/activations.json). The file was left untouched and nothing was written, so no recorded enable/disable decision was lost. Until it is repaired, this workspace's Agent Plugin tool calls and plugin-pinned runs are refused, and no Agent Plugin can be enabled, disabled, seeded or uninstalled. To recover, fix the JSON by hand; or stop the host, move the file aside and start the host again — bundled plugins are then recorded as disabled again, but every operator-installed plugin you had disabled starts enabled and must be disabled again.
+# Subtest: plugins_set_enabled: a corrupt activations file returns changed:false with an activations-unreadable reason — no confirmation, no throw
+ok 343 - plugins_set_enabled: a corrupt activations file returns changed:false with an activations-unreadable reason — no confirmation, no throw
+  ---
+  duration_ms: 209.727407
+  type: 'test'
+  ...
+# Subtest: t91 §7.2: ENABLING on a corrupt activations file returns activations-unreadable WITHOUT raising the confirmation dialog
+ok 344 - t91 §7.2: ENABLING on a corrupt activations file returns activations-unreadable WITHOUT raising the confirmation dialog
+  ---
+  duration_ms: 114.750401
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: a confirmed enable writes the Agent Plugin's activation record
+ok 345 - plugins_set_enabled: a confirmed enable writes the Agent Plugin's activation record
+  ---
+  duration_ms: 364.318821
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: a confirmed in-chat enable also provisions the plugin's declared remote MCP server, exactly like the admin toggle
+ok 346 - plugins_set_enabled: a confirmed in-chat enable also provisions the plugin's declared remote MCP server, exactly like the admin toggle
+  ---
+  duration_ms: 393.533803
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: a declined enable writes nothing and says so
+ok 347 - plugins_set_enabled: a declined enable writes nothing and says so
+  ---
+  duration_ms: 240.292355
+  type: 'test'
+  ...
+# Subtest: the confirmation dialog is a real MCP-UI resource naming the plugin, and calls back into THIS tool id
+ok 348 - the confirmation dialog is a real MCP-UI resource naming the plugin, and calls back into THIS tool id
+  ---
+  duration_ms: 180.021245
+  type: 'test'
+  ...
+# Subtest: enabling an Agent Plugin reports live discovery and guidance without a restart
+ok 349 - enabling an Agent Plugin reports live discovery and guidance without a restart
+  ---
+  duration_ms: 188.138941
+  type: 'test'
+  ...
+# Subtest: disabling reports restartRequired:false — the activation gate is re-read per run, so an off switch lands immediately
+ok 350 - disabling reports restartRequired:false — the activation gate is re-read per run, so an off switch lands immediately
+  ---
+  duration_ms: 155.17706
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: an Agent Plugin id that is not installed in this workspace is a ToolInputError
+ok 351 - plugins_set_enabled: an Agent Plugin id that is not installed in this workspace is a ToolInputError
+  ---
+  duration_ms: 141.309905
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: family 'site-runtime' still enables a .tovu-plugin through executeCommand, behind the same confirmation
+ok 352 - plugins_set_enabled: family 'site-runtime' still enables a .tovu-plugin through executeCommand, behind the same confirmation
+  ---
+  duration_ms: 35.176455
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: disabling a site-runtime plugin says its tool is refused from now on, not merely that it stays listed
+ok 353 - plugins_set_enabled: disabling a site-runtime plugin says its tool is refused from now on, not merely that it stays listed
+  ---
+  duration_ms: 71.046985
+  type: 'test'
+  ...
+# Subtest: disabling an Agent Plugin reports that its guidance and external tools stop while credentials are retained
+ok 354 - disabling an Agent Plugin reports that its guidance and external tools stop while credentials are retained
+  ---
+  duration_ms: 279.691323
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: authorize() runs before any confirmation dialog is raised
+ok 355 - plugins_set_enabled: authorize() runs before any confirmation dialog is raised
+  ---
+  duration_ms: 3.372074
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: a denied Agent Plugin enable emits nothing and preserves activations
+ok 356 - plugins_set_enabled: a denied Agent Plugin enable emits nothing and preserves activations
+  ---
+  duration_ms: 225.160948
+  type: 'test'
+  ...
+# Subtest: plugins_set_enabled: a denied Agent Plugin disable emits nothing and preserves activations
+ok 357 - plugins_set_enabled: a denied Agent Plugin disable emits nothing and preserves activations
+  ---
+  duration_ms: 121.863593
+  type: 'test'
+  ...
+# Subtest: enabling always asks for fresh owner approval, including a saved identity; revocation still refuses
+ok 358 - enabling always asks for fresh owner approval, including a saved identity; revocation still refuses
+  ---
+  duration_ms: 15.942201
+  type: 'test'
+  ...
+# Subtest: a version changed while enabling was approved is refused without an activation write
+ok 359 - a version changed while enabling was approved is refused without an activation write
+  ---
+  duration_ms: 6.17414
+  type: 'test'
+  ...
+# Subtest: server-composed approval memory cannot replace the owner card when enabling the same or a new version
+ok 360 - server-composed approval memory cannot replace the owner card when enabling the same or a new version
+  ---
+  duration_ms: 571.316802
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: a provider plugin's assistant face is never switched on its own: no dialog, nothing written, the note names the provider plugin
+ok 361 - a provider plugin's assistant face is never switched on its own: no dialog, nothing written, the note names the provider plugin
+  ---
+  duration_ms: 254.691641
+  type: 'test'
+  ...
+# Subtest: theme_duplicate: structure-only returns a valid unstyled inactive Starter copy
+ok 362 - theme_duplicate: structure-only returns a valid unstyled inactive Starter copy
+  ---
+  duration_ms: 472.396504
+  type: 'test'
+  ...
+# Subtest: theme_duplicate: structure-only activation conflict and unknown mode refuse before writes
+ok 363 - theme_duplicate: structure-only activation conflict and unknown mode refuse before writes
+  ---
+  duration_ms: 44.013514
+  type: 'test'
+  ...
+# Subtest: theme_duplicate: wires with its catalog schema, a mutating risk class, and is not read-only
+ok 364 - theme_duplicate: wires with its catalog schema, a mutating risk class, and is not read-only
+  ---
+  duration_ms: 33.582187
+  type: 'test'
+  ...
+# Subtest: theme_duplicate: the contributor registers under its own 'theme-duplicate' domain key
+ok 365 - theme_duplicate: the contributor registers under its own 'theme-duplicate' domain key
+  ---
+  duration_ms: 1.252751
+  type: 'test'
+  ...
+# Subtest: theme_duplicate: copies the source into a new, valid, discovered theme and leaves the live site on the source
+ok 366 - theme_duplicate: copies the source into a new, valid, discovered theme and leaves the live site on the source
+  ---
+  duration_ms: 42.201971
+  type: 'test'
+  ...
+# Subtest: theme_duplicate: a derived id that is taken is suffixed, not refused
+ok 367 - theme_duplicate: a derived id that is taken is suffixed, not refused
+  ---
+  duration_ms: 50.410668
+  type: 'test'
+  ...
+# Subtest: theme_duplicate: activate:true also switches the live theme and returns the previous id for undo
+ok 368 - theme_duplicate: activate:true also switches the live theme and returns the previous id for undo
+  ---
+  duration_ms: 13.534018
+  type: 'test'
+  ...
+# Subtest: theme_duplicate: activate:true without theme.set is refused before anything is copied
+ok 369 - theme_duplicate: activate:true without theme.set is refused before anything is copied
+  ---
+  duration_ms: 4.474593
+  type: 'test'
+  ...
+# Subtest: theme_duplicate: a principal without theme.edit is refused and nothing is written
+ok 370 - theme_duplicate: a principal without theme.edit is refused and nothing is written
+  ---
+  duration_ms: 4.280329
+  type: 'test'
+  ...
+# Subtest: theme_duplicate: an unknown source is refused by name with the published schema attached for retry
+ok 371 - theme_duplicate: an unknown source is refused by name with the published schema attached for retry
+  ---
+  duration_ms: 4.282204
+  type: 'test'
+  ...
+# Subtest: theme_duplicate: an explicit newId that is already taken is refused, not suffixed
+ok 372 - theme_duplicate: an explicit newId that is already taken is refused, not suffixed
+  ---
+  duration_ms: 4.182893
+  type: 'test'
+  ...
+# Subtest: exactly the 6 webhooks catalog entries are registered — nothing withheld as a stub in this domain
+ok 373 - exactly the 6 webhooks catalog entries are registered — nothing withheld as a stub in this domain
+  ---
+  duration_ms: 12.945613
+  type: 'test'
+  ...
+# Subtest: subscription update is available while signing-secret rotation and reveal remain absent
+ok 374 - subscription update is available while signing-secret rotation and reveal remain absent
+  ---
+  duration_ms: 3.352632
+  type: 'test'
+  ...
+# Subtest: every wired webhooks registration publishes its catalog contract, including the shared delete plan
+ok 375 - every wired webhooks registration publishes its catalog contract, including the shared delete plan
+  ---
+  duration_ms: 2.800111
+  type: 'test'
+  ...
+# Subtest: requiresConfirmation is unset on every wired webhooks tool
+ok 376 - requiresConfirmation is unset on every wired webhooks tool
+  ---
+  duration_ms: 1.725481
+  type: 'test'
+  ...
+# Subtest: the independent risk classification agrees with the catalog for every wired webhooks tool
+ok 377 - the independent risk classification agrees with the catalog for every wired webhooks tool
+  ---
+  duration_ms: 1.844859
+  type: 'test'
+  ...
+# Subtest: a webhooks catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for webhooks_create_subscription fails the build
+ok 378 - a webhooks catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for webhooks_create_subscription fails the build
+  ---
+  duration_ms: 1.21847
+  type: 'test'
+  ...
+# Subtest: the ToolPolicy layer is a pass-through 'allow' for every wired webhooks registration
+ok 379 - the ToolPolicy layer is a pass-through 'allow' for every wired webhooks registration
+  ---
+  duration_ms: 2.497491
+  type: 'test'
+  ...
+# Subtest: content_read.webhook_subscription: calls authorize() with 'admin.integrations.manage' and the run's principal
+ok 380 - content_read.webhook_subscription: calls authorize() with 'admin.integrations.manage' and the run's principal
+  ---
+  duration_ms: 2.560832
+  type: 'test'
+  ...
+# Subtest: content_read.webhook_subscription: a denied principal is rejected and nothing is written
+ok 381 - content_read.webhook_subscription: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 2.191207
+  type: 'test'
+  ...
+# Subtest: webhooks_create_subscription: calls authorize() with 'admin.integrations.manage' and the run's principal
+ok 382 - webhooks_create_subscription: calls authorize() with 'admin.integrations.manage' and the run's principal
+  ---
+  duration_ms: 3.960818
+  type: 'test'
+  ...
+# Subtest: webhooks_create_subscription: a denied principal is rejected and nothing is written
+ok 383 - webhooks_create_subscription: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 1.888576
+  type: 'test'
+  ...
+# Subtest: webhooks_create_subscription: rejects a non-https target the same way the domain function does
+ok 384 - webhooks_create_subscription: rejects a non-https target the same way the domain function does
+  ---
+  duration_ms: 2.251046
+  type: 'test'
+  ...
+# Subtest: webhooks_create_subscription: rejects a target the egress allowlist disallows
+ok 385 - webhooks_create_subscription: rejects a target the egress allowlist disallows
+  ---
+  duration_ms: 1.797781
+  type: 'test'
+  ...
+# Subtest: webhooks_get_deliveries: an unknown subscriptionId propagates WebhookSubscriptionNotFoundError unwrapped
+ok 386 - webhooks_get_deliveries: an unknown subscriptionId propagates WebhookSubscriptionNotFoundError unwrapped
+  ---
+  duration_ms: 1.520955
+  type: 'test'
+  ...
+# Subtest: webhooks_get_deliveries returns recent delivery details in newest-first order with a limit, and listing reports the latest delivery
+ok 387 - webhooks_get_deliveries returns recent delivery details in newest-first order with a limit, and listing reports the latest delivery
+  ---
+  duration_ms: 14.09832
+  type: 'test'
+  ...
+# Subtest: workflow: create a subscription, list to confirm it appears, pause it, list again to confirm the status change, then remove it
+ok 388 - workflow: create a subscription, list to confirm it appears, pause it, list again to confirm the status change, then remove it
+  ---
+  duration_ms: 34.428951
+  type: 'test'
+  ...
+# Subtest: chat delete policy defaults off; checked webhook delete retains a human card
+ok 389 - chat delete policy defaults off; checked webhook delete retains a human card
+  ---
+  duration_ms: 4.509567
+  type: 'test'
+  ...
+# Subtest: direct: webhook delete plan refuses every foreign item spelling before preparation or confirmation
+ok 390 - direct: webhook delete plan refuses every foreign item spelling before preparation or confirmation
+  ---
+  duration_ms: 12.395707
+  type: 'test'
+  ...
+# Subtest: delegated: webhook delete plan refuses every foreign item spelling before preparation or confirmation
+ok 391 - delegated: webhook delete plan refuses every foreign item spelling before preparation or confirmation
+  ---
+  duration_ms: 1459.545194
+  type: 'test'
+  ...
+# Subtest: webhook delete plan canonicalizes every item and retains one confirmation and the 25-item cap
+ok 392 - webhook delete plan canonicalizes every item and retains one confirmation and the 25-item cap
+  ---
+  duration_ms: 24.944669
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: the fixture names only tools that exist, and every known gap is a scored request
+ok 393 - the fixture names only tools that exist, and every known gap is a scored request
+  ---
+  duration_ms: 1158.557179
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: every operator request with a tool finds it in the top 3 of search_tools
+ok 394 - every operator request with a tool finds it in the top 3 of search_tools
+  ---
+  duration_ms: 937.653705
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: operator permanent-delete requests are hidden OFF and discoverable only with the owner grant
+ok 395 - operator permanent-delete requests are hidden OFF and discoverable only with the owner grant
+  ---
+  duration_ms: 1060.326987
+  type: 'test'
+  ...
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"boot","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"browser","probe":"dead","decision":"superseded","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"boot","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"boot","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"next-1","trigger":"boot","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"browser","probe":"live","decision":"reattached"}
+# [durable-recovery] {"runId":"old","trigger":"browser","probe":"uncertain","decision":"waiting"}
+# [durable-recovery] {"runId":"old","trigger":"browser","probe":"dead","decision":"waiting","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"boot","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"boot","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"boot","decision":"finalized"}
+# [durable-recovery] {"runId":"old","trigger":"boot","decision":"finalized"}
+# [durable-recovery] {"runId":"old","trigger":"boot","decision":"finalized"}
+# [durable-recovery] {"runId":"old","trigger":"boot","decision":"finalized"}
+# [durable-recovery] {"runId":"old","trigger":"boot","decision":"finalized"}
+# [durable-recovery] {"runId":"old","trigger":"boot","decision":"finalized"}
+# [durable-recovery] {"runId":"old","trigger":"boot","probe":"dead","decision":"finalized","failureClass":"auth-failure"}
+# [durable-recovery] {"runId":"old","trigger":"browser","probe":"uncertain","decision":"waiting"}
+# [durable-recovery] {"runId":"old","trigger":"browser","decision":"finalized"}
+# [durable-recovery] {"runId":"old","trigger":"boot","probe":"dead","decision":"finalized","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"boot","probe":"dead","decision":"finalized","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"boot","probe":"dead","decision":"finalized","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"next-1","trigger":"attempt-failed","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"next-2","trigger":"attempt-failed","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"next-3","trigger":"attempt-failed","probe":"dead","decision":"finalized","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"timeout","probe":"uncertain","decision":"waiting"}
+# [durable-recovery] {"runId":"old","trigger":"timeout","probe":"live","decision":"reattached"}
+# [durable-recovery] {"runId":"old","trigger":"timeout","probe":"dead","decision":"finalized","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"timeout","probe":"uncertain","decision":"waiting"}
+# [durable-recovery] {"runId":"old","trigger":"timeout","probe":"dead","decision":"finalized","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"finalized","failureClass":"permanent"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"finalized","failureClass":"permanent"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"finalized","failureClass":"permanent"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"finalized","failureClass":"permanent"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"finalized","failureClass":"permanent"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"finalized","failureClass":"permanent"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"finalized","failureClass":"permanent"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"finalized","failureClass":"permanent"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"finalized","failureClass":"permanent"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"finalized","failureClass":"permanent"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"finalized","failureClass":"permanent"}
+# [durable-recovery] {"runId":"old","trigger":"boot","probe":"dead","decision":"finalized","failureClass":"permanent"}
+# [durable-recovery] {"runId":"old","trigger":"browser","probe":"dead","decision":"finalized","failureClass":"permanent"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"finalized","failureClass":"permanent"}
+# [durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"continued","failureClass":"retryable"}
+# [durable-recovery] {"runId":"old","trigger":"browser","probe":"dead","decision":"continued","failureClass":"retryable"}
+# Subtest: recovery before any answer does not render a Continued divider on the first answer
+ok 396 - recovery before any answer does not render a Continued divider on the first answer
+  ---
+  duration_ms: 23.192157
+  type: 'test'
+  ...
+# Subtest: dev restart kills the daemon: the incident resumes in the same message, preserving all 182 characters
+ok 397 - dev restart kills the daemon: the incident resumes in the same message, preserving all 182 characters
+  ---
+  duration_ms: 7.759517
+  type: 'test'
+  ...
+# Subtest: two concurrent recover callers advance by CAS and launch exactly one attempt
+ok 398 - two concurrent recover callers advance by CAS and launch exactly one attempt
+  ---
+  duration_ms: 0.9754
+  type: 'test'
+  ...
+# Subtest: two successive dev restarts retain the logical message and start one continuation each
+ok 399 - two successive dev restarts retain the logical message and start one continuation each
+  ---
+  duration_ms: 7.22215
+  type: 'test'
+  ...
+# Subtest: live reattaches and uncertain waits without spawning
+ok 400 - live reattaches and uncertain waits without spawning
+  ---
+  duration_ms: 0.655495
+  type: 'test'
+  ...
+# Subtest: a newly accepted queued attempt is allowed to finish its idempotent launch before a 404 advances it
+ok 401 - a newly accepted queued attempt is allowed to finish its idempotent launch before a 404 advances it
+  ---
+  duration_ms: 0.596733
+  type: 'test'
+  ...
+# Subtest: native continuation requires both confirmed session and verified death of the old child
+ok 402 - native continuation requires both confirmed session and verified death of the old child
+  ---
+  duration_ms: 8.590271
+  type: 'test'
+  ...
+# Subtest: guest never auto-resumes
+ok 403 - guest never auto-resumes
+  ---
+  duration_ms: 0.701742
+  type: 'test'
+  ...
+# Subtest: public anonymous assistant never auto-resumes
+ok 404 - public anonymous assistant never auto-resumes
+  ---
+  duration_ms: 0.34528
+  type: 'test'
+  ...
+# Subtest: BYOK never auto-resumes
+ok 405 - BYOK never auto-resumes
+  ---
+  duration_ms: 0.196254
+  type: 'test'
+  ...
+# Subtest: AG-UI never auto-resumes
+ok 406 - AG-UI never auto-resumes
+  ---
+  duration_ms: 0.356474
+  type: 'test'
+  ...
+# Subtest: user Stop never auto-resumes
+ok 407 - user Stop never auto-resumes
+  ---
+  duration_ms: 0.189353
+  type: 'test'
+  ...
+# Subtest: inactivity watchdog never auto-resumes
+ok 408 - inactivity watchdog never auto-resumes
+  ---
+  duration_ms: 0.128477
+  type: 'test'
+  ...
+# Subtest: auth failure never auto-resumes
+ok 409 - auth failure never auto-resumes
+  ---
+  duration_ms: 1.891546
+  type: 'test'
+  ...
+# Subtest: deleted conversation binding and terminal rows cannot be reopened
+ok 410 - deleted conversation binding and terminal rows cannot be reopened
+  ---
+  duration_ms: 0.513614
+  type: 'test'
+  ...
+# Subtest: Stop during uncertain backoff finalizes once and keeps partial text
+ok 411 - Stop during uncertain backoff finalizes once and keeps partial text
+  ---
+  duration_ms: 0.71309
+  type: 'test'
+  ...
+# Subtest: three attempts, five active recovery minutes, and thirty-minute staleness each finalize once
+ok 412 - three attempts, five active recovery minutes, and thirty-minute staleness each finalize once
+  ---
+  duration_ms: 1.8351
+  type: 'test'
+  ...
+# Subtest: unknown identical mutating call is recognized independent of key order and a new tool-use id
+ok 413 - unknown identical mutating call is recognized independent of key order and a new tool-use id
+  ---
+  duration_ms: 2.93001
+  type: 'test'
+  ...
+# Subtest: acceptance persists before launch, remains watched if dispatch loses its response, and duplicates use one attempt id
+ok 414 - acceptance persists before launch, remains watched if dispatch loses its response, and duplicates use one attempt id
+  ---
+  duration_ms: 3.878813
+  type: 'test'
+  ...
+# Subtest: three failed continuation dispatches exhaust once without losing saved text
+ok 415 - three failed continuation dispatches exhaust once without losing saved text
+  ---
+  duration_ms: 23.570845
+  type: 'test'
+  ...
+# Subtest: a stream timeout keeps an uncertain attempt waiting while its five-minute budget remains
+ok 416 - a stream timeout keeps an uncertain attempt waiting while its five-minute budget remains
+  ---
+  duration_ms: 25.984225
+  type: 'test'
+  ...
+# Subtest: a positively live quiet attempt keeps waiting on its approval beyond thirty minutes
+ok 417 - a positively live quiet attempt keeps waiting on its approval beyond thirty minutes
+  ---
+  duration_ms: 0.709657
+  type: 'test'
+  ...
+# Subtest: a stale dead executor requires verified death before finalization with saved work
+ok 418 - a stale dead executor requires verified death before finalization with saved work
+  ---
+  duration_ms: 0.73394
+  type: 'test'
+  ...
+# Subtest: a stale uncertain executor requires verified death before finalization with saved work
+ok 419 - a stale uncertain executor requires verified death before finalization with saved work
+  ---
+  duration_ms: 0.652351
+  type: 'test'
+  ...
+# Subtest: permanent attempt failure finalizes once: HTTP 400: invalid_request_error
+ok 420 - permanent attempt failure finalizes once: HTTP 400: invalid_request_error
+  ---
+  duration_ms: 3.594393
+  type: 'test'
+  ...
+# Subtest: permanent attempt failure finalizes once: HTTP 403: permission denied
+ok 421 - permanent attempt failure finalizes once: HTTP 403: permission denied
+  ---
+  duration_ms: 6.815034
+  type: 'test'
+  ...
+# Subtest: permanent attempt failure finalizes once: HTTP 404: model not found
+ok 422 - permanent attempt failure finalizes once: HTTP 404: model not found
+  ---
+  duration_ms: 0.313531
+  type: 'test'
+  ...
+# Subtest: permanent attempt failure finalizes once: HTTP 402: payment required
+ok 423 - permanent attempt failure finalizes once: HTTP 402: payment required
+  ---
+  duration_ms: 0.376466
+  type: 'test'
+  ...
+# Subtest: permanent attempt failure finalizes once: HTTP 429: insufficient_quota
+ok 424 - permanent attempt failure finalizes once: HTTP 429: insufficient_quota
+  ---
+  duration_ms: 0.217549
+  type: 'test'
+  ...
+# Subtest: permanent attempt failure finalizes once: credit balance is too low
+ok 425 - permanent attempt failure finalizes once: credit balance is too low
+  ---
+  duration_ms: 0.329721
+  type: 'test'
+  ...
+# Subtest: permanent attempt failure finalizes once: context_length_exceeded
+ok 426 - permanent attempt failure finalizes once: context_length_exceeded
+  ---
+  duration_ms: 0.19122
+  type: 'test'
+  ...
+# Subtest: permanent attempt failure finalizes once: model_not_found
+ok 427 - permanent attempt failure finalizes once: model_not_found
+  ---
+  duration_ms: 0.219256
+  type: 'test'
+  ...
+# Subtest: permanent attempt failure finalizes once: This model does not support images
+ok 428 - permanent attempt failure finalizes once: This model does not support images
+  ---
+  duration_ms: 0.301372
+  type: 'test'
+  ...
+# Subtest: permanent attempt failure finalizes once: Another answer in this chat is still running. This turn could not start.
+ok 429 - permanent attempt failure finalizes once: Another answer in this chat is still running. This turn could not start.
+  ---
+  duration_ms: 0.247875
+  type: 'test'
+  ...
+# Subtest: transient attempt failure continues: HTTP 408: request timeout
+ok 430 - transient attempt failure continues: HTTP 408: request timeout
+  ---
+  duration_ms: 0.500665
+  type: 'test'
+  ...
+# Subtest: transient attempt failure continues: HTTP 429: too many requests
+ok 431 - transient attempt failure continues: HTTP 429: too many requests
+  ---
+  duration_ms: 0.269957
+  type: 'test'
+  ...
+# Subtest: transient attempt failure continues: HTTP 503: overloaded
+ok 432 - transient attempt failure continues: HTTP 503: overloaded
+  ---
+  duration_ms: 0.307979
+  type: 'test'
+  ...
+# Subtest: transient attempt failure continues: ECONNRESET
+ok 433 - transient attempt failure continues: ECONNRESET
+  ---
+  duration_ms: 0.17286
+  type: 'test'
+  ...
+# Subtest: transient attempt failure continues: request timed out
+ok 434 - transient attempt failure continues: request timed out
+  ---
+  duration_ms: 0.13649
+  type: 'test'
+  ...
+# Subtest: failure classification ignores answer text and tool errors from completed work
+ok 435 - failure classification ignores answer text and tool errors from completed work
+  ---
+  duration_ms: 0.358923
+  type: 'test'
+  ...
+# Subtest: a permanent error in executor stderr is finalized through the same classification
+ok 436 - a permanent error in executor stderr is finalized through the same classification
+  ---
+  duration_ms: 0.406683
+  type: 'test'
+  ...
+# Subtest: boot and browser recovery also honor a persisted permanent attempt failure
+ok 437 - boot and browser recovery also honor a persisted permanent attempt failure
+  ---
+  duration_ms: 0.431072
+  type: 'test'
+  ...
+# Subtest: a compacted continuation still classifies its current failure after the recovery marker
+ok 438 - a compacted continuation still classifies its current failure after the recovery marker
+  ---
+  duration_ms: 0.483166
+  type: 'test'
+  ...
+# Subtest: fresh liveness from the watcher reattaches without a second probe
+ok 439 - fresh liveness from the watcher reattaches without a second probe
+  ---
+  duration_ms: 0.201011
+  type: 'test'
+  ...
+# Subtest: live evidence from an older attempt does not suppress the current attempt's probe
+ok 440 - live evidence from an older attempt does not suppress the current attempt's probe
+  ---
+  duration_ms: 0.402902
+  type: 'test'
+  ...
+# Subtest: a failed end outranks a fresh live HTTP record
+ok 441 - a failed end outranks a fresh live HTTP record
+  ---
+  duration_ms: 2.520787
+  type: 'test'
+  ...
+# Subtest: run acceptance removes pasted credentials before the durable store sees its envelope
+ok 442 - run acceptance removes pasted credentials before the durable store sees its envelope
+  ---
+  duration_ms: 0.715689
+  type: 'test'
+  ...
+# Subtest: a pglite-socket kernel stores and reads back an agent session id
+ok 443 - a pglite-socket kernel stores and reads back an agent session id
+  ---
+  duration_ms: 9069.756626
+  type: 'test'
+  ...
+# Subtest: a node-postgres kernel stores and reads back an agent session id
+ok 444 - a node-postgres kernel stores and reads back an agent session id
+  ---
+  duration_ms: 34.271856
+  type: 'test'
+  ...
+# Subtest: package adapter composition [sqlite]
+    # Subtest: bounded reads use the adopted history adapter and retain owner isolation
+    ok 1 - bounded reads use the adopted history adapter and retain owner isolation
+      ---
+      duration_ms: 112.477234
+      type: 'test'
+      ...
+    # Subtest: a throwing ledger write rolls back package history AND session writes
+    ok 2 - a throwing ledger write rolls back package history AND session writes
+      ---
+      duration_ms: 19.801701
+      type: 'test'
+      ...
+    # Subtest: a late browser save cannot erase the first terminal answer; a request-bound run can retry
+    ok 3 - a late browser save cannot erase the first terminal answer; a request-bound run can retry
+      ---
+      duration_ms: 31.421067
+      type: 'test'
+      ...
+    # Subtest: package delete cascades sessions AND host-owned approvals
+    ok 4 - package delete cascades sessions AND host-owned approvals
+      ---
+      duration_ms: 9.676953
+      type: 'test'
+      ...
+    1..4
+ok 445 - package adapter composition [sqlite]
+  ---
+  duration_ms: 180.592009
+  type: 'suite'
+  ...
+# Subtest: package adapter composition [pglite]
+    # Subtest: bounded reads use the adopted history adapter and retain owner isolation
+    ok 1 - bounded reads use the adopted history adapter and retain owner isolation
+      ---
+      duration_ms: 10843.177286
+      type: 'test'
+      ...
+    # Subtest: a throwing ledger write rolls back package history AND session writes
+    ok 2 - a throwing ledger write rolls back package history AND session writes
+      ---
+      duration_ms: 83.335847
+      type: 'test'
+      ...
+    # Subtest: a late browser save cannot erase the first terminal answer; a request-bound run can retry
+    ok 3 - a late browser save cannot erase the first terminal answer; a request-bound run can retry
+      ---
+      duration_ms: 415.522277
+      type: 'test'
+      ...
+    # Subtest: package delete cascades sessions AND host-owned approvals
+    ok 4 - package delete cascades sessions AND host-owned approvals
+      ---
+      duration_ms: 26.971125
+      type: 'test'
+      ...
+    1..4
+ok 446 - package adapter composition [pglite]
+  ---
+  duration_ms: 11379.354178
+  type: 'suite'
+  ...
+# Subtest: negative control: independent kernels do not participate in the ledger rollback
+ok 447 - negative control: independent kernels do not participate in the ledger rollback
+  ---
+  duration_ms: 10.653828
+  type: 'test'
+  ...
+# Subtest: visitorsafe: every diagnostic maps to fixed visitor text and a matching redacted log id
+ok 448 - visitorsafe: every diagnostic maps to fixed visitor text and a matching redacted log id
+  ---
+  duration_ms: 47.218776
+  type: 'test'
+  ...
+# Subtest: visitorsafe: rate, message-length, body-length and validation errors keep friendly fixed text
+ok 449 - visitorsafe: rate, message-length, body-length and validation errors keep friendly fixed text
+  ---
+  duration_ms: 0.874944
+  type: 'test'
+  ...
+# Subtest: visitorsafe: raw and circular diagnostics stay operator-only without truncation
+ok 450 - visitorsafe: raw and circular diagnostics stay operator-only without truncation
+  ---
+  duration_ms: 2.220943
+  type: 'test'
+  ...
+# Subtest: visitorsafe: an Error without a stack still logs its message for operators
+ok 451 - visitorsafe: an Error without a stack still logs its message for operators
+  ---
+  duration_ms: 0.462517
+  type: 'test'
+  ...
+# Subtest: SPEC-046 freezes publication, approval, migration and terminal navigation
+ok 452 - SPEC-046 freezes publication, approval, migration and terminal navigation
+  ---
+  duration_ms: 3.822333
+  type: 'test'
+  ...
