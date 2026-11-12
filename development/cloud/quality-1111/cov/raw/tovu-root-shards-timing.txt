@@ -11,3 +11,4 @@ shard 6 exit 137 1679s
 (note 01:37:43: shards 5 and 6 were stopped at file 67/394 and 39/394 and their files re-run as sub-shards 5a/5b/6a/6b (each half of the original list, from the start) so they finish inside the cap; their partial TAP/stdout is in raw/aborted/ and is NOT used for failures)
 shard-watch: shard 0 node process gone at 01:41:08, lcov 8443034 bytes
 shard-watch: shard 2 node process gone at 01:43:49, lcov 9143906 bytes
+shard-watch: shard 1 node process gone at 01:47:31, lcov 9354516 bytes

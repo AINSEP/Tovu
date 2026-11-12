@@ -199,4 +199,318 @@
 ....................
 ....................
 ....................
-........X.........
+........X...........
+....................
+.X..................
+....................
+....................
+....................
+....................
+....................
+....................
+.................
+
+Failed tests:
+
+✖ tovu introspect: exits 0 and prints valid JSON describing init/serve/export — matches the live CLI, not a hand-maintained doc (13011.758847ms)
+  AssertionError [ERR_ASSERTION]: introspect must list the real registered commands (nested subcommands flattened to their full invocation path), and exclude itself/help
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      'owner-store status',
+      'owner-store list',
+      'owner-store put',
+      'owner-store delete',
+  ...
+      'import',
+  +   'import-local',
+      'sites move-home',
+      'plugin install',
+      'plugin integrity',
+      'init',
+      'agent-plugins token-sign-in',
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts:40:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [
+      'owner-store status',          'owner-store list',
+      'owner-store put',             'owner-store delete',
+      'owner-store import',          'owner-store disconnect',
+      'reset-owner',                 'site rename',
+      'import',                      'import-local',
+      'sites move-home',             'plugin install',
+      'plugin integrity',            'init',
+      'agent-plugins token-sign-in', 'storage move',
+      'adopt',                       'serve',
+      'export',                      'theme validate',
+      'theme migrate',               'theme generate-index',
+      'theme sync-originals',        'theme normalize-build',
+      'deploy config'
+    ],
+    expected: [
+      'owner-store status',    'owner-store list',
+      'owner-store put',       'owner-store delete',
+      'owner-store import',    'owner-store disconnect',
+      'reset-owner',           'site rename',
+      'import',                'sites move-home',
+      'plugin install',        'plugin integrity',
+      'init',                  'agent-plugins token-sign-in',
+      'storage move',          'adopt',
+      'serve',                 'export',
+      'theme validate',        'theme migrate',
+      'theme generate-index',  'theme sync-originals',
+      'theme normalize-build', 'deploy config'
+    ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ tovu introspect --format mcp: exits 0 and prints valid MCP tool definitions (16570.169951ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      'tovu_owner-store_status',
+      'tovu_owner-store_list',
+      'tovu_owner-store_put',
+      'tovu_owner-store_delete',
+  ...
+      'tovu_import',
+  +   'tovu_import-local',
+      'tovu_sites_move-home',
+      'tovu_plugin_install',
+      'tovu_plugin_integrity',
+      'tovu_init',
+      'tovu_agent-plugins_token-sign-in',
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts:71:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'tovu_owner-store_status', 'tovu_owner-store_list', 'tovu_owner-store_put', 'tovu_owner-store_delete', 'tovu_owner-store_import', 'tovu_owner-store_disconnect', 'tovu_reset-owner', 'tovu_site_rename', 'tovu_import', 'tovu_import-local', 'tovu_sites_move-home', 'tovu_plugin_install', 'tovu_plugin_integrity', 'tovu_init', 'tovu_agent-plugins_token-sign-in', 'tovu_storage_move', 'tovu_adopt', 'tovu_serve', 'tovu_export', 'tovu_theme_validate', 'tovu_theme_migrate', 'tovu_theme_generate-index', 'tovu_theme_sync-originals', 'tovu_theme_normalize-build', 'tovu_deploy_config' ],
+    expected: [ 'tovu_owner-store_status', 'tovu_owner-store_list', 'tovu_owner-store_put', 'tovu_owner-store_delete', 'tovu_owner-store_import', 'tovu_owner-store_disconnect', 'tovu_reset-owner', 'tovu_site_rename', 'tovu_import', 'tovu_sites_move-home', 'tovu_plugin_install', 'tovu_plugin_integrity', 'tovu_init', 'tovu_agent-plugins_token-sign-in', 'tovu_storage_move', 'tovu_adopt', 'tovu_serve', 'tovu_export', 'tovu_theme_validate', 'tovu_theme_migrate', 'tovu_theme_generate-index', 'tovu_theme_sync-originals', 'tovu_theme_normalize-build', 'tovu_deploy_config' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ workspace: every connection-ref operation names the port's workspace (connect, confirm, cancel, disconnect) (16.962695ms)
+  TypeError [Error]: Invalid URL
+      at new URL (node:internal/url:895:25)
+      at Object.providerUrl (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/support/starting-browser.ts:34:42)
+      at providerUrlOf (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts:115:63)
+      at consent (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts:119:15)
+      at Object.showSignIn (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts:351:63)
+      at connectHosted (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:169:13)
+      at async runApiConnectionConnect (/home/user/Jini/packages/integrations/src/api-connections/connect.ts:221:96)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts:349:21)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'ERR_INVALID_URL',
+    input: '/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/ld2PKPSlaV1kQOTqJaVtyXREllrufZiZ3JjmhMX-voM'
+  }
+✖ postgres: two writers on the same base version, B blocked on A's row lock — A lands, B gets the version conflict (0.591313ms)
+  Error: failed to drop fixture database "tovu_entry_cas_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/entries/__tests__/integration/repo.compare-and-set.postgres.test.ts:30:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/entries/__tests__/integration/repo.compare-and-set.postgres.test.ts:29:1)
+✖ postgres: two import-as-creates of one id, B blocked on A's uncommitted insert — one row, one revision, one event; B is a version conflict (0.068386ms)
+  Error: failed to drop fixture database "tovu_entry_cas_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/entries/__tests__/integration/repo.compare-and-set.postgres.test.ts:30:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/entries/__tests__/integration/repo.compare-and-set.postgres.test.ts:29:1)
+✖ [postgres] activation creates exactly the borrowed catalog once without importing historical rows (80.40232ms)
+  Error: connect ENOENT /tmp/.s.PGSQL.5432
+      at /home/user/Tovu/node_modules/pg-pool/index.js:45:11
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async BoundPool.pool.connect (/home/user/Jini/packages/db/src/kernel/postgres/driver.ts:42:20)
+      at async PostgresDriver.acquireConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/postgres/postgres-driver.js:21:24)
+      at async RuntimeDriver.acquireConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/runtime-driver.js:54:28)
+      at async DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:8:28)
+      at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+      at async Object.execute (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:154:7)
+      at async kernelFor (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/commerce-catalog-step.test.ts:29:3)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/commerce-catalog-step.test.ts:42:20) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'connect',
+    address: '/tmp/.s.PGSQL.5432'
+  }
+✖ two connections migrating at once apply a step exactly once (0.590743ms)
+  Error: failed to drop fixture database "tovu_migrations_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:34:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:33:1)
+✖ the content history through the current head applies on real Postgres (0.07564ms)
+  Error: failed to drop fixture database "tovu_migrations_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:34:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:33:1)
+✖ the chat history lands in ai_chat with its own ledger there; public gets no chat table (0.047701ms)
+  Error: failed to drop fixture database "tovu_migrations_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:34:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:33:1)
+✖ /home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts (89.652436ms)
+  Error: failed to drop fixture database "tovu_migrations_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:44:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async after (node:internal/test_runner/test:1342:9)
+      at async Test.run (node:internal/test_runner/test:1428:7)
+✖ resolves the one workspace row and rejects an unknown explicit id (0.614917ms)
+  Error: failed to drop fixture database "tovu_resolve_workspace_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at freshPostgresContentDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:31:15)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/unit/resolve-workspace.postgres.test.ts:20:68)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+✖ AC-12 (REQ-07, T-W3): with the definition registered and the pin held open, a pre-existing site renders Tovu Demo Site, never its display name (5094.909168ms)
+  Error: Express request did not finish
+      at Timeout.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/helpers/in-process-http.ts:29:42)
+      at listOnTimeout (node:internal/timers:685:17)
+      at process.processTimers (node:internal/timers:618:7)
+✖ a roster change after createApp traces the agent daemon's federation reload with RouteDeps.observability (973.590534ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   'POST /api/federation/reload'
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/app-federation-reload.observability.test.ts:53:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'POST /api/federation/reload' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+✖ new-site sealing prepares its identified key file and the default reader reopens it (3707.189889ms)
+  AssertionError [ERR_ASSERTION]: /home/user/Tovu/apps/website/src/features/webhooks/keyring.env.ts:149
+        throw new Error(`no site key: none of the configured sources resolved (${this.sources.map(describeSiteKeySource).join(", ")})`);
+              ^
+  
+  Error: no site key: none of the configured sources resolved (the site key file at /tmp/tovu-test-catalog-7gpEcJ/.tovu/site-keys/storage-secret-audit-site.hex, env var TOVU_SITE_KEY, the site key file at /tmp/tovu-test-catalog-7gpEcJ/.tovu/integrations-root-key.hex)
+      at EnvOrFileKeyring.resolveKeyring (/home/user/Tovu/apps/website/src/features/webhooks/keyring.env.ts:149:13)
+      at EnvOrFileKeyring.derive (/home/user/Tovu/apps/website/src/features/webhooks/keyring.env.ts:136:29)
+      at AesGcmSecretSealer.deriveAesKey (/home/user/Jini/packages/platform/src/secrets/secret-sealer.aesgcm.ts:78:25)
+      at AesGcmSecretSealer.seal (/home/user/Jini/packages/platform/src/secrets/secret-sealer.aesgcm.ts:36:31)
+      at AesGcmSecretSealer.seal (/home/user/Tovu/apps/website/src/features/webhooks/secret-sealer.aesgcm.ts:130:24)
+      at writeSealedConnectionString (/home/user/Tovu/apps/website/src/server/runtime/composition/storage-secret.ts:77:31)
+      at async sealConnectionStringForNewSite (/home/user/Tovu/apps/website/src/server/runtime/composition/storage-secret.ts:116:3)
+      at async file:///home/user/Tovu/[eval1]:10:5
+  
+  Node.js v24.22.3
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/storage-secret.unit.test.ts:54:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+✖ module 'forms-admin': registers exactly its routes, in order, and nothing else (6.922164ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'GET /api/admin/v1/workspaces/:workspaceId/forms',
+      'POST /api/admin/v1/workspaces/:workspaceId/forms',
+  +   'GET /api/admin/v1/workspaces/:workspaceId/forms/_providers',
+      'GET /api/admin/v1/workspaces/:workspaceId/forms/:formId',
+      'PUT /api/admin/v1/workspaces/:workspaceId/forms/:formId',
+      'PUT /api/admin/v1/workspaces/:workspaceId/forms/:formId/authoring',
+      'GET /api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions',
+      'GET /api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId',
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/__tests__/route-modules.unit.test.ts:322:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'GET /api/admin/v1/workspaces/:workspaceId/forms', 'POST /api/admin/v1/workspaces/:workspaceId/forms', 'GET /api/admin/v1/workspaces/:workspaceId/forms/_providers', 'GET /api/admin/v1/workspaces/:workspaceId/forms/:formId', 'PUT /api/admin/v1/workspaces/:workspaceId/forms/:formId', 'PUT /api/admin/v1/workspaces/:workspaceId/forms/:formId/authoring', 'GET /api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions', 'GET /api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId', 'DELETE /api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId', 'POST /api/admin/v1/workspaces/:workspaceId/forms/submissions/pull' ],
+    expected: [ 'GET /api/admin/v1/workspaces/:workspaceId/forms', 'POST /api/admin/v1/workspaces/:workspaceId/forms', 'GET /api/admin/v1/workspaces/:workspaceId/forms/:formId', 'PUT /api/admin/v1/workspaces/:workspaceId/forms/:formId', 'PUT /api/admin/v1/workspaces/:workspaceId/forms/:formId/authoring', 'GET /api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions', 'GET /api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId', 'DELETE /api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId', 'POST /api/admin/v1/workspaces/:workspaceId/forms/submissions/pull' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

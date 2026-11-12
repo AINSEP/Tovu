@@ -3,13 +3,13 @@
 set -u
 export PATH=$HOME/.local/node24/bin:$PATH
 C=/tmp/claude-0/cov; O=/home/user/Tovu/development/cloud/quality-1111/cov; S=$O/scripts; A=$C/abs; mkdir -p $A
-# Tovu inputs
+# Tovu inputs (--exclude development/cloud: this audit's own scripts; --exclude sites: no tracked source lives there; test runs leave untracked staging files under sites/tovu-dev/ that would otherwise enter the denominator or vanish mid-read)
 T=()
 for f in $C/tovu/shard-*.lcov.info; do [ -s "$f" ] && node $S/lcov-abs.mjs "$f" /home/user/Tovu "$A/tovu-$(basename $f)" && T+=(--coverage "$A/tovu-$(basename $f)"); done
 for f in $C/desktop/*.lcov.info; do [ -s "$f" ] && node $S/lcov-abs.mjs "$f" /home/user/Tovu/apps/desktop "$A/$(basename $f)" && T+=(--coverage "$A/$(basename $f)"); done
 [ -s $C/admin/lcov.info ] && node $S/lcov-abs.mjs $C/admin/lcov.info /home/user/Tovu/apps/admin $A/admin.lcov.info && T+=(--coverage $A/admin.lcov.info)
 cd /home/user/Tovu
-node --import tsx development/scripts/coverage-all-files.ts --repo /home/user/Tovu --out $C/report-tovu "${T[@]}" | tee $O/raw/coverage-all-files-tovu.txt
+node --import tsx development/scripts/coverage-all-files.ts --repo /home/user/Tovu --exclude sites --exclude development/cloud --out $C/report-tovu "${T[@]}" | tee $O/raw/coverage-all-files-tovu.txt
 # Jini inputs
 J=()
 for d in $C/jini/*/; do p=$(basename $d); [ -s "$d/lcov.info" ] || continue

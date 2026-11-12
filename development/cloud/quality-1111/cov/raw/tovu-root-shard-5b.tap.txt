@@ -1982,3 +1982,2946 @@ ok 237 - [sqlite] 0032 preserves legacy tokens and round-trips new-address token
   duration_ms: 438.59772
   type: 'test'
   ...
+# Subtest: [pglite] 0032 preserves legacy tokens and round-trips new-address tokens without members
+ok 238 - [pglite] 0032 preserves legacy tokens and round-trips new-address tokens without members
+  ---
+  duration_ms: 20140.351372
+  type: 'test'
+  ...
+# Subtest: [sqlite] post-author migration keeps legacy content intact, NULL author and false toggle, and applies once
+ok 239 - [sqlite] post-author migration keeps legacy content intact, NULL author and false toggle, and applies once
+  ---
+  duration_ms: 1056.645745
+  type: 'test'
+  ...
+# Subtest: [pglite] post-author migration keeps legacy content intact, NULL author and false toggle, and applies once
+ok 240 - [pglite] post-author migration keeps legacy content intact, NULL author and false toggle, and applies once
+  ---
+  duration_ms: 17723.69139
+  type: 'test'
+  ...
+# Subtest: S2 step factory takes its pinned checksum without needing registration
+ok 241 - S2 step factory takes its pinned checksum without needing registration
+  ---
+  duration_ms: 1.198099
+  type: 'test'
+  ...
+# Subtest: sqlite: all nine folded tables plus both MCP envelopes migrate without changing ciphertext
+ok 242 - sqlite: all nine folded tables plus both MCP envelopes migrate without changing ciphertext
+  ---
+  duration_ms: 1501.927733
+  type: 'test'
+  ...
+# Subtest: sqlite: colliding IDs, labels and defaults preserve each original value with explicit mapping
+ok 243 - sqlite: colliding IDs, labels and defaults preserve each original value with explicit mapping
+  ---
+  duration_ms: 859.3021
+  type: 'test'
+  ...
+# Subtest: sqlite: human collision labels skip 1 occupied legacy-copy labels
+ok 244 - sqlite: human collision labels skip 1 occupied legacy-copy labels
+  ---
+  duration_ms: 2196.973283
+  type: 'test'
+  ...
+# Subtest: sqlite: human collision labels skip 2 occupied legacy-copy labels
+ok 245 - sqlite: human collision labels skip 2 occupied legacy-copy labels
+  ---
+  duration_ms: 1582.725578
+  type: 'test'
+  ...
+# Subtest: sqlite: omitted insert fails coverage before DROP and rolls back all schema/data/ledger changes
+ok 246 - sqlite: omitted insert fails coverage before DROP and rolls back all schema/data/ledger changes
+  ---
+  duration_ms: 1528.886399
+  type: 'test'
+  ...
+# Subtest: sqlite: mandatory singleton, uniqueness, JSON, quad, kind, revision, FK and pointer constraints are live
+ok 247 - sqlite: mandatory singleton, uniqueness, JSON, quad, kind, revision, FK and pointer constraints are live
+  ---
+  duration_ms: 1408.684129
+  type: 'test'
+  ...
+# Subtest: pglite: all nine folded tables plus both MCP envelopes migrate without changing ciphertext
+ok 248 - pglite: all nine folded tables plus both MCP envelopes migrate without changing ciphertext
+  ---
+  duration_ms: 14523.727596
+  type: 'test'
+  ...
+# Subtest: pglite: colliding IDs, labels and defaults preserve each original value with explicit mapping
+ok 249 - pglite: colliding IDs, labels and defaults preserve each original value with explicit mapping
+  ---
+  duration_ms: 12056.938343
+  type: 'test'
+  ...
+# Subtest: pglite: human collision labels skip 1 occupied legacy-copy labels
+ok 250 - pglite: human collision labels skip 1 occupied legacy-copy labels
+  ---
+  duration_ms: 10943.254232
+  type: 'test'
+  ...
+# Subtest: pglite: human collision labels skip 2 occupied legacy-copy labels
+ok 251 - pglite: human collision labels skip 2 occupied legacy-copy labels
+  ---
+  duration_ms: 11606.026995
+  type: 'test'
+  ...
+# Subtest: pglite: omitted insert fails coverage before DROP and rolls back all schema/data/ledger changes
+ok 252 - pglite: omitted insert fails coverage before DROP and rolls back all schema/data/ledger changes
+  ---
+  duration_ms: 12305.564603
+  type: 'test'
+  ...
+# Subtest: pglite: mandatory singleton, uniqueness, JSON, quad, kind, revision, FK and pointer constraints are live
+ok 253 - pglite: mandatory singleton, uniqueness, JSON, quad, kind, revision, FK and pointer constraints are live
+  ---
+  duration_ms: 11032.938379
+  type: 'test'
+  ...
+# Subtest: SQLite ordinary transfer excludes the vault and all restore artifacts while retaining plugin content
+ok 254 - SQLite ordinary transfer excludes the vault and all restore artifacts while retaining plugin content
+  ---
+  duration_ms: 1059.392648
+  type: 'test'
+  ...
+# Subtest: SQLite refuses to rebuild an MCP parent with unknown plugin children rather than cascading away their data
+ok 255 - SQLite refuses to rebuild an MCP parent with unknown plugin children rather than cascading away their data
+  ---
+  duration_ms: 1975.868642
+  type: 'test'
+  ...
+# Subtest: independent SQLite connections race for one OAuth lease and persist exactly the winner
+ok 256 - independent SQLite connections race for one OAuth lease and persist exactly the winner
+  ---
+  duration_ms: 1331.618745
+  type: 'test'
+  ...
+# Subtest: ExternalMcpServerRepoPort [sqlite]
+    # Subtest: listByWorkspaceId returns an empty array when no rows exist
+    ok 1 - listByWorkspaceId returns an empty array when no rows exist
+      ---
+      duration_ms: 578.089586
+      type: 'test'
+      ...
+    # Subtest: findByServerId returns null when no row matches
+    ok 2 - findByServerId returns null when no row matches
+      ---
+      duration_ms: 228.797513
+      type: 'test'
+      ...
+    # Subtest: upsert then findByServerId round-trips a record exactly, including JSON-as-stored string columns
+    ok 3 - upsert then findByServerId round-trips a record exactly, including JSON-as-stored string columns
+      ---
+      duration_ms: 445.756817
+      type: 'test'
+      ...
+    # Subtest: the write-authorization list and its attribution round-trip through a real column, not just the double
+    ok 4 - the write-authorization list and its attribution round-trip through a real column, not just the double
+      ---
+      duration_ms: 527.9188
+      type: 'test'
+      ...
+    # Subtest: a record with no sealed env round-trips with sealedEnv: null (no vault pointer)
+    ok 5 - a record with no sealed env round-trips with sealedEnv: null (no vault pointer)
+      ---
+      duration_ms: 245.480092
+      type: 'test'
+      ...
+    # Subtest: nullable plaintext fields (label, command, args, allowedToolNames) round-trip as null
+    ok 6 - nullable plaintext fields (label, command, args, allowedToolNames) round-trip as null
+      ---
+      duration_ms: 224.500134
+      type: 'test'
+      ...
+    # Subtest: an OAuth row round-trips every plaintext OAuth column AND the second sealed group
+    ok 7 - an OAuth row round-trips every plaintext OAuth column AND the second sealed group
+      ---
+      duration_ms: 315.872125
+      type: 'test'
+      ...
+    # Subtest: the two sealed groups are independent — an OAuth blob with no env block keeps the pointers independent
+    ok 8 - the two sealed groups are independent — an OAuth blob with no env block keeps the pointers independent
+      ---
+      duration_ms: 357.018118
+      type: 'test'
+      ...
+    # Subtest: OAuth lease claims and releases isolate workspace and server and include the expiry boundary
+    ok 9 - OAuth lease claims and releases isolate workspace and server and include the expiry boundary
+      ---
+      duration_ms: 598.146028
+      type: 'test'
+      ...
+    # Subtest: tryClaimOAuthRefreshLease is a compare-and-set: the second concurrent claimant loses
+    ok 10 - tryClaimOAuthRefreshLease is a compare-and-set: the second concurrent claimant loses
+      ---
+      duration_ms: 337.191548
+      type: 'test'
+      ...
+    # Subtest: an EXPIRED lease is claimable again, so a crashed holder cannot wedge the connection
+    ok 11 - an EXPIRED lease is claimable again, so a crashed holder cannot wedge the connection
+      ---
+      duration_ms: 97.506104
+      type: 'test'
+      ...
+    # Subtest: releaseOAuthRefreshLease clears the lease so the next caller can claim immediately
+    ok 12 - releaseOAuthRefreshLease clears the lease so the next caller can claim immediately
+      ---
+      duration_ms: 223.862021
+      type: 'test'
+      ...
+    # Subtest: claiming a lease on a row that does not exist reports failure rather than inventing one
+    ok 13 - claiming a lease on a row that does not exist reports failure rather than inventing one
+      ---
+      duration_ms: 598.083168
+      type: 'test'
+      ...
+    # Subtest: upsert on the same (workspaceId, serverId) updates in place rather than duplicating
+    ok 14 - upsert on the same (workspaceId, serverId) updates in place rather than duplicating
+      ---
+      duration_ms: 319.235123
+      type: 'test'
+      ...
+    # Subtest: listByWorkspaceId returns multiple servers for one workspace, scoped away from another workspace's rows
+    ok 15 - listByWorkspaceId returns multiple servers for one workspace, scoped away from another workspace's rows
+      ---
+      duration_ms: 148.775205
+      type: 'test'
+      ...
+    # Subtest: deleteByServerId returns true and removes the row when it existed
+    ok 16 - deleteByServerId returns true and removes the row when it existed
+      ---
+      duration_ms: 215.530937
+      type: 'test'
+      ...
+    # Subtest: deleteByServerId returns false and changes nothing when no row matches
+    ok 17 - deleteByServerId returns false and changes nothing when no row matches
+      ---
+      duration_ms: 227.709623
+      type: 'test'
+      ...
+    # Subtest: deleteByServerId never crosses a workspace boundary
+    ok 18 - deleteByServerId never crosses a workspace boundary
+      ---
+      duration_ms: 582.905109
+      type: 'test'
+      ...
+    # Subtest: payloads, pointers, status and expiry roll back together when the server write fails
+    ok 19 - payloads, pointers, status and expiry roll back together when the server write fails
+      ---
+      duration_ms: 377.451412
+      type: 'test'
+      ...
+    # Subtest: a failed second secret write also rolls back the first payload and its default change
+    ok 20 - a failed second secret write also rolls back the first payload and its default change
+      ---
+      duration_ms: 106.027971
+      type: 'test'
+      ...
+    # Subtest: replacement and deletion unlink both vault pointers before removing their payloads
+    ok 21 - replacement and deletion unlink both vault pointers before removing their payloads
+      ---
+      duration_ms: 113.932959
+      type: 'test'
+      ...
+    # Subtest: roster reads hydrate every server's two payloads in one query
+    ok 22 - roster reads hydrate every server's two payloads in one query
+      ---
+      duration_ms: 272.360014
+      type: 'test'
+      ...
+    1..22
+ok 257 - ExternalMcpServerRepoPort [sqlite]
+  ---
+  duration_ms: 7150.010988
+  type: 'suite'
+  ...
+# Subtest: ExternalMcpServerRepoPort [pglite]
+    # Subtest: listByWorkspaceId returns an empty array when no rows exist
+    ok 1 - listByWorkspaceId returns an empty array when no rows exist
+      ---
+      duration_ms: 15166.927779
+      type: 'test'
+      ...
+    # Subtest: findByServerId returns null when no row matches
+    ok 2 - findByServerId returns null when no row matches
+      ---
+      duration_ms: 35.890367
+      type: 'test'
+      ...
+    # Subtest: upsert then findByServerId round-trips a record exactly, including JSON-as-stored string columns
+    ok 3 - upsert then findByServerId round-trips a record exactly, including JSON-as-stored string columns
+      ---
+      duration_ms: 57.742289
+      type: 'test'
+      ...
+    # Subtest: the write-authorization list and its attribution round-trip through a real column, not just the double
+    ok 4 - the write-authorization list and its attribution round-trip through a real column, not just the double
+      ---
+      duration_ms: 58.896294
+      type: 'test'
+      ...
+    # Subtest: a record with no sealed env round-trips with sealedEnv: null (no vault pointer)
+    ok 5 - a record with no sealed env round-trips with sealedEnv: null (no vault pointer)
+      ---
+      duration_ms: 38.650629
+      type: 'test'
+      ...
+    # Subtest: nullable plaintext fields (label, command, args, allowedToolNames) round-trip as null
+    ok 6 - nullable plaintext fields (label, command, args, allowedToolNames) round-trip as null
+      ---
+      duration_ms: 58.693557
+      type: 'test'
+      ...
+    # Subtest: an OAuth row round-trips every plaintext OAuth column AND the second sealed group
+    ok 7 - an OAuth row round-trips every plaintext OAuth column AND the second sealed group
+      ---
+      duration_ms: 75.303153
+      type: 'test'
+      ...
+    # Subtest: the two sealed groups are independent — an OAuth blob with no env block keeps the pointers independent
+    ok 8 - the two sealed groups are independent — an OAuth blob with no env block keeps the pointers independent
+      ---
+      duration_ms: 318.701306
+      type: 'test'
+      ...
+    # Subtest: OAuth lease claims and releases isolate workspace and server and include the expiry boundary
+    ok 9 - OAuth lease claims and releases isolate workspace and server and include the expiry boundary
+      ---
+      duration_ms: 261.36852
+      type: 'test'
+      ...
+    # Subtest: tryClaimOAuthRefreshLease is a compare-and-set: the second concurrent claimant loses
+    ok 10 - tryClaimOAuthRefreshLease is a compare-and-set: the second concurrent claimant loses
+      ---
+      duration_ms: 176.562675
+      type: 'test'
+      ...
+    # Subtest: an EXPIRED lease is claimable again, so a crashed holder cannot wedge the connection
+    ok 11 - an EXPIRED lease is claimable again, so a crashed holder cannot wedge the connection
+      ---
+      duration_ms: 57.34505
+      type: 'test'
+      ...
+    # Subtest: releaseOAuthRefreshLease clears the lease so the next caller can claim immediately
+    ok 12 - releaseOAuthRefreshLease clears the lease so the next caller can claim immediately
+      ---
+      duration_ms: 87.469739
+      type: 'test'
+      ...
+    # Subtest: claiming a lease on a row that does not exist reports failure rather than inventing one
+    ok 13 - claiming a lease on a row that does not exist reports failure rather than inventing one
+      ---
+      duration_ms: 77.608988
+      type: 'test'
+      ...
+    # Subtest: upsert on the same (workspaceId, serverId) updates in place rather than duplicating
+    ok 14 - upsert on the same (workspaceId, serverId) updates in place rather than duplicating
+      ---
+      duration_ms: 367.707447
+      type: 'test'
+      ...
+    # Subtest: listByWorkspaceId returns multiple servers for one workspace, scoped away from another workspace's rows
+    ok 15 - listByWorkspaceId returns multiple servers for one workspace, scoped away from another workspace's rows
+      ---
+      duration_ms: 212.981795
+      type: 'test'
+      ...
+    # Subtest: deleteByServerId returns true and removes the row when it existed
+    ok 16 - deleteByServerId returns true and removes the row when it existed
+      ---
+      duration_ms: 168.623866
+      type: 'test'
+      ...
+    # Subtest: deleteByServerId returns false and changes nothing when no row matches
+    ok 17 - deleteByServerId returns false and changes nothing when no row matches
+      ---
+      duration_ms: 132.438243
+      type: 'test'
+      ...
+    # Subtest: deleteByServerId never crosses a workspace boundary
+    ok 18 - deleteByServerId never crosses a workspace boundary
+      ---
+      duration_ms: 256.786774
+      type: 'test'
+      ...
+    # Subtest: payloads, pointers, status and expiry roll back together when the server write fails
+    ok 19 - payloads, pointers, status and expiry roll back together when the server write fails
+      ---
+      duration_ms: 146.925924
+      type: 'test'
+      ...
+    # Subtest: a failed second secret write also rolls back the first payload and its default change
+    ok 20 - a failed second secret write also rolls back the first payload and its default change
+      ---
+      duration_ms: 283.088119
+      type: 'test'
+      ...
+    # Subtest: replacement and deletion unlink both vault pointers before removing their payloads
+    ok 21 - replacement and deletion unlink both vault pointers before removing their payloads
+      ---
+      duration_ms: 502.58051
+      type: 'test'
+      ...
+    # Subtest: roster reads hydrate every server's two payloads in one query
+    ok 22 - roster reads hydrate every server's two payloads in one query
+      ---
+      duration_ms: 428.43394
+      type: 'test'
+      ...
+    1..22
+ok 258 - ExternalMcpServerRepoPort [pglite]
+  ---
+  duration_ms: 18974.503392
+  type: 'suite'
+  ...
+# Subtest: joined payload: a live env pointer whose payload row is missing is refused as a context error
+ok 259 - joined payload: a live env pointer whose payload row is missing is refused as a context error
+  ---
+  duration_ms: 317.97166
+  type: 'test'
+  ...
+# Subtest: joined payload: an env payload from another workspace is refused as a context error
+ok 260 - joined payload: an env payload from another workspace is refused as a context error
+  ---
+  duration_ms: 693.157187
+  type: 'test'
+  ...
+# Subtest: joined payload: an env payload owned by another server is refused as a context error
+ok 261 - joined payload: an env payload owned by another server is refused as a context error
+  ---
+  duration_ms: 462.516635
+  type: 'test'
+  ...
+# Subtest: joined payload: an env pointer to an OAuth-kind payload is refused as a context error
+ok 262 - joined payload: an env pointer to an OAuth-kind payload is refused as a context error
+  ---
+  duration_ms: 426.118746
+  type: 'test'
+  ...
+# Subtest: joined payload: an env payload bound to a principal is refused as a context error
+ok 263 - joined payload: an env payload bound to a principal is refused as a context error
+  ---
+  duration_ms: 342.724719
+  type: 'test'
+  ...
+# Subtest: joined payload: an env payload with a binding is refused as a context error
+ok 264 - joined payload: an env payload with a binding is refused as a context error
+  ---
+  duration_ms: 449.0884
+  type: 'test'
+  ...
+# Subtest: joined payload: the OAuth pointer is checked too — an env-kind payload behind it is refused
+ok 265 - joined payload: the OAuth pointer is checked too — an env-kind payload behind it is refused
+  ---
+  duration_ms: 268.129923
+  type: 'test'
+  ...
+# Subtest: joined payload: an env payload with no sealed_key_id is refused as an invalid record
+ok 266 - joined payload: an env payload with no sealed_key_id is refused as an invalid record
+  ---
+  duration_ms: 155.878838
+  type: 'test'
+  ...
+# Subtest: joined payload: an env payload with no sealed_ciphertext is refused as an invalid record
+ok 267 - joined payload: an env payload with no sealed_ciphertext is refused as an invalid record
+  ---
+  duration_ms: 116.971968
+  type: 'test'
+  ...
+# Subtest: joined payload: an env payload with no sealed_nonce is refused as an invalid record
+ok 268 - joined payload: an env payload with no sealed_nonce is refused as an invalid record
+  ---
+  duration_ms: 318.799772
+  type: 'test'
+  ...
+# Subtest: joined payload: an env payload with no sealed_alg is refused as an invalid record
+ok 269 - joined payload: an env payload with no sealed_alg is refused as an invalid record
+  ---
+  duration_ms: 407.979393
+  type: 'test'
+  ...
+# Subtest: joined payload: the context check runs before the sealed-parts check
+ok 270 - joined payload: the context check runs before the sealed-parts check
+  ---
+  duration_ms: 167.321712
+  type: 'test'
+  ...
+# Subtest: joined payload: a NULL is_default reads as not default
+ok 271 - joined payload: a NULL is_default reads as not default
+  ---
+  duration_ms: 279.88226
+  type: 'test'
+  ...
+# Subtest: joined payload: a stored revision string reads as a number
+ok 272 - joined payload: a stored revision string reads as a number
+  ---
+  duration_ms: 101.120547
+  type: 'test'
+  ...
+# Subtest: joined payload: meta stored as JSON text is parsed
+ok 273 - joined payload: meta stored as JSON text is parsed
+  ---
+  duration_ms: 96.292269
+  type: 'test'
+  ...
+# Subtest: joined payload: meta already decoded by the driver is kept as-is
+ok 274 - joined payload: meta already decoded by the driver is kept as-is
+  ---
+  duration_ms: 95.579955
+  type: 'test'
+  ...
+# Subtest: server row: a NULL enabled flag reads as disabled
+ok 275 - server row: a NULL enabled flag reads as disabled
+  ---
+  duration_ms: 99.54856
+  type: 'test'
+  ...
+# Subtest: OAuth device store [sqlite]
+    # Subtest: device ciphertext is bound independently to workspace and connection
+    ok 1 - device ciphertext is bound independently to workspace and connection
+      ---
+      duration_ms: 605.617977
+      type: 'test'
+      ...
+    # Subtest: device store: put/get round-trips, put overwrites the connection's attempt, delete removes it, the code is sealed
+    ok 2 - device store: put/get round-trips, put overwrites the connection's attempt, delete removes it, the code is sealed
+      ---
+      duration_ms: 171.879438
+      type: 'test'
+      ...
+    1..2
+ok 276 - OAuth device store [sqlite]
+  ---
+  duration_ms: 784.136896
+  type: 'suite'
+  ...
+# Subtest: OAuth device store [pglite]
+    # Subtest: device ciphertext is bound independently to workspace and connection
+    ok 1 - device ciphertext is bound independently to workspace and connection
+      ---
+      duration_ms: 15216.744999
+      type: 'test'
+      ...
+    # Subtest: device store: put/get round-trips, put overwrites the connection's attempt, delete removes it, the code is sealed
+    ok 2 - device store: put/get round-trips, put overwrites the connection's attempt, delete removes it, the code is sealed
+      ---
+      duration_ms: 115.912187
+      type: 'test'
+      ...
+    1..2
+ok 277 - OAuth device store [pglite]
+  ---
+  duration_ms: 15333.209532
+  type: 'suite'
+  ...
+# Subtest: saving restore points retains newest five row/file pairs, preserving foreign files and folders
+ok 278 - saving restore points retains newest five row/file pairs, preserving foreign files and folders
+  ---
+  duration_ms: 397.278836
+  type: 'test'
+  ...
+# Subtest: a caller-supplied publish trigger label cannot bypass restore-point retention
+ok 279 - a caller-supplied publish trigger label cannot bypass restore-point retention
+  ---
+  duration_ms: 104.719236
+  type: 'test'
+  ...
+# Subtest: retention cleanup cannot turn a save into an error, and an unlink failure keeps its row
+ok 280 - retention cleanup cannot turn a save into an error, and an unlink failure keeps its row
+  ---
+  duration_ms: 78.995733
+  type: 'test'
+  ...
+# Subtest: in-flight publish runs keep their restore points; finished runs do not pin theirs forever
+ok 281 - in-flight publish runs keep their restore points; finished runs do not pin theirs forever
+  ---
+  duration_ms: 642.081504
+  type: 'test'
+  ...
+# [migrations] /tmp/database-adapter-ledger-stamps-zDdTSC/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# [migrations] /tmp/database-adapter-ledger-pending-ImZcoD/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes, 0040_owner_mfa, 0041_owner_passkeys
+# [migrations]   vault coverage site-assistant: rows=0, envelopes=0
+# [migrations]   vault coverage personal-execution: rows=0, envelopes=0
+# [migrations]   vault coverage media-provider: rows=0, envelopes=0
+# [migrations]   vault coverage custom: rows=0, envelopes=0
+# [migrations]   vault coverage publish-peer: rows=0, envelopes=0
+# [migrations]   vault coverage database-destination: rows=0, envelopes=0
+# [migrations]   vault coverage vendor: rows=0, envelopes=0
+# [migrations]   vault coverage source-control: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-env: rows=0, envelopes=0
+# [migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: real content.db: canOpenDb/migrationsTableReadable are true right after openContentDb
+ok 282 - real content.db: canOpenDb/migrationsTableReadable are true right after openContentDb
+  ---
+  duration_ms: 452.778177
+  type: 'test'
+  ...
+# Subtest: real content.db: no .site-meta.json and a migrated db -> 'in-sync' against the bundled runtime, without writing meta
+ok 283 - real content.db: no .site-meta.json and a migrated db -> 'in-sync' against the bundled runtime, without writing meta
+  ---
+  duration_ms: 473.287277
+  type: 'test'
+  ...
+# Subtest: real content.db: .site-meta.json stamped to match this runtime's real latest migration -> 'in-sync', and nothing is pending against this runtime's own bundled journal
+ok 284 - real content.db: .site-meta.json stamped to match this runtime's real latest migration -> 'in-sync', and nothing is pending against this runtime's own bundled journal
+  ---
+  duration_ms: 210.639588
+  type: 'test'
+  ...
+# Subtest: real runner: an adopted SQLite baseline ignores rewritten legacy timestamps when listing pending migrations
+ok 285 - real runner: an adopted SQLite baseline ignores rewritten legacy timestamps when listing pending migrations
+  ---
+  duration_ms: 1900.851809
+  type: 'test'
+  ...
+# Subtest: real runner: SQLite reports a missing content step by ledger id and content migration index
+ok 286 - real runner: SQLite reports a missing content step by ledger id and content migration index
+  ---
+  duration_ms: 1583.848729
+  type: 'test'
+  ...
+# Subtest: real content.db: a stale .site-meta.json tag classifies as 'diverged', per drift.ts's tag-decisive rule
+ok 287 - real content.db: a stale .site-meta.json tag classifies as 'diverged', per drift.ts's tag-decisive rule
+  ---
+  duration_ms: 429.992927
+  type: 'test'
+  ...
+# Subtest: real content.db: a malformed .site-meta.json (bad JSON) is treated as absent, never thrown
+ok 288 - real content.db: a malformed .site-meta.json (bad JSON) is treated as absent, never thrown
+  ---
+  duration_ms: 593.214464
+  type: 'test'
+  ...
+# Subtest: real content.db: a .site-meta.json missing schemaVersion/schemaTag is treated as absent
+ok 289 - real content.db: a .site-meta.json missing schemaVersion/schemaTag is treated as absent
+  ---
+  duration_ms: 255.149823
+  type: 'test'
+  ...
+# Subtest: real content.db: canOpenDb is false once the connection is closed
+ok 290 - real content.db: canOpenDb is false once the connection is closed
+  ---
+  duration_ms: 623.982499
+  type: 'test'
+  ...
+# Subtest: synthetic journal: 'ahead' — site-meta's version is higher than the applied migration's, same tag
+ok 291 - synthetic journal: 'ahead' — site-meta's version is higher than the applied migration's, same tag
+  ---
+  duration_ms: 26.312877
+  type: 'test'
+  ...
+# Subtest: synthetic journal: 'behind' — site-meta's version is lower than the applied migration's, same tag
+ok 292 - synthetic journal: 'behind' — site-meta's version is lower than the applied migration's, same tag
+  ---
+  duration_ms: 42.777958
+  type: 'test'
+  ...
+# Subtest: synthetic journal: listPendingMigrations reports exactly the entries not yet reflected in __drizzle_migrations
+ok 293 - synthetic journal: listPendingMigrations reports exactly the entries not yet reflected in __drizzle_migrations
+  ---
+  duration_ms: 14.934071
+  type: 'test'
+  ...
+# Subtest: synthetic journal: listPendingMigrations is empty once every journal entry has a matching applied row
+ok 294 - synthetic journal: listPendingMigrations is empty once every journal entry has a matching applied row
+  ---
+  duration_ms: 11.128097
+  type: 'test'
+  ...
+# Subtest: a database with no __drizzle_migrations table at all (never migrated) reports migrationsTableReadable:false and schema state 'unknown'
+ok 295 - a database with no __drizzle_migrations table at all (never migrated) reports migrationsTableReadable:false and schema state 'unknown'
+  ---
+  duration_ms: 5.689532
+  type: 'test'
+  ...
+# Subtest: empty SQLite history has unknown identity and leaves every unmatched journal entry pending
+ok 296 - empty SQLite history has unknown identity and leaves every unmatched journal entry pending
+  ---
+  duration_ms: 16.421535
+  type: 'test'
+  ...
+# Subtest: unmatched SQLite history has unknown identity and leaves every unmatched journal entry pending
+ok 297 - unmatched SQLite history has unknown identity and leaves every unmatched journal entry pending
+  ---
+  duration_ms: 46.970539
+  type: 'test'
+  ...
+# Subtest: a missing journal never fabricates SQLite schema identity or pending entries
+ok 298 - a missing journal never fabricates SQLite schema identity or pending entries
+  ---
+  duration_ms: 15.385187
+  type: 'test'
+  ...
+# Subtest: a invalid-json journal never fabricates SQLite schema identity or pending entries
+ok 299 - a invalid-json journal never fabricates SQLite schema identity or pending entries
+  ---
+  duration_ms: 14.185181
+  type: 'test'
+  ...
+# Subtest: an existing PGlite ledger without the baseline has unknown identity and reports the baseline pending
+ok 300 - an existing PGlite ledger without the baseline has unknown identity and reports the baseline pending
+  ---
+  duration_ms: 7561.658638
+  type: 'test'
+  ...
+# Subtest: fresh in-memory openContentDb includes media.created_by and supports Drizzle inserts without attribution
+ok 301 - fresh in-memory openContentDb includes media.created_by and supports Drizzle inserts without attribution
+  ---
+  duration_ms: 400.453291
+  type: 'test'
+  ...
+# Subtest: fresh synchronous content databases match every declared table's columns and the real TS migration head
+ok 302 - fresh synchronous content databases match every declared table's columns and the real TS migration head
+  ---
+  duration_ms: 2942.812546
+  type: 'test'
+  ...
+# Subtest: fresh file openContentDb preserves creator attribution on reopen and needs no TS migrations afterward
+ok 303 - fresh file openContentDb preserves creator attribution on reopen and needs no TS migrations afterward
+  ---
+  duration_ms: 289.825128
+  type: 'test'
+  ...
+# Subtest: fresh openContentDb creates the publish audit table, both complete indexes and its direction CHECK
+ok 304 - fresh openContentDb creates the publish audit table, both complete indexes and its direction CHECK
+  ---
+  duration_ms: 257.831181
+  type: 'test'
+  ...
+# Subtest: fresh vault head enforces metadata, singleton and MCP pointer contracts before first boot
+ok 305 - fresh vault head enforces metadata, singleton and MCP pointer contracts before first boot
+  ---
+  duration_ms: 278.869312
+  type: 'test'
+  ...
+# Subtest: publish credentials: insert survives another caller's rollback
+ok 306 - publish credentials: insert survives another caller's rollback
+  ---
+  duration_ms: 324.544629
+  type: 'test'
+  ...
+# Subtest: media provider credentials: replaceWorkspace survives another caller's rollback
+ok 307 - media provider credentials: replaceWorkspace survives another caller's rollback
+  ---
+  duration_ms: 264.575232
+  type: 'test'
+  ...
+# Subtest: change sets: insert survives another caller's rollback
+ok 308 - change sets: insert survives another caller's rollback
+  ---
+  duration_ms: 165.414522
+  type: 'test'
+  ...
+# Subtest: outbox: a claim survives another caller's rollback
+ok 309 - outbox: a claim survives another caller's rollback
+  ---
+  duration_ms: 166.61087
+  type: 'test'
+  ...
+# Subtest: gated mutation tokens: a redeem survives another caller's rollback (no second redeem)
+ok 310 - gated mutation tokens: a redeem survives another caller's rollback (no second redeem)
+  ---
+  duration_ms: 248.333782
+  type: 'test'
+  ...
+# Subtest: media: save and remove survive another caller's rollback
+ok 311 - media: save and remove survive another caller's rollback
+  ---
+  duration_ms: 228.602577
+  type: 'test'
+  ...
+# Subtest: user purge: the deletes and the audit event survive another caller's rollback
+ok 312 - user purge: the deletes and the audit event survive another caller's rollback
+  ---
+  duration_ms: 133.419947
+  type: 'test'
+  ...
+# (node:11069) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:11069) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: the host loader adapts Playwright contexts and copies readonly launch arguments
+ok 313 - the host loader adapts Playwright contexts and copies readonly launch arguments
+  ---
+  duration_ms: 27.710741
+  type: 'test'
+  ...
+# (node:11087) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:11087) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: real transport pins the validated IP, preserves cookies, caps reads and forwards the absolute deadline
+ok 314 - real transport pins the validated IP, preserves cookies, caps reads and forwards the absolute deadline
+  ---
+  duration_ms: 344.406285
+  type: 'test'
+  ...
+# Subtest: a DNS deadline expires without dialing or dialing later when DNS eventually completes
+ok 315 - a DNS deadline expires without dialing or dialing later when DNS eventually completes
+  ---
+  duration_ms: 5.002411
+  type: 'test'
+  ...
+# Subtest: folded block scalar ('>') resolves to its joined, whitespace-collapsed value
+ok 316 - folded block scalar ('>') resolves to its joined, whitespace-collapsed value
+  ---
+  duration_ms: 6.164746
+  type: 'test'
+  ...
+# Subtest: literal block scalar ('|') resolves to its joined, whitespace-collapsed value
+ok 317 - literal block scalar ('|') resolves to its joined, whitespace-collapsed value
+  ---
+  duration_ms: 0.426271
+  type: 'test'
+  ...
+# Subtest: malformed YAML falls back to the single-line regex plus quote trim
+ok 318 - malformed YAML falls back to the single-line regex plus quote trim
+  ---
+  duration_ms: 17.165964
+  type: 'test'
+  ...
+# Subtest: an ordinary single-line value is returned verbatim (no frontmatter regression)
+ok 319 - an ordinary single-line value is returned verbatim (no frontmatter regression)
+  ---
+  duration_ms: 0.384829
+  type: 'test'
+  ...
+# Subtest: a quoted single-line value has its surrounding quotes stripped
+ok 320 - a quoted single-line value has its surrounding quotes stripped
+  ---
+  duration_ms: 0.228988
+  type: 'test'
+  ...
+# Subtest: no frontmatter block at all returns undefined
+ok 321 - no frontmatter block at all returns undefined
+  ---
+  duration_ms: 0.099104
+  type: 'test'
+  ...
+# Subtest: unterminated frontmatter returns undefined
+ok 322 - unterminated frontmatter returns undefined
+  ---
+  duration_ms: 0.104259
+  type: 'test'
+  ...
+# Subtest: CRLF frontmatter parses normally
+ok 323 - CRLF frontmatter parses normally
+  ---
+  duration_ms: 0.47118
+  type: 'test'
+  ...
+# Subtest: a four-dash line does not close an otherwise unterminated frontmatter block
+ok 324 - a four-dash line does not close an otherwise unterminated frontmatter block
+  ---
+  duration_ms: 0.174125
+  type: 'test'
+  ...
+# Subtest: a missing key returns undefined
+ok 325 - a missing key returns undefined
+  ---
+  duration_ms: 0.254759
+  type: 'test'
+  ...
+# Subtest: an empty value returns undefined
+ok 326 - an empty value returns undefined
+  ---
+  duration_ms: 0.175445
+  type: 'test'
+  ...
+# Subtest: a value YAML reads as a non-string (flow sequence/map) falls back to the single-line regex, as it read before
+ok 327 - a value YAML reads as a non-string (flow sequence/map) falls back to the single-line regex, as it read before
+  ---
+  duration_ms: 3.031182
+  type: 'test'
+  ...
+# Subtest: quoted whitespace and empty strings have no usable frontmatter value
+ok 328 - quoted whitespace and empty strings have no usable frontmatter value
+  ---
+  duration_ms: 9.441358
+  type: 'test'
+  ...
+# Subtest: malformed YAML without the requested field has no regex fallback value
+ok 329 - malformed YAML without the requested field has no regex fallback value
+  ---
+  duration_ms: 4.036091
+  type: 'test'
+  ...
+# Subtest: malformed YAML preserves quote trimming and whitespace normalization in the fallback
+ok 330 - malformed YAML preserves quote trimming and whitespace normalization in the fallback
+  ---
+  duration_ms: 0.387875
+  type: 'test'
+  ...
+# Subtest: empty, scalar and sequence YAML documents do not expose frontmatter fields
+ok 331 - empty, scalar and sequence YAML documents do not expose frontmatter fields
+  ---
+  duration_ms: 0.319004
+  type: 'test'
+  ...
+# Subtest: the regex fallback strips only the outer quotes, keeping an inner apostrophe and quote
+ok 332 - the regex fallback strips only the outer quotes, keeping an inner apostrophe and quote
+  ---
+  duration_ms: 3.276258
+  type: 'test'
+  ...
+# Subtest: frontmatter must start at the first byte
+ok 333 - frontmatter must start at the first byte
+  ---
+  duration_ms: 0.34131
+  type: 'test'
+  ...
+# Subtest: the PKCE challenge is the S256 digest of the verifier, not the verifier
+ok 334 - the PKCE challenge is the S256 digest of the verifier, not the verifier
+  ---
+  duration_ms: 14.005526
+  type: 'test'
+  ...
+# Subtest: a minted verifier satisfies RFC 7636's length and charset rules
+ok 335 - a minted verifier satisfies RFC 7636's length and charset rules
+  ---
+  duration_ms: 1.029975
+  type: 'test'
+  ...
+# Subtest: two mints never collide
+ok 336 - two mints never collide
+  ---
+  duration_ms: 0.789523
+  type: 'test'
+  ...
+# Subtest: a too-short verifier is refused with the RFC's own bounds in the message
+ok 337 - a too-short verifier is refused with the RFC's own bounds in the message
+  ---
+  duration_ms: 12.495264
+  type: 'test'
+  ...
+# Subtest: a too-long verifier is refused
+ok 338 - a too-long verifier is refused
+  ---
+  duration_ms: 0.213444
+  type: 'test'
+  ...
+# Subtest: a verifier outside the unreserved charset is refused rather than silently hashed
+ok 339 - a verifier outside the unreserved charset is refused rather than silently hashed
+  ---
+  duration_ms: 0.222678
+  type: 'test'
+  ...
+# Subtest: a DB span started inside a request's run() is that request span's child in the SDK, with kind CLIENT
+ok 340 - a DB span started inside a request's run() is that request span's child in the SDK, with kind CLIENT
+  ---
+  duration_ms: 10.931626
+  type: 'test'
+  ...
+# Subtest: an outbound failure exports ERROR status, error.type and an exception event, without the URL path or query
+ok 341 - an outbound failure exports ERROR status, error.type and an exception event, without the URL path or query
+  ---
+  duration_ms: 9.099015
+  type: 'test'
+  ...
+# Subtest: an agent run is an INTERNAL root span even when started inside a request
+ok 342 - an agent run is an INTERNAL root span even when started inside a request
+  ---
+  duration_ms: 1.170361
+  type: 'test'
+  ...
+# Subtest: the real SQLite kernel, once instrumented, names spans from Kysely's own query nodes — never SQL text or values
+ok 343 - the real SQLite kernel, once instrumented, names spans from Kysely's own query nodes — never SQL text or values
+  ---
+  duration_ms: 85.546977
+  type: 'test'
+  ...
+# Subtest: Jini's no-op port (no provider plugin configured) is recognized and skipped by the decorators
+ok 344 - Jini's no-op port (no provider plugin configured) is recognized and skipped by the decorators
+  ---
+  duration_ms: 0.620279
+  type: 'test'
+  ...
+# Subtest: metadata is captured per record, survives eviction, and never borrows an inactive trace
+ok 345 - metadata is captured per record, survives eviction, and never borrows an inactive trace
+  ---
+  duration_ms: 5.177198
+  type: 'test'
+  ...
+# Subtest: overflow drops the oldest entries first and keeps seq monotonic
+ok 346 - overflow drops the oldest entries first and keeps seq monotonic
+  ---
+  duration_ms: 2.10334
+  type: 'test'
+  ...
+# Subtest: the byte cap evicts old lines but always keeps the newest one
+ok 347 - the byte cap evicts old lines but always keeps the newest one
+  ---
+  duration_ms: 3.043169
+  type: 'test'
+  ...
+# Subtest: a single oversized message is truncated with a marker
+ok 348 - a single oversized message is truncated with a marker
+  ---
+  duration_ms: 0.191316
+  type: 'test'
+  ...
+# Subtest: entries carry time, level and source; entries() is a copy
+ok 349 - entries carry time, level and source; entries() is a copy
+  ---
+  duration_ms: 0.60441
+  type: 'test'
+  ...
+# Subtest: many evictions compact without losing order
+ok 350 - many evictions compact without losing order
+  ---
+  duration_ms: 16.368606
+  type: 'test'
+  ...
+# Subtest: a long live tail survives eviction before and after compaction
+ok 351 - a long live tail survives eviction before and after compaction
+  ---
+  duration_ms: 29.047179
+  type: 'test'
+  ...
+# Subtest: omitting options uses the current clock and the default retention and message limits
+ok 352 - omitting options uses the current clock and the default retention and message limits
+  ---
+  duration_ms: 15.605975
+  type: 'test'
+  ...
+# Subtest: every message is redacted on write with Tovu's redactor, across real credential shapes
+ok 353 - every message is redacted on write with Tovu's redactor, across real credential shapes
+  ---
+  duration_ms: 6.211738
+  type: 'test'
+  ...
+# Subtest: labeled secrets, bearer headers, URL credentials and Tovu keys are redacted; paths and hosts stay
+ok 354 - labeled secrets, bearer headers, URL credentials and Tovu keys are redacted; paths and hosts stay
+  ---
+  duration_ms: 0.623815
+  type: 'test'
+  ...
+# Subtest: redaction runs before truncation, so a key cut at the cap cannot leak its prefix half
+ok 355 - redaction runs before truncation, so a key cut at the cap cannot leak its prefix half
+  ---
+  duration_ms: 0.714755
+  type: 'test'
+  ...
+# Subtest: subscribers get each stored, redacted entry; a throwing subscriber does not break append
+ok 356 - subscribers get each stored, redacted entry; a throwing subscriber does not break append
+  ---
+  duration_ms: 1.353951
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: a PGlite site duplicates while it runs in this process and while stopped; both copies boot on their own
+ok 357 - a PGlite site duplicates while it runs in this process and while stopped; both copies boot on their own
+  ---
+  duration_ms: 32183.277404
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# Subtest: a PGlite source run by another live process is refused before anything is written
+ok 358 - a PGlite source run by another live process is refused before anything is written
+  ---
+  duration_ms: 11877.92958
+  type: 'test'
+  ...
+# Subtest: AC-01/AC-14/REQ-01: a clean init produces exactly the required layout with correct config/meta values
+ok 359 - AC-01/AC-14/REQ-01: a clean init produces exactly the required layout with correct config/meta values
+  ---
+  duration_ms: 1487.09571
+  type: 'test'
+  ...
+# Subtest: site-key plan §A.4: a freshly initialized site gets its own siteKeyId, equal to its siteId
+ok 360 - site-key plan §A.4: a freshly initialized site gets its own siteKeyId, equal to its siteId
+  ---
+  duration_ms: 1550.578729
+  type: 'test'
+  ...
+# Subtest: R1h: a new SQLite site is built through the migration runner, so its first boot adopts nothing and takes no backup
+ok 361 - R1h: a new SQLite site is built through the migration runner, so its first boot adopts nothing and takes no backup
+  ---
+  duration_ms: 3248.87079
+  type: 'test'
+  ...
+# Subtest: Bug D: config.json records the time zone detected where the site was created
+ok 362 - Bug D: config.json records the time zone detected where the site was created
+  ---
+  duration_ms: 4433.39629
+  type: 'test'
+  ...
+# Subtest: BR-03: omitting --name defaults the site name to the directory basename
+ok 363 - BR-03: omitting --name defaults the site name to the directory basename
+  ---
+  duration_ms: 1538.224353
+  type: 'test'
+  ...
+# Subtest: EC-01 (allowed case): an existing EMPTY directory is a valid init target and init proceeds using it
+ok 364 - EC-01 (allowed case): an existing EMPTY directory is a valid init target and init proceeds using it
+  ---
+  duration_ms: 1461.027185
+  type: 'test'
+  ...
+# Subtest: AC-04/EC-01: an existing NON-EMPTY directory -> InitDirNotEmptyError, directory unmodified
+ok 365 - AC-04/EC-01: an existing NON-EMPTY directory -> InitDirNotEmptyError, directory unmodified
+  ---
+  duration_ms: 3.709215
+  type: 'test'
+  ...
+# Subtest: EC-02: the init target exists as a regular file -> InitDirNotEmptyError (same class), nothing written
+ok 366 - EC-02: the init target exists as a regular file -> InitDirNotEmptyError (same class), nothing written
+  ---
+  duration_ms: 1.41732
+  type: 'test'
+  ...
+# Subtest: EC-06: an empty/whitespace-only --name is rejected as VALIDATION, nothing created
+ok 367 - EC-06: an empty/whitespace-only --name is rejected as VALIDATION, nothing created
+  ---
+  duration_ms: 5.662031
+  type: 'test'
+  ...
+# Subtest: behavior.spec.md §4: a --name longer than 200 chars (after trim) is rejected as VALIDATION
+ok 368 - behavior.spec.md §4: a --name longer than 200 chars (after trim) is rejected as VALIDATION
+  ---
+  duration_ms: 3.148412
+  type: 'test'
+  ...
+# Subtest: INV-03: init never mutates templates/starter/ (read-only at runtime) — content unchanged after a real init run
+ok 369 - INV-03: init never mutates templates/starter/ (read-only at runtime) — content unchanged after a real init run
+  ---
+  duration_ms: 1203.507863
+  type: 'test'
+  ...
+# Subtest: regression: a fresh tovu init site can immediately serve its themes — themes/ is never left an empty placeholder that a later boot's seed step reads as already-seeded
+ok 370 - regression: a fresh tovu init site can immediately serve its themes — themes/ is never left an empty placeholder that a later boot's seed step reads as already-seeded
+  ---
+  duration_ms: 1695.023264
+  type: 'test'
+  ...
+# Subtest: a worker with an absolute workerData.productRoot gets that root back without any walk-up
+ok 371 - a worker with an absolute workerData.productRoot gets that root back without any walk-up
+  ---
+  duration_ms: 490.528084
+  type: 'test'
+  ...
+# Subtest: a worker with a relative workerData.productRoot is refused, naming the value and the fix
+ok 372 - a worker with a relative workerData.productRoot is refused, naming the value and the fix
+  ---
+  duration_ms: 319.647488
+  type: 'test'
+  ...
+# Subtest: a worker given an explicit fromDir ignores workerData.productRoot and walks up from fromDir
+ok 373 - a worker given an explicit fromDir ignores workerData.productRoot and walks up from fromDir
+  ---
+  duration_ms: 117.93888
+  type: 'test'
+  ...
+# Subtest: a worker whose workerData.productRoot is not a string falls back to walking up from the module
+ok 374 - a worker whose workerData.productRoot is not a string falls back to walking up from the module
+  ---
+  duration_ms: 254.678062
+  type: 'test'
+  ...
+# Subtest: a worker started without workerData falls back to walking up from the module
+ok 375 - a worker started without workerData falls back to walking up from the module
+  ---
+  duration_ms: 217.153778
+  type: 'test'
+  ...
+# Subtest: SQLite at head reports the last tovu_migrations step, like Postgres
+ok 376 - SQLite at head reports the last tovu_migrations step, like Postgres
+  ---
+  duration_ms: 228.114947
+  type: 'test'
+  ...
+# Subtest: PGlite at head reports the last tovu_migrations step (the reference B1 must match)
+ok 377 - PGlite at head reports the last tovu_migrations step (the reference B1 must match)
+  ---
+  duration_ms: 14044.124695
+  type: 'test'
+  ...
+# Subtest: an adopted SQLite ledger never falls back to stale Drizzle history when empty or diverged
+ok 378 - an adopted SQLite ledger never falls back to stale Drizzle history when empty or diverged
+  ---
+  duration_ms: 233.979764
+  type: 'test'
+  ...
+# Subtest: a pre-adoption SQLite file (no tovu_migrations) still maps through the Drizzle journal
+ok 379 - a pre-adoption SQLite file (no tovu_migrations) still maps through the Drizzle journal
+  ---
+  duration_ms: 373.039958
+  type: 'test'
+  ...
+# Subtest: intent store round-trips across instances and leaves only the renamed file
+ok 380 - intent store round-trips across instances and leaves only the renamed file
+  ---
+  duration_ms: 68.325693
+  type: 'test'
+  ...
+# Subtest: corrupt intent is empty: {
+ok 381 - corrupt intent is empty: {
+  ---
+  duration_ms: 3.806545
+  type: 'test'
+  ...
+# Subtest: corrupt intent is empty: null
+ok 382 - corrupt intent is empty: null
+  ---
+  duration_ms: 11.145692
+  type: 'test'
+  ...
+# Subtest: corrupt intent is empty: []
+ok 383 - corrupt intent is empty: []
+  ---
+  duration_ms: 5.321279
+  type: 'test'
+  ...
+# Subtest: corrupt intent is empty: {}
+ok 384 - corrupt intent is empty: {}
+  ---
+  duration_ms: 6.935193
+  type: 'test'
+  ...
+# Subtest: corrupt intent is empty: {"session":1,"sites":{}}
+ok 385 - corrupt intent is empty: {"session":1,"sites":{}}
+  ---
+  duration_ms: 2.325312
+  type: 'test'
+  ...
+# Subtest: corrupt intent is empty: {"session":"x","sites":[]}
+ok 386 - corrupt intent is empty: {"session":"x","sites":[]}
+  ---
+  duration_ms: 2.661905
+  type: 'test'
+  ...
+# Subtest: corrupt intent is empty: {"session":"x","sites":{"../escape":{"port":3101}}}
+ok 387 - corrupt intent is empty: {"session":"x","sites":{"../escape":{"port":3101}}}
+  ---
+  duration_ms: 3.108424
+  type: 'test'
+  ...
+# Subtest: corrupt intent is empty: {"session":"x","sites":{"a":{"port":"3101"}}}
+ok 388 - corrupt intent is empty: {"session":"x","sites":{"a":{"port":"3101"}}}
+  ---
+  duration_ms: 3.768601
+  type: 'test'
+  ...
+# Subtest: corrupt intent is empty: {"session":"x","sites":{"a":{"port":0}}}
+ok 389 - corrupt intent is empty: {"session":"x","sites":{"a":{"port":0}}}
+  ---
+  duration_ms: 2.360707
+  type: 'test'
+  ...
+# Subtest: corrupt intent is empty: {"session":"x","sites":{"a":null}}
+ok 390 - corrupt intent is empty: {"session":"x","sites":{"a":null}}
+  ---
+  duration_ms: 8.58584
+  type: 'test'
+  ...
+# Subtest: new-site default keeps only the Blog listing page alongside workspace, theme settings, and Gallery
+ok 391 - new-site default keeps only the Blog listing page alongside workspace, theme settings, and Gallery
+  ---
+  duration_ms: 3.11108
+  type: 'test'
+  ...
+# Subtest: explicit sample-content opt-in is byte-equivalent to server/seed.ts's current live output
+ok 392 - explicit sample-content opt-in is byte-equivalent to server/seed.ts's current live output
+  ---
+  duration_ms: 1.911087
+  type: 'test'
+  ...
+# Subtest: state.spec.md §2 TemplateJson: readTemplate('starter').template has the required shape
+ok 393 - state.spec.md §2 TemplateJson: readTemplate('starter').template has the required shape
+  ---
+  duration_ms: 0.632094
+  type: 'test'
+  ...
+# Subtest: BR-01 step 3: an unknown templateId throws InternalError before anything is created (v1 ships exactly 'starter')
+ok 394 - BR-01 step 3: an unknown templateId throws InternalError before anything is created (v1 ships exactly 'starter')
+  ---
+  duration_ms: 0.727463
+  type: 'test'
+  ...
+# Subtest: readTemplate rejects template.json as InternalError using isolated files
+ok 395 - readTemplate rejects template.json as InternalError using isolated files
+  ---
+  duration_ms: 4.633801
+  type: 'test'
+  ...
+# Subtest: readTemplate rejects seed-content.json as InternalError using isolated files
+ok 396 - readTemplate rejects seed-content.json as InternalError using isolated files
+  ---
+  duration_ms: 2.731544
+  type: 'test'
+  ...
+# Subtest: readTemplate rejects missing-seed as InternalError using isolated files
+ok 397 - readTemplate rejects missing-seed as InternalError using isolated files
+  ---
+  duration_ms: 5.189054
+  type: 'test'
+  ...
+# Using the site already running in Desktop: http://localhost:3456/admin/
+# Subtest: Web creation uses the home, shared external registrations appear, and legacy fallback stays available
+ok 398 - Web creation uses the home, shared external registrations appear, and legacy fallback stays available
+  ---
+  duration_ms: 251.720968
+  type: 'test'
+  ...
+# Subtest: a second boot attaches before touching database content
+ok 399 - a second boot attaches before touching database content
+  ---
+  duration_ms: 25.501721
+  type: 'test'
+  ...
+# Subtest: supervisor reuses a foreign URL and refuses stopped-site mutations while another app serves
+ok 400 - supervisor reuses a foreign URL and refuses stopped-site mutations while another app serves
+  ---
+  duration_ms: 2.599105
+  type: 'test'
+  ...
+# Subtest: home settings enforce workspace/capability/permission boundaries before filesystem changes
+ok 401 - home settings enforce workspace/capability/permission boundaries before filesystem changes
+  ---
+  duration_ms: 629.386659
+  type: 'test'
+  ...
+# Subtest: Web boot pins its site while later MRU and home changes affect only future boots
+ok 402 - Web boot pins its site while later MRU and home changes affect only future boots
+  ---
+  duration_ms: 120.673021
+  type: 'test'
+  ...
+# Subtest: a foreign winner during launch remains protected from Stop after the losing entry is reaped
+ok 403 - a foreign winner during launch remains protected from Stop after the losing entry is reaped
+  ---
+  duration_ms: 0.99793
+  type: 'test'
+  ...
+# Subtest: Web creation refuses an unavailable home volume before initialization
+ok 404 - Web creation refuses an unavailable home volume before initialization
+  ---
+  duration_ms: 57.749013
+  type: 'test'
+  ...
+# Subtest: deskfx2 MUST-2: ambient catalog resolution stays inside the test home
+ok 405 - deskfx2 MUST-2: ambient catalog resolution stays inside the test home
+  ---
+  duration_ms: 40.084983
+  type: 'test'
+  ...
+# Subtest: nested and former-level sites remain discoverable, while non-site siblings are ignored
+ok 406 - nested and former-level sites remain discoverable, while non-site siblings are ignored
+  ---
+  duration_ms: 123.864163
+  type: 'test'
+  ...
+# Subtest: Web keeps sites listed when environment selects the documents old home
+ok 407 - Web keeps sites listed when environment selects the documents old home
+  ---
+  duration_ms: 12.191142
+  type: 'test'
+  ...
+# Subtest: Web keeps sites listed when environment selects the local old home
+ok 408 - Web keeps sites listed when environment selects the local old home
+  ---
+  duration_ms: 10.604055
+  type: 'test'
+  ...
+# Subtest: stalecard: the named default follows its moved site through the configured home, not an unrelated MRU
+ok 409 - stalecard: the named default follows its moved site through the configured home, not an unrelated MRU
+  ---
+  duration_ms: 66.422787
+  type: 'test'
+  ...
+# Subtest: import: a pinned boot inside the sites home can create sibling sites without the switcher flag
+ok 410 - import: a pinned boot inside the sites home can create sibling sites without the switcher flag
+  ---
+  duration_ms: 37.609576
+  type: 'test'
+  ...
+# Using the site starting in Web. Its admin URL will be available when that server finishes starting.
+# Using the site already running in Web: http://localhost:3001/admin/
+# Subtest: runningSiteUrl names the admin URL only once a port is bound
+ok 411 - runningSiteUrl names the admin URL only once a port is bound
+  ---
+  duration_ms: 1.655096
+  type: 'test'
+  ...
+# Subtest: readSiteRunning reports no record for an idle site, through the default shared workspace too
+ok 412 - readSiteRunning reports no record for an idle site, through the default shared workspace too
+  ---
+  duration_ms: 23.008355
+  type: 'test'
+  ...
+# Subtest: a second app attaches without changing the owner token, and ready records the port
+ok 413 - a second app attaches without changing the owner token, and ready records the port
+  ---
+  duration_ms: 36.610842
+  type: 'test'
+  ...
+# Subtest: ready registers an install-dir site and marks it opened
+ok 414 - ready registers an install-dir site and marks it opened
+  ---
+  duration_ms: 35.025802
+  type: 'test'
+  ...
+# Subtest: ready rethrows a site read failure that is not an invalid install dir
+ok 415 - ready rethrows a site read failure that is not an invalid install dir
+  ---
+  duration_ms: 13.381301
+  type: 'test'
+  ...
+# Subtest: with the default workspace a claim is exclusive and released
+ok 416 - with the default workspace a claim is exclusive and released
+  ---
+  duration_ms: 30.092403
+  type: 'test'
+  ...
+# More than one directory has this name. Using /tmp/tovu-stale-selection-a8Gi7m/adopted/blog (site-0); also found /tmp/tovu-stale-selection-a8Gi7m/scratch/blog (site-1). Select a registry ID to choose another.
+# More than one directory has this name. Using /tmp/tovu-stale-selection-a8Gi7m/adopted/blog (site-0); also found /tmp/tovu-stale-selection-a8Gi7m/scratch/blog (site-1). Select a registry ID to choose another.
+# More than one directory has this name. Using /tmp/tovu-stale-selection-kvi9jQ/adopted/blog (site-0); also found /tmp/tovu-stale-selection-kvi9jQ/scratch/blog (site-1). Select a registry ID to choose another.
+# More than one directory has this name. Using /tmp/tovu-stale-selection-kvi9jQ/adopted/blog (site-0); also found /tmp/tovu-stale-selection-kvi9jQ/scratch/blog (site-1). Select a registry ID to choose another.
+# Subtest: named dev and server selection ignores a stale duplicate without rewriting the catalog (reverse=false)
+ok 417 - named dev and server selection ignores a stale duplicate without rewriting the catalog (reverse=false)
+  ---
+  duration_ms: 83.356127
+  type: 'test'
+  ...
+# Subtest: named dev and server selection ignores a stale duplicate without rewriting the catalog (reverse=true)
+ok 418 - named dev and server selection ignores a stale duplicate without rewriting the catalog (reverse=true)
+  ---
+  duration_ms: 70.196263
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: database timeline route: returns an empty page before any ledger row exists
+ok 419 - database timeline route: returns an empty page before any ledger row exists
+  ---
+  duration_ms: 1209.091108
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: database timeline route: renders real ledger rows, newest-first, through the real authorize() gate
+ok 420 - database timeline route: renders real ledger rows, newest-first, through the real authorize() gate
+  ---
+  duration_ms: 985.586182
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: database timeline route: a caller with zero grants is rejected FORBIDDEN (database.read, REQ-01)
+ok 421 - database timeline route: a caller with zero grants is rejected FORBIDDEN (database.read, REQ-01)
+  ---
+  duration_ms: 779.992498
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: database timeline route: bounded pages advance without overlap and each filter selects exact rows
+ok 422 - database timeline route: bounded pages advance without overlap and each filter selects exact rows
+  ---
+  duration_ms: 830.307439
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: database timeline route: a limit above the server's 200-row cap is rejected VALIDATION_ERROR (REQ-04)
+ok 423 - database timeline route: a limit above the server's 200-row cap is rejected VALIDATION_ERROR (REQ-04)
+  ---
+  duration_ms: 797.529507
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: database timeline route: a non-positive or non-numeric limit and an invalid cursor are 400 VALIDATION_ERROR
+ok 424 - database timeline route: a non-positive or non-numeric limit and an invalid cursor are 400 VALIDATION_ERROR
+  ---
+  duration_ms: 516.440706
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [admin-route] {
+#   errorId: '7d44f8f3-0092-459a-ae81-ee401f8fcb9a',
+#   diagnostic: 'Error: ledger unavailable\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/admin-database-timeline-route.test.ts:159:24)\\n' +
+#     '    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)\\n' +
+#     '    at async node:internal/modules/esm/loader:647:26\\n' +
+#     '    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)'
+# }
+# Subtest: timeline read failure stays a 500 (object)
+ok 425 - timeline read failure stays a 500 (object)
+  ---
+  duration_ms: 415.010284
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [admin-route] {
+#   errorId: '50d2e637-41ae-4277-89a9-6777db1fc6d8',
+#   diagnostic: 'private ledger failure'
+# }
+# Subtest: timeline read failure stays a 500 (string)
+ok 426 - timeline read failure stays a 500 (string)
+  ---
+  duration_ms: 557.538709
+  type: 'test'
+  ...
+# [auth-logout] {
+#   errorId: '035a4ac3-c6d4-4b20-a66b-ce1b2dbe81c0',
+#   diagnostic: 'Error: Authentication operation failed\\n' +
+#     '    at sendAuthFailure (/home/user/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:503:34)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:701:7)\\n' +
+#     '{"cause":{"stack":"Error: seed failed\\\\n    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/admin-logout-route.test.ts:45:40)\\\\n    at Test.runInAsyncScope (node:async_hooks:227:14)\\\\n    at Test.run (node:internal/test_runner/test:1402:25)\\\\n    at Test.start (node:internal/test_runner/test:1262:17)\\\\n    at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)","message":"seed failed"}}'
+# }
+# Subtest: logout: an identity bootstrap that rejects answers 500 instead of hanging
+ok 427 - logout: an identity bootstrap that rejects answers 500 instead of hanging
+  ---
+  duration_ms: 1099.167805
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [auth-logout] {
+#   errorId: 'ca7c3a72-2a40-41f2-add3-3c9abe9f7391',
+#   diagnostic: 'Error: Authentication operation failed\\n' +
+#     '    at sendAuthFailure (/home/user/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:503:34)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:701:7)\\n' +
+#     '{"cause":{"stack":"Error: db down\\\\n    at Object.findByTokenHash (/home/user/Tovu/apps/website/src/server/__tests__/admin-logout-route.test.ts:61:13)\\\\n    at logout (/home/user/Jini/packages/user-management/src/server/auth-service.ts:207:45)\\\\n    at revokeRequestSessions (/home/user/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:216:25)\\\\n    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:697:13)","message":"db down"}}'
+# }
+# Subtest: logout: a session store that rejects answers 500 instead of hanging
+ok 428 - logout: a session store that rejects answers 500 instead of hanging
+  ---
+  duration_ms: 1559.058943
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: logout: without a cookie it clears the cookie and answers ok
+ok 429 - logout: without a cookie it clears the cookie and answers ok
+  ---
+  duration_ms: 699.529932
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: POST post: reusing an Idempotency-Key returns DUPLICATE_COMMAND
+ok 430 - POST post: reusing an Idempotency-Key returns DUPLICATE_COMMAND
+  ---
+  duration_ms: 1912.150057
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: POST page: reusing an Idempotency-Key returns DUPLICATE_COMMAND
+ok 431 - POST page: reusing an Idempotency-Key returns DUPLICATE_COMMAND
+  ---
+  duration_ms: 1354.97353
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE post: trashes the row, which then 404s and vanishes from the list
+ok 432 - DELETE post: trashes the row, which then 404s and vanishes from the list
+  ---
+  duration_ms: 862.742104
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE post: a trashed PUBLISHED post disappears from the public content route too
+ok 433 - DELETE post: a trashed PUBLISHED post disappears from the public content route too
+  ---
+  duration_ms: 1270.147739
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE post: deleting twice 404s the second time (a trashed row is not-found)
+ok 434 - DELETE post: deleting twice 404s the second time (a trashed row is not-found)
+  ---
+  duration_ms: 968.61954
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE post: an unknown id 404s, and an unknown workspace 404s
+ok 435 - DELETE post: an unknown id 404s, and an unknown workspace 404s
+  ---
+  duration_ms: 503.426031
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE post: requires an admin session
+ok 436 - DELETE post: requires an admin session
+  ---
+  duration_ms: 921.79245
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE post denies a signed-in principal without content.write and preserves the post
+ok 437 - DELETE post denies a signed-in principal without content.write and preserves the post
+  ---
+  duration_ms: 1043.493428
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE page: trashes a page and removes it from the pages list
+ok 438 - DELETE page: trashes a page and removes it from the pages list
+  ---
+  duration_ms: 718.796541
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE page: a kind:'post' id 404s through the /pages surface (kind guard, indistinguishable from not-found)
+ok 439 - DELETE page: a kind:'post' id 404s through the /pages surface (kind guard, indistinguishable from not-found)
+  ---
+  duration_ms: 713.07676
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE post: the delete is REVERSIBLE — reverting its change set restores the row
+ok 440 - DELETE post: the delete is REVERSIBLE — reverting its change set restores the row
+  ---
+  duration_ms: 785.727988
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE page: a workspace id that is not this site's is 404, before any command runs
+ok 441 - DELETE page: a workspace id that is not this site's is 404, before any command runs
+  ---
+  duration_ms: 812.52943
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE page: reusing an Idempotency-Key on the delete route itself returns DUPLICATE_COMMAND
+ok 442 - DELETE page: reusing an Idempotency-Key on the delete route itself returns DUPLICATE_COMMAND
+  ---
+  duration_ms: 786.390708
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE page: denies 403 FORBIDDEN when authorize() rejects content.write
+ok 443 - DELETE page: denies 403 FORBIDDEN when authorize() rejects content.write
+  ---
+  duration_ms: 863.405719
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [routes/pages/delete] {
+#   errorId: 'a1c104b1-ad0f-4498-9066-88d4f3071bcb',
+#   diagnostic: 'Error: simulated change-set persistence failure\\n' +
+#     '    at InMemoryChangeSetRepo.deps.changeSets.insert (/home/user/Tovu/apps/website/src/server/__tests__/admin-post-page-delete-routes.test.ts:326:11)\\n' +
+#     '    at executeCommand (/home/user/Jini/packages/cms/src/core/commands/command.ts:229:27)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/pages/delete.ts:47:26)'
+# }
+# Subtest: DELETE page: a change-set record failure AFTER the mutation applied is rolled back (the page is NOT left trashed) and surfaces as a 500
+ok 444 - DELETE page: a change-set record failure AFTER the mutation applied is rolled back (the page is NOT left trashed) and surfaces as a 500
+  ---
+  duration_ms: 837.195283
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE page: req.params.pageId is always populated by Express for a matched route (defensive ?? "" fallback is unreachable through real HTTP)
+ok 445 - DELETE page: req.params.pageId is always populated by Express for a matched route (defensive ?? "" fallback is unreachable through real HTTP)
+  ---
+  duration_ms: 357.386198
+  type: 'test'
+  ...
+# Subtest: DELETE page: req.params.workspaceId is likewise always populated by Express (its own ?? "" fallback is equally unreachable through real HTTP)
+ok 446 - DELETE page: req.params.workspaceId is likewise always populated by Express (its own ?? "" fallback is equally unreachable through real HTTP)
+  ---
+  duration_ms: 511.318052
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE post: req.params.workspaceId / postId fallbacks (direct invoke past Express's routing contract) 404 the workspace, then 404 ENTRY_NOT_FOUND for the empty id
+ok 447 - DELETE post: req.params.workspaceId / postId fallbacks (direct invoke past Express's routing contract) 404 the workspace, then 404 ENTRY_NOT_FOUND for the empty id
+  ---
+  duration_ms: 586.39092
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE post: reusing an Idempotency-Key on the delete route itself returns DUPLICATE_COMMAND
+ok 448 - DELETE post: reusing an Idempotency-Key on the delete route itself returns DUPLICATE_COMMAND
+  ---
+  duration_ms: 701.60095
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: DELETE post: losing the trash compare-and-set (the row moved mid-delete) is a 409 ENTRY_CONFLICT
+ok 449 - DELETE post: losing the trash compare-and-set (the row moved mid-delete) is a 409 ENTRY_CONFLICT
+  ---
+  duration_ms: 589.833967
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [routes/posts/delete] {
+#   errorId: 'dad7eef7-7903-490b-af68-93f1177f9ce2',
+#   diagnostic: 'Error: change-set store unavailable\\n' +
+#     '    at InMemoryChangeSetRepo.deps.changeSets.insert (/home/user/Tovu/apps/website/src/server/__tests__/admin-post-page-delete-routes.test.ts:465:11)\\n' +
+#     '    at executeCommand (/home/user/Jini/packages/cms/src/core/commands/command.ts:229:27)\\n' +
+#     '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/posts/delete.ts:93:26)'
+# }
+# Subtest: DELETE post: when the row was invisible to captureInverse but present for the delete (a create racing in between), a failed change-set record cannot compensate and surfaces as a 500
+ok 450 - DELETE post: when the row was invisible to captureInverse but present for the delete (a create racing in between), a failed change-set record cannot compensate and surfaces as a 500
+  ---
+  duration_ms: 942.188975
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: the route is session-gated — no cookie means 401 and the daemon is never called
+ok 451 - the route is session-gated — no cookie means 401 and the daemon is never called
+  ---
+  duration_ms: 10323.928303
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a request with no trailing user message is rejected before the daemon is ever touched
+ok 452 - a request with no trailing user message is rejected before the daemon is ever touched
+  ---
+  duration_ms: 706.172812
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [daemon-supervisor] 2026-11-12T01:52:25.196Z spawned agent daemon pid=321
+# Subtest: starting a run stamps the session principal into contextRef, same as the Local CLI path
+ok 453 - starting a run stamps the session principal into contextRef, same as the Local CLI path
+  ---
+  duration_ms: 626.637811
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [daemon-supervisor] 2026-11-12T01:52:25.533Z spawned agent daemon pid=321
+# Subtest: AG-UI carries only a boolean redaction signal into the daemon context
+ok 454 - AG-UI carries only a boolean redaction signal into the daemon context
+  ---
+  duration_ms: 332.446671
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [daemon-supervisor] 2026-11-12T01:52:26.101Z spawned agent daemon pid=321
+# Subtest: full round trip: daemon frames -> real AG-UI SSE events, including the interruption sequence
+ok 455 - full round trip: daemon frames -> real AG-UI SSE events, including the interruption sequence
+  ---
+  duration_ms: 564.561891
+  type: 'test'
+  ...
+# Subtest: messages that isn't an array at all is rejected the same as an empty/malformed one
+ok 456 - messages that isn't an array at all is rejected the same as an empty/malformed one
+  ---
+  duration_ms: 765.128555
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [daemon-supervisor] 2026-11-12T01:52:27.415Z spawned agent daemon pid=321
+# Subtest: malformed history entries are filtered out; a valid trailing user message still starts the run
+ok 457 - malformed history entries are filtered out; a valid trailing user message still starts the run
+  ---
+  duration_ms: 545.237697
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:27.801Z spawned agent daemon pid=321
+# Subtest: history longer than 40 messages is truncated to the trailing 40 before reaching the daemon
+ok 458 - history longer than 40 messages is truncated to the trailing 40 before reaching the daemon
+  ---
+  duration_ms: 393.221643
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [daemon-supervisor] 2026-11-12T01:52:28.218Z spawned agent daemon pid=321
+# Subtest: omitted threadId/runId are minted server-side; an explicit forwardedProps.agentId is forwarded to the daemon
+ok 459 - omitted threadId/runId are minted server-side; an explicit forwardedProps.agentId is forwarded to the daemon
+  ---
+  duration_ms: 414.299965
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:28.904Z spawned agent daemon pid=321
+# Subtest: a missing or malformed forwardedProps does not crash — agentId is simply absent from the daemon call
+ok 460 - a missing or malformed forwardedProps does not crash — agentId is simply absent from the daemon call
+  ---
+  duration_ms: 689.730774
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [daemon-supervisor] 2026-11-12T01:52:29.448Z spawned agent daemon pid=321
+# Subtest: an empty-string threadId/runId is treated the same as omitted — server mints real ids, not empty strings
+ok 461 - an empty-string threadId/runId is treated the same as omitted — server mints real ids, not empty strings
+  ---
+  duration_ms: 530.380631
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [daemon-supervisor] 2026-11-12T01:52:29.739Z spawned agent daemon pid=321
+# Subtest: a non-ok daemon response to POST /api/runs surfaces as DAEMON_START_FAILED with the daemon's own status; events endpoint is never reached
+ok 462 - a non-ok daemon response to POST /api/runs surfaces as DAEMON_START_FAILED with the daemon's own status; events endpoint is never reached
+  ---
+  duration_ms: 293.757825
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:30.451Z spawned agent daemon pid=321
+# Subtest: a non-ok daemon response to the events subscribe request surfaces as a 502 BAD_GATEWAY
+ok 463 - a non-ok daemon response to the events subscribe request surfaces as a 502 BAD_GATEWAY
+  ---
+  duration_ms: 710.629406
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:30.880Z spawned agent daemon pid=321
+# Subtest: a stdout frame renders as RAW, and an unrecognized frame kind (e.g. a heartbeat) is silently skipped
+ok 464 - a stdout frame renders as RAW, and an unrecognized frame kind (e.g. a heartbeat) is silently skipped
+  ---
+  duration_ms: 546.393209
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:31.353Z spawned agent daemon pid=321
+# Subtest: the daemon connection dropping mid-stream (no clean end frame) closes any open message and emits RUN_ERROR
+ok 465 - the daemon connection dropping mid-stream (no clean end frame) closes any open message and emits RUN_ERROR
+  ---
+  duration_ms: 455.885374
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:32.035Z spawned agent daemon pid=321
+# Subtest: an explicit daemon 'error' frame with no message field falls back to a generic RUN_ERROR message
+ok 466 - an explicit daemon 'error' frame with no message field falls back to a generic RUN_ERROR message
+  ---
+  duration_ms: 599.211522
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:32.484Z spawned agent daemon pid=321
+# Subtest: an 'end' frame with no reason field defaults RUN_FINISHED's result reason to 'stop'
+ok 467 - an 'end' frame with no reason field defaults RUN_FINISHED's result reason to 'stop'
+  ---
+  duration_ms: 433.114336
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:32.868Z spawned agent daemon pid=321
+# Subtest: an 'end' frame with reason max_tool_turns emits a terminal-reason notice before closing the run
+ok 468 - an 'end' frame with reason max_tool_turns emits a terminal-reason notice before closing the run
+  ---
+  duration_ms: 399.608471
+  type: 'test'
+  ...
+# [assistant] the agent daemon is not ready: The assistant could not connect to its service. Retry your message; if it keeps failing, restart the site. Details: the assistant daemon lifecycle is not configured
+# Subtest: a known-failed daemon short-circuits this route too — startDaemonRun's own null-from-fetchAgentDaemon branch, not just the shared helper's
+ok 469 - a known-failed daemon short-circuits this route too — startDaemonRun's own null-from-fetchAgentDaemon branch, not just the shared helper's
+  ---
+  duration_ms: 317.058232
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [daemon-supervisor] 2026-11-12T01:52:33.473Z spawned agent daemon pid=321
+# Subtest: a bare keepalive frame (no data: line) from the daemon is silently skipped, not yielded as a frame
+ok 470 - a bare keepalive frame (no data: line) from the daemon is silently skipped, not yielded as a frame
+  ---
+  duration_ms: 282.51899
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [daemon-supervisor] 2026-11-12T01:52:33.890Z spawned agent daemon pid=321
+# Subtest: Stop (the client aborting mid-stream) calls the daemon's own /cancel endpoint, not just the local SSE reader
+ok 471 - Stop (the client aborting mid-stream) calls the daemon's own /cancel endpoint, not just the local SSE reader
+  ---
+  duration_ms: 456.519142
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [daemon-supervisor] 2026-11-12T01:52:34.351Z spawned agent daemon pid=321
+# Subtest: abort while the daemon run is still starting still cancels it once it exists
+ok 472 - abort while the daemon run is still starting still cancels it once it exists
+  ---
+  duration_ms: 435.10674
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:35.024Z spawned agent daemon pid=321
+# Subtest: abort while waiting to subscribe to the daemon's event stream still cancels the run
+ok 473 - abort while waiting to subscribe to the daemon's event stream still cancels the run
+  ---
+  duration_ms: 683.730659
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:35.431Z spawned agent daemon pid=321
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a subscribe HTTP failure still cancels the daemon run that already started
+ok 474 - a subscribe HTTP failure still cancels the daemon run that already started
+  ---
+  duration_ms: 400.87438
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:35.793Z spawned agent daemon pid=321
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a normal successful run never calls the daemon's /cancel endpoint
+ok 475 - a normal successful run never calls the daemon's /cancel endpoint
+  ---
+  duration_ms: 766.460844
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:36.727Z spawned agent daemon pid=321
+# Subtest: spans: a completed run is one root invoke_agent span (succeeded) plus a CLIENT span per daemon call
+ok 476 - spans: a completed run is one root invoke_agent span (succeeded) plus a CLIENT span per daemon call
+  ---
+  duration_ms: 536.008024
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:37.374Z spawned agent daemon pid=321
+# Subtest: spans: a daemon 'error' frame ends the run span as failed
+ok 477 - spans: a daemon 'error' frame ends the run span as failed
+  ---
+  duration_ms: 614.970564
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:37.886Z spawned agent daemon pid=321
+# Subtest: spans: a stream read error ends the run span as failed, with the error's type
+ok 478 - spans: a stream read error ends the run span as failed, with the error's type
+  ---
+  duration_ms: 579.983682
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [daemon-supervisor] 2026-11-12T01:52:38.945Z spawned agent daemon pid=321
+# Subtest: spans: a subscribe failure ends the run span as failed, not canceled
+ok 479 - spans: a subscribe failure ends the run span as failed, not canceled
+  ---
+  duration_ms: 1012.669805
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [daemon-supervisor] 2026-11-12T01:52:39.551Z spawned agent daemon pid=321
+# Subtest: spans: Stop mid-run ends the run span as canceled, and the cancel call is traced too
+ok 480 - spans: Stop mid-run ends the run span as canceled, and the cancel call is traced too
+  ---
+  duration_ms: 616.912569
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [daemon-supervisor] 2026-11-12T01:52:40.363Z spawned agent daemon pid=321
+# Subtest: spans: an abort before the daemon run existed still ends its span as canceled once it does
+ok 481 - spans: an abort before the daemon run existed still ends its span as canceled once it does
+  ---
+  duration_ms: 802.169398
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:40.956Z spawned agent daemon pid=321
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: AG-UI carries the originating tab binding and authenticated identity
+ok 482 - AG-UI carries the originating tab binding and authenticated identity
+  ---
+  duration_ms: 572.578138
+  type: 'test'
+  ...
+# [daemon-supervisor] 2026-11-12T01:52:41.534Z spawned agent daemon pid=321
+# Subtest: AG-UI omits malformed or oversized originating tab ids
+ok 483 - AG-UI omits malformed or oversized originating tab ids
+  ---
+  duration_ms: 600.634196
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: checkpoint GET follows the saved message without recovery and denies other owners/workspaces
+ok 484 - checkpoint GET follows the saved message without recovery and denies other owners/workspaces
+  ---
+  duration_ms: 4.295489
+  type: 'test'
+  ...
+# Subtest: recover POST runs the finalizer for an owned run and answers the post-recovery row
+ok 485 - recover POST runs the finalizer for an owned run and answers the post-recovery row
+  ---
+  duration_ms: 1.884961
+  type: 'test'
+  ...
+# Subtest: unchanged checkpoint uses the scoped raw poll and returns an empty 304 without JSON parsing
+ok 486 - unchanged checkpoint uses the scoped raw poll and returns an empty 304 without JSON parsing
+  ---
+  duration_ms: 0.957163
+  type: 'test'
+  ...
+# Subtest: role and policy pickers refuse an authenticated user with no role.manage grant
+ok 487 - role and policy pickers refuse an authenticated user with no role.manage grant
+  ---
+  duration_ms: 997.283422
+  type: 'test'
+  ...
+# Subtest: workspace get and PATCH refuse an authenticated user with no workspace.manage grant and preserve the row
+ok 488 - workspace get and PATCH refuse an authenticated user with no workspace.manage grant and preserve the row
+  ---
+  duration_ms: 838.282878
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: site helper closes server and DB and restores fixtures after work failure
+ok 489 - site helper closes server and DB and restores fixtures after work failure
+  ---
+  duration_ms: 5181.938658
+  type: 'test'
+  ...
+# Subtest: site helper closes server and DB and restores fixtures after remove failure
+ok 490 - site helper closes server and DB and restores fixtures after remove failure
+  ---
+  duration_ms: 4613.51124
+  type: 'test'
+  ...
+# Subtest: site helper closes server and DB and restores fixtures after close failure
+ok 491 - site helper closes server and DB and restores fixtures after close failure
+  ---
+  duration_ms: 4243.992732
+  type: 'test'
+  ...
+# Subtest: site helper closes server and DB and restores fixtures after login failure
+ok 492 - site helper closes server and DB and restores fixtures after login failure
+  ---
+  duration_ms: 5675.121648
+  type: 'test'
+  ...
+# Subtest: site helper closes server and DB and restores fixtures after init failure
+ok 493 - site helper closes server and DB and restores fixtures after init failure
+  ---
+  duration_ms: 6174.079722
+  type: 'test'
+  ...
+# Subtest: site helper closes server and DB and restores fixtures after boot failure
+ok 494 - site helper closes server and DB and restores fixtures after boot failure
+  ---
+  duration_ms: 7075.359109
+  type: 'test'
+  ...
+# Subtest: site helper closes server and DB and restores fixtures after compose failure
+ok 495 - site helper closes server and DB and restores fixtures after compose failure
+  ---
+  duration_ms: 7726.313233
+  type: 'test'
+  ...
+# Subtest: site helper closes server and DB and restores fixtures after configure failure
+ok 496 - site helper closes server and DB and restores fixtures after configure failure
+  ---
+  duration_ms: 6019.995246
+  type: 'test'
+  ...
+# Subtest: site helper closes server and DB and restores fixtures after readiness failure
+ok 497 - site helper closes server and DB and restores fixtures after readiness failure
+  ---
+  duration_ms: 5795.8439
+  type: 'test'
+  ...
+# Subtest: site helper closes server and DB and restores fixtures after successful boot
+ok 498 - site helper closes server and DB and restores fixtures after successful boot
+  ---
+  duration_ms: 4649.329518
+  type: 'test'
+  ...
+# Subtest: prepared content DB transfers ownership only after prepare failure
+ok 499 - prepared content DB transfers ownership only after prepare failure
+  ---
+  duration_ms: 95.451053
+  type: 'test'
+  ...
+# Subtest: prepared content DB transfers ownership only after kernel failure
+ok 500 - prepared content DB transfers ownership only after kernel failure
+  ---
+  duration_ms: 11.929229
+  type: 'test'
+  ...
+# Subtest: prepared content DB transfers ownership only after successful preparation
+ok 501 - prepared content DB transfers ownership only after successful preparation
+  ---
+  duration_ms: 16.340317
+  type: 'test'
+  ...
+# Subtest: readiness rejection waits for every sibling before rethrowing the first listed error
+ok 502 - readiness rejection waits for every sibling before rethrowing the first listed error
+  ---
+  duration_ms: 90.550718
+  type: 'test'
+  ...
+# Subtest: provider stub binds exactly the loopback address advertised to callers
+ok 503 - provider stub binds exactly the loopback address advertised to callers
+  ---
+  duration_ms: 11.982474
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: [unrun] change-set revert [sqlite]: a post title edit is recorded as an applied change-set and reverting it restores the prior title
+ok 504 - [unrun] change-set revert [sqlite]: a post title edit is recorded as an applied change-set and reverting it restores the prior title
+  ---
+  duration_ms: 5304.331975
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: [unrun] change-set idempotency [sqlite]: replaying a create with the same Idempotency-Key is refused 409 DUPLICATE_COMMAND and creates nothing
+ok 505 - [unrun] change-set idempotency [sqlite]: replaying a create with the same Idempotency-Key is refused 409 DUPLICATE_COMMAND and creates nothing
+  ---
+  duration_ms: 3023.951035
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: [unrun] change-set get [sqlite]: an unknown change-set id is 404 CHANGE_SET_NOT_FOUND
+ok 506 - [unrun] change-set get [sqlite]: an unknown change-set id is 404 CHANGE_SET_NOT_FOUND
+  ---
+  duration_ms: 2880.493608
+  type: 'test'
+  ...

@@ -1,14 +1,14 @@
 {
   "Jini (all)": {
     "files": 3352,
-    "at99_all4": 2312,
-    "below99": 1040,
-    "zero_coverage": 801,
-    "never_loaded": 672,
-    "lines": "167877/207626 (80.86%)",
-    "branches": "83681/105742 (79.14%)",
-    "functions": "17910/26131 (68.54%)",
-    "statements": "167880/207629 (80.86%)"
+    "at99_all4": 2559,
+    "below99": 793,
+    "zero_coverage": 452,
+    "never_loaded": 398,
+    "lines": "190539/215978 (88.22%)",
+    "branches": "95152/109432 (86.95%)",
+    "functions": "20600/26112 (78.89%)",
+    "statements": "190542/215981 (88.22%)"
   },
   "Jini: packages/admin": {
     "files": 343,
@@ -122,14 +122,14 @@
   },
   "Jini: packages/commerce": {
     "files": 85,
-    "at99_all4": 3,
-    "below99": 82,
-    "zero_coverage": 82,
+    "at99_all4": 23,
+    "below99": 62,
+    "zero_coverage": 3,
     "never_loaded": 1,
-    "lines": "168/5146 (3.26%)",
-    "branches": "27/84 (32.14%)",
-    "functions": "26/83 (31.33%)",
-    "statements": "168/5146 (3.26%)"
+    "lines": "5019/5146 (97.53%)",
+    "branches": "2600/2695 (96.47%)",
+    "functions": "685/750 (91.33%)",
+    "statements": "5019/5146 (97.53%)"
   },
   "Jini: packages/cookie-consent": {
     "files": 28,
@@ -188,69 +188,69 @@
   },
   "Jini: packages/devops": {
     "files": 74,
-    "at99_all4": 0,
-    "below99": 74,
-    "zero_coverage": 74,
-    "never_loaded": 74,
-    "lines": "0/3480 (0.00%)",
-    "branches": "0/2832 (0.00%)",
-    "functions": "0/1006 (0.00%)",
-    "statements": "0/3480 (0.00%)"
+    "at99_all4": 8,
+    "below99": 66,
+    "zero_coverage": 57,
+    "never_loaded": 57,
+    "lines": "679/3801 (17.86%)",
+    "branches": "354/2467 (14.35%)",
+    "functions": "75/947 (7.92%)",
+    "statements": "679/3801 (17.86%)"
   },
   "Jini: packages/diagnostics": {
     "files": 42,
-    "at99_all4": 0,
-    "below99": 42,
-    "zero_coverage": 42,
-    "never_loaded": 42,
-    "lines": "0/1826 (0.00%)",
-    "branches": "0/1242 (0.00%)",
-    "functions": "0/520 (0.00%)",
-    "statements": "0/1826 (0.00%)"
+    "at99_all4": 37,
+    "below99": 5,
+    "zero_coverage": 2,
+    "never_loaded": 2,
+    "lines": "2969/2973 (99.87%)",
+    "branches": "1866/1872 (99.68%)",
+    "functions": "410/410 (100.00%)",
+    "statements": "2969/2973 (99.87%)"
   },
   "Jini: packages/http-kit": {
     "files": 26,
-    "at99_all4": 0,
-    "below99": 26,
-    "zero_coverage": 26,
-    "never_loaded": 26,
-    "lines": "0/697 (0.00%)",
-    "branches": "0/460 (0.00%)",
-    "functions": "0/148 (0.00%)",
-    "statements": "0/697 (0.00%)"
+    "at99_all4": 23,
+    "below99": 3,
+    "zero_coverage": 1,
+    "never_loaded": 1,
+    "lines": "1013/1017 (99.61%)",
+    "branches": "569/576 (98.78%)",
+    "functions": "129/129 (100.00%)",
+    "statements": "1013/1017 (99.61%)"
   },
   "Jini: packages/infra": {
     "files": 12,
-    "at99_all4": 0,
-    "below99": 12,
-    "zero_coverage": 12,
-    "never_loaded": 12,
-    "lines": "0/388 (0.00%)",
-    "branches": "0/169 (0.00%)",
-    "functions": "0/113 (0.00%)",
-    "statements": "0/388 (0.00%)"
+    "at99_all4": 10,
+    "below99": 2,
+    "zero_coverage": 1,
+    "never_loaded": 1,
+    "lines": "571/573 (99.65%)",
+    "branches": "302/305 (99.02%)",
+    "functions": "95/95 (100.00%)",
+    "statements": "571/573 (99.65%)"
   },
   "Jini: packages/integrations": {
     "files": 103,
-    "at99_all4": 0,
-    "below99": 103,
-    "zero_coverage": 103,
-    "never_loaded": 103,
-    "lines": "0/4680 (0.00%)",
-    "branches": "0/3088 (0.00%)",
-    "functions": "0/1073 (0.00%)",
-    "statements": "0/4680 (0.00%)"
+    "at99_all4": 89,
+    "below99": 14,
+    "zero_coverage": 5,
+    "never_loaded": 1,
+    "lines": "6742/8348 (80.76%)",
+    "branches": "2877/3008 (95.64%)",
+    "functions": "681/780 (87.31%)",
+    "statements": "6742/8348 (80.76%)"
   },
   "Jini: packages/mcp": {
     "files": 80,
-    "at99_all4": 0,
-    "below99": 80,
-    "zero_coverage": 80,
-    "never_loaded": 80,
-    "lines": "0/3691 (0.00%)",
-    "branches": "0/2430 (0.00%)",
-    "functions": "0/872 (0.00%)",
-    "statements": "0/3691 (0.00%)"
+    "at99_all4": 60,
+    "below99": 20,
+    "zero_coverage": 1,
+    "never_loaded": 1,
+    "lines": "5837/6402 (91.17%)",
+    "branches": "2930/3072 (95.38%)",
+    "functions": "641/685 (93.58%)",
+    "statements": "5837/6402 (91.17%)"
   },
   "Jini: packages/memory": {
     "files": 10,
@@ -440,15 +440,15 @@
     "statements": "1775/1799 (98.67%)"
   },
   "Tovu (all)": {
-    "files": 3372,
-    "at99_all4": 1182,
-    "below99": 2190,
-    "zero_coverage": 328,
-    "never_loaded": 328,
-    "lines": "251296/338762 (74.18%)",
-    "branches": "29753/44059 (67.53%)",
-    "functions": "14821/29463 (50.30%)",
-    "statements": "255457/342973 (74.48%)"
+    "files": 3373,
+    "at99_all4": 1690,
+    "below99": 1683,
+    "zero_coverage": 215,
+    "never_loaded": 215,
+    "lines": "317494/348368 (91.14%)",
+    "branches": "65635/82448 (79.61%)",
+    "functions": "29244/36757 (79.56%)",
+    "statements": "321626/352544 (91.23%)"
   },
   "Tovu: .claude": {
     "files": 2,
@@ -500,43 +500,43 @@
     "below99": 113,
     "zero_coverage": 6,
     "never_loaded": 6,
-    "lines": "19703/20003 (98.50%)",
-    "branches": "15963/16421 (97.21%)",
-    "functions": "8502/8687 (97.87%)",
+    "lines": "19732/20038 (98.47%)",
+    "branches": "15975/16436 (97.20%)",
+    "functions": "8508/8694 (97.86%)",
     "statements": "23864/24214 (98.55%)"
   },
   "Tovu: apps/desktop": {
     "files": 262,
-    "at99_all4": 191,
-    "below99": 71,
+    "at99_all4": 185,
+    "below99": 77,
     "zero_coverage": 8,
     "never_loaded": 8,
     "lines": "37482/38617 (97.06%)",
-    "branches": "8364/8729 (95.82%)",
-    "functions": "3091/3404 (90.80%)",
+    "branches": "8374/8739 (95.82%)",
+    "functions": "3101/3527 (87.92%)",
     "statements": "37482/38617 (97.06%)"
   },
   "Tovu: apps/site-chat": {
     "files": 28,
-    "at99_all4": 0,
-    "below99": 28,
-    "zero_coverage": 28,
-    "never_loaded": 28,
-    "lines": "0/778 (0.00%)",
-    "branches": "0/384 (0.00%)",
-    "functions": "0/214 (0.00%)",
-    "statements": "0/778 (0.00%)"
+    "at99_all4": 9,
+    "below99": 19,
+    "zero_coverage": 8,
+    "never_loaded": 8,
+    "lines": "1315/1591 (82.65%)",
+    "branches": "268/374 (71.66%)",
+    "functions": "126/222 (56.76%)",
+    "statements": "1315/1591 (82.65%)"
   },
   "Tovu: apps/website": {
     "files": 2069,
-    "at99_all4": 276,
-    "below99": 1793,
-    "zero_coverage": 106,
-    "never_loaded": 106,
-    "lines": "193412/263348 (73.44%)",
-    "branches": "5398/7413 (72.82%)",
-    "functions": "3214/13572 (23.68%)",
-    "statements": "193412/263348 (73.44%)"
+    "at99_all4": 778,
+    "below99": 1291,
+    "zero_coverage": 40,
+    "never_loaded": 40,
+    "lines": "252016/267942 (94.06%)",
+    "branches": "39775/46169 (86.15%)",
+    "functions": "16967/20748 (81.78%)",
+    "statements": "252016/267942 (94.06%)"
   },
   "Tovu: cloud": {
     "files": 1,
@@ -561,15 +561,15 @@
     "statements": "0/1238 (0.00%)"
   },
   "Tovu: development/cloud": {
-    "files": 5,
+    "files": 6,
     "at99_all4": 0,
-    "below99": 5,
-    "zero_coverage": 5,
-    "never_loaded": 5,
-    "lines": "0/262 (0.00%)",
-    "branches": "0/312 (0.00%)",
-    "functions": "0/45 (0.00%)",
-    "statements": "0/262 (0.00%)"
+    "below99": 6,
+    "zero_coverage": 6,
+    "never_loaded": 6,
+    "lines": "0/290 (0.00%)",
+    "branches": "0/322 (0.00%)",
+    "functions": "0/64 (0.00%)",
+    "statements": "0/290 (0.00%)"
   },
   "Tovu: development/eslint-rules": {
     "files": 2,
@@ -586,12 +586,12 @@
     "files": 32,
     "at99_all4": 0,
     "below99": 32,
-    "zero_coverage": 32,
-    "never_loaded": 32,
-    "lines": "0/2132 (0.00%)",
-    "branches": "0/867 (0.00%)",
-    "functions": "0/682 (0.00%)",
-    "statements": "0/2132 (0.00%)"
+    "zero_coverage": 31,
+    "never_loaded": 31,
+    "lines": "128/2244 (5.70%)",
+    "branches": "8/874 (0.92%)",
+    "functions": "6/683 (0.88%)",
+    "statements": "128/2244 (5.70%)"
   },
   "Tovu: development/playwright.desktop-journeys.config.ts": {
     "files": 1,
@@ -650,14 +650,14 @@
   },
   "Tovu: development/scripts": {
     "files": 102,
-    "at99_all4": 2,
-    "below99": 100,
-    "zero_coverage": 99,
-    "never_loaded": 99,
-    "lines": "75/11115 (0.67%)",
-    "branches": "11/9113 (0.12%)",
-    "functions": "8/2480 (0.32%)",
-    "statements": "75/11115 (0.67%)"
+    "at99_all4": 3,
+    "below99": 99,
+    "zero_coverage": 74,
+    "never_loaded": 74,
+    "lines": "6128/15096 (40.59%)",
+    "branches": "1200/8715 (13.77%)",
+    "functions": "525/2439 (21.53%)",
+    "statements": "6128/15096 (40.59%)"
   },
   "Tovu: development/sonarjs": {
     "files": 3,
@@ -672,14 +672,14 @@
   },
   "Tovu: development/test-support": {
     "files": 3,
-    "at99_all4": 0,
-    "below99": 3,
-    "zero_coverage": 2,
-    "never_loaded": 2,
-    "lines": "27/31 (87.10%)",
-    "branches": "2/5 (40.00%)",
+    "at99_all4": 2,
+    "below99": 1,
+    "zero_coverage": 1,
+    "never_loaded": 1,
+    "lines": "36/37 (97.30%)",
+    "branches": "5/5 (100.00%)",
     "functions": "1/1 (100.00%)",
-    "statements": "27/31 (87.10%)"
+    "statements": "36/37 (97.30%)"
   },
   "Tovu: eslint.config.mjs": {
     "files": 1,
@@ -718,11 +718,11 @@
     "files": 1,
     "at99_all4": 0,
     "below99": 1,
-    "zero_coverage": 1,
-    "never_loaded": 1,
-    "lines": "0/31 (0.00%)",
-    "branches": "0/18 (0.00%)",
-    "functions": "0/5 (0.00%)",
-    "statements": "0/31 (0.00%)"
+    "zero_coverage": 0,
+    "never_loaded": 0,
+    "lines": "60/68 (88.24%)",
+    "branches": "15/17 (88.24%)",
+    "functions": "5/6 (83.33%)",
+    "statements": "60/68 (88.24%)"
   }
 }

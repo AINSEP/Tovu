@@ -1,2 +1,2 @@
-Jini (all): {"files":3352,"at99_all4":2312,"below99":1040,"zero_coverage":801,"never_loaded":672,"lines":"167877/207626 (80.86%)","branches":"83681/105742 (79.14%)","functions":"17910/26131 (68.54%)","statements":"167880/207629 (80.86%)"}
-Tovu (all): {"files":3372,"at99_all4":1182,"below99":2190,"zero_coverage":328,"never_loaded":328,"lines":"251296/338762 (74.18%)","branches":"29753/44059 (67.53%)","functions":"14821/29463 (50.30%)","statements":"255457/342973 (74.48%)"}
+Jini (all): {"files":3352,"at99_all4":2559,"below99":793,"zero_coverage":452,"never_loaded":398,"lines":"190539/215978 (88.22%)","branches":"95152/109432 (86.95%)","functions":"20600/26112 (78.89%)","statements":"190542/215981 (88.22%)"}
+Tovu (all): {"files":3373,"at99_all4":1690,"below99":1683,"zero_coverage":215,"never_loaded":215,"lines":"317494/348368 (91.14%)","branches":"65635/82448 (79.61%)","functions":"29244/36757 (79.56%)","statements":"321626/352544 (91.23%)"}

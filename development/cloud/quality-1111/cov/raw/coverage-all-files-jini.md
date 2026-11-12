@@ -2,11 +2,11 @@
 
 | Metric | TRUE: all files | RUNNER: records only |
 | --- | --- | --- |
-| lines | 167877/207626 (80.86%) | 167877/177321 (94.67%) |
-| branches | 83681/105742 (79.14%) | 83681/84543 (98.98%) |
-| functions | 17910/26131 (68.54%) | 17910/18138 (98.74%) |
+| lines | 190539/215978 (88.22%) | 190539/197760 (96.35%) |
+| branches | 95152/109432 (86.95%) | 95152/96410 (98.70%) |
+| functions | 20600/26112 (78.89%) | 20600/21036 (97.93%) |
 
-Never-loaded files: **672** / 3352
+Never-loaded files: **398** / 3352
 
 - NEVER-LOADED denominators are AST estimates (distinct executable statement start lines, function bodies, branch arms).
 - LCOV lacks columns: functions/branches merge by source line and ordinal; different instrumentation layouts may not correspond.
@@ -39,18 +39,18 @@ Never-loaded files: **672** / 3352
 | packages/chat | 206 | 149 | 4325/11986 (36.08%) | 2933/8535 (34.36%) | 482/2633 (18.31%) |
 | packages/cli | 17 | 1 | 1071/1075 (99.63%) | 666/667 (99.85%) | 123/123 (100.00%) |
 | packages/cms | 273 | 10 | 17442/17955 (97.14%) | 8342/8568 (97.36%) | 1802/1855 (97.14%) |
-| packages/commerce | 85 | 1 | 168/5146 (3.26%) | 27/84 (32.14%) | 26/83 (31.33%) |
+| packages/commerce | 85 | 1 | 5019/5146 (97.53%) | 2600/2695 (96.47%) | 685/750 (91.33%) |
 | packages/cookie-consent | 28 | 3 | 1248/1289 (96.82%) | 1018/1041 (97.79%) | 195/197 (98.98%) |
 | packages/core | 102 | 3 | 6198/6371 (97.28%) | 3052/3183 (95.88%) | 607/642 (94.55%) |
 | packages/daemon | 140 | 3 | 12675/12767 (99.28%) | 7075/7163 (98.77%) | 1527/1535 (99.48%) |
 | packages/db | 103 | 7 | 4241/4970 (85.33%) | 2110/2159 (97.73%) | 490/519 (94.41%) |
 | packages/desktop-host | 65 | 1 | 2391/2406 (99.38%) | 1306/1313 (99.47%) | 400/402 (99.50%) |
-| packages/devops | 74 | 74 | 0/3480 (0.00%) | 0/2832 (0.00%) | 0/1006 (0.00%) |
-| packages/diagnostics | 42 | 42 | 0/1826 (0.00%) | 0/1242 (0.00%) | 0/520 (0.00%) |
-| packages/http-kit | 26 | 26 | 0/697 (0.00%) | 0/460 (0.00%) | 0/148 (0.00%) |
-| packages/infra | 12 | 12 | 0/388 (0.00%) | 0/169 (0.00%) | 0/113 (0.00%) |
-| packages/integrations | 103 | 103 | 0/4680 (0.00%) | 0/3088 (0.00%) | 0/1073 (0.00%) |
-| packages/mcp | 80 | 80 | 0/3691 (0.00%) | 0/2430 (0.00%) | 0/872 (0.00%) |
+| packages/devops | 74 | 57 | 679/3801 (17.86%) | 354/2467 (14.35%) | 75/947 (7.92%) |
+| packages/diagnostics | 42 | 2 | 2969/2973 (99.87%) | 1866/1872 (99.68%) | 410/410 (100.00%) |
+| packages/http-kit | 26 | 1 | 1013/1017 (99.61%) | 569/576 (98.78%) | 129/129 (100.00%) |
+| packages/infra | 12 | 1 | 571/573 (99.65%) | 302/305 (99.02%) | 95/95 (100.00%) |
+| packages/integrations | 103 | 1 | 6742/8348 (80.76%) | 2877/3008 (95.64%) | 681/780 (87.31%) |
+| packages/mcp | 80 | 1 | 5837/6402 (91.17%) | 2930/3072 (95.38%) | 641/685 (93.58%) |
 | packages/memory | 10 | 1 | 1113/1115 (99.82%) | 554/554 (100.00%) | 123/123 (100.00%) |
 | packages/oauth | 39 | 6 | 1865/2015 (92.56%) | 1017/1084 (93.82%) | 191/229 (83.41%) |
 | packages/platform | 107 | 1 | 8764/8817 (99.40%) | 5714/5774 (98.96%) | 1192/1200 (99.33%) |
@@ -73,21 +73,17 @@ Never-loaded files: **672** / 3352
 
 | File | Status | Uncovered lines | Lines | Branches | Functions |
 | --- | --- | ---: | --- | --- | --- |
-| packages/mcp/src/federation/hosted/store.ts | NEVER-LOADED | 467 | 0/467 (0.00%) | 0/354 (0.00%) | 0/78 (0.00%) |
+| packages/integrations/src/api-connections/hosted-mcp/sign-in.ts | LOADED | 549 | 22/571 (3.85%) | 4/4 (100.00%) | 4/37 (10.81%) |
+| packages/mcp/src/federation/hosted/store.ts | LOADED | 442 | 505/947 (53.33%) | 78/160 (48.75%) | 42/70 (60.00%) |
 | packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts | NEVER-LOADED | 427 | 0/427 (0.00%) | 0/318 (0.00%) | 0/92 (0.00%) |
 | packages/plugins/src/host/tools/management.ts | LOADED | 426 | 0/426 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/db/src/data-modules/data-module.ts | LOADED | 399 | 0/399 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/ledger/rows.ts | LOADED | 369 | 0/369 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/commerce/src/payments/ledger/repo.memory.ts | LOADED | 334 | 0/334 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/integrations/src/credentialed-http/tools/tool-registrations.ts | LOADED | 391 | 0/391 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/agent-plugins/src/connect/connect-tool.ts | LOADED | 313 | 0/313 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/ledger/repo.sql.ts | LOADED | 310 | 0/310 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/agent-plugins/s3-compatible/targets/s3-compatible.mjs | NEVER-LOADED | 307 | 0/307 (0.00%) | 0/212 (0.00%) | 0/64 (0.00%) |
 | packages/agent-plugins/src/lifecycle/host-tools/skill-tool.ts | LOADED | 285 | 5/290 (1.72%) | 0/0 (100.00%) | 0/22 (0.00%) |
 | packages/agent-plugins/vercel/targets/vercel.mjs | NEVER-LOADED | 269 | 0/269 (0.00%) | 0/208 (0.00%) | 0/61 (0.00%) |
-| packages/integrations/src/api-connections/hosted-mcp/sign-in.ts | NEVER-LOADED | 267 | 0/267 (0.00%) | 0/204 (0.00%) | 0/64 (0.00%) |
-| packages/commerce/src/payments/accounting/apply-evidence.ts | LOADED | 258 | 0/258 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/agent-plugins/meilisearch/providers/meilisearch.mjs | NEVER-LOADED | 254 | 0/254 (0.00%) | 0/230 (0.00%) | 0/67 (0.00%) |
-| packages/commerce/src/catalog/repo.ts | LOADED | 249 | 0/249 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/chat/src/react/hooks/assistant-chats.ts | NEVER-LOADED | 244 | 0/244 (0.00%) | 0/124 (0.00%) | 0/75 (0.00%) |
 | packages/chat/src/store/runtime/durable-run-store.ts | NEVER-LOADED | 243 | 0/243 (0.00%) | 0/248 (0.00%) | 0/86 (0.00%) |
 | packages/chat/src/embed-widget/browser/frontend-session-bridge.ts | NEVER-LOADED | 239 | 0/239 (0.00%) | 0/143 (0.00%) | 0/55 (0.00%) |
@@ -96,125 +92,79 @@ Never-loaded files: **672** / 3352
 | packages/chat/src/embed-widget/vanilla/index.ts | NEVER-LOADED | 235 | 0/235 (0.00%) | 0/106 (0.00%) | 0/41 (0.00%) |
 | packages/devops/src/checks/hardwiring.ts | NEVER-LOADED | 232 | 0/232 (0.00%) | 0/258 (0.00%) | 0/61 (0.00%) |
 | packages/agent-plugins/github/source-control/commit-site.mjs | NEVER-LOADED | 230 | 0/230 (0.00%) | 0/180 (0.00%) | 0/37 (0.00%) |
-| packages/integrations/src/credentialed-http/tools/tool-registrations.ts | NEVER-LOADED | 228 | 0/228 (0.00%) | 0/154 (0.00%) | 0/64 (0.00%) |
 | packages/devops/src/packaging/electron/staging.ts | NEVER-LOADED | 224 | 0/224 (0.00%) | 0/158 (0.00%) | 0/68 (0.00%) |
 | packages/agent-plugins/github-pages/targets/github-pages.mjs | NEVER-LOADED | 212 | 0/212 (0.00%) | 0/136 (0.00%) | 0/36 (0.00%) |
-| packages/mcp/src/federation/trust.ts | NEVER-LOADED | 205 | 0/205 (0.00%) | 0/142 (0.00%) | 0/43 (0.00%) |
+| packages/integrations/src/api-connections/host.ts | LOADED | 206 | 2/208 (0.96%) | 0/0 (100.00%) | 0/13 (0.00%) |
 | packages/chat/src/react/components/QuestionForm.tsx | NEVER-LOADED | 202 | 0/202 (0.00%) | 0/210 (0.00%) | 0/88 (0.00%) |
 | packages/devops/src/static-export/runner.ts | NEVER-LOADED | 201 | 0/201 (0.00%) | 0/150 (0.00%) | 0/32 (0.00%) |
-| packages/integrations/src/credentialed-http/credentialed-request.ts | NEVER-LOADED | 199 | 0/199 (0.00%) | 0/120 (0.00%) | 0/34 (0.00%) |
+| packages/devops/src/deploy/ops-runner.ts | LOADED | 195 | 17/212 (8.02%) | 0/1 (0.00%) | 0/24 (0.00%) |
 | packages/chat/src/react/components/Composer.tsx | NEVER-LOADED | 192 | 0/192 (0.00%) | 0/176 (0.00%) | 0/53 (0.00%) |
 | packages/plugins/src/host/node/runtime-core.ts | LOADED | 192 | 242/434 (55.76%) | 47/78 (60.26%) | 24/47 (51.06%) |
-| packages/integrations/src/credentialed-http/sets/store.ts | NEVER-LOADED | 191 | 0/191 (0.00%) | 0/164 (0.00%) | 0/44 (0.00%) |
 | packages/agent-plugins/cloudflare/worker/forms-receiver.mjs | NEVER-LOADED | 189 | 0/189 (0.00%) | 0/178 (0.00%) | 0/52 (0.00%) |
-| packages/mcp/src/core/config.ts | NEVER-LOADED | 188 | 0/188 (0.00%) | 0/156 (0.00%) | 0/45 (0.00%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/recon-site.mjs | NEVER-LOADED | 187 | 0/187 (0.00%) | 0/150 (0.00%) | 0/78 (0.00%) |
 | packages/chat/src/react/hooks/useComposer.ts | NEVER-LOADED | 180 | 0/180 (0.00%) | 0/94 (0.00%) | 0/47 (0.00%) |
-| packages/mcp/src/federation/stdio/adapter.stdio.ts | NEVER-LOADED | 180 | 0/180 (0.00%) | 0/74 (0.00%) | 0/45 (0.00%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/asset-harvest.mjs | NEVER-LOADED | 176 | 0/176 (0.00%) | 0/94 (0.00%) | 0/66 (0.00%) |
 | packages/agent-plugins/cloudflare/lib/forms.mjs | NEVER-LOADED | 174 | 0/174 (0.00%) | 0/186 (0.00%) | 0/45 (0.00%) |
-| packages/integrations/src/api-connections/hosted-mcp/shared-sign-in.ts | NEVER-LOADED | 174 | 0/174 (0.00%) | 0/144 (0.00%) | 0/47 (0.00%) |
 | packages/chat/src/react/components/ToolCard.tsx | NEVER-LOADED | 173 | 0/173 (0.00%) | 0/192 (0.00%) | 0/46 (0.00%) |
 | packages/chat/src/store/sql/store.ts | NEVER-LOADED | 171 | 0/171 (0.00%) | 0/140 (0.00%) | 0/106 (0.00%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/interaction-probe.mjs | NEVER-LOADED | 165 | 0/165 (0.00%) | 0/66 (0.00%) | 0/46 (0.00%) |
-| packages/commerce/src/catalog/repo.rows.ts | LOADED | 165 | 0/165 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/diagnostics/src/web-evidence/page-structure-script.ts | NEVER-LOADED | 165 | 0/165 (0.00%) | 0/112 (0.00%) | 0/32 (0.00%) |
 | packages/chat/src/server/durable-runs/recover.ts | NEVER-LOADED | 162 | 0/162 (0.00%) | 0/174 (0.00%) | 0/46 (0.00%) |
-| packages/devops/src/deploy/ops-runner.ts | NEVER-LOADED | 162 | 0/162 (0.00%) | 0/146 (0.00%) | 0/41 (0.00%) |
 | packages/chat/src/react/hooks/composer-draft-cache.ts | NEVER-LOADED | 158 | 0/158 (0.00%) | 0/106 (0.00%) | 0/29 (0.00%) |
-| packages/mcp/src/server/http-tool-server.adapter.ts | NEVER-LOADED | 158 | 0/158 (0.00%) | 0/76 (0.00%) | 0/36 (0.00%) |
 | packages/agent-plugins/src/connect/access-token-tool.ts | LOADED | 156 | 0/156 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/accounting/plan-evidence.ts | LOADED | 154 | 0/154 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/chat/src/react/features/chat-pane/hooks/useChatPaneRuntimeInventory.hooks.ts | NEVER-LOADED | 153 | 0/153 (0.00%) | 0/52 (0.00%) | 0/36 (0.00%) |
 | packages/agent-runtime/src/providers/connection-test.ts | NEVER-LOADED | 150 | 0/150 (0.00%) | 0/129 (0.00%) | 0/29 (0.00%) |
-| packages/commerce/src/payments/ledger/migrations/0001_payments_ledger.ts | LOADED | 148 | 0/148 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/integrations/src/api-connections/host.ts | NEVER-LOADED | 148 | 0/148 (0.00%) | 0/114 (0.00%) | 0/49 (0.00%) |
 | packages/agent-plugins/google-workspace/ui/surface-client.mjs | NEVER-LOADED | 146 | 0/146 (0.00%) | 0/96 (0.00%) | 0/26 (0.00%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/audit-clone.mjs | NEVER-LOADED | 146 | 0/146 (0.00%) | 0/78 (0.00%) | 0/37 (0.00%) |
 | packages/cms/src/core/commands/revert.ts | LOADED | 144 | 0/144 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/mcp/src/server/tool-server.ts | NEVER-LOADED | 144 | 0/144 (0.00%) | 0/88 (0.00%) | 0/46 (0.00%) |
 | packages/devops/src/static-export/transforms.ts | NEVER-LOADED | 143 | 0/143 (0.00%) | 0/126 (0.00%) | 0/38 (0.00%) |
 | packages/chat/src/react/components/MessageRow.tsx | NEVER-LOADED | 142 | 0/142 (0.00%) | 0/174 (0.00%) | 0/43 (0.00%) |
-| packages/devops/src/deploy/target-descriptors.ts | NEVER-LOADED | 140 | 0/140 (0.00%) | 0/174 (0.00%) | 0/24 (0.00%) |
 | packages/devops/src/dns/plan.ts | NEVER-LOADED | 140 | 0/140 (0.00%) | 0/92 (0.00%) | 0/65 (0.00%) |
-| packages/mcp/src/federation/adapter.http.ts | NEVER-LOADED | 140 | 0/140 (0.00%) | 0/80 (0.00%) | 0/37 (0.00%) |
 | packages/agent-plugins/netlify/targets/netlify.mjs | NEVER-LOADED | 139 | 0/139 (0.00%) | 0/84 (0.00%) | 0/34 (0.00%) |
 | packages/chat/src/react/features/chat-pane/components/ChatPane.tsx | NEVER-LOADED | 139 | 0/139 (0.00%) | 0/110 (0.00%) | 0/43 (0.00%) |
-| packages/commerce/src/payments/ingest/worker.ts | LOADED | 137 | 0/137 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/diagnostics/src/web-evidence/request-guard.ts | NEVER-LOADED | 134 | 0/134 (0.00%) | 0/96 (0.00%) | 0/31 (0.00%) |
-| packages/commerce/src/payments/ops/intent.ts | LOADED | 132 | 0/132 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/diagnostics/src/web-evidence/render-page.ts | NEVER-LOADED | 130 | 0/130 (0.00%) | 0/90 (0.00%) | 0/46 (0.00%) |
 | packages/agent-plugins/src/connect/federate-mcp.ts | LOADED | 128 | 56/184 (30.43%) | 12/24 (50.00%) | 5/12 (41.67%) |
-| packages/commerce/src/payments/ops/common.ts | LOADED | 128 | 0/128 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/operation-runtime.ts | NEVER-LOADED | 128 | 0/128 (0.00%) | 0/64 (0.00%) | 0/21 (0.00%) |
-| packages/commerce/src/payments/ops/capture-void.ts | LOADED | 123 | 0/123 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/devops/src/deploy/ops-secrets.ts | LOADED | 127 | 7/134 (5.22%) | 0/0 (100.00%) | 0/22 (0.00%) |
 | packages/devops/src/checks/published-types/index.ts | NEVER-LOADED | 123 | 0/123 (0.00%) | 0/74 (0.00%) | 0/25 (0.00%) |
 | packages/agent-plugins/github/deployments/github.mjs | NEVER-LOADED | 121 | 0/121 (0.00%) | 0/74 (0.00%) | 0/17 (0.00%) |
-| packages/infra/src/events/outbox/worker.ts | NEVER-LOADED | 121 | 0/121 (0.00%) | 0/63 (0.00%) | 0/33 (0.00%) |
-| packages/mcp/src/agent-install/install.ts | NEVER-LOADED | 121 | 0/121 (0.00%) | 0/84 (0.00%) | 0/36 (0.00%) |
-| packages/infra/src/events/outbox/fenced-conformance.ts | NEVER-LOADED | 120 | 0/120 (0.00%) | 0/10 (0.00%) | 0/34 (0.00%) |
 | packages/agent-plugins/github/deploy-ops/github-actions.mjs | NEVER-LOADED | 119 | 0/119 (0.00%) | 0/140 (0.00%) | 0/27 (0.00%) |
 | packages/chat/src/store/runtime/run-ledger.ts | NEVER-LOADED | 119 | 0/119 (0.00%) | 0/84 (0.00%) | 0/46 (0.00%) |
-| packages/diagnostics/src/core/secrets-only.ts | NEVER-LOADED | 119 | 0/119 (0.00%) | 0/108 (0.00%) | 0/40 (0.00%) |
-| packages/commerce/src/browser/checkout.ts | LOADED | 118 | 0/118 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
 | packages/cms/forms/src/forms.ts | NEVER-LOADED | 117 | 0/117 (0.00%) | 0/88 (0.00%) | 0/16 (0.00%) |
-| packages/commerce/src/payments/ops/reconciler.ts | LOADED | 117 | 0/117 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/devops/src/deploy/ops-secrets.ts | NEVER-LOADED | 117 | 0/117 (0.00%) | 0/100 (0.00%) | 0/30 (0.00%) |
 | packages/agent-plugins/src/admin-surfaces/connections/connections.ts | LOADED | 116 | 0/116 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/devops/src/checks/hardwiring-node.ts | NEVER-LOADED | 115 | 0/115 (0.00%) | 0/90 (0.00%) | 0/32 (0.00%) |
 | packages/agent-plugins/src/connect/plugin-host/index.ts | LOADED | 114 | 0/114 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/chat/src/react/components/A2uiSurfaceCard.tsx | NEVER-LOADED | 114 | 0/114 (0.00%) | 0/70 (0.00%) | 0/22 (0.00%) |
 | packages/agent-plugins/render/deploy-ops/render.mjs | NEVER-LOADED | 113 | 0/113 (0.00%) | 0/120 (0.00%) | 0/28 (0.00%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/route-crawl.mjs | NEVER-LOADED | 113 | 0/113 (0.00%) | 0/44 (0.00%) | 0/22 (0.00%) |
-| packages/mcp/src/client/client.ts | NEVER-LOADED | 113 | 0/113 (0.00%) | 0/70 (0.00%) | 0/24 (0.00%) |
 | packages/chat/src/react/hooks/useConversation.ts | NEVER-LOADED | 112 | 0/112 (0.00%) | 0/102 (0.00%) | 0/37 (0.00%) |
+| packages/integrations/src/credentialed-http/sets/store.ts | LOADED | 111 | 151/262 (57.63%) | 40/85 (47.06%) | 23/33 (69.70%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/compare-recon.mjs | NEVER-LOADED | 110 | 0/110 (0.00%) | 0/114 (0.00%) | 0/49 (0.00%) |
-| packages/commerce/src/payments/ops/refund.ts | LOADED | 110 | 0/110 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/chat/src/react/features/chat-pane/rules.ts | NEVER-LOADED | 108 | 0/108 (0.00%) | 0/102 (0.00%) | 0/32 (0.00%) |
 | packages/devops/src/source-control/registry.ts | NEVER-LOADED | 108 | 0/108 (0.00%) | 0/108 (0.00%) | 0/43 (0.00%) |
 | packages/oauth/tests/helpers.ts | NEVER-LOADED | 108 | 0/108 (0.00%) | 0/62 (0.00%) | 0/27 (0.00%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/od-preview-rewrite.mjs | NEVER-LOADED | 107 | 0/107 (0.00%) | 0/52 (0.00%) | 0/26 (0.00%) |
-| packages/commerce/src/catalog/plugin-server.ts | LOADED | 107 | 0/107 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/openai-compatible.ts | NEVER-LOADED | 107 | 0/107 (0.00%) | 0/64 (0.00%) | 0/25 (0.00%) |
 | packages/agent-plugins/github/source-control/backup-push.mjs | NEVER-LOADED | 106 | 0/106 (0.00%) | 0/84 (0.00%) | 0/11 (0.00%) |
 | packages/chat/src/react/features/chat-pane/hooks/useAgentRuntimePicker.hooks.ts | NEVER-LOADED | 106 | 0/106 (0.00%) | 0/78 (0.00%) | 0/24 (0.00%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/visual-diff.mjs | NEVER-LOADED | 105 | 0/105 (0.00%) | 0/22 (0.00%) | 0/15 (0.00%) |
 | packages/chat/src/store/runtime/history-tools.ts | NEVER-LOADED | 105 | 0/105 (0.00%) | 0/90 (0.00%) | 0/25 (0.00%) |
-| packages/integrations/src/api-connections/token-store/vault-token-store.ts | NEVER-LOADED | 105 | 0/105 (0.00%) | 0/64 (0.00%) | 0/22 (0.00%) |
-| packages/integrations/src/webhooks/delivery.ts | NEVER-LOADED | 105 | 0/105 (0.00%) | 0/40 (0.00%) | 0/13 (0.00%) |
-| packages/commerce/src/payments/tools/money-tools.ts | LOADED | 104 | 0/104 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/diagnostics/src/observability/otel.ts | NEVER-LOADED | 104 | 0/104 (0.00%) | 0/78 (0.00%) | 0/30 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/async-operation-store.ts | NEVER-LOADED | 104 | 0/104 (0.00%) | 0/94 (0.00%) | 0/25 (0.00%) |
-| packages/integrations/src/media-providers/video-request.ts | NEVER-LOADED | 104 | 0/104 (0.00%) | 0/104 (0.00%) | 0/26 (0.00%) |
-| packages/mcp/src/server/stdio-hosting.ts | NEVER-LOADED | 104 | 0/104 (0.00%) | 0/60 (0.00%) | 0/30 (0.00%) |
 | packages/agent-plugins/src/lifecycle/host-tools/search-tool.ts | LOADED | 103 | 45/148 (30.41%) | 9/9 (100.00%) | 2/8 (25.00%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/dna-scaffold.mjs | NEVER-LOADED | 103 | 0/103 (0.00%) | 0/76 (0.00%) | 0/29 (0.00%) |
 | packages/chat/src/react/components/ConversationList.tsx | NEVER-LOADED | 103 | 0/103 (0.00%) | 0/76 (0.00%) | 0/42 (0.00%) |
 | packages/chat/src/react/features/chat-pane/hooks/useChatPaneWorkingDirectory.hooks.ts | NEVER-LOADED | 101 | 0/101 (0.00%) | 0/36 (0.00%) | 0/14 (0.00%) |
-| packages/mcp/src/server/daemon-client.ts | NEVER-LOADED | 101 | 0/101 (0.00%) | 0/62 (0.00%) | 0/23 (0.00%) |
 | packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/components/BubbleScene.tsx | NEVER-LOADED | 100 | 0/100 (0.00%) | 0/56 (0.00%) | 0/18 (0.00%) |
 | packages/chat/src/embed-widget/transports/fetch-sse.ts | NEVER-LOADED | 100 | 0/100 (0.00%) | 0/80 (0.00%) | 0/30 (0.00%) |
+| packages/integrations/src/api-connections/connect.ts | LOADED | 100 | 3/103 (2.91%) | 0/0 (100.00%) | 0/8 (0.00%) |
 | packages/agent-plugins/cloudflare/lib/target.mjs | NEVER-LOADED | 98 | 0/98 (0.00%) | 0/88 (0.00%) | 0/22 (0.00%) |
 | packages/agent-plugins/railway/deploy-ops/railway.mjs | NEVER-LOADED | 98 | 0/98 (0.00%) | 0/108 (0.00%) | 0/28 (0.00%) |
-| packages/commerce/src/payments/testkit/lipay-fake.ts | LOADED | 98 | 0/98 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/chat/src/react/features/chat-pane/create-daemon-attachment-uploader.ts | NEVER-LOADED | 96 | 0/96 (0.00%) | 0/52 (0.00%) | 0/24 (0.00%) |
-| packages/diagnostics/src/web-evidence/public-page.ts | NEVER-LOADED | 96 | 0/96 (0.00%) | 0/88 (0.00%) | 0/26 (0.00%) |
+| packages/integrations/src/credentialed-http/tools/credential-copy-tool.ts | LOADED | 96 | 0/96 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/agent-plugins/google-workspace/lib/sheets-client.mjs | NEVER-LOADED | 95 | 0/95 (0.00%) | 0/64 (0.00%) | 0/29 (0.00%) |
 | packages/chat/src/react/features/chat-pane/hooks/useChatPaneAgentControl.hooks.ts | NEVER-LOADED | 95 | 0/95 (0.00%) | 0/38 (0.00%) | 0/26 (0.00%) |
 | packages/chat/src/react/hooks/useRunStream.ts | NEVER-LOADED | 94 | 0/94 (0.00%) | 0/36 (0.00%) | 0/29 (0.00%) |
-| packages/devops/src/deploy/reachability.ts | NEVER-LOADED | 93 | 0/93 (0.00%) | 0/54 (0.00%) | 0/20 (0.00%) |
 | packages/chat/src/store/legacy/sqlite/messages.ts | NEVER-LOADED | 92 | 0/92 (0.00%) | 0/90 (0.00%) | 0/20 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/engine.ts | NEVER-LOADED | 92 | 0/92 (0.00%) | 0/62 (0.00%) | 0/16 (0.00%) |
 | packages/chat/src/react/hooks/fab-position.ts | NEVER-LOADED | 91 | 0/91 (0.00%) | 0/40 (0.00%) | 0/16 (0.00%) |
-| packages/diagnostics/src/web-evidence/playwright-browser.ts | NEVER-LOADED | 91 | 0/91 (0.00%) | 0/42 (0.00%) | 0/24 (0.00%) |
+| packages/integrations/src/api-connections/hosted-mcp/shared-sign-in.ts | LOADED | 91 | 164/255 (64.31%) | 24/62 (38.71%) | 19/39 (48.72%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/mirror-site.mjs | NEVER-LOADED | 90 | 0/90 (0.00%) | 0/24 (0.00%) | 0/24 (0.00%) |
-| packages/integrations/src/api-connections/declarations.ts | NEVER-LOADED | 89 | 0/89 (0.00%) | 0/98 (0.00%) | 0/18 (0.00%) |
 | packages/chat/src/react/components/AttachmentPreviewModal.hooks.ts | NEVER-LOADED | 85 | 0/85 (0.00%) | 0/60 (0.00%) | 0/26 (0.00%) |
 | packages/devops/src/dns/records.ts | NEVER-LOADED | 83 | 0/83 (0.00%) | 0/68 (0.00%) | 0/28 (0.00%) |
-| packages/mcp/src/server/tool-protocol.ts | NEVER-LOADED | 83 | 0/83 (0.00%) | 0/54 (0.00%) | 0/15 (0.00%) |
-| packages/mcp/src/core/tokens.ts | NEVER-LOADED | 82 | 0/82 (0.00%) | 0/44 (0.00%) | 0/19 (0.00%) |
-| packages/mcp/src/federation/bootstrap.ts | NEVER-LOADED | 82 | 0/82 (0.00%) | 0/40 (0.00%) | 0/15 (0.00%) |
-| packages/mcp/src/federation/stdio/stdio-launch-resolver.ts | NEVER-LOADED | 82 | 0/82 (0.00%) | 0/64 (0.00%) | 0/17 (0.00%) |
 | packages/agent-plugins/google-workspace/form-destinations/sheets.mjs | NEVER-LOADED | 81 | 0/81 (0.00%) | 0/50 (0.00%) | 0/28 (0.00%) |
 | packages/agent-plugins/src/connect/executable/register.ts | LOADED | 81 | 0/81 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/chat/src/react/tool-call-display.ts | NEVER-LOADED | 81 | 0/81 (0.00%) | 0/72 (0.00%) | 0/15 (0.00%) |
@@ -222,152 +172,75 @@ Never-loaded files: **672** / 3352
 | packages/agent-plugins/src/connect/import-access-token.ts | LOADED | 80 | 0/80 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/chat/src/react/components/McpUiSurfaceCard.tsx | NEVER-LOADED | 80 | 0/80 (0.00%) | 0/74 (0.00%) | 0/21 (0.00%) |
 | packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx | NEVER-LOADED | 80 | 0/80 (0.00%) | 0/120 (0.00%) | 0/25 (0.00%) |
-| packages/commerce/src/catalog/checkout.ts | LOADED | 80 | 0/80 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/tools/catalog.ts | LOADED | 80 | 0/80 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/cms/forms/src/write-service.ts | NEVER-LOADED | 79 | 0/79 (0.00%) | 0/36 (0.00%) | 0/17 (0.00%) |
 | packages/db/src/data-modules/migration-journal.ts | LOADED | 79 | 0/79 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/devops/src/packaging/electron/staged-closure.ts | NEVER-LOADED | 79 | 0/79 (0.00%) | 0/62 (0.00%) | 0/19 (0.00%) |
 | packages/agent-plugins/src/connect/apply-tool-renames.ts | LOADED | 78 | 0/78 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/core/plugin-directory.js | NEVER-LOADED | 78 | 0/78 (0.00%) | 0/88 (0.00%) | 0/27 (0.00%) |
 | packages/db/src/data-modules/plugin-identity.ts | LOADED | 78 | 0/78 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/mcp/src/tools/ask-choice/index.ts | NEVER-LOADED | 78 | 0/78 (0.00%) | 0/50 (0.00%) | 0/13 (0.00%) |
 | packages/agent-plugins/s3-compatible/object-stores/s3-compatible.mjs | NEVER-LOADED | 77 | 0/77 (0.00%) | 0/50 (0.00%) | 0/23 (0.00%) |
 | packages/chat/src/embed-widget/browser/lazy-loader.ts | NEVER-LOADED | 77 | 0/77 (0.00%) | 0/32 (0.00%) | 0/18 (0.00%) |
 | packages/chat/src/react/features/chat-pane/hooks/useRuntimeDropUp.hooks.ts | NEVER-LOADED | 77 | 0/77 (0.00%) | 0/38 (0.00%) | 0/17 (0.00%) |
-| packages/http-kit/src/sse.ts | NEVER-LOADED | 77 | 0/77 (0.00%) | 0/44 (0.00%) | 0/15 (0.00%) |
-| packages/integrations/src/api-connections/connect.ts | NEVER-LOADED | 77 | 0/77 (0.00%) | 0/24 (0.00%) | 0/20 (0.00%) |
-| packages/integrations/src/media-providers/staging.ts | NEVER-LOADED | 77 | 0/77 (0.00%) | 0/48 (0.00%) | 0/11 (0.00%) |
-| packages/mcp/src/server/tool-arguments.ts | NEVER-LOADED | 76 | 0/76 (0.00%) | 0/86 (0.00%) | 0/21 (0.00%) |
 | packages/chat/src/react/hooks/useComposerHistory.hooks.ts | NEVER-LOADED | 75 | 0/75 (0.00%) | 0/38 (0.00%) | 0/23 (0.00%) |
-| packages/diagnostics/src/redaction.ts | NEVER-LOADED | 75 | 0/75 (0.00%) | 0/46 (0.00%) | 0/14 (0.00%) |
+| packages/devops/src/deploy/ops-tools.ts | LOADED | 75 | 7/82 (8.54%) | 0/0 (100.00%) | 0/9 (0.00%) |
 | packages/agent-plugins/google-workspace/ui/connection-panel.mjs | NEVER-LOADED | 74 | 0/74 (0.00%) | 0/38 (0.00%) | 0/33 (0.00%) |
-| packages/commerce/src/payments/state/status.ts | LOADED | 74 | 0/74 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/diagnostics/src/observability/instrumentation.ts | NEVER-LOADED | 74 | 0/74 (0.00%) | 0/48 (0.00%) | 0/31 (0.00%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/network-capture.mjs | NEVER-LOADED | 73 | 0/73 (0.00%) | 0/24 (0.00%) | 0/15 (0.00%) |
-| packages/commerce/src/payments/ingest/settlement-worker.ts | LOADED | 73 | 0/73 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/integrations/src/media-providers/dispatch/providers/openai.ts | NEVER-LOADED | 73 | 0/73 (0.00%) | 0/42 (0.00%) | 0/11 (0.00%) |
-| packages/integrations/src/webhooks/subscriptions.ts | NEVER-LOADED | 73 | 0/73 (0.00%) | 0/30 (0.00%) | 0/6 (0.00%) |
 | packages/agent-plugins/fly/deploy-ops/fly.mjs | NEVER-LOADED | 72 | 0/72 (0.00%) | 0/108 (0.00%) | 0/37 (0.00%) |
 | packages/agent-plugins/fly/scripts/render-deploy-workflow.mjs | NEVER-LOADED | 72 | 0/72 (0.00%) | 0/46 (0.00%) | 0/18 (0.00%) |
-| packages/diagnostics/src/domain-dns/index.ts | NEVER-LOADED | 72 | 0/72 (0.00%) | 0/42 (0.00%) | 0/22 (0.00%) |
-| packages/diagnostics/src/web-evidence/collect-page-evidence.ts | NEVER-LOADED | 72 | 0/72 (0.00%) | 0/34 (0.00%) | 0/14 (0.00%) |
+| packages/commerce/src/payments/ingest/settlement-worker.ts | LOADED | 72 | 1/73 (1.37%) | 1/1 (100.00%) | 1/2 (50.00%) |
 | packages/plugins/src/host/tools/source.ts | LOADED | 71 | 0/71 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/agent-plugins/google-workspace/ui/destination-panel.mjs | NEVER-LOADED | 70 | 0/70 (0.00%) | 0/58 (0.00%) | 0/32 (0.00%) |
 | packages/devops/src/agent-jobs/jobs.ts | NEVER-LOADED | 70 | 0/70 (0.00%) | 0/60 (0.00%) | 0/17 (0.00%) |
 | packages/devops/src/dns/manual.ts | NEVER-LOADED | 70 | 0/70 (0.00%) | 0/64 (0.00%) | 0/30 (0.00%) |
 | packages/devops/src/dns/node/resolver.ts | NEVER-LOADED | 70 | 0/70 (0.00%) | 0/50 (0.00%) | 0/37 (0.00%) |
 | packages/devops/src/packaging/electron/typescript.ts | NEVER-LOADED | 70 | 0/70 (0.00%) | 0/88 (0.00%) | 0/21 (0.00%) |
-| packages/mcp/src/bin/serve.ts | NEVER-LOADED | 70 | 0/70 (0.00%) | 0/48 (0.00%) | 0/14 (0.00%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/sourcemap-hunt.mjs | NEVER-LOADED | 69 | 0/69 (0.00%) | 0/28 (0.00%) | 0/12 (0.00%) |
 | packages/chat/src/react/message-blocks.ts | NEVER-LOADED | 69 | 0/69 (0.00%) | 0/60 (0.00%) | 0/13 (0.00%) |
-| packages/devops/src/deploy/ops-tools.ts | NEVER-LOADED | 69 | 0/69 (0.00%) | 0/78 (0.00%) | 0/14 (0.00%) |
 | packages/devops/src/static-export/node-adapters.ts | NEVER-LOADED | 69 | 0/69 (0.00%) | 0/34 (0.00%) | 0/15 (0.00%) |
-| packages/http-kit/src/api-security-middleware.ts | NEVER-LOADED | 69 | 0/69 (0.00%) | 0/50 (0.00%) | 0/12 (0.00%) |
 | packages/agent-plugins/cloudflare/lib/api.mjs | NEVER-LOADED | 68 | 0/68 (0.00%) | 0/62 (0.00%) | 0/14 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/providers/aihubmix.ts | NEVER-LOADED | 68 | 0/68 (0.00%) | 0/56 (0.00%) | 0/15 (0.00%) |
 | packages/agent-plugins/src/admin-surfaces/plugin-state.ts | LOADED | 67 | 6/73 (8.22%) | 0/0 (100.00%) | 0/4 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/providers/senseaudio.ts | NEVER-LOADED | 67 | 0/67 (0.00%) | 0/50 (0.00%) | 0/9 (0.00%) |
-| packages/integrations/src/media-providers/sqlite-task-store.ts | NEVER-LOADED | 67 | 0/67 (0.00%) | 0/37 (0.00%) | 0/13 (0.00%) |
 | packages/agent-plugins/google-workspace/lib/picker-flow.mjs | NEVER-LOADED | 66 | 0/66 (0.00%) | 0/36 (0.00%) | 0/19 (0.00%) |
-| packages/integrations/src/credentialed-http/tools/credential-copy-tool.ts | NEVER-LOADED | 66 | 0/66 (0.00%) | 0/54 (0.00%) | 0/15 (0.00%) |
 | packages/agent-plugins/resend/lib/domains.mjs | NEVER-LOADED | 65 | 0/65 (0.00%) | 0/72 (0.00%) | 0/13 (0.00%) |
-| packages/infra/src/events/outbox/in-memory-fenced.ts | NEVER-LOADED | 65 | 0/65 (0.00%) | 0/48 (0.00%) | 0/20 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/media-provider-registry.ts | NEVER-LOADED | 65 | 0/65 (0.00%) | 0/50 (0.00%) | 0/41 (0.00%) |
-| packages/mcp/src/federation/hosted/store.memory.ts | NEVER-LOADED | 65 | 0/65 (0.00%) | 0/24 (0.00%) | 0/23 (0.00%) |
 | packages/agent-plugins/google-workspace/lib/http.mjs | NEVER-LOADED | 64 | 0/64 (0.00%) | 0/52 (0.00%) | 0/15 (0.00%) |
-| packages/commerce/src/catalog-tools.ts | LOADED | 64 | 0/64 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/devops/src/dns/verify.ts | NEVER-LOADED | 64 | 0/64 (0.00%) | 0/54 (0.00%) | 0/27 (0.00%) |
 | packages/agent-plugins/google-workspace/form-destinations/mapping.mjs | NEVER-LOADED | 63 | 0/63 (0.00%) | 0/54 (0.00%) | 0/23 (0.00%) |
 | packages/agent-plugins/google-workspace/ui/connection-panel.handler.mjs | NEVER-LOADED | 63 | 0/63 (0.00%) | 0/12 (0.00%) | 0/28 (0.00%) |
-| packages/commerce/src/payments/ops/intent-recovery.ts | LOADED | 63 | 0/63 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/testkit/provider-conformance.ts | LOADED | 63 | 0/63 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/http-kit/src/html-response.ts | NEVER-LOADED | 63 | 0/63 (0.00%) | 0/62 (0.00%) | 0/17 (0.00%) |
-| packages/integrations/src/credentialed-http/sets/vault-repo.ts | NEVER-LOADED | 63 | 0/63 (0.00%) | 0/78 (0.00%) | 0/19 (0.00%) |
-| packages/mcp/src/federation/registrations.ts | NEVER-LOADED | 63 | 0/63 (0.00%) | 0/48 (0.00%) | 0/14 (0.00%) |
 | packages/agent-plugins/src/connect/grant-signed-in-defaults.ts | LOADED | 62 | 0/62 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/http-kit/src/verified-origin/origin.ts | NEVER-LOADED | 62 | 0/62 (0.00%) | 0/58 (0.00%) | 0/18 (0.00%) |
-| packages/integrations/src/api-connections/authorization.ts | NEVER-LOADED | 62 | 0/62 (0.00%) | 0/36 (0.00%) | 0/11 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/sqlite-async-operation-store.ts | NEVER-LOADED | 62 | 0/62 (0.00%) | 0/24 (0.00%) | 0/17 (0.00%) |
 | packages/agent-plugins/google-workspace/ui/dom.mjs | NEVER-LOADED | 61 | 0/61 (0.00%) | 0/48 (0.00%) | 0/18 (0.00%) |
 | packages/agent-plugins/src/connect/executable/host-capabilities.ts | LOADED | 61 | 0/61 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/http-kit/src/adapter.ts | NEVER-LOADED | 61 | 0/61 (0.00%) | 0/28 (0.00%) | 0/10 (0.00%) |
 | packages/agent-plugins/cloudflare/lib/domains.mjs | NEVER-LOADED | 60 | 0/60 (0.00%) | 0/40 (0.00%) | 0/20 (0.00%) |
 | packages/agent-plugins/src/connect/connect-card-ui.ts | LOADED | 60 | 0/60 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/commerce/src/http/payments-webhook.ts | LOADED | 60 | 0/60 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/devops/src/static-export/html-url-locations.ts | NEVER-LOADED | 60 | 0/60 (0.00%) | 0/62 (0.00%) | 0/19 (0.00%) |
-| packages/http-kit/src/local-daemon-request.ts | NEVER-LOADED | 60 | 0/60 (0.00%) | 0/58 (0.00%) | 0/6 (0.00%) |
-| packages/integrations/src/api-connections/finish-authorization.ts | NEVER-LOADED | 60 | 0/60 (0.00%) | 0/36 (0.00%) | 0/15 (0.00%) |
-| packages/integrations/src/saved-requests/definition.ts | NEVER-LOADED | 60 | 0/60 (0.00%) | 0/18 (0.00%) | 0/7 (0.00%) |
 | packages/chat/src/react/hooks/useComposerHistoryKeys.hooks.ts | NEVER-LOADED | 59 | 0/59 (0.00%) | 0/28 (0.00%) | 0/10 (0.00%) |
-| packages/integrations/src/api-connections/account-actions.ts | NEVER-LOADED | 59 | 0/59 (0.00%) | 0/32 (0.00%) | 0/12 (0.00%) |
-| packages/commerce/src/payments/ingest/receive.ts | LOADED | 58 | 0/58 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/devops/src/source-control/commit.ts | NEVER-LOADED | 58 | 0/58 (0.00%) | 0/34 (0.00%) | 0/11 (0.00%) |
 | packages/chat/src/embed-widget/vanilla/state.ts | NEVER-LOADED | 57 | 0/57 (0.00%) | 0/24 (0.00%) | 0/14 (0.00%) |
-| packages/diagnostics/src/observability/fanout.ts | NEVER-LOADED | 57 | 0/57 (0.00%) | 0/36 (0.00%) | 0/33 (0.00%) |
 | packages/agent-plugins/src/lifecycle/mail/selection.ts | LOADED | 56 | 1/57 (1.75%) | 0/0 (100.00%) | 0/1 (0.00%) |
 | packages/chat/src/react/index.ts | NEVER-LOADED | 56 | 0/56 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/agent-plugins/src/lifecycle/mail/catalog.ts | LOADED | 55 | 1/56 (1.79%) | 0/0 (100.00%) | 0/1 (0.00%) |
 | packages/agent-plugins/src/lifecycle/mail/contribution.ts | LOADED | 55 | 2/57 (3.51%) | 0/0 (100.00%) | 0/1 (0.00%) |
-| packages/diagnostics/src/memory-growth.ts | NEVER-LOADED | 55 | 0/55 (0.00%) | 0/44 (0.00%) | 0/12 (0.00%) |
-| packages/integrations/src/saved-requests/execute.ts | NEVER-LOADED | 55 | 0/55 (0.00%) | 0/24 (0.00%) | 0/12 (0.00%) |
 | packages/agent-plugins/src/lifecycle/host-tools/memory-tools.ts | LOADED | 54 | 2/56 (3.57%) | 0/0 (100.00%) | 0/3 (0.00%) |
-| packages/commerce/src/money/money.ts | LOADED | 54 | 0/54 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/diagnostics/src/agent-logs.ts | NEVER-LOADED | 54 | 0/54 (0.00%) | 0/32 (0.00%) | 0/11 (0.00%) |
-| packages/diagnostics/src/web-evidence/lazy-browser.ts | NEVER-LOADED | 54 | 0/54 (0.00%) | 0/32 (0.00%) | 0/17 (0.00%) |
-| packages/mcp/src/federation/hosted/vault.ts | NEVER-LOADED | 54 | 0/54 (0.00%) | 0/42 (0.00%) | 0/12 (0.00%) |
 | packages/plugins/src/host/tools/install.ts | LOADED | 54 | 0/54 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/agent-plugins/google-workspace/lib/request-policy.mjs | NEVER-LOADED | 53 | 0/53 (0.00%) | 0/54 (0.00%) | 0/13 (0.00%) |
 | packages/chat/src/react/components/composer-discovery.ts | NEVER-LOADED | 53 | 0/53 (0.00%) | 0/50 (0.00%) | 0/13 (0.00%) |
 | packages/chat/src/store/legacy/sqlite/conversations.ts | NEVER-LOADED | 53 | 0/53 (0.00%) | 0/42 (0.00%) | 0/14 (0.00%) |
 | packages/core/src/args-convention.typecheck.ts | LOADED | 53 | 0/53 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/devops/src/local-dev/index.ts | NEVER-LOADED | 53 | 0/53 (0.00%) | 0/30 (0.00%) | 0/12 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/ssrf-guard.ts | NEVER-LOADED | 53 | 0/53 (0.00%) | 0/40 (0.00%) | 0/7 (0.00%) |
-| packages/mcp/src/tools/ask-choice/question.ts | NEVER-LOADED | 53 | 0/53 (0.00%) | 0/78 (0.00%) | 0/12 (0.00%) |
-| packages/integrations/src/api-connections/descriptor.ts | NEVER-LOADED | 52 | 0/52 (0.00%) | 0/48 (0.00%) | 0/13 (0.00%) |
 | packages/chat/src/react/components/MessageList.hooks.ts | NEVER-LOADED | 51 | 0/51 (0.00%) | 0/28 (0.00%) | 0/12 (0.00%) |
 | packages/chat/src/react/hooks/useQuestionForms.ts | NEVER-LOADED | 51 | 0/51 (0.00%) | 0/40 (0.00%) | 0/16 (0.00%) |
 | packages/cms/src/core/commands/repo.memory.ts | LOADED | 51 | 0/51 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
 | packages/devops/src/dns/node/wire.ts | NEVER-LOADED | 51 | 0/51 (0.00%) | 0/22 (0.00%) | 0/7 (0.00%) |
-| packages/diagnostics/src/observability/tracker.ts | NEVER-LOADED | 51 | 0/51 (0.00%) | 0/56 (0.00%) | 0/18 (0.00%) |
-| packages/integrations/src/api-connections/token-store/record.ts | NEVER-LOADED | 51 | 0/51 (0.00%) | 0/60 (0.00%) | 0/15 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/providers/elevenlabs.ts | NEVER-LOADED | 51 | 0/51 (0.00%) | 0/28 (0.00%) | 0/11 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/providers/nanobanana.ts | NEVER-LOADED | 51 | 0/51 (0.00%) | 0/18 (0.00%) | 0/12 (0.00%) |
 | packages/agent-plugins/src/connect/connection-status.ts | LOADED | 50 | 0/50 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
 | packages/chat/src/react/features/chat-pane/model-options.ts | NEVER-LOADED | 49 | 0/49 (0.00%) | 0/58 (0.00%) | 0/13 (0.00%) |
 | packages/chat/src/react/hooks/useSurfaceRecovery.ts | NEVER-LOADED | 49 | 0/49 (0.00%) | 0/38 (0.00%) | 0/14 (0.00%) |
-| packages/commerce/src/payments/provider-module-guard.ts | LOADED | 49 | 0/49 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/devops/src/deploy/config-descriptors.ts | NEVER-LOADED | 48 | 0/48 (0.00%) | 0/54 (0.00%) | 0/12 (0.00%) |
-| packages/http-kit/src/rate-limit.ts | NEVER-LOADED | 48 | 0/48 (0.00%) | 0/32 (0.00%) | 0/17 (0.00%) |
-| packages/integrations/src/api-connections/shared.ts | NEVER-LOADED | 48 | 0/48 (0.00%) | 0/42 (0.00%) | 0/13 (0.00%) |
-| packages/integrations/src/webhooks/worker.ts | NEVER-LOADED | 48 | 0/48 (0.00%) | 0/18 (0.00%) | 0/18 (0.00%) |
 | packages/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs | NEVER-LOADED | 47 | 0/47 (0.00%) | 0/38 (0.00%) | 0/13 (0.00%) |
 | packages/agent-plugins/google-workspace/ui/destination-panel.handler.mjs | NEVER-LOADED | 47 | 0/47 (0.00%) | 0/30 (0.00%) | 0/20 (0.00%) |
 | packages/agent-plugins/resend/lib/feedback.mjs | NEVER-LOADED | 47 | 0/47 (0.00%) | 0/42 (0.00%) | 0/18 (0.00%) |
-| packages/commerce/src/catalog/settle-order-payment.ts | LOADED | 47 | 0/47 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/devops/src/packaging/electron/archive.ts | NEVER-LOADED | 47 | 0/47 (0.00%) | 0/30 (0.00%) | 0/18 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/providers/imagerouter-video-async.ts | NEVER-LOADED | 47 | 0/47 (0.00%) | 0/36 (0.00%) | 0/11 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/providers/openrouter.ts | NEVER-LOADED | 47 | 0/47 (0.00%) | 0/26 (0.00%) | 0/7 (0.00%) |
-| packages/integrations/src/saved-requests/schema.ts | NEVER-LOADED | 47 | 0/47 (0.00%) | 0/28 (0.00%) | 0/9 (0.00%) |
-| packages/integrations/src/webhooks/signing.ts | NEVER-LOADED | 47 | 0/47 (0.00%) | 0/30 (0.00%) | 0/8 (0.00%) |
 | packages/agent-plugins/resend/adapters/resend.mjs | NEVER-LOADED | 46 | 0/46 (0.00%) | 0/32 (0.00%) | 0/9 (0.00%) |
-| packages/commerce/src/payments/ops/operator.ts | LOADED | 46 | 0/46 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/tools/resolve-unknown.ts | LOADED | 46 | 0/46 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/devops/src/deploy/ops-secret-card.ts | LOADED | 46 | 1/47 (2.13%) | 0/0 (100.00%) | 0/1 (0.00%) |
 | packages/chat/src/react/components/ToolCard.rules.ts | NEVER-LOADED | 45 | 0/45 (0.00%) | 0/58 (0.00%) | 0/10 (0.00%) |
-| packages/mcp/src/federation/approvals/remembered-approval.ts | NEVER-LOADED | 45 | 0/45 (0.00%) | 0/44 (0.00%) | 0/8 (0.00%) |
-| packages/mcp/src/federation/testing/adapter.memory.ts | NEVER-LOADED | 45 | 0/45 (0.00%) | 0/36 (0.00%) | 0/20 (0.00%) |
 | packages/agent-plugins/vercel/object-stores/vercel-blob.mjs | NEVER-LOADED | 44 | 0/44 (0.00%) | 0/28 (0.00%) | 0/13 (0.00%) |
-| packages/commerce/src/catalog/status.ts | LOADED | 44 | 0/44 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/devops/src/deploy/ops-descriptors.ts | NEVER-LOADED | 44 | 0/44 (0.00%) | 0/58 (0.00%) | 0/12 (0.00%) |
-| packages/http-kit/src/verified-origin/configured-origin.ts | NEVER-LOADED | 44 | 0/44 (0.00%) | 0/32 (0.00%) | 0/7 (0.00%) |
-| packages/mcp/src/federation/mcp-protocol.ts | NEVER-LOADED | 44 | 0/44 (0.00%) | 0/40 (0.00%) | 0/9 (0.00%) |
 | packages/agent-plugins/google-workspace/ui/picker.mjs | NEVER-LOADED | 43 | 0/43 (0.00%) | 0/18 (0.00%) | 0/12 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/response-parsers.ts | NEVER-LOADED | 43 | 0/43 (0.00%) | 0/22 (0.00%) | 0/8 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/stub.ts | NEVER-LOADED | 43 | 0/43 (0.00%) | 0/26 (0.00%) | 0/5 (0.00%) |
-| packages/mcp/src/server/tools/delegated-tool.ts | NEVER-LOADED | 43 | 0/43 (0.00%) | 0/36 (0.00%) | 0/10 (0.00%) |
-| packages/diagnostics/src/web-evidence/page-performance-script.ts | NEVER-LOADED | 42 | 0/42 (0.00%) | 0/38 (0.00%) | 0/7 (0.00%) |
-| packages/integrations/src/api-connections/budgets.ts | NEVER-LOADED | 42 | 0/42 (0.00%) | 0/30 (0.00%) | 0/10 (0.00%) |
-| packages/mcp/src/federation/frozen-grants.ts | NEVER-LOADED | 42 | 0/42 (0.00%) | 0/24 (0.00%) | 0/12 (0.00%) |
-| packages/mcp/src/federation/reload.ts | NEVER-LOADED | 42 | 0/42 (0.00%) | 0/18 (0.00%) | 0/14 (0.00%) |
 | packages/ui/vitest.setup.ts | NEVER-LOADED | 42 | 0/42 (0.00%) | 0/38 (0.00%) | 0/47 (0.00%) |
 | packages/agent-plugins/google-workspace/ui/picker-flow.mjs | NEVER-LOADED | 41 | 0/41 (0.00%) | 0/18 (0.00%) | 0/12 (0.00%) |
 | packages/agent-plugins/src/lifecycle/mail/configuration.ts | LOADED | 41 | 1/42 (2.38%) | 0/0 (100.00%) | 0/1 (0.00%) |
@@ -376,48 +249,25 @@ Never-loaded files: **672** / 3352
 | packages/chat/src/react/components/mcp-ui-question-input.ts | NEVER-LOADED | 41 | 0/41 (0.00%) | 0/38 (0.00%) | 0/12 (0.00%) |
 | packages/chat/src/react/components/MessageRow.usage.ts | NEVER-LOADED | 41 | 0/41 (0.00%) | 0/52 (0.00%) | 0/10 (0.00%) |
 | packages/chat/src/store/sql/cursor.ts | NEVER-LOADED | 41 | 0/41 (0.00%) | 0/38 (0.00%) | 0/13 (0.00%) |
-| packages/commerce/src/payments/contract/risk.ts | LOADED | 41 | 0/41 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/diagnostics/src/web-evidence/same-origin.ts | NEVER-LOADED | 41 | 0/41 (0.00%) | 0/24 (0.00%) | 0/6 (0.00%) |
 | packages/agent-plugins/cloudflare/lib/assets.mjs | NEVER-LOADED | 40 | 0/40 (0.00%) | 0/30 (0.00%) | 0/8 (0.00%) |
 | packages/agent-plugins/cloudflare/lib/domain-inventory.mjs | NEVER-LOADED | 40 | 0/40 (0.00%) | 0/26 (0.00%) | 0/20 (0.00%) |
 | packages/chat/src/react/components/ChatSettingsDialog.tsx | NEVER-LOADED | 40 | 0/40 (0.00%) | 0/68 (0.00%) | 0/15 (0.00%) |
 | packages/chat/src/react/features/chat-pane/create-mcp-ui-tool-caller.ts | NEVER-LOADED | 40 | 0/40 (0.00%) | 0/38 (0.00%) | 0/11 (0.00%) |
 | packages/chat/src/react/hooks/useChatFabDrag.ts | NEVER-LOADED | 40 | 0/40 (0.00%) | 0/22 (0.00%) | 0/9 (0.00%) |
-| packages/commerce/src/catalog/repo.storefront.ts | LOADED | 40 | 0/40 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/integrations/src/saved-requests/validation.ts | NEVER-LOADED | 40 | 0/40 (0.00%) | 0/16 (0.00%) | 0/11 (0.00%) |
+| packages/integrations/src/credentialed-http/sets/vault-repo.ts | LOADED | 40 | 67/107 (62.62%) | 28/36 (77.78%) | 10/16 (62.50%) |
+| packages/mcp/src/federation/hosted/connection-gate.ts | LOADED | 40 | 2/42 (4.76%) | 0/0 (100.00%) | 0/5 (0.00%) |
+| packages/mcp/src/federation/hosted/store.memory.ts | LOADED | 40 | 68/108 (62.96%) | 21/24 (87.50%) | 10/14 (71.43%) |
 | packages/chat/src/store/runtime/checkpoint-delta.ts | NEVER-LOADED | 39 | 0/39 (0.00%) | 0/40 (0.00%) | 0/10 (0.00%) |
-| packages/commerce/src/payments/provider-contract.ts | LOADED | 39 | 0/39 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/devops/src/packaging/electron/imports.ts | NEVER-LOADED | 39 | 0/39 (0.00%) | 0/20 (0.00%) | 0/6 (0.00%) |
 | packages/devops/src/static-export/css-urls.ts | NEVER-LOADED | 39 | 0/39 (0.00%) | 0/26 (0.00%) | 0/7 (0.00%) |
-| packages/diagnostics/src/observability/report-error.ts | NEVER-LOADED | 39 | 0/39 (0.00%) | 0/40 (0.00%) | 0/8 (0.00%) |
-| packages/integrations/src/api-connections/access-token.ts | NEVER-LOADED | 39 | 0/39 (0.00%) | 0/24 (0.00%) | 0/11 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/providers/imagerouter.ts | NEVER-LOADED | 39 | 0/39 (0.00%) | 0/22 (0.00%) | 0/8 (0.00%) |
-| packages/integrations/src/media-providers/task-lifecycle.ts | NEVER-LOADED | 39 | 0/39 (0.00%) | 0/54 (0.00%) | 0/10 (0.00%) |
-| packages/commerce/src/catalog/merchant-drain.ts | LOADED | 38 | 0/38 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/commerce/src/payments/ops/reconcile-snapshot.ts | LOADED | 38 | 0/38 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/infra/src/events/outbox/drainer.ts | NEVER-LOADED | 38 | 0/38 (0.00%) | 0/28 (0.00%) | 0/15 (0.00%) |
-| packages/mcp/src/server/tool-result-pages.ts | NEVER-LOADED | 38 | 0/38 (0.00%) | 0/24 (0.00%) | 0/10 (0.00%) |
 | packages/chat/src/react/hooks/useCopyToClipboard.ts | NEVER-LOADED | 37 | 0/37 (0.00%) | 0/8 (0.00%) | 0/6 (0.00%) |
 | packages/devops/src/packaging/electron/policies.ts | NEVER-LOADED | 37 | 0/37 (0.00%) | 0/36 (0.00%) | 0/12 (0.00%) |
-| packages/diagnostics/src/sources.ts | NEVER-LOADED | 37 | 0/37 (0.00%) | 0/18 (0.00%) | 0/10 (0.00%) |
-| packages/http-kit/src/verified-origin/site-path.ts | NEVER-LOADED | 37 | 0/37 (0.00%) | 0/26 (0.00%) | 0/5 (0.00%) |
-| packages/integrations/src/media-providers/task-store.ts | NEVER-LOADED | 37 | 0/37 (0.00%) | 0/17 (0.00%) | 0/11 (0.00%) |
-| packages/mcp/src/client/css-url-refs.ts | NEVER-LOADED | 37 | 0/37 (0.00%) | 0/34 (0.00%) | 0/9 (0.00%) |
 | packages/agent-plugins/google-workspace/lib/picker-selection.mjs | NEVER-LOADED | 36 | 0/36 (0.00%) | 0/18 (0.00%) | 0/6 (0.00%) |
 | packages/chat/src/react/features/chat-pane/hooks/useChatPaneFileDrop.hooks.ts | NEVER-LOADED | 36 | 0/36 (0.00%) | 0/26 (0.00%) | 0/10 (0.00%) |
-| packages/commerce/src/payments/ops/reconcile-attempts.ts | LOADED | 36 | 0/36 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/http-kit/src/raw-sse.ts | NEVER-LOADED | 36 | 0/36 (0.00%) | 0/14 (0.00%) | 0/8 (0.00%) |
-| packages/mcp/src/server/run-tool-host.ts | NEVER-LOADED | 36 | 0/36 (0.00%) | 0/16 (0.00%) | 0/8 (0.00%) |
-| packages/mcp/src/server/tools/run-tools.ts | NEVER-LOADED | 36 | 0/36 (0.00%) | 0/12 (0.00%) | 0/7 (0.00%) |
 | packages/agent-plugins/cloudflare/lib/workers-upload.mjs | NEVER-LOADED | 35 | 0/35 (0.00%) | 0/18 (0.00%) | 0/5 (0.00%) |
 | packages/chat/src/embed-widget/react/dialog.hooks.ts | NEVER-LOADED | 35 | 0/35 (0.00%) | 0/20 (0.00%) | 0/10 (0.00%) |
-| packages/integrations/src/credentialed-http/auth-schemes.ts | NEVER-LOADED | 35 | 0/35 (0.00%) | 0/28 (0.00%) | 0/6 (0.00%) |
-| packages/mcp/src/federation/refusal-notice.ts | NEVER-LOADED | 35 | 0/35 (0.00%) | 0/14 (0.00%) | 0/12 (0.00%) |
 | packages/agent-plugins/google-workspace/lib/sheets-admin-csv.mjs | NEVER-LOADED | 34 | 0/34 (0.00%) | 0/14 (0.00%) | 0/7 (0.00%) |
 | packages/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs | NEVER-LOADED | 34 | 0/34 (0.00%) | 0/22 (0.00%) | 0/7 (0.00%) |
-| packages/integrations/src/credentialed-http/response-redaction.ts | NEVER-LOADED | 34 | 0/34 (0.00%) | 0/30 (0.00%) | 0/10 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/providers/custom-image.ts | NEVER-LOADED | 34 | 0/34 (0.00%) | 0/22 (0.00%) | 0/5 (0.00%) |
-| packages/mcp/src/federation/hosted/connection-gate.ts | NEVER-LOADED | 34 | 0/34 (0.00%) | 0/24 (0.00%) | 0/6 (0.00%) |
 | packages/agent-plugins/src/connect/connect-destination.ts | LOADED | 33 | 0/33 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/agent-plugins/src/connect/credential-cards.ts | LOADED | 33 | 0/33 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/agent-plugins/src/connect/plugin-credential-card.ts | LOADED | 33 | 4/37 (10.81%) | 1/3 (33.33%) | 1/4 (25.00%) |
@@ -427,16 +277,9 @@ Never-loaded files: **672** / 3352
 | packages/chat/src/react/hooks/context.ts | NEVER-LOADED | 33 | 0/33 (0.00%) | 0/6 (0.00%) | 0/12 (0.00%) |
 | packages/chat/src/react/hooks/last-conversation-store.ts | NEVER-LOADED | 33 | 0/33 (0.00%) | 0/18 (0.00%) | 0/8 (0.00%) |
 | packages/chat/src/react/hooks/useExtEventGroups.ts | NEVER-LOADED | 33 | 0/33 (0.00%) | 0/16 (0.00%) | 0/6 (0.00%) |
-| packages/commerce/src/catalog/repo.order-payments.ts | LOADED | 33 | 0/33 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/devops/src/deploy/publish-jobs.ts | NEVER-LOADED | 33 | 0/33 (0.00%) | 0/46 (0.00%) | 0/10 (0.00%) |
-| packages/integrations/src/api-connections/request-checks.ts | NEVER-LOADED | 33 | 0/33 (0.00%) | 0/28 (0.00%) | 0/10 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/providers/aihubmix-shared.ts | NEVER-LOADED | 33 | 0/33 (0.00%) | 0/24 (0.00%) | 0/10 (0.00%) |
 | packages/agent-plugins/cloudflare/lib/pages-upload.mjs | NEVER-LOADED | 32 | 0/32 (0.00%) | 0/14 (0.00%) | 0/7 (0.00%) |
 | packages/agent-plugins/src/connect/apply-connect-defaults.ts | LOADED | 32 | 36/68 (52.94%) | 5/20 (25.00%) | 4/7 (57.14%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/lib/script-cli.mjs | NEVER-LOADED | 32 | 0/32 (0.00%) | 0/12 (0.00%) | 0/12 (0.00%) |
-| packages/commerce/src/core/tool-input.ts | LOADED | 32 | 0/32 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/ops/grants.ts | LOADED | 32 | 0/32 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/commerce/src/payments/provider-contexts.ts | LOADED | 32 | 0/32 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/db/src/data-modules/snapshot.ts | LOADED | 32 | 0/32 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/devops/src/agent-jobs/node.ts | NEVER-LOADED | 32 | 0/32 (0.00%) | 0/6 (0.00%) | 0/17 (0.00%) |
 | packages/agent-plugins/cloudflare/lib/domain-status.mjs | NEVER-LOADED | 31 | 0/31 (0.00%) | 0/36 (0.00%) | 0/11 (0.00%) |
@@ -444,33 +287,20 @@ Never-loaded files: **672** / 3352
 | packages/agent-plugins/render/deploy-configs/render.mjs | NEVER-LOADED | 31 | 0/31 (0.00%) | 0/12 (0.00%) | 0/7 (0.00%) |
 | packages/chat/src/react/components/ConversationTitleEditor.tsx | NEVER-LOADED | 31 | 0/31 (0.00%) | 0/14 (0.00%) | 0/9 (0.00%) |
 | packages/chat/src/store/runtime/chat-history-store.ts | NEVER-LOADED | 31 | 0/31 (0.00%) | 0/16 (0.00%) | 0/8 (0.00%) |
-| packages/commerce/src/catalog/storefront.ts | LOADED | 31 | 0/31 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/commerce/src/payments/ledger/migrations/0002_payments_operator_actions.ts | LOADED | 31 | 0/31 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/daemon/src/http/surface-restoration.ts | LOADED | 31 | 0/31 (0.00%) | 0/0 (100.00%) | 0/1 (0.00%) |
-| packages/diagnostics/src/observability/delivery.ts | NEVER-LOADED | 31 | 0/31 (0.00%) | 0/34 (0.00%) | 0/8 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/providers/grok.ts | NEVER-LOADED | 31 | 0/31 (0.00%) | 0/16 (0.00%) | 0/7 (0.00%) |
-| packages/integrations/src/saved-requests/projection.ts | NEVER-LOADED | 31 | 0/31 (0.00%) | 0/14 (0.00%) | 0/7 (0.00%) |
 | packages/agent-plugins/google-workspace/lib/sheets-a1.mjs | NEVER-LOADED | 30 | 0/30 (0.00%) | 0/20 (0.00%) | 0/10 (0.00%) |
 | packages/agent-plugins/src/lifecycle/host-tools/write-note-tool.ts | LOADED | 30 | 5/35 (14.29%) | 0/0 (100.00%) | 0/2 (0.00%) |
 | packages/chat/src/react/hooks/useAnsweredCards.ts | NEVER-LOADED | 30 | 0/30 (0.00%) | 0/24 (0.00%) | 0/14 (0.00%) |
 | packages/cms/forms/src/submit-service.ts | NEVER-LOADED | 30 | 0/30 (0.00%) | 0/12 (0.00%) | 0/5 (0.00%) |
-| packages/devops/src/deploy/ops-secret-card.ts | NEVER-LOADED | 30 | 0/30 (0.00%) | 0/32 (0.00%) | 0/7 (0.00%) |
 | packages/devops/src/packaging/electron/node.ts | NEVER-LOADED | 30 | 0/30 (0.00%) | 0/24 (0.00%) | 0/13 (0.00%) |
 | packages/agent-plugins/google-workspace/ui/connection-view.mjs | NEVER-LOADED | 29 | 0/29 (0.00%) | 0/30 (0.00%) | 0/15 (0.00%) |
 | packages/agent-plugins/src/connect/credential-save-tool.ts | LOADED | 29 | 86/115 (74.78%) | 18/37 (48.65%) | 6/11 (54.55%) |
 | packages/chat/src/react/components/MidRunUserMessage.tsx | NEVER-LOADED | 29 | 0/29 (0.00%) | 0/28 (0.00%) | 0/8 (0.00%) |
 | packages/chat/src/react/features/chat-pane/surface-recovery-stream.ts | NEVER-LOADED | 29 | 0/29 (0.00%) | 0/22 (0.00%) | 0/4 (0.00%) |
 | packages/chat/src/store/runtime/chat-expiry-sweep.ts | NEVER-LOADED | 29 | 0/29 (0.00%) | 0/8 (0.00%) | 0/7 (0.00%) |
-| packages/commerce/src/tools.ts | LOADED | 29 | 0/29 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/core/src/text/descriptor-i18n.ts | LOADED | 29 | 6/35 (17.14%) | 0/0 (100.00%) | 0/3 (0.00%) |
-| packages/mcp/src/federation/stdio/default-connect.ts | NEVER-LOADED | 29 | 0/29 (0.00%) | 0/12 (0.00%) | 0/12 (0.00%) |
-| packages/mcp/src/server/schema-ref-scope.ts | NEVER-LOADED | 29 | 0/29 (0.00%) | 0/26 (0.00%) | 0/9 (0.00%) |
 | packages/agent-plugins/google-workspace/lib/product-state.mjs | NEVER-LOADED | 28 | 0/28 (0.00%) | 0/12 (0.00%) | 0/12 (0.00%) |
 | packages/chat/src/react/features/chat-pane/components/AgentPluginUsage.tsx | NEVER-LOADED | 28 | 0/28 (0.00%) | 0/16 (0.00%) | 0/10 (0.00%) |
-| packages/commerce/src/payments/provider-registry.ts | LOADED | 28 | 0/28 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/diagnostics/src/web-evidence/page-work-budget.ts | NEVER-LOADED | 28 | 0/28 (0.00%) | 0/18 (0.00%) | 0/11 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/index.ts | NEVER-LOADED | 28 | 0/28 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/federation/approvals/revocation.ts | NEVER-LOADED | 28 | 0/28 (0.00%) | 0/18 (0.00%) | 0/5 (0.00%) |
 | packages/agent-plugins/google-workspace/lib/auth.mjs | NEVER-LOADED | 27 | 0/27 (0.00%) | 0/10 (0.00%) | 0/9 (0.00%) |
 | packages/agent-plugins/google-workspace/tools/sheets-admin/format.mjs | NEVER-LOADED | 27 | 0/27 (0.00%) | 0/26 (0.00%) | 0/12 (0.00%) |
 | packages/agent-plugins/railway/deploy-configs/railway.mjs | NEVER-LOADED | 27 | 0/27 (0.00%) | 0/18 (0.00%) | 0/6 (0.00%) |
@@ -479,38 +309,21 @@ Never-loaded files: **672** / 3352
 | packages/chat/src/react/components/MessageList.tsx | NEVER-LOADED | 27 | 0/27 (0.00%) | 0/32 (0.00%) | 0/13 (0.00%) |
 | packages/chat/src/react/features/chat-pane/create-frontend-request-caller.ts | NEVER-LOADED | 27 | 0/27 (0.00%) | 0/24 (0.00%) | 0/5 (0.00%) |
 | packages/chat/src/react/hooks/useLatestOperation.ts | NEVER-LOADED | 27 | 0/27 (0.00%) | 0/8 (0.00%) | 0/10 (0.00%) |
-| packages/commerce/src/payments/contract/checkout-client.ts | LOADED | 27 | 0/27 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/integrations/src/media-providers/providers.ts | NEVER-LOADED | 27 | 0/27 (0.00%) | 0/12 (0.00%) | 0/10 (0.00%) |
-| packages/mcp/src/federation/hosted/revocation.ts | NEVER-LOADED | 27 | 0/27 (0.00%) | 0/18 (0.00%) | 0/5 (0.00%) |
 | packages/agent-plugins/src/lifecycle/host-tools/identity.ts | LOADED | 26 | 5/31 (16.13%) | 0/0 (100.00%) | 0/3 (0.00%) |
 | packages/chat/src/react/components/TodoCard.tsx | NEVER-LOADED | 26 | 0/26 (0.00%) | 0/32 (0.00%) | 0/11 (0.00%) |
-| packages/commerce/src/catalog/errors.ts | LOADED | 26 | 0/26 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
 | packages/devops/src/dns/registry.ts | NEVER-LOADED | 26 | 0/26 (0.00%) | 0/22 (0.00%) | 0/17 (0.00%) |
-| packages/integrations/src/api-connections/attempt-state.ts | NEVER-LOADED | 26 | 0/26 (0.00%) | 0/8 (0.00%) | 0/10 (0.00%) |
-| packages/mcp/src/agent-install/owned-json-install.ts | NEVER-LOADED | 26 | 0/26 (0.00%) | 0/20 (0.00%) | 0/5 (0.00%) |
-| packages/mcp/src/federation/approvals/call-confirmation.ts | NEVER-LOADED | 26 | 0/26 (0.00%) | 0/32 (0.00%) | 0/6 (0.00%) |
-| packages/mcp/src/federation/hosted/access.ts | NEVER-LOADED | 26 | 0/26 (0.00%) | 0/22 (0.00%) | 0/7 (0.00%) |
 | packages/user-management/src/server/mfa/passkey-adapter.ts | LOADED | 26 | 2/28 (7.14%) | 0/0 (100.00%) | 0/1 (0.00%) |
 | packages/chat/src/react/features/chat-pane/components/RuntimeDropUp.tsx | NEVER-LOADED | 25 | 0/25 (0.00%) | 0/28 (0.00%) | 0/9 (0.00%) |
 | packages/chat/src/react/features/chat-pane/hooks/useChatPaneComposerPlaceholder.hooks.ts | NEVER-LOADED | 25 | 0/25 (0.00%) | 0/18 (0.00%) | 0/11 (0.00%) |
-| packages/commerce/src/catalog/load-payable-order.ts | LOADED | 25 | 0/25 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/devops/src/checks/memory-soak.ts | NEVER-LOADED | 25 | 0/25 (0.00%) | 0/28 (0.00%) | 0/7 (0.00%) |
 | packages/devops/src/checks/node.ts | NEVER-LOADED | 25 | 0/25 (0.00%) | 0/6 (0.00%) | 0/20 (0.00%) |
-| packages/diagnostics/src/observability/telemetry-test.ts | NEVER-LOADED | 25 | 0/25 (0.00%) | 0/28 (0.00%) | 0/7 (0.00%) |
-| packages/mcp/src/server/message-relay.ts | NEVER-LOADED | 25 | 0/25 (0.00%) | 0/6 (0.00%) | 0/8 (0.00%) |
 | packages/agent-plugins/google-workspace/tools/sheets/find.mjs | NEVER-LOADED | 24 | 0/24 (0.00%) | 0/18 (0.00%) | 0/9 (0.00%) |
 | packages/chat/src/react/features/chat-pane/create-mid-run-message-poster.ts | NEVER-LOADED | 24 | 0/24 (0.00%) | 0/18 (0.00%) | 0/9 (0.00%) |
-| packages/commerce/src/payments/ingest/outbox-relay.ts | LOADED | 24 | 0/24 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/commerce/src/payments/ops/service.ts | LOADED | 24 | 0/24 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/ops/view.ts | LOADED | 24 | 0/24 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
 | packages/db/src/data-modules/disk-headroom.ts | LOADED | 24 | 0/24 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/devops/src/deploy/node.ts | NEVER-LOADED | 24 | 0/24 (0.00%) | 0/24 (0.00%) | 0/9 (0.00%) |
-| packages/diagnostics/src/node-ports.ts | NEVER-LOADED | 24 | 0/24 (0.00%) | 0/8 (0.00%) | 0/11 (0.00%) |
-| packages/http-kit/src/route-registration-guard.ts | NEVER-LOADED | 24 | 0/24 (0.00%) | 0/14 (0.00%) | 0/5 (0.00%) |
 | packages/agent-plugins/ui-ux-design/skills/shadcn-ui/examples/data-table.tsx | NEVER-LOADED | 23 | 0/23 (0.00%) | 0/8 (0.00%) | 0/21 (0.00%) |
 | packages/chat/src/react/features/chat-pane/hooks/useChatPaneNewTabLinks.hooks.ts | NEVER-LOADED | 23 | 0/23 (0.00%) | 0/24 (0.00%) | 0/6 (0.00%) |
 | packages/chat/src/react/hooks/useRunActivity.ts | NEVER-LOADED | 23 | 0/23 (0.00%) | 0/12 (0.00%) | 0/6 (0.00%) |
-| packages/commerce/src/payments/ledger/migrations/index.ts | LOADED | 23 | 0/23 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/commerce/src/catalog/merchant-drain.ts | LOADED | 23 | 15/38 (39.47%) | 9/10 (90.00%) | 3/9 (33.33%) |
 | packages/commerce/vitest.coverage.config.ts | LOADED | 23 | 0/23 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/db/src/data-modules/migration-recovery.ts | LOADED | 23 | 0/23 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/agent-plugins/github/source-control/github.mjs | NEVER-LOADED | 22 | 0/22 (0.00%) | 0/12 (0.00%) | 0/3 (0.00%) |
@@ -519,11 +332,7 @@ Never-loaded files: **672** / 3352
 | packages/chat/src/react/components/FolderChips.tsx | NEVER-LOADED | 22 | 0/22 (0.00%) | 0/16 (0.00%) | 0/8 (0.00%) |
 | packages/chat/src/react/components/mcp-ui-surface-state.ts | NEVER-LOADED | 22 | 0/22 (0.00%) | 0/22 (0.00%) | 0/6 (0.00%) |
 | packages/chat/src/react/hooks/testing/fake-transport.ts | NEVER-LOADED | 22 | 0/22 (0.00%) | 0/6 (0.00%) | 0/11 (0.00%) |
-| packages/commerce/src/catalog/pay-order.ts | LOADED | 22 | 0/22 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/tools/deps.ts | LOADED | 22 | 0/22 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/devops/src/local-dev/server-retirement.ts | NEVER-LOADED | 22 | 0/22 (0.00%) | 0/14 (0.00%) | 0/8 (0.00%) |
-| packages/diagnostics/src/zip.ts | NEVER-LOADED | 22 | 0/22 (0.00%) | 0/6 (0.00%) | 0/2 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/vendor-registry.ts | NEVER-LOADED | 22 | 0/22 (0.00%) | 0/2 (0.00%) | 0/7 (0.00%) |
 | packages/platform/src/mail/provider-mailer.ts | LOADED | 22 | 2/24 (8.33%) | 0/0 (100.00%) | 0/1 (0.00%) |
 | packages/chat/src/react/components/AttachmentTray.tsx | NEVER-LOADED | 21 | 0/21 (0.00%) | 0/22 (0.00%) | 0/5 (0.00%) |
 | packages/chat/src/react/components/SentAttachment.hooks.ts | NEVER-LOADED | 21 | 0/21 (0.00%) | 0/10 (0.00%) | 0/8 (0.00%) |
@@ -533,43 +342,27 @@ Never-loaded files: **672** / 3352
 | packages/db/src/testing/postgres-database.ts | NEVER-LOADED | 21 | 0/21 (0.00%) | 0/8 (0.00%) | 0/4 (0.00%) |
 | packages/devops/src/dns/delegation.ts | NEVER-LOADED | 21 | 0/21 (0.00%) | 0/16 (0.00%) | 0/8 (0.00%) |
 | packages/devops/src/dns/node/udp.ts | NEVER-LOADED | 21 | 0/21 (0.00%) | 0/16 (0.00%) | 0/11 (0.00%) |
-| packages/integrations/src/api-connections/hosted-sign-in.ts | NEVER-LOADED | 21 | 0/21 (0.00%) | 0/8 (0.00%) | 0/8 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/outbound.ts | NEVER-LOADED | 21 | 0/21 (0.00%) | 0/18 (0.00%) | 0/4 (0.00%) |
-| packages/mcp/src/server/resource-protocol.ts | NEVER-LOADED | 21 | 0/21 (0.00%) | 0/14 (0.00%) | 0/4 (0.00%) |
-| packages/mcp/src/server/tools/tool-catalog-tools.ts | NEVER-LOADED | 21 | 0/21 (0.00%) | 0/16 (0.00%) | 0/3 (0.00%) |
 | packages/provider-plugins/vitest.coverage.config.ts | LOADED | 21 | 0/21 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/lib/cli-args.mjs | NEVER-LOADED | 20 | 0/20 (0.00%) | 0/14 (0.00%) | 0/8 (0.00%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/lib/main-guard.mjs | NEVER-LOADED | 20 | 0/20 (0.00%) | 0/8 (0.00%) | 0/4 (0.00%) |
 | packages/chat/src/react/components/ComposerDiscovery.tsx | NEVER-LOADED | 20 | 0/20 (0.00%) | 0/38 (0.00%) | 0/11 (0.00%) |
 | packages/chat/src/react/hooks/composer-history-storage.ts | NEVER-LOADED | 20 | 0/20 (0.00%) | 0/8 (0.00%) | 0/5 (0.00%) |
-| packages/commerce/src/payments/tools/index.ts | LOADED | 20 | 0/20 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/tools/read-tools.ts | LOADED | 20 | 0/20 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/db/src/testing/transfer-pg-test-db.ts | NEVER-LOADED | 20 | 0/20 (0.00%) | 0/10 (0.00%) | 0/7 (0.00%) |
-| packages/devops/src/deploy/index.ts | NEVER-LOADED | 20 | 0/20 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/devops/src/source-control/repository-path.ts | NEVER-LOADED | 20 | 0/20 (0.00%) | 0/20 (0.00%) | 0/5 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/providers/minimax.ts | NEVER-LOADED | 20 | 0/20 (0.00%) | 0/16 (0.00%) | 0/3 (0.00%) |
 | packages/agent-plugins/cloudflare/lib/dns.mjs | NEVER-LOADED | 19 | 0/19 (0.00%) | 0/18 (0.00%) | 0/10 (0.00%) |
 | packages/agent-plugins/fly/deploy-configs/fly.mjs | NEVER-LOADED | 19 | 0/19 (0.00%) | 0/10 (0.00%) | 0/5 (0.00%) |
 | packages/chat/src/react/features/chat-pane/create-typed-answer-poster.ts | NEVER-LOADED | 19 | 0/19 (0.00%) | 0/12 (0.00%) | 0/6 (0.00%) |
 | packages/chat/src/react/hooks/usePinnedTodos.ts | NEVER-LOADED | 19 | 0/19 (0.00%) | 0/10 (0.00%) | 0/8 (0.00%) |
 | packages/cookie-consent/scripts/build-client.mjs | NEVER-LOADED | 19 | 0/19 (0.00%) | 0/4 (0.00%) | 0/0 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/providers/fishaudio.ts | NEVER-LOADED | 19 | 0/19 (0.00%) | 0/14 (0.00%) | 0/4 (0.00%) |
-| packages/mcp/src/federation/testing/tool-approvals.memory.ts | NEVER-LOADED | 19 | 0/19 (0.00%) | 0/8 (0.00%) | 0/12 (0.00%) |
 | packages/agent-plugins/google-workspace/form-destinations/delivery-result.mjs | NEVER-LOADED | 18 | 0/18 (0.00%) | 0/12 (0.00%) | 0/3 (0.00%) |
 | packages/chat/src/embed-widget/react/header.hooks.ts | NEVER-LOADED | 18 | 0/18 (0.00%) | 0/10 (0.00%) | 0/7 (0.00%) |
-| packages/commerce/src/catalog/repo.price-refs.ts | LOADED | 18 | 0/18 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
 | packages/devops/src/dns/contract.ts | NEVER-LOADED | 18 | 0/18 (0.00%) | 0/2 (0.00%) | 0/1 (0.00%) |
-| packages/http-kit/src/index.ts | NEVER-LOADED | 18 | 0/18 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/integrations/src/api-connections/records.ts | NEVER-LOADED | 18 | 0/18 (0.00%) | 0/8 (0.00%) | 0/5 (0.00%) |
-| packages/integrations/src/media-providers/policy.ts | NEVER-LOADED | 18 | 0/18 (0.00%) | 0/18 (0.00%) | 0/5 (0.00%) |
+| packages/mcp/src/federation/hosted/revocation.ts | LOADED | 18 | 18/36 (50.00%) | 3/3 (100.00%) | 3/6 (50.00%) |
 | packages/agent-plugins/ui-ux-design/skills/shadcn-ui/examples/form-pattern.tsx | NEVER-LOADED | 17 | 0/17 (0.00%) | 0/0 (0.00%) | 0/6 (0.00%) |
 | packages/agent-runtime/src/skills/web-clone/scripts/lib/playwright-loader.mjs | NEVER-LOADED | 17 | 0/17 (0.00%) | 0/2 (0.00%) | 0/5 (0.00%) |
 | packages/chat/src/react/components/JiniChatProvider.tsx | NEVER-LOADED | 17 | 0/17 (0.00%) | 0/14 (0.00%) | 0/3 (0.00%) |
-| packages/commerce/src/payments/contract/provider.ts | LOADED | 17 | 0/17 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
 | packages/devops/src/local-dev/node-runtime.ts | NEVER-LOADED | 17 | 0/17 (0.00%) | 0/4 (0.00%) | 0/3 (0.00%) |
 | packages/devops/src/local-dev/source-tree-stamp.ts | NEVER-LOADED | 17 | 0/17 (0.00%) | 0/8 (0.00%) | 0/2 (0.00%) |
-| packages/http-kit/src/observability.ts | NEVER-LOADED | 17 | 0/17 (0.00%) | 0/10 (0.00%) | 0/5 (0.00%) |
-| packages/infra/src/events/outbox/policy.ts | NEVER-LOADED | 17 | 0/17 (0.00%) | 0/20 (0.00%) | 0/2 (0.00%) |
 | packages/agent-plugins/cloudflare/lib/zones.mjs | NEVER-LOADED | 16 | 0/16 (0.00%) | 0/18 (0.00%) | 0/5 (0.00%) |
 | packages/agent-plugins/google-workspace/tools/sheets-admin/named-ranges.mjs | NEVER-LOADED | 16 | 0/16 (0.00%) | 0/14 (0.00%) | 0/7 (0.00%) |
 | packages/chat/src/store/sql/boundary.ts | NEVER-LOADED | 16 | 0/16 (0.00%) | 0/14 (0.00%) | 0/5 (0.00%) |
@@ -577,10 +370,6 @@ Never-loaded files: **672** / 3352
 | packages/devops/src/dns/approval.ts | NEVER-LOADED | 16 | 0/16 (0.00%) | 0/20 (0.00%) | 0/14 (0.00%) |
 | packages/devops/src/dns/spf.ts | NEVER-LOADED | 16 | 0/16 (0.00%) | 0/10 (0.00%) | 0/10 (0.00%) |
 | packages/devops/src/source-control/repository-target.ts | NEVER-LOADED | 16 | 0/16 (0.00%) | 0/20 (0.00%) | 0/3 (0.00%) |
-| packages/diagnostics/src/observability/hooks.ts | NEVER-LOADED | 16 | 0/16 (0.00%) | 0/8 (0.00%) | 0/12 (0.00%) |
-| packages/diagnostics/src/observability/index.ts | NEVER-LOADED | 16 | 0/16 (0.00%) | 0/2 (0.00%) | 0/1 (0.00%) |
-| packages/integrations/src/api-connections/index.ts | NEVER-LOADED | 16 | 0/16 (0.00%) | 0/0 (0.00%) | 0/1 (0.00%) |
-| packages/mcp/src/tools/ask-choice/pending.ts | NEVER-LOADED | 16 | 0/16 (0.00%) | 0/16 (0.00%) | 0/3 (0.00%) |
 | packages/platform/src/mail/plugin-abi.ts | LOADED | 16 | 3/19 (15.79%) | 0/0 (100.00%) | 0/3 (0.00%) |
 | packages/plugin-catalog/scripts/generate.ts | LOADED | 16 | 103/119 (86.55%) | 70/76 (92.11%) | 11/12 (91.67%) |
 | packages/agent-plugins/google-workspace/lib/drive-files.mjs | NEVER-LOADED | 15 | 0/15 (0.00%) | 0/16 (0.00%) | 0/3 (0.00%) |
@@ -591,22 +380,11 @@ Never-loaded files: **672** / 3352
 | packages/chat/src/react/tool-renderer-registry.ts | NEVER-LOADED | 15 | 0/15 (0.00%) | 0/2 (0.00%) | 0/8 (0.00%) |
 | packages/chat/src/store/runtime/run-guarded-chat-store.ts | NEVER-LOADED | 15 | 0/15 (0.00%) | 0/18 (0.00%) | 0/5 (0.00%) |
 | packages/chat/src/store/sqlite/index.ts | NEVER-LOADED | 15 | 0/15 (0.00%) | 0/0 (0.00%) | 0/4 (0.00%) |
-| packages/diagnostics/src/web-evidence/playwright-runtime.ts | NEVER-LOADED | 15 | 0/15 (0.00%) | 0/4 (0.00%) | 0/2 (0.00%) |
-| packages/http-kit/src/verified-origin/repo.memory.ts | NEVER-LOADED | 15 | 0/15 (0.00%) | 0/8 (0.00%) | 0/6 (0.00%) |
-| packages/integrations/src/api-connections/status.ts | NEVER-LOADED | 15 | 0/15 (0.00%) | 0/14 (0.00%) | 0/3 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/builtin-vendors.ts | NEVER-LOADED | 15 | 0/15 (0.00%) | 0/0 (0.00%) | 0/1 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/providers/volcengine.ts | NEVER-LOADED | 15 | 0/15 (0.00%) | 0/4 (0.00%) | 0/4 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/vendor-registry-core.ts | NEVER-LOADED | 15 | 0/15 (0.00%) | 0/6 (0.00%) | 0/4 (0.00%) |
 | packages/plugins/src/host/declarative-content-types.ts | LOADED | 15 | 196/211 (92.89%) | 91/103 (88.35%) | 19/19 (100.00%) |
 | packages/agent-plugins/google-workspace/tools/sheets/find-replace.mjs | NEVER-LOADED | 14 | 0/14 (0.00%) | 0/8 (0.00%) | 0/6 (0.00%) |
 | packages/agent-runtime/src/model-discovery-yaml.ts | LOADED | 14 | 50/64 (78.13%) | 29/37 (78.38%) | 10/11 (90.91%) |
 | packages/chat/src/react/hooks/useUserTextGuard.ts | NEVER-LOADED | 14 | 0/14 (0.00%) | 0/4 (0.00%) | 0/5 (0.00%) |
-| packages/commerce/src/catalog/buyer-order.ts | LOADED | 14 | 0/14 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
 | packages/cookie-consent/src/extensions.min.ts | LOADED | 14 | 0/14 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/diagnostics/src/observability/errors.ts | NEVER-LOADED | 14 | 0/14 (0.00%) | 0/8 (0.00%) | 0/3 (0.00%) |
-| packages/integrations/src/api-connections/byo-client.ts | NEVER-LOADED | 14 | 0/14 (0.00%) | 0/12 (0.00%) | 0/3 (0.00%) |
-| packages/mcp/src/federation/index.ts | NEVER-LOADED | 14 | 0/14 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/server/sdk-transport.ts | NEVER-LOADED | 14 | 0/14 (0.00%) | 0/8 (0.00%) | 0/9 (0.00%) |
 | packages/plugins/src/host/capability-tools.ts | LOADED | 14 | 195/209 (93.30%) | 67/72 (93.06%) | 23/24 (95.83%) |
 | packages/agent-plugins/google-workspace/tools/sheets-admin/basic-filter.mjs | NEVER-LOADED | 13 | 0/13 (0.00%) | 0/10 (0.00%) | 0/3 (0.00%) |
 | packages/agent-plugins/google-workspace/ui/picker-view.mjs | NEVER-LOADED | 13 | 0/13 (0.00%) | 0/10 (0.00%) | 0/3 (0.00%) |
@@ -615,10 +393,6 @@ Never-loaded files: **672** / 3352
 | packages/agent-plugins/src/connect/switch-on-saved-token.ts | LOADED | 13 | 0/13 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
 | packages/chat/src/react/components/ChatSettingsDialog.hooks.ts | NEVER-LOADED | 13 | 0/13 (0.00%) | 0/16 (0.00%) | 0/12 (0.00%) |
 | packages/chat/src/react/hooks/useSurfaceExpiry.ts | NEVER-LOADED | 13 | 0/13 (0.00%) | 0/4 (0.00%) | 0/7 (0.00%) |
-| packages/commerce/src/catalog/index.ts | LOADED | 13 | 0/13 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/devops/src/deploy/tool.ts | NEVER-LOADED | 13 | 0/13 (0.00%) | 0/12 (0.00%) | 0/6 (0.00%) |
-| packages/mcp/src/index.ts | NEVER-LOADED | 13 | 0/13 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/server/tools/component-catalog-tools.ts | NEVER-LOADED | 13 | 0/13 (0.00%) | 0/2 (0.00%) | 0/2 (0.00%) |
 | packages/agent-plugins/google-workspace/form-destinations/dedupe.mjs | NEVER-LOADED | 12 | 0/12 (0.00%) | 0/6 (0.00%) | 0/3 (0.00%) |
 | packages/agent-plugins/src/lifecycle/mail/adapter-descriptors.ts | LOADED | 12 | 94/106 (88.68%) | 46/60 (76.67%) | 13/14 (92.86%) |
 | packages/chat/src/react/components/MessageList.rules.ts | NEVER-LOADED | 12 | 0/12 (0.00%) | 0/8 (0.00%) | 0/5 (0.00%) |
@@ -627,9 +401,6 @@ Never-loaded files: **672** / 3352
 | packages/cms/forms/src/errors.ts | NEVER-LOADED | 12 | 0/12 (0.00%) | 0/0 (0.00%) | 0/6 (0.00%) |
 | packages/cms/forms/src/submission-ip-retention.ts | NEVER-LOADED | 12 | 0/12 (0.00%) | 0/8 (0.00%) | 0/1 (0.00%) |
 | packages/db/src/data-modules/restore.ts | LOADED | 12 | 0/12 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/integrations/src/api-connections/keys.ts | NEVER-LOADED | 12 | 0/12 (0.00%) | 0/4 (0.00%) | 0/5 (0.00%) |
-| packages/mcp/src/core/install-info.ts | NEVER-LOADED | 12 | 0/12 (0.00%) | 0/14 (0.00%) | 0/1 (0.00%) |
-| packages/mcp/src/server/index.ts | NEVER-LOADED | 12 | 0/12 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/oauth/tests/fixtures.ts | NEVER-LOADED | 12 | 0/12 (0.00%) | 0/4 (0.00%) | 0/5 (0.00%) |
 | packages/oauth/tests/integration-contract.types.ts | NEVER-LOADED | 12 | 0/12 (0.00%) | 0/0 (0.00%) | 0/3 (0.00%) |
 | packages/agent-plugins/google-workspace/tools/sheets-admin/developer-metadata.mjs | NEVER-LOADED | 11 | 0/11 (0.00%) | 0/12 (0.00%) | 0/2 (0.00%) |
@@ -641,26 +412,11 @@ Never-loaded files: **672** / 3352
 | packages/chat/src/react/components/QuestionsPanel.tsx | NEVER-LOADED | 11 | 0/11 (0.00%) | 0/16 (0.00%) | 0/3 (0.00%) |
 | packages/chat/src/react/hooks/attachment-preview-cache.ts | NEVER-LOADED | 11 | 0/11 (0.00%) | 0/6 (0.00%) | 0/3 (0.00%) |
 | packages/chat/vitest.setup.ts | NEVER-LOADED | 11 | 0/11 (0.00%) | 0/4 (0.00%) | 0/5 (0.00%) |
-| packages/commerce/src/catalog/order-projection.ts | LOADED | 11 | 0/11 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/contract/scope.ts | LOADED | 11 | 0/11 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/commerce/src/payments/ledger/migrations/0005_payments_intent_replay.ts | LOADED | 11 | 0/11 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/desktop-host/src/node-toolchain/install-location.ts | LOADED | 11 | 20/31 (64.52%) | 6/6 (100.00%) | 2/4 (50.00%) |
 | packages/devops/src/packaging/electron/entry.ts | NEVER-LOADED | 11 | 0/11 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/http-kit/src/verified-origin/types.ts | NEVER-LOADED | 11 | 0/11 (0.00%) | 0/8 (0.00%) | 0/3 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/context.ts | NEVER-LOADED | 11 | 0/11 (0.00%) | 0/24 (0.00%) | 0/4 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/vendor-adapter.ts | NEVER-LOADED | 11 | 0/11 (0.00%) | 0/2 (0.00%) | 0/3 (0.00%) |
-| packages/integrations/src/media-providers/index.ts | NEVER-LOADED | 11 | 0/11 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/federation/config.ts | NEVER-LOADED | 11 | 0/11 (0.00%) | 0/8 (0.00%) | 0/5 (0.00%) |
-| packages/mcp/src/federation/hosted/index.ts | NEVER-LOADED | 11 | 0/11 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/federation/presets.ts | NEVER-LOADED | 11 | 0/11 (0.00%) | 0/2 (0.00%) | 0/8 (0.00%) |
+| packages/mcp/src/federation/hosted/vault.ts | LOADED | 11 | 73/84 (86.90%) | 28/36 (77.78%) | 9/12 (75.00%) |
 | packages/oauth/tests/args-convention.types.ts | NEVER-LOADED | 11 | 0/11 (0.00%) | 0/0 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/ledger/repo.ts | LOADED | 10 | 0/10 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
 | packages/daemon/src/agent-executor/events.ts | LOADED | 10 | 715/725 (98.62%) | 384/392 (97.96%) | 64/64 (100.00%) |
-| packages/diagnostics/src/manifest.ts | NEVER-LOADED | 10 | 0/10 (0.00%) | 0/6 (0.00%) | 0/4 (0.00%) |
-| packages/diagnostics/src/observability/noop.ts | NEVER-LOADED | 10 | 0/10 (0.00%) | 0/0 (0.00%) | 0/13 (0.00%) |
-| packages/integrations/src/media-providers/capability-registry.ts | NEVER-LOADED | 10 | 0/10 (0.00%) | 0/6 (0.00%) | 0/5 (0.00%) |
-| packages/mcp/src/federation/hosted/auth.ts | NEVER-LOADED | 10 | 0/10 (0.00%) | 0/6 (0.00%) | 0/3 (0.00%) |
-| packages/mcp/src/server/adapters/stdio-codec.ts | NEVER-LOADED | 10 | 0/10 (0.00%) | 0/8 (0.00%) | 0/1 (0.00%) |
 | packages/agent-plugins/google-workspace/tools/sheets/get.mjs | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/6 (0.00%) | 0/1 (0.00%) |
 | packages/agent-runtime/src/defs/antigravity/event-stream.ts | LOADED | 9 | 57/66 (86.36%) | 37/46 (80.43%) | 7/7 (100.00%) |
 | packages/chat/src/react/artifact-types.ts | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/4 (0.00%) | 0/4 (0.00%) |
@@ -671,16 +427,10 @@ Never-loaded files: **672** / 3352
 | packages/chat/src/store/pglite/index.ts | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/0 (0.00%) | 0/2 (0.00%) |
 | packages/chat/src/store/postgres/index.ts | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/0 (0.00%) | 0/2 (0.00%) |
 | packages/cms/forms/src/index.ts | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/commerce/src/payments/ledger/migrations/0004_payments_attempt_recovery.ts | LOADED | 9 | 0/9 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/commerce/src/payments/providers/lipay-gateway.ts | LOADED | 9 | 0/9 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/db/src/data-modules/index.ts | LOADED | 9 | 0/9 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/devops/src/deploy/ops-registry.ts | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/8 (0.00%) | 0/2 (0.00%) |
+| packages/devops/src/deploy/ops-registry.ts | LOADED | 9 | 2/11 (18.18%) | 0/0 (100.00%) | 0/1 (0.00%) |
 | packages/devops/src/dns/index.ts | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/diagnostics/src/discovery-filesystem.ts | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/0 (0.00%) | 0/2 (0.00%) |
-| packages/integrations/src/api-connections/service.ts | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/0 (0.00%) | 0/8 (0.00%) |
-| packages/integrations/src/api-connections/token-store/errors.ts | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/6 (0.00%) | 0/2 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/credentials.ts | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/6 (0.00%) | 0/1 (0.00%) |
-| packages/mcp/src/server/resources/site-guide-resource.ts | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/6 (0.00%) | 0/2 (0.00%) |
+| packages/integrations/src/api-connections/declarations.ts | LOADED | 9 | 101/110 (91.82%) | 52/71 (73.24%) | 13/17 (76.47%) |
 | packages/server/src/create-local-node-daemon.typecheck.ts | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/0 (0.00%) | 0/5 (0.00%) |
 | packages/user-management/test-setup.ts | NEVER-LOADED | 9 | 0/9 (0.00%) | 0/6 (0.00%) | 0/3 (0.00%) |
 | packages/agent-plugins/google-workspace/tools/sheets-admin/batch-update.mjs | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/2 (0.00%) | 0/3 (0.00%) |
@@ -689,20 +439,12 @@ Never-loaded files: **672** / 3352
 | packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/components/ChatMotionOverlay.tsx | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/2 (0.00%) | 0/1 (0.00%) |
 | packages/chat/src/store/runtime/events-json.ts | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/0 (0.00%) | 0/2 (0.00%) |
 | packages/chat/vitest.config.ts | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/0 (0.00%) | 0/2 (0.00%) |
-| packages/commerce/src/payments/ops/deps.ts | LOADED | 8 | 0/8 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/core/src/compose.typecheck.ts | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/0 (0.00%) | 0/2 (0.00%) |
 | packages/daemon/src/agent-executor/launch.ts | LOADED | 8 | 819/827 (99.03%) | 486/496 (97.98%) | 68/68 (100.00%) |
 | packages/db/src/testing/pg-fixture.ts | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/4 (0.00%) | 0/5 (0.00%) |
-| packages/devops/src/deploy/tokens.ts | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/2 (0.00%) | 0/2 (0.00%) |
 | packages/devops/src/packaging/electron/optional-peers.ts | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/10 (0.00%) | 0/5 (0.00%) |
 | packages/devops/src/packaging/electron/staged-closure-node.ts | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/4 (0.00%) | 0/2 (0.00%) |
-| packages/diagnostics/src/index.ts | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/http-kit/src/origin.ts | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/2 (0.00%) | 0/1 (0.00%) |
-| packages/http-kit/src/response.ts | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/2 (0.00%) | 0/3 (0.00%) |
-| packages/infra/src/events/outbox/index.ts | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/integrations/src/api-connections/hook-http.ts | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/4 (0.00%) | 0/2 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/polling-adapter.ts | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/4 (0.00%) | 0/3 (0.00%) |
-| packages/integrations/src/media-providers/ui-defaults.ts | NEVER-LOADED | 8 | 0/8 (0.00%) | 0/2 (0.00%) | 0/1 (0.00%) |
+| packages/integrations/src/api-connections/budgets.ts | LOADED | 8 | 52/60 (86.67%) | 15/23 (65.22%) | 7/8 (87.50%) |
 | packages/user-management/src/server/mfa/secret-adapter.ts | LOADED | 8 | 1/9 (11.11%) | 0/0 (100.00%) | 0/1 (0.00%) |
 | packages/vibecoding/src/node/store.ts | LOADED | 8 | 376/384 (97.92%) | 271/288 (94.10%) | 47/47 (100.00%) |
 | packages/agent-plugins/google-workspace/tools/sheets/copy.mjs | NEVER-LOADED | 7 | 0/7 (0.00%) | 0/6 (0.00%) | 0/2 (0.00%) |
@@ -717,13 +459,6 @@ Never-loaded files: **672** / 3352
 | packages/devops/src/core/export-failure-summary.ts | NEVER-LOADED | 7 | 0/7 (0.00%) | 0/4 (0.00%) | 0/1 (0.00%) |
 | packages/devops/src/packaging/electron/stability.ts | NEVER-LOADED | 7 | 0/7 (0.00%) | 0/6 (0.00%) | 0/2 (0.00%) |
 | packages/devops/src/source-control/kit.ts | NEVER-LOADED | 7 | 0/7 (0.00%) | 0/2 (0.00%) | 0/8 (0.00%) |
-| packages/diagnostics/src/observability/config.ts | NEVER-LOADED | 7 | 0/7 (0.00%) | 0/10 (0.00%) | 0/1 (0.00%) |
-| packages/diagnostics/src/observability/node.ts | NEVER-LOADED | 7 | 0/7 (0.00%) | 0/0 (0.00%) | 0/3 (0.00%) |
-| packages/http-kit/src/middleware.ts | NEVER-LOADED | 7 | 0/7 (0.00%) | 0/4 (0.00%) | 0/2 (0.00%) |
-| packages/http-kit/src/request.ts | NEVER-LOADED | 7 | 0/7 (0.00%) | 0/6 (0.00%) | 0/2 (0.00%) |
-| packages/integrations/src/api-connections/errors.ts | NEVER-LOADED | 7 | 0/7 (0.00%) | 0/2 (0.00%) | 0/2 (0.00%) |
-| packages/integrations/src/webhooks/index.ts | NEVER-LOADED | 7 | 0/7 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/federation/tool-approvals.ts | NEVER-LOADED | 7 | 0/7 (0.00%) | 0/6 (0.00%) | 0/2 (0.00%) |
 | packages/provider-plugins/src/formspree/index.ts | LOADED | 7 | 0/7 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/provider-plugins/src/google-forms/index.ts | LOADED | 7 | 0/7 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/registry/vitest.config.ts | NEVER-LOADED | 7 | 0/7 (0.00%) | 0/0 (0.00%) | 0/2 (0.00%) |
@@ -742,16 +477,12 @@ Never-loaded files: **672** / 3352
 | packages/agent-runtime/src/skills/web-clone/scripts/lib/trim-dashes.mjs | NEVER-LOADED | 6 | 0/6 (0.00%) | 0/4 (0.00%) | 0/1 (0.00%) |
 | packages/chat/src/store/runtime/entry.ts | NEVER-LOADED | 6 | 0/6 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/chat/src/store/sql/read-version.ts | NEVER-LOADED | 6 | 0/6 (0.00%) | 0/2 (0.00%) | 0/2 (0.00%) |
-| packages/commerce/src/payments/ledger/migrations/checksums.ts | LOADED | 6 | 0/6 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
 | packages/daemon/src/http/frontend-control.ts | LOADED | 6 | 53/59 (89.83%) | 25/27 (92.59%) | 5/6 (83.33%) |
 | packages/db/src/data-modules/plugin-store.ts | LOADED | 6 | 0/6 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
 | packages/devops/src/core/deploy-types.ts | NEVER-LOADED | 6 | 0/6 (0.00%) | 0/0 (0.00%) | 0/1 (0.00%) |
 | packages/devops/src/core/redirect-guard.ts | NEVER-LOADED | 6 | 0/6 (0.00%) | 0/6 (0.00%) | 0/2 (0.00%) |
-| packages/devops/src/deploy/naming.ts | NEVER-LOADED | 6 | 0/6 (0.00%) | 0/0 (0.00%) | 0/2 (0.00%) |
+| packages/devops/src/deploy/target-descriptors.ts | LOADED | 6 | 187/193 (96.89%) | 90/137 (65.69%) | 20/20 (100.00%) |
 | packages/devops/src/source-control/entry.ts | NEVER-LOADED | 6 | 0/6 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/http-kit/src/verified-origin/loopback-host.ts | NEVER-LOADED | 6 | 0/6 (0.00%) | 0/2 (0.00%) | 0/1 (0.00%) |
-| packages/integrations/src/args.ts | NEVER-LOADED | 6 | 0/6 (0.00%) | 0/2 (0.00%) | 0/1 (0.00%) |
-| packages/mcp/src/server/resources/active-resource.ts | NEVER-LOADED | 6 | 0/6 (0.00%) | 0/0 (0.00%) | 0/1 (0.00%) |
 | packages/platform/src/fs/backup-once.ts | LOADED | 6 | 1/7 (14.29%) | 0/0 (100.00%) | 0/1 (0.00%) |
 | packages/provider-plugins/scripts/build.ts | LOADED | 6 | 163/169 (96.45%) | 116/123 (94.31%) | 14/14 (100.00%) |
 | packages/user-management/src/server/recovery-codes.ts | LOADED | 6 | 61/67 (91.04%) | 37/41 (90.24%) | 9/9 (100.00%) |
@@ -770,16 +501,6 @@ Never-loaded files: **672** / 3352
 | packages/chat/vitest.postgres.config.ts | NEVER-LOADED | 5 | 0/5 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/db/vitest.postgres.config.ts | NEVER-LOADED | 5 | 0/5 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/devops/src/static-export/entry.ts | NEVER-LOADED | 5 | 0/5 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/diagnostics/src/observability/tracker-noop.ts | NEVER-LOADED | 5 | 0/5 (0.00%) | 0/0 (0.00%) | 0/7 (0.00%) |
-| packages/diagnostics/src/web-evidence/index.ts | NEVER-LOADED | 5 | 0/5 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/http-kit/src/verified-origin/index.ts | NEVER-LOADED | 5 | 0/5 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/infra/src/events/outbox/node-scheduler.ts | NEVER-LOADED | 5 | 0/5 (0.00%) | 0/0 (0.00%) | 0/3 (0.00%) |
-| packages/integrations/src/api-connections/deps.ts | NEVER-LOADED | 5 | 0/5 (0.00%) | 0/8 (0.00%) | 0/1 (0.00%) |
-| packages/integrations/src/api-connections/install-credential.ts | NEVER-LOADED | 5 | 0/5 (0.00%) | 0/0 (0.00%) | 0/1 (0.00%) |
-| packages/integrations/src/webhooks/signing.keyring.ts | NEVER-LOADED | 5 | 0/5 (0.00%) | 0/0 (0.00%) | 0/2 (0.00%) |
-| packages/mcp/src/federation/result-secrets.ts | NEVER-LOADED | 5 | 0/5 (0.00%) | 0/4 (0.00%) | 0/2 (0.00%) |
-| packages/mcp/src/server/adapters/protocol.ts | NEVER-LOADED | 5 | 0/5 (0.00%) | 0/2 (0.00%) | 0/1 (0.00%) |
-| packages/mcp/src/server/tools/wait.ts | NEVER-LOADED | 5 | 0/5 (0.00%) | 0/0 (0.00%) | 0/1 (0.00%) |
 | packages/oauth/tests/dispatcher-stub.ts | NEVER-LOADED | 5 | 0/5 (0.00%) | 0/0 (0.00%) | 0/2 (0.00%) |
 | packages/plugins/src/host/node/discovery.ts | LOADED | 5 | 195/200 (97.50%) | 104/106 (98.11%) | 20/20 (100.00%) |
 | packages/vibecoding/vitest.setup.ts | NEVER-LOADED | 5 | 0/5 (0.00%) | 0/2 (0.00%) | 0/1 (0.00%) |
@@ -789,20 +510,9 @@ Never-loaded files: **672** / 3352
 | packages/chat/src/store/errors.ts | NEVER-LOADED | 4 | 0/4 (0.00%) | 0/0 (0.00%) | 0/1 (0.00%) |
 | packages/cms/src/forms/html/retry-draft.ts | LOADED | 4 | 52/56 (92.86%) | 42/45 (93.33%) | 6/7 (85.71%) |
 | packages/cms/src/seo/feed.ts | LOADED | 4 | 37/41 (90.24%) | 10/10 (100.00%) | 3/3 (100.00%) |
-| packages/commerce/src/payments/contract/tokens.ts | LOADED | 4 | 0/4 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/daemon/src/surface-restoration.ts | LOADED | 4 | 110/114 (96.49%) | 47/62 (75.81%) | 16/17 (94.12%) |
 | packages/db/src/migrate/runner.ts | LOADED | 4 | 179/183 (97.81%) | 134/138 (97.10%) | 20/20 (100.00%) |
-| packages/diagnostics/src/observability/export-policy.ts | NEVER-LOADED | 4 | 0/4 (0.00%) | 0/6 (0.00%) | 0/1 (0.00%) |
-| packages/http-kit/src/compat.ts | NEVER-LOADED | 4 | 0/4 (0.00%) | 0/0 (0.00%) | 0/2 (0.00%) |
-| packages/http-kit/src/pack-http.ts | NEVER-LOADED | 4 | 0/4 (0.00%) | 0/0 (0.00%) | 0/1 (0.00%) |
-| packages/infra/src/events/outbox/enqueue-only.ts | NEVER-LOADED | 4 | 0/4 (0.00%) | 0/0 (0.00%) | 0/5 (0.00%) |
-| packages/infra/src/events/outbox/request-digest.ts | NEVER-LOADED | 4 | 0/4 (0.00%) | 0/0 (0.00%) | 0/1 (0.00%) |
-| packages/integrations/src/api-connections/token-store/index.ts | NEVER-LOADED | 4 | 0/4 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/integrations/src/media-providers/dispatch/node.ts | NEVER-LOADED | 4 | 0/4 (0.00%) | 0/2 (0.00%) | 0/1 (0.00%) |
-| packages/integrations/src/media-providers/sqlite-driver.adapter.ts | NEVER-LOADED | 4 | 0/4 (0.00%) | 0/0 (0.00%) | 0/3 (0.00%) |
-| packages/integrations/src/media-providers/tokens.ts | NEVER-LOADED | 4 | 0/4 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/federation/hosted/validation-error.ts | NEVER-LOADED | 4 | 0/4 (0.00%) | 0/0 (0.00%) | 0/1 (0.00%) |
-| packages/mcp/src/tools/ask-choice/schema.ts | NEVER-LOADED | 4 | 0/4 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
+| packages/mcp/src/server/http-tool-server.adapter.ts | LOADED | 4 | 189/193 (97.93%) | 74/90 (82.22%) | 15/16 (93.75%) |
 | packages/plugins/src/host/node/module-snapshot.ts | LOADED | 4 | 153/157 (97.45%) | 80/82 (97.56%) | 19/20 (95.00%) |
 | packages/provider-plugins/src/formspree/provider.ts | LOADED | 4 | 14/18 (77.78%) | 4/5 (80.00%) | 2/3 (66.67%) |
 | packages/provider-plugins/src/observability-opentelemetry/index.ts | LOADED | 4 | 83/87 (95.40%) | 92/94 (97.87%) | 12/12 (100.00%) |
@@ -822,7 +532,7 @@ Never-loaded files: **672** / 3352
 | packages/chat/src/server/durable-runs/entry.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/chat/src/store/legacy/sqlite/index.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/chat/src/store/sqlite/schema.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/testkit/index.ts | LOADED | 3 | 0/3 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/commerce/src/browser/checkout.ts | LOADED | 3 | 115/118 (97.46%) | 75/81 (92.59%) | 15/15 (100.00%) |
 | packages/cookie-consent/src/client.min.ts | LOADED | 3 | 0/3 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/cookie-consent/src/client/entry.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/daemon/src/agent-executor/claude/mcp-config.ts | LOADED | 3 | 17/20 (85.00%) | 4/5 (80.00%) | 2/2 (100.00%) |
@@ -836,21 +546,9 @@ Never-loaded files: **672** / 3352
 | packages/db/src/sqlite/db-ops.ts | LOADED | 3 | 65/68 (95.59%) | 20/22 (90.91%) | 6/6 (100.00%) |
 | packages/devops/src/agent-jobs/entry.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/devops/src/dns/node/index.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/diagnostics/src/contract.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/http-kit/vitest.config.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/infra/src/db/driver/index.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/integrations/src/credentialed-http/index.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/integrations/src/credentialed-http/sets/index.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/integrations/src/media-providers/catalog.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/integrations/src/saved-requests/index.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/agent-install/index.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/core/index.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/federation/approvals/index.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/federation/approvals/revocation-reason.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/4 (0.00%) | 0/1 (0.00%) |
-| packages/mcp/src/federation/hosted/projections.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/federation/hosted/unconfigured-error.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/1 (0.00%) |
-| packages/mcp/src/federation/messages.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/4 (0.00%) | 0/7 (0.00%) |
-| packages/mcp/src/federation/stdio/index.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
+| packages/mcp/src/client/client.ts | LOADED | 3 | 184/187 (98.40%) | 89/90 (98.89%) | 22/22 (100.00%) |
+| packages/mcp/src/server/tool-server.ts | LOADED | 3 | 207/210 (98.57%) | 146/149 (97.99%) | 31/31 (100.00%) |
 | packages/ui/vitest.config.ts | NEVER-LOADED | 3 | 0/3 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/vibecoding/src/html/node/parse5-region-parser.ts | LOADED | 3 | 164/167 (98.20%) | 85/86 (98.84%) | 14/14 (100.00%) |
 | packages/admin/vitest.config.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
@@ -870,7 +568,7 @@ Never-loaded files: **672** / 3352
 | packages/cms/src/forms/email-sender-fields.ts | LOADED | 2 | 41/43 (95.35%) | 29/30 (96.67%) | 6/6 (100.00%) |
 | packages/cms/src/forms/notify-subscriber.ts | LOADED | 2 | 109/111 (98.20%) | 60/64 (93.75%) | 9/9 (100.00%) |
 | packages/cms/vitest.config.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/commerce/src/payments/client.ts | LOADED | 2 | 0/2 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/commerce/src/payments/provider-module-guard.ts | LOADED | 2 | 47/49 (95.92%) | 48/48 (100.00%) | 16/17 (94.12%) |
 | packages/commerce/vitest.config.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/commerce/vitest.kernel.config.ts | LOADED | 2 | 0/2 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/cookie-consent/vitest.config.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
@@ -882,23 +580,16 @@ Never-loaded files: **672** / 3352
 | packages/db/vitest.config.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/desktop-host/src/electron/electron-url-capture.ts | LOADED | 2 | 139/141 (98.58%) | 79/84 (94.05%) | 14/14 (100.00%) |
 | packages/desktop-host/vitest.config.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
+| packages/devops/src/deploy/config-descriptors.ts | LOADED | 2 | 60/62 (96.77%) | 42/49 (85.71%) | 10/10 (100.00%) |
 | packages/devops/src/packaging/electron/asar-adapter.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/3 (0.00%) |
 | packages/devops/src/static-export/contracts.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/devops/src/static-export/fetch-adapter.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/2 (0.00%) |
 | packages/devops/vitest.config.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/diagnostics/vitest.config.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/diagnostics/vitest.port.config.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/http-kit/src/types.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/2 (0.00%) |
 | packages/infra/vitest.config.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/integrations/src/api-connections/hosted-mcp/index.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/integrations/src/argument-error.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/1 (0.00%) |
-| packages/integrations/src/contracts/credentialed-request-errors.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/integrations/src/credentialed-http/tools/index.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/integrations/vitest.config.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/federation/approvals/scope-option.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/2 (0.00%) | 0/1 (0.00%) |
-| packages/mcp/src/federation/hosted/vocabulary.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/federation/ports.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/1 (0.00%) |
-| packages/mcp/src/federation/testing/index.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
+| packages/mcp/src/server/adapters/stdio-codec.ts | LOADED | 2 | 10/12 (83.33%) | 6/7 (85.71%) | 1/1 (100.00%) |
 | packages/mcp/vitest.config.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/memory/vitest.config.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/oauth/vitest.config.ts | NEVER-LOADED | 2 | 0/2 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
@@ -940,22 +631,12 @@ Never-loaded files: **672** / 3352
 | packages/cms/src/core/form-collection.ts | LOADED | 1 | 56/57 (98.25%) | 29/40 (72.50%) | 11/11 (100.00%) |
 | packages/cms/src/media/replace-media-file.ts | LOADED | 1 | 58/59 (98.31%) | 30/34 (88.24%) | 5/5 (100.00%) |
 | packages/cms/src/seo/write-service.ts | LOADED | 1 | 176/177 (99.44%) | 67/68 (98.53%) | 14/14 (100.00%) |
-| packages/commerce/src/http/index.ts | LOADED | 1 | 0/1 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/index.ts | LOADED | 1 | 0/1 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/contract/alerts.ts | LOADED | 1 | 0/1 (0.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
-| packages/commerce/src/payments/kernel.ts | LOADED | 1 | 0/1 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/ledger/sql.ts | LOADED | 1 | 0/1 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
-| packages/commerce/src/payments/tools/input.ts | LOADED | 1 | 0/1 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/core/src/settings/settings.ts | LOADED | 1 | 170/171 (99.42%) | 103/104 (99.04%) | 19/19 (100.00%) |
-| packages/devops/src/deploy/redirect-guard.ts | NEVER-LOADED | 1 | 0/1 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/devops/src/deploy/types.ts | NEVER-LOADED | 1 | 0/1 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
 | packages/devops/src/static-export/failure-summary.ts | NEVER-LOADED | 1 | 0/1 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/diagnostics/src/redaction/secrets-only.ts | NEVER-LOADED | 1 | 0/1 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/http-kit/src/verified-origin.ts | NEVER-LOADED | 1 | 0/1 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/infra/src/db/sqlite/index.ts | NEVER-LOADED | 1 | 0/1 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/integrations/src/media-providers/seed.ts | NEVER-LOADED | 1 | 0/1 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/agent-install/chrome-devtools.ts | NEVER-LOADED | 1 | 0/1 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
-| packages/mcp/src/client/index.ts | NEVER-LOADED | 1 | 0/1 (0.00%) | 0/0 (0.00%) | 0/0 (0.00%) |
+| packages/http-kit/src/verified-origin/loopback-host.ts | LOADED | 1 | 6/7 (85.71%) | 4/5 (80.00%) | 1/1 (100.00%) |
+| packages/integrations/src/api-connections/hosted-mcp/index.ts | LOADED | 1 | 0/1 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/integrations/src/credentialed-http/credentialed-request.ts | LOADED | 1 | 304/305 (99.67%) | 168/169 (99.41%) | 35/35 (100.00%) |
+| packages/integrations/src/credentialed-http/tools/index.ts | LOADED | 1 | 0/1 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
 | packages/platform/src/fs/reviewed-file.ts | LOADED | 1 | 46/47 (97.87%) | 27/34 (79.41%) | 5/6 (83.33%) |
 | packages/plugins/src/host/hook-registry.ts | LOADED | 1 | 180/181 (99.45%) | 78/79 (98.73%) | 15/15 (100.00%) |
 | packages/plugins/src/host/tools/index.ts | LOADED | 1 | 0/1 (0.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
@@ -1914,9 +1595,84 @@ Never-loaded files: **672** / 3352
 | packages/cms/src/workspace/repo.memory.ts | LOADED | 0 | 48/48 (100.00%) | 21/21 (100.00%) | 10/10 (100.00%) |
 | packages/cms/src/workspace/tool-registrations.ts | LOADED | 0 | 43/43 (100.00%) | 8/8 (100.00%) | 3/3 (100.00%) |
 | packages/cms/src/workspace/update.ts | LOADED | 0 | 22/22 (100.00%) | 11/11 (100.00%) | 1/1 (100.00%) |
+| packages/commerce/src/catalog-tools.ts | LOADED | 0 | 64/64 (100.00%) | 20/22 (90.91%) | 5/6 (83.33%) |
+| packages/commerce/src/catalog/buyer-order.ts | LOADED | 0 | 14/14 (100.00%) | 12/12 (100.00%) | 4/4 (100.00%) |
+| packages/commerce/src/catalog/checkout.ts | LOADED | 0 | 80/80 (100.00%) | 31/32 (96.88%) | 5/6 (83.33%) |
+| packages/commerce/src/catalog/errors.ts | LOADED | 0 | 26/26 (100.00%) | 7/7 (100.00%) | 7/7 (100.00%) |
+| packages/commerce/src/catalog/index.ts | LOADED | 0 | 13/13 (100.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/commerce/src/catalog/load-payable-order.ts | LOADED | 0 | 25/25 (100.00%) | 22/23 (95.65%) | 2/3 (66.67%) |
+| packages/commerce/src/catalog/order-projection.ts | LOADED | 0 | 11/11 (100.00%) | 5/6 (83.33%) | 2/3 (66.67%) |
+| packages/commerce/src/catalog/pay-order.ts | LOADED | 0 | 22/22 (100.00%) | 18/19 (94.74%) | 1/2 (50.00%) |
+| packages/commerce/src/catalog/plugin-server.ts | LOADED | 0 | 107/107 (100.00%) | 65/72 (90.28%) | 17/18 (94.44%) |
+| packages/commerce/src/catalog/repo.order-payments.ts | LOADED | 0 | 33/33 (100.00%) | 24/25 (96.00%) | 4/5 (80.00%) |
+| packages/commerce/src/catalog/repo.price-refs.ts | LOADED | 0 | 18/18 (100.00%) | 10/10 (100.00%) | 4/4 (100.00%) |
+| packages/commerce/src/catalog/repo.rows.ts | LOADED | 0 | 165/165 (100.00%) | 34/35 (97.14%) | 12/13 (92.31%) |
+| packages/commerce/src/catalog/repo.storefront.ts | LOADED | 0 | 40/40 (100.00%) | 16/18 (88.89%) | 3/4 (75.00%) |
+| packages/commerce/src/catalog/repo.ts | LOADED | 0 | 249/249 (100.00%) | 98/99 (98.99%) | 29/30 (96.67%) |
+| packages/commerce/src/catalog/settle-order-payment.ts | LOADED | 0 | 47/47 (100.00%) | 48/49 (97.96%) | 4/5 (80.00%) |
+| packages/commerce/src/catalog/status.ts | LOADED | 0 | 44/44 (100.00%) | 18/18 (100.00%) | 3/3 (100.00%) |
+| packages/commerce/src/catalog/storefront.ts | LOADED | 0 | 31/31 (100.00%) | 16/16 (100.00%) | 4/4 (100.00%) |
+| packages/commerce/src/core/tool-input.ts | LOADED | 0 | 32/32 (100.00%) | 15/16 (93.75%) | 5/6 (83.33%) |
+| packages/commerce/src/http/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/commerce/src/http/payments-webhook.ts | LOADED | 0 | 60/60 (100.00%) | 23/24 (95.83%) | 7/8 (87.50%) |
+| packages/commerce/src/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/commerce/src/money/money.ts | LOADED | 0 | 54/54 (100.00%) | 36/36 (100.00%) | 9/9 (100.00%) |
+| packages/commerce/src/payments/accounting/apply-evidence.ts | LOADED | 0 | 258/258 (100.00%) | 187/188 (99.47%) | 23/24 (95.83%) |
+| packages/commerce/src/payments/accounting/plan-evidence.ts | LOADED | 0 | 154/154 (100.00%) | 165/166 (99.40%) | 18/19 (94.74%) |
+| packages/commerce/src/payments/client.ts | LOADED | 0 | 2/2 (100.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/commerce/src/payments/contract/alerts.ts | LOADED | 0 | 1/1 (100.00%) | 2/2 (100.00%) | 2/2 (100.00%) |
+| packages/commerce/src/payments/contract/checkout-client.ts | LOADED | 0 | 27/27 (100.00%) | 18/18 (100.00%) | 3/3 (100.00%) |
+| packages/commerce/src/payments/contract/provider.ts | LOADED | 0 | 17/17 (100.00%) | 7/7 (100.00%) | 3/3 (100.00%) |
+| packages/commerce/src/payments/contract/risk.ts | LOADED | 0 | 41/41 (100.00%) | 17/17 (100.00%) | 6/6 (100.00%) |
+| packages/commerce/src/payments/contract/scope.ts | LOADED | 0 | 11/11 (100.00%) | 11/11 (100.00%) | 3/3 (100.00%) |
+| packages/commerce/src/payments/contract/tokens.ts | LOADED | 0 | 4/4 (100.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/commerce/src/payments/ingest/outbox-relay.ts | LOADED | 0 | 24/24 (100.00%) | 12/12 (100.00%) | 6/6 (100.00%) |
+| packages/commerce/src/payments/ingest/receive.ts | LOADED | 0 | 58/58 (100.00%) | 43/44 (97.73%) | 8/9 (88.89%) |
+| packages/commerce/src/payments/ingest/worker.ts | LOADED | 0 | 137/137 (100.00%) | 101/102 (99.02%) | 21/22 (95.45%) |
+| packages/commerce/src/payments/kernel.ts | LOADED | 0 | 1/1 (100.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/commerce/src/payments/ledger/migrations/0001_payments_ledger.ts | LOADED | 0 | 148/148 (100.00%) | 14/15 (93.33%) | 6/7 (85.71%) |
+| packages/commerce/src/payments/ledger/migrations/0002_payments_operator_actions.ts | LOADED | 0 | 31/31 (100.00%) | 13/14 (92.86%) | 2/3 (66.67%) |
+| packages/commerce/src/payments/ledger/migrations/0004_payments_attempt_recovery.ts | LOADED | 0 | 9/9 (100.00%) | 6/6 (100.00%) | 3/3 (100.00%) |
+| packages/commerce/src/payments/ledger/migrations/0005_payments_intent_replay.ts | LOADED | 0 | 11/11 (100.00%) | 6/7 (85.71%) | 2/3 (66.67%) |
+| packages/commerce/src/payments/ledger/migrations/checksums.ts | LOADED | 0 | 6/6 (100.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
+| packages/commerce/src/payments/ledger/migrations/index.ts | LOADED | 0 | 23/23 (100.00%) | 7/8 (87.50%) | 2/3 (66.67%) |
+| packages/commerce/src/payments/ledger/repo.memory.ts | LOADED | 0 | 334/334 (100.00%) | 225/231 (97.40%) | 89/90 (98.89%) |
+| packages/commerce/src/payments/ledger/repo.sql.ts | LOADED | 0 | 310/310 (100.00%) | 152/156 (97.44%) | 62/63 (98.41%) |
+| packages/commerce/src/payments/ledger/repo.ts | LOADED | 0 | 10/10 (100.00%) | 3/3 (100.00%) | 3/3 (100.00%) |
+| packages/commerce/src/payments/ledger/rows.ts | LOADED | 0 | 369/369 (100.00%) | 58/58 (100.00%) | 28/28 (100.00%) |
+| packages/commerce/src/payments/ledger/sql.ts | LOADED | 0 | 1/1 (100.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/commerce/src/payments/ops/capture-void.ts | LOADED | 0 | 123/123 (100.00%) | 100/101 (99.01%) | 21/22 (95.45%) |
+| packages/commerce/src/payments/ops/common.ts | LOADED | 0 | 128/128 (100.00%) | 75/76 (98.68%) | 17/18 (94.44%) |
+| packages/commerce/src/payments/ops/deps.ts | LOADED | 0 | 8/8 (100.00%) | 3/4 (75.00%) | 1/2 (50.00%) |
+| packages/commerce/src/payments/ops/grants.ts | LOADED | 0 | 32/32 (100.00%) | 21/21 (100.00%) | 6/6 (100.00%) |
+| packages/commerce/src/payments/ops/intent-recovery.ts | LOADED | 0 | 63/63 (100.00%) | 31/41 (75.61%) | 7/8 (87.50%) |
+| packages/commerce/src/payments/ops/intent.ts | LOADED | 0 | 132/132 (100.00%) | 98/99 (98.99%) | 17/18 (94.44%) |
+| packages/commerce/src/payments/ops/operator.ts | LOADED | 0 | 46/46 (100.00%) | 41/42 (97.62%) | 6/7 (85.71%) |
+| packages/commerce/src/payments/ops/reconcile-attempts.ts | LOADED | 0 | 36/36 (100.00%) | 25/26 (96.15%) | 6/7 (85.71%) |
+| packages/commerce/src/payments/ops/reconcile-snapshot.ts | LOADED | 0 | 38/38 (100.00%) | 29/31 (93.55%) | 6/7 (85.71%) |
+| packages/commerce/src/payments/ops/reconciler.ts | LOADED | 0 | 117/117 (100.00%) | 77/81 (95.06%) | 19/20 (95.00%) |
+| packages/commerce/src/payments/ops/refund.ts | LOADED | 0 | 110/110 (100.00%) | 75/76 (98.68%) | 16/17 (94.12%) |
+| packages/commerce/src/payments/ops/service.ts | LOADED | 0 | 24/24 (100.00%) | 16/17 (94.12%) | 11/12 (91.67%) |
+| packages/commerce/src/payments/ops/view.ts | LOADED | 0 | 24/24 (100.00%) | 8/8 (100.00%) | 6/6 (100.00%) |
+| packages/commerce/src/payments/provider-contexts.ts | LOADED | 0 | 32/32 (100.00%) | 28/29 (96.55%) | 4/5 (80.00%) |
+| packages/commerce/src/payments/provider-contract.ts | LOADED | 0 | 39/39 (100.00%) | 18/19 (94.74%) | 3/4 (75.00%) |
+| packages/commerce/src/payments/provider-registry.ts | LOADED | 0 | 28/28 (100.00%) | 20/20 (100.00%) | 5/5 (100.00%) |
+| packages/commerce/src/payments/providers/lipay-gateway.ts | LOADED | 0 | 9/9 (100.00%) | 1/2 (50.00%) | 1/2 (50.00%) |
+| packages/commerce/src/payments/state/status.ts | LOADED | 0 | 74/74 (100.00%) | 25/25 (100.00%) | 9/9 (100.00%) |
+| packages/commerce/src/payments/testkit/index.ts | LOADED | 0 | 3/3 (100.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/commerce/src/payments/testkit/lipay-fake.ts | LOADED | 0 | 98/98 (100.00%) | 57/58 (98.28%) | 18/19 (94.74%) |
+| packages/commerce/src/payments/testkit/provider-conformance.ts | LOADED | 0 | 63/63 (100.00%) | 24/25 (96.00%) | 9/10 (90.00%) |
+| packages/commerce/src/payments/tools/catalog.ts | LOADED | 0 | 80/80 (100.00%) | 2/3 (66.67%) | 2/3 (66.67%) |
+| packages/commerce/src/payments/tools/deps.ts | LOADED | 0 | 22/22 (100.00%) | 9/10 (90.00%) | 3/4 (75.00%) |
+| packages/commerce/src/payments/tools/index.ts | LOADED | 0 | 20/20 (100.00%) | 2/3 (66.67%) | 2/3 (66.67%) |
+| packages/commerce/src/payments/tools/input.ts | LOADED | 0 | 1/1 (100.00%) | 0/1 (0.00%) | 0/1 (0.00%) |
+| packages/commerce/src/payments/tools/money-tools.ts | LOADED | 0 | 104/104 (100.00%) | 61/62 (98.39%) | 21/22 (95.45%) |
+| packages/commerce/src/payments/tools/read-tools.ts | LOADED | 0 | 20/20 (100.00%) | 14/15 (93.33%) | 2/3 (66.67%) |
+| packages/commerce/src/payments/tools/resolve-unknown.ts | LOADED | 0 | 46/46 (100.00%) | 21/23 (91.30%) | 8/9 (88.89%) |
 | packages/commerce/src/react/commerce-i18n.ts | LOADED | 0 | 68/68 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
 | packages/commerce/src/react/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
 | packages/commerce/src/react/Payments.tsx | LOADED | 0 | 99/99 (100.00%) | 3/3 (100.00%) | 2/2 (100.00%) |
+| packages/commerce/src/tools.ts | LOADED | 0 | 29/29 (100.00%) | 17/19 (89.47%) | 4/5 (80.00%) |
 | packages/cookie-consent/src/client/bridges.ts | LOADED | 0 | 37/37 (100.00%) | 20/22 (90.91%) | 6/6 (100.00%) |
 | packages/cookie-consent/src/client/dom.ts | LOADED | 0 | 123/123 (100.00%) | 97/97 (100.00%) | 16/16 (100.00%) |
 | packages/cookie-consent/src/client/features.ts | LOADED | 0 | 25/25 (100.00%) | 12/12 (100.00%) | 3/3 (100.00%) |
@@ -2307,6 +2063,250 @@ Never-loaded files: **672** / 3352
 | packages/desktop-host/src/url-capture.ts | LOADED | 0 | 31/31 (100.00%) | 25/25 (100.00%) | 4/4 (100.00%) |
 | packages/desktop-host/src/window-lifecycle.ts | LOADED | 0 | 22/22 (100.00%) | 9/9 (100.00%) | 5/5 (100.00%) |
 | packages/desktop-host/src/windows-registry.ts | LOADED | 0 | 23/23 (100.00%) | 15/15 (100.00%) | 3/3 (100.00%) |
+| packages/devops/src/deploy/index.ts | LOADED | 0 | 20/20 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/devops/src/deploy/naming.ts | LOADED | 0 | 12/12 (100.00%) | 2/2 (100.00%) | 2/2 (100.00%) |
+| packages/devops/src/deploy/node.ts | LOADED | 0 | 38/38 (100.00%) | 28/28 (100.00%) | 7/7 (100.00%) |
+| packages/devops/src/deploy/ops-descriptors.ts | LOADED | 0 | 52/52 (100.00%) | 45/50 (90.00%) | 8/8 (100.00%) |
+| packages/devops/src/deploy/publish-jobs.ts | LOADED | 0 | 51/51 (100.00%) | 35/44 (79.55%) | 8/8 (100.00%) |
+| packages/devops/src/deploy/reachability.ts | LOADED | 0 | 170/170 (100.00%) | 90/90 (100.00%) | 14/14 (100.00%) |
+| packages/devops/src/deploy/redirect-guard.ts | LOADED | 0 | 2/2 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/devops/src/deploy/tokens.ts | LOADED | 0 | 15/15 (100.00%) | 5/5 (100.00%) | 1/1 (100.00%) |
+| packages/devops/src/deploy/tool.ts | LOADED | 0 | 36/36 (100.00%) | 17/17 (100.00%) | 5/5 (100.00%) |
+| packages/devops/src/deploy/types.ts | LOADED | 0 | 2/2 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/diagnostics/src/agent-logs.ts | LOADED | 0 | 98/98 (100.00%) | 46/46 (100.00%) | 5/5 (100.00%) |
+| packages/diagnostics/src/contract.ts | LOADED | 0 | 3/3 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/diagnostics/src/core/secrets-only.ts | LOADED | 0 | 294/294 (100.00%) | 150/150 (100.00%) | 35/35 (100.00%) |
+| packages/diagnostics/src/discovery-filesystem.ts | LOADED | 0 | 21/21 (100.00%) | 5/5 (100.00%) | 2/2 (100.00%) |
+| packages/diagnostics/src/domain-dns/index.ts | LOADED | 0 | 95/95 (100.00%) | 69/69 (100.00%) | 16/16 (100.00%) |
+| packages/diagnostics/src/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/diagnostics/src/manifest.ts | LOADED | 0 | 37/37 (100.00%) | 8/8 (100.00%) | 3/3 (100.00%) |
+| packages/diagnostics/src/memory-growth.ts | LOADED | 0 | 74/74 (100.00%) | 49/50 (98.00%) | 8/8 (100.00%) |
+| packages/diagnostics/src/node-ports.ts | LOADED | 0 | 50/50 (100.00%) | 24/24 (100.00%) | 10/10 (100.00%) |
+| packages/diagnostics/src/observability/config.ts | LOADED | 0 | 11/11 (100.00%) | 11/11 (100.00%) | 1/1 (100.00%) |
+| packages/diagnostics/src/observability/delivery.ts | LOADED | 0 | 47/47 (100.00%) | 42/42 (100.00%) | 7/7 (100.00%) |
+| packages/diagnostics/src/observability/errors.ts | LOADED | 0 | 17/17 (100.00%) | 13/13 (100.00%) | 3/3 (100.00%) |
+| packages/diagnostics/src/observability/export-policy.ts | LOADED | 0 | 5/5 (100.00%) | 6/6 (100.00%) | 1/1 (100.00%) |
+| packages/diagnostics/src/observability/fanout.ts | LOADED | 0 | 82/82 (100.00%) | 78/79 (98.73%) | 21/21 (100.00%) |
+| packages/diagnostics/src/observability/hooks.ts | LOADED | 0 | 31/31 (100.00%) | 24/24 (100.00%) | 12/12 (100.00%) |
+| packages/diagnostics/src/observability/index.ts | LOADED | 0 | 8/8 (100.00%) | 2/2 (100.00%) | 1/1 (100.00%) |
+| packages/diagnostics/src/observability/instrumentation.ts | LOADED | 0 | 95/95 (100.00%) | 92/92 (100.00%) | 24/24 (100.00%) |
+| packages/diagnostics/src/observability/node.ts | LOADED | 0 | 5/5 (100.00%) | 3/3 (100.00%) | 3/3 (100.00%) |
+| packages/diagnostics/src/observability/noop.ts | LOADED | 0 | 22/22 (100.00%) | 13/13 (100.00%) | 13/13 (100.00%) |
+| packages/diagnostics/src/observability/otel.ts | LOADED | 0 | 154/154 (100.00%) | 114/115 (99.13%) | 21/21 (100.00%) |
+| packages/diagnostics/src/observability/report-error.ts | LOADED | 0 | 50/50 (100.00%) | 55/55 (100.00%) | 7/7 (100.00%) |
+| packages/diagnostics/src/observability/telemetry-test.ts | LOADED | 0 | 34/34 (100.00%) | 31/31 (100.00%) | 5/5 (100.00%) |
+| packages/diagnostics/src/observability/tracker-noop.ts | LOADED | 0 | 6/6 (100.00%) | 7/7 (100.00%) | 7/7 (100.00%) |
+| packages/diagnostics/src/observability/tracker.ts | LOADED | 0 | 75/75 (100.00%) | 76/79 (96.20%) | 15/15 (100.00%) |
+| packages/diagnostics/src/redaction.ts | LOADED | 0 | 98/98 (100.00%) | 61/61 (100.00%) | 8/8 (100.00%) |
+| packages/diagnostics/src/redaction/secrets-only.ts | LOADED | 0 | 2/2 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/diagnostics/src/sources.ts | LOADED | 0 | 70/70 (100.00%) | 32/32 (100.00%) | 4/4 (100.00%) |
+| packages/diagnostics/src/web-evidence/collect-page-evidence.ts | LOADED | 0 | 160/160 (100.00%) | 57/57 (100.00%) | 13/13 (100.00%) |
+| packages/diagnostics/src/web-evidence/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/diagnostics/src/web-evidence/lazy-browser.ts | LOADED | 0 | 84/84 (100.00%) | 48/48 (100.00%) | 12/12 (100.00%) |
+| packages/diagnostics/src/web-evidence/page-performance-script.ts | LOADED | 0 | 59/59 (100.00%) | 43/43 (100.00%) | 5/5 (100.00%) |
+| packages/diagnostics/src/web-evidence/page-structure-script.ts | LOADED | 0 | 260/260 (100.00%) | 142/142 (100.00%) | 26/26 (100.00%) |
+| packages/diagnostics/src/web-evidence/page-work-budget.ts | LOADED | 0 | 52/52 (100.00%) | 34/34 (100.00%) | 9/9 (100.00%) |
+| packages/diagnostics/src/web-evidence/playwright-browser.ts | LOADED | 0 | 191/191 (100.00%) | 82/82 (100.00%) | 21/21 (100.00%) |
+| packages/diagnostics/src/web-evidence/playwright-runtime.ts | LOADED | 0 | 39/39 (100.00%) | 14/14 (100.00%) | 2/2 (100.00%) |
+| packages/diagnostics/src/web-evidence/public-page.ts | LOADED | 0 | 145/145 (100.00%) | 110/110 (100.00%) | 22/22 (100.00%) |
+| packages/diagnostics/src/web-evidence/render-page.ts | LOADED | 0 | 209/209 (100.00%) | 149/149 (100.00%) | 38/38 (100.00%) |
+| packages/diagnostics/src/web-evidence/request-guard.ts | LOADED | 0 | 191/191 (100.00%) | 141/141 (100.00%) | 22/22 (100.00%) |
+| packages/diagnostics/src/web-evidence/same-origin.ts | LOADED | 0 | 55/55 (100.00%) | 30/30 (100.00%) | 6/6 (100.00%) |
+| packages/diagnostics/src/zip.ts | LOADED | 0 | 38/38 (100.00%) | 5/5 (100.00%) | 2/2 (100.00%) |
+| packages/http-kit/src/adapter.ts | LOADED | 0 | 80/80 (100.00%) | 51/51 (100.00%) | 10/10 (100.00%) |
+| packages/http-kit/src/api-security-middleware.ts | LOADED | 0 | 110/110 (100.00%) | 51/51 (100.00%) | 9/9 (100.00%) |
+| packages/http-kit/src/compat.ts | LOADED | 0 | 8/8 (100.00%) | 2/2 (100.00%) | 2/2 (100.00%) |
+| packages/http-kit/src/html-response.ts | LOADED | 0 | 82/82 (100.00%) | 49/55 (89.09%) | 15/15 (100.00%) |
+| packages/http-kit/src/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/http-kit/src/local-daemon-request.ts | LOADED | 0 | 84/84 (100.00%) | 60/60 (100.00%) | 6/6 (100.00%) |
+| packages/http-kit/src/middleware.ts | LOADED | 0 | 13/13 (100.00%) | 4/4 (100.00%) | 1/1 (100.00%) |
+| packages/http-kit/src/observability.ts | LOADED | 0 | 27/27 (100.00%) | 15/15 (100.00%) | 3/3 (100.00%) |
+| packages/http-kit/src/origin.ts | LOADED | 0 | 10/10 (100.00%) | 4/4 (100.00%) | 1/1 (100.00%) |
+| packages/http-kit/src/pack-http.ts | LOADED | 0 | 7/7 (100.00%) | 3/3 (100.00%) | 1/1 (100.00%) |
+| packages/http-kit/src/rate-limit.ts | LOADED | 0 | 77/77 (100.00%) | 50/50 (100.00%) | 13/13 (100.00%) |
+| packages/http-kit/src/raw-sse.ts | LOADED | 0 | 55/55 (100.00%) | 21/21 (100.00%) | 6/6 (100.00%) |
+| packages/http-kit/src/request.ts | LOADED | 0 | 17/17 (100.00%) | 5/5 (100.00%) | 2/2 (100.00%) |
+| packages/http-kit/src/response.ts | LOADED | 0 | 35/35 (100.00%) | 4/4 (100.00%) | 3/3 (100.00%) |
+| packages/http-kit/src/route-registration-guard.ts | LOADED | 0 | 37/37 (100.00%) | 17/17 (100.00%) | 4/4 (100.00%) |
+| packages/http-kit/src/sse.ts | LOADED | 0 | 104/104 (100.00%) | 55/55 (100.00%) | 13/13 (100.00%) |
+| packages/http-kit/src/types.ts | LOADED | 0 | 2/2 (100.00%) | 2/2 (100.00%) | 2/2 (100.00%) |
+| packages/http-kit/src/verified-origin.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/http-kit/src/verified-origin/configured-origin.ts | LOADED | 0 | 56/56 (100.00%) | 37/37 (100.00%) | 7/7 (100.00%) |
+| packages/http-kit/src/verified-origin/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/http-kit/src/verified-origin/origin.ts | LOADED | 0 | 93/93 (100.00%) | 81/81 (100.00%) | 16/16 (100.00%) |
+| packages/http-kit/src/verified-origin/repo.memory.ts | LOADED | 0 | 29/29 (100.00%) | 14/14 (100.00%) | 6/6 (100.00%) |
+| packages/http-kit/src/verified-origin/site-path.ts | LOADED | 0 | 60/60 (100.00%) | 31/31 (100.00%) | 5/5 (100.00%) |
+| packages/http-kit/src/verified-origin/types.ts | LOADED | 0 | 18/18 (100.00%) | 9/9 (100.00%) | 3/3 (100.00%) |
+| packages/infra/src/db/driver/index.ts | LOADED | 0 | 3/3 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/infra/src/db/sqlite/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/infra/src/events/outbox/drainer.ts | LOADED | 0 | 64/64 (100.00%) | 40/40 (100.00%) | 14/14 (100.00%) |
+| packages/infra/src/events/outbox/enqueue-only.ts | LOADED | 0 | 12/12 (100.00%) | 5/5 (100.00%) | 5/5 (100.00%) |
+| packages/infra/src/events/outbox/fenced-conformance.ts | LOADED | 0 | 158/158 (100.00%) | 53/53 (100.00%) | 26/26 (100.00%) |
+| packages/infra/src/events/outbox/in-memory-fenced.ts | LOADED | 0 | 111/111 (100.00%) | 70/70 (100.00%) | 19/19 (100.00%) |
+| packages/infra/src/events/outbox/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/infra/src/events/outbox/node-scheduler.ts | LOADED | 0 | 11/11 (100.00%) | 3/3 (100.00%) | 3/3 (100.00%) |
+| packages/infra/src/events/outbox/policy.ts | LOADED | 0 | 25/25 (100.00%) | 16/16 (100.00%) | 2/2 (100.00%) |
+| packages/infra/src/events/outbox/request-digest.ts | LOADED | 0 | 4/4 (100.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
+| packages/infra/src/events/outbox/worker.ts | LOADED | 0 | 181/181 (100.00%) | 114/117 (97.44%) | 25/25 (100.00%) |
+| packages/integrations/src/api-connections/access-token.ts | LOADED | 0 | 67/67 (100.00%) | 36/36 (100.00%) | 10/10 (100.00%) |
+| packages/integrations/src/api-connections/account-actions.ts | LOADED | 0 | 83/83 (100.00%) | 59/59 (100.00%) | 9/9 (100.00%) |
+| packages/integrations/src/api-connections/attempt-state.ts | LOADED | 0 | 53/53 (100.00%) | 20/20 (100.00%) | 10/10 (100.00%) |
+| packages/integrations/src/api-connections/authorization.ts | LOADED | 0 | 91/91 (100.00%) | 50/50 (100.00%) | 9/9 (100.00%) |
+| packages/integrations/src/api-connections/byo-client.ts | LOADED | 0 | 20/20 (100.00%) | 16/16 (100.00%) | 2/2 (100.00%) |
+| packages/integrations/src/api-connections/deps.ts | LOADED | 0 | 7/7 (100.00%) | 6/6 (100.00%) | 1/1 (100.00%) |
+| packages/integrations/src/api-connections/descriptor.ts | LOADED | 0 | 85/85 (100.00%) | 59/59 (100.00%) | 11/11 (100.00%) |
+| packages/integrations/src/api-connections/errors.ts | LOADED | 0 | 18/18 (100.00%) | 5/5 (100.00%) | 3/3 (100.00%) |
+| packages/integrations/src/api-connections/finish-authorization.ts | LOADED | 0 | 89/89 (100.00%) | 58/58 (100.00%) | 12/12 (100.00%) |
+| packages/integrations/src/api-connections/hook-http.ts | LOADED | 0 | 15/15 (100.00%) | 6/6 (100.00%) | 2/2 (100.00%) |
+| packages/integrations/src/api-connections/hosted-sign-in.ts | LOADED | 0 | 34/34 (100.00%) | 19/19 (100.00%) | 7/7 (100.00%) |
+| packages/integrations/src/api-connections/index.ts | LOADED | 0 | 7/7 (100.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
+| packages/integrations/src/api-connections/install-credential.ts | LOADED | 0 | 13/13 (100.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
+| packages/integrations/src/api-connections/keys.ts | LOADED | 0 | 17/17 (100.00%) | 9/9 (100.00%) | 4/4 (100.00%) |
+| packages/integrations/src/api-connections/records.ts | LOADED | 0 | 35/35 (100.00%) | 12/12 (100.00%) | 5/5 (100.00%) |
+| packages/integrations/src/api-connections/request-checks.ts | LOADED | 0 | 51/51 (100.00%) | 36/36 (100.00%) | 6/6 (100.00%) |
+| packages/integrations/src/api-connections/service.ts | LOADED | 0 | 14/14 (100.00%) | 8/8 (100.00%) | 8/8 (100.00%) |
+| packages/integrations/src/api-connections/shared.ts | LOADED | 0 | 86/86 (100.00%) | 43/51 (84.31%) | 11/11 (100.00%) |
+| packages/integrations/src/api-connections/status.ts | LOADED | 0 | 27/27 (100.00%) | 17/17 (100.00%) | 2/2 (100.00%) |
+| packages/integrations/src/api-connections/token-store/errors.ts | LOADED | 0 | 30/30 (100.00%) | 7/7 (100.00%) | 3/3 (100.00%) |
+| packages/integrations/src/api-connections/token-store/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/integrations/src/api-connections/token-store/record.ts | LOADED | 0 | 75/75 (100.00%) | 63/63 (100.00%) | 12/12 (100.00%) |
+| packages/integrations/src/api-connections/token-store/vault-token-store.ts | LOADED | 0 | 151/151 (100.00%) | 112/112 (100.00%) | 19/19 (100.00%) |
+| packages/integrations/src/args.ts | LOADED | 0 | 8/8 (100.00%) | 4/4 (100.00%) | 1/1 (100.00%) |
+| packages/integrations/src/argument-error.ts | LOADED | 0 | 5/5 (100.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
+| packages/integrations/src/contracts/credentialed-request-errors.ts | LOADED | 0 | 2/2 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/integrations/src/credentialed-http/auth-schemes.ts | LOADED | 0 | 45/45 (100.00%) | 36/36 (100.00%) | 5/5 (100.00%) |
+| packages/integrations/src/credentialed-http/index.ts | LOADED | 0 | 3/3 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/integrations/src/credentialed-http/response-redaction.ts | LOADED | 0 | 47/47 (100.00%) | 36/36 (100.00%) | 5/5 (100.00%) |
+| packages/integrations/src/credentialed-http/sets/index.ts | LOADED | 0 | 4/4 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/integrations/src/media-providers/capability-registry.ts | LOADED | 0 | 19/19 (100.00%) | 10/10 (100.00%) | 5/5 (100.00%) |
+| packages/integrations/src/media-providers/catalog.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/async-operation-store.ts | LOADED | 0 | 238/238 (100.00%) | 107/107 (100.00%) | 20/20 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/builtin-vendors.ts | LOADED | 0 | 20/20 (100.00%) | 2/2 (100.00%) | 1/1 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/context.ts | LOADED | 0 | 34/34 (100.00%) | 23/23 (100.00%) | 4/4 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/credentials.ts | LOADED | 0 | 12/12 (100.00%) | 6/6 (100.00%) | 1/1 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/engine.ts | LOADED | 0 | 130/130 (100.00%) | 73/73 (100.00%) | 12/12 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/media-provider-registry.ts | LOADED | 0 | 106/106 (100.00%) | 84/84 (100.00%) | 22/22 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/node.ts | LOADED | 0 | 20/20 (100.00%) | 3/3 (100.00%) | 1/1 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/openai-compatible.ts | LOADED | 0 | 174/174 (100.00%) | 97/97 (100.00%) | 21/21 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/operation-runtime.ts | LOADED | 0 | 244/244 (100.00%) | 86/86 (100.00%) | 14/14 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/outbound.ts | LOADED | 0 | 44/44 (100.00%) | 22/22 (100.00%) | 4/4 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/polling-adapter.ts | LOADED | 0 | 20/20 (100.00%) | 7/7 (100.00%) | 2/2 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/providers/aihubmix-shared.ts | LOADED | 0 | 67/67 (100.00%) | 31/31 (100.00%) | 7/7 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/providers/aihubmix.ts | LOADED | 0 | 146/146 (100.00%) | 67/67 (100.00%) | 12/12 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/providers/custom-image.ts | LOADED | 0 | 67/67 (100.00%) | 30/30 (100.00%) | 5/5 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/providers/elevenlabs.ts | LOADED | 0 | 124/124 (100.00%) | 29/29 (100.00%) | 11/11 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/providers/fishaudio.ts | LOADED | 0 | 53/53 (100.00%) | 12/12 (100.00%) | 4/4 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/providers/grok.ts | LOADED | 0 | 82/82 (100.00%) | 16/16 (100.00%) | 7/7 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/providers/imagerouter-video-async.ts | LOADED | 0 | 95/95 (100.00%) | 45/45 (100.00%) | 11/11 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/providers/imagerouter.ts | LOADED | 0 | 100/100 (100.00%) | 20/20 (100.00%) | 8/8 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/providers/minimax.ts | LOADED | 0 | 56/56 (100.00%) | 13/13 (100.00%) | 3/3 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/providers/nanobanana.ts | LOADED | 0 | 94/94 (100.00%) | 38/38 (100.00%) | 10/10 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/providers/openai.ts | LOADED | 0 | 138/138 (100.00%) | 47/47 (100.00%) | 11/11 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/providers/openrouter.ts | LOADED | 0 | 85/85 (100.00%) | 36/36 (100.00%) | 7/7 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/providers/senseaudio.ts | LOADED | 0 | 141/141 (100.00%) | 50/50 (100.00%) | 9/9 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/providers/volcengine.ts | LOADED | 0 | 45/45 (100.00%) | 8/8 (100.00%) | 4/4 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/response-parsers.ts | LOADED | 0 | 69/69 (100.00%) | 32/32 (100.00%) | 6/6 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/sqlite-async-operation-store.ts | LOADED | 0 | 127/127 (100.00%) | 39/39 (100.00%) | 11/11 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/ssrf-guard.ts | LOADED | 0 | 75/75 (100.00%) | 46/46 (100.00%) | 6/6 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/stub.ts | LOADED | 0 | 85/85 (100.00%) | 26/26 (100.00%) | 5/5 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/vendor-adapter.ts | LOADED | 0 | 15/15 (100.00%) | 6/6 (100.00%) | 2/2 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/vendor-registry-core.ts | LOADED | 0 | 29/29 (100.00%) | 13/13 (100.00%) | 5/5 (100.00%) |
+| packages/integrations/src/media-providers/dispatch/vendor-registry.ts | LOADED | 0 | 37/37 (100.00%) | 10/10 (100.00%) | 8/8 (100.00%) |
+| packages/integrations/src/media-providers/index.ts | LOADED | 0 | 12/12 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/integrations/src/media-providers/policy.ts | LOADED | 0 | 29/29 (100.00%) | 19/19 (100.00%) | 5/5 (100.00%) |
+| packages/integrations/src/media-providers/providers.ts | LOADED | 0 | 208/208 (100.00%) | 20/20 (100.00%) | 5/5 (100.00%) |
+| packages/integrations/src/media-providers/seed.ts | LOADED | 0 | 96/96 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/integrations/src/media-providers/sqlite-driver.adapter.ts | LOADED | 0 | 5/5 (100.00%) | 3/3 (100.00%) | 2/2 (100.00%) |
+| packages/integrations/src/media-providers/sqlite-task-store.ts | LOADED | 0 | 133/133 (100.00%) | 49/49 (100.00%) | 10/10 (100.00%) |
+| packages/integrations/src/media-providers/staging.ts | LOADED | 0 | 107/107 (100.00%) | 62/62 (100.00%) | 9/9 (100.00%) |
+| packages/integrations/src/media-providers/task-lifecycle.ts | LOADED | 0 | 98/98 (100.00%) | 50/50 (100.00%) | 10/10 (100.00%) |
+| packages/integrations/src/media-providers/task-store.ts | LOADED | 0 | 67/67 (100.00%) | 28/28 (100.00%) | 8/8 (100.00%) |
+| packages/integrations/src/media-providers/tokens.ts | LOADED | 0 | 4/4 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/integrations/src/media-providers/ui-defaults.ts | LOADED | 0 | 130/130 (100.00%) | 3/3 (100.00%) | 0/0 (100.00%) |
+| packages/integrations/src/media-providers/video-request.ts | LOADED | 0 | 184/184 (100.00%) | 127/127 (100.00%) | 22/22 (100.00%) |
+| packages/integrations/src/saved-requests/definition.ts | LOADED | 0 | 70/70 (100.00%) | 29/29 (100.00%) | 7/7 (100.00%) |
+| packages/integrations/src/saved-requests/execute.ts | LOADED | 0 | 74/74 (100.00%) | 40/40 (100.00%) | 10/10 (100.00%) |
+| packages/integrations/src/saved-requests/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/integrations/src/saved-requests/projection.ts | LOADED | 0 | 38/38 (100.00%) | 23/23 (100.00%) | 5/5 (100.00%) |
+| packages/integrations/src/saved-requests/schema.ts | LOADED | 0 | 62/62 (100.00%) | 33/33 (100.00%) | 7/7 (100.00%) |
+| packages/integrations/src/saved-requests/validation.ts | LOADED | 0 | 53/53 (100.00%) | 28/28 (100.00%) | 11/11 (100.00%) |
+| packages/integrations/src/webhooks/delivery.ts | LOADED | 0 | 241/241 (100.00%) | 65/65 (100.00%) | 11/11 (100.00%) |
+| packages/integrations/src/webhooks/index.ts | LOADED | 0 | 7/7 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/integrations/src/webhooks/signing.keyring.ts | LOADED | 0 | 13/13 (100.00%) | 2/2 (100.00%) | 2/2 (100.00%) |
+| packages/integrations/src/webhooks/signing.ts | LOADED | 0 | 63/63 (100.00%) | 39/39 (100.00%) | 7/7 (100.00%) |
+| packages/integrations/src/webhooks/subscriptions.ts | LOADED | 0 | 139/139 (100.00%) | 40/40 (100.00%) | 6/6 (100.00%) |
+| packages/integrations/src/webhooks/worker.ts | LOADED | 0 | 66/66 (100.00%) | 32/32 (100.00%) | 14/14 (100.00%) |
+| packages/mcp/src/agent-install/chrome-devtools.ts | LOADED | 0 | 5/5 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/mcp/src/agent-install/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/mcp/src/agent-install/install.ts | LOADED | 0 | 269/269 (100.00%) | 104/109 (95.41%) | 33/33 (100.00%) |
+| packages/mcp/src/agent-install/owned-json-install.ts | LOADED | 0 | 33/33 (100.00%) | 23/25 (92.00%) | 4/4 (100.00%) |
+| packages/mcp/src/bin/serve.ts | LOADED | 0 | 105/105 (100.00%) | 58/58 (100.00%) | 11/11 (100.00%) |
+| packages/mcp/src/client/css-url-refs.ts | LOADED | 0 | 45/45 (100.00%) | 22/30 (73.33%) | 9/9 (100.00%) |
+| packages/mcp/src/client/index.ts | LOADED | 0 | 2/2 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/mcp/src/core/config.ts | LOADED | 0 | 291/291 (100.00%) | 199/199 (100.00%) | 32/32 (100.00%) |
+| packages/mcp/src/core/index.ts | LOADED | 0 | 4/4 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/mcp/src/core/install-info.ts | LOADED | 0 | 46/46 (100.00%) | 12/12 (100.00%) | 1/1 (100.00%) |
+| packages/mcp/src/core/tokens.ts | LOADED | 0 | 138/138 (100.00%) | 67/67 (100.00%) | 16/16 (100.00%) |
+| packages/mcp/src/federation/adapter.http.ts | LOADED | 0 | 250/250 (100.00%) | 134/135 (99.26%) | 26/26 (100.00%) |
+| packages/mcp/src/federation/approvals/call-confirmation.ts | LOADED | 0 | 44/44 (100.00%) | 38/38 (100.00%) | 3/3 (100.00%) |
+| packages/mcp/src/federation/approvals/index.ts | LOADED | 0 | 3/3 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/mcp/src/federation/approvals/remembered-approval.ts | LOADED | 0 | 62/62 (100.00%) | 70/70 (100.00%) | 8/8 (100.00%) |
+| packages/mcp/src/federation/approvals/revocation-reason.ts | LOADED | 0 | 4/4 (100.00%) | 6/6 (100.00%) | 1/1 (100.00%) |
+| packages/mcp/src/federation/approvals/revocation.ts | LOADED | 0 | 38/38 (100.00%) | 34/34 (100.00%) | 4/4 (100.00%) |
+| packages/mcp/src/federation/approvals/scope-option.ts | LOADED | 0 | 3/3 (100.00%) | 3/3 (100.00%) | 1/1 (100.00%) |
+| packages/mcp/src/federation/bootstrap.ts | LOADED | 0 | 111/111 (100.00%) | 61/62 (98.39%) | 10/10 (100.00%) |
+| packages/mcp/src/federation/config.ts | LOADED | 0 | 22/22 (100.00%) | 14/14 (100.00%) | 3/3 (100.00%) |
+| packages/mcp/src/federation/frozen-grants.ts | LOADED | 0 | 57/57 (100.00%) | 29/30 (96.67%) | 6/6 (100.00%) |
+| packages/mcp/src/federation/hosted/access.ts | LOADED | 0 | 61/61 (100.00%) | 22/25 (88.00%) | 5/5 (100.00%) |
+| packages/mcp/src/federation/hosted/auth.ts | LOADED | 0 | 15/15 (100.00%) | 9/9 (100.00%) | 3/3 (100.00%) |
+| packages/mcp/src/federation/hosted/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/mcp/src/federation/hosted/projections.ts | LOADED | 0 | 9/9 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/mcp/src/federation/hosted/unconfigured-error.ts | LOADED | 0 | 6/6 (100.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
+| packages/mcp/src/federation/hosted/validation-error.ts | LOADED | 0 | 11/11 (100.00%) | 2/2 (100.00%) | 2/2 (100.00%) |
+| packages/mcp/src/federation/hosted/vocabulary.ts | LOADED | 0 | 2/2 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/mcp/src/federation/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/mcp/src/federation/mcp-protocol.ts | LOADED | 0 | 80/80 (100.00%) | 62/62 (100.00%) | 9/9 (100.00%) |
+| packages/mcp/src/federation/messages.ts | LOADED | 0 | 33/33 (100.00%) | 11/11 (100.00%) | 7/7 (100.00%) |
+| packages/mcp/src/federation/ports.ts | LOADED | 0 | 3/3 (100.00%) | 1/1 (100.00%) | 1/1 (100.00%) |
+| packages/mcp/src/federation/presets.ts | LOADED | 0 | 16/16 (100.00%) | 10/10 (100.00%) | 7/7 (100.00%) |
+| packages/mcp/src/federation/refusal-notice.ts | LOADED | 0 | 73/73 (100.00%) | 25/25 (100.00%) | 7/7 (100.00%) |
+| packages/mcp/src/federation/registrations.ts | LOADED | 0 | 135/135 (100.00%) | 69/69 (100.00%) | 12/12 (100.00%) |
+| packages/mcp/src/federation/reload.ts | LOADED | 0 | 61/61 (100.00%) | 34/34 (100.00%) | 6/6 (100.00%) |
+| packages/mcp/src/federation/result-secrets.ts | LOADED | 0 | 8/8 (100.00%) | 3/3 (100.00%) | 1/1 (100.00%) |
+| packages/mcp/src/federation/stdio/adapter.stdio.ts | LOADED | 0 | 287/287 (100.00%) | 124/124 (100.00%) | 36/36 (100.00%) |
+| packages/mcp/src/federation/stdio/default-connect.ts | LOADED | 0 | 63/63 (100.00%) | 25/25 (100.00%) | 7/7 (100.00%) |
+| packages/mcp/src/federation/stdio/index.ts | LOADED | 0 | 3/3 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/mcp/src/federation/stdio/stdio-launch-resolver.ts | LOADED | 0 | 153/153 (100.00%) | 82/82 (100.00%) | 16/16 (100.00%) |
+| packages/mcp/src/federation/testing/adapter.memory.ts | LOADED | 0 | 110/110 (100.00%) | 59/59 (100.00%) | 20/20 (100.00%) |
+| packages/mcp/src/federation/testing/index.ts | LOADED | 0 | 2/2 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/mcp/src/federation/testing/tool-approvals.memory.ts | LOADED | 0 | 40/40 (100.00%) | 20/20 (100.00%) | 12/12 (100.00%) |
+| packages/mcp/src/federation/tool-approvals.ts | LOADED | 0 | 20/20 (100.00%) | 7/7 (100.00%) | 2/2 (100.00%) |
+| packages/mcp/src/federation/trust.ts | LOADED | 0 | 344/344 (100.00%) | 208/208 (100.00%) | 34/34 (100.00%) |
+| packages/mcp/src/index.ts | LOADED | 0 | 1/1 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/mcp/src/server/adapters/protocol.ts | LOADED | 0 | 9/9 (100.00%) | 3/3 (100.00%) | 1/1 (100.00%) |
+| packages/mcp/src/server/daemon-client.ts | LOADED | 0 | 159/159 (100.00%) | 104/104 (100.00%) | 20/20 (100.00%) |
+| packages/mcp/src/server/index.ts | LOADED | 0 | 13/13 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
+| packages/mcp/src/server/message-relay.ts | LOADED | 0 | 44/44 (100.00%) | 21/21 (100.00%) | 7/7 (100.00%) |
+| packages/mcp/src/server/resource-protocol.ts | LOADED | 0 | 44/44 (100.00%) | 24/24 (100.00%) | 3/3 (100.00%) |
+| packages/mcp/src/server/resources/active-resource.ts | LOADED | 0 | 13/13 (100.00%) | 2/2 (100.00%) | 1/1 (100.00%) |
+| packages/mcp/src/server/resources/site-guide-resource.ts | LOADED | 0 | 16/16 (100.00%) | 9/9 (100.00%) | 2/2 (100.00%) |
+| packages/mcp/src/server/run-tool-host.ts | LOADED | 0 | 55/55 (100.00%) | 28/29 (96.55%) | 7/7 (100.00%) |
+| packages/mcp/src/server/schema-ref-scope.ts | LOADED | 0 | 35/35 (100.00%) | 37/37 (100.00%) | 6/6 (100.00%) |
+| packages/mcp/src/server/sdk-transport.ts | LOADED | 0 | 24/24 (100.00%) | 16/16 (100.00%) | 8/8 (100.00%) |
+| packages/mcp/src/server/stdio-hosting.ts | LOADED | 0 | 134/134 (100.00%) | 87/91 (95.60%) | 21/21 (100.00%) |
+| packages/mcp/src/server/tool-arguments.ts | LOADED | 0 | 112/112 (100.00%) | 116/116 (100.00%) | 13/13 (100.00%) |
+| packages/mcp/src/server/tool-protocol.ts | LOADED | 0 | 124/124 (100.00%) | 82/83 (98.80%) | 14/14 (100.00%) |
+| packages/mcp/src/server/tool-result-pages.ts | LOADED | 0 | 59/59 (100.00%) | 31/31 (100.00%) | 5/5 (100.00%) |
+| packages/mcp/src/server/tools/component-catalog-tools.ts | LOADED | 0 | 58/58 (100.00%) | 4/4 (100.00%) | 2/2 (100.00%) |
+| packages/mcp/src/server/tools/delegated-tool.ts | LOADED | 0 | 124/124 (100.00%) | 48/49 (97.96%) | 9/9 (100.00%) |
+| packages/mcp/src/server/tools/run-tools.ts | LOADED | 0 | 128/128 (100.00%) | 23/23 (100.00%) | 7/7 (100.00%) |
+| packages/mcp/src/server/tools/tool-catalog-tools.ts | LOADED | 0 | 81/81 (100.00%) | 19/19 (100.00%) | 3/3 (100.00%) |
+| packages/mcp/src/server/tools/wait.ts | LOADED | 0 | 13/13 (100.00%) | 2/2 (100.00%) | 1/1 (100.00%) |
+| packages/mcp/src/tools/ask-choice/index.ts | LOADED | 0 | 114/114 (100.00%) | 68/68 (100.00%) | 12/12 (100.00%) |
+| packages/mcp/src/tools/ask-choice/pending.ts | LOADED | 0 | 23/23 (100.00%) | 18/18 (100.00%) | 3/3 (100.00%) |
+| packages/mcp/src/tools/ask-choice/question.ts | LOADED | 0 | 83/83 (100.00%) | 95/95 (100.00%) | 7/7 (100.00%) |
+| packages/mcp/src/tools/ask-choice/schema.ts | LOADED | 0 | 45/45 (100.00%) | 0/0 (100.00%) | 0/0 (100.00%) |
 | packages/memory/src/entry-frontmatter.ts | LOADED | 0 | 23/23 (100.00%) | 10/10 (100.00%) | 2/2 (100.00%) |
 | packages/memory/src/extract-facts.ts | LOADED | 0 | 100/100 (100.00%) | 61/61 (100.00%) | 8/8 (100.00%) |
 | packages/memory/src/extraction-log.ts | LOADED | 0 | 133/133 (100.00%) | 51/51 (100.00%) | 18/18 (100.00%) |
@@ -3428,11 +3428,9 @@ Never-loaded files: **672** / 3352
 
 ## Full never-loaded list
 
-- packages/mcp/src/federation/hosted/store.ts
 - packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts
 - packages/agent-plugins/s3-compatible/targets/s3-compatible.mjs
 - packages/agent-plugins/vercel/targets/vercel.mjs
-- packages/integrations/src/api-connections/hosted-mcp/sign-in.ts
 - packages/agent-plugins/meilisearch/providers/meilisearch.mjs
 - packages/chat/src/react/hooks/assistant-chats.ts
 - packages/chat/src/store/runtime/durable-run-store.ts
@@ -3442,105 +3440,65 @@ Never-loaded files: **672** / 3352
 - packages/chat/src/embed-widget/vanilla/index.ts
 - packages/devops/src/checks/hardwiring.ts
 - packages/agent-plugins/github/source-control/commit-site.mjs
-- packages/integrations/src/credentialed-http/tools/tool-registrations.ts
 - packages/devops/src/packaging/electron/staging.ts
 - packages/agent-plugins/github-pages/targets/github-pages.mjs
-- packages/mcp/src/federation/trust.ts
 - packages/chat/src/react/components/QuestionForm.tsx
 - packages/devops/src/static-export/runner.ts
-- packages/integrations/src/credentialed-http/credentialed-request.ts
 - packages/chat/src/react/components/Composer.tsx
-- packages/integrations/src/credentialed-http/sets/store.ts
 - packages/agent-plugins/cloudflare/worker/forms-receiver.mjs
-- packages/mcp/src/core/config.ts
 - packages/agent-runtime/src/skills/web-clone/scripts/recon-site.mjs
 - packages/chat/src/react/hooks/useComposer.ts
-- packages/mcp/src/federation/stdio/adapter.stdio.ts
 - packages/agent-runtime/src/skills/web-clone/scripts/asset-harvest.mjs
 - packages/agent-plugins/cloudflare/lib/forms.mjs
-- packages/integrations/src/api-connections/hosted-mcp/shared-sign-in.ts
 - packages/chat/src/react/components/ToolCard.tsx
 - packages/chat/src/store/sql/store.ts
 - packages/agent-runtime/src/skills/web-clone/scripts/interaction-probe.mjs
-- packages/diagnostics/src/web-evidence/page-structure-script.ts
 - packages/chat/src/server/durable-runs/recover.ts
-- packages/devops/src/deploy/ops-runner.ts
 - packages/chat/src/react/hooks/composer-draft-cache.ts
-- packages/mcp/src/server/http-tool-server.adapter.ts
 - packages/chat/src/react/features/chat-pane/hooks/useChatPaneRuntimeInventory.hooks.ts
 - packages/agent-runtime/src/providers/connection-test.ts
-- packages/integrations/src/api-connections/host.ts
 - packages/agent-plugins/google-workspace/ui/surface-client.mjs
 - packages/agent-runtime/src/skills/web-clone/scripts/audit-clone.mjs
-- packages/mcp/src/server/tool-server.ts
 - packages/devops/src/static-export/transforms.ts
 - packages/chat/src/react/components/MessageRow.tsx
-- packages/devops/src/deploy/target-descriptors.ts
 - packages/devops/src/dns/plan.ts
-- packages/mcp/src/federation/adapter.http.ts
 - packages/agent-plugins/netlify/targets/netlify.mjs
 - packages/chat/src/react/features/chat-pane/components/ChatPane.tsx
-- packages/diagnostics/src/web-evidence/request-guard.ts
-- packages/diagnostics/src/web-evidence/render-page.ts
-- packages/integrations/src/media-providers/dispatch/operation-runtime.ts
 - packages/devops/src/checks/published-types/index.ts
 - packages/agent-plugins/github/deployments/github.mjs
-- packages/infra/src/events/outbox/worker.ts
-- packages/mcp/src/agent-install/install.ts
-- packages/infra/src/events/outbox/fenced-conformance.ts
 - packages/agent-plugins/github/deploy-ops/github-actions.mjs
 - packages/chat/src/store/runtime/run-ledger.ts
-- packages/diagnostics/src/core/secrets-only.ts
 - packages/cms/forms/src/forms.ts
-- packages/devops/src/deploy/ops-secrets.ts
 - packages/devops/src/checks/hardwiring-node.ts
 - packages/chat/src/react/components/A2uiSurfaceCard.tsx
 - packages/agent-plugins/render/deploy-ops/render.mjs
 - packages/agent-runtime/src/skills/web-clone/scripts/route-crawl.mjs
-- packages/mcp/src/client/client.ts
 - packages/chat/src/react/hooks/useConversation.ts
 - packages/agent-runtime/src/skills/web-clone/scripts/compare-recon.mjs
 - packages/chat/src/react/features/chat-pane/rules.ts
 - packages/devops/src/source-control/registry.ts
 - packages/oauth/tests/helpers.ts
 - packages/agent-runtime/src/skills/web-clone/scripts/od-preview-rewrite.mjs
-- packages/integrations/src/media-providers/dispatch/openai-compatible.ts
 - packages/agent-plugins/github/source-control/backup-push.mjs
 - packages/chat/src/react/features/chat-pane/hooks/useAgentRuntimePicker.hooks.ts
 - packages/agent-runtime/src/skills/web-clone/scripts/visual-diff.mjs
 - packages/chat/src/store/runtime/history-tools.ts
-- packages/integrations/src/api-connections/token-store/vault-token-store.ts
-- packages/integrations/src/webhooks/delivery.ts
-- packages/diagnostics/src/observability/otel.ts
-- packages/integrations/src/media-providers/dispatch/async-operation-store.ts
-- packages/integrations/src/media-providers/video-request.ts
-- packages/mcp/src/server/stdio-hosting.ts
 - packages/agent-runtime/src/skills/web-clone/scripts/dna-scaffold.mjs
 - packages/chat/src/react/components/ConversationList.tsx
 - packages/chat/src/react/features/chat-pane/hooks/useChatPaneWorkingDirectory.hooks.ts
-- packages/mcp/src/server/daemon-client.ts
 - packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/components/BubbleScene.tsx
 - packages/chat/src/embed-widget/transports/fetch-sse.ts
 - packages/agent-plugins/cloudflare/lib/target.mjs
 - packages/agent-plugins/railway/deploy-ops/railway.mjs
 - packages/chat/src/react/features/chat-pane/create-daemon-attachment-uploader.ts
-- packages/diagnostics/src/web-evidence/public-page.ts
 - packages/agent-plugins/google-workspace/lib/sheets-client.mjs
 - packages/chat/src/react/features/chat-pane/hooks/useChatPaneAgentControl.hooks.ts
 - packages/chat/src/react/hooks/useRunStream.ts
-- packages/devops/src/deploy/reachability.ts
 - packages/chat/src/store/legacy/sqlite/messages.ts
-- packages/integrations/src/media-providers/dispatch/engine.ts
 - packages/chat/src/react/hooks/fab-position.ts
-- packages/diagnostics/src/web-evidence/playwright-browser.ts
 - packages/agent-runtime/src/skills/web-clone/scripts/mirror-site.mjs
-- packages/integrations/src/api-connections/declarations.ts
 - packages/chat/src/react/components/AttachmentPreviewModal.hooks.ts
 - packages/devops/src/dns/records.ts
-- packages/mcp/src/server/tool-protocol.ts
-- packages/mcp/src/core/tokens.ts
-- packages/mcp/src/federation/bootstrap.ts
-- packages/mcp/src/federation/stdio/stdio-launch-resolver.ts
 - packages/agent-plugins/google-workspace/form-destinations/sheets.mjs
 - packages/chat/src/react/tool-call-display.ts
 - packages/chat/src/server/run-finalizer/entry.ts
@@ -3549,118 +3507,53 @@ Never-loaded files: **672** / 3352
 - packages/cms/forms/src/write-service.ts
 - packages/devops/src/packaging/electron/staged-closure.ts
 - packages/core/plugin-directory.js
-- packages/mcp/src/tools/ask-choice/index.ts
 - packages/agent-plugins/s3-compatible/object-stores/s3-compatible.mjs
 - packages/chat/src/embed-widget/browser/lazy-loader.ts
 - packages/chat/src/react/features/chat-pane/hooks/useRuntimeDropUp.hooks.ts
-- packages/http-kit/src/sse.ts
-- packages/integrations/src/api-connections/connect.ts
-- packages/integrations/src/media-providers/staging.ts
-- packages/mcp/src/server/tool-arguments.ts
 - packages/chat/src/react/hooks/useComposerHistory.hooks.ts
-- packages/diagnostics/src/redaction.ts
 - packages/agent-plugins/google-workspace/ui/connection-panel.mjs
-- packages/diagnostics/src/observability/instrumentation.ts
 - packages/agent-runtime/src/skills/web-clone/scripts/network-capture.mjs
-- packages/integrations/src/media-providers/dispatch/providers/openai.ts
-- packages/integrations/src/webhooks/subscriptions.ts
 - packages/agent-plugins/fly/deploy-ops/fly.mjs
 - packages/agent-plugins/fly/scripts/render-deploy-workflow.mjs
-- packages/diagnostics/src/domain-dns/index.ts
-- packages/diagnostics/src/web-evidence/collect-page-evidence.ts
 - packages/agent-plugins/google-workspace/ui/destination-panel.mjs
 - packages/devops/src/agent-jobs/jobs.ts
 - packages/devops/src/dns/manual.ts
 - packages/devops/src/dns/node/resolver.ts
 - packages/devops/src/packaging/electron/typescript.ts
-- packages/mcp/src/bin/serve.ts
 - packages/agent-runtime/src/skills/web-clone/scripts/sourcemap-hunt.mjs
 - packages/chat/src/react/message-blocks.ts
-- packages/devops/src/deploy/ops-tools.ts
 - packages/devops/src/static-export/node-adapters.ts
-- packages/http-kit/src/api-security-middleware.ts
 - packages/agent-plugins/cloudflare/lib/api.mjs
-- packages/integrations/src/media-providers/dispatch/providers/aihubmix.ts
-- packages/integrations/src/media-providers/dispatch/providers/senseaudio.ts
-- packages/integrations/src/media-providers/sqlite-task-store.ts
 - packages/agent-plugins/google-workspace/lib/picker-flow.mjs
-- packages/integrations/src/credentialed-http/tools/credential-copy-tool.ts
 - packages/agent-plugins/resend/lib/domains.mjs
-- packages/infra/src/events/outbox/in-memory-fenced.ts
-- packages/integrations/src/media-providers/dispatch/media-provider-registry.ts
-- packages/mcp/src/federation/hosted/store.memory.ts
 - packages/agent-plugins/google-workspace/lib/http.mjs
 - packages/devops/src/dns/verify.ts
 - packages/agent-plugins/google-workspace/form-destinations/mapping.mjs
 - packages/agent-plugins/google-workspace/ui/connection-panel.handler.mjs
-- packages/http-kit/src/html-response.ts
-- packages/integrations/src/credentialed-http/sets/vault-repo.ts
-- packages/mcp/src/federation/registrations.ts
-- packages/http-kit/src/verified-origin/origin.ts
-- packages/integrations/src/api-connections/authorization.ts
-- packages/integrations/src/media-providers/dispatch/sqlite-async-operation-store.ts
 - packages/agent-plugins/google-workspace/ui/dom.mjs
-- packages/http-kit/src/adapter.ts
 - packages/agent-plugins/cloudflare/lib/domains.mjs
 - packages/devops/src/static-export/html-url-locations.ts
-- packages/http-kit/src/local-daemon-request.ts
-- packages/integrations/src/api-connections/finish-authorization.ts
-- packages/integrations/src/saved-requests/definition.ts
 - packages/chat/src/react/hooks/useComposerHistoryKeys.hooks.ts
-- packages/integrations/src/api-connections/account-actions.ts
 - packages/devops/src/source-control/commit.ts
 - packages/chat/src/embed-widget/vanilla/state.ts
-- packages/diagnostics/src/observability/fanout.ts
 - packages/chat/src/react/index.ts
-- packages/diagnostics/src/memory-growth.ts
-- packages/integrations/src/saved-requests/execute.ts
-- packages/diagnostics/src/agent-logs.ts
-- packages/diagnostics/src/web-evidence/lazy-browser.ts
-- packages/mcp/src/federation/hosted/vault.ts
 - packages/agent-plugins/google-workspace/lib/request-policy.mjs
 - packages/chat/src/react/components/composer-discovery.ts
 - packages/chat/src/store/legacy/sqlite/conversations.ts
 - packages/devops/src/local-dev/index.ts
-- packages/integrations/src/media-providers/dispatch/ssrf-guard.ts
-- packages/mcp/src/tools/ask-choice/question.ts
-- packages/integrations/src/api-connections/descriptor.ts
 - packages/chat/src/react/components/MessageList.hooks.ts
 - packages/chat/src/react/hooks/useQuestionForms.ts
 - packages/devops/src/dns/node/wire.ts
-- packages/diagnostics/src/observability/tracker.ts
-- packages/integrations/src/api-connections/token-store/record.ts
-- packages/integrations/src/media-providers/dispatch/providers/elevenlabs.ts
-- packages/integrations/src/media-providers/dispatch/providers/nanobanana.ts
 - packages/chat/src/react/features/chat-pane/model-options.ts
 - packages/chat/src/react/hooks/useSurfaceRecovery.ts
-- packages/devops/src/deploy/config-descriptors.ts
-- packages/http-kit/src/rate-limit.ts
-- packages/integrations/src/api-connections/shared.ts
-- packages/integrations/src/webhooks/worker.ts
 - packages/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs
 - packages/agent-plugins/google-workspace/ui/destination-panel.handler.mjs
 - packages/agent-plugins/resend/lib/feedback.mjs
 - packages/devops/src/packaging/electron/archive.ts
-- packages/integrations/src/media-providers/dispatch/providers/imagerouter-video-async.ts
-- packages/integrations/src/media-providers/dispatch/providers/openrouter.ts
-- packages/integrations/src/saved-requests/schema.ts
-- packages/integrations/src/webhooks/signing.ts
 - packages/agent-plugins/resend/adapters/resend.mjs
 - packages/chat/src/react/components/ToolCard.rules.ts
-- packages/mcp/src/federation/approvals/remembered-approval.ts
-- packages/mcp/src/federation/testing/adapter.memory.ts
 - packages/agent-plugins/vercel/object-stores/vercel-blob.mjs
-- packages/devops/src/deploy/ops-descriptors.ts
-- packages/http-kit/src/verified-origin/configured-origin.ts
-- packages/mcp/src/federation/mcp-protocol.ts
 - packages/agent-plugins/google-workspace/ui/picker.mjs
-- packages/integrations/src/media-providers/dispatch/response-parsers.ts
-- packages/integrations/src/media-providers/dispatch/stub.ts
-- packages/mcp/src/server/tools/delegated-tool.ts
-- packages/diagnostics/src/web-evidence/page-performance-script.ts
-- packages/integrations/src/api-connections/budgets.ts
-- packages/mcp/src/federation/frozen-grants.ts
-- packages/mcp/src/federation/reload.ts
 - packages/ui/vitest.setup.ts
 - packages/agent-plugins/google-workspace/ui/picker-flow.mjs
 - packages/agent-runtime/src/skills/web-clone/scripts/init-clone.mjs
@@ -3668,50 +3561,27 @@ Never-loaded files: **672** / 3352
 - packages/chat/src/react/components/mcp-ui-question-input.ts
 - packages/chat/src/react/components/MessageRow.usage.ts
 - packages/chat/src/store/sql/cursor.ts
-- packages/diagnostics/src/web-evidence/same-origin.ts
 - packages/agent-plugins/cloudflare/lib/assets.mjs
 - packages/agent-plugins/cloudflare/lib/domain-inventory.mjs
 - packages/chat/src/react/components/ChatSettingsDialog.tsx
 - packages/chat/src/react/features/chat-pane/create-mcp-ui-tool-caller.ts
 - packages/chat/src/react/hooks/useChatFabDrag.ts
-- packages/integrations/src/saved-requests/validation.ts
 - packages/chat/src/store/runtime/checkpoint-delta.ts
 - packages/devops/src/packaging/electron/imports.ts
 - packages/devops/src/static-export/css-urls.ts
-- packages/diagnostics/src/observability/report-error.ts
-- packages/integrations/src/api-connections/access-token.ts
-- packages/integrations/src/media-providers/dispatch/providers/imagerouter.ts
-- packages/integrations/src/media-providers/task-lifecycle.ts
-- packages/infra/src/events/outbox/drainer.ts
-- packages/mcp/src/server/tool-result-pages.ts
 - packages/chat/src/react/hooks/useCopyToClipboard.ts
 - packages/devops/src/packaging/electron/policies.ts
-- packages/diagnostics/src/sources.ts
-- packages/http-kit/src/verified-origin/site-path.ts
-- packages/integrations/src/media-providers/task-store.ts
-- packages/mcp/src/client/css-url-refs.ts
 - packages/agent-plugins/google-workspace/lib/picker-selection.mjs
 - packages/chat/src/react/features/chat-pane/hooks/useChatPaneFileDrop.hooks.ts
-- packages/http-kit/src/raw-sse.ts
-- packages/mcp/src/server/run-tool-host.ts
-- packages/mcp/src/server/tools/run-tools.ts
 - packages/agent-plugins/cloudflare/lib/workers-upload.mjs
 - packages/chat/src/embed-widget/react/dialog.hooks.ts
-- packages/integrations/src/credentialed-http/auth-schemes.ts
-- packages/mcp/src/federation/refusal-notice.ts
 - packages/agent-plugins/google-workspace/lib/sheets-admin-csv.mjs
 - packages/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs
-- packages/integrations/src/credentialed-http/response-redaction.ts
-- packages/integrations/src/media-providers/dispatch/providers/custom-image.ts
-- packages/mcp/src/federation/hosted/connection-gate.ts
 - packages/chat/src/embed-widget/browser/session-store.ts
 - packages/chat/src/react/ext-event-renderer-registry.ts
 - packages/chat/src/react/hooks/context.ts
 - packages/chat/src/react/hooks/last-conversation-store.ts
 - packages/chat/src/react/hooks/useExtEventGroups.ts
-- packages/devops/src/deploy/publish-jobs.ts
-- packages/integrations/src/api-connections/request-checks.ts
-- packages/integrations/src/media-providers/dispatch/providers/aihubmix-shared.ts
 - packages/agent-plugins/cloudflare/lib/pages-upload.mjs
 - packages/agent-runtime/src/skills/web-clone/scripts/lib/script-cli.mjs
 - packages/devops/src/agent-jobs/node.ts
@@ -3720,25 +3590,16 @@ Never-loaded files: **672** / 3352
 - packages/agent-plugins/render/deploy-configs/render.mjs
 - packages/chat/src/react/components/ConversationTitleEditor.tsx
 - packages/chat/src/store/runtime/chat-history-store.ts
-- packages/diagnostics/src/observability/delivery.ts
-- packages/integrations/src/media-providers/dispatch/providers/grok.ts
-- packages/integrations/src/saved-requests/projection.ts
 - packages/agent-plugins/google-workspace/lib/sheets-a1.mjs
 - packages/chat/src/react/hooks/useAnsweredCards.ts
 - packages/cms/forms/src/submit-service.ts
-- packages/devops/src/deploy/ops-secret-card.ts
 - packages/devops/src/packaging/electron/node.ts
 - packages/agent-plugins/google-workspace/ui/connection-view.mjs
 - packages/chat/src/react/components/MidRunUserMessage.tsx
 - packages/chat/src/react/features/chat-pane/surface-recovery-stream.ts
 - packages/chat/src/store/runtime/chat-expiry-sweep.ts
-- packages/mcp/src/federation/stdio/default-connect.ts
-- packages/mcp/src/server/schema-ref-scope.ts
 - packages/agent-plugins/google-workspace/lib/product-state.mjs
 - packages/chat/src/react/features/chat-pane/components/AgentPluginUsage.tsx
-- packages/diagnostics/src/web-evidence/page-work-budget.ts
-- packages/integrations/src/media-providers/dispatch/index.ts
-- packages/mcp/src/federation/approvals/revocation.ts
 - packages/agent-plugins/google-workspace/lib/auth.mjs
 - packages/agent-plugins/google-workspace/tools/sheets-admin/format.mjs
 - packages/agent-plugins/railway/deploy-configs/railway.mjs
@@ -3746,25 +3607,14 @@ Never-loaded files: **672** / 3352
 - packages/chat/src/react/components/MessageList.tsx
 - packages/chat/src/react/features/chat-pane/create-frontend-request-caller.ts
 - packages/chat/src/react/hooks/useLatestOperation.ts
-- packages/integrations/src/media-providers/providers.ts
-- packages/mcp/src/federation/hosted/revocation.ts
 - packages/chat/src/react/components/TodoCard.tsx
 - packages/devops/src/dns/registry.ts
-- packages/integrations/src/api-connections/attempt-state.ts
-- packages/mcp/src/agent-install/owned-json-install.ts
-- packages/mcp/src/federation/approvals/call-confirmation.ts
-- packages/mcp/src/federation/hosted/access.ts
 - packages/chat/src/react/features/chat-pane/components/RuntimeDropUp.tsx
 - packages/chat/src/react/features/chat-pane/hooks/useChatPaneComposerPlaceholder.hooks.ts
 - packages/devops/src/checks/memory-soak.ts
 - packages/devops/src/checks/node.ts
-- packages/diagnostics/src/observability/telemetry-test.ts
-- packages/mcp/src/server/message-relay.ts
 - packages/agent-plugins/google-workspace/tools/sheets/find.mjs
 - packages/chat/src/react/features/chat-pane/create-mid-run-message-poster.ts
-- packages/devops/src/deploy/node.ts
-- packages/diagnostics/src/node-ports.ts
-- packages/http-kit/src/route-registration-guard.ts
 - packages/agent-plugins/ui-ux-design/skills/shadcn-ui/examples/data-table.tsx
 - packages/chat/src/react/features/chat-pane/hooks/useChatPaneNewTabLinks.hooks.ts
 - packages/chat/src/react/hooks/useRunActivity.ts
@@ -3775,8 +3625,6 @@ Never-loaded files: **672** / 3352
 - packages/chat/src/react/components/mcp-ui-surface-state.ts
 - packages/chat/src/react/hooks/testing/fake-transport.ts
 - packages/devops/src/local-dev/server-retirement.ts
-- packages/diagnostics/src/zip.ts
-- packages/integrations/src/media-providers/dispatch/vendor-registry.ts
 - packages/chat/src/react/components/AttachmentTray.tsx
 - packages/chat/src/react/components/SentAttachment.hooks.ts
 - packages/chat/src/react/hooks/useArtifactStream.ts
@@ -3785,48 +3633,31 @@ Never-loaded files: **672** / 3352
 - packages/db/src/testing/postgres-database.ts
 - packages/devops/src/dns/delegation.ts
 - packages/devops/src/dns/node/udp.ts
-- packages/integrations/src/api-connections/hosted-sign-in.ts
-- packages/integrations/src/media-providers/dispatch/outbound.ts
-- packages/mcp/src/server/resource-protocol.ts
-- packages/mcp/src/server/tools/tool-catalog-tools.ts
 - packages/agent-runtime/src/skills/web-clone/scripts/lib/cli-args.mjs
 - packages/agent-runtime/src/skills/web-clone/scripts/lib/main-guard.mjs
 - packages/chat/src/react/components/ComposerDiscovery.tsx
 - packages/chat/src/react/hooks/composer-history-storage.ts
 - packages/db/src/testing/transfer-pg-test-db.ts
-- packages/devops/src/deploy/index.ts
 - packages/devops/src/source-control/repository-path.ts
-- packages/integrations/src/media-providers/dispatch/providers/minimax.ts
 - packages/agent-plugins/cloudflare/lib/dns.mjs
 - packages/agent-plugins/fly/deploy-configs/fly.mjs
 - packages/chat/src/react/features/chat-pane/create-typed-answer-poster.ts
 - packages/chat/src/react/hooks/usePinnedTodos.ts
 - packages/cookie-consent/scripts/build-client.mjs
-- packages/integrations/src/media-providers/dispatch/providers/fishaudio.ts
-- packages/mcp/src/federation/testing/tool-approvals.memory.ts
 - packages/agent-plugins/google-workspace/form-destinations/delivery-result.mjs
 - packages/chat/src/embed-widget/react/header.hooks.ts
 - packages/devops/src/dns/contract.ts
-- packages/http-kit/src/index.ts
-- packages/integrations/src/api-connections/records.ts
-- packages/integrations/src/media-providers/policy.ts
 - packages/agent-plugins/ui-ux-design/skills/shadcn-ui/examples/form-pattern.tsx
 - packages/agent-runtime/src/skills/web-clone/scripts/lib/playwright-loader.mjs
 - packages/chat/src/react/components/JiniChatProvider.tsx
 - packages/devops/src/local-dev/node-runtime.ts
 - packages/devops/src/local-dev/source-tree-stamp.ts
-- packages/http-kit/src/observability.ts
-- packages/infra/src/events/outbox/policy.ts
 - packages/agent-plugins/cloudflare/lib/zones.mjs
 - packages/agent-plugins/google-workspace/tools/sheets-admin/named-ranges.mjs
 - packages/chat/src/store/sql/boundary.ts
 - packages/devops/src/dns/approval.ts
 - packages/devops/src/dns/spf.ts
 - packages/devops/src/source-control/repository-target.ts
-- packages/diagnostics/src/observability/hooks.ts
-- packages/diagnostics/src/observability/index.ts
-- packages/integrations/src/api-connections/index.ts
-- packages/mcp/src/tools/ask-choice/pending.ts
 - packages/agent-plugins/google-workspace/lib/drive-files.mjs
 - packages/agent-plugins/google-workspace/tools/sheets-admin/filter-views.mjs
 - packages/agent-plugins/google-workspace/tools/sheets/values-by-data-filter.mjs
@@ -3835,35 +3666,19 @@ Never-loaded files: **672** / 3352
 - packages/chat/src/react/tool-renderer-registry.ts
 - packages/chat/src/store/runtime/run-guarded-chat-store.ts
 - packages/chat/src/store/sqlite/index.ts
-- packages/diagnostics/src/web-evidence/playwright-runtime.ts
-- packages/http-kit/src/verified-origin/repo.memory.ts
-- packages/integrations/src/api-connections/status.ts
-- packages/integrations/src/media-providers/dispatch/builtin-vendors.ts
-- packages/integrations/src/media-providers/dispatch/providers/volcengine.ts
-- packages/integrations/src/media-providers/dispatch/vendor-registry-core.ts
 - packages/agent-plugins/google-workspace/tools/sheets/find-replace.mjs
 - packages/chat/src/react/hooks/useUserTextGuard.ts
-- packages/diagnostics/src/observability/errors.ts
-- packages/integrations/src/api-connections/byo-client.ts
-- packages/mcp/src/federation/index.ts
-- packages/mcp/src/server/sdk-transport.ts
 - packages/agent-plugins/google-workspace/tools/sheets-admin/basic-filter.mjs
 - packages/agent-plugins/google-workspace/ui/picker-view.mjs
 - packages/agent-plugins/google-workspace/ui/picker.handler.mjs
 - packages/chat/src/react/components/ChatSettingsDialog.hooks.ts
 - packages/chat/src/react/hooks/useSurfaceExpiry.ts
-- packages/devops/src/deploy/tool.ts
-- packages/mcp/src/index.ts
-- packages/mcp/src/server/tools/component-catalog-tools.ts
 - packages/agent-plugins/google-workspace/form-destinations/dedupe.mjs
 - packages/chat/src/react/components/MessageList.rules.ts
 - packages/chat/src/react/features/chat-pane/index.ts
 - packages/chat/src/server/durable-runs/accept.ts
 - packages/cms/forms/src/errors.ts
 - packages/cms/forms/src/submission-ip-retention.ts
-- packages/integrations/src/api-connections/keys.ts
-- packages/mcp/src/core/install-info.ts
-- packages/mcp/src/server/index.ts
 - packages/oauth/tests/fixtures.ts
 - packages/oauth/tests/integration-contract.types.ts
 - packages/agent-plugins/google-workspace/tools/sheets-admin/developer-metadata.mjs
@@ -3876,19 +3691,7 @@ Never-loaded files: **672** / 3352
 - packages/chat/src/react/hooks/attachment-preview-cache.ts
 - packages/chat/vitest.setup.ts
 - packages/devops/src/packaging/electron/entry.ts
-- packages/http-kit/src/verified-origin/types.ts
-- packages/integrations/src/media-providers/dispatch/context.ts
-- packages/integrations/src/media-providers/dispatch/vendor-adapter.ts
-- packages/integrations/src/media-providers/index.ts
-- packages/mcp/src/federation/config.ts
-- packages/mcp/src/federation/hosted/index.ts
-- packages/mcp/src/federation/presets.ts
 - packages/oauth/tests/args-convention.types.ts
-- packages/diagnostics/src/manifest.ts
-- packages/diagnostics/src/observability/noop.ts
-- packages/integrations/src/media-providers/capability-registry.ts
-- packages/mcp/src/federation/hosted/auth.ts
-- packages/mcp/src/server/adapters/stdio-codec.ts
 - packages/agent-plugins/google-workspace/tools/sheets/get.mjs
 - packages/chat/src/react/artifact-types.ts
 - packages/chat/src/react/components/ConversationList.hooks.ts
@@ -3898,13 +3701,7 @@ Never-loaded files: **672** / 3352
 - packages/chat/src/store/pglite/index.ts
 - packages/chat/src/store/postgres/index.ts
 - packages/cms/forms/src/index.ts
-- packages/devops/src/deploy/ops-registry.ts
 - packages/devops/src/dns/index.ts
-- packages/diagnostics/src/discovery-filesystem.ts
-- packages/integrations/src/api-connections/service.ts
-- packages/integrations/src/api-connections/token-store/errors.ts
-- packages/integrations/src/media-providers/dispatch/credentials.ts
-- packages/mcp/src/server/resources/site-guide-resource.ts
 - packages/server/src/create-local-node-daemon.typecheck.ts
 - packages/user-management/test-setup.ts
 - packages/agent-plugins/google-workspace/tools/sheets-admin/batch-update.mjs
@@ -3915,16 +3712,8 @@ Never-loaded files: **672** / 3352
 - packages/chat/vitest.config.ts
 - packages/core/src/compose.typecheck.ts
 - packages/db/src/testing/pg-fixture.ts
-- packages/devops/src/deploy/tokens.ts
 - packages/devops/src/packaging/electron/optional-peers.ts
 - packages/devops/src/packaging/electron/staged-closure-node.ts
-- packages/diagnostics/src/index.ts
-- packages/http-kit/src/origin.ts
-- packages/http-kit/src/response.ts
-- packages/infra/src/events/outbox/index.ts
-- packages/integrations/src/api-connections/hook-http.ts
-- packages/integrations/src/media-providers/dispatch/polling-adapter.ts
-- packages/integrations/src/media-providers/ui-defaults.ts
 - packages/agent-plugins/google-workspace/tools/sheets/copy.mjs
 - packages/agent-plugins/google-workspace/tools/sheets/values-append.mjs
 - packages/agent-plugins/google-workspace/tools/sheets/values-batch-update.mjs
@@ -3937,13 +3726,6 @@ Never-loaded files: **672** / 3352
 - packages/devops/src/core/export-failure-summary.ts
 - packages/devops/src/packaging/electron/stability.ts
 - packages/devops/src/source-control/kit.ts
-- packages/diagnostics/src/observability/config.ts
-- packages/diagnostics/src/observability/node.ts
-- packages/http-kit/src/middleware.ts
-- packages/http-kit/src/request.ts
-- packages/integrations/src/api-connections/errors.ts
-- packages/integrations/src/webhooks/index.ts
-- packages/mcp/src/federation/tool-approvals.ts
 - packages/registry/vitest.config.ts
 - packages/server/vitest.config.ts
 - packages/sqlite/vitest.config.ts
@@ -3960,11 +3742,7 @@ Never-loaded files: **672** / 3352
 - packages/chat/src/store/sql/read-version.ts
 - packages/devops/src/core/deploy-types.ts
 - packages/devops/src/core/redirect-guard.ts
-- packages/devops/src/deploy/naming.ts
 - packages/devops/src/source-control/entry.ts
-- packages/http-kit/src/verified-origin/loopback-host.ts
-- packages/integrations/src/args.ts
-- packages/mcp/src/server/resources/active-resource.ts
 - packages/admin/vitest.setup.ts
 - packages/agent-plugins/google-workspace/tools/account-info.mjs
 - packages/agent-plugins/google-workspace/tools/sheets/values-batch-get.mjs
@@ -3978,33 +3756,12 @@ Never-loaded files: **672** / 3352
 - packages/chat/vitest.postgres.config.ts
 - packages/db/vitest.postgres.config.ts
 - packages/devops/src/static-export/entry.ts
-- packages/diagnostics/src/observability/tracker-noop.ts
-- packages/diagnostics/src/web-evidence/index.ts
-- packages/http-kit/src/verified-origin/index.ts
-- packages/infra/src/events/outbox/node-scheduler.ts
-- packages/integrations/src/api-connections/deps.ts
-- packages/integrations/src/api-connections/install-credential.ts
-- packages/integrations/src/webhooks/signing.keyring.ts
-- packages/mcp/src/federation/result-secrets.ts
-- packages/mcp/src/server/adapters/protocol.ts
-- packages/mcp/src/server/tools/wait.ts
 - packages/oauth/tests/dispatcher-stub.ts
 - packages/vibecoding/vitest.setup.ts
 - packages/agent-plugins/cloudflare/targets/cloudflare-pages.mjs
 - packages/chat/src/embed-widget/react/header.tsx
 - packages/chat/src/react/components/ConversationList.rules.ts
 - packages/chat/src/store/errors.ts
-- packages/diagnostics/src/observability/export-policy.ts
-- packages/http-kit/src/compat.ts
-- packages/http-kit/src/pack-http.ts
-- packages/infra/src/events/outbox/enqueue-only.ts
-- packages/infra/src/events/outbox/request-digest.ts
-- packages/integrations/src/api-connections/token-store/index.ts
-- packages/integrations/src/media-providers/dispatch/node.ts
-- packages/integrations/src/media-providers/sqlite-driver.adapter.ts
-- packages/integrations/src/media-providers/tokens.ts
-- packages/mcp/src/federation/hosted/validation-error.ts
-- packages/mcp/src/tools/ask-choice/schema.ts
 - packages/agent-plugins/cloudflare/targets/cloudflare-workers.mjs
 - packages/agent-plugins/vitest.config.ts
 - packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/components/DeviceFrame.tsx
@@ -4019,21 +3776,7 @@ Never-loaded files: **672** / 3352
 - packages/daemon/vitest.postgres.config.ts
 - packages/devops/src/agent-jobs/entry.ts
 - packages/devops/src/dns/node/index.ts
-- packages/diagnostics/src/contract.ts
 - packages/http-kit/vitest.config.ts
-- packages/infra/src/db/driver/index.ts
-- packages/integrations/src/credentialed-http/index.ts
-- packages/integrations/src/credentialed-http/sets/index.ts
-- packages/integrations/src/media-providers/catalog.ts
-- packages/integrations/src/saved-requests/index.ts
-- packages/mcp/src/agent-install/index.ts
-- packages/mcp/src/core/index.ts
-- packages/mcp/src/federation/approvals/index.ts
-- packages/mcp/src/federation/approvals/revocation-reason.ts
-- packages/mcp/src/federation/hosted/projections.ts
-- packages/mcp/src/federation/hosted/unconfigured-error.ts
-- packages/mcp/src/federation/messages.ts
-- packages/mcp/src/federation/stdio/index.ts
 - packages/ui/vitest.config.ts
 - packages/admin/vitest.config.ts
 - packages/agent-plugins/cloudflare/form-destinations/cloudflare-d1.mjs
@@ -4060,17 +3803,8 @@ Never-loaded files: **672** / 3352
 - packages/devops/vitest.config.ts
 - packages/diagnostics/vitest.config.ts
 - packages/diagnostics/vitest.port.config.ts
-- packages/http-kit/src/types.ts
 - packages/infra/vitest.config.ts
-- packages/integrations/src/api-connections/hosted-mcp/index.ts
-- packages/integrations/src/argument-error.ts
-- packages/integrations/src/contracts/credentialed-request-errors.ts
-- packages/integrations/src/credentialed-http/tools/index.ts
 - packages/integrations/vitest.config.ts
-- packages/mcp/src/federation/approvals/scope-option.ts
-- packages/mcp/src/federation/hosted/vocabulary.ts
-- packages/mcp/src/federation/ports.ts
-- packages/mcp/src/federation/testing/index.ts
 - packages/mcp/vitest.config.ts
 - packages/memory/vitest.config.ts
 - packages/oauth/vitest.config.ts
@@ -4091,15 +3825,7 @@ Never-loaded files: **672** / 3352
 - packages/chat/src/store/contracts/index.ts
 - packages/chat/src/store/index.ts
 - packages/chat/src/store/legacy/sqlite/schema.ts
-- packages/devops/src/deploy/redirect-guard.ts
-- packages/devops/src/deploy/types.ts
 - packages/devops/src/static-export/failure-summary.ts
-- packages/diagnostics/src/redaction/secrets-only.ts
-- packages/http-kit/src/verified-origin.ts
-- packages/infra/src/db/sqlite/index.ts
-- packages/integrations/src/media-providers/seed.ts
-- packages/mcp/src/agent-install/chrome-devtools.ts
-- packages/mcp/src/client/index.ts
 
 ## Unmatched coverage records
 
@@ -4222,6 +3948,11 @@ Never-loaded files: **672** / 3352
 - /tmp/claude-0/cov/abs/jini-cms.lcov.info: /home/user/Jini/packages/cms/src/widgets/ports.ts → packages/cms/src/widgets/ports.ts
 - /tmp/claude-0/cov/abs/jini-cms.lcov.info: /home/user/Jini/packages/cms/src/widgets/resolvers/ports.ts → packages/cms/src/widgets/resolvers/ports.ts
 - /tmp/claude-0/cov/abs/jini-cms.lcov.info: /home/user/Jini/packages/cms/src/widgets/sql/tables.ts → packages/cms/src/widgets/sql/tables.ts
+- /tmp/claude-0/cov/abs/jini-commerce-kernel.lcov.info: /home/user/Jini/packages/commerce/src/catalog/contracts.ts → packages/commerce/src/catalog/contracts.ts
+- /tmp/claude-0/cov/abs/jini-commerce-kernel.lcov.info: /home/user/Jini/packages/commerce/src/catalog/ports.ts → packages/commerce/src/catalog/ports.ts
+- /tmp/claude-0/cov/abs/jini-commerce-kernel.lcov.info: /home/user/Jini/packages/commerce/src/catalog/types.ts → packages/commerce/src/catalog/types.ts
+- /tmp/claude-0/cov/abs/jini-commerce-kernel.lcov.info: /home/user/Jini/packages/commerce/src/payments/contract/evidence.ts → packages/commerce/src/payments/contract/evidence.ts
+- /tmp/claude-0/cov/abs/jini-commerce-kernel.lcov.info: /home/user/Jini/packages/commerce/src/payments/contract/payments-port.ts → packages/commerce/src/payments/contract/payments-port.ts
 - /tmp/claude-0/cov/abs/jini-commerce.lcov.info: /home/user/Jini/packages/commerce/src/catalog/contracts.ts → packages/commerce/src/catalog/contracts.ts
 - /tmp/claude-0/cov/abs/jini-commerce.lcov.info: /home/user/Jini/packages/commerce/src/catalog/database.ts → packages/commerce/src/catalog/database.ts
 - /tmp/claude-0/cov/abs/jini-commerce.lcov.info: /home/user/Jini/packages/commerce/src/catalog/ports.ts → packages/commerce/src/catalog/ports.ts
@@ -4296,6 +4027,42 @@ Never-loaded files: **672** / 3352
 - /tmp/claude-0/cov/abs/jini-desktop-host.lcov.info: /home/user/Jini/packages/desktop-host/src/__tests__/node-ports.ts → packages/desktop-host/src/__tests__/node-ports.ts
 - /tmp/claude-0/cov/abs/jini-desktop-host.lcov.info: /home/user/Jini/packages/desktop-host/src/electron/electron-surfaces.ts → packages/desktop-host/src/electron/electron-surfaces.ts
 - /tmp/claude-0/cov/abs/jini-desktop-host.lcov.info: /home/user/Jini/packages/desktop-host/src/tauri/tauri-surfaces.ts → packages/desktop-host/src/tauri/tauri-surfaces.ts
+- /tmp/claude-0/cov/abs/jini-devops.lcov.info: /home/user/Jini/packages/devops/src/deploy/config-contracts.ts → packages/devops/src/deploy/config-contracts.ts
+- /tmp/claude-0/cov/abs/jini-devops.lcov.info: /home/user/Jini/packages/devops/src/deploy/host-kit.ts → packages/devops/src/deploy/host-kit.ts
+- /tmp/claude-0/cov/abs/jini-devops.lcov.info: /home/user/Jini/packages/devops/src/deploy/ops-contracts.ts → packages/devops/src/deploy/ops-contracts.ts
+- /tmp/claude-0/cov/abs/jini-devops.lcov.info: /home/user/Jini/packages/devops/src/deploy/ops-tool-contracts.ts → packages/devops/src/deploy/ops-tool-contracts.ts
+- /tmp/claude-0/cov/abs/jini-devops.lcov.info: /home/user/Jini/packages/devops/src/deploy/target-contracts.ts → packages/devops/src/deploy/target-contracts.ts
+- /tmp/claude-0/cov/abs/jini-diagnostics.lcov.info: /home/user/Jini/packages/diagnostics/src/ports.ts → packages/diagnostics/src/ports.ts
+- /tmp/claude-0/cov/abs/jini-diagnostics.lcov.info: /home/user/Jini/packages/diagnostics/src/types.ts → packages/diagnostics/src/types.ts
+- /tmp/claude-0/cov/abs/jini-diagnostics.lcov.info: /home/user/Jini/packages/diagnostics/src/__tests__/l170-filesystem.fake.ts → packages/diagnostics/src/__tests__/l170-filesystem.fake.ts
+- /tmp/claude-0/cov/abs/jini-diagnostics.lcov.info: /home/user/Jini/packages/diagnostics/src/__tests__/observability-fakes.ts → packages/diagnostics/src/__tests__/observability-fakes.ts
+- /tmp/claude-0/cov/abs/jini-diagnostics.lcov.info: /home/user/Jini/packages/diagnostics/src/observability/ports.ts → packages/diagnostics/src/observability/ports.ts
+- /tmp/claude-0/cov/abs/jini-diagnostics.lcov.info: /home/user/Jini/packages/diagnostics/src/observability/tracker-types.ts → packages/diagnostics/src/observability/tracker-types.ts
+- /tmp/claude-0/cov/abs/jini-diagnostics.lcov.info: /home/user/Jini/packages/diagnostics/src/web-evidence/browser-port.ts → packages/diagnostics/src/web-evidence/browser-port.ts
+- /tmp/claude-0/cov/abs/jini-diagnostics.lcov.info: /home/user/Jini/packages/diagnostics/src/web-evidence/__tests__/web-evidence-playwright.port-check.ts → packages/diagnostics/src/web-evidence/__tests__/web-evidence-playwright.port-check.ts
+- /tmp/claude-0/cov/abs/jini-http-kit.lcov.info: /home/user/Jini/packages/http-kit/src/verified-origin/ports.ts → packages/http-kit/src/verified-origin/ports.ts
+- /tmp/claude-0/cov/abs/jini-infra.lcov.info: /home/user/Jini/packages/infra/src/db/core/index.ts → packages/infra/src/db/core/index.ts
+- /tmp/claude-0/cov/abs/jini-infra.lcov.info: /home/user/Jini/packages/infra/src/events/outbox/ports.ts → packages/infra/src/events/outbox/ports.ts
+- /tmp/claude-0/cov/abs/jini-integrations.lcov.info: /home/user/Jini/packages/integrations/src/api-connections/host-ports.ts → packages/integrations/src/api-connections/host-ports.ts
+- /tmp/claude-0/cov/abs/jini-integrations.lcov.info: /home/user/Jini/packages/integrations/src/api-connections/oauth-capabilities.ts → packages/integrations/src/api-connections/oauth-capabilities.ts
+- /tmp/claude-0/cov/abs/jini-integrations.lcov.info: /home/user/Jini/packages/integrations/src/api-connections/ports.ts → packages/integrations/src/api-connections/ports.ts
+- /tmp/claude-0/cov/abs/jini-integrations.lcov.info: /home/user/Jini/packages/integrations/src/api-connections/types.ts → packages/integrations/src/api-connections/types.ts
+- /tmp/claude-0/cov/abs/jini-integrations.lcov.info: /home/user/Jini/packages/integrations/src/api-connections/hosted-mcp/contracts.ts → packages/integrations/src/api-connections/hosted-mcp/contracts.ts
+- /tmp/claude-0/cov/abs/jini-integrations.lcov.info: /home/user/Jini/packages/integrations/src/credentialed-http/ports.ts → packages/integrations/src/credentialed-http/ports.ts
+- /tmp/claude-0/cov/abs/jini-integrations.lcov.info: /home/user/Jini/packages/integrations/src/credentialed-http/sets/host.ts → packages/integrations/src/credentialed-http/sets/host.ts
+- /tmp/claude-0/cov/abs/jini-integrations.lcov.info: /home/user/Jini/packages/integrations/src/credentialed-http/tools/credential-tool-host.ts → packages/integrations/src/credentialed-http/tools/credential-tool-host.ts
+- /tmp/claude-0/cov/abs/jini-integrations.lcov.info: /home/user/Jini/packages/integrations/src/credentialed-http/tools/credential-tool-operations.ts → packages/integrations/src/credentialed-http/tools/credential-tool-operations.ts
+- /tmp/claude-0/cov/abs/jini-integrations.lcov.info: /home/user/Jini/packages/integrations/src/saved-requests/types.ts → packages/integrations/src/saved-requests/types.ts
+- /tmp/claude-0/cov/abs/jini-integrations.lcov.info: /home/user/Jini/packages/integrations/src/webhooks/ports.ts → packages/integrations/src/webhooks/ports.ts
+- /tmp/claude-0/cov/abs/jini-integrations.lcov.info: /home/user/Jini/packages/integrations/src/webhooks/types.ts → packages/integrations/src/webhooks/types.ts
+- /tmp/claude-0/cov/abs/jini-mcp.lcov.info: /home/user/Jini/packages/mcp/src/__tests__/args-fixtures.ts → packages/mcp/src/__tests__/args-fixtures.ts
+- /tmp/claude-0/cov/abs/jini-mcp.lcov.info: /home/user/Jini/packages/mcp/src/federation/__tests__/fixtures.ts → packages/mcp/src/federation/__tests__/fixtures.ts
+- /tmp/claude-0/cov/abs/jini-mcp.lcov.info: /home/user/Jini/packages/mcp/src/federation/approvals/ports.ts → packages/mcp/src/federation/approvals/ports.ts
+- /tmp/claude-0/cov/abs/jini-mcp.lcov.info: /home/user/Jini/packages/mcp/src/federation/hosted/store-ports.ts → packages/mcp/src/federation/hosted/store-ports.ts
+- /tmp/claude-0/cov/abs/jini-mcp.lcov.info: /home/user/Jini/packages/mcp/src/server/ports.ts → packages/mcp/src/server/ports.ts
+- /tmp/claude-0/cov/abs/jini-mcp.lcov.info: /home/user/Jini/packages/mcp/src/server/__tests__/tool-server-capture.fixture.ts → packages/mcp/src/server/__tests__/tool-server-capture.fixture.ts
+- /tmp/claude-0/cov/abs/jini-mcp.lcov.info: /home/user/Jini/packages/mcp/src/tools/ask-choice/types.ts → packages/mcp/src/tools/ask-choice/types.ts
+- /tmp/claude-0/cov/abs/jini-mcp.lcov.info: /home/user/Jini/packages/mcp/src/tools/ask-choice/__tests__/fixtures.ts → packages/mcp/src/tools/ask-choice/__tests__/fixtures.ts
 - /tmp/claude-0/cov/abs/jini-oauth.lcov.info: /home/user/Jini/packages/oauth/src/args.ts → packages/oauth/src/args.ts
 - /tmp/claude-0/cov/abs/jini-oauth.lcov.info: /home/user/Jini/packages/oauth/src/ports.ts → packages/oauth/src/ports.ts
 - /tmp/claude-0/cov/abs/jini-platform.lcov.info: /home/user/Jini/packages/platform/src/http/guarded/ports.ts → packages/platform/src/http/guarded/ports.ts
