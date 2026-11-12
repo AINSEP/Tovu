@@ -35,9 +35,9 @@ Brief: `development/cloud/quality-1111/BRIEF-SEC.md` + `COMMON.md`. No subagents
 | osv-scanner rows (package@version × advisory × lockfile) | 248 (MODERATE 131 / HIGH 89 / LOW 22 / CRITICAL 6) | 184 (MODERATE 92 / HIGH 66 / LOW 21 / CRITICAL 5) |
 | osv-scanner unique package@version × advisory | 201 | 184 |
 | npm audit (Tovu root) / pnpm audit (Jini), by severity | 53 (C 3 / H 32 / M 18 / L 0) | 174 (C 6 / H 64 / M 86 / L 18) |
-| Semgrep findings, security rules | 475 (WARNING 414 / ERROR 40 / INFO 21) | 0 |
-| Semgrep findings, other (non-security) rules from the JS/TS rule dirs | 3514 | 0 |
-| Semgrep files only partially analysed / timeouts / fatal | 192 / 6 / 3 (of 4013 scanned) | 0 / 0 / 0 (of 0 scanned) |
+| Semgrep findings, security rules | 475 (WARNING 414 / ERROR 40 / INFO 21) | 480 (WARNING 411 / INFO 38 / ERROR 31) |
+| Semgrep findings, other (non-security) rules from the JS/TS rule dirs | 3514 | 2994 |
+| Semgrep files only partially analysed / timeouts / fatal / syntax error | 192 / 6 / 3 / 0 (of 4013 scanned) | 169 / 0 / 7 / 2 (of 3709 scanned) |
 | jsx-a11y findings | 74 | 65 |
 | a11y keyboard-handling hits (3 rules) / distinct elements / files | 46 / 35 / 26 | 32 / 26 / 22 |
 
@@ -569,44 +569,81 @@ Counts per rule (every rule that fired; security class first):
 | class | repo | rule id | severity | hits |
 |---|---|---|---|---|
 | security | tovu | semgrep-rules.javascript.lang.security.html-in-template-string | WARNING | 249 |
+| security | jini | semgrep-rules.javascript.lang.security.html-in-template-string | WARNING | 143 |
+| security | jini | njsscan.regex_dos | WARNING | 98 |
 | security | tovu | njsscan.regex_dos | WARNING | 59 |
+| security | jini | semgrep-rules.javascript.lang.security.audit.detect-redos | WARNING | 41 |
+| security | jini | semgrep-rules.javascript.lang.security.audit.unsafe-dynamic-method | WARNING | 39 |
+| security | jini | semgrep-rules.javascript.lang.security.audit.unsafe-formatstring | INFO | 38 |
 | security | tovu | semgrep-rules.javascript.lang.security.audit.unsafe-dynamic-method | WARNING | 33 |
+| security | jini | rules-audit-other.missing-integrity | WARNING | 30 |
+| security | jini | semgrep-rules.javascript.lang.security.audit.detect-non-literal-regexp | WARNING | 25 |
 | security | tovu | semgrep-rules.javascript.lang.security.audit.detect-non-literal-regexp | WARNING | 23 |
 | security | tovu | semgrep-rules.javascript.lang.security.audit.unsafe-formatstring | INFO | 21 |
 | security | tovu | njsscan.node_timing_attack | WARNING | 14 |
+| security | jini | njsscan.node_timing_attack | WARNING | 13 |
 | security | tovu | njsscan.node_secret | ERROR | 11 |
 | security | tovu | semgrep-rules.javascript.lang.security.audit.detect-redos | WARNING | 9 |
+| security | jini | njsscan.node_secret | ERROR | 8 |
 | security | tovu | njsscan.node_username | WARNING | 8 |
+| security | jini | njsscan.node_username | WARNING | 7 |
 | security | tovu | semgrep-rules.javascript.browser.security.insecure-document-method | ERROR | 5 |
 | security | tovu | semgrep-rules.javascript.browser.security.insecure-innerhtml | ERROR | 5 |
+| security | jini | semgrep-rules.javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop | WARNING | 5 |
+| security | jini | njsscan.node_sha1 | WARNING | 5 |
 | security | tovu | semgrep-rules.javascript.browser.security.wildcard-postmessage-configuration | WARNING | 5 |
+| security | jini | njsscan.generic_header_injection | ERROR | 4 |
 | security | tovu | njsscan.node_nosqli_injection | ERROR | 4 |
 | security | tovu | njsscan.express_open_redirect | ERROR | 4 |
 | security | tovu | semgrep-rules.javascript.lang.security.audit.unknown-value-with-script-tag | WARNING | 4 |
+| security | jini | semgrep-rules.javascript.browser.security.insecure-document-method | ERROR | 3 |
+| security | jini | semgrep-rules.javascript.browser.security.insecure-innerhtml | ERROR | 3 |
+| security | jini | njsscan.node_nosqli_injection | ERROR | 3 |
+| security | jini | njsscan.eval_nodejs | ERROR | 3 |
+| security | jini | njsscan.node_api_key | ERROR | 3 |
 | security | tovu | njsscan.node_api_key | ERROR | 3 |
+| security | jini | njsscan.express_open_redirect | ERROR | 2 |
 | security | tovu | njsscan.generic_header_injection | ERROR | 2 |
 | security | tovu | njsscan.node_password | ERROR | 2 |
 | security | tovu | semgrep-rules.javascript.express.security.injection.tainted-sql-string | ERROR | 2 |
+| security | jini | njsscan.node_insecure_random_generator | WARNING | 2 |
 | security | tovu | semgrep-rules.typescript.react.security.audit.react-href-var | WARNING | 2 |
 | security | tovu | njsscan.generic_error_disclosure | WARNING | 2 |
 | security | tovu | semgrep-rules.javascript.express.security.audit.express-res-sendfile | WARNING | 2 |
+| security | jini | semgrep-rules.javascript.express.security.audit.remote-property-injection | ERROR | 1 |
+| security | jini | semgrep-rules.javascript.node-crypto.security.gcm-no-tag-length | ERROR | 1 |
 | security | tovu | semgrep-rules.javascript.lang.security.audit.spawn-shell-true | ERROR | 1 |
 | security | tovu | njsscan.node_logic_bypass | ERROR | 1 |
+| security | jini | semgrep-rules.typescript.react.security.audit.react-href-var | WARNING | 1 |
+| security | jini | rules-audit-other.insecure-document-method | WARNING | 1 |
+| security | jini | semgrep-rules.typescript.react.security.audit.react-dangerouslysetinnerhtml | WARNING | 1 |
 | security | tovu | semgrep-rules.javascript.express.security.audit.res-render-injection | WARNING | 1 |
 | security | tovu | semgrep-rules.javascript.express.security.injection.raw-html-format | WARNING | 1 |
 | security | tovu | semgrep-rules.javascript.express.security.cors-misconfiguration | WARNING | 1 |
 | security | tovu | semgrep-rules.javascript.express.security.audit.xss.direct-response-write | WARNING | 1 |
 | other | tovu | semgrep-rules.typescript.react.portability.i18next.i18next-key-format | WARNING | 2197 |
+| other | jini | semgrep-rules.typescript.react.portability.i18next.i18next-key-format | WARNING | 1435 |
+| other | jini | semgrep-rules.typescript.react.best-practice.react-props-spreading | INFO | 749 |
 | other | tovu | semgrep-rules.typescript.react.best-practice.react-props-spreading | INFO | 723 |
+| other | jini | semgrep-rules.javascript.lang.correctness.missing-template-string-indicator | INFO | 583 |
 | other | tovu | semgrep-rules.javascript.lang.correctness.missing-template-string-indicator | INFO | 419 |
+| other | jini | semgrep-rules.typescript.react.portability.i18next.jsx-not-internationalized | INFO | 141 |
 | other | tovu | semgrep-rules.typescript.react.portability.i18next.jsx-not-internationalized | INFO | 118 |
+| other | jini | semgrep-rules.javascript.lang.correctness.no-replaceall | WARNING | 28 |
 | other | tovu | semgrep-rules.javascript.lang.correctness.no-replaceall | WARNING | 23 |
+| other | jini | semgrep-rules.typescript.react.portability.i18next.jsx-label-not-i18n | WARNING | 22 |
+| other | jini | semgrep-rules.typescript.react.best-practice.react-props-in-state | WARNING | 16 |
 | other | tovu | semgrep-rules.javascript.lang.best-practice.javascript-confirm | WARNING | 12 |
 | other | tovu | semgrep-rules.typescript.react.best-practice.react-props-in-state | WARNING | 10 |
+| other | jini | semgrep-rules.javascript.lang.correctness.no-stringify-keys | WARNING | 8 |
+| other | jini | semgrep-rules.javascript.lang.best-practice.lazy-load-module | WARNING | 6 |
 | other | tovu | semgrep-rules.javascript.lang.best-practice.lazy-load-module | WARNING | 4 |
 | other | tovu | semgrep-rules.javascript.lang.correctness.no-stringify-keys | WARNING | 4 |
+| other | jini | semgrep-rules.javascript.lang.best-practice.javascript-confirm | WARNING | 3 |
+| other | jini | semgrep-rules.javascript.lang.best-practice.javascript-prompt | WARNING | 2 |
 | other | tovu | semgrep-rules.javascript.lang.correctness.useless-assignment | INFO | 2 |
 | other | tovu | semgrep-rules.javascript.react.correctness.hooks.calling-set-state-on-current-state | ERROR | 1 |
+| other | jini | semgrep-rules.javascript.lang.correctness.useless-assignment | INFO | 1 |
 | other | tovu | semgrep-rules.javascript.audit.detect-replaceall-sanitization | INFO | 1 |
 
 Files with the most security-class hits:
@@ -615,34 +652,65 @@ Files with the most security-class hits:
 |---|---|---|
 | tovu | apps/website/src/server/inbound/public-http/http/site/render.ts | 114 |
 | tovu | apps/website/src/server/inbound/public-http/http/site/form-render.ts | 22 |
+| jini | packages/cms/src/forms/html-render.ts | 20 |
 | tovu | apps/website/src/server/inbound/public-http/routes/site/member-pages.ts | 19 |
 | tovu | apps/website/src/features/theme/static-render.ts | 16 |
 | tovu | apps/website/src/features/theme/entry-list-render.ts | 14 |
+| jini | packages/ui/src/features/mcp-ui/surfaces/structured-details.ts | 13 |
+| jini | packages/chat/src/react/components/Markdown.tsx | 12 |
+| jini | packages/cookie-consent/src/render/banner.ts | 11 |
+| jini | packages/admin/src/forms/html-rules.ts | 10 |
+| jini | packages/ui/src/features/mcp-ui/surfaces/document.ts | 10 |
+| jini | packages/cms/src/seo/feed.ts | 9 |
+| jini | packages/chat/src/core/user-text-redaction.ts | 8 |
 | tovu | apps/website/src/features/agent-plugins/exports/runtime.ts | 8 |
 | tovu | apps/website/src/server/inbound/assistant/agent-daemon-scope.ts | 8 |
+| jini | packages/mcp/src/federation/trust.ts | 7 |
 | tovu | apps/website/src/features/navigation/render-entry.ts | 7 |
+| jini | packages/cms/src/forms/express/handler.ts | 6 |
+| jini | packages/daemon/src/run-lifecycle.ts | 6 |
+| jini | packages/agent-runtime/src/skills/web-clone/scripts/asset-harvest.mjs | 5 |
+| jini | packages/ui/src/features/lexical-rich-text-editor/mention-parser.ts | 5 |
+| jini | packages/ui/src/features/mcp-ui/surfaces/choice-group.ts | 5 |
+| jini | packages/ui/src/features/mcp-ui/surfaces/text-input.ts | 5 |
+| jini | packages/ui/src/renderers/sandboxed-document.ts | 5 |
 | tovu | apps/admin/src/features/menus/html-rules.ts | 5 |
-| tovu | apps/admin/src/features/plugins/hooks/use-admin-surface-frame.hooks.ts | 5 |
-| tovu | apps/website/src/features/theme/preview-switcher-html.ts | 5 |
-| tovu | apps/website/src/server/inbound/public-http/http/site/page-head.ts | 5 |
-| tovu | apps/desktop/src/site-process-registry.ts | 4 |
-| tovu | apps/website/src/features/agent-plugins/host-plugin-guidance.ts | 4 |
-| tovu | apps/website/src/features/comments/builtin-provider.ts | 4 |
-| tovu | apps/website/src/features/members/password-auth.ts | 4 |
-| tovu | apps/website/src/features/site-backup/archive-paths.ts | 4 |
-| tovu | apps/website/src/features/theme/static-portability-index.ts | 4 |
-| tovu | apps/website/src/server/inbound/public-http/http/site/external-links.ts | 4 |
-| tovu | apps/website/src/server/inbound/public-http/routes/site/product-checkout.ts | 4 |
-| tovu | apps/website/src/server/inbound/public-http/middleware/canonical-site-host.ts | 3 |
-| tovu | apps/admin/src/components/WidgetConfigFields/media-content-rules.ts | 3 |
-| tovu | apps/website/src/features/agent-plugins/layout.ts | 3 |
-| tovu | apps/website/src/features/site-backup/share-registry.ts | 3 |
-| tovu | apps/website/src/features/taxonomy/render-entry.ts | 3 |
 
-Top 50 of 475 security-class findings (ERROR first; full list incl. the 3514 other-class rows: `semgrep.tsv`):
+Top 50 of 955 security-class findings (ERROR first; full list incl. the 6508 other-class rows: `semgrep.tsv`):
 
 | repo | file:line | rule id | severity |
 |---|---|---|---|
+| jini | packages/admin/src/security/conformance/security-api.conformance.ts:13 | njsscan.node_secret | ERROR |
+| jini | packages/admin/src/security/conformance/security-api.conformance.ts:16 | njsscan.node_secret | ERROR |
+| jini | packages/agent-runtime/src/claude-stream.ts:194 | njsscan.generic_header_injection | ERROR |
+| jini | packages/agent-runtime/src/claude-stream.ts:209 | njsscan.generic_header_injection | ERROR |
+| jini | packages/agent-runtime/src/providers/tool-turn.ts:95 | njsscan.generic_header_injection | ERROR |
+| jini | packages/capability-providers/src/visitor-auth/lifecycle.ts:110 | njsscan.node_secret | ERROR |
+| jini | packages/chat/src/core/user-text-redaction.ts:18 | njsscan.node_secret | ERROR |
+| jini | packages/chat/src/embed-widget/browser/lazy-loader.ts:49 | semgrep-rules.javascript.browser.security.insecure-document-method | ERROR |
+| jini | packages/chat/src/embed-widget/browser/lazy-loader.ts:49 | semgrep-rules.javascript.browser.security.insecure-innerhtml | ERROR |
+| jini | packages/chat/src/embed-widget/browser/lazy-loader.ts:84 | semgrep-rules.javascript.browser.security.insecure-document-method | ERROR |
+| jini | packages/chat/src/embed-widget/browser/lazy-loader.ts:84 | semgrep-rules.javascript.browser.security.insecure-innerhtml | ERROR |
+| jini | packages/cms/src/comments/express/submit-handler.ts:109 | njsscan.express_open_redirect | ERROR |
+| jini | packages/cms/src/media/rendition-service.ts:147 | njsscan.node_nosqli_injection | ERROR |
+| jini | packages/cms/src/media/rendition-service.ts:156 | njsscan.node_nosqli_injection | ERROR |
+| jini | packages/cms/src/media/rendition-service.ts:177 | njsscan.node_nosqli_injection | ERROR |
+| jini | packages/cms/src/redirects/express/index.ts:33 | njsscan.express_open_redirect | ERROR |
+| jini | packages/commerce/src/payments/testkit/lipay-fake.ts:39 | njsscan.node_secret | ERROR |
+| jini | packages/daemon/src/http/run-credentials.ts:33 | semgrep-rules.javascript.express.security.audit.remote-property-injection | ERROR |
+| jini | packages/daemon/src/http/xai.ts:761 | njsscan.eval_nodejs | ERROR |
+| jini | packages/diagnostics/src/core/secrets-only.ts:43 | njsscan.node_secret | ERROR |
+| jini | packages/mcp/src/federation/stdio/default-connect.ts:84 | njsscan.eval_nodejs | ERROR |
+| jini | packages/platform/src/asset-cache.ts:194 | njsscan.eval_nodejs | ERROR |
+| jini | packages/platform/src/secrets/secret-sealer.aesgcm.ts:68 | semgrep-rules.javascript.node-crypto.security.gcm-no-tag-length | ERROR |
+| jini | packages/plugins/src/host/provider-contributions.ts:43 | njsscan.node_secret | ERROR |
+| jini | packages/provider-plugins/src/analytics-posthog/index.ts:19 | njsscan.node_api_key | ERROR |
+| jini | packages/sidecar/src/supervision/supervisor-node.ts:283 | njsscan.node_secret | ERROR |
+| jini | packages/ui/src/features/execution/constants.ts:56 | njsscan.node_api_key | ERROR |
+| jini | packages/ui/src/features/execution/constants.ts:61 | njsscan.node_api_key | ERROR |
+| jini | packages/ui/src/features/html-editor/react/hooks/useInteractiveHtmlEditor.ts:123 | njsscan.generic_header_injection | ERROR |
+| jini | packages/ui/src/utils/markdown-scroll-sync.ts:207 | semgrep-rules.javascript.browser.security.insecure-document-method | ERROR |
+| jini | packages/ui/src/utils/markdown-scroll-sync.ts:207 | semgrep-rules.javascript.browser.security.insecure-innerhtml | ERROR |
 | tovu | apps/admin/src/hooks/use-cms-sidebar-label-tooltips.hooks.ts:7 | njsscan.generic_header_injection | ERROR |
 | tovu | apps/admin/vite.config.ts:36 | njsscan.generic_header_injection | ERROR |
 | tovu | apps/desktop/scripts/check-gates.ts:78 | semgrep-rules.javascript.lang.security.audit.spawn-shell-true | ERROR |
@@ -662,37 +730,6 @@ Top 50 of 475 security-class findings (ERROR first; full list incl. the 3514 oth
 | tovu | apps/website/src/features/webhooks/secret-sealer.aesgcm.ts:97 | njsscan.node_secret | ERROR |
 | tovu | apps/website/src/platform/db/migrations/0012_secrets_vault.ts:13 | njsscan.node_secret | ERROR |
 | tovu | apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts:36 | njsscan.node_secret | ERROR |
-| tovu | apps/website/src/platform/db/migrations/0040_owner_mfa.ts:18 | njsscan.node_secret | ERROR |
-| tovu | apps/website/src/platform/site-dir/layout.ts:126 | njsscan.node_secret | ERROR |
-| tovu | apps/website/src/platform/site-dir/new-site-owner.ts:10 | njsscan.node_password | ERROR |
-| tovu | apps/website/src/server/inbound/admin-http/routes/agent-plugins/connection-sign-in.ts:17 | njsscan.express_open_redirect | ERROR |
-| tovu | apps/website/src/server/inbound/admin-http/routes/external-mcp/put.ts:44 | njsscan.node_secret | ERROR |
-| tovu | apps/website/src/server/inbound/admin-http/routes/pages/delete.ts:58 | semgrep-rules.javascript.express.security.injection.tainted-sql-string | ERROR |
-| tovu | apps/website/src/server/inbound/admin-http/routes/posts/delete.ts:104 | semgrep-rules.javascript.express.security.injection.tainted-sql-string | ERROR |
-| tovu | apps/website/src/server/inbound/public-http/middleware/canonical-site-host.ts:34 | njsscan.express_open_redirect | ERROR |
-| tovu | apps/website/src/server/inbound/public-http/middleware/canonical-site-host.ts:40 | njsscan.express_open_redirect | ERROR |
-| tovu | apps/website/src/server/inbound/public-http/middleware/site-chat-static.ts:32 | njsscan.express_open_redirect | ERROR |
-| tovu | apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts:503 | njsscan.node_nosqli_injection | ERROR |
-| tovu | apps/website/src/server/runtime/composition/form-submissions.ts:231 | njsscan.node_secret | ERROR |
-| tovu | apps/website/src/server/runtime/composition/storage-secret.ts:31 | njsscan.node_secret | ERROR |
-| tovu | content/themes/__original-themes__/static/tovu-starter/scripts/main.js:166 | semgrep-rules.javascript.browser.security.insecure-document-method | ERROR |
-| tovu | content/themes/__original-themes__/static/tovu-starter/scripts/main.js:166 | semgrep-rules.javascript.browser.security.insecure-innerhtml | ERROR |
-| tovu | content/themes/__original-themes__/static/tovu-theme/scripts/main.js:166 | semgrep-rules.javascript.browser.security.insecure-document-method | ERROR |
-| tovu | content/themes/__original-themes__/static/tovu-theme/scripts/main.js:166 | semgrep-rules.javascript.browser.security.insecure-innerhtml | ERROR |
-| tovu | content/themes/static/tovu-starter/scripts/main.js:166 | semgrep-rules.javascript.browser.security.insecure-document-method | ERROR |
-| tovu | content/themes/static/tovu-starter/scripts/main.js:166 | semgrep-rules.javascript.browser.security.insecure-innerhtml | ERROR |
-| tovu | content/themes/static/tovu-theme/scripts/main.js:166 | semgrep-rules.javascript.browser.security.insecure-document-method | ERROR |
-| tovu | content/themes/static/tovu-theme/scripts/main.js:166 | semgrep-rules.javascript.browser.security.insecure-innerhtml | ERROR |
-| tovu | apps/admin/src/App.tsx:222 | semgrep-rules.javascript.express.security.audit.res-render-injection | WARNING |
-| tovu | apps/admin/src/components/AssistantDock/agent-failure-scanners.ts:176 | njsscan.regex_dos | WARNING |
-| tovu | apps/admin/src/components/WidgetConfigFields/media-content-rules.ts:374 | semgrep-rules.javascript.lang.security.html-in-template-string | WARNING |
-| tovu | apps/admin/src/components/WidgetConfigFields/media-content-rules.ts:375 | semgrep-rules.javascript.lang.security.html-in-template-string | WARNING |
-| tovu | apps/admin/src/components/WidgetConfigFields/media-content-rules.ts:377 | semgrep-rules.javascript.lang.security.html-in-template-string | WARNING |
-| tovu | apps/admin/src/features/auth/OwnerRecoverySignIn.tsx:19 | njsscan.node_timing_attack | WARNING |
-| tovu | apps/admin/src/features/collections/rules.ts:131 | njsscan.regex_dos | WARNING |
-| tovu | apps/admin/src/features/collections/rules.ts:144 | njsscan.regex_dos | WARNING |
-| tovu | apps/admin/src/features/dashboard/Dashboard.tsx:333 | semgrep-rules.typescript.react.security.audit.react-href-var | WARNING |
-| tovu | apps/admin/src/features/deployment/rules.ts:233 | njsscan.node_timing_attack | WARNING |
 
 ## 4. Accessibility (eslint-plugin-jsx-a11y recommended)
 Config: `scripts/a11y.eslint.config.mjs` — `eslint-plugin-jsx-a11y` 6.10.2 `flatConfigs.recommended.rules`,
@@ -837,6 +874,29 @@ Top 50 of 139 (full list: `a11y.tsv`):
 | jini | packages/ui/src/features/tabbed-dialog/react/components/TabbedDialog.tsx:157 | jsx-a11y/no-static-element-interactions |
 | jini | packages/ui/src/features/version-manager/react/components/VersionPromptPopover.tsx:58 | jsx-a11y/no-redundant-roles |
 
+## SKIPPED / ENV items (exact errors)
+
+- **ENV — osv online API blocked.** First osv-scanner run (online mode) failed for both repos:
+  `error when retrieving vulns: max retries exceeded: attempt 4: request failed: Post "https://api.osv.dev/v1/querybatch": Forbidden`
+  (agent proxy: `api.osv.dev:443 — connect_rejected`). Worked around with `--offline-vulnerabilities
+  --download-offline-databases`; the offline DB came from `osv-vulnerabilities.storage.googleapis.com`. Same
+  advisories, but no live API; DB snapshot time is in the versions table.
+- **ENV — semgrep registry blocked.** `semgrep.dev:443 — connect_rejected` (`curl: (56) CONNECT tunnel failed,
+  response 403`), so `p/security-audit`, `p/typescript`, `p/javascript`, `p/nodejsscan` could not be fetched;
+  substituted with the offline rule sources described in section 3. Counts are therefore close to, not identical
+  with, a registry-pack run.
+- **Setup deviations (brief allows minimum setup).** Done: Node 24, Jini `pnpm install --frozen-lockfile` (EXIT 0,
+  `raw/jini-install.txt`) and `pnpm --no-bail -r build` (EXIT 0, `raw/jini-build.txt`); Tovu `npm ci` in root,
+  `apps/admin`, `apps/desktop`, `apps/site-chat` (all EXIT 0, `raw/tovu-npm-ci.txt`). Not done (not needed for
+  any check): `npm run build --workspace @tovu/sdk`, `npm run link:jini`, desktop `build:preload` — Tovu's typed
+  lint resolves `@jini-ai/*` from the published copies in its own `node_modules`.
+- **Typed lint — files not type-loaded** (listed in full below and in `floating-promises-skipped.tsv`): files that
+  no tsconfig includes, so the project service (or, for desktop, the given `project` list) cannot type them.
+  Those files were not linted for promises; every other file in the unit was.
+- **Semgrep partial parses**: files semgrep could only partially parse / timed out on (counts in the totals
+  table; per-file detail in `raw/semgrep-*.json` `errors`). Findings in those files may be undercounted.
+- **Semgrep / a11y / typed lint ignore inline suppressions**: typed lint and a11y run with `noInlineConfig`, so
+  hits under an existing `eslint-disable` are counted (deliberately: the audit measures, it does not trust waivers).
 
 Floating-promises skips (every entry, from `floating-promises-skipped.tsv`, 15):
 

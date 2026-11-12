@@ -60,7 +60,7 @@ for label, data, extra in [
     ('npm audit (Tovu root) / pnpm audit (Jini), by severity', None, None),
     ('Semgrep findings, security rules', sem, lambda r: r['class'] == 'security'),
     ('Semgrep findings, other (non-security) rules from the JS/TS rule dirs', None, None),
-    ('Semgrep files only partially analysed / timeouts / fatal', None, None),
+    ('Semgrep files only partially analysed / timeouts / fatal / syntax error', None, None),
     ('jsx-a11y findings', a11y, lambda r: True),
     ('a11y keyboard-handling hits (3 rules) / distinct elements / files', None, None),
 ]:
@@ -74,7 +74,7 @@ for label, data, extra in [
         t = [cnt(sem, rp, lambda r: r['class'] == 'other') for rp in ('tovu', 'jini')]
     elif label.startswith('Semgrep files'):
         m = S['semgrep']['meta']
-        t = [' / '.join(str(m.get(rp, {}).get('error_types', {}).get(k, 0)) for k in ('PartialParsing', 'Timeout', 'Fatal error')) + f" (of {m.get(rp, {}).get('scanned', 0)} scanned)" for rp in ('tovu', 'jini')]
+        t = [' / '.join(str(m.get(rp, {}).get('error_types', {}).get(k, 0)) for k in ('PartialParsing', 'Timeout', 'Fatal error', 'Syntax error')) + f" (of {m.get(rp, {}).get('scanned', 0)} scanned)" for rp in ('tovu', 'jini')]
     elif label.startswith('a11y keyboard'):
         a = S['a11y']
         t = [f"{a['kb_hits_by_repo'].get(rp, 0)} / {a['kb_elements_by_repo'].get(rp, 0)} / {a['kb_files_by_repo'].get(rp, 0)}" for rp in ('tovu', 'jini')]
