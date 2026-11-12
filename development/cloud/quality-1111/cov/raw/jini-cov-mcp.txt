@@ -1,0 +1,153 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/mcp
+      Coverage enabled with v8
+
+ ✓ src/federation/__tests__/mcp-federation.registrations.test.ts (49 tests) 493ms
+ ✓ src/server/__tests__/tool-server.wire.test.ts (30 tests) 242ms
+daemon URL http://daemon.example is neither loopback nor HTTPS; traffic to a remote, non-HTTPS daemon is not encrypted. ✓ src/server/__tests__/tool-server.test.ts (38 tests) 230ms
+ ✓ src/server/__tests__/tool-protocol.test.ts (69 tests) 130ms
+ ✓ src/federation/__tests__/mcp-federation.http-adapter.test.ts (45 tests) 222ms
+ ✓ src/bin/__tests__/serve.test.ts (66 tests) 2891ms
+   ✓ module top-level entrypoint guard > does not run serve() for real when process.argv[1] does not match (e.g. imported under a test runner) 475ms
+   ✓ module top-level entrypoint guard > does not run serve() for real when process.argv[1] is undefined 349ms
+ ✓ src/agent-install/__tests__/install.test.ts (71 tests) 172ms
+ ✓ src/server/__tests__/daemon-client.test.ts (68 tests) 246ms
+stderr | src/core/__tests__/config.test.ts > readMcpConfig / writeMcpConfig > returns empty and logs on corrupt JSON
+[mcp-config] Corrupted JSON, returning empty: SyntaxError: Expected property name or '}' in JSON at position 2 (line 1 column 3)
+    at JSON.parse (<anonymous>)
+    at Module.readMcpConfig (/home/user/Jini/packages/mcp/src/core/config.ts:264:34)
+    at /home/user/Jini/packages/mcp/src/core/__tests__/config.test.ts:159:5
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file:///home/user/Jini/node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11
+
+ ✓ src/core/__tests__/config.test.ts (76 tests) 198ms
+ ✓ src/federation/__tests__/mcp-federation.trust.test.ts (43 tests) 73ms
+ ✓ src/federation/__tests__/trust.pins.unit.test.ts (114 tests) 34ms
+ ✓ src/federation/__tests__/mcp-federation.refusal-notice.test.ts (25 tests) 12ms
+ ✓ src/tools/ask-choice/__tests__/ports.test.ts (52 tests) 33ms
+ ✓ src/server/tools/__tests__/delegated-tool.test.ts (36 tests) 29ms
+ ✓ src/tools/ask-choice/__tests__/ask-choice.test.ts (17 tests) 23ms
+ ✓ src/federation/__tests__/mcp-federation.stdio-adapter.test.ts (20 tests) 559ms
+   ✓ real stdout framing closes on an unterminated message over the 4 MiB cap 372ms
+ ✓ src/client/__tests__/client.test.ts (81 tests) 91ms
+ ✓ src/federation/__tests__/call-confirmation.pins.test.ts (29 tests) 21ms
+ ✓ src/federation/__tests__/fed-security.unit.test.ts (37 tests) 106ms
+ ✓ src/federation/__tests__/call-confirmation.p5.test.ts (22 tests) 56ms
+ ✓ src/federation/__tests__/mcp-federation.reload.test.ts (9 tests) 7ms
+stdout | src/federation/__tests__/mcp-federation.bootstrap.test.ts > defaultConnect hands the hosted transport callTimeoutMs as its per-request bound, matching the stdio arm — not connectTimeoutMs
+agent-daemon mcp-federation: 'hosted-vendor' registered 0 federated tool(s): (none)
+
+stdout | src/federation/__tests__/mcp-federation.bootstrap.test.ts > attachFederatedMcpTools stamps preset connections with a preset origin, for external-mcp-revocation.ts's roster/preset split
+agent-daemon mcp-federation: 'hosted-vendor' registered 1 federated tool(s): mcp__hosted-vendor__ping
+
+stderr | src/federation/__tests__/mcp-federation.bootstrap.test.ts > a connect timeout produces a human-readable connectFailures entry with no report entry, for the connection admin admissions must surface
+agent-daemon mcp-federation: 'namecom' failed, continuing without its tools — Error: connect timed out after 15000ms
+    at connect (/home/user/Jini/packages/mcp/src/federation/__tests__/mcp-federation.bootstrap.test.ts:221:13)
+    at attachOneFederatedConnection (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:300:21)
+    at attachFederatedMcpTools (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:199:28)
+    at /home/user/Jini/packages/mcp/src/federation/__tests__/mcp-federation.bootstrap.test.ts:220:24
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+ ✓ src/federation/__tests__/mcp-federation.bootstrap.test.ts (6 tests) 82ms
+ ✓ src/server/__tests__/delegated-local-tools.integration.test.ts (10 tests) 184ms
+stderr | src/core/__tests__/tokens.test.ts > readTokensFile > returns an empty store on corrupt JSON
+[mcp-tokens] Corrupted JSON, returning empty: SyntaxError: Expected property name or '}' in JSON at position 2 (line 1 column 3)
+    at JSON.parse (<anonymous>)
+    at Module.readTokensFile (/home/user/Jini/packages/mcp/src/core/tokens.ts:189:43)
+    at /home/user/Jini/packages/mcp/src/core/__tests__/tokens.test.ts:188:5
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file:///home/user/Jini/node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11
+
+stderr | src/core/__tests__/tokens.test.ts > token store mutations > C31: returns null for inherited entries and preserves corrupt contents before replacing the store
+[mcp-tokens] Corrupted JSON, returning empty: SyntaxError: Expected ',' or '}' after property value in JSON at position 46 (line 1 column 47)
+    at JSON.parse (<anonymous>)
+    at readTokensFile (/home/user/Jini/packages/mcp/src/core/tokens.ts:189:43)
+    at /home/user/Jini/packages/mcp/src/core/tokens.ts:250:18
+    at withLock (/home/user/Jini/packages/mcp/src/core/tokens.ts:214:12)
+    at Module.setToken (/home/user/Jini/packages/mcp/src/core/tokens.ts:249:3)
+    at /home/user/Jini/packages/mcp/src/core/__tests__/tokens.test.ts:207:5
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ ✓ src/federation/__tests__/mcp-federation.stdio-launch-resolver.test.ts (17 tests) 13ms
+ ✓ src/core/__tests__/tokens.test.ts (24 tests) 329ms
+ ✓ src/federation/__tests__/mcp-federation.stdio-exit-reason.test.ts (32 tests) 358ms
+ ✓ src/server/__tests__/tool-server.hosting.test.ts (18 tests) 302ms
+ ✓ src/federation/__tests__/stdio-launch-resolver.pins.test.ts (20 tests) 21ms
+ ✓ src/server/tools/__tests__/argument-shapes.test.ts (43 tests) 76ms
+ ✓ src/federation/hosted/__tests__/second-host-store.test.ts (3 tests) 13ms
+ ✓ src/federation/__tests__/revocation.pins.test.ts (21 tests) 15ms
+ ✓ src/server/__tests__/message-relay.test.ts (8 tests) 79ms
+ ✓ src/federation/__tests__/adapter.stdio.pins.test.ts (18 tests) 1530ms
+   ✓ spawnMcpStdioChannel exit draining > a grandchild holding stderr open cannot postpone the close reason past the drain bound 1164ms
+ ✓ src/tools/ask-choice/__tests__/question.unit.test.ts (45 tests) 43ms
+ ✓ src/server/tools/__tests__/run-tools.test.ts (19 tests) 49ms
+ ✓ src/server/__tests__/tool-argument-recovery.test.ts (10 tests) 124ms
+ ✓ src/federation/__tests__/http-challenge-isolation.test.ts (8 tests) 47ms
+ ✓ src/server/__tests__/http-tool-server.wire.test.ts (8 tests) 593ms
+ ✓ src/federation/__tests__/mcp-federation.stdio-child-env.test.ts (9 tests) 5ms
+ ✓ src/server/tools/__tests__/tool-catalog-tools.test.ts (20 tests) 31ms
+ ✓ src/federation/hosted/__tests__/hosted-entry.test.ts (4 tests) 7ms
+ ✓ src/federation/__tests__/http-result-secrets.test.ts (5 tests) 13ms
+ ✓ src/federation/__tests__/mcp-federation.bundled-toolchain-spawn.test.ts (2 tests) 221ms
+ ✓ src/server/__tests__/run-tool-host.http.test.ts (7 tests) 526ms
+ ✓ src/__tests__/finish-pass.unit.test.ts (23 tests) 47ms
+ ✓ src/federation/__tests__/approval-contradictions.unit.test.ts (9 tests) 25ms
+ ✓ src/__tests__/args-convention.unit.test.ts (8 tests) 19ms
+ ✓ src/agent-install/__tests__/owned-json-install.test.ts (12 tests) 123ms
+ ✓ src/server/__tests__/resource-protocol.test.ts (14 tests) 16ms
+ ✓ src/__tests__/integration-contracts.test.ts (11 tests) 71ms
+ ✓ src/server/tools/__tests__/tool-descriptors.contract.test.ts (23 tests) 12ms
+ ✓ src/federation/__tests__/confirmation-policy.unit.test.ts (31 tests) 16ms
+ ✓ src/server/__tests__/tool-result-pages.unit.test.ts (11 tests) 23ms
+ ✓ src/server/__tests__/auth-propagation.test.ts (22 tests) 21ms
+ ✓ src/federation/__tests__/mcp-federation.adapter-memory.test.ts (8 tests) 54ms
+ ✓ src/federation/__tests__/registrations.read-only.test.ts (5 tests) 10ms
+ ✓ src/federation/__tests__/mcp-federation.admission-logging.test.ts (3 tests) 13ms
+ ✓ src/core/__tests__/secure-write.test.ts (7 tests) 182ms
+ ✓ src/federation/__tests__/default-connect.unit.test.ts (5 tests) 21ms
+ ✓ src/federation/__tests__/approval-fingerprint.test.ts (6 tests) 33ms
+ ✓ src/federation/__tests__/approval-stores.test.ts (4 tests) 4ms
+ ✓ src/server/tools/__tests__/component-catalog-tools.test.ts (16 tests) 46ms
+stdout | src/federation/__tests__/fed-presets.unit.test.ts > fed-presets: a preset's write tool with no write grant is refused per call and never sent
+agent-daemon mcp-federation: 'vendor' registered 2 federated tool(s): mcp__vendor__create_project, mcp__vendor__list_tables
+
+stdout | src/federation/__tests__/fed-presets.unit.test.ts > fed-presets: a preset's explicit default write grant lets the write run, and the admission report shows it
+agent-daemon mcp-federation: 'vendor' registered 2 federated tool(s): mcp__vendor__create_project, mcp__vendor__list_tables
+
+stderr | src/federation/__tests__/fed-presets.unit.test.ts > fed-presets: a preset's explicit default write grant lets the write run, and the admission report shows it
+agent-daemon mcp-federation: 'vendor' admitted WRITE tool 'create_project' (operator-authorized)
+
+stdout | src/federation/__tests__/fed-presets.unit.test.ts > fed-presets: a preset's read tool needs no write grant
+agent-daemon mcp-federation: 'vendor' registered 2 federated tool(s): mcp__vendor__create_project, mcp__vendor__list_tables
+
+ ✓ src/federation/__tests__/fed-presets.unit.test.ts (3 tests) 19ms
+ ✓ src/federation/__tests__/http-authentication-ports.test.ts (3 tests) 11ms
+ ✓ src/core/__tests__/secret-defaults.test.ts (5 tests) 136ms
+ ✓ src/bin/__tests__/serve-delegated-timeout.test.ts (6 tests) 18ms
+ ✓ src/server/resources/__tests__/site-guide-resource.test.ts (9 tests) 79ms
+stdout | src/federation/__tests__/reload-frozen-grants.test.ts > reloads owner grants and withdraws disabled sources using frozen schemas without another handshake
+agent-daemon mcp-federation: 'media' registered 1 federated tool(s): mcp__media__read
+
+stderr | src/federation/__tests__/reload-frozen-grants.test.ts > reloads owner grants and withdraws disabled sources using frozen schemas without another handshake
+agent-daemon mcp-federation: 'media' refused remote tool 'write' — not-in-operator-allowlist
+
+ ✓ src/federation/__tests__/reload-frozen-grants.test.ts (1 test) 9ms
+ ✓ src/federation/__tests__/revocation.p5.test.ts (12 tests) 5ms

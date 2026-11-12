@@ -12673,3 +12673,630 @@ ok 1847 - owner creation remains ready and idempotent after no URL
   duration_ms: 16545.275417
   type: 'test'
   ...
+# Subtest: owner creation remains ready and idempotent after supervisor error
+ok 1848 - owner creation remains ready and idempotent after supervisor error
+  ---
+  duration_ms: 16228.105939
+  type: 'test'
+  ...
+# Subtest: owner creation checks volume space before allocating and removes the staged copy
+ok 1849 - owner creation checks volume space before allocating and removes the staged copy
+  ---
+  duration_ms: 15425.229779
+  type: 'test'
+  ...
+# Subtest: v2 returns a fresh projection and maps the single media copy to its blob key
+ok 1850 - v2 returns a fresh projection and maps the single media copy to its blob key
+  ---
+  duration_ms: 63.840669
+  type: 'test'
+  ...
+# Subtest: v1 and malformed manifests refuse before the database owner
+ok 1851 - v1 and malformed manifests refuse before the database owner
+  ---
+  duration_ms: 17.989881
+  type: 'test'
+  ...
+# Subtest: a known incompatible schema identity names the source-version remedy before the database owner
+ok 1852 - a known incompatible schema identity names the source-version remedy before the database owner
+  ---
+  duration_ms: 6.734061
+  type: 'test'
+  ...
+# Subtest: version advice never masks malformed manifest records
+ok 1853 - version advice never masks malformed manifest records
+  ---
+  duration_ms: 6.661683
+  type: 'test'
+  ...
+# Subtest: invented schema identities retain the exact identity without version advice
+ok 1854 - invented schema identities retain the exact identity without version advice
+  ---
+  duration_ms: 7.412657
+  type: 'test'
+  ...
+# Subtest: archive schema tags are bounded and stripped of control and bidi characters in refusals
+ok 1855 - archive schema tags are bounded and stripped of control and bidi characters in refusals
+  ---
+  duration_ms: 4.956411
+  type: 'test'
+  ...
+# Subtest: schema refusals echo only the identity fields, never extra archive metadata
+ok 1856 - schema refusals echo only the identity fields, never extra archive metadata
+  ---
+  duration_ms: 1.625629
+  type: 'test'
+  ...
+# Subtest: unlisted, missing, self-listed and duplicate files refuse
+ok 1857 - unlisted, missing, self-listed and duplicate files refuse
+  ---
+  duration_ms: 12.479435
+  type: 'test'
+  ...
+# Subtest: private paths, path traversal, aliases and file/directory collisions refuse
+ok 1858 - private paths, path traversal, aliases and file/directory collisions refuse
+  ---
+  duration_ms: 29.594806
+  type: 'test'
+  ...
+# Subtest: declared and expanded sizes are bounded before buffering
+ok 1859 - declared and expanded sizes are bounded before buffering
+  ---
+  duration_ms: 513.934335
+  type: 'test'
+  ...
+# Subtest: database and media edits refuse while code edits warn and quarantine the whole unit
+ok 1860 - database and media edits refuse while code edits warn and quarantine the whole unit
+  ---
+  duration_ms: 70.256301
+  type: 'test'
+  ...
+# Subtest: source credentials stay included even in otherwise editable code
+ok 1861 - source credentials stay included even in otherwise editable code
+  ---
+  duration_ms: 468.002134
+  type: 'test'
+  ...
+# Subtest: a credential in an imported agent-plugin package names its archive path, not the scan path
+ok 1862 - a credential in an imported agent-plugin package names its archive path, not the scan path
+  ---
+  duration_ms: 3.248289
+  type: 'test'
+  ...
+# Subtest: projection media and document admission cannot be granted by ZIP checksums
+ok 1863 - projection media and document admission cannot be granted by ZIP checksums
+  ---
+  duration_ms: 1.885605
+  type: 'test'
+  ...
+# Subtest: the sanitizer receives the archived database snapshot and the caller's abort signal
+ok 1864 - the sanitizer receives the archived database snapshot and the caller's abort signal
+  ---
+  duration_ms: 1.510362
+  type: 'test'
+  ...
+# Subtest: every recognised portable root and the settings file are admitted
+ok 1865 - every recognised portable root and the settings file are admitted
+  ---
+  duration_ms: 4.154828
+  type: 'test'
+  ...
+# Subtest: the database snapshot is exempt from the content secret scan
+ok 1866 - the database snapshot is exempt from the content secret scan
+  ---
+  duration_ms: 1.638666
+  type: 'test'
+  ...
+# Subtest: a site name of exactly 200 characters is accepted
+ok 1867 - a site name of exactly 200 characters is accepted
+  ---
+  duration_ms: 1.283131
+  type: 'test'
+  ...
+# Subtest: a directory entry with listed files below it is accepted
+ok 1868 - a directory entry with listed files below it is accepted
+  ---
+  duration_ms: 1.380414
+  type: 'test'
+  ...
+# Subtest: an already-aborted signal stops before the archive is read
+ok 1869 - an already-aborted signal stops before the archive is read
+  ---
+  duration_ms: 0.304497
+  type: 'test'
+  ...
+# Subtest: an abort between metadata entries stops the first pass
+ok 1870 - an abort between metadata entries stops the first pass
+  ---
+  duration_ms: 0.305011
+  type: 'test'
+  ...
+# Subtest: an abort while the manifest streams stops the bounded read
+ok 1871 - an abort while the manifest streams stops the bounded read
+  ---
+  duration_ms: 0.545276
+  type: 'test'
+  ...
+# Subtest: an abort while a listed file streams stops the second pass
+ok 1872 - an abort while a listed file streams stops the second pass
+  ---
+  duration_ms: 1.233801
+  type: 'test'
+  ...
+# Subtest: an abort before document admission stops the document loop
+ok 1873 - an abort before document admission stops the document loop
+  ---
+  duration_ms: 1.618271
+  type: 'test'
+  ...
+# Subtest: an archive over 300 MiB is refused before any entry is read
+ok 1874 - an archive over 300 MiB is refused before any entry is read
+  ---
+  duration_ms: 9.672989
+  type: 'test'
+  ...
+# Subtest: the 2,001st entry is refused
+ok 1875 - the 2,001st entry is refused
+  ---
+  duration_ms: 453.486681
+  type: 'test'
+  ...
+# Subtest: a symlink entry is refused
+ok 1876 - a symlink entry is refused
+  ---
+  duration_ms: 0.661816
+  type: 'test'
+  ...
+# Subtest: a hardlink entry is refused
+ok 1877 - a hardlink entry is refused
+  ---
+  duration_ms: 0.3019
+  type: 'test'
+  ...
+# Subtest: a device entry is refused
+ok 1878 - a device entry is refused
+  ---
+  duration_ms: 0.241686
+  type: 'test'
+  ...
+# Subtest: a fifo entry is refused
+ok 1879 - a fifo entry is refused
+  ---
+  duration_ms: 0.272608
+  type: 'test'
+  ...
+# Subtest: an unsafe entry path is refused by the path claim
+ok 1880 - an unsafe entry path is refused by the path claim
+  ---
+  duration_ms: 0.421207
+  type: 'test'
+  ...
+# Subtest: a repeated directory is refused
+ok 1881 - a repeated directory is refused
+  ---
+  duration_ms: 13.070347
+  type: 'test'
+  ...
+# Subtest: a directory after a file of the same name is refused
+ok 1882 - a directory after a file of the same name is refused
+  ---
+  duration_ms: 0.71378
+  type: 'test'
+  ...
+# Subtest: a file after a directory of the same name is refused
+ok 1883 - a file after a directory of the same name is refused
+  ---
+  duration_ms: 0.724153
+  type: 'test'
+  ...
+# Subtest: an absent declared size is refused
+ok 1884 - an absent declared size is refused
+  ---
+  duration_ms: 0.588195
+  type: 'test'
+  ...
+# Subtest: an negative declared size is refused
+ok 1885 - an negative declared size is refused
+  ---
+  duration_ms: 0.617839
+  type: 'test'
+  ...
+# Subtest: an fractional declared size is refused
+ok 1886 - an fractional declared size is refused
+  ---
+  duration_ms: 8.900533
+  type: 'test'
+  ...
+# Subtest: a declared file over 64 MiB is refused from metadata alone
+ok 1887 - a declared file over 64 MiB is refused from metadata alone
+  ---
+  duration_ms: 0.73331
+  type: 'test'
+  ...
+# Subtest: a manifest stream longer than the 2 MiB manifest cap is refused as a possible ZIP bomb
+ok 1888 - a manifest stream longer than the 2 MiB manifest cap is refused as a possible ZIP bomb
+  ---
+  duration_ms: 0.754411
+  type: 'test'
+  ...
+# Subtest: a manifest stream shorter than its declared size is refused
+ok 1889 - a manifest stream shorter than its declared size is refused
+  ---
+  duration_ms: 0.392327
+  type: 'test'
+  ...
+# Subtest: an archive without the root manifest is refused
+ok 1890 - an archive without the root manifest is refused
+  ---
+  duration_ms: 0.326125
+  type: 'test'
+  ...
+# Subtest: a manifest that is not JSON is refused
+ok 1891 - a manifest that is not JSON is refused
+  ---
+  duration_ms: 0.574127
+  type: 'test'
+  ...
+# Subtest: a manifest with a null manifest is refused
+ok 1892 - a manifest with a null manifest is refused
+  ---
+  duration_ms: 8.82315
+  type: 'test'
+  ...
+# Subtest: a manifest with a numeric manifest is refused
+ok 1893 - a manifest with a numeric manifest is refused
+  ---
+  duration_ms: 0.537549
+  type: 'test'
+  ...
+# Subtest: a manifest with format version 1 is refused
+ok 1894 - a manifest with format version 1 is refused
+  ---
+  duration_ms: 0.55967
+  type: 'test'
+  ...
+# Subtest: a manifest with the backup profile is refused
+ok 1895 - a manifest with the backup profile is refused
+  ---
+  duration_ms: 0.442026
+  type: 'test'
+  ...
+# Subtest: a manifest with a missing schema is refused
+ok 1896 - a manifest with a missing schema is refused
+  ---
+  duration_ms: 6.811552
+  type: 'test'
+  ...
+# Subtest: a manifest with another schema index is refused
+ok 1897 - a manifest with another schema index is refused
+  ---
+  duration_ms: 0.806063
+  type: 'test'
+  ...
+# Subtest: a manifest with another schema tag is refused
+ok 1898 - a manifest with another schema tag is refused
+  ---
+  duration_ms: 0.845625
+  type: 'test'
+  ...
+# Subtest: a manifest with a missing scope is refused
+ok 1899 - a manifest with a missing scope is refused
+  ---
+  duration_ms: 0.602059
+  type: 'test'
+  ...
+# Subtest: a manifest with a non-array file list is refused
+ok 1900 - a manifest with a non-array file list is refused
+  ---
+  duration_ms: 0.550328
+  type: 'test'
+  ...
+# Subtest: a manifest with a 2,000-record file list is refused
+ok 1901 - a manifest with a 2,000-record file list is refused
+  ---
+  duration_ms: 1.786394
+  type: 'test'
+  ...
+# Subtest: a manifest with a non-array media list is refused
+ok 1902 - a manifest with a non-array media list is refused
+  ---
+  duration_ms: 0.647726
+  type: 'test'
+  ...
+# Subtest: a manifest with a non-array plugin list is refused
+ok 1903 - a manifest with a non-array plugin list is refused
+  ---
+  duration_ms: 6.201056
+  type: 'test'
+  ...
+# Subtest: a manifest with a missing site is refused
+ok 1904 - a manifest with a missing site is refused
+  ---
+  duration_ms: 0.643806
+  type: 'test'
+  ...
+# Subtest: a manifest with a non-string site name is refused
+ok 1905 - a manifest with a non-string site name is refused
+  ---
+  duration_ms: 0.444394
+  type: 'test'
+  ...
+# Subtest: a manifest with a blank site name is refused
+ok 1906 - a manifest with a blank site name is refused
+  ---
+  duration_ms: 0.474075
+  type: 'test'
+  ...
+# Subtest: a manifest with a 201-character site name is refused
+ok 1907 - a manifest with a 201-character site name is refused
+  ---
+  duration_ms: 0.39192
+  type: 'test'
+  ...
+# Subtest: a manifest file list with a null record is refused
+ok 1908 - a manifest file list with a null record is refused
+  ---
+  duration_ms: 0.701217
+  type: 'test'
+  ...
+# Subtest: a manifest file list with a non-string path is refused
+ok 1909 - a manifest file list with a non-string path is refused
+  ---
+  duration_ms: 8.803442
+  type: 'test'
+  ...
+# Subtest: a manifest file list with a fractional size is refused
+ok 1910 - a manifest file list with a fractional size is refused
+  ---
+  duration_ms: 0.883278
+  type: 'test'
+  ...
+# Subtest: a manifest file list with a negative size is refused
+ok 1911 - a manifest file list with a negative size is refused
+  ---
+  duration_ms: 0.593424
+  type: 'test'
+  ...
+# Subtest: a manifest file list with a missing size is refused
+ok 1912 - a manifest file list with a missing size is refused
+  ---
+  duration_ms: 0.633449
+  type: 'test'
+  ...
+# Subtest: a manifest file list with an uppercase hash is refused
+ok 1913 - a manifest file list with an uppercase hash is refused
+  ---
+  duration_ms: 0.638761
+  type: 'test'
+  ...
+# Subtest: a manifest file list with a missing hash is refused
+ok 1914 - a manifest file list with a missing hash is refused
+  ---
+  duration_ms: 5.06987
+  type: 'test'
+  ...
+# Subtest: an unsafe manifest path is refused by the share path policy
+ok 1915 - an unsafe manifest path is refused by the share path policy
+  ---
+  duration_ms: 0.832632
+  type: 'test'
+  ...
+# Subtest: a repeated manifest path is refused
+ok 1916 - a repeated manifest path is refused
+  ---
+  duration_ms: 0.683446
+  type: 'test'
+  ...
+# Subtest: a manifest that lists itself is refused
+ok 1917 - a manifest that lists itself is refused
+  ---
+  duration_ms: 0.660312
+  type: 'test'
+  ...
+# Subtest: the manifest path "unknown/content.txt" is refused as outside the v2 tree
+ok 1918 - the manifest path "unknown/content.txt" is refused as outside the v2 tree
+  ---
+  duration_ms: 5.941715
+  type: 'test'
+  ...
+# Subtest: the manifest path "settings/other.json" is refused as outside the v2 tree
+ok 1919 - the manifest path "settings/other.json" is refused as outside the v2 tree
+  ---
+  duration_ms: 0.66371
+  type: 'test'
+  ...
+# Subtest: the manifest path "themes" is refused as outside the v2 tree
+ok 1920 - the manifest path "themes" is refused as outside the v2 tree
+  ---
+  duration_ms: 0.549204
+  type: 'test'
+  ...
+# Subtest: the manifest path "uploads/chat-attachments/a.png" is refused as outside the v2 tree
+ok 1921 - the manifest path "uploads/chat-attachments/a.png" is refused as outside the v2 tree
+  ---
+  duration_ms: 0.58262
+  type: 'test'
+  ...
+# Subtest: the manifest path "database/content.db" is refused as outside the v2 tree
+ok 1922 - the manifest path "database/content.db" is refused as outside the v2 tree
+  ---
+  duration_ms: 0.519872
+  type: 'test'
+  ...
+# Subtest: a manifest without the database record is refused
+ok 1923 - a manifest without the database record is refused
+  ---
+  duration_ms: 0.607785
+  type: 'test'
+  ...
+# Subtest: a suspicious manifest path still requires its original inventory to match
+ok 1924 - a suspicious manifest path still requires its original inventory to match
+  ---
+  duration_ms: 0.854099
+  type: 'test'
+  ...
+# Subtest: a manifest listing more files than the archive holds is refused
+ok 1925 - a manifest listing more files than the archive holds is refused
+  ---
+  duration_ms: 0.879262
+  type: 'test'
+  ...
+# Subtest: a directory with no listed file below it is refused
+ok 1926 - a directory with no listed file below it is refused
+  ---
+  duration_ms: 0.822933
+  type: 'test'
+  ...
+# Subtest: an archive file missing from the manifest is refused while reading content
+ok 1927 - an archive file missing from the manifest is refused while reading content
+  ---
+  duration_ms: 1.237578
+  type: 'test'
+  ...
+# Subtest: a data file whose declared size differs from the manifest is refused
+ok 1928 - a data file whose declared size differs from the manifest is refused
+  ---
+  duration_ms: 0.901263
+  type: 'test'
+  ...
+# Subtest: data content whose SHA-256 differs from the manifest is refused
+ok 1929 - data content whose SHA-256 differs from the manifest is refused
+  ---
+  duration_ms: 0.955865
+  type: 'test'
+  ...
+# Subtest: a content stream longer than its declared size is refused as a possible ZIP bomb
+ok 1930 - a content stream longer than its declared size is refused as a possible ZIP bomb
+  ---
+  duration_ms: 2.8401
+  type: 'test'
+  ...
+# Subtest: a content stream shorter than its declared size is refused
+ok 1931 - a content stream shorter than its declared size is refused
+  ---
+  duration_ms: 0.879905
+  type: 'test'
+  ...
+# Subtest: credential-shaped content in a listed file stays included
+ok 1932 - credential-shaped content in a listed file stays included
+  ---
+  duration_ms: 2.305232
+  type: 'test'
+  ...
+# Subtest: archive media the projected database does not reference is refused
+ok 1933 - archive media the projected database does not reference is refused
+  ---
+  duration_ms: 1.129862
+  type: 'test'
+  ...
+# Subtest: a referenced media key that is not a safe path is refused
+ok 1934 - a referenced media key that is not a safe path is refused
+  ---
+  duration_ms: 1.044882
+  type: 'test'
+  ...
+# Subtest: referenced media missing from the archive is refused
+ok 1935 - referenced media missing from the archive is refused
+  ---
+  duration_ms: 1.101436
+  type: 'test'
+  ...
+# Subtest: a missing media blob that backs a document is refused as a document blob
+ok 1936 - a missing media blob that backs a document is refused as a document blob
+  ---
+  duration_ms: 9.449202
+  type: 'test'
+  ...
+# Subtest: a valid Library document is admitted
+ok 1937 - a valid Library document is admitted
+  ---
+  duration_ms: 1.474688
+  type: 'test'
+  ...
+# Subtest: a document whose blob is not in the archive is refused
+ok 1938 - a document whose blob is not in the archive is refused
+  ---
+  duration_ms: 1.305463
+  type: 'test'
+  ...
+# Subtest: a document whose blob hash differs is refused
+ok 1939 - a document whose blob hash differs is refused
+  ---
+  duration_ms: 1.434538
+  type: 'test'
+  ...
+# Subtest: a document the upload policy rejects is refused with the policy's reason
+ok 1940 - a document the upload policy rejects is refused with the policy's reason
+  ---
+  duration_ms: 1.616933
+  type: 'test'
+  ...
+# Subtest: a remapped destination that is not a safe path is refused
+ok 1941 - a remapped destination that is not a safe path is refused
+  ---
+  duration_ms: 17.268505
+  type: 'test'
+  ...
+# Subtest: a remap onto different bytes already at the destination is refused
+ok 1942 - a remap onto different bytes already at the destination is refused
+  ---
+  duration_ms: 1.864916
+  type: 'test'
+  ...
+# Subtest: a remap moves the bytes to the destination key and drops the source key
+ok 1943 - a remap moves the bytes to the destination key and drops the source key
+  ---
+  duration_ms: 1.981931
+  type: 'test'
+  ...
+# Subtest: the projected database counts toward the 300 MiB expanded cap
+ok 1944 - the projected database counts toward the 300 MiB expanded cap
+  ---
+  duration_ms: 26.636514
+  type: 'test'
+  ...
+# Subtest: a document refused with a non-Error value is reported with the generic ingress reason
+ok 1945 - a document refused with a non-Error value is reported with the generic ingress reason
+  ---
+  duration_ms: 0.326109
+  type: 'test'
+  ...
+# Subtest: the document admission port receives the original filename and the verified bytes
+ok 1946 - the document admission port receives the original filename and the verified bytes
+  ---
+  duration_ms: 0.310323
+  type: 'test'
+  ...
+# Subtest: sharing plugin BLOB columns retains credentials with warnings (notNull=false)
+ok 1947 - sharing plugin BLOB columns retains credentials with warnings (notNull=false)
+  ---
+  duration_ms: 939.553474
+  type: 'test'
+  ...
+# Subtest: sharing plugin BLOB columns retains credentials with warnings (notNull=true)
+ok 1948 - sharing plugin BLOB columns retains credentials with warnings (notNull=true)
+  ---
+  duration_ms: 721.280758
+  type: 'test'
+  ...
+# (node:28130) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:28130) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: shared media buffers are deduplicated before collecting the next theme
+ok 1949 - shared media buffers are deduplicated before collecting the next theme
+  ---
+  duration_ms: 1003.745256
+  type: 'test'
+  ...
+# Subtest: unique retained bytes stop collection at the cap before another theme or ZIP runs
+ok 1950 - unique retained bytes stop collection at the cap before another theme or ZIP runs
+  ---
+  duration_ms: 7.582502
+  type: 'test'
+  ...
+# Subtest: populated undeclared plugin tables still refuse by name beside declared tables
+ok 1951 - populated undeclared plugin tables still refuse by name beside declared tables
+  ---
+  duration_ms: 2864.349828
+  type: 'test'
+  ...

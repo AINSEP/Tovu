@@ -27532,3 +27532,145 @@ ok 3051 - /readyz remains ready when only optional modules failed
 # [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
 #     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
 # {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# WORK\\tGET /\\ttotal_repo_calls=57\\twall_ms=608.51\\t[["navLocationBindingRepo.findByLocation",10],["menuRepo.findBySlug",10],["menuRepo.findById",10],["settingsRepo.findActiveDefinition",4],["settingsRepo.getWorkspaceValue",3],["settingsRepo.getGlobalValue",3],["postRepo.findById",3],["siteTitlePreservationStore.isPending",2],["siteTimeZone.resolveTimeZone",2],["pluginExports.forRender",1],["postRepo.list",1],["presentationRepo.findByWorkspaceId",1],["themes.find",1],["postRepo.findBySlug",1],["siteDisplayName.read",1],["workspaceRepo.findById",1],["seoDeps.siteTitle",1],["postRepo.listPublishedPreviews",1],["transformDefinitionRepo.listByName",1]]
+# Subtest: B: GET / (home) — repo/port call count and wall time
+ok 3052 - B: GET / (home) — repo/port call count and wall time
+  ---
+  duration_ms: 1963.328086
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# WORK\\tGET /:slug (post)\\ttotal_repo_calls=53\\twall_ms=453.07\\t[["navLocationBindingRepo.findByLocation",10],["menuRepo.findBySlug",10],["menuRepo.findById",10],["settingsRepo.findActiveDefinition",4],["settingsRepo.getWorkspaceValue",3],["settingsRepo.getGlobalValue",3],["postRepo.findById",3],["pluginExports.forRender",1],["presentationRepo.findByWorkspaceId",1],["postRepo.list",1],["themes.find",1],["postRepo.findBySlug",1],["siteTitlePreservationStore.isPending",1],["siteDisplayName.read",1],["workspaceRepo.findById",1],["siteTimeZone.resolveTimeZone",1],["commentsProviders.active",1]]
+# Subtest: B: GET /:slug (real post, dynamic render) — repo/port call count and wall time
+ok 3053 - B: GET /:slug (real post, dynamic render) — repo/port call count and wall time
+  ---
+  duration_ms: 1370.636216
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# WORK\\tGET /:slug (static theme page)\\ttotal_repo_calls=53\\twall_ms=150.62\\t[["navLocationBindingRepo.findByLocation",10],["menuRepo.findBySlug",10],["menuRepo.findById",10],["settingsRepo.findActiveDefinition",4],["settingsRepo.getWorkspaceValue",3],["settingsRepo.getGlobalValue",3],["postRepo.findById",3],["pluginExports.forRender",1],["presentationRepo.findByWorkspaceId",1],["postRepo.list",1],["themes.find",1],["postRepo.findBySlug",1],["siteTitlePreservationStore.isPending",1],["siteDisplayName.read",1],["workspaceRepo.findById",1],["siteTimeZone.resolveTimeZone",1],["commentsProviders.active",1]]
+# Subtest: B: GET /:slug (static-theme page, short-circuit path) — repo/port call count and wall time
+ok 3054 - B: GET /:slug (static-theme page, short-circuit path) — repo/port call count and wall time
+  ---
+  duration_ms: 954.014138
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# WORK\\tGET /products\\ttotal_repo_calls=15\\twall_ms=106.80\\t[["settingsRepo.findActiveDefinition",4],["settingsRepo.getWorkspaceValue",3],["settingsRepo.getGlobalValue",3],["presentationRepo.findByWorkspaceId",1],["siteTitlePreservationStore.isPending",1],["siteDisplayName.read",1],["workspaceRepo.findById",1],["themes.find",1]]
+# Subtest: B: GET /products — repo/port call count and wall time
+ok 3055 - B: GET /products — repo/port call count and wall time
+  ---
+  duration_ms: 722.068707
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# WORK\\tGET / x10 sequential\\tper-request repo-call counts=[57,53,53,53,53,53,53,53,53,53]
+# WORK\\tGET / request \#1 breakdown\\t{"pluginExports.forRender":1,"postRepo.list":1,"presentationRepo.findByWorkspaceId":1,"settingsRepo.findActiveDefinition":4,"settingsRepo.getWorkspaceValue":3,"settingsRepo.getGlobalValue":3,"themes.find":1,"postRepo.findBySlug":1,"navLocationBindingRepo.findByLocation":10,"menuRepo.findBySlug":10,"menuRepo.findById":10,"siteTitlePreservationStore.isPending":2,"siteDisplayName.read":1,"workspaceRepo.findById":1,"postRepo.findById":3,"seoDeps.siteTitle":1,"siteTimeZone.resolveTimeZone":2,"postRepo.listPublishedPreviews":1,"transformDefinitionRepo.listByName":1}
+# WORK\\tGET / request \#2 breakdown\\t{"pluginExports.forRender":1,"postRepo.list":1,"presentationRepo.findByWorkspaceId":1,"settingsRepo.findActiveDefinition":0,"settingsRepo.getWorkspaceValue":3,"settingsRepo.getGlobalValue":3,"themes.find":1,"postRepo.findBySlug":1,"navLocationBindingRepo.findByLocation":10,"menuRepo.findBySlug":10,"menuRepo.findById":10,"siteTitlePreservationStore.isPending":2,"siteDisplayName.read":1,"workspaceRepo.findById":1,"postRepo.findById":3,"seoDeps.siteTitle":1,"siteTimeZone.resolveTimeZone":2,"postRepo.listPublishedPreviews":1,"transformDefinitionRepo.listByName":1}
+# Subtest: B: 10 sequential GET / requests — does repeat-visit work look any cheaper than the first (no memoization would mean no)?
+ok 3056 - B: 10 sequential GET / requests — does repeat-visit work look any cheaper than the first (no memoization would mean no)?
+  ---
+  duration_ms: 1874.658243
+  type: 'test'
+  ...
+# Subtest: settings events close when settings is revoked and theme reauthorization throws
+ok 3057 - settings events close when settings is revoked and theme reauthorization throws
+  ---
+  duration_ms: 16.506881
+  type: 'test'
+  ...
+# Subtest: settings events suppress an in-flight poll after reauthorization fails
+ok 3058 - settings events suppress an in-flight poll after reauthorization fails
+  ---
+  duration_ms: 3.59375
+  type: 'test'
+  ...
+# Subtest: explicit settings resume replays hidden writes, preserves header precedence, bounds and authorization
+ok 3059 - explicit settings resume replays hidden writes, preserves header precedence, bounds and authorization
+  ---
+  duration_ms: 2.837767
+  type: 'test'
+  ...
+# Subtest: settings events refuse a different workspace before opening a stream
+ok 3060 - settings events refuse a different workspace before opening a stream
+  ---
+  duration_ms: 0.18817
+  type: 'test'
+  ...
+# Subtest: theme-only subscribers receive no settings namespaces even when revisions are available
+ok 3061 - theme-only subscribers receive no settings namespaces even when revisions are available
+  ---
+  duration_ms: 0.602804
+  type: 'test'
+  ...
+# Subtest: overlapping settings polls emit each change only once
+ok 3062 - overlapping settings polls emit each change only once
+  ---
+  duration_ms: 3.767532
+  type: 'test'
+  ...
+# Subtest: cached namespaces and missing definitions keep notifications flowing during a definition lookup outage
+ok 3063 - cached namespaces and missing definitions keep notifications flowing during a definition lookup outage
+  ---
+  duration_ms: 1.009194
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a malformed agentPluginTokens is a 400 VALIDATION_ERROR: no check, no site, no seal
+ok 3064 - a malformed agentPluginTokens is a 400 VALIDATION_ERROR: no check, no site, no seal
+  ---
+  duration_ms: 3005.952752
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a token the vendor rejects is a 400 naming the plugin: no site is made, and the token is not echoed
+ok 3065 - a token the vendor rejects is a 400 naming the plugin: no site is made, and the token is not echoed
+  ---
+  duration_ms: 1635.368539
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a plugin that takes no token is a 400 AGENT_PLUGIN_TOKEN_UNSUPPORTED: no site is made
+ok 3066 - a plugin that takes no token is a 400 AGENT_PLUGIN_TOKEN_UNSUPPORTED: no site is made
+  ---
+  duration_ms: 1335.513249
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a token permission refusal is a 400 without creating a site, sealing or calling the token invalid
+ok 3067 - a token permission refusal is a 400 without creating a site, sealing or calling the token invalid
+  ---
+  duration_ms: 1587.596321
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a checked token: 201, the site is made, and the token is sealed with the new site's key into its folder
+ok 3068 - a checked token: 201, the site is made, and the token is sealed with the new site's key into its folder
+  ---
+  duration_ms: 3260.252585
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}

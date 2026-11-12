@@ -368,3 +368,207 @@ ok 18 - history scanning when the latest user turn is not the last entry
   duration_ms: 1.251506
   type: 'suite'
   ...
+# Subtest: vanilla confirmation strip click allow=true cannot activate navigation or submit
+ok 19 - vanilla confirmation strip click allow=true cannot activate navigation or submit
+  ---
+  duration_ms: 650.564017
+  type: 'test'
+  ...
+# Subtest: vanilla confirmation strip click allow=false cannot activate navigation or submit
+ok 20 - vanilla confirmation strip click allow=false cannot activate navigation or submit
+  ---
+  duration_ms: 122.71663
+  type: 'test'
+  ...
+# Subtest: expiry, supersession, run teardown and open/close chrome changes clean listeners and focus
+ok 21 - expiry, supersession, run teardown and open/close chrome changes clean listeners and focus
+  ---
+  duration_ms: 207.582421
+  type: 'test'
+  ...
+# Subtest: a Jini chrome re-render (Escape close, outside-bubble reopen) cannot drop a pending prompt
+ok 22 - a Jini chrome re-render (Escape close, outside-bubble reopen) cannot drop a pending prompt
+  ---
+  duration_ms: 114.367876
+  type: 'test'
+  ...
+# Subtest: unmounted or incomplete host markup never creates a second proposal bar
+ok 23 - unmounted or incomplete host markup never creates a second proposal bar
+  ---
+  duration_ms: 649.761297
+  type: 'test'
+  ...
+# Subtest: detector: findFirstPartyRequires recognizes every require-call shape and ignores non-require lookalikes
+ok 24 - detector: findFirstPartyRequires recognizes every require-call shape and ignores non-require lookalikes
+  ---
+  duration_ms: 24.266825
+  type: 'test'
+  ...
+# Subtest: the source-file scanner includes JavaScript variants and excludes declarations/tests
+ok 25 - the source-file scanner includes JavaScript variants and excludes declarations/tests
+  ---
+  duration_ms: 7.533489
+  type: 'test'
+  ...
+# Subtest: the leaf scanner includes dynamic imports and first-party require loads
+ok 26 - the leaf scanner includes dynamic imports and first-party require loads
+  ---
+  duration_ms: 3.304167
+  type: 'test'
+  ...
+# Subtest: the only-copy guard resolves static imports, re-exports and dynamic imports to the leaf
+ok 27 - the only-copy guard resolves static imports, re-exports and dynamic imports to the leaf
+  ---
+  duration_ms: 18.553146
+  type: 'test'
+  ...
+# Subtest: no source file under apps/website/src require()s a first-party module except the allowlist
+ok 28 - no source file under apps/website/src require()s a first-party module except the allowlist
+  ---
+  duration_ms: 44769.801074
+  type: 'test'
+  ...
+# Subtest: every allowlist entry is still present and still a first-party-import-free leaf
+ok 29 - every allowlist entry is still present and still a first-party-import-free leaf
+  ---
+  duration_ms: 0.381716
+  type: 'test'
+  ...
+# Subtest: a policy confirmation card shows exactly the structured ID row (r9/r9b)
+ok 30 - a policy confirmation card shows exactly the structured ID row (r9/r9b)
+  ---
+  duration_ms: 376.53902
+  type: 'test'
+  ...
+# Subtest: existing extension approval families keep their classes (pinned before G7)
+ok 31 - existing extension approval families keep their classes (pinned before G7)
+  ---
+  duration_ms: 0.995292
+  type: 'test'
+  ...
+# Subtest: the MCP-UI callback never starts a fresh execution of a plugin tool (pinned before G7)
+ok 32 - the MCP-UI callback never starts a fresh execution of a plugin tool (pinned before G7)
+  ---
+  duration_ms: 0.42519
+  type: 'test'
+  ...
+# Subtest: an HTML ui:// resource with text/html is accepted
+ok 33 - an HTML ui:// resource with text/html is accepted
+  ---
+  duration_ms: 1.70718
+  type: 'test'
+  ...
+# Subtest: an HTML ui:// resource with text/html;profile=mcp-app is accepted
+ok 34 - an HTML ui:// resource with text/html;profile=mcp-app is accepted
+  ---
+  duration_ms: 0.242351
+  type: 'test'
+  ...
+# Subtest: an HTML ui:// resource with text/html+skybridge is accepted
+ok 35 - an HTML ui:// resource with text/html+skybridge is accepted
+  ---
+  duration_ms: 0.135671
+  type: 'test'
+  ...
+# Subtest: null is not an ask-choice UI resource
+ok 36 - null is not an ask-choice UI resource
+  ---
+  duration_ms: 0.104252
+  type: 'test'
+  ...
+# Subtest: a string is not an ask-choice UI resource
+ok 37 - a string is not an ask-choice UI resource
+  ---
+  duration_ms: 0.091965
+  type: 'test'
+  ...
+# Subtest: an object without type is not an ask-choice UI resource
+ok 38 - an object without type is not an ask-choice UI resource
+  ---
+  duration_ms: 0.084188
+  type: 'test'
+  ...
+# Subtest: a non-resource type is not an ask-choice UI resource
+ok 39 - a non-resource type is not an ask-choice UI resource
+  ---
+  duration_ms: 0.104264
+  type: 'test'
+  ...
+# Subtest: an envelope without resource is not an ask-choice UI resource
+ok 40 - an envelope without resource is not an ask-choice UI resource
+  ---
+  duration_ms: 0.065826
+  type: 'test'
+  ...
+# Subtest: a null resource is not an ask-choice UI resource
+ok 41 - a null resource is not an ask-choice UI resource
+  ---
+  duration_ms: 0.086342
+  type: 'test'
+  ...
+# Subtest: a primitive resource is not an ask-choice UI resource
+ok 42 - a primitive resource is not an ask-choice UI resource
+  ---
+  duration_ms: 0.061059
+  type: 'test'
+  ...
+# Subtest: a resource without uri is not an ask-choice UI resource
+ok 43 - a resource without uri is not an ask-choice UI resource
+  ---
+  duration_ms: 0.061655
+  type: 'test'
+  ...
+# Subtest: a non-string uri is not an ask-choice UI resource
+ok 44 - a non-string uri is not an ask-choice UI resource
+  ---
+  duration_ms: 0.057336
+  type: 'test'
+  ...
+# Subtest: a non-ui:// uri is not an ask-choice UI resource
+ok 45 - a non-ui:// uri is not an ask-choice UI resource
+  ---
+  duration_ms: 0.080328
+  type: 'test'
+  ...
+# Subtest: a resource without mimeType is not an ask-choice UI resource
+ok 46 - a resource without mimeType is not an ask-choice UI resource
+  ---
+  duration_ms: 0.099608
+  type: 'test'
+  ...
+# Subtest: a non-HTML mimeType is not an ask-choice UI resource
+ok 47 - a non-HTML mimeType is not an ask-choice UI resource
+  ---
+  duration_ms: 30.592418
+  type: 'test'
+  ...
+# Subtest: a non-string mimeType is not an ask-choice UI resource
+ok 48 - a non-string mimeType is not an ask-choice UI resource
+  ---
+  duration_ms: 0.140109
+  type: 'test'
+  ...
+# Subtest: a resource without text is not an ask-choice UI resource
+ok 49 - a resource without text is not an ask-choice UI resource
+  ---
+  duration_ms: 0.100536
+  type: 'test'
+  ...
+# Subtest: a non-string text is not an ask-choice UI resource
+ok 50 - a non-string text is not an ask-choice UI resource
+  ---
+  duration_ms: 0.05234
+  type: 'test'
+  ...
+# Subtest: a valid rendered form becomes the standard UI tool result
+ok 51 - a valid rendered form becomes the standard UI tool result
+  ---
+  duration_ms: 1.301238
+  type: 'test'
+  ...
+# Subtest: an invalid rendered form is refused with the renderer error
+ok 52 - an invalid rendered form is refused with the renderer error
+  ---
+  duration_ms: 0.554556
+  type: 'test'
+  ...

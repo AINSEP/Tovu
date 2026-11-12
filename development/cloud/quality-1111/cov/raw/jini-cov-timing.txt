@@ -28,3 +28,7 @@ plugins exit 0 78s
 plugin-fixture-provider exit 1 3s
 plugin-catalog exit 0 3s
 db exit 1 424s
+platform exit 1 81s
+oauth exit 0 21s
+desktop-host exit 1 43s
+memory exit 0 10s

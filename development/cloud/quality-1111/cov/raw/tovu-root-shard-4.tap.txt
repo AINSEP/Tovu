@@ -11640,3 +11640,15 @@ ok 1672 - old share rows without warning metadata remain acknowledged
   duration_ms: 9.255333
   type: 'test'
   ...
+# Subtest: B hard interruption allocated reconciles under locks: inSite
+ok 1673 - B hard interruption allocated reconciles under locks: inSite
+  ---
+  duration_ms: 30958.389428
+  type: 'test'
+  ...
+# Subtest: B hard interruption restored reconciles under locks: inSite
+ok 1674 - B hard interruption restored reconciles under locks: inSite
+  ---
+  duration_ms: 31633.773399
+  type: 'test'
+  ...

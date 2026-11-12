@@ -203,3 +203,316 @@ ok 5 - storage encapsulation guard
   duration_ms: 1802.120681
   type: 'suite'
   ...
+# Subtest: real Jini vanilla widget holds the turn until visitor click allow=true
+ok 6 - real Jini vanilla widget holds the turn until visitor click allow=true
+  ---
+  duration_ms: 977.033783
+  type: 'test'
+  ...
+# Subtest: real Jini vanilla widget holds the turn until visitor click allow=false
+ok 7 - real Jini vanilla widget holds the turn until visitor click allow=false
+  ---
+  duration_ms: 141.047685
+  type: 'test'
+  ...
+# Subtest: boot: an already-held port exits cleanly and names the port, instead of throwing an unhandled 'error'
+ok 8 - boot: an already-held port exits cleanly and names the port, instead of throwing an unhandled 'error'
+  ---
+  duration_ms: 39419.750198
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath joins a bare segment under /admin with no query
+ok 9 - buildAdminScreenPath joins a bare segment under /admin with no query
+  ---
+  duration_ms: 2.352506
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath strips a leading slash the caller supplied
+ok 10 - buildAdminScreenPath strips a leading slash the caller supplied
+  ---
+  duration_ms: 0.230396
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath appends ?tab= for a tabbed screen, URL-encoded
+ok 11 - buildAdminScreenPath appends ?tab= for a tabbed screen, URL-encoded
+  ---
+  duration_ms: 0.378122
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects a path that is nothing but slashes
+ok 12 - buildAdminScreenPath rejects a path that is nothing but slashes
+  ---
+  duration_ms: 0.596627
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath's rejection is a ToolInputError (400), not a bare Error (redacted 500)
+ok 13 - buildAdminScreenPath's rejection is a ToolInputError (400), not a bare Error (redacted 500)
+  ---
+  duration_ms: 0.262648
+  type: 'test'
+  ...
+# Subtest: the tool handler returns the relative path and no url when TOVU_PUBLIC_URL is unset
+ok 14 - the tool handler returns the relative path and no url when TOVU_PUBLIC_URL is unset
+  ---
+  duration_ms: 2.300963
+  type: 'test'
+  ...
+# Subtest: the tool handler includes an absolute url when TOVU_PUBLIC_URL is configured
+ok 15 - the tool handler includes an absolute url when TOVU_PUBLIC_URL is configured
+  ---
+  duration_ms: 1.15765
+  type: 'test'
+  ...
+# Subtest: the tool handler refuses a call with no path
+ok 16 - the tool handler refuses a call with no path
+  ---
+  duration_ms: 0.972621
+  type: 'test'
+  ...
+# Subtest: the tool handler refuses a non-object input
+ok 17 - the tool handler refuses a non-object input
+  ---
+  duration_ms: 13.981448
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects an unsafe screen path: ../api
+ok 18 - buildAdminScreenPath rejects an unsafe screen path: ../api
+  ---
+  duration_ms: 0.250237
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects an unsafe screen path: media?x=1
+ok 19 - buildAdminScreenPath rejects an unsafe screen path: media?x=1
+  ---
+  duration_ms: 0.205241
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects an unsafe screen path: media\#top
+ok 20 - buildAdminScreenPath rejects an unsafe screen path: media\#top
+  ---
+  duration_ms: 0.138027
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects an unsafe screen path: https://evil.example
+ok 21 - buildAdminScreenPath rejects an unsafe screen path: https://evil.example
+  ---
+  duration_ms: 0.188866
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects an unsafe screen path: %2e%2e/api
+ok 22 - buildAdminScreenPath rejects an unsafe screen path: %2e%2e/api
+  ---
+  duration_ms: 0.117073
+  type: 'test'
+  ...
+# Subtest: the tool normalizes a public origin with a trailing slash
+ok 23 - the tool normalizes a public origin with a trailing slash
+  ---
+  duration_ms: 7.673081
+  type: 'test'
+  ...
+# Subtest: an injected TOVU_PUBLIC_URL that is absent degrades to the relative path with no url
+ok 24 - an injected TOVU_PUBLIC_URL that is absent degrades to the relative path with no url
+  ---
+  duration_ms: 0.295534
+  type: 'test'
+  ...
+# Subtest: an injected TOVU_PUBLIC_URL that is blank degrades to the relative path with no url
+ok 25 - an injected TOVU_PUBLIC_URL that is blank degrades to the relative path with no url
+  ---
+  duration_ms: 0.13591
+  type: 'test'
+  ...
+# Subtest: an injected TOVU_PUBLIC_URL that is not a URL degrades to the relative path with no url
+ok 26 - an injected TOVU_PUBLIC_URL that is not a URL degrades to the relative path with no url
+  ---
+  duration_ms: 0.291624
+  type: 'test'
+  ...
+# Subtest: an injected TOVU_PUBLIC_URL that is a non-http(s) scheme degrades to the relative path with no url
+ok 27 - an injected TOVU_PUBLIC_URL that is a non-http(s) scheme degrades to the relative path with no url
+  ---
+  duration_ms: 0.175691
+  type: 'test'
+  ...
+# Subtest: an injected http (not only https) origin is accepted and joined with the path
+ok 28 - an injected http (not only https) origin is accepted and joined with the path
+  ---
+  duration_ms: 1.572778
+  type: 'test'
+  ...
+# Subtest: the no-tab fallback resolves the actual Agent Plugins route and validates the tab
+ok 29 - the no-tab fallback resolves the actual Agent Plugins route and validates the tab
+  ---
+  duration_ms: 11.490869
+  type: 'test'
+  ...
+# Subtest: a single-select question round-trips the model's own title and options, not a fixed sample
+ok 30 - a single-select question round-trips the model's own title and options, not a fixed sample
+  ---
+  duration_ms: 32.781526
+  type: 'test'
+  ...
+# Subtest: Tovuize's unchecked static opt-out submits true with empty selections and no choice
+ok 31 - Tovuize's unchecked static opt-out submits true with empty selections and no choice
+  ---
+  duration_ms: 28.967188
+  type: 'test'
+  ...
+# Subtest: a question with both fields returns both the choice and the selections
+ok 32 - a question with both fields returns both the choice and the selections
+  ---
+  duration_ms: 2.093952
+  type: 'test'
+  ...
+# Subtest: Cancel resolves the call immediately instead of stranding it until the TTL
+ok 33 - Cancel resolves the call immediately instead of stranding it until the TTL
+  ---
+  duration_ms: 1.731996
+  type: 'test'
+  ...
+# Subtest: an unanswered form returns an explicit no-answer result, not a hang or a throw
+ok 34 - an unanswered form returns an explicit no-answer result, not a hang or a throw
+  ---
+  duration_ms: 1.560831
+  type: 'test'
+  ...
+# Subtest: a cancelled run closes the exchange rather than holding the handler to the deadline
+ok 35 - a cancelled run closes the exchange rather than holding the handler to the deadline
+  ---
+  duration_ms: 0.980772
+  type: 'test'
+  ...
+# Subtest: with no emit seam the tool falls back to returning the surface, and opens no exchange
+ok 36 - with no emit seam the tool falls back to returning the surface, and opens no exchange
+  ---
+  duration_ms: 0.988336
+  type: 'test'
+  ...
+# Subtest: the fallback's second call still echoes the administrator's selections to the agent, when it carries the real ticket
+ok 37 - the fallback's second call still echoes the administrator's selections to the agent, when it carries the real ticket
+  ---
+  duration_ms: 1.094459
+  type: 'test'
+  ...
+# Subtest: a real fallback ticket refuses choices and selections outside its rendered options
+    # Subtest: {"choice":"never-offered"}
+    ok 1 - {"choice":"never-offered"}
+      ---
+      duration_ms: 1.316053
+      type: 'test'
+      ...
+    # Subtest: {"choice":"wait","selections":["never-offered"]}
+    ok 2 - {"choice":"wait","selections":["never-offered"]}
+      ---
+      duration_ms: 0.459776
+      type: 'test'
+      ...
+    # Subtest: {"selections":["never-offered"]}
+    ok 3 - {"selections":["never-offered"]}
+      ---
+      duration_ms: 0.469051
+      type: 'test'
+      ...
+    1..3
+ok 38 - a real fallback ticket refuses choices and selections outside its rendered options
+  ---
+  duration_ms: 3.398377
+  type: 'test'
+  ...
+# Subtest: a fallback ticket accepts only the choices and selections offered by its own form
+ok 39 - a fallback ticket accepts only the choices and selections offered by its own form
+  ---
+  duration_ms: 0.549243
+  type: 'test'
+  ...
+# Subtest: a fabricated second call with no ticket at all is refused, never reported as submitted
+ok 40 - a fabricated second call with no ticket at all is refused, never reported as submitted
+  ---
+  duration_ms: 0.305478
+  type: 'test'
+  ...
+# Subtest: a second call carrying an unknown ticket is refused the same way as no ticket
+ok 41 - a second call carrying an unknown ticket is refused the same way as no ticket
+  ---
+  duration_ms: 0.190469
+  type: 'test'
+  ...
+# Subtest: a ticket already redeemed once cannot be replayed
+ok 42 - a ticket already redeemed once cannot be replayed
+  ---
+  duration_ms: 0.387182
+  type: 'test'
+  ...
+# Subtest: a ticket minted for one administrator cannot be redeemed by another
+ok 43 - a ticket minted for one administrator cannot be redeemed by another
+  ---
+  duration_ms: 0.416537
+  type: 'test'
+  ...
+# Subtest: rejects a call with no title, decorated with the tool's own schema so the model can correct in one turn
+ok 44 - rejects a call with no title, decorated with the tool's own schema so the model can correct in one turn
+  ---
+  duration_ms: 0.401542
+  type: 'test'
+  ...
+# Subtest: rejects a call with neither singleSelect nor multiSelect
+ok 45 - rejects a call with neither singleSelect nor multiSelect
+  ---
+  duration_ms: 0.305813
+  type: 'test'
+  ...
+# Subtest: registers unconditionally, publishing its own catalog schema
+ok 46 - registers unconditionally, publishing its own catalog schema
+  ---
+  duration_ms: 50.644865
+  type: 'test'
+  ...
+# Subtest: normalization: real flat mingjie choice succeeds and mixed select shapes fail precisely
+ok 47 - normalization: real flat mingjie choice succeeds and mixed select shapes fail precisely
+  ---
+  duration_ms: 1033.14479
+  type: 'test'
+  ...
+# Subtest: chat-input regression: option id aliases accept descriptions and remain the actual answer values
+ok 48 - chat-input regression: option id aliases accept descriptions and remain the actual answer values
+  ---
+  duration_ms: 157.625524
+  type: 'test'
+  ...
+# Subtest: chat-input regression: conflicting option ids fail before showing a form and unknown keys list accepted properties
+ok 49 - chat-input regression: conflicting option ids fail before showing a form and unknown keys list accepted properties
+  ---
+  duration_ms: 2.078743
+  type: 'test'
+  ...
+# Subtest: normalization: fallback answer tickets survive the closed input schema and still bind answers
+ok 50 - normalization: fallback answer tickets survive the closed input schema and still bind answers
+  ---
+  duration_ms: 30.257035
+  type: 'test'
+  ...
+# Subtest: delegated normalization: human fallback tickets survive transport and remain single use
+ok 51 - delegated normalization: human fallback tickets survive transport and remain single use
+  ---
+  duration_ms: 5139.35684
+  type: 'test'
+  ...
+# Subtest: delegated normalization: flat choice travels through the bridge, waits for a real exchange answer and returns it to the model
+ok 52 - delegated normalization: flat choice travels through the bridge, waits for a real exchange answer and returns it to the model
+  ---
+  duration_ms: 26.064452
+  type: 'test'
+  ...
+# Subtest: canonical flat questions use the catalog compatibility schema and keep authenticated answers unchanged
+ok 53 - canonical flat questions use the catalog compatibility schema and keep authenticated answers unchanged
+  ---
+  duration_ms: 51.671987
+  type: 'test'
+  ...
+# Subtest: a checklist's hint is rendered with the multi-select field it describes
+ok 54 - a checklist's hint is rendered with the multi-select field it describes
+  ---
+  duration_ms: 73.699233
+  type: 'test'
+  ...

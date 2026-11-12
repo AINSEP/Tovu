@@ -185,3 +185,85 @@ stdout | src/net/__tests__/unit/address.property.unit.test.ts
  ✓ src/fs/__tests__/reviewed-file.test.ts (9 tests) 11ms
  ✓ src/fs/__tests__/directory-running-lock-stale-address.test.ts (4 tests) 7ms
  ✓ src/http/guarded/__tests__/render-rebinding.test.ts (4 tests) 15ms
+ ✓ src/net/__tests__/ssrf-regressions.test.ts (48 tests) 29ms
+ ✓ src/fs/__tests__/strict-containment.test.ts (7 tests) 3ms
+ ✓ src/__tests__/response-limit-exceeded.test.ts (5 tests) 31ms
+ ✓ src/mail/__tests__/rate-limit.test.ts (5 tests) 5ms
+ ✓ src/http/guarded/__tests__/timeouts.test.ts (4 tests) 3601ms
+   ✓ a progressing body outlives its socket idle timeout without a total deadline 1450ms
+   ✓ the legacy timeoutMs also remains a socket idle timeout 1414ms
+   ✓ an explicit total deadline cuts off even a progressing body 613ms
+ ✓ src/fs/__tests__/env-text.test.ts (8 tests) 3ms
+ ✓ src/__tests__/messages.test.ts (3 tests) 13ms
+ ✓ src/net/__tests__/endpoint-policy.boundaries.test.ts (49 tests) 27ms
+ ✓ src/mail/__tests__/purpose-gate-defaults.test.ts (8 tests) 11ms
+ ✓ src/secrets/__tests__/keyring.env.generate-errors.test.ts (6 tests) 5ms
+ ✓ src/__tests__/home-expansion.test.ts (6 tests) 19ms
+ ✓ src/mail/__tests__/delivery-observer-w2g.unit.test.ts (1 test) 13ms
+ ✓ src/mail/__tests__/smtp.f1-classify.test.ts (17 tests) 19ms
+ ✓ src/__tests__/entry-barrels.test.ts (3 tests) 18ms
+ ✓ src/secrets/__tests__/sealing-wire-format.pinned.test.ts (3 tests) 10ms
+ ✓ src/net/__tests__/endpoint-policy.f1-expand.test.ts (27 tests) 11ms
+ ✓ src/mail/__tests__/provider-setup.test.ts (3 tests) 9ms
+ ✓ src/web/__tests__/strip-html-presentation.test.ts (3 tests) 28ms
+ ✓ src/secrets/__tests__/envelope-validation-w2g.unit.test.ts (6 tests) 8ms
+ ✓ src/object-store/__tests__/descriptors.test.ts (2 tests) 6ms
+ ✓ src/__tests__/response-cleanup-w2g.unit.test.ts (4 tests) 9ms
+ ✓ src/__tests__/unit/download-reuse-m2.unit.test.ts (2 tests) 129ms
+ ✓ src/mail/__tests__/resolver-defaults-w2g.unit.test.ts (2 tests) 8ms
+ ✓ src/net/__tests__/loopback-hostname.test.ts (6 tests) 35ms
+ ✓ src/net/__tests__/local-probe-tls.test.ts (2 tests) 7ms
+ ✓ src/secrets/__tests__/site-key-exports.test.ts (2 tests) 6ms
+ ✓ src/__tests__/shell-path.unit.test.ts (1 test) 5ms
+ ✓ src/fs/__tests__/file-digest.test.ts (1 test) 8ms
+ ✓ src/net/__tests__/local-http-request.test.ts (2 tests) 190ms
+ ✓ src/__tests__/validating-lookup.hostile.test.ts (4 tests) 10ms
+ ✓ src/mail/__tests__/delivery-availability.test.ts (1 test) 3ms
+ ✓ src/__tests__/http.test.ts (2 tests) 163ms
+ ✓ src/__tests__/http-custom-probe.test.ts (2 tests) 320ms
+ ✓ src/__tests__/windows-system-tools.test.ts (3 tests) 3ms
+ ✓ src/secrets/__tests__/passphrase-envelope.f1-kdf-error.test.ts (1 test) 24ms
+ ✓ src/__tests__/source-boundaries.test.ts (1 test) 35ms
+ ✓ src/secrets/__tests__/aad.unit.test.ts (1 test) 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/secrets/__tests__/exports.test.ts > retains published subpaths and declares adapter dependencies as optional peers
+AssertionError: expected { '@jini-ai/core': '^0.7.1', …(1) } to deeply equal { '@jini-ai/core': '^0.6.13', …(1) }
+
+- Expected
++ Received
+
+  Object {
+-   "@jini-ai/core": "^0.6.13",
++   "@jini-ai/core": "^0.7.1",
+    "undici": "^7.25.0",
+  }
+
+ ❯ src/secrets/__tests__/exports.test.ts:19:35
+     17|     // 5e48b4f: undici is a production dependency — the default asset-…
+     18|     // with no optional-peer branch (README, docs/spec/api.spec.md); o…
+     19|     expect(manifest.dependencies).toEqual({ "@jini-ai/core": "^0.6.13"…
+       |                                   ^
+     20|     expect(manifest.devDependencies.undici).toBe("^7.25.0");
+     21|     const adapterPeers = { parse5: "7.3.0", "hast-util-from-parse5": "…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 162 passed (163)
+      Tests  1 failed | 3260 passed | 6 skipped (3267)
+   Start at  01:08:57
+   Duration  79.39s (transform 5.81s, setup 0ms, collect 16.87s, tests 64.68s, environment 52ms, prepare 19.35s)
+
+JSON report written to /tmp/claude-0/cov/jini/platform.results.json
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.43% ( 8901/8952 )
+Branches     : 98.95% ( 5790/5851 )
+Functions    : 99.11% ( 1233/1244 )
+Lines        : 99.43% ( 8901/8952 )
+================================================================================
+ERROR: Coverage for functions (99.11%) does not meet global threshold (100%)
+ERROR: Coverage for branches (98.95%) does not meet global threshold (99%)
+platform exit 1 81s

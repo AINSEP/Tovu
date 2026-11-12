@@ -1,0 +1,39 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/memory
+      Coverage enabled with v8
+
+ ✓ src/__tests__/llm-provider.test.ts (66 tests) 68ms
+ ✓ src/__tests__/verify.test.ts (34 tests) 27ms
+ ✓ src/__tests__/extract-facts.test.ts (21 tests) 97ms
+ ✓ src/__tests__/extraction-log.test.ts (23 tests) 21ms
+ ✓ src/__tests__/note-store.test.ts (67 tests) 2216ms
+   ✓ createNoteStore > buildTree > produces one folder node per configured type plus one entry node per stored entry 432ms
+ ✓ src/__tests__/llm-provider.l088.characterization.test.ts (34 tests) 64ms
+ ✓ src/__tests__/note-store.containment.test.ts (24 tests) 215ms
+ ✓ src/__tests__/extract-facts.l088.characterization.test.ts (13 tests) 62ms
+ ✓ src/__tests__/note-store-helpers.test.ts (19 tests) 20ms
+ ✓ src/__tests__/f3-parsing-boundaries.test.ts (32 tests) 61ms
+ ✓ src/__tests__/vendor-catalog.test.ts (5 tests) 72ms
+ ✓ src/__tests__/verify.l088.characterization.test.ts (24 tests) 23ms
+ ✓ src/__tests__/verify.f3-boundaries.test.ts (21 tests) 19ms
+ ✓ src/__tests__/rule-body.test.ts (10 tests) 37ms
+ ✓ src/__tests__/entry-frontmatter.test.ts (6 tests) 34ms
+ ✓ src/__tests__/integration-ports.test.ts (2 tests) 156ms
+ ✓ src/__tests__/rule-body.l088.characterization.test.ts (7 tests) 16ms
+ ✓ src/__tests__/index.test.ts (1 test) 3ms
+JSON report written to /tmp/claude-0/cov/jini/memory.results.json
+
+ Test Files  18 passed (18)
+      Tests  409 passed (409)
+   Start at  01:10:39
+   Duration  7.60s (transform 820ms, setup 0ms, collect 1.94s, tests 3.21s, environment 4ms, prepare 2.34s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 1113/1113 )
+Branches     : 100% ( 554/554 )
+Functions    : 100% ( 123/123 )
+Lines        : 100% ( 1113/1113 )
+================================================================================
+memory exit 0 10s

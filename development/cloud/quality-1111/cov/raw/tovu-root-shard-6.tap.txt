@@ -78,3 +78,762 @@ ok 8 - encoded executable links and GFM footnotes cannot introduce active links 
   duration_ms: 64.282271
   type: 'test'
   ...
+# Subtest: boot preserves non-EADDRINUSE listen errors and never reports a successful exit
+ok 9 - boot preserves non-EADDRINUSE listen errors and never reports a successful exit
+  ---
+  duration_ms: 203.017946
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port exports exactly the documented runtime surface, no more and no less
+ok 10 - agent-daemon-port exports exactly the documented runtime surface, no more and no less
+  ---
+  duration_ms: 132.651001
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.listAssistantAgents is the owning module's own binding, defined and unwrapped
+ok 11 - agent-daemon-port.listAssistantAgents is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 2.480594
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.rescanAssistantAgents is the owning module's own binding, defined and unwrapped
+ok 12 - agent-daemon-port.rescanAssistantAgents is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.153025
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createCustomInstructionsCache is the owning module's own binding, defined and unwrapped
+ok 13 - agent-daemon-port.createCustomInstructionsCache is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.07655
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.DELEGATED_TOOL_CALLS_PATH is the owning module's own binding, defined and unwrapped
+ok 14 - agent-daemon-port.DELEGATED_TOOL_CALLS_PATH is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.082098
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.requireAgentDaemonToken is the owning module's own binding, defined and unwrapped
+ok 15 - agent-daemon-port.requireAgentDaemonToken is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.054769
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.AGENT_DAEMON_EXIT_CODE is the owning module's own binding, defined and unwrapped
+ok 16 - agent-daemon-port.AGENT_DAEMON_EXIT_CODE is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.063618
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.FRONTEND_CONTROL_CAPABILITIES is the owning module's own binding, defined and unwrapped
+ok 17 - agent-daemon-port.FRONTEND_CONTROL_CAPABILITIES is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.054868
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withReadOnlyFrontendCapabilities is the owning module's own binding, defined and unwrapped
+ok 18 - agent-daemon-port.withReadOnlyFrontendCapabilities is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.074465
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.attachFederatedMcpTools is the owning module's own binding, defined and unwrapped
+ok 19 - agent-daemon-port.attachFederatedMcpTools is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.078822
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createFederationReloadCoordinator is the owning module's own binding, defined and unwrapped
+ok 20 - agent-daemon-port.createFederationReloadCoordinator is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.052609
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createLiveToolCatalogQuery is the owning module's own binding, defined and unwrapped
+ok 21 - agent-daemon-port.createLiveToolCatalogQuery is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.131638
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildFederatedRefusalPrefix is the owning module's own binding, defined and unwrapped
+ok 22 - agent-daemon-port.buildFederatedRefusalPrefix is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.052889
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withFederatedRefusalDiagnosis is the owning module's own binding, defined and unwrapped
+ok 23 - agent-daemon-port.withFederatedRefusalDiagnosis is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.359967
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.readEnabledExternalMcpConfigs is the owning module's own binding, defined and unwrapped
+ok 24 - agent-daemon-port.readEnabledExternalMcpConfigs is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.445691
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.toResolvedFederatedConnections is the owning module's own binding, defined and unwrapped
+ok 25 - agent-daemon-port.toResolvedFederatedConnections is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.093962
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createDeviceAuthorizationStore is the owning module's own binding, defined and unwrapped
+ok 26 - agent-daemon-port.createDeviceAuthorizationStore is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.05358
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createExternalMcpConnectionGate is the owning module's own binding, defined and unwrapped
+ok 27 - agent-daemon-port.createExternalMcpConnectionGate is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.293954
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createExternalMcpOAuthService is the owning module's own binding, defined and unwrapped
+ok 28 - agent-daemon-port.createExternalMcpOAuthService is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.051935
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.registerA2uiActionsRoute is the owning module's own binding, defined and unwrapped
+ok 29 - agent-daemon-port.registerA2uiActionsRoute is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.043504
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.registerMcpUiToolCallsRoute is the owning module's own binding, defined and unwrapped
+ok 30 - agent-daemon-port.registerMcpUiToolCallsRoute is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.034609
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.resolveMcpJsonInjection is the owning module's own binding, defined and unwrapped
+ok 31 - agent-daemon-port.resolveMcpJsonInjection is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.035106
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createOwnedRunListHandler is the owning module's own binding, defined and unwrapped
+ok 32 - agent-daemon-port.createOwnedRunListHandler is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.031648
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createRunOwnerRegistry is the owning module's own binding, defined and unwrapped
+ok 33 - agent-daemon-port.createRunOwnerRegistry is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.110832
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.requireRunOwnership is the owning module's own binding, defined and unwrapped
+ok 34 - agent-daemon-port.requireRunOwnership is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.041741
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.RUN_PRINCIPAL_HEADER is the owning module's own binding, defined and unwrapped
+ok 35 - agent-daemon-port.RUN_PRINCIPAL_HEADER is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.033027
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.parseRunStartContextRef is the owning module's own binding, defined and unwrapped
+ok 36 - agent-daemon-port.parseRunStartContextRef is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.030365
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildPageContextPromptBlock is the owning module's own binding, defined and unwrapped
+ok 37 - agent-daemon-port.buildPageContextPromptBlock is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.028776
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildComponentCatalogQuery is the owning module's own binding, defined and unwrapped
+ok 38 - agent-daemon-port.buildComponentCatalogQuery is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.865051
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.chartCatalogManifests is the owning module's own binding, defined and unwrapped
+ok 39 - agent-daemon-port.chartCatalogManifests is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.094759
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildToolCatalogQuery is the owning module's own binding, defined and unwrapped
+ok 40 - agent-daemon-port.buildToolCatalogQuery is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.053173
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.listToolCatalogEntries is the owning module's own binding, defined and unwrapped
+ok 41 - agent-daemon-port.listToolCatalogEntries is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.041104
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withToolAttemptAudit is the owning module's own binding, defined and unwrapped
+ok 42 - agent-daemon-port.withToolAttemptAudit is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.073085
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withToolFailureRecovery is the owning module's own binding, defined and unwrapped
+ok 43 - agent-daemon-port.withToolFailureRecovery is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.028551
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.constrainPrincipalToReadOnlyTools is the owning module's own binding, defined and unwrapped
+ok 44 - agent-daemon-port.constrainPrincipalToReadOnlyTools is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.030768
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withReadOnlyToolConstraint is the owning module's own binding, defined and unwrapped
+ok 45 - agent-daemon-port.withReadOnlyToolConstraint is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.031542
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createAssistantToolExecutor is the owning module's own binding, defined and unwrapped
+ok 46 - agent-daemon-port.createAssistantToolExecutor is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.02544
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID is the owning module's own binding, defined and unwrapped
+ok 47 - agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.022303
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID is the owning module's own binding, defined and unwrapped
+ok 48 - agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.021744
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withToolCatalogAudit is the owning module's own binding, defined and unwrapped
+ok 49 - agent-daemon-port.withToolCatalogAudit is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.03872
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildAssistantToolRegistrations is the owning module's own binding, defined and unwrapped
+ok 50 - agent-daemon-port.buildAssistantToolRegistrations is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.025168
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.askAgentPluginChoice is the owning module's own binding, defined and unwrapped
+ok 51 - agent-daemon-port.askAgentPluginChoice is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.025171
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.applyToolApprovalPolicy is the owning module's own binding, defined and unwrapped
+ok 52 - agent-daemon-port.applyToolApprovalPolicy is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.06307
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createAssistantAgentInventory is the owning module's own binding, defined and unwrapped
+ok 53 - agent-daemon-port.createAssistantAgentInventory is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.045983
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.attachAssistantToolExtensions is the owning module's own binding, defined and unwrapped
+ok 54 - agent-daemon-port.attachAssistantToolExtensions is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.030053
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createStoredExternalMcpConnectionSource is the owning module's own binding, defined and unwrapped
+ok 55 - agent-daemon-port.createStoredExternalMcpConnectionSource is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.027171
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildExternalMcpFederationDeps is the owning module's own binding, defined and unwrapped
+ok 56 - agent-daemon-port.buildExternalMcpFederationDeps is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.024853
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.onExternalMcpRosterChanged is the owning module's own binding, defined and unwrapped
+ok 57 - agent-daemon-port.onExternalMcpRosterChanged is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.02466
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.notifyExternalMcpRosterChanged is the owning module's own binding, defined and unwrapped
+ok 58 - agent-daemon-port.notifyExternalMcpRosterChanged is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.02341
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.agentCarriesOwnMemory is the owning module's own binding, defined and unwrapped
+ok 59 - agent-daemon-port.agentCarriesOwnMemory is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.02417
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.extractSessionRefFromEndEvent is the owning module's own binding, defined and unwrapped
+ok 60 - agent-daemon-port.extractSessionRefFromEndEvent is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.021503
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.resolveResumeSessionField is the owning module's own binding, defined and unwrapped
+ok 61 - agent-daemon-port.resolveResumeSessionField is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.020727
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.shouldClearSessionOnFailedResume is the owning module's own binding, defined and unwrapped
+ok 62 - agent-daemon-port.shouldClearSessionOnFailedResume is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.022555
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.wouldForcedColdStartLoseConversationContext is the owning module's own binding, defined and unwrapped
+ok 63 - agent-daemon-port.wouldForcedColdStartLoseConversationContext is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.02252
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.CONCURRENT_RUN_REFUSAL_MESSAGE is the owning module's own binding, defined and unwrapped
+ok 64 - agent-daemon-port.CONCURRENT_RUN_REFUSAL_MESSAGE is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.119993
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createLiveRunTracker is the owning module's own binding, defined and unwrapped
+ok 65 - agent-daemon-port.createLiveRunTracker is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.03079
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.failRunBeforeStart is the owning module's own binding, defined and unwrapped
+ok 66 - agent-daemon-port.failRunBeforeStart is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.028286
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.STOPPING_RUN_WAIT_MS is the owning module's own binding, defined and unwrapped
+ok 67 - agent-daemon-port.STOPPING_RUN_WAIT_MS is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.024343
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.waitForStoppingRuns is the owning module's own binding, defined and unwrapped
+ok 68 - agent-daemon-port.waitForStoppingRuns is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.022301
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.agentAcceptsHostMintedSessionId is the owning module's own binding, defined and unwrapped
+ok 69 - agent-daemon-port.agentAcceptsHostMintedSessionId is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.021311
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.resolveHostMintedSessionId is the owning module's own binding, defined and unwrapped
+ok 70 - agent-daemon-port.resolveHostMintedSessionId is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.023213
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.resolveNewSessionField is the owning module's own binding, defined and unwrapped
+ok 71 - agent-daemon-port.resolveNewSessionField is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.027162
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createConversationStartLock is the owning module's own binding, defined and unwrapped
+ok 72 - agent-daemon-port.createConversationStartLock is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.022666
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.readChatPermanentDeletesPolicy is the owning module's own binding, defined and unwrapped
+ok 73 - agent-daemon-port.readChatPermanentDeletesPolicy is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.684242
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createChatDeleteScope is the owning module's own binding, defined and unwrapped
+ok 74 - agent-daemon-port.createChatDeleteScope is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.072962
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.ALL_CHAT_DELETE_TOOLS is the owning module's own binding, defined and unwrapped
+ok 75 - agent-daemon-port.ALL_CHAT_DELETE_TOOLS is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.034657
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.readAssistantCliPermissions is the owning module's own binding, defined and unwrapped
+ok 76 - agent-daemon-port.readAssistantCliPermissions is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.030485
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createLostFrontendBindings is the owning module's own binding, defined and unwrapped
+ok 77 - agent-daemon-port.createLostFrontendBindings is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.02892
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withPageNavigateErrorRewrap is the owning module's own binding, defined and unwrapped
+ok 78 - agent-daemon-port.withPageNavigateErrorRewrap is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.297586
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.delegatedToolErrorDisclosure is the owning module's own binding, defined and unwrapped
+ok 79 - agent-daemon-port.delegatedToolErrorDisclosure is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.060877
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createRunActiveContextStore is the owning module's own binding, defined and unwrapped
+ok 80 - agent-daemon-port.createRunActiveContextStore is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.039406
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.registerRunActiveContextRoute is the owning module's own binding, defined and unwrapped
+ok 81 - agent-daemon-port.registerRunActiveContextRoute is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.026095
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createRunScopedCredentials is the owning module's own binding, defined and unwrapped
+ok 82 - agent-daemon-port.createRunScopedCredentials is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.029586
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: owner input with title and flat option IDs renders and answers the intended card
+ok 83 - typed MCP + gate: owner input with title and flat option IDs renders and answers the intended card
+  ---
+  duration_ms: 695.386063
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: owner input with question, a distinct title and flat option IDs renders and answers the intended card
+ok 84 - typed MCP + gate: owner input with question, a distinct title and flat option IDs renders and answers the intended card
+  ---
+  duration_ms: 107.199159
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: owner input with question and label-only options with descriptions renders and answers the intended card
+ok 85 - typed MCP + gate: owner input with question and label-only options with descriptions renders and answers the intended card
+  ---
+  duration_ms: 99.475671
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: flat multiple flag and explicit label render a checklist and retain its answer values
+ok 86 - typed MCP + gate: flat multiple flag and explicit label render a checklist and retain its answer values
+  ---
+  duration_ms: 12.167661
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: an explicit false multiple flag renders radios using the question as label
+ok 87 - typed MCP + gate: an explicit false multiple flag renders radios using the question as label
+  ---
+  duration_ms: 284.804009
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: nested singleSelect renders descriptions and retains IDs and label-default answer values
+ok 88 - typed MCP + gate: nested singleSelect renders descriptions and retains IDs and label-default answer values
+  ---
+  duration_ms: 2.421571
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: nested multiSelect renders descriptions and retains IDs and label-default answer values
+ok 89 - typed MCP + gate: nested multiSelect renders descriptions and retains IDs and label-default answer values
+  ---
+  duration_ms: 2.017535
+  type: 'test'
+  ...
+# Subtest: typed MCP refuses malformed options, flags, unknown keys and model-authored answers before entering the gate
+ok 90 - typed MCP refuses malformed options, flags, unknown keys and model-authored answers before entering the gate
+  ---
+  duration_ms: 12.124258
+  type: 'test'
+  ...
+# Subtest: typed MCP passes declared aliases but the gate refuses conflicting IDs and mixed select shapes
+ok 91 - typed MCP passes declared aliases but the gate refuses conflicting IDs and mixed select shapes
+  ---
+  duration_ms: 3.227506
+  type: 'test'
+  ...
+# Subtest: the gate rejects malformed flat fields before normalization can discard them
+ok 92 - the gate rejects malformed flat fields before normalization can discard them
+  ---
+  duration_ms: 0.971897
+  type: 'test'
+  ...
+# Subtest: createRequestSuppliedExecutionCredentialPort resolves a valid request-supplied config
+ok 93 - createRequestSuppliedExecutionCredentialPort resolves a valid request-supplied config
+  ---
+  duration_ms: 6.954653
+  type: 'test'
+  ...
+# Subtest: createRequestSuppliedExecutionCredentialPort never reads a store — a missing apiKey resolves to null regardless of identity
+ok 94 - createRequestSuppliedExecutionCredentialPort never reads a store — a missing apiKey resolves to null regardless of identity
+  ---
+  duration_ms: 0.254511
+  type: 'test'
+  ...
+# Subtest: a request-supplied credential wins even when a stored one exists
+ok 95 - a request-supplied credential wins even when a stored one exists
+  ---
+  duration_ms: 11.89774
+  type: 'test'
+  ...
+# Subtest: falls back to the stored credential when the request omits apiKey
+ok 96 - falls back to the stored credential when the request omits apiKey
+  ---
+  duration_ms: 7.757229
+  type: 'test'
+  ...
+# Subtest: falls back to stored when the request supplies an empty apiKey (not just an omitted one)
+ok 97 - falls back to stored when the request supplies an empty apiKey (not just an omitted one)
+  ---
+  duration_ms: 5.49995
+  type: 'test'
+  ...
+# Subtest: resolves null when neither the request nor the stored row has a usable credential
+ok 98 - resolves null when neither the request nor the stored row has a usable credential
+  ---
+  duration_ms: 0.654931
+  type: 'test'
+  ...
+# Subtest: a stored row with no model set is treated as unusable, not returned with model missing
+ok 99 - a stored row with no model set is treated as unusable, not returned with model missing
+  ---
+  duration_ms: 1.778879
+  type: 'test'
+  ...
+# Subtest: a decrypt failure on the stored row degrades to null, it does not throw
+ok 100 - a decrypt failure on the stored row degrades to null, it does not throw
+  ---
+  duration_ms: 3.299748
+  type: 'test'
+  ...
+# Subtest: resolves the OTHER admin's stored row when that principal id is passed — proves the port is identity-scoped, not global
+ok 101 - resolves the OTHER admin's stored row when that principal id is passed — proves the port is identity-scoped, not global
+  ---
+  duration_ms: 6.135664
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with an unknown protocol is not a usable credential
+ok 102 - a request-supplied config with an unknown protocol is not a usable credential
+  ---
+  duration_ms: 0.236787
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with a non-string protocol is not a usable credential
+ok 103 - a request-supplied config with a non-string protocol is not a usable credential
+  ---
+  duration_ms: 0.076285
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with a blank apiKey is not a usable credential
+ok 104 - a request-supplied config with a blank apiKey is not a usable credential
+  ---
+  duration_ms: 0.059167
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with a non-string apiKey is not a usable credential
+ok 105 - a request-supplied config with a non-string apiKey is not a usable credential
+  ---
+  duration_ms: 0.546142
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with a missing model is not a usable credential
+ok 106 - a request-supplied config with a missing model is not a usable credential
+  ---
+  duration_ms: 0.160113
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with a blank model is not a usable credential
+ok 107 - a request-supplied config with a blank model is not a usable credential
+  ---
+  duration_ms: 0.047365
+  type: 'test'
+  ...
+# Subtest: a request-supplied baseUrl and positive maxTokens are carried; blank/non-positive ones are dropped
+ok 108 - a request-supplied baseUrl and positive maxTokens are carried; blank/non-positive ones are dropped
+  ---
+  duration_ms: 5.593804
+  type: 'test'
+  ...
+# Subtest: a stored row with no baseUrl and no maxTokens resolves without those keys
+ok 109 - a stored row with no baseUrl and no maxTokens resolves without those keys
+  ---
+  duration_ms: 1.669925
+  type: 'test'
+  ...
+# Subtest: a stored row whose protocol this adapter cannot dispatch is treated as unusable
+ok 110 - a stored row whose protocol this adapter cannot dispatch is treated as unusable
+  ---
+  duration_ms: 4.497445
+  type: 'test'
+  ...
+# Subtest: cold and repeated requests return immediately while one background probe runs
+ok 111 - cold and repeated requests return immediately while one background probe runs
+  ---
+  duration_ms: 385.964328
+  type: 'test'
+  ...
+# Subtest: Rescan queues one forced refresh behind an in-flight probe and keeps the previous value
+ok 112 - Rescan queues one forced refresh behind an in-flight probe and keeps the previous value
+  ---
+  duration_ms: 39.582666
+  type: 'test'
+  ...
+# Subtest: failed background probes retain the cache and require an explicit Rescan to retry
+ok 113 - failed background probes retain the cache and require an explicit Rescan to retry
+  ---
+  duration_ms: 1.358465
+  type: 'test'
+  ...
+# Subtest: initial rejection retains the snapshot and retries after the supplied cooldown
+ok 114 - initial rejection retains the snapshot and retries after the supplied cooldown
+  ---
+  duration_ms: 49.849977
+  type: 'test'
+  ...
+# Subtest: post-expiry rejection retains the snapshot and retries after the supplied cooldown
+ok 115 - post-expiry rejection retains the snapshot and retries after the supplied cooldown
+  ---
+  duration_ms: 0.995761
+  type: 'test'
+  ...
+# Subtest: offline-fallback inventory refreshes lazily at its catalog expiry
+ok 116 - offline-fallback inventory refreshes lazily at its catalog expiry
+  ---
+  duration_ms: 17.983342
+  type: 'test'
+  ...
+# Subtest: fresh inventory refreshes lazily at its catalog expiry
+ok 117 - fresh inventory refreshes lazily at its catalog expiry
+  ---
+  duration_ms: 19.077178
+  type: 'test'
+  ...
+# Subtest: TW3 content cards preserve single get, single list, list lookup and paired dispatch
+ok 118 - TW3 content cards preserve single get, single list, list lookup and paired dispatch
+  ---
+  duration_ms: 8.124678
+  type: 'test'
+  ...
+# Subtest: TW3 unavailable paired cards leave the original registration and handler intact
+ok 119 - TW3 unavailable paired cards leave the original registration and handler intact
+  ---
+  duration_ms: 0.408112
+  type: 'test'
+  ...
+# Subtest: TW3 schema-less single readers retain the empty schema fallback
+ok 120 - TW3 schema-less single readers retain the empty schema fallback
+  ---
+  duration_ms: 0.904384
+  type: 'test'
+  ...
+# Subtest: TW3 a list-lookup member that returns a non-object is a shape drift, not a miss
+ok 121 - TW3 a list-lookup member that returns a non-object is a shape drift, not a miss
+  ---
+  duration_ms: 2.070939
+  type: 'test'
+  ...
+# Subtest: TW3 a list-lookup skips non-record items rather than matching through them
+ok 122 - TW3 a list-lookup skips non-record items rather than matching through them
+  ---
+  duration_ms: 0.782374
+  type: 'test'
+  ...
+# Subtest: TW3 paired members without schema properties still dispatch by id presence, and a non-object input lists
+ok 123 - TW3 paired members without schema properties still dispatch by id presence, and a non-object input lists
+  ---
+  duration_ms: 0.876796
+  type: 'test'
+  ...
+# Subtest: TW3 a lookup card over a list with no schema properties still publishes its id selector
+ok 124 - TW3 a lookup card over a list with no schema properties still publishes its id selector
+  ---
+  duration_ms: 0.667464
+  type: 'test'
+  ...
+# Subtest: TW3 a reader schema with required fields but no properties is canonicalized to the id selector
+ok 125 - TW3 a reader schema with required fields but no properties is canonicalized to the id selector
+  ---
+  duration_ms: 1.067236
+  type: 'test'
+  ...
+# Subtest: credential queries discover executable ids in the full production catalog after the read collapse
+ok 126 - credential queries discover executable ids in the full production catalog after the read collapse
+  ---
+  duration_ms: 2125.648035
+  type: 'test'
+  ...
+# Subtest: 'what credentials do I have saved' finds custom_credential_list in the top 3
+ok 127 - 'what credentials do I have saved' finds custom_credential_list in the top 3
+  ---
+  duration_ms: 15.148841
+  type: 'test'
+  ...
+# Subtest: 'list my API keys' and 'what tokens do I have' both find custom_credential_list
+ok 128 - 'list my API keys' and 'what tokens do I have' both find custom_credential_list
+  ---
+  duration_ms: 2.402096
+  type: 'test'
+  ...
+# Subtest: 'do I have a registrar token' and 'what did I save for my hosting provider' both find custom_credential_list
+ok 129 - 'do I have a registrar token' and 'what did I save for my hosting provider' both find custom_credential_list
+  ---
+  duration_ms: 47.641282
+  type: 'test'
+  ...
+# Subtest: 'call an external API with my saved token' finds custom_credential_make_request in the top 3
+ok 130 - 'call an external API with my saved token' finds custom_credential_make_request in the top 3
+  ---
+  duration_ms: 2.420903
+  type: 'test'
+  ...
+# Subtest: 'make a request to an external service' and 'hit a third-party API with my saved credential' both find custom_credential_make_request
+ok 131 - 'make a request to an external service' and 'hit a third-party API with my saved credential' both find custom_credential_make_request
+  ---
+  duration_ms: 66.084785
+  type: 'test'
+  ...
+# Subtest: 'check if my token works' and 'is this API key still valid' both find custom_credential_verify
+ok 132 - 'check if my token works' and 'is this API key still valid' both find custom_credential_verify
+  ---
+  duration_ms: 38.003543
+  type: 'test'
+  ...
+# Subtest: vendor-shaped vocabulary (DNS, registrar, hosting, deployment provider, third-party API) finds all three custom-credential tools somewhere in the results
+ok 133 - vendor-shaped vocabulary (DNS, registrar, hosting, deployment provider, third-party API) finds all three custom-credential tools somewhere in the results
+  ---
+  duration_ms: 40.287464
+  type: 'test'
+  ...
+# Subtest: the unrelated distractors never outrank custom_credential_list for a credential-shaped query
+ok 134 - the unrelated distractors never outrank custom_credential_list for a credential-shaped query
+  ---
+  duration_ms: 11.755
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}

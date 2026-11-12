@@ -26780,3 +26780,169 @@ ok 2847 - site profile route: an unexpected failure while building the profile i
 # [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
 #     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
 # {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: taxonomy mergeTerm: plan -> confirm -> execute succeeds end-to-end and repoints entry_terms
+ok 2848 - taxonomy mergeTerm: plan -> confirm -> execute succeeds end-to-end and repoints entry_terms
+  ---
+  duration_ms: 2428.493561
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: taxonomy mergeTerm: a stale plan (overlap count changed between confirm and execute) is rejected PLAN_STALE
+ok 2849 - taxonomy mergeTerm: a stale plan (overlap count changed between confirm and execute) is rejected PLAN_STALE
+  ---
+  duration_ms: 991.748626
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: taxonomy mergeTerm: replaying an already-redeemed confirmation token is rejected TOKEN_ALREADY_REDEEMED
+ok 2850 - taxonomy mergeTerm: replaying an already-redeemed confirmation token is rejected TOKEN_ALREADY_REDEEMED
+  ---
+  duration_ms: 1554.4589
+  type: 'test'
+  ...
+# Subtest: taxonomy mergeTerm: each step rejects a missing or non-string body field with 400 before any gateway call
+ok 2851 - taxonomy mergeTerm: each step rejects a missing or non-string body field with 400 before any gateway call
+  ---
+  duration_ms: 488.911256
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: taxonomy mergeTerm: merging a term into itself is rejected 400 SAME_TERM_MERGE
+ok 2852 - taxonomy mergeTerm: merging a term into itself is rejected 400 SAME_TERM_MERGE
+  ---
+  duration_ms: 891.627836
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: taxonomy mergeTerm: a caller without admin.taxonomy.manage is refused 403 with the gateway's reason code
+ok 2853 - taxonomy mergeTerm: a caller without admin.taxonomy.manage is refused 403 with the gateway's reason code
+  ---
+  duration_ms: 1381.534251
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: taxonomy mergeTerm: an expired confirmation token is rejected 409 TOKEN_EXPIRED
+ok 2854 - taxonomy mergeTerm: an expired confirmation token is rejected 409 TOKEN_EXPIRED
+  ---
+  duration_ms: 1223.826007
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# [admin-route] {
+#   errorId: '3d42e409-23ee-4dfe-b51a-05fd6be19ccd',
+#   diagnostic: 'storage offline'
+# }
+# [admin-route] {
+#   errorId: 'e88f3a01-6a57-47a3-a005-6a5065c13495',
+#   diagnostic: 'authz offline'
+# }
+# [admin-route] {
+#   errorId: '115dee12-c351-4566-8b69-7cffe3304e38',
+#   diagnostic: 'authz offline'
+# }
+# [admin-route] {
+#   errorId: '551e7b92-689b-4efd-a5ba-b06a57317945',
+#   diagnostic: 'Error: getAuthedPrincipal: no principal on res.locals — requireAdminSession must run before this route\\n' +
+#     '    at getAuthedPrincipal (/home/user/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:320:11)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts:41:25)\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/taxonomy-merge-term-routes.test.ts:280:67)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:227:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1402:25)\\n' +
+#     '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1542:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1467:12)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# [admin-route] {
+#   errorId: '93bc1517-6642-46d3-8ab2-5dd02f3608c1',
+#   diagnostic: 'Error: getAuthedPrincipal: no principal on res.locals — requireAdminSession must run before this route\\n' +
+#     '    at getAuthedPrincipal (/home/user/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:320:11)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts:85:25)\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/taxonomy-merge-term-routes.test.ts:280:67)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# [admin-route] {
+#   errorId: 'b915dcae-b39f-46fb-8986-6aefdd3b9920',
+#   diagnostic: 'Error: getAuthedPrincipal: no principal on res.locals — requireAdminSession must run before this route\\n' +
+#     '    at getAuthedPrincipal (/home/user/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:320:11)\\n' +
+#     '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts:127:25)\\n' +
+#     '    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/taxonomy-merge-term-routes.test.ts:280:67)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1409:7)\\n' +
+#     '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+# }
+# Subtest: taxonomy mergeTerm: a non-Error failure in any step returns a generic 500 INTERNAL_ERROR
+ok 2855 - taxonomy mergeTerm: a non-Error failure in any step returns a generic 500 INTERNAL_ERROR
+  ---
+  duration_ms: 842.369356
+  type: 'test'
+  ...
+# Subtest: taxonomy mergeTerm: an Error thrown by a step keeps its message on the 500 (no authenticated principal)
+ok 2856 - taxonomy mergeTerm: an Error thrown by a step keeps its message on the 500 (no authenticated principal)
+  ---
+  duration_ms: 819.563952
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a failed chat is reported once with its code and public error id, never the request
+ok 2857 - a failed chat is reported once with its code and public error id, never the request
+  ---
+  duration_ms: 1494.031271
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a visitor-caused answer is logged but not reported
+ok 2858 - a visitor-caused answer is logged but not reported
+  ---
+  duration_ms: 852.159612
+  type: 'test'
+  ...
+# [plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+#     at performPluginAttachment (/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts:536:13)
+# {"pluginId":"charts-recharts","reason":"INTEGRITY_FAILED"}
+# Subtest: a form notification is sent from the site's configured sender, read for the submission's workspace
+ok 2859 - a form notification is sent from the site's configured sender, read for the submission's workspace
+  ---
+  duration_ms: 59.616965
+  type: 'test'
+  ...
+# Subtest: without a composed resolver a non-delivering mailer keeps the no-reply@forms.local placeholder
+ok 2860 - without a composed resolver a non-delivering mailer keeps the no-reply@forms.local placeholder
+  ---
+  duration_ms: 21.354826
+  type: 'test'
+  ...
+# Subtest: a delivering mailer with no sender sends nothing and the refusal is logged by the subscriber
+ok 2861 - a delivering mailer with no sender sends nothing and the refusal is logged by the subscriber
+  ---
+  duration_ms: 19.061423
+  type: 'test'
+  ...
+# Subtest: a provider's { ok: false } result is logged with its message alone
+ok 2862 - a provider's { ok: false } result is logged with its message alone
+  ---
+  duration_ms: 4.056753
+  type: 'test'
+  ...
