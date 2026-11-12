@@ -1,0 +1,16 @@
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 7482 files tracked by git with 410 Code rules:
+                                                                                                                        
+  Language      Rules   Files          Origin   Rules                                                                   
+ ─────────────────────────────        ────────────────                                                                  
+  <multilang>      62    3709          Custom     410                                                                   
+  ts              301    3462                                                                                           
+  html              2      49                                                                                           
+  js              291      19                                                                                           
+  yaml             20       2                                                                                           
+  bash              2       1                                                                                           
+                                                                                                                        

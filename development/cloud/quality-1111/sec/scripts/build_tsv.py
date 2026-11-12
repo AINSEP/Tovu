@@ -111,15 +111,17 @@ for repo in ('tovu', 'jini'):
     for r in d.get('results', []):
         cid = r['check_id']
         cid = re.sub(r'^.*?(semgrep-rules|njsrules|rules-audit-other)\.', r'\1.', cid)
-        cid = cid.replace('njsrules.njsscan__rules__semantic_grep__', 'njsscan.')
-        rows.append((repo, rel(repo, r['path'] if r['path'].startswith('/') else BASES[repo] + r['path']), r['start']['line'], cid, r['extra'].get('severity', '')))
+        cid = re.sub(r'^njsrules\.', 'njsscan.', cid)
+        klass = 'security' if ('.security.' in cid or cid.startswith(('njsscan.', 'rules-audit-other.'))) else 'other'
+        rows.append((repo, rel(repo, r['path'] if r['path'].startswith('/') else BASES[repo] + r['path']), r['start']['line'], cid, r['extra'].get('severity', ''), klass))
     serr[repo] = {'errors': len(d.get('errors', [])), 'scanned': len(d.get('paths', {}).get('scanned', [])),
-                  'error_types': collections.Counter(e.get('type', '?') if isinstance(e.get('type'), str) else str(e.get('type'))[:40] for e in d.get('errors', []))}
-rows.sort(key=lambda r: ({'ERROR': 0, 'WARNING': 1, 'INFO': 2}.get(r[4], 3), r[0], r[1], r[2]))
-write_tsv('semgrep.tsv', ['repo', 'file', 'line', 'rule_id', 'severity'], rows)
+                  'error_types': collections.Counter(e['type'] if isinstance(e.get('type'), str) else str((e.get('type') or ['?'])[0]) for e in d.get('errors', []))}
+rows.sort(key=lambda r: (r[5] != 'security', {'ERROR': 0, 'WARNING': 1, 'INFO': 2}.get(r[4], 3), r[0], r[1], r[2]))
+write_tsv('semgrep.tsv', ['repo', 'file', 'line', 'rule_id', 'severity', 'class'], rows)
 summary['semgrep'] = {
     'by_repo_rule': collections.Counter(f'{r[0]}|{r[3]}|{r[4]}' for r in rows),
     'by_repo_sev': collections.Counter(f'{r[0]}|{r[4]}' for r in rows),
+    'by_repo_class': collections.Counter(f'{r[0]}|{r[5]}' for r in rows),
     'meta': serr,
 }
 

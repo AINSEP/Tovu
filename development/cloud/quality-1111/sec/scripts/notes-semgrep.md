@@ -16,3 +16,9 @@ start at `semgrep-rules.` / `njsscan.` / `rules-audit-other.`. Targets: Tovu `ap
 `packages/*/src`, git-tracked files, with `--exclude` for tests/`__tests__`/`__mocks__`/fixtures/mocks/e2e/dist/
 build/node_modules/vendor/`*.test.*`/`*.spec.*`/`*.d.ts`/stories; `--timeout 30`, `--max-target-bytes 1000000`, `-j 2`.
 Paths and rule ids only — no exploit detail.
+
+Because the rule dirs also carry non-security rules (i18n key format, props spreading, correctness, best practice),
+every row in `semgrep.tsv` has a `class` column: `security` = rule id contains `.security.`, or comes from njsscan,
+or from the collected audit rules; `other` = everything else. Security counts and the top 50 use `security` only;
+`other` rows are kept in full in the TSV and counted per rule below. "Partially analysed" = semgrep could not fully
+parse the file (its own `PartialParsing` errors), so findings in those files may be undercounted.

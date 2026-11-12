@@ -20,3 +20,16 @@ More information: https://semgrep.dev/docs/metrics
   yaml             20      14                                                                                           
   bash              2       4                                                                                           
                                                                                                                         
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+Some files were skipped or only partially analyzed.
+  Scan was limited to files tracked by git.
+  Partially scanned: 197 files only partially analyzed due to parsing or internal Semgrep errors
+  Scan skipped: 4634 files matching --exclude patterns, 3 files larger than 1.0 MB, 4 files matching .semgrepignore patterns
+  For a full list of skipped files, run semgrep with the --verbose flag.
+
+Ran 387 rules on 4013 files: 3989 findings.
+tovu exit 0

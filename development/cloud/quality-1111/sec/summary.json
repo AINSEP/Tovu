@@ -1419,9 +1419,68 @@
   ]
  },
  "semgrep": {
-  "by_repo_rule": {},
-  "by_repo_sev": {},
-  "meta": {}
+  "by_repo_rule": {
+   "tovu|njsscan.generic_header_injection|ERROR": 2,
+   "tovu|semgrep-rules.javascript.lang.security.audit.spawn-shell-true|ERROR": 1,
+   "tovu|njsscan.node_password|ERROR": 2,
+   "tovu|semgrep-rules.javascript.browser.security.insecure-document-method|ERROR": 5,
+   "tovu|semgrep-rules.javascript.browser.security.insecure-innerhtml|ERROR": 5,
+   "tovu|njsscan.node_logic_bypass|ERROR": 1,
+   "tovu|njsscan.node_secret|ERROR": 11,
+   "tovu|njsscan.node_api_key|ERROR": 3,
+   "tovu|njsscan.node_nosqli_injection|ERROR": 4,
+   "tovu|njsscan.express_open_redirect|ERROR": 4,
+   "tovu|semgrep-rules.javascript.express.security.injection.tainted-sql-string|ERROR": 2,
+   "tovu|semgrep-rules.javascript.express.security.audit.res-render-injection|WARNING": 1,
+   "tovu|njsscan.regex_dos|WARNING": 59,
+   "tovu|semgrep-rules.javascript.lang.security.html-in-template-string|WARNING": 249,
+   "tovu|njsscan.node_timing_attack|WARNING": 14,
+   "tovu|semgrep-rules.typescript.react.security.audit.react-href-var|WARNING": 2,
+   "tovu|semgrep-rules.javascript.lang.security.audit.unsafe-dynamic-method|WARNING": 33,
+   "tovu|semgrep-rules.javascript.lang.security.audit.detect-non-literal-regexp|WARNING": 23,
+   "tovu|semgrep-rules.javascript.browser.security.wildcard-postmessage-configuration|WARNING": 5,
+   "tovu|njsscan.node_username|WARNING": 8,
+   "tovu|semgrep-rules.javascript.lang.security.audit.detect-redos|WARNING": 9,
+   "tovu|semgrep-rules.javascript.lang.security.audit.unknown-value-with-script-tag|WARNING": 4,
+   "tovu|njsscan.generic_error_disclosure|WARNING": 2,
+   "tovu|semgrep-rules.javascript.express.security.audit.express-res-sendfile|WARNING": 2,
+   "tovu|semgrep-rules.javascript.express.security.injection.raw-html-format|WARNING": 1,
+   "tovu|semgrep-rules.javascript.express.security.cors-misconfiguration|WARNING": 1,
+   "tovu|semgrep-rules.javascript.express.security.audit.xss.direct-response-write|WARNING": 1,
+   "tovu|semgrep-rules.javascript.lang.security.audit.unsafe-formatstring|INFO": 21,
+   "tovu|semgrep-rules.javascript.react.correctness.hooks.calling-set-state-on-current-state|ERROR": 1,
+   "tovu|semgrep-rules.typescript.react.portability.i18next.i18next-key-format|WARNING": 2197,
+   "tovu|semgrep-rules.javascript.lang.correctness.no-replaceall|WARNING": 23,
+   "tovu|semgrep-rules.typescript.react.best-practice.react-props-in-state|WARNING": 10,
+   "tovu|semgrep-rules.javascript.lang.best-practice.javascript-confirm|WARNING": 12,
+   "tovu|semgrep-rules.javascript.lang.best-practice.lazy-load-module|WARNING": 4,
+   "tovu|semgrep-rules.javascript.lang.correctness.no-stringify-keys|WARNING": 4,
+   "tovu|semgrep-rules.typescript.react.best-practice.react-props-spreading|INFO": 723,
+   "tovu|semgrep-rules.typescript.react.portability.i18next.jsx-not-internationalized|INFO": 118,
+   "tovu|semgrep-rules.javascript.lang.correctness.missing-template-string-indicator|INFO": 419,
+   "tovu|semgrep-rules.javascript.lang.correctness.useless-assignment|INFO": 2,
+   "tovu|semgrep-rules.javascript.audit.detect-replaceall-sanitization|INFO": 1
+  },
+  "by_repo_sev": {
+   "tovu|ERROR": 41,
+   "tovu|WARNING": 2664,
+   "tovu|INFO": 1284
+  },
+  "by_repo_class": {
+   "tovu|security": 475,
+   "tovu|other": 3514
+  },
+  "meta": {
+   "tovu": {
+    "errors": 201,
+    "scanned": 4013,
+    "error_types": {
+     "PartialParsing": 192,
+     "Fatal error": 3,
+     "Timeout": 6
+    }
+   }
+  }
  },
  "a11y": {
   "by_repo_rule": {
@@ -1450,12 +1509,12 @@
    "tovu": 46
   },
   "kb_files_by_repo": {
-   "jini": 22,
-   "tovu": 26
+   "tovu": 26,
+   "jini": 22
   },
   "kb_elements_by_repo": {
-   "tovu": 35,
-   "jini": 26
+   "jini": 26,
+   "tovu": 35
   },
   "kb_files": {
    "jini|packages/chat/src/react/components/ChatSettingsDialog.tsx": 1,

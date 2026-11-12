@@ -58,7 +58,9 @@ for label, data, extra in [
     ('osv-scanner rows (package@version × advisory × lockfile)', osv, lambda r: True),
     ('osv-scanner unique package@version × advisory', None, None),
     ('npm audit (Tovu root) / pnpm audit (Jini), by severity', None, None),
-    ('Semgrep findings', sem, lambda r: True),
+    ('Semgrep findings, security rules', sem, lambda r: r['class'] == 'security'),
+    ('Semgrep findings, other (non-security) rules from the JS/TS rule dirs', None, None),
+    ('Semgrep files only partially analysed / timeouts / fatal', None, None),
     ('jsx-a11y findings', a11y, lambda r: True),
     ('a11y keyboard-handling hits (3 rules) / distinct elements / files', None, None),
 ]:
@@ -68,13 +70,20 @@ for label, data, extra in [
         t = [len({(r['package'], r['version'], r['id']) for r in osv if r['repo'] == rp}) for rp in ('tovu', 'jini')]
     elif label.startswith('npm audit'):
         t = [audfmt(aud.get('tovu')), audfmt(aud.get('jini'))]
+    elif label.startswith('Semgrep findings, other'):
+        t = [cnt(sem, rp, lambda r: r['class'] == 'other') for rp in ('tovu', 'jini')]
+    elif label.startswith('Semgrep files'):
+        m = S['semgrep']['meta']
+        t = [' / '.join(str(m.get(rp, {}).get('error_types', {}).get(k, 0)) for k in ('PartialParsing', 'Timeout', 'Fatal error')) + f" (of {m.get(rp, {}).get('scanned', 0)} scanned)" for rp in ('tovu', 'jini')]
     elif label.startswith('a11y keyboard'):
         a = S['a11y']
         t = [f"{a['kb_hits_by_repo'].get(rp, 0)} / {a['kb_elements_by_repo'].get(rp, 0)} / {a['kb_files_by_repo'].get(rp, 0)}" for rp in ('tovu', 'jini')]
     else:
         t = [cnt(data, rp, extra) for rp in ('tovu', 'jini')]
-        if data is osv or data is sem:
+        if data is osv:
             t = [f'{t[i]} ({sevfmt(data, rp)})' if t[i] else '0' for i, rp in enumerate(('tovu', 'jini'))]
+        if data is sem:
+            t = [f'{t[i]} ({sevfmt([r for r in sem if r["class"] == "security"], rp)})' if t[i] else '0' for i, rp in enumerate(('tovu', 'jini'))]
     rows.append([label] + t)
 out.append(table(['check', 'Tovu', 'Jini'], rows))
 
@@ -111,10 +120,13 @@ out.append(table(['package', 'severity', 'advisory', 'patched'], aud.get('jini_i
 # ---- 3. semgrep ----
 out.append('\n## 3. Semgrep security scan\n')
 out.append(note('notes-semgrep.md'))
-c = collections.Counter((r['repo'], r['rule_id'], r['severity']) for r in sem)
-out.append('\nCounts per rule (every rule that fired):\n\n' + table(['repo', 'rule id', 'severity', 'hits'], [[a, b, s, n] for (a, b, s), n in c.most_common()]))
-out.append(f'\nTop 50 of {len(sem)} (ERROR first; full list: `semgrep.tsv`):\n\n')
-out.append(table(['repo', 'file:line', 'rule id', 'severity'], [[r['repo'], f"{r['file']}:{r['line']}", r['rule_id'], r['severity']] for r in sem[:50]]))
+c = collections.Counter((r['class'], r['repo'], r['rule_id'], r['severity']) for r in sem)
+out.append('\nCounts per rule (every rule that fired; security class first):\n\n' + table(['class', 'repo', 'rule id', 'severity', 'hits'], [[k, a, b, s, n] for (k, a, b, s), n in sorted(c.items(), key=lambda kv: (kv[0][0] != 'security', -kv[1]))]))
+c = collections.Counter((r['repo'], r['file']) for r in sem if r['class'] == 'security')
+out.append('\nFiles with the most security-class hits:\n\n' + table(['repo', 'file', 'hits'], [[a, b, n] for (a, b), n in c.most_common(25)]))
+nsec = sum(1 for r in sem if r['class'] == 'security')
+out.append(f'\nTop 50 of {nsec} security-class findings (ERROR first; full list incl. the {len(sem) - nsec} other-class rows: `semgrep.tsv`):\n\n')
+out.append(table(['repo', 'file:line', 'rule id', 'severity'], [[r['repo'], f"{r['file']}:{r['line']}", r['rule_id'], r['severity']] for r in [x for x in sem if x['class'] == 'security'][:50]]))
 
 # ---- 4. a11y ----
 out.append('\n## 4. Accessibility (eslint-plugin-jsx-a11y recommended)\n')
