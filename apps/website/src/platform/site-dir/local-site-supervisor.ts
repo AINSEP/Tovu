@@ -64,13 +64,10 @@ export function createLocalSiteSupervisor(
   { maxConcurrent = 3, excludedPorts = [], readyAttempts = 240, devSession, evictIdle = false, intentPort = { read: () => undefined, write: () => {} } }:
   { maxConcurrent?: number; excludedPorts?: readonly number[]; readyAttempts?: number; devSession?: string; evictIdle?: boolean; intentPort?: LocalSiteIntentPort } = {},
 ): LocalSiteSupervisorPort {
-  if (!Number.isInteger(maxConcurrent) || maxConcurrent < 1 || maxConcurrent > 20) throw new LocalSiteError("INVALID_SITE_LIMIT");
+  assertSiteLimit({ maxConcurrent });
   const entries = new Map<string, Entry>();
-  const reserved = new Set([3000, 5173, 4319, ...excludedPorts]);
-  const stored = devSession && evictIdle ? intentPort.read() : undefined;
-  const apiPorts = new Map<string, number>(stored?.session === devSession
-    ? Object.entries(stored?.ports ?? {}).map(([name, site]) => [name, site.port]) : []);
-  for (const port of apiPorts.values()) reserved.add(port);
+  const apiPorts = rememberedApiPorts({ intentPort }, { devSession, evictIdle });
+  const reserved = new Set([3000, 5173, 4319, ...excludedPorts, ...apiPorts.values()]);
   let closed = false;
   let resumed = false;
   let opened = 0;
@@ -306,6 +303,23 @@ export function createLocalSiteSupervisor(
     },
   };
   return supervisor;
+}
+
+/** Reject a concurrency cap outside 1..20 before any state exists. */
+function assertSiteLimit({ maxConcurrent }: { maxConcurrent: number }, _optional = {}): void {
+  if (!Number.isInteger(maxConcurrent) || maxConcurrent < 1 || maxConcurrent > 20) throw new LocalSiteError("INVALID_SITE_LIMIT");
+}
+
+/** Warm API ports this dev session already handed out; empty without a session or idle eviction.
+ * @complexity O(s) for s persisted ports.
+ */
+function rememberedApiPorts(
+  { intentPort }: { intentPort: LocalSiteIntentPort },
+  { devSession, evictIdle = false }: { devSession?: string; evictIdle?: boolean } = {},
+): Map<string, number> {
+  const stored = devSession && evictIdle ? intentPort.read() : undefined;
+  return new Map<string, number>(stored?.session === devSession
+    ? Object.entries(stored?.ports ?? {}).map(([name, site]) => [name, site.port]) : []);
 }
 
 /** Readiness failures are bounded local misses, never a crash on their own. */
