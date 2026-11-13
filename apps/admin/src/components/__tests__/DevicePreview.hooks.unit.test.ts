@@ -182,11 +182,11 @@ describe("devicePreviewFrameStyles", () => {
 
 describe("devicePreviewButtonHandleProps", () => {
   it("returns no props without a handle prefix", () => {
-    expect(devicePreviewButtonHandleProps(undefined, { key: "mobile", label: "Mobile" })).toEqual({});
+    expect(devicePreviewButtonHandleProps({ handlePrefix: undefined, entry: { key: "mobile", label: "Mobile" } })).toEqual({});
   });
 
   it("names the handle `${prefix}-${key}` when a prefix is given", () => {
-    const props = devicePreviewButtonHandleProps("page-preview-width", { key: "mobile", label: "Mobile" });
+    const props = devicePreviewButtonHandleProps({ handlePrefix: "page-preview-width", entry: { key: "mobile", label: "Mobile" } });
     expect(props).toMatchObject({ "data-agent-element": "page-preview-width-mobile" });
   });
 });

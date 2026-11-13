@@ -94,7 +94,7 @@ describe("useMediaPickerDialog", () => {
   it("exposes select bound to the onSelect callback it was given", async () => {
     vi.spyOn(api, "listMedia").mockResolvedValue({ media: [media()] });
     const onSelect = vi.fn();
-    const { result } = renderHook(() => useWiredMediaPickerDialog(onSelect, vi.fn()));
+    const { result } = renderHook(() => useWiredMediaPickerDialog({ onSelect, onCancel: vi.fn() }));
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
     const item = result.current.items![0];
@@ -142,7 +142,7 @@ describe("useMediaPickerDialog", () => {
 describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dictionary)", () => {
   it("useMediaPickerDialog's t resolves against the real Spanish dictionary when given deps.locale", () => {
     const port = createFakeMediaPickerPort({ media: [] });
-    const { result } = renderHook(() => useMediaPickerDialog(vi.fn(), vi.fn(), { port, locale: "es" }));
+    const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: { port, locale: "es" } }));
 
     expect(result.current.locale).toBe("es");
     expect(result.current.t("Choose an image")).toBe("Elegir una imagen");
@@ -156,7 +156,7 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
     const fetchFake = vi.fn(async () => new Response(JSON.stringify({ media: [row] }), { status: 200, headers: { "content-type": "application/json" } }));
     vi.stubGlobal("fetch", fetchFake);
     try {
-      const { result } = renderHook(() => useMediaPickerDialog(vi.fn(), vi.fn(), {}));
+      const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: {} }));
       expect(result.current.mediaOriginalUrl("m1")).toBe(api.mediaOriginalUrl("m1"));
       await waitFor(() => expect(result.current.items?.map((item) => item.id)).toEqual(["m1"]));
       expect(String((fetchFake.mock.calls[0] as unknown as [string])[0])).toMatch(/\/media/);
@@ -167,7 +167,7 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
 
   it("useMediaPickerDialog defaults locale/t to English when deps.locale is omitted", () => {
     const port = createFakeMediaPickerPort({ media: [] });
-    const { result } = renderHook(() => useMediaPickerDialog(vi.fn(), vi.fn(), { port }));
+    const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: { port } }));
 
     expect(result.current.locale).toBe("en");
     expect(result.current.t("Choose an image")).toBe("Choose an image");
@@ -179,7 +179,7 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
     // "falls back to the given default" case for `useExistingInstances`).
     const port = createFakeMediaPickerPort();
     port.listMedia = () => Promise.reject(new ApiError("", 500));
-    const { result } = renderHook(() => useMediaPickerItems(port, "es"));
+    const { result } = renderHook(() => useMediaPickerItems({ port }, { locale: "es" }));
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("no se pudo cargar el contenido multimedia");
@@ -198,7 +198,7 @@ describe("useMediaPickerItems / useMediaPickerDialog — injected port (no api s
   it("filters to active assets from the injected port and never touches the real api client", async () => {
     const listSpy = vi.spyOn(api, "listMedia");
     const port = createFakeMediaPickerPort({ media: [media({ id: "a", status: "active" }), media({ id: "b", status: "trashed" })] });
-    const { result } = renderHook(() => useMediaPickerItems(port));
+    const { result } = renderHook(() => useMediaPickerItems({ port }));
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
     expect(result.current.items).toEqual([media({ id: "a", status: "active" })]);
@@ -207,7 +207,7 @@ describe("useMediaPickerItems / useMediaPickerDialog — injected port (no api s
 
   it("useMediaPickerDialog reads items from the injected port too", async () => {
     const port = createFakeMediaPickerPort({ media: [media()] });
-    const { result } = renderHook(() => useMediaPickerDialog(vi.fn(), vi.fn(), { port }));
+    const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: { port } }));
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
     expect(result.current.items).toEqual([media()]);
@@ -222,7 +222,7 @@ describe("useMediaPickerItems / useMediaPickerDialog — injected port (no api s
   it("does not resolve items while the injected port's list call is still pending", () => {
     const port = createFakeMediaPickerPort();
     port.listMedia = () => new Promise(() => {});
-    const { result } = renderHook(() => useMediaPickerItems(port));
+    const { result } = renderHook(() => useMediaPickerItems({ port }));
     expect(result.current.items).toBeNull();
   });
 });

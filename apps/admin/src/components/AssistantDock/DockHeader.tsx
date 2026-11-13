@@ -24,7 +24,7 @@ export interface DockHeaderProps {
   readonly agentId: SubagentsIndicatorProps["agentId"];
   readonly locale: string;
   /** The dock chrome's own translator (`useAssistantDockChrome().t`). */
-  readonly t: (key: string) => string;
+  readonly t: (input: { key: string }, options?: Record<string, never>) => string;
   /** `@jini-ai/chat/react`'s translator, for the delete-confirmation copy. */
   readonly chatI18n: I18nAdapter;
   /** The admin confirm-dialog request the dock renders as `<ConfirmDialog>`. */
@@ -78,7 +78,7 @@ export function DockHeader({
         <SubagentsIndicator mode={mode} agentId={agentId}
           t={(key) => translateAiAssistant({ locale, key })} />
         {/* Each header button gets the subagents icon's white tip, under it (owner, 2026-10-11). */}
-        <DockHeaderTip label={t("Chats")}>
+        <DockHeaderTip label={t({ key: "Chats" })}>
           <ConversationList
             conversations={chats.conversations}
             activeConversationId={chats.activeId}
@@ -95,19 +95,19 @@ export function DockHeader({
             onRename={chats.rename}
             // The white "Chats" tip above replaces the browser's dark native one, so the
             // switcher drops its own `title` and takes the same name for screen readers.
-            triggerLabel={t("Chats")}
+            triggerLabel={t({ key: "Chats" })}
             nativeTitle={false}
           />
         </DockHeaderTip>
         {/* Right of the switcher; the bar's ✕ (App.tsx) sits to its right. */}
-        <DockHeaderTip label={t("Settings")}>
-          <DockSettingsMenu label={t("Settings")} sections={dockSettingsMenuSections({ t }, { display: chatDisplay, agentPlugins, runtime, onMoreSettings })}
-            notice={chatDisplay.saveFailed || agentPlugins.saveFailed || runtime?.saveFailed ? t("Couldn't save. This choice lasts until you reload.") : undefined} />
+        <DockHeaderTip label={t({ key: "Settings" })}>
+          <DockSettingsMenu label={t({ key: "Settings" })} sections={dockSettingsMenuSections({ t: (key) => t({ key }) }, { display: chatDisplay, agentPlugins, runtime, onMoreSettings })}
+            notice={chatDisplay.saveFailed || agentPlugins.saveFailed || runtime?.saveFailed ? t({ key: "Couldn't save. This choice lasts until you reload." }) : undefined} />
         </DockHeaderTip>
       </div>
       {empty ? (
         <div className="assistant-empty-state" role="status">
-          <p>{t("Hello! Ask me to help with your site.")}</p>
+          <p>{t({ key: "Hello! Ask me to help with your site." })}</p>
         </div>
       ) : null}
     </>

@@ -248,18 +248,18 @@ describe("resolveSiteSectionRouteGate", () => {
   it("holds rather than redirects while the answer is still unknown", () => {
     // The premature-redirect guard: collapsing `unknown` into "unavailable" would bounce a
     // developer's own /admin/sites deep link to the dashboard in the window before the flag lands.
-    expect(resolveSiteSectionRouteGate("sites", "unknown")).toBe("hold");
+    expect(resolveSiteSectionRouteGate({ panelId: "sites", availability: "unknown" })).toBe("hold");
   });
 
   it("renders sites only once the deployment has confirmed it has the section", () => {
-    expect(resolveSiteSectionRouteGate("sites", "available")).toBe("render");
-    expect(resolveSiteSectionRouteGate("sites", "unavailable")).toBe("redirect");
+    expect(resolveSiteSectionRouteGate({ panelId: "sites", availability: "available" })).toBe("render");
+    expect(resolveSiteSectionRouteGate({ panelId: "sites", availability: "unavailable" })).toBe("redirect");
   });
 
   it("never touches any other panel, whatever the flag says", () => {
     for (const availability of ["unknown", "available", "unavailable"] as const) {
-      expect(resolveSiteSectionRouteGate("posts", availability)).toBe("render");
-      expect(resolveSiteSectionRouteGate(null, availability)).toBe("render");
+      expect(resolveSiteSectionRouteGate({ panelId: "posts", availability })).toBe("render");
+      expect(resolveSiteSectionRouteGate({ panelId: null, availability })).toBe("render");
     }
   });
 });
@@ -314,7 +314,7 @@ describe("useSiteSectionAvailability", () => {
   ] as const)("desktop=$desktop, switchingEnabled=$switchingEnabled → $expected", async ({ desktop, switchingEnabled, expected, gate }) => {
     const user: AdminUser = { id: "u1", username: "admin" };
     vi.spyOn(api, "listSites").mockResolvedValue(sitesSnapshot(switchingEnabled));
-    const { result } = renderHook(() => useSiteSectionAvailability(user, { desktop }), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useSiteSectionAvailability({ user }, { desktop }), { wrapper: FetchQueryProvider });
 
     await waitFor(() => expect(result.current).toBe(expected));
     const nav = withoutSiteSection([{ items: [
@@ -322,7 +322,7 @@ describe("useSiteSectionAvailability", () => {
       { id: "sites", href: "/sites", label: "Sites" },
     ] }], result.current);
     expect(nav[0]?.items.map((item) => item.id)).toEqual(expected === "available" ? ["dashboard", "sites"] : ["dashboard"]);
-    expect(resolveSiteSectionRouteGate("sites", result.current)).toBe(gate);
+    expect(resolveSiteSectionRouteGate({ panelId: "sites", availability: result.current })).toBe(gate);
   });
 
   it("is unavailable from the first shell frame and never allows the Sites panel while the server is pending", async () => {
@@ -331,8 +331,8 @@ describe("useSiteSectionAvailability", () => {
     const listSites = vi.spyOn(api, "listSites").mockReturnValue(pending.promise);
     const frames: { availability: SiteSectionAvailability; gate: string }[] = [];
     const { result, rerender } = renderHook(() => {
-      const availability = useSiteSectionAvailability(user, { desktop: true });
-      frames.push({ availability, gate: resolveSiteSectionRouteGate("sites", availability) });
+      const availability = useSiteSectionAvailability({ user }, { desktop: true });
+      frames.push({ availability, gate: resolveSiteSectionRouteGate({ panelId: "sites", availability }) });
       return availability;
     }, { wrapper: FetchQueryProvider });
 
@@ -355,7 +355,7 @@ describe("useSiteSectionAvailability", () => {
       .mockReturnValueOnce(second.promise);
 
     const { result, rerender } = renderHook<SiteSectionAvailability, { user: AdminUser | null }>(
-      ({ user }) => useSiteSectionAvailability(user),
+      ({ user }) => useSiteSectionAvailability({ user }),
       { initialProps: { user: alice }, wrapper: FetchQueryProvider },
     );
 

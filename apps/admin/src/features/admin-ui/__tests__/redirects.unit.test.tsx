@@ -21,7 +21,7 @@ it.each([
 ])("replaces /admin/%s with its Admin UI tab", async (path, tab) => {
   window.history.replaceState(null, "", `/admin/${path}${path.includes("?") ? "&" : "?"}old=1#stale`);
   const length = window.history.length;
-  const route = parseRoute(`/${path}`);
+  const route = parseRoute({ routePath: `/${path}` });
   expect(route.panelId).toBe(path.split("?")[0]);
   const panel = ADMIN_PANELS.find((candidate) => candidate.id === route.panelId)!;
   render(<StrictMode>{panel.render({ ...route, Placeholder })}</StrictMode>);

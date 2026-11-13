@@ -88,7 +88,7 @@ export function RoutedA2uiSurfaceCard({
         <button
           type="button"
           className="playground-drawn-surface-dismiss"
-          onClick={() => setDismissed(true)}
+          onClick={() => setDismissed({ value: true })}
           aria-label={t("Remove from canvas")}
         >
           ×

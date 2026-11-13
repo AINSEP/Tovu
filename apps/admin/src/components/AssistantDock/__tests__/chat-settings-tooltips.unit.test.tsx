@@ -111,18 +111,18 @@ describe("chat setting tooltip translations", () => {
   it.each(Object.keys(ASSISTANT_DOCK_DICT))("%s translates Reply length, every option and its tooltip", locale => {
     for (const key of ["Reply length", "Short", "Normal", "Detailed", replyLengthTip]) {
       expect(ASSISTANT_DOCK_DICT[locale][key]?.trim()).toBeTruthy();
-      expect(t(locale, key)).toBe(ASSISTANT_DOCK_DICT[locale][key]);
+      expect(t({ locale, key })).toBe(ASSISTANT_DOCK_DICT[locale][key]);
     }
-    expect(t(locale, replyLengthTip)).not.toBe(replyLengthTip);
-    const sections = dockSettingsMenuSections({ t: key => t(locale, key) }, {
+    expect(t({ locale, key: replyLengthTip })).not.toBe(replyLengthTip);
+    const sections = dockSettingsMenuSections({ t: key => t({ locale, key }) }, {
       display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() },
       runtime: { preferences: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, update: vi.fn(), visible: visibleAssistantRuntimePreferences({ agent: undefined }) },
     });
-    expect(sections.find(section => section.key === "reply-length")?.tooltip).toBe(t(locale, replyLengthTip));
+    expect(sections.find(section => section.key === "reply-length")?.tooltip).toBe(t({ locale, key: replyLengthTip }));
   });
 
   it.each(["ar", "bn", "de", "es", "fa", "fr", "hi", "hu", "id", "it", "ja", "ko", "pl", "pt-BR", "ru", "th", "tr", "uk", "ur", "zh-CN", "zh-TW"])("%s provides all five translated tooltips through the shared builder, Tool calls as one grouped tip", locale => {
-    const sections = dockSettingsMenuSections({ t: key => t(locale, key) }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() } });
+    const sections = dockSettingsMenuSections({ t: key => t({ locale, key }) }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() } });
     expect(Object.keys(ASSISTANT_DOCK_DICT)).toHaveLength(21);
     const items = sections.flatMap(section => section.items);
     items.forEach(item => expect(item).not.toHaveProperty("hint"));
@@ -139,7 +139,7 @@ describe("chat setting tooltip translations", () => {
       return translation;
     });
     // The three Tool calls lines sit in the group's one tip, each under its translated option name.
-    expect(sections[0].tooltip).toBe(toolCallOptions.map(({ label }, index) => `• ${t(locale, label)}: ${translated[index]}`).join("\n"));
+    expect(sections[0].tooltip).toBe(toolCallOptions.map(({ label }, index) => `• ${t({ locale, key: label })}: ${translated[index]}`).join("\n"));
     expect(items.slice(0, 3).map(item => item.tooltip)).toEqual([undefined, undefined, undefined]);
     expect(items.slice(3, 5).map(item => item.tooltip)).toEqual(translated.slice(3));
   });

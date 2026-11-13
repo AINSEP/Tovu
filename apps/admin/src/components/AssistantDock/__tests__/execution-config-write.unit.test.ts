@@ -29,13 +29,13 @@ describe("applyExecutionConfigChange", () => {
   it("reports the change once even when the updater runs twice", () => {
     const next = { ...DEFAULT_EXECUTION_CONFIG, mode: "byok" as const };
 
-    const write = applyExecutionConfigChange(doubleRunningSetter(DEFAULT_EXECUTION_CONFIG), () => next);
+    const write = applyExecutionConfigChange({ setExecutionConfig: doubleRunningSetter(DEFAULT_EXECUTION_CONFIG), change: () => next });
 
     expect(write).toEqual({ previous: DEFAULT_EXECUTION_CONFIG, next });
   });
 
   it("is null when the change returns previous unchanged", () => {
-    expect(applyExecutionConfigChange(doubleRunningSetter(DEFAULT_EXECUTION_CONFIG), (previous) => previous)).toBeNull();
+    expect(applyExecutionConfigChange({ setExecutionConfig: doubleRunningSetter(DEFAULT_EXECUTION_CONFIG), change: (previous) => previous })).toBeNull();
   });
 });
 
@@ -45,7 +45,7 @@ describe("persistExecutionConfigWrite", () => {
   it("saves once and publishes a core.execution refresh", async () => {
     mockSave.mockResolvedValue([]);
 
-    persistExecutionConfigWrite(write, "[test] failed");
+    persistExecutionConfigWrite({ write, failureLog: "[test] failed" });
 
     await vi.waitFor(() => expect(publishSettingsRefresh).toHaveBeenCalledWith(["core.execution"]));
     expect(mockSave).toHaveBeenCalledTimes(1);
@@ -57,7 +57,7 @@ describe("persistExecutionConfigWrite", () => {
     const failure = new Error("write failed");
     mockSave.mockRejectedValue(failure);
 
-    persistExecutionConfigWrite(write, "[test] failed");
+    persistExecutionConfigWrite({ write, failureLog: "[test] failed" });
 
     await vi.waitFor(() => expect(consoleError).toHaveBeenCalledWith("[test] failed", failure));
     expect(publishSettingsRefresh).not.toHaveBeenCalled();
@@ -69,7 +69,7 @@ describe("persistExecutionConfigWrite", () => {
     const abort = new DOMException("The operation was aborted.", "AbortError");
     mockSave.mockRejectedValue(abort);
 
-    expect(await persistExecutionConfigWrite(write, "[test] failed")).toBe(false);
+    expect(await persistExecutionConfigWrite({ write, failureLog: "[test] failed" })).toBe(false);
 
     expect(consoleError).not.toHaveBeenCalled();
     expect(publishSettingsRefresh).not.toHaveBeenCalled();

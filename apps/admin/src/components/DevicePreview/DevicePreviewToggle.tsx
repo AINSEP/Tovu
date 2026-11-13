@@ -39,7 +39,7 @@ export function DevicePreviewToggle({
             title={t(entry.label)}
             className={device === entry.key ? "is-active" : undefined}
             onClick={() => setDevice(entry.key)}
-            {...devicePreviewButtonHandleProps(handlePrefix, entry)}
+            {...devicePreviewButtonHandleProps({ handlePrefix, entry })}
           >
             <DeviceIcon />
           </button>

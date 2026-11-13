@@ -29,7 +29,7 @@ interface DraftShape {
 
 const BLANK_DRAFT: DraftShape = { blank: true, slashQuery: "" };
 
-function draftShapeOf(draft: string): DraftShape {
+function draftShapeOf({ draft }: { draft: string }, _options: Record<string, never> = {}): DraftShape {
   return { blank: draft.trim().length === 0, slashQuery: /^\/[^\s/]*/.exec(draft)?.[0] ?? "" };
 }
 
@@ -41,7 +41,7 @@ export function useComposerDiscoveryDraft(catalog: readonly ComposerDiscoveryGro
   const [shape, setShape] = useState<DraftShape>(BLANK_DRAFT);
   // Returning `previous` when nothing the dock reads changed is what lets React skip the render.
   const adoptDraft = useCallback((draft: string) => {
-    const next = draftShapeOf(draft);
+    const next = draftShapeOf({ draft });
     setShape(previous => (previous.blank === next.blank && previous.slashQuery === next.slashQuery ? previous : next));
   }, []);
   const captureDraft = useCallback((event: FormEvent<HTMLDivElement>) => {
@@ -56,7 +56,7 @@ export function useComposerDiscoveryDraft(catalog: readonly ComposerDiscoveryGro
 const IDLE_SEND_BUTTON = ".jini-composer-send:not(.jini-composer-send--stop)";
 
 /** Seeding is only safe while the composer accepts input and shows Send (not Stop). */
-function composerAcceptsSend(root: HTMLDivElement | null): boolean {
+function composerAcceptsSend({ root }: { root: HTMLDivElement | null }, _options: Record<string, never> = {}): boolean {
   const textarea = root?.querySelector<HTMLTextAreaElement>(".jini-composer textarea");
   return !textarea?.disabled && Boolean(root?.querySelector(IDLE_SEND_BUTTON));
 }
@@ -73,7 +73,7 @@ export function useSkillOnlySend(input: {
   useEffect(() => { discovery.refreshDraft(); }, [prompt, discovery.refreshDraft]);
   const sendSkills = useCallback(() => {
     const handle = composerHandle.current;
-    if (!prompt || discovery.readDraft().trim() || !handle || !composerAcceptsSend(discovery.rootRef.current)) return;
+    if (!prompt || discovery.readDraft().trim() || !handle || !composerAcceptsSend({ root: discovery.rootRef.current })) return;
     flushSync(() => handle.insertText(prompt));
     discovery.rootRef.current?.querySelector<HTMLButtonElement>(IDLE_SEND_BUTTON)?.click();
   }, [prompt, composerHandle, discovery.readDraft, discovery.rootRef]);

@@ -91,7 +91,7 @@ const executionConfigPort = {
   loadCredential: mockLoadAdminExecutionCredential,
   now: Date.now,
 };
-const persistWrite: typeof import("../AssistantDock/execution-config-write").persistExecutionConfigWrite = async (write) => {
+const persistWrite: typeof import("../AssistantDock/execution-config-write").persistExecutionConfigWrite = async ({ write }) => {
   await mockSaveExecutionConfig(write.next, write.previous);
   return true;
 };

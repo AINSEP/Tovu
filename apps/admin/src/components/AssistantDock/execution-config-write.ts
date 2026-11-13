@@ -27,9 +27,7 @@ export interface ExecutionConfigWrite {
  * after the call relies on `useExecutionConfig`'s `setExecutionConfig` running the updater
  * synchronously against the latest config (see its doc).
  */
-export function applyExecutionConfigChange(
-  setExecutionConfig: Dispatch<SetStateAction<ExecutionConfig>>,
-  change: (previous: ExecutionConfig) => ExecutionConfig,
+export function applyExecutionConfigChange({ setExecutionConfig, change }: { setExecutionConfig: Dispatch<SetStateAction<ExecutionConfig>>; change: (previous: ExecutionConfig) => ExecutionConfig }, _options: Record<string, never> = {}
 ): ExecutionConfigWrite | null {
   let write: ExecutionConfigWrite | null = null;
   setExecutionConfig((previous) => {
@@ -46,9 +44,9 @@ export function applyExecutionConfigChange(
  * the optimistic state is kept. The returned success flag lets the Local CLI hook protect a
  * pending/failed pick while allowing external changes after a successful save.
  *
- * @param failureLog - The `console.error` message for a failed save.
+ * @param input.failureLog - The `console.error` message for a failed save.
  */
-export function persistExecutionConfigWrite(write: ExecutionConfigWrite, failureLog: string): Promise<boolean> {
+export function persistExecutionConfigWrite({ write, failureLog }: { write: ExecutionConfigWrite; failureLog: string }, _options: Record<string, never> = {}): Promise<boolean> {
   return saveExecutionConfig(write.next, write.previous)
     .then(() => {
       publishSettingsRefresh([EXECUTION_NAMESPACE]);

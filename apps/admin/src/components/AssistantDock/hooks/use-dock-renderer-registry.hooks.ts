@@ -62,7 +62,7 @@ const mcpUiToolCaller = createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/
  * `useMcpUiHost.ts`). `globalThis.location.origin` does not change for the life of this tab, so
  * hoisting to a plain module-scope constant is exact, not an approximation.
  */
-const assistantMcpUiSandboxProxyUrl = buildAssistantMcpUiSandboxProxyUrl(globalThis.location.origin);
+const assistantMcpUiSandboxProxyUrl = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin: globalThis.location.origin });
 /** The A2UI agent-action relay; see the `"a2ui"` registration below. Module scope like the two above. */
 const postA2uiAction = createA2uiActionPoster("", { path: "/api/admin/v1/a2ui/actions" });
 
@@ -109,7 +109,7 @@ function registerDockRenderers({ registry }: { registry: ExtEventRendererRegistr
       // Generic across every plugin's rendered card, not Supabase-specific (S-G1b) — see
       // `openMcpUiLink`'s own doc (`AssistantDock.hooks.tsx`) for the `https:`-only allowlist and why
       // omitting this makes `useMcpUiHost` refuse every `ui/open-link` request instead.
-      onOpenLink: openMcpUiLink,
+      onOpenLink: (url) => openMcpUiLink({ url }),
       // A same-document `data:` URL, not a route on this admin app's own origin — see
       // `buildAssistantMcpUiSandboxProxyUrl`'s own doc (`AssistantDock.hooks.tsx`) for why: a
       // same-origin route would hand any third-party MCP server's HTML this admin origin's full

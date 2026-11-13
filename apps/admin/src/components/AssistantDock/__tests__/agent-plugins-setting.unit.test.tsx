@@ -95,8 +95,8 @@ describe("Agent plugins section", () => {
       expect(translation.trim()).not.toBe("");
       expect(translation, key).not.toBe(key);
     }
-    const section = sectionsFor({ translate: (key) => t(locale, key) }).find((entry) => entry.key === "agent-plugins")!;
-    expect(section.tooltip).toBe(OPTIONS.map(({ label, tooltip }) => `• ${t(locale, label)}: ${t(locale, tooltip)}`).join("\n"));
+    const section = sectionsFor({ translate: (key) => t({ locale, key }) }).find((entry) => entry.key === "agent-plugins")!;
+    expect(section.tooltip).toBe(OPTIONS.map(({ label, tooltip }) => `• ${t({ locale, key: label })}: ${t({ locale, key: tooltip })}`).join("\n"));
   });
 });
 

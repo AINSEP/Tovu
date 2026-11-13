@@ -32,7 +32,7 @@ export { isSlowRunNoticeVisible, resolveSlowRunDetail } from "./SlowRunNoticeCar
 
 export function SlowRunNoticeCard({ events, runStreaming, runSucceeded, awaitingAnswer }: ExtEventRenderProps) {
   const t = useT();
-  if (!isSlowRunNoticeVisible(runStreaming, runSucceeded, { awaitingAnswer })) return null;
+  if (!isSlowRunNoticeVisible({ runStreaming, runSucceeded }, { awaitingAnswer })) return null;
   return (
     <div className="jini-chat-pane__status" role="status">
       {resolveSlowRunDetail(events) ?? t("Still working — this is taking longer than usual.")}

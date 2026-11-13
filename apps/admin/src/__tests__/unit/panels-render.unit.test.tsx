@@ -388,7 +388,7 @@ describe("Add-ons canonical routes", () => {
     { path: "/addons/integrations?tab=webhooks", id: "providers", component: Providers },
     { path: "/addons/integrations/sub1", id: "integrations", component: IntegrationDeliveries },
   ])("$path renders the owning panel with its stable identity", ({ path, id, component }) => {
-    const route = parseRoute(path);
+    const route = parseRoute({ routePath: path });
     expect(route.panelId).toBe(id);
     expect(route.redirectPath).toBeUndefined();
     const element = panel(route.panelId!).render(ctx(route)) as ReactElement;
@@ -427,7 +427,7 @@ describe("declared detail routes through the real parser", () => {
 
   it.each(ROUTE_RENDER_CASES)("$id$pattern renders the expected component and props", ({ id, pattern, component, props, query, key }) => {
     const path = `/${id}${pattern.replace(/:([A-Za-z]+)/g, "$1-sample")}${query ? `?${query}` : ""}`;
-    const route = parseRoute(path);
+    const route = parseRoute({ routePath: path });
     expect(route.panelId).toBe(id);
     const element = panel(route.panelId!).render(ctx(route)) as ReactElement;
     expect(element.type).toBe(component);
@@ -447,7 +447,7 @@ describe("ADMIN_PANELS — every panel id is exercised by this file", () => {
 
 describe("panel media — legacy and Jini routes", () => {
   it.each(["", "?tab=videos"])("renders legacy Media at /media%s", (query) => {
-    const route = parseRoute(`/media${query}`);
+    const route = parseRoute({ routePath: `/media${query}` });
     expect(route.panelId).toBe("media");
     expect(route.view).toBeNull();
     const rendered = panel("media").render(ctx(route)) as ReactElement;
@@ -458,7 +458,7 @@ describe("panel media — legacy and Jini routes", () => {
 
   // PARKED 2026-10-03 (owner): Jini media at parity; re-enable to switch over
   it.skip.each(["", "?tab=videos"])("passes the complete context to the Jini adapter at /media/new%s", (query) => {
-    const route = parseRoute(`/media/new${query}`);
+    const route = parseRoute({ routePath: `/media/new${query}` });
     expect(route.panelId).toBe("media");
     expect(route.view).toBe("jini-media");
     const rendered = panel("media").render(ctx(route)) as ReactElement;
@@ -474,7 +474,7 @@ describe("panel media — legacy and Jini routes", () => {
     const mediaItems = buildNav({ panels: ADMIN_PANELS }).flatMap((group) => group.items).filter((item) => item.id === "media");
     expect(mediaItems).toHaveLength(1);
     expect(mediaItems[0]?.label).toBe("Media");
-    expect(parseRoute("/media").panelId).toBe(mediaItems[0]?.id);
+    expect(parseRoute({ routePath: "/media" }).panelId).toBe(mediaItems[0]?.id);
     // PARKED 2026-10-03 (owner): Jini media at parity; re-enable to switch over
     // expect(parseRoute("/media/new").panelId).toBe(mediaItems[0]?.id);
   });

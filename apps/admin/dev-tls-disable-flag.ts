@@ -19,7 +19,7 @@
  * all; this repo's `tsc` has `allowJs` off, so a `.ts` file here cannot cleanly import back from a
  * plain `.mjs` either. If you change this parse, change the other two copies too.
  */
-export function isDevTlsExplicitlyDisabled(raw: string | undefined): boolean {
+export function isDevTlsExplicitlyDisabled({ raw }: { raw: string | undefined }, _options: Record<string, never> = {}): boolean {
   const normalized = raw?.trim().toLowerCase();
   return normalized === "1" || normalized === "true";
 }

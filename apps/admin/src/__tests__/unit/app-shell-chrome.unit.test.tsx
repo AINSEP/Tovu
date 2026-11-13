@@ -136,12 +136,12 @@ it("opens the Publish dialog from a ?publish= deep link and strips the param fro
 });
 
 it("a legacy /section/<known id> path resolves exactly like the bare panel path", () => {
-  const legacy = parseRoute("/section/settings");
-  const modern = parseRoute("/settings");
+  const legacy = parseRoute({ routePath: "/section/settings" });
+  const modern = parseRoute({ routePath: "/settings" });
   expect(legacy).toEqual(modern);
   expect(legacy.panelId).toBe("settings");
 });
 
 it("a route naming a panel that is no longer registered reports the dashboard to agents", () => {
-  expect(agentPageId({ ...parseRoute("/"), panelId: "retired-panel" })).toBe("dashboard");
+  expect(agentPageId({ ...parseRoute({ routePath: "/" }), panelId: "retired-panel" })).toBe("dashboard");
 });

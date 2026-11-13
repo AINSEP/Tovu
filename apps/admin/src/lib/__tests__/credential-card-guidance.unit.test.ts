@@ -59,7 +59,7 @@ describe("credential paste guidance", () => {
   it("uses Jini translations for both credential notices in every locale", () => {
     for (const [locale, dictionary] of Object.entries(SETTINGS_DIALOG_DICTIONARIES)) {
       for (const key of [SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE]) {
-        expect(createChatI18nAdapter(locale).t(key)).toBe(dictionary![key]);
+        expect(createChatI18nAdapter({ locale }).t(key)).toBe(dictionary![key]);
       }
     }
   });

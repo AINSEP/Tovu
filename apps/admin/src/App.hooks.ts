@@ -327,10 +327,10 @@ export function usePublishCriteriaDeepLink(
  * unrelated to what it tests. A sibling hook, called separately from `App()`, costs nothing and
  * leaves that suite untouched.
  *
- * @param user - `useAdminSession()`'s current session, or `null` before login.
+ * @param input.user - `useAdminSession()`'s current session, or `null` before login.
  * @returns `true` unless the server has confirmed the flag is off.
  */
-export function useAdminAssistantAvailability(user: AdminUser | null): boolean {
+export function useAdminAssistantAvailability({ user }: { user: AdminUser | null }, _options: Record<string, never> = {}): boolean {
   const [enabled, setEnabled] = useState(true);
 
   useEffect(() => {
@@ -413,14 +413,14 @@ export type SiteSectionAvailability = "unknown" | "available" | "unavailable";
  * Gated on `user` for the same reason its sibling is: a pre-login request would 401, and the value
  * plays no role before `App.tsx`'s `<Login>` gate clears.
  *
- * @param user - `useAdminSession()`'s current session, or `null` before login.
+ * @param input.user - `useAdminSession()`'s current session, or `null` before login.
  * @param options.desktop - Injectable shell check; defaults to the existing preload-bridge detector.
  * @returns `unavailable` synchronously in the shell; otherwise `unknown` until the read settles,
  *   then `available` only if the server said the flag is on.
  * @complexity O(1) plus one server round trip per browser session; no round trip in the shell.
  */
 export function useSiteSectionAvailability(
-  user: AdminUser | null,
+  { user }: { user: AdminUser | null },
   { desktop = isDesktopAdmin({}) }: { desktop?: boolean } = {},
 ): SiteSectionAvailability {
   // Identity belongs in the query key: logout/401 must not paint the previous user's answer,
@@ -444,11 +444,11 @@ function siteSectionAvailability({ desktop, user, snapshot }: {
 export const SITES_ROW_STORAGE_KEY = "tovu-admin-sites-row-available";
 
 /** Storage access throws in a locked-down browser; the row then simply waits for the server. */
-function readSitesRowFlag(storage: Pick<Storage, "getItem"> | undefined): boolean {
+function readSitesRowFlag({ storage }: { storage: Pick<Storage, "getItem"> | undefined }, _options: Record<string, never> = {}): boolean {
   try { return storage?.getItem(SITES_ROW_STORAGE_KEY) === "1"; } catch { return false; }
 }
 
-function writeSitesRowFlag(storage: Pick<Storage, "setItem"> | undefined, available: boolean): void {
+function writeSitesRowFlag({ storage, available }: { storage: Pick<Storage, "setItem"> | undefined; available: boolean }, _options: Record<string, never> = {}): void {
   try { storage?.setItem(SITES_ROW_STORAGE_KEY, available ? "1" : "0"); } catch { /* best effort */ }
 }
 
@@ -472,9 +472,9 @@ export function useSidebarSiteSection(
   availability: SiteSectionAvailability,
   { storage = defaultSitesRowStorage() }: { storage?: Pick<Storage, "getItem" | "setItem"> } = {},
 ): SiteSectionAvailability {
-  const [lastAvailable] = useState(() => readSitesRowFlag(storage));
+  const [lastAvailable] = useState(() => readSitesRowFlag({ storage }));
   useEffect(() => {
-    if (availability !== "unknown") writeSitesRowFlag(storage, availability === "available");
+    if (availability !== "unknown") writeSitesRowFlag({ storage, available: availability === "available" });
   }, [availability, storage]);
   return availability === "unknown" && lastAvailable ? "available" : availability;
 }
@@ -534,13 +534,13 @@ export type SiteSectionRouteGate = "render" | "hold" | "redirect";
  * Every non-Sites route returns `render` on the first branch, so no other section can be affected
  * by this gate however the flag resolves.
  *
- * @param panelId - the resolved route's panel id (`null` for a route matching no panel).
- * @param availability - {@link useSiteSectionAvailability}'s answer.
+ * @param input.panelId - the resolved route's panel id (`null` for a route matching no panel).
+ * @param input.availability - {@link useSiteSectionAvailability}'s answer.
  * @complexity O(1).
  */
 export function resolveSiteSectionRouteGate(
-  panelId: string | null | undefined,
-  availability: SiteSectionAvailability,
+  { panelId, availability }: { panelId: string | null | undefined; availability: SiteSectionAvailability },
+  _options: Record<string, never> = {},
 ): SiteSectionRouteGate {
   if (panelId !== SITES_PANEL_ID) return "render";
   if (availability === "available") return "render";
@@ -595,12 +595,12 @@ export interface UseLogoutConfirm {
  * should ask first, the same way every other destructive action in this app (delete role, delete
  * page, …) already does via `@jini-ai/admin/react`'s `ConfirmDialog` rather than `window.confirm`.
  *
- * @param logout - The real (or faked) `logout` from `useAdminSession()`.
+ * @param input.logout - The real (or faked) `logout` from `useAdminSession()`.
  * @example
  * const { logout } = useSession();
- * const logoutConfirm = useLogoutConfirm(logout);
+ * const logoutConfirm = useLogoutConfirm({ logout });
  */
-export function useLogoutConfirm(logout: () => Promise<void>): UseLogoutConfirm {
+export function useLogoutConfirm({ logout }: { logout: () => Promise<void> }, _options: Record<string, never> = {}): UseLogoutConfirm {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
 
@@ -679,15 +679,15 @@ export function useInternalLinkInterceptor(): void {
  * `App.tsx`'s `dockT` translator, minus the fallback chain itself — kept here rather than as an
  * inline closure in `App.tsx` per this codebase's standing rule against derived logic living in a
  * `.tsx` file (see `App.tsx`'s `AssistantChrome` for the same reasoning applied to JSX branches).
- * `createAdminShellTranslators` binds this label to the shell locale (`(key) => translateAssistantDockLabel(locale,
- * key)`) so every existing call site keeps calling `dockT("...")` with no `locale` argument to
+ * `createAdminShellTranslators` binds this label to the shell locale (`({ key }) => translateAssistantDockLabel({ locale,
+ * key })`) so every existing call site keeps calling `dockT({ key })` with no `locale` argument to
  * thread through by hand. Delegates to `assistant-dock-i18n.ts`'s own `t` (COMMON_I18N-falling-back,
  * via `createDictionaryTranslator`) rather than duplicating `ASSISTANT_DOCK_DICT[locale]?.[key] ??
  * key` inline — same fix as `AssistantDock.hooks.tsx`'s `useAssistantDockChrome`, which had an
  * independent copy of the same no-fallback lookup.
  */
-export function translateAssistantDockLabel(locale: string, key: string): string {
-  return translateAssistantDockDictLabel(locale, key);
+export function translateAssistantDockLabel({ locale, key }: { locale: string; key: string }, _options: Record<string, never> = {}): string {
+  return translateAssistantDockDictLabel({ locale, key });
 }
 
 /**
@@ -963,7 +963,7 @@ function stillWorkingPublishResult(): PublishRequestResult {
  *
  * @complexity O(1); one timer, cleared once either side settles first.
  */
-function withFirstPlanTimeout(publishing: Promise<PublishRequestResult>): Promise<PublishRequestResult> {
+function withFirstPlanTimeout({ publishing }: { publishing: Promise<PublishRequestResult> }, _options: Record<string, never> = {}): Promise<PublishRequestResult> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timedOut = new Promise<PublishRequestResult>((resolve) => {
     timer = setTimeout(() => resolve(stillWorkingPublishResult()), PUBLISH_CONTENT_FIRST_PLAN_TIMEOUT_MS);
@@ -981,10 +981,10 @@ function withFirstPlanTimeout(publishing: Promise<PublishRequestResult>): Promis
  * A plain function, not inlined into {@link useAgentPageBridge}'s effect, so it is directly
  * unit-testable with no `EventSource`/React involved — see `app-hooks-admin-capability-executors.unit.test.tsx`.
  *
- * @param contentEl - The element to capture. `null` is handled by
+ * @param input.contentEl - The element to capture. `null` is handled by
  * {@link captureAdminScreenshotToolResult} itself (reported as a text failure, not thrown).
- * @param renderElementToCanvas - Test seam; defaults to the real `html2canvas`-backed adapter.
- * @param requestPublishFn - Test seam for `admin.publish_content` (plan §4 S3); defaults to the real
+ * @param options.renderElementToCanvas - Test seam; defaults to the real `html2canvas`-backed adapter.
+ * @param options.requestPublishFn - Test seam for `admin.publish_content` (plan §4 S3); defaults to the real
  * module-level {@link requestPublish} store call. Named distinctly from that import — a default
  * parameter initializer sharing its own parameter's name would read the not-yet-initialized
  * parameter, not the outer import.
@@ -997,14 +997,16 @@ function withFirstPlanTimeout(publishing: Promise<PublishRequestResult>): Promis
  * `requestPublishFn`'s own.
  */
 export function buildAdminCapabilityExecutors(
-  contentEl: HTMLElement | null,
-  renderElementToCanvas: RenderElementToCanvas = renderAdminScreenshotCanvas,
-  requestPublishFn: (criteria: PublishCriteria) => Promise<PublishRequestResult> = requestPublish,
+  { contentEl }: { contentEl: HTMLElement | null },
+  { renderElementToCanvas = renderAdminScreenshotCanvas, requestPublishFn = requestPublish }: {
+    renderElementToCanvas?: RenderElementToCanvas;
+    requestPublishFn?: (criteria: PublishCriteria) => Promise<PublishRequestResult>;
+  } = {},
 ): Record<string, (capabilityId: string, input: Record<string, unknown>) => Promise<unknown>> {
   return {
     "admin.": async (capabilityId: string, input: Record<string, unknown>) => {
       if (capabilityId === PUBLISH_CONTENT_CAPABILITY.id) {
-        return withFirstPlanTimeout(requestPublishFn(parsePublishContentToolInput(input)));
+        return withFirstPlanTimeout({ publishing: requestPublishFn(parsePublishContentToolInput(input)) });
       }
       if (capabilityId !== ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID) {
         throw new Error(`no admin capability serves "${capabilityId}"`);
@@ -1031,10 +1033,10 @@ export function buildAdminCapabilityExecutors(
  * network blip). Only a stream that has actually given up (`CLOSED`) is worth a warning; a real
  * `Error` (the other three cases above) still means something broke and stays at error level.
  *
- * @param error - Whatever the bridge's `onError` was called with.
+ * @param input.error - Whatever the bridge's `onError` was called with.
  * @complexity O(1).
  */
-export function logFrontendSessionError(error: unknown): void {
+export function logFrontendSessionError({ error }: { error: unknown }, _options: Record<string, never> = {}): void {
   if (error instanceof Event) {
     const source = error.target as { readyState?: unknown } | null;
     if (source?.readyState === EventSource.CLOSED) {
@@ -1083,17 +1085,19 @@ function resolveWebMcpModelContext(): AdminWebMcpModelContext | undefined {
  * agent handle on the Publish button, session-only overwrite unchanged server-side), not here — see
  * `AssistantDock.tsx`'s own `agentControl={{ webmcp: true }}` comment.
  *
- * @param executors - {@link buildAdminCapabilityExecutors}'s own return value; `executors["admin."]`
+ * @param input.executors - {@link buildAdminCapabilityExecutors}'s own return value; `executors["admin."]`
  * is always present (that function always returns exactly that one key).
- * @param signal - Threaded into `toWebMcpTool`'s `registerOptions.signal` — WebMCP's only
+ * @param input.signal - Threaded into `toWebMcpTool`'s `registerOptions.signal` — WebMCP's only
  * unregistration mechanism. The caller's effect cleanup aborts it to unregister on unmount/re-run.
- * @param modelContext - Test seam; defaults to {@link resolveWebMcpModelContext}'s real lookup.
+ * @param options.modelContext - Test seam; defaults to {@link resolveWebMcpModelContext}'s real lookup.
  * @complexity O(1).
  */
 export function registerAdminWebMcpTool(
-  executors: Record<string, (capabilityId: string, input: Record<string, unknown>) => Promise<unknown>>,
-  signal: AbortSignal,
-  modelContext: AdminWebMcpModelContext | undefined = resolveWebMcpModelContext(),
+  { executors, signal }: {
+    executors: Record<string, (capabilityId: string, input: Record<string, unknown>) => Promise<unknown>>;
+    signal: AbortSignal;
+  },
+  { modelContext = resolveWebMcpModelContext() }: { modelContext?: AdminWebMcpModelContext | undefined } = {},
 ): void {
   if (!modelContext || signal.aborted || !getBrowserAgentEnabled({})) return;
   const registration = toWebMcpTool({
@@ -1128,7 +1132,7 @@ export function useAgentPageBridge(
   // connection) on every render.
   const agentPages = useMemo(() => buildAdminAgentPages(), []);
   const pageDriver = useMemo(() => contentEl ? createDomPageDriver({ root: contentEl, pages: agentPages }) : null, [contentEl, agentPages]);
-  const executors = useMemo(() => buildAdminCapabilityExecutors(contentEl), [contentEl]);
+  const executors = useMemo(() => buildAdminCapabilityExecutors({ contentEl }), [contentEl]);
 
   useEffect(() => {
     if (!pageDriver) return undefined;
@@ -1146,7 +1150,7 @@ export function useAgentPageBridge(
       preparePageInput: pageNavigation.preparePageInput,
       onBeforeResponse: pageNavigation.onBeforeResponse,
       executors,
-      onError: logFrontendSessionError,
+      onError: (error) => logFrontendSessionError({ error }),
     });
     // `ready` reports only first attachment. Dock wake/send uses rebind for the current one;
     // a parked or failed stream remains closed until that explicit activation succeeds.
@@ -1171,13 +1175,13 @@ export function useAgentPageBridge(
     // (daemon-relayed SSE vs. page-native WebMCP). Opting out unregisters browser tools while
     // keeping the assistant attached. Abort is the draft's only unregister mechanism.
     const webMcpController = new AbortController();
-    registerAdminWebMcpTool(executors, webMcpController.signal);
+    registerAdminWebMcpTool({ executors, signal: webMcpController.signal });
     const requestPageAction = createFrontendRequestCaller({
       path: "/api/frontend-sessions/request", fetch,
       bindToken: () => agentBridge.bindToken(), onSurface: emission => publishAdminPageSurface({ emission }),
     }, { headers: () => ({ "x-frontend-tab-id": adminFrontendTabId }) });
     registerAdminPageWebMcpTools({ driver: pageDriver, signal: webMcpController.signal }, {
-      requestPageAction: async (request) => {
+      requestPageAction: async (request, _options = {}) => {
         if (!agentBridge.bindToken()) await prepareAssistantPageBinding({ bridge: agentBridge, signal: request.signal });
         else await agentBridge.rebind({ signal: request.signal }, {});
         return requestPageAction(request);
@@ -1243,13 +1247,13 @@ export function createAdminShellTranslators({ locale, translateDashboard }: {
   /** Same `navLocale`, reused for the assistant dock's mobile-sheet chrome and `ChatFab`'s
    *  "assistant" label below — both live here rather than inside `AssistantDock.tsx`/`ChatFab.tsx`
    *  themselves (see the `<aside>`'s own comment for why), so this is that chrome's translation. */
-  const dockT = (key: string): string => translateAssistantDockLabel(locale, key);
+  const dockT = ({ key }: { key: string }, _options: Record<string, never> = {}): string => translateAssistantDockLabel({ locale, key });
 
   /** The Publish dialog's own copy lives in `dashboard-i18n.ts`'s `DASHBOARD_DICT` — it is the
    *  Dashboard's dialog, wherever it mounts — never `tApp`/`dockT`, which would silently regress
    *  every locale but English for this one dialog (both resolve against `app-i18n.ts`'s different
    *  dictionary, which has no entries for this copy). */
-  const dashboardT = (key: string): string => translateDashboard({ locale, key });
+  const dashboardT = ({ key }: { key: string }, _options: Record<string, never> = {}): string => translateDashboard({ locale, key });
 
   return { dockT, dashboardT };
 }

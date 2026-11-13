@@ -54,7 +54,7 @@ export function MessageOverflowModal({
   agentHandle: handle,
 }: MessageOverflowModalProps) {
   const t = useT();
-  const { dialogRef, handleNativeCancel, handleBackdropClick } = useModal(open, onClose);
+  const { dialogRef, handleNativeCancel, handleBackdropClick } = useModal({ open, onClose });
 
   return (
     <dialog

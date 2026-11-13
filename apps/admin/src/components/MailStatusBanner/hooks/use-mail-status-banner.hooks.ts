@@ -14,15 +14,15 @@ export const MAIL_BANNER_DISMISSED_KEY = "tovu.admin.mail-status-banner.dismisse
 
 /** The slice of `localStorage` the dismiss needs; injected for tests. */
 export interface MailBannerStorage {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
+  getItem(input: { key: string }, options?: Record<string, never>): string | null;
+  setItem(input: { key: string; value: string }, options?: Record<string, never>): void;
 }
 
 /** Touches `localStorage` only inside each call, so a privacy mode that throws on the property
  *  access itself is caught by the try/catch in the read/write helpers below. */
 const browserStorage: MailBannerStorage = {
-  getItem: (key) => localStorage.getItem(key),
-  setItem: (key, value) => localStorage.setItem(key, value),
+  getItem: ({ key }, _options = {}) => localStorage.getItem(key),
+  setItem: ({ key, value }, _options = {}) => localStorage.setItem(key, value),
 };
 
 /** Pure: whether a status shows the banner — only when no provider is chosen, never when unknown. */
@@ -34,7 +34,7 @@ export function mailStatusBannerVisible({ status }: { status: AdminMailStatus | 
  *  @complexity Time/space: O(1). */
 export function readMailBannerDismissed({ storage }: { storage: MailBannerStorage }): boolean {
   try {
-    return storage.getItem(MAIL_BANNER_DISMISSED_KEY) === "1";
+    return storage.getItem({ key: MAIL_BANNER_DISMISSED_KEY }) === "1";
   } catch {
     return false;
   }
@@ -44,7 +44,7 @@ export function readMailBannerDismissed({ storage }: { storage: MailBannerStorag
  *  @complexity Time/space: O(1). */
 export function writeMailBannerDismissed({ storage }: { storage: MailBannerStorage }): void {
   try {
-    storage.setItem(MAIL_BANNER_DISMISSED_KEY, "1");
+    storage.setItem({ key: MAIL_BANNER_DISMISSED_KEY, value: "1" });
   } catch {
     // best-effort; see the doc comment above.
   }

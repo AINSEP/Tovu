@@ -10,8 +10,8 @@ import {
 
 export interface ChatDisplayPreferencesPort {
   load(): Promise<ChatDisplayPreferences>;
-  save(next: ChatDisplayPreferences, previous: ChatDisplayPreferences): Promise<void>;
-  subscribeToSettingsRefresh(listener: () => void): () => void;
+  save(input: { next: ChatDisplayPreferences; previous: ChatDisplayPreferences }, options?: Record<string, never>): Promise<void>;
+  subscribeToSettingsRefresh(input: { listener: () => void }, options?: Record<string, never>): () => void;
 }
 
 export interface ChatDisplayPreferencesController {
@@ -44,7 +44,7 @@ export function useChatDisplayPreferences(port: ChatDisplayPreferencesPort): Cha
   const stored = query.data ?? DEFAULT_CHAT_DISPLAY;
   const preferences = optimistic ?? stored;
 
-  useEffect(() => port.subscribeToSettingsRefresh(() => invalidate({ key: QUERY_KEY })), [port, invalidate]);
+  useEffect(() => port.subscribeToSettingsRefresh({ listener: () => invalidate({ key: QUERY_KEY }) }), [port, invalidate]);
   useEffect(() => {
     if (pendingSaves.current === 0 && optimistic && query.data && sameChatDisplay({ a: optimistic, b: query.data })) {
       lastRequested.current = null;
@@ -59,7 +59,7 @@ export function useChatDisplayPreferences(port: ChatDisplayPreferencesPort): Cha
     lastRequested.current = next;
     pendingSaves.current += 1;
     setOptimistic(next);
-    port.save(next, previous).then(
+    port.save({ next, previous }).then(
       () => {
         pendingSaves.current -= 1;
         setSaveFailed(false);

@@ -9,7 +9,7 @@ import { getBrowserAgentEnabled } from "./browser-agent-settings.hooks";
 /** The authenticated host adapter owns confirmation and execution of opaque page effects. */
 export type RequestAdminPageAction = (required: {
   capabilityId: string; input: Record<string, unknown>; signal: AbortSignal;
-}) => Promise<unknown>;
+}, options?: Record<string, never>) => Promise<unknown>;
 
 /** Thin CMS/admin policy adapter. Jini keeps projection, schema validation and direct page guards.
  * Protected actions use the authenticated ToolExecutor/card exchange; the browser agent never

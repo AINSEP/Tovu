@@ -22,14 +22,14 @@ function attachDialog(result: { current: ReturnType<typeof useMessageOverflowMod
 
 describe("useMessageOverflowModal", () => {
   it("does not set the open attribute on mount when open is false", () => {
-    const { result } = renderHook(({ open }) => useMessageOverflowModal(open, vi.fn()), { initialProps: { open: false } });
+    const { result } = renderHook(({ open }) => useMessageOverflowModal({ open, onClose: vi.fn() }), { initialProps: { open: false } });
     const dialog = attachDialog(result);
 
     expect(dialog.hasAttribute("open")).toBe(false);
   });
 
   it("sets the open attribute when open flips to true", () => {
-    const { result, rerender } = renderHook(({ open }) => useMessageOverflowModal(open, vi.fn()), {
+    const { result, rerender } = renderHook(({ open }) => useMessageOverflowModal({ open, onClose: vi.fn() }), {
       initialProps: { open: false },
     });
     attachDialog(result);
@@ -40,7 +40,7 @@ describe("useMessageOverflowModal", () => {
   });
 
   it("removes the open attribute when open flips back to false", () => {
-    const { result, rerender } = renderHook(({ open }) => useMessageOverflowModal(open, vi.fn()), {
+    const { result, rerender } = renderHook(({ open }) => useMessageOverflowModal({ open, onClose: vi.fn() }), {
       initialProps: { open: false },
     });
     attachDialog(result);
@@ -54,7 +54,7 @@ describe("useMessageOverflowModal", () => {
 
   it("handleNativeCancel prevents the browser default and routes through onClose", () => {
     const onClose = vi.fn();
-    const { result } = renderHook(() => useMessageOverflowModal(true, onClose));
+    const { result } = renderHook(() => useMessageOverflowModal({ open: true, onClose }));
 
     const preventDefault = vi.fn();
     act(() => result.current.handleNativeCancel({ preventDefault } as never));
@@ -65,7 +65,7 @@ describe("useMessageOverflowModal", () => {
 
   it("handleBackdropClick calls onClose only when the click target is the dialog itself", () => {
     const onClose = vi.fn();
-    const { result } = renderHook(() => useMessageOverflowModal(true, onClose));
+    const { result } = renderHook(() => useMessageOverflowModal({ open: true, onClose }));
     const dialog = attachDialog(result);
     const child = document.createElement("div");
     dialog.appendChild(child);
@@ -83,7 +83,7 @@ describe("useMessageOverflowModal", () => {
    * `showModal`/`close` onto the attached dialog element to exercise the real-browser branch too.
    */
   it("calls showModal()/close() directly, not the attribute fallback, when the browser implements them", () => {
-    const { result, rerender } = renderHook(({ open }) => useMessageOverflowModal(open, vi.fn()), {
+    const { result, rerender } = renderHook(({ open }) => useMessageOverflowModal({ open, onClose: vi.fn() }), {
       initialProps: { open: false },
     });
     const dialog = attachDialog(result);
@@ -112,7 +112,7 @@ describe("useMessageOverflowModal", () => {
    * `open` change.
    */
   it("does not call showModal() again when the dialog element is already open as the effect re-runs", () => {
-    const { result, rerender } = renderHook(({ open }) => useMessageOverflowModal(open, vi.fn()), {
+    const { result, rerender } = renderHook(({ open }) => useMessageOverflowModal({ open, onClose: vi.fn() }), {
       initialProps: { open: false },
     });
     const dialog = attachDialog(result);
@@ -127,7 +127,7 @@ describe("useMessageOverflowModal", () => {
   });
 
   it("does not call close() again when the dialog element is already closed as the effect re-runs", () => {
-    const { result, rerender } = renderHook(({ open }) => useMessageOverflowModal(open, vi.fn()), {
+    const { result, rerender } = renderHook(({ open }) => useMessageOverflowModal({ open, onClose: vi.fn() }), {
       initialProps: { open: true },
     });
     const dialog = attachDialog(result);

@@ -12,7 +12,7 @@ interface ChatFabProps {
    * directly — this component has no other data-dependent hook today, and the existing unit tests
    * render it with no locale at all, so `DEFAULT_LOCALE` ("en") is what every un-parameterized call
    * — tests included — keeps getting. Only the "Open"/"Close" verb template is this component's own
-   * to translate; `label` itself is the caller's word (see `App.tsx`'s `dockT("assistant")`).
+   * to translate; `label` itself is the caller's word (see `App.tsx`'s `dockT({ key: "assistant" })`).
    */
   locale?: string;
   /**
@@ -72,8 +72,8 @@ const FAB_ACTION_TEMPLATE: Record<string, { open: string; close: string }> = {
 };
 
 /** "Open {label}"/"Close {label}" in the caller's locale — `label` itself is already translated
- *  (by the caller; see `App.tsx`'s `dockT("assistant")`) by the time it reaches this component. */
-function fabActionLabel(locale: string, action: "open" | "close", label: string): string {
+ *  (by the caller; see `App.tsx`'s `dockT({ key: "assistant" })`) by the time it reaches this component. */
+function fabActionLabel({ locale, action, label }: { locale: string; action: "open" | "close"; label: string }, _options: Record<string, never> = {}): string {
   const forms = localeEntry({ table: FAB_ACTION_TEMPLATE, locale });
   return interpolate({ template: forms[action], vars: { label } });
 }
@@ -105,7 +105,7 @@ export function ChatFab({
   agentHandle: handle,
 }: ChatFabProps) {
   const fab = useFab({ dockOpen: open, avoidBottomPx, avoidRightPx });
-  const actionLabel = fabActionLabel(locale, open ? "close" : "open", label);
+  const actionLabel = fabActionLabel({ locale, action: open ? "close" : "open", label });
 
   return (
     <button

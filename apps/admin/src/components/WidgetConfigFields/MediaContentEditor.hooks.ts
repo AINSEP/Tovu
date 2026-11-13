@@ -145,7 +145,7 @@ export function useMediaContentEditor(
 ): MediaContentEditorController {
   const { config, onChange, widgetType } = required;
   const port = optional.port ?? defaultMediaPickerPort;
-  const { items: library, error: libraryError } = useMediaPickerItems(port, optional.locale);
+  const { items: library, error: libraryError } = useMediaPickerItems({ port }, { locale: optional.locale });
   const stored = useMemo(() => readMediaContent({ config, widgetType }, { library }), [config, widgetType, library]);
   const [stash, setStash] = useState<MediaContentStash>({});
   const [viewMode, setViewMode] = useState<MediaContentMode | null>(null);
@@ -212,7 +212,7 @@ export function useMediaContentEditor(
     inactiveHasContent: inactiveTabWillBeDropped({ stored, viewMode, stash }),
     library,
     libraryError,
-    pickable: acceptedMediaItems(library, PICKABLE_TYPES),
+    pickable: acceptedMediaItems({ items: library }, { accept: PICKABLE_TYPES }),
     mediaUrl: (asset) => port.mediaOriginalUrl(asset.id),
 
     layouts: mediaLayoutsFor(widgetType),

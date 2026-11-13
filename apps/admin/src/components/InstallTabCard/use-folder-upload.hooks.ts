@@ -39,7 +39,7 @@ export function useFolderUpload(
   const [zipping, setZipping] = useState(false);
   const zippingRef = useRef(false);
 
-  async function zip(files: File[]): Promise<void> {
+  async function zip({ files }: { files: File[] }, _options: Record<string, never> = {}): Promise<void> {
     if (zippingRef.current || required.isLocked()) return;
     zippingRef.current = true;
     setZipping(true);
@@ -62,7 +62,7 @@ export function useFolderUpload(
     onChange: (event: { target: PickedFolderInput }) => {
       const files = Array.from(event.target.files ?? []);
       event.target.value = "";
-      return zip(files);
+      return zip({ files });
     },
   };
 }

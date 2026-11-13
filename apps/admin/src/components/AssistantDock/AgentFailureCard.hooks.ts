@@ -7,7 +7,7 @@ import { localFailureHints } from "./agent-failure-hints";
 
 export interface FailureSurfaceActions {
   readonly agents: readonly FailureAgent[];
-  readonly switchAgent: (agentId: string) => void;
+  readonly switchAgent: (input: { agentId: string }, options?: Record<string, never>) => void;
 }
 export const FailureSurfaceContext = createContext<FailureSurfaceActions>({ agents: [], switchAgent: () => undefined });
 
@@ -19,7 +19,7 @@ export function useAgentFailureSurface({ transport, runtimeAccess, initialMessag
   const [agents, setAgents] = useState<readonly FailureAgent[]>([]);
   const inventoryGeneration = useRef(0);
   const access = useMemo<ChatPaneRuntimeAccess>(() => {
-    async function capture(load: () => Promise<readonly FailureAgent[]>) {
+    async function capture({ load }: { load: () => Promise<readonly FailureAgent[]> }, _options: Record<string, never> = {}) {
       inventoryGeneration.current += 1;
       const generation = inventoryGeneration.current;
       const inventory = await load();
@@ -27,13 +27,13 @@ export function useAgentFailureSurface({ transport, runtimeAccess, initialMessag
       return inventory;
     }
     return { ...runtimeAccess,
-      listAgents: () => capture(() => runtimeAccess.listAgents()),
-      rescanAgents: () => capture(() => runtimeAccess.rescanAgents()),
+      listAgents: () => capture({ load: () => runtimeAccess.listAgents() }),
+      rescanAgents: () => capture({ load: () => runtimeAccess.rescanAgents() }),
     };
   }, [runtimeAccess]);
   const projectedTransport = useMemo(() => withAgentFailureSurface({ transport }, {}), [transport]);
   const messages = useMemo(() => initialMessages?.map(message => projectAgentFailureMessage({ message }, {})), [initialMessages]);
-  const actions = useMemo<FailureSurfaceActions>(() => ({ agents, switchAgent(agentId) {
+  const actions = useMemo<FailureSurfaceActions>(() => ({ agents, switchAgent({ agentId }, _options = {}) {
     if (!agents.some(agent => agent.id === agentId && agent.available === true)) return;
     onExecutionModeChange("local");
     // An agent change resets its model/effort, matching the picker's selection path.
@@ -42,7 +42,7 @@ export function useAgentFailureSurface({ transport, runtimeAccess, initialMessag
   return { transport: projectedTransport, runtimeAccess: access, initialMessages: messages, actions };
 }
 
-function failureData(value: unknown): AgentFailure | null {
+function failureData({ value }: { value: unknown }, _options: Record<string, never> = {}): AgentFailure | null {
   if (!value || typeof value !== "object") return null;
   const data = value as Partial<AgentFailure>;
   if (typeof data.reason !== "string" || typeof data.details !== "string") return null;
@@ -57,7 +57,7 @@ function failureData(value: unknown): AgentFailure | null {
  * @complexity O(last event bytes), pure; earlier events do not control the card's current state.
  */
 export function hasAgentFailureNotice({ events }: { events: readonly unknown[] }, _optional = {}): boolean {
-  return failureData(events[events.length - 1]) !== null;
+  return failureData({ value: events[events.length - 1] }) !== null;
 }
 
 export function useAgentFailureCard({ events, runStreaming, runSucceeded }: {
@@ -65,7 +65,7 @@ export function useAgentFailureCard({ events, runStreaming, runSucceeded }: {
 }, _optional = {}) {
   const t = useT();
   const { agents, switchAgent } = useContext(FailureSurfaceContext);
-  const failure = failureData(events[events.length - 1]);
+  const failure = failureData({ value: events[events.length - 1] });
   if (runStreaming || runSucceeded || !failure) return null;
   const declaredHints = failureHintsForAgent({ agents, agentId: failure.agentId });
   const hint = matchAgentFailureHint({ failure, hints: [...declaredHints, ...localFailureHints({ agentId: failure.agentId }, {})] }, {});
@@ -73,7 +73,7 @@ export function useAgentFailureCard({ events, runStreaming, runSucceeded }: {
   // Translate known guidance before redaction; runtime diagnostics remain verbatim and redacted.
   return { ...failure, hint: hint ? redactAgentFailure({ text: t(hint.hint) }, {}) : undefined,
     switchLabel: alternative ? t("Switch to {name}", { name: redactAgentFailure({ text: alternative.name }, {}) }) : undefined,
-    switchAgent: alternative ? () => switchAgent(alternative.id) : undefined };
+    switchAgent: alternative ? () => switchAgent({ agentId: alternative.id }) : undefined };
 }
 
 /** Read only the selected agent's declared hints; unknown agents retain local guidance. */

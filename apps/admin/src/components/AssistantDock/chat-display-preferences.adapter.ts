@@ -11,8 +11,8 @@ const ledger: ChatDisplayLedgerPort = {
 
 export const defaultChatDisplayPreferencesPort: ChatDisplayPreferencesPort = {
   load: () => loadChatDisplayPreferences({ port: ledger }, {}),
-  save: (next, previous) => saveChatDisplayPreferences({ next, previous, port: ledger }, {}),
-  subscribeToSettingsRefresh: (listener) =>
+  save: ({ next, previous }, _options = {}) => saveChatDisplayPreferences({ next, previous, port: ledger }, {}),
+  subscribeToSettingsRefresh: ({ listener }, _options = {}) =>
     subscribeToSettingsRefresh((scope) => {
       if (scope === null || scope.includes(CHAT_DISPLAY_NAMESPACE)) listener();
     }),

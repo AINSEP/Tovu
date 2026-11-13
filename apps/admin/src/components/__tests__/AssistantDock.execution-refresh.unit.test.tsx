@@ -40,7 +40,7 @@ function harness() {
   let now = 0;
   const loadConfig = vi.fn(async () => saved);
   const port = { loadConfig, loadCredential: async () => ({ isSet: false }), now: () => now };
-  const persistWrite = vi.fn(async (write: ExecutionConfigWrite, _failureLog: string) => {
+  const persistWrite = vi.fn(async ({ write }: { write: ExecutionConfigWrite; failureLog: string }) => {
     saved = write.next;
     publishSettingsRefresh([EXECUTION_NAMESPACE]);
     return true;
@@ -105,7 +105,7 @@ describe("dock execution config freshness", () => {
     await flush();
     expect(dock.result.current.localCliSelection).toEqual({ agentId: "claude", model: "opus", reasoning: "high" });
     expect(fake.persistWrite).toHaveBeenCalledTimes(1);
-    expect(fake.persistWrite.mock.calls[0]![0].next.localCli.reasoningByAgentId).toEqual({ claude: "high" });
+    expect(fake.persistWrite.mock.calls[0]![0].write.next.localCli.reasoningByAgentId).toEqual({ claude: "high" });
 
     dock.unmount();
     const reopened = renderHook(fake.useDock);

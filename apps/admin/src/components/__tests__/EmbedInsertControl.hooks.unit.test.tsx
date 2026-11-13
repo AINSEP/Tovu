@@ -29,14 +29,14 @@ afterEach(() => {
 
 describe("useEmbedInsertControl — visibility flags", () => {
   it("starts with the menu, widget mode, and media picker all closed", () => {
-    const { result } = renderHook(() => useEmbedInsertControl(fakeEditor()));
+    const { result } = renderHook(() => useEmbedInsertControl({ editor: fakeEditor() }));
     expect(result.current.open).toBe(false);
     expect(result.current.widgetMode).toBe(false);
     expect(result.current.mediaPicking).toBe(false);
   });
 
   it("each setter flips only its own flag", () => {
-    const { result } = renderHook(() => useEmbedInsertControl(fakeEditor()));
+    const { result } = renderHook(() => useEmbedInsertControl({ editor: fakeEditor() }));
 
     act(() => result.current.setOpen(true));
     expect(result.current).toMatchObject({ open: true, widgetMode: false, mediaPicking: false });
@@ -52,9 +52,9 @@ describe("useEmbedInsertControl — visibility flags", () => {
 describe("useEmbedInsertControl — insertWidget", () => {
   it("calls editor.commands.insertWidgetEmbed with the given widgetEntryId and a non-empty placementId", () => {
     const editor = fakeEditor();
-    const { result } = renderHook(() => useEmbedInsertControl(editor));
+    const { result } = renderHook(() => useEmbedInsertControl({ editor }));
 
-    act(() => result.current.insertWidget("w1"));
+    act(() => result.current.insertWidget({ widgetEntryId: "w1" }));
 
     expect(editor.commands.insertWidgetEmbed).toHaveBeenCalledTimes(1);
     const [attrs] = vi.mocked(editor.commands.insertWidgetEmbed).mock.calls[0];
@@ -64,18 +64,18 @@ describe("useEmbedInsertControl — insertWidget", () => {
 
   it("mints a different placementId on each call", () => {
     const editor = fakeEditor();
-    const { result } = renderHook(() => useEmbedInsertControl(editor));
+    const { result } = renderHook(() => useEmbedInsertControl({ editor }));
 
-    act(() => result.current.insertWidget("w1"));
-    act(() => result.current.insertWidget("w2"));
+    act(() => result.current.insertWidget({ widgetEntryId: "w1" }));
+    act(() => result.current.insertWidget({ widgetEntryId: "w2" }));
 
     const calls = vi.mocked(editor.commands.insertWidgetEmbed).mock.calls;
     expect(calls[0][0].placementId).not.toBe(calls[1][0].placementId);
   });
 
   it("is a safe no-op when editor is null — never throws", () => {
-    const { result } = renderHook(() => useEmbedInsertControl(null));
-    expect(() => act(() => result.current.insertWidget("w1"))).not.toThrow();
+    const { result } = renderHook(() => useEmbedInsertControl({ editor: null }));
+    expect(() => act(() => result.current.insertWidget({ widgetEntryId: "w1" }))).not.toThrow();
   });
 
   it("falls back to the timestamp+random placementId when crypto.randomUUID is unavailable", () => {
@@ -83,9 +83,9 @@ describe("useEmbedInsertControl — insertWidget", () => {
     // is otherwise never exercised — stub it away for this one test only.
     vi.stubGlobal("crypto", {});
     const editor = fakeEditor();
-    const { result } = renderHook(() => useEmbedInsertControl(editor));
+    const { result } = renderHook(() => useEmbedInsertControl({ editor }));
 
-    act(() => result.current.insertWidget("w1"));
+    act(() => result.current.insertWidget({ widgetEntryId: "w1" }));
 
     const [attrs] = vi.mocked(editor.commands.insertWidgetEmbed).mock.calls[0];
     expect(attrs.placementId).toMatch(/^placement-\d+-[a-z0-9]+$/);
@@ -94,7 +94,7 @@ describe("useEmbedInsertControl — insertWidget", () => {
 
 describe("useEmbedInsertControl — formControl / menuControl are independent pinned useWidgetAddControl instances", () => {
   it("both start with no pickerType and no error", () => {
-    const { result } = renderHook(() => useEmbedInsertControl(fakeEditor()));
+    const { result } = renderHook(() => useEmbedInsertControl({ editor: fakeEditor() }));
     expect(result.current.formControl.pickerType).toBeNull();
     expect(result.current.menuControl.pickerType).toBeNull();
     expect(result.current.formControl.error).toBeNull();
@@ -102,7 +102,7 @@ describe("useEmbedInsertControl — formControl / menuControl are independent pi
   });
 
   it("setting formControl's pickerType does not affect menuControl — two genuinely separate hook instances", () => {
-    const { result } = renderHook(() => useEmbedInsertControl(fakeEditor()));
+    const { result } = renderHook(() => useEmbedInsertControl({ editor: fakeEditor() }));
 
     act(() => result.current.formControl.setPickerType("contact-form"));
 
@@ -111,7 +111,7 @@ describe("useEmbedInsertControl — formControl / menuControl are independent pi
   });
 
   it("setting menuControl's pickerType does not affect formControl", () => {
-    const { result } = renderHook(() => useEmbedInsertControl(fakeEditor()));
+    const { result } = renderHook(() => useEmbedInsertControl({ editor: fakeEditor() }));
 
     act(() => result.current.menuControl.setPickerType("menu"));
 
@@ -121,7 +121,7 @@ describe("useEmbedInsertControl — formControl / menuControl are independent pi
 
   it("formControl.handleUseExisting resolves through insertWidget into editor.commands.insertWidgetEmbed and clears pickerType", async () => {
     const editor = fakeEditor();
-    const { result } = renderHook(() => useEmbedInsertControl(editor));
+    const { result } = renderHook(() => useEmbedInsertControl({ editor }));
 
     act(() => result.current.formControl.setPickerType("contact-form"));
     await act(async () => {
@@ -135,7 +135,7 @@ describe("useEmbedInsertControl — formControl / menuControl are independent pi
   it("an editor that rejects the widget command surfaces 'not placed' in that control's error slot, not a silent success", async () => {
     const editor = fakeEditor();
     vi.mocked(editor.commands.insertWidgetEmbed).mockReturnValue(false);
-    const { result } = renderHook(() => useEmbedInsertControl(editor));
+    const { result } = renderHook(() => useEmbedInsertControl({ editor }));
 
     act(() => result.current.formControl.setPickerType("contact-form"));
     await act(async () => {
@@ -150,14 +150,14 @@ describe("useEmbedInsertControl — formControl / menuControl are independent pi
   it("a rejected insertWidget throws for its direct caller (the Widget... flow) instead of returning normally", () => {
     const editor = fakeEditor();
     vi.mocked(editor.commands.insertWidgetEmbed).mockReturnValue(false);
-    const { result } = renderHook(() => useEmbedInsertControl(editor));
+    const { result } = renderHook(() => useEmbedInsertControl({ editor }));
 
-    expect(() => result.current.insertWidget("w1")).toThrow("the editor could not place the widget at the cursor");
+    expect(() => result.current.insertWidget({ widgetEntryId: "w1" })).toThrow("the editor could not place the widget at the cursor");
   });
 
   it("menuControl.handleUseExisting resolves independently of formControl", async () => {
     const editor = fakeEditor();
-    const { result } = renderHook(() => useEmbedInsertControl(editor));
+    const { result } = renderHook(() => useEmbedInsertControl({ editor }));
 
     act(() => result.current.menuControl.setPickerType("menu"));
     await act(async () => {

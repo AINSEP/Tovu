@@ -35,7 +35,7 @@ function mount({ agents, events = fixture as AgentEvent[], agentId = "gemini", l
   const unregister = registerExtEventRenderer({ name: AGENT_FAILURE_EVENT, renderer: props => <AgentFailureCard {...props} /> }, { terminalNotice: hasAgentFailureNotice });
   function Harness() {
     surface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages, onSelectionChange, onExecutionModeChange }, {});
-    return <JiniChatProvider transport={surface.transport} i18n={createChatI18nAdapter(locale)}>
+    return <JiniChatProvider transport={surface.transport} i18n={createChatI18nAdapter({ locale })}>
       <FailureSurfaceContext.Provider value={surface.actions}>
         <MessageRow message={surface.initialMessages![0]!} />
       </FailureSurfaceContext.Provider>
@@ -125,7 +125,7 @@ it.each([{ runStreaming: true, runSucceeded: false }, { runStreaming: false, run
 it("the default failure context accepts a switch without requiring a provider", () => {
   const { result } = renderHook(() => useContext(FailureSurfaceContext));
   expect(result.current.agents).toEqual([]);
-  expect(result.current.switchAgent("missing")).toBeUndefined();
+  expect(result.current.switchAgent({ agentId: "missing" })).toBeUndefined();
 });
 
 it("uses local guidance when the source agent has no declared hints", () => {
@@ -164,13 +164,13 @@ it("keeps the latest rescan inventory when an older list completes and switches 
   await act(async () => { releaseList([{ id: "obsolete", name: "Old", available: true }]); await stale; });
   expect(result.current.actions.agents).toEqual(fresh);
   act(() => {
-    result.current.actions.switchAgent("missing");
-    result.current.actions.switchAgent("gemini");
-    result.current.actions.switchAgent("unknown");
+    result.current.actions.switchAgent({ agentId: "missing" });
+    result.current.actions.switchAgent({ agentId: "gemini" });
+    result.current.actions.switchAgent({ agentId: "unknown" });
   });
   expect(selections).toEqual([]);
   expect(modes).toEqual([]);
-  act(() => { result.current.actions.switchAgent("aider"); });
+  act(() => { result.current.actions.switchAgent({ agentId: "aider" }); });
   expect(selections).toEqual([{ agentId: "aider" }]);
   expect(modes).toEqual(["local"]);
 });
@@ -202,7 +202,7 @@ it.each([
     const onRemove = vi.fn();
     const onSend = vi.fn();
     const transport: ChatTransport = { async startRun() { return { runId: "test" }; }, async reattachRun() {}, async stopRun() {}, async fetchRunStatus() { return null; } };
-    render(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter(copy.locale)}>
+    render(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ locale: copy.locale })}>
       <SelectedAgentPluginTray chips={[{ pluginRefId: "design", label: "Design" }]} onRemove={onRemove} onSendSkills={onSend} />
     </JiniChatProvider>);
     const remove = screen.getByRole("button", { name: copy.remove });
@@ -221,7 +221,7 @@ it.each([
   const onDismiss = vi.fn();
   const onRetry = vi.fn();
   const transport: ChatTransport = { async startRun() { return { runId: "test" }; }, async reattachRun() {}, async stopRun() {}, async fetchRunStatus() { return null; } };
-  render(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter(copy.locale)}>
+  render(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ locale: copy.locale })}>
     <FolderDropConfirmation path="/work" onDismiss={onDismiss} />
     <FolderDropError path="/work" reason="endpoint-unreachable" onDismiss={onDismiss} onRetry={onRetry} />
     <FolderDropPathHint onDismiss={onDismiss} />
@@ -251,13 +251,13 @@ it("covers required dock keys through their actual translator in every admin loc
   ];
   const missing: string[] = [];
   for (const { code } of ADMIN_LOCALES.filter(({ code }) => code !== "en")) {
-    const adapter = createChatI18nAdapter(code);
+    const adapter = createChatI18nAdapter({ locale: code });
     for (const key of keys) {
       const translated = adapter.t(key);
       if (!translated.trim() || translated === key) missing.push(`${code}: ${key}`);
       expect(translated.match(/\{\w+\}/g) ?? []).toEqual(key.match(/\{\w+\}/g) ?? []);
     }
-    if (translateDock(code, "More settings…") === "More settings…") missing.push(`${code}: More settings…`);
+    if (translateDock({ locale: code, key: "More settings…" }) === "More settings…") missing.push(`${code}: More settings…`);
     expect(adapter.t("Switch to {name}", { name: "Antigravity" })).toContain("Antigravity");
   }
   expect(missing).toEqual([]);

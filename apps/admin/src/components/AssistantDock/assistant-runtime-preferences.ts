@@ -39,13 +39,13 @@ const KEYS: Readonly<Record<keyof AssistantRuntimePreferences, string>> = {
 
 /** Missing or invalid stored values use the registered defaults. @complexity O(1) fixed keys. */
 export function readAssistantRuntimePreferences({ values }: { values: Map<string, unknown> }, _options = {}): AssistantRuntimePreferences {
-  const read = (field: 'preferSubagents' | 'useClaudeInChrome'): boolean => {
+  const read = ({ field }: { field: 'preferSubagents' | 'useClaudeInChrome' }, _options: Record<string, never> = {}): boolean => {
     const value = values.get(KEYS[field]);
     return typeof value === 'boolean' ? value : DEFAULT_ASSISTANT_RUNTIME_PREFERENCES[field];
   };
   const replyLength = values.get(REPLY_LENGTH_KEY);
   return {
-    preferSubagents: read('preferSubagents'), useClaudeInChrome: read('useClaudeInChrome'),
+    preferSubagents: read({ field: 'preferSubagents' }), useClaudeInChrome: read({ field: 'useClaudeInChrome' }),
     replyLength: replyLength === 'short' || replyLength === 'detailed' ? replyLength : DEFAULT_ASSISTANT_RUNTIME_PREFERENCES.replyLength,
   };
 }

@@ -105,9 +105,9 @@ function MediaPickerItems({ items, itemHandles, dialog, emptyState }: {
 }
 
 function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentHandle: base, accept, ...props }: MediaPickerDialogProps) {
-  const dialog = useDialog(props.onSelect, props.onCancel);
+  const dialog = useDialog({ onSelect: props.onSelect, onCancel: props.onCancel });
   const { error, t } = dialog;
-  const items = acceptedMediaItems(dialog.items, accept);
+  const items = acceptedMediaItems({ items: dialog.items }, { accept });
   // Native modality keeps Tab inside; Jini also restores the opener when this dialog unmounts.
   // Cancel is always present regardless of loading/error/empty/populated state, the same reason
   // useMediaLightbox has an always-available Close target.
