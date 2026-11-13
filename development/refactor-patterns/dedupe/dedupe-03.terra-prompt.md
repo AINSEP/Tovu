@@ -1,6 +1,6 @@
 # Terra job dedupe-03: Tovu website: feature-level merges + import swaps to existing Jini exports
 
-READY (2026-11-13). Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Tovu clone you are given.
+READY (2026-11-13; revised after review d3r2: X31 moved out). Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Tovu clone you are given.
 
 Order: X (import swaps) first, then T/TR groups. Groups that name a Jini export use only exports that are already public in the installed `@jini-ai/*` packages; if an import does not resolve, STALE it (never edit Jini from this job).
 
@@ -30,7 +30,6 @@ Order: X (import swaps) first, then T/TR groups. Groups that name a Jini export 
 - **X25** REPOINT-NOW — risk -; est. −12 lines; divergence: none (same name, same method; Tovu doc-only)
 - **X27** REPOINT-NOW — risk -; est. −10 lines; divergence: Tovu adds failure?: UserFacingError | null; rest identical
 - **X30** REPOINT-NOW — risk -; est. −34 lines; divergence: none (Jini adds unused _optional param)
-- **X31** REPOINT-NOW — risk -; est. −22 lines; divergence: Jini optionals are "| undefined" (exactOptionalPropertyTypes) - wider, assignable both ways for readers; PageHeadContext/EntryRef NOT swapped (Jini themeTier is string, ancestors.title string|undefined)
 - **T30** MERGE INTO EXISTING — risk L; est. −~260 lines (31 copies, not 20); divergence: shared type adds optional metadata + authorization.orPermission (widening only); 5 files require inputSchema (view-image, seo, web-screenshot, webhooks, plugin-runtime) and publish-content narrows actorClassRuleRule - kept via the intersection
   - tests: npx tsc --noEmit -p apps/website (type-only) + npx tsx --test --test-concurrency=1 apps/website/src/features/<each touched feature>/__tests__/**/agent-tools*.test.ts
 - **T32** MERGE INTO EXISTING — risk L; est. −15 lines; divergence: none
@@ -155,15 +154,8 @@ It must import from the framework-neutral `@jini-ai/cms/forms` (Jini job 08, X15
 - Delete `website/src/platform/db/keyset-cursor.ts` and `website/src/platform/db/__tests__/keyset-cursor.test.ts`. Check that Jini has a matching test before deleting the Tovu one.
 - Importers: `database-journal-repo.ts` and the test, nothing else.
 
-## X31: page-head element types -> `@jini-ai/cms/seo#HeadElement, JsonLd`
-- `website/src/server/inbound/public-http/http/site/page-head.ts`:
-  - Add: `import type { HeadElement, JsonLd } from "@jini-ai/cms/seo";` and `export type { HeadElement, JsonLd };`
-  - Delete line 25 (`export type JsonLd = JsonObject;`), the private `interface HeadElementBase` (lines 27-~42; move its priority-band why-comment to the Jini type) and `export type HeadElement = ...` (lines 44-~63).
-  - Drop `JsonObject` from the line 1 import.
-- Do NOT swap `PageHeadEntryRef`, `PageHeadContext`, `PageHeadHook` or `HeadElementKey`. Jini's `themeTier` is `string` (Tovu narrows it to `ThemeTier`), `ancestors[].title` is `string | undefined`, and `HeadElementKey` is `string` (Tovu derives it from `headElementKey`).
-- The only difference: Jini optionals carry `| undefined`, which readers can ignore.
-- Afterwards, the Jini `packages/cms/src/seo/types.ts` header ("structural DUPLICATE of page-head.ts") should be reworded so that Jini is canonical (Jini-side doc edit).
-- Importers: unchanged (`http/site/__tests__/page-head.test.ts`, `features/seo/__tests__/cover-image-head.test.ts`).
+## X31: moved to `opus-ui-backlog.md` (decisions section)
+Do NOT edit `website/src/server/inbound/public-http/http/site/page-head.ts`. Its `JsonLd` / `HeadElement` declarations stay as they are: making Jini's SEO types canonical conflicts with ADR-PIPE-008's render-contract ownership and needs an ADR revision first (review d3r2 finding 1).
 
 ---
 

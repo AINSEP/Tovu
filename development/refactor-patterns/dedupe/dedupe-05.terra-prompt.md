@@ -1,11 +1,11 @@
 # Terra job dedupe-05: Jini core-level helpers (land first among Jini jobs)
 
-READY (2026-11-13, revised for gates; revised after review d3r: J05 is split into small functions with exact signatures, size rule). Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Jini clone you are given (Jini only; paths below are relative to the Jini repo root).
+READY (2026-11-13, revised for gates; revised after review d3r: J05 is split into small functions with exact signatures, size rule; revised after review d3r2: the whole J45 cms file replacement is Phase B). Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Jini clone you are given (Jini only; paths below are relative to the Jini repo root).
 
 ## Two phases (PLAN.md "Coordinator gates")
 Other packages type-check against the BUILT `@jini-ai/core`, so a package cannot import a core name this job adds until core is reviewed and built.
-- **Phase A (run now):** every core addition (J05 step 1, J09 core file, J32/J53/J56 core functions, TR04 core function, J45 core index additions if needed) plus the groups that use only names core ALREADY exports: J03, J45 (cms side, when no new core export is needed), JR07. Type-check core and each touched package, run the listed tests, commit, and report `05A DONE (needs H1)`. Stop there.
-- **Phase B (run ONLY when the dispatch says "H1 done: @jini-ai/core built"):** consumer repoints of the NEW core names: J05 steps 2-3 (artifacts, agent-runtime), J09 repoints, J32 repoints + deletes, J53 repoints, J56 repoints, and the cms re-export half of J45 if Phase A had to add core exports.
+- **Phase A (run now):** every core addition (J05 step 1, J09 core file, J32/J53/J56 core functions, TR04 core function, J45 core index additions) plus the groups that use only names core ALREADY exports: J03, JR07. J45's cms file is NOT touched in Phase A. Type-check core and each touched package, run the listed tests, commit, and report `05A DONE (needs H1)`. Stop there.
+- **Phase B (run ONLY when the dispatch says "H1 done: @jini-ai/core built"):** consumer repoints of the NEW core names: J05 steps 2-3 (artifacts, agent-runtime), J09 repoints, J32 repoints + deletes, J53 repoints, J56 repoints, and the whole J45 cms file replacement.
 - TR04's Tovu half is NOT in this job. It needs the Jini release (gate R1) and runs in `dedupe-11`. Report `TR04 JINI DONE; Tovu half = job 11`.
 
 ## Rules for every group in this job (read before editing)
@@ -31,7 +31,7 @@ Other packages type-check against the BUILT `@jini-ai/core`, so a package cannot
   - tests: cd packages/core && npx vitest run --maxWorkers=2 src/primitives/__tests__/errors.test.ts ; cd packages/sidecar && npx vitest run --maxWorkers=2 src/__tests__/json-ipc.test.ts src/__tests__/port.test.ts ; cd packages/platform && npx vitest run --maxWorkers=2 src/__tests__/fs.test.ts src/__tests__/process.test.ts
 - **J32** EXTRACT SHARED HELPER (core function Phase A; 16 repoints Phase B) — risk L; est. −44 lines; divergence: none (5 identical copies; ui copy not in jscpd input but identical name - Terra must diff it first)
   - tests: cd packages/core && npx vitest run --maxWorkers=2 src/records.test.ts
-- **J45** MERGE INTO EXISTING (Phase A; its optional re-export of newly added core names is Phase B) — risk L; est. −12 lines; divergence: none (verbatim)
+- **J45** MERGE INTO EXISTING (core index additions Phase A; the whole cms file replacement Phase B, after H1) — risk L; est. −12 lines; divergence: none (verbatim)
   - tests: cd packages/cms && npx vitest run --maxWorkers=2 src/entries/__tests__/write-service.test.ts src/content-types/__tests__/write-service.test.ts
 - **J53** EXTRACT SHARED HELPER (core function Phase A; 9 repoints Phase B) — risk L; est. −24 lines; divergence: none ("not valid JSON" / "schemaVersion must be 1" kept; each caller keeps its own array/length check and message)
   - tests: cd packages/core && npx vitest run --maxWorkers=2 src/records.test.ts ; then, for each of the 9 files in the J53 recipe, the `__tests__` file beside it that imports its parse function (`rg -l "<parseFunctionName>" <package>/src --glob '*.test.ts'`, run each alone)
@@ -252,7 +252,23 @@ Phase B (after H1). Delete the five copies: `packages/admin/src/core/omit-keys.t
 A test file that imports a deleted copy repoints to `@jini-ai/core/records` and switches to object args too. Type-check each of the 5 packages.
 
 ## J45 cms authorization types (MERGE into core)
-Replace the body of cms/src/core/authorization.ts with the existing first doc line plus `export type { ToolPermissionAuthorizationPort as AuthorizationPort } from "@jini-ai/core";`. First run `rg -n "AuthorizationRequired|AuthorizationOptional" packages/cms/src`. If anything in cms uses them, add `type AuthorizationRequired as ToolPermissionAuthorizationRequired, type AuthorizationOptional as ToolPermissionAuthorizationOptional` to core/src/index.ts's tool-permissions export and re-export those from cms too. The `AuthorizationPort` re-export uses an existing core name (Phase A). If the two extra core index exports are needed, adding them to core is Phase A and the cms re-export of them is Phase B (after H1).
+Review d3r2 finding 5: cms already re-exports `AuthorizationRequired` / `AuthorizationOptional` from `cms/src/core/authorization.ts` through `cms/src/core/index.ts` (~line 69) and `cms/src/core/tools/args.ts` (~line 8), so the cms file cannot lose them while core does not yet ship replacements. The cms file therefore changes only in Phase B.
+
+Phase A (core only; do NOT touch any cms file):
+1. `packages/core/src/index.ts`, in the existing `./tool-permissions.js` export that already has `type AuthorizationPort as ToolPermissionAuthorizationPort`, add `type AuthorizationRequired as ToolPermissionAuthorizationRequired, type AuthorizationOptional as ToolPermissionAuthorizationOptional`.
+2. Type-check core only. These are type aliases of interfaces core already declares in `tool-permissions.ts`; no runtime change.
+
+Phase B (run ONLY when the dispatch says "H1 done: @jini-ai/core built"):
+3. Replace the whole body of `packages/cms/src/core/authorization.ts` with its existing first doc line plus:
+```ts
+export type {
+  ToolPermissionAuthorizationPort as AuthorizationPort,
+  ToolPermissionAuthorizationRequired as AuthorizationRequired,
+  ToolPermissionAuthorizationOptional as AuthorizationOptional,
+} from "@jini-ai/core";
+```
+   The new core aliases are re-exported AS the original cms names, so `cms/src/core/index.ts` and `cms/src/core/tools/args.ts` stay unchanged and every cms public name is kept. Before replacing, diff the cms interfaces against core's `tool-permissions.ts` lines 2-14; if any field differs, keep the cms file and report `STALE J45`.
+4. Type-check cms only; run the two write-service tests listed above. Commit.
 
 ## J53 schema-v1 contribution files (EXTRACT to core/records)
 Phase A. Add to core/src/records.ts:

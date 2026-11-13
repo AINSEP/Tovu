@@ -1,6 +1,6 @@
 # Terra job dedupe-06: Jini chat + ui (mechanical groups only)
 
-READY (2026-11-13; revised after review d3r). UI lifecycle consolidations (J02, J35, J39, J48, T16J, T18J, T23J) are no longer in this job: they are Opus work, one feature at a time, listed in `opus-ui-backlog.md` (same folder). What stays here is markup, types, pure functions and one command-registration preamble, none of which changes an effect, a listener or a timer. Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Jini clone you are given (Jini only; paths below are relative to the Jini repo root).
+READY (2026-11-13; revised after review d3r; revised after review d3r2: J07 moved out, J51's returned function takes an object). UI lifecycle consolidations (J02, J35, J39, J48, T16J, T18J, T23J) and J07 (needs a coordinator decision) are no longer in this job: they are Opus work, one feature at a time, listed in `opus-ui-backlog.md` (same folder). What stays here is markup, types, pure functions and one command-registration preamble, none of which changes an effect, a listener or a timer. Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Jini clone you are given (Jini only; paths below are relative to the Jini repo root).
 
 ## Rules for every group in this job (read before editing)
 - HARD: stop before ~250k tokens of context. If you get close: commit what is done (by explicit paths), list the groups you did not finish under "REMAINING" in your report, and stop.
@@ -21,8 +21,6 @@ Cross-package rule (PLAN.md "Coordinator gates"): no group left in this job impo
 ## Groups in this job (decision, risk, expected saving, divergence, tests)
 - **J01** EXTRACT SHARED HELPER — risk L; est. −90 lines; divergence: none (Glob/Grep/Web cards already render class "op-title" with no shimmer = shimmer:false)
   - tests: cd packages/chat && npx vitest run --maxWorkers=2 src/react/components/__tests__/ToolCard.test.tsx src/react/components/__tests__/ToolCard.long-chat-memory.test.tsx src/react/components/__tests__/ToolCard.cli-events.test.tsx
-- **J07** MERGE INTO EXISTING — risk L; est. −48 lines; divergence: none (shapes verbatim; only a doc sentence differs)
-  - tests: cd packages/chat && npx vitest run --maxWorkers=2 src/core/util/__tests__/manifest.test.ts
 - **J28** EXTRACT SHARED HELPER — risk L; est. −7 lines; divergence: none; the two I18n contexts stay separate (merging would change which provider translates renderer strings - owner decision, not done)
   - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/i18n/__tests__/context.test.tsx src/renderers/react/__tests__/i18n.test.tsx
 - **J34** MERGE INTO EXISTING — risk L; est. −27 lines; divergence: none (types only)
@@ -77,9 +75,6 @@ Replace bodies (keep each function's signature, `const t = useT()`, and its `obj
 - WebFetchCard / WebSearchCard: className "op-web", same shape.
 Delete each card's now-unused `isRunning`. DelegatedToolCard and GenericCard stay (they use ToolRowHead).
 
-## J07 artifact manifest types (MERGE)
-packages/chat/src/core/util/types.ts: replace whole body with `export type { ArtifactKind, ArtifactRendererId, ArtifactExportKind, ArtifactStatus, ArtifactManifest } from '@jini-ai/ui/renderers';` plus a one-line doc "Owned by `@jini-ai/ui/renderers`; re-exported for chat's existing importers." In ui/src/renderers/types.ts replace "keep the two in sync by hand if that shape changes" with "`@jini-ai/chat` re-exports these; this is the only copy."
-
 ## J28 interpolate (EXTRACT, ui)
 New ui/src/features/i18n/interpolate.ts with `interpolateTranslation({ template }, { vars } = {})` (body of context.tsx#interpolate). Both context.tsx and renderers/react/i18n.tsx import it and delete their `interpolate`.
 
@@ -109,14 +104,31 @@ In both data-table.tsx files, replace the four row attributes with `{...clickabl
 `export interface ResolveLogoSrcOptions { stage: LogoStage; brandId?: string | undefined; resolveBrandLogoUrl?: ((brandId: string) => string) | undefined; logoSrc?: string | null | undefined; host?: string | undefined; faviconSize: number; resolveFaviconUrl: (host: string, size: number) => string; }`. Use it in `resolveLogoSrc(opts: ResolveLogoSrcOptions)` and `useResolvedLogoSrc(opts: ResolveLogoSrcOptions)`.
 
 ## J51 fake latency (EXTRACT, ui)
-New `ui/src/utils/fake-latency.ts`:
+Review d3r2 finding 6: the returned function is not library-fixed, so it takes `({ value }, _optional = {})` like every other new function, and every `delay(x)` call in the consumers becomes `delay({ value: x })`.
+
+1. New `ui/src/utils/fake-latency.ts`:
 ```ts
 /** The simulated-latency resolver every in-memory feature port double uses: 0 (default) resolves on the next microtask, otherwise after `latencyMs`. */
-export function fakeLatencyDelay(_required: Record<string, never>, { latencyMs = 0 }: { latencyMs?: number | undefined } = {}): <T>(value: T) => Promise<T> {
-  return <T>(value: T): Promise<T> => latencyMs > 0 ? new Promise((resolve) => setTimeout(() => resolve(value), latencyMs)) : Promise.resolve(value);
+export type FakeLatencyDelay = <T>({ value }: { value: T }, _optional?: Record<string, never>) => Promise<T>;
+export function fakeLatencyDelay(_required: Record<string, never> = {}, { latencyMs = 0 }: { latencyMs?: number | undefined } = {}): FakeLatencyDelay {
+  return <T>({ value }: { value: T }, _optional: Record<string, never> = {}): Promise<T> =>
+    latencyMs > 0 ? new Promise((resolve) => setTimeout(() => resolve(value), latencyMs)) : Promise.resolve(value);
 }
 ```
-In the 11 sites (`rg -n "latencyMs > 0 \? new Promise" packages/ui/src`), replace the `const delay = …` two lines with `const delay = fakeLatencyDelay({}, { latencyMs });`. Keep `const latencyMs = options.latencyMs ?? 0;` only where something else (delayedRejection) still uses it; otherwise inline `options.latencyMs`.
+2. The eleven consumers (Jini 2ab246674; all under `packages/ui/src/features/`). In each, replace the local `const delay = <T>(value: T): Promise<T> => …` two lines with `const delay = fakeLatencyDelay({}, { latencyMs });`, import `fakeLatencyDelay` from `'../../utils/fake-latency.js'`, then rewrite EVERY call in that file from `delay(<expr>)` to `delay({ value: <expr> })` (the count after each file is the number of `delay(` calls to rewrite; re-count with `rg -c '\bdelay\(' <file>` and report a mismatch as `STALE J51 <file>`):
+   - `execution/dependencies.ts` (~line 61): 7 calls. `latencyMs` stays (delayedRejection uses it).
+   - `connectors/dependencies.ts` (~line 49): 11 calls.
+   - `resource-dashboard/dependencies.ts` (~line 43, first double): together with the second double below, 9 calls in the file.
+   - `resource-dashboard/dependencies.ts` (~line 135, second double): see above.
+   - `memory/dependencies.ts` (~line 237): 5 calls.
+   - `integrations/dependencies.ts` (~line 31): 4 calls.
+   - `project-locations/dependencies.ts` (~line 42): 4 calls.
+   - `asset-grid/dependencies.ts` (~line 38): 2 calls.
+   - `skills/dependencies.ts` (~line 48): 6 calls.
+   - `media-providers/dependencies.ts` (~line 31): 3 calls. `latencyMs` stays (delayedRejection uses it).
+   - `source-config-list/dependencies.ts`: different shape. Delete `type Delay` (~line 39) and `createDelay` (~lines 46-49); `FakeStore.delay` becomes `delay: FakeLatencyDelay` (import the type too); `const delay = createDelay({ latencyMs: options.latencyMs ?? 0 });` (~line 136) becomes `const delay = fakeLatencyDelay({}, { latencyMs: options.latencyMs ?? 0 });`. 7 calls. The `{ store, delay }` destructurings (~lines 56, 84, 155) stay.
+   Keep `const latencyMs = options.latencyMs ?? 0;` only where something else (delayedRejection) still uses it; otherwise pass `{ latencyMs: options.latencyMs }` and delete the local.
+3. No test file calls a feature's local `delay`; the fakes' tests (the J51 test line above) cover the change. Type-check ui only.
 
 ## J59 pending-action helpers (EXTRACT to ui/utils, object args; public positional names stay as adapters)
 1. New `ui/src/utils/pending-actions.ts` with the resource-dashboard docs (the "re-derived fresh here (deliberately not imported cross-feature…)" clause becomes "shared by every feature that tracks per-item in-flight actions"; keep the rest):
@@ -197,4 +209,4 @@ return mergeRegister(
 ```
 
 ## Moved to the Opus UI backlog (do NOT do these here)
-J02 (A2UI node renderer merge: the survivor is an 84-line function and needs splitting, plus four behavior differences to settle), J35 (`useLoadedList`: effect dependencies change), J39 (anchored-position effect), J48 (menu dismiss hooks: listener event type changes), T16J, T18J, T23J (new panel-kit lifecycle hooks). The tests the design wrote for J48, T18J and T23J stay in the Jini clone for that work; do not run or edit them in this job. See `opus-ui-backlog.md`.
+J02 (A2UI node renderer merge: the survivor is an 84-line function and needs splitting, plus four behavior differences to settle), J35 (`useLoadedList`: effect dependencies change), J39 (anchored-position effect), J48 (menu dismiss hooks: listener event type changes), T16J, T18J, T23J (new panel-kit lifecycle hooks), J07 (artifact manifest types: re-exporting them from `@jini-ai/ui/renderers` would make chat's emitted declarations need the optional UI peer; review d3r2 finding 2, in the backlog's decisions section). Keep `packages/chat/src/core/util/types.ts` as it is. The tests the design wrote for J48, T18J and T23J stay in the Jini clone for that work; do not run or edit them in this job. See `opus-ui-backlog.md`.
