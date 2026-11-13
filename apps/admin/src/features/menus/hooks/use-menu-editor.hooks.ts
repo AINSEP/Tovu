@@ -1,15 +1,10 @@
 import { useCallback as useQueryFetchCallback } from "react";
-import { formatUserFacingError } from "@jini-ai/core";
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
-import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type AdminMenu, type AdminMenuItem, type AdminMenuMode } from "@/lib/api";
 import { isVersionConflict, VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { navigate as realNavigate } from "@/lib/router";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
-import { adminFailureChannel } from "@/lib/admin-failure-channel";
-import { uniqueId } from "@/lib/unique-id";
-import { TOVU_ADMIN_VERSION } from "@/lib/app-version";
 import { useDirtyGuard, type Translate } from "@jini-ai/ui/panel-kit";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { menuAuthoringForSave, menuHtmlEmbed, menuHtmlStarter } from "../html-rules";
@@ -351,19 +346,11 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   async function copyHtmlEmbed() {
     if (!menu) return;
     const copyingForMenuId = menuId;
-    const failureGeneration = adminFailureChannel.getGeneration();
     try {
       await (clipboard ?? navigator.clipboard).writeText(menuHtmlEmbed({ slug: menu.slug }));
       if (activeMenuIdRef.current === copyingForMenuId) setCopyFeedback(t("Copied!"));
-    } catch (error) {
-      if (activeMenuIdRef.current === copyingForMenuId) {
-        const message = t("The menu HTML embed could not be copied.");
-        const action = t("Check your browser's clipboard permissions and try again.");
-        setCopyFeedback(`${message} ${action}`);
-        adminFailureChannel.publish({ generation: failureGeneration, failure: formatUserFacingError({
-          message, action, step: "Copy menu HTML embed", cause: error,
-        }, { ...TOVU_ERROR_REDACTION_OPTIONS, errorId: uniqueId(), appVersion: `Tovu Admin ${TOVU_ADMIN_VERSION}`, time: new Date().toISOString() }) });
-      }
+    } catch {
+      if (activeMenuIdRef.current === copyingForMenuId) setCopyFeedback(t("Could not copy embed"));
     }
   }
 

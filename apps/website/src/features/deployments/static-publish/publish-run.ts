@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { createPublishJobStore, type PublishJobSnapshot, type DeployPublishProgress } from "@jini-ai/devops/deploy";
 import { publishStaticSite, type StaticPublishDeps, type StaticPublishInput } from "./adapter.js";
@@ -177,11 +176,9 @@ async function recordHistoryIfPublished(
         ...input.config, ...target.module.destinationConfig?.({ providerMetadata: outcome.providerMetadata }),
       } }) } : {}),
     } });
-  } catch (err) {
-    let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+  } catch {
     // Keep the true publish result; database errors can embed secret parameters.
-    console.warn("[static-publish] destination history write failed after publish", errorDiagnostic);
+    console.warn("[static-publish] destination history write failed after publish");
   }
 }
 

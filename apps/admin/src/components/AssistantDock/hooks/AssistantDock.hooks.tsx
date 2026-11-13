@@ -23,14 +23,8 @@ import { conversationTitleForDisplay, isTerminalRunStatus, type ChatMessage, typ
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { resolveSelectedPreset, type ExecutionConfig } from "@jini-ai/ui";
 import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
-import { formatUserFacingError } from "@jini-ai/core";
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
-import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 
 import { navigate } from "@/lib/router";
-import { adminFailureChannel } from "@/lib/admin-failure-channel";
-import { uniqueId } from "@/lib/unique-id";
-import { TOVU_ADMIN_VERSION } from "@/lib/app-version";
 import { startVisibleInterval } from "@/lib/visible-interval";
 import { ApiError, authenticatedAdminRequest } from "@/lib/api";
 import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
@@ -1834,17 +1828,10 @@ export function openMcpUiLink(url: string): void {
   let parsed: URL;
   try {
     parsed = new URL(url);
-    if (parsed.protocol !== "https:") throw new Error("The link does not use HTTPS.");
-  } catch (error) {
-    let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog({ err: error }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-    const message = "The plugin link could not be opened.";
-    const action = "Ask the plugin provider for an HTTPS link or a path on this site.";
-    adminFailureChannel.publish({ failure: formatUserFacingError({
-      message, action, step: "Open plugin link", cause: errorDiagnostic,
-    }, { ...TOVU_ERROR_REDACTION_OPTIONS, errorId: uniqueId(), appVersion: `Tovu Admin ${TOVU_ADMIN_VERSION}`, time: new Date().toISOString() }) });
-    throw new Error(`${message} ${action}`);
+  } catch {
+    throw new Error("Could not open the link.");
   }
+  if (parsed.protocol !== "https:") throw new Error("Could not open the link.");
   window.open(url, "_blank", "noopener,noreferrer");
 }
 

@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Tovu wiring for Jini's automatic-use owner. No plugin identities or matching rules live here. */
 import { createAutomaticAgentPluginUse, readChatAgentPluginState, type AutomaticAgentPluginPorts, type ChatAgentPluginState, type ChatAgentPlugins } from '@jini-ai/agent-plugins/lifecycle';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, optionalString, ToolInputError, type AgentToolDefinition, type AgentToolSideEffect, type Principal, type SurfaceEmitter } from '@jini-ai/core';
@@ -161,11 +160,7 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
     const entry = runs.get(run.id);
     if (!entry) return '';
     try { return await entry.controller.prepare({ ...(tool.metadata?.guidanceCapabilities ? { capabilities: tool.metadata.guidanceCapabilities } : {}), signal }); }
-    catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      console.warn('[agent-plugins] automatic tool guidance unavailable', errorDiagnostic); return '';
-    }
+    catch { console.warn('[agent-plugins] automatic tool guidance unavailable'); return ''; }
     finally { releaseDetached(entry); }
   };
   // Existing per-plugin tools read their boot-time source, not the run's consent/exclusion owner.

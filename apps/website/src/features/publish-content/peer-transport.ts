@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { bytesMatchSha256 } from "./blob-staging.js";
 import { peerHostname, peerUrl } from "./peer-url.js";
@@ -656,12 +655,10 @@ export async function executePeerImport(
         configFields: { label: deps.credential.label }, reachable: true, status: "applied",
         publishedAt: nowIso({ clock: deps.publishHistory.clock }), triggeredBy: deps.publishHistory.triggeredBy ?? "admin_ui",
       } });
-    } catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    } catch {
       // The remote apply already succeeded; bookkeeping must never invite a duplicate retry.
       // Fixed diagnostics exclude credentials, remote bodies and database error parameters.
-      console.warn("[publish-content] destination history write failed after remote apply", errorDiagnostic);
+      console.warn("[publish-content] destination history write failed after remote apply");
     }
   }
   return result;

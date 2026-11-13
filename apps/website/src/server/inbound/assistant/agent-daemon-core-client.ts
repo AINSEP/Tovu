@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Private Tovu retained-state client. No retry or acceptance mirror: a lost mutation response
  * remains uncertain in the server's real ledger. Provider plugins also have that single owner. */
 import { z } from "zod";
@@ -78,11 +77,7 @@ export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; to
     if (stopped) return;
     let body: string;
     try { body = JSON.stringify(request); }
-    catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      console.warn("[agent-daemon] telemetry serialization failed", errorDiagnostic); return;
-    }
+    catch { console.warn("[agent-daemon] telemetry serialization failed"); return; }
     const bytes = Buffer.byteLength(body);
     if (queued >= 128 || bytes > 2 * 1024 * 1024 || queuedBytes + bytes > 4 * 1024 * 1024) { console.warn("[agent-daemon] telemetry queue is full"); return; }
     queued++; queuedBytes += bytes;

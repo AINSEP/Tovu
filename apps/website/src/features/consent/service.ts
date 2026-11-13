@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** @file Shared site consent use cases for HTTP and assistant adapters. */
 import type { ConsentConfig } from '@jini-ai/cookie-consent';
 import type { ConsentReceiptStorageHealth } from '@jini-ai/cookie-consent/node';
@@ -164,11 +163,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     if (blockingProblems.length) throw new ToolInputError({ message: blockingProblems.map(problem => problem.message).join(' ') });
     await store.publish({ draftId, expectedPublishedId });
     try { await ports.published?.(); }
-    catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      console.warn('[consent] Cookie preferences were published, but the public preview could not refresh. A later request will try again.', errorDiagnostic);
-    }
+    catch { console.warn('[consent] Cookie preferences were published, but the public preview could not refresh. A later request will try again.'); }
     return { published: true, revisionId: draftId };
   };
   const staticDeploymentRefusal = async ({ config }: { config: ConsentConfig }, _options = {}) => {

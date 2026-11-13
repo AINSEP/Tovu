@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
 import { admittedToolSources, stopRunsForToolAccessChange, type ToolAccessRun, type ToolAccessChange } from '@jini-ai/daemon';
 import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "#src/contracts/core/assistant-content-guidance";
@@ -668,11 +667,7 @@ export function createAssistantByokModule(
         publish: async value => { sse(res, 'agent', { type: 'agent_plugins', ...value }); },
       } });
       if (guidance) system += `\n\n${guidance}`;
-    } catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      console.warn('[agent-plugins] automatic BYOK preflight unavailable', errorDiagnostic);
-    }
+    } catch { console.warn('[agent-plugins] automatic BYOK preflight unavailable'); }
 
     return system;
   }

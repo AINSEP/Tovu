@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { access, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { protectFormAttachments, FormAttachmentOwnerMismatchError } from '@jini-ai/cms/forms';
@@ -29,10 +28,8 @@ export async function protectExistingFormFiles(
       },
     });
     if (!retryProtection) await writeFile(marker, 'complete\n', { mode: 0o600 });
-  } catch (err) {
-    let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-    warn(`Legacy form file protection could not finish; the site will continue and retry on its next owner start. Details: FORMS_LEGACY_FILE_PROTECTION_INCOMPLETE ${errorDiagnostic}.`);
+  } catch {
+    warn('Legacy form file protection could not finish; the site will continue and retry on its next owner start. Details: FORMS_LEGACY_FILE_PROTECTION_INCOMPLETE.');
   }
 }
 

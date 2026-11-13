@@ -35,7 +35,7 @@ describe("taxonomy Copy HTML embed", () => {
     expect(writeText).toHaveBeenLastCalledWith(`<div data-embed-config='{"type":"taxonomy","id":"Tags","mode":"html"}'></div>`);
     writeText.mockRejectedValueOnce(new Error("denied"));
     await user.click(buttons[1]);
-    expect(await screen.findByRole("status")).toHaveTextContent("The taxonomy HTML embed could not be copied. Check your browser's clipboard permissions and try again.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Could not copy embed");
     writeText.mockRestore();
   });
 

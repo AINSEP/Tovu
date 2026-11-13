@@ -111,7 +111,7 @@ test("any failure (config, load, consent, credential, create) forwards nothing a
     const { resolve, warnings } = forwarding(overrides as never);
     assert.deepEqual(await resolve({ request: "r" }), []);
     assert.equal(warnings.length, 1);
-    assert.match(warnings[0] ?? "", /^\[analytics\] vendor forwarding skipped: resolution failed \((Error|string)\)$/);
+    assert.equal(warnings[0], "[analytics] vendor forwarding skipped: resolution failed");
   }
   const v = { credentialLabel: "GA4 key", create: () => { throw new Error("bad key SECRET-TOKEN-1"); } };
   const leaky = forwarding({ sink: "ga4", loadProviders: async () => providerSet({ ga4: v as never }), resolveCredential: async () => ({ token: "SECRET-TOKEN-1", baseUrl: "https://x" }) });

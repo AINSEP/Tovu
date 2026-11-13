@@ -2080,7 +2080,7 @@ test("shared discovery with no workspace is inert and unavailable discovery pres
   const warn = t.mock.method(console, "warn", () => {});
   importSharedSiteDiscovery({ projectsPath, sharedSites, readSiteName: path.basename });
   assert.deepEqual(warn.mock.calls.map((call) => call.arguments[0]), [
-    "tovu desktop: shared catalog bookkeeping is unavailable; local websites remain usable. Details: Error.",
+    "tovu desktop: shared catalog bookkeeping is unavailable; local websites remain usable.",
     "tovu desktop: shared discovery is unavailable; showing local website cards.",
   ]);
   assert.equal(fs.readFileSync(projectsPath, "utf8"), before);

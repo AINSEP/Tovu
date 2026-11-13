@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { rmSync } from "node:fs";
 import path from "node:path";
@@ -592,11 +591,7 @@ function filesForReceiver({ files, submitUrl }: { files: DeployFile[]; submitUrl
 async function saveReceiverKey({ outcome, save }: { outcome: StaticPublishOutcome; save?: (required: { readonly url: string }) => Promise<void> }, _options = {}): Promise<void> {
   if (!save || outcome.ok === false) return;
   try { await save({ url: outcome.url }); }
-  catch (err) {
-    let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-    console.warn("[static-publish] the form receiver key could not be saved; the next publish will replace it", errorDiagnostic);
-  }
+  catch { console.warn("[static-publish] the form receiver key could not be saved; the next publish will replace it"); }
 }
 
 /** Redact declared secrets from full/partial provider failures and retain the saved credential id.

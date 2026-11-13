@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { Updateable } from "kysely";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -325,11 +324,9 @@ export class SqliteRestorePointsRepo implements CreateRestorePointRepoPort {
     if (!row.artifactRef) return;
     try {
       await this.pruneCopies({ justWritten: row.artifactRef });
-    } catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    } catch {
       // The copy and its row are saved; cleanup must not turn the operation that needed them into an error.
-      console.warn("[restore-points] Could not prune older restore points.", errorDiagnostic);
+      console.warn("[restore-points] Could not prune older restore points.");
     }
   }
 

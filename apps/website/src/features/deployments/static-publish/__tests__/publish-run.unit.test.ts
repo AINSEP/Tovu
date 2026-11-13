@@ -246,7 +246,7 @@ test("startPublishRun: a history-store failure never changes the reported outcom
 
   const outcome = await runPublishForTest(deps, input, clock, brokenHistory);
   assert.equal(outcome.ok, true, "the real, successful outcome must still be returned even though recording it failed");
-  assert.deepEqual(warnings, [["[static-publish] destination history write failed after publish", "Error"]]);
+  assert.deepEqual(warnings, [["[static-publish] destination history write failed after publish"]]);
 });
 
 test("a registry reload failure logs a sanitized warning and preserves outcome-only history", async (t) => {

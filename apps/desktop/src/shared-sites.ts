@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Tovu's folder/filenames; generic resolution, locking and registry policy belong to Jini. */
 import fs from "node:fs";
 import { createHash } from "node:crypto";
@@ -171,10 +170,8 @@ export function shareSiteDirectories(
     // Missing-volume MRU entries are retried after remount; do not certify an incomplete import.
     if (migration && !unavailable) registry.merge({ entries: [], migration });
     return registry.list({});
-  } catch (err) {
-    let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-    report(`tovu desktop: shared catalog bookkeeping is unavailable; local websites remain usable. Details: ${errorDiagnostic}.`);
+  } catch {
+    report("tovu desktop: shared catalog bookkeeping is unavailable; local websites remain usable.");
     return [];
   }
 }
@@ -218,9 +215,5 @@ export function attachRunningSite({ workspace, dir }: { workspace: SitesWorkspac
 export function rememberSharedSiteOpen({ workspace, dir }: { workspace: SitesWorkspace; dir: string }, _options = {}): void {
   shareSiteDirectories({ workspace, dirs: [dir], createdBy: "Desktop" });
   try { workspace.registry({}).opened({ path: dir, at: new Date().toISOString() }); }
-  catch (err) {
-    let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-    console.warn("tovu desktop: could not remember the opened website in the shared catalog.", errorDiagnostic);
-  }
+  catch { console.warn("tovu desktop: could not remember the opened website in the shared catalog."); }
 }

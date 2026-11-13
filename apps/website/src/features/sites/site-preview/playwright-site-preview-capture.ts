@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { ImageCodecPort } from "@jini-ai/cms/media";
 /**
  * @file The server's {@link SitePreviewCapturePort}: headless Chromium through Playwright, resized
@@ -130,10 +129,8 @@ export function createSitePreviewCaptureForHost(
         const result = await capture.captureUrl({ url, viewport: VIEWPORT, fullPage: false,
           maxPageHeightPx: VIEWPORT.height, settleMs: PAINT_SETTLE_MS });
         return await resize({ png: Buffer.from(result.png), width: STORED_WIDTH_PX });
-      } catch (err) {
-        let errorDiagnostic = "[diagnostic unavailable]";
-        try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-        log(`[site-preview] native capture failed: ${errorDiagnostic}`);
+      } catch {
+        log('[site-preview] native capture failed');
         return null;
       }
     },

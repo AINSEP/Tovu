@@ -505,7 +505,7 @@ test('a tool without guidance capabilities loads no plugin guidance', async t =>
   f.runs.forget({ runId: 'plain' });
 });
 
-test('a failing guidance preparation logs only safe error metadata and yields no guidance', async t => {
+test('a failing guidance preparation is logged without detail and yields no guidance', async t => {
   const warn = t.mock.method(console, 'warn', () => {});
   const f = await fixture(t);
   await f.principalRepo.save({ id: 'alice', workspaceId: f.workspaceId, kind: 'user', displayName: 'Alice', status: 'active', createdAt: f.clock.nowIso() });
@@ -515,7 +515,7 @@ test('a failing guidance preparation logs only safe error metadata and yields no
   const context = { ...f.context, emitSurface: async () => { throw new Error('surface closed: secret detail'); } };
   await assert.rejects(f.runs.start({ runId: 'broken', context }), { message: 'surface closed: secret detail' });
   assert.equal(await f.runs.prepareGuidance({ principal: f.context.principal, run: { id: 'broken' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), '');
-  assert.deepEqual(warn.mock.calls.map(call => call.arguments), [['[agent-plugins] automatic tool guidance unavailable', 'Error']]);
+  assert.deepEqual(warn.mock.calls.map(call => call.arguments), [['[agent-plugins] automatic tool guidance unavailable']]);
   f.runs.forget({ runId: 'broken' });
 });
 
