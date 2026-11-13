@@ -88,13 +88,16 @@ export function createDaemonSiteTools({ baseUrl, token, localRegistry, contextFo
       const parsed = toolResponse.parse(await read({ path: "/internal/tool-catalog", query: { runId, principalId }, maxResponseBytes: 16 * 1024 * 1024 }));
       if (runs.get(runId) !== entry) throw new Error("a live run is required for site discovery");
       if ((principals.get(principalId)?.revision ?? 0) > entry.revision) return;
-      const tools = parsed.tools as readonly ToolDescriptor[];
-      const local = localRegistry.list({});
-      const localIds = new Set(local.map(tool => tool.id));
-      const query = (optional.buildCatalog ?? buildToolCatalogQuery)({ list: () => [...local, ...tools.filter(tool => !localIds.has(tool.id))] });
-      principals.get(principalId)?.query.dispose();
-      principals.set(principalId, { tools, query, revision: entry.revision });
+      installCatalog({ principalId, tools: parsed.tools as readonly ToolDescriptor[], revision: entry.revision });
     } catch (error) { if (runs.get(runId) === entry) finish({ runId }); throw error; }
+  }
+  /** Replace a principal's catalog: local tools first, site tools only where no local id exists. O(t). */
+  function installCatalog({ principalId, tools, revision }: { principalId: string; tools: readonly ToolDescriptor[]; revision: number }, _options = {}): void {
+    const local = localRegistry.list({});
+    const localIds = new Set(local.map(tool => tool.id));
+    const query = (optional.buildCatalog ?? buildToolCatalogQuery)({ list: () => [...local, ...tools.filter(tool => !localIds.has(tool.id))] });
+    principals.get(principalId)?.query.dispose();
+    principals.set(principalId, { tools, query, revision });
   }
   /** Retain catalogs until this principal's final run ends; discard pending component state too.
    * @complexity O(r) scan of live runs; one bounded map per daemon, no background work. */
