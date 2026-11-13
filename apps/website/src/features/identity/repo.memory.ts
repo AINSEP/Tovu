@@ -4,7 +4,7 @@ import type { ApiKeyRecord, ApiKeyRepoPort } from "./api-key-types.js";
  * @file In-memory adapter for `ApiKeyRepoPort` (ADR-006 rule-of-two, other half in `repo.sqlite.ts`).
  *
  * Purpose:
- * `server/app.ts`'s hermetic composition wires the in-memory identity repos `@jini-ai/cms/identity`
+ * `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition wires the in-memory identity repos `@jini-ai/cms/identity`
  * ships, but that package has no api-keys port to ship an adapter for (its `INFO.md` scopes API
  * keys out), so this is the in-memory half for the tenth table. Save-is-upsert by `id`, matching
  * the exact semantics every `InMemory*Repo` in that package already has.

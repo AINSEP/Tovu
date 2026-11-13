@@ -71,9 +71,9 @@ export interface AgentToolDefinition {
   authorization: { permission: string };
   /**
    * JSON Schema for this tool's `input`, published via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
+   * (`Jini packages/core/src/registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
    * tool lacking one). Every entry in this catalog is wired, so this is required, not optional —
-   * mirrors `identity/agent-tools.ts`'s identical reasoning.
+   * mirrors `Jini packages/user-management/src/server/agent-tools.ts`'s identical reasoning.
    */
   inputSchema: Readonly<Record<string, unknown>>;
 }

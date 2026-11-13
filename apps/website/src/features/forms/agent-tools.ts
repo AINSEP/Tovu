@@ -1,7 +1,7 @@
 /**
  * @file The Forms agent-tool catalog (SPEC-010, ADR-PIPE-010), instantiating SPEC-016 REQ-22's
  * naming/callability convention for this domain — the same shape
- * `features/content-types/agent-tools.ts` uses, including its `inputSchema` contract.
+ * `Jini packages/cms/src/content-types/agent-tools.ts` uses, including its `inputSchema` contract.
  *
  * Purpose:
  * A static, in-process catalog describing every agent-callable tool this domain exposes and the
@@ -162,7 +162,7 @@ const FORM_ID_SCHEMA = {
 } as const;
 
 /**
- * Submission pagination bounds — mirrors `routes/admin/forms/list-submissions.ts`'s own
+ * Submission pagination bounds — mirrors `apps/website/src/server/inbound/admin-http/routes/forms/list-submissions.ts`'s own
  * `MIN_LIMIT`/`MAX_LIMIT` literals (not exported from there, since a domain catalog does not import
  * a route file; kept in sync by hand, the same disclosed duplication `types.ts`'s own header
  * already accepts for `FieldType` vs. `manifest.ts`).

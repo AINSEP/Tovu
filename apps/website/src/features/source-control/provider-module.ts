@@ -5,7 +5,7 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  *
  * Git-host vendors live in plugins, not core (the bundled `github` plugin ships
  * `@jini-ai/agent-plugins/github/source-control/github.mjs` today). Core loads a plugin's module
- * through `features/agent-plugins/source-control-registry.ts`, builds it with a
+ * through `apps/website/src/features/source-control/provider-registry.ts`, builds it with a
  * {@link SourceControlProviderKit}, and calls the generic operations below: committing the site's
  * static export (`source_control_execute_commit`), reading a token's account name (the admin Source
  * Control page), writing files through a saved custom credential (`custom_credential_write_files`)

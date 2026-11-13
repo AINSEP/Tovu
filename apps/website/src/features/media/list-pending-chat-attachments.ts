@@ -23,7 +23,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
  * exactly what `forwardAttachmentUpload`
  * (`server/runtime/composition/modules/assistant.ts`) now stamps into every upload's
  * `RUN_PRINCIPAL_HEADER` before it ever reaches the daemon's `AttachmentStore.register()` — the same
- * header `run-ownership.ts` already uses to scope run access, reused for the identical reason: it is
+ * header `apps/website/src/assistant/daemon-access.ts` already uses to scope run access, reused for the identical reason: it is
  * only trustworthy downstream of the daemon's bearer gate, which every route in this process sits
  * behind, so nothing a renderer sends can forge it.
  *

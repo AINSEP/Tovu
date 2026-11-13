@@ -306,7 +306,7 @@ function buildNoCredentialError(providerId: string, registry: MediaProviderRegis
  *  return (id/title/alt/caption/credit/sha256/status/version/publicUrl), so the model can chain
  *  straight into `media_update_metadata`/`media_trash_asset` off the returned `id` with no separate
  *  lookup, and use `publicUrl` to embed the image immediately. Declared locally rather than imported:
- *  `@jini-ai/cms/media/tool-registrations.ts`'s own equivalent view type is not part of that
+ *  `Jini packages/cms/src/media/tool-registrations.ts`'s own equivalent view type is not part of that
  *  package's public surface (an internal projection, not a contract this domain depends on). */
 interface GeneratedMediaView {
   id: string;
@@ -385,7 +385,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
             },
           }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
 
-          // Same "record what the bytes actually are" write `routes/admin/media/upload.ts` performs
+          // Same "record what the bytes actually are" write `apps/website/src/server/inbound/admin-http/routes/media/upload.ts` performs
           // after every human upload — see that route's own doc for why this is sniffed rather than
           // trusted from the (here, fixed) `contentType` string.
           const sniffed = sniffContentType({ bytes: generated.bytes });

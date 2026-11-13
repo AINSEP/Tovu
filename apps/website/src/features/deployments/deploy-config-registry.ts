@@ -26,7 +26,7 @@ export type { DeployConfigGeneratorDescriptor, DeployConfigGeneratorRegistry, Lo
  * Only the SOURCE loader exists today: its one caller, the CLI, runs at the repo root and reads the
  * product's own bundled `content/agent-plugins/<id>/`, the same trust basis as the hermetic
  * composition root. Module imports still go through the shared containment gate
- * (`features/agent-plugins/trusted-plugin-files.ts`). A workspace-installed variant (activation +
+ * (`Jini packages/agent-plugins/src/lifecycle/trusted-plugin-files.ts`). A workspace-installed variant (activation +
  * bundled-digest gates, like `deploy-targets/registry.ts`) is added when an admin route needs one.
  *
  * Failure isolation: a bad manifest drops the plugin's generators, a bad module only itself; every

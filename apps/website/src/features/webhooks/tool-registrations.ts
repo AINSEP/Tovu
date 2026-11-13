@@ -89,7 +89,7 @@ function clampDeliveriesLimit(requested: number | undefined): number {
 
 /** Most recent delivery by `createdAt`, computed here rather than assumed from repo return order —
  * `WebhookDeliveryRepoPort.listBySubscription` makes no ordering guarantee (mirrors
- * `server/http/admin/integrations.ts`'s route-layer helper of the same name/shape, duplicated
+ * `apps/website/src/server/inbound/admin-http/routes/integrations/list.ts`'s route-layer helper of the same name/shape, duplicated
  * rather than imported for the same ports/adapters reason as the constants above). */
 function mostRecentDelivery(deliveries: readonly WebhookDeliveryRecord[]): WebhookDeliveryRecord | null {
   if (deliveries.length === 0) return null;
@@ -350,7 +350,7 @@ export function buildWebhooksRegistrations(
 
 /**
  * Contributes Integrations' AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildWebhooksRegistrations`/
  * `webhooksDerivedRisk` by name; this is the seam that replaced it (Stage 2 batch 2).
  *

@@ -8,7 +8,7 @@
  * `agent-tools.ts` AI-gateway surface) — see `ADS-memory/.local-artifacts/agent-reports/
  * 20260803-jini-outbox-contract.md` and `20260803-widget-delete-outbox-bug.md` for why that mattered:
  * every one of those ~11 call sites independently forgot to bridge the raw infra `outbox` port into
- * the narrower one `createEntry`/`updateEntry` declare locally (`features/entries/write-service.ts`'s
+ * the narrower one `createEntry`/`updateEntry` declare locally (`Jini packages/cms/src/entries/repo.memory.ts`'s
  * own header documents that bridge, `toEntryOutbox`), so every widget create/update/trash/purge threw
  * `NOT NULL constraint failed: outbox_events.id` against the real SQLite outbox — invisible against
  * the in-memory test double, which silently accepts any shape. `entries`/`content-types`/`taxonomy`

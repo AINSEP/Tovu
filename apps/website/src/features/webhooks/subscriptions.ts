@@ -26,7 +26,7 @@
  * routes and admin/AI tool surfaces call these functions, never the repo directly.
  *
  * Egress allowlist check for a candidate `target_url` (beyond the flat `https://` scheme
- * requirement enforced here). Injected rather than importing `src/origin` directly — see the
+ * requirement enforced here). Injected rather than importing `Jini packages/http-kit/src/verified-origin/origin.ts` directly — see the
  * file header. Production wiring: `core/origin`'s `isAllowedEgressTarget` (ADR-040).
  *
  * Create a new webhook subscription. Starts `active` with `secretVersion: 1` and no rotation in

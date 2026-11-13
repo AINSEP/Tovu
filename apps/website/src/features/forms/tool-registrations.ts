@@ -196,7 +196,7 @@ function toFormSubmissionView(record: FormSubmissionRecord): FormSubmissionToolV
   };
 }
 
-/** Reads and range-checks `limit`, mirroring `routes/admin/forms/list-submissions.ts`'s own check.
+/** Reads and range-checks `limit`, mirroring `apps/website/src/server/inbound/admin-http/routes/forms/list-submissions.ts`'s own check.
  *  `forms_list_submissions` has no `withSchemaOnRejection` wrap (unlike the three definition tools
  *  below), so this throws `ToolInputError` directly rather than a domain error class a predicate
  *  would need to recognize — same shape every other unwrapped ad-hoc validator in this codebase
@@ -639,7 +639,7 @@ export function contributeFormsDuplicateHandlers(): DuplicateResourceHandlerCont
 
 /**
  * Contributes Forms' AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildFormsRegistrations`/
  * `formsDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 batch 2). Like
  * `content-types`, this converts AFTER `widgets` (this batch's first conversion) specifically because

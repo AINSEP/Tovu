@@ -84,7 +84,7 @@ export interface SeoToolDeps {
  * its `REGISTERED_KEYS` array (`SeoFieldValidationError`, decorated with the published schema by
  * `withSchemaOnRejection` below) — silently DROPPING an unrecognized key here instead of letting
  * the chokepoint reject it would teach a model that a field it sent was applied when it silently
- * wasn't, the same failure mode `tool-registration-kit.ts`'s `requireNoInput` doc comment warns
+ * wasn't, the same failure mode `Jini packages/core/src/registration-kit.ts`'s `requireNoInput` doc comment warns
  * against for a no-input tool.
  *
  * A `null` value for any field passes through unchanged — that is this catalog's clear sentinel
@@ -238,7 +238,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
 
 /**
  * Contributes SEO's AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildSeoRegistrations`/
  * `seoDerivedRisk` by name; this is the seam that replaced it (Stage 2 batch 2). Safe: the only
  * importer of `seo/tool-registrations` (relative or `#src/*` subpath) is

@@ -16,7 +16,7 @@
  *    own `WHERE`, like `flipMarker`'s compound `UPDATE ... WHERE`, and 0 affected rows is
  *    `version-changed`.
  *  - `purge` never deletes a LIVE row or its `purgeFirst` children, even at a matching version
- *    (decision 6) — checked before either delete runs, same order as `adapters/form.ts`'s bespoke
+ *    (decision 6) — checked before either delete runs, same order as `form trash adapter`'s bespoke
  *    purge.
  *
  * T1 additions (blockers, the two-hop/phantom-row cascade — plan §2 T1 items 2/4/5): `purge`
@@ -295,7 +295,7 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
     /**
      * Physically removes the row. Never deletes a LIVE row or its {@link TrashEntry.purgeFirst}
      * children, even at a matching version (decision 6) — both checked before either delete runs,
-     * same order as `adapters/form.ts`'s bespoke purge. Each cascade runs through {@link runCascade}:
+     * same order as `form trash adapter`'s bespoke purge. Each cascade runs through {@link runCascade}:
      * a direct parent-id match, or the two-hop `via` join, plus the phantom-`trashed_items`-row
      * cleanup when the cascade declares `entityType` (T1 items 4/5).
      *

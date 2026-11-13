@@ -36,7 +36,7 @@ import Handlebars from "handlebars";
  *   - `features/theme/theme.ts`'s `loadTheme()` — lint every `.hbs`/
  *     `.handlebars` file at discovery time, folding violations into the
  *     existing `errors`/`status: "invalid"` mechanism.
- *   - `server/http/site/handlebars-worker.ts` — a second, redundant check
+ *   - `apps/website/src/server/inbound/public-http/http/site/handlebars-render.ts` — a second, redundant check
  *     immediately before render, in case a template was hot-edited on disk
  *     after a theme was validated (`loadTheme`'s result is not re-verified
  *     per request).

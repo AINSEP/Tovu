@@ -4,7 +4,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/newsletter.js';
  * catalog entries onto existing campaign/list/subscription services as ToolRegistrations.
  * Delivery operations are contributed separately from delivery/tool-registrations.ts; bulk import is absent.
  *
- * Authorization shape: `http/admin/newsletter.ts`'s file header records that "none of Newsletter's
+ * Authorization shape: `apps/website/src/server/inbound/admin-http/http/newsletter.ts`'s file header records that "none of Newsletter's
  * domain functions call authorize() ... every admin route therefore calls
  * requireNewsletterPermissionOrRespond as its own first line". Every handler here does the same via
  * the kit's `requireToolPermission` — ADR-021 §2's single evaluation, located where the real route
@@ -100,7 +100,7 @@ export interface NewsletterToolDeps {
 
 /**
  * Assembles `campaign-write-service.ts`'s deps bundle from {@link NewsletterToolDeps} — a local
- * duplicate of `server/routes/admin/newsletter/deps.ts`'s `toCampaignWriteServiceDeps` rather than
+ * duplicate of `apps/website/src/server/inbound/admin-http/routes/newsletter/deps.ts`'s `toCampaignWriteServiceDeps` rather than
  * an import of it, for the same reason `features/settings/tool-registrations.ts`'s header gives for
  * duplicating `toWriteServiceDeps`: importing from the HTTP admin layer would invert this codebase's
  * ports/adapters direction. Each `to*Deps` mapper below carries the identical rationale.
@@ -538,7 +538,7 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, _surfaces
 
 /**
  * Contributes Newsletter's AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildNewsletterRegistrations`/
  * `newsletterDerivedRisk` by name; this is the seam that replaced it (2026-08-17 — see
  * `tool-contribution-registry.ts`'s header for why: this edge used to close a module cycle with

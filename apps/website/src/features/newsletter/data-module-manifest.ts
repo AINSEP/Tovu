@@ -15,7 +15,7 @@
  *
  * Scope: first-party bundled invocation only (ADR-034 Round-3 fold, sweep §A.2 sanction) — NOT a
  * general third-party plugin registration surface (ADR-023 §12 still rejects that in v1). Mirrors
- * `src/features/plugins/store/store-plugin.ts`'s `STORE_MANIFEST`/`activateStore` shape, which is
+ * `apps/website/src/features/plugins/store/manifest.ts` / `Jini packages/commerce/src/store/store-plugin.ts`'s `STORE_MANIFEST`/`activateStore` shape, which is
  * this repo's only other real caller of `declareDataModule()`.
  */
 import { type DataModuleDecl, type DataModuleStore, declareDataModule } from "../plugins/index.js";
@@ -129,7 +129,7 @@ export const NEWSLETTER_DATA_MODULE: DataModuleDecl = {
 };
 
 /**
- * Boot-time invocation (T011 wires the CALL SITE into `server/seed.ts`/`server/deps.ts`; this
+ * Boot-time invocation (T011 wires the CALL SITE into `server/seed.ts`/`apps/website/src/server/runtime/composition/deps.ts`; this
  * function is the callee). Idempotent — `declareDataModule()`'s own skip-if-existing-tables logic
  * makes repeated boot calls safe (W-010).
  *

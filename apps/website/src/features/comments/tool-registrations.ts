@@ -374,7 +374,7 @@ export function buildCommentsRegistrations(
 
 /**
  * Contributes Comments' AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildCommentsRegistrations`/
  * `commentsDerivedRisk` by name; this is the seam that replaced it (2026-08-17 — see
  * `tool-contribution-registry.ts`'s header for why: this edge used to close a module cycle with

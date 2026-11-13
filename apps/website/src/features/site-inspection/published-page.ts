@@ -26,7 +26,7 @@ import type { SitePathCheck } from "#src/platform/routing/index";
  * re-validate against a denylist of private ranges.
  *
  * The origin is one this process CREATES for the duration of a single call: `createSiteApp()`'s own
- * Express app on an ephemeral `127.0.0.1` port, exactly the way `export/site-exporter.ts` already
+ * Express app on an ephemeral `127.0.0.1` port, exactly the way `apps/website/src/features/site-export/site-exporter.ts` already
  * renders the site for a static export. Nothing in the input can steer that origin. Even a caller
  * that smuggles an absolute URL past the string checks would fail the explicit
  * `url.origin === base.origin` assertion in {@link resolveSameOriginPath}, which compares against
@@ -438,7 +438,7 @@ export async function openLoopbackSiteServer(
     origin: `${LOOPBACK_HOST}:${address.port}`,
     async close() {
       server.closeAllConnections?.();
-      // Resolves once the server is fully closed. Mirrors `export/site-exporter.ts`'s own teardown.
+      // Resolves once the server is fully closed. Mirrors `Jini packages/devops/src/static-export/node-adapters.ts`'s own teardown.
       await new Promise<void>((resolve) => server.close(() => resolve()));
     },
   };
@@ -470,7 +470,7 @@ async function requestPublishedPage({ deps, baseUrl, path, timeoutMs }: {
  *
  * Boots the site's real Express app on an ephemeral loopback port for the duration of ONE call,
  * requests the validated path, and tears the server down in a `finally` — the same lifecycle
- * `export/site-exporter.ts` uses to render a static export, so this observes the real render path
+ * `apps/website/src/features/site-export/site-exporter.ts` uses to render a static export, so this observes the real render path
  * rather than a second, agreeing-today copy of it.
  *
  * A per-call server rather than a memoized one is deliberate: a long-lived listening socket in the

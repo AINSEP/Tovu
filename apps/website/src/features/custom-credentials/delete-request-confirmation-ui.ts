@@ -5,7 +5,7 @@ import type { HumanConfirmSpec } from "../../contracts/core/human-confirm.js";
  * @file The confirmation dialog `tool-registrations.ts` raises before running a DELETE through a
  * saved custom credential (2026-08-31, owner decision: "the only thing we maybe should be worried
  * about is deletion, but we can gate that with MCP-UI"). Structurally mirrors
- * `features/post/delete-confirmation-ui.ts` — see that file's own header for the mechanism this one
+ * `apps/website/src/contracts/core/human-confirm.ts` — see that file's own header for the mechanism this one
  * reuses rather than reinventing (a held-open `SurfaceExchangeStore` exchange, `askOnce`, a
  * confirm/cancel tool action carrying `SURFACE_EXCHANGE_ID_PARAM` back to the SAME tool call).
  *

@@ -29,7 +29,7 @@ export interface ExportReport extends BaseExportReport {
 }
 export { firstExportFailure, type ExportFailureSummary } from "./export-failure-summary.js";
 
-// App boot is injected via createSiteApp(): importing server/app.ts, even lazily, would close
+// App boot is injected via createSiteApp(): importing apps/website/src/server/runtime/composition/app.ts, even lazily, would close
 // the export/server cycle and can expose half-initialized boot state. The composition root binds
 // that nullary factory once. Structural ExportSiteRouteDeps keep this feature independent of RouteDeps.
 /**
@@ -41,7 +41,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  * this repo already carries the cost of two render paths (editor vs. public site) diverging, which
  * is why UI bugs here need end-to-end tests to catch. A hand-rolled export renderer would be a
  * THIRD path. Driving the real app over real HTTP — the same mechanism
- * `server/routes/site/__tests__/pages.route.test.ts` already uses to test these routes — is the
+ * `apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts` already uses to test these routes — is the
  * only way the exported HTML is guaranteed byte-identical to what a live visitor gets, including
  * whichever theme tier (declarative/templated/handlebars/static/code) is active and whatever
  * worker-thread sandbox a templated/handlebars theme renders inside (`render.ts:2002-2044`).
@@ -181,7 +181,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  */
 /** Traces each loopback render/asset fetch as one outbound span (method, host/port, status —
    *  never the route path). `RouteDeps.observability`; the no-op port in hermetic roots. */
-/** The same composition-root object `createApp`/`server/deps.ts` already build — the exporter
+/** The same composition-root object `createApp`/`apps/website/src/server/runtime/composition/deps.ts` already build — the exporter
    *  boots the real app with this, exactly like `cli/commands/serve.ts` does. */
 /** By default, replace this export's files and keep unrelated files (removing files this process
    *  did not write is destructive — see `cli/commands/export.ts` for the `--clean` flag).
@@ -498,7 +498,7 @@ export interface ExportSiteRouteDeps extends RouteManifestDeps, ExportMediaUrlDe
 }
 
 export interface ExportSiteOptions {
-  /** The same composition-root object `createApp`/`server/deps.ts` already build — the exporter
+  /** The same composition-root object `createApp`/`apps/website/src/server/runtime/composition/deps.ts` already build — the exporter
    *  boots the real app with this, exactly like `cli/commands/serve.ts` does. */
   routeDeps: ExportSiteRouteDeps;
   outputDir: string;

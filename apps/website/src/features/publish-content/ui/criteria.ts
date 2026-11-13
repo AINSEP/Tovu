@@ -12,7 +12,7 @@
  * reachability walk treats ANY bare package specifier reached from `index.ts` as an escape — type-only
  * or not, unlike its separate value-import check, it never looks at `edge.typeOnly`. Leaving this
  * constant untyped here costs nothing: every real caller (`frontend-control-capabilities.ts`, and
- * later `App.hooks.tsx`'s WebMCP registration) assigns it into a `CapabilityDef`-typed slot **by
+ * later `apps/admin/src/App.hooks.ts`'s WebMCP registration) assigns it into a `CapabilityDef`-typed slot **by
  * reference**, where TypeScript's ordinary structural assignability applies rather than the
  * excess-property checking a fresh object literal would get.
  */

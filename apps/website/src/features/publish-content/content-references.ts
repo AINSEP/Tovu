@@ -11,7 +11,7 @@ import type { PublishContentReference } from "./type-registry.js";
  *   `/m/` URLs, `seoExtJson` images);
  * - widgets: `widgetEmbed` nodes through `entry-refs/extractor.ts`'s `extractEntryRefs` (the walk that
  *   indexes `entry_refs`), and `bodyHtml` widget markers by `id ?? slug` through
- *   `embeds/marker.ts`'s `embedMarkerTarget` (the render resolver's own precedence);
+ *   `Jini packages/cms/src/widgets/markers/marker.ts`'s `embedMarkerTarget` (the render resolver's own precedence);
  * - terms: the packed `termIds` (posts, pages and entries carry their categories/tags there).
  *
  * Not followed: `post`/`content`/`collection`/`menu` markers and menu links. They show OTHER content

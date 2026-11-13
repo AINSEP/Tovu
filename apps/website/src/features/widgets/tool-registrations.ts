@@ -202,7 +202,7 @@ function toWidgetAreaToolView(area: Pick<WidgetAreaEntry, "id" | "regionKey" | "
   return { id: area.id, regionKey: area.regionKey, version: area.version, updatedAt: area.updatedAt };
 }
 
-/** Resolves one region placement's admin-facing view (widget title/type + broken flag) — mirrors `server/routes/admin/widgets/region-get.ts`'s identical resolution. */
+/** Resolves one region placement's admin-facing view (widget title/type + broken flag) — mirrors `apps/website/src/server/inbound/admin-http/routes/widgets/region-get.ts`'s identical resolution. */
 async function resolveWidgetPlacementView(routeDeps: WidgetsToolDeps, placement: WidgetPlacementNode) {
   const widget = await routeDeps.entryRepo.findById({ workspaceId: routeDeps.workspaceId, id: placement.widgetEntryId });
   const payload = widget && widget.type === WIDGET_CONTENT_TYPE ? parseWidgetInstancePayload({ fieldsJson: widget.fieldsJson }) : null;
@@ -493,7 +493,7 @@ export function buildWidgetsRegistrations(
 
 /**
  * Contributes Widgets' AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildWidgetsRegistrations`/
  * `widgetsDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 batch 2 — see
  * `tool-contribution-registry.ts`'s header for why: this edge used to close a module cycle with

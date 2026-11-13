@@ -16,7 +16,7 @@
  * an installation id, a generation, a peer, or a bundle. Not because those are secret — most are in
  * committed config — but because naming them is the vocabulary lesson the whole zero-setup design
  * exists to avoid (`features/publish-trust/connect.ts`'s header; the owner rejected the key ceremony
- * five times). `__tests__/publish-readiness.test.ts` asserts it over every reachable sentence rather
+ * five times). `apps/website/src/features/publish-content/__tests__/publish-agent-tools.test.ts` asserts it over every reachable sentence rather
  * than trusting review, mirroring `publish-trust/__tests__/provisioning.test.ts`'s identical guard.
  *
  * ## "Never connected" is an empty state, not a fault

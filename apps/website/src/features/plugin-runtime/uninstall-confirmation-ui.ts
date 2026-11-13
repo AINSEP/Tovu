@@ -5,10 +5,10 @@ import type { PluginUninstallPreview } from "@jini-ai/plugins/host";
 /**
  * @file The dialog `plugins_uninstall` raises before it removes anything.
  *
- * Same held-open exchange as `set-enabled-confirmation-ui.ts` (this domain's own sibling) and
+ * Same held-open exchange as `apps/website/src/features/plugin-runtime/enable-confirmation-ui.ts` (this domain's own sibling) and
  * `agent-plugins/uninstall-confirmation-ui.ts` (the OTHER plugin family's identical dialog): the
  * model's one call parks, and only the browser POST to `mcp-ui-tool-calls-route.ts` can resolve it
- * (ADR-055 Decision 2; `post/delete-confirmation-ui.ts` has the full chain). So `plugins_uninstall`
+ * (ADR-055 Decision 2; `apps/website/src/contracts/core/human-confirm.ts` has the full chain). So `plugins_uninstall`
  * must also be on `assistant/mcp-ui-tool-calls.ts`'s `MCP_UI_REDEEMABLE_TOOL_IDS`, or every
  * Confirm/Cancel click 403s.
  *

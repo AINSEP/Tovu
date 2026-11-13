@@ -127,7 +127,7 @@ export interface PreserveLegacySiteTitlesResult {
   failedWorkspaceIds: UUID[];
 }
 
-/** Always-allow shim scoped to this one system write, the same shape `migration.ts` uses for its own. */
+/** Always-allow shim scoped to this one system write, the same shape `settings migration` uses for its own. */
 const allowSystemPin: AuthorizeFn = async () => ({ allowed: true, reason: "system_migration" });
 
 type PinOutcome = "pinned" | "skipped" | "failed";

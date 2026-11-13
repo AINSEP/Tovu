@@ -256,7 +256,7 @@ interface GeneratedTreeInventory {
  * no legitimate reason to contain a symlink, so this rejects the ENTRY KIND rather than attempting to
  * reason about where it points.
  *
- * Unlike an archive extractor's entry-PATH traversal risk (`agent-plugins/package-paths.ts`'s own
+ * Unlike an archive extractor's entry-PATH traversal risk (`Jini packages/agent-plugins/src/lifecycle/package-paths.ts`'s own
  * reason for full `realpath`-based containment on every entry), this walk has no equivalent lexical
  * `../` exposure: every path segment it ever joins comes from `readdirSync`'s own directory-entry
  * names, which the OS guarantees are single path components with no separator or `..` token — there is

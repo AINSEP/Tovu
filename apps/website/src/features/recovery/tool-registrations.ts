@@ -112,7 +112,7 @@ export const recoveryDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
 
 const RESTORE_TOOL_ID = "backup_execute_restore";
 
-/** Mirrors `routes/admin/recovery/disclosure.ts`'s own `COVERED_CATEGORIES` constant exactly — that
+/** Mirrors `apps/website/src/server/inbound/admin-http/routes/recovery/disclosure.ts`'s own `COVERED_CATEGORIES` constant exactly — that
  * route-local const is not exported, so this is a deliberate, disclosed duplication rather than a
  * reach into a route file's private state. Keep the two in sync if either changes. */
 const RECOVERY_DISCLOSURE_COVERED_CATEGORIES = ["posts_pages", "plugin_table"] as const;
@@ -154,7 +154,7 @@ function requireEnvelopeStringOrNull(value: unknown, fieldPath: string): string 
  * Validates a raw `envelope` value against `recovery_resolve_deep_link`'s published schema and
  * returns it narrowed to `DatabaseContextEnvelope`.
  *
- * Hand-written rather than delegating to `identity/agent-tool-input.ts`'s generic schema
+ * Hand-written rather than delegating to `Jini packages/user-management/src/server/agent-tool-input.ts`'s generic schema
  * interpreter, because this is the only nested-object tool input in the whole wiring layer and that
  * interpreter is flat-only — it cannot express a nested `envelope` object at all.
  *
@@ -291,7 +291,7 @@ export function buildRecoveryRegistrations(
           operationInFlight: isOperationInFlight({ siteId: routeDeps.workspaceId }, {}),
           pendingMigration: siteStatus === "PENDING_MIGRATION",
           migrationInterrupted: siteStatus === "BLOCKED_PENDING_RECOVERY",
-          // Matches `routes/admin/recovery/status.ts`'s own honest stub — no per-category
+          // Matches `apps/website/src/server/inbound/admin-http/routes/recovery/status.ts`'s own honest stub — no per-category
           // write-count tracker exists anywhere in this codebase yet (see `disclosure.ts`'s doc).
           watermarkBaselineAvailable: false,
         },
@@ -400,7 +400,7 @@ export function buildRecoveryRegistrations(
 
 /**
  * Contributes Recovery's AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildRecoveryRegistrations`/
  * `recoveryDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 batch 2).
  * Unlike `database` (tried and reverted earlier in this same batch — see

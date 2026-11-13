@@ -547,7 +547,7 @@ export interface CreatePostInput {
   actorId?: UUID;
   /** Same optional-with-null-default contract as {@link PostRevisionInput.delegatedByWorkspaceId} —
    *  set only by a call site acting through a delegate (an agent or api_key acting on a human's
-   *  behalf, per `contracts/core/gated-mutations/actor-identity.ts`'s documented convention).
+   *  behalf, per `Jini packages/core/src/gated-mutations/actor-identity.ts`'s documented convention).
    *  Omitted/null for a direct human action. */
   delegatedByWorkspaceId?: UUID | null;
   /** See {@link CreatePostInput.delegatedByWorkspaceId}. */
@@ -771,7 +771,7 @@ export interface DeletePostOptional {}
  * EVENT: emits `entry.unpublished` when a PUBLISHED row is trashed, and nothing when a draft is —
  * computed by handing `classifyStatusTransition` the transition a trash actually is (whatever the
  * row was, to no-longer-public). No new event name is invented: `entry.unpublished` is what SEO's
- * sitemap-cache invalidation already subscribes to (`server/app.ts`), and "this entry left the
+ * sitemap-cache invalidation already subscribes to (`apps/website/src/server/runtime/composition/app.ts`), and "this entry left the
  * public site" is exactly what happened.
  *
  * @complexity O(1) — one lookup plus one marker write.
@@ -1441,7 +1441,7 @@ async function resolveCreateSlug(
  *   `<slug>-trashed` in the same transaction (`releaseTrashedSlug`, still restorable).
  * - `bodyJson` absent → `DEFAULT_BODY_JSON`; present → validated as a JSON object (`isJsonObject`,
  *   the same check `updatePost` applies; this codebase has no deeper TipTap schema validation
- *   anywhere else, per `features/entries/write-service.ts`'s disclosure, so none is invented here).
+ *   anywhere else, per `Jini packages/cms/src/entries/write-service.ts`'s disclosure, so none is invented here).
  * - `status` absent → `"draft"`; present → validated against the same `draft`/`published` enum
  *   `updatePost` enforces.
  *

@@ -28,7 +28,7 @@ import type { AnalyticsSiteConfig } from "./types.js";
  * still lets each workspace hold its own VALUE row.
  *
  * NOT the same thing as `core.privacy.telemetry.*`
- * (`features/settings/ui-tab-definitions.ts`): that pair is VENDOR
+ * (`Jini packages/core/src/settings/ui-tab-definitions.ts`): that pair is VENDOR
  * telemetry consent (share anonymous usage data with the vendor via a
  * `ForwardingSink`-shaped path) and has no adapter to gate — Tovu has no
  * outbound telemetry sink at all yet. This namespace is the operator's own
@@ -45,7 +45,7 @@ import type { AnalyticsSiteConfig } from "./types.js";
  * receives hits IN ADDITION to the built-in sink, and an id that is not
  * installed falls back to built-in only (fail toward not sending data).
  *
- * ADR-PIPE-008 DISCLOSURE (`features/settings/types.ts`'s `SettingValueSchema`
+ * ADR-PIPE-008 DISCLOSURE (`Jini packages/core/src/settings/types.ts`'s `SettingValueSchema`
  * doc comment): `{type:"json"}` was, until this file, used exactly once in
  * the codebase (`site.seo.robots_rules`), and that comment plus
  * `execution-mode-settings.ts`'s `localCli.model` comment both said so in
@@ -56,7 +56,7 @@ import type { AnalyticsSiteConfig } from "./types.js";
  * precedent for, not the "scalar field encoded as JSON to skip
  * decomposition work" pattern the rule exists to block. Both stale
  * "exactly one" comments have been corrected alongside this file landing
- * (see `features/settings/types.ts` and `execution-mode-settings.ts`) so no
+ * (see `Jini packages/core/src/settings/types.ts` and `execution-mode-settings.ts`) so no
  * comment in the codebase asserts a count this change makes false. Flagged
  * here for Code Review per ADR-PIPE-008 Enforcement's own instruction.
  */
@@ -101,7 +101,7 @@ export interface EnsureAnalyticsSettingDefinitionsInput {
  * Idempotently registers the 7 `core.analytics.*` definitions. Safe to call
  * on every boot. The skip-if-registered loop, the `ownerKind: "core"` /
  * `workspaceId: null` namespace-fence handling, and the boot-trust shim all
- * live in `features/settings/ensure-definitions.ts` — this module owns only
+ * live in `Jini packages/core/src/settings/ensure-definitions.ts` — this module owns only
  * the definition list above.
  *
  * @complexity O(1) — 7 definitions, each a skip-if-registered check plus at
@@ -121,7 +121,7 @@ export async function ensureAnalyticsSettingDefinitions(
 /**
  * Fallback used ONLY when `getEffective` reports a `core.analytics.*`
  * definition as unregistered (`null`) — per `getEffective`'s own contract
- * (`features/settings/settings.ts`) that state means a boot-ordering bug
+ * (`Jini packages/core/src/settings/settings.ts`) that state means a boot-ordering bug
  * (this file's registrar has not run yet), never an operator choice: an
  * operator can only ever produce a *stored* value, and `getEffective` is
  * total over the stored/workspace/global/default layers once a definition

@@ -10,15 +10,15 @@ import type { UUID } from "@jini-ai/core/primitives";
  * allowlist and then DISCARDS it, and neither `AssetBlobRecord` nor `MediaRecord` has a field to
  * carry one. Threading a type through those frozen records would be an upstream change; this
  * narrow side port keeps the whole fix inside this host, and — because it is its own port — it
- * gets both a real adapter and an in-memory double, so it works against `server/deps.ts`'s SQLite
- * composition root AND `server/app.ts`'s hermetic in-memory one.
+ * gets both a real adapter and an in-memory double, so it works against `apps/website/src/server/runtime/composition/deps.ts`'s SQLite
+ * composition root AND `apps/website/src/server/runtime/composition/app.ts`'s hermetic in-memory one.
  *
  * Keyed by `(workspaceId, sha256)`, not by media id, because the content type is a property of the
  * BYTES. That is also why blob dedup makes this free: two library entries that share one blob
  * share one recorded type.
  *
  * The stored value is always `sniffContentType(bytes)` — the real magic-byte answer — never the
- * client's upload-time string. `routes/admin/media/original.ts`'s file header already establishes
+ * client's upload-time string. `apps/website/src/server/inbound/admin-http/routes/media/original.ts`'s file header already establishes
  * that invariant for the byte-serving route ("`Content-Type` is NEVER the client's upload-time
  * string"); recording the declared string here instead would let an operator's "Images" tab
  * disagree with the `Content-Type` their browser is actually served, which is the same
@@ -28,7 +28,7 @@ import type { UUID } from "@jini-ai/core/primitives";
  * sniffer's own `"application/octet-stream"`, a real answer. A MISSING entry means only "not
  * sniffed yet" — a blob written before this store existed. Because the value is a pure function of
  * bytes this system already stores, a missing entry is always recoverable by re-sniffing rather
- * than lost, which is what makes the read-path backfill in `routes/admin/media/list.ts` exact
+ * than lost, which is what makes the read-path backfill in `apps/website/src/server/inbound/admin-http/routes/media/list.ts` exact
  * rather than a guess.
  */
 export interface MediaContentTypeStorePort {
@@ -50,7 +50,7 @@ export interface MediaContentTypeStorePort {
 
 /**
  * `MediaContentTypeStorePort`'s in-memory adapter — the ADR-006 rule-of-two test double, backing
- * `server/app.ts`'s hermetic composition root (same role
+ * `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition root (same role
  * `media/provider-credential-store.memory.ts` plays for the provider credential port).
  *
  * Keyed by `${workspaceId} ${sha256}`: a flat composite-string map rather than a nested one, for

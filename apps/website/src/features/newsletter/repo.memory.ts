@@ -1,7 +1,7 @@
 /**
  * @file In-memory adapters for all 6 Newsletter repo ports (ADR-PIPE-011 File Map).
  *
- * One class per port, matching `src/members/repo.memory.ts`'s convention: `private rows: X[];
+ * One class per port, matching `apps/website/src/features/members/repo.memory.ts`'s convention: `private rows: X[];
  * constructor(initialRows: X[] = []) { this.rows = [...initialRows]; }`, then plain array
  * find/filter/push-or-replace methods. Rule-of-two adapter #1 (`repo.sqlite.ts` is #2).
  */

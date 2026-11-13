@@ -32,7 +32,7 @@ import ts from "typescript";
  *
  * ## Why an AST scan, not a one-line grep
  * A single-line regex on `.seal(` misses any call whose arguments span multiple lines —
- * `connector-credential-store.ts`'s `sealCredentials` helper is exactly this shape, and is the
+ * `connector credential sealing`'s `sealCredentials` helper is exactly this shape, and is the
  * concrete case that produced a wrong AAD count earlier in this effort. This walks the real
  * `ts.SourceFile` AST (same technique `ts-escape-metrics.mjs` already uses in this repo for
  * AST-accurate `any`/non-null-assertion counts) so call-site shape and formatting can never hide an

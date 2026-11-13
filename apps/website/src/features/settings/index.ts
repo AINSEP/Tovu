@@ -2,7 +2,7 @@
  * @file Public surface (barrel) for `settings` — re-exported from `@jini-ai/core/settings`.
  *
  * Jini owns definitions, values and the revision ledger. SQLite adapters bind the site's schema;
- * `migration.ts` handles this host's legacy `presentation_settings` data. Those stay host-owned,
+ * `legacy settings migration` handles this host's legacy `presentation_settings` data. Those stay host-owned,
  * as do the title write policy and active-principal lookup below.
  * This barrel omits SQLite so consumers cannot accidentally depend on the host's persistence choice.
  */

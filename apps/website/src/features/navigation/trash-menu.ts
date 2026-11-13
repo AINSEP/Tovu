@@ -3,7 +3,7 @@ import type { MenuRepoPort } from "@jini-ai/cms/navigation";
 
 /**
  * @file Menu-flavored move-to-trash entry point (T5, plan §2). Precedent:
- * `features/forms/delete-submission.ts` — same read-then-`remove` shape, retargeted at
+ * `Jini packages/cms/src/forms/delete-submission.ts` — same read-then-`remove` shape, retargeted at
  * `MenuRepoPort`. `remove` is an injected structural type (`RemoveMenuFn`), bound at the
  * composition root to the generic trash pipeline's `removeEntityWithoutBlocker` helper — this
  * module imports nothing from `features/trash`.

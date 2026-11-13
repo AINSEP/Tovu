@@ -1,6 +1,6 @@
 /**
  * @file The Widgets agent-tool catalog (SPEC-043, ADR-047) — this domain's instance of the
- * per-domain `agent-tools.ts` convention `forms/agent-tools.ts` and `identity/agent-tools.ts`
+ * per-domain `agent-tools.ts` convention `forms/agent-tools.ts` and `Jini packages/user-management/src/server/agent-tools.ts`
  * already use.
  *
  * Purpose:
@@ -11,7 +11,7 @@
  * an operation the domain cannot perform.
  *
  * Precedent already in this repo: ADR-047 §5 (REQ-35/44) ships its OWN bespoke "AI tool surface" as
- * HTTP routes (`server/routes/admin/widgets/agent-tools.ts`: `widgets.place`/`widgets.create`/
+ * HTTP routes (`apps/website/src/server/inbound/admin-http/routes/widgets/agent-tools.ts`: `widgets.place`/`widgets.create`/
  * `widgets.remove`/`widgets.diagnose`), a DIFFERENT delivery mechanism than the ADR-049
  * `tool-registrations.ts` MCP path this catalog wires into. That file's own reasoning — every call
  * maps 1:1 to the SAME domain functions the human admin routes use, gated by the SAME `widgets.*`
@@ -121,7 +121,7 @@ const PLACEMENT_SCHEMA = {
  * placement, and inline embeds, out of the 13 the admin HTTP surface exposes (see file header for
  * why `purge` is the one exclusion).
  *
- * Ordered read-first, matching `identity/agent-tools.ts`'s convention: a model needs a
+ * Ordered read-first, matching `Jini packages/user-management/src/server/agent-tools.ts`'s convention: a model needs a
  * `widgetInstanceId` before it can update, trash, place, or embed one, and `content_read.widget_instance`
  * (or `widgets_create_instance`'s own result) is how it learns one.
  */

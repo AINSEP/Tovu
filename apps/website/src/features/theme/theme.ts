@@ -26,7 +26,7 @@ import { stockThemesDir } from "../../platform/site-dir/product-root.js";
  * Purpose:
  * A theme is a folder of validated *data* — no executable code. This module
  * defines the on-disk shape, discovers theme folders, and resolves a route to a
- * template id. The template-tree renderer (`server/http/site/render.ts`) turns
+ * template id. The template-tree renderer (`apps/website/src/server/inbound/public-http/http/site/render.ts`) turns
  * the resolved block tree into HTML.
  *
  * Spike scope (VibeCoder): discovery + a shallow validity check (required files
@@ -401,8 +401,8 @@ export function isPublishableThemePageCandidate(theme: DiscoveredTheme, pageId: 
  * the exact failure class {@link validateTemplateDeclarations}'s own doc calls "the worst failure
  * class this codebase keeps hitting".
  *
- * The live `GET /:slug` resolver (`server/routes/site/pages.ts`'s `isMarketingPageSlug`) and the
- * static exporter's route enumeration (`export/route-manifest.ts`) both have to answer this same
+ * The live `GET /:slug` resolver (`apps/website/src/server/inbound/public-http/routes/site/pages.ts`'s `isMarketingPageSlug`) and the
+ * static exporter's route enumeration (`apps/website/src/features/site-export/route-manifest.ts`) both have to answer this same
  * question, and previously each spelled its own answer — the exporter excluded shells and `404`,
  * the live route excluded neither, so `/blog-post` and `/404` were publicly reachable 200s on the
  * running server while the export correctly omitted them. Two resolvers for one question is a
@@ -747,7 +747,7 @@ function loadLiquidTemplateFile(
 
 /**
  * Handlebars tier (ADR-020): raw Handlebars source, rendered by the isolated worker in
- * `server/http/site/handlebars-worker.ts`. Exactly the same lint-before-publish contract
+ * `apps/website/src/server/inbound/public-http/http/site/handlebars-worker.ts`. Exactly the same lint-before-publish contract
  * {@link loadLiquidTemplateFile} applies, against the Handlebars-specific allowlist — a
  * disallowed helper, a partial, a decorator, or a `{{{raw}}}` output outside the one sanctioned
  * path fails the theme rather than reaching the compiler. Both extensions are accepted

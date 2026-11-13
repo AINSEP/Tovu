@@ -229,7 +229,7 @@ export { siteEvidenceDerivedRisk };
 
 /**
  * Contributes the site-evidence tool to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`.
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`.
  */
 export function contributeSiteEvidenceTools({ httpClient }: { httpClient?: HttpClientPort } = {}, _optional = {}): ToolContributor<SiteEvidenceToolDeps, unknown> {
   return { domain: "site-evidence", build: deps => buildSiteEvidenceRegistrations(deps, httpClient ? { httpClient } : {}), risk: siteEvidenceDerivedRisk };

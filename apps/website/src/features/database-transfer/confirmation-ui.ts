@@ -4,7 +4,7 @@ import type { DatabaseTransferPlan } from "./plan-store.js";
 
 /**
  * @file The card `database_transfer_run` raises before anything is written. Same held-open exchange
- * as `site-backup/confirmation-ui.ts`: Copy/Cancel carry `SURFACE_EXCHANGE_ID_PARAM` back to the same
+ * as `site backup confirmation`: Copy/Cancel carry `SURFACE_EXCHANGE_ID_PARAM` back to the same
  * tool call. Plain words only (no "schema", "role" or "connection string"): where the copy goes, how
  * much, what is left out, and that the site itself does not change.
  */

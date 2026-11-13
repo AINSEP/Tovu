@@ -1,7 +1,7 @@
 /**
  * @file The Members agent-tool catalog (ADR-030/ADR-PIPE-013), instantiating SPEC-016 REQ-22's
  * naming/callability convention for this domain — the same shape `forms/agent-tools.ts` and
- * `identity/agent-tools.ts` use, including the `inputSchema` contract.
+ * `Jini packages/user-management/src/server/agent-tools.ts` use, including the `inputSchema` contract.
  *
  * Purpose:
  * A static, in-process catalog describing every agent-callable tool this domain exposes and the
@@ -14,7 +14,7 @@
  * Owner 2026-10-09 supersedes the profile/create exclusion below for this CRUD pass;
  * billing and authentication exclusions remain binding. Historical rationale is retained.
  * - `updateProfile`, `compSubscription`, `setSubscriptionStatus` (`write-service.ts`) have NO
- *   admin HTTP route at all today — `server/modules/members.ts` wires exactly 4 admin registrars
+ *   admin HTTP route at all today — `apps/website/src/server/runtime/composition/modules/members.ts` wires exactly 4 admin registrars
  *   (list/get/disable/request-magic-link) plus 2 public sign-in routes, nothing else. Wiring an
  *   agent tool for a write-service function the admin UI does not yet expose would give the
  *   assistant MORE capability than a human clicking through the admin screens has today — the

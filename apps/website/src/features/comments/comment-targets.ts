@@ -8,7 +8,7 @@ import type { CommentsModuleDeps } from "@jini-ai/cms/comments";
  * cannot alias one another.
  *
  * Posts have no publish timestamp, so `closeAfterDays` cannot close a post's thread (a `null`
- * `publishedAt` never passes the close window in `cms/comments/module.ts`); the draft gate still holds.
+ * `publishedAt` never passes the close window in `Jini packages/cms/src/comments/module.ts`); the draft gate still holds.
  */
 type Lookup = CommentsModuleDeps["entryLookup"];
 type FindById<T> = { findById(required: { workspaceId: string; id: string }): Promise<T | null> };

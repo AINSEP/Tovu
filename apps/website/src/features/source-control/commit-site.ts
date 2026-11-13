@@ -188,8 +188,8 @@ export interface CommitSiteDeps {
  * Deliberately NOT named anything close to `RouteDeps.runExportSite`
  * (`server/routes/types.ts`) — that field is `ExportEngine<RouteDeps>`, which takes a `routeDeps`
  * parameter the caller must supply on every call; THIS function takes none, because `RouteDeps` is
- * already closed over at the composition root (`server/app.ts`'s `createRouteDeps()`/
- * `server/deps.ts`'s `createSiteRouteDeps()`, bound as `RouteDeps.exportSiteBound`). Naming the two
+ * already closed over at the composition root (`apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`/
+ * `apps/website/src/server/runtime/composition/deps.ts`'s `createSiteRouteDeps()`, bound as `RouteDeps.exportSiteBound`). Naming the two
  * similarly was reviewed and rejected specifically because a caller mixing them up (passing a
  * `routeDeps` field this function does not want, or omitting one `runExportSite` requires) would
  * still type-check — see this domain's own `tool-registrations.ts` for where that exact class of bug
@@ -239,7 +239,7 @@ export interface CommitSiteInput {
  *
  * `parent` is `RouteDeps.sourceControlExportRootDir` (`TOVU_SOURCE_CONTROL_EXPORT_DIR` env, then
  * `<site>/out/source-control-export` — mirroring `export-site.ts`'s `TOVU_EXPORT_DIR`/`adapter.ts`'s
- * `TOVU_PUBLISH_DIR`), resolved ONCE by the composition root (`server/app.ts`/`server/deps.ts`) and
+ * `TOVU_PUBLISH_DIR`), resolved ONCE by the composition root (`apps/website/src/server/runtime/composition/app.ts`/`apps/website/src/server/runtime/composition/deps.ts`) and
  * threaded through as {@link CommitSiteInput.sourceControlExportRootDir} (2026-08-20
  * RouteDeps-narrowing fix — this used to be `input.routeDeps.sourceControlExportRootDir`; the field
  * moved, the value and its single-resolution-point discipline did not) — never read from

@@ -56,7 +56,7 @@ export interface EnsureSeoSettingDefinitionsDeps {
 
 export interface EnsureSeoSettingDefinitionsInput {
   workspaceId: UUID;
-  /** The trusted boot-time actor these writes are attributed to (mirrors `migration.ts`'s convention). */
+  /** The trusted boot-time actor these writes are attributed to (mirrors `settings migration`'s convention). */
   systemPrincipalId: UUID;
 }
 
@@ -72,7 +72,7 @@ function callerWriteServiceDeps(deps: SeoSettingsWriteDeps) {
 
 /**
  * REQ-11 — idempotently registers the 8 `site.seo.*` definitions (skip if
- * already registered, mirrors `migration.ts`'s `ensureCoreDefinition`/
+ * already registered, mirrors `settings migration`'s `ensureCoreDefinition`/
  * `ensureThemeDefinitions` pattern exactly). Safe to call on every boot.
  * Boot-time infra work is trusted by construction: the shared registrar uses
  * boot trust rather than caller-supplied authorization, since no request-scoped

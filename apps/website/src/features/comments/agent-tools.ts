@@ -1,7 +1,7 @@
 /**
  * @file The Comments agent-tool catalog (ADR-031/SPEC-033/SPEC-035), instantiating SPEC-016
  * REQ-22's naming/callability convention for this domain — the same shape `forms/agent-tools.ts`
- * and `identity/agent-tools.ts` use, including the `inputSchema` contract.
+ * and `Jini packages/user-management/src/server/agent-tools.ts` use, including the `inputSchema` contract.
  *
  * Purpose:
  * A static, in-process catalog describing every agent-callable tool this domain exposes and the
@@ -18,7 +18,7 @@
  *   all, they are the anonymous-visitor ingress boundary and a classifier-training seam
  *   respectively; there is no "admin UI section" for either for this catalog to mirror.
  *
- * A residual risk worth naming rather than hiding: `identity/agent-tools.ts`'s own header notes an
+ * A residual risk worth naming rather than hiding: `Jini packages/user-management/src/server/agent-tools.ts`'s own header notes an
  * assistant is reachable by prompt injection through ordinary operator content, and names "a
  * comment" as the paradigmatic example. The moderation tools below (`approve`/`mark_spam`/`trash`/
  * `restore`) act on exactly that content. This catalog does not withhold them — moderating comments
@@ -33,7 +33,7 @@
  * Unlike Forms/Identity, Comments' own write-service does NOT call `authorize()` internally
  * (`write-service.ts`'s file header: "Routes call authorize() first ... then this service, never
  * the repo directly") — so `tool-registrations.ts`'s handlers call `authorize()` explicitly,
- * mirroring `routes/admin/comments/moderate.ts`/`moderation-queue.ts`/`get-settings.ts` byte for
+ * mirroring `apps/website/src/server/inbound/admin-http/routes/comments/moderate.ts`/`moderation-queue.ts`/`get-settings.ts` byte for
  * byte, rather than relying on a self-enforcing domain function the way Forms/Identity do. See that
  * file's Comments section header for the full disclosure.
  *
