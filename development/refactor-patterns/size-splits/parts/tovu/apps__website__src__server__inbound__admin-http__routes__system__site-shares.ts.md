@@ -1,0 +1,7 @@
+### tovu:apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts
+- **Over:** `registerAdminSiteShareRoutes` 109 (file 143, under)
+- **Phase:** now (STAY-PRODUCT) · **Batch:** size-24 · **DONE as the worked example** (see EXAMPLE.md) — Terra skips it.
+- **Tests:** `apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-shares.integration.test.ts`, `apps/website/src/server/inbound/admin-http/routes/system/site-shares.integration.test.ts`, `apps/website/src/features/site-backup/__tests__/share-delivery.integration.test.ts`, `.../static-download-headers.integration.test.ts`, `.../credential-warnings.integration.test.ts`, `apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts`.
+- **Responsibility map:** request gate (workspace, session kind, RBAC, storage) = the `gate` closure · ZIP download = the body of the `${root}/:shareId/download` handler after the gate · route table = the rest of `registerAdminSiteShareRoutes`.
+- **Splits:** HELPERS at module level above the register function: `gateShareRequest({ req, res, deps }, { artifact = false } = {}): Promise<SiteShareBackend | false>` ← the `gate` closure body (the closure stays as a one-line adapter so the nine call sites are unchanged); `sendShareDownload({ req, res, deps, backend, fail }): Promise<void>` ← the download handler's statements after `if (!backend) return;`.
+- **After:** register fn 82; file 151.

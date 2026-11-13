@@ -1,0 +1,12 @@
+apps/website/src/server/runtime/composition/deps.ts
+apps/website/src/server/runtime/composition/app.ts
+apps/admin/src/lib/api.ts
+apps/website/src/server/inbound/public-http/routes/site/pages.ts
+apps/website/src/server/inbound/public-http/http/site/render.ts
+apps/admin/src/features/posts/PostEditor.tsx
+apps/website/src/server/inbound/assistant/agent-daemon-scope.ts
+packages/daemon/src/agent-executor/launch.ts
+packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts
+packages/chat/src/react/features/chat-pane/components/ChatPane.tsx
+apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts
+apps/website/src/server/routes/types.ts

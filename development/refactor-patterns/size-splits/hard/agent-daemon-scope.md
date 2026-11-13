@@ -1,0 +1,207 @@
+# Split plan — `apps/website/src/server/inbound/assistant/agent-daemon-scope.ts`
+
+## 1. Header
+
+- **Path:** `apps/website/src/server/inbound/assistant/agent-daemon-scope.ts` (Tovu, measured on `refactor/terra` @ 60f52fea1).
+- **Over:** file 945 counted (limit 500); `createSiteScope` 828 (limit 100); nested `onStarted` (the `const onStarted: RunStartHandler = …` arrow, raw L670-1345) 440.
+- **Phase:** **NOW for the run-start pipeline** (everything inside `onStarted`). The survey (u040-2) marks that part STAY-WIRING (contextRef decode, prompts, consent cards, durable ledger, plugins): it stays in Tovu after the Tovu→Jini move, so this split holds after the move. **AFTER-MOVE for the rest of `createSiteScope`** (lifecycle/event log/executor/route registrars/attachment store/dispose drain). The survey marks that half DEDUPE-UNVERIFIED against `@jini-ai/server` `builtin-features.ts`, so the move replaces it. Splitting it now would force a second rewrite of the source-text test harness (see §6). `createSiteScope` and the file stay over until the move: both are **owner exception candidates** (§5).
+- **Executor note:** Fable/Opus. This plan needs **one documented deviation from CONVENTIONS rule 11**, and it needs owner sign-off before Step 0. About 38 test files execute this file's *source text* (`__tests__/helpers/daemon-source.ts` parses the file, finds statements by name and runs their text with fake bindings). Three more tests slice the raw text. Moving any statement out of `onStarted` breaks them unless the harness learns to read the split siblings. The deviation touches **4 test files only**: the helper plus 3 one-line anchors (Step 0). No assertion changes. If the owner refuses it, the whole file becomes an owner exception until the move.
+
+## 2. Responsibility map
+
+### Top-level declarations
+
+| Declaration | Unit after split | Job |
+|---|---|---|
+| `type OnStartedContext` (L96) | **moves** → `agent-daemon-scope-run-start.ts` (exported) | the `run`/`lifecycle` shape `RunStartHandler` receives |
+| `type AttachmentRunFields` (L99) | **moves** → run-start (exported) | executor fields a claimed attachment batch adds |
+| `type RunSessionBinding` (L103) | **moves** → run-start (exported) | the session-binding decision |
+| `interface SiteScopeOptions` / `interface SiteScope` | stay | public scope contract (imported by `agent-daemon-server.ts`) |
+| `function scopeConfiguration` | stays | copy and validate the bound site's env snapshot |
+| `function createSiteScope` | stays (shrinks; exception candidate) | site-scope composition root |
+
+### `createSiteScope` body: statements that stay (composition, AFTER-MOVE)
+
+Everything from L190 (`const { env, authEnv, daemonUrl, port } = scopeConfiguration(…)`) through L669 (`const captureEarlySession = …`), plus L1347-1670 (`resolvePrincipal`, `resolveDiscoveryCaller`, `const app = express()` and all route registrations, `deliverRunUserMessage`, `delegatedToolRouteDeps`, `attachmentStore = await createDiskAttachmentStore(…)`, the bridge probe, the returned `{ app, lifecycle, hasExchanges, dispose }` and the outer `catch`). These stay **unchanged**. `resolveAttachmentRunFields` also stays where it is: 5 tests evaluate it by name with free-name bindings for `attachmentStore`, `routeDeps`, `stagedAttachmentCleanupByRunId`, `getAgentDef` and `DEFAULT_AGENT_ID`.
+
+One new scope-level function is added: **`releaseRunScopeState`** (Step 1). It takes the terminal cleanup body out of `onStarted`. It is placed directly above `const onStarted`.
+
+### `onStarted` statement groups → owner
+
+Anchors are the outline's statement first lines.
+
+| Anchor (outline) | Goes to |
+|---|---|
+| L671 `const run = Object.freeze({ ...startedRun });` | stays in `onStarted` |
+| L674 `const releaseRun = idlePark.hold({}, {});` + L675 `void runLifecycle.waitForTerminal(…).finally(releaseRun)` | stays |
+| L679 `function noteFullRunInput(…)` | stays (uses `tracing`, `routeDeps`) |
+| L682-L697 `let prompt` … `let attemptedResumeSessionId` | stay as locals (`attemptedResumeSessionId` is deleted: it moves into `RunStartState`, see below) |
+| L698 `try { … parseRunStartContextRef … } catch { … return; }` | stays verbatim (`run-ownership.test.ts` asserts it is a direct statement with `return` in the catch) |
+| L726 `let agentId = resolveAssistantAgentId(…)` | stays; becomes `const agentId` (no writer remains here) |
+| L727 `const pluginAbort` / L728 `const unsubscribePluginCancel` / L729 `const identity` | stay |
+| L730-L734 `principalByRunId.set` … `runOwners.record(…)` | stay verbatim (`runOwners.record` must be a direct statement, per `run-ownership.test.ts`) |
+| L737 `if (durableMessageId === undefined) { …tracker.capture… }` | stays inline (it must run before `liveRunTracker.register`, and the `ports` literal, which names `customInstructionsCache`, may only appear after `register`) |
+| L749 `if (conversationId !== undefined) liveRunTracker.register(…)` | stays (must textually precede the first `customInstructionsCache`, per `session-resume-wiring`) |
+| L750 `if (pageContext !== undefined) runActiveContexts.record(…)` | stays |
+| L751 `void runLifecycle.waitForTerminal(…).finally(() => { …cleanup… })` | the call stays; the `.finally` body → scope-level **`releaseRunScopeState`** (Step 1) |
+| L800 `if (conversationId !== undefined) { …runLifecycle.stream… }` | the `if` stays as a one-line call; the body → run-start **`subscribeSessionResumeCapture`** |
+| L851 `frontendControl.bindOnStarted(…)` | stays |
+| L859 `const releasePreparation = idlePark.hold({}, {});` | stays |
+| L861 `let startupStage = 'custom instructions';` | → `RunStartState.startupStage` (initial value set in the state literal) |
+| L862 `void customInstructionsCache.refresh().then(async () => {…}).catch(…).finally(releasePreparation)` | the chain stays in `onStarted`; the `.then` body → run-start **`prepareAndLaunchRun`** (its nested `readPriorSessionId` + `resolveSessionBinding` stay nested inside it, verbatim); the prompt-decoration statements in it → run-start **`assembleRunPrompt`**; the `.catch` body stays and reads `state.startupStage` |
+| L1064 `async function prepareSitePlugins` | → run-start `prepareSitePlugins` |
+| L1076 `async function durableAttemptStillOwnsAnswer` | → run-start `durableAttemptStillOwnsAnswer` |
+| L1085 `async function launchAgentRun` | → run-start `launchAgentRun` |
+| L1169 `function warnRunFilesystemLimit` | → run-start |
+| L1173 `async function verifyLaunchToolPolicy` | → run-start |
+| L1183 `function recordRunToolSnapshot` | → run-start |
+| L1194 `async function emitNoToolsNotice` | → run-start |
+| L1203 `async function resolveRunNativePolicy` | → `agent-daemon-scope-run-tool-access.ts` |
+| L1207 `function runToolPolicyInput` (dead, never called) | → tool-access, unchanged (rule 6: do not "improve") |
+| L1211 `async function runToolAccessIsLive` | → tool-access |
+| L1221 `async function prepareRunToolAccess` | → tool-access |
+| L1231 `async function prepareAgentToolChoice` | → tool-access |
+| L1245 `async function prepareUnavailableToolChoice` | → tool-access |
+| L1262 `async function askForRunToolAccess` | → tool-access |
+| L1283 `async function withRunToolAccessCard` | → tool-access |
+| L1297 `function qualifiedRunAlternatives` | → tool-access |
+| L1315 `async function observeRunToolGaps` | → run-start |
+| L1329 `async function prepareCliLaunch` | → run-start |
+
+### Mutable state shared across callbacks
+
+These are all the mutable variables, with every reader and writer after the split.
+
+Per-run (`onStarted`). These become **`RunStartState`** fields when other callbacks read them later:
+
+| Variable | Writers | Readers (after split) |
+|---|---|---|
+| `prompt` | decode try (onStarted, stays a local); `state.prompt = assembleRunPrompt(…)` in `prepareAndLaunchRun` | `noteFullRunInput` (local); `launchAgentRun` (`state.prompt` via header) |
+| `agentId` | `onStarted` initial (`const`); `prepareAndLaunchRun`: local `let agentId = state.agentId`, then `agentId = selectedAgent; state.agentId = agentId;` | `subscribeSessionResumeCapture` onEvent (`state.agentId`, read at event time as today); `prepareAndLaunchRun` + nested session fns (local); `toolAccessRuns.set` (local) |
+| `attemptedResumeSessionId` | nested `resolveSessionBinding` (`state.attemptedResumeSessionId = effectiveResumeSessionId;`) | `subscribeSessionResumeCapture` onEvent |
+| `startupStage` | `prepareAndLaunchRun`, `launchAgentRun` (`state.startupStage = '…'`) | `onStarted` `.catch` (`state.startupStage`); `prepareCliLaunch` |
+| `principal`, `coldStartContext`, `attachmentIds`, `pluginRefIds`, `model`, `reasoning`, `conversationId`, `pageContext`, `durableMessageId`, `recoveryMode`, `recoverySessionId` | decode try only (write-once) | copied read-only into `RunStartState` |
+| `pluginAbort` (const object) | — | tool-access + launch helpers via `state.pluginAbort` |
+
+Scope-level (`createSiteScope`). Run-start helpers read these through **`RunStartPorts`**:
+
+| Variable | Kind | How run-start reaches it |
+|---|---|---|
+| `disposed` (`let`, written by `dispose`) | mutable | port accessor `isDisposed: () => disposed`. Must be read at call time, as today; never copy the value |
+| `attachmentStore` (`let`, assigned after routes) | mutable | **not a port**: only `resolveAttachmentRunFields` and `releaseRunScopeState` read it, and both stay in the scope |
+| `activeWork` / `resolveDrained` | mutable | untouched: only `idlePark.hold` and `dispose` use them, and both stay |
+| `closing`, `daemonStore`, `disposeAiTracing` | mutable | untouched (dispose/catch only) |
+| maps/sets (`toolAccessRuns`, `chatSettingsByRunId`, `revokedToolRuns`, `noToolsNotices`, …) | mutable contents, const bindings | passed by reference as ports |
+
+## 3. Target layout
+
+### New module A — `apps/website/src/server/inbound/assistant/agent-daemon-scope-run-tool-access.ts`
+**Job:** the per-run tool-access gate: native-policy snapshot, liveness, consent/setup cards, alternatives. **Phase:** NOW (consent cards are Tovu STAY-WIRING per survey).
+**Exports:**
+- `interface RunToolAccessState { readonly run: { readonly id: string }; readonly runLifecycle: RunToolAccessLifecycle; readonly principal: Principal; readonly pluginAbort: AbortController }`. Here `type RunToolAccessLifecycle = Parameters<RunStartHandler>[0]["lifecycle"]` (declared locally, as the original derives `OnStartedContext`).
+- `interface RunToolAccessPorts { routeDeps; env; getAgentDef; resolveAgentLaunch; assistantInventory; surfaceExchanges; revokedToolRuns; isDisposed }`. Types come from the scope's existing declarations: `Awaited<ReturnType<typeof createAgentDaemonCoreDeps>>` for `routeDeps`, `NodeJS.ProcessEnv`, `ReturnType<typeof createNativeAgentRuntime>["getAgentDef"]` / `["resolveAgentLaunch"]`, `ReturnType<typeof createAssistantAgentInventory>`, `ReturnType<typeof createSurfaceExchangeStore>`, `Set<string>`, `() => boolean`.
+- `type RunToolAccessInput = { state: RunToolAccessState; ports: RunToolAccessPorts }`
+- functions (same bodies; each starts with the destructuring header `const { run, runLifecycle, principal, pluginAbort } = state; const { … } = ports;`, listing only the names it uses, so the remaining lines stay byte-identical):
+  - `resolveRunNativePolicy({ state, ports, agentId }: RunToolAccessInput & { agentId: string }, _optional = {})`
+  - `runToolPolicyInput({ state, ports, agentId }: RunToolAccessInput & { agentId: string })` (dead, moved as-is)
+  - `runToolAccessIsLive({ state, ports }: RunToolAccessInput): Promise<boolean>`. `disposed` → `ports.isDisposed()`.
+  - `prepareRunToolAccess({ state, ports, selectedAgentId }): Promise<string | null>`
+  - `prepareAgentToolChoice({ state, ports, selected }): Promise<string | true | null>`
+  - `prepareUnavailableToolChoice({ state, ports, selected, snapshot, plan, inventory }): Promise<string | null>`
+  - `askForRunToolAccess({ state, ports, snapshot, keys, inventory })`
+  - `withRunToolAccessCard<T>({ state, ask }: { state: RunToolAccessState; ask: … }): Promise<T>`
+  - `qualifiedRunAlternatives({ ports, inventory, selectedAgentId, snapshot })`
+  
+  Call sites inside the module change only by passing `{ state, ports, … }`. `isLive: runToolAccessIsLive` becomes `isLive: () => runToolAccessIsLive({ state, ports })`. The two `runToolAccessIsLive()` calls inside callbacks become `runToolAccessIsLive({ state, ports })`.
+- **Imports:** `node:crypto` (`randomUUID`), `@jini-ai/core` types, `@jini-ai/protocol` (`isTerminalRunState`, `RunAgentPayload`), `@jini-ai/daemon/http` (`RunStartHandler` type), `@jini-ai/agent-runtime/native-tool-policy`, `#src/contracts/core/assistant-native-fallbacks` (`resolveAssistantCliPermissions`), `#src/server/runtime/composition/host-signals`, `./assistant-run-tool-policy.js`, `./assistant-tool-consent.js`, `#src/assistant/agent-session-preset` (`failRunBeforeStart`). Type-only: `../../runtime/composition/agent-daemon-core-deps.js`, `@jini-ai/agent-runtime`, `#src/assistant/agents`, `@jini-ai/daemon/surface-exchanges`. **It imports neither the scope nor the run-start module.**
+- **No module-level `const`s.** The test harness prelude (§4 Step 0) only carries function declarations.
+
+### New module B — `apps/website/src/server/inbound/assistant/agent-daemon-scope-run-start.ts`
+**Job:** one run's startup pipeline after the synchronous registration prefix: analytics, the session-resume subscription, preparation (attachments, plugins, consent, session binding, prompt) and CLI launch. **Phase:** NOW (STAY-WIRING; it survives the move unchanged, and the move only swaps who calls `onStarted`).
+**Exports:**
+- `type OnStartedContext`, `type AttachmentRunFields`, `type RunSessionBinding` (moved verbatim with their doc comments)
+- `interface RunStartState extends RunToolAccessState { readonly run: OnStartedContext["run"]; readonly runLifecycle: OnStartedContext["lifecycle"]; readonly coldStartContext: string | undefined; readonly attachmentIds: readonly string[]; readonly pluginRefIds: readonly string[]; readonly model: string | undefined; readonly reasoning: string | undefined; readonly conversationId: string | undefined; readonly pageContext: RunPageContext | undefined; readonly durableMessageId: string | undefined; readonly recoveryMode: "native" | "reconstruction" | undefined; readonly recoverySessionId: string | undefined; prompt: string; agentId: string; attemptedResumeSessionId: string | null; startupStage: string }`
+- `interface RunStartPorts extends RunToolAccessPorts { customInstructionsCache; resolveAttachmentRunFields; siteTools; visibleRegistry; toolAccessRuns; chatSettingsByRunId; noToolsNotices; conversationStartLock; liveRunTracker; captureEarlySession; idlePark; agentExecutor; probeAssistantChrome; assistantCliCapabilitiesContext; assistantNativeToolsContext; assistantRuntimeGuidanceContext; resolvePermissionMode; bridgeInjection }`. Types use `ReturnType<typeof create…>` of the scope's factories; `resolveAttachmentRunFields: (required: { run: OnStartedContext["run"]; attachmentIds: readonly string[]; runLifecycle: OnStartedContext["lifecycle"]; agentId?: string }, optional?: Record<string, never>) => Promise<AttachmentRunFields | null>`; `bridgeInjection: { command: string; args?: readonly string[]; env?: Record<string, string> }` (exactly the fields `prepareCliLaunch` reads); `idlePark: { hold(required: Record<string, never>, optional?: Record<string, never>): () => void }`; `resolvePermissionMode: () => "bypass" | "restricted"`.
+- `type RunStartInput = { state: RunStartState; ports: RunStartPorts }`
+- functions in this order, which is run order (numbering starts at 2; there is no item 1). The one exception is `launchAgentRun`, which stays below its caller, as today, because the wiring tests require `resolveSessionBinding` and `conversationStartLock.run(` to precede `const executeRun = () => agentExecutor.run({` textually.
+  2. `subscribeSessionResumeCapture({ state, ports }: RunStartInput, _optional = {}): void`: body of the L800 `if` (from `const resolvedConversationId = conversationId;`, which becomes `const resolvedConversationId = state.conversationId as string`… **no cast**: the input type is `RunStartInput & { conversationId: string }`, and onStarted passes `conversationId` from inside its `if`). Inside, `agentId` → `state.agentId` and `attemptedResumeSessionId` → `state.attemptedResumeSessionId` (both read at event time, as the closure did). Header: `run, runLifecycle, durableMessageId` / `routeDeps, idlePark, captureEarlySession`.
+  3. `prepareSitePlugins({ state, ports }: RunStartInput, _optional = {})`: L1064 verbatim (header `run, pluginAbort, pluginRefIds` / `siteTools`).
+  4. `assembleRunPrompt({ prompt: basePrompt, coldStartContext, pageContext, sessionBinding, attachmentRunFields, pluginPreparation, env }: AssembleRunPromptInput, _optional = {}): string`: `let prompt = basePrompt;` then the statements verbatim, from `prompt = selectRunHistoryPrompt({…})` through `prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);` (with `const pluginPromptPrefix = pluginPreparation.prefix;` moved in first), then `return prompt;`. All their comments move too. `pluginPreparation: { prefix: string; refusalPrefix: string }` (non-null: the caller has already returned on `null`).
+  5. `durableAttemptStillOwnsAnswer({ state, ports }: RunStartInput): Promise<boolean>`: L1076 verbatim.
+  6. `prepareAndLaunchRun({ state, ports }: RunStartInput, _optional = {}): Promise<void>`: the `.then(async () => {…})` body. Header: `const { run, runLifecycle, principal, attachmentIds, pluginRefIds, conversationId, durableMessageId, recoveryMode, recoverySessionId, pluginAbort } = state; const { routeDeps, siteTools, visibleRegistry, toolAccessRuns, conversationStartLock, liveRunTracker, resolveAttachmentRunFields } = ports; let agentId = state.agentId;`. Nested `readPriorSessionId` and `resolveSessionBinding` stay **nested and byte-identical** (the regexes in `session-binding-wiring` and `session-resume-wiring` match their text), with one exception: `attemptedResumeSessionId = effectiveResumeSessionId;` → `state.attemptedResumeSessionId = effectiveResumeSessionId;` (the test regex is a substring match and still holds). Other boundary changes: every `startupStage = '…'` → `state.startupStage = '…'`; `prepareSitePlugins({}, {})` → `prepareSitePlugins({ state, ports }, {})`; `prepareRunToolAccess({ selectedAgentId: agentId })` → `prepareRunToolAccess({ state, ports, selectedAgentId: agentId })`; after `agentId = selectedAgent;` add `state.agentId = agentId;`; the prompt block → `state.prompt = assembleRunPrompt({ prompt: state.prompt, coldStartContext: state.coldStartContext, pageContext: state.pageContext, sessionBinding, attachmentRunFields, pluginPreparation, env: ports.env }, {});`; `durableAttemptStillOwnsAnswer()` → `durableAttemptStillOwnsAnswer({ state, ports })`; `launchAgentRun({ sessionBinding, attachmentRunFields, pluginIds: … }, {})` → `launchAgentRun({ state, ports, sessionBinding, attachmentRunFields, pluginIds: … }, {})`. The line `const sessionBinding = await conversationStartLock.run({ conversationId: conversationId, critical: resolveSessionBinding }, {});` must stay byte-identical (regex in `session-binding-wiring` L321).
+  7. `verifyLaunchToolPolicy({ state, ports, agentId })`, 8. `warnRunFilesystemLimit({ agentId, shell })`, 9. `recordRunToolSnapshot({ state, ports, snapshot, plan, agentId })`, 10. `emitNoToolsNotice({ state, ports, agentId, snapshot, bridged })`, 11. `observeRunToolGaps({ state, ports, isOwner, agentId }, _optional = {})`, 12. `prepareCliLaunch({ state, ports, def, allowed }, _optional = {}): Promise<boolean>`. All bodies are verbatim behind headers. `startupStage` → `state.startupStage`. `resolveRunNativePolicy({ agentId })` / `runToolAccessIsLive()` → the tool-access calls with `{ state, ports, … }`. The type of `snapshot` in 9/10 becomes `Awaited<ReturnType<typeof resolveRunNativePolicy>>` imported from module A.
+  13. `launchAgentRun({ state, ports, sessionBinding, attachmentRunFields, pluginIds }: LaunchAgentRunInput, _optional = {}): Promise<void>`: L1085 verbatim. Header: `const { run, runLifecycle, principal, prompt, model, reasoning } = state; const { routeDeps, env, agentExecutor, getAgentDef, probeAssistantChrome, assistantCliCapabilitiesContext, assistantNativeToolsContext, assistantRuntimeGuidanceContext, siteTools, resolvePermissionMode } = ports;`. `if (disposed)` → `if (ports.isDisposed())`. **`const executeRun = () => agentExecutor.run({` must stay byte-identical** (it is the anchor in 2 tests). Its doc comment ("Declared after the continuation that calls it…") moves with it.
+- **Imports:** module A (functions and types). Then everything the moved bodies use: `node:crypto`, `node:fs` (`existsSync`), `node:os` (`homedir`), `@jini-ai/core` types, `@jini-ai/daemon` (`admittedToolSources`), `@jini-ai/daemon/tool-audit`, `@jini-ai/platform/child-environment`, `@tovu/contracts/secret-redaction`, `#src/contracts/core/model-facing-tool-errors`, `#src/assistant/agent-session-preset` (the session helpers + `failRunBeforeStart`), `#src/assistant/run-page-context`, `./assistant-run-tool-facts.js`, `./assistant-run-tool-policy.js` (`assistantRunPlan`), `./ensure-json-agent-install.js`, `./plugin-prompt-assembly.js`, `./capability-manifest-prefix.js`, `./assistant-system-overlay.js` (`resolveAssistantDisallowedTools`, `ASSISTANT_SETTING_SOURCES`, `resolveAssistantRunSettings`), `./assistant-runtime-guidance.js` (`resolveAssistantRuntimeLaunch`), `../../../features/fs-files/custom-root-store.js`, `./run-log-lines.js` (`formatRunEndLogLine`, `formatRunErrorLogLine`), `./run-start-decisions.js`. Type-only: `@jini-ai/daemon/http` (`RunStartHandler`), plus the factories' modules for `ReturnType<typeof …>`. **It never imports `agent-daemon-scope.ts`.** No module-level `const`s.
+- **Rule:** an import a moved body uses must keep the **same local name** as in the scope file (the harness binds by name).
+
+### Scope file after the split
+- Imports `{ prepareAndLaunchRun, subscribeSessionResumeCapture, type OnStartedContext, type AttachmentRunFields, type RunStartPorts, type RunStartState }` from `./agent-daemon-scope-run-start.js`. Imports that only moved code used are deleted, after an `rg` per name in the scope file (candidates: `assistantRunToolFacts`, `readAssistantRunToolPolicy`, `assistantRunPlan`, `assistantToolSetupMessage`, `requestAssistantToolConsent`, `requestAssistantToolAlternative`, `ensureJsonAgentInstall`, `readLoginShellEnvironment`, `resolveNativeToolPolicy`, `resolveAssistantCliPermissions`, `createToolGapCollector`, `redactSecretShapes`, `getCustomFsRoot`, `resolveAssistantRuntimeLaunch`, `resolveAssistantDisallowedTools`, `ASSISTANT_SETTING_SOURCES`, `resolveAssistantRunSettings`, `existsSync`, `homedir`, `randomUUID`, `formatRunEndLogLine`, `formatRunErrorLogLine`, the session-preset helpers, `selectRunHistoryPrompt`, `resolveStoredSessionId`, `durableAttemptOwnsAnswer`, `assemblePromptWithPluginPrefix`, `buildCapabilityManifestPrefix`, `resolveCapabilityManifestArm`, `buildPageContextPromptBlock`). **Exceptions that must stay even though unused:** `resolveFullCliAccess` and `readAssistantCliPermissions` (already unused today: rule 6). `createConversationStartLock` must stay imported from `agent-session-preset` (`session-binding-wiring` L273/L353 regex over the scope text).
+- New scope-level `function releaseRunScopeState({ run, conversationId, pluginAbort, unsubscribePluginCancel }: ReleaseRunScopeStateInput, _optional = {}): void`. Its body is the L751 `.finally(() => {…})` body verbatim, comments included.
+- `onStarted` keeps its prefix. After `runActiveContexts.record`, it builds `const ports: RunStartPorts = { routeDeps, env, getAgentDef, resolveAgentLaunch, assistantInventory, surfaceExchanges, revokedToolRuns, isDisposed: () => disposed, customInstructionsCache, resolveAttachmentRunFields, siteTools, visibleRegistry, toolAccessRuns, chatSettingsByRunId, noToolsNotices, conversationStartLock, liveRunTracker, captureEarlySession, idlePark, agentExecutor, probeAssistantChrome, assistantCliCapabilitiesContext, assistantNativeToolsContext, assistantRuntimeGuidanceContext, resolvePermissionMode, bridgeInjection };` and `const state: RunStartState = { run, runLifecycle, principal, coldStartContext, attachmentIds, pluginRefIds, model, reasoning, conversationId, pageContext, durableMessageId, recoveryMode, recoverySessionId, pluginAbort, prompt, agentId, attemptedResumeSessionId: null, startupStage: 'custom instructions' };` (comment "H1 fix: …" moves onto `attemptedResumeSessionId: null`; the "Static stage names…" comment moves onto `startupStage`). **Both literals go after `liveRunTracker.register(`**, because `customInstructionsCache` must not appear before it.
+- The cycle check: scope → run-start → tool-access. Neither sibling imports the scope. Types flow from the siblings down to the scope.
+
+## 4. Steps
+
+Test command (one file at a time, from the Tovu repo root):
+`TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-concurrency=1 --experimental-test-module-mocks <file>`
+
+**SUITE-38**, the source-coupled test set, run after every step. All paths are under `apps/website/src/`:
+`assistant/__tests__/{automatic-agent-plugins.integration,run-ownership,run-scoped-credential,tool-catalog-audit,tool-catalog-live-query,tool-contribution-registry}.test.ts` and `server/inbound/assistant/__tests__/{agent-daemon-idle-park.integration,agent-daemon-remote-tools.integration,agent-daemon-server.attachment-binding.unit,agent-daemon-server.attachment-kind-filter.unit,agent-daemon-server.attachment-run-fields.unit,agent-daemon-server.durable-binding.unit,agent-daemon-server.event-log-bound-wiring.unit,agent-daemon-server.executable-tools-wiring.unit,agent-daemon-server.federation-runtime-wiring.unit,agent-daemon-server.message-relay.unit,agent-daemon-server.outbox-enqueue-only-wiring.unit,agent-daemon-server.page-confirmation.integration,agent-daemon-server.page-context-wiring.unit,agent-daemon-server.page-navigate-error-rewrap.unit,agent-daemon-server.run-analytics.unit,agent-daemon-server.run-start-branches.unit,agent-daemon-server.runtime-guidance-wiring.unit,agent-daemon-server.session-binding-wiring.unit,agent-daemon-server.session-resume-wiring.unit,agent-daemon-server.site-capabilities-registry-wiring.unit,agent-daemon-server.tool-restriction-wiring.unit,agent-daemon-server.typed-tools.integration,agent-daemon-site-tools.unit,agent-daemon-startup-cause.unit,agent-plugin-preflight-events.integration,daemon-source-roots.unit,message-attachment-delivery.unit,mid-run-message-attachments.unit,native-fallback-wiring.unit,plugin-prompt-prefix.unit,shared-agent-daemon.integration}.test.ts`. Also `agent-daemon-scope-control.unit.test.ts`.
+
+Before the plan's own steps, run SUITE-38 once on the untouched tree and record pass/fail counts. Any test that already fails is noted and excluded from "green".
+
+**Step 0: generalize the source harness (DEVIATION, owner sign-off required; separate commit `test(assistant): let the daemon source harness read split siblings`).** No production code changes.
+
+1. `server/inbound/assistant/__tests__/helpers/daemon-source.ts`:
+   - Add `const DAEMON_SPLIT_FILES: readonly string[] = [];`. Steps 2 fills it with `"agent-daemon-scope-run-tool-access.ts", "agent-daemon-scope-run-start.ts"` in that order.
+   - Build `rawSource` from **one combined string**: the scope file's text, then each split file's text joined with `"\n"` (read relative to `../../`). Keep the file name `"agent-daemon-scope.ts"`, so every existing `getText(daemonSource)` keeps working (all nodes belong to one SourceFile). Export it as `export const daemonScopeText`.
+   - `daemonStatements` is unchanged in shape: top-level statements except `createSiteScope`, then `createSiteScope`'s flattened body.
+   - Add `export function daemonHelperPrelude(boundNames: ReadonlySet<string>): string`. It returns the text of every `ts.FunctionDeclaration` in `daemonStatements` whose `name` is not in `boundNames`, with a leading `export ` removed (`text.replace(/^export\s+/, "")`), joined by `"\n"`. This lets moved helpers, and the new scope-level `releaseRunScopeState`, resolve inside an evaluated `onStarted`. All their free identifiers resolve to the test's bindings, exactly as `onStarted`'s own free identifiers do today. Names a test binds (fakes such as `resolveAttachmentRunFields`, `resolvePermissionMode`) are excluded, so the fakes still win.
+   - Add `export function daemonPortDefaults(): Record<string, undefined>`. For every property signature of every `interface` whose name ends in `Ports` among the split files' top-level statements, it maps the name to `undefined`. This keeps today's lazy resolution: the `ports` literal now names `liveRunTracker` eagerly, but `captureDaemonRun` does not bind it by default. Test-supplied bindings override these defaults.
+   - In `evaluateDaemonExpression` and `evaluateDaemonStatements`: `scopedBindings = { ...daemonPortDefaults(), env: …, …existing defaults…, ...bindings }`, and prepend `daemonHelperPrelude(new Set(Object.keys(scopedBindings)))` to the source text that is transpiled. Put it **inside** the generated function body, before `return`.
+   - Add `export function daemonRunStartNodes(): ts.Node[]`. It returns `[daemonInitializer("onStarted"), ...the FunctionDeclarations from the split files]`.
+   
+   With `DAEMON_SPLIT_FILES = []`, every new function yields the same result as today.
+2. `agent-daemon-server.session-binding-wiring.unit.test.ts`. Edit 3 spots:
+   - L37: `const DAEMON_ENTRY_SOURCE = daemonScopeText;` (import it from `./helpers/daemon-source.js`).
+   - In `sessionHarness`, the transpiled text becomes ``${daemonHelperPrelude(new Set(SESSION_CONTEXT_KEYS))}\nconst onStarted = ${initializer.getText(source)};``, where `SESSION_CONTEXT_KEYS` is `Object.keys` of its existing context object. Hoist the existing literal into `const context = { ...daemonPortDefaults(), …existing entries… }` and pass `context` to `runInNewContext`.
+   - No assertion changes.
+3. `agent-daemon-server.session-resume-wiring.unit.test.ts` L37: `const DAEMON_ENTRY_SOURCE = daemonScopeText;` (import).
+4. `agent-daemon-server.attachment-kind-filter.unit.test.ts` L44: `const onStartedSource = daemonRunStartNodes().map(node => sourcePrinter.printNode(ts.EmitHint.Unspecified, node, daemonSource)).join("\n");` (import).
+5. Run SUITE-38. It must match the baseline exactly. Lines: helper +~35 counted.
+
+**Step 1: hoist terminal cleanup in the scope file (commit 1 of the file).**
+- Add `function releaseRunScopeState({ run, conversationId, pluginAbort, unsubscribePluginCancel }: { run: OnStartedContext["run"]; conversationId: string | undefined; pluginAbort: AbortController; unsubscribePluginCancel: () => void }, _optional = {}): void` directly above `const onStarted`. Its body is the `.finally(() => { … })` body of L751, verbatim, with all comments.
+- In `onStarted`, the `.finally` becomes `.finally(() => releaseRunScopeState({ run, conversationId, pluginAbort, unsubscribePluginCancel }, {}));`.
+- No importer changes. Run SUITE-38 (green thanks to the Step 0 prelude). Expected: `onStarted` 440 → ~412; file unchanged ±2.
+
+**Step 2: extract the run-start pipeline into two siblings (one commit for the tightly coupled pair + scope file + `DAEMON_SPLIT_FILES`).**
+1. Create module A exactly as in §3, then module B exactly as in §3. Function order is binding: B's text order must keep `subscribeSessionResumeCapture` … `prepareAndLaunchRun` (containing `async function readPriorSessionId(`, then `async function resolveSessionBinding(`, then `conversationStartLock.run(`) before `launchAgentRun` (containing `const executeRun = () => agentExecutor.run({`). `subscribeSessionResumeCapture` holds the first `shouldClearSessionOnFailedResume(` and must precede any `routeDeps.agentSessions.clearSessionId(` (it is the only place either appears).
+2. In the scope file, delete the moved nested functions and types, add the `ports`/`state` literals and the three calls, and fix imports as in §3. Exact `onStarted` changes: the L737 analytics block stays inline and unchanged. The `ports`/`state` literals go right after `if (pageContext !== undefined) runActiveContexts.record(…)` and before the L751 cleanup subscription. L800 block → `if (conversationId !== undefined) subscribeSessionResumeCapture({ state, ports, conversationId }, {});`. The continuation → `.then(() => prepareAndLaunchRun({ state, ports }, {}))`. The `.catch` keeps its body, with `stage: startupStage` → `stage: state.startupStage`.
+3. Set `DAEMON_SPLIT_FILES = ["agent-daemon-scope-run-tool-access.ts", "agent-daemon-scope-run-start.ts"]` in the helper (same commit; the helper is already a sanctioned edit from Step 0).
+4. Importers: there are no external importers of the moved names (`rg -n "OnStartedContext|AttachmentRunFields|RunSessionBinding" apps/website/src` shows only the scope file). `createSiteScope`/`SiteScope`/`SiteScopeOptions` are unchanged (importers `agent-daemon-server.ts`, `__tests__/shared-agent-daemon.integration.test.ts`).
+5. Run SUITE-38, then `npx eslint` on the 3 production files + 4 test files, then `node development/refactor-patterns/size-splits/outline.mjs --check` on the scope + 2 new files.
+6. Expected: `onStarted` ~85; module A ~150 counted; module B ~350 counted; scope file ~570; `createSiteScope` ~470.
+
+**Step 3: commit.** `git add -- <the 3 production files> && git commit -F msg -- <paths>`, with message `refactor(assistant): split agent-daemon-scope run start by responsibility (size)`. Step 0's test commit is separate and goes first.
+
+## 5. After
+
+| Item | Before | After |
+|---|---|---|
+| `agent-daemon-scope.ts` file | 945 | ~570 → **owner exception candidate until the move** (the composition half is the DEDUPE target of the move; re-measure after) |
+| `createSiteScope` | 828 | ~470 → **owner exception candidate until the move** (same reason; ~30 tests evaluate its statements by name) |
+| `onStarted` | 440 | ~85 |
+| `releaseRunScopeState` | — | ~30 |
+| `agent-daemon-scope-run-start.ts` | — | ~350; largest fns: `prepareAndLaunchRun` ~90, `launchAgentRun` ~66, `subscribeSessionResumeCapture` ~30 |
+| `agent-daemon-scope-run-tool-access.ts` | — | ~150; largest fn `askForRunToolAccess` ~22 |
+| `helpers/daemon-source.ts` (test) | ~150 | ~185 |
+
+## 6. Risks
+
+- **Source-text test harness (the reason for the deviation).** `helpers/daemon-source.ts` runs the *text* of `onStarted`, `resolveAttachmentRunFields`, `deliverRunUserMessage`, `assistantPromptAugmenter`, `siteTools`, `bridgeInjection`, route statements and others with fake free-name bindings. `session-binding-wiring` has its own `runInNewContext` evaluator. Three tests slice the raw text from `const onStarted: RunStartHandler`. Every moved helper must therefore: keep its **byte-identical body** behind a destructuring header that re-creates the old local names; use **only function declarations** at module level (the prelude does not carry `const`s); and use **the same import names** as the scope file. Text anchors that must survive verbatim: `const onStarted: RunStartHandler`, `async function readPriorSessionId(`, `async function resolveSessionBinding(`, `const sessionBinding = await conversationStartLock.run({ conversationId: conversationId, critical: resolveSessionBinding }, {});`, `const executeRun = () => agentExecutor.run({`, `const hasConcurrentLiveRun =`, `await waitForStoppingRuns({`, `await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: CONCURRENT_RUN_REFUSAL_MESSAGE }, {});`, `setSessionId({ conversationId, agentId, sessionId: hostMintedSessionId })`, `agentCarriesOwnMemory({ agentId: agentId }, {})`, `acceptsHostMintedSessionId: agentAcceptsHostMintedSessionId({ agentId: agentId }, {})`, `resolveNewSessionField({ hostMintedSessionId: hostMintedSessionId }, {})`, `prompt += attachmentRunFields.attachmentNotice ?? ""`, `...attachmentRunFields,`, `liveRunTracker.register(` before the first `customInstructionsCache`, and `const conversationStartLock = createConversationStartLock({}, {});` in the scope file.
+- **Eager vs lazy names.** Today the closure resolves `liveRunTracker` (and other names) only on the branch that uses it. The `ports` literal resolves every port name when `onStarted` runs. Production is unaffected: every port is an initialized `const` before any request. In tests, `daemonPortDefaults()` restores the old behavior. If SUITE-38 shows a `ReferenceError` for a port name, add that name to the `*Ports` interface (where it belongs). Never add ad-hoc bindings in a test.
+- **`disposed` and `attachmentStore` are `let`s written after `onStarted` is created.** `disposed` must cross only as `isDisposed: () => disposed`; a copied boolean would break withdrawal fencing (`shared-agent-daemon.integration.test.ts` L179 checks that "withdrawal fences the prepared CLI before spawn"). `attachmentStore` must not become a port (its reader functions stay in the scope).
+- **`agentId` is mutable and read at event time** by the session-resume subscription. The subscription must read `state.agentId` inside `onEvent`, never a value captured when it subscribes. `prepareAndLaunchRun` must write `state.agentId = agentId;` right after `agentId = selectedAgent;`.
+- **Order-sensitive init:** the synchronous prefix (registrations, `liveRunTracker.register`, cleanup subscription, session subscription, `frontendControl.bindOnStarted`, the `idlePark.hold`s) must keep its order and stay free of `await` (H2 race guarantee).
+- **Mocks:** `rg -n "vi\.mock\(|mock\.module\(" apps/website/src/server/inbound/assistant/__tests__ apps/website/src/assistant/__tests__ | rg "agent-daemon-scope"` → none. No mock path moves.

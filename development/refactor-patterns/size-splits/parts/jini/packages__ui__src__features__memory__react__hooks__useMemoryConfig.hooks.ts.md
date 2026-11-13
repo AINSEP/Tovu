@@ -1,0 +1,18 @@
+### jini:packages/ui/src/features/memory/react/hooks/useMemoryConfig.hooks.ts
+- **Over:** `useMemoryConfig` 130 (file 204, fine)
+- **Phase:** now · **Batch:** size-35
+- **Tests:** `src/features/memory/__tests__/react/hooks/useMemoryConfig.test.ts`, `src/features/memory/__tests__/react/host-ports.test.tsx`, `src/features/memory/__tests__/dependencies.test.ts`, `src/features/memory/__tests__/index.test.ts`, `src/features/memory/__tests__/react/hooks/useMemoryEntries.test.tsx`
+- **Responsibility map:**
+
+| unit | declarations / statements | job |
+|---|---|---|
+| A | `PendingConfigWrite`, `ConfigWriteQueue`, `newConfigWriteQueue`, `hasUnsettledConfigWrite`, `enqueueConfigWrite` | per-setting write queue — stays |
+| B | `useMemoryConfig`: `enabled`, `error`, `enabledConfirmedRef`, `enabledQueueRef`, `hydrationGuardRef`, `captureHydrationRevision`, `hydrate`, `onToggleEnabled` | master toggle + hydration — stays |
+| C | `useMemoryConfig`: `chatExtractionEnabled`/`profileEnabled`/`rewriteEnabled`/`verifyEnabled` states, `hookConfirmedRef`, `hookQueuesRef`, `setters`, `onToggleHook`, `hookFlags`, the four per-hook `if (!hasUnsettledConfigWrite(hookQueuesRef.current.<key>))` blocks in `hydrate` | the four per-hook flag toggles |
+
+- **Splits:**
+  1. SUB-HOOK `useMemoryHookFlagToggles({ port, hydrationGuardRef, setError }: UseMemoryHookFlagTogglesInput): MemoryHookFlagToggles` in the same file, above `useMemoryConfig`. Input: `port: MemoryConfigPort; hydrationGuardRef: MutableRefObject<ReturnType<typeof createAsyncCommitGuard>>; setError: Dispatch<SetStateAction<string | null>>`. Return: `{ hookFlags: MemoryConfigController['hookFlags']; onToggleHook: MemoryConfigController['onToggleHook']; applyHydratedHookFlags: (next: Record<MemoryConfigFlagKey, boolean>) => void }`. Body, in order: the four `useState(true)` lines for `chatExtractionEnabled`, `profileEnabled`, `rewriteEnabled`, `verifyEnabled`; `const hookConfirmedRef = …`; `const hookQueuesRef = …`; NEW `const applyHydratedHookFlags = useCallback((next: Record<MemoryConfigFlagKey, boolean>) => { <the four per-hook if-blocks from hydrate, verbatim, in the same order: chatExtraction, profile, rewrite, verify> }, []);`; the `setters` memo (with its "Map each hook key…" comment); `onToggleHook`; `hookFlags`; `return { hookFlags, onToggleHook, applyHydratedHookFlags };`.
+  2. `useMemoryConfig` keeps `enabled`, `error`, the big "Each toggle flips its own state optimistically…" comment + `enabledConfirmedRef`, `enabledQueueRef` (the comment explains both queues — keep it here and copy its first two sentences above `hookQueuesRef` in the sub-hook), `hydrationGuardRef` (+ comment), then calls `const { hookFlags, onToggleHook, applyHydratedHookFlags } = useMemoryHookFlagToggles({ port, hydrationGuardRef, setError });`, then `captureHydrationRevision`, `hydrate` (guard, `next`, the "A list response can have raced…" comment, the `enabledQueueRef` block, then `applyHydratedHookFlags(next);` — deps `[applyHydratedHookFlags]`), `onToggleEnabled`, `return { … }` unchanged.
+- **Importers to update:** none (no export moves).
+- **After:** file ~210; `useMemoryConfig` ~62; `useMemoryHookFlagToggles` ~72.
+- **Risks / notes:** `hydrate`'s per-key order is preserved (enabled first, then the four hooks in the same order). `applyHydratedHookFlags` has `[]` deps (refs + stable setters) so `hydrate` stays stable. State declaration order shifts (hook flags now declared after `hydrationGuardRef`) — no behavior effect. `next` includes `enabled`; passing it to `applyHydratedHookFlags` is structurally fine (extra key ignored); if TS excess-property checks complain, pass `next` as is (it is a variable, not a literal, so no excess check).

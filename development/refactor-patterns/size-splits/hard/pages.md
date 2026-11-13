@@ -1,0 +1,82 @@
+# Split plan: apps/website/src/server/inbound/public-http/routes/site/pages.ts
+
+## 1. Header
+- Over: file 1489 counted (3126 raw), limit 500. No function over 100 (largest `registerSiteRoutes` 88, `renderViaTemplate` 70). File split only.
+- Phase: **NOW, after render.md, before the Tovu->Jini move.** Survey (canary b114-2): collection chain DEDUPE-AFTER-HARDENING, content-marker recursion MOVE-AFTER, `findStaticMenu` MOVE, media-ref walk DEDUPE, rest STAY-WIRING. Each of those gets its own module here, so the later move/dedupe touches one file each; registrar + handlers stay in pages.ts.
+- Precondition: render.md done (imports below name `render-site.js` / `render-post-body.js`). If not, import the same names from `../../http/site/render.js`.
+- Registration order is behaviour. **No step edits `registerSiteRoutes` (L2990-3125) beyond import names**; its five `app.get` calls keep this order: `/_more/` rewrite, `/page/<n>` rewrite, `/`, nested-path redirect fallback, `/:slug` (asyncRoute). `pages.route.test.ts:134-140` takes the FIRST layer with path `"/:slug"` and calls `stack[0].handle` via `unwrapRouteHandle`; the other route tests drive real HTTP through `createApp`. Both depend only on that order, which every step preserves.
+
+## 2. Responsibility map (every top-level declaration -> unit)
+Units (siblings in `routes/site/`): **main** pages.ts; **X** pages-static-export.ts; **C** pages-site-chrome.ts; **RC** pages-render-context.ts; **SM** pages-static-menus.ts; **LR** pages-listing-requests.ts; **MA** pages-member-access.ts; **PP** pages-post-previews.ts; **CL** pages-collection-lists.ts; **CM** pages-content-markers.ts; **ST** pages-static-tier.ts; **RD** pages-redirects.ts; **RS** pages-response.ts; **NF** pages-not-found.ts; **MK** pages-marketing-page.ts; **PR** pages-post-render.ts.
+
+| Declarations (outline lines) | Unit | Job |
+|---|---|---|
+| `buildExtraHead` L135, `resolveSiteTitleForRender` (overloads L223-244), `resolveSiteAssistantWidgetForRequest` L291 | C | per-request site chrome: title, head extras, visitor-chat switch |
+| `tryRedirectPhase` L183, `redirectLookupPath` L2733 | RD | redirect phases and the path they match |
+| `STATIC_EXPORT_REQUEST_HEADER` L255, `isStaticExportRequest` L264, `CACHE_CONTROL_PRIVATE_STATIC_EXPORT` L271 | X | static-export detection (leaf; consent middleware imports it) |
+| `CACHE_CONTROL_PUBLIC_PAGE` L325, `CACHE_CONTROL_PRIVATE_FORM_RESULT` L349, `CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE` L380, `clearFormFlashCookie` L2550, `PerVisitorResponse` L2559, `resolvePerVisitorResponse` L2588, `addPluginExportHostsToResponse` L2638, `finalizePublicPageHtml` L2644, `sendPublicPage` L2802 | RS | per-visitor Cache-Control, final HTML pass, send |
+| re-export `export { resolveActiveThemeId, resolveActiveTheme }` L398 | main | existing re-export (template-preview-render.ts uses it); stays verbatim |
+| `resolveWidgetsForRender` L416, `resolveHtmlEmbedsForRender` L449, `siteTimeZoneDep` L1202, `htmlEmbedHostDeps` L1208, `resolveSiteTimeZoneForRender` L1214, `TemplateRenderDeps` L1231, `RenderContextResolutionDeps` L1267, `resolveAssignedTermsForRender` L1463, `resolveMediaTransformVersionsForRender` L1689, `isPlainObject` L1699, `collectMediaRefAssetIds` L1712, `pushReversed` L1729, `mediaRefAssetId` L1734, `PendingMediaAssetMeta` L1746, `resolveMediaAssetMetadataForRender` L1782, `resolveFeaturedImageForRender` L1847 | RC | render-input loading (widgets, embeds, media, terms, zone) + deps slices |
+| L467-784: `navTargetToRouteTarget`, docs reserved ids/consts, `docsSidebarMenuSlugForPath`, `resolveDocsSectionItem`, `flattenDocsPages`, `buildDocsPagerItems`, `resolveMenuContent`, `StaticMenuResolution`, `StaticMenuEntry`, `findStaticMenu`, `resolveOneStaticMenu`, `resolveCurrentPageSidebarMenu`, `resolveDocsSectionMenu`, `resolveDocsPrevNextMenu`, `resolveStaticMenusForRender`; plus `StaticMenuMap` L1862 | SM | static-theme menu marker resolution |
+| `finishStaticTierDocument` L836, `staticThemeScripts` L911, `buildMissingTemplateHtml` L1142, `placeAfterCurrentContent` L1479, `renderViaTemplate` L1563 | ST | static-tier document pipeline + template render |
+| L915-1116: `MAX_DISTINCT_COLLECTION_MARKERS_PER_PAGE`, `collectionEntryFieldValue`, `toCollectionEntryListItem`, `collectionMarkerTypeKey`, `ParsedCollectionListConfig`, `resolveCollectionMarkerConfig`, `readCollectionBatch`, `resolveOneCollectionMarker`, `resolveCollectionListsForRender` | CL | `{"type":"collection"}` markers |
+| `MAX_CONTENT_EMBED_DEPTH` L1186, `MAX_CONTENT_EMBED_FETCHES` L1189, `ContentMarkerResolutionDeps` L1196, `slugOf`, `contentMarkerKey`, `ContentMarkerRef`, `toContentMarkerRef`, `distinctContentMarkerRefs`, `fetchHtmlFormatBody`, `resolveHtmlFormatContentMarkers` L1396 | CM | nested html-format content recursion |
+| `sendNoThemesInstalled` L1869, `resolveRequestedSlug` L1917, `resolveHomePageContent` L2704, `pluginExportSession` L2755, `withListingBatch` L2761, `listingBatchNotFound` L2781, `SiteRequestDeps` L2796, `PostPreviewsAccess` L2798, `serveHomePage` L2812, `serveContentHomePage` L2903, `handleSlugRouteError` L2915, `isStaticThemeWithIndex` L2932, `serveStaticThemeIndex` L2937, `serveVirtualPage` L2963, `registerSiteRoutes` L2990 | main | route registration + serving |
+| `reportSiteRenderFault` L1907, `handlePostNotFoundOnSlugRoute` L2228, `handlePostNotFoundInSlugCatch` L2271 | NF | `/:slug` not-found answer + fault report |
+| `isMarketingPageSlug` L1941 (with comment L1930), `MarketingPageResolution` L1949, `resolveMarketingPageOrOverride` L1972, `resolvePostAfterMarketingCheck` L2049 | MK | theme marketing pages vs slug-colliding posts |
+| `renderBarePage` L2073, `renderTemplateBranchIfEligible` L2135, `renderGenericPostPage` L2176 | PR | one post rendered to a document (bare/template/generic) |
+| `resolveMemberContextForRequest` L2303 (with comment L2289), `decidePostMemberAccess` L2328, `filterVisiblePosts` L2350 | MA | ADR-030 member gating |
+| `formatPostPreviewDate` L2365, `resolvePostPreviewsForRender` L2391, `readPagedPostPreviews` L2439, `KeyedPostPreviewBatch` L2455, `widestPlainPostPreviewsLimit` L2459, `isPlainPostPreviewsMarker` L2464, `readKeyedPostPreviewBatches` L2470, `toKeyedPostPreviewBatch` L2489, `storeListingJsonPage` L2502, `toListingJsonItem` L2527 | PP | post-previews markers (+ see-more JSON items) |
+| `listingBatchRequests` L2721, `listingJsonPages` L2724, `listingPageRequests` L2728, `ListingBatchNotFoundError` L2739, `assertListingPageServed` L2743, `rewriteToListingPage` L2749, `listingBatchBody` L2668, `ListingJsonItem` L2516 | LR | see-more / `/page/<n>` request state (WeakMaps) |
+
+No long functions, so no statement-group helpers.
+
+## 3. Target layout
+Sibling edges (script-checked over every same-file name use; acyclic): X<-C; X,LR<-RS; LR<-RD; RC<-SM,CM; LR,MA,RC<-PP; RC,PP<-CL; RC,SM,PP,CL,CM<-ST; RD,SM,ST<-NF; C,SM,ST<-MK; RC,C,SM,ST<-PR; main imports LR,MK,MA,NF,PR,RD,RC,RS,C,X,SM,ST. Nothing imports pages.ts back.
+
+| Module | Exports (* = newly exported) | Sibling imports | Counted est. |
+|---|---|---|---|
+| pages-static-export.ts | `isStaticExportRequest`, `CACHE_CONTROL_PRIVATE_STATIC_EXPORT` | - | ~7 |
+| pages-site-chrome.ts | `resolveSiteTitleForRender`, `resolveSiteAssistantWidgetForRequest`, `buildExtraHead`* | X | ~85 |
+| pages-listing-requests.ts | `listingBatchRequests`*, `listingJsonPages`*, `listingPageRequests`*, `ListingBatchNotFoundError`*, `ListingJsonItem`*, `assertListingPageServed`*, `rewriteToListingPage`*, `listingBatchBody`* | - | ~42 |
+| pages-redirects.ts | `tryRedirectPhase`*, `redirectLookupPath`* | LR | ~21 |
+| pages-response.ts | `resolvePerVisitorResponse`*, `sendPublicPage`*, `PerVisitorResponse`* | X, LR | ~68 |
+| pages-render-context.ts | `TemplateRenderDeps`, `RenderContextResolutionDeps`, `resolveWidgetsForRender`, `resolveHtmlEmbedsForRender`, `resolveSiteTimeZoneForRender`, `resolveAssignedTermsForRender`, `resolveMediaTransformVersionsForRender`, `resolveMediaAssetMetadataForRender`, `siteTimeZoneDep`*, `htmlEmbedHostDeps`*, `resolveFeaturedImageForRender`* | - | ~172 |
+| pages-static-menus.ts | `resolveStaticMenusForRender`, `StaticMenuMap`* | RC (type) | ~140 |
+| pages-member-access.ts | `resolveMemberContextForRequest`*, `decidePostMemberAccess`*, `filterVisiblePosts`* | - | ~32 |
+| pages-post-previews.ts | `resolvePostPreviewsForRender`*, `formatPostPreviewDate`* | LR, MA, RC | ~128 |
+| pages-collection-lists.ts | `resolveCollectionListsForRender`* | RC, PP | ~115 |
+| pages-content-markers.ts | `MAX_CONTENT_EMBED_DEPTH`, `MAX_CONTENT_EMBED_FETCHES`, `ContentMarkerResolutionDeps`, `resolveHtmlFormatContentMarkers` | RC | ~92 |
+| pages-static-tier.ts | `finishStaticTierDocument`, `renderViaTemplate`, `placeAfterCurrentContent` | RC, SM, PP, CL, CM | ~195 |
+| pages-not-found.ts | `handlePostNotFoundOnSlugRoute`, `handlePostNotFoundInSlugCatch`*, `reportSiteRenderFault`* | RD, SM, ST | ~52 |
+| pages-marketing-page.ts | `resolveMarketingPageOrOverride`, `resolvePostAfterMarketingCheck` | C, SM, ST | ~62 |
+| pages-post-render.ts | `renderTemplateBranchIfEligible`, `renderGenericPostPage` | RC, C, SM, ST | ~88 |
+| pages.ts (stays) | `registerSiteRoutes`, `serveVirtualPage`, re-export L398 | as above | ~300 |
+
+External imports: each moved declaration takes the imports its body names; drop what becomes unused. Computed map for the reviewer: X express `Request`; C seo/page-head-contributor, settings/site-title, http/site/page-head.js, assistant/public-assistant-*, routing `urlFor`/`postPublicPath`, cms/seo; RS request-cookie, http/members.js, external-links.js, form-render.js `injectFormAttemptTokens`, member-auth-script.js, oauth/public-origin.js, plugin-runtime/widget-partials, contracts/core/public-page-security-headers, cms/listing `injectListingScript`, node:crypto, render.js form names (`FORM_FLASH_COOKIE_NAME`, `decodeFormSubmissionResultFromQuery`, `decodeFormFlashCookieValue`, `mergeFormFlashIntoResult`, `injectFormSubmissionResultIntoHtml`, type `FormSubmissionRedirectResult`) + render-site.js `injectExtraHeadIntoStaticPage`; RC cms/widgets, cms/widgets/html, cms/media, cms/widgets/date-label, media/bootstrap, post/rendering `collectCoverMediaRefs`, post/post `createPublicPostReader`, widgets/deps, render.js `featuredImageView` + type `MediaAssetRenderMeta`, cms/listing type `ListingBatchRequest`; SM static-render menu names, cms/navigation, cms/routing, routing `urlFor`; LR cms/listing (`extractListingBatch`, `renderListingBatchDocument`, types), static-render type `StaticFeaturedImage`; MA members/access-resolver `resolvePostMemberAccess`, request-cookie, http/members.js; PP post/post `listPublishedPostPreviews`, static-render preview names, cms/listing, cms/seo `deriveExcerpt`, post-author, scheduled-publish `postDisplayDateIso`, post/rendering `extractPlainTextFromHtml`, render.js `featuredImageView`; CL entries/public-read, theme/entry-list-render, static-render collection names, cms/listing, cms/widgets/markers; CM post/post finders, widgets/deps, cms/widgets/html, cms/widgets/markers, render-post-body.js `renderHtmlPageBody`; ST static-render template names, contracts/core/expand-partials.js, static-asset-contract, comments/public-markers, cms/listing `assignListingKeys`, render-site.js `inject*`, render-post-body.js `renderHtmlPageBody`/`renderAssignedTermsBlock`; NF visitor-analytics.js; MK theme `isStandaloneThemePage`, render-site.js `inject*`; PR http/site/bare-page.js, comments/public-markers, render-site.js `renderSite`.
+New helpers/signatures: none; only `export` keywords are added.
+
+## 4. Steps (one commit each; listed tests one at a time; `npx eslint` on changed files)
+T-route = `routes/site/__tests__/pages.route.test.ts`, `pages.edge-paths.route.test.ts`, `pages.paging.route.test.ts`, `server/__tests__/routes/redirects-site-serving.test.ts`.
+1. **X + C.** Importers: `routes/site/products.ts:7`, `middleware/site-cookie-consent.ts:24` (-> X), `middleware/theme-page-preview.ts:9-16` (`resolveSiteTitleForRender` -> C), `runtime/composition/commerce-http.ts:10`, tests `routes/site/__tests__/site-chat-selection.test.ts:7`, `unit/h4-pages.unit.test.ts:9` (split), `integration/site-title-preservation.integration.test.ts:24`, `server/__tests__/visitor-assistant-readiness.integration.test.ts:11` (split). **Mock move (rule 11):** `features/consent/__tests__/unit/public-policy.unit.test.ts:8` mocks `#src/server/inbound/public-http/routes/site/pages` for `isStaticExportRequest`; point it at `.../routes/site/pages-static-export`. Tests: those + `products.route.test.ts` + T-route. pages.ts ~1405.
+2. **LR + RD + RS.** Internal importers only. Tests: T-route, `server/__tests__/routes/request-cost-cacheability.measurement.test.ts`, `bare-page-site-serving.test.ts`. pages.ts ~1255.
+3. **RC.** Importers: `middleware/theme-page-preview.ts`, `admin-http/routes/posts/template-preview-render.ts:8-16` (split; `resolveActiveTheme` stays on pages.ts), tests `integration/pages-branch-coverage.integration.test.ts:14`, `render-context-resolution-helpers.test.ts:8`, `unit/h4-pages.unit.test.ts:9`, `widget-body-embeds.test.ts:10`, `server/__tests__/routes/missing-template-diagnostic-v2-stylesheet.test.ts:6` (`TemplateRenderDeps`). Tests: those + `media-site-serving.test.ts`. pages.ts ~1085.
+4. **SM.** Importers of `resolveStaticMenusForRender`: `features/theme/__tests__/menu-authored-html.test.ts:7`, `admin-http/routes/posts/template-preview-render.ts`, `admin-http/routes/posts/__tests__/template-preview-render.test.ts:9`, `static-menu-embed-resolution.test.ts:11`, `unit/h4-pages.unit.test.ts:9`, `pages.edge-paths.route.test.ts:25-32`. Tests: those. pages.ts ~950.
+5. **MA + PP + CL + CM.** Importers (CM): `resolve-html-format-content-markers.test.ts:9-14`, `http/site/__tests__/leading-style-regression.test.ts:13`, `pages.edge-paths.route.test.ts`. Tests: those + `widgets-site-serving.test.ts`, `widgets-dynamic-resolver-site-serving.test.ts`, `render-depth-bound-site-serving.test.ts`. pages.ts ~630.
+6. **ST.** Importers: `features/widgets/__tests__/integration/html-taxonomy-embeds.integration.test.ts:11`, `http/site/__tests__/{landing-page-render,no-silent-drops}.test.ts`, `admin-http/routes/posts/template-preview-render.ts` + `__tests__/template-preview-render.test.ts`, `__tests__/unit/post-list-preview.unit.test.ts:7`, `server/__tests__/routes/{post-template-comments,missing-template-diagnostic-v2-stylesheet,post-template-author}.test.ts`, `widget-body-embeds.test.ts:10`, `pages.edge-paths.route.test.ts`. Tests: those + `post-template-site-serving.test.ts`, `post-template-featured-image.test.ts`. pages.ts ~460.
+7. **NF + MK + PR.** Importers: `pages.route.test.ts:17` (-> MK), `pages.edge-paths.route.test.ts`, `features/theme/__tests__/template-render.canary.test.ts:9` (-> PR). Tests: those + T-route + `admin-post-template-preview.test.ts`, `site-phase-handler-fail-policy.test.ts`, `admin-http/routes/posts/__tests__/preview-consent.integration.test.ts`. pages.ts ~300.
+Done check: `outline.mjs --check` on pages.ts + 15 new files.
+
+## 5. After (counted, estimates)
+pages.ts ~300 · static-tier ~195 · render-context ~172 · static-menus ~140 · post-previews ~128 · collection-lists ~115 · content-markers ~92 · post-render ~88 · site-chrome ~85 · response ~68 · marketing-page ~62 · not-found ~52 · listing-requests ~42 · member-access ~32 · redirects ~21 · static-export ~7. Functions unchanged (max 88). No owner exception.
+
+## 6. Risks
+- Registration order: see header. Keep `asyncRoute` on `/:slug` (unwrapRouteHandle reads `.handler`).
+- The three module-level WeakMaps must exist ONCE, in LR; every reader/writer imports them (rewrites in pages.ts write; PP/RS/RD read). Never copy them.
+- Mock: only `public-policy.unit.test.ts:8` (step 1). It replaces the whole module, so X must stay free of anything else site-consent needs.
+- Shared types (`TemplateRenderDeps`, `StaticMenuMap`, `ListingJsonItem`, `PerVisitorResponse`) live in RC/SM/LR/RS; never import a type back from pages.ts.
+- pages.ts is not a package entry: no re-exports of moved names; the existing L398 re-export stays.
+
+## REMAINING (stopped at the context cap)
+- Sizes are outline-decl sums plus import estimates; confirm with `outline.mjs --check`.
+- Per-step test lists come from the rg importer list plus route-serving tests; at execution time re-run `rg -n "from ['\"].*pages(\.js)?['\"]"` and add any new importer's test.

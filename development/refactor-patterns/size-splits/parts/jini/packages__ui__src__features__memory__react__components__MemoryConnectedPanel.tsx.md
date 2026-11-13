@@ -1,0 +1,20 @@
+### jini:packages/ui/src/features/memory/react/components/MemoryConnectedPanel.tsx
+- **Over:** file 520 lines · `MemoryConnectedPanel` 153
+- **Phase:** now · **Batch:** size-35
+- **Tests:** `src/features/memory/__tests__/react/components/MemoryConnectedPanel.test.tsx`, `src/features/memory/__tests__/index.test.ts`
+- **Responsibility map:**
+
+| unit | declarations / statements | job |
+|---|---|---|
+| A | `Translate`, `ConnectorRowContext`, `ConnectorRowState`, `isStatusResolved`, `connectorRowState`, `connectorHint`, `connectButtonLabel`, `MemoryConnectButton`, `MemoryConnectorPicker`, `MemoryConnectorRow`, `MemoryConnectorRunBar` + the `<div className="memory-connector-workbench">` JSX in `MemoryConnectedPanel` | connector picker workbench (choose/connect apps, run scan) |
+| B | `MemoryConnectedSummary`, `MemorySuggestionCard`, `MemorySuggestionPanel`, `MemoryConnectorDiagnostics`, `MemoryScanHistory` | summary, suggestion review, diagnostics, history — stay |
+| C | `MemoryConnectedPanel` | panel composition — stays |
+
+- **Splits** (in order):
+  1. NEW `MemoryConnectedPanel-connector-picker.tsx` — job: the connector picker workbench. Moves (verbatim, same order): `Translate`, `ConnectorRowContext`, `ConnectorRowState`, `isStatusResolved`, `connectorRowState`, `connectorHint`, `connectButtonLabel`, `MemoryConnectButton`, `MemoryConnectorPicker`, `MemoryConnectorRow`, `MemoryConnectorRunBar`. Adds SUB-COMPONENT `MemoryConnectorWorkbench(props: MemoryConnectorWorkbenchProps): JSX.Element` ← the `<div className="memory-connector-workbench">…</div>` element from `MemoryConnectedPanel`'s return, verbatim (calls `const t = useT();`). Props (destructured): `connectorLoadError: string | null; selectedConnectedConnectorIds: string[]; memoryConnectors: Connector[]; rowContext: ConnectorRowContext; toggleConnectorSelection: (connectorId: string) => void; onConnectMemoryConnector: (connectorId: string) => void; enabled: boolean; connectorExtracting: boolean; connectorSaving: boolean; connectedCount: number; connectorScanLabel: string; onSuggestConnectorMemory: () => void` (body uses `context={rowContext}` as before). Exports: `ConnectorRowContext` (type), `MemoryConnectorWorkbench`. Imports: `Connector`, `ConnectorStatusMap` types, `ConnectorLogo`, `Icon`, `useT`. Header comment: copy the original header's sentence about `ConnectorLogo` (the "`ConnectorLogo` is `@jini-ai/ui`'s own … before handing `logoUrl` in." paragraph tail) into the new file's header; keep it in the original too only if `ConnectorLogo` is still referenced there (it is not — move it). Imports nothing from the original.
+  2. Original: remove now-unused imports (`ConnectorLogo`, `ConnectorStatusMap` if unused — it is still used in the props type, keep it); import `{ MemoryConnectorWorkbench, type ConnectorRowContext }` from `./MemoryConnectedPanel-connector-picker.js`.
+  3. TYPE in original: lift the inline props type of `MemoryConnectedPanel` to `interface MemoryConnectedPanelProps` (module level, above it; keep the `nowClock` doc comment on its field). Signature becomes `export function MemoryConnectedPanel({ ...same destructuring... }: MemoryConnectedPanelProps)`.
+  4. SUB-COMPONENT `MemoryConnectorOutcome({ connectorStatus, connectorError, connectorAttempts, connectorContextBytes, connectorExtractions, nowClock, onOpenPreview, onDeleteExtraction }: MemoryConnectorOutcomeProps): JSX.Element` in the original, above `MemoryConnectedPanel` ← the four trailing blocks of the return from `{connectorStatus ? (` through the `{connectorExtractions.length > 0 ? (<MemoryScanHistory …/>) : null}` block, wrapped in a fragment `<>…</>` (no extra DOM element).
+- **Importers to update:** none (moved names were module-private; `MemoryConnectedPanel` stays in place; package index unchanged).
+- **After:** original ~345; `MemoryConnectedPanel` ~85; new file ~200 (`MemoryConnectorWorkbench` ~45).
+- **Risks / notes:** DOM order unchanged (summary → workbench → suggestions → outcome blocks). No `vi.mock` of this file. No cycle: new file imports nothing from the original; `ConnectorRowContext` lives in the new file and the original imports the type.

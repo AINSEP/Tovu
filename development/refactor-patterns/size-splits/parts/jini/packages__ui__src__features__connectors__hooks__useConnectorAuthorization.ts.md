@@ -1,0 +1,20 @@
+### jini:packages/ui/src/features/connectors/hooks/useConnectorAuthorization.ts
+- **Over:** `useConnectorAuthorization` 149 (file 273, fine)
+- **Phase:** now · **Batch:** size-37
+- **Tests:** `src/features/connectors/__tests__/hooks/useConnectorAuthorization.test.ts`, `src/features/connectors/__tests__/hooks/useConnectorAuthorization.stale-race.test.ts`, `src/features/connectors/__tests__/ConnectorsBrowser.test.tsx`
+- **Responsibility map** (inside `useConnectorAuthorization`):
+
+| unit | statements | job |
+|---|---|---|
+| A | state (`pending`, `cancelFailed`, `authError`, `pendingConnectorAction`), `connectorsRef`/`pendingRef` + sync effects, `updateConnector`, `reloadStatuses`, persist effect, `runConnectorAction` | authorization state + status reload + connect/disconnect — stays |
+| B | the per-id `async (connectorId) => { … }` inside `cancelStaleAuthorizations`'s `stuck.map` | cancel ONE stale authorization and reconcile state |
+| C | the three effects "Poll statuses while…", "OAuth popup/system-browser callback.", "Refresh + auto-cancel stale authorizations on window refocus." | external refresh triggers |
+| D | body of `cancelAuthorization` | user-initiated cancel + fallback status check |
+
+- **Splits** (same file, module level above `useConnectorAuthorization`, in this order):
+  1. HELPER `cancelStaleAuthorization({ connectorId, port, updateConnector, setCancelFailed, setAuthError, setPending }: CancelStaleAuthorizationInput): Promise<void>` ← unit B verbatim, including the long "This clear's `curr[connectorId] !== undefined` guard is structurally unreachable…" + "Correction (2026-10-21 coverage pass)…" comment block word for word. `cancelStaleAuthorizations` keeps `findStaleAuthorizations`/early return/`Promise.allSettled(stuck.map((connectorId) => cancelStaleAuthorization({ connectorId, port, updateConnector, setCancelFailed, setAuthError, setPending })))`, deps unchanged `[port, updateConnector]`. Input types: `port: ConnectorsPort; updateConnector: (next: Connector | null) => void;` setters as `Dispatch<SetStateAction<Record<string, boolean>>>`, `Dispatch<SetStateAction<Record<string, string>>>`, `Dispatch<SetStateAction<ConnectorAuthorizationPendingState>>`.
+  2. HELPER `cancelAuthorizationAndReconcile({ connectorId, port, updateConnector, reloadStatuses, setCancelFailed, setAuthError, setPending }: CancelAuthorizationAndReconcileInput): Promise<void>` ← unit D verbatim (incl. the "Keep the local failure visible…" comment). `cancelAuthorization = useCallback((connectorId: string) => cancelAuthorizationAndReconcile({ connectorId, port, updateConnector, reloadStatuses, setCancelFailed, setAuthError, setPending }), [port, updateConnector, reloadStatuses])`. `reloadStatuses: () => Promise<ConnectorStatusMap>`.
+  3. SUB-HOOK `useConnectorAuthorizationRefresh({ authBridge, pending, setPending, pollMs, pendingRef, reloadStatuses, cancelStaleAuthorizations }: UseConnectorAuthorizationRefreshInput): void` ← unit C's three effects verbatim with their comments and deps. Called in `useConnectorAuthorization` right after the persist effect (same position as today, so effect order is unchanged). `pendingRef: MutableRefObject<ConnectorAuthorizationPendingState>`; `cancelStaleAuthorizations: (pendingBeforeReload: ConnectorAuthorizationPendingState, statuses: ConnectorStatusMap) => Promise<void>`.
+- **Importers to update:** none (no exports move; exported helpers `withoutKey`, `performConnector*`, `reportThrownConnectorActionFailure` untouched).
+- **After:** file ~320; `useConnectorAuthorization` ~80; `cancelStaleAuthorization` ~25; `cancelAuthorizationAndReconcile` ~27; `useConnectorAuthorizationRefresh` ~28.
+- **Risks / notes:** the two existing `// eslint-disable-next-line react-hooks/exhaustive-deps` lines (on `reloadStatuses` and the persist effect) stay where they are, untouched — do not move them into helpers and add none. Effect registration order must stay: ref syncs → persist → poll → auth callback → refocus. Known race already documented in the moved comment (stale-race test) — no change. No `vi.mock` of this file.

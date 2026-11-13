@@ -1,0 +1,22 @@
+### tovu:apps/desktop/src/main/index.ts
+- **Over:** file 665 lines (no function over 100; `buildProjectDeps` 63, `before-quit` handler 33)
+- **Phase:** now (STAY-WIRING) · **Batch:** size-10
+- **Tests:** no unit test imports the entry; smoke = `apps/desktop/src/main/boot/boot-sequence.test.ts`, `apps/desktop/src/main/boot/own-server-boot.test.ts`, `apps/desktop/src/main/boot/boot-steps.test.ts` (desktop main runner) + `npx eslint` on touched files + `outline.mjs --check`. Real proof = an app launch (`npm run desktop`) by the coordinator.
+- **Responsibility map:**
+
+| unit | declarations | job |
+|---|---|---|
+| A paths | `DESKTOP_ROOT`, `SPEECH_PRELOAD_PATH`, `SITES_RENDERER_PATH`, `SITES_PRELOAD_PATH`, `APP_ICON_PATH`, `REPO_ROOT`, `DESKTOP_ROOTS`, `PAYLOAD_ROOT`, `DEV_FALLBACK_SITE_DIR`, `SITE_SCAN_ROOTS`, `SELFTEST`, `QUIT_DEADLINE_MS`, `resolveCliMode`, `isUnattendedSiteLaunch`, `readSiteName`, `desktopPreferencesPath`, `sitesHomeCtx`, `SitesHomeCtx` | launch-time roots and constants (pure, module-load) |
+| B settings/menus | `showDesktopNotice`, `saveMaximumLiveSiteViews`, `desktopUpdateSettingsMenu`, `installAppWideMenu`, `buildAppMenu`, `refreshAppMenu`, `currentUpdaterSkipReason`, `updateCheck` | native menus + settings |
+| C project deps | `buildProjectDeps`, `ProjectDeps`, `startSitesHomeDiscovery`, `registerProjectLifecycle`, `stopSiteLifecycle` | sites-home project ports |
+| D quit | `armQuitSignals`, the `app.on("before-quit", …)` handler body, `finalQuitHeldForUpdate` | graceful multi-site quit |
+| E (stays) | module singletons (`openSites`, `sharedSites`, `siteLifecycle`, `productState`, `desktopUpdater`, `siteBackend`, preview guests…), windows, boot modes, `bootDesktop`, `app.whenReady`/`app.on` registrations | entry wiring |
+
+- **Splits** (siblings in `apps/desktop/src/main/`; none imports `index.ts`; all singletons are passed in explicitly):
+  1. NEW `main-paths.ts` — unit A, verbatim with comments (the `DESKTOP_ROOTS` "readable at module load" comment moves with it). Only pure constants and pure functions of them; `userDataProfile`, `NODE_TOOLCHAIN_ENV`, `sharedSites`, `siteDiscovery` STAY in `index.ts` (they have side effects / must run after `await initializeStartupSecrets`).
+  2. NEW `main-quit.ts` — `armQuitSignals` (moves; reads `QUIT_DEADLINE_MS` from `main-paths.ts`) and `handleBeforeQuit({ event, lastWindowQuit, stopSiteLifecycle, siteDiscovery, quitPhase, productState, pendingTeardowns, desktopAgentRuntime, … }: HandleBeforeQuitInput): void` ← the body of the `before-quit` listener (list every outer name it reads from the outline's `uses:`; `quitPhase` is a mutable holder object today — pass the object, never a copy). `index.ts` keeps `app.on("before-quit", (event) => handleBeforeQuit({ event, … }))`.
+  3. NEW `main-project-deps.ts` — `buildProjectDeps({ sitesCtx, openSites, recoveringSiteWindows, siteTransitions, pendingTeardowns, serializer, sitePreviewScheduler, … }: BuildProjectDepsInput)` ← body of `buildProjectDeps` (first param becomes `sitesCtx`), plus `type ProjectDeps = ReturnType<typeof buildProjectDeps>` and `startSitesHomeDiscovery`. `index.ts` keeps a 1-line local `projectDeps(sitesCtx)` closure that passes its singletons, used by `registerProjectLifecycle` and `bootSitesHomeMode`.
+  4. Unit B stays unless `index.ts` is still > 500 after 1-3; then NEW `main-menus.ts` with the same explicit-input pattern for `buildAppMenu`/`desktopUpdateSettingsMenu`/`saveMaximumLiveSiteViews`/`installAppWideMenu`.
+- **Importers to update:** none (entry file, no exports).
+- **After:** `index.ts` ~470; `main-paths.ts` ~60; `main-quit.ts` ~50; `main-project-deps.ts` ~80.
+- **Risks / notes:** ES module evaluation order: everything moved into a static import runs BEFORE this file's top-level `await initializeStartupSecrets({}, {})`. Only pure path/constant code may move (unit A) — do not move anything that calls `app.setPath`, writes files, reads secrets or opens stores. `app.getPath("documents"/"appData")` inside `DESKTOP_ROOTS` is a read (allowed at module load per its own comment), but verify `userDataProfile`'s `app.setPath` is not needed before it: if `DESKTOP_ROOTS` must be computed AFTER `userDataProfile`, keep `DESKTOP_ROOTS` in `index.ts` and move only the plain path constants. Recommend Opus/Fable execute (entry-file ordering, explicit threading of ~15 singletons, only verifiable by launching the app).

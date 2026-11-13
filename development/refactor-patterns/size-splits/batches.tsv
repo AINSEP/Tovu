@@ -1,0 +1,311 @@
+batch	phase	repo	file	file_lines	fns_over_100	max_score	survey_label	weight
+size-01	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts		registerAdminSourceControlCredentialsRoutes=103	1854	?	103
+size-01	now	tovu	apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts		registerAdminTaxonomyMergeTermRoutes=117	468	?	117
+size-01	now	tovu	apps/website/src/server/inbound/admin-http/routes/themes/explore.ts	635		13335	STAY-PRODUCT	635
+size-01	now	tovu	apps/website/src/server/routes/types.ts	519		91863	?	519
+size-01	now	tovu	apps/website/src/server/runtime/composition/modules/assistant-byok.ts		createAssistantByokModule=231	13860	?	231
+size-01	now	tovu	apps/website/src/server/runtime/composition/modules/assistant-chats.ts		createAssistantChatsModule=152 registerRoutes=139	3800	?	291
+size-02	now	tovu	apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts		usePublishCredentials=151	2718	STAY-PRODUCT	151
+size-02	now	tovu	apps/admin/src/features/integrations/Integrations.tsx		Integrations=156	2028	?	156
+size-02	now	tovu	apps/admin/src/features/media/Media.tsx	1151	EditMediaPanel=197 MediaLibraryPanel=126	64456	?	1474
+size-02	now	tovu	apps/admin/src/features/media/hooks/use-edit-media-panel.hooks.ts		useEditMediaPanel=130	1170	?	130
+size-02	now	tovu	apps/admin/src/features/media/hooks/use-media.hooks.ts		useMedia=156	1872	?	156
+size-02	now	tovu	apps/admin/src/features/menus/MenuEditor.tsx		MenuEditor=102	1632	STAY-PRODUCT	102
+size-02	now	tovu	apps/admin/src/features/menus/hooks/use-menu-editor.hooks.ts		useMenuEditor=190	3610	STAY-PRODUCT	190
+size-02	now	tovu	apps/admin/src/features/pages/Pages.tsx		Pages=169	3887	STAY-PRODUCT	169
+size-03	now	tovu	apps/website/src/assistant/demo-a2ui-tool.ts		buildDemoA2uiRegistrations=102	510	STAY-PRODUCT	102
+size-03	now	tovu	apps/website/src/cli/program.ts		createProgram=196	6076	STAY-PRODUCT	196
+size-03	now	tovu	apps/website/src/features/agent-plugins/lifecycle.ts		createTovuAgentPluginLifecycle=111	2664	STAY-WIRING (DELETE its positi	111
+size-03	now	tovu	apps/website/src/features/database/tool-registrations.ts		buildDatabaseRegistrations=106	848	STAY-WIRING	106
+size-03	now	tovu	apps/website/src/features/post/post.ts	1107		63099	STAY-PRODUCT	1107
+size-04	now	tovu	apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts	911	useThemeExplore=520	34618	?	1431
+size-04	now	tovu	apps/admin/src/features/themes/hooks/use-themes.hooks.ts		useThemes=122	2196	?	122
+size-04	now	tovu	apps/admin/src/panels.tsx	726		47916	STAY-PRODUCT (+DELETE re-expor	726
+size-04	now	tovu	apps/desktop/src/desktop-agent-service.ts		createDesktopAgentService=170	1360	STAY-WIRING	170
+size-05	now	tovu	apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts	675	usePageEditor=382	35775	STAY-PRODUCT	1057
+size-05	now	tovu	apps/admin/src/features/posts/Posts.tsx		Posts=132	2640	STAY-PRODUCT	132
+size-05	now	tovu	apps/admin/src/features/providers/Providers.tsx		Providers=129	2451	STAY-PRODUCT**. TabIcon is a D	129
+size-05	now	tovu	apps/admin/src/features/publish-content/PublishContentDialog.tsx		PublishContentDialog=115	3795	STAY-PRODUCT	115
+size-06	now	tovu	apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts	849	usePublishContentConfirm=461	29715	STAY-PRODUCT (rules already in	1310
+size-06	now	tovu	apps/admin/src/features/settings/SettingsUi.tsx		SettingsUi=300	12600	STAY-WIRING (one part MOVE: `T	300
+size-06	now	tovu	apps/admin/src/features/sites/hooks/use-site-transfer.hooks.ts		useSiteImport=118	2006	STAY-PRODUCT	118
+size-06	now	tovu	apps/admin/src/features/sites/hooks/use-sites.hooks.ts		useSites=118	2006	STAY-PRODUCT	118
+size-06	now	tovu	apps/admin/src/features/skills/use-skills.hooks.ts		useSkills=102	510	STAY-PRODUCT	102
+size-06	now	tovu	apps/admin/src/features/taxonomy/hooks/use-taxonomy.hooks.ts		useTaxonomy=102	714	?	102
+size-06	now	tovu	apps/admin/src/features/taxonomy/hooks/use-term-picker.hooks.ts		useTermPicker=164	984	?	164
+size-07	now	jini	packages/daemon/src/agent-executor/events.ts	934	wireChildLifecycle=335	26152	JINI	1269
+size-07	now	jini	packages/daemon/src/event-log.ts		createInMemoryEventLog=104	208	JINI	104
+size-07	now	jini	packages/daemon/src/frontend-session-registry.ts		createFrontendSessionRegistry=131	393	JINI	131
+size-07	now	jini	packages/daemon/src/http/attachments.ts	871	createDiskAttachmentStore=189	12194	JINI	1060
+size-08	now	tovu	apps/website/src/features/publish-content/apply-loop.ts	720	createPublishContentApplyPort=346 applyReport=314 applyOneRow=195	23040	?	1575
+size-08	now	tovu	apps/website/src/features/publish-content/gated-hooks.ts		buildPublishContentImportHooks=104	1352	STAY-PRODUCT	104
+size-08	now	tovu	apps/website/src/features/publish-content/peer-transport.ts	541		12443	?	541
+size-08	now	tovu	apps/website/src/features/publish-content/raw-file-contributor.ts		contributeRawFilePublish=152 build=150	912	STAY-PRODUCT	302
+size-09	now	tovu	apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts	584	createAssistantRunFinalizer=329 createHttpRunDaemonClient=101	16936	?	1014
+size-09	now	tovu	apps/website/src/server/runtime/composition/other-site-keys.ts		createOtherSiteKeys=116	464	?	116
+size-09	now	tovu	apps/website/src/server/runtime/composition/provider-plugins.ts		bootProviderPlugins=147	6615	?	147
+size-09	now	tovu	apps/website/src/server/runtime/composition/tool-catalog-manifest.ts		installFirstPartyToolContributors=252	22176	STAY-WIRING	252
+size-09	now	tovu	apps/website/src/server/runtime/lifecycle/local-site-process.ts		createLocalSiteProcessPort=121	2178	?	121
+size-10	now	tovu	apps/desktop/src/main/index.ts	665		18620	STAY-WIRING	665
+size-10	now	tovu	apps/desktop/src/renderer/App.tsx		App=182	12558	STAY-WIRING	182
+size-10	now	tovu	apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx		CreateWebsiteOnboarding=136	1632	STAY-PRODUCT	136
+size-10	now	tovu	apps/desktop/src/renderer/SiteGrid.tsx	505		17170	STAY-PRODUCT	505
+size-10	now	tovu	apps/desktop/src/renderer/app/SiteWorkspace.tsx		SiteWorkspace=121	484	STAY-WIRING	121
+size-10	now	tovu	apps/desktop/src/renderer/use-find-in-page.hooks.ts		useFindInPage=171	1539	?	171
+size-11	now	jini	packages/chat/src/core/assistant-client/transport.ts		createAssistantTransportClient=400	5200	JINI	400
+size-11	now	jini	packages/chat/src/embed-widget/browser/frontend-session-bridge.ts		createFrontendSessionBridge=219	1314	JINI	219
+size-11	now	jini	packages/chat/src/embed-widget/vanilla/index.ts		mountVanillaChat=256	1280	JINI	256
+size-11	now	jini	packages/chat/src/react/components/A2uiSurfaceCard.tsx		A2uiSurfaceCard=130	390	JINI	130
+size-11	now	jini	packages/chat/src/react/components/Composer.tsx	564	Composer=267	13536	JINI	831
+size-11	now	jini	packages/chat/src/react/components/ConversationList.tsx		ConversationList=209	1881	JINI	209
+size-11	now	jini	packages/chat/src/react/components/MessageRow.tsx		AssistantMessageRow=159	5565	JINI	159
+size-12	now	jini	packages/chat/src/react/components/ToolCard.tsx	516		12900	JINI	516
+size-12	now	jini	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	516		10320	JINI	516
+size-12	now	jini	packages/chat/src/react/features/chat-pane/hooks/useAgentRuntimePicker.hooks.ts		useAgentRuntimePicker=103	515	JINI	103
+size-12	now	jini	packages/chat/src/react/features/chat-pane/hooks/useChatPaneRuntimeInventory.hooks.ts		useChatPaneRuntimeInventory=134	938	JINI	134
+size-12	now	jini	packages/chat/src/react/features/chat-pane/hooks/useChatPaneWorkingDirectory.hooks.ts		useChatPaneWorkingDirectory=160	320	JINI	160
+size-12	now	jini	packages/chat/src/react/hooks/assistant-chats.ts		createAssistantChatsClient=382 useAssistantChats=279	1146	JINI	661
+size-12	now	jini	packages/chat/src/react/hooks/fab-position.ts		useFabPosition=115	345	JINI	115
+size-12	now	jini	packages/chat/src/react/hooks/useComposer.ts		useComposer=208	2912	JINI	208
+size-13	now	jini	packages/core/src/redact.ts	601		12621	JINI	601
+size-13	now	jini	packages/core/src/settings/express/http.ts		registerSettingsRoutes=112	336	JINI	112
+size-13	now	jini	packages/core/src/settings/tool-registrations.ts		buildSettingsRegistrations=116	928	JINI	116
+size-13	now	jini	packages/core/src/settings/write-service.ts	777		3885	JINI	777
+size-14	now	tovu	apps/website/src/features/publish-content/raw-row-contributor.ts		buildRawRowHandler=134	804	STAY-PRODUCT	134
+size-14	now	tovu	apps/website/src/features/site-backup/import-backend.ts		createSiteImportBackend=141	2397	STAY-PRODUCT	141
+size-14	now	tovu	apps/website/src/features/theme/theme.ts	624		12480	STAY-PRODUCT (theme package fo	624
+size-14	now	tovu	apps/website/src/features/trash/adapters/user.ts		createUserTrashAdapter=103	721	STAY-PRODUCT	103
+size-14	now	tovu	apps/website/src/platform/db/sqlite/fresh-content-db.ts		bootstrapFreshContentDb=187	6732	STAY-PRODUCT	187
+size-14	now	tovu	apps/website/src/platform/site-dir/local-site-supervisor.ts		createLocalSiteSupervisor=218	2834	STAY-PRODUCT — blocked on site	218
+size-14	now	tovu	apps/website/src/server/inbound/admin-http/routes/database/migrate-forward.ts		registerAdminDatabaseMigrateForwardRoutes=115	575	STAY-WIRING	115
+size-14	now	tovu	apps/website/src/server/inbound/admin-http/routes/posts/update.ts		registerAdminPostUpdateRoute=109 <arg of app.put>=103	2616	STAY-WIRING	212
+size-15	now	tovu	apps/admin/src/components/AssistantDock/AssistantDock.tsx		AssistantDock=154	11704	STAY-WIRING (re-export at line	154
+size-15	now	tovu	apps/admin/src/components/WidgetConfigFields/MediaContentEditor.hooks.ts		useMediaContentEditor=110	110	STAY-PRODUCT	110
+size-15	now	tovu	apps/admin/src/features/ai-assistant/hooks/use-visitor-credential-form.hooks.ts		useVisitorCredentialForm=145	2755	?	145
+size-15	now	tovu	apps/admin/src/features/collections/CollectionEntryEditor.tsx		CollectionEntryEditor=103	1339	?	103
+size-15	now	tovu	apps/admin/src/features/collections/Collections.tsx	556	Collections=156	10008	?	712
+size-15	now	tovu	apps/admin/src/features/collections/hooks/use-collection-entry-editor.hooks.ts		useCollectionEntryEditor=199	1990	?	199
+size-15	now	tovu	apps/admin/src/features/dashboard/Dashboard.tsx		Dashboard=106	2332	STAY-PRODUCT	106
+size-15	now	tovu	apps/admin/src/features/deployment/DockerfileTab.tsx		DockerfileEditorCard=132	924	?	132
+size-16	now	jini	packages/agent-runtime/src/agent-protocol/acp/models.ts		detectAcpModels=108	648	JINI	108
+size-16	now	jini	packages/agent-runtime/src/agent-protocol/acp/session.ts	1236	attachAcpSession=482	9888	JINI	1718
+size-16	now	jini	packages/agent-runtime/src/agent-protocol/pi-rpc/session.ts		attachPiRpcSession=119	595	JINI	119
+size-16	now	jini	packages/agent-runtime/src/ai-trace/recorder.ts		createAiTraceRecorder=191	764	JINI	191
+size-17	now	jini	packages/daemon/src/http/xai.ts	510		3060	JINI	510
+size-17	now	jini	packages/daemon/src/run-lifecycle.ts	690	createRunLifecycle=393	9660	JINI	1083
+size-17	now	jini	packages/daemon/src/store/event-log/sqlite.ts		bindSqliteEventLog=106	424	JINI	106
+size-17	now	jini	packages/daemon/src/surface-exchanges.ts		createSurfaceExchangeStore=119	714	JINI	119
+size-17	now	jini	packages/daemon/src/terminal-session.ts		createTerminalSessionManager=101	505	JINI	101
+size-17	now	jini	packages/daemon/src/tool-executor.ts		createToolExecutor=344	6536	JINI	344
+size-18	now	jini	packages/user-management/src/admin/controllers/users.controller.ts		createUsersController=165	660	JINI	165
+size-18	now	jini	packages/user-management/src/react/members/hooks/use-members.hooks.ts		useMembers=109	654	JINI	109
+size-18	now	jini	packages/user-management/src/react/testing.ts		createFakeRolesPort=107	428	JINI	107
+size-18	now	jini	packages/user-management/src/react/users/Users.tsx	748	Users=127	8228	JINI	875
+size-18	now	jini	packages/user-management/src/react/users/hooks/use-users.hooks.ts		useUsers=296	1776	JINI	296
+size-18	now	jini	packages/user-management/src/server/agent-tool-registrations.ts		buildIdentityRegistrations=186	1116	JINI	186
+size-19	now	jini	packages/cms/src/media/tool-registrations.ts		buildMediaRegistrations=143	1859	JINI	143
+size-19	now	jini	packages/cms/src/redirects/redirects.ts	518		2072	JINI	518
+size-19	now	jini	packages/cms/src/routing/routing.ts		createRouting=188	564	JINI	188
+size-19	now	jini	packages/cms/src/taxonomy/write-service.ts	712		7832	JINI	712
+size-19	now	jini	packages/cms/src/trash/write-service.ts		createTrashService=132	660	JINI	132
+size-19	now	jini	packages/cms/src/widgets/resolver-service.ts	701		7711	JINI	701
+size-20	now	jini	packages/agent-runtime/src/claude-stream.ts	685	createClaudeStreamHandler=373	7535	JINI	1058
+size-20	now	jini	packages/agent-runtime/src/providers/oauth-callback-server.ts		startOAuthCallbackListener=111	333	JINI	111
+size-20	now	jini	packages/agent-runtime/src/providers/openai-chat.ts	528		2640	JINI	528
+size-20	now	jini	packages/agent-runtime/src/skills/web-clone/scripts/recon-site.mjs		collectSignals=260 <arg of page.evaluate>=258	780	JINI	518
+size-21	now	jini	packages/admin/src/redirects/react/pages/RedirectsPage.tsx		RedirectsPage=111	333	JINI	111
+size-21	now	jini	packages/admin/src/seo/react/pages/SeoPage.tsx	608	SeoDefaultsTab=136	7296	JINI	744
+size-21	now	jini	packages/admin/src/widgets/react/pages/WidgetInstanceEditor.tsx		WidgetInstanceEditor=108	324	JINI	108
+size-21	now	jini	packages/admin/src/widgets/react/pages/WidgetRegionEditor.tsx		WidgetRegionEditor=117	351	JINI	117
+size-21	now	jini	packages/admin/src/widgets/react/pages/WidgetRegions.tsx		WidgetRegions=107	107	JINI	107
+size-21	now	jini	packages/admin/src/widgets/react/pages/WidgetsLibrary.tsx		WidgetsLibrary=130	390	JINI	130
+size-22	now	jini	packages/commerce/src/browser/checkout.ts		installCommerceCheckout=117 <arg of required.document.querySelectorAll<HTMLF>=115	585	JINI	232
+size-22	now	jini	packages/commerce/src/payments/ledger/rows.ts	726		7260	JINI	726
+size-22	now	jini	packages/commerce/src/react/Payments.tsx		Payments=103	206	JINI	103
+size-22	now	jini	packages/cookie-consent/src/client/runtime.ts		createCookieConsent=133	798	JINI	133
+size-23	now	jini	packages/sandbox/src/e2b/wrap-e2b-sandbox.ts		wrapE2bSandbox=197	1379	JINI	197
+size-23	now	jini	packages/search/src/indexer.ts		createSearchIndexer=239	1434	JINI	239
+size-23	now	jini	packages/server/src/builtin-features.ts	566	createBuiltInFeatures=426	6226	JINI	992
+size-23	now	jini	packages/server/src/create-local-node-daemon.ts		createLocalNodeDaemon=113	1130	JINI	113
+size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/publish-content/destination.ts		registerPublishContentDestinationRoutes=135	810	?	135
+size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/publish-content/import.ts		registerPublishContentImportRoutes=170	3060	?	170
+size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/recovery/restore.ts		registerAdminRecoveryRestoreRoutes=162	1296	?	162
+size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts		registerAdminPublishCredentialsRoutes=134	3484	STAY-WIRING	134
+size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts		registerAdminPublishSiteRoutes=182	5642	STAY-PRODUCT	182
+size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/site-imports.ts		registerAdminSiteImportRoutes=112	1568	STAY-PRODUCT	112
+size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts		registerAdminSiteShareRoutes=109	1308	STAY-PRODUCT	109
+size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/sites.ts		registerAdminSitesRoutes=128	3968	?	128
+size-25	now	jini	packages/mcp/src/federation/hosted/store.ts	988		4940	JINI	988
+size-25	now	jini	packages/mcp/src/server/http-tool-server.adapter.ts		startMcpHttpToolServer=104	104	JINI	104
+size-25	now	jini	packages/mcp/src/server/tool-server.ts		createMcpToolServer=103	1339	JINI	103
+size-25	now	jini	packages/memory/src/extraction-log.ts		createExtractionLog=118	236	JINI	118
+size-26	now	jini	packages/memory/src/note-store.ts	522	createNoteStore=367	1566	JINI	889
+size-26	now	jini	packages/oauth/src/refresh.ts		createTokenRefresher=130	910	JINI	130
+size-26	now	jini	packages/platform/src/asset-cache.ts		createAssetCache=123	1107	JINI	123
+size-26	now	jini	packages/platform/src/download.ts	981		3924	JINI	981
+size-27	now	jini	packages/agent-plugins/src/admin-surfaces/surface-client.ts		createAdminSurfaceClient=101	606	JINI	101
+size-27	now	jini	packages/agent-plugins/src/connect/credential-save-tool.ts		createCredentialSaveTools=119	476	JINI	119
+size-27	now	jini	packages/agent-plugins/src/connect/plugin-host/index.ts		createPluginHost=107	428	JINI	107
+size-27	now	jini	packages/agent-plugins/src/lifecycle/activation.ts		buildModule=314	2512	JINI	314
+size-27	now	jini	packages/agent-plugins/src/lifecycle/automatic-use.ts		createAutomaticAgentPluginUse=143	3432	JINI	143
+size-27	now	jini	packages/agent-plugins/src/lifecycle/bundled-digests.ts		buildModule=126	630	JINI	126
+size-27	now	jini	packages/agent-plugins/src/lifecycle/bundled-source-archive.ts		buildModule=224	1344	JINI	224
+size-27	now	jini	packages/agent-plugins/src/lifecycle/install.ts		buildModule=303	3636	JINI	303
+size-28	now	jini	packages/chat/src/react/hooks/useConversation.ts		useConversation=145	2610	JINI	145
+size-28	now	jini	packages/chat/src/react/hooks/useRunStream.ts		useRunStream=117	702	JINI	117
+size-28	now	jini	packages/chat/src/server/durable-runs/recover.ts		createDurableRecovery=122	1708	JINI	122
+size-28	now	jini	packages/chat/src/server/run-finalizer/entry.ts		createAssistantRunFinalizer=132	528	JINI	132
+size-28	now	jini	packages/chat/src/store/runtime/durable-run-store.ts		createDurableRunStore=280	2240	JINI	280
+size-28	now	jini	packages/chat/src/store/runtime/run-ledger.ts		createChatRunLedger=186	1488	JINI	186
+size-28	now	jini	packages/chat/src/store/sql/store.ts		createSqlChatStore=317	2853	JINI	317
+size-29	now	jini	packages/integrations/src/api-connections/hosted-mcp/shared-sign-in.ts		createSharedExternalMcpOAuth=257	514	JINI	257
+size-29	now	jini	packages/integrations/src/api-connections/hosted-mcp/sign-in.ts	602	createHostedMcpSignInService=216	2408	JINI	818
+size-29	now	jini	packages/integrations/src/api-connections/token-store/vault-token-store.ts		createVaultOAuthTokenStore=147	882	JINI	147
+size-29	now	jini	packages/integrations/src/credentialed-http/tools/tool-registrations.ts		createCredentialToolRegistrations=107	1070	JINI	107
+size-29	now	jini	packages/integrations/src/media-providers/dispatch/async-operation-store.ts		createInMemoryAsyncOperationStore=106	1166	JINI	106
+size-29	now	jini	packages/integrations/src/media-providers/dispatch/sqlite-async-operation-store.ts		createSqliteAsyncOperationStore=145	725	JINI	145
+size-29	now	jini	packages/integrations/src/media-providers/sqlite-task-store.ts		createSqliteMediaTaskStore=140	700	JINI	140
+size-30	now	jini	packages/platform/src/fs/directory-user-config.ts		createDirectoryUserConfig=146	876	JINI	146
+size-30	now	jini	packages/platform/src/fs/directory-workspace.ts		createNodeDirectoryWorkspace=172	860	JINI	172
+size-30	now	jini	packages/platform/src/fs/guarded-reader.ts		createGuardedFileReader=329	2303	JINI	329
+size-30	now	jini	packages/platform/src/terminal.ts		createTerminalService=239	478	JINI	239
+size-31	now	jini	packages/agent-plugins/src/lifecycle/resolve-agent-plugin-refs.ts		buildModule=154	2156	JINI	154
+size-31	now	jini	packages/agent-plugins/src/lifecycle/seed-bundled.ts		buildModule=118	826	JINI	118
+size-31	now	jini	packages/agent-plugins/src/lifecycle/uninstall.ts		buildModule=180	1620	JINI	180
+size-31	now	jini	packages/agent-plugins/src/lifecycle/update.ts		createUpdateModule=204	816	JINI	204
+size-32	now	jini	packages/agentic/src/core/a2ui/interpreter.ts		createA2uiInterpreter=192	960	JINI	192
+size-32	now	jini	packages/agentic/src/core/dom/dom-page-driver.ts		createDomPageDriver=171	2052	JINI	171
+size-32	now	jini	packages/chat/src/core/assistant-client/ag-ui-transport.ts		createAgUiRunClient=113	565	JINI	113
+size-32	now	jini	packages/chat/src/core/assistant-client/durable-run-subscription.ts		followDurableRun=103	618	JINI	103
+size-33	now	jini	packages/ui/src/renderers/annotation-canvas/react/hooks/useAnnotationCanvas.ts	880	useAnnotationCanvas=739	1760	JINI	1619
+size-33	now	jini	packages/ui/src/renderers/preview-modal-shell/react/hooks/usePreviewModalShell.ts		usePreviewModalShell=141	141	JINI	141
+size-33	now	jini	packages/user-management/src/admin/controllers/members.controller.ts		createMembersController=120	360	JINI	120
+size-33	now	jini	packages/user-management/src/admin/controllers/roles.controller.ts		createRolesController=327	1308	JINI	327
+size-34	now	jini	packages/plugins/src/host/capability-tools.ts		createPluginCapabilityTools=186	1116	JINI	186
+size-34	now	jini	packages/plugins/src/host/declarative-content-types.ts		createDeclarativeContentTypes=131	262	JINI	131
+size-34	now	jini	packages/plugins/src/host/node/runtime-core.ts	564	createPluginRuntimeCore=397	1692	JINI	961
+size-34	now	jini	packages/plugins/src/host/node/source-drafts.ts		createPluginSourceService=180	1440	JINI	180
+size-34	now	jini	packages/plugins/src/host/provider-host.ts		createPluginProviderHost=134	804	JINI	134
+size-35	now	jini	packages/ui/src/features/memory/dependencies.ts		createMemoryHttpPorts=105	420	JINI	105
+size-35	now	jini	packages/ui/src/features/memory/react/components/MemoryAdvancedModal.tsx		MemoryAdvancedModal=172	172	JINI	172
+size-35	now	jini	packages/ui/src/features/memory/react/components/MemoryConnectedPanel.tsx	520	MemoryConnectedPanel=153	1560	JINI	673
+size-35	now	jini	packages/ui/src/features/memory/react/components/MemoryManualEditor.tsx		MemoryManualEditor=200	200	JINI	200
+size-35	now	jini	packages/ui/src/features/memory/react/hooks/useMemoryConfig.hooks.ts		useMemoryConfig=130	260	JINI	130
+size-35	now	jini	packages/ui/src/features/memory/react/hooks/useMemoryConnectors.hooks.ts		useMemoryConnectors=327	654	JINI	327
+size-35	now	jini	packages/ui/src/features/memory/react/hooks/useMemoryEntries.hooks.ts		useMemoryEntries=254	762	JINI	254
+size-35	now	jini	packages/ui/src/features/memory/react/hooks/useMemoryExtractions.hooks.ts		useMemoryExtractions=114	114	JINI	114
+size-36	now	jini	packages/sidecar/src/json-ipc.ts		createJsonIpcServer=157 <arg of createNetServer>=132 requestJsonIpc=129 <anonymous>=124	628	JINI	542
+size-36	now	jini	packages/sidecar/src/supervision/supervisor.ts		createDaemonSupervisor=201	201	JINI	201
+size-36	now	jini	packages/ui/src/features/asset-grid/react/components/AssetGrid.tsx		AssetGrid=210	1260	JINI	210
+size-36	now	jini	packages/ui/src/features/asset-tree-browser/react/components/AssetTreeFileRow.tsx		AssetTreeFileRow=140	140	JINI	140
+size-37	now	jini	packages/ui/src/features/connectors/ConnectorsBrowser.tsx		ConnectorsBrowser=126	630	JINI	126
+size-37	now	jini	packages/ui/src/features/connectors/hooks/useConnectorAuthorization.ts		useConnectorAuthorization=149	596	JINI	149
+size-37	now	jini	packages/ui/src/features/execution/react/hooks/use-execution-credential.hooks.ts		useExecutionCredential=130	260	JINI	130
+size-37	now	jini	packages/ui/src/features/execution/react/hooks/useExecutionTab.ts		useExecutionTab=155	465	JINI	155
+size-37	now	jini	packages/ui/src/features/html-editor/css.ts		prettifyCss=110	220	JINI	110
+size-37	now	jini	packages/ui/src/features/html-editor/react/hooks/useInteractiveHtmlEditor.ts		useInteractiveHtmlEditor=121 <arg of useEffect>=105	1210	JINI	226
+size-37	now	jini	packages/ui/src/features/lexical-rich-text-editor/react/components/RichTextInput.tsx		EditorSurface=136	272	JINI	136
+size-37	now	jini	packages/ui/src/features/media-providers/react/hooks/useMediaProvidersTab.ts		useMediaProvidersTab=168	672	JINI	168
+size-38	now	jini	packages/admin/src/comments/controllers/comment-queue.controller.ts		createCommentQueueController=146	730	JINI	146
+size-38	now	jini	packages/admin/src/comments/react/components/SettingsSection.tsx		SettingsSection=114	114	JINI	114
+size-38	now	jini	packages/admin/src/forms/react/components/FieldAttributesDialog.tsx		FieldAttributesDialog=149	447	JINI	149
+size-38	now	jini	packages/admin/src/forms/react/components/FormFieldsEditor.tsx		FormFieldsEditor=204 <arg of rows.map>=110	612	JINI	314
+size-38	now	jini	packages/admin/src/forms/react/hooks/use-form-editor.hooks.ts		useFormEditor=151	1208	JINI	151
+size-38	now	jini	packages/admin/src/forms/react/pages/FormEditor.tsx		FormEditor=101	404	JINI	101
+size-38	now	jini	packages/admin/src/forms/react/pages/FormsList.tsx		FormsList=107	214	JINI	107
+size-38	now	jini	packages/admin/src/media/controllers/library.controller.ts		createLibraryController=169	676	JINI	169
+size-39	now	jini	packages/desktop-host/src/electron/updates/auto-update-controller.ts		createAutoUpdateController=116	232	JINI	116
+size-39	now	jini	packages/devops/src/checks/hardwiring.ts		createHardwiringInspector=276	1104	JINI	276
+size-39	now	jini	packages/diagnostics/src/web-evidence/page-structure-script.ts		collectPageStructure=275	550	JINI	275
+size-39	now	jini	packages/integrations/src/api-connections/host.ts		createApiConnectionHost=163	652	JINI	163
+size-40	now	jini	packages/ui/src/features/viewer-shell/react/hooks/useMarkdownScrollSync.ts		useMarkdownScrollSync=126	252	JINI	126
+size-40	now	jini	packages/ui/src/react/components/CustomSelect.tsx		CustomSelect=101	1010	JINI	101
+size-40	now	jini	packages/ui/src/react/components/Icon.tsx	675		675	JINI	675
+size-40	now	jini	packages/ui/src/react/components/OnboardingDropdown.tsx		useOnboardingDropdown=102	306	JINI	102
+size-40	now	jini	packages/ui/src/react/components/TooltipLayer.tsx		useTooltipLayer=208	624	JINI	208
+size-40	now	jini	packages/ui/src/react/hooks/useResizableSplitPane.ts		useResizableSplitPane=209	418	JINI	209
+size-40	now	jini	packages/ui/src/react/mcp-ui/useMcpUiHost.ts		useMcpUiHost=116	116	JINI	116
+size-41	now	jini	packages/vibecoding/src/core/session.ts		createVibecodingSession=126	126	JINI	126
+size-41	now	jini	packages/vibecoding/src/node/project.ts		assembleProject=181	543	JINI	181
+size-41	now	jini	packages/vibecoding/src/node/store.ts		createProjectStore=246	738	JINI	246
+size-42	now	tovu	content/themes/__original-themes__/static/tovu-starter/scripts/docs-toc.js		<anonymous>=125	125	?	125
+size-42	now	tovu	content/themes/__original-themes__/static/tovu-starter/scripts/main.js		<anonymous>=193	386	?	193
+size-42	now	tovu	content/themes/__original-themes__/static/tovu-theme/scripts/docs-toc.js		<anonymous>=125	125	?	125
+size-42	now	tovu	content/themes/__original-themes__/static/tovu-theme/scripts/main.js		<anonymous>=193	579	?	193
+size-43	now	tovu	content/themes/static/tovu-starter/scripts/docs-toc.js		<anonymous>=125	125	?	125
+size-43	now	tovu	content/themes/static/tovu-starter/scripts/main.js		<anonymous>=193	386	?	193
+size-43	now	tovu	content/themes/static/tovu-theme/scripts/docs-toc.js		<anonymous>=125	125	?	125
+size-43	now	tovu	content/themes/static/tovu-theme/scripts/main.js		<anonymous>=193	579	?	193
+size-44	now	jini	packages/ui/src/features/memory/react/hooks/useMemoryExtractions.store.ts		createExtractionHistoryStore=144	288	JINI	144
+size-44	now	jini	packages/ui/src/features/notifications/react/components/NotificationsTab.tsx		NotificationsTab=134	402	JINI	134
+size-44	now	jini	packages/ui/src/features/panel-kit/hooks/use-settings-slice.hooks.ts		useSettingsSlice=125	375	JINI	125
+size-44	now	jini	packages/ui/src/features/panel-kit/hooks/use-standing-draft-autosave.hooks.ts		useStandingDraftAutosave=175	350	JINI	175
+size-44	now	jini	packages/ui/src/features/project-locations/react/components/ProjectLocationsTab.tsx		ProjectLocationsTab=103	206	JINI	103
+size-44	now	jini	packages/ui/src/features/project-locations/react/hooks/useProjectLocationsTab.ts		useProjectLocationsTab=119	238	JINI	119
+size-44	now	jini	packages/ui/src/features/resource-dashboard/react/hooks/useResourceBoard.ts		useResourceBoard=176	528	JINI	176
+size-44	now	jini	packages/ui/src/features/sketch-editor/react/components/SketchEditor.tsx		SketchEditor=109	218	JINI	109
+size-45	now	jini	packages/ui/src/features/skills/react/components/SkillRow.tsx		SkillRow=112	448	JINI	112
+size-45	now	jini	packages/ui/src/features/skills/react/hooks/useSkillsTab.ts		useSkillsTab=260	0	JINI	260
+size-45	now	jini	packages/ui/src/features/source-config-list/react/hooks/useSourceConfigList.ts		useSourceConfigList=119	0	JINI	119
+size-45	now	jini	packages/ui/src/features/tab-launcher-menu/react/hooks/useTabLauncherMenu.ts		useTabLauncherMenu=108	216	JINI	108
+size-45	now	jini	packages/ui/src/features/tab-strip/react/hooks/useTabStripDragReorder.ts		useTabStripDragReorder=125	0	JINI	125
+size-45	now	jini	packages/ui/src/features/version-manager/react/components/VersionManagerModal.tsx		VersionManagerModal=137	274	JINI	137
+size-45	now	jini	packages/ui/src/features/version-manager/react/hooks/useVersionManager.ts		useVersionManager=236	472	JINI	236
+size-45	now	jini	packages/ui/src/features/viewer-shell/react/components/CommentSidePanel.tsx		CommentSidePanel=104	312	JINI	104
+size-46	after-move	tovu	apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx	1033	useExecutionConfig=134	72310	MIXED	1167
+size-46	after-move	tovu	apps/admin/src/features/ai-assistant/AiAssistant.tsx	655	AiAssistant=118 VisitorCredentialForm=108	22925	MIXED. **STAY-PRODUCT**: `AiAs	881
+size-47	after-move	tovu	apps/admin/src/features/deployment/StaticSiteTab.tsx	935		44880	MIXED	935
+size-47	after-move	tovu	apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts		useStaticPublish=150	2700	MIXED	150
+size-47	after-move	tovu	apps/admin/src/features/pages/PageEditor.tsx	1017	PageEditor=220 PageEditorPane=125	55935	MIXED	1362
+size-47	after-move	tovu	apps/admin/src/features/plugins/AgentPluginRow.tsx		AgentPluginRow=138	3036	DELETE-AFTER-PARITY	138
+size-48	after-move	tovu	apps/website/src/features/deployments/publish-agent-tools.ts	763	buildStaticPublishRegistrations=155	50358	MIXED: catalog copy, capabilit	918
+size-48	after-move	tovu	apps/website/src/features/forms/tool-registrations.ts		buildFormsRegistrations=163	4401	MIXED;MOVE-AFTER(write-service.ts, t;STA	163
+size-48	after-move	tovu	apps/website/src/features/identity/repo.ts	616		2464	MOVE-AFTER(content schema type;MOVE-AFTE	616
+size-48	after-move	tovu	apps/website/src/features/identity/tool-registrations.ts		buildGatedIdentityRegistrations=154	2464	MOVE-AFTER(write-service.ts, t;STAY-WIRI	154
+size-48	after-move	tovu	apps/website/src/features/media-import/tool-registrations.ts		buildMediaImportRegistrations=118	2832	MIXED;MOVE-AFTER(write-service.ts, t;STA	118
+size-48	after-move	tovu	apps/website/src/features/newsletter/repo.ts	548		6576	MOVE-AFTER(content schema type;MOVE-AFTE	548
+size-49	after-move	tovu	apps/admin/src/features/trash/hooks/use-trash.hooks.ts		useTrash=143	715	MOVE-AFTER(trash module; needs	143
+size-49	after-move	tovu	apps/admin/src/lib/browser-stream.ts		startBrowserStream=104	312	MOVE-AFTER(stream-activity, vi	104
+size-49	after-move	tovu	apps/desktop/src/project-ipc.ts	1082	registerSiteIpcHandlers=229	47608	MIXED	1311
+size-49	after-move	tovu	apps/desktop/src/renderer/workspace-chat-transport.ts		createWorkspaceChatTransport=101	1313	MIXED	101
+size-50	after-move	tovu	apps/website/src/features/newsletter/tool-registrations.ts		buildNewsletterRegistrations=177	2124	MOVE-AFTER(write-service.ts, t;STAY-WIRI	177
+size-50	after-move	tovu	apps/website/src/features/pages/tool-registrations.ts		buildPagesRegistrations=154	4312	MIXED;MOVE-AFTER(write-service.ts, t;STA	154
+size-50	after-move	tovu	apps/website/src/features/post/agent-tools.ts	704		24640	MIXED;MIXED: `AgentToolSideEffect`, ;MIX	704
+size-50	after-move	tovu	apps/website/src/features/post/tool-registrations.ts	796	buildPostRegistrations=278	40596	MOVE-AFTER(write-service.ts, t;STAY-WIRI	1074
+size-50	after-move	tovu	apps/website/src/features/publish-content/publish-backstop-file.ts		createRawFileSitePort=102	204	MIXED	102
+size-50	after-move	tovu	apps/website/src/features/publish-content/repo-handler.ts		createRepoPublishHandler=176 build=142	3696	MOVE-AFTER(type-registry gener	318
+size-51	after-move	tovu	apps/admin/src/features/security/AccessTokensTab.tsx	847	AddCustomCredentialDialog=119 TokenInputFields=114	38115	DELETE-AFTER-PARITY	1080
+size-51	after-move	tovu	apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts	584	useAccessTokens=336	15184	DELETE-AFTER-PARITY · CORE-CON	920
+size-51	after-move	tovu	apps/admin/src/features/security/rules.ts	516		20124	MIXED — credential-row and for	516
+size-52	after-move	tovu	apps/admin/src/features/taxonomy/Taxonomy.tsx	690	namespaceList=146 <arg of taxonomies.map>=111	15870	MOVE-AFTER(host ports + `Publi	947
+size-52	after-move	tovu	apps/admin/src/features/taxonomy/TaxonomyRowMenu.hooks.ts		useTaxonomyRowMenu=102	408	DELETE-AFTER-PARITY (legacy tw	102
+size-52	after-move	tovu	apps/admin/src/features/taxonomy/TermPicker.tsx		TermPicker=132	1188	MOVE-AFTER(taxonomy module)	132
+size-52	after-move	tovu	apps/admin/src/features/themes/ThemeExplore.tsx	1020	ThemeExploreContent=287	37740	MIXED. STAY-PRODUCT: everythin	1307
+size-53	after-move	tovu	apps/admin/src/App.hooks.ts	556		17236	MIXED	556
+size-53	after-move	tovu	apps/admin/src/App.tsx	553	AdminShell=199 AssistantChrome=137	33733	MIXED, NEEDS-TIER-2	889
+size-54	after-move	tovu	apps/admin/src/features/plugins/AgentPlugins.tsx		AgentPlugins=110	2860	DELETE-AFTER-PARITY	110
+size-54	after-move	tovu	apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts	635	usePostEditor=400	29845	MIXED**. DEDUPE: `uploadDroppe	1035
+size-54	after-move	tovu	apps/admin/src/features/roles/Roles.tsx	679		8148	DELETE-AFTER-PARITY	679
+size-54	after-move	tovu	apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts		createFakeRolesPort=106	318	MIXED — `defaultRolesPort`: DE	106
+size-54	after-move	tovu	apps/admin/src/features/roles/hooks/use-roles.hooks.ts		useRoles=278	3336	DELETE-AFTER-PARITY	278
+size-55	after-move	tovu	apps/website/src/features/theme/theme-files.ts	597		19104	MIXED — DEDUPE: `isWithin`, `a	597
+size-55	after-move	tovu	apps/website/src/features/theme/tool-registrations.ts	627	buildThemesRegistrations=297	27588	MIXED — STAY-PRODUCT: the 13 t;MOVE-AFTE	924
+size-55	after-move	tovu	apps/website/src/features/trash/table-adapter.ts		createTableTrashAdapter=191	2865	MOVE-AFTER(registry.ts, entry-	191
+size-55	after-move	tovu	apps/website/src/features/webhooks/tool-registrations.ts		buildWebhooksRegistrations=126	1890	MOVE-AFTER(write-service.ts, t;STAY-WIRI	126
+size-55	after-move	tovu	apps/website/src/features/widgets/tool-registrations.ts		buildWidgetsRegistrations=213	4473	MOVE-AFTER(features/widgets/ag;MOVE-AFTE	213
+size-55	after-move	tovu	apps/website/src/server/inbound/admin-http/dev-auth.ts		registerAuthRoutes=185	5550	MIXED — **STAY-WIRING**: `requ	185
+size-55	after-move	tovu	apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts		createDaemonSiteTools=111	666	MIXED	111
+size-55	after-move	tovu	apps/website/src/server/runtime/boot/bootstrap.ts		buildBootModules=105	3045	MOVE	105
+size-56	after-move	tovu	apps/desktop/src/tovu-server.ts	503	startTovuServer=118	24144	MIXED — DEDUPE-AFTER-HARDENING	621
+size-56	after-move	tovu	apps/website/src/assistant/byok-tool-surface.ts		createByokToolSurface=130	5720	MIXED	130
+size-56	after-move	tovu	apps/website/src/features/agent-plugins/automatic-agent-plugins.ts		createAutomaticPluginRuns=142	2272	MIXED: MOVE-AFTER(ports) {`cre	142
+size-56	after-move	tovu	apps/website/src/features/comments/tool-registrations.ts		buildCommentsRegistrations=127	2540	MOVE-AFTER(settings feature, c;MOVE-AFTE	127
+size-57	after-move	tovu	apps/website/src/features/publish-content/tool-registrations.ts		buildPublishContentRegistrations=166	4316	MOVE-AFTER(write-service.ts, t;STAY-WIRI	166
+size-57	after-move	tovu	apps/website/src/features/recovery/tool-registrations.ts		buildRecoveryRegistrations=178	1602	MOVE-AFTER(agent-tools.ts, `co	178
+size-57	after-move	tovu	apps/website/src/features/site-backup/backup-service.ts	535		4280	MIXED	535
+size-57	after-move	tovu	apps/website/src/features/taxonomy/tool-registrations.ts		buildTaxonomyRegistrations=223	3122	MOVE-AFTER(`contracts/core/hum;MOVE-AFTE	223
+size-57	after-move	tovu	apps/website/src/features/theme/publish-content.ts	515	buildHandler=154	8240	MIXED: MOVE-AFTER(publish-cont;MIXED: ST	669
+size-57	after-move	tovu	apps/website/src/features/theme/static-render.ts	514		22616	MIXED: menu renderers (~L184–3	514
+size-58	after-move	tovu	apps/website/src/server/runtime/composition/commerce.ts		composeCommerce=280	3920	MIXED: MOVE(sharedDeps/alerts ;STAY-PROD	280
+size-58	after-move	tovu	apps/website/src/server/runtime/composition/modules/site-assistant.ts		createSiteAssistantModule=185 registerRoutes=147 handleChat=105	4995	MIXED: DEDUPE-AFTER-HARDENING(	437
+size-58	after-move	tovu	apps/website/src/server/runtime/composition/peer-site-reads.ts		createPeerSiteReads=129	3354	MIXED: STAY-PRODUCT(`CROSS_SIT	129
