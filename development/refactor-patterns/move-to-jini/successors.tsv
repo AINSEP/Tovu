@@ -1,0 +1,12 @@
+old_path	old_symbol	new_path	new_symbol	stage	status	note
+# Planned rows: the coordinator flips status to landed (or edits new_path) from the stage report SUCCESSOR lines. Only landed rows are applied by stage-lists.mjs.
+apps/website/src/features/source-control/commit-site.ts		apps/website/src/features/site-backup/commit-site.ts		04	planned	C5; pending owner D3 (default yes); stage-14 DELETE-AFTER-PARITY row follows it
+apps/website/src/features/api-connections/shared-owner.ts	SharedOAuthOwnerStorage	apps/website/src/contracts/core/api-connections/shared-owner.ts	SharedOAuthOwnerStorage	03	planned	explicit contract (step 2b); old file re-exports the type
+apps/website/src/features/api-connections/shared-owner.ts	SharedOAuthIssuingContext	apps/website/src/contracts/core/api-connections/shared-owner.ts	SharedOAuthIssuingContext	03	planned	step 2b; old file re-exports the type
+apps/website/src/features/api-connections/vault-stores.ts	ApiConnectionVaultRecordStore	apps/website/src/contracts/core/api-connections/shared-owner.ts	ApiConnectionVaultRecordStore	03	planned	step 2b; old file re-exports the type
+apps/website/src/features/api-connections/vault-stores.ts	apiConnectionVaultScope	apps/website/src/platform/secrets/vault-api-connection-meta.ts	apiConnectionVaultScope	03	planned	C2 (with API_CONNECTION_VAULT_KIND); old file re-exports both
+apps/website/src/features/post/post-vocabulary.ts		apps/website/src/contracts/core/post/post-vocabulary.ts		03	planned	only if stage 03 applies TYPE-DOWN R2 (whole types-only file; one-line shim stays at old path); stage-11 MOVE row then follows it
+apps/admin/src/features/dashboard/dashboard-i18n.ts		apps/admin/src/lib/dashboard-i18n.ts		03	planned	admin edge a (git mv, all importers repointed)
+apps/admin/src/features/posts/posts-i18n.ts		apps/admin/src/lib/posts-i18n.ts		03	planned	admin edge c (git mv, all importers repointed)
+apps/admin/src/features/pages/lib/theme-page-publish-state.ts	homeFallbackPublishReason	apps/admin/src/features/themes/lib/home-fallback-publish-reason.ts	homeFallbackPublishReason	03	planned	admin edge b; old file re-exports it
+apps/website/src/features/source-control/repository-target.ts	repositoryTargetError	@jini-ai/devops/source-control	repositoryTargetError	03	planned	C4a: file DELETED (pass-through); callers pass { validateTarget }

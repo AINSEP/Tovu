@@ -1,0 +1,1 @@
+# One stage id per line (01, 02, 02b, 03, ...), appended by the coordinator when a stage lands; read by stage-lists.mjs --retry for waits_on stage:<id>.
