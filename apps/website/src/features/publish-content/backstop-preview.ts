@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { checkRawTable, checkRawFilePath, checkRawValues } from "./backstop-policy.js";
 import type { BackstopPorts, RawRowSnapshot } from "./backstop-ports.js";
 import type { PackedEntity } from "./type-registry.js";
@@ -36,7 +37,8 @@ export async function buildBackstopPreview(
       previews.push(entity.entityType === "raw-row"
         ? await previewRow({ entity, backstop, workspaceId, preview })
         : await previewFile({ entity, backstop, preview }));
-    } catch {
+    } catch (error) {
+      console.warn("[publish-content] backstop values could not be inspected; preview remains unavailable", describeErrorForLog(error));
       previews.push({ ...preview, unavailableReason: "These values could not be inspected safely. Check again before sending." });
     }
   }

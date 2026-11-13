@@ -159,11 +159,12 @@ test("abandoning while resume readiness is checked leaves the issue paused", asy
   assert.deepEqual(h.messages, []);
 });
 
-test("an audience failure after launch reports the committed start without exposing directory errors", async () => {
+test("an audience failure after launch reports the committed start without exposing directory errors", async (t) => {
+  const log = t.mock.method(console, "error", () => undefined);
   const h = await fixture("smtp", "scheduled");
   h.deps.newsletterSendingEnabled = async () => true;
   h.deps.membersConsentCapability = { request: async () => ({ requested: true }), confirm: async () => ({ status: "granted", consentRevisionId: "consent" }), revoke: async () => ({ status: "revoked" }) };
-  h.deps.newsletterSubscriberDirectory.getContacts = async () => { throw new Error("private@example.com directory endpoint failed"); };
+  h.deps.newsletterSubscriberDirectory.getContacts = async () => { throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET private@example.com"), { code: "EIO" }); };
   const raised = await h.raise("newsletter_send_campaign");
   raised.answer({ decision: "confirm" });
   assert.deepEqual(await raised.pending, { confirmed: true, started: true, campaignId: "campaign", status: "sending", delivered: false, mailDeliveryAvailable: true,
@@ -171,6 +172,10 @@ test("an audience failure after launch reports the committed start without expos
   });
   assert.equal((await h.deps.newsletterCampaignRepo.findById({ workspaceId: "ws", id: "campaign" }))?.status, "sending");
   assert.deepEqual(h.messages, []);
+  assert.equal(log.mock.calls[0]?.arguments[0], "[newsletter] delivery fan-out failed after launch; inspect the send log before retrying");
+  assert.match(String(log.mock.calls[0]?.arguments[1]), /Error/);
+  assert.match(String(log.mock.calls[0]?.arguments[1]), /EIO/);
+  assert.doesNotMatch(JSON.stringify(log.mock.calls.map(call => call.arguments)), /boom|SECRETSECRETSECRETSECRET|private@example\.com/);
 });
 
 test("mail-off refuses every delivery action before a card or durable mutation", async () => {
@@ -501,10 +506,10 @@ for (const scenario of ["pending", "missing", "subscribed", "no-contact", "abort
 }
 
 for (const failureAt of ["subscription", "contact", "send"] as const) {
-  test(`L299 resend hides ${failureAt} failures and logs only safe error metadata`, async (t) => {
+  test(`L299 resend hides ${failureAt} failures and logs only its fixed diagnostic`, async (t) => {
     const h = await fixture();
     await h.deps.newsletterSubscriptionRepo.save({ id: "subscription", workspaceId: "ws", listId: "list", subscriberId: "subscriber", status: "pending", source: "admin", subscribedAt: null, unsubscribedAt: null, consentRevisionIdAtSubscribe: null, createdAt: NOW, updatedAt: NOW });
-    const failure = new Error("reader@example.com private provider detail");
+    const failure = Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET reader@example.com"), { code: "EIO" });
     if (failureAt === "subscription") h.deps.newsletterSubscriptionRepo.findById = async () => { throw failure; };
     h.deps.newsletterSubscriberDirectory.getContact = async () => {
       if (failureAt === "contact") throw failure;
@@ -515,7 +520,10 @@ for (const failureAt of ["subscription", "contact", "send"] as const) {
     const tool = buildNewsletterRegistrations(h.deps).find(entry => entry.descriptor.id === "newsletter_resend_confirmation")!;
     h.tools.set(tool.descriptor.id, tool);
     assert.deepEqual(await h.call(tool.descriptor.id, { subscriptionId: "subscription" }), { delivered: true, mailDeliveryAvailable: true });
-    assert.deepEqual(log.mock.calls.map(call => call.arguments), [["[newsletter] confirmation request could not be processed; inspect mail configuration", "Error"]]);
+    assert.equal(log.mock.calls[0]?.arguments[0], "[newsletter] confirmation request could not be processed; inspect mail configuration");
+    assert.match(String(log.mock.calls[0]?.arguments[1]), /Error/);
+    assert.match(String(log.mock.calls[0]?.arguments[1]), /EIO/);
+    assert.doesNotMatch(JSON.stringify(log.mock.calls.map(call => call.arguments)), /boom|SECRETSECRETSECRETSECRET|reader@example\.com/);
     assert.deepEqual(h.messages, []);
   });
 }

@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { FetchTimeoutError } from "@jini-ai/platform/fetch-with-timeout";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { assertPortableSiteName, reconcileSiteCreation } from "#src/platform/site-dir/index";
@@ -152,7 +154,10 @@ export async function startImportedSite(required: { row: SiteImportRecord; name:
   try {
     const started = await required.startSite({ name: required.name });
     return { ...required.row, adminUrl: started.adminUrl, ...(started.adminUrl ? {} : { error: "Site created; start it from Sites to open admin." }) };
-  } catch { return { ...required.row, error: "Site created with its owner. Start it from Sites to open admin." }; }
+  } catch (error) {
+    console.warn("[site-import] The imported site could not start; the site remains available from Sites.", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
+    return { ...required.row, error: "Site created with its owner. Start it from Sites to open admin." };
+  }
 }
 
 /** The public view of a stored import row. */

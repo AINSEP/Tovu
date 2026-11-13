@@ -97,6 +97,7 @@ test("keyless handshakes stay quiet and unexpected identity failures are redacte
     assert.equal(sent.status, 503);
     assert.deepEqual(sent.body, KEYLESS_BODY);
   }
+  await attempt(new Error("no site key"));
   await attempt(new Error("no site key: none of the configured sources resolved (/private/path)"));
   assert.equal(errors.mock.callCount(), 0);
   await attempt(new TypeError("sensitive-token"));
@@ -135,7 +136,7 @@ test("POST /session answers 500 rather than hanging when the grant store throws"
   const handlers = routes({
     targetInstallationId: Promise.resolve("dest-1"),
     grants: async () => {
-      throw new Error("grant store exploded");
+      throw new Error("grant store exploded with tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET");
     },
   });
   const body = { nonce: "n", sourceInstallationId: "src-1", generation: 1, capabilities: [], signatureB64u: "s" };
@@ -150,7 +151,11 @@ test("POST /session answers 500 rather than hanging when the grant store throws"
   assert.equal(sent.status, 500);
   assert.deepEqual(sent.body, { error: "the publishing handshake failed", code: "INTERNAL_ERROR" });
   assert.equal(logged.length, 1);
-  assert.equal(JSON.stringify(logged).includes("grant store exploded"), false);
+  // The log keeps the redacted message + stack (not just the class) and never the key.
+  const line = JSON.stringify(logged);
+  assert.match(line, /grant store exploded/);
+  assert.match(line, /handshake-keyless\.unit\.test\.ts/);
+  assert.equal(line.includes("SECRETSECRETSECRETSECRET"), false);
 });
 
 for (const [field, value] of [

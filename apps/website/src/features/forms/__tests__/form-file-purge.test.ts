@@ -86,8 +86,12 @@ test('unavailable protection storage warns and leaves completion absent for an a
   const { protectExistingFormFiles } = await import('../protect-existing-files.js');
   const siteDir = await mkdtemp(join(tmpdir(), 'forms-protect-')); const warnings: string[] = [];
   try {
-    await protectExistingFormFiles({ kernel: { run: async () => { throw new Error('private credentials'); } } as never, workspaceId: 'w', siteDir }, { warn: message => { warnings.push(message); } });
+    await protectExistingFormFiles({ kernel: { run: async () => { throw Object.assign(new Error('private credentials boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EIO' }); } } as never, workspaceId: 'w', siteDir }, { warn: message => { warnings.push(message); } });
     assert.equal(warnings.length, 1); assert.equal(warnings[0]!.includes('private credentials'), false);
+    assert.match(warnings[0]!, /FORMS_LEGACY_FILE_PROTECTION_INCOMPLETE/);
+    assert.match(warnings[0]!, /Error/);
+    assert.match(warnings[0]!, /EIO/);
+    assert.doesNotMatch(warnings[0]!, /SECRETSECRETSECRETSECRET/);
     await assert.rejects(readFile(join(siteDir, '.form-files-protected-v1')));
   } finally { await rm(siteDir, { recursive: true, force: true }); }
 });

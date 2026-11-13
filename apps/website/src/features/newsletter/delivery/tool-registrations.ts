@@ -1,5 +1,5 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { toolMetadata } from '../../../contracts/core/tool-metadata/newsletter.js';
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 /**
  * Newsletter delivery registrations over the existing send pipeline and campaign write services.
  * Subscriber delivery uses browser-only confirmation; test recipients resolve from the owner profile.
@@ -181,7 +181,7 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
         await completeIfDrained({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
       } catch (err) {
         let errorDiagnostic = "[diagnostic unavailable]";
-        try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+        try { errorDiagnostic = describeErrorForLog(err); } catch { /* Keep the original failure path if diagnostics fail. */ }
         console.error("[newsletter] delivery fan-out failed after launch; inspect the send log before retrying", errorDiagnostic);
         return processingAttentionResult({ campaignId, status: campaign.status });
       }

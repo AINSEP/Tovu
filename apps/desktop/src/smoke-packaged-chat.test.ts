@@ -150,6 +150,13 @@ test("rejects missing/wrong runs, failed status, malformed JSON, wrong reply and
     { ...evidence(), events_json: "{}" }, { ...evidence(), events_json: "[null]" }]) {
     assert.throws(() => assertPackagedChatEvidence({ row, runId: "smoke-run", daemonLog: preflight }), PackagedChatSmokeError);
   }
+  assert.throws(() => assertPackagedChatEvidence({ row: { ...evidence(), events_json: "{broken" }, runId: "smoke-run", daemonLog: preflight }), (error: unknown) => {
+    assert.ok(error instanceof PackagedChatSmokeError);
+    assert.equal(error.message, "chat.db contains invalid event JSON.");
+    assert.ok(error.cause instanceof SyntaxError);
+    assert.match(error.cause.stack ?? "", /smoke-packaged-chat\.ts/);
+    return true;
+  });
   for (const daemonLog of ["", "jini bridge preflight FAILED", "[agent-daemon] jini bridge preflight okay (42ms)",
     JSON.stringify({ seq: 3, level: "error", message: "[agent-daemon] jini bridge preflight FAILED (exit=1, signal=null): ERR_MODULE_NOT_FOUND" })]) {
     assert.throws(() => assertPackagedChatEvidence({ row: evidence(), runId: "smoke-run", daemonLog }), PackagedChatSmokeError);

@@ -1,4 +1,6 @@
 import { requireDeployPlatform } from '@jini-ai/devops/deploy';
+import { formatErrorForLog } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { bundledAgentPluginsDir } from "#src/platform/site-dir/index";
@@ -93,7 +95,10 @@ export async function loadDeployOpsRegistry(ctx: { workspaceId: string }, requir
       },
     });
     return buildRegistry({ loaded: load.items, inputRefusals: load.refusals }, { switchedOff });
-  } catch { return buildRegistry({ loaded: [], inputRefusals: ["deploy ops were not loaded: installed plugin packages could not be read"] }); }
+  } catch (error) {
+    console.warn("[deploy-ops] deploy ops could not be loaded; installed plugin packages could not be read", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
+    return buildRegistry({ loaded: [], inputRefusals: ["deploy ops were not loaded: installed plugin packages could not be read"] });
+  }
 }
 
 export function requirePlatform({ registry, id }: { registry: DeployOpsRegistry; id: string }, _options = {}):LoadedDeployOps {return requireDeployPlatform({registry,id},{});}

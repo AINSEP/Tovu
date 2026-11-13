@@ -1,4 +1,5 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { installOwnedJsonAgent, type McpLaunchSpec } from "@jini-ai/mcp";
 import os from "node:os";
@@ -418,11 +419,11 @@ async function createDesktopAgentRuntime(
     )).catch(async (error: unknown) => {
       // `AgentExecutor.run()` terminalizes the run itself on every failure it knows about; this only
       // covers a rejection before that, so the run (and its credential) never stays live forever.
-      log.error(`[desktop-agent] run ${run.id} failed to start`, describeErrorForLog({ err: error }));
+      log.error(`[desktop-agent] run ${run.id} failed to start`, formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
       const status = await lifecycle.get({ runId: run.id });
       if (status !== undefined && (status.state === "queued" || status.state === "starting" || status.state === "running")) {
-        await lifecycle.emit({ runId: run.id, input: { event: "error", data: { message: "The desktop assistant could not start this turn." } } }).catch((error: unknown) => log.error("[desktop-agent] Could not report the failed run", describeErrorForLog({ err: error })));
-        await lifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false }).catch((error: unknown) => log.error("[desktop-agent] Could not finish the failed run", describeErrorForLog({ err: error })));
+        await lifecycle.emit({ runId: run.id, input: { event: "error", data: { message: "The desktop assistant could not start this turn." } } }).catch((error: unknown) => log.error("[desktop-agent] Could not report the failed run", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)));
+        await lifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false }).catch((error: unknown) => log.error("[desktop-agent] Could not finish the failed run", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)));
       }
     });
     return { runId: run.id };

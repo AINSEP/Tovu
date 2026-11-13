@@ -2,13 +2,21 @@ import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import type { ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { createServer } from "node:http";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { PassThrough } from "node:stream";
-import test from "node:test";
-import { createLocalSiteProcessPort } from "../local-site-process.js";
+import test, { mock } from "node:test";
+import { createLocalSiteSupervisor, type LocalSiteProcess } from "#src/platform/site-dir/local-site-supervisor";
+
+const net = await import("@jini-ai/platform/net");
+let retirementStatus = 204;
+let retirementFailure: Error | undefined;
+mock.module("@jini-ai/platform/net", { namedExports: { ...net, requestLoopbackHttp: async () => {
+  if (retirementFailure) throw retirementFailure;
+  return { status: retirementStatus };
+} } });
+const { createLocalSiteProcessPort } = await import("../local-site-process.js");
 
 for (const outcome of ["ready", "exit", "supplied", "delayed-lock"] as const) {
   test(`site start keeps bundle preparation outside the HTTP readiness budget: ${outcome}`, async (t) => {
@@ -66,14 +74,8 @@ for (const outcome of ["ready", "exit", "supplied", "delayed-lock"] as const) {
   });
 }
 
-test("retirement cancellation rejects when the site refuses to reopen intake", async (t) => {
-  let status = 503;
-  const server = createServer((_req, res) => { res.statusCode = status; res.end(); });
-  await new Promise<void>((resolve) => server.listen(0, resolve));
-  t.after(() => new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
-  const address = server.address();
-  assert.ok(address && typeof address !== "string");
-
+test("retirement cancellation records failures without masking the supervisor's original error", async (t) => {
+  retirementStatus = 503;
   const switcherBase = fs.mkdtempSync(path.join(os.tmpdir(), "site-retirement-"));
   t.after(() => fs.rmSync(switcherBase, { recursive: true, force: true }));
   const siteDir = path.join(switcherBase, "sites/slow");
@@ -88,9 +90,26 @@ test("retirement cancellation rejects when the site refuses to reopen intake", a
     processOptions: { spawn: () => child as unknown as ChildProcess },
   });
   t.after(() => local.dispose?.());
-  const launched = await local.launch({ name: "slow", port: address.port, daemonPort: 3102 });
-  assert.ok(launched.cancelRetirement);
-  await assert.rejects(launched.cancelRetirement(), /Could not cancel site retirement: HTTP 503/);
-  status = 204;
+  let launched: LocalSiteProcess | undefined;
+  const host = createLocalSiteSupervisor({ servingName: "root", scheme: "http", processPort: {
+    ...local, isPortFree: async () => true, schedule: () => () => {},
+    launch: async (input) => {
+      launched = await local.launch(input);
+      return { ...launched, tryRetire: async () => true, terminate: async () => { throw new Error("child survived"); } };
+    },
+  } }, { maxConcurrent: 1, evictIdle: true });
+  await host.start({ name: "slow" });
+  await assert.rejects(host.start({ name: "other" }), { code: "SITE_STOP_FAILED" });
+  const log = path.join(siteDir, "ops/logs/local-site.log");
+  assert.match(fs.readFileSync(log, "utf8"), /Could not cancel site retirement: HTTP 503/);
+  assert.ok(launched?.cancelRetirement);
+  retirementFailure = new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET");
+  await launched.cancelRetirement();
+  const diagnostic = fs.readFileSync(log, "utf8");
+  assert.match(diagnostic, /Could not cancel site retirement:.*boom/);
+  assert.match(diagnostic, /local-site-start\.unit\.test\.ts/);
+  assert.doesNotMatch(diagnostic, /SECRETSECRETSECRETSECRET/);
+  retirementFailure = undefined;
+  retirementStatus = 204;
   await launched.cancelRetirement();
 });

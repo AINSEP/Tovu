@@ -34,6 +34,28 @@ function adminDiagnostic({ error }: { error: unknown }, _options = {}): string {
   return formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS);
 }
 
+/** Log one server incident (redacted message + stack) to the local log and the tracker under one
+ * error ID, and return that ID for the reply. The one server-side incident sink: admin routes reach
+ * it through `sendAdminFailure`; a public/visitor route, whose caller must never see the cause,
+ * calls it directly and puts only `errorId` in its own visitor-safe reply.
+ * Expected refusals (bad input, not found, refused link) are NOT incidents and must not call it.
+ * @param required.operation - `<area>:<step>` naming what failed, e.g. `mail-feedback:record`.
+ * @param optional.errorId - Reuse an ID the reply already carries; otherwise a new UUID.
+ * @complexity Core redaction over the diagnostic plus one log line and one tracker report.
+ * @example const { errorId } = reportServerFailure({ error, operation: "mail-feedback:record" }, { tracker: res.locals.adminFailureTracker });
+ */
+export function reportServerFailure(
+  { error, operation }: { error: unknown; operation: string },
+  { tracker, errorId = randomUUID() }: AdminFailurePorts & { errorId?: string } = {},
+): { errorId: string } {
+  const diagnostic = adminDiagnostic({ error });
+  // Never hand raw backend/provider errors to a log sink: they may contain saved credentials.
+  // Diagnostic sinks are independent: either may fail, but neither may suppress the HTTP reply.
+  try { console.error(`[${operation}]`, { errorId, diagnostic }); } catch { /* The tracker still gets the incident. */ }
+  try { tracker?.error({ error: new Error(diagnostic) }, { context: { operation, attributes: { errorId } } }); } catch { /* The local log still carries the ID. */ }
+  return { errorId };
+}
+
 /** The shared admin failure lifecycle: redact before either sink, then correlate a safe reply.
  * Ports stay request-scoped; no global tracker is retained. Expected refusals belong to callers.
  * @complexity Core redaction over the diagnostic/explanation plus fixed log/report/envelope work.
@@ -43,14 +65,8 @@ export function adminFailureResponse(
   options: FailureOptions = {},
 ): { status: number; body: { error: string; code: string; errorId: string; details?: { failure: UserFacingError } } } {
   const { operation = "admin-route" } = options;
-  const diagnostic = adminDiagnostic({ error });
-  const generatedId = randomUUID();
-  const body = unexpectedAdminBody({ errorId: generatedId, options });
-  const errorId = body.errorId;
-  // Never hand raw backend/provider errors to a log sink: they may contain saved credentials.
-  // Diagnostic sinks are independent: either may fail, but neither may suppress the HTTP reply.
-  try { console.error(`[${operation}]`, { errorId, diagnostic }); } catch { /* The tracker still gets the incident. */ }
-  try { tracker?.error({ error: new Error(diagnostic) }, { context: { operation, attributes: { errorId } } }); } catch { /* The local log still carries the ID. */ }
+  const body = unexpectedAdminBody({ errorId: randomUUID(), options });
+  const { errorId } = reportServerFailure({ error, operation }, { tracker, errorId: body.errorId });
   // The backup owner supplies this closed, human-safe refusal. Preserve it for every admin route.
   if (error instanceof DatabaseDiskSpaceError) return { status: error.status, body: { code: error.code, errorId, error: error.message } };
   return { status: 500, body };

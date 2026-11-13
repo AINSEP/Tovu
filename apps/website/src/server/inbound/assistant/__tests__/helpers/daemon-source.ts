@@ -4,6 +4,7 @@ import { resolveFullCliAccess, resolveAssistantCliPermissions, fullCliEnvLock, i
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
 import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -31,7 +32,6 @@ import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistant
 import { resolveAssistantRuntimeLaunch } from "../../assistant-runtime-guidance.js";
 import { createAgentSelectionResolver, getAgentDef } from "@jini-ai/agent-runtime";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 
 const rawSource = ts.createSourceFile(
   "agent-daemon-scope.ts",
@@ -65,7 +65,7 @@ export function evaluateDaemonExpression<T>(expression: ts.Node, bindings: Recor
   const code = ts.transpileModule(`return (${expression.getText(daemonSource)});`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText;
-  const scopedBindings = { env: { ...process.env }, authEnv: { ...process.env }, siteId: "test-scope", disposed: false, ownerRetentionTimers: new Set(), describeErrorForLog, ...bindings };
+  const scopedBindings = { env: { ...process.env }, authEnv: { ...process.env }, siteId: "test-scope", disposed: false, ownerRetentionTimers: new Set(), ...bindings };
   return new Function(...Object.keys(scopedBindings), code)(...Object.values(scopedBindings)) as T;
 }
 
@@ -117,7 +117,7 @@ export async function captureDaemonRun(
     verifyJsonAgentInstall: async () => {}, bridgeInjection: { command: "host-bridge" }, readFile: async () => "",
     // Preserve existing preflight spies at the recovery boundary; recovery I/O has its own tests.
     ensureJsonAgentInstall: async (): Promise<void> => { await bindings.verifyJsonAgentInstall(); },
-    resolveNativeToolPolicy, resolveFullCliAccess, resolveAssistantCliPermissions, resolveHostSignals, assistantCliPermissions, createToolGapCollector, redactSecretShapes,
+    resolveNativeToolPolicy, resolveFullCliAccess, resolveAssistantCliPermissions, resolveHostSignals, assistantCliPermissions, createToolGapCollector, redactSecretShapes, describeErrorForLog,
     readAssistantRunToolPolicy: async (required: { deps: { ownerPrincipalId?: Promise<string>; settingsUiTabsReady?: Promise<void> }; principalId: string; agentId: string; env: NodeJS.ProcessEnv; getDef: typeof getAgentDef }): Promise<Awaited<ReturnType<typeof ReadAssistantRunToolPolicy>>> => {
       const isOwner = required.principalId === await required.deps.ownerPrincipalId;
       const hostSignals = bindings.resolveHostSignals({ env: required.env });
@@ -218,6 +218,6 @@ export function evaluateDaemonStatements<T>(statements: readonly ts.Statement[],
   const code = ts.transpileModule(`return (async () => { ${statements.map((statement) => statement.getText(daemonSource)).join("\n")} return (${result}); })();`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText;
-  const scopedBindings = { env: { ...process.env }, authEnv: { ...process.env }, siteId: "test-scope", disposed: false, ownerRetentionTimers: new Set(), describeErrorForLog, ...bindings };
+  const scopedBindings = { env: { ...process.env }, authEnv: { ...process.env }, siteId: "test-scope", disposed: false, ownerRetentionTimers: new Set(), ...bindings };
   return new Function(...Object.keys(scopedBindings), code)(...Object.values(scopedBindings)) as Promise<T>;
 }

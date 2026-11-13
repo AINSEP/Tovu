@@ -1,9 +1,9 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** @file Shared site consent use cases for HTTP and assistant adapters. */
 import type { ConsentConfig } from '@jini-ai/cookie-consent';
 import type { ConsentReceiptStorageHealth } from '@jini-ai/cookie-consent/node';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
-import { ToolInputError } from '@jini-ai/core';
+import { formatErrorForLog, ToolInputError } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import type { AuthorizeFn } from '#src/contracts/core/commands/index';
 import type { SiteConsentState, SiteConsentStore } from './revisions.js';
 import { SiteConsentConflict } from './revisions.js';
@@ -130,7 +130,8 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
       blockingProblems.push(...dryRun.problems);
       return { ...metadata, ready: blockingProblems.length === 0, categories: dryRun.categories, declarations: dryRun.declarations, warnings: dryRun.warnings, truncated: dryRun.truncated || page.truncated,
         limitations: ['One server-rendered page sample; dynamic requests, server cookies and legal compliance require separate review.'] };
-    } catch {
+    } catch (error) {
+      console.warn('[consent] The page could not be rendered; readiness remains unavailable.', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
       blockingProblems.push({ code: 'RENDER_FAILED', message: 'The page could not be rendered safely. Readiness cannot be established.' });
       return { ...metadata, ready: false, categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })), declarations: [], warnings: [], truncated: false, limitations: ['Rendered evidence unavailable.'] };
     }
@@ -164,11 +165,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     if (blockingProblems.length) throw new ToolInputError({ message: blockingProblems.map(problem => problem.message).join(' ') });
     await store.publish({ draftId, expectedPublishedId });
     try { await ports.published?.(); }
-    catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      console.warn('[consent] Cookie preferences were published, but the public preview could not refresh. A later request will try again.', errorDiagnostic);
-    }
+    catch (error) { console.warn('[consent] Cookie preferences were published, but the public preview could not refresh. A later request will try again.', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
     return { published: true, revisionId: draftId };
   };
   const staticDeploymentRefusal = async ({ config }: { config: ConsentConfig }, _options = {}) => {
@@ -192,7 +189,8 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
       if (effective.enabled === false) return null;
       const config = parseConsentConfig({ value: effective });
       return await staticDeploymentRefusal({ config });
-    } catch {
+    } catch (error) {
+      console.warn('[consent] The consent policy could not be verified; deployment remains blocked.', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
       return deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'The published consent policy could not be verified. Deployment was not started.' }] });
     }
   };

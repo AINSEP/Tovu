@@ -36,11 +36,43 @@ describe("menu Copy HTML embed", () => {
     const { result } = renderHook(() => useMenuEditor({ menuId: "docs", dependencies: dependencies }));
     await waitFor(() => expect(result.current.menu?.id).toBe(menu.id));
     await act(async () => { await result.current.copyHtmlEmbed(); });
-    expect(result.current.copyFeedback).toBe("The menu HTML embed could not be copied. Check your browser's clipboard permissions and try again.");
-    expect(adminFailureChannel.getSnapshot()).toMatchObject({ step: "Copy menu HTML embed" });
+    expect(result.current.copyFeedback).toBe("Could not copy embed");
+    expect(adminFailureChannel.getSnapshot()).toMatchObject({ step: "Copy menu embed code" });
     expect(adminFailureChannel.getSnapshot()?.copyText).toContain("denied");
     render(<MenuEditor menuId={null} useMenuEditorHook={({ menuId: id }) => useMenuEditor({ menuId: id, dependencies: dependencies })} />);
     expect(screen.queryByRole("button", { name: "Copy HTML embed" })).not.toBeInTheDocument();
+  });
+
+  // A browser refusing clipboard access is an expected refusal: inline text only, no incident.
+  it("a browser clipboard refusal shows inline text and opens no incident", async () => {
+    adminFailureChannel.reset();
+    const port = createFakeMenusPort({ menus: [menu] });
+    const clipboard = { writeText: vi.fn().mockRejectedValue(new DOMException("Write permission denied.", "NotAllowedError")) };
+    const { result } = renderHook(() => useMenuEditor({ menuId: "docs", dependencies: { port, clipboard, navigate: vi.fn(), t: (key: string) => key } }));
+    await waitFor(() => expect(result.current.menu?.id).toBe(menu.id));
+    await act(async () => { await result.current.copyHtmlEmbed(); });
+    expect(result.current.copyFeedback).toBe("Could not copy embed");
+    expect(adminFailureChannel.getSnapshot()).toBeNull();
+  });
+
+  // Anything else is a defect: the cause must reach the shared notice's Copy details, not vanish.
+  it("an unexpected copy failure publishes one incident with what failed, the step, the cause and versions", async () => {
+    adminFailureChannel.reset();
+    const port = createFakeMenusPort({ menus: [menu] });
+    const clipboard = { writeText: vi.fn().mockRejectedValue(new TypeError("writeText is not a function")) };
+    const { result } = renderHook(() => useMenuEditor({ menuId: "docs", dependencies: { port, clipboard, navigate: vi.fn(), t: (key: string) => key } }));
+    await waitFor(() => expect(result.current.menu?.id).toBe(menu.id));
+    await act(async () => { await result.current.copyHtmlEmbed(); });
+    expect(result.current.copyFeedback).toBe("Could not copy embed");
+    const failure = adminFailureChannel.getSnapshot();
+    expect(failure?.message).toBe("The menu embed code could not be copied.");
+    expect(failure?.step).toBe("Copy menu embed code");
+    expect(failure?.copyText).toContain("writeText is not a function");
+    expect(failure?.copyText).toMatch(/Error ID: [0-9a-f-]{36}/);
+    expect(failure?.copyText).toContain("App version: Tovu Admin ");
+    expect(failure?.copyText).toMatch(/Jini version: \d+\.\d+\.\d+/);
+    expect(failure?.copyText).toMatch(/Time: \d{4}-\d{2}-\d{2}T/);
+    adminFailureChannel.reset();
   });
 
   it("escapes attribute delimiters and translates the controls in every forms-supported locale", () => {

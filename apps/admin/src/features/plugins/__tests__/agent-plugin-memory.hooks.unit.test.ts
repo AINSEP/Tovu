@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, test } from 'vitest';
+import { ApiError } from '@/lib/api';
+import { adminFailureChannel } from '@/lib/admin-failure-channel';
 import { useAgentPluginMemory } from '../hooks/use-agent-plugin-memory.hooks';
 import type { AgentPluginMemoryPort, PluginMemoryListing } from '../hooks/agent-plugin-memory-port.hooks';
 import { PLUGIN_MEMORY_DICT } from '../plugins-memory-i18n';
@@ -92,16 +94,22 @@ test('the editor stays disabled while a save is in flight and becomes editable a
 });
 
 test('status moves from loading to idle and reports a failed save with the bound translator', async () => {
+  adminFailureChannel.reset();
+  let failure: Error = new ApiError('The note path is invalid. Choose another path.', 422);
   const port: AgentPluginMemoryPort = {
     read: async () => listing('example', 'Original'),
-    saveNote: async () => { throw new Error('write refused'); },
+    saveNote: async () => { throw failure; },
   };
   const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t: key => `T:${key}` }));
   expect(result.current.status).toBe('T:Loading memory…');
   await waitFor(() => expect(result.current.editorDisabled).toBe(false));
   expect(result.current.status).toBeNull();
   await act(async () => { await result.current.save(); });
-  expect(result.current.status).toBe('T:The plugin note could not be saved. T:Check whether the note was saved before trying again.');
+  expect(result.current.status).toBe('The note path is invalid. Choose another path.');
+  expect(adminFailureChannel.getSnapshot()).toBeNull();
+  failure = new Error('');
+  await act(async () => { await result.current.save(); });
+  expect(result.current.status).toBe('T:Could not save note.');
 });
 
 test('a save status from a previous plugin is hidden while the next plugin loads', async () => {
@@ -158,6 +166,6 @@ test.each(['resolves', 'rejects'] as const)('a save that %s after switching plug
   await waitFor(() => expect(result.current.text).toBe('second note'));
   await act(async () => { settle(); await saving; });
   expect(result.current.status).not.toBe('Note saved.');
-  expect(result.current.status).not.toBe('The plugin note could not be saved. Check whether the note was saved before trying again.');
+  expect(result.current.status).not.toBe('Could not save note.');
   expect(result.current.text).toBe('second note');
 });

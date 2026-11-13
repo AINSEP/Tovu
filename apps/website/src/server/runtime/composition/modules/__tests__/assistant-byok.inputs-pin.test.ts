@@ -2,6 +2,10 @@ import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
+import ts from "typescript";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import express from "express";
 import { createHash } from "node:crypto";
 import { mkdtemp } from "node:fs/promises";
@@ -16,6 +20,27 @@ import { registerAuthRoutes } from "#src/server/inbound/admin-http/dev-auth";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import { startStubProviderServer } from "#src/server/__tests__/helpers/stub-provider-server";
 import { BYOK_TURN_PATH, createAssistantByokModule } from "../assistant-byok.js";
+
+test("BYOK automatic preflight keeps the prompt and logs a redacted cause", async (t) => {
+  const source = ts.createSourceFile("assistant-byok.ts", readFileSync(new URL("../assistant-byok.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest, true);
+  function find(node: ts.Node): ts.FunctionDeclaration | undefined {
+    if (ts.isFunctionDeclaration(node) && node.name?.text === "appendAutomaticPluginGuidance") return node;
+    return ts.forEachChild(node, find);
+  }
+  const declaration = find(source); assert.ok(declaration, "the preflight handler exists");
+  const code = ts.transpileModule(`return (${declaration.getText(source)});`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
+  const warnings = t.mock.method(console, "warn", () => undefined);
+  const start = async () => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); };
+  const append = new Function("automaticPluginRuns", "readChatAgentPluginState", "formatErrorForLog", "TOVU_ERROR_REDACTION_OPTIONS", code)(
+    { start }, () => ({}), formatErrorForLog, TOVU_ERROR_REDACTION_OPTIONS,
+  );
+  const prompt = await append({ run: { id: "run" }, principal: { id: "owner" }, conversationId: "chat", pluginBody: {}, messages: [], pinned: [], abort: new AbortController(), res: {}, system: "existing prompt" });
+  assert.equal(prompt, "existing prompt");
+  assert.equal(warnings.mock.calls[0]?.arguments[0], "[agent-plugins] automatic BYOK preflight unavailable");
+  assert.match(String(warnings.mock.calls[0]?.arguments[1]), /boom/);
+  assert.match(String(warnings.mock.calls[0]?.arguments[1]), /assistant-byok\.inputs-pin\.test\.ts/);
+  assert.doesNotMatch(String(warnings.mock.calls[0]?.arguments[1]), /SECRETSECRETSECRETSECRET/);
+});
 
 /** TW2 L136: old validation order, attachment failures and fail-soft plugin preflight. */
 test("BYOK pins history, credential and attachment validation before opening SSE", async t => {

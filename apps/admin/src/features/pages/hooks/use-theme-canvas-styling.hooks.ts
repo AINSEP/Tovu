@@ -5,6 +5,7 @@ import type { CanvasStyling } from "@jini-ai/ui/html-editor";
 import { resolveThemeLayout } from "@tovu/theme-layout";
 
 import type { ThemeCanvasPort, ThemeTokens } from "./theme-canvas-port.hooks";
+import { ThemeServerResponseError } from "./theme-canvas-dependencies.hooks";
 import { deriveContentWrapperChain } from "./theme-canvas-wrapper";
 
 /**
@@ -309,7 +310,7 @@ export function useThemeCanvasStyling(
       port.fetchThemeTokens({ url: themeTokensUrl({ themeId }) }),
       // A theme with no light variant is normal, not an error — see `themeLightTokensUrl`.
       port.fetchThemeTokens({ url: themeLightTokensUrl({ themeId }) }).catch((error: unknown) => {
-        if (!(error instanceof Error && error.message === "the theme server responded with 404")) {
+        if (!(error instanceof ThemeServerResponseError && error.status === 404)) {
           console.error("[theme-canvas] Could not load light theme tokens", describeErrorForLog({ err: error }));
         }
         return undefined;

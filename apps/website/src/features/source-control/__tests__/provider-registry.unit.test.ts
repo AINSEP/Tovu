@@ -312,12 +312,25 @@ test('bundled sources aggregate neutral providers in source order and refuse eve
   assert.deepEqual(registry.refusals, ['example-invalid: malformed declaration', "source-control provider 'example-shared' was not loaded: declared more than once"]);
 });
 
-test('missing bundled sources and empty payloads never prevent boot or load executable code', async () => {
+test('missing bundled sources and empty payloads never prevent boot or load executable code', async (t) => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, 'warn', (...args: unknown[]) => { logs.push(args); });
   const { loadBundledSourceControlProviderRegistry } = await import('../provider-registry.js');
   const missing = await loadBundledSourceControlProviderRegistry({ sourceRoot: '/missing/product/root' });
   assert.deepEqual(missing.list(), []);
   assert.equal(missing.get('example-git'), undefined);
   assert.deepEqual(missing.refusals, ['bundled source-control provider sources could not be read']);
+  logs.length = 0;
+  const failed = await loadBundledSourceControlProviderRegistry({ sourceRoot: '/product/root' }, {
+    sources: () => { throw new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'); },
+  });
+  assert.deepEqual(failed.refusals, missing.refusals);
+  assert.equal(logs.length, 1);
+  const log = logs[0]?.join(' ') ?? '';
+  assert.match(log, /source-control provider sources could not be read/);
+  assert.match(log, /boom/);
+  assert.match(log, /provider-registry\.unit\.test\.ts/);
+  assert.doesNotMatch(log, /SECRETSECRETSECRETSECRET/);
   let loads = 0;
   const empty = await loadBundledSourceControlProviderRegistry({ sourceRoot: '/product/root' }, {
     sources: () => [], load: async () => { loads++; throw new Error('an empty payload executes no code'); },

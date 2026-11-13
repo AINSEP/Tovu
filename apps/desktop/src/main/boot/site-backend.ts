@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /**
  * @file Spawn-or-reuse one site's `tovu serve` and seed its admin session — the site-open half that
  * `main.ts`'s own-server windows ({@link SiteBackend.startSiteBackend}) and sites-home tabs
@@ -6,6 +5,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
  * against fakes: Electron (`net`, `session`, `BrowserWindow`), the child spawn, the crash-safety
  * registry, the shared-sites lease and the clock all arrive as ports. This module does no I/O itself.
  */
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { CliMode } from "../../startup-env.ts";
 import type { DesktopAgentService } from "../../desktop-agent-service.ts";
 
@@ -160,11 +160,7 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
     const captureBridge = await ports.startCaptureBridge();
     let desktopMcpEnv: Record<string, string> | undefined;
     try { desktopMcpEnv = await ports.desktopMcpEnv?.(); }
-    catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      ports.warn(`tovu-desktop: desktop tools listener unavailable; retrying automatically. Details: ${errorDiagnostic}.`);
-    }
+    catch (error) { ports.warn(`tovu-desktop: desktop tools listener unavailable; retrying automatically. Cause: ${describeErrorForLog({ err: error })}`); }
     let server: TServer;
     try {
       server = await ports.startServer({

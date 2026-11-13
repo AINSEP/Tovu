@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import {
   cacheAnalyticsProviderLoad, composeBeforeIngestHooks, DEFAULT_ANALYTICS_PROVIDERS_TTL_MS, LOCAL_ANALYTICS_SINK_ID, selectAnalyticsForwarder,
   type AnalyticsForwarderCredential, type AnalyticsForwarderModule, type AnalyticsHooks as EngineAnalyticsHooks,
@@ -6,6 +5,7 @@ import {
 } from "@jini-ai/analytics";
 import type { Clock as ClockPort, HttpClientPort as EngineHttpClientPort } from "@jini-ai/core/primitives";
 import type { ProviderRegistry } from "@jini-ai/core/provider-registry";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import type { AnalyticsConfigPort, AnalyticsHooks } from "./ports.js";
 
 /**
@@ -90,11 +90,9 @@ export function createAnalyticsForwarding<R>(
   return async ({ request }) => {
     try {
       return await resolveForwarders(required, request, warn);
-    } catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      // A vendor constructor or credential read may throw with the key in its message.
-      warn(`[analytics] vendor forwarding skipped: resolution failed (${errorDiagnostic})`);
+    } catch (error) {
+      // Fixed text: a vendor constructor or credential read may throw with the key in its message.
+      warn(`[analytics] vendor forwarding skipped: resolution failed Cause: ${describeErrorForLog(error)}`);
       return [];
     }
   };

@@ -50,7 +50,9 @@ test("file review returns changed byte checksums and sizes without leaking conte
   assert.equal(reads, 0); assert.equal(denied[0].after, null); assert.ok(denied[0].unavailableReason);
 });
 
-test("TW2 pins unavailable ports, covered addresses, read failures and unrelated entities", async () => {
+test("TW2 pins unavailable ports, covered addresses, read failures and unrelated entities", async (t) => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { logs.push(args); });
   const backstop: BackstopPorts = { coveredTables: [], coveredRoots: [] };
   const file = { ...entity, entityType: "raw-file", id: "extras/page.html", state: { path: "extras/page.html", size: 0, sha256: "digest", mode: 0o644 } };
   const preview = async (item: PackedEntity, port = backstop) => (await buildBackstopPreview({ entities: [item], backstop: port, workspaceId: "ws" }))[0];
@@ -58,8 +60,15 @@ test("TW2 pins unavailable ports, covered addresses, read failures and unrelated
   assert.equal((await preview(file)).unavailableReason, "Live file values are not available.");
   assert.equal((await preview(entity, { ...backstop, coveredTables: ["P_BANNER"] })).unavailableReason, "This table already publishes normally.");
   assert.equal((await preview(file, { ...backstop, coveredRoots: ["EXTRAS/"] })).unavailableReason, "This file already publishes normally.");
-  const failing = ports(null); failing.rows!.read = unused;
+  const failing = ports(null);
+  assert.ok(failing.rows);
+  failing.rows.read = async () => { throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EIO" }); };
   assert.equal((await preview(entity, failing)).unavailableReason, "These values could not be inspected safely. Check again before sending.");
+  assert.equal(logs.length, 1);
+  assert.match(logs[0]?.join(" ") ?? "", /backstop.*could not be inspected/i);
+  assert.match(logs[0]?.join(" ") ?? "", /Error/);
+  assert.match(logs[0]?.join(" ") ?? "", /EIO/);
+  assert.doesNotMatch(logs[0]?.join(" ") ?? "", /boom|SECRETSECRETSECRETSECRET/);
   assert.deepEqual(await buildBackstopPreview({ entities: [{ ...entity, entityType: "post" }], backstop, workspaceId: "ws" }), []);
 });
 

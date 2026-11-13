@@ -1,7 +1,7 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Warm children delegate Sites management to the original dev host, never own another pool. */
 import type { Express, Response } from 'express';
 import { requestLoopbackHttp } from '@jini-ai/platform/net';
+import { sendAdminFailure } from '#src/server/inbound/admin-http/routes/system/site-share-errors';
 import type { SiteBinding } from '#src/platform/site-dir/index';
 import { resolveCheckoutRoot } from '#src/platform/site-dir/product-root';
 import { resolveDevTls, resolveDevTlsCertPaths } from '#src/server/runtime/boot/dev-tls';
@@ -35,11 +35,13 @@ export function registerWarmSiteControl({ app, binding, workspaceId }: { app: Ex
         ...(req.body === undefined ? {} : { body: JSON.stringify(req.body) }),
       }, { certificate: tls.credentials?.cert, timeoutMs: 55_000 });
       sendHostReply({ res, reply, suffix, method: req.method, binding });
-    } catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      console.warn('tovu dev: warm site management host is unavailable.', errorDiagnostic);
-      res.status(503).json({ error: 'The dev site manager is unavailable. Return to the original dev server.' });
+    } catch (error) {
+      try {
+        sendAdminFailure({ res, error }, { operation: 'warm-sites:control', message: 'The dev site manager is unavailable. Return to the original dev server.' });
+      } catch { /* Keep the original failure path if diagnostics fail. */
+        console.warn('tovu dev: warm site management host is unavailable.', '[diagnostic unavailable]');
+        res.status(503).json({ error: 'The dev site manager is unavailable. Return to the original dev server.' });
+      }
     }
   });
   return true;

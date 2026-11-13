@@ -1073,14 +1073,19 @@ function makeJob(overrides: Partial<SendBatchJob> = {}): SendBatchJob {
   return { workspaceId: WS, campaignId: "camp-1", audienceSnapshotId: "snap-1", sendIds: ["send-1"], ...overrides };
 }
 
-test("resume preserves its transition and reports a failed requeue without claiming delivery", async () => {
+test("resume preserves its transition and reports a failed requeue without claiming delivery", async (t) => {
+  const log = t.mock.method(console, "error", () => undefined);
   const rig = makeRig({ campaigns: [makeCampaign({ status: "paused", audienceSnapshotId: "snap-1" })] });
   await rig.sendRepo.save(makeSendRow());
-  rig.deps.outbox.enqueue = async () => { throw new Error("private provider failure"); };
+  rig.deps.outbox.enqueue = async () => { throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EIO" }); };
   const result = await resumeCampaign({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1" } });
   assert.deepEqual(result, { campaign: makeCampaign({ status: "sending", audienceSnapshotId: "snap-1" }), requeueFailed: true });
   assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "pending");
   assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.status, "sending");
+  assert.equal(log.mock.calls[0]?.arguments[0], "[newsletter] pending delivery requeue failed after resume; inspect the send log before retrying");
+  assert.match(String(log.mock.calls[0]?.arguments[1]), /Error/);
+  assert.match(String(log.mock.calls[0]?.arguments[1]), /EIO/);
+  assert.doesNotMatch(JSON.stringify(log.mock.calls.map(call => call.arguments)), /boom|SECRETSECRETSECRETSECRET/);
 });
 
 test("resume requeues every pending row of the frozen snapshot across ledger pages of 1000, each exactly once", async () => {

@@ -2,7 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { requestThemePreviewRefresh } from "#src/features/theme/preview-refresh";
 import { syncThemeRoster } from "#src/features/theme/theme-roster-sync";
 import { requireAdminSession, getAuthedPrincipal } from "../../admin-http/dev-auth.js";
-import { sendAdminFailure } from "../../admin-http/routes/system/site-share-errors.js";
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { RouteDeps } from "#src/server/routes/types";
 import { asyncRoute } from "../../shared/async-route.js";
 
@@ -111,9 +111,7 @@ export function registerThemePreviewRefresh(
       try {
         res.json(requestThemePreviewRefresh({ themesDir: deps.themesDir }));
       } catch (error) {
-        sendAdminFailure({ res, error }, { operation: "theme-preview-reload",
-          message: "Theme previews could not be refreshed.",
-          failure: { step: "Refresh theme previews", action: "Try refreshing the previews again. Copy details and report this problem if it still fails." } });
+        sendAdminFailure({ res, error }, { operation: "theme-preview:refresh", message: "The preview could not be reloaded." });
       }
     } }),
   );

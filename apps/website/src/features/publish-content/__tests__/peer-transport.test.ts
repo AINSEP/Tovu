@@ -702,14 +702,17 @@ test("a throwing history store preserves the successful remote apply and logs no
   const warnings: unknown[][] = [];
   t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
   const store = new InMemoryPublishHistoryStore();
-  store.recordSuccess = async () => { throw new Error(`database parameters: ${API_KEY}`); };
+  store.recordSuccess = async () => { throw Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EIO' }); };
   const result = { runId: "remote-run", report: { refused: false, rows: [] } };
   const http = new FakeHttpClient([{ match: /\/import\/execute$/, json: result }]);
   assert.deepEqual(await executePeerImport({ httpClient: http, credential: CREDENTIAL,
     publishHistory: { store, workspaceId: "source-ws", clock: { nowMs: () => 0 } },
   }, { bundleId: "b1", confirmationToken: "token" }), result);
   assert.equal(http.calls.length, 1);
-  assert.deepEqual(warnings, [["[publish-content] destination history write failed after remote apply", "Error"]]);
+  assert.equal(warnings[0]?.[0], "[publish-content] destination history write failed after remote apply");
+  assert.match(String(warnings[0]?.[1]), /Error/);
+  assert.match(String(warnings[0]?.[1]), /EIO/);
+  assert.doesNotMatch(JSON.stringify(warnings), /boom|SECRETSECRETSECRETSECRET/);
 });
 
 test("outbound failures, refusals and malformed success bodies never establish destinations", async () => {

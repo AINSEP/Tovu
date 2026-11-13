@@ -1,5 +1,5 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { ToolInputError } from '@jini-ai/core';
+import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
 import { isInVaultQueryScope, type VaultRecord, type VaultRepoPort } from '@jini-ai/platform/secrets/credential-sets';
 import type { KeyAttachments } from './attachments.js';
 
@@ -17,10 +17,8 @@ export function attachedOnlyVault({ vault, siteId, attachments }: {
     try {
       if (!await attachments.isAttached({ siteId, keyId: input.id })) return null;
       return await vault.find(input, options);
-    } catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      console.warn('[shared-keys] A granted key could not be read. Local keys remain available; retry Shared Keys. Details: P25_SHARED_READ_FAILED; secret values omitted.', errorDiagnostic);
+    } catch (error) {
+      console.warn('[shared-keys] A granted key could not be read. Local keys remain available; retry Shared Keys. Details: P25_SHARED_READ_FAILED; secret values omitted.', describeErrorForLog(error));
       return null;
     }
   };
@@ -47,10 +45,8 @@ export function attachedOnlyVault({ vault, siteId, attachments }: {
       try {
         const id = await keyForLabel({ siteId, label: input.label });
         return id ? await find({ workspaceId: input.workspaceId, id }) : null;
-      } catch (err) {
-        let errorDiagnostic = "[diagnostic unavailable]";
-        try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-        console.warn('[shared-keys] A granted key label could not be resolved. Reopen Use a saved key and retry. Details: P25_SHARED_LABEL_READ_FAILED; secret values omitted.', errorDiagnostic);
+      } catch (error) {
+        console.warn('[shared-keys] A granted key label could not be resolved. Reopen Use a saved key and retry. Details: P25_SHARED_LABEL_READ_FAILED; secret values omitted.', describeErrorForLog(error));
         return null;
       }
     } } : {}),

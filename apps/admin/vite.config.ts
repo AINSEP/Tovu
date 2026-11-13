@@ -6,6 +6,7 @@ import { defineConfig, type Plugin } from "vite";
 import { destroyClientWhenUpstreamCloses } from "./dev-proxy-upstream-close";
 import { isDevTlsExplicitlyDisabled } from "./dev-tls-disable-flag";
 import { adminJiniDependencyFingerprint } from "./dev-jini-deps";
+import { readJiniCoreVersion } from "./jini-core-version";
 
 // The admin SPA is served at /admin by the Tovu server in production builds.
 // In dev, Vite serves it at :5173 and proxies /api to the backend.
@@ -125,6 +126,7 @@ export default defineConfig({
   base: "/admin/",
   define: {
     __TOVU_ADMIN_VERSION__: JSON.stringify(adminPackageVersion),
+    __JINI_CORE_VERSION__: JSON.stringify(readJiniCoreVersion({ adminDir: __dirname })),
     // `__TOVU_ADMIN_DEV_PORT__` is NOT here: `injectAdminDevPort` supplies it from the resolved
     // `server.port`, so a CLI `--port` cannot leave the define disagreeing with the real bind.
   },

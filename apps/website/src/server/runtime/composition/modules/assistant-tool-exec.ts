@@ -1,5 +1,5 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { assistantDaemonToken, delegatedAssistantDaemonConnection, type AssistantDaemonConnection } from "../../lifecycle/assistant-daemon-connection.js";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 /**
  * @file The server end of the agent daemon's tool RPC (ADR-070, memory-savings plan §2.3-§2.4): the
  * daemon keeps the run, this process runs the site tools. `POST /internal/tool-executions` and
@@ -169,11 +169,7 @@ async function prepareAutomaticSitePlugins({ run, context, pinnedPrefix, plugins
   try {
     const automaticPrefix = await plugins.controller.start({ runId, messageId: run.messageId, context: pluginContext });
     return [pinnedPrefix, automaticPrefix].filter(Boolean).join("\n\n");
-  } catch (err) {
-    let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-    console.warn("[agent-plugins] automatic preflight unavailable", errorDiagnostic); return pinnedPrefix;
-  }
+  } catch (error) { console.warn("[agent-plugins] automatic preflight unavailable", describeErrorForLog(error)); return pinnedPrefix; }
 }
 
 /** Read metadata only after readiness, checking the live attempt across asynchronous boundaries.

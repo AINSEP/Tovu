@@ -153,6 +153,10 @@ export class EnvOrFileKeyring implements KeyringPort {
   }
 }
 
+export function isNoSiteKeyError(error: unknown): boolean {
+  return error instanceof Error && (error.message === "no site key" || error.message.startsWith("no site key: none of the configured sources resolved ("));
+}
+
 /** Candidate-key adapter supplies Tovu's immutable HKDF salt; no root material is persisted. */
 // Recovery checks a pasted/retained site key against sealed rows BEFORE writing it anywhere;
 // the candidate must derive exactly what the installed keyring would derive.

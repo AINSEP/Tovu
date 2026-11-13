@@ -41,6 +41,7 @@ function pollDelay({ currentVisibility, snapshot }: { currentVisibility: boolean
 export function useResources({ panelOpen }: ResourcesRequest, { ports = browserPorts, refreshKey }: { ports?: ResourcesPorts; refreshKey?: string } = {}) {
   const [snapshot, setSnapshot] = useState<ResourcesSnapshot | null>(null);
   const inFlight = useRef<Promise<ResourcesSnapshot | null> | null>(null);
+  const failing = useRef(false);
   useEffect(() => {
     const bridge = ports.getBridge();
     if (!bridge?.getResources) return undefined;
@@ -64,8 +65,12 @@ export function useResources({ panelOpen }: ResourcesRequest, { ports = browserP
       if (!active || ports.document.hidden) { pending = false; return; }
       const version = visibilityVersion;
       // Resolve failures locally: raw native/IPC messages may contain sensitive process details.
-      const request = Promise.resolve().then(() => getResources({ panelOpen })).catch((error: unknown) => {
-        console.error("[resources] Could not read resource usage", describeErrorForLog({ err: error }));
+      const request = Promise.resolve().then(() => getResources({ panelOpen })).then((result) => {
+        failing.current = false;
+        return result;
+      }).catch((error: unknown) => {
+        if (!failing.current) console.error("[resources] Could not read resource usage", describeErrorForLog({ err: error }));
+        failing.current = true;
         return null;
       });
       inFlight.current = request;

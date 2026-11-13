@@ -3,6 +3,9 @@ import type { DeclaredScript } from '@jini-ai/cookie-consent';
 import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
 import type { ConsentConfig } from '@jini-ai/cookie-consent';
 import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
+import { formatErrorForLog } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
+import { reportServerFailure } from '#src/server/inbound/admin-http/routes/system/site-share-errors';
 /** Public declared-script assets, published context, receipts and plugin admission.
  * Documents receive asset contributions during construction; public responses are never scanned. */
 import { createHash, randomBytes } from 'node:crypto';
@@ -38,9 +41,9 @@ function loadClient(_required = {}, { resolve = createRequire(import.meta.url).r
     const body = fs.readFileSync(resolve('@jini-ai/cookie-consent/client.min.js'));
     const hash = createHash('sha256').update(body).digest('hex').slice(0, 12);
     return { body, src: `${CONSENT_ENDPOINT}/client-${hash}.min.js` };
-  } catch (err) {
+  } catch (error) {
     let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog(err); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    try { errorDiagnostic = formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS); } catch { /* Keep the original failure path if diagnostics fail. */ }
     console.warn('[consent] The cookie preferences client could not be loaded. Its browser route is disabled.', errorDiagnostic);
     return undefined;
   }
@@ -98,10 +101,12 @@ function mountReceipts({ app, deps }: { app: Express; deps: RouteDeps }, _option
       } }, { regionMode: config.regionMode === 'opt-in' ? 'opt-in' : 'auto',
         allow: async () => (await limiter.check({ key: consentRateLimitKey({ address: resolveClientIp(req) }) })).allowed });
       res.status(response.status).set(Object.fromEntries(response.headers)).send(await response.text());
-    } catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog(err); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      console.error('[consent] save failed', errorDiagnostic); res.status(503).set('Cache-Control', 'no-store').json({ error: 'Your choice could not be saved. Try again.' });
+    } catch (error) {
+      let errorId: string | undefined;
+      try { ({ errorId } = reportServerFailure({ error, operation: 'consent:save' }, { tracker: res.locals.adminFailureTracker })); } catch { /* Keep the original failure path if diagnostics fail. */
+        console.error('[consent] save failed', '[diagnostic unavailable]');
+      }
+      res.status(503).set('Cache-Control', 'no-store').json({ error: 'Your choice could not be saved. Try again.', ...(errorId ? { errorId } : {}) });
     }
   });
 }
@@ -320,10 +325,12 @@ function mountContext({ app, consent }: { app: Express; consent: SiteCookieConse
         clearLegacyCookie({ req, res });
       }
       res.json({ enabled, policy: config.policyVersion, regionMode: config.regionMode === 'opt-in' ? 'opt-in' : 'auto' });
-    } catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog(err); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      console.error('[consent] public context unavailable', errorDiagnostic); res.status(503).json({ error: 'Cookie preferences could not be loaded. Wait a minute, then reload to try again.' });
+    } catch (error) {
+      let errorId: string | undefined;
+      try { ({ errorId } = reportServerFailure({ error, operation: 'consent:public-context' }, { tracker: res.locals.adminFailureTracker })); } catch { /* Keep the original failure path if diagnostics fail. */
+        console.error('[consent] public context unavailable', '[diagnostic unavailable]');
+      }
+      res.status(503).json({ error: 'Cookie preferences could not be loaded. Wait a minute, then reload to try again.', ...(errorId ? { errorId } : {}) });
     }
   });
 }
@@ -356,11 +363,12 @@ function mountStaticThemeLoader({ app, deps }: { app: Express; deps: RouteDeps }
         for(const attr of node.attributes)script.setAttribute(attr.name,attr.value);
         script.async=false;document.body.append(script);}
     })();`);
-    } catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog(err); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      console.error('[consent] static loader unavailable', errorDiagnostic);
-      res.status(503).type('text/javascript').set('Cache-Control', 'no-store').send('/* Cookie preferences could not be loaded. Wait a minute, then reload to try again. */');
+    } catch (error) {
+      let errorId: string | undefined;
+      try { ({ errorId } = reportServerFailure({ error, operation: 'consent:static-loader' }, { tracker: res.locals.adminFailureTracker })); } catch { /* Keep the original failure path if diagnostics fail. */
+        console.error('[consent] static loader unavailable', '[diagnostic unavailable]');
+      }
+      res.status(503).type('text/javascript').set('Cache-Control', 'no-store').send(`/* Cookie preferences could not be loaded. Wait a minute, then reload to try again.${errorId ? ` Reference: ${errorId}` : ''} */`);
     }
   });
 }
@@ -424,9 +432,9 @@ export function applySiteCookieConsent({ app, deps, consent }: { app: Express; d
   try {
     const extension = fs.readFileSync(path.join(path.dirname(resolve('@jini-ai/cookie-consent/client.min.js')), 'extensions.min.js'));
     app.get(EXTENSION_SRC, (_req, res) => { res.type('text/javascript').set('Cache-Control', 'public, max-age=60').send(extension); });
-  } catch (err) {
+  } catch (error) {
     let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog(err); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    try { errorDiagnostic = formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS); } catch { /* Keep the original failure path if diagnostics fail. */ }
     console.warn('[consent] The cookie preferences extensions could not be loaded. Their browser route is disabled.', errorDiagnostic);
   }
   mountStaticThemeLoader({ app, deps });

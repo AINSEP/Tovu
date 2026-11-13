@@ -4,6 +4,7 @@ import { decodeApiError } from "@jini-ai/protocol";
 import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { getAdminDraftIdentity } from "./admin-draft-identity";
+import { JINI_CORE_VERSION, TOVU_ADMIN_VERSION } from "./app-version";
 
 /** One retained incident for this admin instance; reset invalidates older in-flight requests. */
 export const adminFailureChannel = createFailureChannel({}, {});
@@ -75,6 +76,40 @@ export function publishAdminFailure(
   const cause = incidentCause({ status, errorId });
   const failure = approved ?? formatUserFacingError({ ...wording, step, cause }, {
     ...TOVU_ERROR_REDACTION_OPTIONS, errorId, time: new Date().toISOString(),
+    appVersion: `Tovu Admin ${TOVU_ADMIN_VERSION}`, jiniVersion: JINI_CORE_VERSION,
+  });
+  adminFailureChannel.publish({ failure, generation });
+}
+
+/** A browser refusing clipboard access (permission, unfocused page) is an expected refusal, not an
+ * incident: show inline text only. Any other clipboard-path throw is a defect and is published.
+ * @complexity O(1). */
+export function isClipboardRefusal(error: unknown): boolean {
+  return typeof DOMException !== "undefined" && error instanceof DOMException && error.name === "NotAllowedError";
+}
+
+/** The ONE way an admin action reports a failure that did not come from an API request (those are
+ * published by `lib/api.ts` already — never publish them again). Shows the shared notice with the
+ * plain explanation and a Copy details block: error ID, step, redacted cause, app + Jini version, time.
+ * Never call it for an expected refusal (bad input, refused link, clipboard refusal): show inline text.
+ * @param required.message - What failed, in plain words ("The menu embed code could not be copied.").
+ * @param required.action - What the user can do next.
+ * @param required.step - The step that failed, short ("Copy menu embed code").
+ * @param required.cause - The caught value, unmodified; the formatter redacts it.
+ * @param optional.generation - Capture `adminFailureChannel.getGeneration()` BEFORE an await so a
+ *   session/site switch drops a stale report; defaults to the current generation.
+ * @complexity Core redaction over the bounded cause; no I/O.
+ */
+export function publishLocalAdminFailure(
+  { message, action, step, cause }: { message: string; action: string; step: string; cause: unknown },
+  { generation = adminFailureChannel.getGeneration() }: { generation?: number } = {},
+): void {
+  const failure = formatUserFacingError({ message, action, step, cause }, {
+    ...TOVU_ERROR_REDACTION_OPTIONS,
+    errorId: crypto.randomUUID(),
+    appVersion: `Tovu Admin ${TOVU_ADMIN_VERSION}`,
+    jiniVersion: JINI_CORE_VERSION,
+    time: new Date().toISOString(),
   });
   adminFailureChannel.publish({ failure, generation });
 }

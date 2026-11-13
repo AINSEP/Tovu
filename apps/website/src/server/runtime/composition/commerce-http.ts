@@ -9,6 +9,7 @@ import { pageShell } from "#src/server/inbound/public-http/http/site/render";
 import { resolveRenderThemeId } from "#src/server/inbound/public-http/middleware/render-theme-override";
 import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";
+import { reportServerFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 
 /** Raw bytes must reach the signature verifier before the public JSON parser. O(1) mounting. */
 export function registerCommerceWebhooks({ app, deps }: { app: Express; deps: RouteDeps }, _optional = {}): void {
@@ -51,8 +52,9 @@ export function registerCommerceHttp({ app, deps }: { app: Express; deps: RouteD
       }
       res.locals.commerceStatus = status;
       storefront(req, res, next);
-    } catch {
-      res.status(503).type("html").send("<h1>The shop catalog is temporarily unavailable.</h1><p>Please try again shortly.</p>");
+    } catch (error) {
+      const { errorId } = reportServerFailure({ error, operation: "commerce:storefront" }, { tracker: res.locals.adminFailureTracker });
+      res.status(503).type("html").send(`<h1>The shop catalog is temporarily unavailable.</h1><p>Please try again shortly.</p><p>Reference: ${errorId}</p>`);
     }
   });
 }

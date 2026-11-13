@@ -17,6 +17,7 @@ import { bindSiteConsentService } from '#src/server/runtime/composition/site-con
 import { createNoopObservabilityPort } from '#src/platform/observability/index';
 import type { RouteDeps } from '#src/server/routes/types';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
+import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck, readSiteConsentPolicy, resolveSiteConsentOrigin } from '../site-consent.js';
 import { applySiteCookieConsent, readSiteVisitorConsent } from '../site-cookie-consent.js';
 
@@ -135,22 +136,31 @@ test('bound readiness counts site receipts and reports unavailable storage witho
 });
 
 test('a receipt write failure issues no cookie; foreign Origin is refused before storage work', async t => {
+  const errors = t.mock.method(console, 'error', () => undefined);
   const f = await policyFixture({ t });
   const blocker = path.join(f.directory, 'blocked-site');
   await fs.writeFile(blocker, 'not a directory');
   f.deps.siteBinding = { ...f.deps.siteBinding, dir: blocker };
-  const { base } = await mounted({ t, deps: f.deps });
-  const send = (origin: string) => fetch(base + '/_consent', { method: 'POST', headers: { origin, 'content-type': 'application/json' },
-    body: JSON.stringify({ action: 'accept', policy: f.policy }) });
+  const app = express();
+  const consent = f.deps.cookieConsent; assert.ok(consent, 'the fixture enables consent');
+  applySiteCookieConsent({ app, deps: f.deps, consent }, { client: CLIENT });
+  await consent.refresh?.();
+  const send = (origin: string) => dispatchHttpRequest({ app, method: 'POST', url: '/_consent', headers: { origin, 'content-type': 'application/json' },
+    body: Buffer.from(JSON.stringify({ action: 'accept', policy: f.policy })) });
   const foreign = await send('https://attacker.example');
   assert.equal(foreign.status, 403);
-  assert.equal(foreign.headers.get('set-cookie'), null);
+  assert.equal(foreign.headers['set-cookie'], undefined);
   assert.equal(await fs.readFile(blocker, 'utf8'), 'not a directory');
-  const failed = await send(base);
+  const failed = await send('http://localhost');
   assert.equal(failed.status, 503);
-  assert.equal(failed.headers.get('set-cookie'), null);
+  assert.equal(failed.headers['set-cookie'], undefined);
   assert.equal(await fs.readFile(blocker, 'utf8'), 'not a directory');
-  assert.deepEqual(await failed.json(), { error: 'Your choice could not be saved. Try again.' });
+  const body = JSON.parse(failed.body) as { error: string; errorId: string };
+  assert.equal(body.error, 'Your choice could not be saved. Try again.');
+  assert.match(body.errorId, /^[0-9a-f-]{36}$/);
+  const report = errors.mock.calls.find(call => call.arguments[0] === '[consent:save]');
+  assert.ok(report, 'the save failure is reported');
+  assert.equal((report.arguments[1] as { errorId: string }).errorId, body.errorId);
 });
 
 test('an explicit US grant without a valid durable receipt remains denied', async t => {

@@ -344,7 +344,7 @@ describe("openMcpUiLink", () => {
   it("refuses a javascript: URL — a View cannot run script in this admin origin via a rendered link", () => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
 
-    expect(() => openMcpUiLink({ url: "javascript:alert(document.cookie)" })).toThrow("The plugin link could not be opened. Ask the plugin provider for an HTTPS link or a path on this site.");
+    expect(() => openMcpUiLink({ url: "javascript:alert(document.cookie)" })).toThrow("This link is not a valid https:// address, so it was not opened.");
 
     expect(openSpy).not.toHaveBeenCalled();
   });
@@ -356,14 +356,14 @@ describe("openMcpUiLink", () => {
     "blob:https://admin.example.com/1234",
   ])("refuses a non-https URL: %s", (url) => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
-    expect(() => openMcpUiLink({ url })).toThrow("The plugin link could not be opened. Ask the plugin provider for an HTTPS link or a path on this site.");
+    expect(() => openMcpUiLink({ url })).toThrow("This link is not a valid https:// address, so it was not opened.");
     expect(openSpy).not.toHaveBeenCalled();
   });
 
   it("reports an unparseable URL to the host", () => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
 
-    expect(() => openMcpUiLink({ url: "not a url" })).toThrow("The plugin link could not be opened. Ask the plugin provider for an HTTPS link or a path on this site.");
+    expect(() => openMcpUiLink({ url: "not a url" })).toThrow("This link is not a valid https:// address, so it was not opened.");
     expect(openSpy).not.toHaveBeenCalled();
   });
 
@@ -385,7 +385,7 @@ describe("openMcpUiLink", () => {
   it("refuses a protocol-relative URL — it names another host, not an in-app path", () => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
 
-    expect(() => openMcpUiLink({ url: "//evil.example.com/x" })).toThrow("The plugin link could not be opened. Ask the plugin provider for an HTTPS link or a path on this site.");
+    expect(() => openMcpUiLink({ url: "//evil.example.com/x" })).toThrow("This link is not a valid https:// address, so it was not opened.");
 
     expect(openSpy).not.toHaveBeenCalled();
   });

@@ -1,6 +1,9 @@
 import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
+import ts from "typescript";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import express from "express";
 import { createRouteDeps } from "../../app.js";
 import { ensureToolExecToken } from "#src/assistant/daemon-access";
@@ -12,6 +15,26 @@ import path from "node:path";
 import { createTempSiteLayoutFixture } from "#src/__tests__/fixtures/site-layout-context";
 import { resolveAgentPluginRefs } from "#src/features/agent-plugins/lifecycle";
 import { createAssistantByokModule } from "../assistant-byok.js";
+
+test("preflight keeps pinned guidance when its credential-bearing controller fails", async (t) => {
+  const source = ts.createSourceFile("assistant-tool-exec.ts", readFileSync(new URL("../assistant-tool-exec.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);
+  const declaration = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "prepareAutomaticSitePlugins");
+  assert.ok(declaration, "the preflight function exists");
+  const code = ts.transpileModule(`return (${declaration.getText(source)});`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
+  const warnings = t.mock.method(console, "warn", () => undefined);
+  const prepare = new Function("delegatedAssistantDaemonConnection", "getAgentDef", "describeErrorForLog", code)(
+    () => ({ token: "private", url: "http://localhost" }), () => undefined, describeErrorForLog,
+  );
+  const result = await prepare({ run: { runId: "run", principalId: "owner", conversationId: "chat", request: {} },
+    context: { pluginRefIds: [], prompt: "question" }, pinnedPrefix: "pinned guidance", res: { once() {} }, lookup: async () => undefined,
+    plugins: { controller: { start: async () => { throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EIO" }); }, forget() {} }, emit: async () => {} },
+  });
+  assert.equal(result, "pinned guidance");
+  assert.equal(warnings.mock.calls[0]?.arguments[0], "[agent-plugins] automatic preflight unavailable");
+  assert.match(String(warnings.mock.calls[0]?.arguments[1]), /Error/);
+  assert.match(String(warnings.mock.calls[0]?.arguments[1]), /EIO/);
+  assert.doesNotMatch(JSON.stringify(warnings.mock.calls.map(call => call.arguments)), /boom|SECRETSECRETSECRETSECRET/);
+});
 
 test("plugin preflight uses the site's live run identity and releases terminal consent", async t => {
   const deps = createRouteDeps();

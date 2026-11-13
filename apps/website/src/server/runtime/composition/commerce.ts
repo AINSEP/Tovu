@@ -1,5 +1,7 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { ToolRegistration } from '@jini-ai/core';
+import { formatErrorForLog } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
+import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
 import type { AuthorizeFn } from '@jini-ai/cms/core';
 import { buildRegistrations as buildCommerceStatusTools, buildCommerceCatalogRegistrations } from '@jini-ai/commerce/tools';
 import { buildCommerceResolutionRegistrations, type CommerceResolutionToolsRequired } from '@jini-ai/commerce/payments/tools';
@@ -76,10 +78,8 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   let activationUnreadable = false;
   async function isActive(): Promise<boolean> {
     try { const active = await enabled('commerce'); activationUnreadable = false; return active; }
-    catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      if (!activationUnreadable) warn(`Commerce activation cannot be confirmed. Checkout is paused; existing payments continue draining. Re-enable Commerce through plugin settings once activation storage is available. Details: ${errorDiagnostic}.`);
+    catch (error) {
+      if (!activationUnreadable) warn(`Commerce activation cannot be confirmed. Checkout is paused; existing payments continue draining. Re-enable Commerce through plugin settings once activation storage is available. Cause: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`);
       activationUnreadable = true; return false;
     }
   }
@@ -236,11 +236,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
       if (await isActive()) { const current = await resolve(); if (current) await current.server.activate(); }
       else if (storageReady) await ensurePaymentSchema();
       if (storageReady) { await resolve(); await worker.kick(); }
-    } catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      warn(`Commerce is unavailable; the rest of the site remains online. Details: ${errorDiagnostic}.`);
-    }
+    } catch (error) { warn(`Commerce is unavailable; the rest of the site remains online. Cause: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`); }
   }
   async function quarantinedOrder({ tx, scope, row }: { tx: LedgerTx; scope: LedgerKeyScope; row: QuarantineRecord }): Promise<string | null> {
     const payment = row.paymentId ? await tx.getPayment({ ...scope, id: row.paymentId }) : null;
@@ -279,7 +275,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
         const webhookUrl = `${new URL(current.config.publicOrigin).origin}/api/payments/webhooks/${encodeURIComponent(required.siteId)}/${current.config.providerId}/${current.config.mode}`;
         const checkoutOrigin = new URL(current.config.publicOrigin).origin;
         return problem ? { ...status, ready: false, reason: problem, webhookUrl, checkoutOrigin } : { ...status, webhookUrl, checkoutOrigin }; }
-        catch { return { active: false, ready: false, reason: 'Commerce configuration could not be read; checkout is unavailable while the site remains online.' }; }
+        catch (error) { console.warn('[commerce] Commerce configuration could not be read; checkout remains unavailable.', describeErrorForLog(error)); return { active: false, ready: false, reason: 'Commerce configuration could not be read; checkout is unavailable while the site remains online.' }; }
   }
   const warming = warm();
   const commerce: CommerceRuntime = {
@@ -302,7 +298,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
       readOrder: async input => readOwnedCommerceOrder({ deps: { workspaceId: required.workspaceId, siteId: required.siteId, orders, orderPayments, payments: sharedPayments }, input }),
       activate: async () => { const status = await (await checkoutServer()).activate(); if (status.ready) { void worker.kick(); } return status; },
       status: async () => { try { return { ...await readStatus(), needsAttention: await needsAttention() }; }
-        catch { return { active: false, ready: false, reason: 'Commerce configuration could not be read; checkout is unavailable while the site remains online.' }; } },
+        catch (error) { console.warn('[commerce] Commerce status could not be read; checkout remains unavailable.', describeErrorForLog(error)); return { active: false, ready: false, reason: 'Commerce configuration could not be read; checkout is unavailable while the site remains online.' }; } },
       // Disabled storefront admission reads only plugin activation; operator status keeps drain details.
       storefrontStatus: async () => await isActive() ? readStatus() : { active: false, ready: false, reason: null },
       checkoutOrigin: async () => { const current = await resolve(); return current ? new URL(current.config.publicOrigin).origin : null; },
@@ -333,22 +329,14 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
       listProducts: async (_input = {}, options = {}) => {
         try {
           if (!await catalogAvailable(options.readiness)) return [];
-          return catalog.listProducts({});
-        } catch (err) {
-          let errorDiagnostic = "[diagnostic unavailable]";
-          try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-          warn(`The product catalog could not be listed; the rest of the site remains online. Details: ${errorDiagnostic}.`); return [];
-        }
+          return await catalog.listProducts({});
+        } catch (error) { warn(`The catalog is unavailable; the rest of the site remains online. Cause: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`); return []; }
       },
       findProduct: async (input, options = {}) => {
         try {
           if (!await catalogAvailable(options.readiness)) return null;
-          return catalog.findProduct(input);
-        } catch (err) {
-          let errorDiagnostic = "[diagnostic unavailable]";
-          try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-          warn(`The product catalog could not find this product; the rest of the site remains online. Details: ${errorDiagnostic}.`); return null;
-        }
+          return await catalog.findProduct(input);
+        } catch (error) { warn(`The catalog is unavailable; the rest of the site remains online. Cause: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`); return null; }
       },
     },
     // Schema failures are reported by the operation that started migration; close only waits for it.

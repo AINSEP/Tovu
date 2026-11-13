@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { ToolInputError } from '@jini-ai/core';
+import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
 import { createDeployHostKit } from '../deploy-targets/host-kit.js';
 import type { DeployTargetInspection } from '../deploy-targets/types.js';
 import type { FormDestinationForm } from '#src/features/form-destinations/types';
@@ -70,7 +71,8 @@ async function resolveInspectionCredential({ deps, input }: { deps: StaticPublis
   try {
     return await deps.credentialSource.resolve({ workspaceId: input.workspaceId, target: input.config.target,
       ...(input.credentialId !== undefined ? { credentialId: input.credentialId } : {}) });
-  } catch {
+  } catch (error) {
+    console.warn('[static-publish] saved connection could not be resolved for inspection', describeErrorForLog(error));
     throw new ToolInputError({ message: 'CREDENTIAL_RESOLUTION_FAILED: The saved connection could not be opened. Reopen the secure connection form and select or repair it before previewing again.' });
   }
 }

@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
 import { admittedToolSources, stopRunsForToolAccessChange, type ToolAccessRun, type ToolAccessChange } from '@jini-ai/daemon';
 import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "#src/contracts/core/assistant-content-guidance";
@@ -12,8 +11,10 @@ import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/index";
 import { CREDENTIAL_GUIDANCE, CREDENTIAL_PASTE_MODEL_NOTE } from "#src/assistant/credential-guidance";
 import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
 import { guardUserText } from "@jini-ai/chat/core";
-import { prepareByokMessageAttachments } from "#src/server/inbound/assistant/byok-message-attachments";
-import { createContributionRegistry } from "@jini-ai/core";
+import { AttachmentUnavailableError, prepareByokMessageAttachments } from "#src/server/inbound/assistant/byok-message-attachments";
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { createContributionRegistry, formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { ToolContributor, DerivedToolContributor } from "@jini-ai/core";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { createAccessApprover } from "#src/assistant/tool-registrations";
@@ -463,8 +464,9 @@ async function attachTurnMessagesOrRespond({ attachmentIds, messages, principalI
       const last = messages[messages.length - 1];
       if (!last) throw new Error("assistant attachment preparation has no message");
       messages[messages.length - 1] = { ...last, content: last.content + prepared.notice, images: prepared.images };
-    } catch {
-      res.status(400).json({ error: "Attachment is unavailable. Reattach it before sending.", code: "VALIDATION_ERROR" });
+    } catch (error) {
+      if (error instanceof AttachmentUnavailableError) res.status(400).json({ error: "Attachment is unavailable. Reattach it before sending.", code: "VALIDATION_ERROR" });
+      else sendAdminFailure({ res, error }, { operation: "assistant-byok:attachments", message: "The attachment could not be prepared." });
       return false;
     }
   }
@@ -669,11 +671,7 @@ export function createAssistantByokModule(
         publish: async value => { sse(res, 'agent', { type: 'agent_plugins', ...value }); },
       } });
       if (guidance) system += `\n\n${guidance}`;
-    } catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      console.warn('[agent-plugins] automatic BYOK preflight unavailable', errorDiagnostic);
-    }
+    } catch (error) { console.warn('[agent-plugins] automatic BYOK preflight unavailable', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
 
     return system;
   }

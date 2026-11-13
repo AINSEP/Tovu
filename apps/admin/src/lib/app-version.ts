@@ -10,3 +10,6 @@
  * labelled accordingly rather than implying more than it is.
  */
 export const TOVU_ADMIN_VERSION = __TOVU_ADMIN_VERSION__;
+
+/** The installed `@jini-ai/core` version, reported in every "Copy details" block. */
+export const JINI_CORE_VERSION = __JINI_CORE_VERSION__;

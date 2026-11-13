@@ -108,7 +108,7 @@ export async function revokeSiteShare(required: { registry: SiteShareRegistry; s
   const row = await required.registry.disable(required);
   if (!row) throw new SiteShareRefusal({ code: "NOT_FOUND", message: "Share not found for this site." });
   try { await required.registry.deleteArtifact({ shareId: row.shareId }); }
-  catch { throw new SiteShareRefusal({ code: "DELETE_FAILED", message: "Share token is disabled but its ZIP could not be deleted. Retry revoke." }); }
+  catch (error) { throw new SiteShareRefusal({ code: "DELETE_FAILED", message: "Share token is disabled but its ZIP could not be deleted. Retry revoke." }, { cause: error }); }
   if (row.storage && !isOwnShareFolder({ storage: row.storage })) await deleteRemoteArtifact({ row, storage: row.storage }, { delivery: optional.delivery });
   return row;
 }
@@ -120,7 +120,7 @@ async function deleteRemoteArtifact(required: { row: SiteShareRecord; storage: N
     await delivery.store.delete({ key: storage.key });
     const url = required.row.url ?? storage.url;
     if (url && !await delivery.store.verify({ key: storage.key, url, present: false })) throw new Error("purge unverified");
-  } catch { throw new SiteShareRefusal({ code: "DELETE_FAILED", message: "Share is disabled locally but remote deletion/purge is not verified. Retry revoke." }); }
+  } catch (error) { throw new SiteShareRefusal({ code: "DELETE_FAILED", message: "Share is disabled locally but remote deletion/purge is not verified. Retry revoke." }, { cause: error }); }
 }
 
 /** Acknowledge this immutable archive, then reuse its original delivery lifecycle. Public uploads

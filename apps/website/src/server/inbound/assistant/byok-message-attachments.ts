@@ -1,6 +1,8 @@
 import { prepareMessageAttachments } from "@jini-ai/daemon";
 import { readChatAttachmentForOwner, type ChatAttachmentReadResult, sniffContentType } from "#src/features/media/index";
 
+export class AttachmentUnavailableError extends Error {}
+
 /** CMS authorization adapter for the same byte preparation used by daemon runs. A preview read
  * does not claim files: BYOK is request-scoped and has no daemon run to own their cleanup.
  * `uploadDirectory` is the booted site's `RouteDeps.siteStoragePaths.chatAttachmentsDir`, passed in
@@ -13,7 +15,7 @@ export function prepareByokMessageAttachments(
 ) {
   return prepareMessageAttachments({ refs, read: async ({ ref }) => {
     const result = await read({ ref, ownerId: principalId });
-    if (!result.ok) throw new Error("Attachment is unavailable. Reattach it before sending.");
+    if (!result.ok) throw new AttachmentUnavailableError("Attachment is unavailable. Reattach it before sending.");
     return { name: ref, bytes: result.bytes, mimeType: sniffContentType({ bytes: result.bytes }) };
   } }, {});
 }

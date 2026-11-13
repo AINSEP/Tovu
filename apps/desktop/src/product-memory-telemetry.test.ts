@@ -192,3 +192,35 @@ test('telemetry keeps raw RSS when the display switches between footprint and fa
   assert.deepEqual(project(), before);
   f.memory.dispose();
 });
+
+test('sampling failures log once per streak, reset on success, and redact the cause', async (t) => {
+  const f = fixture();
+  const snapshot = await f.monitor.get({ panelOpen: false });
+  f.memory.dispose();
+  let failing = true;
+  let consent: ProductConsent = { crashes: true, usage: true, installationId: 'FAKE_INSTALL' };
+  const logs: unknown[][] = [];
+  t.mock.method(console, 'error', (...args: unknown[]) => { logs.push(args); });
+  const memory = startProductMemoryTelemetry({
+    monitor: { get: async () => {
+      if (failing) throw new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET');
+      return snapshot;
+    } },
+    tracker: createNoopTracker({}), readConsent: () => consent,
+    desktopPid: 1, rendererPids: () => new Set(), heapUsedBytes: () => 0, uptime: () => 0,
+  }, { schedule: () => () => {} });
+  await memory.tick(); await memory.tick();
+  assert.equal(logs.length, 1, 'only the first failure in a streak is logged');
+  const firstLog = logs[0]?.join(' ') ?? '';
+  assert.match(firstLog, /\[desktop\] Could not sample memory/);
+  assert.match(firstLog, /boom/);
+  assert.match(firstLog, /product-memory-telemetry\.test\.ts/);
+  assert.doesNotMatch(firstLog, /SECRETSECRETSECRETSECRET/);
+  consent = { crashes: false, usage: false, installationId: null }; await memory.tick();
+  consent = { crashes: true, usage: true, installationId: 'FAKE_INSTALL' }; await memory.tick();
+  assert.equal(logs.length, 1, 'a skipped sample does not end a failure streak');
+  failing = false; await memory.tick();
+  failing = true; await memory.tick(); await memory.tick();
+  assert.equal(logs.length, 2, 'a successful sample starts a new failure streak');
+  memory.dispose();
+});

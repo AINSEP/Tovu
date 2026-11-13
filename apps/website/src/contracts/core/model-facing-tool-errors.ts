@@ -44,10 +44,18 @@ export function forbiddenRule(domainPrefix: string): ModelFacingErrorRule {
  * Use it wherever the raw message could carry a credential. Where a class's message is designed for
  * logs (`EgressRefusedError.message`), log that instead.
  *
+ * Never throws, so call it directly inside a catch block (no try/catch guard around it). Jini
+ * core's own `describeErrorForLog` is total from the release after 0.7.1; the guard here covers
+ * the installed 0.7.x and can be deleted once Tovu depends on that release.
+ *
  * @param err - The caught value.
  * @returns e.g. `SqliteError(SQLITE_BUSY)`, or `TypeError cause=Error(ECONNREFUSED)`.
  * @complexity O(1).
  */
 export function describeErrorForLog(err: unknown): string {
-  return describeSharedErrorForLog({ err });
+  try {
+    return describeSharedErrorForLog({ err });
+  } catch {
+    return "[diagnostic unavailable]";
+  }
 }

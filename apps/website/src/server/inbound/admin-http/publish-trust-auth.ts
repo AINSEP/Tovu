@@ -13,7 +13,7 @@ import { admitPublish, type RevocationRead } from "#src/features/publish-trust/r
 import { publishPrincipalIdFor } from "#src/features/publish-trust/keys";
 import { verifyPublishSession } from "#src/features/publish-trust/session";
 import type { GatewayDeps } from "#src/contracts/core/gated-mutations/gateway";
-import type { KeyringPort } from "#src/features/webhooks/index";
+import { isNoSiteKeyError, type KeyringPort } from "#src/features/webhooks/index";
 
 /**
  * @file Zero-setup publishing auth — the destination-side gate.
@@ -225,7 +225,7 @@ function acceptedKeyFor(
 export function requirePublishTrust(deps: PublishTrustAuthDeps) {
   const targetInstallationId = deps.targetInstallationId.catch((error: unknown) => {
     // A site without a configured key is an ordinary state, not a boot failure.
-    if (error instanceof Error && (error.message === "no site key" || error.message.startsWith("no site key: none of the configured sources resolved ("))) return null;
+    if (isNoSiteKeyError(error)) return null;
     console.error("[publish-trust] Could not derive the site's publishing identity:",
       describeErrorForLog(error));
     return null;
@@ -255,7 +255,7 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
       { token, expectedAudience: installationId }
     ).catch((error: unknown) => {
       // Losing the site key is also a normal unconfigured state after boot.
-      if (error instanceof Error && (error.message === "no site key" || error.message.startsWith("no site key: none of the configured sources resolved ("))) return null;
+      if (isNoSiteKeyError(error)) return null;
       console.error("[publish-trust] Could not verify the publishing session:",
         describeErrorForLog(error));
       return null;

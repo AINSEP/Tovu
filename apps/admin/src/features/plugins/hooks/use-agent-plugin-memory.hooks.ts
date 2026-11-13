@@ -1,13 +1,8 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
-import { formatUserFacingError } from "@jini-ai/core";
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
-import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { adminFailureChannel } from "@/lib/admin-failure-channel";
-import { uniqueId } from "@/lib/unique-id";
-import { TOVU_ADMIN_VERSION } from "@/lib/app-version";
+import { describeApiError } from "@/lib/api";
 import { t as translate } from "../plugins-memory-i18n";
 import { defaultAgentPluginMemoryPort } from "./agent-plugin-memory-dependencies.hooks";
 import type { AgentPluginMemoryPort, PluginMemoryListing } from "./agent-plugin-memory-port.hooks";
@@ -72,27 +67,12 @@ export function useAgentPluginMemory(required: { pluginId: string; port: AgentPl
     if (saving.current || !listing || hydrated.current !== pluginId) return;
     saving.current = true;
     const requestGeneration = generation.current;
-    const failureGeneration = adminFailureChannel.getGeneration();
-    const previousFailure = adminFailureChannel.getSnapshot();
     setSavingId(pluginId);
     try {
       const response = await write.mutate({ input: { pluginId, entryPath: current.entryPath, text: current.text } });
       if (generation.current !== requestGeneration) return;
       loader.replace({ value: response }); setStatus({ pluginId, message: t("Note saved.") });
-    } catch (error) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err: error }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      if (generation.current === requestGeneration) {
-        const message = t("The plugin note could not be saved.");
-        const action = t("Check whether the note was saved before trying again.");
-        setStatus({ pluginId, message: `${message} ${action}` });
-        if (adminFailureChannel.getSnapshot() === previousFailure) {
-          adminFailureChannel.publish({ generation: failureGeneration, failure: formatUserFacingError({
-            message, action, step: "Save plugin note", cause: errorDiagnostic,
-          }, { ...TOVU_ERROR_REDACTION_OPTIONS, errorId: uniqueId(), appVersion: `Tovu Admin ${TOVU_ADMIN_VERSION}`, time: new Date().toISOString() }) });
-        }
-      }
-    }
+    } catch (error) { if (generation.current === requestGeneration) setStatus({ pluginId, message: describeApiError(error, t("Could not save note.")) }); }
     finally { saving.current = false; setSavingId(null); }
   };
   return { t, listing, entryPath: current.entryPath, text: current.text, setPath, setText, save,

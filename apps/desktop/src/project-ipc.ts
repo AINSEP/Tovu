@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { withFileLock as withDirectoryFileLock } from "@jini-ai/platform/fs";
 import { createSitesWorkspace, shareSiteDirectories, type SitesWorkspace } from "./shared-sites.ts";
 import { ensureIndependentSiteIdentity, type SiteIdentityOptions } from "./site-directory-identity.ts";
@@ -24,7 +23,8 @@ import { ensureIndependentSiteIdentity, type SiteIdentityOptions } from "./site-
  * no real Electron, no real `tovu serve` child, no real filesystem beyond what a test points it at.
  */
 import { createRespawnPolicy } from "@jini-ai/sidecar/respawn-policy";
-import { redactSecrets } from "@jini-ai/core";
+import { formatErrorForLog, redactSecrets } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { SITE_SLEEP_EXIT_CODE } from "../../website/src/assistant/daemon-exit-codes.ts";
 import { readIdleSiteSleepMinutes } from "./site-view-preference.ts";
 import type { ResourcesSnapshot } from "./contracts/resources.ts";
@@ -39,6 +39,7 @@ import { siteNameError } from "./contracts/site-name.ts";
 import type { SiteFoldersPort } from "./site-folders.ts";
 import type { SiteArchiveSource } from "./site-archive-import.ts";
 import type { SiteRecord } from "./contracts/project.ts";
+import { PROJECT_NOT_OPEN_MESSAGE } from "./contracts/project.ts";
 import type { ExternalSiteStopper } from "./external-site-stop.ts";
 import { registerIdleSiteSleepIpc } from "./site-view-preference.ts";
 
@@ -550,11 +551,7 @@ export function importSharedSiteDiscovery(
     const rows = readTrackedSites(projectsPath);
     if (rows.length) shareSiteDirectories({ workspace: sharedSites, dirs: rows.map((row) => row.siteDir), createdBy: "desktop-legacy", migration: `projects:${projectsPath}` });
     adoptWithUniqueNames({ deps: { projectsPath, readSiteName }, siteDirs: sharedSites.registry({}).list({}).map((entry) => entry.path) });
-  } catch (err) {
-    let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-    console.warn("tovu desktop: shared discovery is unavailable; showing local website cards.", errorDiagnostic);
-  }
+  } catch (error) { console.warn("tovu desktop: shared discovery is unavailable; showing local website cards.", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
 }
 
 /**
@@ -785,11 +782,7 @@ function recordCreatedSite(
   // Remember the created site's parent beyond MRU eviction/card
   // removal, so a site created beside it by the CLI or web admin can appear on the next scan.
   try { deps.siteFolders?.rememberCreated({ siteDir }); }
-  catch (err) {
-    let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-    console.warn("tovu desktop: could not remember the created website folder; the website was created successfully.", errorDiagnostic);
-  }
+  catch (error) { console.warn("tovu desktop: could not remember the created website folder; the website was created successfully.", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
   rememberSiteName({ projectsPath: deps.projectsPath, siteDir, displayName });
   const displayNameAlias = displayName !== deps.readSiteName(siteDir) ? displayName : undefined;
   rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias });
@@ -1106,11 +1099,7 @@ function assertNoOtherServer(
  */
 function removeFromSharedCatalog({ id, sharedSites }: { id: string; sharedSites: SitesWorkspace | undefined }, _options = {}): void {
   try { sharedSites?.registry({}).remove({ path: id }); }
-  catch (err) {
-    let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-    console.warn("tovu desktop: could not remove the erased website from the shared catalog.", errorDiagnostic);
-  }
+  catch (error) { console.warn("tovu desktop: could not remove the erased website from the shared catalog.", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
 }
 
 /** Remove this process's stopped handle and close its window before folder deletion.
@@ -1289,7 +1278,7 @@ function retitleOpenSite(
 async function handleOpenExternal(input: OpenSiteSurfaceInput, deps: Pick<ProjectIpcDeps, "openSites" | "shell">): Promise<void> {
   const openEntry = deps.openSites.get(input.siteId);
   if (openEntry === undefined) {
-    throw new Error("That project is not open. Open it first, then try again.");
+    throw new Error(PROJECT_NOT_OPEN_MESSAGE);
   }
   const url = `${openEntry.server.origin}${input.view === "site" ? "/" : "/admin/"}`;
   await deps.shell.openExternal(url);

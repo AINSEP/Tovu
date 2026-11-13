@@ -95,7 +95,7 @@ function record(value: unknown): value is Record<string, unknown> {
 function eventsFrom(json: string): Record<string, unknown>[] {
   let value: unknown;
   try { value = JSON.parse(json); }
-  catch { throw new PackagedChatSmokeError("chat.db contains invalid event JSON."); }
+  catch (error) { throw new PackagedChatSmokeError("chat.db contains invalid event JSON.", { cause: error }); }
   if (!Array.isArray(value) || !value.every(record)) throw new PackagedChatSmokeError("chat.db contains invalid events.");
   return value;
 }

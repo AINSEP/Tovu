@@ -4,6 +4,7 @@ import { findTheme, renderStaticPage, renderStaticPartial, type DiscoveredTheme 
 import { listPublishedPosts } from "#src/features/post/index";
 import { authorizeThemeSetPermission } from "../../admin-http/routes/themes/explore.js";
 import { requireAdminSession } from "../../admin-http/dev-auth.js";
+import { reportServerFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { RouteDeps } from "#src/server/routes/types";
 import { renderSite, type SiteProduct } from "../http/site/render.js";
 import {
@@ -250,8 +251,9 @@ export function registerThemePagePreview(app: Express, deps: RouteDeps): void {
 
         // Never cached, same reasoning as the two static-tier routes above.
         res.set("Cache-Control", "no-store").type("html").send(html);
-      } catch {
-        res.status(500).type(PLAIN_TEXT).send("preview render failed");
+      } catch (error) {
+        const { errorId } = reportServerFailure({ error, operation: "theme-preview:render" }, { tracker: res.locals.adminFailureTracker });
+        res.status(500).type(PLAIN_TEXT).send(`The preview could not be rendered. Reload the preview; if it keeps failing, report error ${errorId}.`);
       }
     }
   );

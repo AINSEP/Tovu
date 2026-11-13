@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** @file Region readers and browser bridges for cookie consent, contributed as DATA by active plugins in
  * {@link CONSENT_CONTRIBUTIONS_FILENAME} (schema 2: one open `contributions` list of `{ kind, id, … }`).
  * Core names no host. Only the configured ingress plugin may contribute trusted region readers: a
@@ -7,6 +6,8 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
  *
  * Trust: data-only (no plugin code runs) and loaded for ACTIVE plugins only, so switching a host
  * plugin off stops trusting its header. Kinds this file doesn't know are skipped, not refused. */
+import { formatErrorForLog } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { consentBridgeContribution, declaredScriptsContribution, parseConsentContributions as parseConsentFile } from '@jini-ai/cookie-consent/plugins';
 import { REGION_SLOT } from '@jini-ai/cookie-consent/server';
 import type { DeclaredScript, RawContribution, RegionResolver } from '@jini-ai/cookie-consent';
@@ -53,11 +54,7 @@ export async function loadSiteRegionResolvers(
     try {
       const load = await loadContributions({ workspaceId, definition: regionContribution }, { requireActive: true });
       entries = load.items.flatMap(item => (item.pluginId === ingress ? [item.entry] : []));
-    } catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      console.error('[consent] region readers could not be loaded; visitors get the strict banner', errorDiagnostic);
-    }
+    } catch (error) { console.error('[consent] region readers could not be loaded; visitors get the strict banner', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
   }
   return toRegionResolvers({ entries }, { legacyHeader });
 }
@@ -74,10 +71,8 @@ export async function loadSiteConsentBridges(
       const bridge = consentBridgeContribution({ entry });
       return bridge ? [bridge] : [];
     });
-  } catch (err) {
-    let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-    console.error('[consent] browser bridges could not be loaded', errorDiagnostic);
+  } catch (error) {
+    console.error('[consent] browser bridges could not be loaded', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
     return [];
   }
 }

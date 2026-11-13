@@ -1,7 +1,8 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Tovu's folder/filenames; generic resolution, locking and registry policy belong to Jini. */
 import fs from "node:fs";
 import { createHash } from "node:crypto";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { DirectoryRecord } from "@jini-ai/platform/fs";
 import os from "node:os";
 import path from "node:path";
@@ -171,10 +172,8 @@ export function shareSiteDirectories(
     // Missing-volume MRU entries are retried after remount; do not certify an incomplete import.
     if (migration && !unavailable) registry.merge({ entries: [], migration });
     return registry.list({});
-  } catch (err) {
-    let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-    report(`tovu desktop: shared catalog bookkeeping is unavailable; local websites remain usable. Details: ${errorDiagnostic}.`);
+  } catch (error) {
+    report(`tovu desktop: shared catalog bookkeeping is unavailable; local websites remain usable. Cause: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`);
     return [];
   }
 }
@@ -218,9 +217,5 @@ export function attachRunningSite({ workspace, dir }: { workspace: SitesWorkspac
 export function rememberSharedSiteOpen({ workspace, dir }: { workspace: SitesWorkspace; dir: string }, _options = {}): void {
   shareSiteDirectories({ workspace, dirs: [dir], createdBy: "Desktop" });
   try { workspace.registry({}).opened({ path: dir, at: new Date().toISOString() }); }
-  catch (err) {
-    let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-    console.warn("tovu desktop: could not remember the opened website in the shared catalog.", errorDiagnostic);
-  }
+  catch (error) { console.warn("tovu desktop: could not remember the opened website in the shared catalog.", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
 }

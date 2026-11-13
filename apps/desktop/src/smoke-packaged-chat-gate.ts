@@ -270,7 +270,7 @@ function readEvidence(ctx: GateContext, siteDir: string, runId: string): Package
   });
   if (result.error || result.status !== 0) throw new PackagedChatSmokeError("Unable to read chat.db with packaged SQLite.");
   try { return JSON.parse(result.stdout) as PackagedChatEvidence | null; }
-  catch { throw new PackagedChatSmokeError("Packaged SQLite returned invalid evidence JSON."); }
+  catch (error) { throw new PackagedChatSmokeError("Packaged SQLite returned invalid evidence JSON.", { cause: error }); }
 }
 
 /** Boot the shipped server against a fresh scratch site; partial-start children are torn down here. */

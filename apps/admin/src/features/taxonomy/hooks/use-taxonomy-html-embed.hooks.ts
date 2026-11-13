@@ -1,10 +1,6 @@
 import { useState } from "react";
-import { formatUserFacingError } from "@jini-ai/core";
-import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { AdminTaxonomy, AdminTaxonomyWithTerms } from "@/lib/api";
-import { adminFailureChannel } from "@/lib/admin-failure-channel";
-import { uniqueId } from "@/lib/unique-id";
-import { TOVU_ADMIN_VERSION } from "@/lib/app-version";
+import { adminFailureChannel, isClipboardRefusal, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
 import { taxonomyHtmlEmbed } from "../html-rules";
 
 /** Copy follows Forms' saved-identity and visible-feedback contract; clipboard is a swappable port. */
@@ -19,12 +15,14 @@ export function useTaxonomyHtmlEmbed(
       await (clipboard ?? navigator.clipboard).writeText(taxonomyHtmlEmbed({ taxonomy, taxonomies: (taxonomies ?? []).map((group) => group.taxonomy) }));
       setCopyFeedback(t("Copied!"));
     } catch (error) {
-      const message = t("The taxonomy HTML embed could not be copied.");
-      const action = t("Check your browser's clipboard permissions and try again.");
-      setCopyFeedback(`${message} ${action}`);
-      adminFailureChannel.publish({ generation: failureGeneration, failure: formatUserFacingError({
-        message, action, step: "Copy taxonomy HTML embed", cause: error,
-      }, { ...TOVU_ERROR_REDACTION_OPTIONS, errorId: uniqueId(), appVersion: `Tovu Admin ${TOVU_ADMIN_VERSION}`, time: new Date().toISOString() }) });
+      setCopyFeedback(t("Could not copy embed"));
+      if (isClipboardRefusal(error)) return;
+      publishLocalAdminFailure({
+        message: "The taxonomy embed code could not be copied.",
+        action: "Try Copy HTML embed again. If it keeps failing, copy details and report this problem.",
+        step: "Copy taxonomy embed code",
+        cause: error,
+      }, { generation: failureGeneration });
     }
   }
   return { copyHtmlEmbed, copyFeedback };

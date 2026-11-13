@@ -58,6 +58,21 @@ test('native reporter starts only with crashes already on at launch; switch-off 
   assert.deepEqual(later.starts, []); assert.deepEqual(later.uploads, []);
 });
 
+test('native reporter failure logs the redacted cause and continues startup', async () => {
+  const f = fixture(); f.consent(on);
+  const warnings: string[] = [];
+  const crashReporter = { ...f.crashReporter, start: () => { throw new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'); } };
+  const product = await bootDesktopProductTelemetry({ launch, observabilityExportEnabled: true, readConsent: f.readConsent, crashReporter }, {
+    boot: f.boot, warn: message => warnings.push(message),
+  });
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0] ?? '', /\[product-telemetry\] native crash reporting is unavailable/);
+  assert.match(warnings[0] ?? '', /boom/);
+  assert.match(warnings[0] ?? '', /product-telemetry\.test\.ts/);
+  assert.doesNotMatch(warnings[0] ?? '', /SECRETSECRETSECRETSECRET/);
+  await product.dispose();
+});
+
 test('app_started happens once per launch with usage consent, including a first-run grant', async () => {
   const f = fixture();
   const product = await bootDesktopProductTelemetry({ launch, observabilityExportEnabled: true, readConsent: f.readConsent, crashReporter: f.crashReporter, launchMode: 'update' }, { boot: f.boot });

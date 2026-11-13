@@ -238,15 +238,22 @@ test("startPublishRun: a history-store failure never changes the reported outcom
   /** The real in-memory store, except every write fails. */
   class BrokenHistoryStore extends InMemoryPublishHistoryStore {
     override async recordSuccess(): Promise<never> {
-      throw new Error("disk full; database parameters: PRIVATE_TOKEN");
+      throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "ENOSPC" });
     }
   }
   const brokenHistory = new BrokenHistoryStore();
-  const input = githubInput(routeDeps);
+  const input = { ...githubInput(routeDeps), exportSiteBound: async ({ outputDir }: { outputDir: string }) => ({
+    outputDir, routes: { succeeded: [{ path: "/", kind: "home" as const, outputFile: "index.html", data: "site" }], failed: [] },
+    assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [],
+  }) };
 
   const outcome = await runPublishForTest(deps, input, clock, brokenHistory);
-  assert.equal(outcome.ok, true, "the real, successful outcome must still be returned even though recording it failed");
-  assert.deepEqual(warnings, [["[static-publish] destination history write failed after publish", "Error"]]);
+  assert.equal(outcome.ok, true, `the real, successful outcome must still be returned even though recording it failed: ${JSON.stringify(outcome)}`);
+  const warning = warnings.find(args => args[0] === "[static-publish] destination history write failed after publish");
+  assert.ok(warning, "the history failure is logged");
+  assert.match(String(warning[1]), /Error/);
+  assert.match(String(warning[1]), /ENOSPC/);
+  assert.doesNotMatch(JSON.stringify(warning), /boom|SECRETSECRETSECRETSECRET/);
 });
 
 test("a registry reload failure logs a sanitized warning and preserves outcome-only history", async (t) => {

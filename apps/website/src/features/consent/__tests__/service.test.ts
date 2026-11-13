@@ -7,6 +7,30 @@ import { createSiteConsentStore } from '../revisions.repo.js';
 import { SiteConsentConflict } from '../revisions.js';
 import { parseConsentConfig, consentConfigProblems } from '../validation.js';
 import { consentFixture } from './fixture.js';
+
+test('readiness, publication refresh and deployment retain redacted failure diagnostics', async t => {
+  const warnings: unknown[][] = [];
+  t.mock.method(console, 'warn', (...args: unknown[]) => { warnings.push(args); });
+  const f = consentFixture({ t });
+  const failure = () => new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET');
+  f.ports.renderPage = async () => { throw failure(); };
+  const readiness = await f.service.readiness({ principalId: 'owner', config: f.config });
+  assert.ok(readiness.blockingProblems.some(problem => problem.code === 'RENDER_FAILED'));
+  const draft = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
+  f.ports.published = async () => { throw failure(); };
+  assert.deepEqual(await f.service.publish({ principalId: 'owner', draftId: draft.revision.id, expectedPublishedId: null }), { published: true, revisionId: draft.revision.id });
+  f.ports.store = { ...f.store, read: async () => { throw failure(); } };
+  const refused = await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' });
+  assert.equal(refused?.blockingProblems[0]?.code, 'CONSENT_UNAVAILABLE');
+  for (const message of ['page could not be rendered', 'public preview could not refresh', 'consent policy could not be verified']) {
+    const warning = warnings.find(args => String(args[0]).toLowerCase().includes(message));
+    assert.ok(warning, `expected a warning about ${message}`);
+    assert.match(String(warning[1]), /boom/);
+    assert.match(String(warning[1]), /service\.test\.ts/);
+    assert.doesNotMatch(String(warning[1]), /SECRETSECRETSECRETSECRET/);
+  }
+  assert.doesNotMatch(JSON.stringify({ readiness, refused }), /SECRETSECRETSECRETSECRET/);
+});
 import { SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, SITE_CONSENT_TEXT_LIMITS } from '../config.js';
 
 test('draft saves preserve published enforcement; stale editors and stale publication are refused', async t => {

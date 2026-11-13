@@ -69,6 +69,36 @@ test("an acknowledgement request write failure returns a plain refusal without e
   });
 });
 
+test("restart acknowledgement read and write failures keep redacted causes in the log", async (t) => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { logs.push(args); });
+  for (const step of ["read", "write"] as const) {
+    const scheduled: Array<() => void> = [];
+    const fail = () => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); };
+    const port = devRestartPortFromEnv({
+      env: { [DEV_RESTART_REQUEST_FILE_ENV]: "/tmp/request.json" }, newId: () => "request-id",
+      writeFile: () => { if (step === "write") fail(); },
+      readFile: () => { if (step === "read") fail(); return null; },
+      schedule: fn => { scheduled.push(fn); },
+    });
+    assert.ok(port);
+    const result = port.requestRestart({ reason: "restart" }, { awaitAcceptance: true });
+    for (const run of scheduled) run();
+    assert.deepEqual(await result, { accepted: false, reason: step === "read"
+      ? "Could not confirm the restart with the dev supervisor."
+      : "Could not send the restart request to the dev supervisor." });
+  }
+  assert.equal(logs.length, 2);
+  assert.match(logs[0]?.join(" ") ?? "", /could not confirm the restart/i);
+  assert.match(logs[1]?.join(" ") ?? "", /could not send the restart request/i);
+  for (const args of logs) {
+    const line = args.join(" ");
+    assert.match(line, /boom/);
+    assert.match(line, /dev-restart\.unit\.test\.ts/);
+    assert.doesNotMatch(line, /SECRETSECRETSECRETSECRET/);
+  }
+});
+
 test("a slow supervisor precheck can acknowledge after the former five-second deadline", async () => {
   const scheduled: (() => void)[] = [];
   let polls = 0;

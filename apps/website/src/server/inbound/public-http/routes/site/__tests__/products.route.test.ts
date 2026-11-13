@@ -1,6 +1,7 @@
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createCommerceSiteTestApp as createApp } from "./commerce-site-app.js";
-import { resolveStorefrontProducts } from "../products.js";
+import { registerProductRoutes, resolveStorefrontProducts, type CommerceSiteAdapterDeps } from "../products.js";
+import type { IRouter } from "express";
 import type { CommerceSiteTestDeps } from "./commerce-site-app.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -11,6 +12,35 @@ import test from "node:test";
 import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render";
 type Product = SiteProduct & { version?: number };
 type StoreApi = { listProducts(): Promise<Product[]>; findProduct(required: { idOrSlug: string }): Promise<Product | null> };
+
+test("product failures reference the same redacted server incident", async (t) => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
+  const handlers = new Map<string, (req: unknown, res: unknown) => Promise<void>>();
+  const app = { get: (route: string, handler: (req: unknown, res: unknown) => Promise<void>) => { handlers.set(route, handler); } } as unknown as IRouter;
+  const fail = async (): Promise<never> => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); };
+  registerProductRoutes(app, { commerceCatalog: { listProducts: fail, findProduct: fail } } as unknown as CommerceSiteAdapterDeps);
+  for (const [route, operation, message] of [
+    ["/products", "products:catalog", "The product catalog could not be loaded"],
+    ["/products/:id", "products:detail", "This product could not be loaded"],
+  ] as const) {
+    let status = 0; let body = "";
+    const res = { locals: {}, status(code: number) { status = code; return res; }, type() { return res; }, send(value: string) { body = value; return res; } };
+    const handler = handlers.get(route); assert.ok(handler, `${route} handler must be registered`);
+    await handler({ params: { id: "item" } }, res);
+    assert.equal(status, 500);
+    assert.match(body, new RegExp(message));
+    const match = /Reference: ([0-9a-f-]{36})/.exec(body); assert.ok(match, `${route} must return an incident reference`);
+    assert.doesNotMatch(body, /boom|SECRETSECRETSECRETSECRET/);
+    const entry = logs.find(args => args[0] === `[${operation}]`);
+    assert.ok(entry, `${operation} must log the incident`);
+    const detail = entry[1] as { errorId: string; diagnostic: string };
+    assert.equal(detail.errorId, match[1]);
+    assert.match(detail.diagnostic, /boom/);
+    assert.match(detail.diagnostic, /products\.route\.test\.ts/);
+    assert.doesNotMatch(detail.diagnostic, /SECRETSECRETSECRETSECRET/);
+  }
+});
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
