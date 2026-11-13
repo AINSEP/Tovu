@@ -27,7 +27,7 @@ for (const storage of ["memory", "sqlite"] as const) {
   test(`${storage}: competing drains execute the full event once within its live lease`, async (t) => {
     const db = storage === "sqlite" ? openContentDb(":memory:") : undefined;
     if (db) t.after(() => db.$client.close());
-    const outbox: OutboxPort = db ? new SqliteOutboxAdapter(db) : new InMemoryOutbox();
+    const outbox: OutboxPort = db ? new SqliteOutboxAdapter({ store: db }) : new InMemoryOutbox();
     const bus = new InMemoryEventBus();
     const started = deferred();
     const finish = deferred();
@@ -63,7 +63,7 @@ test("persisted legacy bytes survive the daemon boundary, failure backoff, and s
     .run(event.id, event.workspaceId, eventJson, "pending", 0, NOW, NOW);
   const snapshot = () => db.$client.prepare("SELECT * FROM outbox_events WHERE id = ?").get(event.id) as Record<string, unknown>;
   const initial = snapshot();
-  const outbox = new SqliteOutboxAdapter(db);
+  const outbox = new SqliteOutboxAdapter({ store: db });
   const daemon = toEnqueueOnlyOutbox(outbox);
   const bus = new InMemoryEventBus();
   const received: DomainEvent[] = [];
@@ -95,7 +95,7 @@ test("persisted legacy bytes survive the daemon boundary, failure backoff, and s
 test("persisted poison rows get exactly six attempts with the historical retry times and terminal status", async (t) => {
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
-  const outbox = new SqliteOutboxAdapter(db);
+  const outbox = new SqliteOutboxAdapter({ store: db });
   const bus = new InMemoryEventBus();
   let attempts = 0;
   await bus.subscribe({ eventName: event.name, handler: async () => {

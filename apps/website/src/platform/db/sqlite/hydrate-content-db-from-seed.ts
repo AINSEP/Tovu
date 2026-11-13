@@ -74,7 +74,7 @@ export interface HydrateContentDbFromSeedRequired {
 const STAGING_FILE_SUFFIX = ".hydrate-seed-staging";
 
 /** Removes a file and its `-wal`/`-shm` sidecars, if present. A no-op for anything absent. */
-function removeWithSidecars(filePath: string): void {
+function removeWithSidecars({ filePath }: { filePath: string }, _optional: Record<string, never> = {}): void {
   rmSync(filePath, { force: true });
   rmSync(`${filePath}-wal`, { force: true });
   rmSync(`${filePath}-shm`, { force: true });
@@ -104,8 +104,8 @@ export function hydrateContentDbFromSeed(required: HydrateContentDbFromSeedRequi
   mkdirSync(siteRoot, { recursive: true });
   // Clears an orphan left by a previous interrupted boot, and any stale sidecar sitting next to the
   // (currently absent) target file — see this file's own header on why both matter.
-  removeWithSidecars(stagingPath);
-  removeWithSidecars(dbPath);
+  removeWithSidecars({ filePath: stagingPath });
+  removeWithSidecars({ filePath: dbPath });
 
   copyFileSync(seedDbPath, stagingPath);
   // Same parent directory, so this is a same-filesystem rename: atomic, and the moment it returns

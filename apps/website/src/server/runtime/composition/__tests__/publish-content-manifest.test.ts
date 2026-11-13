@@ -134,7 +134,7 @@ for (const fixture of APPLY_FIXTURES) {
       } satisfies DiscoveredTheme);
       const forms = new SqliteFormDefinitionRepo(site.db);
       const widget = { entries: site.entries, contentTypes: site.contentTypes, forms,
-        entryRefs: new SqliteEntryRefsRepo(site.db), bindings: new SqliteWidgetRegionBindingRepo(site.db) };
+        entryRefs: new SqliteEntryRefsRepo({ store: site.db }), bindings: new SqliteWidgetRegionBindingRepo(site.db) };
       const deps = makeSite({ ...site.ports, form: { repo: forms }, widget, "widget-area": widget }, "registry");
       const handler = buildPublishContentCatalog(deps).handlerByType.get(fixture.entityType);
       assert.ok(handler, `${fixture.entityType} must be installed`);
@@ -171,7 +171,7 @@ test("the registered raw-row contributor creates a row readable through an indep
   try {
     site.db.$client.exec("CREATE TABLE p_registry_article (id TEXT PRIMARY KEY, title TEXT)");
     const deps: PublishContentDeps = { ...makeSite({}, "raw-row-registry"),
-      backstop: { rows: createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel(site.db) }), coveredTables: [], coveredRoots: [] } };
+      backstop: { rows: createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel({ store: site.db }) }), coveredTables: [], coveredRoots: [] } };
     const handler = buildPublishContentCatalog(deps).handlerByType.get("raw-row");
     assert.ok(handler);
     const id = 'p_registry_article:{"id":"article-1"}';

@@ -98,7 +98,7 @@ async function freshSite(t: TestContext, dialect: SiteDialect): Promise<{ siteDi
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), `unrun-reboot-${dialect}-`));
   const siteDir = path.join(parent, "site");
   const dataDir = path.join(siteDir, PGLITE_DATA_DIR_NAME);
-  const socketDir = defaultPgliteSocketDir(dataDir);
+  const socketDir = defaultPgliteSocketDir({ dataDir });
   const savedSocketEnv = process.env[PG_SOCKET_ENV];
   if (dialect === "pglite") process.env[PG_SOCKET_ENV] = path.join(socketDir, PGLITE_SOCKET_FILE);
   t.after(() => {

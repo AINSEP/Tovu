@@ -8,7 +8,7 @@ import { openContentDb } from '#src/platform/db/sqlite/content-db';
 import { createFormFilePurgeHooks } from '../form-file-purge.js';
 
 test('form and individual purges capture trashed submissions with a workspace-scoped bounded read', async () => {
-  const db = openContentDb(':memory:'); const kernel = contentKernel(db);
+  const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db });
   const at = '2026-11-04T00:00:00.000Z';
   db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w',at);
   db.$client.prepare(`INSERT INTO form_definitions (id,workspace_id,name,slug,fields_json,notify_json,status,created_at,updated_at,version) VALUES ('f','w','F','f','[]','{}','active',?,?,1)`).run(at,at);
@@ -29,7 +29,7 @@ test('form and individual purges capture trashed submissions with a workspace-sc
 test('private source metadata survives the durable media adapter', async () => {
   const { SqlMediaRepo } = await import('#src/platform/db/repos/media-repo');
   const { uploadMedia, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore } = await import('@jini-ai/cms/media');
-  const db = openContentDb(':memory:'); const kernel = contentKernel(db); let id = 0;
+  const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db }); let id = 0;
   db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w','now');
   const mediaRepo = new SqlMediaRepo(kernel);
   const { media } = await uploadMedia({ deps: { mediaRepo, blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(), clock: { nowMs: () => 0 }, idGen: { newId: () => `m${++id}` } }, input: { workspaceId: 'w', createdByPrincipal: 'system', filename: 'photo.png', contentType: 'image/png', bytes: Uint8Array.of(137,80,78,71,13,10,26,10), access: 'private' } });
@@ -40,7 +40,7 @@ test('private source metadata survives the durable media adapter', async () => {
 test('filename-only legacy evidence keeps files unchanged and warns, including submissions in Trash', async () => {
   const { protectExistingFormFiles } = await import('../protect-existing-files.js');
   const siteDir = await mkdtemp(join(tmpdir(), 'forms-protect-'));
-  const db = openContentDb(':memory:'); const kernel = contentKernel(db); const at = '2026-11-04T00:00:00.000Z';
+  const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db }); const at = '2026-11-04T00:00:00.000Z';
   db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w',at);
   db.$client.prepare(`INSERT INTO form_definitions (id,workspace_id,name,slug,fields_json,notify_json,status,created_at,updated_at,version) VALUES ('f','w','F','f','[]','{}','active',?,?,1)`).run(at,at);
   const dataJson = JSON.stringify({ photo: { mediaId: 'm', filename: 'photo.png', contentType: 'image/png', byteSize: 8 } });
@@ -61,7 +61,7 @@ test('filename-only legacy evidence keeps files unchanged and warns, including s
 
 test('protection keeps known-private files, warns for unknown legacy ownership and records the attempted pass', async () => {
   const { protectExistingFormFiles } = await import('../protect-existing-files.js');
-  const db = openContentDb(':memory:'); const kernel = contentKernel(db);
+  const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db });
   const siteDir = await mkdtemp(join(tmpdir(), 'forms-protect-')); const warnings: string[] = [];
   const at = '2026-11-04T00:00:00.000Z';
   try {
@@ -94,7 +94,7 @@ test('unavailable protection storage warns and leaves completion absent for an a
 
 test('delayed cleanup ownership probes include Trash and stay workspace scoped', async () => {
   const { hasFormFileOwners } = await import('../form-file-purge.js');
-  const db = openContentDb(':memory:'); const kernel = contentKernel(db); const at = '2026-11-04T00:00:00.000Z';
+  const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db }); const at = '2026-11-04T00:00:00.000Z';
   try {
     db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w',at);
     await kernel.run(db => db.insertInto('media').values({ id: 'm', workspace_id: 'w', kind: 'media', original_filename: 's-photo.png', title: '', slug: 'photo', alt: '', caption: '', credit: '', source_sha256: 'shared-hash', source_metadata_json: '{"private":true}', status: 'trashed', created_at: at, updated_at: at, version: 1, width: null, height: null, css_class: null, html_attributes: null }).execute());
@@ -105,7 +105,7 @@ test('delayed cleanup ownership probes include Trash and stay workspace scoped',
 });
 
 test('form purge captures the attachment after submission 100 without truncation', async () => {
-  const db = openContentDb(':memory:'); const kernel = contentKernel(db); const at = '2026-11-04T00:00:00.000Z';
+  const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db }); const at = '2026-11-04T00:00:00.000Z';
   try {
     db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w',at);
     db.$client.prepare(`INSERT INTO form_definitions (id,workspace_id,name,slug,fields_json,notify_json,status,created_at,updated_at,version) VALUES ('f','w','F','f','[]','{}','active',?,?,1)`).run(at,at);
@@ -121,7 +121,7 @@ test('form purge captures the attachment after submission 100 without truncation
 
 test('transient legacy stamp failures keep the marker absent and retry automatically on the next owner start', async () => {
   const { protectExistingFormFiles } = await import('../protect-existing-files.js');
-  const db = openContentDb(':memory:'); const kernel = contentKernel(db); const at = '2026-11-04T00:00:00.000Z';
+  const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db }); const at = '2026-11-04T00:00:00.000Z';
   const siteDir = await mkdtemp(join(tmpdir(), 'forms-protect-')); const warnings: string[] = [];
   try {
     db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w',at);

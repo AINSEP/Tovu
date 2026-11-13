@@ -41,7 +41,7 @@ test("snapshotDb: against an in-memory db, returns null and writes NO file anywh
   db.prepare(`CREATE TABLE posts (id TEXT PRIMARY KEY)`).run();
 
   const before = new Set(fs.readdirSync(process.cwd()));
-  const result = await snapshotDb({ db: contentKernel(db), dbPath: ":memory:", label: "test-plugin" });
+  const result = await snapshotDb({ db: contentKernel({ store: db }), dbPath: ":memory:", label: "test-plugin" });
   const after = fs.readdirSync(process.cwd());
 
   assert.equal(result, null, "no real file backs an in-memory db — nothing to snapshot");
@@ -54,7 +54,7 @@ test("snapshotDb: against an in-memory db, returns null and writes NO file anywh
 test("snapshotDb: the empty-string temp-db identifier also no-ops (never a `.snapshot-*` file named after `\"\"`)", async () => {
   const db = new Database("");
   const before = new Set(fs.readdirSync(process.cwd()));
-  const result = await snapshotDb({ db: contentKernel(db), dbPath: "", label: "test-plugin" });
+  const result = await snapshotDb({ db: contentKernel({ store: db }), dbPath: "", label: "test-plugin" });
   const after = fs.readdirSync(process.cwd());
 
   assert.equal(result, null);
@@ -73,7 +73,7 @@ test("snapshotDb: a real file-backed dbPath is unaffected — still snapshots to
   db.prepare(`CREATE TABLE posts (id TEXT PRIMARY KEY)`).run();
 
   db.prepare("INSERT INTO posts (id) VALUES (?)").run("before-ddl");
-  const result = await snapshotDb({ db: contentKernel(db), dbPath, label: "test-plugin" }, {});
+  const result = await snapshotDb({ db: contentKernel({ store: db }), dbPath, label: "test-plugin" }, {});
 
   assert.ok(result, "a real snapshot path was returned");
   assert.ok(result!.startsWith(dbPath), "sibling of the real db file, per the existing naming convention");

@@ -66,7 +66,7 @@ function harness(): Harness {
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
   const registry = buildTrashRegistry();
-  const trashDb = contentKernel(db);
+  const trashDb = contentKernel({ store: db });
 
   const taxonomyRepo = new SqliteTaxonomyRepo({ db, workspaceId: WS });
   const termRepo = new SqliteTermRepo({ db, workspaceId: WS });
@@ -200,7 +200,7 @@ async function trashItem(h: Harness, entityType: TrashEntityType, entityId: stri
     {
       registry: h.registry,
       trash: h.trash,
-      db: contentKernel(h.db),
+      db: contentKernel({ store: h.db }),
       authorize: async () => ({ allowed: true, reason: "matched" }),
       clock: createFakeClock({ startIso: AT }),
     }

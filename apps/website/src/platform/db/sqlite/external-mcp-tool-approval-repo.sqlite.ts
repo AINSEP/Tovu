@@ -10,7 +10,7 @@ import type { ContentDb } from "./content-db.js";
  */
 export class SqliteExternalMcpToolApprovalRepo extends SqlExternalMcpToolApprovalRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super(contentKernel({ store }));
   }
 }

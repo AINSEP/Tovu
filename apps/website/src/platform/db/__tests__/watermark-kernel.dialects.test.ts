@@ -118,7 +118,7 @@ describe("watermark: dialect-free cases", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-watermark-kernel-"));
     const file = path.join(dir, "content.db");
     const db = openContentDb(file);
-    const kernel = contentKernel(db);
+    const kernel = contentKernel({ store: db });
     await prepareContentStore(kernel);
     const other = new Database(file);
     other.pragma("busy_timeout = 0");

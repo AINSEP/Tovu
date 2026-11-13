@@ -221,7 +221,7 @@ test("the production publish-history adapter retains old live URLs beyond the li
   const { SqlitePublishHistoryStore } = await import('#src/platform/db/sqlite/publish-history-repo.sqlite');
   const db = openContentDb(':memory:');
   for (const id of ['w', 'other']) db.insert(workspaces).values({ id, name: id, slug: id, createdAt: '2026-10-01' }).run();
-  const history = new SqlitePublishHistoryStore(db);
+  const history = new SqlitePublishHistoryStore({ store: db });
   const entry = { target: 'github-pages' as const, url: 'https://old.example', reachable: true, status: 'ready', projectName: 'test', publishedAt: '2026-10-01', triggeredBy: 'agent_tool' as const };
   await history.recordSuccess({ workspaceId: 'w', entry });
   for (let i = 0; i < 205; i++) await history.recordSuccess({ workspaceId: 'w', entry: { ...entry, url: origin } });

@@ -63,12 +63,12 @@ async function pgliteHasKeyDependentData({ dataDir }: { dataDir: string }, _opti
   if (!existsSync(join(dataDir, "PG_VERSION"))) return false;
   let releaseLock: () => void;
   try {
-    releaseLock = acquireOwnerLock(dataDir);
+    releaseLock = acquireOwnerLock({ dataDir });
   } catch {
     return true;
   }
   try {
-    return await scanOpenedKernel(() => openPgliteKernel<unknown>({ dataDir }));
+    return await scanOpenedKernel({ open: () => openPgliteKernel<unknown>({ dataDir }) });
   } finally {
     releaseLock();
   }
@@ -79,5 +79,5 @@ async function postgresHasKeyDependentData(storage: Extract<SiteStorage, { kind:
   if (storage.secretRef === "site") return true;
   const connectionString = env[storage.secretRef.env];
   if (connectionString === undefined || connectionString.trim() === "") return true;
-  return scanOpenedKernel(() => openPostgresKernel<unknown>({ connectionString, max: 1 }));
+  return scanOpenedKernel({ open: () => openPostgresKernel<unknown>({ connectionString, max: 1 }) });
 }

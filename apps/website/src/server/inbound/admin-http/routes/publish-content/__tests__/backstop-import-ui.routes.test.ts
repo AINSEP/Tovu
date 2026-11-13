@@ -22,7 +22,7 @@ test("real import plan returns safe before/after values for raw rows without req
   db.exec("CREATE TABLE p_banner(id TEXT PRIMARY KEY, title TEXT); INSERT INTO p_banner VALUES('one','Old footer');");
   resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
   registerPublishContentContributor(contributeRawRowPublish());
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   const rows = createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel });
   const live = await rows.read({ table: "p_banner", pk: { id: "one" } }); assert.ok(live);
   const state = { ...live, values: { ...live.values, title: "New footer" } };

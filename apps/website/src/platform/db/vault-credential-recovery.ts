@@ -66,7 +66,7 @@ async function mutateOther({ deps, value, sealed }: {
   deps: SealedCredentialKeyDeps; value: VaultCredentialValue; sealed?: { keyId: string; ciphertext: string; nonce: string; alg: string };
 }): Promise<number> {
   const { ref } = value;
-  const siblings = siblingColumns(ref.column);
+  const siblings = siblingColumns({ column: ref.column });
   const envelope = value.guard ?? { [ref.column]: value.ciphertext };
   const guards = Object.entries(envelope).map(([column, value]) => value === null
     ? sql`${sql.id(column)} IS NULL` : sql`${sql.id(column)}=${value}`);

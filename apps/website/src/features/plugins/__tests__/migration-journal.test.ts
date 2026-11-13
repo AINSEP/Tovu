@@ -20,10 +20,10 @@ function openDb(): { db: Database.Database; dir: string } {
 
 test("beginJournalEntry starts at PREPARED_SNAPSHOT; findIncompleteJournalEntries surfaces it", async () => {
   const { db, dir } = openDb();
-  await ensureMigrationJournal(contentKernel(db));
-  const id = await beginJournalEntry({ db: contentKernel(db), pluginId: "plugin-a", snapshotPath: "/tmp/snap-1" });
+  await ensureMigrationJournal(contentKernel({ store: db }));
+  const id = await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "plugin-a", snapshotPath: "/tmp/snap-1" });
 
-  const incomplete = await findIncompleteJournalEntries(contentKernel(db));
+  const incomplete = await findIncompleteJournalEntries(contentKernel({ store: db }));
   assert.equal(incomplete.length, 1);
   assert.equal(incomplete[0].id, id);
   assert.equal(incomplete[0].phase, "PREPARED_SNAPSHOT");
@@ -35,17 +35,17 @@ test("beginJournalEntry starts at PREPARED_SNAPSHOT; findIncompleteJournalEntrie
 
 test("advanceJournalPhase moves the phase forward; COMMITTED/ROLLED_BACK are terminal (not surfaced as incomplete)", async () => {
   const { db, dir } = openDb();
-  await ensureMigrationJournal(contentKernel(db));
-  const id = await beginJournalEntry({ db: contentKernel(db), pluginId: "plugin-a", snapshotPath: "/tmp/snap-1" });
+  await ensureMigrationJournal(contentKernel({ store: db }));
+  const id = await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "plugin-a", snapshotPath: "/tmp/snap-1" });
 
-  await advanceJournalPhase({ db: contentKernel(db), id, phase: "DDL_IN_PROGRESS" });
-  assert.equal((await findIncompleteJournalEntries(contentKernel(db)))[0].phase, "DDL_IN_PROGRESS");
+  await advanceJournalPhase({ db: contentKernel({ store: db }), id, phase: "DDL_IN_PROGRESS" });
+  assert.equal((await findIncompleteJournalEntries(contentKernel({ store: db })))[0].phase, "DDL_IN_PROGRESS");
 
-  await advanceJournalPhase({ db: contentKernel(db), id, phase: "VERIFYING" });
-  assert.equal((await findIncompleteJournalEntries(contentKernel(db)))[0].phase, "VERIFYING");
+  await advanceJournalPhase({ db: contentKernel({ store: db }), id, phase: "VERIFYING" });
+  assert.equal((await findIncompleteJournalEntries(contentKernel({ store: db })))[0].phase, "VERIFYING");
 
-  await advanceJournalPhase({ db: contentKernel(db), id, phase: "COMMITTED" });
-  assert.equal((await findIncompleteJournalEntries(contentKernel(db))).length, 0, "a COMMITTED entry is terminal, not incomplete");
+  await advanceJournalPhase({ db: contentKernel({ store: db }), id, phase: "COMMITTED" });
+  assert.equal((await findIncompleteJournalEntries(contentKernel({ store: db }))).length, 0, "a COMMITTED entry is terminal, not incomplete");
 
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
@@ -53,10 +53,10 @@ test("advanceJournalPhase moves the phase forward; COMMITTED/ROLLED_BACK are ter
 
 test("a ROLLED_BACK entry is also terminal", async () => {
   const { db, dir } = openDb();
-  await ensureMigrationJournal(contentKernel(db));
-  const id = await beginJournalEntry({ db: contentKernel(db), pluginId: "plugin-a", snapshotPath: "/tmp/snap-1" });
-  await advanceJournalPhase({ db: contentKernel(db), id, phase: "ROLLED_BACK" });
-  assert.equal((await findIncompleteJournalEntries(contentKernel(db))).length, 0);
+  await ensureMigrationJournal(contentKernel({ store: db }));
+  const id = await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "plugin-a", snapshotPath: "/tmp/snap-1" });
+  await advanceJournalPhase({ db: contentKernel({ store: db }), id, phase: "ROLLED_BACK" });
+  assert.equal((await findIncompleteJournalEntries(contentKernel({ store: db }))).length, 0);
 
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
@@ -64,13 +64,13 @@ test("a ROLLED_BACK entry is also terminal", async () => {
 
 test("multiple entries: only the non-terminal ones are surfaced", async () => {
   const { db, dir } = openDb();
-  await ensureMigrationJournal(contentKernel(db));
-  const done = await beginJournalEntry({ db: contentKernel(db), pluginId: "plugin-done", snapshotPath: "/tmp/snap-done" });
-  await advanceJournalPhase({ db: contentKernel(db), id: done, phase: "COMMITTED" });
-  const stuck = await beginJournalEntry({ db: contentKernel(db), pluginId: "plugin-stuck", snapshotPath: "/tmp/snap-stuck" });
-  await advanceJournalPhase({ db: contentKernel(db), id: stuck, phase: "DDL_IN_PROGRESS" });
+  await ensureMigrationJournal(contentKernel({ store: db }));
+  const done = await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "plugin-done", snapshotPath: "/tmp/snap-done" });
+  await advanceJournalPhase({ db: contentKernel({ store: db }), id: done, phase: "COMMITTED" });
+  const stuck = await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "plugin-stuck", snapshotPath: "/tmp/snap-stuck" });
+  await advanceJournalPhase({ db: contentKernel({ store: db }), id: stuck, phase: "DDL_IN_PROGRESS" });
 
-  const incomplete = await findIncompleteJournalEntries(contentKernel(db));
+  const incomplete = await findIncompleteJournalEntries(contentKernel({ store: db }));
   assert.equal(incomplete.length, 1);
   assert.equal(incomplete[0].pluginId, "plugin-stuck");
 

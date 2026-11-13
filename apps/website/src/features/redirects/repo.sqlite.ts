@@ -26,7 +26,7 @@ export function SqliteRedirectRepo(
 ): SqliteRedirectRepo {
   return redirectRepoFor({
     // Erase the host schema only: Jini supplies each query's table view on this same kernel.
-    kernel: contentKernel(store) as unknown as RedirectSqlRequired["kernel"],
+    kernel: contentKernel({ store }) as unknown as RedirectSqlRequired["kernel"],
     tables: { redirects: REDIRECT_TABLES.redirects, revisions: REDIRECT_TABLES.revisions },
   }, {});
 }

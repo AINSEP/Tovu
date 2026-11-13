@@ -38,13 +38,13 @@ const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 /** `created_at` is a full ISO timestamp compared as a string, so a bare `2026-09-24` upper bound sorted
  *  before every row of that day and excluded it. A date-only bound means "through the end of that day".
  *  @complexity O(1). */
-function inclusiveUpperBound(toDate: string): string {
+function inclusiveUpperBound({ toDate }: { toDate: string }, _optional: Record<string, never> = {}): string {
   return DATE_ONLY.test(toDate) ? `${toDate}T23:59:59.999Z` : toDate;
 }
 
 /** An optional port field that was left out is stored as SQL `NULL`, the same as an explicit `null`.
  *  @complexity O(1). */
-function orNull<T>(value: T | null | undefined): T | null {
+function orNull<T>({ value }: { value: T | null | undefined }, _optional: Record<string, never> = {}): T | null {
   return value ?? null;
 }
 
@@ -82,7 +82,7 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
       if (filter.kind) query = query.where("kind", "=", filter.kind);
       if (filter.outcome) query = query.where("outcome", "=", filter.outcome);
       if (filter.fromDate) query = query.where("created_at", ">=", filter.fromDate);
-      if (filter.toDate) query = query.where("created_at", "<=", inclusiveUpperBound(filter.toDate));
+      if (filter.toDate) query = query.where("created_at", "<=", inclusiveUpperBound({ toDate: filter.toDate }));
       if (decoded) {
         query = query.where((eb) =>
           eb.or([
@@ -135,19 +135,19 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
           id: row.id,
           site_id: this.deps.siteId,
           kind: row.kind,
-          correlation_id: orNull(row.correlationId),
-          restore_point_id: orNull(row.restorePointId),
-          schema_before_version: orNull(row.schemaBeforeVersion),
-          schema_before_tag: orNull(row.schemaBeforeTag),
-          schema_after_version: orNull(row.schemaAfterVersion),
-          schema_after_tag: orNull(row.schemaAfterTag),
-          drift_status: orNull(row.driftStatus),
+          correlation_id: orNull({ value: row.correlationId }),
+          restore_point_id: orNull({ value: row.restorePointId }),
+          schema_before_version: orNull({ value: row.schemaBeforeVersion }),
+          schema_before_tag: orNull({ value: row.schemaBeforeTag }),
+          schema_after_version: orNull({ value: row.schemaAfterVersion }),
+          schema_after_tag: orNull({ value: row.schemaAfterTag }),
+          drift_status: orNull({ value: row.driftStatus }),
           outcome: row.outcome,
-          detail_json: orNull(row.detailJson),
-          actor_workspace_id: orNull(row.actorWorkspaceId),
-          actor_id: orNull(row.actorId),
-          delegated_by_workspace_id: orNull(row.delegatedByWorkspaceId),
-          delegated_by_id: orNull(row.delegatedById),
+          detail_json: orNull({ value: row.detailJson }),
+          actor_workspace_id: orNull({ value: row.actorWorkspaceId }),
+          actor_id: orNull({ value: row.actorId }),
+          delegated_by_workspace_id: orNull({ value: row.delegatedByWorkspaceId }),
+          delegated_by_id: orNull({ value: row.delegatedById }),
           created_at: row.createdAt,
         })
         .execute()
@@ -245,7 +245,7 @@ export class SqliteMigrationRunsRepo implements MigrationRunsRepoPort {
           dialect: row.dialect,
           status: row.status,
           blue_touched: 0,
-          correlation_id: orNull(row.correlationId),
+          correlation_id: orNull({ value: row.correlationId }),
           created_at: row.createdAt,
           updated_at: row.updatedAt,
         })
@@ -313,9 +313,9 @@ export class SqliteRestorePointsRepo implements CreateRestorePointRepoPort {
           cost_class: row.costClass ?? "cheap",
           kind: row.kind ?? "file-snapshot",
           artifact_ref: row.artifactRef ?? "",
-          watermark_at_capture: orNull(row.watermarkAtCapture),
-          captured_schema_version: orNull(row.capturedSchemaVersion),
-          captured_schema_tag: orNull(row.capturedSchemaTag),
+          watermark_at_capture: orNull({ value: row.watermarkAtCapture }),
+          captured_schema_version: orNull({ value: row.capturedSchemaVersion }),
+          captured_schema_tag: orNull({ value: row.capturedSchemaTag }),
           idempotency_key: row.idempotencyKey,
           actor_id: row.createdBy,
           created_at: row.createdAt,

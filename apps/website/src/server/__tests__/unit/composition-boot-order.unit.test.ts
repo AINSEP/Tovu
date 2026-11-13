@@ -134,7 +134,7 @@ test("openSiteContentDb: crash recovery runs on the fresh connection before the 
   const body = functionBody(readCode("server/runtime/composition/open-site-content-db.ts"), "export async function openSiteContentDb(");
   const open = indexOfAnchor(body, "openSqliteContentConnection({ filePath: dbPath }, options)");
   const recover = indexOfAnchor(body, "await recoverIncompleteDataModuleMigrations(");
-  const migrate = indexOfAnchor(body, "await migrateSqliteContentFile(db, dbPath)");
+  const migrate = indexOfAnchor(body, "await migrateSqliteContentFile({ db, filePath: dbPath })");
   const prepare = indexOfAnchor(body, "await prepareContentStore(");
   assert.ok(open < recover && recover < migrate && migrate < prepare, "open → recover → migrate → prepare");
 });

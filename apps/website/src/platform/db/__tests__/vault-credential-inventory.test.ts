@@ -90,9 +90,9 @@ test("opensVaultCredential: an open that resolves is true and uses exactly the s
 // --- siblingColumns / isVaultRestoreArtifact ----------------------------------------------------
 
 test("siblingColumns: derives the quad siblings from the column's prefix", () => {
-  assert.deepEqual(siblingColumns("oauth_sealed_ciphertext"),
+  assert.deepEqual(siblingColumns({ column: "oauth_sealed_ciphertext" }),
     { keyId: "oauth_sealed_key_id", nonce: "oauth_sealed_nonce", alg: "oauth_sealed_alg" });
-  assert.deepEqual(siblingColumns("sealed_ciphertext"), { keyId: "sealed_key_id", nonce: "sealed_nonce", alg: "sealed_alg" });
+  assert.deepEqual(siblingColumns({ column: "sealed_ciphertext" }), { keyId: "sealed_key_id", nonce: "sealed_nonce", alg: "sealed_alg" });
 });
 
 test("isVaultRestoreArtifact: only tables starting with _vault_backup_ are restore artifacts", () => {
@@ -162,7 +162,7 @@ test("a retained device code is classified with its workspace/server identity an
       verificationUriComplete: null, intervalSeconds: 5, expiresAt: "2026-10-11T01:00:00.000Z" });
     const [only] = (await snapshotVaultCredentials(keyDeps(fx))).values;
     assert.deepEqual(only!.device, { workspaceId: WS, serverId: "server-1" });
-    assert.equal(only!.aad, deviceAad(WS, "server-1"));
+    assert.equal(only!.aad, deviceAad({ workspaceId: WS, serverId: "server-1" }));
     const inventory = await inventoryVaultCredentials(depsFor(fx));
     assert.deepEqual(inventory.entries, [{ table: "oauth_device_authorizations", column: "sealed_ciphertext", workspaceId: WS,
       rowId: "server-1", label: "Pending device sign-in (server-1)", sealedKeyId: only!.sealed!.keyId, opensUnderActiveKey: true, unknownReason: null }]);

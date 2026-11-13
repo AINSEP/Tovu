@@ -45,7 +45,7 @@ function topicsToJson(topics: readonly WebhookTopic[]): string {
   return JSON.stringify(topics);
 }
 
-function topicsFromJson(json: string): WebhookTopic[] {
+function topicsFromJson({ json }: { json: string }, _optional: Record<string, never> = {}): WebhookTopic[] {
   return JSON.parse(json) as WebhookTopic[];
 }
 
@@ -56,7 +56,7 @@ function toSubscriptionRecord(row: Selectable<WebhookSubscriptionsTable>): Webho
     ownerPrincipalId: row.owner_principal_id,
     label: row.label,
     targetUrl: row.target_url,
-    topics: topicsFromJson(row.topics_json),
+    topics: topicsFromJson({ json: row.topics_json }),
     secretVersion: row.secret_version,
     previousSecretVersion: row.previous_secret_version,
     status: row.status as WebhookSubscriptionStatus,

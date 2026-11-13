@@ -49,7 +49,7 @@ test("a nested call joins the caller's kernel transaction and rolls back with it
   const runInTransaction = createContentDbTransactionRunner({ store: client });
 
   await assert.rejects(
-    contentKernel(db).transaction(async () => {
+    contentKernel({ store: db }).transaction(async () => {
       await runInTransaction(async () => insert("inner"));
       throw new Error("outer fails");
     }),

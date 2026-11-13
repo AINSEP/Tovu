@@ -44,7 +44,7 @@ async function buildMigratedBase(): Promise<Buffer> {
     const filePath = path.join(dir, "content.db");
     const db = openSqliteContentConnection(filePath);
     try {
-      await migrateSqliteContentFile(db, filePath);
+      await migrateSqliteContentFile({ db, filePath });
       // Out of WAL, so the bytes open again as an in-memory database.
       db.$client.pragma("journal_mode = DELETE");
       return db.$client.serialize();

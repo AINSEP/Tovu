@@ -38,7 +38,7 @@ async function recoverAtBoot(dbPath: string): Promise<RecoveryResult> {
   let closed = false;
   try {
     return await recoverIncompleteDataModuleMigrations({
-      store: contentKernel(scan),
+      store: contentKernel({ store: scan }),
       restoreSnapshots: (entries) => {
         closeSqliteConnection(scan);
         closed = true;
@@ -75,11 +75,11 @@ test("an incomplete journal entry (simulated crash mid-DDL) is restored from its
 
   // Simulate exactly what declareDataModule does up through DDL_IN_PROGRESS, then "crash" —
   // no COMMITTED/ROLLED_BACK ever gets written.
-  const snapshotPath = await snapshotDb({ db: contentKernel(db), dbPath, label: "crashed-plugin" });
-  await ensureMigrationJournal(contentKernel(db));
+  const snapshotPath = await snapshotDb({ db: contentKernel({ store: db }), dbPath, label: "crashed-plugin" });
+  await ensureMigrationJournal(contentKernel({ store: db }));
   // Non-null: `dbPath` here is a real tmpdir file, never `:memory:` — snapshotDb only returns null
   // for SQLite's in-memory/temp identifiers (see snapshot.ts).
-  await beginJournalEntry({ db: contentKernel(db), pluginId: "crashed-plugin", snapshotPath: snapshotPath! });
+  await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "crashed-plugin", snapshotPath: snapshotPath! });
   // Now actually diverge the live db from the snapshot, exactly as a mid-DDL crash would leave it.
   db.prepare(`CREATE TABLE "p_crashed_plugin__half_created" (id TEXT PRIMARY KEY)`).run();
   db.close();
@@ -110,9 +110,9 @@ test("recovery clears the WAL/SHM sidecars left by the crashed attempt (T8)", as
   const { dir, dbPath } = makeDbWithCoreContent();
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
-  const snapshotPath = await snapshotDb({ db: contentKernel(db), dbPath, label: "crashed-plugin" });
-  await ensureMigrationJournal(contentKernel(db));
-  await beginJournalEntry({ db: contentKernel(db), pluginId: "crashed-plugin", snapshotPath: snapshotPath! }); // real tmpdir file — never null, see above
+  const snapshotPath = await snapshotDb({ db: contentKernel({ store: db }), dbPath, label: "crashed-plugin" });
+  await ensureMigrationJournal(contentKernel({ store: db }));
+  await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "crashed-plugin", snapshotPath: snapshotPath! }); // real tmpdir file — never null, see above
   db.prepare(`CREATE TABLE "p_crashed_plugin__x" (id TEXT PRIMARY KEY)`).run();
   // Check WAL existence WHILE the connection is still open — a clean close() triggers its own
   // checkpoint, which is not representative of the crash this test simulates (an abrupt process
@@ -133,17 +133,17 @@ test("multiple incomplete SQLite attempts are settled in one boot without revivi
   const { dir, dbPath } = makeDbWithCoreContent();
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const db = new Database(dbPath);
-  await ensureMigrationJournal(contentKernel(db));
-  const firstSnapshot = await snapshotDb({ db: contentKernel(db), dbPath, label: "first-pending" });
+  await ensureMigrationJournal(contentKernel({ store: db }));
+  const firstSnapshot = await snapshotDb({ db: contentKernel({ store: db }), dbPath, label: "first-pending" });
   assert.ok(firstSnapshot);
-  await beginJournalEntry({ db: contentKernel(db), pluginId: "first-pending", snapshotPath: firstSnapshot });
+  await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "first-pending", snapshotPath: firstSnapshot });
   // A second declaration can snapshot while the first is still pending; its backup then contains
   // the first journal row. Replaying this newer backup last would revive that interrupted attempt.
-  const secondSnapshot = await snapshotDb({ db: contentKernel(db), dbPath, label: "second-pending" });
+  const secondSnapshot = await snapshotDb({ db: contentKernel({ store: db }), dbPath, label: "second-pending" });
   assert.ok(secondSnapshot);
   assert.notEqual(firstSnapshot, secondSnapshot);
-  await beginJournalEntry({ db: contentKernel(db), pluginId: "second-pending", snapshotPath: secondSnapshot });
-  assert.deepEqual((await findIncompleteJournalEntries(contentKernel(db))).map((entry) => entry.pluginId), ["first-pending", "second-pending"]);
+  await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "second-pending", snapshotPath: secondSnapshot });
+  assert.deepEqual((await findIncompleteJournalEntries(contentKernel({ store: db }))).map((entry) => entry.pluginId), ["first-pending", "second-pending"]);
   db.close();
 
   assert.deepEqual(await recoverAtBoot(dbPath), {
@@ -153,7 +153,7 @@ test("multiple incomplete SQLite attempts are settled in one boot without revivi
   const restored = new Database(dbPath);
   try {
     assert.deepEqual(restored.prepare("SELECT * FROM posts").all(), [{ id: "p1" }]);
-    assert.deepEqual(await findIncompleteJournalEntries(contentKernel(restored)), [], "one recovery pass must settle both attempts");
+    assert.deepEqual(await findIncompleteJournalEntries(contentKernel({ store: restored })), [], "one recovery pass must settle both attempts");
   } finally { restored.close(); }
   assert.deepEqual(await recoverAtBoot(dbPath), { recovered: 0, entries: [] });
 });
@@ -162,12 +162,12 @@ test("a COMMITTED entry is left alone — recovery is a no-op for a successful p
   const { dir, dbPath } = makeDbWithCoreContent();
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
-  const snapshotPath = await snapshotDb({ db: contentKernel(db), dbPath, label: "done-plugin" });
-  await ensureMigrationJournal(contentKernel(db));
-  const id = await beginJournalEntry({ db: contentKernel(db), pluginId: "done-plugin", snapshotPath: snapshotPath! }); // real tmpdir file — never null
+  const snapshotPath = await snapshotDb({ db: contentKernel({ store: db }), dbPath, label: "done-plugin" });
+  await ensureMigrationJournal(contentKernel({ store: db }));
+  const id = await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "done-plugin", snapshotPath: snapshotPath! }); // real tmpdir file — never null
   db.prepare(`CREATE TABLE "p_done_plugin__real" (id TEXT PRIMARY KEY)`).run();
   const { advanceJournalPhase } = await import("../migration-journal.js");
-  await advanceJournalPhase({ db: contentKernel(db), id, phase: "COMMITTED" });
+  await advanceJournalPhase({ db: contentKernel({ store: db }), id, phase: "COMMITTED" });
   db.close();
 
   const result = await recoverAtBoot(dbPath);
@@ -191,7 +191,7 @@ test("POST-COMMIT DATA-LOSS WINDOW (BUG FIX, 2026-08-12): a declareDataModule ca
     provenance: { sourceUrl: "test://committest2", publisher: "test" },
     tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] }],
   };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   const v2 = {
     ...v1,
@@ -204,7 +204,7 @@ test("POST-COMMIT DATA-LOSS WINDOW (BUG FIX, 2026-08-12): a declareDataModule ca
   // as missing — see that file for the fuller comment.
   const proxiedDb = staleColumnsOnSecondRead(db, "p_committest2__widgets");
 
-  const declareResult = await declareDataModule({ db: contentKernel(proxiedDb), dbPath, decl: v2 });
+  const declareResult = await declareDataModule({ db: contentKernel({ store: proxiedDb }), dbPath, decl: v2 });
   assert.equal(declareResult.ok, false, "the fault-injected verification failure is reported");
 
   // The site does NOT crash — it keeps serving and accepting writes on the same live connection,
@@ -254,10 +254,10 @@ test("missing recovery snapshot rejects boot and keeps the incomplete attempt vi
   const { dir, dbPath } = makeDbWithCoreContent();
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const db = new Database(dbPath);
-  const snapshotPath = await snapshotDb({ db: contentKernel(db), dbPath, label: "missing-snapshot" });
+  const snapshotPath = await snapshotDb({ db: contentKernel({ store: db }), dbPath, label: "missing-snapshot" });
   assert.ok(snapshotPath);
-  await ensureMigrationJournal(contentKernel(db));
-  await beginJournalEntry({ db: contentKernel(db), pluginId: "missing-snapshot", snapshotPath });
+  await ensureMigrationJournal(contentKernel({ store: db }));
+  await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "missing-snapshot", snapshotPath });
   db.prepare('CREATE TABLE "p_missing__partial" (id TEXT PRIMARY KEY)').run();
   db.close();
   fs.rmSync(snapshotPath);
@@ -269,7 +269,7 @@ test("missing recovery snapshot rejects boot and keeps the incomplete attempt vi
   assert.equal(bootContinued, false);
   const reopened = new Database(dbPath);
   try {
-    const incomplete = await findIncompleteJournalEntries(contentKernel(reopened));
+    const incomplete = await findIncompleteJournalEntries(contentKernel({ store: reopened }));
     assert.equal(incomplete.length, 1);
     assert.equal(incomplete[0].pluginId, "missing-snapshot");
     assert.deepEqual(reopened.prepare("SELECT * FROM posts").all(), [{ id: "p1" }]);

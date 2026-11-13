@@ -147,7 +147,7 @@ async function main(): Promise<void> {
   const dbPath = resolveExistingDbPath(args.dbPath);
   // Dry run opens READ-ONLY — matches the same "a dry run is not read-only unless the connection
   // itself refuses writes" discipline `c412bc75` established for the AAD backfill scripts.
-  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
+  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly({ filePath: dbPath });
   await runCleanup(db, { apply: args.apply, dbPath });
 }
 

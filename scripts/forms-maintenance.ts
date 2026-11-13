@@ -38,7 +38,7 @@ export async function runFormsMaintenanceCommand(
   try {
     // Keep EXCLUSIVE mode until close. Another site's owner must not race this offline apply.
     if (apply) native.exec('PRAGMA locking_mode=EXCLUSIVE; BEGIN EXCLUSIVE; ROLLBACK;');
-    const kernel = contentKernel(native);
+    const kernel = contentKernel({ store: native });
     const exists = await kernel.run(db => db.selectFrom('workspaces').select('id').where('id', '=', workspace).executeTakeFirst());
     if (!exists) throw new Error('The selected workspace is absent from this database. No form files were changed.');
     const media = { mediaRepo: new SqlMediaRepo(kernel), blobRepo: new SqlAssetBlobRepo(kernel), renditionRepo: new SqlAssetRenditionRepo(kernel),

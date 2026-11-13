@@ -12,7 +12,7 @@ for (const mode of ["handle", "kernel"] as const) {
   test(`identity ${mode} transaction rolls back repository writes on rejection`, async (t) => {
     const db = openContentDb(":memory:");
     t.after(() => db.$client.close());
-    const kernel = contentKernel(db);
+    const kernel = contentKernel({ store: db });
     const repo = new SqliteRoleRepo(mode === "handle" ? db : kernel);
     const transactions = createIdentityTransactions({ kernel });
     await assert.rejects(transactions.run({ workspaceId: "ws-rollback", execute: async () => {
@@ -27,7 +27,7 @@ for (const mode of ["handle", "kernel"] as const) {
     // F2.6/F6.4: a wrapper using a different store must fail independent SQL and real authorization.
     const db = openContentDb(":memory:");
     t.after(() => db.$client.close());
-    const kernel = contentKernel(db);
+    const kernel = contentKernel({ store: db });
     const store = mode === "handle" ? db : kernel;
     const repos = {
       principals: new SqlitePrincipalRepo(store), users: new SqliteUserRepo(store), sessions: new SqliteSessionRepo(store),

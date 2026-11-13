@@ -40,7 +40,7 @@ function backstopKernel(t: TestContext, options: { audit?: boolean | "broken" } 
   if (options.audit === "broken") db.exec("CREATE TABLE publish_backstop_log (id TEXT PRIMARY KEY)");
   else if (options.audit !== false) db.exec(AUDIT_TABLE);
   db.exec("CREATE TABLE p_banner(id TEXT PRIMARY KEY, title TEXT); INSERT INTO p_banner VALUES('one','New footer');");
-  return contentKernel(db);
+  return contentKernel({ store: db });
 }
 
 /** The peer's side of the wire, answering each publish-content call by path. */

@@ -199,8 +199,8 @@ test("copyServedPgliteTo restores a served owner's rows into a new data dir with
   const target = path.join(tmp, "served-copy");
   try {
     await seedPg(client, 12);
-    await copyServedPgliteTo(owner, target);
-    await assert.rejects(copyServedPgliteTo(owner, target), /already exists/);
+    await copyServedPgliteTo({ owner, targetPath: target });
+    await assert.rejects(copyServedPgliteTo({ owner, targetPath: target }), /already exists/);
   } finally {
     await client.close();
     await owner.close();

@@ -14,7 +14,7 @@ while (Date.now() < Number(startAt)) {
 }
 let release: (() => void) | undefined;
 try {
-  release = acquireOwnerLock(dataDir);
+  release = acquireOwnerLock({ dataDir });
 } catch (error) {
   if (!(error instanceof PgliteOwnerLockedError)) throw error;
 }

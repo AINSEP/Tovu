@@ -194,8 +194,8 @@ test("overlapping claims on independent SQLite connections lease disjoint batche
   const b = new Database(file);
   t.after(() => { b.close(); a.close(); fs.rmSync(root, { recursive: true, force: true }); });
   seedWorkspaces(a);
-  const kernelA = contentKernel(a);
-  const kernelB = contentKernel(b);
+  const kernelA = contentKernel({ store: a });
+  const kernelB = contentKernel({ store: b });
   let selected!: () => void;
   let release!: () => void;
   const firstSelected = new Promise<void>((resolve) => { selected = resolve; });

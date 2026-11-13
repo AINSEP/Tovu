@@ -41,7 +41,7 @@ interface StatusSqlRow {
 }
 
 /** The status columns of `workspaceId`'s jobs: the job index row, its outbox row and its plan. */
-function statusQuery(db: Kysely<ContentDatabase>, workspaceId: string) {
+function statusQuery({ db, workspaceId }: { db: Kysely<ContentDatabase>; workspaceId: string }, _optional: Record<string, never> = {}) {
   return db.selectFrom("form_delivery_jobs as j")
     .innerJoin("outbox_events as o", "o.id", "j.job_id")
     .innerJoin("form_delivery_plans as p", join => join.onRef("p.workspace_id", "=", JOB_WORKSPACE_ID).onRef("p.submission_id", "=", JOB_SUBMISSION_ID))
@@ -177,7 +177,7 @@ export class SqlFormDeliveryRepo implements FormDeliveryPlanPort {
    */
   async forSubmission(required: { workspaceId: string; submissionId: string }, _optional: Record<string, never> = {}): Promise<FormDeliveryStatusRow[]> {
     const { kernel } = this.required;
-    const rows = await kernel.run(db => statusQuery(db, required.workspaceId).where(JOB_SUBMISSION_ID, "=", required.submissionId)
+    const rows = await kernel.run(db => statusQuery({ db, workspaceId: required.workspaceId }).where(JOB_SUBMISSION_ID, "=", required.submissionId)
       .orderBy("j.binding_id").execute());
     return rows.map(toStatusRow);
   }
@@ -191,7 +191,7 @@ export class SqlFormDeliveryRepo implements FormDeliveryPlanPort {
    */
   async recentUnfinished(required: { workspaceId: string }, optional: { limit?: number } = {}): Promise<FormDeliveryStatusRow[]> {
     const { kernel } = this.required;
-    const rows = await kernel.run(db => statusQuery(db, required.workspaceId).where("o.status", "in", UNFINISHED_STATUSES)
+    const rows = await kernel.run(db => statusQuery({ db, workspaceId: required.workspaceId }).where("o.status", "in", UNFINISHED_STATUSES)
       .orderBy("o.created_at", "desc").orderBy("o.id", "desc").limit(optional.limit ?? DELIVERY_STATUS_MAX_LIMIT).execute());
     return rows.map(toStatusRow);
   }
@@ -202,7 +202,7 @@ interface PullRow { lease_token: string | null; lease_expires_at: string | null;
 /** Why a claim at `nowMs` must wait, or null when it may start. An expired lease is free again,
  * which is how a pull that crashed mid-way recovers. `recentMs` 0 (manual) never refuses `recent`,
  * even when the clock moved back past the last start. */
-function refusalOf(row: PullRow | undefined, nowMs: number, recentMs: number): FormPullRefusal | null {
+function refusalOf({ row, nowMs, recentMs }: { row: PullRow | undefined; nowMs: number; recentMs: number }, _optional: Record<string, never> = {}): FormPullRefusal | null {
   if (!row) return null;
   // Claim and release always set or clear token and expiry together, so the expiry alone says "held".
   if (row.lease_expires_at !== null && Date.parse(row.lease_expires_at) > nowMs) return "already-running";
@@ -212,7 +212,7 @@ function refusalOf(row: PullRow | undefined, nowMs: number, recentMs: number): F
 
 /** The lease end. A non-positive or non-finite `leaseMs` would grant a lease that is already
  * over, letting two pulls overlap, so it is refused instead of stored. */
-function leaseExpiresAt(nowIso: string, leaseMs: number): string {
+function leaseExpiresAt({ nowIso, leaseMs }: { nowIso: string; leaseMs: number }, _optional: Record<string, never> = {}): string {
   const nowMs = Date.parse(nowIso);
   if (!Number.isFinite(nowMs) || !Number.isFinite(leaseMs) || leaseMs <= 0) {
     throw new RangeError(`Form pull lease refused: nowIso must be an ISO time and leaseMs a positive finite number (got ${leaseMs}); pass the pull's bounded duration.`);
@@ -242,12 +242,12 @@ export class SqlFormPullLeaseRepo implements FormPullLeasePort {
   ): Promise<FormPullClaim> {
     const { kernel } = this.required;
     const { workspaceId, receiverKey, token, nowIso } = required;
-    const expiresAt = leaseExpiresAt(nowIso, required.leaseMs);
+    const expiresAt = leaseExpiresAt({ nowIso, leaseMs: required.leaseMs });
     return kernel.transaction(async () => {
       await kernel.lockKey(JSON.stringify(["form-receiver-pull", workspaceId, receiverKey]));
       const row = await kernel.run(db => db.selectFrom("form_receiver_pulls").select(["lease_token", "lease_expires_at", "last_started_at"])
         .where("workspace_id", "=", workspaceId).where("receiver_key", "=", receiverKey).executeTakeFirst());
-      const reason = refusalOf(row, Date.parse(nowIso), required.recentMs);
+      const reason = refusalOf({ row, nowMs: Date.parse(nowIso), recentMs: required.recentMs });
       if (reason) return { claimed: false, reason };
       const lease = { lease_token: token, lease_expires_at: expiresAt, last_started_at: nowIso };
       await kernel.run(db => db.insertInto("form_receiver_pulls").values({ workspace_id: workspaceId, receiver_key: receiverKey, ...lease })

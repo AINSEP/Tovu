@@ -605,7 +605,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const entryRepo = new TrashAwareInMemoryEntryRepo();
   const workspaceId = seededWorkspace.id;
   const taxonomyDb = createLazyProxy<ContentDb>(() => openContentDb(":memory:"));
-  const sqliteTrashDb = createLazyProxy<TrashDb>(() => contentKernel(taxonomyDb));
+  const sqliteTrashDb = createLazyProxy<TrashDb>(() => contentKernel({ store: taxonomyDb }));
   // Mirror production permissions for the memory-backed forms, menus and widgets too: without
   // their registry entries the Trash routes report a hermetically trashed record as "forbidden"
   // and it can never be restored (F3469/F1868). Its writes still go through the in-memory adapter.
@@ -1360,7 +1360,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     analyticsSettingsReady,
     siteTitleReady,
     siteConsentReady,
-    consentStore: createLazyProxy(() => createSiteConsentStore({ kernel: contentKernel(taxonomyDb), workspaceId })),
+    consentStore: createLazyProxy(() => createSiteConsentStore({ kernel: contentKernel({ store: taxonomyDb }), workspaceId })),
     siteTitlePreservationStore,
     // No site directory: the site title's no-owner-title value falls back to `workspaces.name` (SPEC-050 EC-03).
     siteDisplayName: { read: () => undefined },

@@ -197,7 +197,7 @@ describeEachDialect("AdminExecutionCredentialRepoPort", { tables: ["workspaces"]
 
 test("the vault CHECK constraint rejects a half-sealed row written outside this adapter", async () => {
   const db = openSeededDb();
-  await prepareVault(contentKernel(db));
+  await prepareVault(contentKernel({ store: db }));
   assert.throws(() => {
     db.$client
       .prepare(
@@ -211,7 +211,7 @@ test("the vault CHECK constraint rejects a half-sealed row written outside this 
 
 test("the vault FK rejects a row for a principal that does not exist", async () => {
   const db = openSeededDb();
-  await prepareVault(contentKernel(db));
+  await prepareVault(contentKernel({ store: db }));
   assert.throws(() => {
     db.$client
       .prepare(

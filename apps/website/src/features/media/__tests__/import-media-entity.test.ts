@@ -322,7 +322,7 @@ test("importMediaEntity: a brand-new blob IS stamped with the supplied blobCreat
 test("importMediaEntity translates a slug acquired during the write window into a typed block", async (t) => {
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
-  const mediaRepo = new SqliteMediaRepo(db);
+  const mediaRepo = new SqliteMediaRepo({ store: db });
   const deps = makeDeps({ mediaRepo });
   const holder = makeMediaRecord({ id: "racing-holder", slug: "racing-slug", source: { sha256: "a".repeat(64) } });
   const realInsert = mediaRepo.insertIfAbsent.bind(mediaRepo);

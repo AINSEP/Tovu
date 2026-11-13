@@ -21,10 +21,10 @@ const digest = (value: Uint8Array) => createHash("sha256").update(value).digest(
 async function fixture(t: TestContext, { privateSource = false }: { privateSource?: boolean } = {}) {
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
-  const repo = new SqliteMediaRepo(db);
-  const assetBlobRepo = new SqliteAssetBlobRepo(db);
-  const renditions = new SqliteAssetRenditionRepo(db);
-  const contentTypeStore = new SqliteMediaContentTypeStore(db);
+  const repo = new SqliteMediaRepo({ store: db });
+  const assetBlobRepo = new SqliteAssetBlobRepo({ store: db });
+  const renditions = new SqliteAssetRenditionRepo({ store: db });
+  const contentTypeStore = new SqliteMediaContentTypeStore({ store: db });
   const blobStore = new InMemoryBlobStore();
   const prior: MediaRecord = { id: "photo", workspaceId, kind: "media", originalFilename: "first.jpg", createdBy: "creator",
     title: "Before", slug: "before", alt: "Old alt", caption: "", credit: "", source: { sha256: digest(oldBytes), ...(privateSource ? { private: true } : {}) },

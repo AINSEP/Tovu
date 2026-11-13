@@ -26,6 +26,6 @@ export class PagesHtmlDocumentStore extends SqlPagesHtmlDocumentStore {
   /** `deps.db` is the connection's kernel, or the content db handle it is derived from. */
   constructor(scope: PagesHtmlDocumentStoreScope, deps: Omit<PagesHtmlDocumentStoreDeps, "kernel"> & { db: ContentKernel | ContentDb }) {
     const { db, ...rest } = deps;
-    super(scope, { ...rest, kernel: contentKernel(db) });
+    super(scope, { ...rest, kernel: contentKernel({ store: db }) });
   }
 }

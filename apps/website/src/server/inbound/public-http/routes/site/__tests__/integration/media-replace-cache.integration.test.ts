@@ -15,8 +15,8 @@ async function fixture(t: test.TestContext) {
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
   const deps = createRouteDeps();
-  Object.assign(deps, { mediaRepo: new SqliteMediaRepo(db), assetBlobRepo: new SqliteAssetBlobRepo(db),
-    assetRenditionRepo: new SqliteAssetRenditionRepo(db), mediaContentTypeStore: new SqliteMediaContentTypeStore(db) });
+  Object.assign(deps, { mediaRepo: new SqliteMediaRepo({ store: db }), assetBlobRepo: new SqliteAssetBlobRepo({ store: db }),
+    assetRenditionRepo: new SqliteAssetRenditionRepo({ store: db }), mediaContentTypeStore: new SqliteMediaContentTypeStore({ store: db }) });
   const bytes = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10z"/></svg>');
   const { media } = await uploadMedia({ deps: { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo },
     input: { workspaceId: deps.workspaceId, bytes, filename: "cover.svg", contentType: "image/svg+xml", createdByPrincipal: "owner" } });

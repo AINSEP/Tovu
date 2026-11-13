@@ -49,7 +49,7 @@ export interface SqliteSchemaObject {
   sql: string | null;
 }
 
-function requireSqlite<DB>(kernel: StorageKernel<DB>, operation: string): void {
+function requireSqlite<DB>({ kernel, operation }: { kernel: StorageKernel<DB>; operation: string }, _optional: Record<string, never> = {}): void {
   if (kernel.dialect !== "sqlite") {
     throw new Error(`${operation} is SQLite-only; this kernel is ${kernel.dialect}`);
   }
@@ -63,7 +63,7 @@ function requireSqlite<DB>(kernel: StorageKernel<DB>, operation: string): void {
 export async function sqliteTableExtendedInfo<DB>(
   { kernel, table }: { kernel: StorageKernel<DB>; table: string }, _options = {},
 ): Promise<SqliteExtendedTableColumn[]> {
-  requireSqlite(kernel, "sqliteTableExtendedInfo");
+  requireSqlite({ kernel, operation: "sqliteTableExtendedInfo" });
   return kernel.query<SqliteExtendedTableColumn>(sql`SELECT * FROM pragma_table_xinfo(${table}) ORDER BY cid`);
 }
 
@@ -76,7 +76,7 @@ export async function sqliteTableExtendedInfo<DB>(
 export async function sqliteSchemaObjects<DB>(
   { kernel }: { kernel: StorageKernel<DB> }, _options: Record<string, never> = {},
 ): Promise<SqliteSchemaObject[]> {
-  requireSqlite(kernel, "sqliteSchemaObjects");
+  requireSqlite({ kernel, operation: "sqliteSchemaObjects" });
   return kernel.query<SqliteSchemaObject>(sql`SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY type,name`);
 }
 
@@ -91,7 +91,7 @@ export async function sqliteTableInfo<DB>(
   _optional: Record<string, never> = {},
 ): Promise<SqliteTableColumn[] | null> {
   const { kernel, table } = required;
-  requireSqlite(kernel, "sqliteTableInfo");
+  requireSqlite({ kernel, operation: "sqliteTableInfo" });
   const found = await kernel.query<{ name: string }>(sql`SELECT name FROM sqlite_schema WHERE type='table' AND name=${table}`);
   if (found.length === 0) return null;
   const rows = await kernel.query<SqliteTableColumn>(sql`SELECT name, type, pk, "notnull" FROM pragma_table_info(${table}) ORDER BY cid`);
@@ -109,7 +109,7 @@ export async function sqliteForeignKeyCheckedTransaction<DB, T>(
   _optional: Record<string, never> = {},
 ): Promise<T> {
   const { kernel, work, onViolation } = required;
-  requireSqlite(kernel, "sqliteForeignKeyCheckedTransaction");
+  requireSqlite({ kernel, operation: "sqliteForeignKeyCheckedTransaction" });
   return kernel.transaction(async () => {
     await kernel.execute(sql`PRAGMA defer_foreign_keys = ON`);
     const result = await work();

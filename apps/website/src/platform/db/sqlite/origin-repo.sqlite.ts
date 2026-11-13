@@ -19,11 +19,11 @@ export type { ConfiguredOriginWriteResult } from "../repos/origin-repo.js";
  */
 export class SqliteOriginSettingRepo extends SqlOriginSettingRepo {
   /**
-   * @param store - The connection's kernel, or the content db handle it is derived from.
+   * @param required.store - The connection's kernel, or the content db handle it is derived from.
    * @param options.after - Reads wait for it (the boot write).
    */
-  constructor(store: ContentKernel | ContentDb, options: { after?: Promise<unknown> } = {}) {
-    super(contentKernel(store), options);
+  constructor({ store }: { store: ContentKernel | ContentDb }, options: { after?: Promise<unknown> } = {}) {
+    super(contentKernel({ store }), options);
   }
 }
 
@@ -35,7 +35,7 @@ export function seedDevCapabilityOrigin(
   },
   _optional: Record<string, never> = {}
 ): Promise<void> {
-  return seedDevCapabilityOriginOn(contentKernel(required.db), required.seed);
+  return seedDevCapabilityOriginOn(contentKernel({ store: required.db }), required.seed);
 }
 
 /** {@link registerConfiguredOriginOn} on `db`: the operator-declared origin, insert-or-correct. */
@@ -43,5 +43,5 @@ export function registerConfiguredOrigin(
   required: { db: ContentKernel | ContentDb; workspaceId: UUID; origin: VerifiedOrigin },
   _optional: Record<string, never> = {}
 ): Promise<ConfiguredOriginWriteResult> {
-  return registerConfiguredOriginOn(contentKernel(required.db), required.workspaceId, required.origin);
+  return registerConfiguredOriginOn({ kernel: contentKernel({ store: required.db }), workspaceId: required.workspaceId, origin: required.origin });
 }

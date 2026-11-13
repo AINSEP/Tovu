@@ -49,7 +49,7 @@ export interface DatabaseTransferToolDeps extends OperatorLocaleDeps {
   readonly dbOps: DbOpsPort;
   /** The site's folder name, written into the copy's marker. */
   readonly siteBinding?: { readonly name: string; readonly dir?: string };
-  readonly db?: Parameters<typeof contentKernel>[0];
+  readonly db?: Parameters<typeof contentKernel>[0]["store"];
   /** Disposable test capture seam; runtime resolves the exact sibling of its content DB. */
   readonly databaseTransferChatSnapshot?: () => Promise<Buffer>;
   /** Test-only; defaults to the process-wide store. */

@@ -201,7 +201,7 @@ function publishDeps(s: Site): PublishContentDeps {
     ...toPublishContentDeps(s),
     backstop: {
       ...buildPublishBackstopPorts({
-        contentKernel: contentKernel(s.rawDb), siteBinding: { dir: s.rawFilesDir },
+        contentKernel: contentKernel({ store: s.rawDb }), siteBinding: { dir: s.rawFilesDir },
         blobStore: s.blobStore, fileBlobIndex: s.fileBlobIndex,
       }),
       selection: s.backstopSelection,

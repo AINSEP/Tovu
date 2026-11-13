@@ -82,7 +82,7 @@ test("dataModule refuses insufficient headroom before snapshot or plugin DDL", a
     const prepare = db.prepare.bind(db);
     t.mock.method(db, "prepare", (sql: string) => { statements.push(sql); return prepare(sql); });
     const result = await declareDataModule({
-      db: contentKernel(db), dbPath,
+      db: contentKernel({ store: db }), dbPath,
       decl: {
         pluginId: "headroom", pluginTier: "tier-2",
         provenance: { sourceUrl: "test://headroom", publisher: "test" },

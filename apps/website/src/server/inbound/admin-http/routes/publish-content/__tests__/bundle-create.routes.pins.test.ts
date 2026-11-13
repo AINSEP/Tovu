@@ -149,7 +149,7 @@ function sqliteKernel(t: TestContext, withAuditTable: boolean) {
   const db = new Database(":memory:"); t.after(() => db.close());
   // Test-only schema; no active migration is created or installed.
   if (withAuditTable) db.exec("CREATE TABLE publish_backstop_log (id TEXT PRIMARY KEY)");
-  return contentKernel(db);
+  return contentKernel({ store: db });
 }
 
 test("a manual send whose audit table is not installed yet is the 503 BACKSTOP_NOT_INSTALLED", async (t) => {

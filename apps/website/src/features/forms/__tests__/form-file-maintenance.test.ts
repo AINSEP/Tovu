@@ -12,7 +12,7 @@ import { runFormFileMaintenance } from '../form-file-maintenance.js';
 
 const at = '2026-11-04T00:00:00.000Z';
 async function fixture(dbPath = ':memory:') {
-  const db = openContentDb(dbPath); const kernel = contentKernel(db);
+  const db = openContentDb(dbPath); const kernel = contentKernel({ store: db });
   db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w',at);
   const mediaRepo = new SqlMediaRepo(kernel), blobRepo = new SqlAssetBlobRepo(kernel), renditionRepo = new SqlAssetRenditionRepo(kernel);
   const outbox = new SqlOutboxAdapter(kernel), clock = { nowMs: () => Date.parse(at) };

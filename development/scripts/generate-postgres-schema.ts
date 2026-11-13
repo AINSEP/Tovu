@@ -127,7 +127,7 @@ function columnBuilder(col: SQLiteColumn, tableSqlName: string): string {
  * disagree with the manifest about a column.
  */
 function isJsonColumn(col: SQLiteColumn, tableSqlName: string): boolean {
-  return col.columnType === "SQLiteText" && classifyCoreColumn(tableSqlName, col).kind === "json-text";
+  return col.columnType === "SQLiteText" && classifyCoreColumn({ sqlTableName: tableSqlName, col }).kind === "json-text";
 }
 
 /**

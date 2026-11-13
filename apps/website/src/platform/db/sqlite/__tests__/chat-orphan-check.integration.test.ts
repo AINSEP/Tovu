@@ -80,7 +80,7 @@ test("checkForOrphanedChatRows reports the exact per-table counts still sitting 
   try {
     seedChatRows(contentDb, 3, "orphan");
 
-    const check = await checkForOrphanedChatRows(contentDb);
+    const check = await checkForOrphanedChatRows({ contentDb });
 
     assert.equal(check.orphaned, true, "3 conversations left in content.db must be reported as orphaned");
     assert.deepEqual(check.counts, { aiChats: 3, aiChatMessages: 3, assistantAgentSessions: 3 });
@@ -101,7 +101,7 @@ test("checkForOrphanedChatRows never writes: it succeeds against a strictly read
   // comment: any INSERT/UPDATE/DDL the check performed would throw SQLITE_READONLY here.
   const readOnly = new Database(contentDbPath, { readonly: true, fileMustExist: true });
   try {
-    const check = await checkForOrphanedChatRows(readOnly);
+    const check = await checkForOrphanedChatRows({ contentDb: readOnly });
     assert.equal(check.total, 6);
   } finally {
     readOnly.close();

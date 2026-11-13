@@ -42,8 +42,8 @@ async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' 
   const tokenOwner = new InMemoryTokenStore();
   const tokens: TokenStorePort = {
     save: record => tokenOwner.save(record),
-    findByToken: async token => {
-      const record = await tokenOwner.findByToken(token);
+    findByToken: async ({ token }) => {
+      const record = await tokenOwner.findByToken({ token });
       if (options.tokenState === 'fault') throw new Error('typed-store-test-failure');
       if (!record) return null;
       if (options.tokenState === 'foreign') return { ...record, confirmerPrincipalId: 'someone-else' };

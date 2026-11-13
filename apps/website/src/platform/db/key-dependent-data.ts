@@ -78,7 +78,7 @@ async function hasWebhookSubscription<DB>({ kernel }: { kernel: StorageKernel<DB
 export async function findKeyDependentData(dbPaths: readonly string[]): Promise<boolean> {
   for (const dbPath of dbPaths) {
     // One file's answer, with open/query failures turned into "has data" without aborting the others.
-    if (await scanOpenedKernel(() => openSqliteFileKernel<unknown>(dbPath, { readOnly: true }))) return true;
+    if (await scanOpenedKernel({ open: () => openSqliteFileKernel<unknown>(dbPath, { readOnly: true }) })) return true;
   }
   return false;
 }
@@ -89,7 +89,7 @@ export async function findKeyDependentData(dbPaths: readonly string[]): Promise<
  *
  * @complexity {@link hasKeyDependentData}'s cost plus one open/close.
  */
-export async function scanOpenedKernel(open: () => StorageKernel<unknown>): Promise<boolean> {
+export async function scanOpenedKernel({ open }: { open: () => StorageKernel<unknown> }, _optional: Record<string, never> = {}): Promise<boolean> {
   let kernel: StorageKernel<unknown>;
   try {
     kernel = open();

@@ -195,7 +195,7 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
     try {
       const workspaceId = readTemplate({ templateId: "starter" }).seed.workspace.id;
       const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() }, idGen = { newId: () => randomUUID() };
-      const identity = createSqliteIdentityRouteDeps({ db: contentKernel(imported), workspaceId, clock, idGen,
+      const identity = createSqliteIdentityRouteDeps({ db: contentKernel({ store: imported }), workspaceId, clock, idGen,
         permissionGrants: createPermissionGrantRegistry({}), ownerCredentials: { username: "admin", password: "deployment-password" } });
       await identity.identityReady;
       const deps = identityServiceDepsFrom({ ...identity, clock, idGen });
@@ -210,7 +210,7 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
 /** Seed the real default list plus populated private tables; all private fields carry a sentinel. */
 export async function seedPluginShareData({ db }: { db: ReturnType<typeof openContentDb> }, _options: Record<string, never> = {}): Promise<void> {
   for (const decl of FIRST_PARTY_DATA_MODULES.filter(decl => ["newsletter", "comments"].includes(decl.pluginId))) {
-    const result = await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl });
+    const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath: ":memory:", decl });
     assert.equal(result.ok, true, result.error?.message);
     for (const table of decl.tables) {
       if (table.portability?.kind !== "private") continue;

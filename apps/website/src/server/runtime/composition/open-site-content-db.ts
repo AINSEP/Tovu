@@ -34,7 +34,7 @@ export async function openSiteContentDb(required: string | { dbPath: string }, o
   let open = true;
   try {
     const recovery = await recoverIncompleteDataModuleMigrations({
-      store: contentKernel(db),
+      store: contentKernel({ store: db }),
       restoreSnapshots: (entries) => {
         closeSqliteConnection(db);
         open = false;
@@ -48,11 +48,11 @@ export async function openSiteContentDb(required: string | { dbPath: string }, o
         console.error(`[migration-recovery] restored ${dbPath} from ${entry.snapshotPath} (interrupted dataModule migration of plugin '${entry.pluginId}')`);
       }
     }
-    await migrateSqliteContentFile(db, dbPath);
-    await prepareContentStore(contentKernel(db), {
+    await migrateSqliteContentFile({ db, filePath: dbPath });
+    await prepareContentStore(contentKernel({ store: db }), {
       seed: { workspace: seededWorkspace, posts: seededPosts, presentation: seededPresentation },
     });
-    await runBootDataRepairs({ kernel: contentKernel(db) });
+    await runBootDataRepairs({ kernel: contentKernel({ store: db }) });
     return db;
   } catch (error) {
     // A failed boot must not hold the file open: a retry or a file replacement follows.

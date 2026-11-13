@@ -52,7 +52,7 @@ function harness(): Harness {
   // `form`'s purgeFirst declares `entityType: "form_submission"` (T1 item 5's phantom-row cleanup) —
   // needed even though this file never independently trashes a submission first, since `runCascade`
   // requires the ref whenever the cascade declares `entityType` at all.
-  const adapter = createTableTrashAdapter({ entry: registry.get("form")!, db: contentKernel(db) });
+  const adapter = createTableTrashAdapter({ entry: registry.get("form")!, db: contentKernel({ store: db }) });
   return { client, adapter };
 }
 

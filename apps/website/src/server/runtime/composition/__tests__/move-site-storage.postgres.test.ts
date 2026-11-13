@@ -138,7 +138,7 @@ test("a row written to the target after the emptiness check refuses the copy; no
     assert.deepEqual(await nonEmptyTables(target), [], "the pre-check passes");
     // Another process writes between the move's pre-check and its copy transaction.
     await target.execute(sql`INSERT INTO ai_chat.ai_chats (id, scope_id, owner_kind, owner_id, created_at, updated_at) VALUES ('late', 'ws', 'user', 'u9', 1, 1)`);
-    await assert.rejects(copyPgStore(source, target), (err: unknown) => {
+    await assert.rejects(copyPgStore({ source, target }), (err: unknown) => {
       assert.ok(err instanceof StoreCopyError);
       assert.equal(err.message, "the target database already holds data (ai_chat.ai_chats); nothing was copied");
       return true;

@@ -39,9 +39,9 @@ test("openSiteContentDb restores a crash-interrupted dataModule attempt, then pr
   // crash mid-DDL. The watermark row after reopening proves the store was prepared on the restored file.
   closeSqliteConnection(openLegacyContentDb({ filePath: dbPath }));
   const raw = new Database(dbPath);
-  const snapshotPath = await snapshotDb({ db: contentKernel(raw), dbPath, label: "crashed-plugin" });
-  await ensureMigrationJournal(contentKernel(raw));
-  await beginJournalEntry({ db: contentKernel(raw), pluginId: "crashed-plugin", snapshotPath: snapshotPath! });
+  const snapshotPath = await snapshotDb({ db: contentKernel({ store: raw }), dbPath, label: "crashed-plugin" });
+  await ensureMigrationJournal(contentKernel({ store: raw }));
+  await beginJournalEntry({ db: contentKernel({ store: raw }), pluginId: "crashed-plugin", snapshotPath: snapshotPath! });
   raw.prepare(`CREATE TABLE "p_crashed_plugin__half_created" (id TEXT PRIMARY KEY)`).run();
   raw.close();
 

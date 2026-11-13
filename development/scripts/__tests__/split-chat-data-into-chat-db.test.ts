@@ -104,7 +104,7 @@ test("reportDryRun: reports the exact seeded counts, and touches neither content
     seedContentDbFixture(contentDbPath);
     const beforeCounts = chatRowCounts(contentDbPath);
 
-    const readOnly = openContentDbReadOnly(contentDbPath);
+    const readOnly = openContentDbReadOnly({ filePath: contentDbPath });
     const messages: string[] = [];
     const plan = reportDryRun(readOnly.$client, (m) => messages.push(m));
     readOnly.$client.close();

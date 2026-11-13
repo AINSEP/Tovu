@@ -110,7 +110,7 @@ function toMediaRow(record: MediaRecord): Omit<MediaTable, "created_by" | "kind"
  *
  * @complexity O(1).
  */
-function translateSlugConflict(err: unknown, slug: string): never {
+function translateSlugConflict({ err, slug }: { err: unknown; slug: string }, _optional: Record<string, never> = {}): never {
   if (isUniqueViolation(err)) {
     throw new MediaConflictError({ message: `slug '${slug}' is already used by another media asset in this workspace` });
   }
@@ -120,7 +120,7 @@ function translateSlugConflict(err: unknown, slug: string): never {
 /** The `media_slug_history` row currently claiming `slug` in this workspace, or `null` if none
  *  (readable-slugs plan, S2a — see `VersionedMediaRepoPort.listRetiredSlugs`'s doc for the full
  *  rename-safety contract this and its sibling helpers below implement). */
-async function findSlugClaimant(db: ContentQueries, workspaceId: UUID, slug: string): Promise<Selectable<MediaSlugHistoryTable> | null> {
+async function findSlugClaimant({ db, workspaceId, slug }: { db: ContentQueries; workspaceId: UUID; slug: string }, _optional: Record<string, never> = {}): Promise<Selectable<MediaSlugHistoryTable> | null> {
   const row = await db
     .selectFrom("media_slug_history")
     .selectAll()
@@ -134,7 +134,7 @@ async function findSlugClaimant(db: ContentQueries, workspaceId: UUID, slug: str
 /** Throws `MediaConflictError` — the same shape a live-row `idx_media_workspace_slug` violation
  *  throws — when `claimant` belongs to a DIFFERENT asset. A `null` claimant, or one that already
  *  belongs to `mediaId` (reclaiming its own old slug), is fine. */
-function assertSlugReclaimable(claimant: Selectable<MediaSlugHistoryTable> | null, mediaId: UUID, slug: string): void {
+function assertSlugReclaimable({ claimant, mediaId, slug }: { claimant: Selectable<MediaSlugHistoryTable> | null; mediaId: UUID; slug: string }, _optional: Record<string, never> = {}): void {
   if (claimant && claimant.media_id !== mediaId) {
     throw new MediaConflictError({ message: `slug '${slug}' is already used by another media asset in this workspace` });
   }
@@ -142,14 +142,14 @@ function assertSlugReclaimable(claimant: Selectable<MediaSlugHistoryTable> | nul
 
 /** Removes a slug from `media_slug_history` — called once its claimant has actually reclaimed it
  *  (the row write that reclaims it has already landed in the same transaction). */
-async function deleteHistoryRow(db: ContentQueries, workspaceId: UUID, slug: string): Promise<void> {
+async function deleteHistoryRow({ db, workspaceId, slug }: { db: ContentQueries; workspaceId: UUID; slug: string }, _optional: Record<string, never> = {}): Promise<void> {
   await db.deleteFrom("media_slug_history").where("workspace_id", "=", workspaceId).where("slug", "=", slug).execute();
 }
 
 /** Moves `oldSlug` into `media_slug_history` for `mediaId`, unless the write left the slug
  *  unchanged or there was no prior slug (a brand-new row) — mirrors
  *  `InMemoryVersionedMediaRepo`'s identical `retireSlug` private method. */
-async function retireSlug(db: ContentQueries, workspaceId: UUID, mediaId: UUID, oldSlug: string | null, newSlug: string, retiredAt: string): Promise<void> {
+async function retireSlug({ db, workspaceId, mediaId, oldSlug, newSlug, retiredAt }: { db: ContentQueries; workspaceId: UUID; mediaId: UUID; oldSlug: string | null; newSlug: string; retiredAt: string }, _optional: Record<string, never> = {}): Promise<void> {
   if (!oldSlug || oldSlug === newSlug) return;
   await db.insertInto("media_slug_history").values({ workspace_id: workspaceId, slug: oldSlug, media_id: mediaId, retired_at: retiredAt }).execute();
 }
@@ -201,7 +201,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
       db.selectFrom("media").selectAll().where("workspace_id", "=", required.workspaceId).where("slug", "=", required.slug).limit(1).executeTakeFirst()
     );
     if (live) return toMediaRecord(live);
-    const retired = await this.kernel.run((db) => findSlugClaimant(db, required.workspaceId, required.slug));
+    const retired = await this.kernel.run((db) => findSlugClaimant({ db, workspaceId: required.workspaceId, slug: required.slug }));
     if (!retired) return null;
     return this.findById({ workspaceId: required.workspaceId, id: retired.media_id });
   }
@@ -218,7 +218,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
    * first here is additive, not a documented-contract break, and it is the ONE choke point both
    * consumers share: `media_list_assets` and the admin `GET .../media` route both resolve to
    * `listMedia()` -> `deps.mediaRepo.list()`, and production wires exactly one `MediaRepoPort`
-   * implementation (`composition/deps.ts`'s `mediaRepo: new SqliteMediaRepo(db)`) — fixing it here
+   * implementation (`composition/deps.ts`'s `mediaRepo: new SqliteMediaRepo({ store: db })`) — fixing it here
    * reaches both surfaces without a second change.
    *
    * `id desc` is a tiebreaker only, mirroring `database-journal-repo.ts`'s identical
@@ -278,19 +278,19 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
           if (existingRow && existingRow.source_sha256 !== record.source.sha256) {
             throw new MediaConflictError({ message: 'media file changed before metadata could be saved' });
           }
-          const claimant = await findSlugClaimant(db, record.workspaceId, record.slug);
-          assertSlugReclaimable(claimant, record.id, record.slug);
+          const claimant = await findSlugClaimant({ db, workspaceId: record.workspaceId, slug: record.slug });
+          assertSlugReclaimable({ claimant, mediaId: record.id, slug: record.slug });
           if (existingRow) {
             await db.updateTable("media").set(values).where("workspace_id", "=", record.workspaceId).where("id", "=", record.id).execute();
           } else {
             await db.insertInto("media").values(await this.creationValues({ record })).execute();
           }
-          if (claimant) await deleteHistoryRow(db, record.workspaceId, record.slug);
-          await retireSlug(db, record.workspaceId, record.id, existingRow?.slug ?? null, record.slug, record.updatedAt);
+          if (claimant) await deleteHistoryRow({ db, workspaceId: record.workspaceId, slug: record.slug });
+          await retireSlug({ db, workspaceId: record.workspaceId, mediaId: record.id, oldSlug: existingRow?.slug ?? null, newSlug: record.slug, retiredAt: record.updatedAt });
         });
       });
     } catch (err) {
-      translateSlugConflict(err, record.slug);
+      translateSlugConflict({ err, slug: record.slug });
     }
   }
 
@@ -319,8 +319,8 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
             .where("version", "=", ifVersion)
             .executeTakeFirst();
           if (!existingRow) return { applied: false };
-          const claimant = await findSlugClaimant(db, record.workspaceId, record.slug);
-          assertSlugReclaimable(claimant, record.id, record.slug);
+          const claimant = await findSlugClaimant({ db, workspaceId: record.workspaceId, slug: record.slug });
+          assertSlugReclaimable({ claimant, mediaId: record.id, slug: record.slug });
           const updated = await db
             .updateTable("media")
             .set(toMediaRow(record))
@@ -330,13 +330,13 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
             .returning("id")
             .execute();
           if (updated.length === 0) return { applied: false };
-          if (claimant) await deleteHistoryRow(db, record.workspaceId, record.slug);
-          await retireSlug(db, record.workspaceId, record.id, existingRow.slug, record.slug, record.updatedAt);
+          if (claimant) await deleteHistoryRow({ db, workspaceId: record.workspaceId, slug: record.slug });
+          await retireSlug({ db, workspaceId: record.workspaceId, mediaId: record.id, oldSlug: existingRow.slug, newSlug: record.slug, retiredAt: record.updatedAt });
           return { applied: true };
         });
       });
     } catch (err) {
-      return translateSlugConflict(err, record.slug);
+      return translateSlugConflict({ err, slug: record.slug });
     }
   }
 
@@ -358,8 +358,8 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
           if (!currentRow) return { applied: false };
           const current = toMediaRecord(currentRow);
           const updated = mediaFileReplacementRecord({ media: current, input: required });
-          const claimant = await findSlugClaimant(db, required.workspaceId, updated.slug);
-          assertSlugReclaimable(claimant, required.id, updated.slug);
+          const claimant = await findSlugClaimant({ db, workspaceId: required.workspaceId, slug: updated.slug });
+          assertSlugReclaimable({ claimant, mediaId: required.id, slug: updated.slug });
           const blob = await db.selectFrom('asset_blobs').select('id')
             .where('workspace_id', '=', required.workspaceId).where('sha256', '=', required.sha256)
             .where('storage_key', '=', required.storageKey).where('status', '=', 'active').executeTakeFirst();
@@ -371,8 +371,8 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
             .where('version', '=', required.ifVersion).where('status', 'in', required.restore ? ['active', 'trashed'] : ['active'])
             .returning('id').execute();
           if (!rows.length) return { applied: false };
-          if (claimant) await deleteHistoryRow(db, required.workspaceId, updated.slug);
-          await retireSlug(db, required.workspaceId, required.id, current.slug, updated.slug, required.updatedAt);
+          if (claimant) await deleteHistoryRow({ db, workspaceId: required.workspaceId, slug: updated.slug });
+          await retireSlug({ db, workspaceId: required.workspaceId, mediaId: required.id, oldSlug: current.slug, newSlug: updated.slug, retiredAt: required.updatedAt });
           if (!required.restore) await new SqlMediaContentTypeStore(this.kernel).set({ workspaceId: required.workspaceId,
             sha256: required.sha256, contentType: required.contentType });
           await db.deleteFrom('asset_renditions').where('workspace_id', '=', required.workspaceId)
@@ -384,7 +384,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
         });
       });
     } catch (error) {
-      return translateSlugConflict(error, required.metadata?.slug ?? required.id);
+      return translateSlugConflict({ err: error, slug: required.metadata?.slug ?? required.id });
     }
   }
 
@@ -416,8 +416,8 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
       return await this.kernel.transaction(async () => {
         await this.kernel.lockKey(slugLockKey(record.workspaceId));
         return this.kernel.run(async (db) => {
-          const claimant = await findSlugClaimant(db, record.workspaceId, record.slug);
-          assertSlugReclaimable(claimant, record.id, record.slug);
+          const claimant = await findSlugClaimant({ db, workspaceId: record.workspaceId, slug: record.slug });
+          assertSlugReclaimable({ claimant, mediaId: record.id, slug: record.slug });
           const inserted = await db
             .insertInto("media")
             .values(await this.creationValues({ record }))
@@ -427,12 +427,12 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
           // Only drop the history row once the insert actually landed — an `applied: false` (id
           // already taken) must leave `media_slug_history` exactly as it was, same "no partial
           // effect on a refused write" rule every other branch here follows.
-          if (inserted.length > 0 && claimant) await deleteHistoryRow(db, record.workspaceId, record.slug);
+          if (inserted.length > 0 && claimant) await deleteHistoryRow({ db, workspaceId: record.workspaceId, slug: record.slug });
           return { applied: inserted.length > 0 };
         });
       });
     } catch (err) {
-      return translateSlugConflict(err, record.slug);
+      return translateSlugConflict({ err, slug: record.slug });
     }
   }
 

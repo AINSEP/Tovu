@@ -255,7 +255,7 @@ async function main(): Promise<void> {
   // Prove the database is really there BEFORE opening it: `openContentDb` creates-and-migrates on
   // open, so a typo'd path would otherwise report "nothing to backfill" against a new empty file.
   const dbPath = resolveExistingDbPath(args.dbPath);
-  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
+  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly({ filePath: dbPath });
   const now = new Date().toISOString();
 
   if (!args.apply) {

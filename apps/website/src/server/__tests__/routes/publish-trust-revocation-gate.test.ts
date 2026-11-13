@@ -203,7 +203,7 @@ test("the SQLite deny store fails loudly at boot when its migration table is una
   try {
     db.$client.exec("DROP TABLE publish_trust_revocations");
     await assert.rejects(
-      publishTrustRevocationStoreFor(contentKernel(db)),
+      publishTrustRevocationStoreFor(contentKernel({ store: db })),
       /publish trust revocation store is unavailable at boot/i
     );
   } finally {
@@ -216,13 +216,13 @@ test("a disconnect row survives reopening the fresh site content database", asyn
   const { dir, db } = await freshContentDb();
   let reopened: ContentDb | undefined;
   try {
-    const store = await publishTrustRevocationStoreFor(contentKernel(db));
+    const store = await publishTrustRevocationStoreFor(contentKernel({ store: db }));
     const written = await store.revoke({ sourceInstallationId: SOURCE_INSTALL, nowIso: NOW, note: "lost device" });
     assert.equal(written.ok, true, written.ok ? "" : written.reason);
     db.$client.close();
 
     reopened = openContentDb(join(dir, "content.db"));
-    const reread = await (await publishTrustRevocationStoreFor(contentKernel(reopened))).list();
+    const reread = await (await publishTrustRevocationStoreFor(contentKernel({ store: reopened }))).list();
     assert.deepEqual(reread, {
       ok: true,
       revocations: [{ sourceInstallationId: SOURCE_INSTALL, revokedAt: NOW, note: "lost device" }],

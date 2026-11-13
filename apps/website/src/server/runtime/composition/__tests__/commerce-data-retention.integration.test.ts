@@ -104,7 +104,7 @@ for (const populated of [false, true]) {
         // Only fixture setup declares the historical modules. Production boot must never invoke
         // them or reconcile them against an empty/off inventory.
         for (const decl of [LIPAY_MANIFEST, STORE_MANIFEST]) {
-          const result = await declareDataModule({ db: contentKernel(db), dbPath: filePath, decl });
+          const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath: filePath, decl });
           assert.equal(result.ok, true);
         }
         db.insert(workspaces).values({ id: "retained-ws", name: "Retained", slug: "retained", createdAt: NOW }).run();

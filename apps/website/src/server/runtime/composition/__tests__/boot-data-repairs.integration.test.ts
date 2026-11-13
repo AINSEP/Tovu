@@ -70,7 +70,7 @@ test("sqlite: openSiteContentDb runs the repair (its marker is written on a fres
   try {
     const db = await openSiteContentDb(path.join(dir, "content.db"));
     try {
-      assert.equal(await markerPresent(contentKernel(db)), true);
+      assert.equal(await markerPresent(contentKernel({ store: db })), true);
     } finally {
       closeSqliteConnection(db);
     }
@@ -102,10 +102,10 @@ test("sqlite install dir: bootSiteDir (tovu serve/export <dir>) runs the repair 
     await initSite({ dir, name: "Repair Site" });
     const database = resolveSiteDatabasePaths({ dir }).contentDbPath;
     const seeded = await openSiteContentDb(database);
-    await contentKernel(seeded).run((db) =>
+    await contentKernel({ store: seeded }).run((db) =>
       db.deleteFrom("setting_values_global").where("setting_id", "=", UNREADABLE_OWNER_ENTRIES_REPAIR_SETTING_ID).execute()
     );
-    assert.equal(await markerPresent(contentKernel(seeded)), false);
+    assert.equal(await markerPresent(contentKernel({ store: seeded })), false);
     closeSqliteConnection(seeded);
 
     // Real migrated sites retain these recovery artifacts; only an exact .db file is authoritative.
@@ -114,7 +114,7 @@ test("sqlite install dir: bootSiteDir (tovu serve/export <dir>) runs the repair 
 
     const boot = await bootSiteDir({ dir });
     try {
-      assert.equal(boot.db !== undefined && (await markerPresent(contentKernel(boot.db))), true);
+      assert.equal(boot.db !== undefined && (await markerPresent(contentKernel({ store: boot.db }))), true);
       assert.equal(resolveSiteDatabasePaths({ dir }).contentDbPath, database);
       for (const name of leftovers) assert.equal(fs.readFileSync(path.join(dir, name), "utf8"), "legacy recovery artifact");
     } finally {

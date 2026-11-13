@@ -21,8 +21,8 @@ async function fixture(t: test.TestContext) {
   const deps = {
     workspaceId: 'workspace-local', authorize: async () => ({ allowed: true, reason: 'matched' }),
     clock: { nowMs: () => Date.parse('2026-10-03T12:00:00.000Z') }, idGen: { newId: () => `id-${++sequence}` },
-    mediaRepo: new SqliteMediaRepo(db), assetBlobRepo: new SqliteAssetBlobRepo(db),
-    assetRenditionRepo: new SqliteAssetRenditionRepo(db), mediaContentTypeStore: new SqliteMediaContentTypeStore(db),
+    mediaRepo: new SqliteMediaRepo({ store: db }), assetBlobRepo: new SqliteAssetBlobRepo({ store: db }),
+    assetRenditionRepo: new SqliteAssetRenditionRepo({ store: db }), mediaContentTypeStore: new SqliteMediaContentTypeStore({ store: db }),
     blobStore: new InMemoryBlobStore(), transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}),
     imageTransformer: new InMemoryImageTransformer(),
   } as unknown as MediaRouteDeps;

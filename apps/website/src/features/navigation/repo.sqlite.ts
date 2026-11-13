@@ -11,13 +11,13 @@ import { SqlMenuRepo, SqlNavLocationBindingRepo } from "./repo.js";
 export class SqliteMenuRepo extends SqlMenuRepo {
   /** @param store - The connection's kernel, or the content db handle it is derived from. */
   constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteNavLocationBindingRepo extends SqlNavLocationBindingRepo {
   /** @param store - The connection's kernel, or the content db handle it is derived from. */
   constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }

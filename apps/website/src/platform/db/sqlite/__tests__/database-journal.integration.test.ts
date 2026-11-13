@@ -22,7 +22,7 @@ import { SqliteMigrationRunsRepo, SqliteRestorePointsRepo, SqliteDatabaseLedgerR
 function openTempJournal() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "database-journal-"));
   const filePath = path.join(tmpDir, "database-journal.db");
-  const db = openDatabaseJournalDb(filePath);
+  const db = openDatabaseJournalDb({ filePath });
   return { db, tmpDir };
 }
 

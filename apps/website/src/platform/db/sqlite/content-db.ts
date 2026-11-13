@@ -94,20 +94,20 @@ export const MIGRATION_BACKUP_PREFIX = "pre-migrations-";
  * (the newest five per site are kept). Nothing pending: nothing is written. Low disk space warns
  * and skips only the backup: a production boot must still be able to apply its pending migrations.
  *
- * @param filePath - the file `db` was opened on (`:memory:`: no copy).
+ * @param required.filePath - the file `db` was opened on (`:memory:`: no copy).
  * @throws LegacyHistoryError when the file's drizzle history cannot be matched to the frozen chain;
  *   the database is left as it was (the copy is kept).
  */
-export async function migrateSqliteContentFile(db: ContentDb, filePath: string): Promise<MigrationReport> {
-  const backupPath = filePath === ":memory:" ? undefined : migrationBackupPath(filePath);
+export async function migrateSqliteContentFile({ db, filePath }: { db: ContentDb; filePath: string }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
+  const backupPath = filePath === ":memory:" ? undefined : migrationBackupPath({ filePath });
   const report = await migrateContentDatabase(sqliteKernel<unknown>(db), { backupPath, onBackupError: ({ error, backupPath: failed }) => {
-    if (!isDiskFull(error)) throw error;
+    if (!isDiskFull({ error })) throw error;
     // A half-written copy only holds the space that ran out; the boot continues without it.
     fs.rmSync(failed, { force: true });
     console.warn(`[migrations] Skipping pre-migration backup: ${error instanceof Error ? error.message : String(error)}`);
   }, onBackupComplete: async ({ backupPath: written }) => {
     // Recovery-window cleanup cannot turn a successful copy into a production boot refusal.
-    await removeOlderMigrationBackups(written).catch(() => console.warn("[migrations] Could not prune older pre-migration backups."));
+    await removeOlderMigrationBackups({ kept: written }).catch(() => console.warn("[migrations] Could not prune older pre-migration backups."));
   } });
   if (report.applied.length > 0) {
     console.log(`[migrations] ${filePath}: applied ${report.applied.join(", ")}`);
@@ -117,11 +117,11 @@ export async function migrateSqliteContentFile(db: ContentDb, filePath: string):
 }
 
 /** The preflight refusal, or SQLite running out of space mid-copy (the 11-01 prod error). */
-function isDiskFull(error: unknown): boolean {
+function isDiskFull({ error }: { error: unknown }, _optional: Record<string, never> = {}): boolean {
   return error instanceof DatabaseDiskSpaceError || (typeof error === "object" && error !== null && "code" in error && error.code === "SQLITE_FULL");
 }
 
-function migrationBackupPath(filePath: string): string {
+function migrationBackupPath({ filePath }: { filePath: string }, _optional: Record<string, never> = {}): string {
   const opsDir = path.join(path.dirname(path.resolve(filePath)), "ops");
   return path.join(opsDir, `${MIGRATION_BACKUP_PREFIX}${new Date().toISOString().replace(/[:.]/g, "-")}.db`);
 }
@@ -129,7 +129,7 @@ function migrationBackupPath(filePath: string): string {
 /** Only the exact filenames this writer owns enter the shared retention policy (ISO stamps give the
  * order); a removed copy takes any `-wal`/`-shm` a reader left beside it. Foreign files are left alone.
  * @complexity O(n log n) in files beside the new copy. */
-async function removeOlderMigrationBackups(kept: string): Promise<void> {
+async function removeOlderMigrationBackups({ kept }: { kept: string }, _optional: Record<string, never> = {}): Promise<void> {
   const dir = path.dirname(kept);
   const copies = fs.readdirSync(dir, { withFileTypes: true })
     .filter(entry => entry.isFile() && /^pre-migrations-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.db$/.test(entry.name))
@@ -182,8 +182,7 @@ export function openContentDb(required: string | { filePath: string }, options: 
  *   "create" in a read-only open), or whatever `better-sqlite3` throws for a malformed/locked file.
  * @complexity O(1) — one connection open, no migration sweep.
  */
-export function openContentDbReadOnly(required: string | { filePath: string }, { open = openNativeSqlite }: ContentDbOpenOptions = {}): ContentDb {
-  const filePath = typeof required === "string" ? required : required.filePath;
+export function openContentDbReadOnly({ filePath }: { filePath: string }, { open = openNativeSqlite }: ContentDbOpenOptions = {}): ContentDb {
   const sqlite = open(filePath, { readonly: true, fileMustExist: true });
   sqlite.pragma("busy_timeout = 5000");
   return drizzle(sqlite, { schema }) as ContentDb;

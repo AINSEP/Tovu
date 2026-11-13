@@ -16,12 +16,12 @@ export const OWNER_LOCK_FILE = "tovu-owner.pid";
 export const PGLITE_LOW_MEMORY_START_PARAMS: readonly string[] = pgliteLowMemoryStartParams(PGlite);
 
 /** Keep Tovu's home and /tmp socket namespaces unchanged. */
-export function defaultPgliteSocketDir(dataDir: string, home?: string): string {
+export function defaultPgliteSocketDir({ dataDir }: { dataDir: string }, { home }: { home?: string } = {}): string {
   return jiniDefaultPgliteSocketDir({ dataDir, runDirName: "tovu" }, home === undefined ? {} : { home });
 }
 
 /** Use Jini's shared owner state with Tovu's historical lock filename. */
-export function acquireOwnerLock(dataDir: string): () => void {
+export function acquireOwnerLock({ dataDir }: { dataDir: string }, _optional: Record<string, never> = {}): () => void {
   return jiniAcquireOwnerLock({ dataDir, lockFileName: OWNER_LOCK_FILE });
 }
 

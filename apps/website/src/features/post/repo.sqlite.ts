@@ -11,7 +11,7 @@ import { postSearchFor } from "./search-index.js";
 export class SqlitePostRepo extends SqlPostRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    const kernel = contentKernel(store);
+    const kernel = contentKernel({ store });
     super(kernel, postSearchFor(kernel));
   }
 }

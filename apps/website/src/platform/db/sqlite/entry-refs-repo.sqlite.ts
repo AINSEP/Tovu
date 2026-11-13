@@ -9,7 +9,7 @@ import { SqlEntryRefsRepo } from "../repos/entry-refs-repo.js";
  */
 export class SqliteEntryRefsRepo extends SqlEntryRefsRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super(contentKernel({ store }));
   }
 }

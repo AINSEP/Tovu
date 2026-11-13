@@ -75,7 +75,7 @@ function harness(): Harness {
 
   const trashRepo = new SqliteTrashRepo({ store: client });
   let seq = 0;
-  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel(client))]]);
+  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel({ store: client }))]]);
   const trash = createTrashService({
     repo: trashRepo,
     adapters,

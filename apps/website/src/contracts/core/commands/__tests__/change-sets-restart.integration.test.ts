@@ -22,7 +22,7 @@ test("SqliteChangeSetRepo: an applied change set (header + items) survives a sim
 
     // "First boot": apply a mutation and record its change set.
     const db1 = openContentDb(dbPath);
-    const repo1 = new SqliteChangeSetRepo(db1);
+    const repo1 = new SqliteChangeSetRepo({ store: db1 });
     await repo1.insert({ record: {
         id: "cs-restart-1",
         workspaceId,
@@ -49,7 +49,7 @@ test("SqliteChangeSetRepo: an applied change set (header + items) survives a sim
     // "Restart": a brand-new content.db handle + a brand-new SqliteChangeSetRepo against the
     // SAME on-disk file — the in-memory adapter this replaces would have lost everything here.
     const db2 = openContentDb(dbPath);
-    const repo2 = new SqliteChangeSetRepo(db2);
+    const repo2 = new SqliteChangeSetRepo({ store: db2 });
 
     const found = await repo2.findById({ workspaceId, id: "cs-restart-1" });
     assert.ok(found, "the change set must survive a restart");
@@ -64,7 +64,7 @@ test("SqliteChangeSetRepo: an applied change set (header + items) survives a sim
     await repo2.save({ ...found!.changeSet, status: "reverted", revertedAt: "2026-07-16T01:00:00.000Z" });
 
     const db3 = openContentDb(dbPath);
-    const repo3 = new SqliteChangeSetRepo(db3);
+    const repo3 = new SqliteChangeSetRepo({ store: db3 });
     const afterRevert = await repo3.findById({ workspaceId, id: "cs-restart-1" });
     assert.equal(afterRevert?.changeSet.status, "reverted");
     assert.equal(afterRevert?.changeSet.revertedAt, "2026-07-16T01:00:00.000Z");

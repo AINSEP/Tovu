@@ -402,7 +402,7 @@ async function main(): Promise<void> {
   if (!args.apply) {
     // Read-only open: a dry run must never migrate content.db, and must never open (let alone
     // create) chat.db at all — this is the exact bug 1e2dc23f fixed in a sibling script.
-    const contentDb = openContentDbReadOnly(dbPath);
+    const contentDb = openContentDbReadOnly({ filePath: dbPath });
     try {
       reportDryRun(contentDb.$client);
     } finally {

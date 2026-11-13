@@ -26,7 +26,7 @@ test('L058a held PGlite owner lock refuses without touching metadata', async t =
   fs.writeFileSync(path.join(siteDir, '.site-meta.json'), JSON.stringify({ storage: { kind: 'pglite' } }));
   const dataDir = path.join(siteDir, 'pglite');
   fs.mkdirSync(dataDir);
-  const release = acquireOwnerLock(dataDir);
+  const release = acquireOwnerLock({ dataDir });
   try {
     await assert.rejects(moveSiteStorage({ siteDir, connectionString: 'unused', secretRef: { env: 'PG_TEST' } }),
       { message: `storage move: the site is running (process ${process.pid}); stop it, then move it` });

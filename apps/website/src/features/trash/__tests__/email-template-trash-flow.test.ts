@@ -24,7 +24,7 @@ const ACTOR = { principalId: "admin-1", pluginId: null };
 function harness(_required = {}, _options = {}) {
   const db = openContentDb(":memory:");
   db.$client.prepare("INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WS, WS, WS, AT);
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   const clock = createFakeClock({ startIso: AT });
   const postRepo = postRepoFor(kernel);
   let sequence = 0;
@@ -33,7 +33,7 @@ function harness(_required = {}, _options = {}) {
     pagesHtmlStore: (scope, options = {}) => new SqlPagesHtmlDocumentStore(scope, { ...options, kernel, clock, revisions: postRepo }),
   };
   const registry = buildTrashRegistry();
-  const trashDb = contentKernel(db);
+  const trashDb = contentKernel({ store: db });
   const adapters = new Map<string, TrashAdapter>([...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })]));
   const transaction = createContentDbTransactionRunner({ store: kernel });
   const trash = createTrashService({

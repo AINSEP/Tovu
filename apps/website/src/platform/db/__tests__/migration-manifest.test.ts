@@ -312,7 +312,7 @@ test("REVIEWED_JSON_COLUMNS has no stale entries — every key names a real colu
 });
 
 test("REVIEWED_JSON_COLUMNS has no redundant entries — no key already matches isJsonColumnName (the allowlist exists ONLY for columns the naming convention cannot see)", () => {
-  const redundant = Object.keys(REVIEWED_JSON_COLUMNS).filter((key) => isJsonColumnName(key.split(".")[1]!));
+  const redundant = Object.keys(REVIEWED_JSON_COLUMNS).filter((key) => isJsonColumnName({ sqlColumnName: key.split(".")[1]! }));
   assert.deepEqual(redundant, [], "a REVIEWED_JSON_COLUMNS entry already matches the *_json naming convention and should not be in this allowlist at all");
 });
 
@@ -695,7 +695,7 @@ test("JSON-completeness tripwire (R4-F1/C-1): no text() column outside isJsonCol
 
   const offenders: string[] = [];
   for (const { sqlColumnName, qualifiedName, docComment, declLine } of textColumnDeclarations()) {
-    if (isJsonColumnName(sqlColumnName) || reviewedQualified.has(qualifiedName)) continue;
+    if (isJsonColumnName({ sqlColumnName }) || reviewedQualified.has(qualifiedName)) continue;
     const commentSignal = jsonMentionInOwnComment.test(docComment);
     const defaultSignal = jsonLiteralDefault.test(declLine);
     if (!commentSignal && !defaultSignal) continue;
@@ -777,18 +777,18 @@ test("utc-timestamp-text classification agrees with a GENUINELY independent orac
 });
 
 test("isTimestampColumnName: bare 'at' and '*_at' match; '*_at_capture' point-in-time snapshots do not", () => {
-  assert.equal(isTimestampColumnName("at"), true);
-  assert.equal(isTimestampColumnName("created_at"), true);
-  assert.equal(isTimestampColumnName("last_hit_at"), true);
-  assert.equal(isTimestampColumnName("from_path_at_capture"), false);
-  assert.equal(isTimestampColumnName("format"), false);
+  assert.equal(isTimestampColumnName({ sqlColumnName: "at" }), true);
+  assert.equal(isTimestampColumnName({ sqlColumnName: "created_at" }), true);
+  assert.equal(isTimestampColumnName({ sqlColumnName: "last_hit_at" }), true);
+  assert.equal(isTimestampColumnName({ sqlColumnName: "from_path_at_capture" }), false);
+  assert.equal(isTimestampColumnName({ sqlColumnName: "format" }), false);
 });
 
 test("isJsonColumnName: '*_json' matches, unrelated columns do not", () => {
-  assert.equal(isJsonColumnName("body_json"), true);
-  assert.equal(isJsonColumnName("event_props_json"), true);
-  assert.equal(isJsonColumnName("json"), false);
-  assert.equal(isJsonColumnName("body_html"), false);
+  assert.equal(isJsonColumnName({ sqlColumnName: "body_json" }), true);
+  assert.equal(isJsonColumnName({ sqlColumnName: "event_props_json" }), true);
+  assert.equal(isJsonColumnName({ sqlColumnName: "json" }), false);
+  assert.equal(isJsonColumnName({ sqlColumnName: "body_html" }), false);
 });
 
 test("reseedSequenceSql produces a setval statement using pg_get_serial_sequence, GREATEST-clamped to the sequence's minimum of 1", () => {
@@ -799,7 +799,7 @@ test("reseedSequenceSql produces a setval statement using pg_get_serial_sequence
   // for sequence ... (1..9223372036854775807)" — AFTER the row copy that produced that id had
   // already landed. See migration-manifest-postgres.test.ts for the live proof of both the old
   // failure and the fix across empty / positive / non-positive / mixed-sign cases.
-  const sql = reseedSequenceSql("analytics_events", "id");
+  const sql = reseedSequenceSql({ sqlTableName: "analytics_events", sqlColumnName: "id" });
   assert.match(sql, /setval\(pg_get_serial_sequence\('analytics_events', 'id'\)/);
   assert.match(sql, /GREATEST\(COALESCE\(\(SELECT max\(id\) FROM analytics_events\), 0\), 1\)/);
   assert.match(sql, /COALESCE\(\(SELECT max\(id\) FROM analytics_events\), 0\) >= 1/);
@@ -807,14 +807,14 @@ test("reseedSequenceSql produces a setval statement using pg_get_serial_sequence
 
 test("reseedSequenceSql rejects an over-long identifier rather than emitting SQL Postgres would silently truncate", () => {
   const tooLong = "a".repeat(64);
-  assert.throws(() => reseedSequenceSql(tooLong, "id"), /64 bytes, exceeding PostgreSQL's 63-byte/);
+  assert.throws(() => reseedSequenceSql({ sqlTableName: tooLong, sqlColumnName: "id" }), /64 bytes, exceeding PostgreSQL's 63-byte/);
 });
 
 test("assertIdentifierFits: every real table and column identifier in the source schema fits in 63 bytes today", () => {
   for (const { table } of collectCoreTables()) {
     const cfg = getTableConfig(table);
-    assert.doesNotThrow(() => assertIdentifierFits(cfg.name, "table name"));
-    for (const col of cfg.columns) assert.doesNotThrow(() => assertIdentifierFits(col.name, "column name"));
+    assert.doesNotThrow(() => assertIdentifierFits({ identifier: cfg.name, what: "table name" }));
+    for (const col of cfg.columns) assert.doesNotThrow(() => assertIdentifierFits({ identifier: col.name, what: "column name" }));
   }
 });
 
@@ -983,8 +983,8 @@ test("classifyPluginColumn: REAL and BLOB pass through as their own kinds", () =
 test("classifyCoreColumn rejects an unreviewed autoincrement key and an unsupported core kind", () => {
   const fixture = sqliteTable("unreviewed_probe", { id: integer("id").primaryKey({ autoIncrement: true }), amount: real("amount") });
   const columns = getTableConfig(fixture).columns;
-  assert.throws(() => classifyCoreColumn("unreviewed_probe", columns.find((column) => column.name === "id")!), /autoincrement primary key "unreviewed_probe.id" has no entry in REVIEWED_INTEGER_ID_COLUMNS/);
-  assert.throws(() => classifyCoreColumn("unreviewed_probe", columns.find((column) => column.name === "amount")!), /unmapped column kind "SQLiteReal" on "unreviewed_probe.amount"/);
+  assert.throws(() => classifyCoreColumn({ sqlTableName: "unreviewed_probe", col: columns.find((column) => column.name === "id")! }), /autoincrement primary key "unreviewed_probe.id" has no entry in REVIEWED_INTEGER_ID_COLUMNS/);
+  assert.throws(() => classifyCoreColumn({ sqlTableName: "unreviewed_probe", col: columns.find((column) => column.name === "amount")! }), /unmapped column kind "SQLiteReal" on "unreviewed_probe.amount"/);
 });
 
 test("topologicalTableCopyOrder rejects either unnamed edge endpoint", () => {

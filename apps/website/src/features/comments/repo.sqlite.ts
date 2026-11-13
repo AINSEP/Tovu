@@ -15,7 +15,7 @@ export class SqliteCommentRepo extends SqlCommentRepo {
   constructor({ store }: { store: ContentKernel | SqliteConnectionSource }, optional: Record<string, never> = {}) {
     super({
       // Erase the host schema only: Jini adds the plugin tables with withTables on this same kernel.
-      kernel: contentKernel(store) as unknown as CommentSqlRequired["kernel"],
+      kernel: contentKernel({ store }) as unknown as CommentSqlRequired["kernel"],
       tables: { comments: "p_comments__comments", moderationLog: "p_comments__moderation_log" },
     }, optional);
   }

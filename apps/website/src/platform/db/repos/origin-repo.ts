@@ -64,7 +64,7 @@ function toVerifiedOrigin(row: Row): VerifiedOrigin {
   return createVerifiedOrigin(candidate);
 }
 
-function normalizeHostList(hosts: string[] | undefined): string[] {
+function normalizeHostList({ hosts }: { hosts: string[] | undefined }, _optional: Record<string, never> = {}): string[] {
   return (hosts ?? []).map((host) => host.trim().toLowerCase());
 }
 
@@ -126,8 +126,8 @@ export async function seedDevCapabilityOriginOn(
         base_path: verified.basePath ?? null,
         verified_at: verified.verifiedAt,
         source: verified.source,
-        redirect_allowlist_json: JSON.stringify(normalizeHostList(seed.redirectAllowlist)),
-        egress_allowlist_json: JSON.stringify(normalizeHostList(seed.egressAllowlist)),
+        redirect_allowlist_json: JSON.stringify(normalizeHostList({ hosts: seed.redirectAllowlist })),
+        egress_allowlist_json: JSON.stringify(normalizeHostList({ hosts: seed.egressAllowlist })),
       })
       .onConflict((oc) => !refreshesLoopback ? oc.column("workspace_id").doNothing() : oc.column("workspace_id").doUpdateSet({
         scheme: verified.scheme, port: verified.port ?? null, verified_at: verified.verifiedAt,
@@ -204,9 +204,7 @@ function sameOrigin(row: Row, origin: VerifiedOrigin): boolean {
  * @complexity O(1) — one indexed lookup plus at most one write.
  */
 export async function registerConfiguredOriginOn(
-  kernel: ContentKernel,
-  workspaceId: UUID,
-  origin: VerifiedOrigin
+  { kernel, workspaceId, origin }: { kernel: ContentKernel; workspaceId: UUID; origin: VerifiedOrigin }, _optional: Record<string, never> = {}
 ): Promise<ConfiguredOriginWriteResult> {
   const verified = createVerifiedOrigin(origin);
   return kernel.transaction(async () => {

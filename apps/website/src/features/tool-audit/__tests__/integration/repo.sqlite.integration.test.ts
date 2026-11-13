@@ -91,7 +91,7 @@ test("append never throws, even when the underlying write fails — audit is obs
   t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 
   const errors: unknown[] = [];
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   const broken: ContentKernel = { ...kernel, run: async () => { throw new Error("database is locked"); } };
 
   await assert.doesNotReject(() => new SqliteToolAttemptAuditSink(broken, { onError: (e) => errors.push(e) }).append(event()));

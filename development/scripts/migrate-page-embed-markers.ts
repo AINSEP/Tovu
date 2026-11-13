@@ -250,7 +250,7 @@ function planRows(db: ContentDb): RowPlan[] {
  * stale rows. Extraction is a pure function of the stored body, so doing all of them is idempotent
  * and makes the index match the content by construction rather than by bookkeeping. */
 async function reextractAllHtmlPages(db: ContentDb): Promise<number> {
-  const repo = new SqliteEntryRefsRepo(db);
+  const repo = new SqliteEntryRefsRepo({ store: db });
   const pages = db.$client
     .prepare("SELECT id, workspace_id AS workspaceId, body_html AS bodyHtml FROM posts WHERE body_format = 'html' AND body_html IS NOT NULL")
     .all() as { id: string; workspaceId: string; bodyHtml: string }[];
@@ -312,7 +312,7 @@ async function main(): Promise<void> {
 
   // A dry run must never migrate the schema — which `openContentDb` does unconditionally. Only
   // `--apply` gets the read-write, migrating open; every dry run opens strictly read-only.
-  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
+  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly({ filePath: dbPath });
   const plans = planRows(db);
   const changed = plans.filter((p) => p.after !== p.before);
   const blockedCount = plans.reduce((n, p) => n + p.planned.filter((m) => m.blocked !== undefined).length, 0);

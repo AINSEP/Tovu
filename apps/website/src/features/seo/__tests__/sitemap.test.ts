@@ -79,7 +79,7 @@ async function sitemapFromRegisteredOrigin(configuredUrl: string | undefined) {
 
   const deps = {
     ...(await makeDeps([post({ id: "a", slug: "published-visible", status: "published" })])),
-    originRegistry: new OriginRegistry({ repo: new SqliteOriginSettingRepo(db) }),
+    originRegistry: new OriginRegistry({ repo: new SqliteOriginSettingRepo({ store: db }) }),
   };
   const seoDeps = createSeoDeps({ deps: { ...deps.media, ...deps } }, {});
   return createSitemapService({ deps: seoDeps }, {}).buildSitemap({ workspaceId: WORKSPACE }, {});

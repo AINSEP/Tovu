@@ -158,7 +158,7 @@ test("scanOpenedKernel: a catalog failure fails closed and closes the opened ker
         query: async () => { queries += 1; throw new Error("catalog unavailable"); },
         close: async () => { closes += 1; await kernel.close(); if (closeRejects) throw new Error("close failed"); },
       };
-      assert.equal(await scanOpenedKernel(() => opened), true);
+      assert.equal(await scanOpenedKernel({ open: () => opened }), true);
       assert.equal(queries, 1, "the catalog query must actually have been attempted");
       assert.equal(closes, 1, "a failed scan must close its kernel exactly once");
     }
@@ -174,9 +174,9 @@ test("scanOpenedKernel: a close rejection does not turn a successfully scanned c
     buildEmptyDb(dbPath);
     const kernel = openSqliteFileKernel<unknown>(dbPath, { readOnly: true });
     let closes = 0;
-    assert.equal(await scanOpenedKernel(() => ({ ...kernel,
+    assert.equal(await scanOpenedKernel({ open: () => ({ ...kernel,
       close: async () => { closes += 1; await kernel.close(); throw new Error("close failed"); },
-    })), false);
+    }) }), false);
     assert.equal(closes, 1);
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -219,5 +219,5 @@ test("findKeyDependentData: no paths means nothing to scan", async () => {
 });
 
 test("scanOpenedKernel: an open that throws fails closed without a kernel to close", async () => {
-  assert.equal(await scanOpenedKernel(() => { throw new Error("cannot open"); }), true);
+  assert.equal(await scanOpenedKernel({ open: () => { throw new Error("cannot open"); } }), true);
 });

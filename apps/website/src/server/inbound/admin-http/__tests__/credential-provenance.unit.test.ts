@@ -122,9 +122,9 @@ test("a publish_key's actor-class identity is itself, so only the confirming ins
     (error: unknown) => error instanceof ForbiddenError && error.reasonCode === "ACTOR_CLASS_MISMATCH"
   );
   assert.equal(applied, 0);
-  assert.equal((await tokens.findByToken(record.confirmationToken))?.status, "minted");
+  assert.equal((await tokens.findByToken({ token: record.confirmationToken }))?.status, "minted");
   assert.deepEqual(await execute({ deps, principalId: "pub:install-a", principalKind: "publish_key", hooks: ceremony,
     confirmationToken: record.confirmationToken }), { applied: true });
   assert.equal(applied, 1);
-  assert.equal((await tokens.findByToken(record.confirmationToken))?.status, "redeemed");
+  assert.equal((await tokens.findByToken({ token: record.confirmationToken }))?.status, "redeemed");
 });

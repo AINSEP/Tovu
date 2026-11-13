@@ -40,7 +40,7 @@ function harness() {
   const db = openContentDb(":memory:");
   const client = db.$client;
   client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WS, WS, WS, AT);
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   const registry = buildTrashRegistry();
   const adapter = createMemberTrashAdapter({
     adapter: createTableTrashAdapter({ entry: registry.get("member")!, db: kernel }), db: kernel,

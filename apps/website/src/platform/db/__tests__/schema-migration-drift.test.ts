@@ -173,7 +173,7 @@ async function migratedDatabase(): Promise<MigratedDatabase> {
     const db = openSqliteContentConnection(file);
     const sqlite = db.$client;
     try {
-      await migrateSqliteContentFile(db, file);
+      await migrateSqliteContentFile({ db, filePath: file });
 
       const rows = sqlite.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as Array<{ name: string }>;
       const allTableNames = rows.map((r) => r.name).sort();

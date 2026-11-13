@@ -207,7 +207,7 @@ test("an older share without the additive Library columns takes their trusted de
 
 test("a populated portable plugin table travels with only its policy columns; private plugin tables carry nothing", async t => {
   const { sql, db } = sourceDb(t);
-  assert.equal((await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl: NEWSLETTER_DATA_MODULE })).ok, true);
+  assert.equal((await declareDataModule({ db: contentKernel({ store: db }), dbPath: ":memory:", decl: NEWSLETTER_DATA_MODULE })).ok, true);
   sql.exec("ALTER TABLE p_newsletter__lists ADD COLUMN owner_email TEXT");
   sql.prepare("INSERT INTO p_newsletter__lists (id,workspace_id,name,slug,is_default,status,created_at,updated_at,owner_email) VALUES ('l1','ws','News','news',1,'active',?,?,'private@example.test')").run(stamp, stamp);
   sql.prepare("INSERT INTO p_newsletter__subscriptions (id,workspace_id,list_id,subscriber_id,status,source,created_at,updated_at) VALUES ('s1','ws','l1','sub','active','form',?,?)").run(stamp, stamp);
@@ -218,7 +218,7 @@ test("a populated portable plugin table travels with only its policy columns; pr
 
 test("a portable plugin table missing one of its policy columns refuses with UNSUPPORTED_SCHEMA", async t => {
   const { sql, db } = sourceDb(t);
-  assert.equal((await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl: NEWSLETTER_DATA_MODULE })).ok, true);
+  assert.equal((await declareDataModule({ db: contentKernel({ store: db }), dbPath: ":memory:", decl: NEWSLETTER_DATA_MODULE })).ok, true);
   sql.exec("ALTER TABLE p_newsletter__lists DROP COLUMN status");
   await assert.rejects(sanitizeShareDatabase({ snapshot: sql.serialize() }), refusal("UNSUPPORTED_SCHEMA", "Cannot share 'p_newsletter__lists': its columns differ from the trusted current schema. Update the site first."));
 });

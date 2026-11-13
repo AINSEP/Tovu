@@ -25,7 +25,7 @@ test("the real apply loop joins every raw write in one FK-checked transaction an
   // The source deliberately contains a dangling reference. Disable enforcement only while
   // seeding it; the destination below must enforce FKs and roll back the real apply batch.
   db.exec("PRAGMA foreign_keys=OFF; CREATE TABLE p_widgets(id TEXT PRIMARY KEY, title TEXT); CREATE TABLE p_links(id TEXT PRIMARY KEY, widget_id TEXT REFERENCES p_widgets(id)); INSERT INTO p_widgets VALUES('a','new'); INSERT INTO p_links VALUES('l','missing');");
-  const rows = createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel(db) });
+  const rows = createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel({ store: db }) });
   const outbox = new InMemoryOutbox();
   const clock = { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") };
   let serial = 0;
@@ -70,7 +70,7 @@ test("a selected row equal to live plans unchanged through the real planner", as
   registerPublishContentContributor(contributeRawRowPublish());
   db.exec("CREATE TABLE p_widgets(id TEXT PRIMARY KEY, title TEXT); INSERT INTO p_widgets VALUES('a','same');");
   const deps: PublishContentDeps = { workspaceId: "ws", ports: {}, clock: { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") }, idGen: { newId: () => "id" },
-    backstop: { rows: createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel(db) }), coveredTables: [], coveredRoots: [], selection: { rows: [{ table: "p_widgets", pk: { id: "a" } }] } } };
+    backstop: { rows: createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel({ store: db }) }), coveredTables: [], coveredRoots: [], selection: { rows: [{ table: "p_widgets", pk: { id: "a" } }] } } };
   const entities = []; for await (const entity of contributeRawRowPublish().build(deps).pack()) entities.push(entity);
   const report = await planImport({ artifactFormatVersion: 1, hashVersion: 1, entities }, { publishContentDeps: deps, getBaseline: async () => null, hasBlob: async () => true });
   assert.equal(report.rows[0]!.outcome, "unchanged");

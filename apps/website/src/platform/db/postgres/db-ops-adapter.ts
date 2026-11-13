@@ -14,7 +14,7 @@ import { evaluatePostgresRestoreCapability } from "./db-ops.js";
 
 /** A restore point was asked of a store that cannot take or restore one. */
 export class RestorePointsUnavailableError extends Error {
-  constructor(action: "capture" | "restore") {
+  constructor({ action }: { action: "capture" | "restore" }) {
     super(`restore points are not available on this site's storage (Postgres/PGlite); cannot ${action} one`);
     this.name = "RestorePointsUnavailableError";
   }
@@ -33,10 +33,10 @@ export class PostgresDbOpsAdapter implements DbOpsPort {
   }
 
   async captureRestorePoint(): Promise<{ artifactRef: string; watermarkAtCapture: number }> {
-    throw new RestorePointsUnavailableError("capture");
+    throw new RestorePointsUnavailableError({ action: "capture" });
   }
 
   async restoreFromArtifact(): Promise<{ restartRequired: boolean }> {
-    throw new RestorePointsUnavailableError("restore");
+    throw new RestorePointsUnavailableError({ action: "restore" });
   }
 }

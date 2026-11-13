@@ -62,7 +62,7 @@ for (const adapter of ["memory", "sqlite"] as const) {
   test(`${adapter}: status decodes the full saved report, progress and retired change sets within its workspace`, async t => {
     const db = adapter === "sqlite" ? openContentDb(":memory:") : null;
     if (db) t.after(() => db.$client.close());
-    const repo = db ? new SqlitePublishContentRunRepo(db) : new InMemoryPublishContentRunRepo();
+    const repo = db ? new SqlitePublishContentRunRepo({ store: db }) : new InMemoryPublishContentRunRepo();
     const report = { refused: false, refusalReason: null, applyOrder: ["post"], rows: [
       { entityType: "post", entityId: "post-1", entityLabel: "Title", outcome: "forced", writes: true,
         reason: "operator overwrite", canOverwrite: true, retires: { entityType: "post", entityId: "holder-1", entityLabel: "Old title", hash: "holder-hash" } },

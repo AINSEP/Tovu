@@ -76,17 +76,17 @@ test("@electric-sql/pglite is pinned to exactly 0.5.8 (the ReadyForQuery filter 
 describe("owner lock", () => {
   test("a live owner (this process or another) refuses; a dead pid's lock is taken over", () => {
     const dir = mkdtempSync(join(scratch, "lock-"));
-    const release = acquireOwnerLock(dir);
+    const release = acquireOwnerLock({ dataDir: dir });
     assert.equal(readFileSync(join(dir, OWNER_LOCK_FILE), "utf8"), `${process.pid}\n`);
-    assert.throws(() => acquireOwnerLock(dir), PgliteOwnerLockedError);
+    assert.throws(() => acquireOwnerLock({ dataDir: dir }), PgliteOwnerLockedError);
     release();
     assert.equal(existsSync(join(dir, OWNER_LOCK_FILE)), false);
 
     writeFileSync(join(dir, OWNER_LOCK_FILE), `${process.ppid}\n`);
-    assert.throws(() => acquireOwnerLock(dir), (error: PgliteOwnerLockedError) => error.pid === process.ppid);
+    assert.throws(() => acquireOwnerLock({ dataDir: dir }), (error: PgliteOwnerLockedError) => error.pid === process.ppid);
 
     writeFileSync(join(dir, OWNER_LOCK_FILE), `${deadPid()}\n`);
-    const takeover = acquireOwnerLock(dir);
+    const takeover = acquireOwnerLock({ dataDir: dir });
     assert.equal(readFileSync(join(dir, OWNER_LOCK_FILE), "utf8"), `${process.pid}\n`);
     takeover();
   });
@@ -95,12 +95,12 @@ describe("owner lock", () => {
     const dir = mkdtempSync(join(scratch, "lock-"));
     const lockPath = join(dir, OWNER_LOCK_FILE);
     writeFileSync(lockPath, "");
-    assert.throws(() => acquireOwnerLock(dir), (error: PgliteOwnerLockedError) => error instanceof PgliteOwnerLockedError && error.pid === undefined);
+    assert.throws(() => acquireOwnerLock({ dataDir: dir }), (error: PgliteOwnerLockedError) => error instanceof PgliteOwnerLockedError && error.pid === undefined);
     assert.equal(readFileSync(lockPath, "utf8"), "", "the starter's lock is left alone");
 
     const old = new Date(Date.now() - 60_000);
     utimesSync(lockPath, old, old);
-    const release = acquireOwnerLock(dir);
+    const release = acquireOwnerLock({ dataDir: dir });
     assert.equal(readFileSync(lockPath, "utf8"), `${process.pid}\n`);
     release();
   });
@@ -128,7 +128,7 @@ describe("owner lock", () => {
 
   test("release never deletes a lock that another owner has taken since", () => {
     const dir = mkdtempSync(join(scratch, "lock-"));
-    const release = acquireOwnerLock(dir);
+    const release = acquireOwnerLock({ dataDir: dir });
     writeFileSync(join(dir, OWNER_LOCK_FILE), `${process.ppid}\n`);
     release();
     assert.equal(readFileSync(join(dir, OWNER_LOCK_FILE), "utf8"), `${process.ppid}\n`);
@@ -145,11 +145,11 @@ describe("socket location", () => {
   });
 
   test("the default socket dir is under ~/.tovu/run, or /tmp/tovu-<uid> when home is too deep", () => {
-    const short = defaultPgliteSocketDir("/sites/a/pglite", "/Users/me");
+    const short = defaultPgliteSocketDir({ dataDir: "/sites/a/pglite" }, { home: "/Users/me" });
     assert.match(short, /^\/Users\/me\/\.tovu\/run\/[0-9a-f]{8}$/);
-    assert.equal(defaultPgliteSocketDir("/sites/a/pglite", "/Users/me"), short, "stable, so clients can find it");
-    assert.notEqual(defaultPgliteSocketDir("/sites/b/pglite", "/Users/me"), short, "one per data dir");
-    const deep = defaultPgliteSocketDir("/sites/a/pglite", `/Users/${"x".repeat(90)}`);
+    assert.equal(defaultPgliteSocketDir({ dataDir: "/sites/a/pglite" }, { home: "/Users/me" }), short, "stable, so clients can find it");
+    assert.notEqual(defaultPgliteSocketDir({ dataDir: "/sites/b/pglite" }, { home: "/Users/me" }), short, "one per data dir");
+    const deep = defaultPgliteSocketDir({ dataDir: "/sites/a/pglite" }, { home: `/Users/${"x".repeat(90)}` });
     assert.equal(deep, `/tmp/tovu-${process.getuid!()}/${short.slice(-8)}`);
     assertSocketPathFits(join(deep, PGLITE_SOCKET_FILE));
   });

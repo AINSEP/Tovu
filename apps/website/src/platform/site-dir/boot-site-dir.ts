@@ -150,14 +150,14 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
   }
 
   try {
-    await migrateSqliteContentFile(db, dbPath);
+    await migrateSqliteContentFile({ db, filePath: dbPath });
 
     // The watermark singleton row every content store carries.
-    await prepareContentStore(contentKernel(db));
+    await prepareContentStore(contentKernel({ store: db }));
     // The stored-data repairs every other store opener runs. The CLI hands this handle to the
     // composition as `overrides.db`, which skips `openSiteContentDb` (where SQLite runs them), so
     // without this `tovu serve <dir>`/`tovu export <dir>` never repaired a SQLite install.
-    await deps.runBootDataRepairs({ kernel: contentKernel(db) });
+    await deps.runBootDataRepairs({ kernel: contentKernel({ store: db }) });
 
     // BR-05 step 5 / BR-06 / CIC U-002-B2/ORD1: the stamp rewrite happens ONLY when a migration
     // was actually needed, both fields together, in one atomic operation, and only AFTER
@@ -170,10 +170,10 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
 
     // BR-05 step 6 / CIC U-002-ORD2: workspace resolution is the final gate before the caller
     // may bind a listener — this must run AFTER the stamp write above, not before.
-    const workspace = await resolveWorkspace({ kernel: contentKernel(db) }, { workspaceId: options.workspaceId });
+    const workspace = await resolveWorkspace({ kernel: contentKernel({ store: db }) }, { workspaceId: options.workspaceId });
 
     // Folder-only consumers (export/plugin operations) also need normalized credential payloads.
-    await deps.normalizeSiteVaultAtBoot({ kernel: contentKernel(db), workspaceId: workspace.id, siteDir: target,
+    await deps.normalizeSiteVaultAtBoot({ kernel: contentKernel({ store: db }), workspaceId: workspace.id, siteDir: target,
       clock: { nowMs: () => Date.now() } });
 
     // EC-07: an unrecognized templateId is provenance-only — warn, never block serving.

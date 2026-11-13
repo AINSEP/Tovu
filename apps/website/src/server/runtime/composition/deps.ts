@@ -1344,7 +1344,7 @@ async function composeSiteRouteDeps(
   // `menuBindingsReady`'s shape — nothing downstream needs to gate a request on this resolving,
   // since `ensureCoreMediaTransform` is idempotent and the window between boot and its single
   // insert completing is a few milliseconds.
-  const transformDefinitionRepo = new SqliteTransformDefinitionRepo(kernel);
+  const transformDefinitionRepo = new SqliteTransformDefinitionRepo({ store: kernel });
   const mediaTransformReady = commentsReady
     .then(() =>
       ensureCoreMediaTransform({
@@ -1387,7 +1387,7 @@ async function composeSiteRouteDeps(
   // ADR-046 Phase 1 (BR-04 resolution, 2026-07-16 swarm debate): durable SQLite outbox. Events
   // survive a restart; `SqliteChangeSetRepo.insert()`'s co-persisted event and this adapter's
   // `claimPending()`/`markDelivered()`/`markFailed()` share the same `outbox_events` table.
-  const outbox = new SqliteOutboxAdapter(kernel);
+  const outbox = new SqliteOutboxAdapter({ store: kernel });
   const bus = new InMemoryEventBus();
   // ADR-046 Phase 1 (2026-07-16): durable SQLite origin-settings adapter.
   //
@@ -1449,7 +1449,7 @@ async function composeSiteRouteDeps(
     }
     return Promise.resolve();
   }
-  const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo(kernel, { after: originReady }) });
+  const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo({ store: kernel }, { after: originReady }) });
   const redirectRepo = SqliteRedirectRepo({ store: kernel }, {});
   const redirectHitSink = new RedirectHitSinkImpl();
   // ---------------------------------------------------------------------------
@@ -1459,7 +1459,7 @@ async function composeSiteRouteDeps(
   // codebase's registries (`ToolRegistry`, routing's `phaseRegistry`) are append-only with no
   // unregister, so anything that filters at registration time runs exactly once — two real bugs
   // already came from that. Adding a phase-2 domain means one more `set()` here and no migration.
-  const assetRenditionRepo = new SqliteAssetRenditionRepo(kernel);
+  const assetRenditionRepo = new SqliteAssetRenditionRepo({ store: kernel });
   // `TRASHABLE` (plan §1/§4) — built once here. Adding a type needs
   // no edit below this line, only a new `registry.ts` `Map` entry — the adapter map beneath already
   // loops over every registered entry generically.
@@ -1685,7 +1685,7 @@ async function composeSiteRouteDeps(
   // `ops/` is a new subdirectory better-sqlite3 will not create for us.
   const databaseJournalDbPath = defaultDatabaseJournalDbPath(dbPath);
   mkdirSync(dirname(databaseJournalDbPath), { recursive: true });
-  const databaseJournalDb = openDatabaseJournalDb(databaseJournalDbPath);
+  const databaseJournalDb = openDatabaseJournalDb({ filePath: databaseJournalDbPath });
   // The ops journal owns a separate SQLite connection on every content dialect.
   onStoreClose(() => databaseJournalDb.close());
   // `siteId` reuses `workspaceId` for v1's single-workspace-per-content.db topology — ADR-041 §7
@@ -1701,7 +1701,7 @@ async function composeSiteRouteDeps(
   // already built (a prior session's disclosed-but-unwired infra work — see each class's own file
   // header) but never constructed by any composition root until now. `SqliteRestorePointsRepo`
   // shares the same sidecar journal db/siteId as `databaseLedgerRepo` above.
-  const publishContentRunRepo = new SqlitePublishContentRunRepo(kernel);
+  const publishContentRunRepo = new SqlitePublishContentRunRepo({ store: kernel });
   const restorePointsRepo = new SqliteRestorePointsRepo({ db: databaseJournalDb, siteId: workspaceId,
     protectedRestorePointIds: () => publishContentRunRepo.inFlightRestorePointIds({ workspaceId }),
   });
@@ -1729,7 +1729,7 @@ async function composeSiteRouteDeps(
   // `widgets` routes and the public site-render path (`routes/site/pages.ts` → `resolvePageWidgets`,
   // W-004) read/write against the SAME real tables, via the same `db` connection.
   const widgetBindingRepo = new SqliteWidgetRegionBindingRepo(kernel);
-  const entryRefsRepo = new SqliteEntryRefsRepo(kernel);
+  const entryRefsRepo = new SqliteEntryRefsRepo({ store: kernel });
   const formDefinitionRepo = new SqliteFormDefinitionRepo(kernel);
   let formCollectionProviders = () => createFormCollectionRegistry({});
   const formSubmissionRepo = new SqliteFormSubmissionRepo(kernel);
@@ -2063,18 +2063,18 @@ async function composeSiteRouteDeps(
   // stateless wrappers over the shared `db`, so a second instance would behave identically, but one
   // instance matches this root's own stated convention). `changeSets` is hoisted for the identical
   // reason as `revertRegistry`'s `postRepo` above.
-  const changeSets = new SqliteChangeSetRepo(kernel);
+  const changeSets = new SqliteChangeSetRepo({ store: kernel });
   // Hoisted out of the `routeDeps` literal below for the SAME reason as `changeSets` above: the
   // apply loop's `media.apply()` must read and write through the same adapters every media route
   // uses. Both are stateless wrappers over the shared `db`, so a second instance would behave
   // identically — one instance simply matches this root's own stated convention.
-  const mediaRepo = new SqliteMediaRepo(kernel);
-  const assetBlobRepo = new SqliteAssetBlobRepo(kernel);
+  const mediaRepo = new SqliteMediaRepo({ store: kernel });
+  const assetBlobRepo = new SqliteAssetBlobRepo({ store: kernel });
   if ((overrides.storeRole ?? "owner") === "owner") await protectExistingFormFiles({ kernel, workspaceId, siteDir: resolvedSiteBinding.dir });
   // One instance for the render path and publish's media apply, which records what render reads.
-  const mediaContentTypeStore = new SqliteMediaContentTypeStore(kernel);
-  const publishContentBundleRepo = new SqlitePublishContentBundleRepo(kernel);
-  const publishContentBaselineRepo = new SqlitePublishContentBaselineRepo(kernel);
+  const mediaContentTypeStore = new SqliteMediaContentTypeStore({ store: kernel });
+  const publishContentBundleRepo = new SqlitePublishContentBundleRepo({ store: kernel });
+  const publishContentBaselineRepo = new SqlitePublishContentBaselineRepo({ store: kernel });
   // `publish-files-plan-2026-09-24.md` §3 — ONE process-lifetime instance, same "hoisted, never
   // rebuilt per request" convention as every repo above. See `routes/types.ts`'s `fileBlobIndex` doc.
   const publishContentFileBlobIndex = createFileBlobIndex();
@@ -2350,7 +2350,7 @@ async function composeSiteRouteDeps(
     providerFaces: composePluginProviderFaces({ workspaceRoot: () => agentPluginLayout.forWorkspace({ workspaceId }).root }),
     notifyRosterChanged: notifyExternalMcpRosterChanged,
     builtInExternalMcpServerIds: readBuiltInExternalMcpServerIds({ env: process.env }),
-    externalMcpToolApprovalRepo: new SqliteExternalMcpToolApprovalRepo(kernel),
+    externalMcpToolApprovalRepo: new SqliteExternalMcpToolApprovalRepo({ store: kernel }),
     /**
      * ADR-058 sealing again, one more consumer: the OAuth subsystem for `authMode: "oauth"`
      * external MCP connections. Built HERE rather than inside `modules/external-mcp.ts` because its
@@ -2392,7 +2392,7 @@ async function composeSiteRouteDeps(
     // ADR-046 Phase 1 slice 1 (SPEC-023, 2026-07-16): change-set mutation history now survives a
     // restart — the first durable-adapter slice off Phase 1's capability table, per the ADR's own
     // "pull-based per capability, not a uniform sweep" fold-in guidance.
-    changeSets: new SqliteChangeSetRepo(kernel),
+    changeSets: new SqliteChangeSetRepo({ store: kernel }),
     // Pre-loaded with the post-domain reverters, closed over the SAME postRepo/clock/outbox
     // instances this root threads through everything else (ADR-018 C-005/C-006; 2026-08-13
     // features-post-deep-import-trace.md Job 2 — see `features/post/reverters.ts`'s header).
@@ -2521,8 +2521,8 @@ async function composeSiteRouteDeps(
     // capabilityRouteGuard unconditionally contains "webhooks" in production mode regardless of
     // durability) until a Phase-1-follow-on spec supplies the rest of the production gate ADR-046
     // names for this row (guarded HttpClientPort, egress policy, worker lifecycle).
-    webhookSubscriptionRepo: new SqliteWebhookSubscriptionRepo(kernel),
-    webhookDeliveryRepo: new SqliteWebhookDeliveryRepo(kernel),
+    webhookSubscriptionRepo: new SqliteWebhookSubscriptionRepo({ store: kernel }),
+    webhookDeliveryRepo: new SqliteWebhookDeliveryRepo({ store: kernel }),
     // ADR-PIPE-015 Phase 1: the real KeyringPort-backed signer (GAP-02/GAP-03). Inert until
     // Phase 4 registers the fan-out subscriber + delivery worker — no route calls this directly
     // yet, so wiring it now carries no live-traffic risk ahead of that gated activation.
@@ -2638,7 +2638,7 @@ async function composeSiteRouteDeps(
     // SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — composed into a real composition
     // root for the first time this dispatch (Session 5's own disclosure: "a token-store-backed
     // primitive composed into ZERO composition roots in this codebase as of this session"). One
-    // process-lifetime `GatewayDeps`. `tokens: new SqliteTokenStore(kernel)` (SPEC-022 durability fix —
+    // process-lifetime `GatewayDeps`. `tokens: new SqliteTokenStore({ store: kernel })` (SPEC-022 durability fix —
     // see `core/gated-mutations/composition.ts`'s file header): this composition root is the real
     // production one, so its `gated-mutations` capability must be durable, unlike `apps/website/src/server/runtime/composition/app.ts`'s
     // hermetic in-memory composition which still gets the default `InMemoryTokenStore`.
@@ -2652,7 +2652,7 @@ async function composeSiteRouteDeps(
         idGen,
         authorize: identity.authorize,
         authorizeInstance: buildOwnerOnlyInstanceAuthorize({ ownerPrincipalId: identity.ownerPrincipalId }),
-        tokens: new SqliteTokenStore(kernel),
+        tokens: new SqliteTokenStore({ store: kernel }),
       }),
     },
     commentRepo: commentsModule.commentRepo,
@@ -2740,7 +2740,7 @@ async function composeSiteRouteDeps(
       listPublishedPosts({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } }),
     // 2026-08-16 rework — see `routes/types.ts`'s `publishHistoryStore` doc. Real, DB-backed;
     // `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition uses `InMemoryPublishHistoryStore` instead.
-    publishHistoryStore: new SqlitePublishHistoryStore(kernel),
+    publishHistoryStore: new SqlitePublishHistoryStore({ store: kernel }),
     // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishExecutionMode` doc.
     publishExecutionMode: executionModeFromEnv(),
     // Read ONCE here rather than deep in `static-publish/adapter.ts` — see
@@ -3105,7 +3105,7 @@ export async function createSiteRouteDepsForWorkspace(
 
   const db = await openSiteContentDb(dbPath);
   try {
-    const workspace = await resolveWorkspace({ kernel: contentKernel(db) }, { workspaceId: workspaceIdOverride });
+    const workspace = await resolveWorkspace({ kernel: contentKernel({ store: db }) }, { workspaceId: workspaceIdOverride });
     return await createSiteRouteDeps(dbPath, { db, workspaceId: workspace.id, storeRole,
       onStoreOpened: (store) => onStoreOpened?.({
         ...store,

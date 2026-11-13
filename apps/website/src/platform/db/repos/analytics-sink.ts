@@ -32,7 +32,7 @@ const DEFAULT_LIST_LIMIT = 50;
 const MAX_LIST_LIMIT = 500;
 
 /** Same clamp discipline as Jini LocalBufferSink: a caller cannot force an unbounded array copy. */
-function clampListLimit(requested: number | undefined): number {
+function clampListLimit({ requested }: { requested: number | undefined }, _optional: Record<string, never> = {}): number {
   if (requested === undefined || !Number.isFinite(requested)) return DEFAULT_LIST_LIMIT;
   return Math.min(Math.max(Math.trunc(requested), 1), MAX_LIST_LIMIT);
 }
@@ -105,7 +105,7 @@ export class SqlBufferSink implements AnalyticsSinkPort {
   }
 
   async list(input: { limit?: number } = {}): Promise<NormalizedHit[]> {
-    const limit = clampListLimit(input.limit);
+    const limit = clampListLimit({ requested: input.limit });
     const rows = await this.deps.kernel.run((db) =>
       db
         .selectFrom("analytics_events")

@@ -18,6 +18,6 @@ import type { StoreBoundServices } from "./store-bound-contracts.js";
 export function sqliteOnlyServices(db: ContentDb, dbPath: string): StoreBoundServices {
   return {
     dbOps: new SqliteDbOpsAdapter({ db, filePath: dbPath }),
-    stampWatermark: kernelStampWatermark(contentKernel(db)),
+    stampWatermark: kernelStampWatermark(contentKernel({ store: db })),
   };
 }

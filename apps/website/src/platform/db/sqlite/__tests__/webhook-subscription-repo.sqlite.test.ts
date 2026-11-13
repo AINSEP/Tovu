@@ -103,20 +103,20 @@ function runContractSuite(adapterName: string, makeRepo: () => WebhookSubscripti
 }
 
 runContractSuite("InMemoryWebhookSubscriptionRepo", () => new InMemoryWebhookSubscriptionRepo());
-runContractSuite("SqliteWebhookSubscriptionRepo", () => new SqliteWebhookSubscriptionRepo(openContentDb(":memory:")));
+runContractSuite("SqliteWebhookSubscriptionRepo", () => new SqliteWebhookSubscriptionRepo({ store: openContentDb(":memory:") }));
 
 test("ADR-046 Phase 1: SqliteWebhookSubscriptionRepo persists across a simulated process restart (real on-disk file, fresh repo instance)", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tovu-webhooks-restart-test-"));
   const dbPath = join(dir, "content.db");
   try {
     const db1 = openContentDb(dbPath);
-    const repo1 = new SqliteWebhookSubscriptionRepo(db1);
+    const repo1 = new SqliteWebhookSubscriptionRepo({ store: db1 });
     await repo1.insert(makeSubscription({ id: "sub-restart-1" }));
 
     // "Restart": a brand-new content.db handle + a brand-new repo instance against the SAME
     // on-disk file — the in-memory adapter this replaces would have lost the row entirely.
     const db2 = openContentDb(dbPath);
-    const repo2 = new SqliteWebhookSubscriptionRepo(db2);
+    const repo2 = new SqliteWebhookSubscriptionRepo({ store: db2 });
     const matches = await repo2.findMatching({ workspaceId: "workspace-1", topic: "post.published" });
     assert.deepEqual(matches.map((r) => r.id), ["sub-restart-1"]);
   } finally {

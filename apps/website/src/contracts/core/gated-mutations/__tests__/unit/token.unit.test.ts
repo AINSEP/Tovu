@@ -33,7 +33,7 @@ import {
  *
  * export interface TokenStorePort {
  *   save(record: ConfirmationTokenRecord): Promise<void>;
- *   findByToken(token: string): Promise<ConfirmationTokenRecord | null>;
+ *   findByToken(required: { token: string }): Promise<ConfirmationTokenRecord | null>;
  *   // U-003-B1: single atomic conditional transition — minted -> redeemed.
  *   // Must NOT be a separate read followed by a separate write.
  *   tryRedeem(params: { token: string; now: string }): Promise<{ redeemed: boolean; record: ConfirmationTokenRecord | null }>;
@@ -157,7 +157,7 @@ test("no un-redeeming: expireToken never transitions a redeemed token back towar
   await redeemToken({ store, token: minted.confirmationToken, now: NOW });
 
   await expireToken({ store, token: minted.confirmationToken, now: TEN_MIN_ONE_SEC_LATER });
-  const record = await store.findByToken(minted.confirmationToken);
+  const record = await store.findByToken({ token: minted.confirmationToken });
   assert.equal(record?.status, "redeemed", "expireToken must never overwrite an already-redeemed token's status");
 });
 
@@ -205,9 +205,9 @@ test('expireToken persists expired for a minted token past its TTL', async () =>
   const store = new InMemoryTokenStore();
   const minted = mintToken(baseMintParams());
   await store.save(minted);
-  assert.equal((await store.findByToken(minted.confirmationToken))?.status, 'minted');
+  assert.equal((await store.findByToken({ token: minted.confirmationToken }))?.status, 'minted');
   await expireToken({ store, token: minted.confirmationToken, now: TEN_MIN_ONE_SEC_LATER });
-  const expired = await store.findByToken(minted.confirmationToken);
+  const expired = await store.findByToken({ token: minted.confirmationToken });
   assert.ok(expired);
   assert.equal(expired.status, 'expired');
   assert.equal(isRedeemable({ record: expired, now: TEN_MIN_ONE_SEC_LATER }), false);
@@ -224,5 +224,5 @@ test('expireToken reports missing atomic expiry without changing the minted toke
     name: "Error",
     message: "atomic confirmation-token expiry is not configured",
   });
-  assert.deepEqual(await store.findByToken(minted.confirmationToken), minted);
+  assert.deepEqual(await store.findByToken({ token: minted.confirmationToken }), minted);
 });

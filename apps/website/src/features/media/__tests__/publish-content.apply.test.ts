@@ -468,7 +468,7 @@ function gateBlobGets(store: InMemoryBlobStore, expected: number) {
 }
 
 for (const [label, makeRepo] of [
-  ["sqlite", () => new SqliteMediaRepo(openContentDb(":memory:"))],
+  ["sqlite", () => new SqliteMediaRepo({ store: openContentDb(":memory:") })],
   ["memory", () => new InMemoryVersionedMediaRepo({})],
 ] as const) {
   test(`[${label}] apply(): two concurrent updates planned against the same version cannot both land — one wins, the other is a conflict`, async () => {
@@ -660,8 +660,8 @@ test("bug 44: video and poster published between disposable SQLite sites immedia
   const video = makeMediaRecord({ id: "video", slug: "video", createdBy: "source-owner",
     htmlAttributes: 'poster="/m/poster/public.v1/image.webp"',
     source: { sha256: videoSha, contentType: "video/mp4", provenance: { kind: "upload" } } });
-  const source = await makeFixture({ mediaRepo: new SqliteMediaRepo(sourceDb), mediaRows: [poster, video] });
-  const destination = await makeFixture({ mediaRepo: new SqliteMediaRepo(destinationDb) });
+  const source = await makeFixture({ mediaRepo: new SqliteMediaRepo({ store: sourceDb }), mediaRows: [poster, video] });
+  const destination = await makeFixture({ mediaRepo: new SqliteMediaRepo({ store: destinationDb }) });
   const destinationWorkspaceId = "22222222-2222-2222-2222-222222222222";
   const destinationDeps = { ...destination.deps, workspaceId: destinationWorkspaceId };
   for (const [sha256, bytes] of [[PHOTO_SHA256, PHOTO_BYTES], [videoSha, videoBytes]] as const) {
