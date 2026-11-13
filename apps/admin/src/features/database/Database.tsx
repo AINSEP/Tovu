@@ -1,3 +1,4 @@
+import { navigateDatabaseTab } from "./Database.hooks";
 import { type AdminLedgerRow } from "../../lib/api";
 import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import { DataTable } from "@jini-ai/admin/react";
@@ -504,9 +505,6 @@ export function Database(props: DatabaseProps) {
     { id: "migrate-forward", label: t({ locale: locale, key: "Migrate forward" }), icon: <MigrateForwardIcon /> },
   ];
 
-  function handleTabChange(nextTabId: string) {
-    navigate(`/database?tab=${nextTabId}`, { replace: true });
-  }
 
   return (
     <div className="page">
@@ -524,7 +522,7 @@ export function Database(props: DatabaseProps) {
         ariaLabel={t({ locale: locale, key: "Database" })}
         tabs={tabs}
         activeId={activeTabId}
-        onChange={handleTabChange}
+        onChange={(nextTabId) => navigateDatabaseTab({ nextTabId })}
         containerHandle="database-tab-bar"
       />
       {databaseTabPanel(activeTabId)}

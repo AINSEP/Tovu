@@ -1,4 +1,5 @@
-import { Members as JiniMembers, type MembersController as JiniController } from "@jini-ai/user-management/react";
+import { createMembersControllerHook } from "./MembersPanel.hooks";
+import { Members as JiniMembers } from "@jini-ai/user-management/react";
 import { ServerLabel } from "@/components/status-labels";
 import { useWiredMembers } from "./hooks/members-controller.hooks";
 import { defaultMembersPort, toJiniMembersPort } from "./hooks/members-dependencies.hooks";
@@ -15,10 +16,7 @@ const port = toJiniMembersPort({ port: defaultMembersPort });
 
 /** Supply product vocabulary and protocol-label rendering to the shared Members screen. */
 export function Members({ useMembersHook = useWiredMembers }: MembersProps = {}) {
-  function useController(): JiniController {
-    const controller = useMembersHook();
-    return { ...controller, translate: controller.t, stateFor: ({ id }) => controller.stateFor(id) };
-  }
+  const useController = createMembersControllerHook({ useMembersHook });
   // `translate` is required by Jini's props but only feeds its default `useMembers`, which
   // `useController` replaces (it translates through `controller.t`). `String` is the identity on a
   // string key, so no never-called arrow function is defined here just to satisfy the type.

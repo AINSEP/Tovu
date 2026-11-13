@@ -45,7 +45,7 @@ import { t as translateDashboard } from "./features/dashboard/dashboard-i18n";
 import {
   resolveChatFabClearance,
   resolveSiteSectionRouteGate,
-  translateAssistantDockLabel,
+  createAdminShellTranslators,
   useAdminAssistantAvailability,
   useAdminSession,
   useAgentPageBridge,
@@ -692,16 +692,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
   const navGroups = translateAdminNavGroups(navLocale, rawNavGroups);
   const navSoonLabel = translateAdminNavLabel({ locale: navLocale, key: "Soon" });
 
-  /** Same `navLocale`, reused for the assistant dock's mobile-sheet chrome and `ChatFab`'s
-   *  "assistant" label below — both live here rather than inside `AssistantDock.tsx`/`ChatFab.tsx`
-   *  themselves (see the `<aside>`'s own comment for why), so this is that chrome's translation. */
-  const dockT = (key: string): string => translateAssistantDockLabel(navLocale, key);
-
-  /** The Publish dialog's own copy lives in `dashboard-i18n.ts`'s `DASHBOARD_DICT` — it is the
-   *  Dashboard's dialog, wherever it mounts — never `tApp`/`dockT`, which would silently regress
-   *  every locale but English for this one dialog (both resolve against `app-i18n.ts`'s different
-   *  dictionary, which has no entries for this copy). */
-  const dashboardT = (key: string): string => translateDashboard({ locale: navLocale, key: key });
+  const { dockT, dashboardT } = createAdminShellTranslators({ locale: navLocale, translateDashboard });
 
   // See `useCollapsibleNavGroupLabels`'s own doc for which groups collapse and why.
   const collapsibleGroups = useCollapsibleNavGroupLabels(navGroups);

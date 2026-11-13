@@ -1,3 +1,4 @@
+import { createVisitorMoreInfo } from "./VisitorAssistantPanel.hooks";
 import { useId, type ComponentType } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
@@ -42,7 +43,7 @@ export function VisitorAssistantPanel({
   const panel = useVisitorAssistantPanelHook({ settings, hasStoredKey: credential.hasStoredKey, setWidget });
   const widgetId = useId();
   const reasonId = useId();
-  const moreInfo = (name: string) => t("More info: {name}").replace("{name}", () => name);
+  const moreInfo = createVisitorMoreInfo({ t });
 
   if (credential.loadState.status === "loading") return <p role="status">{t("Loading saved settings…")}</p>;
   if (credential.loadState.status === "error") return <p role="alert">{t(credential.loadState.message)}</p>;

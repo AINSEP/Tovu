@@ -177,3 +177,18 @@ export function useCopyDetails(
   }, [getClipboard]);
   return { copied, copy };
 }
+
+// The Import page's sources. All end the same way: the new site's tab opens and the Import tab closes.
+export function createOpenImported({ openProjectTab, stopImporting }: {
+  openProjectTab: import('./use-project-tabs.hooks.js').ProjectTabsState['openProjectTab']; stopImporting: () => void;
+}, _options = {}) {
+  return (id: string, adminPage?: import('./import-site-entry.js').SiteAdminPage) => { openProjectTab(id, { adminPage }); stopImporting(); };
+}
+
+// The Import button, and the web admin's "Open Import in Tovu" (owner, 2026-11-10), which may
+// also bring the address it had typed.
+export function createOpenImportPage({ clearAddError, liveImport, startImporting }: {
+  clearAddError: () => void; liveImport: Pick<ReturnType<typeof useImportWebsite>, "clearFailure">; startImporting: () => void;
+}, _options = {}) {
+  return () => { clearAddError(); liveImport.clearFailure(); startImporting(); };
+}

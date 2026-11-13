@@ -1,3 +1,4 @@
+import { navigateSecurityTab } from "./Security.hooks";
 import { PasskeySettings } from '@jini-ai/user-management/react';
 import { ownerPasskeySettingsPort } from '../../lib/owner-passkey-api';
 import { TotpSettings } from "@jini-ai/user-management/react";
@@ -6,7 +7,6 @@ import { RecoveryCodesCard } from "./RecoveryCodesCard";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { navigate } from "../../lib/router";
 import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { t } from "./security-i18n";
@@ -162,9 +162,6 @@ export function Security(props: SecurityProps) {
       : []),
   ];
 
-  function handleTabChange(nextTabId: string) {
-    navigate(`/access-tokens?tab=${nextTabId}`, { replace: true });
-  }
 
   return (
     <div className="page">
@@ -191,7 +188,7 @@ export function Security(props: SecurityProps) {
         ariaLabel={t({ locale: locale, key: "Secrets" })}
         tabs={tabs}
         activeId={activeTabId}
-        onChange={handleTabChange}
+        onChange={(nextTabId) => navigateSecurityTab({ nextTabId })}
         containerHandle="security-tab-bar"
       />
       {activeTabId === ACCESS_TOKENS_TAB ? <AccessTokensTab useAccessTokensHook={props.useAccessTokensHook} /> : null}

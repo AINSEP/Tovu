@@ -1,3 +1,4 @@
+import { createLoginTranslator } from "./Login.hooks";
 import { PasskeySignIn } from '@jini-ai/user-management/react';
 import { ownerPasskeySignInPort } from '../../lib/owner-passkey-api';
 import { api } from '../../lib/api';
@@ -6,7 +7,6 @@ import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import type { AdminUser } from "../../lib/api";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { t as translateAuth } from "./auth-i18n";
 import { useWiredLogin } from "./hooks/use-login.hooks";
 
 /**
@@ -28,7 +28,7 @@ export interface LoginProps {
 export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
   const { username, setUsername, password, setPassword, error, failure, busy, submit, mfa } = useLoginHook({ onLogin });
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateAuth({ locale: locale, key: key });
+  const t = createLoginTranslator({ locale });
 
   return (
     <div className="login-screen">

@@ -1,8 +1,8 @@
+import { createEmbedInsertControlTranslator } from "./EmbedInsertControl.hooks";
 import { useRef } from "react";
 import { agentHandle, type AgentElementRole } from "@jini-ai/agentic";
 import type { AdminWidgetType } from "../../lib/api";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { t as sharedComponentsT } from "../shared-components-i18n";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import { WidgetPickerDialog, WidgetSelectionDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
 import { useEmbedInsertControl, type EmbedEditor } from "./EmbedInsertControl.hooks";
@@ -198,7 +198,7 @@ function WidgetShortcutPicker(props: {
 export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHandle: base, ...props }: EmbedInsertControlProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const locale = useAdminLocale();
-  const t = (key: string) => sharedComponentsT({ locale: locale, key: key });
+  const t = createEmbedInsertControlTranslator({ locale });
   const { open, setOpen, widgetMode, setWidgetMode, mediaPicking, setMediaPicking, formControl, menuControl, galleryControl, insertWidget } =
     useEmbed(props.editor);
 

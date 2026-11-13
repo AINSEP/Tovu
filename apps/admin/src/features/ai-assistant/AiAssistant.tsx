@@ -1,3 +1,4 @@
+import { createAiAssistantTranslator } from "./AiAssistant.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useId } from "react";
 import { useAdminLocale } from '../../hooks/use-admin-locale.hooks';
@@ -46,7 +47,6 @@ import {
 import { useStoredCredentialHint } from "../../hooks/use-credential-hint.hooks";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
-import { t as translateAiAssistantLabel } from "./ai-assistant-i18n";
 import { useWiredAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 
@@ -909,7 +909,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
    * `I18nProvider` mounted below can't call that package's own `useT()`).
    */
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateAiAssistantLabel({ locale: locale, key: key });
+  const t = createAiAssistantTranslator({ locale });
 
   if (loadError) return <div className="notice error">{loadError}</div>;
   if (!settings) return <div className="notice">{t("Loading AI assistant settings…")}</div>;

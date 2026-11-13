@@ -1,3 +1,4 @@
+import type { dispatchPublishToggle as dispatchThemePublishToggle, ThemeExplorePublishState } from "./hooks/use-theme-explore.hooks";
 import { useEffect, useRef, useState, type MouseEvent, type RefObject, type SyntheticEvent } from "react";
 
 /**
@@ -101,4 +102,18 @@ export function useThemeExploreFullscreen(): ThemeExploreFullscreenController {
     handleFullscreenCancel,
     handleFullscreenBackdropClick,
   };
+}
+
+export function createThemePublishClick({ state, setPagePublished, dispatchPublishToggle }: {
+  state: ThemeExplorePublishState; setPagePublished: (published: boolean) => Promise<void>;
+  dispatchPublishToggle: typeof dispatchThemePublishToggle;
+}, _options = {}) {
+  // Guarded on `state.kind` (inside `dispatchPublishToggle`) rather than relying solely on the DOM's
+  // own "disabled buttons don't fire click" behavior — so a locked switch can never dispatch a
+  // publish call no matter what wraps or simulates the click.
+  function handleClick() {
+    dispatchPublishToggle(state, setPagePublished);
+  }
+
+  return handleClick;
 }

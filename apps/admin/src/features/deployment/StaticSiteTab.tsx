@@ -1,6 +1,7 @@
+import { createStaticSiteTabTranslator, useCopyLine } from "./StaticSiteTab.hooks";
 import { CredentialHint } from "@/components/CredentialHint";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -173,7 +174,7 @@ function PublishFailureNotice({ controller, t: translate }: { controller: Static
  *  left with the CLI-first route on 2026-09-29, so the flag had no caller and was removed; bring
  *  it back with the first new prose call site.
  *
- *  Component-local `useState` rather than a hook + port pair — there is nothing to inject, same
+ *  Component-local state rather than a hook + port pair — there is nothing to inject, same
  *  carve-out `ThemeExplore.tsx`'s device-width/fullscreen state documents.
  *
  *  A denied clipboard permission is swallowed, same as everywhere else in this app: the text is
@@ -199,17 +200,7 @@ function CopyLine({
    *  this component, same reason `copyAccessibleName` is. */
   agentHandleId: string;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard access can be denied (permissions, insecure context) — see this component's doc.
-    }
-  }
+  const { copied, copy } = useCopyLine({ text });
 
   return (
     <div className="deployment-command">
@@ -447,7 +438,7 @@ export interface StaticSiteTabProps {
 
 export function StaticSiteTab(props: StaticSiteTabProps) {
   const locale = useAdminLocale();
-  const translate = (key: string): string => t({ locale: locale, key: key });
+  const translate = createStaticSiteTabTranslator({ locale });
 
   // Keep the DI seams. Forwarding resolvers previously isolated these branches for the
   // complexity gate; this component is small enough to resolve its defaults directly.

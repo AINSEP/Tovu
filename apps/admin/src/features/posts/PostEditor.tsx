@@ -1,3 +1,4 @@
+import { createFocusedEditorChain } from "./PostEditor.hooks";
 import { standingDraftRecoveryMessage } from "../../lib/standing-draft-recovery-message";
 import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
 import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
@@ -223,7 +224,7 @@ function Toolbar({
     selector: ({ editor }) => probeToolbar(editor),
   });
 
-  const chain = () => editor.chain().focus();
+  const chain = createFocusedEditorChain({ editor });
   const overflow = useToolbarOverflow();
 
   return (
@@ -614,7 +615,7 @@ function BubbleFormattingMenu({ editor, urlDialog, t }: { editor: Editor; urlDia
     editor,
     selector: ({ editor }) => probeBubbleMenu(editor),
   });
-  const chain = () => editor.chain().focus();
+  const chain = createFocusedEditorChain({ editor });
 
   return (
     <BubbleMenu editor={editor} className="bubble-formatting-menu">

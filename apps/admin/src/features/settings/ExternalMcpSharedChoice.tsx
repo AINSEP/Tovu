@@ -1,40 +1,11 @@
-import { useState } from 'react';
-import { api, describeApiError } from '@/lib/api';
+import { useExternalMcpSharedChoice, type SharedView } from './ExternalMcpSharedChoice.hooks';
 import { interpolate, type Translate } from '@jini-ai/ui/panel-kit';
 
-type SharedView = Awaited<ReturnType<typeof api.listSharedMcpConnections>>;
 /** Owner choices are loaded only when opened. Existing local sign-ins keep their original action. */
 export function ExternalMcpSharedChoice({ serverId, busy, signIn, onChanged, t }: {
   serverId: string; busy: boolean; signIn: () => void; onChanged: () => void; t: Translate;
 }) {
-  const [view, setView] = useState<SharedView>();
-  const [error, setError] = useState('');
-  const [pending, setPending] = useState(false);
-  async function load() {
-    setPending(true); setError('');
-    try { setView(await api.listSharedMcpConnections(serverId)); }
-    catch (cause) { setError(describeApiError(cause, 'Saved connections could not be opened. Try opening them again.')); }
-    finally { setPending(false); }
-  }
-  async function useSaved(credentialId: string) {
-    if (!credentialId) return;
-    setPending(true); setError('');
-    try { await api.useSharedMcpConnection({ serverId, credentialId }); await load(); onChanged(); }
-    catch (cause) { setError(describeApiError(cause, 'This saved connection could not be granted to this server. Choose another connection or sign in.')); }
-    finally { setPending(false); }
-  }
-  async function stopHere() {
-    setPending(true); setError('');
-    try { await api.stopSharedMcpConnection(serverId); await load(); onChanged(); }
-    catch (cause) { setError(describeApiError(cause, 'The connection could not be stopped here. Try again.')); }
-    finally { setPending(false); }
-  }
-  async function useLocal() {
-    setPending(true); setError('');
-    try { await api.useLocalMcpConnection(serverId); await load(); onChanged(); }
-    catch (cause) { setError(describeApiError(cause, 'The local connection could not be selected. Try again.')); }
-    finally { setPending(false); }
-  }
+  const { view, error, pending, load, useSaved, stopHere, useLocal } = useExternalMcpSharedChoice({ serverId, onChanged });
   return <div className="external-mcp-shared-choice">
     <button type="button" disabled={busy || pending} onClick={() => void load()}>{t('Use a saved connection on this Mac')}</button>
     <SharedChoices view={view} disabled={busy || pending} signIn={signIn} useSaved={credentialId => void useSaved(credentialId)} stopHere={() => void stopHere()} useLocal={() => void useLocal()} t={t} />

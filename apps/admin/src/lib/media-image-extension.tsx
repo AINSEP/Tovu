@@ -1,9 +1,9 @@
+import { createMediaImageTranslator, createMediaImageReplace } from "./media-image-extension.hooks";
 import { useState } from "react";
 import TiptapImage from "@tiptap/extension-image";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
 import { api } from "./api";
 import { MediaPickerDialog } from "../components/MediaPickerDialog/MediaPickerDialog";
-import { t as translateApp } from "../app-i18n";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 
 /**
@@ -57,15 +57,12 @@ export function MediaImageNodeView(props: NodeViewProps) {
   const alt = typeof props.node.attrs.alt === "string" ? props.node.attrs.alt : "";
   const [picking, setPicking] = useState(false);
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateApp({ locale: locale, key: key });
+  const t = createMediaImageTranslator({ locale });
 
   const isRef = assetId.length > 0 && transformName.length > 0;
   const previewSrc = isRef ? api.mediaOriginalUrl(assetId) : legacySrc;
 
-  function replaceWith(item: { id: string; alt: string; title: string }) {
-    props.updateAttributes({ assetId: item.id, transformName: "public", alt: item.alt || item.title, src: null, title: null });
-    setPicking(false);
-  }
+  const replaceWith = createMediaImageReplace({ props, setPicking });
 
   return (
     <NodeViewWrapper as="div" className="media-image-node" data-drag-handle contentEditable={false}>

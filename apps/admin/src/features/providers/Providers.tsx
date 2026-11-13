@@ -1,10 +1,10 @@
+import { navigateProvidersTab } from "./Providers.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { I18nProvider, IntegrationsTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { navigate } from "../../lib/router";
 import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { ComingSoonPanel } from "../../components/ComingSoonPanel";
@@ -204,9 +204,6 @@ export function Providers(props: ProvidersProps) {
     },
   ];
 
-  function handleTabChange(nextTabId: string) {
-    navigate(`/addons/integrations?tab=${nextTabId}`, { replace: true });
-  }
 
   return (
     <I18nProvider
@@ -244,7 +241,7 @@ export function Providers(props: ProvidersProps) {
           ariaLabel={t({ locale: locale, key: "Integrations" })}
           tabs={tabs}
           activeId={activeTabId}
-          onChange={handleTabChange}
+          onChange={(nextTabId) => navigateProvidersTab({ nextTabId })}
           containerHandle="providers-tab-bar"
         />
 

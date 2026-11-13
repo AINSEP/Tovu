@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
+import { createRenameKeyDown, createPreviewKeyDown } from "./Library.hooks";
+import { useLayoutEffect, useRef, useState } from "react";
 import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { FileDropzone, Toast } from "@jini-ai/ui";
@@ -191,17 +192,7 @@ export function documentMenuItems(item: AdminMedia, controller: LibraryControlle
 
 function RenameField({ item, controller }: { item: AdminMedia; controller: LibraryController }) {
   const { t, rename } = controller;
-  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      void rename.save();
-      return;
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      rename.cancel();
-    }
-  }
+  const onKeyDown = createRenameKeyDown({ rename });
   return (
     <span className="library-rename">
       <span className="library-rename-field">
@@ -340,9 +331,7 @@ function PreviewDialog({ controller, preview }: { controller: LibraryController;
   const { t, closePreview } = controller;
   const name = documentName(preview.item);
   const titleId = "library-preview-title";
-  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "Escape") closePreview();
-  }
+  const onKeyDown = createPreviewKeyDown({ closePreview });
   return (
     <div className="settings-dialog-backdrop" onClick={closePreview}>
       <div

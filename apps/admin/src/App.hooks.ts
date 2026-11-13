@@ -679,7 +679,7 @@ export function useInternalLinkInterceptor(): void {
  * `App.tsx`'s `dockT` translator, minus the fallback chain itself — kept here rather than as an
  * inline closure in `App.tsx` per this codebase's standing rule against derived logic living in a
  * `.tsx` file (see `App.tsx`'s `AssistantChrome` for the same reasoning applied to JSX branches).
- * `App.tsx` still defines its own `dockT` closure (`(key) => translateAssistantDockLabel(navLocale,
+ * `createAdminShellTranslators` binds this label to the shell locale (`(key) => translateAssistantDockLabel(locale,
  * key)`) so every existing call site keeps calling `dockT("...")` with no `locale` argument to
  * thread through by hand. Delegates to `assistant-dock-i18n.ts`'s own `t` (COMMON_I18N-falling-back,
  * via `createDictionaryTranslator`) rather than duplicating `ASSISTANT_DOCK_DICT[locale]?.[key] ??
@@ -1232,4 +1232,22 @@ export function useCollapsibleNavGroupLabels(navGroups: readonly AdminNavGroup[]
     () => navGroups.map((group) => group.label).filter((label): label is string => Boolean(label)),
     [navGroups],
   );
+}
+
+/** Bind the shell copy to its active navigation locale. */
+export function createAdminShellTranslators({ locale, translateDashboard }: {
+  locale: string; translateDashboard: typeof import("./features/dashboard/dashboard-i18n").t;
+}, _options = {}) {
+  /** Same `navLocale`, reused for the assistant dock's mobile-sheet chrome and `ChatFab`'s
+   *  "assistant" label below — both live here rather than inside `AssistantDock.tsx`/`ChatFab.tsx`
+   *  themselves (see the `<aside>`'s own comment for why), so this is that chrome's translation. */
+  const dockT = (key: string): string => translateAssistantDockLabel(locale, key);
+
+  /** The Publish dialog's own copy lives in `dashboard-i18n.ts`'s `DASHBOARD_DICT` — it is the
+   *  Dashboard's dialog, wherever it mounts — never `tApp`/`dockT`, which would silently regress
+   *  every locale but English for this one dialog (both resolve against `app-i18n.ts`'s different
+   *  dictionary, which has no entries for this copy). */
+  const dashboardT = (key: string): string => translateDashboard({ locale, key });
+
+  return { dockT, dashboardT };
 }

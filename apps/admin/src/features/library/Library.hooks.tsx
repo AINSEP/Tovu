@@ -1,3 +1,5 @@
+import type { KeyboardEvent } from "react";
+import type { LibraryController } from "./hooks/use-library.hooks";
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 import { navigate } from "../../lib/router";
@@ -66,4 +68,26 @@ export function resolveLibraryTabs(t: (key: string) => string, { documentCount }
 
 export function goToLibraryTab(tabId: string) {
   navigate(`/library?tab=${tabId}`, { replace: true });
+}
+
+export function createRenameKeyDown({ rename }: { rename: LibraryController["rename"] }, _options = {}) {
+  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void rename.save();
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      rename.cancel();
+    }
+  }
+  return onKeyDown;
+}
+
+export function createPreviewKeyDown({ closePreview }: { closePreview: () => void }, _options = {}) {
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") closePreview();
+  }
+  return onKeyDown;
 }

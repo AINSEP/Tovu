@@ -1,3 +1,4 @@
+import { createResourceStop } from './ResourcesPanel.hooks.js';
 /** Tovu's resource display adapter over Jini's dialog/list and the existing site power owner. */
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { TabbedDialog, useFocusTrap } from '@jini-ai/ui';
@@ -186,19 +187,15 @@ export function ResourcesPanel({ projects, snapshot, onSiteUpdated, onClose,
   usePower?: typeof useSitePower;
   Shell?: typeof TabbedDialog;
   useTrap?: typeof useFocusTrap;
-}, _options = {}) {
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   useTrap({ containerRef });
   // The shared trap captures the opener first; then enter this panel on its first action.
   useEffect(() => { containerRef.current?.querySelector<HTMLButtonElement>('button')?.focus(); }, []);
   const power = usePower(onSiteUpdated);
   const groups = resourceGroups({ projects, snapshot, statusOf: power.statusOf });
-  const byId = new Map(projects.map((site) => [site.id, site]));
   const errors = projects.map((site) => power.errorOf(site.id)).filter(Boolean).join(' · ');
-  const onStop = (id: string) => {
-    const site = byId.get(id);
-    if (site && !site.externalUrl && site.status === 'running') void power.toggle(site);
-  };
+  const onStop = createResourceStop({ projects, power });
   return <div ref={containerRef}><Shell onClose={onClose} fullscreenEnabled={false} className="resources-dialog"
     dialogAriaLabelledBy="desktop-resources-title" tabs={[{ id: 'resources', label: 'Resources', title: 'Resources', panel: <>
       <p className="resources-total">Total: {metricsText({ metrics: snapshot?.status === 'available' ? snapshot.total : undefined })}</p>
