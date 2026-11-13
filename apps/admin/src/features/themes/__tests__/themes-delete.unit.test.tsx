@@ -50,7 +50,7 @@ describe("buildThemeCardMenuItems", () => {
       ["delete", "Delete theme…", "danger"],
     ]);
     items[0]!.onSelect();
-    expect(duplicate).toHaveBeenCalledWith("plannie-copy");
+    expect(duplicate).toHaveBeenCalledWith({ themeId: "plannie-copy" });
     items[1]!.onSelect();
     expect(onRequestDelete).toHaveBeenCalledWith({ themeId: "plannie-copy", name: "Plannie copy", block: null });
   });
@@ -97,7 +97,7 @@ describe("useThemes — trash", () => {
     await waitFor(() => expect(result.current.themes).toHaveLength(3));
 
     await act(async () => {
-      await result.current.trash?.("plannie-copy");
+      await result.current.trash?.({ themeId: "plannie-copy" });
     });
 
     expect(portSpy).toHaveBeenCalledWith({ themeId: "plannie-copy" });
@@ -114,7 +114,7 @@ describe("useThemes — trash", () => {
     const { result } = renderHook(() => useThemes({ port, t: identity }));
     await waitFor(() => expect(result.current.themes).toHaveLength(3));
     await act(async () => {
-      await result.current.trash?.("plannie");
+      await result.current.trash?.({ themeId: "plannie" });
     });
     expect(result.current.error).toBe("theme 'plannie' is the active theme");
     expect(result.current.themes).toHaveLength(3);
@@ -128,7 +128,7 @@ describe("useThemes — trash", () => {
     const { result } = renderHook(() => useThemes({ port, t: identity }));
     await waitFor(() => expect(result.current.settings).not.toBeNull());
     await act(async () => {
-      await result.current.trash?.("basic");
+      await result.current.trash?.({ themeId: "basic" });
     });
     expect(result.current.error).toBe("failed to delete theme");
   });
@@ -226,7 +226,7 @@ describe("Themes — card ⋮ menu", () => {
     render(<Themes useThemesHook={() => controller({ duplicate })} />);
     const menu = await openCardMenu(user, "Plannie copy");
     await user.click(within(menu).getByRole("menuitem", { name: "Copy theme" }));
-    expect(duplicate).toHaveBeenCalledWith("plannie-copy");
+    expect(duplicate).toHaveBeenCalledWith({ themeId: "plannie-copy" });
   });
 
   it("Delete theme… confirms with the theme's name, then trashes it", async () => {
@@ -240,7 +240,7 @@ describe("Themes — card ⋮ menu", () => {
     expect(within(dialog).getByText("It moves to Trash.")).toBeInTheDocument();
     expect(trash).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
-    await waitFor(() => expect(trash).toHaveBeenCalledWith("plannie-copy"));
+    await waitFor(() => expect(trash).toHaveBeenCalledWith({ themeId: "plannie-copy" }));
   });
 
   it("the active theme's Delete explains instead of asking", async () => {

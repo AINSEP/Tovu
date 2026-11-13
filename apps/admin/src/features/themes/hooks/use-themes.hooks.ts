@@ -57,7 +57,7 @@ export interface ThemesController {
   error: string | null;
   /** The theme id currently being activated, or `null` when no activation is in flight. */
   busyTheme: string | null;
-  activate: (themeId: string) => Promise<void>;
+  activate: (required: { themeId: string }) => Promise<void>;
   /**
    * True while a rescan round trip is in flight.
    *
@@ -86,7 +86,7 @@ export interface ThemesController {
    * appears as its own card at once, and can be renamed in Explore (`theme.json`), so asking first
    * would only add a step. The server picks a free id.
    */
-  duplicate?: (themeId: string) => Promise<void>;
+  duplicate?: (required: { themeId: string }) => Promise<void>;
   /** "Duplicated as …" after a successful copy, or `null`. Its own field, not `rescanNotice`:
    *  `RescanToast` styles a rescan notice reporting duplicate ids as an error. */
   duplicateNotice?: string | null;
@@ -98,7 +98,7 @@ export interface ThemesController {
   trashingTheme?: string | null;
   /** Move a theme to the Trash (owner 2026-10-10: "Delete = Trash"), then reload the list. The
    *  confirmation is the caller's (`useThemeDeleteRequest`); this is the round trip only. */
-  trash?: (themeId: string) => Promise<void>;
+  trash?: (required: { themeId: string }) => Promise<void>;
   /** "Moved … to Trash" after a successful delete, or `null`. */
   trashNotice?: string | null;
   dismissTrashNotice?: () => void;
@@ -117,7 +117,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   }, [port, t]);
   const query = useFetchQuery({ key, fetch: fetchPresentation }, { staleTime: 0 });
   const loader = useCachedLoader({ key, fetch: fetchPresentation }, { staleTime: 0 });
-  const { settings, themes, themeTiers, themeNames, themePreviewImages, themeBuiltIn } = presentationView(query.data);
+  const { settings, themes, themeTiers, themeNames, themePreviewImages, themeBuiltIn } = presentationView({ data: query.data });
   const [actionError, setError] = useState<string | null>(null);
   const error = actionError ?? query.error?.message ?? null;
   const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["themes"]] });
@@ -129,7 +129,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   // A chat run's theme_set_active changes the active theme without touching theme files, so the
   // file feed above never fires for it; the finished run's content refresh does (owner 11-02).
   const reload = useCallback(() => invalidate({ key }), [invalidate, key]);
-  useContentRefreshSubscription(THEMES_RESOURCE, reload);
+  useContentRefreshSubscription({ resource: THEMES_RESOURCE, onRefresh: reload });
   const [busyTheme, setBusyTheme] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
   const [rescanNotice, setRescanNotice] = useState<string | null>(null);
@@ -190,7 +190,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
    * server already rescanned; re-fetching (rather than splicing the response into state) keeps
    * `getPresentation` the one source of truth, same as {@link rescan}.
    */
-  async function duplicate(themeId: string) {
+  async function duplicate({ themeId }: { themeId: string }, _options = {}) {
     setDuplicatingTheme(themeId);
     setError(null);
     setDuplicateNotice(null);
@@ -211,7 +211,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
    * goes away. `write` invalidates `["themes"]`, so other screens reading the theme list refresh too.
    * A refusal (the active theme, already in the Trash) lands in the error banner.
    */
-  async function trash(themeId: string) {
+  async function trash({ themeId }: { themeId: string }, _options = {}) {
     setTrashingTheme(themeId);
     setError(null);
     setTrashNotice(null);
@@ -227,7 +227,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     }
   }
 
-  function activate(themeId: string) {
+  function activate({ themeId }: { themeId: string }, _options = {}) {
     // Minted BEFORE `run`, synchronously, so a second same-tick click observes this claim before
     // its own task ever starts — see `useSerialWrites`' own doc for why minting inside the queued
     // task would make every queued call read as "current".
@@ -289,13 +289,13 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
  *
  * @complexity Time/space: O(n) in the available theme count.
  */
-function presentationView(data: Presentation | undefined) {
+function presentationView({ data }: { data: Presentation | undefined }, _options = {}) {
   const available = data?.availableThemes ?? [];
   return {
     settings: data?.settings ?? null,
     themes: data?.availableThemeIds ?? [],
     themeTiers: Object.fromEntries(available.map(theme => [theme.id, theme.tier])),
-    themeNames: themeNamesById(available),
+    themeNames: themeNamesById({ themes: available }),
     themePreviewImages: Object.fromEntries(available.map(theme => [theme.id, theme.previewImageUrl])),
     themeBuiltIn: Object.fromEntries(available.map(theme => [theme.id, theme.builtIn === true])),
   };

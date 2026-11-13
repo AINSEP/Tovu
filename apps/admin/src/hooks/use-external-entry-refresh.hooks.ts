@@ -8,7 +8,7 @@ import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
  * @file The stateful half of "did this row change out from under an open editor" (see
  * `lib/external-entry-refresh.ts`'s header for the pure decision rule this wraps). Each editor hook
  * (`use-page-editor.hooks.ts`, `use-post-editor.hooks.ts`) owns its own
- * `useContentRefreshSubscription(RESOURCE, controller.checkForExternalChange)` call — this hook does
+ * `useContentRefreshSubscription({ resource: RESOURCE, onRefresh: controller.checkForExternalChange })` call — this hook does
  * NOT subscribe to the bus itself, so the `content-refresh-coverage.unit.test.ts` tripwire on each
  * editor file actually guards the wiring, rather than a shared internal subscription hiding it.
  *

@@ -2017,7 +2017,7 @@ describe("useMessagesChangeHandler", () => {
 
     act(() => result.current(messages));
 
-    expect(chats.onMessagesChange).toHaveBeenCalledWith(messages);
+    expect(chats.onMessagesChange).toHaveBeenCalledWith({ messages });
   });
 
   it("publishes a settings refresh once a run reaches a terminal status", () => {

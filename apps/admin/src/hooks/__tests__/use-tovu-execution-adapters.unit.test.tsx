@@ -70,9 +70,9 @@ it('prevents deployed picker inventory IO and normalization writes', async () =>
   expect(await hidden.daemonOnline()).toBe(false);
   expect(port.listAgents).not.toHaveBeenCalled();
   const changed = vi.fn();
-  result.current.selectionChange(changed)({ agentId: 'claude' });
+  result.current.selectionChange({ change: changed })({ agentId: 'claude' });
   expect(changed).not.toHaveBeenCalled();
-  expect(result.current.agents([{ id: 'codex', name: 'Codex' }])).toEqual([]);
+  expect(result.current.agents({ agents: [{ id: 'codex', name: 'Codex' }] })).toEqual([]);
 });
 
 it('preserves mode through deployed BYOK settings edits without a mount-time write', async () => {

@@ -104,7 +104,7 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
   const [selected, setSelected] = useState<AdminRestorePoint | null>(null);
   // Read ordering and background data retention now belong to the shared query cache.
   const load = useCallback(() => { setError(null); invalidate({ key: ["recovery"] }); }, [invalidate]);
-  useContentRefreshSubscription(RECOVERY_RESOURCE, load);
+  useContentRefreshSubscription({ resource: RECOVERY_RESOURCE, onRefresh: load });
 
   /** Restore-point functionality consolidation (2026-09-10) — same no-capabilities-read shape
    *  Database's former create action used: no route exists yet to learn

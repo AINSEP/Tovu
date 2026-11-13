@@ -134,9 +134,9 @@ describe("effective settings reads at the real API seam", () => {
     const calls = stubSettingsFetch();
     const oldReads = [loadLanguage(), defaultAdminLocalePort.loadLanguage()];
     const refreshed: Promise<string>[] = [];
-    const unsubscribes = [1, 2, 3].map(() => defaultAdminLocalePort.subscribeToSettingsRefresh(() => {
+    const unsubscribes = [1, 2, 3].map(() => defaultAdminLocalePort.subscribeToSettingsRefresh({ listener: () => {
       refreshed.push(defaultAdminLocalePort.loadLanguage());
-    }));
+    } }));
     publishSettingsRefresh(["core.language"]);
     // Preserve the locale port's existing once-per-dispatch-turn drop, even for repeated notices.
     publishSettingsRefresh(["core.language"]);

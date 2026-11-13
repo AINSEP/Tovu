@@ -79,7 +79,7 @@ export type SpaceHoldKeyUpAction = "ignore" | "disarm" | "release";
  *
  * @complexity Time/space: O(1).
  */
-export function resolveSpaceHoldKeyUp(key: string, phase: SpaceHoldPhase): SpaceHoldKeyUpAction {
+export function resolveSpaceHoldKeyUp({ key, phase }: { key: string; phase: SpaceHoldPhase }, _options = {}): SpaceHoldKeyUpAction {
   if (key !== SPACE_KEY) return "ignore";
   if (phase === "armed") return "disarm";
   return phase === "engaged" ? "release" : "ignore";

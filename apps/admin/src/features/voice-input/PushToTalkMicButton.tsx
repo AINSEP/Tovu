@@ -46,7 +46,7 @@ export interface PushToTalkMicButtonProps {
 export function PushToTalkMicButton({ onTranscript, overrides }: PushToTalkMicButtonProps) {
   const t = useT();
   const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const { available, unavailableReason, indicator, startHold, endHold } = usePushToTalk({ onTranscript }, overrides);
+  const { available, unavailableReason, indicator, startHold, endHold } = usePushToTalk({ options: { onTranscript }, overrides });
   const view = useMicButtonView({ available, indicator, unavailableReason });
   useSpaceHoldToTalk({
     anchorRef: buttonRef,

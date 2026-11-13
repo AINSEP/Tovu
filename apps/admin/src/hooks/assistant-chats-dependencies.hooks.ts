@@ -37,11 +37,11 @@ import type { AssistantChatsPort } from "./assistant-chats-port.hooks";
  */
 export const defaultAssistantChatsPort: AssistantChatsPort = {
   listConversations,
-  createConversation,
-  renameConversation,
-  deleteConversation,
-  loadMessages,
-  saveMessage,
+  createConversation: (_required, { firstMessage } = {}) => createConversation(firstMessage),
+  renameConversation: ({ id, title }, _options = {}) => renameConversation(id, title),
+  deleteConversation: ({ id }, _options = {}) => deleteConversation(id),
+  loadMessages: ({ conversationId }, _options = {}) => loadMessages(conversationId),
+  saveMessage: ({ conversationId, message }, _options = {}) => saveMessage(conversationId, message),
 };
 
 /**
@@ -143,7 +143,7 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
       return [...conversations];
     },
 
-    async createConversation(firstMessage?: string) {
+    async createConversation(_required, { firstMessage } = {}) {
       created += 1;
       const conversation: AssistantConversation = {
         id: `fake-${created}`,
@@ -161,12 +161,12 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
       return conversation;
     },
 
-    async renameConversation(id: string, title: string) {
+    async renameConversation({ id, title }) {
       const index = conversations.findIndex((c) => c.id === id);
       if (index >= 0) conversations[index] = { ...conversations[index], title, titleSource: "manual" };
     },
 
-    async deleteConversation(id: string) {
+    async deleteConversation({ id }) {
       const index = conversations.findIndex((c) => c.id === id);
       if (index >= 0) conversations.splice(index, 1);
       messages.delete(id);
@@ -184,11 +184,11 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
      * `position`, assigned once on first insert, so re-writing `m1` leaves it first; the fake
      * returned `[m2, m1]` and a reselected pane came back with its transcript reordered.
      */
-    async loadMessages(conversationId: string) {
+    async loadMessages({ conversationId }) {
       return [...(messages.get(conversationId) ?? [])];
     },
 
-    async saveMessage(conversationId: string, message: ChatMessage) {
+    async saveMessage({ conversationId, message }) {
       attempts += 1;
       attemptedIds.push(message.id);
       /*

@@ -22,6 +22,6 @@ export function useSitesSnapshot(
   // render — same note as `Jini redirects/react/hooks/use-redirects.hooks.ts`'s own `invalidateList`.
   const invalidate = useInvalidate();
   const invalidateList = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
-  useContentRefreshSubscription(SITES_RESOURCE, invalidateList);
+  useContentRefreshSubscription({ resource: SITES_RESOURCE, onRefresh: invalidateList });
   return list;
 }

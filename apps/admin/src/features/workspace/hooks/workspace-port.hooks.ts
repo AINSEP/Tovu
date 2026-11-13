@@ -12,5 +12,5 @@ import type { AdminWorkspace } from "@/lib/api";
  */
 export interface WorkspacePort {
   getWorkspace(): Promise<{ workspace: AdminWorkspace }>;
-  updateWorkspace(patch: { name?: string; slug?: string }): Promise<{ workspace: AdminWorkspace }>;
+  updateWorkspace(required: { patch: { name?: string; slug?: string } }): Promise<{ workspace: AdminWorkspace }>;
 }

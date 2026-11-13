@@ -125,5 +125,5 @@ export function folderWindowOpenElsewhere(
  * @complexity O(1).
  */
 export function renameActiveConversation(chats: Pick<UseAssistantChats, "activeId" | "rename">) {
-  return (title: string) => chats.activeId ? chats.rename(chats.activeId, title) : undefined;
+  return (title: string) => chats.activeId ? chats.rename({ id: chats.activeId, title }) : undefined;
 }

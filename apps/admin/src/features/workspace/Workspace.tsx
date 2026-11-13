@@ -79,7 +79,7 @@ export function Workspace({ useWorkspaceHook = useWiredWorkspace, showPageHeader
   if (error) return <div className="notice error">{error}</div>;
   if (!workspace) return <div className="notice">{t("Loading workspace…")}</div>;
 
-  const dirty = isWorkspaceDirty(workspace, name, slug);
+  const dirty = isWorkspaceDirty({ workspace, name, slug });
 
   return (
     // `.workspace-page` caps measure (styles.css) — this is a single-column settings screen, not

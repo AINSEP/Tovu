@@ -132,7 +132,7 @@ export function usePages(deps: PagesDependencies): PagesController {
   // Query ownership replaces the latest-wins read guard described above; background
   // refreshes keep the table and cache replacements protect newer mutation responses.
   const load = useCallback(() => invalidate({ key: ["pages"] }), [invalidate]);
-  useContentRefreshSubscription(PAGES_RESOURCE, load);
+  useContentRefreshSubscription({ resource: PAGES_RESOURCE, onRefresh: load });
 
   const rowMenuHandleById = usePageRowMenuHandleMap({ pages });
 

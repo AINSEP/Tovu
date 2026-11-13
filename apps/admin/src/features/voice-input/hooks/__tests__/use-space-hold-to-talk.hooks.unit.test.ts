@@ -66,14 +66,14 @@ afterEach(() => {
 describe("findComposerTextarea", () => {
   it("finds the composer's textarea from any element inside it", () => {
     const { anchor, textarea } = mountComposerLikeDom();
-    expect(findComposerTextarea(anchor)).toBe(textarea);
+    expect(findComposerTextarea({ anchor })).toBe(textarea);
   });
 
   it("returns null for a null anchor, and for one outside any composer", () => {
-    expect(findComposerTextarea(null)).toBeNull();
+    expect(findComposerTextarea({ anchor: null })).toBeNull();
     const orphan = document.createElement("button");
     document.body.append(orphan);
-    expect(findComposerTextarea(orphan)).toBeNull();
+    expect(findComposerTextarea({ anchor: orphan })).toBeNull();
   });
 });
 

@@ -184,7 +184,7 @@ function ThemeExploreHtmlPane({
   setSource: (value: string) => void;
   t: Translate;
 }) {
-  const mode = themeExploreHtmlMode(file, sourceLoaded);
+  const mode = themeExploreHtmlMode({ file, sourceLoaded });
 
   if (mode === "binary") {
     // Never rendered into a textarea: reading a PNG as UTF-8 gives mojibake, and saving that back
@@ -1212,7 +1212,7 @@ function ThemeExploreContent({
     publishing,
     setPagePublished,
     t,
-  } = useThemeExploreHook(themeId, { pageId, fileId });
+  } = useThemeExploreHook({ themeId }, { pageId, fileId });
 
   // STAYS LOCAL — deliberately not moved into `useThemeExploreHook`'s controller (owner-ratified,
   // 2026-08-14 DI migration sweep). This is interactive DOM chrome, not async/API state: nothing
@@ -1247,7 +1247,7 @@ function ThemeExploreContent({
   if (!detail) return <div className="notice">{t("Loading theme…")}</div>;
 
   const selectedFile = files.find((f) => f.path === selected);
-  const publishState = selectedFilePublishState(selectedFile, t);
+  const publishState = selectedFilePublishState({ file: selectedFile, t });
   const previewMode = themeExplorePreviewMode(selectedFile);
 
   return (
@@ -1382,7 +1382,7 @@ function ThemeExploreContent({
                   state={publishState}
                   publishing={publishing}
                   setPagePublished={setPagePublished}
-                  fileLabel={selectedFileLabel(selectedFile)}
+                  fileLabel={selectedFileLabel({ file: selectedFile })}
                   t={t}
                 />
               ) : null}

@@ -66,7 +66,7 @@ it("keeps Classic's accent for parked Glass and ignores Glass's saved accent", a
   let refresh = () => {};
   const port = {
     loadAppearance: vi.fn(async () => appearance),
-    subscribeToSettingsRefresh: (listener: () => void) => { refresh = listener; return () => {}; },
+    subscribeToSettingsRefresh: ({ listener }: { listener: () => void }) => { refresh = listener; return () => {}; },
   };
   const accent = () => root.style.getPropertyValue("--jini-theme-light-primary");
   renderHook(() => useAdminAppearance({}, { root, port }));
@@ -136,7 +136,7 @@ it.each(["#123456", "#d97706"])("retires Classic's old draft after accepting %s 
   let refresh = () => {};
   const port = {
     loadAppearance: vi.fn(async () => saved),
-    subscribeToSettingsRefresh: (listener: () => void) => { refresh = listener; return () => {}; },
+    subscribeToSettingsRefresh: ({ listener }: { listener: () => void }) => { refresh = listener; return () => {}; },
     loadInterface: async () => DEFAULT_INTERFACE,
     saveInterface: vi.fn(async () => []),
     saveAppearance: vi.fn(async () => []),
@@ -178,7 +178,7 @@ it("applies the saved accent on load and follows settings refreshes", async () =
   let refresh = () => {};
   const port = {
     loadAppearance: async () => ({ ...DEFAULT_APPEARANCE, accentColor }),
-    subscribeToSettingsRefresh: (listener: () => void) => {
+    subscribeToSettingsRefresh: ({ listener }: { listener: () => void }) => {
       refresh = listener;
       return () => { refresh = () => {}; };
     },
@@ -197,7 +197,7 @@ it("the unchosen ledger default leaves the stylesheet's brand mapping in charge,
   let refresh = () => {};
   const port = {
     loadAppearance: async () => ({ ...DEFAULT_APPEARANCE, accentColor }),
-    subscribeToSettingsRefresh: (listener: () => void) => { refresh = listener; return () => {}; },
+    subscribeToSettingsRefresh: ({ listener }: { listener: () => void }) => { refresh = listener; return () => {}; },
   };
   renderHook(() => useAdminAppearance({}, { port }));
   await waitFor(() => expect(primary()).toBe("#a855f7"));
@@ -223,7 +223,7 @@ it("rejects an older settings read after a newer refresh and ignores unmounted r
   let refresh = () => {};
   const port = {
     loadAppearance: () => new Promise<typeof DEFAULT_APPEARANCE>((resolve) => pending.push(resolve)),
-    subscribeToSettingsRefresh: (listener: () => void) => { refresh = listener; return () => {}; },
+    subscribeToSettingsRefresh: ({ listener }: { listener: () => void }) => { refresh = listener; return () => {}; },
   };
   const { unmount } = renderHook(() => useAdminAppearance({}, { port }));
   await waitFor(() => expect(pending).toHaveLength(1));

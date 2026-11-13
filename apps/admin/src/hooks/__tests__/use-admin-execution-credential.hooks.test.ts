@@ -673,39 +673,39 @@ describe("useAdminExecutionCredential — the two buttons write disjoint patches
 // combinations without a render at all.
 describe("resolveByokFooterStatusLine", () => {
   it("reports 'Saving…' while saving, regardless of isStored", () => {
-    expect(resolveByokFooterStatusLine("saving", false)).toBe("Saving…");
-    expect(resolveByokFooterStatusLine("saving", true)).toBe("Saving…");
+    expect(resolveByokFooterStatusLine({ status: "saving", isStored: false })).toBe("Saving…");
+    expect(resolveByokFooterStatusLine({ status: "saving", isStored: true })).toBe("Saving…");
   });
 
   it("reports the saved confirmation once saved", () => {
-    expect(resolveByokFooterStatusLine("saved", false)).toBe("Saved to the server, encrypted.");
+    expect(resolveByokFooterStatusLine({ status: "saved", isStored: false })).toBe("Saved to the server, encrypted.");
   });
 
   it("distinguishes 'stored' from 'never stored' while idle", () => {
-    expect(resolveByokFooterStatusLine("idle", true)).toBe("Stored on the server, encrypted. Paste a new key to replace it.");
-    expect(resolveByokFooterStatusLine("idle", false)).toBe("Paste your key, then press Save key.");
+    expect(resolveByokFooterStatusLine({ status: "idle", isStored: true })).toBe("Stored on the server, encrypted. Paste a new key to replace it.");
+    expect(resolveByokFooterStatusLine({ status: "idle", isStored: false })).toBe("Paste your key, then press Save key.");
   });
 
   it("returns null on error — the footer renders the error via a separate element", () => {
-    expect(resolveByokFooterStatusLine("error", false)).toBeNull();
+    expect(resolveByokFooterStatusLine({ status: "error", isStored: false })).toBeNull();
   });
 
   it("asks for this provider's key while idle when the stored key belongs to another endpoint", () => {
-    expect(resolveByokFooterStatusLine("idle", true, true)).toBe(
+    expect(resolveByokFooterStatusLine({ status: "idle", isStored: true }, { storedKeyIsForOtherEndpoint: true })).toBe(
       "Your saved key is for a different provider. Paste a key for this one.",
     );
     // Progress and confirmation still win: they describe the press, not the stored row.
-    expect(resolveByokFooterStatusLine("saving", true, true)).toBe("Saving…");
-    expect(resolveByokFooterStatusLine("saved", true, true)).toBe("Saved to the server, encrypted.");
+    expect(resolveByokFooterStatusLine({ status: "saving", isStored: true }, { storedKeyIsForOtherEndpoint: true })).toBe("Saving…");
+    expect(resolveByokFooterStatusLine({ status: "saved", isStored: true }, { storedKeyIsForOtherEndpoint: true })).toBe("Saved to the server, encrypted.");
   });
 
   it("translates the line it returns through t", () => {
     const t = (key: string) => `[es] ${key}`;
-    expect(resolveByokFooterStatusLine("idle", true, true, t)).toBe(
+    expect(resolveByokFooterStatusLine({ status: "idle", isStored: true }, { storedKeyIsForOtherEndpoint: true, t })).toBe(
       "[es] Your saved key is for a different provider. Paste a key for this one.",
     );
-    expect(resolveByokFooterStatusLine("idle", false, false, t)).toBe("[es] Paste your key, then press Save key.");
-    expect(resolveByokFooterStatusLine("error", false, false, t)).toBeNull();
+    expect(resolveByokFooterStatusLine({ status: "idle", isStored: false }, { storedKeyIsForOtherEndpoint: false, t })).toBe("[es] Paste your key, then press Save key.");
+    expect(resolveByokFooterStatusLine({ status: "error", isStored: false }, { storedKeyIsForOtherEndpoint: false, t })).toBeNull();
   });
 });
 
@@ -741,7 +741,7 @@ describe("useAdminExecutionCredential — provider switch while the key is store
       expect(result.current.canDiscoverModels).toBe(false);
       expect(result.current.apiKeyStoredExternally).toBe(false);
       expect(result.current.apiKeyPlaceholder).toBeUndefined();
-      expect(resolveByokFooterStatusLine("idle", true, result.current.storedKeyIsForOtherEndpoint)).toBe(
+      expect(resolveByokFooterStatusLine({ status: "idle", isStored: true }, { storedKeyIsForOtherEndpoint: result.current.storedKeyIsForOtherEndpoint })).toBe(
         "Your saved key is for a different provider. Paste a key for this one.",
       );
     },
@@ -938,7 +938,7 @@ function readMergeUpsertServer(initial: {
     async loadAdminExecutionCredential() {
       return toView();
     },
-    saveAdminExecutionCredential(patch: AdminExecutionCredentialPatch) {
+    saveAdminExecutionCredential({ patch }: { patch: AdminExecutionCredentialPatch }) {
       // The "read" half, captured the instant the request ARRIVES — a real server's read happens
       // before this promise ever resolves, not when some later caller happens to release it.
       const snapshot = { ...row };

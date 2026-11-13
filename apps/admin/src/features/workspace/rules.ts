@@ -19,7 +19,7 @@ import { t } from "./workspace-i18n";
  *
  * @complexity Time/space: O(1).
  */
-export function describeApiError(e: unknown, fallback: string, locale: string): string {
+export function describeApiError({ e, fallback, locale }: { e: unknown; fallback: string; locale: string }, _options = {}): string {
   if (e instanceof ApiError) {
     if (e.code === "FORBIDDEN") return t({ locale: locale, key: "You do not have permission to do that." });
     if (e.code === "RESOURCE_CONFLICT") return t({ locale: locale, key: "That slug is already in use." });
@@ -35,6 +35,6 @@ export function describeApiError(e: unknown, fallback: string, locale: string): 
  *
  * @complexity Time/space: O(1).
  */
-export function isWorkspaceDirty(workspace: AdminWorkspace, name: string, slug: string): boolean {
+export function isWorkspaceDirty({ workspace, name, slug }: { workspace: AdminWorkspace; name: string; slug: string }, _options = {}): boolean {
   return name !== workspace.name || slug !== workspace.slug;
 }

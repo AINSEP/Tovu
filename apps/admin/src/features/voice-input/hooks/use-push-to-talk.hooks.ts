@@ -26,7 +26,7 @@ import {
 /** A capture failure's `Error#message`, or a fixed fallback for a non-`Error` rejection (the DOM's
  *  own `getUserMedia` rejections are always real `Error`s, but a fake in a test might not be).
  *  @complexity Time/space: O(1). */
-export function describeCaptureError(error: unknown): string {
+export function describeCaptureError({ error }: { error: unknown }, _options = {}): string {
   return error instanceof Error ? error.message : "Unknown error";
 }
 
@@ -37,7 +37,7 @@ export interface UsePushToTalkOptions {
 }
 
 export interface UsePushToTalkOverrides {
-  /** Defaults to `getVoiceInputPort(undefined)`. Pass `null` in a test to simulate a plain browser
+  /** Defaults to `getVoiceInputPort({ targetWindow: undefined })`. Pass `null` in a test to simulate a plain browser
    *  tab (no desktop shell). */
   voicePort?: VoiceInputPort | null;
   /** Defaults to {@link createMicPushToTalkCapture}. A test passes a fake that never touches
@@ -71,16 +71,16 @@ export interface PushToTalkController {
  * ceiling, and so the "no reason while probing, no reason once available" invariant is assertable
  * on its own.
  *
- * @param availability - `null` while the probe is still in flight.
+ * @param required.availability - `null` while the probe is still in flight.
  * @complexity Time/space: O(1).
  */
-export function describeAvailability(availability: VoiceInputAvailability | null): {
+export function describeAvailability({ availability }: { availability: VoiceInputAvailability | null }, _options = {}): {
   available: boolean | null;
   unavailableReason: string | undefined;
 } {
   if (availability === null) return { available: null, unavailableReason: undefined };
   if (availability.available) return { available: true, unavailableReason: undefined };
-  return { available: false, unavailableReason: describeVoiceUnavailability(availability.reason) };
+  return { available: false, unavailableReason: describeVoiceUnavailability({ reason: availability.reason }) };
 }
 
 /**
@@ -88,7 +88,7 @@ export function describeAvailability(availability: VoiceInputAvailability | null
  * supplied one, else the real microphone-backed implementation.
  * @complexity Time/space: O(1).
  */
-function resolveCreateCapture(overrideCreateCapture: ((port: VoiceInputPort) => PushToTalkCapture) | undefined) {
+function resolveCreateCapture({ overrideCreateCapture }: { overrideCreateCapture: ((port: VoiceInputPort) => PushToTalkCapture) | undefined }, _options = {}) {
   return overrideCreateCapture ?? createMicPushToTalkCapture;
 }
 
@@ -100,15 +100,15 @@ function ignoreDiscardedTranscript(error: unknown): void {
 /**
  * Drives the push-to-talk gesture end to end for one composer mic button.
  *
- * @param options.onTranscript - See {@link UsePushToTalkOptions}.
- * @param overrides - Injectable seams for testing; a real caller omits this entirely.
+ * @param required.options.onTranscript - See {@link UsePushToTalkOptions}.
+ * @param required.overrides - Injectable seams for testing; a real caller supplies `undefined`.
  * @complexity Time/space: O(1) per call; recording length determines the real capture/transcribe
  *   cost, which this hook does not itself scale with.
  */
-export function usePushToTalk(options: UsePushToTalkOptions, overrides: UsePushToTalkOverrides | undefined): PushToTalkController {
+export function usePushToTalk({ options, overrides }: { options: UsePushToTalkOptions; overrides: UsePushToTalkOverrides | undefined }, _options = {}): PushToTalkController {
   const { onTranscript } = options;
-  const voicePort = overrides && "voicePort" in overrides ? overrides.voicePort ?? null : getVoiceInputPort(undefined);
-  const createCapture = resolveCreateCapture(overrides?.createCapture);
+  const voicePort = overrides && "voicePort" in overrides ? overrides.voicePort ?? null : getVoiceInputPort({ targetWindow: undefined });
+  const createCapture = resolveCreateCapture({ overrideCreateCapture: overrides?.createCapture });
 
   const [state, setState] = useState<PushToTalkState>(INITIAL_PUSH_TO_TALK_STATE);
   /** `null` until the probe settles. The whole availability record is held (not just its boolean)
@@ -147,14 +147,14 @@ export function usePushToTalk(options: UsePushToTalkOptions, overrides: UsePushT
         if (!cancelled) setAvailability(result);
       })
       .catch((error: unknown) => {
-        if (!cancelled) setAvailability({ available: false, reason: describeCaptureError(error) });
+        if (!cancelled) setAvailability({ available: false, reason: describeCaptureError({ error }) });
       });
     return () => {
       cancelled = true;
     };
   }, [voicePort]);
 
-  const { available, unavailableReason } = describeAvailability(availability);
+  const { available, unavailableReason } = describeAvailability({ availability });
   const canStart = Boolean(voicePort) && available === true && (state.status === "idle" || state.status === "error");
 
   const startHold = useCallback(() => {
@@ -184,7 +184,7 @@ export function usePushToTalk(options: UsePushToTalkOptions, overrides: UsePushT
           return next;
         });
       })
-      .catch((error) => setState((previous) => nextPushToTalkState(previous, { type: "mic-denied", reason: describeCaptureError(error) })));
+      .catch((error) => setState((previous) => nextPushToTalkState(previous, { type: "mic-denied", reason: describeCaptureError({ error }) })));
     // `voicePort`/`createCapture` are resolved once per mount, not per render, so listing exactly
     // these three dependencies (not `state` itself) does not risk a stale closure — `canStart`
     // already reads the latest `state.status` on every render this callback is recreated for.
@@ -204,7 +204,7 @@ export function usePushToTalk(options: UsePushToTalkOptions, overrides: UsePushT
           setState((previous) => nextPushToTalkState(previous, { type: "transcript-ready" }));
           if (text.trim().length > 0) onTranscript(text);
         })
-        .catch((error) => setState((previous) => nextPushToTalkState(previous, { type: "transcribe-failed", reason: describeCaptureError(error) })));
+        .catch((error) => setState((previous) => nextPushToTalkState(previous, { type: "transcribe-failed", reason: describeCaptureError({ error }) })));
       return;
     }
     // Released while still `"requesting-mic"` (the permission prompt has not resolved yet): there

@@ -9,7 +9,7 @@ import { JINI_CORE_VERSION, TOVU_ADMIN_VERSION } from "./app-version";
 /** One retained incident for this admin instance; reset invalidates older in-flight requests. */
 export const adminFailureChannel = createFailureChannel({}, {});
 
-function record(value: unknown): Record<string, unknown> {
+function record({ value }: { value: unknown }, _options = {}): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
@@ -24,10 +24,10 @@ function asPage({ text }: { text: string }, _options = {}): string {
  * @overallScore 98 — trusted server disclosure remains a boundary contract, tested with anonymous canaries.
  */
 function approvedFailure({ value, entry }: { value: unknown; entry?: "page" }): UserFacingError | undefined {
-  const candidate = record(value);
+  const candidate = record({ value });
   if (typeof candidate.message !== "string" || typeof candidate.action !== "string" || typeof candidate.step !== "string" || typeof candidate.cause !== "string") return undefined;
-  const word = (text: string) => (entry === "page" ? asPage({ text }) : text);
-  return formatUserFacingError({ message: word(candidate.message), action: word(candidate.action), step: word(candidate.step), cause: candidate.cause }, {
+  const word = ({ text }: { text: string }, _options = {}) => (entry === "page" ? asPage({ text }) : text);
+  return formatUserFacingError({ message: word({ text: candidate.message }), action: word({ text: candidate.action }), step: word({ text: candidate.step }), cause: candidate.cause }, {
     ...TOVU_ERROR_REDACTION_OPTIONS,
     errorId: typeof candidate.errorId === "string" ? candidate.errorId : undefined,
     time: typeof candidate.time === "string" ? candidate.time : undefined,
@@ -66,8 +66,8 @@ export function publishAdminFailure(
   _options = {},
 ): void {
   const decoded = decodeApiError({ body });
-  const details = record(decoded.details);
-  const envelope = record(body);
+  const details = record({ value: decoded.details });
+  const envelope = record({ value: body });
   const reference = details.errorId ?? envelope.errorId ?? decoded.requestId;
   const errorId = typeof reference === "string" ? reference : undefined;
   const approved = approvedResponseFailure({ details, path, entry });

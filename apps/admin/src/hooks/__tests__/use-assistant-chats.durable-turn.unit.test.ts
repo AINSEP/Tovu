@@ -55,21 +55,21 @@ describe("useAssistantChats.persistUserTurn", () => {
     const save = port.saveMessage.bind(port);
     let release!: () => void;
     const pending = new Promise<void>((resolve) => { release = resolve; });
-    const saveSpy = vi.spyOn(port, "saveMessage").mockImplementation(async (id, message) => {
-      await pending; await save(id, message);
+    const saveSpy = vi.spyOn(port, "saveMessage").mockImplementation(async ({ conversationId, message }) => {
+      await pending; await save({ conversationId, message });
     });
     const { result } = await mountWith(port);
     await act(async () => { await result.current.create(); });
     const conversationId = result.current.activeId!;
     const turn = userTurn("first-user", "Install the zip");
-    await act(async () => { result.current.onMessagesChange([turn]); });
+    await act(async () => { result.current.onMessagesChange({ messages: [turn] }); });
     let settled = false;
     let persisting!: Promise<void>;
     await act(async () => {
-      persisting = result.current.persistUserTurn(conversationId, turn).then(() => { settled = true; });
+      persisting = result.current.persistUserTurn({ conversationId, message: turn }).then(() => { settled = true; });
     });
     try {
-      expect(saveSpy).toHaveBeenCalledExactlyOnceWith(conversationId, turn);
+      expect(saveSpy).toHaveBeenCalledExactlyOnceWith({ conversationId, message: turn });
       expect(settled, "scheduled is not committed: acceptance must wait for the pending PUT").toBe(false);
     } finally {
       await act(async () => { release(); await persisting; });
@@ -82,18 +82,18 @@ describe("useAssistantChats.persistUserTurn", () => {
     const save = port.saveMessage.bind(port);
     let release!: () => void;
     const pending = new Promise<void>((resolve) => { release = resolve; });
-    const saveSpy = vi.spyOn(port, "saveMessage").mockImplementation(async (conversationId, turn) => {
+    const saveSpy = vi.spyOn(port, "saveMessage").mockImplementation(async ({ conversationId, message: turn }) => {
       await pending;
-      await save(conversationId, turn);
+      await save({ conversationId, message: turn });
     });
     const { result } = await mountWith(port);
     const turn = userTurn("u1", "save this before you dispatch");
     let settled = false;
     let persisting!: Promise<void>;
     await act(async () => {
-      persisting = result.current.persistUserTurn("fake-seed", turn).then(() => { settled = true; });
+      persisting = result.current.persistUserTurn({ conversationId: "fake-seed", message: turn }).then(() => { settled = true; });
     });
-    expect(saveSpy).toHaveBeenCalledExactlyOnceWith("fake-seed", turn);
+    expect(saveSpy).toHaveBeenCalledExactlyOnceWith({ conversationId: "fake-seed", message: turn });
     expect(settled).toBe(false);
     expect(port.saved.get("fake-seed") ?? []).toEqual([]);
 
@@ -114,13 +114,13 @@ describe("useAssistantChats.persistUserTurn", () => {
 
     const message = userTurn("u1", "hello");
     await act(async () => {
-      result.current.select("fake-seed");
+      result.current.select({ id: "fake-seed" });
     });
     await act(async () => {
-      await result.current.persistUserTurn("fake-seed", message);
+      await result.current.persistUserTurn({ conversationId: "fake-seed", message });
     });
     await act(async () => {
-      result.current.onMessagesChange([message]);
+      result.current.onMessagesChange({ messages: [message] });
     });
 
     expect(port.attemptedIds(), "the message was written twice — persistUserTurn and flush both sent it").toEqual(["u1"]);
@@ -142,13 +142,13 @@ describe("useAssistantChats.persistUserTurn", () => {
 
     const message = userTurn("u1", "hello");
     await act(async () => {
-      result.current.select("fake-seed");
+      result.current.select({ id: "fake-seed" });
     });
     await act(async () => {
-      await result.current.persistUserTurn("fake-seed", message);
+      await result.current.persistUserTurn({ conversationId: "fake-seed", message });
     });
     await act(async () => {
-      result.current.onMessagesChange([message]);
+      result.current.onMessagesChange({ messages: [message] });
     });
 
     await waitFor(() => expect(port.saved.get("fake-seed")?.map((m) => m.id)).toEqual(["u1"]));
@@ -165,7 +165,7 @@ describe("useAssistantChats.persistUserTurn", () => {
     const { result } = await mountWith(port);
 
     await act(async () => {
-      await expect(result.current.persistUserTurn("fake-seed", userTurn("u1", "hello"))).resolves.toBeUndefined();
+      await expect(result.current.persistUserTurn({ conversationId: "fake-seed", message: userTurn("u1", "hello") })).resolves.toBeUndefined();
     });
   });
 });

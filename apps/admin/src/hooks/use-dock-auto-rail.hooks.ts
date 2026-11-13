@@ -51,7 +51,7 @@ export function shouldAutoRail(
   return dockOpen && narrow;
 }
 
-function defaultMatchMedia(query: string): AutoRailMediaQuery | null {
+function defaultMatchMedia({ query }: { query: string }, _options = {}): AutoRailMediaQuery | null {
   return typeof window.matchMedia === "function" ? window.matchMedia(query) : null;
 }
 
@@ -77,7 +77,7 @@ export function useDockAutoRail(
   {
     matchMedia = defaultMatchMedia,
   }: {
-    readonly matchMedia?: (query: string) => AutoRailMediaQuery | null;
+    readonly matchMedia?: (required: { query: string }) => AutoRailMediaQuery | null;
   } = {},
 ): DockAutoRail {
   // Survives the effect re-running on every `dockOpen` change, which is exactly when it is read: a
@@ -92,7 +92,7 @@ export function useDockAutoRail(
   }, []);
 
   useEffect(() => {
-    const band = matchMedia(DOCK_AUTO_RAIL_QUERY);
+    const band = matchMedia({ query: DOCK_AUTO_RAIL_QUERY });
     if (!band) return undefined;
     const apply = () => {
       const want = shouldAutoRail({ dockOpen, narrow: band.matches });

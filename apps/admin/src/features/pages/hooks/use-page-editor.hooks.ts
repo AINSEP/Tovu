@@ -1111,7 +1111,7 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
 
   // Tells the assistant which page "this page" is (`lib/agent-screen-context.ts`) — the saved row,
   // so the id/slug it is given are ones its tools can actually look up.
-  useAgentScreenEntry(page === null ? null : { kind: page.kind, id: page.id, title: page.title, slug: page.slug, status: page.status });
+  useAgentScreenEntry({ entry: page === null ? null : { kind: page.kind, id: page.id, title: page.title, slug: page.slug, status: page.status } });
 
   // Template-preview fix (2026-08-11) — see `contentDirty`'s doc on `PageEditorController`.
   const contentDirty = computeContentDirty({ page, draft: { title, slug, status, html, savedHtml } });
@@ -1136,7 +1136,7 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
     supersedeStandingDraftBasis: autosave.supersedeBasis,
     onLoadLatestFailed: () => setError(t({ locale, key: "could not re-read the current version — your changes are still here, try again" })),
   });
-  useContentRefreshSubscription(PAGES_RESOURCE, externalRefresh.checkForExternalChange);
+  useContentRefreshSubscription({ resource: PAGES_RESOURCE, onRefresh: externalRefresh.checkForExternalChange });
 
   // Unsaved-work guard (2026-09-06, alongside standing-draft autosave — audit finding: this screen
   // had none at all, unlike `usePostEditor`'s own `useDirtyGuard` call). Same five-field comparison

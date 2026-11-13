@@ -65,7 +65,7 @@ describe("renameActiveConversation", () => {
   it("renames the active conversation to the new title", () => {
     const rename = vi.fn(async () => undefined);
     renameActiveConversation({ activeId: "conv-1", rename })("Quarterly report");
-    expect(rename).toHaveBeenCalledWith("conv-1", "Quarterly report");
+    expect(rename).toHaveBeenCalledWith({ id: "conv-1", title: "Quarterly report" });
   });
 
   it("does nothing without an active conversation", () => {

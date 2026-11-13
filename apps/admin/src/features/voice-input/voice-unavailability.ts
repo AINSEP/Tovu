@@ -45,12 +45,12 @@ const FALLBACK_COPY = "Voice input is not available on this machine.";
 /**
  * Maps a transcription-port reason code to one short operator-facing line.
  *
- * @param reason - The code, or `undefined` when the port reported unavailability without one.
+ * @param required.reason - The code, or `undefined` when the port reported unavailability without one.
  * @returns Copy suitable for a tooltip or an `aria-label`. English, doubling as its own i18n key
  *   per this app's convention — the caller passes it through `t()`.
  * @complexity Time: O(k) in the (fixed, small) table size. Space: O(1).
  */
-export function describeVoiceUnavailability(reason: string | undefined): string {
+export function describeVoiceUnavailability({ reason }: { reason: string | undefined }, _options = {}): string {
   if (reason === undefined) return FALLBACK_COPY;
   const match = REASON_COPY.find(([prefix]) => reason.startsWith(prefix));
   return match ? match[1] : FALLBACK_COPY;

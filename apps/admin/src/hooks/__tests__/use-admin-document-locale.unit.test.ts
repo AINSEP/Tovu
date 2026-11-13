@@ -19,7 +19,7 @@ it("follows loaded locale and settings refreshes, including switching back from 
   let refresh = () => {};
   const port = {
     loadLanguage: async () => locale,
-    subscribeToSettingsRefresh: (listener: () => void) => { refresh = listener; return () => {}; },
+    subscribeToSettingsRefresh: ({ listener }: { listener: () => void }) => { refresh = listener; return () => {}; },
   };
   renderHook(() => {
     const loaded = useAdminLocale(port);

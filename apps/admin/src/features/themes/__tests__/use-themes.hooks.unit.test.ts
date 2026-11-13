@@ -79,7 +79,7 @@ describe("useThemes — injected port (no fetch stub, no api spy)", () => {
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz"]));
 
     await act(async () => {
-      await result.current.activate("quartz");
+      await result.current.activate({ themeId: "quartz" });
     });
 
     expect(result.current.settings?.activeThemeId).toBe("quartz");
@@ -130,10 +130,10 @@ describe("useThemes — activate race safety", () => {
     // actual, final choice. Activations are serialized onto one lane, so only quartz's call
     // reaches the port; slate's stays queued behind it.
     act(() => {
-      void result.current.activate("quartz");
+      void result.current.activate({ themeId: "quartz" });
     });
     act(() => {
-      void result.current.activate("slate");
+      void result.current.activate({ themeId: "slate" });
     });
     await waitFor(() => expect(setActiveTheme).toHaveBeenCalledTimes(1), { timeout: 5000 });
     expect(setActiveTheme).toHaveBeenCalledWith("quartz");
@@ -181,10 +181,10 @@ describe("useThemes — activate race safety", () => {
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz", "slate"]));
 
     act(() => {
-      void result.current.activate("quartz");
+      void result.current.activate({ themeId: "quartz" });
     });
     act(() => {
-      void result.current.activate("slate");
+      void result.current.activate({ themeId: "slate" });
     });
     await waitFor(() => expect(port.setActiveTheme).toHaveBeenCalledTimes(1), { timeout: 5000 });
     expect(result.current.busyTheme).toBe("slate");
@@ -223,10 +223,10 @@ describe("useThemes — activate race safety", () => {
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz", "slate"]));
 
     act(() => {
-      void result.current.activate("quartz");
+      void result.current.activate({ themeId: "quartz" });
     });
     act(() => {
-      void result.current.activate("slate");
+      void result.current.activate({ themeId: "slate" });
     });
     await waitFor(() => expect(port.setActiveTheme).toHaveBeenCalledTimes(1), { timeout: 5000 });
 
@@ -285,10 +285,10 @@ describe("useThemes — two activations back to back persist the theme the scree
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz", "slate"]));
 
     act(() => {
-      void result.current.activate("quartz");
+      void result.current.activate({ themeId: "quartz" });
     });
     act(() => {
-      void result.current.activate("slate");
+      void result.current.activate({ themeId: "slate" });
     });
 
     // Release the NEWEST pending request each round — the network order that loses the last click
@@ -336,7 +336,7 @@ describe("useThemes — initial load failure", () => {
     await waitFor(() => expect(result.current.error).toBe("network down"));
 
     await act(async () => {
-      await result.current.activate("quartz");
+      await result.current.activate({ themeId: "quartz" });
     });
 
     expect(result.current.settings).toBeNull();
@@ -396,7 +396,7 @@ describe("useThemes — activate failure (current, non-stale generation)", () =>
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz"]));
 
     await act(async () => {
-      await result.current.activate("quartz");
+      await result.current.activate({ themeId: "quartz" });
     });
 
     expect(result.current.error).toBe("failed to switch theme");
@@ -410,7 +410,7 @@ describe("useThemes — activate failure (current, non-stale generation)", () =>
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz"]));
 
     await act(async () => {
-      await result.current.activate("quartz");
+      await result.current.activate({ themeId: "quartz" });
     });
 
     expect(result.current.error).toBe("failed to switch theme");

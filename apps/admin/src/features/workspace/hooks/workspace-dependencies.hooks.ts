@@ -9,7 +9,7 @@ import type { WorkspacePort } from "./workspace-port.hooks";
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultWorkspacePort: WorkspacePort = {
   getWorkspace: () => api.getWorkspace(),
-  updateWorkspace: (patch) => api.updateWorkspace(patch),
+  updateWorkspace: ({ patch }, _options = {}) => api.updateWorkspace(patch),
 };
 
 /** Seed state for {@link createFakeWorkspacePort}. */
@@ -44,7 +44,7 @@ export function createFakeWorkspacePort(options: FakeWorkspacePortOptions = {}):
       return { workspace: current };
     },
 
-    async updateWorkspace(patch) {
+    async updateWorkspace({ patch }) {
       current = { ...current, ...patch };
       return { workspace: current };
     },

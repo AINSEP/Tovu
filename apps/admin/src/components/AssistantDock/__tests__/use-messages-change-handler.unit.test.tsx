@@ -90,7 +90,7 @@ it("still forwards the transcript to the chat store when the run is not terminal
   const messages: ChatMessage[] = [{ id: "m1", role: "user", content: "make a Seasons taxonomy" }];
   result.current(messages);
 
-  expect(onMessagesChange).toHaveBeenCalledWith(messages);
+  expect(onMessagesChange).toHaveBeenCalledWith({ messages });
   expect(content).not.toHaveBeenCalled();
 });
 
@@ -150,7 +150,7 @@ it("a freshly opened pane with no stored history still announces its first finis
   const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange, paneKey: "pane-new" } }));
   result.current([settledAssistantMessage("m1")]);
 
-  expect(onMessagesChange).toHaveBeenCalledWith([settledAssistantMessage("m1")]);
+  expect(onMessagesChange).toHaveBeenCalledWith({ messages: [settledAssistantMessage("m1")] });
   expect(content).toHaveBeenCalledTimes(1);
   expect(content).toHaveBeenCalledWith(null);
 });

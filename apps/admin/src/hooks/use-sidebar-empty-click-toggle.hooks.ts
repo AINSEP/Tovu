@@ -56,7 +56,7 @@ export function isEmptySidebarClick(
   return control === null || !nav.contains(control);
 }
 
-function movedPastThreshold(from: { x: number; y: number } | null, event: MouseEvent): boolean {
+function movedPastThreshold({ from, event }: { from: { x: number; y: number } | null; event: MouseEvent }, _options = {}): boolean {
   if (!from) return false;
   return Math.abs(event.clientX - from.x) > DRAG_THRESHOLD_PX || Math.abs(event.clientY - from.y) > DRAG_THRESHOLD_PX;
 }
@@ -92,7 +92,7 @@ export function useSidebarEmptyClickToggle(
     }
     function onClick(event: MouseEvent) {
       if (!isDesktop() || !nav) return;
-      const context = { nav, selectingText: selectionStartsIn(nav, doc), dragged: movedPastThreshold(pressedAt, event) };
+      const context = { nav, selectingText: selectionStartsIn(nav, doc), dragged: movedPastThreshold({ from: pressedAt, event }) };
       pressedAt = null;
       if (isEmptySidebarClick(event, context)) toggleRail();
     }

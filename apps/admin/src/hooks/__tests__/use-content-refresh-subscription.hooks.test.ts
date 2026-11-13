@@ -15,7 +15,7 @@ afterEach(() => resetContentRefreshBus());
 
 it("calls onRefresh when an unscoped (\"refresh everything\") notification fires", () => {
   const onRefresh = vi.fn();
-  renderHook(() => useContentRefreshSubscription("posts", onRefresh));
+  renderHook(() => useContentRefreshSubscription({ resource: "posts", onRefresh }));
 
   publishContentRefresh();
 
@@ -24,7 +24,7 @@ it("calls onRefresh when an unscoped (\"refresh everything\") notification fires
 
 it("calls onRefresh when the notification names this resource", () => {
   const onRefresh = vi.fn();
-  renderHook(() => useContentRefreshSubscription("posts", onRefresh));
+  renderHook(() => useContentRefreshSubscription({ resource: "posts", onRefresh }));
 
   publishContentRefresh(["posts"]);
 
@@ -33,7 +33,7 @@ it("calls onRefresh when the notification names this resource", () => {
 
 it("ignores a notification that names only other resources", () => {
   const onRefresh = vi.fn();
-  renderHook(() => useContentRefreshSubscription("posts", onRefresh));
+  renderHook(() => useContentRefreshSubscription({ resource: "posts", onRefresh }));
 
   publishContentRefresh(["taxonomy"]);
 
@@ -42,7 +42,7 @@ it("ignores a notification that names only other resources", () => {
 
 it("stops calling onRefresh once unmounted", () => {
   const onRefresh = vi.fn();
-  const { unmount } = renderHook(() => useContentRefreshSubscription("posts", onRefresh));
+  const { unmount } = renderHook(() => useContentRefreshSubscription({ resource: "posts", onRefresh }));
 
   unmount();
   publishContentRefresh();
@@ -53,7 +53,7 @@ it("stops calling onRefresh once unmounted", () => {
 describe("resubscription", () => {
   it("re-subscribes under the new resource when `resource` changes, dropping the old one", () => {
     const onRefresh = vi.fn();
-    const { rerender } = renderHook(({ resource }) => useContentRefreshSubscription(resource, onRefresh), {
+    const { rerender } = renderHook(({ resource }) => useContentRefreshSubscription({ resource, onRefresh }), {
       initialProps: { resource: "posts" },
     });
 
@@ -69,7 +69,7 @@ describe("resubscription", () => {
 it("uses the latest onRefresh callback for the same resource", () => {
   const oldRefresh = vi.fn();
   const newRefresh = vi.fn();
-  const { rerender } = renderHook(({ onRefresh }) => useContentRefreshSubscription("posts", onRefresh), {
+  const { rerender } = renderHook(({ onRefresh }) => useContentRefreshSubscription({ resource: "posts", onRefresh }), {
     initialProps: { onRefresh: oldRefresh },
   });
   rerender({ onRefresh: newRefresh });

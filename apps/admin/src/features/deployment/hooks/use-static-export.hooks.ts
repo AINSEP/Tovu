@@ -145,7 +145,7 @@ export function useStaticExport({ port, t, locale }: { port: StaticExportPort; t
   const triggerRefresh = useCallback(() => {
     void refreshRun();
   }, [refreshRun]);
-  useContentRefreshSubscription(DEPLOYMENT_EXPORT_RESOURCE, triggerRefresh);
+  useContentRefreshSubscription({ resource: DEPLOYMENT_EXPORT_RESOURCE, onRefresh: triggerRefresh });
 
   // Counts CONSECUTIVE poll failures for the `POLL_FAILURE_LIMIT` bound below — a ref, not state,
   // because it is read and written only from inside the poll loop's own effect and must never itself

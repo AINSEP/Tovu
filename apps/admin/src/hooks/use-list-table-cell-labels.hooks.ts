@@ -65,7 +65,7 @@ export function labelListTableCells(root: ParentNode): void {
  * `requestAnimationFrame` on top, because rAF never fires in a background tab and the labels
  * would silently stop updating there.
  */
-export function useListTableCellLabels(root: HTMLElement | null): void {
+export function useListTableCellLabels({ root }: { root: HTMLElement | null }, _options = {}): void {
   useEffect(() => {
     if (!root) return undefined;
     labelListTableCells(root);

@@ -135,7 +135,7 @@ describe("useAssistantChats reopens the last conversation", () => {
     await settle();
     expect(lastConversation.log).toEqual([]);
 
-    act(() => result.current.select("c2"));
+    act(() => result.current.select({ id: "c2" }));
     await waitFor(() => expect(result.current.activeId).toBe("c2"));
     await act(async () => {
       await result.current.create();
@@ -143,12 +143,12 @@ describe("useAssistantChats reopens the last conversation", () => {
     expect(lastConversation.log).toEqual(["write:c2", "write:fake-1"]);
 
     await act(async () => {
-      await result.current.remove("fake-1");
+      await result.current.remove({ id: "fake-1" });
     });
     await waitFor(() => expect(result.current.activeId).toBe("c1"));
     await act(async () => {
-      await result.current.remove("c2");
-      await result.current.remove("c1");
+      await result.current.remove({ id: "c2" });
+      await result.current.remove({ id: "c1" });
     });
     await waitFor(() => expect(result.current.activeId).toBeNull());
     expect(lastConversation.log).toEqual(["write:c2", "write:fake-1", "write:c1", "clear"]);
@@ -203,7 +203,7 @@ describe("useWiredAssistantChats scopes the memory to workspace + signed-in user
   it("switching chats rewrites this user's entry", async () => {
     const { result } = renderHook(() => useWiredAssistantChats({ principalId: "user-1" }));
     await waitFor(() => expect(result.current.conversations).toHaveLength(2));
-    act(() => result.current.select("c1"));
+    act(() => result.current.select({ id: "c1" }));
     await waitFor(() => expect(result.current.activeId).toBe("c1"));
     expect(localStorage.getItem("jini.chat.last-conversation.v1.workspace-local%3Auser-1")).toBe('{"v":1,"id":"c1"}');
   });

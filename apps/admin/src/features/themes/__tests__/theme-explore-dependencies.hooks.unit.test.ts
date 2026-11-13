@@ -32,13 +32,13 @@ describe("defaultThemeExplorePort — real api wiring", () => {
       files: [],
     };
     const spy = vi.spyOn(api, "getThemeDetail").mockResolvedValue(detail as never);
-    await expect(defaultThemeExplorePort.getThemeDetail("basic")).resolves.toEqual(detail);
+    await expect(defaultThemeExplorePort.getThemeDetail({ themeId: "basic" })).resolves.toEqual(detail);
     expect(spy).toHaveBeenCalledWith("basic");
   });
 
   it("getThemeFile delegates to api.getThemeFile with the theme id and path", async () => {
     const spy = vi.spyOn(api, "getThemeFile").mockResolvedValue({ path: "pages/index.html", content: "<html></html>" });
-    await expect(defaultThemeExplorePort.getThemeFile("basic", "pages/index.html")).resolves.toMatchObject({
+    await expect(defaultThemeExplorePort.getThemeFile({ themeId: "basic", path: "pages/index.html" })).resolves.toMatchObject({
       content: "<html></html>",
     });
     expect(spy).toHaveBeenCalledWith("basic", "pages/index.html");
@@ -126,7 +126,7 @@ describe("defaultThemeExplorePort — real api wiring", () => {
 describe("createFakeThemeExplorePort — getThemeFile", () => {
   it("rejects when the path has no recorded content", async () => {
     const port = createFakeThemeExplorePort({ contents: {} });
-    await expect(port.getThemeFile("basic", "pages/ghost.html")).rejects.toThrow(
+    await expect(port.getThemeFile({ themeId: "basic", path: "pages/ghost.html" })).rejects.toThrow(
       "fake theme file not found: pages/ghost.html"
     );
   });
@@ -156,12 +156,12 @@ describe("createFakeThemeExplorePort — renameThemeFile", () => {
 
     await expect(port.renameThemeFile("basic", "pages/old.html", "new.html")).resolves.toEqual({ path: "pages/new.html" });
 
-    const detail = await port.getThemeDetail("basic");
+    const detail = await port.getThemeDetail({ themeId: "basic" });
     expect(detail.files).toEqual([
       { path: "pages/new.html", group: "page", readable: true, editable: true, resettable: true },
       { path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true },
     ]);
-    await expect(port.getThemeFile("basic", "pages/new.html")).resolves.toEqual({ content: "<h1>old</h1>" });
+    await expect(port.getThemeFile({ themeId: "basic", path: "pages/new.html" })).resolves.toEqual({ content: "<h1>old</h1>" });
   });
 
   it("still relabels the file-list entry when the path has no recorded content", async () => {
@@ -171,7 +171,7 @@ describe("createFakeThemeExplorePort — renameThemeFile", () => {
     });
 
     await expect(port.renameThemeFile("basic", "pages/old.html", "new.html")).resolves.toEqual({ path: "pages/new.html" });
-    const detail = await port.getThemeDetail("basic");
+    const detail = await port.getThemeDetail({ themeId: "basic" });
     expect(detail.files[0]?.path).toBe("pages/new.html");
   });
 });
@@ -185,15 +185,15 @@ describe("createFakeThemeExplorePort — copyThemeFile", () => {
 
     await expect(port.copyThemeFile("basic", "pages/about.html")).resolves.toEqual({ path: "pages/about-1.html" });
 
-    const detail = await port.getThemeDetail("basic");
+    const detail = await port.getThemeDetail({ themeId: "basic" });
     expect(detail.files.map((f) => f.path)).toEqual(["pages/about.html", "pages/about-1.html"]);
-    await expect(port.getThemeFile("basic", "pages/about-1.html")).resolves.toEqual({ content: "<h1>about</h1>" });
+    await expect(port.getThemeFile({ themeId: "basic", path: "pages/about-1.html" })).resolves.toEqual({ content: "<h1>about</h1>" });
   });
 
   it("still returns the computed destination path when the source is not in the file list", async () => {
     const port = createFakeThemeExplorePort({ files: [], contents: {} });
     await expect(port.copyThemeFile("basic", "pages/ghost.html")).resolves.toEqual({ path: "pages/ghost-1.html" });
-    const detail = await port.getThemeDetail("basic");
+    const detail = await port.getThemeDetail({ themeId: "basic" });
     expect(detail.files).toEqual([]);
   });
 
@@ -209,7 +209,7 @@ describe("createFakeThemeExplorePort — setPagePublished", () => {
       files: [{ path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true }],
     });
     await expect(port.setPagePublished("basic", "about", false)).resolves.toEqual({ page: "about", published: false });
-    const detail = await port.getThemeDetail("basic");
+    const detail = await port.getThemeDetail({ themeId: "basic" });
     expect(detail.files[0]).toMatchObject({ published: false });
   });
 

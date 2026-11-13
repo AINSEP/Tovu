@@ -131,7 +131,7 @@ describe("theme grid", () => {
     expect(toggle).toBeChecked();
     expect(toggle).toHaveAttribute("title", "Turn the theme off");
     await user.click(toggle);
-    expect(activate).toHaveBeenCalledWith(NO_THEME_ID);
+    expect(activate).toHaveBeenCalledWith({ themeId: NO_THEME_ID });
   });
 
   it("gives every inactive theme an OFF Activate switch that calls activate(themeId)", async () => {
@@ -144,7 +144,7 @@ describe("theme grid", () => {
     expect(toggle).not.toBeChecked();
     expect(toggle).toHaveAttribute("title", "Activate");
     await user.click(toggle);
-    expect(activate).toHaveBeenCalledWith("column");
+    expect(activate).toHaveBeenCalledWith({ themeId: "column" });
   });
 
   it("keeps every card where it is after activating, so a double-click cannot hit a second theme", () => {
@@ -527,7 +527,7 @@ describe("no theme (state 3 — the operator handles styling themselves)", () =>
     render(<Themes useThemesHook={() => baseController({ activate })} />);
 
     fireEvent.click(screen.getByRole("button", { name: /turn the theme off/i }));
-    expect(activate).toHaveBeenCalledWith(NO_THEME_ID);
+    expect(activate).toHaveBeenCalledWith({ themeId: NO_THEME_ID });
   });
 
   it("says so persistently while the theme is off, and does not call it a problem", () => {

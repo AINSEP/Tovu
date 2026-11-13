@@ -248,7 +248,7 @@ export function useOtherCredentials(
     fetchedRef.current = true;
     reloadStores();
   }, [reloadStores]);
-  useContentRefreshSubscription(ACCESS_TOKENS_RESOURCE, reloadStores);
+  useContentRefreshSubscription({ resource: ACCESS_TOKENS_RESOURCE, onRefresh: reloadStores });
 
   // One lane for every Tier-2 write from this controller: a media-provider write is GET map →
   // rebuild → PUT the WHOLE map, so two writes in flight at once would both rebuild from the same

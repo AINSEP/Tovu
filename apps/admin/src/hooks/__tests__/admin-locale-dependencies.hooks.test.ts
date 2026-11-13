@@ -20,7 +20,7 @@ afterEach(() => {
 describe("defaultAdminLocalePort — namespace filtering", () => {
   it("calls the listener when a refresh names core.language", () => {
     const listener = vi.fn();
-    const unsubscribe = defaultAdminLocalePort.subscribeToSettingsRefresh(listener);
+    const unsubscribe = defaultAdminLocalePort.subscribeToSettingsRefresh({ listener });
     publishSettingsRefresh(["core.language"]);
     expect(listener).toHaveBeenCalledTimes(1);
     unsubscribe();
@@ -28,7 +28,7 @@ describe("defaultAdminLocalePort — namespace filtering", () => {
 
   it("calls the listener when a refresh names no namespace at all — the bus's 'unknown, refresh everything' case", () => {
     const listener = vi.fn();
-    const unsubscribe = defaultAdminLocalePort.subscribeToSettingsRefresh(listener);
+    const unsubscribe = defaultAdminLocalePort.subscribeToSettingsRefresh({ listener });
     publishSettingsRefresh();
     expect(listener).toHaveBeenCalledTimes(1);
     unsubscribe();
@@ -36,7 +36,7 @@ describe("defaultAdminLocalePort — namespace filtering", () => {
 
   it("does NOT call the listener for a refresh naming only an unrelated namespace", () => {
     const listener = vi.fn();
-    const unsubscribe = defaultAdminLocalePort.subscribeToSettingsRefresh(listener);
+    const unsubscribe = defaultAdminLocalePort.subscribeToSettingsRefresh({ listener });
     publishSettingsRefresh(["core.execution"]);
     expect(listener).not.toHaveBeenCalled();
     unsubscribe();
@@ -44,7 +44,7 @@ describe("defaultAdminLocalePort — namespace filtering", () => {
 
   it("unsubscribe stops further calls, including for a still-relevant refresh", () => {
     const listener = vi.fn();
-    const unsubscribe = defaultAdminLocalePort.subscribeToSettingsRefresh(listener);
+    const unsubscribe = defaultAdminLocalePort.subscribeToSettingsRefresh({ listener });
     unsubscribe();
     publishSettingsRefresh(["core.language"]);
     expect(listener).not.toHaveBeenCalled();
@@ -90,7 +90,7 @@ describe("defaultAdminLocalePort.loadLanguage — shared read", () => {
     const before = defaultAdminLocalePort.loadLanguage();
     const reads: Promise<string>[] = [];
     const unsubscribes = [1, 2, 3].map(() =>
-      defaultAdminLocalePort.subscribeToSettingsRefresh(() => reads.push(defaultAdminLocalePort.loadLanguage())),
+      defaultAdminLocalePort.subscribeToSettingsRefresh({ listener: () => reads.push(defaultAdminLocalePort.loadLanguage()) }),
     );
 
     publishSettingsRefresh(["core.language"]);

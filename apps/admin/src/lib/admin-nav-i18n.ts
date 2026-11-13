@@ -1394,7 +1394,7 @@ export const translateAdminNavLabel = createDictionaryTranslator({ featureDictio
  *  raw label for any locale/key it doesn't have, so this must run for every locale to pick up the
  *  other 16 languages — an early return here was the same shape bug fixed everywhere else in this
  *  app, just missed on this file's second function. */
-export function translateAdminNavGroups(locale: string, groups: readonly AdminNavGroup[]): AdminNavGroup[] {
+export function translateAdminNavGroups({ locale, groups }: { locale: string; groups: readonly AdminNavGroup[] }, _options = {}): AdminNavGroup[] {
   return groups.map((group) => ({
     ...group,
     label: group.label ? translateAdminNavLabel({ locale: locale, key: group.label }) : group.label,

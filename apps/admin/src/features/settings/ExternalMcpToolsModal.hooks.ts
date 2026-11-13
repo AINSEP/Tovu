@@ -45,7 +45,7 @@ export interface ExternalMcpToolsModalController {
 export function useExternalMcpToolsModalEscape({ onClose }: { onClose: () => void }, _options = {}): ExternalMcpToolsModalController {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
-  useFocusTrap(dialogRef);
+  useFocusTrap({ containerRef: dialogRef });
 
   // Captured at mount, before focus moves onto Close below — the element that had focus then is,
   // by construction, whatever opened this modal (the row's "Tools" button). Restored on unmount.

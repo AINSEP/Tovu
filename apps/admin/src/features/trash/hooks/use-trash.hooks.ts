@@ -100,7 +100,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
 
   // Stable identity so the subscription effect does not resubscribe every render.
   const invalidateList = useCallback(() => invalidate({ key: KEYS.listRoot }), [invalidate]);
-  useContentRefreshSubscription(TRASH_RESOURCE, invalidateList);
+  useContentRefreshSubscription({ resource: TRASH_RESOURCE, onRefresh: invalidateList });
 
   // `staleTime: 0` + `refetchOnWindowFocus: true` (2026-09-21, forms plan §C): deletes can
   // originate from ANY admin screen, the assistant, or a second desktop instance, so there is no

@@ -1002,7 +1002,7 @@ describe("AssistantDock — permanent conversation deletion", () => {
       expect(chats.remove).not.toHaveBeenCalled();
       fireEvent.click(screen.getByTestId("conversation-delete-conv-delete"));
       fireEvent.click(within(screen.getByRole("dialog", { name: "Delete conversation" })).getByRole("button", { name: "Delete conversation" }));
-      await waitFor(() => expect(chats.remove).toHaveBeenCalledExactlyOnceWith("conv-delete"));
+      await waitFor(() => expect(chats.remove).toHaveBeenCalledExactlyOnceWith({ id: "conv-delete" }));
       expect(screen.queryByRole("dialog")).toBeNull();
       expect(nativeConfirm).not.toHaveBeenCalled();
     } finally {

@@ -31,5 +31,5 @@ import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "..
  */
 export interface AdminExecutionCredentialPort {
   loadAdminExecutionCredential(): Promise<AdminExecutionCredential>;
-  saveAdminExecutionCredential(patch: AdminExecutionCredentialPatch): Promise<AdminExecutionCredential>;
+  saveAdminExecutionCredential(required: { patch: AdminExecutionCredentialPatch }): Promise<AdminExecutionCredential>;
 }

@@ -138,7 +138,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   // unsubscribe/resubscribe on every render — `KEYS.list` is a module-level constant, so the only
   // thing this closure ever needs is `invalidate`, itself already stable per `useInvalidate`'s doc.
   const invalidateList = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
-  useContentRefreshSubscription(MEDIA_RESOURCE, invalidateList);
+  useContentRefreshSubscription({ resource: MEDIA_RESOURCE, onRefresh: invalidateList });
   const [altDraft, setAltDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingPurge, setPendingPurge] = useState<AdminMedia | null>(null);

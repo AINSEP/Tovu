@@ -112,7 +112,7 @@ export function createThemePublishClick({ state, setPagePublished, dispatchPubli
   // own "disabled buttons don't fire click" behavior — so a locked switch can never dispatch a
   // publish call no matter what wraps or simulates the click.
   function handleClick() {
-    dispatchPublishToggle(state, setPagePublished);
+    dispatchPublishToggle({ state, setPagePublished });
   }
 
   return handleClick;

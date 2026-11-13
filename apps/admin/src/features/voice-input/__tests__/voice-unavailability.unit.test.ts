@@ -11,51 +11,51 @@ import { NO_DESKTOP_SHELL_REASON, describeVoiceUnavailability } from "../voice-u
 
 describe("describeVoiceUnavailability", () => {
   it("names the desktop app when there is no bridge at all", () => {
-    expect(describeVoiceUnavailability(NO_DESKTOP_SHELL_REASON)).toBe(
+    expect(describeVoiceUnavailability({ reason: NO_DESKTOP_SHELL_REASON })).toBe(
       "Voice input needs the Tovu desktop app — transcription runs on your Mac, never in the cloud.",
     );
   });
 
   it("strips the platform detail off unsupported-platform, which an operator cannot act on", () => {
     const copy = "Voice input needs macOS — on-device transcription is not available here.";
-    expect(describeVoiceUnavailability("unsupported-platform:win32")).toBe(copy);
-    expect(describeVoiceUnavailability("unsupported-platform:linux")).toBe(copy);
+    expect(describeVoiceUnavailability({ reason: "unsupported-platform:win32" })).toBe(copy);
+    expect(describeVoiceUnavailability({ reason: "unsupported-platform:linux" })).toBe(copy);
   });
 
   it("strips the authorization status detail the same way", () => {
-    expect(describeVoiceUnavailability("speech-recognition-not-authorized:denied")).toBe(
+    expect(describeVoiceUnavailability({ reason: "speech-recognition-not-authorized:denied" })).toBe(
       "Tovu is not allowed to use speech recognition. Grant it in System Settings › Privacy & Security.",
     );
   });
 
   it("points at Dictation when the on-device assets are simply not installed", () => {
-    expect(describeVoiceUnavailability("on-device-recognition-unavailable")).toBe(
+    expect(describeVoiceUnavailability({ reason: "on-device-recognition-unavailable" })).toBe(
       "macOS on-device dictation is not installed. Turn it on in System Settings › Keyboard › Dictation.",
     );
   });
 
   it("covers the remaining helper-side codes", () => {
-    expect(describeVoiceUnavailability("no-recognizer-for-locale")).toBe(
+    expect(describeVoiceUnavailability({ reason: "no-recognizer-for-locale" })).toBe(
       "macOS has no on-device recognizer for this language.",
     );
-    expect(describeVoiceUnavailability("swiftc-not-found: no Swift toolchain on this machine")).toBe(
+    expect(describeVoiceUnavailability({ reason: "swiftc-not-found: no Swift toolchain on this machine" })).toBe(
       "Voice input needs Xcode command line tools (no Swift toolchain found).",
     );
-    expect(describeVoiceUnavailability("swiftc-failed: error: cannot find 'Speech'")).toBe(
+    expect(describeVoiceUnavailability({ reason: "swiftc-failed: error: cannot find 'Speech'" })).toBe(
       "The speech helper failed to build on this machine.",
     );
   });
 
   it("falls back rather than leaking an unmapped internal string into the tooltip", () => {
     const fallback = "Voice input is not available on this machine.";
-    expect(describeVoiceUnavailability(undefined)).toBe(fallback);
-    expect(describeVoiceUnavailability("EPIPE: broken pipe at ipcRenderer.invoke")).toBe(fallback);
+    expect(describeVoiceUnavailability({ reason: undefined })).toBe(fallback);
+    expect(describeVoiceUnavailability({ reason: "EPIPE: broken pipe at ipcRenderer.invoke" })).toBe(fallback);
   });
 
   it("matches by prefix, not by substring — a code that merely mentions a known one falls back", () => {
     // Guards against a `.includes` regression that would map an unrelated failure onto reassuring
     // copy about a different cause.
-    expect(describeVoiceUnavailability("ipc-failed:on-device-recognition-unavailable")).toBe(
+    expect(describeVoiceUnavailability({ reason: "ipc-failed:on-device-recognition-unavailable" })).toBe(
       "Voice input is not available on this machine.",
     );
   });

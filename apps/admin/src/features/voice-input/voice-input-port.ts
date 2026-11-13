@@ -2,7 +2,7 @@
  * @file The renderer-side half of the desktop speech feature's seam. `window.tovuVoice` is
  * injected by `apps/desktop/src/speech/preload-speech.cts` via `contextBridge` — it exists ONLY
  * when this admin app is running inside the Electron desktop shell, never in a plain browser tab.
- * That presence check IS the capability gate: `getVoiceInputPort()` returns `null` outside
+ * That presence check IS the capability gate: `getVoiceInputPort({ targetWindow: undefined })` returns `null` outside
  * Electron. A `null` port is reported as `available: false` carrying the
  * `NO_DESKTOP_SHELL_REASON` code, which `voice-unavailability.ts` turns into the line the disabled
  * mic button shows — the affordance renders and explains itself rather than vanishing, since a
@@ -41,13 +41,13 @@ declare global {
 /**
  * Resolves the voice input port for the current runtime.
  *
- * @param targetWindow - Injected so a test can simulate either runtime without touching the real
- *   `window` global. A real caller omits it (kept as a plain parameter, not a `= window` default,
- *   per this repo's style rule that a default parameter costs a complexity point).
+ * @param required.targetWindow - Injected so a test can simulate either runtime without touching the real
+ *   `window` global. A real caller passes `undefined` (rather than defaulting to `window`, per this
+ *   repo's style rule that a default parameter costs a complexity point).
  * @returns The real port when running inside the desktop shell, `null` in a plain browser tab.
  * @complexity Time/space: O(1).
  */
-export function getVoiceInputPort(targetWindow: Window | undefined): VoiceInputPort | null {
+export function getVoiceInputPort({ targetWindow }: { targetWindow: Window | undefined }, _options = {}): VoiceInputPort | null {
   if (targetWindow !== undefined) return targetWindow?.tovuVoice ?? null;
   return typeof window === "undefined" ? null : (window.tovuVoice ?? null);
 }

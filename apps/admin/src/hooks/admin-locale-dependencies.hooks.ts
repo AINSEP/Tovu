@@ -10,8 +10,8 @@ import type { AdminLocalePort } from "./admin-locale-port.hooks";
 /** True when a refresh notification names the language namespace, or names no namespace at all
  *  (the bus's "unknown, refresh everything" case — see `settings-refresh-bus.ts`). Lives here, not
  *  in `use-admin-locale.hooks.ts`, because deciding "is this refresh about ME" is exactly the kind
- *  of real-binding-only rule `AdminLocalePort`'s narrowed `subscribeToSettingsRefresh(listener: ()
- *  => void)` signature exists to hide from the hook.
+ *  of real-binding-only rule `AdminLocalePort`'s narrowed `subscribeToSettingsRefresh({ listener })`
+ *  signature exists to hide from the hook.
  *
  * @complexity O(n) in the refresh's own namespace list (typically 0-1 entries) — not caller-facing.
  */
@@ -27,7 +27,7 @@ export { DEFAULT_LOCALE };
  *  .hooks.ts`'s `defaultThemePagesPort`. */
 export const defaultAdminLocalePort: AdminLocalePort = {
   loadLanguage,
-  subscribeToSettingsRefresh: (listener) =>
+  subscribeToSettingsRefresh: ({ listener }, _options = {}) =>
     subscribeToSettingsRefresh((scope) => {
       if (!refreshApplies(scope)) return;
       listener();
@@ -53,7 +53,7 @@ export interface FakeAdminLocalePort extends AdminLocalePort {
    *  another tab's SSE echo — see `use-admin-locale.hooks.ts`'s file header). Lets a test assert the
    *  re-fetch-on-refresh behaviour end to end without touching the real bus or replicating its
    *  namespace-filtering rule. */
-  publishLocaleChange(next: string): void;
+  publishLocaleChange(required: { next: string }): void;
 }
 
 /**
@@ -69,11 +69,11 @@ export function createFakeAdminLocalePort(options: FakeAdminLocalePortOptions = 
       if (options.loadLanguageError) throw options.loadLanguageError;
       return current;
     },
-    subscribeToSettingsRefresh(listener) {
+    subscribeToSettingsRefresh({ listener }) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    publishLocaleChange(next) {
+    publishLocaleChange({ next }) {
       current = next;
       for (const listener of listeners) listener();
     },
