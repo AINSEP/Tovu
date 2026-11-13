@@ -112,8 +112,8 @@ function withCreatedTokens<T extends object>(record: T, initOutput: string): T &
  */
 function parseCreatedTokensLine(output: string): CreatedAgentPluginTokens | null {
   const match = /^agent-plugin-tokens: (saved|failed) ([a-z0-9,-]+)$/m.exec(output);
-  if (!match) return null;
-  return { status: match[1] as CreatedAgentPluginTokens["status"], pluginIds: match[2]!.split(",").filter(Boolean) };
+  if (!match || match[2] === undefined) return null;
+  return { status: match[1] as CreatedAgentPluginTokens["status"], pluginIds: match[2].split(",").filter(Boolean) };
 }
 
 /** Only well-formed entries survive: this list is rendered as links. */

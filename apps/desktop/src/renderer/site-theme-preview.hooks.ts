@@ -6,7 +6,7 @@ import type { RunnerInventoryBridge } from './runner-api.js';
 function publicPath(path: string): boolean {
   if (!path.startsWith('/') || path.startsWith('//') || /[\\\u0000-\u0020]/.test(path)) return false;
   try {
-    const decoded = decodeURIComponent(path.split(/[?#]/, 1)[0]!);
+    const decoded = decodeURIComponent(path.split(/[?#]/, 1).join(''));
     const normalized = new URL(path, 'https://preview.invalid').pathname;
     return !/[\\\u0000-\u0020]|^\/\/|(?:^|\/)\.\.(?:\/|$)|^\/(?:admin|api)(?:\/|$)/i.test(decoded)
       && !/^\/(?:admin|api)(?:\/|$)/i.test(normalized);

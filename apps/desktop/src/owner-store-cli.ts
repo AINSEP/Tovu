@@ -137,8 +137,9 @@ function parseReply<A extends OwnerStoreAction>({ action, output, code }: {
  */
 function singleLineJson({ output }: { output: string }, _options = {}): Record<string, any> {
   const lines = output.trim().split(/\r?\n/);
-  if (lines.length !== 1) throw new Error('owner-store reply is not one line');
-  return JSON.parse(lines[0]!);
+  const [line] = lines;
+  if (lines.length !== 1 || line === undefined) throw new Error('owner-store reply is not one line');
+  return JSON.parse(line);
 }
 
 /** Only named metadata fields cross IPC; never spread a child object into a renderer reply.

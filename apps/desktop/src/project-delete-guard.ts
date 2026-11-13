@@ -175,10 +175,10 @@ function isInsideDirectory(target: string, container: string): boolean {
  *   `created` row.
  */
 function mayEraseSiteDirectory(row: RowLike | undefined, options: MayEraseOptions | undefined): boolean {
-  if (row?.origin !== SITE_ORIGIN.created) return false;
+  if (!row || row.origin !== SITE_ORIGIN.created) return false;
   if (typeof options?.repoRoot !== "string" || options.repoRoot === "") return false;
   if (!isStillTheRecordedSite(row)) return false;
-  return !isInsideDirectory(row!.siteDir as string, options.repoRoot); // row!: the line 178 check above already returned false for an undefined row via optional chaining, but that does not narrow `row` itself
+  return !isInsideDirectory(row.siteDir as string, options.repoRoot); // Only a present, app-created row reaches this containment check.
 }
 
 export {

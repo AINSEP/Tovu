@@ -63,7 +63,8 @@ async function promptForSiteDir(
     buttonLabel: "Use this folder",
     properties: ["openDirectory", "createDirectory"],
   });
-  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]!; // `!`: the length check rules out an empty list.
+  const [folder] = result.filePaths;
+  return result.canceled || folder === undefined ? null : folder; // An empty list means no folder was chosen.
 }
 
 export { promptForSiteDir, siteFolderPromptMessage };

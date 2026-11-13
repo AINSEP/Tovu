@@ -53,8 +53,10 @@ function processRows({ usages, rootPid, rootRole, readings }: {
   return usages.map((row) => {
     let role: ResourceProcess['role'] = row.pid === daemonPid ? 'daemon' : 'process';
     if (row.pid === rootPid) role = rootRole;
+    const reading = readings.get(row.pid);
+    if (!reading) throw new Error(`resource sample has no CPU reading for process ${row.pid}`);
     return { pid: row.pid, ppid: row.ppid, name: row.name, rssBytes: row.rssBytes, rawRssBytes: row.rawRssBytes, memoryMetric: row.memoryMetric, role,
-      cpuPercent: readings.get(row.pid)!.cpuPercent, cpuWarning: readings.get(row.pid)!.cpuWarning };
+      cpuPercent: reading.cpuPercent, cpuWarning: reading.cpuWarning };
   });
 }
 
@@ -88,8 +90,7 @@ function metrics({ processes, available, warningBytes }: {
   return {
     rssBytes, memoryMetric,
     // Every pid must be measured: a new pid has no previous sample, so a partial sum would understate CPU.
-    cpuPercent: processes.every((row) => row.cpuPercent !== null)
-      ? processes.reduce((sum, row) => sum + row.cpuPercent!, 0) : null,
+    cpuPercent: processes.reduce<number | null>((sum, row) => sum === null || row.cpuPercent === null ? null : sum + row.cpuPercent, 0),
     memoryWarning: rssBytes >= warningBytes,
     cpuWarning: processes.some((row) => row.cpuWarning),
   };
@@ -125,7 +126,11 @@ function groupSample({ usages, sites, desktopPid, previous, at, totalMemoryBytes
       app: { siteId: null, processes: appProcesses, ...metrics({ processes: appProcesses, available, warningBytes: Infinity }) },
       sites: groups,
     },
-    history: { at, processes: new Map(rows.map((row) => [row.pid, { cpuSeconds: row.cpuSeconds, high: readings.get(row.pid)!.high }])) },
+    history: { at, processes: new Map(rows.map((row) => {
+      const reading = readings.get(row.pid);
+      if (!reading) throw new Error(`resource history has no CPU reading for process ${row.pid}`);
+      return [row.pid, { cpuSeconds: row.cpuSeconds, high: reading.high }];
+    })) },
   };
 }
 
@@ -170,12 +175,13 @@ export function createDesktopResources(ports: DesktopResourcesPorts, _options = 
   /** The Tovu panel refreshes CPU faster than footprint. New PIDs retain labelled RSS until the
    * next minute; disappeared PIDs are evicted, including between native reads. O(p+r) space/time. */
   async function panelMemory({ pids }: { pids: readonly number[] }): Promise<ProcessPrivateMemory> {
+    if (!samplePrivateMemory) throw new Error('desktop resource panel has no private memory sampler');
     const live = new Set(pids);
     memory = { ...memory, readings: memory.readings.filter(row => live.has(row.pid)) };
     if (ports.now() - lastMemoryAttempt < 60_000) return memory;
     lastMemoryAttempt = ports.now();
     memory = { metric: 'unavailable', readings: [] };
-    memory = await samplePrivateMemory!({ pids });
+    memory = await samplePrivateMemory({ pids });
     return memory;
   }
 
@@ -215,7 +221,8 @@ export function createDesktopResources(ports: DesktopResourcesPorts, _options = 
         sampledSitesKey = sitesKey;
         inFlight = sample({ pollIntervalMs, sites }).finally(() => { inFlight = undefined; });
       }
-      const snapshot = inFlight ? await inFlight : cached!;
+      const snapshot = inFlight ? await inFlight : cached;
+      if (!snapshot) throw new Error('desktop resource monitor has no sample or cached snapshot');
       return { ...snapshot, pollIntervalMs: snapshot.status === 'unavailable' || sitesKey !== sampledSitesKey ? panelIntervalMs : pollIntervalMs };
     },
   };

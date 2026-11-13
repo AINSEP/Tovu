@@ -68,8 +68,9 @@ function withCopiedDatabases({ siteDir, id, siteId, workspace, commit }: {
     from: workspace.databasePath({ dir: siteDir, id, filename }),
     to: workspace.databasePath({ dir: siteDir, id: siteId, filename, placement: 'appData' }),
   })).filter(row => fs.existsSync(row.from) && !fs.realpathSync(row.from).startsWith(siteDir + path.sep));
-  if (sources.length === 0) { commit(); return; }
-  const targetDir = path.dirname(sources[0]!.to);
+  const [firstSource] = sources;
+  if (firstSource === undefined) { commit(); return; }
+  const targetDir = path.dirname(firstSource.to);
   if (fs.existsSync(targetDir)) throw new Error('Copied database target already exists.');
   const links: { from: string; backup: string }[] = [];
   fs.mkdirSync(path.dirname(targetDir), { recursive: true });

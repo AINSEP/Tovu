@@ -437,10 +437,11 @@ async function resolveOrInitSiteDir(input: ResolveOrInitSiteDirInput): Promise<s
       );
     }
     // `repoRoot` is required by `initSiteDir` itself; every real caller on the "init" path supplies
-    // one (the picker and "+ Create website" always know the repo root), so this is a non-null
-    // assertion on an already-existing contract rather than a new one.
+    // one (the picker and "+ Create website" always know the repo root), so validate that contract
+    // before initializing an empty folder.
+    if (input.repoRoot === undefined) throw new Error('site initialization has no repository root');
     await initSiteDir({
-      repoRoot: input.repoRoot!,
+      repoRoot: input.repoRoot,
       dir: input.dir,
       name: input.name,
       adminPassword: input.adminPassword,
@@ -600,7 +601,8 @@ async function resolveSiteDir(input: ResolveSiteDirInput): Promise<string> {
   const fallback = resolveDevFallback(input.devFallbackDir);
   if (fallback.useDir) return fallback.useDir;
 
-  const picked = await input.pickDir!(fallback.rejected);
+  if (!input.pickDir) throw new Error('site directory selection has no folder picker');
+  const picked = await input.pickDir(fallback.rejected);
   if (picked === null || picked === undefined) {
     throw new SiteDirSelectionCancelled("No site folder was chosen.");
   }

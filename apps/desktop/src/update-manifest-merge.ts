@@ -67,7 +67,8 @@ function mergeMacManifests(inputs: ReadonlyArray<{ label: string; manifest: unkn
     assertManifest(manifest, label);
     return manifest;
   });
-  const first = manifests[0]!;
+  const [first] = manifests;
+  if (first === undefined) throw new Error("no manifests to merge");
   const mismatch = manifests.find((manifest) => manifest.version !== first.version);
   if (mismatch) throw new Error(`version mismatch: ${first.version} vs ${mismatch.version}`);
   const files = unionFiles(manifests).filter(isZip);
@@ -93,10 +94,11 @@ function onlyIntelZip(files: readonly UpdateFileEntry[]): UpdateFileEntry {
   const zips = files.filter(isZip);
   const arm = zips.filter(isArm64);
   const intel = zips.filter((entry) => !isArm64(entry));
-  if (arm.length !== 1 || intel.length !== 1) {
+  const [intelZip] = intel;
+  if (arm.length !== 1 || intel.length !== 1 || intelZip === undefined) {
     throw new Error(`expected one arm64 zip and one x64 zip, got [${zips.map((entry) => entry.url).join(", ")}]`);
   }
-  return intel[0]!;
+  return intelZip;
 }
 
 export { mergeMacManifests };

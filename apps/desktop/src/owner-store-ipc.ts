@@ -154,10 +154,10 @@ const SKIPPED: Record<NonNullable<LegacyImportReport['items'][number]['reason']>
 export function importConfirmation({ report }: { report: LegacyImportReport }, _options = {}): { message: string; detail: string } {
   const name = (item: LegacyImportReport['items'][number]) => item.provider ? `${item.label} (${item.provider})` : item.label;
   const fresh = report.items.filter(item => item.status === 'new');
-  const skipped = report.items.filter(item => item.reason !== undefined);
+  const skipped = report.items.filter((item): item is typeof item & { reason: NonNullable<typeof item.reason> } => item.reason !== undefined);
   const same = report.items.filter(item => item.status === 'already-imported').length;
   const lines = [`Imports into your project:`, ...fresh.map(item => `• ${name(item)}`)];
-  if (skipped.length) lines.push('', 'Not imported:', ...skipped.map(item => `• ${name(item)}: ${SKIPPED[item.reason!]}`));
+  if (skipped.length) lines.push('', 'Not imported:', ...skipped.map(item => `• ${name(item)}: ${SKIPPED[item.reason]}`));
   if (same) lines.push('', `Already in your project: ${same}`);
   if (report.pending.length) {
     lines.push('', 'These sites keep their own copies. To use the project key there, attach it on that site\'s Keys screen:',

@@ -111,9 +111,10 @@ function relocationTarget({ row, context }: { row: TrackedSiteRow; context: Plan
   const roots = new Set([path.dirname(row.siteDir), ...context.searchRoots]);
   const candidates = new Set([...context.knownDirs, ...[...roots].flatMap(childPathsOf)]);
   const matches = [...candidates].filter((dir) => dir !== row.siteDir && context.classifySiteDir(dir) === "site" && readRelocationId(dir) === identity);
-  if (matches.length !== 1 || context.dismissed.includes(matches[0]!)) return null; // length checked on the same line, so index 0 exists
+  const [match] = matches;
+  if (matches.length !== 1 || match === undefined || context.dismissed.includes(match)) return null; // Only one undismissed match can be used.
   // The target was matched BY this id, so the id travels with it rather than being read off disk again.
-  return { dir: matches[0]!, id: identity };
+  return { dir: match, id: identity };
 }
 
 /**

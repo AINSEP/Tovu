@@ -44,6 +44,7 @@ export function useResources({ panelOpen }: ResourcesRequest, { ports = browserP
   useEffect(() => {
     const bridge = ports.getBridge();
     if (!bridge?.getResources) return undefined;
+    const getResources = bridge.getResources.bind(bridge);
     let active = true;
     let pending = false;
     let visibilityVersion = 0;
@@ -63,7 +64,7 @@ export function useResources({ panelOpen }: ResourcesRequest, { ports = browserP
       if (!active || ports.document.hidden) { pending = false; return; }
       const version = visibilityVersion;
       // Resolve failures locally: raw native/IPC messages may contain sensitive process details.
-      const request = Promise.resolve().then(() => bridge!.getResources!({ panelOpen })).catch((error: unknown) => {
+      const request = Promise.resolve().then(() => getResources({ panelOpen })).catch((error: unknown) => {
         console.error("[resources] Could not read resource usage", describeErrorForLog({ err: error }));
         return null;
       });

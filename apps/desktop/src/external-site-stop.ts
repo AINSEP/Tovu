@@ -197,7 +197,11 @@ export function createExternalSiteStopper(_required: Record<string, never> = {},
       if (cached !== undefined) return cached;
       const launcher = resolveExternalStopTarget({ lease }, { ports })?.launcher ?? null;
       if (launcher === null) return null;
-      if (launchers.size >= LAUNCHER_CACHE_LIMIT) launchers.delete(launchers.keys().next().value!);
+      if (launchers.size >= LAUNCHER_CACHE_LIMIT) {
+        const oldest = launchers.keys().next();
+        if (oldest.done) throw new Error('external site launcher cache has no oldest entry');
+        launchers.delete(oldest.value);
+      }
       launchers.set(lease.token, launcher);
       return launcher;
     },

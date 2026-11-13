@@ -39,12 +39,13 @@ function distinctRoots({ roots }: { roots: string[] }, _options = {}): string[] 
 function readStoredFolders({ filePath }: { filePath: string }, _options = {}): { stored: StoredSiteFolders; damaged: boolean } {
   const result = readJsonFile(filePath);
   const value = result.state === 'ok' ? result.value as Partial<StoredSiteFolders> | null : null;
-  const valid = Array.isArray(value?.creationRoots) && Array.isArray(value?.extraRoots);
-  if (!valid) return { stored: { creationRoots: [], extraRoots: [] }, damaged: result.state !== 'missing' };
+  if (!Array.isArray(value?.creationRoots) || !Array.isArray(value.extraRoots)) {
+    return { stored: { creationRoots: [], extraRoots: [] }, damaged: result.state !== 'missing' };
+  }
   return {
     stored: {
-      creationRoots: value!.creationRoots!.filter((root): root is string => typeof root === 'string' && path.isAbsolute(root)),
-      extraRoots: value!.extraRoots!.filter((root): root is string => typeof root === 'string' && path.isAbsolute(root)),
+      creationRoots: value.creationRoots.filter((root): root is string => typeof root === 'string' && path.isAbsolute(root)),
+      extraRoots: value.extraRoots.filter((root): root is string => typeof root === 'string' && path.isAbsolute(root)),
     },
     damaged: false,
   };

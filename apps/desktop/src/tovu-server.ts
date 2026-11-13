@@ -73,7 +73,7 @@ function redactBootToken(text: string): string {
  */
 function parseBootToken(text: string): string | null {
   const match = BOOT_TOKEN_LINE.exec(text);
-  return match === null ? null : match[1]!;
+  return match === null || match[1] === undefined ? null : match[1];
 }
 
 /** `apps/website/src/cli/errors.ts`'s single stderr line — `stderrLine()` builds exactly this shape. */
@@ -111,8 +111,8 @@ interface BootLineFields {
  */
 function parseBootLine(text: string): BootLineFields | null {
   const match = BOOT_LINE.exec(text);
-  if (match === null) return null;
-  return { dir: match[1]!, port: Number(match[2]!), schemaVersion: Number(match[3]!), workspaceId: match[4]! };
+  if (match === null || match[1] === undefined || match[2] === undefined || match[3] === undefined || match[4] === undefined) return null;
+  return { dir: match[1], port: Number(match[2]), schemaVersion: Number(match[3]), workspaceId: match[4] };
 }
 
 /** The fields {@link CLI_ERROR_LINE} captures, parsed. */
@@ -130,7 +130,7 @@ interface CliErrorFields {
  */
 function parseCliErrorLine(text: string): CliErrorFields | null {
   const match = CLI_ERROR_LINE.exec(text);
-  return match === null ? null : { code: match[1]!, message: match[2]! };
+  return match === null || match[1] === undefined || match[2] === undefined ? null : { code: match[1], message: match[2] };
 }
 
 /** The one field this module reads out of the repo's own `package.json`. */
@@ -746,8 +746,9 @@ function stopChild(
         if (platform === "win32") {
           if (child.stdin) killWin32Tree(child, killTree);
         } else {
-          // `!`: `stopChild` only runs on an already-spawned child, so it has a pid.
-          process.kill(-child.pid!, "SIGKILL");
+          // `stopChild` normally runs on an already-spawned child, so it has a pid.
+          if (child.pid == null) throw new Error("tovu serve has no process id for forced stop");
+          process.kill(-child.pid, "SIGKILL");
         }
       } catch (error) {
         // Even ESRCH is not the exit event. Await it, or report the failure at the bound.
@@ -789,9 +790,10 @@ function stopChild(
  * @complexity O(1); delegates to the OS.
  */
 function killWin32Tree(child: SpawnedChild, killTree: (pid: number) => void): void {
+  // `stopChild` normally runs on an already-spawned child, so it has a pid.
+  if (child.pid == null) throw new Error("tovu serve has no process id for Windows tree stop");
   try {
-    // `!`: `stopChild` only runs on an already-spawned child, so it has a pid.
-    killTree(child.pid!);
+    killTree(child.pid);
   } catch {
     child.kill("SIGTERM");
   }
@@ -1077,13 +1079,19 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
 
         const boot = parseBootLine(output);
         if (boot === null) return;
+        // A boot line normally proves this child spawned and has a process id.
+        const pid = child.pid;
+        if (pid == null) {
+          if (finish()) reject(new Error("tovu serve reported a boot line without a process id"));
+          return;
+        }
         agentBinding?.setIdentity({ siteId: boot.workspaceId }, {});
         const origin = `http://127.0.0.1:${boot.port}`;
         if (!finish()) return;
         bootToken = parseBootToken(output);
         resolve({
           port: boot.port,
-          pid: child.pid!, // `!`: resolved from a boot line this child printed, so it spawned and has a pid.
+          pid,
           origin,
           adminUrl: `${origin}/admin/`,
           workspaceId: boot.workspaceId,
@@ -1103,8 +1111,12 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
     }
 
     const mirror = input.mirror ?? { stdout: process.stdout, stderr: process.stderr };
-    readStream(child.stdout!, mirror.stdout);
-    readStream(child.stderr!, mirror.stderr);
+    if (!child.stdout || !child.stderr) {
+      if (finish()) reject(new Error("tovu serve is missing its stdout or stderr stream"));
+      return;
+    }
+    readStream(child.stdout, mirror.stdout);
+    readStream(child.stderr, mirror.stderr);
 
     child.once("error", (error) => { if (finish()) reject(error); });
     child.once("exit", (code, signal) => {
