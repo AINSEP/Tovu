@@ -130,7 +130,7 @@ export type ExportEngine<TRouteDeps> = (options: {
   outputDir: string;
   clean?: boolean;
   basePath?: string;
-}) => Promise<ExportRunReportLike>;
+}, optional?: object) => Promise<ExportRunReportLike>;
 
 const IDLE_RUN: ExportRunSnapshot = { status: "idle", startedAtIso: null, finishedAtIso: null, outputDir: null };
 

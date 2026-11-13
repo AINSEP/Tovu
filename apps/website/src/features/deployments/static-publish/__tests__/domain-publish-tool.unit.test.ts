@@ -202,9 +202,9 @@ test('an approved domain publish refuses while another publish run is still runn
   const gate = new Promise<void>(resolve => { release = resolve; });
   try {
     const result = f.handler(f.ctx, { emitSurface: async surface => {
-      startPublishRun({ credentialSource: f.credentialSource, loadDeployTargets: f.deps.loadDeployTargets }, {
+      startPublishRun({ deps: { credentialSource: f.credentialSource, loadDeployTargets: f.deps.loadDeployTargets }, input: {
         workspaceId: f.deps.workspaceId, publishOutputRootDir: f.deps.publishOutputRootDir, idGen: f.deps.idGen, config: { target: 'fixture' }, projectName: 'other',
-        exportSiteBound: async () => { await gate; throw new Error('other run released'); } }, { nowIso: () => new Date().toISOString() }, f.historyStore);
+        exportSiteBound: async () => { await gate; throw new Error('other run released'); } }, clock: { nowIso: () => new Date().toISOString() }, historyStore: f.historyStore });
       await confirmAs(f).emitSurface(surface);
     } });
     await assert.rejects(result, /ALREADY_RUNNING: A publish is running/);

@@ -23,7 +23,7 @@ test("a bundled ops manifest loads every contained module and refuses unknown id
   const registry = await loadBundledDeployOpsRegistry({ sourceRoot: FIXTURE_SOURCE_ROOT });
   assert.deepEqual(registry.list().map(p => ({ id: p.descriptor.id, hosts: p.descriptor.hosts })), [{ id: "example-host", hosts: ["api.example-host.dev", "logs.example-host.dev"] }, { id: "example-observer", hosts: ["api.example-host.dev"] }, { id: "example-pipeline", hosts: ["api.example-host.dev"] }]);
   assert.deepEqual(registry.refusals, []);
-  assert.throws(() => requirePlatform(registry, "missing"), { message: "Unknown deployment ops platform 'missing'. Choose: example-host, example-observer, example-pipeline." });
+  assert.throws(() => requirePlatform({ registry, id: "missing" }), { message: "Unknown deployment ops platform 'missing'. Choose: example-host, example-observer, example-pipeline." });
   // Which vendors ship is each plugin's own test; core only proves the shipped tree loads without refusals.
   const shipped = await loadBundledDeployOpsRegistry({ sourceRoot: SHIPPED.root });
   assert.deepEqual(shipped.refusals, []);
@@ -39,11 +39,11 @@ test("malformed manifests and missing modules are reported refusals, never throw
   } finally { await forceRemove(root); }
 });
 test("parser refuses duplicate platforms, empty hosts and escaping paths", () => {
-  assert.deepEqual(parseDeployOpsFile("{}"), { ok: false, reason: "schemaVersion must be 1" });
+  assert.deepEqual(parseDeployOpsFile({ raw: "{}" }), { ok: false, reason: "schemaVersion must be 1" });
   const entry = { id: "example", label: "Example", module: "example.mjs", hosts: ["api.example.com"] };
-  assert.deepEqual(parseDeployOpsFile(JSON.stringify({ schemaVersion: 1, platforms: [entry, entry] })), { ok: false, reason: "platforms[1].id 'example' is declared twice" });
-  assert.deepEqual(parseDeployOpsFile(JSON.stringify({ schemaVersion: 1, platforms: [{ ...entry, hosts: [] }] })), { ok: false, reason: "platforms[0].hosts must be a non-empty array of HTTPS hostnames" });
-  assert.deepEqual(parseDeployOpsFile(JSON.stringify({ schemaVersion: 1, platforms: [{ ...entry, module: "../evil.mjs" }] })), { ok: false, reason: "platforms[0].module must be a contained relative .mjs path" });
+  assert.deepEqual(parseDeployOpsFile({ raw: JSON.stringify({ schemaVersion: 1, platforms: [entry, entry] }) }), { ok: false, reason: "platforms[1].id 'example' is declared twice" });
+  assert.deepEqual(parseDeployOpsFile({ raw: JSON.stringify({ schemaVersion: 1, platforms: [{ ...entry, hosts: [] }] }) }), { ok: false, reason: "platforms[0].hosts must be a non-empty array of HTTPS hostnames" });
+  assert.deepEqual(parseDeployOpsFile({ raw: JSON.stringify({ schemaVersion: 1, platforms: [{ ...entry, module: "../evil.mjs" }] }) }), { ok: false, reason: "platforms[0].module must be a contained relative .mjs path" });
 });
 test("invalid descriptor fields return exact refusals and load no platforms", async t => {
   const entry = { id: "example", label: "Example", module: "ops.mjs", hosts: ["api.example.com"] };
@@ -57,7 +57,7 @@ test("invalid descriptor fields return exact refusals and load no platforms", as
       const root = await mkdtemp(path.join(tmpdir(), "tovu-ops-invalid-descriptor-"));
       try {
         const raw = JSON.stringify({ schemaVersion: 1, platforms });
-        assert.deepEqual(parseDeployOpsFile(raw), { ok: false, reason });
+        assert.deepEqual(parseDeployOpsFile({ raw }), { ok: false, reason });
         await writeFile(path.join(root, "tovu-deploy-ops.json"), raw);
         await writeFile(path.join(root, "ops.mjs"), "export default { status() {}, logs() {} };\n");
         const registry = await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: root });
@@ -101,7 +101,7 @@ for (const { pluginId, packageRoot } of bundledContributionSources({ sourceRoot:
     const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: root } });
     const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: SHIPPED.root });
     try {
-      const parsed = parseDeployOpsFile(await readFile(path.join(packageRoot, "tovu-deploy-ops.json"), "utf8"));
+      const parsed = parseDeployOpsFile({ raw: await readFile(path.join(packageRoot, "tovu-deploy-ops.json"), "utf8") });
       assert.equal(parsed.ok, true);
       const descriptors = parsed.ok ? parsed.descriptors : [];
       const files = Object.fromEntries(await Promise.all(["plugin.json", "tovu-deploy-ops.json", ...descriptors.map(d => d.module)].map(async name => [name, await readFile(path.join(packageRoot, name), "utf8")])));
@@ -214,7 +214,7 @@ test("a loader fault becomes one refusal, and requirePlatform names no platforms
   const registry = await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: async () => { throw new Error("EIO"); } });
   assert.deepEqual(registry.list(), []);
   assert.deepEqual(registry.refusals, ["deploy ops were not loaded: installed plugin packages could not be read"]);
-  assert.throws(() => requirePlatform(registry, "example-host"), { message: "Unknown deployment ops platform 'example-host'. Choose: (none). deploy ops were not loaded: installed plugin packages could not be read" });
+  assert.throws(() => requirePlatform({ registry, id: "example-host" }), { message: "Unknown deployment ops platform 'example-host'. Choose: (none). deploy ops were not loaded: installed plugin packages could not be read" });
 });
 
 test("an installed but off plugin that provides the platform is named in the refusal; an unprovided id keeps the plain refusal", async () => {
@@ -225,6 +225,6 @@ test("an installed but off plugin that provides the platform is named in the ref
     await options.onInactive?.({ plugin: railway });
     return { items: [], refusals: [] };
   } });
-  assert.throws(() => requirePlatform(registry, "railway"), { message: "Deployment ops platform 'railway' is provided by plugin 'railway', which is off; turn it on first." });
-  assert.throws(() => requirePlatform(registry, "missing"), { message: "Unknown deployment ops platform 'missing'. Choose: (none)." });
+  assert.throws(() => requirePlatform({ registry, id: "railway" }), { message: "Deployment ops platform 'railway' is provided by plugin 'railway', which is off; turn it on first." });
+  assert.throws(() => requirePlatform({ registry, id: "missing" }), { message: "Unknown deployment ops platform 'missing'. Choose: (none)." });
 });

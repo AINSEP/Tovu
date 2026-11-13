@@ -110,10 +110,13 @@ const publishJobs = createPublishJobStore<StaticPublishOutcome>({});
  * @complexity O(1) — fixed-shape field mapping, no iteration.
  */
 function toHistoryEntry(
-  input: StaticPublishInput,
-  outcome: StaticPublishOutcome,
-  clock: { nowIso(): string },
-  triggeredBy: PublishTrigger
+  { input, outcome, clock, triggeredBy }: {
+    input: StaticPublishInput;
+    outcome: StaticPublishOutcome;
+    clock: { nowIso(): string };
+    triggeredBy: PublishTrigger;
+  },
+  _options = {},
 ): PublishHistoryEntry | undefined {
   if (!outcome.ok) return undefined;
   const meta = outcome.providerMetadata ?? {};
@@ -151,14 +154,17 @@ function stringField<K extends string>(meta: Readonly<Record<string, unknown>>, 
  * @complexity One registry load, O(f*c) public-field filtering, one history insert.
  */
 async function recordHistoryIfPublished(
-  deps: StaticPublishDeps,
-  historyStore: PublishHistoryStore,
-  input: StaticPublishInput,
-  outcome: StaticPublishOutcome,
-  clock: { nowIso(): string },
-  triggeredBy: PublishTrigger
+  { deps, historyStore, input, outcome, clock, triggeredBy }: {
+    deps: StaticPublishDeps;
+    historyStore: PublishHistoryStore;
+    input: StaticPublishInput;
+    outcome: StaticPublishOutcome;
+    clock: { nowIso(): string };
+    triggeredBy: PublishTrigger;
+  },
+  _options = {},
 ): Promise<void> {
-  const entry = toHistoryEntry(input, outcome, clock, triggeredBy);
+  const entry = toHistoryEntry({ input, outcome, clock, triggeredBy });
   if (entry === undefined || !outcome.ok) return;
   const credentialId = outcome.credentialId ?? input.credentialId;
   try {
@@ -212,24 +218,24 @@ export function getPublishJobSnapshot({ workspaceId, jobId, requestId }: { works
   return publishJobs.get({ scopeId: workspaceId, ...(jobId !== undefined ? { jobId } : {}), ...(requestId !== undefined ? { requestId } : {}) });
 }
 
-function beginRun(input: StaticPublishInput, clock: { nowIso(): string }, jobId: string): void {
+function beginRun({ input, clock, jobId }: { input: StaticPublishInput; clock: { nowIso(): string }; jobId: string }, _options = {}): void {
   publishJobs.begin({ jobId, ...(input.requestId ? { requestId: input.requestId } : {}), scopeId: input.workspaceId, target: input.config.target, startedAtIso: clock.nowIso() });
 }
 
-function settleWithOutcome(jobId: string, outcome: StaticPublishOutcome, clock: { nowIso(): string }): void {
+function settleWithOutcome({ jobId, outcome, clock }: { jobId: string; outcome: StaticPublishOutcome; clock: { nowIso(): string } }, _options = {}): void {
   if (outcome.ok) publishJobs.progress({ jobId, progress: { url: outcome.url,
     ...(outcome.deploymentId ? { deploymentCreated: true, deploymentId: outcome.deploymentId } : {}) } });
   publishJobs.settle({ jobId, status: outcome.ok ? "completed" : "errored", finishedAtIso: clock.nowIso(), result: outcome });
 }
 
-function settleWithError(jobId: string, err: unknown, clock: { nowIso(): string }): void {
+function settleWithError({ jobId, err, clock }: { jobId: string; err: unknown; clock: { nowIso(): string } }, _options = {}): void {
   // Unexpected exceptions can embed credentials. Provider errors use the adapter's safe outcome.
   publishJobs.settle({ jobId, status: "errored", finishedAtIso: clock.nowIso(), error: redactSecretShapes({ text: err instanceof Error ? err.message : String(err) }).text });
 }
 
 /** Bind provider progress to this job, independently of the initiating tool's signal. */
-function jobInput(input: StaticPublishInput, jobId: string): StaticPublishInput {
-  return { ...input, onProgress: progress => publishJobs.progress({ jobId, progress }) };
+function jobInput({ input, jobId }: { input: StaticPublishInput; jobId: string }, _options = {}): StaticPublishInput {
+  return { ...input, onProgress: ({ progress }, _options = {}) => publishJobs.progress({ jobId, progress }) };
 }
 
 /**
@@ -245,26 +251,36 @@ function jobInput(input: StaticPublishInput, jobId: string): StaticPublishInput 
  * doc, restated here rather than merely cross-referenced since violating it is exactly the bug this
  * whole file exists to close).
  *
- * @param historyStore - See this file's header ("Publish history") — REQUIRED, no module-level
+ * @param required.historyStore - See this file's header ("Publish history") — REQUIRED, no module-level
  *   default; real callers pass `RouteDeps.publishHistoryStore`, tests pass an
  *   `InMemoryPublishHistoryStore`.
  * @param optional.onSettled - Told the run's final status once it settles (the route's product event).
  * @complexity O(1) synchronously; the awaited publish itself is bounded by `publishStaticSite`'s own
  *   complexity note (one export pass plus one provider's fixed poll budget).
  */
-export function startPublishRun(deps: StaticPublishDeps, input: StaticPublishInput, clock: { nowIso(): string }, historyStore: PublishHistoryStore,
-  optional: { onSettled?: (settled: { status: "completed" | "errored" }) => void; triggeredBy?: PublishTrigger } = {}): PublishRunSnapshot {
+export function startPublishRun(
+  { deps, input, clock, historyStore }: {
+    deps: StaticPublishDeps;
+    input: StaticPublishInput;
+    clock: { nowIso(): string };
+    historyStore: PublishHistoryStore;
+  },
+  optional: {
+    onSettled?: (settled: { status: "completed" | "errored" }) => void;
+    triggeredBy?: PublishTrigger;
+  } = {},
+): PublishRunSnapshot {
   const operationId = input.idGen.newId();
-  beginRun(input, clock, operationId);
+  beginRun({ input, clock, jobId: operationId });
   publishEvent({ deps, input, operationId });
 
-  void publishStaticSite(deps, jobInput(input, operationId))
+  void publishStaticSite(deps, jobInput({ input, jobId: operationId }))
     .then(async (outcome) => {
       // Record first: callers that refresh destinations once the snapshot completes must see this run.
-      await recordHistoryIfPublished(deps, historyStore, input, outcome, clock, optional.triggeredBy ?? "admin_ui");
-      settleWithOutcome(operationId, outcome, clock);
+      await recordHistoryIfPublished({ deps, historyStore, input, outcome, clock, triggeredBy: optional.triggeredBy ?? "admin_ui" });
+      settleWithOutcome({ jobId: operationId, outcome, clock });
     })
-    .catch((err: unknown) => settleWithError(operationId, err, clock))
+    .catch((err: unknown) => settleWithError({ jobId: operationId, err, clock }))
     .finally(() => {
       const status = publishJobs.get({ scopeId: input.workspaceId, jobId: operationId })?.status === "completed" ? "completed" : "errored";
       publishEvent({ deps, input, operationId, outcome: status });

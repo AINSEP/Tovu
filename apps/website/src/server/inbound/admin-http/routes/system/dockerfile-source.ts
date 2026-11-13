@@ -149,7 +149,7 @@ export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDock
         return;
       }
 
-      const result = writeDockerfileSourceWithIfMatch(parsedBody.contents, ifMatch);
+      const result = writeDockerfileSourceWithIfMatch({ contents: parsedBody.contents, ifMatch });
       if (!result.ok) {
         res.setHeader("ETag", result.current.etag);
         res.status(412).json({

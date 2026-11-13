@@ -357,8 +357,8 @@ test("publishStaticSite: an asset that fails to export blocks publishing, the sa
  * directory) without needing a lock.
  */
 test("publishOutputDir: two different run ids for the SAME target produce two DIFFERENT, non-overlapping directories", () => {
-  const a = computePublishOutputDir("/publish-root", "github-pages", "run-a");
-  const b = computePublishOutputDir("/publish-root", "github-pages", "run-b");
+  const a = computePublishOutputDir({ parent: "/publish-root", target: "github-pages", runId: "run-a" });
+  const b = computePublishOutputDir({ parent: "/publish-root", target: "github-pages", runId: "run-b" });
   assert.notEqual(a, b);
   assert.equal(a, path.join("/publish-root", "github-pages", "run-a"));
   assert.equal(b, path.join("/publish-root", "github-pages", "run-b"));
@@ -802,9 +802,9 @@ test("readStaticPublishConfig drops unknown keys, validates types, and treats op
   const registry = await hermeticDeployTargets("workspace-local");
   const target = registry.get("github-pages")!;
   assert.ok(target);
-  assert.deepEqual(readStaticPublishConfig(target, { target: "vercel", owner: "octo", repo: "demo", injected: "secret", branch: " " }, { blankAsAbsent: true }), { ok: true, config: { target: "github-pages", owner: "octo", repo: "demo" } });
-  assert.deepEqual(readStaticPublishConfig(target, { owner: "octo", repo: "demo", branch: " " }, { blankAsAbsent: false }), { ok: true, config: { target: "github-pages", owner: "octo", repo: "demo", branch: " " } });
-  assert.deepEqual(readStaticPublishConfig(target, { owner: 42, repo: "demo" }, { blankAsAbsent: false }), { ok: false, message: "'owner' must be a string" });
+  assert.deepEqual(readStaticPublishConfig({ target, raw: { target: "vercel", owner: "octo", repo: "demo", injected: "secret", branch: " " }, options: { blankAsAbsent: true } }), { ok: true, config: { target: "github-pages", owner: "octo", repo: "demo" } });
+  assert.deepEqual(readStaticPublishConfig({ target, raw: { owner: "octo", repo: "demo", branch: " " }, options: { blankAsAbsent: false } }), { ok: true, config: { target: "github-pages", owner: "octo", repo: "demo", branch: " " } });
+  assert.deepEqual(readStaticPublishConfig({ target, raw: { owner: 42, repo: "demo" }, options: { blankAsAbsent: false } }), { ok: false, message: "'owner' must be a string" });
   for (const owner of [undefined, " ", 42]) {
     const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets, credentialSource: neverCalledCredentialSource(), buildTarget: () => assert.fail("must not build") }, {
       workspaceId: "workspace-local", publishOutputRootDir: publishOutputDir, idGen: { newId: () => assert.fail("must not allocate a run") },

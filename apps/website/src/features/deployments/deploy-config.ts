@@ -56,10 +56,10 @@ export interface HostDeployNotesPorts {
   /** Overlay root; defaults to `content/agent-plugin-overlays` under `process.cwd()`. */
   readonly overlaysDir?: string;
   /** Reads a file, or returns `undefined` when it does not exist. */
-  readonly readFile?: (file: string) => string | undefined;
+  readonly readFile?: (required: { file: string }, options?: object) => string | undefined;
 }
 
-function readOptionalFile(file: string): string | undefined {
+function readOptionalFile({ file }: { file: string }, _options = {}): string | undefined {
   try {
     return readFileSync(file, "utf8");
   } catch (error) {
@@ -69,7 +69,7 @@ function readOptionalFile(file: string): string | undefined {
 }
 
 /** The notes array for `targetId`, or a loud error naming the malformed overlay file. */
-function hostNotesFor(raw: string, targetId: string, file: string): readonly string[] {
+function hostNotesFor({ raw, targetId, file }: { raw: string; targetId: string; file: string }, _options = {}): readonly string[] {
   const parsed: unknown = JSON.parse(raw);
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new Error(`tovu deploy config: ${file} must map each target id to an array of note strings (target "${targetId}")`);
@@ -102,16 +102,16 @@ export function appendHostDeployNotes(
   // Publisher ids are `tovu/<name>`; overlay folders are named by the plugin's own name.
   const pluginName = pluginId.slice(pluginId.lastIndexOf("/") + 1);
   const file = join(overlaysDir, pluginName, "deploy-notes.json");
-  const raw = readFile(file);
+  const raw = readFile({ file });
   if (raw === undefined) return rendered;
-  const extra = hostNotesFor(raw, targetId, file).filter((note) => !rendered.notes.includes(note));
+  const extra = hostNotesFor({ raw, targetId, file }).filter((note) => !rendered.notes.includes(note));
   return extra.length === 0 ? rendered : { ...rendered, notes: [...rendered.notes, ...extra] };
 }
 
 /** The kit every generator gets. @complexity O(1). */
 export function createDeployConfigKit(): DeployConfigKit {
   return {
-    assertNoConfigInjection,
+    assertNoConfigInjection: (fieldLabel, value) => assertNoConfigInjection({ fieldLabel, value }),
     validationError: (message) => new ValidationError(message),
     migrationsNote: MIGRATIONS_NOTE,
   };
@@ -278,24 +278,24 @@ const QUOTE_OR_NEWLINE_CHARS = ['"', "\n", "\r"] as const;
 /** UNQUOTED-YAML-plain-scalar indicator/structural chars (hazard 2 in this function's own doc). */
 const YAML_SIGNIFICANT_CHARS = [":", "#", "{", "[", "&", "*"] as const;
 
-function containsAnyOf(value: string, chars: readonly string[]): boolean {
+function containsAnyOf({ value, chars }: { value: string; chars: readonly string[] }, _options = {}): boolean {
   return chars.some((char) => value.includes(char));
 }
 
-function hasLeadingHyphenOrSurroundingWhitespace(value: string): boolean {
+function hasLeadingHyphenOrSurroundingWhitespace({ value }: { value: string }, _options = {}): boolean {
   return value.startsWith("-") || value !== value.trim();
 }
 
-export function assertNoConfigInjection(fieldLabel: string, value: string): void {
-  if (containsAnyOf(value, QUOTE_OR_NEWLINE_CHARS)) {
+export function assertNoConfigInjection({ fieldLabel, value }: { fieldLabel: string; value: string }, _options = {}): void {
+  if (containsAnyOf({ value, chars: QUOTE_OR_NEWLINE_CHARS })) {
     throw new ValidationError(`${fieldLabel} (${JSON.stringify(value)}) contains a quote or newline character, which would corrupt the generated config file`);
   }
-  if (containsAnyOf(value, YAML_SIGNIFICANT_CHARS)) {
+  if (containsAnyOf({ value, chars: YAML_SIGNIFICANT_CHARS })) {
     throw new ValidationError(
       `${fieldLabel} (${JSON.stringify(value)}) contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file`
     );
   }
-  if (hasLeadingHyphenOrSurroundingWhitespace(value)) {
+  if (hasLeadingHyphenOrSurroundingWhitespace({ value })) {
     throw new ValidationError(
       `${fieldLabel} (${JSON.stringify(value)}) starts with "-" or has leading/trailing whitespace, which would corrupt an unquoted YAML scalar in the generated config file`
     );
@@ -306,7 +306,7 @@ export function assertNoConfigInjection(fieldLabel: string, value: string): void
  *  `dockerfilePath()` already documents: `process.cwd()` is the resolution root because every
  *  caller (the CLI, and later any admin route reusing this same function) runs with its cwd at the
  *  Tovu repo root, true in dev and in the shipped image's `WORKDIR /workspace/Tovu`. */
-function readRepoFile(relPath: string): string {
+function readRepoFile({ relPath }: { relPath: string }, _options = {}): string {
   return readFileSync(join(process.cwd(), relPath), "utf8");
 }
 
@@ -316,7 +316,7 @@ function readRepoFile(relPath: string): string {
  * file's own header). `describe`/`sourceFile` name the fact and its origin so the thrown message
  * tells a reader exactly what changed and where to look — never a bare "no match".
  */
-function extractOrThrow(source: string, pattern: RegExp, describe: string, sourceFile: string): string {
+function extractOrThrow({ source, pattern, describe, sourceFile }: { source: string; pattern: RegExp; describe: string; sourceFile: string }, _options = {}): string {
   const match = source.match(pattern);
   if (!match) {
     throw new Error(
@@ -341,26 +341,26 @@ function extractOrThrow(source: string, pattern: RegExp, describe: string, sourc
  * @complexity O(n) in the total source text — three reads and fixed extraction passes.
  */
 export function buildDeploymentDescriptor(): DeploymentDescriptor {
-  const dockerfile = readRepoFile("Dockerfile");
-  const packageJson = readRepoFile("package.json");
-  const healthRouteSource = readRepoFile("apps/website/src/server/inbound/public-http/routes/ops/health.ts");
+  const dockerfile = readRepoFile({ relPath: "Dockerfile" });
+  const packageJson = readRepoFile({ relPath: "package.json" });
+  const healthRouteSource = readRepoFile({ relPath: "apps/website/src/server/inbound/public-http/routes/ops/health.ts" });
 
-  const port = Number(extractOrThrow(dockerfile, /^EXPOSE\s+(\d+)\s*$/m, "the container port", "Dockerfile (EXPOSE line)"));
+  const port = Number(extractOrThrow({ source: dockerfile, pattern: /^EXPOSE\s+(\d+)\s*$/m, describe: "the container port", sourceFile: "Dockerfile (EXPOSE line)" }));
   const dockerfilePath = "Dockerfile";
-  const appName = extractOrThrow(packageJson, /^[^\S\r\n\u2028\u2029]*"name"\s*:\s*"([^"]+)"/mu, "the default app name", "package.json (name)");
+  const appName = extractOrThrow({ source: packageJson, pattern: /^[^\S\r\n\u2028\u2029]*"name"\s*:\s*"([^"]+)"/mu, describe: "the default app name", sourceFile: "package.json (name)" });
   const volumeName = `${appName}_sites`;
-  const volumeMountPath = extractOrThrow(
-    dockerfile,
-    /^VOLUME\s+\["([^"]+)"\]\s*$/m,
-    "the volume mount path",
-    "Dockerfile (VOLUME line)"
-  );
-  const healthCheckPath = extractOrThrow(
-    healthRouteSource,
-    /export const registerReadyzRoute[\s\S]*?app\.get\("([^"]+)"/,
-    "the readiness check path",
-    "server/inbound/public-http/routes/ops/health.ts (registerReadyzRoute)"
-  );
+  const volumeMountPath = extractOrThrow({
+    source: dockerfile,
+    pattern: /^VOLUME\s+\["([^"]+)"\]\s*$/m,
+    describe: "the volume mount path",
+    sourceFile: "Dockerfile (VOLUME line)",
+  });
+  const healthCheckPath = extractOrThrow({
+    source: healthRouteSource,
+    pattern: /export const registerReadyzRoute[\s\S]*?app\.get\("([^"]+)"/,
+    describe: "the readiness check path",
+    sourceFile: "server/inbound/public-http/routes/ops/health.ts (registerReadyzRoute)",
+  });
 
   return {
     appName,

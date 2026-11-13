@@ -104,7 +104,7 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
   // catch the excess property on this non-literal argument). Picking only the three fields
   // `exportSiteBound` actually declares means the narrow deps here never travel at all — see
   // `DeploymentsToolDeps`'s own doc above and this file's regression test.
-  const engine: ExportEngine<DeploymentsToolDeps> = (options) => routeDeps.exportSiteBound(pickExportSiteOptions(options));
+  const engine: ExportEngine<DeploymentsToolDeps> = (options, _optional = {}) => routeDeps.exportSiteBound(pickExportSiteOptions(options));
   const handlers: Record<string, ToolHandler> = {
     deployment_trigger_export: async (ctx) => {
       const candidate = { value: ctx.input };
@@ -150,7 +150,7 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
       const ifMatch = requireString({ input: input, key: "ifMatch" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "system.write" }, { entityType: "dockerfile-source" });
 
-      const result = writeDockerfileSourceWithIfMatch(contents, ifMatch);
+      const result = writeDockerfileSourceWithIfMatch({ contents, ifMatch });
       if (!result.ok) {
         // Thrown, not returned — `ToolExecutor` reads a thrown error as the failed execution and
         // surfaces its `.message` to the model, so the message itself IS the model's only channel

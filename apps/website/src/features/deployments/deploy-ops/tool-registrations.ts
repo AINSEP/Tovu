@@ -31,7 +31,7 @@ export const deployOpsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
 type Permit = (permission: string) => Promise<void>;
 const TAKES_EFFECT: Record<SecretConfirmRequest["appliesOn"], string> = { "next-deploy": "on the next deploy", "vendor-restart": "after the platform restarts the app", immediately: "immediately" };
 /** The card names exactly what runs; the permission is re-checked after the human answers. Literal tool ids keep the MCP-UI allowlist scan exact. */
-function secretConfirm(ctx: ToolExecutionContext, surfaces: ChatDeleteSurfaceDeps | undefined, options: ToolExecutionOptions | undefined, permit: Permit): SecretConfirm | undefined {
+function secretConfirm({ ctx, surfaces, options, permit }: { ctx: ToolExecutionContext; surfaces: ChatDeleteSurfaceDeps | undefined; options: ToolExecutionOptions | undefined; permit: Permit }, _options = {}): SecretConfirm | undefined {
   if (!surfaces) return undefined;
   const details = (request: SecretConfirmRequest) => [
     { label: "Count", value: "1" }, { label: "Platform", value: request.platform }, { label: "Target", value: request.target }, { label: "Secret", value: request.name },
@@ -57,7 +57,7 @@ function secretConfirm(ctx: ToolExecutionContext, surfaces: ChatDeleteSurfaceDep
 export function buildDeployOpsRegistrations(deps:DeployOpsToolDeps,surfaces?:ChatDeleteSurfaceDeps) {
  return build({deps:bindDeployOpsRuntime(deps),host:{catalog:getDeployOpsAgentToolCatalog(deps.deployOpsRegistry),metadata:toolMetadata,derivedRisk:deployOpsDerivedRisk,domain:'deploy-ops',catalogModule:'features/deployments/deploy-ops/agent-tools.ts',permissions:{write:'custom-credentials.write',siteKey:SITE_KEY_MANAGE_PERMISSION},
  permit:({ctx,permission})=>requireToolPermission({authorize:adaptLegacyAuthorize({authorize:deps.authorize}),workspaceId:deps.workspaceId,principalId:ctx.principal.id,permission},{entityType:'deploy-ops'}),
- approvals:{confirmFor:({ctx,permit},options)=>secretConfirm(ctx,surfaces,options,permit)},cards:bindDeploySecretCards(deps,surfaces)}},{});
+ approvals:{confirmFor:({ctx,permit},options)=>secretConfirm({ ctx,surfaces,options,permit })},cards:bindDeploySecretCards(deps,surfaces)}},{});
 }
 /** Contribute five read-only tools, the deploy tool and the secret writers; the composition root supplies a gated registry for daemon schemas. */
 export function contributeDeployOpsTools(options: { registry?: DeployOpsRegistry } = {}): ToolContributor<DeployOpsToolDeps, ChatDeleteSurfaceDeps> {

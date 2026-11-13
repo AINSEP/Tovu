@@ -92,7 +92,7 @@ export type StaticPublishPlan =
  */
 export function planStaticPublish(registry: DeployTargetRegistry, config: StaticPublishConfig): StaticPublishPlan {
   const target = registry.get(config.target);
-  if (target === undefined) return { ok: false, message: unknownTargetMessage(registry, config.target) };
+  if (target === undefined) return { ok: false, message: unknownTargetMessage({ registry, targetId: config.target }) };
   const missing = missingRequiredFieldMessage(target, config);
   if (missing !== null) return { ok: false, message: missing };
   const moduleConfig = config as unknown as UnknownRecord;
@@ -116,7 +116,7 @@ export function missingRequiredFieldMessage(target: LoadedDeployTarget, config: 
 }
 
 /** The refusal for an id the registry does not know, naming what IS available. @complexity O(t). */
-export function unknownTargetMessage(registry: DeployTargetRegistry, targetId: string): string {
+export function unknownTargetMessage({ registry, targetId }: { registry: DeployTargetRegistry; targetId: string }, _options = {}): string {
   const ids = registry.list().map((target) => target.descriptor.id);
   if (ids.length === 0) return `publish target '${targetId.slice(0, 64)}' is not available: no publish targets are installed (turn on a hosting plugin under Agent Plugins)`;
   return `publish target '${targetId.slice(0, 64)}' is not available; choose one of: ${ids.join(", ")}`;
@@ -128,15 +128,18 @@ export function unknownTargetMessage(registry: DeployTargetRegistry, targetId: s
  * so nothing a caller invents reaches a module. Whether required fields are present is judged once,
  * by {@link planStaticPublish}.
  *
- * @param blankAsAbsent - `true` for a query string or tool input, where an empty optional field
+ * @param required.options.blankAsAbsent - `true` for a query string or tool input, where an empty optional field
  *   means "not set"; `false` for a JSON body, which keeps it so the module can refuse it by name.
  * @returns The config, or the refusal for a declared field that arrived as a non-string.
  * @complexity O(f) declared fields.
  */
 export function readStaticPublishConfig(
-  target: LoadedDeployTarget,
-  raw: Readonly<Record<string, unknown>>,
-  options: { readonly blankAsAbsent: boolean },
+  { target, raw, options }: {
+    target: LoadedDeployTarget;
+    raw: Readonly<Record<string, unknown>>;
+    options: { readonly blankAsAbsent: boolean };
+  },
+  _options = {},
 ): { readonly ok: true; readonly config: StaticPublishConfig } | { readonly ok: false; readonly message: string } {
   const config: Record<string, string> = { target: target.descriptor.id };
   for (const field of target.descriptor.configFields) {
@@ -174,7 +177,7 @@ export function readStaticPublishConfig(
  * env vars.
  * @complexity O(1) — fixed-shape path join, no I/O.
  */
-export function publishOutputDir(parent: string, target: StaticPublishTargetId, runId: string): string {
+export function publishOutputDir({ parent, target, runId }: { parent: string; target: StaticPublishTargetId; runId: string }, _options = {}): string {
   return path.join(parent, target, runId);
 }
 
@@ -188,7 +191,7 @@ export function publishOutputDir(parent: string, target: StaticPublishTargetId, 
  *  disclosed-rather-than-silent posture `publish-run.ts`'s `recordHistoryIfPublished` already
  *  documents for an analogous non-essential side effect.
  * @complexity O(n) in the (typically small) exported file count — a recursive directory removal. */
-function cleanupPublishRunDir(outputDir: string): void {
+function cleanupPublishRunDir({ outputDir }: { outputDir: string }, _options = {}): void {
   try {
     rmSync(outputDir, { recursive: true, force: true });
   } catch {
@@ -261,7 +264,7 @@ export interface StaticPublishInput {
   /** Initiating tool execution, for scoped recovery after a lost response. */
   readonly requestId?: string;
   /** Job-owned progress, independent of a delegated call lifetime. */
-  readonly onProgress?: (progress: DeployPublishProgress) => void;
+  readonly onProgress?: (required: { progress: DeployPublishProgress }, options?: object) => void;
   /** Authenticated caller attribution, supplied by the HTTP/tool adapter, never publish config. */
   readonly productEvent?: { readonly userId: string; readonly source: "admin" | "assistant" };
   /** Server-held approval from the existing human exchange/gateway; never read from JSON input. */
@@ -358,10 +361,13 @@ async function resolvePublishCredentialForSite(
  * function and `commit-site.ts`'s `commitSiteToSourceControl` now use.
  */
 async function runExportForPublish(
-  input: StaticPublishInput,
-  outputDir: string,
-  basePath: string | undefined,
-  target: DeployTarget,
+  { input, outputDir, basePath, target }: {
+    input: StaticPublishInput;
+    outputDir: string;
+    basePath: string | undefined;
+    target: DeployTarget;
+  },
+  _options = {},
 ): Promise<{ ok: true; report: ExportReport } | { ok: false; outcome: StaticPublishOutcome }> {
   let report: ExportReport;
   try {
@@ -370,7 +376,7 @@ async function runExportForPublish(
     // URL gets the domainless copy (no canonical, sitemap or feed), the same as a download without one.
     report = await input.exportSiteBound({ outputDir, clean: true, ...(basePath !== undefined ? { basePath } : {}), ...(publicUrl ? { publicUrl } : {}) });
   } catch (err) {
-    cleanupPublishRunDir(outputDir);
+    cleanupPublishRunDir({ outputDir });
     return {
       ok: false,
       outcome: {
@@ -380,7 +386,7 @@ async function runExportForPublish(
       },
     };
   }
-  cleanupPublishRunDir(outputDir);
+  cleanupPublishRunDir({ outputDir });
 
   const failure = firstExportFailure(report);
   if (failure) {
@@ -414,7 +420,7 @@ function buildDeployFilesForPublish(report: ExportReport): DeployFile[] {
  * `VercelDeployTarget.publish()`'s own `waitForReachableDeploymentUrl` call), so this is the one
  * place that turns an already-honest `status` into an equally-honest `StaticPublishOutcome`.
  */
-function buildPartialPublishOutcome(targetId: StaticPublishTargetId, result: DeployPublishResult, basePath: string | undefined): StaticPublishOutcome {
+function buildPartialPublishOutcome({ targetId, result, basePath }: { targetId: StaticPublishTargetId; result: DeployPublishResult; basePath: string | undefined }, _options = {}): StaticPublishOutcome {
   return {
     ok: "partial",
     targetId,
@@ -428,7 +434,7 @@ function buildPartialPublishOutcome(targetId: StaticPublishTargetId, result: Dep
 }
 
 /** {@link buildPartialPublishOutcome}'s sibling for `result.status === "ready"` — a full success. */
-function buildSuccessPublishOutcome(targetId: StaticPublishTargetId, result: DeployPublishResult, basePath: string | undefined): StaticPublishOutcome {
+function buildSuccessPublishOutcome({ targetId, result, basePath }: { targetId: StaticPublishTargetId; result: DeployPublishResult; basePath: string | undefined }, _options = {}): StaticPublishOutcome {
   return {
     ok: true,
     targetId,
@@ -446,7 +452,7 @@ function publishOptions({ input, formDestination, readHeaders }: {
   readHeaders: () => import("#src/contracts/core/public-page-security-headers").SecurityHeaderSet;
 }) {
   return { responseHeaders: readHeaders(),
-    ...(input.onProgress ? { onProgress: input.onProgress } : {}),
+    ...(input.onProgress ? { onProgress: (progress: DeployPublishProgress) => input.onProgress?.({ progress }) } : {}),
     metadata: { ...input.config, ...(input.domainApproval ? { domainApproval: input.domainApproval } : {}), ...(formDestination ? { formDestination } : {}) } };
 }
 
@@ -462,23 +468,27 @@ function publishOptions({ input, formDestination, readHeaders }: {
  * into a `DeployError` message, but this boundary still holds even if one ever did.
  */
 async function publishAndMapOutcome(
-  jiniTarget: DeployTarget,
-  publishInput: DeployPublishInput,
-  input: StaticPublishInput,
-  basePath: string | undefined,
-  formDestination?: FormDestinationPublishInput,
-  readHeaders: () => import("#src/contracts/core/public-page-security-headers").SecurityHeaderSet = () => publicPageSecurityHeaders({})
+  { jiniTarget, publishInput, input, basePath }: {
+    jiniTarget: DeployTarget;
+    publishInput: DeployPublishInput;
+    input: StaticPublishInput;
+    basePath: string | undefined;
+  },
+  { formDestination, readHeaders = () => publicPageSecurityHeaders({}) }: {
+    formDestination?: FormDestinationPublishInput;
+    readHeaders?: () => import("#src/contracts/core/public-page-security-headers").SecurityHeaderSet;
+  } = {},
 ): Promise<StaticPublishOutcome> {
   try {
     // Older plugins may not report progress. Once provider work starts, creation is unknown
     // until that plugin reports evidence or returns a deployment ID.
-    input.onProgress?.({ phase: "uploading", deploymentCreated: "unknown" });
+    input.onProgress?.({ progress: { phase: "uploading", deploymentCreated: "unknown" } });
     const result = await jiniTarget.publish(publishInput, publishOptions({ input, formDestination, readHeaders }));
     if (result.status === "failed") return { ok: false, code: "PROVIDER_ERROR", message: result.statusMessage ?? `Publishing to ${input.config.target} failed. Check the provider dashboard before publishing again. Deployment ID: ${result.deploymentId ?? "unknown"}.` };
     if (result.status !== "ready") {
-      return buildPartialPublishOutcome(input.config.target, result, basePath);
+      return buildPartialPublishOutcome({ targetId: input.config.target, result, basePath });
     }
-    return buildSuccessPublishOutcome(input.config.target, result, basePath);
+    return buildSuccessPublishOutcome({ targetId: input.config.target, result, basePath });
   } catch (err) {
     const message = err instanceof DeployError || err instanceof Error ? err.message : String(err);
     return { ok: false, code: "PROVIDER_ERROR", message };
@@ -533,13 +543,13 @@ async function publishStaticSiteSteps(deps: StaticPublishDeps, input: StaticPubl
   }
 
   const resolvedCredential = toDeployTargetCredential(credentialResult.credential);
-  const targetResult = constructTargetForPublish(deps, plan.target, input.config, resolvedCredential);
+  const targetResult = constructTargetForPublish({ deps, pluginTarget: plan.target, config: input.config, credential: resolvedCredential });
   if (!targetResult.ok) {
     return targetResult.outcome;
   }
 
-  const outputDir = publishOutputDir(input.publishOutputRootDir, input.config.target, input.idGen.newId());
-  const exportResult = await runExportForPublish(input, outputDir, plan.basePath, targetResult.target);
+  const outputDir = publishOutputDir({ parent: input.publishOutputRootDir, target: input.config.target, runId: input.idGen.newId() });
+  const exportResult = await runExportForPublish({ input, outputDir, basePath: plan.basePath, target: targetResult.target });
   if (!exportResult.ok) return finishPublishOutcome({ outcome: exportResult.outcome, credential: credentialResult.credential, target: plan.target });
   const files = buildDeployFilesForPublish(exportResult.report);
 
@@ -552,7 +562,7 @@ async function publishStaticSiteSteps(deps: StaticPublishDeps, input: StaticPubl
     return undefined;
   });
   const baseHeaders = deps.publicPageSecurityHeaders ?? (() => publicPageSecurityHeaders({}));
-  const outcome = await publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath, forms.hosting, () => hosts ? withDeclaredHosts({ headers: baseHeaders(), hosts }) : baseHeaders());
+  const outcome = await publishAndMapOutcome({ jiniTarget: targetResult.target, publishInput, input, basePath: plan.basePath }, { formDestination: forms.hosting, readHeaders: () => hosts ? withDeclaredHosts({ headers: baseHeaders(), hosts }) : baseHeaders() });
   await saveReceiverKey({ outcome, save: forms.save });
   const reported = publishConsentWarning({ outcome, warning: exportResult.report.consentWarning });
   return finishPublishOutcome({ outcome: reported, credential: credentialResult.credential, target: plan.target });
@@ -653,10 +663,13 @@ export function adaptInstalledTarget(installedTarget: HostDeployTarget): DeployT
  * @complexity O(1) plus the module's own construction.
  */
 function constructTargetForPublish(
-  deps: StaticPublishDeps,
-  pluginTarget: LoadedDeployTarget,
-  config: StaticPublishConfig,
-  credential: ResolvedPublishCredential
+  { deps, pluginTarget, config, credential }: {
+    deps: StaticPublishDeps;
+    pluginTarget: LoadedDeployTarget;
+    config: StaticPublishConfig;
+    credential: ResolvedPublishCredential;
+  },
+  _options = {},
 ): { ok: true; target: DeployTarget } | { ok: false; outcome: StaticPublishOutcome } {
   try {
     if (deps.buildTarget !== undefined) return { ok: true, target: deps.buildTarget(config, credential) };

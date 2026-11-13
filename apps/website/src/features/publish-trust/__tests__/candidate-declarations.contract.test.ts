@@ -41,7 +41,7 @@ test("candidate declarations preserve order across packages, with the core app.j
 test("escaping candidates are refused before resolution or IO, including injected paths", async t => {
   const invalid = ["../outside", "/outside", "C:/outside", "a/../outside", "a\\outside", "./outside", "a//b", "", "a".repeat(513), 7];
   for (const value of invalid) {
-    const parsed = parseDeployConfigsFile(JSON.stringify({ schemaVersion: 1, generators: [{ ...entry, candidatePaths: [{ path: value, order: 1 }] }] }));
+    const parsed = parseDeployConfigsFile({ raw: JSON.stringify({ schemaVersion: 1, generators: [{ ...entry, candidatePaths: [{ path: value, order: 1 }] }] }) });
     assert.equal(parsed.ok, false, String(value));
   }
   const sourceRoot = sources(t, { "example-bad": [{ ...entry, candidatePaths: [{ path: "../outside", order: 1 }] }] });
@@ -61,13 +61,13 @@ test("absent hints stay optional; workflow conflicts never choose a package by o
   assert.equal(readBundledDeployConfigDescriptors({ sourceRoot }).length, 3);
   assert.equal(readBundledDeployWorkflowFile({ sourceRoot }), undefined);
   for (const hints of [{ candidatePaths: {} }, { candidatePaths: [null] }, { candidatePaths: [{ path: "ok", order: "1" }] }, { workflowFile: "../bad.yml" }, { workflowFile: 7 }]) {
-    assert.equal(parseDeployConfigsFile(JSON.stringify({ schemaVersion: 1, generators: [{ ...entry, ...hints }] })).ok, false);
+    assert.equal(parseDeployConfigsFile({ raw: JSON.stringify({ schemaVersion: 1, generators: [{ ...entry, ...hints }] }) }).ok, false);
   }
 });
 
 test("a declared candidate must have a finite order", () => {
   const raw = '{"schemaVersion":1,"generators":[{"id":"example-host","label":"Example","module":"g.mjs","candidatePaths":[{"path":"example.toml","order":1e999}]}]}';
-  assert.equal(parseDeployConfigsFile(raw).ok, false);
+  assert.equal(parseDeployConfigsFile({ raw }).ok, false);
 });
 
 test("a missing bundled root yields no hints instead of failing the composition root", () => {

@@ -9,7 +9,7 @@ import { applyPluginCredentialCard } from "../../contracts/core/plugin-credentia
 import { findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/deployments.js';
 import { inspectStaticPublish } from './static-publish/inspection.js';
-import { humanConfirmedToolHandler, toolApprovalConfirmation } from '../../contracts/core/human-confirm.js';
+import { approvalToolHandler, toolApprovalConfirmation } from '../../contracts/core/human-confirm.js';
 import { domainPublishTool } from './static-publish/domain-publish-tool.js';
 import { checkToolPublishConsent } from './static-publish/publish-consent.js';
 import type { GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';
@@ -301,12 +301,15 @@ function deployTargetsLoader(deps: StaticPublishToolDeps): (workspaceId: string)
  * @complexity O(f) declared fields.
  */
 function planToolPublish(
-  registry: DeployTargetRegistry,
-  raw: Record<string, unknown>,
-  target: LoadedDeployTarget
+  { registry, raw, target }: {
+    registry: DeployTargetRegistry;
+    raw: Record<string, unknown>;
+    target: LoadedDeployTarget;
+  },
+  _options = {},
 ): { readonly config: StaticPublishConfig; readonly plan: ReturnType<typeof planStaticPublish>; readonly detailRows: DetailRow[] } {
   requireOnlyDeclaredFields(raw, target.descriptor);
-  const read = readStaticPublishConfig(target, raw, { blankAsAbsent: true });
+  const read = readStaticPublishConfig({ target, raw, options: { blankAsAbsent: true } });
   if (!read.ok) throw new ToolInputError({ message: read.message });
   return { config: read.config, plan: planStaticPublish(registry, read.config), detailRows: configDetailRows(read.config, target) };
 }
@@ -356,7 +359,7 @@ const EXECUTE_STATIC_PUBLISH_TOOL_ID = "deployment_execute_static_publish";
  *  (`post deletion confirmation`) keys its own — a publish has no existing row/version to
  *  key against, so the exchange id is what keeps two dialogs raised for the same target from
  *  colliding on one URI. */
-function publishConfirmationUri(exchangeId: string): UIResourceUri {
+function publishConfirmationUri({ exchangeId }: { exchangeId: string }, _options = {}): UIResourceUri {
   return `ui://tovu/deployment-execute-static-publish/${exchangeId}` as UIResourceUri;
 }
 
@@ -393,7 +396,7 @@ function buildPublishOutcomeResource(spec: {
   const unsuccessfulTitle = state === "partial" ? "Uploaded, not live yet" : "Publish failed";
   const title = state === "success" ? "Published" : unsuccessfulTitle;
   return buildOutcomeSurface({
-    uri: publishConfirmationUri(exchangeId),
+    uri: publishConfirmationUri({ exchangeId }),
     title,
     details: [
       { label: "Target", value: config.target },
@@ -432,17 +435,20 @@ const CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL = "default";
 function requireStaticPublishTarget(raw: Record<string, unknown>, registry: DeployTargetRegistry): LoadedDeployTarget {
   const targetId = requireString({ input: raw, key: "target" });
   const target = registry.get(targetId);
-  if (target === undefined) throw new ToolInputError({ message: unknownTargetMessage(registry, targetId) });
+  if (target === undefined) throw new ToolInputError({ message: unknownTargetMessage({ registry, targetId }) });
   return target;
 }
 
 /** `deployment_preview_static_publish`'s result shape — extracted purely to keep that handler's
  *  own body a flat sequence of steps. */
 function buildStaticPublishPreviewResult(
-  target: StaticPublishTargetId,
-  validationError: string | null,
-  basePath: string | undefined,
-  credential: { readonly configured: boolean; readonly reason?: string }
+  { target, validationError, basePath, credential }: {
+    target: StaticPublishTargetId;
+    validationError: string | null;
+    basePath: string | undefined;
+    credential: { readonly configured: boolean; readonly reason?: string };
+  },
+  _options = {},
 ) {
   return {
     target,
@@ -611,11 +617,14 @@ interface PublishConfirmationContext {
  * into the outcome surface too — the same actionable text a human would need either way.
  */
 function mapPublishOutcomeToToolResult(
-  outcome: StaticPublishOutcome,
-  exchange: Pick<SurfaceExchange, "id">,
-  config: StaticPublishConfig,
-  detailRows: readonly DetailRow[],
-  projectName: string
+  { outcome, exchange, config, detailRows, projectName }: {
+    outcome: StaticPublishOutcome;
+    exchange: Pick<SurfaceExchange, "id">;
+    config: StaticPublishConfig;
+    detailRows: readonly DetailRow[];
+    projectName: string;
+  },
+  _options = {},
 ): { result: unknown; outcome: SurfaceEmission } {
   if (!outcome.ok) {
     return {
@@ -988,7 +997,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: DEPLOYMENTS_READ_PERMISSION }, { entityType: SITE_PUBLISH_ENTITY });
 
-      const { config, plan } = planToolPublish(registry, raw, loaded);
+      const { config, plan } = planToolPublish({ registry, raw, target: loaded });
       const validationError = plan.ok ? null : plan.message;
       const basePath = plan.ok ? plan.basePath : undefined;
       // Local readiness stays non-decrypting. A provider inspection below is an explicit
@@ -1000,7 +1009,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         input: { workspaceId: deps.workspaceId, config, projectName: typeof raw.projectName === "string" ? raw.projectName : "",
           ...toolCredentialChoice({ raw }) },
       }) : {};
-      return { ...buildStaticPublishPreviewResult(target, validationError, basePath, credential),
+      return { ...buildStaticPublishPreviewResult({ target, validationError, basePath, credential }),
         ...(inspected.inspection ? { providerInspection: inspected.inspection } : {}) };
     },
 
@@ -1048,7 +1057,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: DEPLOYMENTS_READ_PERMISSION }, { entityType: SITE_PUBLISH_ENTITY });
       const snapshot = getPublishJobSnapshot({ workspaceId: deps.workspaceId, jobId, requestId });
       if (!snapshot) return { code: "PUBLISH_JOB_NOT_FOUND", message: "No retained publish job was found for this site. A restart clears job snapshots. Check the hosting dashboard before starting another publish." };
-      const mapped = snapshot.result ? mapPublishOutcomeToToolResult(snapshot.result, { id: snapshot.jobId }, { target: snapshot.target }, [], "") : undefined;
+      const mapped = snapshot.result ? mapPublishOutcomeToToolResult({ outcome: snapshot.result, exchange: { id: snapshot.jobId }, config: { target: snapshot.target }, detailRows: [], projectName: "" }) : undefined;
       return { ...snapshot, ...(mapped ? { result: mapped.result } : {}),
         message: publishJobRecoveryMessage({ job: snapshot, statusToolId: "deployment_get_static_publish_status" }) };
     },
@@ -1067,7 +1076,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.publish" }, { entityType: SITE_PUBLISH_ENTITY });
 
-      const { config, plan } = planToolPublish(registry, raw, loaded);
+      const { config, plan } = planToolPublish({ registry, raw, target: loaded });
       if (!plan.ok) {
         trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "config" });
         throw new ToolInputError({ message: `deployment_execute_static_publish: ${plan.message}` });
@@ -1081,7 +1090,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       const onSettled = () => {
         const settled = getPublishJobSnapshot({ workspaceId: deps.workspaceId, requestId: ctx.executionId });
         if (settled?.result && optional.emitSurface) {
-          const mapped = mapPublishOutcomeToToolResult(settled.result, { id: settled.jobId }, config, [], "");
+          const mapped = mapPublishOutcomeToToolResult({ outcome: settled.result, exchange: { id: settled.jobId }, config, detailRows: [], projectName: "" });
           void optional.emitSurface(mapped.outcome).catch(() => console.warn("[static-publish] result card could not be delivered; read deployment_get_static_publish_status for the result"));
         }
       };
@@ -1108,12 +1117,12 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       // This domain owns one approval: the detailed domain plan above, or the ordinary publish
       // card below. A second registration wrapper would ask twice for a domain publication.
-      return humanConfirmedToolHandler(surfaces, {
-        flag: 'published',
+      return approvalToolHandler({
+        surfaces,
         prepare: async () => toolApprovalConfirmation({ descriptor: { id: 'deployment_execute_static_publish', metadata: toolMetadata.deployment_execute_static_publish, inputSchema: EXECUTE_STATIC_PUBLISH_SCHEMA },
           input: raw, locale: await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id }) }),
-        dialog: spec => spec,
-        run: async (approvedCtx) => {
+        describe: ({ prepared }, _options = {}) => ({ ...prepared, toolId: 'deployment_execute_static_publish' }),
+        run: async ({ ctx: approvedCtx }, _options = {}) => {
           await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: approvedCtx.principal.id, permission: "deployments.publish" }, { entityType: SITE_PUBLISH_ENTITY });
           const currentConsent = await checkToolPublishConsent({ deps, principalId: approvedCtx.principal.id });
           if (currentConsent) {
@@ -1126,18 +1135,17 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
             trackBlockedToolPublish({ deps, principalId: approvedCtx.principal.id, target, reasonClass: "busy" });
             return { published: false, cancelled: false, code: "ALREADY_RUNNING", jobId: getPublishJobSnapshot({ workspaceId: deps.workspaceId, jobId: active.jobId! })?.jobId, message: "A publish is already running. Call deployment_get_static_publish_status with this jobId (or {} for the latest job on this site). Do not start another publish." };
           }
-          const job = startPublishRun(
-            { credentialSource, loadDeployTargets: deployTargetsLoader(deps), buildTarget: deps.buildTarget, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders, pluginExportHosts: deps.pluginExportHosts },
-            { requestId: approvedCtx.executionId, productEvent: { userId: approvedCtx.principal.id, source: "assistant" }, workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName,
+          const job = startPublishRun({
+            deps: { credentialSource, loadDeployTargets: deployTargetsLoader(deps), buildTarget: deps.buildTarget, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders, pluginExportHosts: deps.pluginExportHosts },
+            input: { requestId: approvedCtx.executionId, productEvent: { userId: approvedCtx.principal.id, source: "assistant" }, workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName,
               ...toolCredentialChoice({ raw }) },
-            { nowIso: () => clockNowIso({ clock: deps.clock }) },
+            clock: { nowIso: () => clockNowIso({ clock: deps.clock }) },
             historyStore,
-            { triggeredBy: "agent_tool", onSettled },
-          );
+          }, { triggeredBy: "agent_tool", onSettled });
           return { published: false, accepted: true, jobId: job.jobId, status: job.status, progress: job.progress,
             message: "Publish started in the background. Call deployment_get_static_publish_status with this jobId in 5 seconds for progress and the final result. Do not publish again while it is running." };
         },
-      })(ctx, optional);
+      }, { flag: 'published' })(ctx, optional);
     },
 
     /**

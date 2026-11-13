@@ -8,7 +8,7 @@ const FIELD = { name: "token", label: "Token", required: true };
 const CREDENTIAL = { vendorId: "fixture", fields: [FIELD] };
 
 function parse(input: { target: unknown }, _options = {}) {
-  return parseDeployTargetsFile(JSON.stringify({ schemaVersion: 1, targets: [input.target] }));
+  return parseDeployTargetsFile({ raw: JSON.stringify({ schemaVersion: 1, targets: [input.target] }) });
 }
 
 const descriptorCases: ReadonlyArray<readonly [unknown, string]> = [

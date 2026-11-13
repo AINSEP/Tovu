@@ -154,7 +154,7 @@ test("an accepted deploy followed by failing status never becomes a confirmed de
     summary: "Deploy failed", items: [], checkedAt: "2026-10-18T00:00:00Z" });
   const deps = { ...f.deps, publishHistoryStore: historyStore };
   await runDeploy({ deps, input: { platform: "example-host", target: "shop" } });
-  assert.equal((await runDeployOps(deps, { platform: "example-host", target: "shop", runId: "42" }, "status")).state, "failing");
+  assert.equal((await runDeployOps({ deps, input: { platform: "example-host", target: "shop", runId: "42" }, operation: "status" })).state, "failing");
   const destinations = await listPublishDestinations({ workspaceId: "ws", historyStore,
     registry: await loadBundledDeployTargets(), peers: [] });
   assert.equal(destinations.length, 1);

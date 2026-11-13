@@ -11,14 +11,14 @@ import type { DeployOpsDescriptor, DeployOpsModule, DeployOpsRegistry, LoadedDep
 export const DEPLOY_OPS_FILENAME = "tovu-deploy-ops.json";
 
 /** Parse data only. Duplicate ids, URL hosts and escaping paths refuse the entire manifest. O(platforms).
- *  The parser lives in `@jini-ai/devops/deploy`; this keeps the host's positional signature. */
-export function parseDeployOpsFile(raw: string): ReturnType<typeof parseDeployOpsDescriptors> {
+ *  The parser lives in `@jini-ai/devops/deploy`; this retains the host's entry point. */
+export function parseDeployOpsFile({ raw }: { raw: string }, _options = {}): ReturnType<typeof parseDeployOpsDescriptors> {
   return parseDeployOpsDescriptors({ raw });
 }
 
 const opsContribution = defineExecutablePluginContribution<DeployOpsDescriptor, DeployOpsModule>({
   filename: DEPLOY_OPS_FILENAME, contribution: "deploy ops",
-  parse: ({ raw }) => parseDeployOpsFile(raw), modulePath: ({ descriptor }) => descriptor.module,
+  parse: ({ raw }) => parseDeployOpsFile({ raw }), modulePath: ({ descriptor }) => descriptor.module,
   validate: ({ exported }) => asDeployOpsModule({ exported }),
   refusal: ({ descriptor, reason }) => `deploy ops platform '${descriptor.id}' was not loaded: ${reason}`,
 }, {
@@ -35,7 +35,7 @@ const opsContribution = defineExecutablePluginContribution<DeployOpsDescriptor, 
  */
 export async function loadDeployOpsRegistryFromSource(plugin: TrustedPluginPackage, _optional: Record<string, never> = {}): Promise<DeployOpsRegistry> {
   const load = await loadPluginContributionsFromSource({ plugin, definition: opsContribution });
-  return buildRegistry(load.items, load.refusals);
+  return buildRegistry({ loaded: load.items, inputRefusals: load.refusals });
 }
 
 /** All Tovu bundled ops sources; category parsing and duplicate refusal stay with this registry.
@@ -48,7 +48,7 @@ export async function loadBundledDeployOpsRegistry(required: { readonly sourceRo
     items.push(...registry.list());
     refusals.push(...registry.refusals);
   }
-  return buildRegistry(items, refusals);
+  return buildRegistry({ loaded: items, inputRefusals: refusals });
 }
 
 /** Data-only enum discovery for hermetic tool catalogs, never authorization or module loading.
@@ -56,7 +56,7 @@ export async function loadBundledDeployOpsRegistry(required: { readonly sourceRo
 export function readBundledDeployOpsDescriptors(required: { readonly sourceRoot: string }, _optional: Record<string, never> = {}): readonly DeployOpsDescriptor[] {
   const descriptors = bundledContributionSources({ ...required, filename: DEPLOY_OPS_FILENAME }).flatMap(plugin => {
     try {
-      const parsed = parseDeployOpsFile(readFileSync(path.join(plugin.packageRoot, DEPLOY_OPS_FILENAME), "utf8"));
+      const parsed = parseDeployOpsFile({ raw: readFileSync(path.join(plugin.packageRoot, DEPLOY_OPS_FILENAME), "utf8") });
       return parsed.ok ? parsed.descriptors : [];
     } catch { return []; }
   });
@@ -88,17 +88,17 @@ export async function loadDeployOpsRegistry(ctx: { workspaceId: string }, requir
       // A switched-off plugin's manifest is read as data (no module imported) so a refusal can name it.
       onInactive: async ({ plugin }) => {
         // An unreadable manifest only loses the name; it must not refuse every active platform.
-        const parsed = parseDeployOpsFile(await readTrustedPluginFile(plugin, DEPLOY_OPS_FILENAME).catch(() => ""));
+        const parsed = parseDeployOpsFile({ raw: await readTrustedPluginFile(plugin, DEPLOY_OPS_FILENAME).catch(() => "") });
         for (const descriptor of parsed.ok ? parsed.descriptors : []) if (!switchedOff.has(descriptor.id)) switchedOff.set(descriptor.id, plugin.pluginId);
       },
     });
-    return buildRegistry(load.items, load.refusals, switchedOff);
-  } catch { return buildRegistry([], ["deploy ops were not loaded: installed plugin packages could not be read"]); }
+    return buildRegistry({ loaded: load.items, inputRefusals: load.refusals }, { switchedOff });
+  } catch { return buildRegistry({ loaded: [], inputRefusals: ["deploy ops were not loaded: installed plugin packages could not be read"] }); }
 }
 
-export function requirePlatform(registry:DeployOpsRegistry,id:string):LoadedDeployOps {return requireDeployPlatform({registry,id},{});}
+export function requirePlatform({ registry, id }: { registry: DeployOpsRegistry; id: string }, _options = {}):LoadedDeployOps {return requireDeployPlatform({registry,id},{});}
 /** Index uniquely claimed ids. Ambiguous ids are refused for all claimants. O(platforms). */
-function buildRegistry(loaded: readonly LoadedDeployOps[], inputRefusals: readonly string[], switchedOff?: ReadonlyMap<string, string>): DeployOpsRegistry {
+function buildRegistry({ loaded, inputRefusals }: { loaded: readonly LoadedDeployOps[]; inputRefusals: readonly string[] }, { switchedOff }: { switchedOff?: ReadonlyMap<string, string> } = {}): DeployOpsRegistry {
   const map = new Map<string, LoadedDeployOps>(); const duplicates = new Set<string>(); const refusals = [...inputRefusals];
   for (const platform of loaded) { if (map.has(platform.descriptor.id)) duplicates.add(platform.descriptor.id); else map.set(platform.descriptor.id, platform); }
   for (const id of duplicates) { map.delete(id); refusals.push(`deploy ops platform '${id}' was not loaded: declared more than once`); }

@@ -14,8 +14,8 @@ const REPO_OVERLAYS = path.resolve(import.meta.dirname, "../../../../../../conte
 const rendered: RenderedDeployConfig = { filename: "render.yaml", contents: "x", notes: ["generator note"] };
 
 /** A fake file port over an in-memory map. */
-function files(entries: Record<string, string>): (file: string) => string | undefined {
-  return (file) => entries[file];
+function files(entries: Record<string, string>): (required: { file: string }) => string | undefined {
+  return ({ file }) => entries[file];
 }
 
 test("HOST_DEPLOY_ENV is Tovu's production switch, frozen", () => {

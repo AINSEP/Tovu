@@ -41,7 +41,7 @@ import type { PublishCredentialSummary, PublishProviderId } from "./types.js";
  * the scheduler to attempt and silently no-op.
  * @complexity O(n) in `credentials.length` — one filter pass, no per-row I/O.
  */
-export function idsNeedingAccountLabelHeal(credentials: readonly PublishCredentialSummary[], canYieldAccountLabel: (providerId: PublishProviderId) => boolean): string[] {
+export function idsNeedingAccountLabelHeal({ credentials, canYieldAccountLabel }: { credentials: readonly PublishCredentialSummary[]; canYieldAccountLabel: (providerId: PublishProviderId) => boolean }, _options = {}): string[] {
   return credentials.filter((c) => c.accountLabel === null && canYieldAccountLabel(c.providerId)).map((c) => c.id);
 }
 
@@ -55,7 +55,7 @@ export interface AccountLabelHealSchedulerDeps {
    *  `publish-credentials.ts`'s own `sendStoreError` fallback-logging convention, so a background heal
    *  failure shows up in the same place an unexpected route error already does. Injectable so a test
    *  can assert on failures without depending on `console` output. */
-  onHealError?(id: string, err: unknown): void;
+  onHealError?(required: { id: string; err: unknown }, options?: object): void;
 }
 
 export interface AccountLabelHealScheduler {
@@ -74,7 +74,7 @@ export interface AccountLabelHealScheduler {
 /** Mirrors `publish-credentials.ts`'s own `sendStoreError` fallback (`console.error("[publish-
  *  credentials] ...", err)`), so a background heal failure shows up in the same place an unexpected
  *  route error already does. */
-function defaultOnHealError(id: string, err: unknown): void {
+function defaultOnHealError({ id, err }: { id: string; err: unknown }, _options = {}): void {
   console.error(`[publish-credentials] background account-label heal failed for '${id}'`, err);
 }
 
@@ -85,18 +85,18 @@ function defaultOnHealError(id: string, err: unknown): void {
  *  and, at this module's one real call site (a route handler that already sent its response), turn
  *  into exactly the unhandled-async-rejection bug class `server/routes/admin/system/
  *  publish-credentials.ts`'s own `62ca21c7` was written to eliminate from this same file. */
-function startHeal(id: string, deps: Required<AccountLabelHealSchedulerDeps>, inFlight: Set<string>): void {
+function startHeal({ id, deps, inFlight }: { id: string; deps: Required<AccountLabelHealSchedulerDeps>; inFlight: Set<string> }, _options = {}): void {
   inFlight.add(id);
   let result: Promise<unknown>;
   try {
     result = deps.heal(id);
   } catch (err) {
     inFlight.delete(id);
-    deps.onHealError(id, err);
+    deps.onHealError({ id, err });
     return;
   }
   result
-    .catch((err: unknown) => deps.onHealError(id, err))
+    .catch((err: unknown) => deps.onHealError({ id, err }))
     .finally(() => {
       inFlight.delete(id);
     });
@@ -118,10 +118,10 @@ export function createAccountLabelHealScheduler(deps: AccountLabelHealSchedulerD
       // ever throw back into it — not even a bug in this loop itself.
       try {
         for (const id of ids) {
-          if (!inFlight.has(id)) startHeal(id, resolvedDeps, inFlight);
+          if (!inFlight.has(id)) startHeal({ id, deps: resolvedDeps, inFlight });
         }
       } catch (err) {
-        resolvedDeps.onHealError("*", err);
+        resolvedDeps.onHealError({ id: "*", err });
       }
     },
   };

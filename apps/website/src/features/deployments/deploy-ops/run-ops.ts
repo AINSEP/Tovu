@@ -37,11 +37,11 @@ export interface DeployOpsToolDeps extends OperatorLocaleDeps {
   readSiteKey?: () => string | undefined;
 }
 
-const sha256 = (value:string)=>createHash('sha256').update(value,'utf8').digest();
+const sha256 = ({ value }: { value: string }, _options = {})=>createHash('sha256').update(value,'utf8').digest();
 /** A site-key-shaped value gets the Security page's own fingerprint, so the two can be compared by eye. O(n). */
-export function secretFingerprint(value: string): { fingerprint: string; fingerprintKind: "site-key" | "sha256" } {
+export function secretFingerprint({ value }: { value: string }, _options = {}): { fingerprint: string; fingerprintKind: "site-key" | "sha256" } {
   const parsed = parseSiteKeyHex(value);
-  return parsed.ok ? { fingerprint: fingerprintSiteKeyHex(parsed.hex), fingerprintKind: "site-key" } : { fingerprint: sha256(value).toString("hex").slice(0, 12), fingerprintKind: "sha256" };
+  return parsed.ok ? { fingerprint: fingerprintSiteKeyHex(parsed.hex), fingerprintKind: "site-key" } : { fingerprint: sha256({ value }).toString("hex").slice(0, 12), fingerprintKind: "sha256" };
 }
 
 /** Same ordered sources and precedence the Security page and the keyring read; re-read on every call. */
@@ -69,7 +69,7 @@ export function bindDeployOpsRuntime(deps:DeployOpsToolDeps):DeployOpsRuntime {
         const requestDeps:CredentialedRequestDeps={repo:deps.customCredentialSetRepo,sealer:deps.siteAssistantSecretSealer,httpClient:deps.deployOpsHttpClient!,clock:deps.clock,...(deps.customCredentialsAudit?{audit:deps.customCredentialsAudit}:{}),loadAuthSchemes:deps.loadAuthSchemes};
         let transportTruncated = false;
     // Preserve the text clipping flag the credential API does not expose in its returned shape.
-    const boundedDeps: CredentialedRequestDeps = { ...requestDeps, httpClient: { send: async request => {
+    const boundedDeps: CredentialedRequestDeps = { ...requestDeps, httpClient: { send: async (request, _optional = {}) => {
       // Auth scheme loading can yield after the earlier abort check. Recheck at the I/O boundary.
       if (signal?.aborted) throw aborted();
       const result = await requestDeps.httpClient.send({ ...request, ...(signal ? { signal } : {}), maxResponseBytes: required.maxResponseBytes });
@@ -81,15 +81,15 @@ export function bindDeployOpsRuntime(deps:DeployOpsToolDeps):DeployOpsRuntime {
         return {...result,bodyTruncated:transportTruncated};
       },
     },
-    siteKey:{read:()=>readDeploySiteKey(deps),fingerprint:({value})=>secretFingerprint(value)},
+    siteKey:{read:()=>readDeploySiteKey(deps),fingerprint:({value})=>secretFingerprint({ value })},
     recovery:{setupRequired:({label,baseUrl})=>({message:"No matching deployment credential is saved. Call credential_save with kind api to open its secure card, then retry once.",credentialSetup:issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "api", label, baseUrl, category: "ops" } }, {})})},
     toolIds:{status:'deployment_ops_status',logs:'deployment_ops_logs',wait:'deployment_ops_wait',listTargets:'deployment_ops_list_targets',deploy:'deployment_ops_deploy',listSecrets:'deployment_ops_list_secrets',setSecret:'deployment_ops_set_secret',unsetSecret:'deployment_ops_unset_secret',credentialVerify:'custom_credential_verify'},
     messages:{noUsableSiteKey:"This site has no usable site key to copy. Check Security > Site key in the admin first.",severalCredentials:({host,labels})=>`Several saved custom credentials match '${host}'. Set credentialLabel to one of: ${labels.join(", ")}.`,noSavedCredential:({label})=>`No saved custom credential labeled '${label}'. Choose another credentialLabel.`},
   };
 }
-export function boundContext(deps:DeployOpsToolDeps,platform:LoadedDeployOps,explicit:string|undefined,signal?:AbortSignal,options:{allowDelete?:boolean}={}) {return portable.boundContext({deps:bindDeployOpsRuntime(deps),platform,explicit},{signal,...options});}
-export function runDeployOps(deps:DeployOpsToolDeps,input:DeployOpsInput,operation:'status',signal?:AbortSignal):Promise<DeployOpsStatus>;
-export function runDeployOps(deps:DeployOpsToolDeps,input:DeployOpsInput,operation:'logs',signal?:AbortSignal):Promise<DeployOpsLogs>;
-export function runDeployOps(deps:DeployOpsToolDeps,input:DeployOpsInput,operation:'listTargets',signal?:AbortSignal):Promise<DeployOpsTargets>;
-export function runDeployOps(deps:DeployOpsToolDeps,input:DeployOpsInput,operation:'status'|'logs'|'listTargets',signal?:AbortSignal) {return portable.runDeployOps({deps:bindDeployOpsRuntime(deps),input,operation},{signal});}
+export function boundContext({deps,platform,explicit}:{deps:DeployOpsToolDeps;platform:LoadedDeployOps;explicit:string|undefined},{signal,...options}:{signal?:AbortSignal;allowDelete?:boolean}={}) {return portable.boundContext({deps:bindDeployOpsRuntime(deps),platform,explicit},{signal,...options});}
+export function runDeployOps(required:{deps:DeployOpsToolDeps;input:DeployOpsInput;operation:'status'},optional?:{signal?:AbortSignal}):Promise<DeployOpsStatus>;
+export function runDeployOps(required:{deps:DeployOpsToolDeps;input:DeployOpsInput;operation:'logs'},optional?:{signal?:AbortSignal}):Promise<DeployOpsLogs>;
+export function runDeployOps(required:{deps:DeployOpsToolDeps;input:DeployOpsInput;operation:'listTargets'},optional?:{signal?:AbortSignal}):Promise<DeployOpsTargets>;
+export function runDeployOps({deps,input,operation}:{deps:DeployOpsToolDeps;input:DeployOpsInput;operation:'status'|'logs'|'listTargets'},{signal}:{signal?:AbortSignal}={}) {return portable.runDeployOps({deps:bindDeployOpsRuntime(deps),input,operation},{signal});}
 export function runDeploy(required:{deps:DeployOpsToolDeps;input:portable.DeployRequest},optional:{signal?:AbortSignal}={}) {return portable.runDeploy({...required,deps:bindDeployOpsRuntime(required.deps)},optional);}

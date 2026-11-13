@@ -31,7 +31,7 @@ afterEach(() => {
 });
 
 test("readDockerfileSource: etag is a deterministic, content-derived strong validator — same contents, same etag", () => {
-  writeDockerfileSource("FROM node:22\n");
+  writeDockerfileSource({ contents: "FROM node:22\n" });
   const first = readDockerfileSource();
   const second = readDockerfileSource();
   assert.equal(first.etag, second.etag, "reading the same unchanged contents twice must produce the same etag");
@@ -39,9 +39,9 @@ test("readDockerfileSource: etag is a deterministic, content-derived strong vali
 });
 
 test("readDockerfileSource: a real content change produces a different etag", () => {
-  writeDockerfileSource("FROM node:22\n");
+  writeDockerfileSource({ contents: "FROM node:22\n" });
   const first = readDockerfileSource();
-  writeDockerfileSource("FROM node:22\nRUN echo hi\n");
+  writeDockerfileSource({ contents: "FROM node:22\nRUN echo hi\n" });
   const second = readDockerfileSource();
   assert.notEqual(first.etag, second.etag);
 });
@@ -50,7 +50,7 @@ test("readDockerfileSource: the missing-file etag is a fixed sentinel, never sha
   const missing = readDockerfileSource();
   assert.deepEqual(missing, { exists: false, contents: null, etag: 'W/"missing"' });
   assert.doesNotMatch(missing.etag, /^"[0-9a-f]{64}"$/);
-  const result = writeDockerfileSourceWithIfMatch("FROM node:22\n", missing.etag);
+  const result = writeDockerfileSourceWithIfMatch({ contents: "FROM node:22\n", ifMatch: missing.etag });
   assert.ok(result.ok);
   assert.equal(result.snapshot.contents, "FROM node:22\n");
   assert.match(result.snapshot.etag, /^"[0-9a-f]{64}"$/);
@@ -58,11 +58,11 @@ test("readDockerfileSource: the missing-file etag is a fixed sentinel, never sha
 });
 
 test("writeDockerfileSourceWithIfMatch: succeeds and writes when ifMatch names the CURRENT etag", () => {
-  writeDockerfileSource("FROM node:22\n");
+  writeDockerfileSource({ contents: "FROM node:22\n" });
   const current = readDockerfileSource();
 
   const newContents = "FROM node:22\nRUN echo hi\n";
-  const result = writeDockerfileSourceWithIfMatch(newContents, current.etag);
+  const result = writeDockerfileSourceWithIfMatch({ contents: newContents, ifMatch: current.etag });
 
   assert.equal(result.ok, true);
   assert.ok(result.ok);
@@ -76,16 +76,16 @@ test("writeDockerfileSourceWithIfMatch: succeeds and writes when ifMatch names t
 
 test("writeDockerfileSourceWithIfMatch: a stale ifMatch is refused and the file is left untouched — the actual lost-update reproduction", () => {
   // Writer A reads first.
-  writeDockerfileSource("FROM node:22\n");
+  writeDockerfileSource({ contents: "FROM node:22\n" });
   const staleIfMatch = readDockerfileSource().etag;
 
   // Writer B — a real, independent write to the SAME file — lands after Writer A's read.
   const writerBContents = "FROM node:22-slim\n# writer B\n";
-  writeDockerfileSource(writerBContents);
+  writeDockerfileSource({ contents: writerBContents });
 
   // Writer A now attempts its own write, still carrying the etag from BEFORE writer B's write.
   const writerAAttempt = "FROM node:18\n# writer A, should be rejected\n";
-  const result = writeDockerfileSourceWithIfMatch(writerAAttempt, staleIfMatch);
+  const result = writeDockerfileSourceWithIfMatch({ contents: writerAAttempt, ifMatch: staleIfMatch });
 
   assert.equal(result.ok, false);
   assert.ok(!result.ok);
@@ -99,30 +99,30 @@ test("writeDockerfileSourceWithIfMatch: a stale ifMatch is refused and the file 
 });
 
 test("writeDockerfileSourceWithIfMatch: comparing against a CACHED etag instead of a fresh read would wrongly allow the same race back in — this proves the comparison is fresh", () => {
-  writeDockerfileSource("FROM node:22\n");
+  writeDockerfileSource({ contents: "FROM node:22\n" });
   const cachedFromLongAgo = readDockerfileSource().etag;
 
   // Time passes; several other writes happen in between (simulating a long-lived caller that read
   // once and held onto the etag) — none of them should matter to THIS call's own freshness check.
-  writeDockerfileSource("FROM node:22\nRUN one\n");
-  writeDockerfileSource("FROM node:22\nRUN two\n");
+  writeDockerfileSource({ contents: "FROM node:22\nRUN one\n" });
+  writeDockerfileSource({ contents: "FROM node:22\nRUN two\n" });
   const rightBeforeAttempt = readDockerfileSource();
 
   // A caller using the STALE, long-held etag must still be refused, proving the comparison target
   // is the file's state at call time, not whatever the caller cached from its own earlier read.
-  const result = writeDockerfileSourceWithIfMatch("FROM node:22\nRUN attempted\n", cachedFromLongAgo);
+  const result = writeDockerfileSourceWithIfMatch({ contents: "FROM node:22\nRUN attempted\n", ifMatch: cachedFromLongAgo });
   assert.equal(result.ok, false);
   assert.ok(!result.ok);
   assert.equal(result.current.contents, rightBeforeAttempt.contents);
 });
 
 test("writeDockerfileSource (unconditional): stays available for cleanup/restore callers and performs no etag check", () => {
-  writeDockerfileSource("FROM node:22\n");
-  writeDockerfileSource("FROM node:22\nRUN changed-underneath\n"); // a "concurrent" change
+  writeDockerfileSource({ contents: "FROM node:22\n" });
+  writeDockerfileSource({ contents: "FROM node:22\nRUN changed-underneath\n" }); // a "concurrent" change
   // Unconditional — no ifMatch parameter exists on this function at all, so there is nothing for a
   // stale caller to get wrong; it always wins, by design, for exactly the restore-in-t.after() use
   // case `dockerfile.ts`'s own file header documents.
-  const result = writeDockerfileSource("FROM node:22\nRUN restored\n");
+  const result = writeDockerfileSource({ contents: "FROM node:22\nRUN restored\n" });
   assert.equal(result.contents, "FROM node:22\nRUN restored\n");
   assert.deepEqual(readDockerfileSource(), result);
 });

@@ -160,8 +160,8 @@ async function readTargetConfig(
   const registry = await deps.loadDeployTargets(deps.workspaceId);
   for (const refusal of registry.refusals) console.warn(`[publish-site] ${refusal}`);
   const target = registry.get(targetId);
-  if (target === undefined) return { ok: false, error: unknownTargetMessage(registry, targetId) };
-  const read = readStaticPublishConfig(target, raw, { blankAsAbsent });
+  if (target === undefined) return { ok: false, error: unknownTargetMessage({ registry, targetId }) };
+  const read = readStaticPublishConfig({ target, raw, options: { blankAsAbsent } });
   if (!read.ok) return { ok: false, error: read.message };
   return { ok: true, registry, target, config: read.config };
 }
@@ -291,9 +291,9 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       // publish finishes. `startPublishRun` itself keeps the shared slot in sync as the publish
       // settles, so a poller can never observe a stale "running" snapshot after the promise has
       // actually settled.
-      const snapshot = startPublishRun(
-        { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders, pluginExportHosts: deps.pluginExportHosts },
-        {
+      const snapshot = startPublishRun({
+        deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders, pluginExportHosts: deps.pluginExportHosts },
+        input: {
           productEvent: { userId: principal.id, source: "admin" },
           workspaceId: deps.workspaceId,
           publishOutputRootDir: deps.publishOutputRootDir,
@@ -306,9 +306,9 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
           // answers with its own default lookup — see `parsePublishRequestBody` above.
           ...credentialChoice({ value: parsed.credentialId }),
         },
-        deps.clock,
-        deps.publishHistoryStore,
-      );
+        clock: deps.clock,
+        historyStore: deps.publishHistoryStore,
+      });
 
       res.status(202).json(snapshot);
     } catch (err) {

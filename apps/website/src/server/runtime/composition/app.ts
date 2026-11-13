@@ -1764,7 +1764,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
  * lcov merges into one corrupted `SF:` block — see
  * `ADS-memory/reports/2026-09-05-coverage-dual-instantiation-routes-W-and-A.md`'s "Route A".
  */
-const runExportSite: ExportEngine<RouteDeps> = (options) => exportSite(options);
+const runExportSite: ExportEngine<RouteDeps> = (options, _optional = {}) => exportSite(options);
 
 /**
  * 2026-08-20 (complexity pass) — `createApp` mounts ~30 `ServerModuleHandle`s below, each via the

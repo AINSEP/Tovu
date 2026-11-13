@@ -69,7 +69,7 @@ const MISSING_DOCKERFILE_ETAG = 'W/"missing"';
 /** @complexity O(c) in `contents`' byte size — one hash pass. Only existing contents are hashed:
  *  both callers handle absence first (`readDockerfileSource` returns {@link MISSING_DOCKERFILE_ETAG}
  *  before reading), so this takes a string, never null. */
-function computeDockerfileEtag(contents: string): string {
+function computeDockerfileEtag({ contents }: { contents: string }, _options = {}): string {
   return `"${createHash("sha256").update(contents, "utf8").digest("hex")}"`;
 }
 
@@ -83,7 +83,7 @@ export function readDockerfileSource(): DockerfileSourceSnapshot {
   const path = dockerfilePath();
   if (!existsSync(path)) return { exists: false, contents: null, etag: MISSING_DOCKERFILE_ETAG };
   const contents = readFileSync(path, "utf8");
-  return { exists: true, contents, etag: computeDockerfileEtag(contents) };
+  return { exists: true, contents, etag: computeDockerfileEtag({ contents }) };
 }
 
 /**
@@ -97,14 +97,14 @@ export function readDockerfileSource(): DockerfileSourceSnapshot {
  * contents are backed up by this function (callers who need the previous contents should read them
  * first via {@link readDockerfileSource}).
  *
- * @param contents - The full replacement contents. Not validated as Dockerfile syntax — this is a
+ * @param required.contents - The full replacement contents. Not validated as Dockerfile syntax — this is a
  * raw file write, the same trust level a human editing the file directly already has.
  * @returns The snapshot the file now has, for a caller to echo back without a second read.
  * @complexity O(c) in `contents`' own byte size — one whole-file write, one hash pass.
  */
-export function writeDockerfileSource(contents: string): DockerfileSourceSnapshot {
+export function writeDockerfileSource({ contents }: { contents: string }, _options = {}): DockerfileSourceSnapshot {
   writeFileSync(dockerfilePath(), contents, "utf8");
-  return { exists: true, contents, etag: computeDockerfileEtag(contents) };
+  return { exists: true, contents, etag: computeDockerfileEtag({ contents }) };
 }
 
 /** {@link writeDockerfileSourceWithIfMatch}'s result: a discriminated union rather than a thrown
@@ -147,8 +147,8 @@ export type DockerfileWriteResult =
  * admin-editor file is not worth that dependency today. If an actual collision is ever observed
  * inside this narrowed window, THAT is the trigger to revisit — not a hypothetical.
  *
- * @param contents - The full replacement contents, same contract as {@link writeDockerfileSource}.
- * @param ifMatch - The etag the caller most recently observed (from a prior
+ * @param required.contents - The full replacement contents, same contract as {@link writeDockerfileSource}.
+ * @param required.ifMatch - The etag the caller most recently observed (from a prior
  * `readDockerfileSource`/`writeDockerfileSource*` call). Compared against a FRESH read of disk taken
  * inside this call, never a cached or request-scoped value — comparing against anything else would
  * reintroduce the exact race this function exists to close.
@@ -158,10 +158,10 @@ export type DockerfileWriteResult =
  * @complexity O(f) — one fresh read (existence check, whole-file read, one hash pass) plus, only on
  * a match, one whole-file write (another hash pass, inside {@link writeDockerfileSource}).
  */
-export function writeDockerfileSourceWithIfMatch(contents: string, ifMatch: string): DockerfileWriteResult {
+export function writeDockerfileSourceWithIfMatch({ contents, ifMatch }: { contents: string; ifMatch: string }, _options = {}): DockerfileWriteResult {
   // Fresh read, immediately before the write below — see this function's own doc for why a cached
   // or earlier-observed etag must never stand in for this.
   const current = readDockerfileSource();
   if (current.etag !== ifMatch) return { ok: false, reason: "conflict", current };
-  return { ok: true, snapshot: writeDockerfileSource(contents) };
+  return { ok: true, snapshot: writeDockerfileSource({ contents }) };
 }

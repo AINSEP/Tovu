@@ -51,7 +51,7 @@ function testRouteDeps(): ReturnType<typeof createRouteDeps> {
 
 /** Await the production entrypoint's settlement hook, without polling or sleeping. */
 function runPublishForTest(deps: StaticPublishDeps, input: StaticPublishInput, clock: { nowIso(): string }, history: InMemoryPublishHistoryStore): Promise<import('../types.js').StaticPublishOutcome> {
-  return new Promise((resolve, reject) => startPublishRun(deps, input, clock, history, {
+  return new Promise((resolve, reject) => startPublishRun({ deps, input, clock, historyStore: history }, {
     triggeredBy: "agent_tool",
     onSettled: () => {
       const snapshot = getPublishRunSnapshot();
@@ -276,7 +276,7 @@ test("startPublishRun: the fire-and-forget path records history too, once the ba
 
   let finish!: () => void;
   const completed = new Promise<void>(resolve => { finish = resolve; });
-  const started = startPublishRun(deps, input, clock, history, { onSettled: () => finish() });
+  const started = startPublishRun({ deps, input, clock, historyStore: history }, { onSettled: () => finish() });
   assert.equal(started.status, "running");
   assert.equal(getPublishRunSnapshot().status, "running");
   await completed;
@@ -406,7 +406,7 @@ for (const failure of ["returned", "thrown"] as const) {
       return { targetId: "vercel", status: "failed", url: "https://failed.vercel.app", deploymentId: "dpl_failed", statusMessage: message };
     };
     const input = { ...githubInput(routeDeps), config: { target: "vercel" } };
-    await new Promise<void>(resolve => startPublishRun({ credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => target }, input, clock, history, { onSettled: () => resolve() }));
+    await new Promise<void>(resolve => startPublishRun({ deps: { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => target }, input, clock, historyStore: history }, { onSettled: () => resolve() }));
     assert.equal(getPublishRunSnapshot().status, "errored");
     assert.deepEqual(getPublishRunSnapshot().result, { ok: false, code: "PROVIDER_ERROR", message });
     assert.equal(await history.getLast({ workspaceId: input.workspaceId, target: "vercel" }), null);
