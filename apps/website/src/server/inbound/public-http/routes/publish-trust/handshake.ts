@@ -1,3 +1,5 @@
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { Express, Request, Response } from "express";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 
@@ -165,7 +167,7 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
       try {
         await handler(req, res);
       } catch (err) {
-        console.error(`[publish-trust] handshake ${req.method} ${req.path} failed:`, describeErrorForLog(err));
+        console.error(`[publish-trust] handshake ${req.method} ${req.path} failed:`, formatErrorForLog({ error: err }, TOVU_ERROR_REDACTION_OPTIONS));
         res.status(500).json(HANDSHAKE_FAILED);
       }
     };
