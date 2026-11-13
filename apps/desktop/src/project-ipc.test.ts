@@ -11,7 +11,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { SITE_IPC_CHANNELS as CONTRACT_SITE_IPC_CHANNELS } from "./contracts/project.ts";
+import { PROJECT_NOT_OPEN_MESSAGE, SITE_IPC_CHANNELS as CONTRACT_SITE_IPC_CHANNELS } from "./contracts/project.ts";
 import { SITE_IPC_CHANNELS, buildSiteRecord, siteRecordLifecycle, importSharedSiteDiscovery, handleList, handleAddSite, handleImportArchive, handleCreate, planNewSiteDir, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, handleLocate, handleTokenSignInPlugins, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
 import { createSiteTransitions } from "./site-transitions.ts";
 import type { ProjectIpcDeps } from "./project-ipc.ts";
@@ -677,7 +677,8 @@ test("handleDelete on an untracked id never calls deletePreview — there is no 
 
 test("handleOpenExternal throws when the project is not currently open", async () => {
   const deps = baseDeps();
-  await assert.rejects(() => handleOpenExternal({ siteId: "/sites/a", view: "admin" }, deps as typeof deps & Pick<ProjectIpcDeps, "shell">), /not open/); // never reached — refused before shell.openExternal
+  assert.equal(PROJECT_NOT_OPEN_MESSAGE, "That project is not open. Open it first, then try again.");
+  await assert.rejects(() => handleOpenExternal({ siteId: "/sites/a", view: "admin" }, deps as typeof deps & Pick<ProjectIpcDeps, "shell">), { message: PROJECT_NOT_OPEN_MESSAGE }); // never reached — refused before shell.openExternal
 });
 
 test("handleOpenExternal opens the admin surface by default, the site surface when asked", async () => {
@@ -2076,13 +2077,14 @@ test("shared discovery with no workspace is inert and unavailable discovery pres
   assert.equal(fs.existsSync(projectsPath), false);
   trackSite(projectsPath, path.join(root, "local"));
   const before = fs.readFileSync(projectsPath, "utf8");
-  const sharedSites = { registry: () => { throw new Error("Catalog unavailable"); } } as unknown as NonNullable<ProjectIpcDeps["sharedSites"]>;
+  const sharedSites = { registry: () => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); } } as unknown as NonNullable<ProjectIpcDeps["sharedSites"]>;
   const warn = t.mock.method(console, "warn", () => {});
   importSharedSiteDiscovery({ projectsPath, sharedSites, readSiteName: path.basename });
-  assert.deepEqual(warn.mock.calls.map((call) => call.arguments[0]), [
-    "tovu desktop: shared catalog bookkeeping is unavailable; local websites remain usable.",
-    "tovu desktop: shared discovery is unavailable; showing local website cards.",
-  ]);
+  assert.match(String(warn.mock.calls[0]?.arguments[0]), /^tovu desktop: shared catalog bookkeeping is unavailable; local websites remain usable\./);
+  assert.equal(warn.mock.calls[1]?.arguments[0], "tovu desktop: shared discovery is unavailable; showing local website cards.");
+  assert.match(String(warn.mock.calls[1]?.arguments[1]), /boom/);
+  assert.match(String(warn.mock.calls[1]?.arguments[1]), /project-ipc\.test\.ts/);
+  assert.doesNotMatch(String(warn.mock.calls[1]?.arguments[1]), /SECRETSECRETSECRETSECRET/);
   assert.equal(fs.readFileSync(projectsPath, "utf8"), before);
 });
 
@@ -2196,7 +2198,7 @@ test("erasing a created site drops it from the shared catalog, and a catalog fai
     const siteDir = writeSite(path.join(root, "made"), `made-${catalogFails}`);
     real.registry({}).merge({ entries: [{ id: `made-${catalogFails}`, name: "Made", path: siteDir, createdBy: "Desktop", lastOpened: null }] });
     const sharedSites = catalogFails
-      ? { ...real, registry: (required: Record<string, never>) => ({ ...real.registry(required), remove: () => { throw new Error("catalog locked"); } }) }
+      ? { ...real, registry: (required: Record<string, never>) => ({ ...real.registry(required), remove: () => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); } }) }
       : real;
     const deps = baseDeps({ sharedSites, removeSiteTree: async ({ root: dir }: { root: string }) => { fs.rmSync(dir, { recursive: true }); } });
     trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: `made-${catalogFails}` });
@@ -2206,6 +2208,24 @@ test("erasing a created site drops it from the shared catalog, and a catalog fai
     assert.equal(real.registry({}).list({}).some((row) => row.path === siteDir), catalogFails, "kept only when the catalog refused");
   }
   assert.deepEqual(warn.mock.calls.map((entry) => entry.arguments[0]), ["tovu desktop: could not remove the erased website from the shared catalog."]);
+  assert.match(String(warn.mock.calls[0]?.arguments[1]), /boom/);
+  assert.match(String(warn.mock.calls[0]?.arguments[1]), /project-ipc\.test\.ts/);
+  assert.doesNotMatch(String(warn.mock.calls[0]?.arguments[1]), /SECRETSECRETSECRETSECRET/);
+});
+
+test("a created site remains usable when remembering its folder fails", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const deps = createDeps({ adoptSiteDir: async ({ dir }) => writeSite(dir, "folder-warning") });
+  const folders = createSiteFolders({ statePath: deps.statePath, defaultRoots: [] });
+  const record = await handleCreate({ displayName: "New Site" }, {
+    ...deps,
+    siteFolders: { ...folders, rememberCreated: () => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); } },
+  });
+  assert.equal(record.displayName, "New Site");
+  assert.equal(warn.mock.calls[0]?.arguments[0], "tovu desktop: could not remember the created website folder; the website was created successfully.");
+  assert.match(String(warn.mock.calls[0]?.arguments[1]), /boom/);
+  assert.match(String(warn.mock.calls[0]?.arguments[1]), /project-ipc\.test\.ts/);
+  assert.doesNotMatch(String(warn.mock.calls[0]?.arguments[1]), /SECRETSECRETSECRETSECRET/);
 });
 
 test("re-adding a tracked site still succeeds when its name cannot be cached, and only warns", async (t) => {

@@ -6,18 +6,27 @@ import type { ThemeCanvasPort, ThemeTokens } from "./theme-canvas-port.hooks";
  * instead of `lib/api`'s `api` client.
  */
 
+export class ThemeServerResponseError extends Error {
+  readonly status: number;
+
+  constructor({ status }: { status: number }, _options = {}) {
+    super(`the theme server responded with ${status}`);
+    this.status = status;
+  }
+}
+
 /** The live implementation — same status-check shape `apps/admin/src/components/TemplateSource/template-source-dependencies.hooks.ts` uses for
  *  the sibling `/theme-assets/...` fetch, with `.json()`/`.text()` chosen per what each method
  *  actually returns (a theme template's own markup has no reason to be valid JSON). */
 export const defaultThemeCanvasPort: ThemeCanvasPort = {
   async fetchThemeTokens(url: string): Promise<ThemeTokens> {
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`the theme server responded with ${res.status}`);
+    if (!res.ok) throw new ThemeServerResponseError({ status: res.status });
     return (await res.json()) as ThemeTokens;
   },
   async fetchTemplateMarkup(url: string): Promise<string> {
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`the theme server responded with ${res.status}`);
+    if (!res.ok) throw new ThemeServerResponseError({ status: res.status });
     return res.text();
   },
   async warmStylesheet(url: string): Promise<void> {

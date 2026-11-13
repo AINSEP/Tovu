@@ -1,4 +1,5 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
+import { formatErrorForLog } from "@jini-ai/core";
 import { listSites, runningSiteUrl } from "#src/platform/site-dir/index";
 import { rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -24,7 +25,7 @@ import { resolveCheckoutRoot } from "#src/platform/site-dir/product-root";
 import { resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
 import { resolveLocalOwnerSignIn } from "../boot/local-owner-signin.js";
 import { createLogBuffer, createRotatingLogFileSink } from "#src/platform/server-logs/index";
-import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { redactSecretShapes, TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { waitForLocalAdminBuild } from "../../../platform/site-dir/local-admin-bundle.js";
 
 /** Bind site-child diagnostics to a separate parent-owned file; the child owns server.log.
@@ -223,8 +224,9 @@ export function createLocalSiteProcessPort(
           }
         },
         async cancelRetirement() {
-          const response = await retirementRequest("DELETE");
-          if (response.status !== 204) throw new Error(`Could not cancel site retirement: HTTP ${response.status}`);
+          await retirementRequest("DELETE").then((response) => {
+            if (response.status !== 204) diagnostics.record({ level: "error", message: `Could not cancel site retirement: HTTP ${response.status}` });
+          }).catch((error: unknown) => diagnostics.record({ level: "error", message: `Could not cancel site retirement: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}` }));
         },
         onExit({ listener }) { listeners.add(listener); if (exited) listener(); },
         async ready() {

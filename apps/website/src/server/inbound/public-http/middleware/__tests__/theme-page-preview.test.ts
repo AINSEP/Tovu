@@ -157,7 +157,12 @@ test("templated route: home, products and product templates each render with the
 test("templated route: a failure while gathering render data answers a plain 500 without the cause", async (t) => {
   const { deps, baseUrl, cookie } = await bootSite(t);
   t.mock.method(deps.postRepo, "list", async () => { throw new Error("content store offline"); });
-  await expectText(await fetch(`${baseUrl}/theme-explore/fashion-modern/template/home`, { headers: { cookie } }), 500, "preview render failed");
+  const response = await fetch(`${baseUrl}/theme-explore/fashion-modern/template/home`, { headers: { cookie } });
+  assert.equal(response.status, 500);
+  const text = await response.text();
+  assert.match(text, /The preview could not be rendered/);
+  assert.match(text, /report error [0-9a-f-]{36}/);
+  assert.doesNotMatch(text, /content store offline/);
 });
 
 test("route-param guards: each preview handler reached without its params refuses an empty theme id instead of crashing", async (t) => {

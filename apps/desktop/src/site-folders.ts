@@ -3,6 +3,8 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { formatErrorForLog } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { readJsonFile, withFileLock, writeJsonFileAtomic, quarantineUnreadableFile } from './durable-json-file.ts';
 import type { SitesWorkspace } from './shared-sites.ts';
 import type { SiteFolders } from './contracts/project.ts';
@@ -138,7 +140,7 @@ function sharedSiteFolders({ workspace, filePath, createdSiteDirs, quarantine }:
     }
   };
   try { importLegacyRoots(); }
-  catch { console.warn("tovu desktop: legacy sites folder import could not complete; using shared settings and retrying next boot."); }
+  catch (error) { console.warn("tovu desktop: legacy sites folder import could not complete; using shared settings and retrying next boot.", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
   return { read,
     add({ root }, _options = {}) {
       const policy = { homeDir: workspace.homeDir, sitesHome: workspace.home({}) };

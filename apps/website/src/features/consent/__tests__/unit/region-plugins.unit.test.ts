@@ -63,6 +63,23 @@ test('no ingress (Fly, Electron) loads nothing and stays strict; a loader fault 
   finally { console.error = error; }
 });
 
+test('region reader and bridge failures log redacted causes and preserve strict fallbacks', async (t) => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, 'error', (...args: unknown[]) => { logs.push(args); });
+  const failing = async () => { throw new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'); };
+  assert.deepEqual(await loadSiteRegionResolvers({ workspaceId: 'w', loadContributions: failing }, { ingress: 'cloudflare' }), []);
+  assert.deepEqual(await loadSiteConsentBridges({ workspaceId: 'w', loadContributions: failing }), []);
+  assert.equal(logs.length, 2);
+  assert.match(logs[0]?.join(' ') ?? '', /region readers could not be loaded; visitors get the strict banner/);
+  assert.match(logs[1]?.join(' ') ?? '', /browser bridges could not be loaded/);
+  for (const args of logs) {
+    const log = args.join(' ');
+    assert.match(log, /boom/);
+    assert.match(log, /region-plugins\.unit\.test\.ts/);
+    assert.doesNotMatch(log, /SECRETSECRETSECRETSECRET/);
+  }
+});
+
 
 test('bridge declarations keep safe served URLs and reject executable URL schemes', () => {
   const valid = ['/plugins/banner.js', 'https://cmp.example/bridge.js', 'http://localhost:3000/bridge.js'];

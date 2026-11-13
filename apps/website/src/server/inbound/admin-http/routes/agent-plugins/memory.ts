@@ -15,6 +15,8 @@ interface NoteWrite {
   readonly text: string;
 }
 
+const isNodeSystemError = ({ error }: { error: unknown }, _options = {}) => error instanceof Error && 'code' in error && typeof error.code === 'string';
+
 /**
  * True only for an object whose keys are exactly `entryPath` and `text`, both strings.
  * @complexity O(k) in the body's key count.
@@ -37,7 +39,12 @@ async function writeNoteOrRespond(required: { body: unknown; memory: ReturnType<
     res.status(400).json({ error: "entryPath and text are required", code: "VALIDATION_ERROR" }); return false;
   }
   try { await memory.writeNote({ entryPath: body.entryPath, text: body.text }); }
-  catch { res.status(422).json({ error: "note path, text or size is invalid", code: "PLUGIN_MEMORY_INVALID" }); return false; }
+  catch (error) {
+    if (isNodeSystemError({ error })) {
+      sendAdminFailure({ res, error }, { operation: "agent-plugins:write-note", message: "The note could not be saved." }); return false;
+    }
+    res.status(422).json({ error: "note path, text or size is invalid", code: "PLUGIN_MEMORY_INVALID" }); return false;
+  }
   return true;
 }
 

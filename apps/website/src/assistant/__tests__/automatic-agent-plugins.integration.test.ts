@@ -515,7 +515,7 @@ test('a failing guidance preparation is logged without detail and yields no guid
   const context = { ...f.context, emitSurface: async () => { throw new Error('surface closed: secret detail'); } };
   await assert.rejects(f.runs.start({ runId: 'broken', context }), { message: 'surface closed: secret detail' });
   assert.equal(await f.runs.prepareGuidance({ principal: f.context.principal, run: { id: 'broken' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), '');
-  assert.deepEqual(warn.mock.calls.map(call => call.arguments), [['[agent-plugins] automatic tool guidance unavailable']]);
+  assert.deepEqual(warn.mock.calls.map(call => call.arguments).filter(args => args[0] === '[agent-plugins] automatic tool guidance unavailable'), [['[agent-plugins] automatic tool guidance unavailable', 'Error']]);
   f.runs.forget({ runId: 'broken' });
 });
 

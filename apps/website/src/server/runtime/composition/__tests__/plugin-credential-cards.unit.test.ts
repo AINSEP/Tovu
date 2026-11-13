@@ -156,10 +156,13 @@ test('a refused manifest does not remove working mail cards and its refusal is r
 test('a broken manifest loader retains mail cards and reports the fallback', async () => {
   const refusals: string[] = [];
   const load = createPluginCredentialCardsLoader({ agentPluginLayout: {} as AgentPluginLayout, loadMailCards: async () => [mail] }, {
-    loadContributions: async () => { throw new Error('EIO'); }, onRefusal: message => refusals.push(message),
+    loadContributions: async () => { throw new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'); }, onRefusal: message => refusals.push(message),
   });
   assert.deepEqual(await load('workspace'), [mail]);
   assert.match(refusals[0]!, /default/);
+  assert.match(refusals[0]!, /boom/);
+  assert.match(refusals[0]!, /plugin-credential-cards\.unit\.test\.ts/);
+  assert.doesNotMatch(refusals[0]!, /SECRETSECRETSECRETSECRET/);
 });
 
 test('trusted contribution materialization tags ownership and refuses cross-plugin identities', async () => {

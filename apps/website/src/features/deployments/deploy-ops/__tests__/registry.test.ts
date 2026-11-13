@@ -209,12 +209,20 @@ test("an unreadable manifest is a refusal for the registry and is skipped by enu
   } finally { await forceRemove(sourceRoot); }
 });
 
-test("a loader fault becomes one refusal, and requirePlatform names no platforms plus every refusal", async () => {
+test("a loader fault becomes one refusal, and requirePlatform names no platforms plus every refusal", async (t) => {
   const { loadDeployOpsRegistry } = await import("../registry.js");
-  const registry = await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: async () => { throw new Error("EIO"); } });
+  const logs: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { logs.push(args); });
+  const registry = await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: async () => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); } });
   assert.deepEqual(registry.list(), []);
   assert.deepEqual(registry.refusals, ["deploy ops were not loaded: installed plugin packages could not be read"]);
   assert.throws(() => requirePlatform(registry, "example-host"), { message: "Unknown deployment ops platform 'example-host'. Choose: (none). deploy ops were not loaded: installed plugin packages could not be read" });
+  assert.equal(logs.length, 1);
+  const log = logs[0]?.join(" ") ?? "";
+  assert.match(log, /deploy ops.*could not be read/);
+  assert.match(log, /boom/);
+  assert.match(log, /registry\.test\.ts/);
+  assert.doesNotMatch(log, /SECRETSECRETSECRETSECRET/);
 });
 
 test("an installed but off plugin that provides the platform is named in the refusal; an unprovided id keeps the plain refusal", async () => {

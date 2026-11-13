@@ -1,8 +1,9 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
+import { formatErrorForLog } from "@jini-ai/core";
 /** Tovu labels and consent policy over the existing Resources monitor and Jini growth owner. */
 import { aggregateProcessMemory, createMemoryGrowthDetector, type ProcessMemoryReading } from '@jini-ai/diagnostics';
 import type { Tracker } from '@jini-ai/diagnostics/observability';
 import type { ProductConsent } from '@tovu/contracts/product-telemetry';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import type { ResourcesSnapshot, ResourceProcess } from './contracts/resources.ts';
 
 type Kind = 'main' | 'renderer' | 'server' | 'daemon' | 'other';
@@ -57,25 +58,30 @@ export function startProductMemoryTelemetry({ monitor, tracker, readConsent, des
   const cadenceMs = Math.max(60_000, intervalMs);
   const growth = createMemoryGrowthDetector({ now }, { maxSamples: Math.min(64, Math.ceil(60 * 60_000 / cadenceMs) + 2), maxGapMs: cadenceMs * 2 });
   let disposed = false;
+  let failing = false;
   let pending: Promise<void> | undefined;
-  async function sample(): Promise<void> {
+  async function sample(): Promise<boolean> {
     const before = readConsent();
-    if (!before.crashes && !before.usage) { growth.reset({}, { keepRateLimits: true }); return; }
+    if (!before.crashes && !before.usage) { growth.reset({}, { keepRateLimits: true }); return false; }
     const snapshot = await monitor.get({ panelOpen: false });
-    if (disposed || snapshot.status !== 'available') return;
+    if (disposed || snapshot.status !== 'available') return false;
     const processes = projectMemoryProcesses({ snapshot, desktopPid, rendererPids: rendererPids(), heapUsedBytes: heapUsedBytes() });
     const consent = readConsent();
     if (consent.usage) reportMemoryMetrics({ tracker, processes, uptimeSeconds: uptime() });
-    if (disposed) return;
-    if (!readConsent().crashes) { growth.reset({}, { keepRateLimits: true }); return; }
+    if (disposed) return false;
+    if (!readConsent().crashes) { growth.reset({}, { keepRateLimits: true }); return true; }
     for (const warning of growth.observe({ processes })) {
       tracker.error({ error: new Error('process memory growth') }, { context: { operation: 'desktop.memory_growth', level: 'warning', attributes: { process: warning.kind, code: warning.reason } } });
     }
+    return true;
   }
   function tick(): Promise<void> {
     if (disposed) return Promise.resolve();
     // Measurement failures are advisory; no rejected background task may become a product error.
-    pending ??= sample().catch((error: unknown) => console.error("[desktop] Could not sample memory", describeErrorForLog({ err: error }))).finally(() => { pending = undefined; });
+    pending ??= sample().then((sampled) => { if (sampled) failing = false; }).catch((error: unknown) => {
+      if (!failing) console.error("[desktop] Could not sample memory", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
+      failing = true;
+    }).finally(() => { pending = undefined; });
     return pending;
   }
   const cancel = schedule(() => { void tick(); }, cadenceMs);

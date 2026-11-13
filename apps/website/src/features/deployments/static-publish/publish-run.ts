@@ -1,4 +1,5 @@
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { createPublishJobStore, type PublishJobSnapshot, type DeployPublishProgress } from "@jini-ai/devops/deploy";
 import { publishStaticSite, type StaticPublishDeps, type StaticPublishInput } from "./adapter.js";
 import type { PublishHistoryEntry, PublishHistoryStore, PublishTrigger } from "./publish-history.js";
@@ -176,9 +177,9 @@ async function recordHistoryIfPublished(
         ...input.config, ...target.module.destinationConfig?.({ providerMetadata: outcome.providerMetadata }),
       } }) } : {}),
     } });
-  } catch {
+  } catch (error) {
     // Keep the true publish result; database errors can embed secret parameters.
-    console.warn("[static-publish] destination history write failed after publish");
+    console.warn("[static-publish] destination history write failed after publish", describeErrorForLog(error));
   }
 }
 

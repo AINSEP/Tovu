@@ -3,6 +3,7 @@ import path from "node:path";
 
 import type { UUID } from "@jini-ai/core/primitives";
 import { redactSecrets } from "@jini-ai/core";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { normalizeRepositoryFolder, prefixRepositoryPath } from "@jini-ai/devops/source-control";
 import { prepareStaticReport } from "../site-backup/static-copy.js";
 import { staticDownloadLayout } from "../site-backup/static-download-layout.js";
@@ -494,9 +495,10 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
       commitMessage: input.commitMessage,
       files: exportResult.files,
     });
-  } catch {
+  } catch (error) {
     // Plugin code: its throw must not break this function's never-throw contract, and its raw
     // message may carry provider detail, so a fixed message is returned instead.
+    console.warn("[source-control] source control provider could not commit; the commit remains incomplete", describeErrorForLog(error));
     return { ok: false, code: "PROVIDER_ERROR", message: "the source control provider failed while committing" };
   }
 

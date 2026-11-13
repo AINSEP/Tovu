@@ -336,6 +336,8 @@ test("an authenticated preview asset request remembers the revision, skips the r
 });
 
 test("preview reload writes a fresh refresh frame, and a themes path that cannot hold the marker answers 500", async (t) => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
   const { fs, path, themesDir, reload, deps } = await bootServerRoster(t);
   const ok = createCapturingResponse();
   ok.res.locals.principal = { id: "owner" };
@@ -344,14 +346,23 @@ test("preview reload writes a fresh refresh frame, and a themes path that cannot
   assert.equal(typeof (ok.capture.jsonBody as { revision?: unknown }).revision, "string");
   assert.equal(fs.existsSync(path.join(themesDir, ".preview-refresh.json")), true);
 
-  const blocker = path.join(themesDir, "not-a-directory");
+  const blocker = path.join(themesDir, "boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET");
   fs.writeFileSync(blocker, "file");
   (deps as { themesDir: string }).themesDir = blocker;
   const failed = createCapturingResponse();
   failed.res.locals.principal = { id: "owner" };
   await reload({ params: { workspaceId: "ws" } }, failed.res);
   assert.equal(failed.capture.statusCode, 500);
-  assert.deepEqual(failed.capture.jsonBody, { error: "preview reload failed" });
+  const body = failed.capture.jsonBody as { error: string; errorId: string };
+  assert.match(body.error, /The preview could not be reloaded/);
+  assert.match(body.errorId, /^[0-9a-f-]{36}$/);
+  assert.doesNotMatch(JSON.stringify(body), /SECRETSECRETSECRETSECRET/);
+  const entry = logs.find(args => args[0] === "[theme-preview:refresh]"); assert.ok(entry, "the failure is logged");
+  const detail = entry[1] as { errorId: string; diagnostic: string };
+  assert.equal(detail.errorId, body.errorId);
+  assert.match(detail.diagnostic, /boom/);
+  assert.match(detail.diagnostic, /theme-preview-refresh\.test\.ts/);
+  assert.doesNotMatch(detail.diagnostic, /SECRETSECRETSECRETSECRET/);
 });
 
 test("registered refresh remembers only the 512 most recent authenticated preview revisions, and never an anonymous one", async (t) => {

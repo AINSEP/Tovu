@@ -227,9 +227,12 @@ test("attached server retains its spawning instance", async () => {
 });
 
 test("listener failure leaves site hosting available without falling back to a launcher", async () => {
-  const h = harness({ desktopMcpEnv: async () => { throw new Error("bind failed"); },
+  const h = harness({ desktopMcpEnv: async () => { throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EADDRINUSE" }); },
   });
   assert.equal((await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx })).server, h.spawned);
   assert.equal(h.warns.length, 1);
   assert.match(h.warns[0]!, /desktop tools.*retry/i);
+  assert.match(h.warns[0]!, /Error/);
+  assert.match(h.warns[0]!, /EADDRINUSE/);
+  assert.doesNotMatch(h.warns[0]!, /boom|SECRETSECRETSECRETSECRET/);
 });

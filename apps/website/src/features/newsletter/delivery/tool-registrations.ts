@@ -1,4 +1,5 @@
 import { toolMetadata } from '../../../contracts/core/tool-metadata/newsletter.js';
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 /**
  * Newsletter delivery registrations over the existing send pipeline and campaign write services.
  * Subscriber delivery uses browser-only confirmation; test recipients resolve from the owner profile.
@@ -177,8 +178,8 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
         await claimBatch({ deps: toNewsletterSendPipelineDeps(deps) });
         // An empty audience emits no batch event, so the subscriber cannot complete it for us.
         await completeIfDrained({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
-      } catch {
-        console.error("[newsletter] delivery fan-out failed after launch; inspect the send log before retrying");
+      } catch (error) {
+        console.error("[newsletter] delivery fan-out failed after launch; inspect the send log before retrying", describeErrorForLog(error));
         return processingAttentionResult(campaignId, campaign.status);
       }
       return { confirmed: true, started: true, campaignId, status: campaign.status, delivered: false, mailDeliveryAvailable: true };

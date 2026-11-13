@@ -1,4 +1,6 @@
 import { bundledAgentPluginsDir } from "./site-paths.js";
+import { formatErrorForLog } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { type LoadPluginContributions, createTovuAgentPluginLifecycle, type TrustedPluginPackage } from '#src/features/agent-plugins/lifecycle';
 import { credentialCardsContribution, mergePluginCredentialCards } from '#src/features/agent-plugins/credential-cards';
 import { parseDeployTargetsFile } from '#src/features/deployments/deploy-targets/registry';
@@ -48,8 +50,8 @@ export function createPluginCredentialCardsLoader({ agentPluginLayout, loadMailC
       const result = await loadContributions({ workspaceId, definition }, { requireActive: true, orderByPluginId: true });
       for (const refusal of result.refusals) warn(refusal);
       return mergePluginCredentialCards({ mailCards, manifestCards: result.items }, { onRefusal: warn });
-    } catch {
-      warn('Optional manifest cards could not be loaded; retaining mail cards and domain defaults.');
+    } catch (error) {
+      warn(`Optional manifest cards could not be loaded; retaining mail cards and domain defaults. Cause: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`);
       return mailCards;
     }
   };

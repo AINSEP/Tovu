@@ -2,6 +2,8 @@ import type { Updateable } from "kysely";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pruneDatabaseCopies } from "@jini-ai/db/sqlite";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 
 import type { LedgerReadPort, LedgerRow } from "#src/features/database/timeline";
 import type { BootLedgerPort, MigrationRunsRepoPort } from "#src/features/database/boot/reconcile-interrupted-migration";
@@ -324,9 +326,9 @@ export class SqliteRestorePointsRepo implements CreateRestorePointRepoPort {
     if (!row.artifactRef) return;
     try {
       await this.pruneCopies({ justWritten: row.artifactRef });
-    } catch {
+    } catch (error) {
       // The copy and its row are saved; cleanup must not turn the operation that needed them into an error.
-      console.warn("[restore-points] Could not prune older restore points.");
+      console.warn("[restore-points] Could not prune older restore points.", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
     }
   }
 

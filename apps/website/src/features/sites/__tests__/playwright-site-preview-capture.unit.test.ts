@@ -193,7 +193,8 @@ test("a native capture failure with no injected logger warns on the console", as
   const warn = t.mock.method(console, "warn", () => {});
   const port = createSitePreviewCaptureForHost({ imageCodec: new SharpImageTransformer() }, { capture: { async captureUrl() { throw new Error("bridge down"); } } });
   assert.equal(await port.capture({ url: "http://127.0.0.1:4200/" }), null);
-  assert.deepEqual(warn.mock.calls.map((call) => call.arguments), [["[site-preview] native capture failed"]]);
+  assert.equal(warn.mock.callCount(), 1);
+  assert.match(warn.mock.calls[0]?.arguments.join(" ") ?? "", /\[site-preview\] native capture failed.*bridge down/s);
 });
 
 test("a native capture with no injected resize stores a 640px JPEG via Sharp", async () => {

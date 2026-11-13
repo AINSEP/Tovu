@@ -9,6 +9,7 @@ type Product = SiteProduct & { version?: number };
 type StoreApi = { listProducts(): Promise<Product[]>; findProduct(required: { idOrSlug: string }): Promise<Product | null> };
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { dispatchHttpRequest } from "#src/server/__tests__/helpers/in-process-http";
 
 /**
  * @file Integration-tier coverage for the public `/products`/`/products/:id` routes — through the
@@ -158,18 +159,16 @@ test("products: 'No themes installed' 500s when no theme is discovered (both rou
   assert.match(await detail.text(), /No themes installed/);
 });
 
-test("products: unexpected catalog and detail exceptions return specific safe errors (both routes)", async (t) => {
+test("products: unexpected catalog and detail exceptions return specific safe errors (both routes)", async () => {
   const app = createApp(testDeps({ commerceCatalog: {
     listProducts: async () => { throw new Error("boom"); },
     findProduct: async () => { throw new Error("boom"); },
   } }));
-  const baseUrl = await startTestServer(app, t);
-
-  const list = await fetch(`${baseUrl}/products`);
+  const list = await dispatchHttpRequest({ app, method: 'GET', url: '/products' });
   assert.equal(list.status, 500);
-  assert.equal(await list.text(), "<h1>The product catalog could not be loaded</h1><p>Please try again shortly.</p>");
+  assert.match(list.body, /^<h1>The product catalog could not be loaded<\/h1><p>Please try again shortly\.<\/p><p>Reference: [0-9a-f-]{36}<\/p>$/);
 
-  const detail = await fetch(`${baseUrl}/products/anything`);
+  const detail = await dispatchHttpRequest({ app, method: 'GET', url: '/products/anything' });
   assert.equal(detail.status, 500);
-  assert.equal(await detail.text(), "<h1>This product could not be loaded</h1><p>Please try again shortly.</p>");
+  assert.match(detail.body, /^<h1>This product could not be loaded<\/h1><p>Please try again shortly\.<\/p><p>Reference: [0-9a-f-]{36}<\/p>$/);
 });

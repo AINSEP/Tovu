@@ -51,6 +51,7 @@ test("missing site keys stay quiet while unexpected identity failures are redact
     await middleware({ headers: { authorization: "Bearer key" } } as Request, {} as Response, () => { passed = true; });
     assert.equal(passed, true);
   }
+  await attempt(new Error("no site key"));
   await attempt(new Error("no site key: none of the configured sources resolved (/private/path)"));
   assert.equal(errors.mock.callCount(), 0);
   await attempt(new TypeError("sensitive-token"));
@@ -59,7 +60,8 @@ test("missing site keys stay quiet while unexpected identity failures are redact
 
 // The id was derived at boot, but the session key is derived per request: a site key that goes
 // missing afterwards must not turn into a rejected middleware either.
-test("a keyring that fails at verify time passes the request on instead of hanging", async () => {
+test("a keyring that fails at verify time passes the request on instead of hanging", async (t) => {
+  const errors = t.mock.method(console, "error", () => {});
   const middleware = requirePublishTrust({
     keyring: {
       derive: async () => {
@@ -88,6 +90,7 @@ test("a keyring that fails at verify time passes the request on instead of hangi
 
   assert.equal(nextCalls, 1);
   assert.equal(nextArg, undefined);
+  assert.equal(errors.mock.callCount(), 0, "a missing key at verification is an expected refusal");
 });
 
 test("non-bearer authorization proceeds to the ordinary credential gate without reading publishing state", async () => {

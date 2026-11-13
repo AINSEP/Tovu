@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import type { ExternalMcpOperations } from "#src/features/external-mcp/operations-tools";
 
 /** Live in-process accounting. The federation transport owns remote errors and their tracing. */
@@ -32,9 +33,9 @@ export async function readServerAdmissions(
     return report.configFailures === undefined
       ? { ok: true, connections: report.connections }
       : { ok: true, connections: report.connections, configFailures: report.configFailures };
-  } catch {
+  } catch (error) {
     // Fixed metadata only: an opaque transport failure must not expose credentials to the client.
-    console.error("external-mcp server admissions read failed");
+    console.error("external-mcp server admissions read failed", describeErrorForLog(error));
     return unavailable();
   }
 }

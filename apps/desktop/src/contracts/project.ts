@@ -4,6 +4,8 @@
  * no logic. DTOs here are deliberately redacted — no vendor DB credential or
  * connection-string field ever crosses this boundary in either direction.
  */
+export const PROJECT_NOT_OPEN_MESSAGE = 'That project is not open. Open it first, then try again.';
+
 export type SiteLifecycleStatus =
   | 'provisioning'
   | 'starting'

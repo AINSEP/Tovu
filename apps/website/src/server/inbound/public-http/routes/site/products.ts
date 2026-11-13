@@ -1,4 +1,5 @@
 import { resolveProtocol } from "../oauth/public-origin.js";
+import { reportServerFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { productCheckoutWhenReady, type ProductCheckoutReadiness } from "./product-checkout.js";
 import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";
@@ -86,8 +87,9 @@ export const registerProductRoutes = (app: import("express").IRouter, deps: Comm
       const theme = resolved === NO_THEME_ID ? null : resolved;
       const html = await renderSite({ renderAssets: res.locals.siteConsentAssets, theme, route: "products", siteTitle, posts: [], products, siteAssistantEnabled });
       res.set("Cache-Control", cacheControlFor(req)).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));
-    } catch {
-      res.status(500).type("html").send("<h1>The product catalog could not be loaded</h1><p>Please try again shortly.</p>");
+    } catch (error) {
+      const { errorId } = reportServerFailure({ error, operation: "products:catalog" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).type("html").send(`<h1>The product catalog could not be loaded</h1><p>Please try again shortly.</p><p>Reference: ${errorId}</p>`);
     }
   });
 
@@ -119,8 +121,9 @@ export const registerProductRoutes = (app: import("express").IRouter, deps: Comm
       html = await productCheckoutWhenReady({ html, workspaceId: deps.workspaceId, priceId: product.priceId,
         productSlug: product.slug || product.id, currentOrigin: `${resolveProtocol(req)}://${req.get("host")}`, commerce: deps.commerce }, { readiness: res.locals?.commerceStatus });
       res.set("Cache-Control", cacheControlFor(req)).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));
-    } catch {
-      res.status(500).type("html").send("<h1>This product could not be loaded</h1><p>Please try again shortly.</p>");
+    } catch (error) {
+      const { errorId } = reportServerFailure({ error, operation: "products:detail" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).type("html").send(`<h1>This product could not be loaded</h1><p>Please try again shortly.</p><p>Reference: ${errorId}</p>`);
     }
   });
 };

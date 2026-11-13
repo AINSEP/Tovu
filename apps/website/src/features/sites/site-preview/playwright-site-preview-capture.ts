@@ -1,4 +1,6 @@
 import type { ImageCodecPort } from "@jini-ai/cms/media";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 /**
  * @file The server's {@link SitePreviewCapturePort}: headless Chromium through Playwright, resized
  * with sharp. The desktop captures with Electron's hidden `BrowserWindow.capturePage()`, which a
@@ -129,8 +131,8 @@ export function createSitePreviewCaptureForHost(
         const result = await capture.captureUrl({ url, viewport: VIEWPORT, fullPage: false,
           maxPageHeightPx: VIEWPORT.height, settleMs: PAINT_SETTLE_MS });
         return await resize({ png: Buffer.from(result.png), width: STORED_WIDTH_PX });
-      } catch {
-        log('[site-preview] native capture failed');
+      } catch (error) {
+        log(`[site-preview] native capture failed Cause: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`);
         return null;
       }
     },

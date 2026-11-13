@@ -2,6 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { requestThemePreviewRefresh } from "#src/features/theme/preview-refresh";
 import { syncThemeRoster } from "#src/features/theme/theme-roster-sync";
 import { requireAdminSession, getAuthedPrincipal } from "../../admin-http/dev-auth.js";
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /** Unique asset directory also versions relative CSS imports, url() assets and JS module imports. */
@@ -104,8 +105,8 @@ export function registerThemePreviewRefresh(
       }
       try {
         res.json(requestThemePreviewRefresh({ themesDir: deps.themesDir }));
-      } catch {
-        res.status(500).json({ error: "preview reload failed" });
+      } catch (error) {
+        sendAdminFailure({ res, error }, { operation: "theme-preview:refresh", message: "The preview could not be reloaded." });
       }
     },
   );

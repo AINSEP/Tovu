@@ -1060,8 +1060,8 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
    * failure remains optional for automatic guidance, but an explicit pinned pick fails closed. */
   async function prepareSitePlugins(_required: Record<string, never>, _optional = {}): Promise<{ prefix: string | null; refusalPrefix: string; pluginIds: string[] }> {
     try { return await siteTools.preflight({ runId: run.id, signal: pluginAbort.signal }); }
-    catch {
-      console.warn('[agent-plugins] automatic preflight unavailable');
+    catch (error) {
+      console.warn('[agent-plugins] automatic preflight unavailable', describeErrorForLog(error));
       return { prefix: pluginRefIds.length ? null : "", refusalPrefix: "", pluginIds: [] };
     }
   }

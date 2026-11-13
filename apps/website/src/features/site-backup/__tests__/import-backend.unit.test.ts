@@ -242,14 +242,22 @@ test("a failed site creation is rolled back and recorded", async t => {
 });
 for (const [mode, startSite, error] of [
   ["no admin URL", async () => ({ adminUrl: null, status: "stopped" }), "Site created; start it from Sites to open admin."],
-  ["a supervisor error", async () => { throw new Error("offline"); }, "Site created with its owner. Start it from Sites to open admin."],
+  ["a supervisor error", async () => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); }, "Site created with its owner. Start it from Sites to open admin."],
   ["an admin URL", async () => ({ adminUrl: "http://localhost:1/admin", status: "running" }), undefined],
 ] as const) {
   test(`a created site started with ${mode} records its start outcome`, async t => {
+    const warnings = t.mock.method(console, "warn", () => undefined);
     const { h, pending } = await pendingImport(t);
     const backend = createSiteImportBackend({ ...h.backendPorts, startSite });
     const ready = await backend.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD });
     assert.deepEqual([ready.state, ready.error, ready.instructions], ["ready", error, "Open adminUrl when available. Imported extensions remain quarantined and need explicit review before activation."]);
+    if (mode === "a supervisor error") {
+      const warning = warnings.mock.calls.find(call => String(call.arguments[0]).includes("imported site could not start"));
+      assert.ok(warning, "the start failure is logged");
+      assert.match(String(warning.arguments[1]), /boom/);
+      assert.match(String(warning.arguments[1]), /import-backend\.unit\.test\.ts/);
+      assert.doesNotMatch(String(warning.arguments[1]), /SECRETSECRETSECRETSECRET/);
+    }
   });
 }
 test("a pending import view carries the default setup URL and owner instructions", async t => {

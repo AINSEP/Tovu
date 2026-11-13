@@ -251,12 +251,17 @@ test('start-up settle: a store holding keys is kept and the import notice shows;
 });
 
 test('start-up settle: a failed or thrown status keeps every file, shows nothing and only logs', async () => {
-  for (const status of [ownerStoreFailure({ action: 'status', code: 'recovery-required' }), new Error(secret)]) {
-    const f = settleFixture(status);
-    assert.equal(await settleLegacyOwnerStore(f.ports), 'failed');
-    assert.deepEqual(f.events, ['run:status', 'log:tovu desktop: the older shared-key store could not be checked; it was left in place.']);
-    assert.ok(!f.events.join('').includes(secret));
-  }
+  const refused = settleFixture(ownerStoreFailure({ action: 'status', code: 'recovery-required' }));
+  assert.equal(await settleLegacyOwnerStore(refused.ports), 'failed');
+  assert.deepEqual(refused.events, ['run:status', 'log:tovu desktop: the older shared-key store could not be checked; it was left in place.']);
+  const failure = Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EACCES' });
+  const f = settleFixture(failure);
+  assert.equal(await settleLegacyOwnerStore(f.ports), 'failed');
+  assert.equal(f.events.length, 2);
+  assert.match(f.events[1] ?? '', /older shared-key store could not be checked; it was left in place/);
+  assert.match(f.events[1] ?? '', /Error/);
+  assert.match(f.events[1] ?? '', /EACCES/);
+  assert.doesNotMatch(f.events[1] ?? '', /boom|SECRETSECRETSECRETSECRET/);
 });
 
 test('global disconnect requires native approval and binds apply to the reviewed revision and grant digest', async () => {

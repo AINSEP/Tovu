@@ -1,4 +1,5 @@
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { rmSync } from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -591,7 +592,7 @@ function filesForReceiver({ files, submitUrl }: { files: DeployFile[]; submitUrl
 async function saveReceiverKey({ outcome, save }: { outcome: StaticPublishOutcome; save?: (required: { readonly url: string }) => Promise<void> }, _options = {}): Promise<void> {
   if (!save || outcome.ok === false) return;
   try { await save({ url: outcome.url }); }
-  catch { console.warn("[static-publish] the form receiver key could not be saved; the next publish will replace it"); }
+  catch (error) { console.warn("[static-publish] the form receiver key could not be saved; the next publish will replace it", describeErrorForLog(error)); }
 }
 
 /** Redact declared secrets from full/partial provider failures and retain the saved credential id.

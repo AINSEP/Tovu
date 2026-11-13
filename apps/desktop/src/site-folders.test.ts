@@ -202,10 +202,15 @@ test("shared settings: an import that cannot complete warns, keeps the port usab
   fs.writeFileSync(path.join(path.dirname(statePath), "desktop-site-folders.json"), JSON.stringify({ creationRoots: [root], extraRoots: [] }));
   const real = createSitesWorkspace({}, { homeDir: dir, cwd: dir, env: {}, platform: "linux", sourceRoots: [] });
   // The real workspace, except that saving the imported roots fails (e.g. a locked or full disk).
-  const workspace = { ...real, updateRoots: () => { throw new Error("settings write failed"); } };
+  const workspace = { ...real, updateRoots: () => { throw new Error("settings write failed boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); } };
   const warn = t.mock.method(console, "warn", () => {});
   const folders = createSiteFolders({ statePath, defaultRoots: [], workspace });
-  assert.deepEqual(warn.mock.calls.map((entry) => entry.arguments), [["tovu desktop: legacy sites folder import could not complete; using shared settings and retrying next boot."]]);
+  assert.equal(warn.mock.callCount(), 1);
+  const log = warn.mock.calls[0]?.arguments.join(" ") ?? "";
+  assert.match(log, /legacy sites folder import could not complete; using shared settings and retrying next boot/);
+  assert.match(log, /settings write failed boom/);
+  assert.match(log, /site-folders\.test\.ts/);
+  assert.doesNotMatch(log, /SECRETSECRETSECRETSECRET/);
   assert.equal(workspace.registry({}).hasMigration({ migration: "desktop-roots-config-v1" }), false, "not marked, so the next boot retries");
   assert.equal(typeof folders.add, "function");
 });

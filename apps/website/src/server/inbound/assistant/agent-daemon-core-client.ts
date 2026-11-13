@@ -1,6 +1,8 @@
 /** Private Tovu retained-state client. No retry or acceptance mirror: a lost mutation response
  * remains uncertain in the server's real ledger. Provider plugins also have that single owner. */
 import { z } from "zod";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { fetchTextWithTimeout } from "@jini-ai/platform/fetch-with-timeout";
 import { createTracker, redactedError } from "@jini-ai/diagnostics/observability/node";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
@@ -77,7 +79,7 @@ export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; to
     if (stopped) return;
     let body: string;
     try { body = JSON.stringify(request); }
-    catch { console.warn("[agent-daemon] telemetry serialization failed"); return; }
+    catch (error) { console.warn("[agent-daemon] telemetry serialization failed", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); return; }
     const bytes = Buffer.byteLength(body);
     if (queued >= 128 || bytes > 2 * 1024 * 1024 || queuedBytes + bytes > 4 * 1024 * 1024) { console.warn("[agent-daemon] telemetry queue is full"); return; }
     queued++; queuedBytes += bytes;

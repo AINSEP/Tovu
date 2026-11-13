@@ -1,6 +1,7 @@
 /** S3 trusted sites-home bridge. The CLI owns persistence; main owns dialogs, files and scheduling.
  * Shared keys are project references: nothing here copies a key into a site or opens an owner store.
  */
+import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
 import { createKeyedSerializer } from './keyed-serializer.ts';
 import { ownerStoreFailure } from './owner-store-cli.ts';
 import { OWNER_STORE_CHANNELS, type LegacyImportReport, type LegacyImportSource, type OwnerStoreAction,
@@ -190,8 +191,8 @@ export async function settleLegacyOwnerStore({ run, removeFiles, notify, log }: 
     if (reply.data.legacy === 'empty') { removeFiles(); return 'removed'; }
     if (reply.data.legacy === 'available') notify();
     return reply.data.legacy;
-  } catch {
-    log('tovu desktop: the older shared-key store could not be checked; it was left in place.');
+  } catch (error) {
+    log(`tovu desktop: the older shared-key store could not be checked; it was left in place. Cause: ${describeErrorForLog({ err: error })}`);
     return 'failed';
   }
 }

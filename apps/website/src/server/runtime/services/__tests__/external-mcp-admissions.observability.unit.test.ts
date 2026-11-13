@@ -34,3 +34,19 @@ for (const mode of ["unwired", "connecting", "failed"] as const) {
 test("server admissions preserves omission of optional configFailures", async () => {
   assert.deepEqual(await readServerAdmissions({ awaitFederation: async () => ({ settled: true }), readAdmissions: async () => ({ connections: [] }) }), { ok: true, connections: [] });
 });
+
+test("server admissions logs the cause class and code while returning the fixed unavailable response", async t => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
+  const result = await readServerAdmissions({ awaitFederation: async () => ({ settled: true }), readAdmissions: async () => {
+    throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EIO" });
+  } });
+  assert.equal(result.ok, false);
+  assert.equal(logs.length, 1);
+  const log = logs[0]?.join(" ") ?? "";
+  assert.match(log, /external-mcp server admissions read failed/);
+  assert.match(log, /Error/);
+  assert.match(log, /EIO/);
+  assert.doesNotMatch(log, /boom|SECRETSECRETSECRETSECRET/);
+  assert.doesNotMatch(JSON.stringify(result), /boom|SECRETSECRETSECRETSECRET/);
+});

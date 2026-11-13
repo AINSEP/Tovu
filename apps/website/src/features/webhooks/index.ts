@@ -87,7 +87,7 @@ export {
   type SiteKeySource,
 } from "./site-key-sources.js";
 export {
-  fingerprintSiteKeyHex, generateFileSiteKey, inspectSiteKeyMaterial, parseSiteKeyHex,
+  fingerprintSiteKeyHex, generateFileSiteKey, inspectSiteKeyMaterial, isNoSiteKeyError, parseSiteKeyHex,
   revealSiteKeyMaterial, SiteKeyFileAlreadyExistsError, type SiteKeyStatus,
 } from "./keyring.env.js";
 export { scanTextForSecrets } from "./secret-scan-guard.js";

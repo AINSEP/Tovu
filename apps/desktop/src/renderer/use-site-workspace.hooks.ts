@@ -26,6 +26,7 @@ import { useEffect, useReducer, useState, type Dispatch } from 'react';
 import { useWebviewLoadFailure } from './App.hooks.js';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
 import type { SiteHistoryCommand, SiteRecord, SiteSurface } from '../contracts/project.js';
+import { PROJECT_NOT_OPEN_MESSAGE } from '../contracts/project.js';
 import { subscribeWorkspaceThemePreview } from './site-theme-preview.hooks.js';
 import { sitePortPresentation } from './site-port.rules.js';
 import { adminPagePath, type SiteAdminPage } from './import-site-entry.js';
@@ -290,7 +291,7 @@ export function createWorkspaceActions(input: {
     // An id and a surface, never a url: main rebuilds the url from the registry row. If the project
     // has stopped existing, the next poll takes the tab away; other failures need a diagnostic.
     openInBrowser: () => void input.bridge?.openSiteExternal({ siteId: input.siteId, view: surface }).catch((error: unknown) => {
-      if (!(error instanceof Error && error.message.includes("That project is not open. Open it first, then try again."))) {
+      if (!(error instanceof Error && error.message.includes(PROJECT_NOT_OPEN_MESSAGE))) {
         console.error("[workspace] Could not open the site in a browser", describeErrorForLog({ err: error }));
       }
     }),

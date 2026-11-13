@@ -29,6 +29,7 @@ import {
 } from './use-site-workspace.hooks.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
 import type { SiteHistoryCommand, SiteRecord } from '../contracts/project.js';
+import { PROJECT_NOT_OPEN_MESSAGE } from '../contracts/project.js';
 import { powerControl, restartControl } from './use-site-power.hooks.js';
 
 type NavigationListener = (event: { url: string; isMainFrame?: boolean }) => void;
@@ -404,6 +405,16 @@ test('Open in browser sends the surface on screen, not the one last requested', 
   actionsFor({ guest: null, state, dispatch: recorder().dispatch, bridge }).openInBrowser();
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(sent, [{ siteId: 'site-1', view: 'site' }]);
+});
+
+test('Open in browser treats the IPC not-open message as an expected refusal', async (t) => {
+  const errors = t.mock.method(console, 'error', () => {});
+  const bridge = {
+    openSiteExternal: async () => { throw new Error(`Error invoking remote method: ${PROJECT_NOT_OPEN_MESSAGE}`); },
+  } as unknown as RunnerInventoryBridge;
+  actionsFor({ guest: null, dispatch: recorder().dispatch, bridge }).openInBrowser();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(errors.mock.callCount(), 0, 'the expected IPC refusal stays quiet');
 });
 
 // ---------------------------------------------------------------------------------------------

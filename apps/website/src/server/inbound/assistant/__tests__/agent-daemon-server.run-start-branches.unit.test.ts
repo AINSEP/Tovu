@@ -230,9 +230,11 @@ describe("onStarted continuation — early stops and prompt assembly", () => {
 
   test("an unavailable automatic preflight is warned about and the run starts without it", async () => {
     const run = conversationRun();
-    const input = await start({ prompt: "go" }, run, { siteTools: site(async () => { throw new Error("offline"); }) });
+    const input = await start({ prompt: "go" }, run, { siteTools: site(async () => { throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EIO" }); }) });
     assert.equal(input.prompt, "<<SUBAGENT_DISPATCH>>\n\ngo");
-    assert.deepEqual(run.calls.warnings, ["[agent-plugins] automatic preflight unavailable"]);
+    assert.equal(run.calls.warnings.length, 1);
+    assert.match(run.calls.warnings[0] ?? '', /automatic preflight unavailable.*Error.*EIO/);
+    assert.doesNotMatch(run.calls.warnings[0] ?? '', /boom|SECRETSECRETSECRETSECRET/);
   });
 
   test("an unavailable preflight cannot silently omit an explicitly selected plugin", async () => {

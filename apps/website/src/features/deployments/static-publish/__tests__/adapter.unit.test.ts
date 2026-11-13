@@ -854,7 +854,10 @@ test("concurrent publishes preserve each run's route and asset bytes and clean b
 test("publishStaticSite: a form receiver that cannot be prepared stops the publish; a prepared one saves its key at the published URL, and a failed save only warns", async (t) => {
   const deps: RouteDeps = testRouteDeps();
   const credentialSource: PublishCredentialSource = { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } };
-  const input = { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound,
+  const input = { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: async ({ outputDir }: { outputDir: string }) => ({
+    outputDir, routes: { succeeded: [{ path: '/', kind: 'home' as const, outputFile: 'index.html', data: 'site' }], failed: [] },
+    assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [],
+  }),
     config: { target: "github-pages", owner: "octo", repo: "demo-repo" } as StaticPublishConfig, projectName: "demo" };
   const port = (prepare: () => Promise<{ submitUrl?: string; save?: (required: { readonly url: string }) => Promise<void> }>) =>
     ({ previewInput: async () => ({}), prepare }) as unknown as NonNullable<Parameters<typeof publishStaticSite>[0]["formDestination"]>;
@@ -876,9 +879,13 @@ test("publishStaticSite: a form receiver that cannot be prepared stops the publi
   const warnings: unknown[][] = [];
   t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
   const stillPublished = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets, credentialSource, buildTarget: () => fakeDeployTarget({ value: null }),
-    formDestination: port(async () => ({ save: async () => { throw new Error("vault locked"); } })) }, input);
+    formDestination: port(async () => ({ save: async () => { throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EIO" }); } })) }, input);
   assert.equal(stillPublished.ok, true);
-  assert.ok(warnings.some(args => args[0] === "[static-publish] the form receiver key could not be saved; the next publish will replace it"));
+  const warning = warnings.find(args => args[0] === "[static-publish] the form receiver key could not be saved; the next publish will replace it");
+  assert.ok(warning);
+  assert.match(String(warning[1]), /Error/);
+  assert.match(String(warning[1]), /EIO/);
+  assert.doesNotMatch(JSON.stringify(warning), /boom|SECRETSECRETSECRETSECRET/);
 });
 
 test("publishStaticSite: a connection changed after domain review is refused before export, and registry refusals are logged", async (t) => {

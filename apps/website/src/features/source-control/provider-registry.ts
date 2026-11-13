@@ -1,4 +1,6 @@
 import path from "node:path";
+import { formatErrorForLog } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { bundledContributionSources } from "../agent-plugins/bundled-contribution-sources.js";
 import * as sourceControl from "@jini-ai/devops/source-control";
 
@@ -121,7 +123,10 @@ export async function loadBundledSourceControlProviderRegistry(
 ): Promise<SourceControlProviderRegistry> {
   let sources: readonly TrustedPluginPackage[];
   try { sources = (optional.sources ?? bundledContributionSources)({ ...required, filename: SOURCE_CONTROL_PROVIDERS_FILENAME }); }
-  catch { return toRegistry([], ['bundled source-control provider sources could not be read']); }
+  catch (error) {
+    console.warn('[source-control] bundled source-control provider sources could not be read; providers remain unavailable', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
+    return toRegistry([], ['bundled source-control provider sources could not be read']);
+  }
   const providers = new Map<string, LoadedSourceControlProvider>();
   const duplicates = new Set<string>();
   const refusals: string[] = [];

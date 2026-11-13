@@ -2,6 +2,7 @@ import { assistantDaemonToken, previousAssistantDaemonConnection } from "../../l
 import { ensureAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
 import { fetchWithDaemonParkRecovery } from "../../lifecycle/daemon-demand-fetch.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 /**
  * @file Saves an admin-chat turn when its agent run ends — whether or not a browser is still watching.
@@ -765,7 +766,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
             if (successor === watch || successor?.daemon !== watch.daemon) watch.daemon.release?.({ runId, principalId: watch.principalId }, {});
             await options.onAttemptEnded?.({ runId });
           }
-          catch { console.warn("[assistant-run-finalizer] attempt resource cleanup unavailable"); }
+          catch (error) { console.warn("[assistant-run-finalizer] attempt resource cleanup unavailable", describeErrorForLog(error)); }
           finally { if (active.get(runId)?.watch === watch) active.delete(runId); }
         });
       active.set(runId, { watch, done });

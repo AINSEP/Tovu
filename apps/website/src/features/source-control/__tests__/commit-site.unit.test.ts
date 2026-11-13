@@ -760,10 +760,12 @@ test('commit and preview snapshot theme context before rendering and pin the ren
   }
 });
 
-test('T37: plugin exceptions and unknown error codes become safe PROVIDER_ERROR outcomes', async () => {
+test('T37: plugin exceptions and unknown error codes become safe PROVIDER_ERROR outcomes', async (t) => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, 'warn', (...args: unknown[]) => { logs.push(args); });
   const deps = await withExampleGitCredential(testRouteDeps());
   const adapters: SourceControlCommitAdapter[] = [
-    { commit: async () => { throw new Error('fixture_adapter_detail: fixture_fake_token_never_real'); } },
+    { commit: async () => { throw Object.assign(new Error('fixture_adapter_detail: fixture_fake_token_never_real boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EIO' }); } },
     // Inherited Object.prototype names are not mapped codes either.
     ...['unexpected-plugin-code', 'constructor', 'toString', '__proto__', 'hasOwnProperty'].map((code): SourceControlCommitAdapter => (
       { commit: async () => ({ ok: false, code, message: 'Provider refused the commit.' } as unknown as SourceControlCommitResult) })),
@@ -784,6 +786,12 @@ test('T37: plugin exceptions and unknown error codes become safe PROVIDER_ERROR 
     assert.ok(outcome.value.message.trim().length > 0);
     assert.doesNotMatch(outcome.value.message, /fixture_adapter_detail|fixture_fake_token_never_real/);
   }
+  assert.equal(logs.length, 1);
+  const log = logs[0]?.join(' ') ?? '';
+  assert.match(log, /source control provider.*commit/i);
+  assert.match(log, /Error/);
+  assert.match(log, /EIO/);
+  assert.doesNotMatch(log, /boom|SECRETSECRETSECRETSECRET|fixture_fake_token_never_real/);
 });
 
 test("previewCommitExport: counts UTF-8 route bytes and binary assets, sorts and caps paths at 50", async () => {

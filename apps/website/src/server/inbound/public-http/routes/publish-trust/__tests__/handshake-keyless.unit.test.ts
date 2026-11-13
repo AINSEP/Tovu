@@ -97,6 +97,7 @@ test("keyless handshakes stay quiet and unexpected identity failures are redacte
     assert.equal(sent.status, 503);
     assert.deepEqual(sent.body, KEYLESS_BODY);
   }
+  await attempt(new Error("no site key"));
   await attempt(new Error("no site key: none of the configured sources resolved (/private/path)"));
   assert.equal(errors.mock.callCount(), 0);
   await attempt(new TypeError("sensitive-token"));

@@ -6,6 +6,8 @@
  *
  * Trust: data-only (no plugin code runs) and loaded for ACTIVE plugins only, so switching a host
  * plugin off stops trusting its header. Kinds this file doesn't know are skipped, not refused. */
+import { formatErrorForLog } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { consentBridgeContribution, declaredScriptsContribution, parseConsentContributions as parseConsentFile } from '@jini-ai/cookie-consent/plugins';
 import { REGION_SLOT } from '@jini-ai/cookie-consent/server';
 import type { DeclaredScript, RawContribution, RegionResolver } from '@jini-ai/cookie-consent';
@@ -52,7 +54,7 @@ export async function loadSiteRegionResolvers(
     try {
       const load = await loadContributions({ workspaceId, definition: regionContribution }, { requireActive: true });
       entries = load.items.flatMap(item => (item.pluginId === ingress ? [item.entry] : []));
-    } catch { console.error('[consent] region readers could not be loaded; visitors get the strict banner'); }
+    } catch (error) { console.error('[consent] region readers could not be loaded; visitors get the strict banner', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
   }
   return toRegionResolvers({ entries }, { legacyHeader });
 }
@@ -69,8 +71,8 @@ export async function loadSiteConsentBridges(
       const bridge = consentBridgeContribution({ entry });
       return bridge ? [bridge] : [];
     });
-  } catch {
-    console.error('[consent] browser bridges could not be loaded');
+  } catch (error) {
+    console.error('[consent] browser bridges could not be loaded', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
     return [];
   }
 }

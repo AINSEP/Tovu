@@ -5,6 +5,7 @@
  * against fakes: Electron (`net`, `session`, `BrowserWindow`), the child spawn, the crash-safety
  * registry, the shared-sites lease and the clock all arrive as ports. This module does no I/O itself.
  */
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { CliMode } from "../../startup-env.ts";
 import type { DesktopAgentService } from "../../desktop-agent-service.ts";
 
@@ -159,7 +160,7 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
     const captureBridge = await ports.startCaptureBridge();
     let desktopMcpEnv: Record<string, string> | undefined;
     try { desktopMcpEnv = await ports.desktopMcpEnv?.(); }
-    catch { ports.warn("tovu-desktop: desktop tools listener unavailable; retrying automatically."); }
+    catch (error) { ports.warn(`tovu-desktop: desktop tools listener unavailable; retrying automatically. Cause: ${describeErrorForLog({ err: error })}`); }
     let server: TServer;
     try {
       server = await ports.startServer({

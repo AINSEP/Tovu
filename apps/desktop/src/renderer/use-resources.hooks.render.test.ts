@@ -98,6 +98,29 @@ test('starts hidden without a read; IPC failures withdraw stale data and retry p
   assert.equal([...f.timers.values()][0]!.delay, 5_000);
 });
 
+test('IPC failure logs once across polls and panel changes until a successful read', async (t) => {
+  const f = fixture();
+  const logs: unknown[][] = [];
+  t.mock.method(console, 'error', (...args: unknown[]) => { logs.push(args); });
+  f.setRead(async () => { throw Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'ECONNRESET' }); });
+  let panelOpen = false;
+  const hook = renderHook(t, () => useResources({ panelOpen }, { ports: f.ports }));
+  await settle(); f.tick(); await settle();
+  assert.equal(logs.length, 1, 'only the first failure in a streak is logged');
+  const firstLog = logs[0]?.join(' ') ?? '';
+  assert.match(firstLog, /\[resources\] Could not read resource usage/);
+  assert.match(firstLog, /Error/);
+  assert.match(firstLog, /ECONNRESET/);
+  assert.doesNotMatch(firstLog, /boom|SECRETSECRETSECRETSECRET/);
+  panelOpen = true; hook.rerender(); await settle();
+  assert.equal(logs.length, 1, 'changing the panel does not end a failure streak');
+  f.setRead(async () => snapshot()); f.tick(); await settle();
+  f.setRead(async () => { throw new Error('another failure'); });
+  f.tick(); await settle(); f.tick(); await settle();
+  assert.equal(logs.length, 2, 'a successful read starts a new failure streak');
+  hook.unmount();
+});
+
 test('launch badge recovers from two initial sampler failures within ten seconds', async (t) => {
   const f = fixture();
   let at = 0, attempts = 0;

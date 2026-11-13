@@ -2,6 +2,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { describeApiError } from "@/lib/api";
 import { t as translate } from "../plugins-memory-i18n";
 import { defaultAgentPluginMemoryPort } from "./agent-plugin-memory-dependencies.hooks";
 import type { AgentPluginMemoryPort, PluginMemoryListing } from "./agent-plugin-memory-port.hooks";
@@ -71,7 +72,7 @@ export function useAgentPluginMemory(required: { pluginId: string; port: AgentPl
       const response = await write.mutate({ input: { pluginId, entryPath: current.entryPath, text: current.text } });
       if (generation.current !== requestGeneration) return;
       loader.replace({ value: response }); setStatus({ pluginId, message: t("Note saved.") });
-    } catch { if (generation.current === requestGeneration) setStatus({ pluginId, message: t("Could not save note.") }); }
+    } catch (error) { if (generation.current === requestGeneration) setStatus({ pluginId, message: describeApiError(error, t("Could not save note.")) }); }
     finally { saving.current = false; setSavingId(null); }
   };
   return { t, listing, entryPath: current.entryPath, text: current.text, setPath, setText, save,

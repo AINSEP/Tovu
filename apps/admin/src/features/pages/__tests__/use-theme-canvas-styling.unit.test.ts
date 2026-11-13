@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
+import { createFakeThemeCanvasPort, ThemeServerResponseError } from "../hooks/theme-canvas-dependencies.hooks";
 import {
   resolveCanvasTemplateChoice,
   templateMarkupUrl,
@@ -21,6 +21,28 @@ import {
 
 const DARK = { "--bg": "oklch(9% 0.004 250)", "--fg": "oklch(96% 0.003 250)" };
 const LIGHT = { "--bg": "#f6f9f8", "--fg": "#09140f" };
+
+it("treats only a typed light-token 404 as an expected missing variant", async () => {
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    for (const error of [new ThemeServerResponseError({ status: 404 }), new Error("the theme server responded with 404")]) {
+      const port = {
+        ...createFakeThemeCanvasPort(),
+        fetchThemeTokens: async (url: string) => {
+          if (url.endsWith("tokens.light.json")) throw error;
+          return DARK;
+        },
+      };
+      const hook = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+      await waitFor(() => expect(hook.result.current.status).toBe("ready"));
+      hook.unmount();
+    }
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith("[theme-canvas] Could not load light theme tokens", "Error");
+  } finally {
+    log.mockRestore();
+  }
+});
 
 describe("themeStylesheetUrl", () => {
   it("points at the v2 stylesheet for an apiVersion: 2 theme", () => {

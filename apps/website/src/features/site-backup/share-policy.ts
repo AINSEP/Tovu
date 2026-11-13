@@ -34,7 +34,7 @@ export const SHARE_LEGACY_PRIVATE_TABLES = new Set([
 
 export class SiteShareRefusal extends Error {
   readonly code: string;
-  constructor(required: { code: string; message: string }, _optional: Record<string, never> = {}) { super(required.message); this.code = required.code; this.name = "SiteShareRefusal"; }
+  constructor(required: { code: string; message: string }, { cause }: { cause?: unknown } = {}) { super(required.message, { cause }); this.code = required.code; this.name = "SiteShareRefusal"; }
 }
 
 /** Display an archive-controlled name in a refusal, never use this value for lookup.

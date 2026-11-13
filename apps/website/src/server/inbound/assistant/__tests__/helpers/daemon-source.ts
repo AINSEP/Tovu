@@ -4,6 +4,7 @@ import { resolveFullCliAccess, resolveAssistantCliPermissions, fullCliEnvLock, i
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
 import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -116,7 +117,7 @@ export async function captureDaemonRun(
     verifyJsonAgentInstall: async () => {}, bridgeInjection: { command: "host-bridge" }, readFile: async () => "",
     // Preserve existing preflight spies at the recovery boundary; recovery I/O has its own tests.
     ensureJsonAgentInstall: async (): Promise<void> => { await bindings.verifyJsonAgentInstall(); },
-    resolveNativeToolPolicy, resolveFullCliAccess, resolveAssistantCliPermissions, resolveHostSignals, assistantCliPermissions, createToolGapCollector, redactSecretShapes,
+    resolveNativeToolPolicy, resolveFullCliAccess, resolveAssistantCliPermissions, resolveHostSignals, assistantCliPermissions, createToolGapCollector, redactSecretShapes, describeErrorForLog,
     readAssistantRunToolPolicy: async (required: { deps: { ownerPrincipalId?: Promise<string>; settingsUiTabsReady?: Promise<void> }; principalId: string; agentId: string; env: NodeJS.ProcessEnv; getDef: typeof getAgentDef }): Promise<Awaited<ReturnType<typeof ReadAssistantRunToolPolicy>>> => {
       const isOwner = required.principalId === await required.deps.ownerPrincipalId;
       const hostSignals = bindings.resolveHostSignals({ env: required.env });

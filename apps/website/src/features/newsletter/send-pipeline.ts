@@ -12,6 +12,7 @@
  * `bus.subscribe("workspace.created", ...)` demonstration.
  */
 import type { DomainEvent, EventBusPort, OutboxPort } from "@jini-ai/cms/core";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { isMailRateLimited } from "@jini-ai/platform/mail";
 import type { MailerPort } from "../../platform/mail/index.js";
@@ -383,9 +384,9 @@ export async function resumeCampaign(required: {
   if (!result.campaign.audienceSnapshotId) return result;
   try {
     await requeuePendingSends({ deps: required.deps, campaign: result.campaign, audienceSnapshotId: result.campaign.audienceSnapshotId });
-  } catch {
+  } catch (error) {
     // Do not expose repository/provider diagnostics or turn an already-committed resume into a refusal.
-    console.error("[newsletter] pending delivery requeue failed after resume; inspect the send log before retrying");
+    console.error("[newsletter] pending delivery requeue failed after resume; inspect the send log before retrying", describeErrorForLog(error));
     return { ...result, requeueFailed: true };
   }
   return result;

@@ -13,7 +13,7 @@ import {
 import { isGrantActive } from "#src/features/publish-trust/grant";
 import { findGrantForSource, type PublishTrustResolution } from "#src/features/publish-trust/provisioning";
 import { mintPublishSession } from "#src/features/publish-trust/session";
-import type { KeyringPort } from "#src/features/webhooks/index";
+import { isNoSiteKeyError, type KeyringPort } from "#src/features/webhooks/index";
 
 /**
  * @file Zero-setup publishing auth — the destination's three unauthenticated handshake routes.
@@ -130,7 +130,7 @@ function asChallengeResponse(body: unknown): PublishChallengeResponse | null {
 export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishTrustHandshakeDeps): void {
   const targetInstallationId = deps.targetInstallationId.catch((error: unknown) => {
     // A site without a configured key is an ordinary state, not a boot failure.
-    if (error instanceof Error && (error.message === "no site key" || error.message.startsWith("no site key: none of the configured sources resolved ("))) return null;
+    if (isNoSiteKeyError(error)) return null;
     console.error("[publish-trust] Could not derive the site's publishing identity for the handshake:",
       describeErrorForLog(error));
     return null;

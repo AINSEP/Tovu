@@ -10,7 +10,7 @@ import test, { type TestContext } from "node:test";
 import type { ArtifactStorePort } from "@jini-ai/devops/deploy";
 import { SiteShareRegistry, type SiteShareRecord } from "../share-registry.js";
 import { createSiteShare, receiveSiteShareArtifact, revokeSiteShare, SHARE_DOWNLOAD_HEADERS, type ShareDelivery } from "../share-service.js";
-import { SHARE_LIMITS } from "../share-policy.js";
+import { SHARE_LIMITS, SiteShareRefusal } from "../share-policy.js";
 
 const ARCHIVE = Buffer.from("PK zip bytes");
 const URL = "https://cdn.example/share.zip";
@@ -34,6 +34,14 @@ function store(behaviour: Partial<ArtifactStorePort> = {}): { store: ArtifactSto
 }
 const delivery = (artifactStore: ArtifactStorePort, overrides: Partial<ShareDelivery> = {}): ShareDelivery => ({ provider: "s3", store: artifactStore, ...overrides });
 const failureOf = (promise: Promise<unknown>): Promise<{ code?: string; message: string }> => promise.then(() => assert.fail("must refuse"), (error: { code?: string; message: string }) => error);
+
+test("share refusal preserves an optional underlying cause", () => {
+  const cause = new Error("disk offline");
+  const failure = new SiteShareRefusal({ code: "DELETE_FAILED", message: "Retry revoke." }, { cause });
+  assert.equal(failure.message, "Retry revoke.");
+  assert.equal(failure.code, "DELETE_FAILED");
+  assert.equal(failure.cause, cause);
+});
 
 // receiveSiteShareArtifact --------------------------------------------------------------------
 
@@ -146,9 +154,17 @@ test("revoking an unknown share is refused as not found", async t => {
 });
 test("a local ZIP that cannot be deleted is refused after the token is disabled", async t => {
   const { registry, row } = await sharedRow(t);
-  class UndeletableRegistry extends SiteShareRegistry { override async deleteArtifact(): Promise<void> { throw new Error("busy"); } }
+  const cause = new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET");
+  class UndeletableRegistry extends SiteShareRegistry { override async deleteArtifact(): Promise<void> { throw cause; } }
   const undeletable = new UndeletableRegistry({ directory: registry.directory });
-  await assert.rejects(revokeSiteShare({ registry: undeletable, site: "ws", shareId: row.shareId }), { code: "DELETE_FAILED", message: "Share token is disabled but its ZIP could not be deleted. Retry revoke." });
+  await assert.rejects(revokeSiteShare({ registry: undeletable, site: "ws", shareId: row.shareId }), (error: unknown) => {
+    assert.ok(error instanceof SiteShareRefusal);
+    assert.equal(error.code, "DELETE_FAILED");
+    assert.equal(error.message, "Share token is disabled but its ZIP could not be deleted. Retry revoke.");
+    assert.equal(error.cause, cause);
+    assert.doesNotMatch(error.message, /SECRETSECRETSECRETSECRET/);
+    return true;
+  });
   assert.equal((await registry.get({ shareId: row.shareId }))?.status, "revoked");
 });
 test("a share without remote storage is revoked locally", async t => {
@@ -185,9 +201,20 @@ test("a remote share with no URL at all is deleted without verification", async 
   await revokeSiteShare({ registry, site: "ws", shareId: row.shareId }, { delivery: delivery(fake.store) });
   assert.deepEqual([fake.calls.deletes, fake.calls.verifies], [["k"], []]);
 });
-for (const [label, behaviour] of [["deletion fails", { delete: async () => { throw new Error("denied"); } }], ["the purge is not verified", { verify: async () => false }]] as const) {
+for (const label of ["deletion fails", "the purge is not verified"] as const) {
   test(`a remote share whose ${label} is refused as unverified`, async t => {
     const { registry, row } = await sharedRow(t, { provider: "s3", key: "k" }, URL);
-    await assert.rejects(revokeSiteShare({ registry, site: "ws", shareId: row.shareId }, { delivery: delivery(store(behaviour).store) }), { code: "DELETE_FAILED", message: "Share is disabled locally but remote deletion/purge is not verified. Retry revoke." });
+    const cause = new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET");
+    const behaviour = label === "deletion fails" ? { delete: async () => { throw cause; } } : { verify: async () => false };
+    await assert.rejects(revokeSiteShare({ registry, site: "ws", shareId: row.shareId }, { delivery: delivery(store(behaviour).store) }), (error: unknown) => {
+      assert.ok(error instanceof SiteShareRefusal);
+      assert.equal(error.code, "DELETE_FAILED");
+      assert.equal(error.message, "Share is disabled locally but remote deletion/purge is not verified. Retry revoke.");
+      assert.ok(error.cause instanceof Error);
+      if (label === "deletion fails") assert.equal(error.cause, cause);
+      else assert.equal(error.cause.message, "purge unverified");
+      assert.doesNotMatch(error.message, /SECRETSECRETSECRETSECRET/);
+      return true;
+    });
   });
 }

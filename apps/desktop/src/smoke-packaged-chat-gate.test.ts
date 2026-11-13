@@ -464,8 +464,20 @@ test("packaged-SQLite evidence failures: unreadable, invalid JSON, never settlin
   ];
   for (const [tweak, message] of cases) {
     const s = scenario(t, tweak);
+    let captured: unknown;
+    const isolate = s.deps.withIsolatedSmokeTargets;
+    s.deps.withIsolatedSmokeTargets = async (input) => {
+      try { return await isolate(input); } catch (error) { captured = error; throw error; }
+    };
     assert.equal(await smokePackagedChatCli(s.deps), 1);
     assert.deepEqual(s.err, [`smoke-packaged-chat: ${message}\n`]);
+    if (message === "Packaged SQLite returned invalid evidence JSON.") {
+      assert.ok(captured instanceof AggregateError);
+      const failure: unknown = captured.errors[0];
+      assert.ok(failure instanceof PackagedChatSmokeError);
+      assert.ok(failure.cause instanceof SyntaxError);
+      assert.match(failure.cause.stack ?? "", /smoke-packaged-chat-gate\.ts/);
+    }
   }
 });
 

@@ -11,8 +11,10 @@ import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/index";
 import { CREDENTIAL_GUIDANCE, CREDENTIAL_PASTE_MODEL_NOTE } from "#src/assistant/credential-guidance";
 import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
 import { guardUserText } from "@jini-ai/chat/core";
-import { prepareByokMessageAttachments } from "#src/server/inbound/assistant/byok-message-attachments";
-import { createContributionRegistry } from "@jini-ai/core";
+import { AttachmentUnavailableError, prepareByokMessageAttachments } from "#src/server/inbound/assistant/byok-message-attachments";
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { createContributionRegistry, formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { ToolContributor, DerivedToolContributor } from "@jini-ai/core";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { createAccessApprover } from "#src/assistant/tool-registrations";
@@ -461,8 +463,9 @@ async function attachTurnMessagesOrRespond({ attachmentIds, messages, principalI
       const prepared = await prepareByokMessageAttachments({ refs: attachmentIds, principalId, uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }, {});
       const last = messages[messages.length - 1]!;
       messages[messages.length - 1] = { ...last, content: last.content + prepared.notice, images: prepared.images };
-    } catch {
-      res.status(400).json({ error: "Attachment is unavailable. Reattach it before sending.", code: "VALIDATION_ERROR" });
+    } catch (error) {
+      if (error instanceof AttachmentUnavailableError) res.status(400).json({ error: "Attachment is unavailable. Reattach it before sending.", code: "VALIDATION_ERROR" });
+      else sendAdminFailure({ res, error }, { operation: "assistant-byok:attachments", message: "The attachment could not be prepared." });
       return false;
     }
   }
@@ -667,7 +670,7 @@ export function createAssistantByokModule(
         publish: async value => { sse(res, 'agent', { type: 'agent_plugins', ...value }); },
       } });
       if (guidance) system += `\n\n${guidance}`;
-    } catch { console.warn('[agent-plugins] automatic BYOK preflight unavailable'); }
+    } catch (error) { console.warn('[agent-plugins] automatic BYOK preflight unavailable', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
 
     return system;
   }

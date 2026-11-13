@@ -106,13 +106,19 @@ test("a failed atomic identity replacement leaves both folders untouched and rep
   const f = fixture({ t });
   fs.cpSync(f.original, f.copy, { recursive: true });
   let attemptedRename = false;
+  const cause = Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EACCES" });
   const filesystem = { ...createNodeAtomicFilesystem({}), rename: () => {
     attemptedRename = true;
-    throw Object.assign(new Error("read-only folder"), { code: "EACCES" });
+    throw cause;
   } };
 
-  assert.throws(() => addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace, filesystem }),
-    { message: "This copied website could not start because Tovu could not give its folder a separate identity." });
+  assert.throws(() => addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace, filesystem }), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.message, "This copied website could not start because Tovu could not give its folder a separate identity.");
+    assert.equal(error.cause, cause);
+    assert.doesNotMatch(error.message, /SECRETSECRETSECRETSECRET/);
+    return true;
+  });
   assert.equal(attemptedRename, true, "the failure must come from the real atomic replacement");
   assert.deepEqual(readMeta({ siteDir: f.original }), f.meta);
   assert.deepEqual(readMeta({ siteDir: f.copy }), f.meta);

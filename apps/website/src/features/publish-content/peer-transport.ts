@@ -1,4 +1,5 @@
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { bytesMatchSha256 } from "./blob-staging.js";
 import { peerHostname, peerUrl } from "./peer-url.js";
 import type { PublishContentExportEnvelope } from "./export-bundle.js";
@@ -655,10 +656,10 @@ export async function executePeerImport(
         configFields: { label: deps.credential.label }, reachable: true, status: "applied",
         publishedAt: nowIso({ clock: deps.publishHistory.clock }), triggeredBy: deps.publishHistory.triggeredBy ?? "admin_ui",
       } });
-    } catch {
+    } catch (error) {
       // The remote apply already succeeded; bookkeeping must never invite a duplicate retry.
       // Fixed diagnostics exclude credentials, remote bodies and database error parameters.
-      console.warn("[publish-content] destination history write failed after remote apply");
+      console.warn("[publish-content] destination history write failed after remote apply", describeErrorForLog(error));
     }
   }
   return result;

@@ -111,14 +111,23 @@ test("discovery cannot steal an unavailable appData site's reserved identity wit
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
-test("successful open remains owned when catalog discovery or last-opened bookkeeping is unreadable", () => {
+test("successful open remains owned when catalog discovery or last-opened bookkeeping is unreadable", (t) => {
   let opened = 0;
+  const warnings = t.mock.method(console, "warn", () => {});
   const workspace = { registry: () => ({
-    list: () => { throw new Error("Unreadable catalog"); },
-    opened: () => { opened++; throw new Error("Catalog write unavailable"); },
+    list: () => { throw new Error("Unreadable catalog boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); },
+    opened: () => { opened++; throw new Error("Catalog write unavailable boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); },
   }) } as unknown as Parameters<typeof rememberSharedSiteOpen>[0]["workspace"];
   assert.doesNotThrow(() => rememberSharedSiteOpen({ workspace, dir: "/opened-site" }));
   assert.equal(opened, 1);
+  assert.equal(warnings.mock.callCount(), 2);
+  const [discovery, bookkeeping] = warnings.mock.calls.map(call => call.arguments.join(" "));
+  assert.match(discovery ?? "", /shared catalog bookkeeping is unavailable.*Unreadable catalog boom/s);
+  assert.match(bookkeeping ?? "", /could not remember the opened website.*Catalog write unavailable boom/s);
+  for (const log of [discovery, bookkeeping]) {
+    assert.match(log ?? "", /shared-sites-home\.test\.ts/);
+    assert.doesNotMatch(log ?? "", /SECRETSECRETSECRETSECRET/);
+  }
 });
 
 
