@@ -17,7 +17,7 @@ test(`enabling a plugin mid-session makes its guidance discoverable through relo
   const site = createTempSiteLayoutFixture({});
   t.after(site.cleanup);
   const { workspaceId, agentPluginLayout } = fixture;
-  const activation = { workspaceRoot: agentPluginLayout.forWorkspace(workspaceId).root, pluginId: 'ui-ux-design', actor: 'owner' };
+  const activation = { workspaceRoot: agentPluginLayout.forWorkspace({ workspaceId }).root, pluginId: 'ui-ux-design', actor: 'owner' };
   await agentPluginActivations.setAgentPluginActivation({ ...activation, enabled: false });
   const registry = createToolRegistry({});
   let catalog = buildToolCatalogQuery(registry);

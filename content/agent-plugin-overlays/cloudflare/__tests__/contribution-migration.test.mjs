@@ -28,7 +28,7 @@ async function install(required) {
     entry('target.mjs', 'export default { create: (required, optional = {}) => ({ id: "cloudflare-pages" }) };'),
   ];
   const installed = await owner.installAgentPlugin({ layout, workspaceId, archive, expectedSha256: createHash('sha256').update(archive).digest('hex'), archiveReader: { async *entries() { yield* entries; } } });
-  const workspaceRoot = layout.forWorkspace(workspaceId).root;
+  const workspaceRoot = layout.forWorkspace({ workspaceId }).root;
   await owner.setAgentPluginActivation({ workspaceRoot, pluginId, enabled, actor: 'test:operator' }, { origin: 'bundled' });
   if (trusted) await owner.recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: installed.archiveDigest }] });
 }
@@ -50,6 +50,6 @@ for (const oldId of ['cloudflare-pages', 'deploy']) for (const state of ['truste
       assert.equal(registry.list().length, 1);
       assert.equal(registry.get('cloudflare-pages')?.pluginId, state === 'trusted' ? 'cloudflare' : oldId);
     }
-    assert.ok((await owner.listInstalledPlugins(layout.forWorkspace(workspaceId).root)).some(plugin => plugin.pluginId === oldId), 'selection must not delete a retained package');
+    assert.ok((await owner.listInstalledPlugins({ workspaceRoot: layout.forWorkspace({ workspaceId }).root })).some(plugin => plugin.pluginId === oldId), 'selection must not delete a retained package');
   } finally { await forceRemove(root); }
 });

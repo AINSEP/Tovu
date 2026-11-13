@@ -141,7 +141,7 @@ test("a plugin an operator turned off gets the token but stays off", async () =>
   assert.deepEqual(connected, [], "an operator's off switch must not be overridden");
 
   const { deps: envDeps, logs: envLogs, log: envLog } = await setup();
-  await importAgentPluginAccessTokensFromEnv({ ...envDeps, isPluginOffByOperator: async () => true }, { [ENV_VAR]: TOKEN }, envLog);
+  await importAgentPluginAccessTokensFromEnv({ deps: { ...envDeps, isPluginOffByOperator: async () => true }, env: { [ENV_VAR]: TOKEN }, log: envLog });
   assert.equal(envLogs.info.length, 1);
   assert.match(envLogs.info[0] ?? "", /stays off because an operator turned it off \(Add-Ons → Agent Plugins\)/);
 });
@@ -171,14 +171,14 @@ test("hasStoredAgentPluginCredential:a finished sign-in or a saved token counts;
 
 test("env import copies the declared env token once, logs once, and is silent on the next boot", async () => {
   const { deps, connected, readRow, logs, log } = await setup();
-  await importAgentPluginAccessTokensFromEnv(deps, { [ENV_VAR]: `  ${TOKEN}  ` }, log);
+  await importAgentPluginAccessTokensFromEnv({ deps, env: { [ENV_VAR]: `  ${TOKEN}  ` }, log });
   assert.equal((await readRow())?.authMode, "static_env");
   assert.deepEqual(connected, ["supabase"]);
   assert.equal(logs.info.length, 1);
   assert.match(logs.info[0] ?? "", /copied TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin's connection/);
   assert.ok(!logs.info.join("").includes(TOKEN), "a log line must never carry the token");
 
-  await importAgentPluginAccessTokensFromEnv(deps, { [ENV_VAR]: TOKEN }, log);
+  await importAgentPluginAccessTokensFromEnv({ deps, env: { [ENV_VAR]: TOKEN }, log });
   assert.equal(logs.info.length, 1, "a second boot must not log the copy again");
   assert.deepEqual(logs.warn, []);
 });
@@ -197,7 +197,7 @@ test("env import uses the declared URL when its connection lookup returns no row
   });
   const writes = t.mock.method(repo, "upsert");
 
-  await importAgentPluginAccessTokensFromEnv(deps, { [ENV_VAR]: TOKEN }, log);
+  await importAgentPluginAccessTokensFromEnv({ deps, env: { [ENV_VAR]: TOKEN }, log });
 
   assert.deepEqual(lookup.mock.calls[1]?.arguments, [{ workspaceId: WORKSPACE, serverId: "supabase" }]);
   assert.equal(await lookup.mock.calls[1]?.result, null);
@@ -238,14 +238,14 @@ test("env import saves a token without retiredEnv and continues to the next plug
   assert.equal(Object.hasOwn(firstAuth, "retiredEnv"), false);
   assert.equal(await deps.mcp.repo.findByServerId({ workspaceId: WORKSPACE, serverId: "first" }), null);
 
-  await assert.doesNotReject(importAgentPluginAccessTokensFromEnv({
+  await assert.doesNotReject(importAgentPluginAccessTokensFromEnv({ deps: {
     ...deps,
     resolveInstalledPlugin,
     listPlugins: async () => [
       { pluginId: "first", servers: firstServers, bundled: true },
       { pluginId: "supabase", servers: SUPABASE_SERVERS, bundled: true },
     ],
-  }, { FIRST_TOKEN: "first_plugin_token", [ENV_VAR]: TOKEN }, log));
+  }, env: { FIRST_TOKEN: "first_plugin_token", [ENV_VAR]: TOKEN }, log }));
 
   assert.deepEqual(resolveInstalledPlugin.mock.calls.map(({ arguments: args }) => args), [["first"], ["supabase"]]);
   assert.deepEqual(writes.mock.calls.filter(({ arguments: [record] }) => record.authMode === "static_env" && !record.enabled)
@@ -272,7 +272,7 @@ test("env import saves a token without retiredEnv and continues to the next plug
 
 test("env import with no token set writes nothing", async () => {
   const { deps, connected, readRow, logs, log } = await setup();
-  await importAgentPluginAccessTokensFromEnv(deps, { [ENV_VAR]: "   " }, log);
+  await importAgentPluginAccessTokensFromEnv({ deps, env: { [ENV_VAR]: "   " }, log });
   assert.equal((await readRow())?.authMode, "oauth");
   assert.deepEqual(connected, []);
   assert.deepEqual(logs.info, []);
@@ -280,7 +280,7 @@ test("env import with no token set writes nothing", async () => {
 
 test("set retired env vars are named as no longer used; unset ones are not", async () => {
   const { deps, logs, log } = await setup();
-  await importAgentPluginAccessTokensFromEnv(deps, { TOVU_SUPABASE_MCP_ENABLED: "1" }, log);
+  await importAgentPluginAccessTokensFromEnv({ deps, env: { TOVU_SUPABASE_MCP_ENABLED: "1" }, log });
   assert.equal(logs.info.length, 1);
   assert.match(logs.info[0] ?? "", /TOVU_SUPABASE_MCP_ENABLED is no longer used/);
   assert.ok(!(logs.info[0] ?? "").includes("TOVU_SUPABASE_MCP_PROJECT_REF"));
@@ -290,7 +290,7 @@ test("env import never throws: a failed save is a warning", async (t) => {
   const { deps, sealer, readRow, connected, logs, log } = await setup();
   const before = await readRow();
   const seal = t.mock.method(sealer, "seal", async () => { throw new Error("secret store unavailable"); });
-  await importAgentPluginAccessTokensFromEnv(deps, { [ENV_VAR]: TOKEN }, log);
+  await importAgentPluginAccessTokensFromEnv({ deps, env: { [ENV_VAR]: TOKEN }, log });
   assert.equal(seal.mock.callCount(), 1, "the actual credential save must reach the sealer");
   assert.equal(logs.warn.length, 1);
   assert.match(logs.warn[0] ?? "", /could not copy TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin/);
@@ -308,9 +308,9 @@ test("env import never logs importer text that echoes an opaque access token", a
   const { deps, logs, log, readRow } = await setup();
   const before = await readRow();
   const token = "opaque-import-fixture-value";
-  await importAgentPluginAccessTokensFromEnv({ ...deps,
+  await importAgentPluginAccessTokensFromEnv({ deps: { ...deps,
     resolveInstalledPlugin: async () => { throw new Error(`importer failure ${token}`); },
-  }, { [ENV_VAR]: token }, log);
+  }, env: { [ENV_VAR]: token }, log });
   assert.deepEqual(logs.warn, ["[agent-plugins] could not copy TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin. Check the site credential store and try again."]);
   assert.equal(JSON.stringify(logs).includes(token), false);
   assert.equal(JSON.stringify(logs).includes("importer failure"), false);
@@ -334,13 +334,13 @@ test("env import reads only a bundled plugin's declaration: an installed plugin 
     // Operator-installed: not the digest this build seeded.
     listPlugins: async () => [{ pluginId: "exfil", servers: evilServers, bundled: false }],
   });
-  await importAgentPluginAccessTokensFromEnv(evilDeps, { OPENAI_API_KEY: "sk-secret-must-stay-home" }, log);
+  await importAgentPluginAccessTokensFromEnv({ deps: evilDeps, env: { OPENAI_API_KEY: "sk-secret-must-stay-home" }, log });
   assert.equal(await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "exfil" }), null, "no row may be provisioned or given the env secret");
   assert.deepEqual(logs.info, []);
 
   // An entry that does not say it is bundled is treated as not bundled.
   const unmarked: ImportAgentPluginAccessTokensFromEnvDeps = testSiteLayoutContext({ ...siteLayouts.deps, ...evilDeps, listPlugins: async () => [{ pluginId: "exfil", servers: evilServers }] });
-  await importAgentPluginAccessTokensFromEnv(unmarked, { OPENAI_API_KEY: "sk-secret-must-stay-home" }, log);
+  await importAgentPluginAccessTokensFromEnv({ deps: unmarked, env: { OPENAI_API_KEY: "sk-secret-must-stay-home" }, log });
   assert.equal(await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "exfil" }), null);
 });
 
@@ -354,7 +354,7 @@ test("listInstalledAgentPluginServers marks a plugin bundled only when its diges
     assert.equal(seeded.find((plugin) => plugin.pluginId === "supabase")?.bundled, true);
 
     // Same packages, no record of what the build seeded: nothing counts as bundled.
-    await rm(path.join(layout.forWorkspace(WORKSPACE).root, BUNDLED_DIGESTS_FILENAME));
+    await rm(path.join(layout.forWorkspace({ workspaceId: WORKSPACE }).root, BUNDLED_DIGESTS_FILENAME));
     const unrecorded = await listInstalledAgentPluginServers(testSiteLayoutContext({ ...siteLayouts.deps, workspaceId: WORKSPACE }));
     assert.ok(unrecorded.length > 0);
     assert.ok(unrecorded.every((plugin) => plugin.bundled === false));
@@ -368,7 +368,7 @@ test("listInstalledAgentPluginServers deduplicates plugin ids when no bundled le
   const fixture = createTempSiteLayoutFixture({});
   t.after(() => forceRemove(fixture.siteDir));
   const layout = fixture.deps.agentPluginLayout;
-  const workspace = layout.forWorkspace(WORKSPACE);
+  const workspace = layout.forWorkspace({ workspaceId: WORKSPACE });
   const digests = ["a".repeat(64), "b".repeat(64)];
   // Publish both revisions directly: the current installer prunes older revisions on upgrade.
   for (const [index, digest] of digests.entries()) {
@@ -380,8 +380,8 @@ test("listInstalledAgentPluginServers deduplicates plugin ids when no bundled le
     }));
     await writeFile(path.join(root, "mcp.json"), JSON.stringify({ $schema: MCP_SCHEMA, mcpServers: SUPABASE_SERVERS }));
   }
-  assert.deepEqual([...(await readBundledAgentPluginDigests(workspace.root))], []);
-  assert.deepEqual((await listInstalledPlugins(workspace.root)).map(plugin => plugin.archiveDigest).sort(), digests);
+  assert.deepEqual([...(await readBundledAgentPluginDigests({ workspaceRoot: workspace.root }))], []);
+  assert.deepEqual((await listInstalledPlugins({ workspaceRoot: workspace.root })).map(plugin => plugin.archiveDigest).sort(), digests);
 
   const plugins = await listInstalledAgentPluginServers({ workspaceId: WORKSPACE, agentPluginLayout: layout });
 
@@ -394,7 +394,7 @@ test("env import never sends the token to a row pointed at a URL the bundled plu
   const row = await readRow();
   assert.ok(row);
   await deps.mcp.repo.upsert({ ...row, provisionedByPluginId: null, url: "https://elsewhere.example/mcp", enabled: true, allowedToolNames: '["x"]' });
-  await importAgentPluginAccessTokensFromEnv(deps, { [ENV_VAR]: TOKEN }, log);
+  await importAgentPluginAccessTokensFromEnv({ deps, env: { [ENV_VAR]: TOKEN }, log });
   const after = await readRow();
   assert.equal(after?.authMode, "oauth", "the token must not be saved onto that row");
   assert.equal(after?.sealedOAuth ?? null, row.sealedOAuth ?? null);
@@ -436,7 +436,7 @@ test("manifest: importFromEnv and retiredEnv parse; a malformed env name exclude
 
 test("env import skips a plugin that still has a token pending from create-site onboarding", async () => {
   const { deps, connected, readRow, logs, log } = await setup();
-  await importAgentPluginAccessTokensFromEnv(deps, { [ENV_VAR]: TOKEN, TOVU_SUPABASE_MCP_ENABLED: "1" }, log, { skipPluginIds: new Set(["supabase"]) });
+  await importAgentPluginAccessTokensFromEnv({ deps, env: { [ENV_VAR]: TOKEN, TOVU_SUPABASE_MCP_ENABLED: "1" }, log }, { skipPluginIds: new Set(["supabase"]) });
   assert.equal((await readRow())?.authMode, "oauth", "the env token must not be saved over the pending one's place");
   assert.deepEqual(connected, []);
   assert.equal(logs.info.length, 1, "retired env vars are still named");
@@ -497,12 +497,12 @@ test("a row an operator already set up and switched on still gets its plugin swi
 // L025a: retirement notices precede skip decisions, and failures remain isolated.
 test("env import warns on listing failure and logs plural retirement notices even without an import declaration", async () => {
   const { deps, log, logs, readRow } = await setup();
-  await importAgentPluginAccessTokensFromEnv({ ...deps, listPlugins: async () => { throw "listing unavailable"; } }, {}, log);
+  await importAgentPluginAccessTokensFromEnv({ deps: { ...deps, listPlugins: async () => { throw "listing unavailable"; } }, env: {}, log });
   assert.deepEqual(logs.warn, ["[agent-plugins] could not list plugins to import env tokens: listing unavailable"]);
   const config: McpServerConfig = { type: "streamable-http", url: "https://mcp.example.com/mcp", tokenAuth: {
     helpUrl: "https://example.com/help", probeUrl: "https://example.com/probe", retiredEnv: ["OLD_A", "OLD_B"],
   } };
-  await importAgentPluginAccessTokensFromEnv({ ...deps, listPlugins: async () => [{ pluginId: "retired", bundled: true, servers: { local: { type: "stdio", command: "local" }, remote: config } }] }, { OLD_A: "1", OLD_B: "2" }, log);
+  await importAgentPluginAccessTokensFromEnv({ deps: { ...deps, listPlugins: async () => [{ pluginId: "retired", bundled: true, servers: { local: { type: "stdio", command: "local" }, remote: config } }] }, env: { OLD_A: "1", OLD_B: "2" }, log });
   assert.deepEqual(logs.info, ["[agent-plugins] OLD_A, OLD_B are no longer used; the 'retired' plugin's connection replaces them. You can remove them."]);
   assert.equal((await readRow())?.authMode, "oauth");
 });
@@ -511,9 +511,9 @@ test("env import logs an operator-off save once and remains silent on its creden
   const { deps, log, logs, readRow } = await setup();
   const off = { ...deps, isPluginOffByOperator: async () => true };
   const token = ["fixture", "credential"].join("-");
-  await importAgentPluginAccessTokensFromEnv(off, { [ENV_VAR]: token }, log);
+  await importAgentPluginAccessTokensFromEnv({ deps: off, env: { [ENV_VAR]: token }, log });
   const saved = await readRow();
-  await importAgentPluginAccessTokensFromEnv(off, { [ENV_VAR]: "replacement" }, log);
+  await importAgentPluginAccessTokensFromEnv({ deps: off, env: { [ENV_VAR]: "replacement" }, log });
   assert.deepEqual(logs.info, ["[agent-plugins] copied TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin's connection; it stays off because an operator turned it off (Add-Ons → Agent Plugins). The env var is no longer needed."]);
   assert.deepEqual((await readRow())?.sealedOAuth, saved?.sealedOAuth);
   assert.deepEqual(logs.warn, []);
@@ -525,7 +525,7 @@ test("without an injected listing, env import reads the workspace's installed pl
   const temporary = await mkdtemp(path.join(tmpdir(), "import-env-default-list-"));
   t.after(() => forceRemove(temporary));
   const { listPlugins: _injected, ...withoutListing } = deps;
-  await importAgentPluginAccessTokensFromEnv({ ...withoutListing, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: temporary } }) }, { [ENV_VAR]: TOKEN }, log);
+  await importAgentPluginAccessTokensFromEnv({ deps: { ...withoutListing, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: temporary } }) }, env: { [ENV_VAR]: TOKEN }, log });
   assert.deepEqual(logs, { info: [], warn: [] });
   assert.deepEqual(connected, []);
   assert.deepEqual(await readRow(), before);
@@ -533,6 +533,6 @@ test("without an injected listing, env import reads the workspace's installed pl
 
 test("an Error thrown while listing plugins is reported by its message", async () => {
   const { deps, log, logs } = await setup();
-  await importAgentPluginAccessTokensFromEnv({ ...deps, listPlugins: async () => { throw new Error("disk unavailable"); } }, {}, log);
+  await importAgentPluginAccessTokensFromEnv({ deps: { ...deps, listPlugins: async () => { throw new Error("disk unavailable"); } }, env: {}, log });
   assert.deepEqual(logs.warn, ["[agent-plugins] could not list plugins to import env tokens: disk unavailable"]);
 });

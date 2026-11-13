@@ -82,7 +82,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: a folder zip installs switched off; the same byt
     assert.equal(body.agentPlugin.version, "1.0.0");
     assert.deepEqual(body.agentPlugin.skills.map((entry) => entry.name), [PLUGIN_ID]);
 
-    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE }).root;
     const record = JSON.parse(await readFile(path.join(workspaceRoot, "activations.json"), "utf8")).plugins[PLUGIN_ID];
     assert.equal(record?.enabled, false);
     assert.equal(record?.origin, "operator-installed");
@@ -169,7 +169,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: bad uploads are refused in plain words and insta
       assert.equal(body.error.includes(path.sep + "tmp") || body.error.includes("/ws/"), false, "no host path in the message");
     }
 
-    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE }).root;
     // The symlink case passes the pre-pass, so its disabled record is the only trace left behind.
     const plugins = JSON.parse(await readFile(path.join(workspaceRoot, "activations.json"), "utf8").catch(() => '{"plugins":{}}')).plugins;
     assert.equal(plugins[PLUGIN_ID]?.enabled ?? false, false);
@@ -239,7 +239,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: compressed HTTP bodies are refused by the raw pa
     });
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), { code: "AGENT_PLUGIN_ARCHIVE_UNREADABLE", error: "The upload could not be read." });
-    const root = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE).root;
+    const root = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE }).root;
     await assert.rejects(readFile(path.join(root, "activations.json")), { code: "ENOENT" });
   });
 });
@@ -250,7 +250,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: body size limit returns the actionable 413 befor
     const response = await upload(baseUrl, cookie, Buffer.alloc(32 * 1024 * 1024 + 1));
     assert.equal(response.status, 413);
     assert.deepEqual(await response.json(), { code: "AGENT_PLUGIN_ARCHIVE_TOO_LARGE", error: "The .zip is larger than the 32 MiB limit." });
-    const root = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE).root;
+    const root = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE }).root;
     await assert.rejects(readFile(path.join(root, "activations.json")), { code: "ENOENT" });
   });
 });
@@ -263,7 +263,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: an enabled plugin cannot be replaced", async (t)
     const old = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
     const next = await buildZipFixture([{ path: "plugin.json", content: manifest("2.0.0") }]);
     assert.equal((await upload(baseUrl, cookie, old)).status, 201);
-    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE }).root;
     await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "test" });
     const before = await readFile(path.join(workspaceRoot, "activations.json"), "utf8");
     const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/install/zip?expectedSha256=${sha(next)}&replace=true`, {
@@ -279,7 +279,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: an unreadable activation record refuses installa
   await withTempPluginsDir(async () => {
     const { mkdir, writeFile } = await import("node:fs/promises");
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
-    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE }).root;
     await mkdir(workspaceRoot, { recursive: true });
     const activations = path.join(workspaceRoot, "activations.json");
     await writeFile(activations, "{malformed");
@@ -326,7 +326,7 @@ for (const oversized of ["file", "entries"] as const) {
         code: oversized === "file" ? "AGENT_PLUGIN_FILE_TOO_LARGE" : "AGENT_PLUGIN_TOO_MANY_ENTRIES",
         error: "The .zip is too big once unpacked: at most 4096 files, 16 MiB per file, 64 MiB in all.",
       });
-      assert.deepEqual(await listInstalledPlugins(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE).root), []);
+      assert.deepEqual(await listInstalledPlugins({ workspaceRoot: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE }).root }), []);
     });
   });
 }
@@ -337,7 +337,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: a blocked publish destination is an internal ins
     const { listInstalledPlugins } = await import("#src/features/agent-plugins/lifecycle");
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
     const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
-    const workspace = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE);
+    const workspace = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE });
     const packages = workspace.pluginPackagesDir({ pluginId: PLUGIN_ID });
     await mkdir(packages, { recursive: true });
     const blocker = path.join(packages, sha(archive));
@@ -348,7 +348,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: a blocked publish destination is an internal ins
       code: "AGENT_PLUGIN_PUBLISH_FAILED", error: "This .zip contains files or links that plugins may not include.",
     });
     assert.equal(await readFile(blocker, "utf8"), "not a package directory");
-    assert.deepEqual(await listInstalledPlugins(workspace.root), []);
+    assert.deepEqual(await listInstalledPlugins({ workspaceRoot: workspace.root }), []);
   });
 });
 
@@ -520,7 +520,7 @@ test("AGENT_PLUGIN_UPDATE_ZIP: a bundled plugin is refused with 409 PLUGIN_BUNDL
   await withTempPluginsDir(async () => {
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
     const digest = await installedDigest(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]));
-    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE }).root;
     await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "seed" }, { origin: "bundled" });
 
     const response = await postUpdate(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.1.0") }]), { expectedOldDigest: digest });

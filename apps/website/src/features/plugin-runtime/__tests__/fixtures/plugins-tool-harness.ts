@@ -109,7 +109,7 @@ export function harness(options: HarnessOptions = {}) {
   const deps: PluginsToolDeps = {
     notifyRosterChanged: notifyExternalMcpRosterChanged,
     agentPluginLayout: options.layout ?? FAKE_LAYOUT,
-    providerFaces: { ...providerFacesFor({ workspaceRoot: () => (options.layout ?? FAKE_LAYOUT).forWorkspace(WORKSPACE_ID).root }), ...options.providerFaces },
+    providerFaces: { ...providerFacesFor({ workspaceRoot: () => (options.layout ?? FAKE_LAYOUT).forWorkspace({ workspaceId: WORKSPACE_ID }).root }), ...options.providerFaces },
     ...options.injected,
     pluginHost,
     ...(pluginSource ? { pluginSource } : {}),

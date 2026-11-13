@@ -1,7 +1,7 @@
 /**
  * @file Agent Plugin tool wiring for this product. The skill tool, its per-call gate, plugin search,
  * plugin memory tools and the note tool live in `@jini-ai/agent-plugins/lifecycle/host-tools`, and
- * that file carries their design notes. This file keeps the old names and signatures, binds the
+ * that file carries their design notes. This file keeps the host names, binds the
  * host-tools ports to this product (`host-tool-ports.ts`), adds this product's guidance overlays
  * (`host-plugin-guidance.ts`), and wires the static connect domain.
  */
@@ -71,8 +71,7 @@ export function buildAgentPluginToolRegistrations(
  * overlays.
  */
 export async function registerInstalledAgentPluginTools(
-  registry: { register: (registration: ToolRegistration) => void },
-  ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout; readonly withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
+  { registry, ctx }: { registry: { register: (registration: ToolRegistration) => void }; ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout; readonly withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy } },
   optional: HostPluginOverlayOptional = {},
 ): Promise<void> {
   await registerHostAgentPluginTools({ registry, workspaceId: ctx.workspaceId, ports: agentPluginHostToolPorts(ctx),

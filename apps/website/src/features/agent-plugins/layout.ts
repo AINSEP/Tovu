@@ -69,7 +69,7 @@ export function resolveAgentPluginLayout(
   return {
     root,
     workspacesDir,
-    forWorkspace(workspaceId: string): AgentPluginWorkspaceLayout {
+    forWorkspace({ workspaceId }: { workspaceId: string }, _optional: Record<string, never> = {}): AgentPluginWorkspaceLayout {
       // Normalize BEFORE validating, not after: the pattern is deliberately lowercase-only (see its
       // own doc), so validating the raw string would reject an uppercase id that the old UUID rule
       // accepted — and the normalized value is the one that actually becomes the path segment, so it
@@ -97,7 +97,7 @@ export function resolveAgentPluginLayout(
         },
         packages: path.join(workspaceRoot, "packages", "sha256"),
         staging: path.join(workspaceRoot, "staging"),
-        pluginDataDir(pluginId: string): string {
+        pluginDataDir({ pluginId }: { pluginId: string }, _optional: Record<string, never> = {}): string {
           if (!SAFE_ID_SEGMENT_PATTERN.test(pluginId) || pluginId.length > MAX_ID_SEGMENT_LENGTH) {
             throw new Error(`pluginDataDir: '${pluginId}' is not a valid Agent Plugin id`);
           }

@@ -14,11 +14,11 @@ const effects = {
 };
 
 export function pluginMemory(required: Pick<PluginStateEffects, "contain"> & { workspaceId: string; pluginId: string }, optional: { layout: AgentPluginLayout }): PluginMemory {
-  const workspaceRoot = optional.layout.forWorkspace(required.workspaceId).root;
+  const workspaceRoot = optional.layout.forWorkspace({ workspaceId: required.workspaceId }).root;
   return createPluginMemory({ ...effects, contain: required.contain, workspaceRoot, pluginId: required.pluginId });
 }
 export async function migrateAgentPluginLayout(required: Pick<PluginStateEffects, "contain"> & { layout: AgentPluginLayout; workspaceId: string }, _optional: {} = {}) {
-  return migratePluginLayout({ ...effects, contain: required.contain, workspaceRoot: required.layout.forWorkspace(required.workspaceId).root,
+  return migratePluginLayout({ ...effects, contain: required.contain, workspaceRoot: required.layout.forWorkspace({ workspaceId: required.workspaceId }).root,
     parsePluginId: ({ value }) => {
       const result = parseAgentPluginManifest({ value });
       if (!result.ok) throw new Error(result.errors.join("; "));
@@ -48,7 +48,7 @@ async function discoverSiteWorkspaceIds(required: Pick<PluginStateEffects, "cont
   try {
     for (const entry of await filesystem.readdir(path.join(required.layout.root, "ws"), { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
-      try { required.layout.forWorkspace(entry.name); ids.add(entry.name); }
+      try { required.layout.forWorkspace({ workspaceId: entry.name }); ids.add(entry.name); }
       catch { console.warn(`[agent-plugins:migration-failed] invalid legacy workspace folder ${entry.name}`); }
     }
   } catch (error) {

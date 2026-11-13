@@ -43,8 +43,8 @@ async function writeNoteOrRespond(required: { body: unknown; memory: ReturnType<
 
 /** @complexity O(p) in installed plugin count. */
 async function isInstalled(deps: AgentPluginsRouteDeps, pluginId: string): Promise<boolean> {
-  const workspace = deps.agentPluginLayout.forWorkspace(deps.workspaceId);
-  return (await listInstalledPlugins(workspace.root)).some(plugin => plugin.pluginId === pluginId);
+  const workspace = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId });
+  return (await listInstalledPlugins({ workspaceRoot: workspace.root })).some(plugin => plugin.pluginId === pluginId);
 }
 
 /** The user's notes editor writes notes only; learned knowledge stays separately readable. */

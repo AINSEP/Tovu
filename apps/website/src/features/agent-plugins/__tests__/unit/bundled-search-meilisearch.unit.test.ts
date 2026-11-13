@@ -59,7 +59,7 @@ test("mcp.json declares ZERO servers — the provider runs in-process through th
 });
 
 test("the package packs through the real packer with its manifest, provider module and skill", async () => {
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
   for (const file of ["plugin.json", "mcp.json", SEARCH_PROVIDERS_FILENAME, "providers/meilisearch.mjs", "skills/meilisearch/SKILL.md"]) {
     assert.ok(packed.files.includes(file), `${file} must survive packing`);
   }
@@ -92,7 +92,7 @@ test("seeded by the real seeder, meilisearch is SWITCHED OFF and contributes not
   await withAgentPluginsDir(async (layout) => {
     const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: BUNDLED_SOURCE.root });
     assert.equal(seeded.outcomes.find((outcome) => outcome.pluginId === "meilisearch")?.status, "seeded");
-    const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
+    const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root;
     assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins.meilisearch?.enabled, false, "no site content goes to a vendor before the owner opts in");
 
     const loadContributions = createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: BUNDLED_SOURCE.root }).loadPluginContributions;

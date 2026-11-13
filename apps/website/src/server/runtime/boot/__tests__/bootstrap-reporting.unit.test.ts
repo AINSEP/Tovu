@@ -53,7 +53,7 @@ const mcp: NewsletterRouteDeps["mcp"] = {
   classifyError: () => assert.fail("boot reporting must not classify connection errors"),
   notifyRosterChanged: unusedMcpPort,
 };
-const bundledDeps = { mcp, workspaceId: "test-workspace", agentPluginLayout: { forWorkspace: (_workspaceId: string) => ({ root: "/workspace" }) } };
+const bundledDeps = { mcp, workspaceId: "test-workspace", agentPluginLayout: { forWorkspace: (_required: { workspaceId: string }) => ({ root: "/workspace" }) } };
 const deps = bundledDeps as NewsletterRouteDeps;
 
 function resetWarningInputs(): void {

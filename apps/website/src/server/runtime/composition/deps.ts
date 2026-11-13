@@ -1181,7 +1181,7 @@ async function composeSiteRouteDeps(
   // One vendor, one switch (owner 2026-10-25): a provider plugin's linked agent plugin face follows
   // every write of its activation row (`provider-plugin-link.ts`).
   const pluginActivationRepo = followProviderActivations({ repo: sqlitePluginActivationRepoFor({ store: kernel }), workspaceId,
-    ports: bindProviderFacePorts({ workspaceRoot: () => agentPluginLayout.forWorkspace(workspaceId).root }) });
+    ports: bindProviderFacePorts({ workspaceRoot: () => agentPluginLayout.forWorkspace({ workspaceId }).root }) });
   // Provider plugins load (and their SDK asks for the host) before `const routeDeps` below exists;
   // reading `routeDeps` then is a temporal-dead-zone ReferenceError. Until `routeDeps` is built the
   // answer is "no host yet" (the SDK then omits its `plugins` lookup facade).
@@ -2347,7 +2347,7 @@ async function composeSiteRouteDeps(
     bundledSourceRoot: bundledAgentPluginsDir(),
     mcp: agentPluginMcp,
     preferences: composeAgentPluginPreferences({ settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals }, read: getEffective, write: (required, optional) => routeDeps.set(required, optional) }),
-    providerFaces: composePluginProviderFaces({ workspaceRoot: () => agentPluginLayout.forWorkspace(workspaceId).root }),
+    providerFaces: composePluginProviderFaces({ workspaceRoot: () => agentPluginLayout.forWorkspace({ workspaceId }).root }),
     notifyRosterChanged: notifyExternalMcpRosterChanged,
     builtInExternalMcpServerIds: readBuiltInExternalMcpServerIds({ env: process.env }),
     externalMcpToolApprovalRepo: new SqliteExternalMcpToolApprovalRepo(kernel),
@@ -2752,7 +2752,7 @@ async function composeSiteRouteDeps(
     loadInstalledDeployTargets: ({ workspaceId }) => loadInstalledDeployTargets({ workspaceId,
       loadContributions: agentPluginLifecycle.loadPluginContributions,
       readEnabled: async ({ workspaceId, pluginId }) => {
-        const activation = await agentPluginLifecycle.resolveAgentPluginActivation({ workspaceRoot: agentPluginLayout.forWorkspace(workspaceId).root, pluginId });
+        const activation = await agentPluginLifecycle.resolveAgentPluginActivation({ workspaceRoot: agentPluginLayout.forWorkspace({ workspaceId }).root, pluginId });
         return activation.verdict === "undetermined" ? null : activation.verdict === "active";
       },
     }),
@@ -2896,7 +2896,7 @@ async function composeSiteRouteDeps(
    * @complexity O(1) composition; the commerce service owns subsequent bounded work. */
   function compositionCommerce() {
     return composeCommerce({ kernel: kernel as unknown as StorageKernel<unknown>,
-      workspaceId, siteId: projectSiteId || workspaceId, workspaceRoot: agentPluginLayout.forWorkspace(workspaceId).root,
+      workspaceId, siteId: projectSiteId || workspaceId, workspaceRoot: agentPluginLayout.forWorkspace({ workspaceId }).root,
       workerOwner: (overrides.storeRole ?? 'owner') === 'owner', workerDirectory: dbPath === ':memory:' ? resolvedSiteBinding.dir : dirname(dbPath),
       settingsRepo, settingsReady: siteTitleReady, providerConfig: providerConfigSource, providers: providerPlugins,
       httpClient: { send: ({ request }, options) => createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }).send(request, options) }, clock, idGen,

@@ -195,7 +195,7 @@ test("the inventory is keyed by the digest the seeder's own packer gives each bu
   await writeFile(join(sourceRoot, "p", card), CARD_TEXT);
   await writeFile(join(sourceRoot, "README.md"), "not a package folder");
   const packageFiles = await readBundledPackageFiles({}, { sourceRoot });
-  const { sha256: digest } = await packAgentPluginDirectory(join(sourceRoot, "p"));
+  const { sha256: digest } = await packAgentPluginDirectory({ sourceDir: join(sourceRoot, "p") });
   assert.deepEqual([...packageFiles.keys()], [digest]);
   assert.deepEqual(Object.fromEntries(packageFiles.get(digest)!), { [card]: sha256(CARD_TEXT), "plugin.json": sha256('{"name":"p"}') });
   assert.deepEqual(await readBundledImportPluginIds({}, { sourceRoot }), new Set(["p"]));

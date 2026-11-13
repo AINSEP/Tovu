@@ -88,7 +88,7 @@ export async function loadDeployOpsRegistry(ctx: { workspaceId: string }, requir
       // A switched-off plugin's manifest is read as data (no module imported) so a refusal can name it.
       onInactive: async ({ plugin }) => {
         // An unreadable manifest only loses the name; it must not refuse every active platform.
-        const parsed = parseDeployOpsFile(await readTrustedPluginFile(plugin, DEPLOY_OPS_FILENAME).catch(() => ""));
+        const parsed = parseDeployOpsFile(await readTrustedPluginFile({ plugin, filename: DEPLOY_OPS_FILENAME }).catch(() => ""));
         for (const descriptor of parsed.ok ? parsed.descriptors : []) if (!switchedOff.has(descriptor.id)) switchedOff.set(descriptor.id, plugin.pluginId);
       },
     });

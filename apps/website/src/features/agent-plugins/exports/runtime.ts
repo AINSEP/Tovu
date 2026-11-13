@@ -61,11 +61,11 @@ async function publicHost(required: { selected: SelectedPluginExport; deps: Runt
  */
 function collectHead(required: { selected: SelectedPluginExport; mode: "live" | "static"; head: Map<string, string> }, _options = {}): void {
   const { owner, component, definition } = required.selected;
-  const urlFor = (filename: string) => escapeHtml({ text: pluginExportFileUrl({ pluginId: owner.plugin.pluginId, component, filename }) });
-  if (definition.styles) required.head.set(`${owner.id}:${definition.styles}`, `<link rel="stylesheet" href="${urlFor(definition.styles)}">`);
+  const urlFor = ({ filename }: { filename: string }, _optional: Record<string, never> = {}) => escapeHtml({ text: pluginExportFileUrl({ pluginId: owner.plugin.pluginId, component, filename }) });
+  if (definition.styles) required.head.set(`${owner.id}:${definition.styles}`, `<link rel="stylesheet" href="${urlFor({ filename: definition.styles })}">`);
   if (required.mode !== "static") return;
   for (const filename of Object.values(definition.assets ?? {})) {
-    const url = urlFor(filename);
+    const url = urlFor({ filename });
     required.head.set(url, `<link rel="preload" as="image" href="${url}">`);
   }
 }

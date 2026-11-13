@@ -50,7 +50,7 @@ export async function readNewSiteAgentPluginTokensFromStdin(read: () => Promise<
   } catch {
     throw new ValidationError("init: --agent-plugin-tokens-stdin expects a JSON object on stdin");
   }
-  const parsed = parseNewSiteAgentPluginTokens(raw);
+  const parsed = parseNewSiteAgentPluginTokens({ raw });
   if (!parsed.ok) throw new ValidationError(`init: ${parsed.error}`);
   return parsed.tokens;
 }
@@ -70,7 +70,7 @@ export function defaultNewSiteAgentPluginTokenCheck(sourceRoot: string = bundled
  * @throws {ValidationError} The same plain message the admin's create route returns.
  */
 export async function assertNewSiteAgentPluginTokensAccepted(tokens: Readonly<Record<string, string>>, check: NewSiteAgentPluginTokenCheck): Promise<void> {
-  const refusal = await firstNewSiteAgentPluginTokenRefusal(check, tokens);
+  const refusal = await firstNewSiteAgentPluginTokenRefusal({ check, tokens });
   if (refusal) throw new ValidationError(refusal.error);
 }
 

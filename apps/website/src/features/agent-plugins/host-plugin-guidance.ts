@@ -65,7 +65,7 @@ export function isHostPluginFileRequest(file: unknown): file is string {
 }
 
 /** `undefined` for absent files only; a directory or other non-file is a broken overlay and throws. */
-async function readBoundedFile(filePath: string): Promise<{ text: string } | { tooLarge: true } | undefined> {
+async function readBoundedFile({ filePath }: { filePath: string }, _optional: Record<string, never> = {}): Promise<{ text: string } | { tooLarge: true } | undefined> {
   let size: number;
   try {
     const info = await stat(filePath);
@@ -80,7 +80,7 @@ async function readBoundedFile(filePath: string): Promise<{ text: string } | { t
 }
 
 /** Sorted `host/<name>.md` names; a missing `host/` folder lists none. O(entries log entries). */
-async function listHostFiles(pluginDir: string): Promise<string[]> {
+async function listHostFiles({ pluginDir }: { pluginDir: string }, _optional: Record<string, never> = {}): Promise<string[]> {
   try {
     const entries = await readdir(path.join(pluginDir, "host"), { withFileTypes: true });
     return entries.filter(entry => entry.isFile()).map(entry => `${HOST_PLUGIN_FILE_PREFIX}${entry.name}`)
@@ -100,9 +100,9 @@ async function listHostFiles(pluginDir: string): Promise<string[]> {
 export async function readHostPluginGuidance(required: { pluginId: string }, optional: HostPluginOverlayOptional = {}): Promise<HostPluginGuidance> {
   if (!PLUGIN_ID_PATTERN.test(required.pluginId)) return { files: [] };
   const pluginDir = path.join(optional.overlaysDir ?? agentPluginOverlaysDir(), required.pluginId);
-  const guidance = await readBoundedFile(path.join(pluginDir, GUIDANCE_FILE));
+  const guidance = await readBoundedFile({ filePath: path.join(pluginDir, GUIDANCE_FILE) });
   if (guidance && "tooLarge" in guidance) throw new Error(`Agent Plugin overlay ${required.pluginId}/${GUIDANCE_FILE} is over ${MAX_HOST_PLUGIN_FILE_BYTES} bytes`);
-  const files = await listHostFiles(pluginDir);
+  const files = await listHostFiles({ pluginDir });
   return guidance ? { guidance: guidance.text, files } : { files };
 }
 
@@ -113,8 +113,8 @@ export async function readHostPluginGuidance(required: { pluginId: string }, opt
  */
 export async function readHostPluginFile(required: { pluginId: string; file: string }, optional: HostPluginOverlayOptional = {}): Promise<{ text: string } | { note: string }> {
   const pluginDir = path.join(optional.overlaysDir ?? agentPluginOverlaysDir(), required.pluginId);
-  const valid = PLUGIN_ID_PATTERN.test(required.pluginId) ? await listHostFiles(pluginDir) : [];
-  const read = valid.includes(required.file) ? await readBoundedFile(path.join(pluginDir, required.file)) : undefined;
+  const valid = PLUGIN_ID_PATTERN.test(required.pluginId) ? await listHostFiles({ pluginDir }) : [];
+  const read = valid.includes(required.file) ? await readBoundedFile({ filePath: path.join(pluginDir, required.file) }) : undefined;
   if (read && "text" in read) return { text: read.text };
   const label = HOST_FILE_PATTERN.test(required.file) ? ` '${required.file}'` : "";
   const reason = read ? `is over ${MAX_HOST_PLUGIN_FILE_BYTES} bytes` : "is not available";
@@ -153,7 +153,7 @@ function nextFrontmatterState(required: { state: FrontmatterState; line: string;
  * text, examples and every other tool stay byte-identical; source files are never changed.
  * @complexity O(lines).
  */
-export function removeChatRefusedToolPermissions(text: string): string {
+export function removeChatRefusedToolPermissions({ text }: { text: string }, _optional: Record<string, never> = {}): string {
   const lines = text.split("\n");
   let state: FrontmatterState = "body";
   let fence: string | undefined;
@@ -206,7 +206,7 @@ export async function deliverHostPluginGuidance(
   const parts = read && "text" in read ? [lead, read.text] : [lead, host.guidance, body];
   const guidance = parts.filter(Boolean).join("\n\n");
   const note = [result.note, read && "note" in read ? read.note : undefined].filter(Boolean).join(" ");
-  return { guidance: removeChatRefusedToolPermissions(guidance), files, ...(note ? { note } : {}) };
+  return { guidance: removeChatRefusedToolPermissions({ text: guidance }), files, ...(note ? { note } : {}) };
 }
 
 /** A run-reference request, as `lifecycle.ts`'s `resolveHostPluginRefs` receives it. */

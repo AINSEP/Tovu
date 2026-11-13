@@ -44,7 +44,7 @@ const bootLog = { info: (message: string) => consoleLogger.info({ message }), wa
 async function syncProviderFacesAtBoot(deps: NewsletterRouteDeps): Promise<void> {
   try {
     await syncProviderFaces({
-      ports: bindProviderFacePorts({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace(deps.workspaceId).root }),
+      ports: bindProviderFacePorts({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root }),
       providerEnabled: async ({ pluginId }) => (await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId }))?.enabled === true,
     });
   } catch (error) {
@@ -58,7 +58,7 @@ async function syncProviderFacesAtBoot(deps: NewsletterRouteDeps): Promise<void>
 async function lockSoonAgentPluginsAtBoot(deps: NewsletterRouteDeps): Promise<void> {
   try {
     const switched = await lockSoonAgentPlugins({ catalog: explicitRootSoonCatalog, activations: explicitRootAgentPluginActivations,
-      workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root });
+      workspaceRoot: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root });
     if (switched.length === 0) return;
     bootLog.info(`[bundled-agent-plugins] switched off plugins that aren't ready yet: ${switched.join(", ")}`);
     await notifyExternalMcpRosterChanged({ lowered: { pluginIds: switched } });
@@ -83,7 +83,7 @@ function defaultAgentPluginTokenBootSteps(deps: NewsletterRouteDeps): AgentPlugi
         { siteDir, sealer: deps.siteAssistantSecretSealer, importToken: (pluginId, token) => importAgentPluginAccessToken(deps, { pluginId, token }) },
         bootLog,
       ),
-    importFromEnv: (skipPluginIds) => importAgentPluginAccessTokensFromEnv(deps, process.env, bootLog, { skipPluginIds }),
+    importFromEnv: (skipPluginIds) => importAgentPluginAccessTokensFromEnv({ deps, env: process.env, log: bootLog }, { skipPluginIds }),
   };
 }
 
@@ -179,10 +179,10 @@ export function bundledAgentPluginBootWarnings(state: BundledAgentPluginBootStat
  *  @complexity O(p) in recorded plus installed plugins. */
 async function readEnabledAndInstalledIds(deps: NewsletterRouteDeps): Promise<Pick<BundledAgentPluginBootState, "enabledIds" | "installedIds">> {
   try {
-    const workspaceRoot = deps.agentPluginLayout.forWorkspace(deps.workspaceId).root;
+    const workspaceRoot = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root;
     const [activations, installed] = await Promise.all([
       explicitRootAgentPluginActivations.readAgentPluginActivations({ workspaceRoot }),
-      listInstalledPlugins(workspaceRoot),
+      listInstalledPlugins({ workspaceRoot }),
     ]);
     const enabledIds = Object.entries(activations.plugins).filter(([, record]) => record.enabled).map(([pluginId]) => pluginId);
     return { enabledIds, installedIds: installed.map((plugin) => plugin.pluginId) };

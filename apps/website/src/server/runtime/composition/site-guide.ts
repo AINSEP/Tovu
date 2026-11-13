@@ -59,9 +59,9 @@ export function siteGuideFactDeps(
     // No membership enable/disable toggle exists; a wired repository does not establish feature state.
     readMembersEnabled: async () => null,
     readAgentPlugins: async () => {
-      const layout = deps.agentPluginLayout.forWorkspace(deps.workspaceId);
+      const layout = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId });
       const installed = lifecycle.preferBundledAgentPluginDigests(
-        await lifecycle.listInstalledPlugins(layout.root), await lifecycle.readBundledAgentPluginDigests(layout.root),
+        await lifecycle.listInstalledPlugins({ workspaceRoot: layout.root }), await lifecycle.readBundledAgentPluginDigests({ workspaceRoot: layout.root }),
       );
       if (installed.length > 256) throw new ToolInputError({ message: "site_guide: agent-plugin inventory exceeds the 256-record read limit." });
       return Promise.all(installed.map(async plugin => {

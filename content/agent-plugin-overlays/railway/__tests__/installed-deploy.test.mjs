@@ -48,7 +48,7 @@ test("installed Railway contributes deploy and observes its returned run through
   try {
     const layout = resolveAgentPluginLayout();
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
-    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root, pluginId: "railway", enabled: true, actor: "test:operator" }, { origin: "bundled" });
+    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root, pluginId: "railway", enabled: true, actor: "test:operator" }, { origin: "bundled" });
     const registry = await loadDeployOpsRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
     assert.deepEqual(registry.refusals, []);
     assert.equal(typeof registry.get("railway")?.module.deploy, "function");

@@ -37,10 +37,10 @@ async function bootWith(input: { activation: Activation; signedIn?: boolean; wri
     await writeFile(path.join(source, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN, version: "1.0.0" }));
     await writeFile(path.join(source, "mcp.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
       mcpServers: { media: { type: "streamable-http", url: URL_, authMode: "oauth", defaultTools: { allow: ALLOW, write: WRITE } } } }));
-    const packed = await packAgentPluginDirectory(source);
+    const packed = await packAgentPluginDirectory({ sourceDir: source });
     const agentPluginLayout = resolveAgentPluginLayout({ siteDir: path.join(dir, "site") }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(dir, "installed") } });
     await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: createBundledSourceArchiveReader(), layout: agentPluginLayout, workspaceId: WORKSPACE });
-    const workspaceRoot = agentPluginLayout.forWorkspace(WORKSPACE).root;
+    const workspaceRoot = agentPluginLayout.forWorkspace({ workspaceId: WORKSPACE }).root;
     const [enabled, actor] = { "operator-on": [true, "operator-1"], "seed-off": [false, "system:seed"], "operator-off": [false, "operator-1"] }[input.activation] as [boolean, string];
     await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled, actor });
 

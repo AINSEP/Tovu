@@ -82,7 +82,7 @@ test("the fly skill triggers for a Fly server deploy and defers to the host guid
 });
 
 test("the package packs through the real installer's own packer, fly templates included", async () => {
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
 
   assert.ok(packed.files.includes("plugin.json"));
   assert.ok(packed.files.includes("skills/fly/SKILL.md"));
@@ -284,7 +284,7 @@ test("Fly owns ops, config and FlyV1 scheme with no static publish target, and s
   assert.deepEqual(manifest.extensions.jini.provides, ["deploy-ops:fly", "deploy-config:fly", "credential-scheme:fly-io"]);
   assert.deepEqual(JSON.parse(await readPackageFile("tovu-deploy-ops.json")).platforms.map((entry) => entry.id), ["fly"]);
   assert.deepEqual(JSON.parse(await readPackageFile("tovu-deploy-configs.json")).generators.map((entry) => entry.id), ["fly"]);
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
   assert.ok(packed.files.includes("deploy-ops/fly.mjs"));
   assert.ok(packed.files.includes("deploy-configs/fly.mjs"));
   assert.ok(packed.files.includes("tovu-credential-schemes.json"));

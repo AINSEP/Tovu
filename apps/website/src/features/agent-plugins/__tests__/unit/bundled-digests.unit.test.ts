@@ -72,7 +72,7 @@ async function withWorkspace<T>(fn: (context: { readonly cwd: string; readonly w
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    return await fn({ cwd: dir, workspaceRoot: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).root });
+    return await fn({ cwd: dir, workspaceRoot: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID }).root });
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
@@ -85,7 +85,7 @@ async function withWorkspace<T>(fn: (context: { readonly cwd: string; readonly w
 async function installRealPackage(pluginId: string, skillMarkdown: string, archiveSeed: string) {
   const archive = new Uint8Array(Buffer.from(archiveSeed));
   // These ledger tests deliberately reproduce the retained digests of pre-pruning installs.
-  return installLegacyRevision({ packagesDir: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).pluginPackagesDir({ pluginId }), install: () => installAgentPlugin({
+  return installLegacyRevision({ packagesDir: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID }).pluginPackagesDir({ pluginId }), install: () => installAgentPlugin({
     archive,
     expectedSha256: createHash("sha256").update(archive).digest("hex"),
     archiveReader: reader([
@@ -98,12 +98,12 @@ async function installRealPackage(pluginId: string, skillMarkdown: string, archi
 }
 
 test("normalizeBundledDigests keeps only well-formed entries and rejects a foreign envelope", () => {
-  assert.deepEqual([...normalizeBundledDigests({ schemaVersion: 1, plugins: { github: { archiveDigest: DIGEST_A } } })], [["github", DIGEST_A]]);
-  assert.deepEqual([...normalizeBundledDigests({ schemaVersion: 2, plugins: { github: { archiveDigest: DIGEST_A } } })], []);
-  assert.deepEqual([...normalizeBundledDigests({ plugins: { github: { archiveDigest: DIGEST_A } } })], []);
-  assert.deepEqual([...normalizeBundledDigests("not a document")], []);
+  assert.deepEqual([...normalizeBundledDigests({ value: { schemaVersion: 1, plugins: { github: { archiveDigest: DIGEST_A } } } })], [["github", DIGEST_A]]);
+  assert.deepEqual([...normalizeBundledDigests({ value: { schemaVersion: 2, plugins: { github: { archiveDigest: DIGEST_A } } } })], []);
+  assert.deepEqual([...normalizeBundledDigests({ value: { plugins: { github: { archiveDigest: DIGEST_A } } } })], []);
+  assert.deepEqual([...normalizeBundledDigests({ value: "not a document" })], []);
   assert.deepEqual(
-    [...normalizeBundledDigests({ schemaVersion: 1, plugins: { github: { archiveDigest: "not-a-digest" }, supabase: { archiveDigest: DIGEST_B } } })],
+    [...normalizeBundledDigests({ value: { schemaVersion: 1, plugins: { github: { archiveDigest: "not-a-digest" }, supabase: { archiveDigest: DIGEST_B } } } })],
     [["supabase", DIGEST_B]],
     "one malformed entry must not discard its well-formed siblings",
   );
@@ -148,7 +148,7 @@ test("recordBundledAgentPluginDigests merges over earlier boots and refuses a se
     // source root — must not cost supabase the entry the earlier boot recorded.
     await recordBundledAgentPluginDigests({ workspaceRoot: dir, seeded: [{ pluginId: "github", archiveDigest: DIGEST_C }] });
     assert.deepEqual(
-      [...(await readBundledAgentPluginDigests(dir))].sort(),
+      [...(await readBundledAgentPluginDigests({ workspaceRoot: dir }))].sort(),
       [
         ["github", DIGEST_C],
         ["supabase", DIGEST_B],
@@ -164,7 +164,7 @@ test("recordBundledAgentPluginDigests merges over earlier boots and refuses a se
         { pluginId: "github", archiveDigest: DIGEST_B },
       ],
     });
-    assert.deepEqual([...(await readBundledAgentPluginDigests(dir))], [["supabase", DIGEST_B]]);
+    assert.deepEqual([...(await readBundledAgentPluginDigests({ workspaceRoot: dir }))], [["supabase", DIGEST_B]]);
 
     const onDisk = JSON.parse(await readFile(path.join(dir, BUNDLED_DIGESTS_FILENAME), "utf8"));
     assert.equal(onDisk.schemaVersion, 1, "the file must stay a schemaVersion 1 document");
@@ -177,7 +177,7 @@ test("a boot that seeded nothing writes no ledger at all", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-bundled-digests-empty-"));
   try {
     await recordBundledAgentPluginDigests({ workspaceRoot: path.join(dir, "never-created"), seeded: [] });
-    assert.deepEqual([...(await readBundledAgentPluginDigests(path.join(dir, "never-created")))], []);
+    assert.deepEqual([...(await readBundledAgentPluginDigests({ workspaceRoot: path.join(dir, "never-created") }))], []);
     await assert.rejects(() => stat(path.join(dir, "never-created")), { code: "ENOENT" });
     await recordBundledAgentPluginDigests({ workspaceRoot: dir, seeded: [{ pluginId: "github", archiveDigest: DIGEST_A }] });
     const ledgerPath = path.join(dir, BUNDLED_DIGESTS_FILENAME);
@@ -195,8 +195,8 @@ test("an OPERATOR-installed plugin under two digests is still refused — the le
     const second = await installRealPackage("ui-ux-design", "# Variant B\n", "operator-archive-b");
     const sorted = [first.archiveDigest, second.archiveDigest].sort();
 
-    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
-    assert.deepEqual(await resolveAgentPluginRefs(["ui-ux-design"], layout), {
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID });
+    assert.deepEqual(await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout }), {
       ok: false,
       reason: `Agent Plugin 'ui-ux-design' matches 2 installed packages (digests: ${sorted.join(", ")}) — refusing to guess which one to use`,
     });
@@ -216,8 +216,8 @@ test("a ledger naming a digest this workspace does not have leaves the ambiguity
 
     await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "ui-ux-design", archiveDigest: DIGEST_A }] });
 
-    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
-    assert.deepEqual(await resolveAgentPluginRefs(["ui-ux-design"], layout), {
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID });
+    assert.deepEqual(await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout }), {
       ok: false,
       reason: `Agent Plugin 'ui-ux-design' matches 2 installed packages (digests: ${sorted.join(", ")}) — refusing to guess which one to use`,
     });
@@ -231,10 +231,10 @@ test("an UNREADABLE ledger reads as empty, so the ambiguity refusal still fires"
     const sorted = [first.archiveDigest, second.archiveDigest].sort();
 
     await writeFile(path.join(workspaceRoot, BUNDLED_DIGESTS_FILENAME), "{ this is not json", "utf8");
-    assert.deepEqual([...(await readBundledAgentPluginDigests(workspaceRoot))], []);
+    assert.deepEqual([...(await readBundledAgentPluginDigests({ workspaceRoot }))], []);
 
-    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
-    assert.deepEqual(await resolveAgentPluginRefs(["ui-ux-design"], layout), {
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID });
+    assert.deepEqual(await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout }), {
       ok: false,
       reason: `Agent Plugin 'ui-ux-design' matches 2 installed packages (digests: ${sorted.join(", ")}) — refusing to guess which one to use`,
     });
@@ -247,8 +247,8 @@ test("a DISABLED plugin under two digests stays harmless — the activation gate
     await installRealPackage("ui-ux-design", "# Variant B\n", "disabled-ambiguous-b");
     await setAgentPluginActivation({ workspaceRoot, pluginId: "ui-ux-design", enabled: false, actor: "operator:test" });
 
-    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
-    const injected = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID });
+    const injected = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout });
     assert.ok(injected.ok === false && injected.reason.includes("is installed in this workspace but is not enabled"));
     assert.deepEqual(await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID })), []);
   });
@@ -258,12 +258,12 @@ test("a first-ever install resolves exactly as before, ledger or no ledger", asy
   await withWorkspace(async ({ workspaceRoot }) => {
     const only = await installRealPackage("ui-ux-design", "# Only one\n\nUse an 8px spacing grid.\n", "first-install-a");
 
-    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
-    const withoutLedger = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID });
+    const withoutLedger = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout });
     assert.ok(withoutLedger.ok && withoutLedger.promptPrefix.includes("Use an 8px spacing grid."));
 
     await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "ui-ux-design", archiveDigest: only.archiveDigest }] });
-    const withLedger = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+    const withLedger = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout });
     assert.deepEqual(withLedger, withoutLedger, "a ledger for an already-unambiguous id must change nothing at all");
   });
 });
@@ -277,7 +277,7 @@ test("the bundled ledger selects one upgrade's content on both real resolution s
     assert.notEqual(old.archiveDigest, published.archiveDigest);
     await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "ui-ux-design", archiveDigest: published.archiveDigest }] });
 
-    const resolved = await resolveAgentPluginRefs(["ui-ux-design"], resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID));
+    const resolved = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID }) });
     if (!resolved.ok) assert.fail(JSON.stringify(resolved));
     assert.ok(resolved.promptPrefix.includes(newMarkdown));
     assert.equal(resolved.promptPrefix.includes(oldMarkdown), false);

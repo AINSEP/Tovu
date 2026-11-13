@@ -58,6 +58,6 @@ export function grantDeclaredToolsAtBoot(
 ): Promise<void> {
   return bootWithPorts({ deps: withOverrides(tovuGrantDeps(deps), {
     listPlugins: () => (deps.listPlugins ?? (() => listInstalledAgentPluginServers(deps)))(),
-    readActivations: () => agentPluginActivations.readAgentPluginActivations({ workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root }),
+    readActivations: () => agentPluginActivations.readAgentPluginActivations({ workspaceRoot: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root }),
   }), log });
 }

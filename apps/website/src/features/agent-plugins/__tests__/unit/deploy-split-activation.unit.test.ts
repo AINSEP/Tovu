@@ -27,7 +27,7 @@ test("unreadable activation state refuses carry and seeding without writing succ
   const { resolveAgentPluginLayout } = await import("../../layout.js");
   await withWorkspaceRoot(async root => {
     const layout = resolveAgentPluginLayout({ siteDir: root }, { env: {} });
-    const workspaceRoot = layout.forWorkspace("ws").root;
+    const workspaceRoot = layout.forWorkspace({ workspaceId: "ws" }).root;
     const { mkdir } = await import("node:fs/promises");
     await mkdir(workspaceRoot, { recursive: true });
     const file = path.join(workspaceRoot, "activations.json");

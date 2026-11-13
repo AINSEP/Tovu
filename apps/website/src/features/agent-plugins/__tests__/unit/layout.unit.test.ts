@@ -64,7 +64,7 @@ test("a relative TOVU_AGENT_PLUGINS_DIR is rejected", () => {
 
 test("forWorkspace roots packages, data, and staging entirely under ws/<workspaceId> -- no shared path", () => {
   const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ cwd: "/srv/tovu-site", env: {} }) }, { env: {} });
-  const ws = layout.forWorkspace(WORKSPACE_ID);
+  const ws = layout.forWorkspace({ workspaceId: WORKSPACE_ID });
 
   const workspaceRoot = path.join(layout.root, "ws", WORKSPACE_ID);
   assert.equal(ws.root, workspaceRoot);
@@ -74,8 +74,8 @@ test("forWorkspace roots packages, data, and staging entirely under ws/<workspac
 
 test("two workspaces resolve to entirely disjoint trees -- neither path is a prefix of the other's sibling content", () => {
   const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ cwd: "/srv/tovu-site", env: {} }) }, { env: {} });
-  const a = layout.forWorkspace(WORKSPACE_ID);
-  const b = layout.forWorkspace(OTHER_WORKSPACE_ID);
+  const a = layout.forWorkspace({ workspaceId: WORKSPACE_ID });
+  const b = layout.forWorkspace({ workspaceId: OTHER_WORKSPACE_ID });
 
   assert.notEqual(a.root, b.root);
   assert.notEqual(a.packages, b.packages);
@@ -87,21 +87,21 @@ test("two workspaces resolve to entirely disjoint trees -- neither path is a pre
 
 test("pluginDataDir joins the plugin id under this workspace's own data root", () => {
   const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ cwd: "/srv/tovu-site", env: {} }) }, { env: {} });
-  const ws = layout.forWorkspace(WORKSPACE_ID);
-  const dir = ws.pluginDataDir("ui-ux-design");
+  const ws = layout.forWorkspace({ workspaceId: WORKSPACE_ID });
+  const dir = ws.pluginDataDir({ pluginId: "ui-ux-design" });
   assert.equal(dir, path.join(ws.root, "ui-ux-design", "data"));
 });
 
 test("pluginDataDir rejects a plugin id that isn't a valid Agent Plugin name", () => {
   const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ cwd: "/srv/tovu-site", env: {} }) }, { env: {} });
-  const ws = layout.forWorkspace(WORKSPACE_ID);
-  assert.throws(() => ws.pluginDataDir("../escape"), { name: "Error", message: "pluginDataDir: '../escape' is not a valid Agent Plugin id" });
+  const ws = layout.forWorkspace({ workspaceId: WORKSPACE_ID });
+  assert.throws(() => ws.pluginDataDir({ pluginId: "../escape" }), { name: "Error", message: "pluginDataDir: '../escape' is not a valid Agent Plugin id" });
 });
 
 test("forWorkspace rejects a workspace id that could escape its own path segment", () => {
   const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ cwd: "/srv/tovu-site", env: {} }) }, { env: {} });
   assert.throws(
-    () => layout.forWorkspace("../escape"),
+    () => layout.forWorkspace({ workspaceId: "../escape" }),
     { message: "forWorkspace: '../escape' is not a valid workspace id" },
   );
 });
@@ -125,7 +125,7 @@ test("forWorkspace rejects a workspace id that could escape its own path segment
 
 test("forWorkspace accepts this instance's real, non-UUID workspace id", () => {
   const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ cwd: "/srv/tovu-site", env: {} }) }, { env: {} });
-  const ws = layout.forWorkspace("workspace-local");
+  const ws = layout.forWorkspace({ workspaceId: "workspace-local" });
   assert.equal(ws.root, path.resolve("/srv/tovu-site/sites/tovu-dev/agent-plugins/ws/workspace-local"));
   assert.equal(ws.packages, path.resolve("/srv/tovu-site/sites/tovu-dev/agent-plugins/ws/workspace-local/packages/sha256"));
 });
@@ -133,11 +133,11 @@ test("forWorkspace accepts this instance's real, non-UUID workspace id", () => {
 test("forWorkspace still normalizes an uppercase id to a lowercase path segment", () => {
   const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ cwd: "/srv/tovu-site", env: {} }) }, { env: {} });
   assert.equal(
-    layout.forWorkspace("11111111-1111-4111-8111-11111111111A").root,
+    layout.forWorkspace({ workspaceId: "11111111-1111-4111-8111-11111111111A" }).root,
     path.resolve("/srv/tovu-site/sites/tovu-dev/agent-plugins/ws/11111111-1111-4111-8111-11111111111a"),
   );
   assert.equal(
-    layout.forWorkspace("WORKSPACE-LOCAL").root,
+    layout.forWorkspace({ workspaceId: "WORKSPACE-LOCAL" }).root,
     path.resolve("/srv/tovu-site/sites/tovu-dev/agent-plugins/ws/workspace-local"),
   );
 });
@@ -146,7 +146,7 @@ test("forWorkspace rejects every shape that could escape or split the path segme
   const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ cwd: "/srv/tovu-site", env: {} }) }, { env: {} });
   for (const bad of ["../escape", "..", ".", "", "a/b", "a\\b", "a b", "-leading", "trailing-", "a--b", "a_b", "ws/../..", "a".repeat(65)]) {
     assert.throws(
-      () => layout.forWorkspace(bad),
+      () => layout.forWorkspace({ workspaceId: bad }),
       new RegExp(`^Error: forWorkspace: '${bad.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}' is not a valid workspace id$`),
       `expected '${bad}' to be rejected`,
     );
@@ -154,7 +154,7 @@ test("forWorkspace rejects every shape that could escape or split the path segme
 });
 
 test("pluginRootDir, pluginPackagesDir and pluginMemoryDir refuse an id that could escape the workspace tree", () => {
-  const ws = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ cwd: "/srv/tovu-site", env: {} }) }, { env: {} }).forWorkspace(WORKSPACE_ID);
+  const ws = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ cwd: "/srv/tovu-site", env: {} }) }, { env: {} }).forWorkspace({ workspaceId: WORKSPACE_ID });
   for (const pluginId of ["../escape", "a".repeat(200), "Upper"]) {
     const message = `'${pluginId}' is not a valid Agent Plugin id`;
     assert.throws(() => ws.pluginRootDir({ pluginId }), { message }, pluginId);
@@ -164,7 +164,7 @@ test("pluginRootDir, pluginPackagesDir and pluginMemoryDir refuse an id that cou
 });
 
 test("pluginMemoryDir resolves only the learned/notes kinds and refuses any other kind", () => {
-  const ws = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ cwd: "/srv/tovu-site", env: {} }) }, { env: {} }).forWorkspace(WORKSPACE_ID);
+  const ws = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ cwd: "/srv/tovu-site", env: {} }) }, { env: {} }).forWorkspace({ workspaceId: WORKSPACE_ID });
   assert.equal(ws.pluginMemoryDir({ pluginId: "github", kind: "learned" }), path.join(ws.pluginRootDir({ pluginId: "github" }), "memory", "learned"));
   assert.equal(ws.pluginMemoryDir({ pluginId: "github", kind: "notes" }), path.join(ws.pluginRootDir({ pluginId: "github" }), "memory", "notes"));
   const untrustedKind = "../secrets" as "notes";

@@ -157,7 +157,7 @@ test("T21: OAuth sign-in respects an operator's explicit plugin-off decision", a
   const fixture = createTempSiteLayoutFixture({});
   t.after(fixture.cleanup);
   const { agentPluginLayout } = fixture.deps;
-  const workspaceRoot = agentPluginLayout.forWorkspace(WORKSPACE).root;
+  const workspaceRoot = agentPluginLayout.forWorkspace({ workspaceId: WORKSPACE }).root;
   await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "operator-1" });
   const h = await makeHarness({ provisionedByPluginId: PLUGIN, agentPluginLayout });
 
@@ -182,11 +182,11 @@ test("OAuth callback composes installed defaults with real plugin activation sto
     await mkdir(source);
     await writeFile(path.join(source, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN, version: "1.0.0" }));
     await writeFile(path.join(source, "mcp.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", mcpServers: DECLARED }));
-    const packed = await packAgentPluginDirectory(source);
+    const packed = await packAgentPluginDirectory({ sourceDir: source });
     const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
     await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256,
       archiveReader: createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
-    const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
+    const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE }).root;
     // The seeder's default-off record: a sign-in switches it on (an operator's own "off" stays, see T21).
     await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "system:seed" });
     const h = await makeHarness({ provisionedByPluginId: PLUGIN, productionBindings: true });
@@ -215,11 +215,11 @@ test("an operator turning the plugin OFF after the off-check but before the enab
     await mkdir(source);
     await writeFile(path.join(source, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN, version: "1.0.0" }));
     await writeFile(path.join(source, "mcp.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", mcpServers: DECLARED }));
-    const packed = await packAgentPluginDirectory(source);
+    const packed = await packAgentPluginDirectory({ sourceDir: source });
     const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
     await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256,
       archiveReader: createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
-    const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
+    const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE }).root;
     await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "system:seed" });
     // Controlled interleaving: the check reads the seeder's default-off (not an operator's), then the
     // operator's own "off" lands before the enable runs. The switch-on helper reads nothing itself, so
@@ -255,11 +255,11 @@ async function signInWith(tovuExtension: Record<string, unknown>, before: Activa
     await mkdir(source);
     await writeFile(path.join(source, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN, version: "1.0.0", extensions: { tovu: tovuExtension } }));
     await writeFile(path.join(source, "mcp.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", mcpServers: DECLARED }));
-    const packed = await packAgentPluginDirectory(source);
+    const packed = await packAgentPluginDirectory({ sourceDir: source });
     const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
     await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256,
       archiveReader: createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
-    const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
+    const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE }).root;
     if (before !== "absent") await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: before === "operator-on", actor: before === "seed-off" ? "system:seed" : "operator-1" });
     const h = await makeHarness({ provisionedByPluginId: PLUGIN, productionBindings: true });
     await h.signIn();

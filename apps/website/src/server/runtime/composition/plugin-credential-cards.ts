@@ -38,7 +38,7 @@ export function createPluginCredentialCardsLoader({ agentPluginLayout, loadMailC
   let lifecycle: ReturnType<typeof createTovuAgentPluginLifecycle> | undefined;
   // Tool catalogs can be built before a site is bound; only a lookup needs the fixed layout.
   const owner = () => lifecycle ??= createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, { bundledSourceRoot: bundledAgentPluginsDir() });
-  const readFile: ReadFile = options.readFile ?? (({ plugin, filename }) => owner().readTrustedPluginFile(plugin, filename));
+  const readFile: ReadFile = options.readFile ?? (({ plugin, filename }) => owner().readTrustedPluginFile({ plugin, filename }));
   const definition = { ...credentialCardsContribution, load: async ({ plugin, descriptor }: Parameters<typeof credentialCardsContribution.load>[0]) =>
     await ownsDestination({ plugin, card: descriptor, readFile }) ? { ...descriptor, pluginId: plugin.pluginId }
       : `credential card '${descriptor.providerId}' from '${plugin.pluginId}' was refused: destination is not owned by this plugin` };
@@ -71,7 +71,7 @@ async function readOwnedIdentities({ plugin, readFile }: { plugin: TrustedPlugin
   const sources = [
     { filename: 'tovu-deploy-targets.json', parse: parseDeployTargetsFile },
     { filename: 'tovu-source-control.json', parse: parseSourceControlProvidersFile },
-    { filename: 'tovu-mail-adapters.json', parse: parseMailAdaptersFile },
+    { filename: 'tovu-mail-adapters.json', parse: (raw: string) => parseMailAdaptersFile({ raw }) },
   ];
   for (const source of sources) {
     let parsed: ReturnType<typeof source.parse> | undefined;

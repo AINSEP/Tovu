@@ -82,7 +82,7 @@ export function createAgentPluginAdminSurfaceSource(
   const definition = defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME });
   return {
     list: async ({ workspaceId }) => (await required.lifecycle.loadPluginContributions({ workspaceId, definition }, { requireActive: true, orderByPluginId: true })).items,
-    readFile: ({ plugin, filename }) => required.lifecycle.readTrustedPluginFile(plugin, filename),
+    readFile: ({ plugin, filename }) => required.lifecycle.readTrustedPluginFile({ plugin, filename }),
   };
 }
 

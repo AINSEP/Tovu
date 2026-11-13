@@ -29,7 +29,7 @@ test("T1: static snapshot ships fallback + deduplicated CSS/artwork, no marker/s
   // preserving the production UTF-8 contract; binary PNG containment/read has a separate route pin.
   deps.agentPluginLifecycle = { ...deps.agentPluginLifecycle,
     findTrustedPluginPackages: async () => [{ trusted: plugin }],
-    readTrustedPluginFile: async (_plugin, filename) => { const value = files.get(filename); assert.ok(value); return value; } };
+    readTrustedPluginFile: async ({ filename }) => { const value = files.get(filename); assert.ok(value); return value; } };
   const source = createPluginExportSource({ lifecycle: deps.agentPluginLifecycle });
   // PNG bytes use the lifecycle containment owner against this real temporary package file.
   const { writeFileSync, mkdirSync } = await import("node:fs");

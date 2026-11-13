@@ -223,7 +223,7 @@ test("t91 R2: a lock already busy before the call still raises the confirmation 
 test("t91 R2: a lock that goes busy while the dialog is open removes nothing on confirm, and the package survives", async () => {
   await withAgentPluginsDir(async () => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-busy-confirm");
-    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A);
+    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A });
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "operator-plugin", enabled: true, actor: "op-1" });
     const packageBefore = await snapshotTree(installed.packageRoot);
     const activationsPath = path.join(workspaceLayout.root, "activations.json");
@@ -256,7 +256,7 @@ test("t91 R2: a lock that goes busy while the dialog is open removes nothing on 
 test("Layout B: a busy per-plugin state lock on confirm is a not-removed RESULT (plugin-busy), never an opaque thrown error, and the package survives", async () => {
   await withAgentPluginsDir(async () => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-busy-state-lock");
-    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A);
+    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A });
     const pluginPackagesDir = workspaceLayout.pluginPackagesDir({ pluginId: "operator-plugin" });
     const packageBefore = await snapshotTree(installed.packageRoot);
     try {

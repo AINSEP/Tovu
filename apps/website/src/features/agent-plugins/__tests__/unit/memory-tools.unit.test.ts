@@ -42,7 +42,7 @@ test("L025b memory pairs pin scoped read/write schemas, validation and revocatio
   const sibling = pluginMemory({ contain: containAgentPluginStatePath, workspaceId: "workspace-local", pluginId: "sibling" }, { layout });
   await sibling.learned.write({ entryPath: "private.md", text: "other plugin's context" });
   assert.deepEqual(await read!.handler({ ...ctx, input: { entryPath: "private.md" } }), { pluginId: "pinned", entryPath: "private.md", exists: false });
-  const directory = path.join(layout.forWorkspace("workspace-local").pluginMemoryDir({ pluginId: "pinned", kind: "learned" }), "not-a-file");
+  const directory = path.join(layout.forWorkspace({ workspaceId: "workspace-local" }).pluginMemoryDir({ pluginId: "pinned", kind: "learned" }), "not-a-file");
   await mkdir(directory);
   await assert.rejects(read!.handler({ ...ctx, input: { entryPath: "not-a-file" } }), /regular UTF-8 files/, "non-ENOENT errors must propagate");
   for (const entryPath of ["../escape", "", 42]) await assert.rejects(read!.handler({ ...ctx, input: { entryPath } }));

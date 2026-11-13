@@ -47,16 +47,16 @@ test('Tovu delivers host tool rules beside portable skills, including tools-firs
   const layout = resolveAgentPluginLayout({ siteDir }, { env: {} });
   const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: source.root, hostOverlaysDir: overlayRoot });
   const workspaceId = 'workspace-local';
-  const workspace = layout.forWorkspace(workspaceId);
+  const workspace = layout.forWorkspace({ workspaceId });
   const seed = await lifecycle.seedBundledAgentPlugins({ layout, workspaceId, sourceRoot: source.root });
   assert.equal(seed.ledgerFailure, undefined);
   for (const pluginId of pluginIds) await lifecycle.setAgentPluginActivation({ workspaceRoot: workspace.root, pluginId, enabled: true, actor: 'test:operator' });
   const registry = createToolRegistry({});
-  await registerInstalledAgentPluginTools(registry, { workspaceId, agentPluginLayout: layout, withExtensionApprovalPolicy }, { overlaysDir: overlayRoot });
+  await registerInstalledAgentPluginTools({ registry, ctx: { workspaceId, agentPluginLayout: layout, withExtensionApprovalPolicy } }, { overlaysDir: overlayRoot });
   const executor = createToolExecutor({ registry });
   for (const pluginId of pluginIds) {
     const toolId = `agent_plugin_${pluginId.replaceAll('-', '_')}`;
-    const pointer = await lifecycle.resolveAgentPluginRefs([pluginId], workspace, 'pointer');
+    const pointer = await lifecycle.resolveAgentPluginRefs({ pluginRefIds: [pluginId], workspaceLayout: workspace }, { deliveryMode: 'pointer' });
     assert.equal(pointer.ok, true, pluginId);
     assert.match(pointer.promptPrefix, /MANDATORY/);
     assert.ok(pointer.promptPrefix.includes(toolId), pluginId);
@@ -75,7 +75,7 @@ test('Tovu delivers host tool rules beside portable skills, including tools-firs
       assert.match(guidance, /target:\s*"resend"/);
       assert.ok(guidance.includes('Tovu Mail — Resend API'));
     }
-    const injected = await lifecycle.resolveAgentPluginRefs([pluginId], workspace, 'inject');
+    const injected = await lifecycle.resolveAgentPluginRefs({ pluginRefIds: [pluginId], workspaceLayout: workspace }, { deliveryMode: 'inject' });
     assert.equal(injected.ok, true, pluginId);
     assert.ok(injected.promptPrefix.includes(overlay), pluginId);
     assert.ok(injected.promptPrefix.includes(skill), pluginId);

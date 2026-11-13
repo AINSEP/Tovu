@@ -57,7 +57,7 @@ test("a macOS-style folder zip installs from inside its one folder, switched off
     assert.equal(alreadyInstalled, false);
     assert.equal(plugin.pluginId, "notes");
     assert.deepEqual(plugin.files, ["plugin.json", "skills/notes/SKILL.md"]);
-    const record = JSON.parse(await readFile(path.join(layout.forWorkspace(WORKSPACE).root, "activations.json"), "utf8")).plugins.notes;
+    const record = JSON.parse(await readFile(path.join(layout.forWorkspace({ workspaceId: WORKSPACE }).root, "activations.json"), "utf8")).plugins.notes;
     assert.equal(record?.enabled, false);
     assert.equal(record?.origin, "operator-installed");
     assert.equal(record?.updatedBy, "owner");
@@ -75,7 +75,7 @@ test("a different package under an installed id is refused, and the first stays 
       install(layout, await buildZipFixture([{ path: "plugin.json", content: manifest("notes", "2.0.0") }])),
       (error: unknown) => error instanceof AgentPluginUploadError && error.code === "PLUGIN_ID_TAKEN",
     );
-    const packagesDir = layout.forWorkspace(WORKSPACE).pluginPackagesDir({ pluginId: "notes" });
+    const packagesDir = layout.forWorkspace({ workspaceId: WORKSPACE }).pluginPackagesDir({ pluginId: "notes" });
     assert.equal((await readdir(packagesDir)).length, 1);
   });
 });
@@ -97,7 +97,7 @@ test("refusals: digest, missing or ambiguous manifest, unreadable bytes, symlink
         (error instanceof AgentPluginInstallError || error instanceof AgentPluginUploadError) && error.code === code, code);
     }
     // Nothing was published by any refusal.
-    const root = layout.forWorkspace(WORKSPACE).root;
+    const root = layout.forWorkspace({ workspaceId: WORKSPACE }).root;
     const entries = await readdir(root).catch(() => [] as string[]);
     assert.equal(entries.includes("linky") ? (await readdir(path.join(root, "linky"))).includes("package") : false, false);
   });
@@ -109,18 +109,18 @@ test("explicit replacement upgrades the same id, leaves one disabled version and
     const old = await buildZipFixture([{ path: "plugin.json", content: manifest("notes", "1.0.0") }]);
     const next = await buildZipFixture([{ path: "plugin.json", content: manifest("notes", "2.0.0") }]);
     await install(layout, old);
-    const memory = layout.forWorkspace(WORKSPACE).pluginMemoryDir({ pluginId: "notes", kind: "notes" });
+    const memory = layout.forWorkspace({ workspaceId: WORKSPACE }).pluginMemoryDir({ pluginId: "notes", kind: "notes" });
     await mkdir(memory, { recursive: true });
     await writeFile(path.join(memory, "saved.md"), "keep this");
     const preview = await previewUploadedAgentPlugin({ archive: next, expectedSha256: sha(next), workspaceId: WORKSPACE, actor: "owner", replace: true }, { layout });
     assert.equal(preview.version, "2.0.0");
     assert.deepEqual(preview.upgradeFrom, ["1.0.0"]);
-    assert.equal((await readdir(layout.forWorkspace(WORKSPACE).pluginPackagesDir({ pluginId: "notes" }))).length, 1, "preview never publishes");
+    assert.equal((await readdir(layout.forWorkspace({ workspaceId: WORKSPACE }).pluginPackagesDir({ pluginId: "notes" }))).length, 1, "preview never publishes");
     const result = await installUploadedAgentPlugin({ archive: next, expectedSha256: sha(next), workspaceId: WORKSPACE, actor: "owner", replace: true }, { layout });
     assert.equal(result.plugin.version, "2.0.0");
-    assert.equal((await readdir(layout.forWorkspace(WORKSPACE).pluginPackagesDir({ pluginId: "notes" }))).length, 1);
+    assert.equal((await readdir(layout.forWorkspace({ workspaceId: WORKSPACE }).pluginPackagesDir({ pluginId: "notes" }))).length, 1);
     assert.equal(await readFile(path.join(memory, "saved.md"), "utf8"), "keep this");
-    const record = JSON.parse(await readFile(path.join(layout.forWorkspace(WORKSPACE).root, "activations.json"), "utf8")).plugins.notes;
+    const record = JSON.parse(await readFile(path.join(layout.forWorkspace({ workspaceId: WORKSPACE }).root, "activations.json"), "utf8")).plugins.notes;
     assert.equal(record.enabled, false);
   });
 });
@@ -129,12 +129,12 @@ test("invalid replacement archive leaves the old version and activation untouche
   await withLayout(async layout => {
     const old = await buildZipFixture([{ path: "plugin.json", content: manifest("notes") }]);
     await install(layout, old);
-    const root = layout.forWorkspace(WORKSPACE).root;
+    const root = layout.forWorkspace({ workspaceId: WORKSPACE }).root;
     const before = await readFile(path.join(root, "activations.json"), "utf8");
     const bad = await buildZipFixture([{ path: "plugin.json", content: manifest("notes", "2.0.0") }, { path: "link", content: "/etc", mode: 0o120777 }]);
     await assert.rejects(() => installUploadedAgentPlugin({ archive: bad, expectedSha256: sha(bad), workspaceId: WORKSPACE, actor: "owner", replace: true }, { layout }));
     assert.equal(await readFile(path.join(root, "activations.json"), "utf8"), before);
-    assert.deepEqual(await readdir(layout.forWorkspace(WORKSPACE).pluginPackagesDir({ pluginId: "notes" })), [sha(old)]);
+    assert.deepEqual(await readdir(layout.forWorkspace({ workspaceId: WORKSPACE }).pluginPackagesDir({ pluginId: "notes" })), [sha(old)]);
   });
 });
 
@@ -152,7 +152,7 @@ test("replacement refuses enabled, bundled and undetermined activation without t
     const old = await buildZipFixture([{ path: "plugin.json", content: manifest("notes") }]);
     const next = await buildZipFixture([{ path: "plugin.json", content: manifest("notes", "2.0.0") }]);
     await install(layout, old);
-    const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
+    const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE }).root;
     const required = { archive: next, expectedSha256: sha(next), workspaceId: WORKSPACE, actor: "owner", replace: true };
     for (const [enabled, origin, code] of [[true, "operator-installed", "PLUGIN_ENABLED"], [false, "bundled", "PLUGIN_BUNDLED"]] as const) {
       await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: "notes", enabled, actor: "owner" }, { origin });
@@ -165,7 +165,7 @@ test("replacement refuses enabled, bundled and undetermined activation without t
     malformed.plugins.notes = { enabled: "unknown" };
     await writeFile(activationPath, JSON.stringify(malformed));
     await assert.rejects(() => installUploadedAgentPlugin(required, { layout }));
-    assert.deepEqual(await readdir(layout.forWorkspace(WORKSPACE).pluginPackagesDir({ pluginId: "notes" })), [sha(old)]);
+    assert.deepEqual(await readdir(layout.forWorkspace({ workspaceId: WORKSPACE }).pluginPackagesDir({ pluginId: "notes" })), [sha(old)]);
   });
 });
 
@@ -174,7 +174,7 @@ test("publication failure restores the old digest and its exact disabled activat
     const old = await buildZipFixture([{ path: "plugin.json", content: manifest("notes") }]);
     const next = await buildZipFixture([{ path: "plugin.json", content: manifest("notes", "2.0.0") }]);
     await install(layout, old);
-    const workspace = layout.forWorkspace(WORKSPACE);
+    const workspace = layout.forWorkspace({ workspaceId: WORKSPACE });
     const before = await readFile(path.join(workspace.root, "activations.json"), "utf8");
     // Publication consults the memory layout only after the old package has been staged aside.
     const failingLayout = { ...layout, forWorkspace: () => ({ ...workspace, pluginDataDir: () => { throw new Error("publication unavailable"); } }) };
@@ -234,7 +234,7 @@ test("replacing a package that declared no version reports no upgradeFrom, and a
     const result = await installUploadedAgentPlugin({ archive: next, expectedSha256: sha(next), workspaceId: WORKSPACE, actor: "owner", replace: true }, { layout });
     assert.equal(result.plugin.version, "2.0.0");
     assert.deepEqual(result.upgradeFrom ?? [], []);
-    assert.deepEqual(await readdir(layout.forWorkspace(WORKSPACE).pluginPackagesDir({ pluginId: "notes" })), [sha(next)]);
+    assert.deepEqual(await readdir(layout.forWorkspace({ workspaceId: WORKSPACE }).pluginPackagesDir({ pluginId: "notes" })), [sha(next)]);
 
     const fresh = await buildZipFixture([{ path: "plugin.json", content: unversioned("fresh") }]);
     const freshPreview = await previewUploadedAgentPlugin({ archive: fresh, expectedSha256: sha(fresh), workspaceId: WORKSPACE, actor: "owner" }, { layout });

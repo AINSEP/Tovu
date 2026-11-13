@@ -363,7 +363,7 @@ test("a disable retry clears missing owned adapters and preserves a newer live p
 test("disable cleanup recovers an inactive plugin's provider ownership after a fresh mailer boot and preserves a newer active owner", async t => {
   const fixture = createTempSiteLayoutFixture({}); t.after(fixture.cleanup);
   const layout = fixture.deps.agentPluginLayout;
-  const workspace = layout.forWorkspace(WS);
+  const workspace = layout.forWorkspace({ workspaceId: WS });
   const digest = 'a'.repeat(64);
   const pluginDir = path.join(workspace.pluginPackagesDir({ pluginId: PLUGIN_TOGGLE.pluginId }), digest);
   await mkdir(pluginDir, { recursive: true });

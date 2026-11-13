@@ -33,21 +33,21 @@ test("software-engineering seeds OFF, explicit enablement delivers its skill/ove
   assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(PLUGIN_ID), false);
   const layout = resolveAgentPluginLayout({ siteDir }, { env: {} });
   const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: source.root, hostOverlaysDir: overlayRoot });
-  const workspace = layout.forWorkspace(WORKSPACE);
+  const workspace = layout.forWorkspace({ workspaceId: WORKSPACE });
   const input = { layout, workspaceId: WORKSPACE, sourceRoot: source.root };
   const seeded = await lifecycle.seedBundledAgentPlugins(input);
   assert.equal(seeded.ledgerFailure, undefined);
   assert.equal(seeded.outcomes.find(item => item.pluginId === PLUGIN_ID)?.status, "seeded");
   assert.equal((await lifecycle.readAgentPluginActivations({ workspaceRoot: workspace.root })).plugins[PLUGIN_ID]?.enabled, false);
   assert.deepEqual(await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE, agentPluginLayout: layout }), []);
-  assert.equal((await lifecycle.resolveAgentPluginRefs([PLUGIN_ID], workspace, "inject")).ok, false);
+  assert.equal((await lifecycle.resolveAgentPluginRefs({ pluginRefIds: [PLUGIN_ID], workspaceLayout: workspace }, { deliveryMode: "inject" })).ok, false);
 
   await lifecycle.setAgentPluginActivation({ workspaceRoot: workspace.root, pluginId: PLUGIN_ID, enabled: true, actor: "test:operator" });
   const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE, agentPluginLayout: layout });
   assert.deepEqual(sources.map(item => item.id), ["agent_plugin_software_engineering"]);
   const registry = createToolRegistry({});
-  await registerInstalledAgentPluginTools(registry,
-    { workspaceId: WORKSPACE, agentPluginLayout: layout, withExtensionApprovalPolicy }, { overlaysDir: overlayRoot });
+  await registerInstalledAgentPluginTools({ registry,
+    ctx: { workspaceId: WORKSPACE, agentPluginLayout: layout, withExtensionApprovalPolicy } }, { overlaysDir: overlayRoot });
   const executor = createToolExecutor({ registry });
   const request = { principal: { id: "test:operator" }, run: { id: "run-engineering" }, toolId: "agent_plugin_software_engineering", input: {} };
   const completed = await executor.execute(request);
@@ -62,11 +62,11 @@ test("software-engineering seeds OFF, explicit enablement delivers its skill/ove
     assert.equal((reference.output as { guidance: string }).guidance,
       `${overlay}\n\n${await readFile(path.join(PACKAGE_ROOT, "skills/software-engineering", file), "utf8")}`);
   }
-  const injected = await lifecycle.resolveAgentPluginRefs([PLUGIN_ID], workspace, "inject");
+  const injected = await lifecycle.resolveAgentPluginRefs({ pluginRefIds: [PLUGIN_ID], workspaceLayout: workspace }, { deliveryMode: "inject" });
   assert.equal(injected.ok, true);
   assert.ok(injected.promptPrefix.includes(overlay));
   assert.ok(injected.promptPrefix.includes(await readSkill()));
-  const pointer = await lifecycle.resolveAgentPluginRefs([PLUGIN_ID], workspace, "pointer");
+  const pointer = await lifecycle.resolveAgentPluginRefs({ pluginRefIds: [PLUGIN_ID], workspaceLayout: workspace }, { deliveryMode: "pointer" });
   assert.equal(pointer.ok, true);
   assert.match(pointer.promptPrefix, /agent_plugin_software_engineering/);
   assert.equal(pointer.promptPrefix.includes(overlay), false, "pointer defers guidance until the gated tool call");
@@ -75,7 +75,7 @@ test("software-engineering seeds OFF, explicit enablement delivers its skill/ove
   await lifecycle.seedBundledAgentPlugins(input);
   assert.equal((await lifecycle.readAgentPluginActivations({ workspaceRoot: workspace.root })).plugins[PLUGIN_ID]?.enabled, false);
   assert.deepEqual(await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE, agentPluginLayout: layout }), []);
-  assert.equal((await lifecycle.resolveAgentPluginRefs([PLUGIN_ID], workspace, "inject")).ok, false);
+  assert.equal((await lifecycle.resolveAgentPluginRefs({ pluginRefIds: [PLUGIN_ID], workspaceLayout: workspace }, { deliveryMode: "inject" })).ok, false);
   const denied = await executor.execute(request);
   assert.equal(denied.status, "denied");
   assert.equal(denied.output, undefined, "a held tool registration cannot deliver guidance after revocation");

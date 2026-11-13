@@ -21,7 +21,7 @@ async function temporaryLayout(t: test.TestContext) {
   const temporary = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "plugin-memory-binding-")));
   t.after(() => forceRemove(temporary));
   const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: temporary } });
-  return { layout, workspaceRoot: layout.forWorkspace(workspaceId).root };
+  return { layout, workspaceRoot: layout.forWorkspace({ workspaceId }).root };
 }
 
 test("withAgentPluginStateLock runs the critical section under a per-plugin lock and returns its result", async (t) => {

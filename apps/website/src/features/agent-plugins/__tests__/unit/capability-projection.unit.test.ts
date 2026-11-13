@@ -31,7 +31,7 @@ test("readInstalledSkillMarkdown reads a real file through the containment check
     await mkdir(path.join(root, "skills", "ui-ux-design"), { recursive: true });
     await writeFile(path.join(root, "skills", "ui-ux-design", "SKILL.md"), "# Real content");
 
-    const content = await readInstalledSkillMarkdown(root, "skills/ui-ux-design/SKILL.md");
+    const content = await readInstalledSkillMarkdown({ packageRoot: root, skillPath: "skills/ui-ux-design/SKILL.md" });
     assert.equal(content, "# Real content");
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -41,7 +41,7 @@ test("readInstalledSkillMarkdown reads a real file through the containment check
 test("readInstalledSkillMarkdown rejects a path escaping the package root", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-capability-projection-test-"));
   try {
-    await assert.rejects(() => readInstalledSkillMarkdown(root, "../../../etc/passwd"), PackagePathViolation);
+    await assert.rejects(() => readInstalledSkillMarkdown({ packageRoot: root, skillPath: "../../../etc/passwd" }), PackagePathViolation);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -55,7 +55,7 @@ test("readInstalledSkillMarkdown rejects an existing file symlink outside the pa
   const outside = path.join(dir, "outside.md");
   await writeFile(outside, "outside secret");
   await symlink(outside, path.join(root, "skills", "SKILL.md"));
-  await assert.rejects(readInstalledSkillMarkdown(root, "skills/SKILL.md"), PackagePathViolation);
+  await assert.rejects(readInstalledSkillMarkdown({ packageRoot: root, skillPath: "skills/SKILL.md" }), PackagePathViolation);
 });
 
 test("classifyAgentPluginMcpServerTrust: stdio requires confirmation, remote transports auto-admit", () => {
@@ -75,7 +75,7 @@ test("readInstalledMcpServerIds reads a real mcp.json and returns its server ids
       }),
     );
 
-    const serverIds = await readInstalledMcpServerIds(root);
+    const serverIds = await readInstalledMcpServerIds({ packageRoot: root });
     assert.deepEqual([...serverIds].sort(), ["another-server", "example-host-cli"]);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -85,7 +85,7 @@ test("readInstalledMcpServerIds reads a real mcp.json and returns its server ids
 test("readInstalledMcpServerIds returns an empty array when mcp.json does not exist — optional per spec, not an error", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-capability-projection-mcp-test-"));
   try {
-    assert.deepEqual(await readInstalledMcpServerIds(root), []);
+    assert.deepEqual(await readInstalledMcpServerIds({ packageRoot: root }), []);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -95,7 +95,7 @@ test("readInstalledMcpServerIds returns an empty array for malformed JSON — fa
   const root = await mkdtemp(path.join(tmpdir(), "tovu-capability-projection-mcp-test-"));
   try {
     await writeFile(path.join(root, "mcp.json"), "{ not valid json");
-    assert.deepEqual(await readInstalledMcpServerIds(root), []);
+    assert.deepEqual(await readInstalledMcpServerIds({ packageRoot: root }), []);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -105,7 +105,7 @@ test("readInstalledMcpServerIds returns an empty array for a wrong-schema mcp.js
   const root = await mkdtemp(path.join(tmpdir(), "tovu-capability-projection-mcp-test-"));
   try {
     await writeFile(path.join(root, "mcp.json"), JSON.stringify({ $schema: "wrong", mcpServers: {} }));
-    assert.deepEqual(await readInstalledMcpServerIds(root), []);
+    assert.deepEqual(await readInstalledMcpServerIds({ packageRoot: root }), []);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -125,7 +125,7 @@ test("readInstalledMcpServers reads a real mcp.json and returns each server's fu
       }),
     );
 
-    const servers = await readInstalledMcpServers(root);
+    const servers = await readInstalledMcpServers({ packageRoot: root });
     // A null-prototype map, so a hostile server id such as "__proto__" stays an ordinary key.
     assert.deepEqual(servers, Object.assign(Object.create(null), {
       "example-host-cli": { type: "stdio", command: "example-host-mcp", args: ["deploy"] },
@@ -147,7 +147,7 @@ test("readInstalledMcpServers excludes a server whose declared shape does not va
       }),
     );
 
-    const servers = await readInstalledMcpServers(root);
+    const servers = await readInstalledMcpServers({ packageRoot: root });
     assert.deepEqual(Object.keys(servers), ["ok"]);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -157,7 +157,7 @@ test("readInstalledMcpServers excludes a server whose declared shape does not va
 test("readInstalledMcpServers returns {} when mcp.json does not exist", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-capability-projection-mcp-test-"));
   try {
-    assert.deepEqual(await readInstalledMcpServers(root), {});
+    assert.deepEqual(await readInstalledMcpServers({ packageRoot: root }), {});
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -167,7 +167,7 @@ test("readInstalledMcpServers returns {} for malformed JSON — fail-open, same 
   const root = await mkdtemp(path.join(tmpdir(), "tovu-capability-projection-mcp-test-"));
   try {
     await writeFile(path.join(root, "mcp.json"), "{ not valid json");
-    assert.deepEqual(await readInstalledMcpServers(root), {});
+    assert.deepEqual(await readInstalledMcpServers({ packageRoot: root }), {});
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -184,7 +184,7 @@ test('installed legacy MCP metadata warns the host while keeping its working con
     mcpServers: { remote: { type: 'streamable-http', url: 'https://example.test/mcp', tovuAuthMode: 'oauth' } },
   }));
   const warnings = t.mock.method(console, 'warn', () => {});
-  const servers = await readInstalledMcpServers(root);
+  const servers = await readInstalledMcpServers({ packageRoot: root });
   assert.deepEqual(servers.remote, { type: 'streamable-http', url: 'https://example.test/mcp', authMode: 'oauth' });
   assert.ok(warnings.mock.calls.some(call => String(call.arguments[0]).includes('2027-05-06')));
 });

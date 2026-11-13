@@ -17,6 +17,6 @@ export type { DescriptorI18n };
  *
  * @complexity O(l·e) in locales times entries, both capped.
  */
-export function parseDescriptorI18n(value: unknown, at: string): DescriptorI18n | undefined | string {
+export function parseDescriptorI18n({ value, at }: { value: unknown; at: string }, _optional: Record<string, never> = {}): DescriptorI18n | undefined | string {
   return parseDescriptorI18nBlock({ value, at });
 }

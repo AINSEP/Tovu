@@ -71,7 +71,7 @@ function fileEntry(entryPath: string, content: string): AgentPluginArchiveEntry 
 async function freshLayout() {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-retire-test-"));
   const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
-  return { cwd, layout, workspaceLayout: layout.forWorkspace(WORKSPACE_ID) };
+  return { cwd, layout, workspaceLayout: layout.forWorkspace({ workspaceId: WORKSPACE_ID }) };
 }
 
 async function installPackage(layout: ReturnType<typeof resolveAgentPluginLayout>, pluginId: string, archiveLabel: string) {
@@ -112,7 +112,7 @@ async function seedSuccessor(layout: ReturnType<typeof resolveAgentPluginLayout>
 }
 
 async function installedIds(workspaceRoot: string): Promise<string[]> {
-  return (await listInstalledPlugins(workspaceRoot)).map((plugin) => plugin.pluginId).sort();
+  return (await listInstalledPlugins({ workspaceRoot })).map((plugin) => plugin.pluginId).sort();
 }
 
 const DEPLOY_SUCCESSORS = ["fly", "render", "railway", "github", "vercel", "netlify", "cloudflare", "github-pages", "s3-compatible"];
@@ -147,7 +147,7 @@ test("an ENABLED tovu-deploy-fly: its package, record and ledger entry go; deplo
     assert.equal(Object.hasOwn(activations.plugins, RETIRED), false, "the retired plugin's record is deleted, not tombstoned");
     assert.equal(activations.plugins[SUCCESSOR]?.enabled, true);
 
-    const ledger = await readBundledAgentPluginDigests(workspaceLayout.root);
+    const ledger = await readBundledAgentPluginDigests({ workspaceRoot: workspaceLayout.root });
     assert.equal(ledger.has(RETIRED), false);
     assert.equal(ledger.get(SUCCESSOR), deploy.archiveDigest, "the successor's ledger entry is untouched");
   } finally {
@@ -352,7 +352,7 @@ test("a package-list I/O failure becomes a failed retirement and the next entry 
     const brokenPackages = path.join(workspaceLayout.root, "not-a-directory");
     await writeFile(brokenPackages, "keep these bytes", "utf8");
     let reads = 0;
-    const failingLayout = { ...layout, forWorkspace: (workspaceId: string) => {
+    const failingLayout = { ...layout, forWorkspace: ({ workspaceId }: { workspaceId: string }) => {
       assert.equal(workspaceId, WORKSPACE_ID);
       return reads++ === 0 ? { ...workspaceLayout, root: brokenPackages } : workspaceLayout;
     } };
@@ -457,7 +457,7 @@ test("an enabled create-tovu-theme switches tovu-theme on; both old theme plugin
     assert.equal(activations.plugins[THEME_SUCCESSOR]?.enabled, true);
     assert.equal(activations.plugins[THEME_SUCCESSOR]?.updatedBy, "system:retire-create-tovu-theme");
 
-    const ledger = await readBundledAgentPluginDigests(workspaceLayout.root);
+    const ledger = await readBundledAgentPluginDigests({ workspaceRoot: workspaceLayout.root });
     assert.deepEqual([...ledger.keys()], [THEME_SUCCESSOR]);
   } finally {
     await forceRemove(cwd);
@@ -513,7 +513,7 @@ test("R6: a failed Fly seed keeps deploy â€” its bytes and the operator's 'on' â
     assert.equal(deploy?.status, "failed");
     assert.match(deploy?.status === "failed" ? deploy.reason : "", /^'deploy' is kept until every successor is usable: successor 'fly' has never been seeded/);
     assert.deepEqual(await installedIds(workspaceLayout.root), ["deploy"]);
-    assert.equal((await readBundledAgentPluginDigests(workspaceLayout.root)).has("fly"), false);
+    assert.equal((await readBundledAgentPluginDigests({ workspaceRoot: workspaceLayout.root })).has("fly"), false);
     const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal(activations.plugins.deploy?.enabled, true, "the operator's record stays with the code it switches");
     assert.equal(activations.plugins.fly, undefined, "no Fly switch without Fly's code");

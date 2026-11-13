@@ -23,7 +23,7 @@ test("bundled mail credential card check discovers contribution packages", () =>
 
 for (const { pluginId, packageRoot } of sources) {
   test(`${pluginId}: every labelled mail adapter supplies its own usable credential card`, () => {
-    const parsed = parseMailAdaptersFile(readFileSync(path.join(packageRoot, filename), "utf8"));
+    const parsed = parseMailAdaptersFile({ raw: readFileSync(path.join(packageRoot, filename), "utf8") });
     assert.ok(parsed.ok, `${pluginId}/${filename} must parse`);
     assert.ok(parsed.descriptors.length > 0, `${pluginId} must declare its mail adapters`);
     for (const descriptor of parsed.descriptors) {

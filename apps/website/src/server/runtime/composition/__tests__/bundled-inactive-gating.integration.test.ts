@@ -78,7 +78,7 @@ async function withSeededWorkspace<T>(
     const failures = result.outcomes.filter((outcome) => outcome.status === "failed");
     assert.deepEqual(failures, [], `bundled plugins must seed cleanly, got: ${JSON.stringify(failures)}`);
 
-    return await fn({ agentPluginsDir: dir, workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root,
+    return await fn({ agentPluginsDir: dir, workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root,
       seededIds: result.outcomes.filter(outcome => outcome.status === "seeded").map(outcome => outcome.pluginId) });
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
@@ -89,8 +89,8 @@ async function withSeededWorkspace<T>(
 
 test("seeding installs the real bundled package and records it INACTIVE", async () => {
   await withSeededWorkspace(async ({ workspaceRoot }) => {
-    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
-    const installed = await listInstalledPlugins(layout.root);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID });
+    const installed = await listInstalledPlugins({ workspaceRoot: layout.root });
 
     const seeded = installed.find((plugin) => plugin.pluginId === PLUGIN_ID);
     assert.ok(seeded, "the bundled site-compliance package must actually be on disk after seeding");
@@ -113,8 +113,8 @@ const SEEDED_ENABLED = ["github", "how-tovu-works", "site-import", "tovu-theme",
 // listing (`AGENT_PLUGINS_LIST` reads `loadAgentPluginSearchCandidates`) must not open either gate.
 test("every bundled plugin not seeded enabled is listed as switched off yet gets no tool and no prompt injection", async () => {
   await withSeededWorkspace(async ({ seededIds }) => {
-    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
-    const bundledIds = [...new Set((await listInstalledPlugins(layout.root)).map((plugin) => plugin.pluginId))].filter(
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID });
+    const bundledIds = [...new Set((await listInstalledPlugins({ workspaceRoot: layout.root })).map((plugin) => plugin.pluginId))].filter(
       (pluginId) => !BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(pluginId),
     );
     assert.deepEqual([...BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED].sort(), SEEDED_ENABLED);
@@ -130,13 +130,13 @@ test("every bundled plugin not seeded enabled is listed as switched off yet gets
     for (const pluginId of SEEDED_ENABLED) {
       assert.equal(listed.find(candidate => candidate.pluginId === pluginId)?.enabled, true, `${pluginId}: seeded enabled`);
       assert.ok(sources.some(source => source.pluginId === pluginId), `${pluginId}: tool gate open`);
-      const injected = await resolveAgentPluginRefs([pluginId], layout);
+      const injected = await resolveAgentPluginRefs({ pluginRefIds: [pluginId], workspaceLayout: layout });
       assert.ok(injected.ok && injected.promptPrefix.length > 0, `${pluginId}: prompt gate open`);
     }
     for (const pluginId of bundledIds) {
       assert.equal(listed.find((candidate) => candidate.pluginId === pluginId)?.enabled, false, `${pluginId}: listed, switched off`);
       assert.deepEqual(sources.filter((source) => source.pluginId === pluginId), [], `${pluginId}: no agent_plugin_* tool`);
-      const injected = await resolveAgentPluginRefs([pluginId], layout);
+      const injected = await resolveAgentPluginRefs({ pluginRefIds: [pluginId], workspaceLayout: layout });
       assert.ok(injected.ok === false && injected.reason.includes("is not enabled"), `${pluginId}: never reaches the prompt`);
     }
   });
@@ -151,8 +151,8 @@ test("GATE 1 (tool registration): an inactive bundled plugin gets no agent_plugi
 
 test("GATE 2 (run-start injection): pinning an inactive plugin fails with 'not enabled', NOT 'not installed'", async () => {
   await withSeededWorkspace(async () => {
-    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
-    const result = await resolveAgentPluginRefs([PLUGIN_ID], layout);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID });
+    const result = await resolveAgentPluginRefs({ pluginRefIds: [PLUGIN_ID], workspaceLayout: layout });
 
     assert.equal(result.ok, false);
     assert.ok(result.ok === false && result.reason.includes("is not enabled"));
@@ -170,8 +170,8 @@ test("enabling the plugin opens both gates together", async () => {
     const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));
     assert.ok(sources.some((source) => source.pluginId === PLUGIN_ID), "GATE 1 must open");
 
-    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
-    const injected = await resolveAgentPluginRefs([PLUGIN_ID], layout);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID });
+    const injected = await resolveAgentPluginRefs({ pluginRefIds: [PLUGIN_ID], workspaceLayout: layout });
     assert.equal(injected.ok, true, "GATE 2 must open");
     assert.ok(injected.ok && injected.promptPrefix.includes("Site Compliance"));
     assert.ok(
@@ -208,7 +208,7 @@ test("re-seeding is idempotent — same digest, no duplicate install, decision p
     // re-breaks this assertion on the next addition. `listInstalledPlugins` already does the
     // digest -> pluginId walk (same one `test 1` above uses) — filtering its result to PLUGIN_ID is
     // what actually answers "did THIS plugin get a second digest published for it".
-    const installedAfterReseed = await listInstalledPlugins(layout.forWorkspace(WORKSPACE_ID).root);
+    const installedAfterReseed = await listInstalledPlugins({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root });
     const ownDigests = installedAfterReseed.filter((plugin) => plugin.pluginId === PLUGIN_ID);
     assert.equal(
       ownDigests.length,
@@ -224,7 +224,7 @@ test("re-seeding is idempotent — same digest, no duplicate install, decision p
 test("every core, public and bundled guide tool pointer resolves to a currently registered tool", async () => {
   await withSeededWorkspace(async () => {
     const { registry } = await realToolCatalog();
-    await registerInstalledAgentPluginTools(registry, { withExtensionApprovalPolicy, workspaceId: WORKSPACE_ID, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
+    await registerInstalledAgentPluginTools({ registry, ctx: { withExtensionApprovalPolicy, workspaceId: WORKSPACE_ID, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) } });
     const ids = new Set(registry.list({}).map(tool => tool.id));
     const parsed = resolveSiteGuideEngine({}).parseGuideTopics({ raw: await readFile(path.join(bundle.root, "how-tovu-works", "tovu-site-guide.json"), "utf8") });
     if (!parsed.ok) throw new Error(parsed.reason);

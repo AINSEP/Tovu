@@ -63,20 +63,20 @@ export type AgentPluginUploadErrorCode = "ARCHIVE_UNREADABLE" | "PLUGIN_ID_TAKEN
 export class AgentPluginUploadError extends Error {
   readonly code: AgentPluginUploadErrorCode;
 
-  constructor(code: AgentPluginUploadErrorCode, message: string, options?: { cause?: unknown }) {
+  constructor({ code, message }: { code: AgentPluginUploadErrorCode; message: string }, options: { cause?: unknown } = {}) {
     super(message, options);
     this.name = "AgentPluginUploadError";
     this.code = code;
   }
 }
 
-/** Jini's yauzl adapter speaks `entries({ archive })` / `openReadStream({})`; `install.ts` speaks the
- *  positional form. Shape conversion only.
+/** Jini's yauzl adapter speaks `openReadStream({})`; the host uses a zero-argument stream.
+ *  Shape conversion only.
  *  @complexity O(1) per entry. */
 function createUploadArchiveReader(): AgentPluginArchiveReaderPort {
   const jini = createYauzlAgentPluginArchiveReader({ yauzl: yauzl as unknown as YauzlPort });
   return {
-    async *entries(archive) {
+    async *entries({ archive }) {
       for await (const entry of jini.entries({ archive })) {
         yield entry.kind === "file" ? { ...entry, openReadStream: () => entry.openReadStream({}) } : entry;
       }
@@ -86,11 +86,11 @@ function createUploadArchiveReader(): AgentPluginArchiveReaderPort {
 
 /** `reader`, minus every entry outside `prefix` and with `prefix` stripped from the rest.
  *  @complexity O(1) per entry. */
-function withinPrefix(reader: AgentPluginArchiveReaderPort, prefix: string): AgentPluginArchiveReaderPort {
+function withinPrefix({ reader, prefix }: { reader: AgentPluginArchiveReaderPort; prefix: string }, _optional: Record<string, never> = {}): AgentPluginArchiveReaderPort {
   if (!prefix) return reader;
   return {
-    async *entries(archive) {
-      for await (const entry of reader.entries(archive)) {
+    async *entries({ archive }) {
+      for await (const entry of reader.entries({ archive })) {
         const name = entry.entryPath.replaceAll("\\", "/");
         if (name.startsWith(prefix)) {
           const inner = name.slice(prefix.length);
@@ -196,13 +196,13 @@ export async function installUploadedAgentPlugin(
 
   const { prefix, pluginId } = await locatePackage(reader, archive);
   if (required.update) {
-    return updateUploadedAgentPlugin({ ...required, update: required.update, expectedSha256: digest, archiveReader: withinPrefix(reader, prefix), candidateId: pluginId }, optional);
+    return updateUploadedAgentPlugin({ ...required, update: required.update, expectedSha256: digest, archiveReader: withinPrefix({ reader, prefix }), candidateId: pluginId }, optional);
   }
-  const workspaceLayout = layout.forWorkspace(workspaceId);
+  const workspaceLayout = layout.forWorkspace({ workspaceId });
   let alreadyInstalled = false;
   let upgradeFrom: string[] = [];
   const plugin = await installAgentPlugin({ archive, expectedSha256: digest,
-    archiveReader: withinPrefix(reader, prefix), layout, workspaceId }, {
+    archiveReader: withinPrefix({ reader, prefix }), layout, workspaceId }, {
     // The lock belongs to installAgentPlugin. Doing an id check outside it lets two uploads
     // both pass and publish ambiguous digests. Keep check, disabled activation, and swap together.
     publishGuard: async ({ plugin: indexed, publish }) => {
@@ -268,7 +268,7 @@ type UpdateRevision = Parameters<typeof planAgentPluginUpdate>[0]["candidate"];
  * Downgrades are refused here, the path preview and install share, so preview never offers a
  * replacement that install would then refuse. */
 async function checkExisting(required: { workspaceRoot: string; pluginId: string; digest: string; replace: boolean; candidate: UpdateRevision }, _optional: Record<string, never> = {}): Promise<InstalledAgentPlugin[]> {
-  const existing = (await listInstalledPlugins(required.workspaceRoot)).filter(plugin => plugin.pluginId === required.pluginId);
+  const existing = (await listInstalledPlugins({ workspaceRoot: required.workspaceRoot })).filter(plugin => plugin.pluginId === required.pluginId);
   if (!existing.some(plugin => plugin.archiveDigest === required.digest) && existing.length > 0) await assertReplaceable(required);
   for (const previous of existing) {
     if (planAgentPluginUpdate({ installed: previous, candidate: required.candidate }).action === "downgrade-refused") throw new AgentPluginUpdateError({ code: "PLUGIN_DOWNGRADE_REFUSED", message: "Plugin downgrades are refused." });
@@ -279,9 +279,9 @@ async function checkExisting(required: { workspaceRoot: string; pluginId: string
 /** A different package under an installed id replaces it only when asked, never a bundled plugin,
  * and only while the installed one is switched off. */
 async function assertReplaceable(required: { workspaceRoot: string; pluginId: string; replace: boolean }, _optional: Record<string, never> = {}): Promise<void> {
-  if (!required.replace) throw new AgentPluginUploadError("PLUGIN_ID_TAKEN", "This plugin ID is already installed. Choose Replace existing version to upgrade it.");
-  if (await isAgentPluginRecordedAsBundled({ workspaceRoot: required.workspaceRoot, pluginId: required.pluginId })) throw new AgentPluginUploadError("PLUGIN_BUNDLED", "A bundled plugin owns this ID and cannot be replaced by an uploaded plugin.");
-  if ((await resolveAgentPluginActivation({ workspaceRoot: required.workspaceRoot, pluginId: required.pluginId })).verdict !== "inactive") throw new AgentPluginUploadError("PLUGIN_ENABLED", "Switch off the installed plugin before replacing its version.");
+  if (!required.replace) throw new AgentPluginUploadError({ code: "PLUGIN_ID_TAKEN", message: "This plugin ID is already installed. Choose Replace existing version to upgrade it." });
+  if (await isAgentPluginRecordedAsBundled({ workspaceRoot: required.workspaceRoot, pluginId: required.pluginId })) throw new AgentPluginUploadError({ code: "PLUGIN_BUNDLED", message: "A bundled plugin owns this ID and cannot be replaced by an uploaded plugin." });
+  if ((await resolveAgentPluginActivation({ workspaceRoot: required.workspaceRoot, pluginId: required.pluginId })).verdict !== "inactive") throw new AgentPluginUploadError({ code: "PLUGIN_ENABLED", message: "Switch off the installed plugin before replacing its version." });
 }
 
 /** Every uploaded package carries this, install and update alike; only install adds that it stays OFF,
@@ -305,8 +305,8 @@ export async function previewUploadedAgentPlugin(required: InstallUploadedAgentP
   const layout = optional.layout;
   const { prefix, pluginId } = await locatePackage(reader, required.archive);
   const plugin = await installAgentPlugin({ archive: required.archive, expectedSha256: required.expectedSha256,
-    archiveReader: withinPrefix(reader, prefix), layout, workspaceId: required.workspaceId }, { previewOnly: true });
-  const existing = await checkExisting({ workspaceRoot: layout.forWorkspace(required.workspaceId).root, pluginId, digest: plugin.archiveDigest, replace: required.replace === true, candidate: plugin });
+    archiveReader: withinPrefix({ reader, prefix }), layout, workspaceId: required.workspaceId }, { previewOnly: true });
+  const existing = await checkExisting({ workspaceRoot: layout.forWorkspace({ workspaceId: required.workspaceId }).root, pluginId, digest: plugin.archiveDigest, replace: required.replace === true, candidate: plugin });
   const upgradeFrom = existing.filter(entry => entry.archiveDigest !== plugin.archiveDigest).flatMap(entry => entry.version ? [entry.version] : []);
   return { pluginId, ...(plugin.version ? { version: plugin.version } : {}), digest: plugin.archiveDigest,
     skills: plugin.skills.map(skill => skill.name), ...(upgradeFrom.length > 0 ? { upgradeFrom } : {}),
@@ -335,14 +335,14 @@ async function scanPackageManifests(
   const topLevel = new Set<string>();
   let count = 0;
   try {
-    for await (const entry of reader.entries(archive)) {
+    for await (const entry of reader.entries({ archive })) {
       count++;
       if (count > MAX_PREPASS_ENTRIES) throw new AgentPluginInstallError({ code: "TOO_MANY_ENTRIES", message: `archive exceeds the ${MAX_PREPASS_ENTRIES}-entry cap` });
       await indexPackageManifest({ entry, manifests, topLevel });
     }
   } catch (error) {
     if (error instanceof AgentPluginInstallError) throw error;
-    throw new AgentPluginUploadError("ARCHIVE_UNREADABLE", "the file is not a readable .zip archive", { cause: error });
+    throw new AgentPluginUploadError({ code: "ARCHIVE_UNREADABLE", message: "the file is not a readable .zip archive" }, { cause: error });
   }
   return { manifests, topLevel };
 }

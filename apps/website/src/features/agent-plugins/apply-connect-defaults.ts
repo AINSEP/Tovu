@@ -25,7 +25,7 @@ export const SEED_ACTOR = "system:seed";
 /** Whether `pluginId`'s activation record is a disabled one someone other than the seeder wrote.
  *  Shared with `switch-on-saved-token.ts`. @complexity One activations read. */
 export async function isPluginOffByOperator(input: { workspaceId: string; agentPluginLayout: AgentPluginLayout; pluginId: string }, _options = {}): Promise<boolean> {
-  const activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: input.agentPluginLayout.forWorkspace(input.workspaceId).root });
+  const activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root });
   if (!Object.hasOwn(activations.plugins, input.pluginId)) return false;
   const record = activations.plugins[input.pluginId];
   return record?.enabled === false && record.updatedBy !== SEED_ACTOR;

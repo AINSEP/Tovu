@@ -319,7 +319,7 @@ function installerWorkspace(required: { sink: WalkSink; layout: AgentPluginLayou
   if (!entry.isDirectory()) return null;
   let workspace;
   try {
-    workspace = layout.forWorkspace(entry.name);
+    workspace = layout.forWorkspace({ workspaceId: entry.name });
   } catch {
     workspace = null;
   }

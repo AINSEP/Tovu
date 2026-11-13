@@ -79,7 +79,7 @@ test("the eponymous skill folder exists — run-start injection resolves skills/
 });
 
 test("the package packs through the real installer's own packer, every reference included", async () => {
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
 
   assert.ok(packed.files.includes("plugin.json"));
   assert.ok(packed.files.includes("skills/github/SKILL.md"));
@@ -112,7 +112,7 @@ test("the package knows NOTHING about fly.io — every file, not just SKILL.md",
   // plugin, and the `deploy` plugin must stay the ONE place fly-specific rules live. A single
   // fly.toml example added back here re-entangles the two and reintroduces the prompt-level
   // contradiction this split exists to end.
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
   const forbidden = [/\bfly\.io\b/i, /\bflyctl\b/i, /\bfly\.toml\b/i, /FLY_API_TOKEN/, /machines\.dev/i, /\bfly secrets\b/i];
 
   for (const relativePath of packed.files) {

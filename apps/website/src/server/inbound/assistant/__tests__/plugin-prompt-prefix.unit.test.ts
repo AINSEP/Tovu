@@ -101,7 +101,7 @@ test("resolveAgentPluginPromptPrefix resolves an isolated installed ui-ux-design
   await isolatedPluginRoot(t);
   // Paths come from the product layout so the fixture installs where the resolver reads
   // (Layout B moved packages to <workspace>/<pluginId>/package/sha256 in 852d711e6).
-  const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
+  const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID });
   const packageDir = path.join(workspaceLayout.pluginPackagesDir({ pluginId: PLUGIN_ID }), "a".repeat(64));
   const skillDir = path.join(packageDir, "skills", PLUGIN_ID);
   await mkdir(skillDir, { recursive: true });
@@ -176,7 +176,7 @@ test("resolveAgentPluginPromptPrefix tells the user why the run could not start 
 test("resolveAgentPluginPromptPrefix resolves a run that pinned the retired 'deploy' to Fly's installed skill (Phase B7)", async (t) => {
   await isolatedPluginRoot(t);
   const { lifecycle, run } = await newRealLifecycleWithRun();
-  const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
+  const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID });
   const packageDir = path.join(workspaceLayout.pluginPackagesDir({ pluginId: "fly" }), "b".repeat(64));
   await mkdir(path.join(packageDir, "skills", "fly"), { recursive: true });
   await writeFile(path.join(packageDir, "plugin.json"), JSON.stringify({

@@ -27,7 +27,7 @@ export function pluginExportFileUrl(required: { pluginId: string; component: str
  */
 async function readPackage(required: { lifecycle: TovuAgentPluginLifecycle; plugin: TrustedPluginPackage; enabled: boolean }, _options = {}): Promise<PluginExportPackage | undefined> {
   try {
-    const raw = await required.lifecycle.readTrustedPluginFile(required.plugin, "plugin.json");
+    const raw = await required.lifecycle.readTrustedPluginFile({ plugin: required.plugin, filename: "plugin.json" });
     const result = parseAgentPluginManifest({ value: JSON.parse(raw) });
     if (!result.ok || !result.manifest.id) return undefined;
     const displayName = result.manifest.displayName;
@@ -59,12 +59,12 @@ export function createPluginExportSource(required: { lifecycle: TovuAgentPluginL
       }
       return packages;
     },
-    readFile: ({ plugin, filename }, _options = {}) => lifecycle.readTrustedPluginFile(plugin, filename),
+    readFile: ({ plugin, filename }, _options = {}) => lifecycle.readTrustedPluginFile({ plugin, filename }),
     readAsset: async ({ plugin, filename }, _options = {}) => {
-      if (!filename.endsWith(".png")) return lifecycle.readTrustedPluginFile(plugin, filename);
+      if (!filename.endsWith(".png")) return lifecycle.readTrustedPluginFile({ plugin, filename });
       // Jini's trusted text reader is UTF-8 only. Preserve PNG bytes using its same path owner;
       // do not duplicate containment or join a request path to a package directory here.
-      return readFile(await lifecycle.assertContainedOnDisk(plugin.packageRoot, filename));
+      return readFile(await lifecycle.assertContainedOnDisk({ packageRoot: plugin.packageRoot, entryPath: filename }));
     },
   };
 }

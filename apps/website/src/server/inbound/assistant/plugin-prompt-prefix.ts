@@ -46,9 +46,9 @@ export async function resolveAgentPluginPromptPrefix(
   const { run, pluginRefIds, runLifecycle, workspaceId, agentPluginLayout } = input;
   if (pluginRefIds.length === 0) return "";
 
-  const workspaceLayout = agentPluginLayout.forWorkspace(workspaceId);
+  const workspaceLayout = agentPluginLayout.forWorkspace({ workspaceId });
   // A run saved before a plugin was retired still pins its old id (`RETIRED_PLUGIN_REPLACEMENTS` names the successor).
-  const result = await resolveAgentPluginRefs(translateRetiredPluginRefs(pluginRefIds), workspaceLayout);
+  const result = await resolveAgentPluginRefs({ pluginRefIds: translateRetiredPluginRefs(pluginRefIds), workspaceLayout });
 
   if (!result.ok) {
     // Same severity `resolveAttachmentRunFields` (in `agent-daemon-server.ts`) already gives an

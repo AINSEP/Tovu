@@ -68,7 +68,7 @@ test("MCP resolution keeps each workspace's bundled declaration despite competin
       await install(workspaceId, "requested", { obsolete: SSE_SERVER });
       const preferred = await install(workspaceId, "requested", servers);
       await install(workspaceId, "unrelated", { wrong: REMOTE_SERVER });
-      await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace(workspaceId).root, seeded: [{ pluginId: "requested", archiveDigest: preferred.archiveDigest }] });
+      await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace({ workspaceId }).root, seeded: [{ pluginId: "requested", archiveDigest: preferred.archiveDigest }] });
     }
     assert.deepEqual({ ...await resolveAgentPluginMcpServers(testSiteLayoutContext({ workspaceId: "ws-1", pluginId: "requested" })) }, first);
     assert.deepEqual({ ...await resolveAgentPluginMcpServers(testSiteLayoutContext({ workspaceId: "ws-2", pluginId: "requested" })) }, second);
@@ -108,20 +108,20 @@ function repoWhoseLookupRejects(inner: ExternalMcpServerRepoPort, serverId: stri
 }
 
 test("deriveAgentPluginConnectionId sanitizes the server key verbatim, without hashing or namespacing by plugin", () => {
-  assert.equal(deriveAgentPluginConnectionId("Higgsfield"), "higgsfield");
+  assert.equal(deriveAgentPluginConnectionId({ serverKey: "Higgsfield" }), "higgsfield");
 });
 
 test("deriveAgentPluginConnectionId matches the trust tier's own CONNECTION_ID_PATTERN", () => {
-  const id = deriveAgentPluginConnectionId("My Server!! v2");
+  const id = deriveAgentPluginConnectionId({ serverKey: "My Server!! v2" });
   assert.match(id ?? "", /^[a-z0-9][a-z0-9-]{0,39}$/);
 });
 
 test("deriveAgentPluginConnectionId returns null when the key sanitizes to nothing usable", () => {
-  assert.equal(deriveAgentPluginConnectionId("!!!"), null);
+  assert.equal(deriveAgentPluginConnectionId({ serverKey: "!!!" }), null);
 });
 
 test("deriveAgentPluginConnectionId truncates to 40 characters and stays a valid id", () => {
-  const id = deriveAgentPluginConnectionId("a".repeat(100));
+  const id = deriveAgentPluginConnectionId({ serverKey: "a".repeat(100) });
   assert.ok(id !== null && id.length <= 40);
   assert.match(id ?? "", /^[a-z0-9][a-z0-9-]{0,39}$/);
 });
@@ -629,12 +629,12 @@ test("resolveAgentPluginMcpServers bundledOnly: only the exact build-seeded dige
     await installMcpPlugin("ws-installed", "widget", { main: REMOTE_SERVER });
     assert.deepEqual(await resolve("ws-installed", "widget"), {});
     // Seeded digest recorded, but that package is not installed in this workspace.
-    await mkdir(layout.forWorkspace("ws-missing").root, { recursive: true });
-    await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace("ws-missing").root, seeded: [{ pluginId: "widget", archiveDigest: "0".repeat(64) }] });
+    await mkdir(layout.forWorkspace({ workspaceId: "ws-missing" }).root, { recursive: true });
+    await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace({ workspaceId: "ws-missing" }).root, seeded: [{ pluginId: "widget", archiveDigest: "0".repeat(64) }] });
     assert.deepEqual(await resolve("ws-missing", "widget"), {});
     // Seeded and installed: the declared servers come back.
     const seeded = await installMcpPlugin("ws-seeded", "widget", { main: REMOTE_SERVER });
-    await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace("ws-seeded").root, seeded: [{ pluginId: "widget", archiveDigest: seeded.archiveDigest }] });
+    await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace({ workspaceId: "ws-seeded" }).root, seeded: [{ pluginId: "widget", archiveDigest: seeded.archiveDigest }] });
     assert.deepEqual({ ...await resolve("ws-seeded", "widget") }, { main: REMOTE_SERVER });
   });
 });
@@ -645,7 +645,7 @@ test("resolveAgentPluginReadOnlyRemoteNames: a bundled plugin's reviewed read na
     const read = (workspaceId: string, url: string) => resolveAgentPluginReadOnlyRemoteNames({ agentPluginLayout: layout, workspaceId, pluginId: "widget", serverId: "main", url });
     const extensions = { tovu: { mcpServers: { main: { defaultTools: { write: [], read: ["list_things"] } } } } };
     const seeded = await installMcpPlugin("ws-1", "widget", { main: REMOTE_SERVER }, extensions);
-    await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace("ws-1").root, seeded: [{ pluginId: "widget", archiveDigest: seeded.archiveDigest }] });
+    await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace({ workspaceId: "ws-1" }).root, seeded: [{ pluginId: "widget", archiveDigest: seeded.archiveDigest }] });
     assert.deepEqual([...await read("ws-1", "https://mcp.example.com/mcp")], ["list_things"]);
     assert.deepEqual([...await read("ws-1", "https://moved.example.com/mcp")], [], "an edited endpoint never inherits read trust");
     await installMcpPlugin("ws-2", "widget", { main: REMOTE_SERVER }, extensions);
@@ -668,8 +668,8 @@ test("findAgentPluginMcpServerDefaults matches stored identity and exact endpoin
 });
 
 test("isEmptyJsonList treats null, blank, non-array and unreadable lists as empty", () => {
-  for (const raw of [null, "", "[]", "{}", "\"text\"", "not json"]) assert.equal(isEmptyJsonList(raw), true, String(raw));
-  assert.equal(isEmptyJsonList('["list_things"]'), false);
+  for (const raw of [null, "", "[]", "{}", "\"text\"", "not json"]) assert.equal(isEmptyJsonList({ raw }), true, String(raw));
+  assert.equal(isEmptyJsonList({ raw: '["list_things"]' }), false);
 });
 
 test("provisionAgentPluginMcpServers: a refused rebind of a plugin-owned row with no stored url names an empty url", async () => {

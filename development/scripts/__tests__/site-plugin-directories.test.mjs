@@ -25,7 +25,7 @@ function roots(siteDir, env) {
   return {
     plugins: pluginsInstallDir({ siteDir }, { env }),
     skills: resolveSkillLayout({ siteDir, env }).forWorkspace('workspace-local').root,
-    agentPlugins: resolveAgentPluginLayout({ siteDir }, { env }).forWorkspace('workspace-local').root,
+    agentPlugins: resolveAgentPluginLayout({ siteDir }, { env }).forWorkspace({ workspaceId: 'workspace-local' }).root,
   };
 }
 

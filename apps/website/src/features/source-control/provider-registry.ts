@@ -148,7 +148,7 @@ export async function loadBundledSourceControlProviderRegistry(
 
 /** The provider ids a package declares, read as data only; none when its file is invalid. @complexity O(n). */
 async function declaredProviderIds(plugin: ProviderPackage): Promise<readonly string[]> {
-  const parsed = parseSourceControlProvidersFile(await readTrustedPluginFile(plugin, SOURCE_CONTROL_PROVIDERS_FILENAME));
+  const parsed = parseSourceControlProvidersFile(await readTrustedPluginFile({ plugin, filename: SOURCE_CONTROL_PROVIDERS_FILENAME }));
   return parsed.ok ? parsed.descriptors.map((descriptor) => descriptor.id) : [];
 }
 
@@ -165,7 +165,7 @@ function asProviderModule(candidate: unknown): SourceControlProviderModule | str
 export function parseSourceControlProvidersFile(raw: string): ParseResult {
   return sourceControl.parseSourceControlProvidersFile({ raw, readExtensions: ({ entry, at }) => {
     const credential = parseSourceControlCredentialForm(entry.credential, `${at}.credential`);
-    const i18n = parseDescriptorI18n(entry.i18n, `${at}.i18n`);
+    const i18n = parseDescriptorI18n({ value: entry.i18n, at: `${at}.i18n` });
     if (typeof credential === "string") return { ok: false, reason: credential };
     if (typeof i18n === "string") return { ok: false, reason: i18n };
     return { ok: true, extensions: { ...(credential ? { credential } : {}), ...(i18n ? { i18n } : {}) } };

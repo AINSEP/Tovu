@@ -28,7 +28,7 @@ async function fixture(t: TestContext) {
   };
   const tools = buildRegistrations(deps);
   const install = tools.find(tool => tool.descriptor.id === "agent_plugins_install")!;
-  return { root, layout, sourceRoot, deps, install, workspaceRoot: layout.forWorkspace(deps.workspaceId).root };
+  return { root, layout, sourceRoot, deps, install, workspaceRoot: layout.forWorkspace({ workspaceId: deps.workspaceId }).root };
 }
 
 async function writePackage(folder: string, id: string, version = "1.0.0") {
@@ -49,7 +49,7 @@ test("folder input installs through ZIP preview, preserves binary files, stays O
     warning: "Trust: local / unverified publisher. Uploaded Agent Plugin code is not trusted to run. Skills can guide the assistant. It stays OFF until you enable it.",
     note: "Installed OFF. Enable with plugins_set_enabled (family 'agent-plugin') if requested.",
   });
-  const [installed] = await listInstalledPlugins(f.workspaceRoot);
+  const [installed] = await listInstalledPlugins({ workspaceRoot: f.workspaceRoot });
   assert.deepEqual(await readFile(path.join(installed!.packageRoot, "images", "é.png")), binary);
   await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: f.workspaceRoot, pluginId: "folder-test", enabled: true, actor: "owner" });
   const again = await f.install.handler(context(input), {}) as { alreadyInstalled: boolean; enabled: boolean };
@@ -66,11 +66,11 @@ test("bundled id re-runs the boot seeder: bundled provenance, boot's default act
   assert.deepEqual(await f.install.handler(context(bundledInput), {}), { installed: true, alreadyInstalled: false, enabled: true, plugin: { id: "ui-ux-design" },
     note: "Installed ON (seeded enabled by default).",
   });
-  assert.deepEqual((await listInstalledPlugins(f.workspaceRoot)).map(plugin => plugin.pluginId), ["ui-ux-design"]);
+  assert.deepEqual((await listInstalledPlugins({ workspaceRoot: f.workspaceRoot })).map(plugin => plugin.pluginId), ["ui-ux-design"]);
   const activation = JSON.parse(await readFile(path.join(f.workspaceRoot, "activations.json"), "utf8")).plugins["ui-ux-design"];
   assert.equal(activation.origin, "bundled");
   assert.equal(activation.enabled, true);
-  assert.equal((await readBundledAgentPluginDigests(f.workspaceRoot)).has("ui-ux-design"), true);
+  assert.equal((await readBundledAgentPluginDigests({ workspaceRoot: f.workspaceRoot })).has("ui-ux-design"), true);
   await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: f.workspaceRoot, pluginId: "ui-ux-design", enabled: false, actor: "owner" });
   const before = await readFile(path.join(f.workspaceRoot, "activations.json"), "utf8");
   assert.deepEqual(await f.install.handler(context(bundledInput), {}), { installed: true, alreadyInstalled: true, enabled: false, plugin: { id: "ui-ux-design" },
@@ -84,7 +84,7 @@ test("unknown bundled id is an input error naming the bundled ids, and installs 
   await writePackage(path.join(f.sourceRoot, "ui-ux-design"), "ui-ux-design");
   await assert.rejects(() => f.install.handler(context({ source: { kind: "bundled", bundledId: "missing" } }), {}),
     { name: ToolInputError.name, message: "Unknown bundled plugin id 'missing'. Bundled ids: ui-ux-design." });
-  assert.deepEqual(await listInstalledPlugins(f.workspaceRoot), []);
+  assert.deepEqual(await listInstalledPlugins({ workspaceRoot: f.workspaceRoot }), []);
 });
 
 test("bundled input cannot replace or grant bundled trust to an operator-installed namesake", async t => {
@@ -93,10 +93,10 @@ test("bundled input cannot replace or grant bundled trust to an operator-install
   await writePackage(folder, "ui-ux-design");
   await writePackage(path.join(f.sourceRoot, "ui-ux-design"), "ui-ux-design");
   await f.install.handler(context({ source: { kind: "folder", path: folder } }), {});
-  const before = await listInstalledPlugins(f.workspaceRoot);
+  const before = await listInstalledPlugins({ workspaceRoot: f.workspaceRoot });
   await assert.rejects(() => f.install.handler(context(bundledInput), {}), { message: "Plugin id 'ui-ux-design' is already installed from another source; bundled plugins cannot replace it." });
-  assert.deepEqual(await listInstalledPlugins(f.workspaceRoot), before);
-  assert.equal((await readBundledAgentPluginDigests(f.workspaceRoot)).has("ui-ux-design"), false);
+  assert.deepEqual(await listInstalledPlugins({ workspaceRoot: f.workspaceRoot }), before);
+  assert.equal((await readBundledAgentPluginDigests({ workspaceRoot: f.workspaceRoot })).has("ui-ux-design"), false);
 });
 
 test("folder and bundled inputs cannot bypass permission checks", async t => {
@@ -106,7 +106,7 @@ test("folder and bundled inputs cannot bypass permission checks", async t => {
   for (const input of [bundledInput, { source: { kind: "folder", path: path.join(f.root, "missing") } }]) {
     await assert.rejects(() => install.handler(context(input), {}), error => !(error instanceof ToolInputError));
   }
-  assert.deepEqual(await listInstalledPlugins(f.workspaceRoot), []);
+  assert.deepEqual(await listInstalledPlugins({ workspaceRoot: f.workspaceRoot }), []);
 });
 
 test("sources are exclusive and bundled replacement and traversal are refused", async t => {
@@ -129,7 +129,7 @@ test("folder input keeps package validation and refuses symlinks", async t => {
   await assert.rejects(() => f.install.handler(context({ source: { kind: "folder", path: folder } }), {}), { message: "MANIFEST_MISSING: the archive does not contain a plugin.json at its root or inside one top-level folder" });
   await symlink(path.join(folder, "readme.txt"), path.join(folder, "link"));
   await assert.rejects(() => f.install.handler(context({ source: { kind: "folder", path: folder } }), {}), { message: "Could not read that folder. Try again." });
-  assert.deepEqual(await listInstalledPlugins(f.workspaceRoot), []);
+  assert.deepEqual(await listInstalledPlugins({ workspaceRoot: f.workspaceRoot }), []);
 });
 
 test("L025b bundled source pins malformed ids, extra keys and failed seeding", async t => {
@@ -144,10 +144,10 @@ test("L025b bundled source pins malformed ids, extra keys and failed seeding", a
   await mkdir(f.workspaceRoot, { recursive: true });
   await writeFile(path.join(f.workspaceRoot, "activations.json"), "{");
   await assert.rejects(() => f.install.handler(context(bundledInput), {}), /could not be installed:/);
-  assert.deepEqual(await listInstalledPlugins(f.workspaceRoot), []);
+  assert.deepEqual(await listInstalledPlugins({ workspaceRoot: f.workspaceRoot }), []);
   await unlink(path.join(f.workspaceRoot, "activations.json"));
   await f.install.handler(context(bundledInput), {});
-  const [installed] = await listInstalledPlugins(f.workspaceRoot);
+  const [installed] = await listInstalledPlugins({ workspaceRoot: f.workspaceRoot });
   assert.deepEqual(await readdir(installed!.packageRoot), ["plugin.json"], "the symbolic link is skipped, never followed into the package");
 });
 
@@ -202,7 +202,7 @@ test("the composed source root lists the build's own bundled packages", async t 
   const install = buildRegistrations(deps).find(tool => tool.descriptor.id === "agent_plugins_install")!;
   await assert.rejects(() => install.handler(context({ source: { kind: "bundled", bundledId: "no-such-bundled-plugin" } }), {}),
     (error: unknown) => error instanceof ToolInputError && /^Unknown bundled plugin id 'no-such-bundled-plugin'\. Bundled ids: .*\bgithub\b/.test((error as Error).message));
-  assert.deepEqual(await listInstalledPlugins(f.workspaceRoot), []);
+  assert.deepEqual(await listInstalledPlugins({ workspaceRoot: f.workspaceRoot }), []);
 });
 
 test("an already-installed bundled plugin with an unreadable activation record reports enabled as unknown", async t => {
@@ -231,5 +231,5 @@ test("a folder install admits its identity through the host's plugin directory w
   assert.equal(result.plugin.id, "hosted-plugin");
   assert.ok(candidates.length >= 1, "identity admission went through the host");
   assert.ok(candidates.every(candidate => (candidate as { family: string }).family === "agent-plugin"));
-  assert.deepEqual((await listInstalledPlugins(f.workspaceRoot)).map(plugin => plugin.pluginId), ["hosted-plugin"]);
+  assert.deepEqual((await listInstalledPlugins({ workspaceRoot: f.workspaceRoot })).map(plugin => plugin.pluginId), ["hosted-plugin"]);
 });

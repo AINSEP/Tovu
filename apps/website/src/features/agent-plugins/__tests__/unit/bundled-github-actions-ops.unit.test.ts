@@ -23,7 +23,7 @@ test("the github plugin contributes the github-actions ops platform and declares
   assert.deepEqual(registry.refusals, []);
   assert.deepEqual(registry.list().map(item => item.descriptor.id), ["github-actions"]);
   assert.equal(typeof registry.get("github-actions")?.module.deploy, "function");
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
   for (const file of ["tovu-deploy-ops.json", "deploy-ops/github-actions.mjs"]) assert.ok(packed.files.includes(file), file);
 });
 

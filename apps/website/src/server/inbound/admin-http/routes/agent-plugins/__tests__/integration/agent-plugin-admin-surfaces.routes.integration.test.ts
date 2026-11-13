@@ -58,7 +58,7 @@ function fakeLifecycle(reads: string[]): Lifecycle {
       }
       return { items, refusals: [] };
     },
-    readTrustedPluginFile: async (_plugin, filename) => { reads.push(filename); return `/* ${filename} */`; },
+    readTrustedPluginFile: async ({ filename }) => { reads.push(filename); return `/* ${filename} */`; },
   };
 }
 

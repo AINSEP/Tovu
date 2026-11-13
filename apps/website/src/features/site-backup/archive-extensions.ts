@@ -21,9 +21,9 @@ export async function prepareArchiveExtensions(required: { sources: SiteBackupSo
   const workspaceId = [...workspaces][0];
   if (workspaceId) {
     const lifecycle = createTovuAgentPluginLifecycle({ layout: required.sources.agentPlugins });
-    const workspaceRoot = required.sources.agentPlugins.forWorkspace(workspaceId).root;
-    const candidates = await lifecycle.listInstalledPlugins(workspaceRoot);
-    const bundled = await lifecycle.readBundledAgentPluginDigests(workspaceRoot);
+    const workspaceRoot = required.sources.agentPlugins.forWorkspace({ workspaceId }).root;
+    const candidates = await lifecycle.listInstalledPlugins({ workspaceRoot });
+    const bundled = await lifecycle.readBundledAgentPluginDigests({ workspaceRoot });
     const installed = lifecycle.preferBundledAgentPluginDigests(candidates, bundled);
     if (new Set(installed.map(plugin => plugin.pluginId)).size !== installed.length) throw new SiteShareRefusal({ code: "UNSUPPORTED_PLUGIN", message: "Export requires one installed digest per plugin id." });
     const activations = await lifecycle.readAgentPluginActivations({ workspaceRoot });

@@ -118,7 +118,7 @@ async function readToolArchive({ deps, ctx }: { deps: AgentPluginsInstallToolDep
 }
 
 /** Every named lifecycle refusal is a result the model can act on; anything else stays redacted. */
-function toToolInputError(error: unknown): unknown {
+function toToolInputError({ error }: { error: unknown }, _optional: Record<string, never> = {}): unknown {
   if (error instanceof FolderZipError) return new ToolInputError({ message: error.message });
   const named = error instanceof AgentPluginUpdateError || error instanceof AgentPluginHostIncompatibleError || error instanceof AgentPluginInstallError || error instanceof AgentPluginUploadError;
   return named ? new ToolInputError({ message: `${error.code}: ${error.message}` }) : error;
@@ -146,7 +146,7 @@ async function updateArchivePlugin(
       note: result.alreadyInstalled ? "These exact bytes are already installed; nothing changed."
         : "Updated. Memory is kept. Running chats keep the guidance they already loaded; MCP calls in progress may fail." };
   } catch (error) {
-    throw toToolInputError(error);
+    throw toToolInputError({ error });
   }
 }
 
@@ -170,11 +170,11 @@ async function installArchivePlugin(
     // Identical bytes are a no-op, including activation. Do not falsely report OFF for a
     // package the operator already enabled; malformed activation remains explicitly unknown.
     const verdict = result.alreadyInstalled
-      ? (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root, pluginId: result.plugin.pluginId })).verdict
+      ? (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root, pluginId: result.plugin.pluginId })).verdict
       : "inactive";
     return uploadedInstallResult({ result, verdict, warning: preview.warning });
   } catch (error) {
-    throw toToolInputError(error);
+    throw toToolInputError({ error });
   }
 }
 
@@ -203,8 +203,8 @@ async function installBundledPlugin(
   const sourceRoot = deps.bundledAgentPluginsSourceRoot;
   const bundledIds = (await listBundledAgentPluginServers({ bundledSourceRoot: sourceRoot })).map(plugin => plugin.pluginId).sort();
   if (!bundledIds.includes(id)) throw new ToolInputError({ message: `Unknown bundled plugin id '${id}'. Bundled ids: ${bundledIds.join(", ")}.` });
-  const workspaceRoot = deps.agentPluginLayout.forWorkspace(deps.workspaceId).root;
-  const existing = (await listInstalledPlugins(workspaceRoot)).some(plugin => plugin.pluginId === id);
+  const workspaceRoot = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root;
+  const existing = (await listInstalledPlugins({ workspaceRoot })).some(plugin => plugin.pluginId === id);
   if (existing && !await agentPluginActivations.isAgentPluginRecordedAsBundled({ workspaceRoot, pluginId: id })) {
     throw new ToolInputError({ message: `Plugin id '${id}' is already installed from another source; bundled plugins cannot replace it.` });
   }

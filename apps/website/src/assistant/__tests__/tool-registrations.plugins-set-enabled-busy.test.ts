@@ -104,7 +104,7 @@ async function withInstalledAgentPlugin<T>(fn: (workspaceRoot: string) => Promis
       layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
       workspaceId: WORKSPACE_ID,
     });
-    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).root);
+    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID }).root);
   } finally {
     behavior = realFsp.open;
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;

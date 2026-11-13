@@ -69,7 +69,7 @@ async function listActivations(
   { parsed, workspaceRoot }: { parsed: ParsedArgs; workspaceRoot: string },
   _options = {},
 ): Promise<void> {
-  const installed = await listInstalledPlugins(workspaceRoot);
+  const installed = await listInstalledPlugins({ workspaceRoot });
   const activations = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
 
   if (installed.length === 0) {
@@ -97,7 +97,7 @@ async function main(): Promise<void> {
   // rather than a stack trace, since a mistyped uuid is the single most likely operator error here.
   let workspaceLayout;
   try {
-    workspaceLayout = resolveAgentPluginLayout().forWorkspace(parsed.workspaceId);
+    workspaceLayout = resolveAgentPluginLayout().forWorkspace({ workspaceId: parsed.workspaceId });
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);

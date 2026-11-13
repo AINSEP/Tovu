@@ -49,7 +49,7 @@ async function seedLinkedFace({ root, workspaceId }: { root: string; workspaceId
   const layout = resolveAgentPluginLayout({ siteDir: root });
   const seeded = await seedBundledAgentPlugins({ layout, workspaceId, sourceRoot });
   assert.deepEqual(seeded.outcomes.filter((outcome) => outcome.status === "failed"), []);
-  return bindProviderFacePorts({ workspaceRoot: () => layout.forWorkspace(workspaceId).root });
+  return bindProviderFacePorts({ workspaceRoot: () => layout.forWorkspace({ workspaceId }).root });
 }
 
 const providerRow = ({ workspaceId, enabled }: { workspaceId: string; enabled: boolean }) =>

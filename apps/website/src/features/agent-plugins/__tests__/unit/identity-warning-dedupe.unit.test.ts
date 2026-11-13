@@ -22,9 +22,9 @@ test('identity deprecations warn once per package across repeated indexes and ho
       $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: pluginId,
       extensions: { tovu: { id: `test/${pluginId}`, provides: [] } },
     }));
-    await first.indexInstalledRoot(packageRoot, 'a'.repeat(64));
-    await first.indexInstalledRoot(packageRoot, 'a'.repeat(64));
-    await second.indexInstalledRoot(packageRoot, 'a'.repeat(64));
+    await first.indexInstalledRoot({ packageRoot, archiveDigest: 'a'.repeat(64) });
+    await first.indexInstalledRoot({ packageRoot, archiveDigest: 'a'.repeat(64) });
+    await second.indexInstalledRoot({ packageRoot, archiveDigest: 'a'.repeat(64) });
   }
   assert.equal(warnings.length, 2);
   assert.ok(warnings.every(message => message.startsWith('Legacy extensions.tovu agent-plugin metadata is deprecated;')));

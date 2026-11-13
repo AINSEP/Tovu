@@ -11,7 +11,7 @@
  */
 
 /** The host of a bare http(s) origin string, or null for anything else (including "null"). */
-function originHost(origin: string): string | null {
+function originHost({ origin }: { origin: string }, _optional: Record<string, never> = {}): string | null {
   try {
     const url = new URL(origin);
     return (url.protocol === "http:" || url.protocol === "https:") && url.origin === origin ? url.host : null;
@@ -29,5 +29,5 @@ export function isSameOriginAdminWrite(
   const { origin, host, fetchSite } = required;
   if (!origin || !host) return false;
   if (fetchSite !== undefined && fetchSite !== "same-origin") return false;
-  return originHost(origin) === host;
+  return originHost({ origin }) === host;
 }

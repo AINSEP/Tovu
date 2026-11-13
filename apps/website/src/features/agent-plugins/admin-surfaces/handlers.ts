@@ -61,8 +61,8 @@ export function createAgentPluginAdminSurfaceHandlers(
   return {
     refresh,
     ...(optional.signIns === undefined ? {} : { signIns: optional.signIns }),
-    handlersFor: (input) => host.handlersFor(input),
-    async bootstrapData(input) {
+    handlersFor: (input, _optional = {}) => host.handlersFor(input),
+    async bootstrapData(input, _optional = {}) {
       await refresh();
       return host.bootstrapData(input);
     },

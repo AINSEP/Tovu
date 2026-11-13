@@ -255,7 +255,7 @@ test("an unknown pluginId is reclassified as ToolInputError before any dialog, n
 test("a bundled plugin is refused as ToolInputError before any dialog, naming plugins_set_enabled as the way to turn it off — and nothing is removed", async () => {
   await withAgentPluginsDir(async () => {
     const installed = await installReal(WORKSPACE_A, "site-compliance", "archive-bundled-tool");
-    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A);
+    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A });
     await recordBundledAgentPluginIfAbsent({ workspaceRoot: workspaceLayout.root, pluginId: "site-compliance" });
     const { deps } = fakeDeps();
     const recorder = surfaceRecorder();
@@ -293,7 +293,7 @@ function activationsUnreadableOutput(pluginId: string): UninstallToolOutput {
 test("t91 §7.1: a corrupt activations.json reaches the model through the real executor as a path-free result, not an opaque INTERNAL_ERROR; the detail goes to console.warn", async (t) => {
   await withAgentPluginsDir(async (dir) => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-corrupt-preview");
-    const activationsPath = path.join(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root, "activations.json");
+    const activationsPath = path.join(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).root, "activations.json");
     await writeFile(activationsPath, "{ not json");
     const warnings: string[] = [];
     t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args.map(String).join(" ")));
@@ -326,7 +326,7 @@ test("t91 §7.1: a corrupt activations.json reaches the model through the real e
 test("t91 §7.1: activations.json corrupted while the dialog is open: confirm removes nothing and returns the same path-free result", async (t) => {
   await withAgentPluginsDir(async (dir) => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-corrupt-confirm");
-    const activationsPath = path.join(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root, "activations.json");
+    const activationsPath = path.join(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).root, "activations.json");
     const { deps } = fakeDeps();
     const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const recorder = surfaceRecorder();
@@ -352,7 +352,7 @@ test("t91 §7.1: activations.json corrupted while the dialog is open: confirm re
 test("FAILS CLOSED: with no interactive confirmation channel (no emitSurface) nothing is removed", async () => {
   await withAgentPluginsDir(async () => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-no-channel");
-    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A);
+    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A });
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "operator-plugin", enabled: true, actor: "op-1" });
     const { deps } = fakeDeps();
 
@@ -388,11 +388,11 @@ test("confirm: uninstalls — package root gone, activation record deleted, and 
     const sibling = await installReal(WORKSPACE_A, "sibling-plugin", "archive-sibling");
     const otherWorkspace = "78787878-7878-4787-8787-787878787878";
     const other = await installReal(otherWorkspace, "operator-plugin", "archive-other-workspace");
-    const otherLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(otherWorkspace);
+    const otherLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: otherWorkspace });
     await setAgentPluginActivation({ workspaceRoot: otherLayout.root, pluginId: "operator-plugin", enabled: true, actor: "op-other" });
     const otherBefore = await readAgentPluginActivations({ workspaceRoot: otherLayout.root });
 
-    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A);
+    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A });
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "operator-plugin", enabled: true, actor: "op-1" });
     const { deps } = fakeDeps();
     const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
@@ -444,7 +444,7 @@ test("confirm: the result note says the plugin's provisioned external MCP connec
 test("cancel: nothing is removed and the result reports the cancellation, not an error", async () => {
   await withAgentPluginsDir(async () => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-cancel");
-    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A);
+    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A });
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "operator-plugin", enabled: true, actor: "op-1" });
     const { deps } = fakeDeps();
     const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
@@ -515,7 +515,7 @@ test("a run that ends while the dialog is open closes it, reports 'abandoned', a
 test("an interrupted update waiting for boot recovery refuses the uninstall as a path-free update-pending result, removing nothing", async () => {
   await withAgentPluginsDir(async (dir) => {
     const installed = await installReal(WORKSPACE_A, "pending-plugin", "archive-update-pending");
-    const pluginRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).pluginRootDir({ pluginId: "pending-plugin" });
+    const pluginRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).pluginRootDir({ pluginId: "pending-plugin" });
     await writeFile(path.join(pluginRoot, "update-journal.json"), JSON.stringify({
       schemaVersion: 1, state: "pending", transactionId: "tx-1", pluginId: "pending-plugin", actor: PRINCIPAL_ID, enabled: false,
       fromDigest: installed.archiveDigest, toDigest: "f".repeat(64), settingsSnapshot: { keys: [] }, startedAt: new Date(0).toISOString(),
@@ -535,7 +535,7 @@ test("an interrupted update waiting for boot recovery refuses the uninstall as a
 test("an unreadable update recovery record refuses the uninstall with a manual-repair note, never 'restart', removing nothing", async () => {
   await withAgentPluginsDir(async (dir) => {
     const installed = await installReal(WORKSPACE_A, "broken-journal", "archive-update-invalid");
-    const pluginRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).pluginRootDir({ pluginId: "broken-journal" });
+    const pluginRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).pluginRootDir({ pluginId: "broken-journal" });
     await writeFile(path.join(pluginRoot, "update-journal.json"), JSON.stringify({ schemaVersion: 99 }));
     const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const { result } = await answerDialog(findRegistration(fakeDeps().deps, surfaceExchanges), surfaceExchanges, "broken-journal", "confirm");

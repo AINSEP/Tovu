@@ -24,7 +24,7 @@ type Registrar = { readonly register: (registration: ToolRegistration) => void }
  * @complexity O(1) per registration; O(a) for `registerAliases` over the a retired names.
  */
 export function createRetiredPluginToolAliases(required: { readonly registry: Registrar }, _optional: Record<string, never> = {}) {
-  const aliasIdByToolId = new Map([...RETIRED_PLUGIN_REPLACEMENTS].map(([retired, successor]) => [toAgentPluginToolId(successor), toAgentPluginToolId(retired)]));
+  const aliasIdByToolId = new Map([...RETIRED_PLUGIN_REPLACEMENTS].map(([retired, successor]) => [toAgentPluginToolId({ pluginId: successor }), toAgentPluginToolId({ pluginId: retired })]));
   const registered = new Set<string>();
   const owed: ToolRegistration[] = [];
   return {

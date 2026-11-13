@@ -43,14 +43,12 @@ export function importAgentPluginAccessToken(deps: ImportAgentPluginAccessTokenD
 
 /** Every installed plugin in the workspace, one per id (the bundled-preferred digest). */
 export function listInstalledAgentPluginServers(input: { workspaceId: string; agentPluginLayout: AgentPluginLayout }, _options = {}): Promise<readonly InstalledAgentPluginServers[]> {
-  return listWithPorts({ workspaceRoot: input.agentPluginLayout.forWorkspace(input.workspaceId).root, lifecycle: tovuInstalledMcpReads });
+  return listWithPorts({ workspaceRoot: input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root, lifecycle: tovuInstalledMcpReads });
 }
 
-/** Existing boot signature; installed reads remain lazy and inside the portable failure boundary. */
+/** Installed reads remain lazy and inside the portable failure boundary at boot. */
 export function importAgentPluginAccessTokensFromEnv(
-  deps: ImportAgentPluginAccessTokensFromEnvDeps,
-  env: Readonly<Record<string, string | undefined>>,
-  log: TokenImportLog,
+  { deps, env, log }: { deps: ImportAgentPluginAccessTokensFromEnvDeps; env: Readonly<Record<string, string | undefined>>; log: TokenImportLog },
   options: Parameters<typeof importEnvWithPorts>[1] = {},
 ): Promise<void> {
   return importEnvWithPorts({ deps: withOverrides(tovuImportDeps(deps), {

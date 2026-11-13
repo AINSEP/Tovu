@@ -50,7 +50,7 @@ test("mcp.json declares Composio Connect over OAuth, auto-admitted (no secret, n
 });
 
 test("the package packs through the real installer's packer, and carries no credential material", async () => {
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
   // 45e6d4164 moved contract tests into the package; since 11b2bc87a the packer leaves test files
   // out, so an installed plugin carries only what it runs.
   assert.deepEqual([...packed.files].sort(), ["mcp.json", "plugin.json", "skills/composio/SKILL.md"]);

@@ -42,12 +42,12 @@ export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = (app, d
       )
         return;
 
-      const workspaceLayout = deps.agentPluginLayout.forWorkspace(deps.workspaceId);
+      const workspaceLayout = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId });
       // An upgraded bundled plugin's superseded package is dropped first, so this browses the
       // version the running build ships rather than whichever digest the walk reached first.
       const plugin = preferBundledAgentPluginDigests(
-        await listInstalledPlugins(workspaceLayout.root),
-        await readBundledAgentPluginDigests(workspaceLayout.root),
+        await listInstalledPlugins({ workspaceRoot: workspaceLayout.root }),
+        await readBundledAgentPluginDigests({ workspaceRoot: workspaceLayout.root }),
       ).find((candidate) => candidate.pluginId === pluginId);
       if (!plugin) {
         res.status(404).json({ error: "agent plugin was not found", code: "AGENT_PLUGIN_NOT_FOUND" });

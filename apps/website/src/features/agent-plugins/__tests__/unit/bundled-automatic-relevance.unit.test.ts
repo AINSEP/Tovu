@@ -41,7 +41,7 @@ for (const [query, expected] of [
   test(`Auto suggests only relevant bundled plugins: ${query}`, async () => {
     const candidates = await bundledCandidates();
     const rank = ({ query, candidates, limit }: { query: string; candidates: readonly AgentPluginSearchCandidate[]; limit: number }) =>
-      rankInstalledAgentPlugins(query, candidates, limit, { automatic: true });
+      rankInstalledAgentPlugins({ query, candidates, limit }, { automatic: true });
     const ranked = rank({ query, candidates, limit: 12 }).map(plugin => plugin.pluginId);
     assert.deepEqual([...ranked].sort(), [...expected].sort());
     const loaded: string[] = [];
