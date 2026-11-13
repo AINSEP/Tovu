@@ -152,3 +152,12 @@ Rules:
 - `apps/admin/src/lib/` is a non-feature layer (it already holds `router`, `api`).
 - The stage lists exclude test files; tests follow their subjects (Section 5).
 - Label source per file (manifest `unit` column): full run 2,090, round 2/3/4 178/167/121, pilot 127, canary 66, Codex-only 59 (not cross-checked by a Claude reviewer; the READY check still applies).
+
+## REMAINING (handoff, 2026-11-13: designer stopped at the context limit)
+
+Done: PLAN.md, `feature-cycles.mjs` (gate, verified to reproduce the cloud 24-feature SCC), `build-manifest.mjs`, `stage-lists.mjs`, all `stage-NN.files.tsv`, prompts `stage-01.terra-prompt.md`, `stage-02.terra-prompt.md`, `stage-02b.opus-prompt.md`.
+Not written yet (a fresh agent writes them from Sections 1, 2, 4, 5 of this file; the shared blocks to copy are in `stage-01.terra-prompt.md`: budget line, Repos, Rules, Cycle gate, Report):
+- `stage-03.terra-prompt.md`: list every file edge of C1, C2, C4a, the 18 type back edges (evidence: `node feature-cycles.mjs --include-type --edges`), the 3 admin moves and 2 Jini moves from Section 1.2, with the move-the-type-down recipe. Gate: `--include-type --assert-no-edge "<those edges>"` and `--app admin --max-scc 0 --max-pairs 0`. Check `apiConnectionVaultScope` needs `API_CONNECTION_VAULT_KIND` (move it with it if declared in vault-stores.ts). `SourceControlCredentialSetRecord` references `SealedSecret` (via webhooks/index, follow to Jini) and `CredentialProjectHalf` (vendor-credentials: extract only the record + same-file types; if it needs a feature type, BLOCKED).
+- `stage-04.opus-prompt.md`: C3, C4b, C5 per Section 1.3; end with gate `--include-type --max-scc 0 --max-pairs 0` for website and admin and add it to `development/scripts` checks as a ratchet.
+- `stage-06..11.terra-prompt.md`: one template (Section 5 + READY/Ports blocks drafted in the designer's scratch `common.py`, reproduced in Section 5): Jini half (destination from exports map, tests to `__tests__` with node:test -> vitest, typecheck touched package, build it), then Tovu half (verify `node_modules` is the APFS copy linked to jini-terra-d1, repoint importers to `@jini-ai/<pkg>/<subpath>`, delete Tovu file, `Jini-Base:` trailer). Package groups are in `stage-lists.mjs` MOVE_GROUPS / CMS_SPLIT.
+- `stage-12/13/14/15.opus-prompt.md` and `stage-16.terra-prompt.md`: per Sections 2-4.
