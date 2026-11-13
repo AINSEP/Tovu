@@ -36,10 +36,10 @@ interface TextSink {
 /** Everything `runVerifyPackage` touches outside its own arguments. */
 interface VerifyPackagePorts {
   fs: VerifyPackageFs;
-  verify(asarPath: string, sourceRoot: string, prefixes: string[]): AsarVerification;
-  isEmptyVerification(checkedCount: number): boolean;
-  formatMismatchReport(mismatches: AsarVerification["mismatches"]): string;
-  bundledNpmFailures(resourcesDirs: string[]): string[];
+  verify(input: { asarPath: string; sourceRoot: string; prefixes: string[] }, options?: Record<string, never>): AsarVerification;
+  isEmptyVerification(input: { checkedCount: number }, options?: Record<string, never>): boolean;
+  formatMismatchReport(input: { mismatches: AsarVerification["mismatches"] }, options?: Record<string, never>): string;
+  bundledNpmFailures(input: { resourcesDirs: string[] }, options?: Record<string, never>): string[];
   ptyHelperFailures(resourcesDirs: string[]): string[];
   prefixes: string[];
   stdout: TextSink;
@@ -112,13 +112,13 @@ export function resolveAsarPath({ fs, argv, desktopRoot }: { fs: VerifyPackageFs
 
 /** The asar comparison half; returns the failure message, or `undefined` on a clean, non-empty pass. */
 function asarFailure(ports: VerifyPackagePorts, asarPath: string, desktopRoot: string): string | undefined {
-  const { checkedCount, mismatches } = ports.verify(asarPath, desktopRoot, ports.prefixes);
+  const { checkedCount, mismatches } = ports.verify({ asarPath, sourceRoot: desktopRoot, prefixes: ports.prefixes });
   ports.stdout.write(`verify-package: ${checkedCount} file(s) checked\n`);
-  if (ports.isEmptyVerification(checkedCount)) {
+  if (ports.isEmptyVerification({ checkedCount })) {
     return "verify-package: verified nothing — path-separator or prefix bug (see asar-verify.ts's " +
       "toArchiveEntryPath doc comment); this is a failure, not a clean pass\n";
   }
-  if (mismatches.length > 0) return `verify-package: ${ports.formatMismatchReport(mismatches)}\n`;
+  if (mismatches.length > 0) return `verify-package: ${ports.formatMismatchReport({ mismatches })}\n`;
   return undefined;
 }
 
@@ -131,7 +131,7 @@ function resourcesDirsFor(ports: VerifyPackagePorts, asarPath: string, desktopRo
 
 /** The bundled-npm half; returns the failure message, or `undefined` on a pass. */
 function npmFailure(ports: VerifyPackagePorts, resourcesDirs: string[]): string | undefined {
-  const failures = ports.bundledNpmFailures(resourcesDirs);
+  const failures = ports.bundledNpmFailures({ resourcesDirs });
   if (failures.length === 0) return undefined;
   return `verify-package: bundled npm is missing from the packaged app:\n  ${failures.join("\n  ")}\n` +
     "Every stdio MCP server launched via a bare npx/npm command would have nothing to run. Check " +

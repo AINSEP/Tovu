@@ -82,7 +82,7 @@ test("seeding refuses a missing or non-site directory, writing nothing", (t) => 
   for (const siteDir of [undefined, "", path.join(tmp, "not-a-site")]) {
     const lines: string[] = [];
     const name = seedSitePowerProfile({ siteDir, shotDir: path.join(tmp, "shots"), userDataDir: path.join(tmp, "profile") },
-      { fs: { existsSync, readFileSync, mkdirSync, writeFileSync }, log: (line) => lines.push(line), now: () => new Date(0) });
+      { fs: { existsSync, readFileSync, mkdirSync, writeFileSync }, log: ({ line }, _options = {}) => lines.push(line), now: () => new Date(0) });
     assert.equal(name, null);
     assert.deepEqual(lines, ["FAIL:: SITE_POWER_SITE_DIR must name a real Tovu site directory (one with config.json)"]);
   }
@@ -97,7 +97,7 @@ test("seeding a real site creates the shot and profile dirs and adopts exactly t
   writeFileSync(path.join(siteDir, "config.json"), JSON.stringify({ name: "Scratch Bakery" }));
   const lines: string[] = [];
   const name = seedSitePowerProfile({ siteDir, shotDir: path.join(tmp, "shots", "run"), userDataDir: path.join(tmp, "profile") },
-    { fs: { existsSync, readFileSync, mkdirSync, writeFileSync }, log: (line) => lines.push(line), now: () => new Date("2026-10-21T12:00:00Z") });
+    { fs: { existsSync, readFileSync, mkdirSync, writeFileSync }, log: ({ line }, _options = {}) => lines.push(line), now: () => new Date("2026-10-21T12:00:00Z") });
   assert.equal(name, "Scratch Bakery");
   assert.deepEqual(lines, []);
   assert.ok(existsSync(path.join(tmp, "shots", "run")));

@@ -6,7 +6,7 @@ import { createCheckLog } from "./live-verify-checks.ts";
 
 test("a run whose every check passes prints PASS lines and VERIFY_OK, and exits 0", () => {
   const lines: string[] = [];
-  const log = createCheckLog({ log: (line) => lines.push(line) });
+  const log = createCheckLog({ log: ({ line }, _options = {}) => lines.push(line) });
   log.check("BAR_OPENS", true, "find bar present");
   log.check("INPUT_KEEPS_FOCUS", true, "activeElement = findbar__input");
   assert.equal(log.report(), 0);
@@ -15,7 +15,7 @@ test("a run whose every check passes prints PASS lines and VERIFY_OK, and exits 
 
 test("any failed check is printed as it happens and listed again in the verdict, which exits 1", () => {
   const lines: string[] = [];
-  const log = createCheckLog({ log: (line) => lines.push(line) });
+  const log = createCheckLog({ log: ({ line }, _options = {}) => lines.push(line) });
   log.check("A", false, "first reason");
   log.check("B", true, "fine");
   log.check("C", false, "second reason");

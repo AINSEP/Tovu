@@ -30,7 +30,7 @@ import path from "node:path";
 const DESKTOP_APP_NAME = "tovu-desktop";
 
 /** One platform's rule: its `appData` root, from the environment and the home directory. */
-type AppDataRoot = (env: NodeJS.ProcessEnv, home: string) => string;
+type AppDataRoot = (input: { env: NodeJS.ProcessEnv; home: string }, options?: Record<string, never>) => string;
 
 /** {@link resolveDesktopUserDataDir}'s options. Each one defaults to the real process's value. */
 interface ResolveDesktopUserDataDirOptions {
@@ -52,9 +52,9 @@ interface ResolveDesktopUserDataDirOptions {
  * @complexity O(1).
  */
 const APP_DATA_ROOTS: Readonly<Partial<Record<NodeJS.Platform, AppDataRoot>>> = Object.freeze({
-  darwin: (env: NodeJS.ProcessEnv, home: string) => path.join(home, "Library", "Application Support"),
-  win32: (env: NodeJS.ProcessEnv, home: string) => env.APPDATA?.trim() || path.join(home, "AppData", "Roaming"),
-  linux: (env: NodeJS.ProcessEnv, home: string) => env.XDG_CONFIG_HOME?.trim() || path.join(home, ".config"),
+  darwin: ({ home }: { env: NodeJS.ProcessEnv; home: string }, _options = {}) => path.join(home, "Library", "Application Support"),
+  win32: ({ env, home }: { env: NodeJS.ProcessEnv; home: string }, _options = {}) => env.APPDATA?.trim() || path.join(home, "AppData", "Roaming"),
+  linux: ({ env, home }: { env: NodeJS.ProcessEnv; home: string }, _options = {}) => env.XDG_CONFIG_HOME?.trim() || path.join(home, ".config"),
 });
 
 /**
@@ -82,7 +82,7 @@ function resolveDesktopUserDataDir(options: ResolveDesktopUserDataDirOptions = {
       `tovu-desktop: no known userData location for platform '${platform}'. Set TOVU_DESKTOP_USER_DATA_DIR to the app's data directory.`,
     );
   }
-  return path.join(root(env, options.homedir ?? os.homedir()), DESKTOP_APP_NAME);
+  return path.join(root({ env, home: options.homedir ?? os.homedir() }), DESKTOP_APP_NAME);
 }
 
 export { APP_DATA_ROOTS, DESKTOP_APP_NAME, resolveDesktopUserDataDir };

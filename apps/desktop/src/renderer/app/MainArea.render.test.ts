@@ -25,7 +25,7 @@ async function renderArea(t: TestContext, props: Props = {}) {
   let closed = 0;
   const view = mount({ t, element: createElement(MainArea, {
     appearanceOpen: false, onCloseAppearance: () => { closed++; }, showSitesHome: true, activeId: 'projects',
-    isCreating: false, isImporting: false, active: findSection('projects'), lastCreated: null, projectsLoading: false, loadError: null,
+    isCreating: false, isImporting: false, active: findSection({ id: 'projects' }), lastCreated: null, projectsLoading: false, loadError: null,
     projects: [], onCreateWebsite: () => {}, onOpenProject: () => {}, onDeleteProject: async () => {}, onSiteUpdated: () => {},
     onRescan: async () => {}, rescanning: false, rescanError: null, onImport: () => {},
     useFolders: useFakeFolders,
@@ -64,7 +64,7 @@ test('MainArea: with no section object the title falls back to Runner and an unb
 });
 
 test('MainArea: an unbuilt section shows its own label and description', async (t) => {
-  const marketplace = findSection('marketplace');
+  const marketplace = findSection({ id: 'marketplace' });
   const view = await renderArea(t, { activeId: 'marketplace', active: marketplace });
   assert.equal(view.title(), marketplace?.label);
   assert.equal(view.container.querySelector('.empty__title')?.textContent, `${marketplace?.label} isn’t built yet`);

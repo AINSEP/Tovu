@@ -31,11 +31,11 @@ type ExecutorOptions = NonNullable<Parameters<typeof createAgentExecutor>[1]>;
 type RunRequired = { runId: string; agentId: string; prompt: string; cwd: string };
 
 test("bearerToken reads the token from an Authorization header, case-insensitively and trimmed", () => {
-  assert.equal(bearerToken(undefined), undefined);
-  assert.equal(bearerToken("Bearer abc.def"), "abc.def");
-  assert.equal(bearerToken("  bearer   tok  "), "tok");
-  assert.equal(bearerToken("Basic dXNlcg=="), undefined);
-  assert.equal(bearerToken("Bearer"), undefined);
+  assert.equal(bearerToken({ header: undefined }), undefined);
+  assert.equal(bearerToken({ header: "Bearer abc.def" }), "abc.def");
+  assert.equal(bearerToken({ header: "  bearer   tok  " }), "tok");
+  assert.equal(bearerToken({ header: "Basic dXNlcg==" }), undefined);
+  assert.equal(bearerToken({ header: "Bearer" }), undefined);
 });
 
 test("the bridge gate denies by default and binds a delegated call to the credential's own run", () => {
@@ -78,9 +78,9 @@ test("the catalog describes a known tool with its schema when it has one, and nu
 });
 
 test("the turn prompt names the on-screen site, or says only desktop tools apply", () => {
-  assert.equal(turnPrompt("hello", null), "[Desktop context] No website is on screen. Only desktop.* tools apply this turn.\n\nhello");
+  assert.equal(turnPrompt({ prompt: "hello", addressee: null }), "[Desktop context] No website is on screen. Only desktop.* tools apply this turn.\n\nhello");
   assert.equal(
-    turnPrompt("hi", { siteDir: "/sites/a", name: "Alpha" }),
+    turnPrompt({ prompt: "hi", addressee: { siteDir: "/sites/a", name: "Alpha" } }),
     '[Desktop context] On screen: the website "Alpha" (/sites/a). site.list_tools / site.call_tool reach it this turn.\n\nhi',
   );
 });
@@ -108,7 +108,7 @@ async function harness(t: TestContext, overrides: DesktopAgentRuntimeOptions & {
     buildTools: ({ addresseeOf }) => [{
       descriptor: { id: "probe.whoami", description: "Who is on screen", inputSchema: { type: "object" } },
       policy: { authorize: () => "allow" },
-      handler: async ({ run: ref }) => ({ addressee: addresseeOf(ref.id) }),
+      handler: async ({ run: ref }) => ({ addressee: addresseeOf({ runId: ref.id }) }),
     }],
     agentRuntime: runtime,
   }, {
@@ -166,7 +166,7 @@ test("every listener request needs a credential for a live run; a turn's credent
 
   const { runId } = await h.chat.startTurn({ prompt: "who?", agentId: "codex" }, { addressee: { siteDir: "/sites/a", name: "Alpha" } });
   const token = h.options().mcpJsonInjection!.credential!({ runId }) as string;
-  assert.equal(h.chat.addresseeOf(runId)?.name, "Alpha");
+  assert.equal(h.chat.addresseeOf({ runId })?.name, "Alpha");
   const found = await call(search, token);
   assert.equal(found.status, 200);
   assert.deepEqual((found.body.hits as Array<{ id: string }>).map((hit) => hit.id), ["probe.whoami"]);
@@ -188,7 +188,7 @@ test("every listener request needs a credential for a live run; a turn's credent
   release();
   await h.chat.lifecycle.waitForTerminal({ runId });
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(h.chat.addresseeOf(runId), null, "a finished run has no addressee");
+  assert.equal(h.chat.addresseeOf({ runId }), null, "a finished run has no addressee");
   assert.deepEqual(await call(search, token), { status: 401, body: { error: "credential is not valid for any live run" } }, "and its credential is revoked");
 });
 
@@ -256,7 +256,7 @@ test("an executor that rejects before terminalizing the run fails the run with a
   // The log keeps the redacted message + stack, not just the class name.
   assert.equal(h.errors[0]?.[0], `[desktop-agent] run ${runId} failed to start`);
   assert.match(String(h.errors[0]?.[1]), /spawn EACCES[\s\S]*desktop-agent\.test\.ts/);
-  assert.equal(h.chat.addresseeOf(runId), null);
+  assert.equal(h.chat.addresseeOf({ runId }), null);
 });
 
 test("an executor that rejects after the run already finished leaves the finished run alone", async (t) => {
@@ -298,7 +298,7 @@ test("without an injected executor the turn runs on Jini's own executor, which f
   const terminal = await h.chat.lifecycle.waitForTerminal({ runId });
   assert.equal(terminal.state, "failed");
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(h.chat.addresseeOf(runId), null);
+  assert.equal(h.chat.addresseeOf({ runId }), null);
 });
 
 test("with no injected reader, an enabled login environment is read from the real login shell", async () => {

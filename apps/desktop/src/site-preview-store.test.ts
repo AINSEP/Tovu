@@ -35,7 +35,7 @@ test("the digest is sitePartition's own, so one site has ONE identity in this ap
   // Not a second hashing scheme. `desktop-auth.ts` already derives a per-site digest for the
   // Electron session partition; two schemes could disagree about which site a file belongs to.
   const dir = "/sites/example";
-  assert.equal(sitePartition(dir), `persist:tovu-site-${siteDigest(dir)}`);
+  assert.equal(sitePartition({ siteDir: dir }), `persist:tovu-site-${siteDigest(dir)}`);
   assert.equal(siteDigest(dir), crypto.createHash("sha256").update(dir).digest("hex").slice(0, 32));
 });
 

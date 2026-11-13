@@ -540,7 +540,7 @@ test('a full turn translates every RunAgentPayload variant to its exact AgentEve
     }),
   );
   const sub = fake.calls.chatStart[0]!.subscriptionId;
-  const desktopStatusToolName = mcpToolNameForVerb('desktop.status'); // a real desktop.* verb, real mapping
+  const desktopStatusToolName = mcpToolNameForVerb({ verb: 'desktop.status' }); // a real desktop.* verb, real mapping
 
   const push = (payload: RunAgentPayload): void => fake.emit({ subscriptionId: sub, kind: 'event', event: agentEvent(payload) });
 

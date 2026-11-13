@@ -66,7 +66,7 @@ function isViteWatchRunning(exec: ExecPort): boolean {
  *  bare `git status`, so this reads exactly the files the backstop half will later check. On a fresh
  *  CI checkout this is empty by construction: there is nothing to diff against yet.
  *  @complexity O(1) plus git's own cost. */
-function gitDirtyPaths(exec: ExecPort, repoRoot: string): string[] {
+function gitDirtyPaths({ exec, repoRoot }: { exec: ExecPort; repoRoot: string }, _options = {}): string[] {
   const output = String(exec(
     "git",
     ["-C", repoRoot, "status", "--porcelain", "--", ...VERIFIED_RELATIVE_PATHS],
@@ -86,7 +86,7 @@ function gitDirtyPaths(exec: ExecPort, repoRoot: string): string[] {
  *  between — deliberately not a content hash, since this needs to run twice in under a second, not
  *  walk-and-hash a multi-hundred-file tree twice.
  *  @complexity O(n) in files under `absPath`. */
-function snapshot(absPath: string): Snapshot {
+function snapshot({ absPath }: { absPath: string }, _options = {}): Snapshot {
   let stat;
   try {
     stat = statSync(absPath);
@@ -101,7 +101,7 @@ function snapshot(absPath: string): Snapshot {
   for (const entry of readdirSync(absPath, { withFileTypes: true })) {
     const child = path.join(absPath, entry.name);
     if (entry.isDirectory()) {
-      const childSnap = snapshot(child);
+      const childSnap = snapshot({ absPath: child });
       fileCount += childSnap.fileCount;
       newestMtimeMs = Math.max(newestMtimeMs, childSnap.newestMtimeMs);
     } else if (entry.isFile()) {
@@ -121,10 +121,10 @@ function snapshotsDiffer(a: Snapshot, b: Snapshot): boolean {
  *  output (`dist/renderer`). Blocks synchronously via the `sleep` binary rather than `setTimeout`, so
  *  this stays a single straight-line script with no async plumbing for what is a one-shot check.
  *  @complexity O(n) in files under the verified surface, twice. */
-function movingPaths(exec: ExecPort, repoRoot: string): string[] {
-  const before = VERIFIED_RELATIVE_PATHS.map((rel) => snapshot(path.join(repoRoot, rel)));
+function movingPaths({ exec, repoRoot }: { exec: ExecPort; repoRoot: string }, _options = {}): string[] {
+  const before = VERIFIED_RELATIVE_PATHS.map((rel) => snapshot({ absPath: path.join(repoRoot, rel) }));
   exec("sleep", [String(SNAPSHOT_WINDOW_SECONDS)]);
-  const after = VERIFIED_RELATIVE_PATHS.map((rel) => snapshot(path.join(repoRoot, rel)));
+  const after = VERIFIED_RELATIVE_PATHS.map((rel) => snapshot({ absPath: path.join(repoRoot, rel) }));
   return VERIFIED_RELATIVE_PATHS.filter((_, i) => snapshotsDiffer(before[i]!, after[i]!));
   // !: `before`/`after` are both mapped from VERIFIED_RELATIVE_PATHS with .map, so they share its
   // length and `i` (from the same filter over VERIFIED_RELATIVE_PATHS) is always in bounds of both.
@@ -143,8 +143,8 @@ function runTreeQuietCheck(
   try {
     const signals: TreeQuietSignals = {
       viteWatchRunning: isViteWatchRunning(exec),
-      gitDirtyPaths: gitDirtyPaths(exec, repoRoot),
-      movingPaths: movingPaths(exec, repoRoot),
+      gitDirtyPaths: gitDirtyPaths({ exec, repoRoot }),
+      movingPaths: movingPaths({ exec, repoRoot }),
     };
 
     const problems = treeQuietProblems(signals);

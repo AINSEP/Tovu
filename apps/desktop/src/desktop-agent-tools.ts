@@ -17,7 +17,7 @@
  *   Jini `ToolRegistry` is process-wide and static, and its catalog has no notion of a run, so a
  *   site's tool list cannot be swapped in and out of it per turn without racing a concurrent turn.
  *   Instead `site.list_tools`/`site.call_tool` resolve the site the RUN was started against
- *   (`addresseeOf(runId)`, captured once at turn start — REQ-05). A tab switch mid-turn therefore
+ *   (`addresseeOf({ runId })`, captured once at turn start — REQ-05). A tab switch mid-turn therefore
  *   cannot land a call on a different site's `content.db` than the one the turn began against — the
  *   same "no notion of the current site" rule `sites-mcp-tools.ts`'s own header states.
  */
@@ -57,7 +57,7 @@ interface DesktopAgentToolDeps {
   /** What the shared desktop table needs (`projectsPath`, `revealPath`, …). */
   sitesToolContext: ToolContext;
   /** The site a run was started against, or `null`. Read per call, keyed by run id. */
-  addresseeOf: (runId: string) => TurnAddressee | null;
+  addresseeOf: (input: { runId: string }, options?: Record<string, never>) => TurnAddressee | null;
   siteTools: SiteToolGateway;
   /** Pushes `workspace:chat:navigate` to the shell renderer (REQ-17). */
   navigate: (required: { section: string }) => void;
@@ -137,7 +137,7 @@ function activeSiteTools(deps: Pick<DesktopAgentToolDeps, "addresseeOf" | "siteT
       },
       policy: OPERATOR_POLICY,
       handler: async ({ run }: ToolExecutionContext) => {
-        const addressee = deps.addresseeOf(run.id);
+        const addressee = deps.addresseeOf({ runId: run.id });
         if (addressee === null) return { text: noActiveSiteText(), isError: true };
         const listed = await deps.siteTools.listTools({ siteDir: addressee.siteDir });
         if (!listed.available) return { text: `${addressee.name}'s tools are unavailable this turn: ${listed.reason}`, isError: true };
@@ -152,7 +152,7 @@ function activeSiteTools(deps: Pick<DesktopAgentToolDeps, "addresseeOf" | "siteT
       },
       policy: OPERATOR_POLICY,
       handler: async ({ run, input }: ToolExecutionContext) => {
-        const addressee = deps.addresseeOf(run.id);
+        const addressee = deps.addresseeOf({ runId: run.id });
         if (addressee === null) return { text: noActiveSiteText(), isError: true };
         const { toolId, input: toolInput } = (input ?? {}) as { toolId?: unknown; input?: unknown };
         if (typeof toolId !== "string" || toolId === "") return { text: "toolId is required — take one from site.list_tools.", isError: true };

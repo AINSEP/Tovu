@@ -18,15 +18,15 @@ test('visible navigation retains declaration order and filters hidden sections i
 });
 
 test('hidden tasks remain addressable while unknown IDs have no fallback section', () => {
-  const tasks = findSection('tasks');
+  const tasks = findSection({ id: 'tasks' });
   assert.ok(tasks);
   assert.equal(tasks.hidden, true);
   assert.equal(tasks.label, 'Tasks');
   assert.deepEqual(tasks.tools, ['desktop.queue_task', 'desktop.task.list', 'desktop.task.cancel']);
-  assert.equal(findSection('missing'), undefined);
-  assert.equal(findSection('toString'), undefined);
-  assert.equal(findSection('Projects'), undefined);
-  assert.deepEqual(findSection('marketplace')?.tools, []);
+  assert.equal(findSection({ id: 'missing' }), undefined);
+  assert.equal(findSection({ id: 'toString' }), undefined);
+  assert.equal(findSection({ id: 'Projects' }), undefined);
+  assert.deepEqual(findSection({ id: 'marketplace' })?.tools, []);
 });
 
 test('the fleet tool vocabulary includes navigation and the tools of every parked section', () => {

@@ -88,7 +88,7 @@ interface WorkspaceChatIpcDeps {
   runtime: Promise<Pick<DesktopAgentRuntime, "lifecycle" | "startTurn">>;
   conversations: ConversationStore;
   /** Resolves a renderer-reported site dir to a TRACKED site, or `null`. Never trusts the path itself. */
-  resolveAddressee: (siteDir: string) => TurnAddressee | null;
+  resolveAddressee: (input: { siteDir: string }, options?: Record<string, never>) => TurnAddressee | null;
   listAgents: (required: { rescan: boolean }) => Promise<RunnerAgentSummary[]>;
   pickDirectory: (currentDirectory?: string) => Promise<string | null>;
 }
@@ -100,7 +100,7 @@ interface WorkspaceChatIpcDeps {
  */
 function addresseeForStart(input: DesktopChatStartInput, resolve: WorkspaceChatIpcDeps["resolveAddressee"]): TurnAddressee | null {
   const siteDir = input.activeSiteDir;
-  return typeof siteDir === "string" && siteDir !== "" ? resolve(siteDir) : null;
+  return typeof siteDir === "string" && siteDir !== "" ? resolve({ siteDir }) : null;
 }
 
 /**

@@ -277,5 +277,5 @@ test("addSitePointer does not touch the recently-opened list", () => {
 });
 
 test("normalizeSiteDirPath leaves an absolute path absolute and ignores cwd", () => {
-  assert.equal(normalizeSiteDirPath("/sites/a", "/elsewhere"), path.resolve("/sites/a"));
+  assert.equal(normalizeSiteDirPath({ rawSiteDir: "/sites/a", cwd: "/elsewhere" }), path.resolve("/sites/a"));
 });

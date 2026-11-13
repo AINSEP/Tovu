@@ -101,9 +101,9 @@ test("snapshot fingerprints a missing path, a file, and a tree (symlinks are not
   const file = path.join(src, "a.ts");
   const fileStat = fs.statSync(file);
 
-  assert.deepEqual(snapshot(path.join(repoRoot, "nope")), { exists: false, fileCount: 0, newestMtimeMs: 0 });
-  assert.deepEqual(snapshot(file), { exists: true, fileCount: 1, newestMtimeMs: fileStat.mtimeMs });
-  const tree = snapshot(src);
+  assert.deepEqual(snapshot({ absPath: path.join(repoRoot, "nope") }), { exists: false, fileCount: 0, newestMtimeMs: 0 });
+  assert.deepEqual(snapshot({ absPath: file }), { exists: true, fileCount: 1, newestMtimeMs: fileStat.mtimeMs });
+  const tree = snapshot({ absPath: src });
   assert.equal(tree.exists, true);
   assert.equal(tree.fileCount, 2);
   assert.equal(tree.newestMtimeMs, Math.max(fs.statSync(path.join(src, "a.ts")).mtimeMs, fs.statSync(path.join(src, "nested", "b.ts")).mtimeMs));

@@ -137,7 +137,7 @@ function translateThinkingStart(): AgentEvent | null {
  * dropped here, along with the `tool_result` that will follow it.
  */
 function translateToolUse(payload: Extract<RunAgentPayload, { type: 'tool_use' }>, record: SubscriptionRecord): AgentEvent | null {
-  if (desktopVerbForAgentToolName(payload.name) !== undefined) {
+  if (desktopVerbForAgentToolName({ agentToolName: payload.name }) !== undefined) {
     record.mirroredToolUseIds.add(payload.id);
     return null;
   }

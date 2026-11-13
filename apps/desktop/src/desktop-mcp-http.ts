@@ -53,7 +53,7 @@ export function createDesktopMcpHttpRuntime({ context, warn }: { context: ToolCo
     },
     connectSite({ adminUrl, onExit }, _optional = {}) {
       if (stopped) return;
-      const endpoint = new URL('/internal/desktop-mcp-capability', assertLoopbackAdminUrl(adminUrl));
+      const endpoint = new URL('/internal/desktop-mcp-capability', assertLoopbackAdminUrl({ adminUrl }));
       const abort = new AbortController();
       let unsubscribe: (() => void) | undefined;
       const disconnect = () => { abort.abort(); unsubscribe?.(); disconnects.delete(disconnect); };

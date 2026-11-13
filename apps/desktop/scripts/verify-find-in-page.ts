@@ -62,10 +62,10 @@ const REPO = path.resolve(DESKTOP, '../..');
 const SHOT_DIR = process.env.FIND_SHOT_DIR ?? path.join(REPO, 'ADS-memory/.local-artifacts/find-enter-fix-screenshots-2026-09-18');
 const USER_DATA = process.env.FIND_VERIFY_USERDATA ?? fs.mkdtempSync(path.join(process.env.TMPDIR ?? '/tmp', 'tovu-find-verify-'));
 
-const { check, report } = createCheckLog({ log: (line) => console.log(line) });
+const { check, report } = createCheckLog({ log: ({ line }, _options = {}) => console.log(line) });
 let shotN = 0;
 
-async function shot(win: Page, name: string): Promise<string> {
+async function shot({ win, name }: { win: Page; name: string }, _options = {}): Promise<string> {
   shotN += 1;
   const file = path.join(SHOT_DIR, `${String(shotN).padStart(2, '0')}-${name}.png`);
   await win.screenshot({ path: file });
@@ -77,7 +77,7 @@ const countText = (win: Page): Promise<string> =>
 
 /** The counter arrives asynchronously (`found-in-page` -> relay -> renderer), so the first read
  *  after typing has to wait for it rather than assume it has landed. */
-async function waitForCount(win: Page, timeoutMs = 6000): Promise<Count | null> {
+async function waitForCount({ win }: { win: Page }, { timeoutMs = 6000 }: { timeoutMs?: number } = {}): Promise<Count | null> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     const parsed = parseCount(await countText(win));
@@ -95,7 +95,7 @@ const inputState = (win: Page): Promise<{ active: string; value: string | null }
 /** Opens the bar the way the app menu does — `find-menu.ts` just sends this channel. A real
  *  `Meta+F` only reaches a menu accelerator when the app owns the OS focus, which a headed test
  *  run cannot assume. Targets `homeWindowId` — see this file's header — not `getAllWindows()[0]`. */
-async function openBar(app: ElectronApplication, win: Page, homeWindowId: number): Promise<void> {
+async function openBar({ app, win, homeWindowId }: { app: ElectronApplication; win: Page; homeWindowId: number }, _options = {}): Promise<void> {
   await app.evaluate(
     ({ BrowserWindow }, id) => BrowserWindow.fromId(id)?.webContents.send('runner:find:toggle'),
     homeWindowId,
@@ -107,11 +107,11 @@ async function openBar(app: ElectronApplication, win: Page, homeWindowId: number
  *  blurs the input silently eats every character after the first, and `locator.fill()`/
  *  `locator.press()` both re-focus and would hide exactly that.
  *
- * @param msPerKey gap between keystrokes. The default 350ms is generous enough that a deferred
+ * @param options.msPerKey gap between keystrokes. The default 350ms is generous enough that a deferred
  *   focus-reclaim always wins its race before the next key, which is fine for the phases pinning
  *   OTHER behaviour (cycling, Escape, the Chromium anchor). `verifyColdGuest` passes a human-speed
  *   80ms instead, because that race is exactly what it exists to catch. */
-async function typeQuery(win: Page, text: string, msPerKey = 350): Promise<void> {
+async function typeQuery({ win, text }: { win: Page; text: string }, { msPerKey = 350 }: { msPerKey?: number } = {}): Promise<void> {
   for (const character of text) {
     await win.keyboard.type(character);
     await win.waitForTimeout(msPerKey);
@@ -122,8 +122,7 @@ async function typeQuery(win: Page, text: string, msPerKey = 350): Promise<void>
  *  `shotName` is given, a screenshot per press, since "the counter advanced" is a claim worth
  *  being able to look at rather than take on trust. */
 async function pressEnter(
-  win: Page,
-  times: number,
+  { win, times }: { win: Page; times: number },
   { modifier = '', shotName = null }: { modifier?: string; shotName?: string | null } = {},
 ): Promise<(Count | null)[]> {
   const seen: (Count | null)[] = [];
@@ -131,7 +130,7 @@ async function pressEnter(
     await win.keyboard.press(modifier ? `${modifier}+Enter` : 'Enter');
     await win.waitForTimeout(450);
     seen.push(parseCount(await countText(win)));
-    if (shotName) await shot(win, `${shotName}-${i + 1}`);
+    if (shotName) await shot({ win, name: `${shotName}-${i + 1}` });
   }
   return seen;
 }
@@ -139,10 +138,10 @@ async function pressEnter(
 /** Enter cycles forward three times, then Shift+Enter steps back one — on whatever surface the bar
  *  is currently open over. */
 async function verifyCycling(win: Page, start: Count): Promise<void> {
-  const forward = await pressEnter(win, 3, { shotName: 'projects-enter' });
+  const forward = await pressEnter({ win, times: 3 }, { shotName: 'projects-enter' });
   check('ENTER_ADVANCES', advancesEveryStep(start.ordinal, forward, start.total), `${start.ordinal} -> ${forward.map((s) => s?.ordinal).join(' -> ')} of ${start.total}`);
   const here = parseCount(await countText(win));
-  const [back] = await pressEnter(win, 1, { modifier: 'Shift', shotName: 'projects-shift-enter' });
+  const [back] = await pressEnter({ win, times: 1 }, { modifier: 'Shift', shotName: 'projects-shift-enter' });
   const expectedBack = previousOrdinal(here);
   check('SHIFT_ENTER_GOES_BACK', back != null && back.ordinal === expectedBack, `${here?.ordinal} -> ${back?.ordinal} (expected ${expectedBack}) of ${here?.total}`);
 }
@@ -150,10 +149,10 @@ async function verifyCycling(win: Page, start: Count): Promise<void> {
 /** Re-focuses the find input, optionally clears the document selection, issues a raw
  *  `findInPage(findNext: false)` and returns the counter before and after. */
 async function rawFindFromInput(
-  app: ElectronApplication,
-  win: Page,
-  homeWindowId: number,
-  { query, clearSelection }: { query: string; clearSelection: boolean },
+  { app, win, homeWindowId, query, clearSelection }: {
+    app: ElectronApplication; win: Page; homeWindowId: number; query: string; clearSelection: boolean;
+  },
+  _options = {},
 ): Promise<{ before: Count | null; after: Count | null }> {
   await win.evaluate(() => document.querySelector<HTMLInputElement>('.findbar__input')?.focus());
   await win.waitForTimeout(250);
@@ -170,15 +169,15 @@ async function rawFindFromInput(
 }
 
 /** CHROMIUM_ANCHOR: the platform behaviour the fix compensates for, pinned both ways. */
-async function verifyChromiumAnchor(app: ElectronApplication, win: Page, homeWindowId: number, query: string): Promise<void> {
-  const anchored = await rawFindFromInput(app, win, homeWindowId, { query, clearSelection: false });
+async function verifyChromiumAnchor({ app, win, homeWindowId, query }: { app: ElectronApplication; win: Page; homeWindowId: number; query: string }, _options = {}): Promise<void> {
+  const anchored = await rawFindFromInput({ app, win, homeWindowId, query, clearSelection: false });
   check(
     'CHROMIUM_ANCHOR_STILL_BITES',
     anchored.after !== null && anchored.after.ordinal !== nextOrdinal(anchored.before),
     `caret in the input: ${anchored.before?.ordinal} -> ${anchored.after?.ordinal} (a plain follow-up find must NOT advance; if it does, Chromium changed and runFind's selection clearing can go)`,
   );
 
-  const cleared = await rawFindFromInput(app, win, homeWindowId, { query, clearSelection: true });
+  const cleared = await rawFindFromInput({ app, win, homeWindowId, query, clearSelection: true });
   check(
     'CLEARING_THE_SELECTION_IS_WHAT_FIXES_IT',
     cleared.after !== null && cleared.after.ordinal === nextOrdinal(cleared.before),
@@ -200,7 +199,7 @@ async function verifyChromiumAnchor(app: ElectronApplication, win: Page, homeWin
  *
  * @returns `false` when the keys could not be delivered (no permission, or focus left the app).
  */
-async function typeNative(app: ElectronApplication, win: Page, homeWindowId: number, text: string, msPerKey: number): Promise<{ ok: boolean; why: string }> {
+async function typeNative({ app, win, homeWindowId, text, msPerKey }: { app: ElectronApplication; win: Page; homeWindowId: number; text: string; msPerKey: number }, _options = {}): Promise<{ ok: boolean; why: string }> {
   await app.evaluate(({ app: electronApp, BrowserWindow }, id) => {
     electronApp.focus({ steal: true });
     BrowserWindow.fromId(id)?.focus();
@@ -232,17 +231,17 @@ async function typeNative(app: ElectronApplication, win: Page, homeWindowId: num
  * nobody is at the keyboard.
  */
 async function verifyNativeTyping(
-  app: ElectronApplication,
-  win: Page,
-  homeWindowId: number,
-  { label, query, msPerKey }: { label: string; query: string; msPerKey: number },
+  { app, win, homeWindowId, label, query, msPerKey }: {
+    app: ElectronApplication; win: Page; homeWindowId: number; label: string; query: string; msPerKey: number;
+  },
+  _options = {},
 ): Promise<void> {
   if (process.env.FIND_VERIFY_NATIVE_KEYS !== '1') {
     console.log(`SKIP:: ${label}_EVERY_NATIVE_KEYSTROKE_LANDS — set FIND_VERIFY_NATIVE_KEYS=1 to run (sends real OS keystrokes)`);
     return;
   }
-  await openBar(app, win, homeWindowId);
-  const typed = await typeNative(app, win, homeWindowId, query, msPerKey);
+  await openBar({ app, win, homeWindowId });
+  const typed = await typeNative({ app, win, homeWindowId, text: query, msPerKey });
   await win.waitForTimeout(500);
   const afterTyping = await inputState(win);
   check(
@@ -252,38 +251,38 @@ async function verifyNativeTyping(
       ? `input value = ${JSON.stringify(afterTyping.value)}, typed ${JSON.stringify(query)} as OS keystrokes at ${msPerKey}ms/key — "${query[0]}" alone means the browser routed every later key into the guest`
       : typed.why,
   );
-  await shot(win, `${label.toLowerCase()}-native-typed`);
+  await shot({ win, name: `${label.toLowerCase()}-native-typed` });
   await win.keyboard.press('Escape');
   await win.waitForTimeout(400);
 }
 
-async function verifyTopLevel(app: ElectronApplication, win: Page, homeWindowId: number): Promise<void> {
-  await shot(win, 'projects-before-find');
-  await verifyNativeTyping(app, win, homeWindowId, { label: 'TOP', query: 'website', msPerKey: 150 });
-  await openBar(app, win, homeWindowId);
+async function verifyTopLevel({ app, win, homeWindowId }: { app: ElectronApplication; win: Page; homeWindowId: number }, _options = {}): Promise<void> {
+  await shot({ win, name: 'projects-before-find' });
+  await verifyNativeTyping({ app, win, homeWindowId, label: 'TOP', query: 'website', msPerKey: 150 });
+  await openBar({ app, win, homeWindowId });
   check('BAR_OPENS', await barOpen(win), 'find bar present after the menu channel fired');
 
   // A query with several matches on the Projects screen. 'e' is deliberately unambitious: what is
   // under test is cycling, not matching.
   const query = 'e';
-  await typeQuery(win, query);
+  await typeQuery({ win, text: query });
   const afterTyping = await inputState(win);
   check('INPUT_KEEPS_FOCUS', afterTyping.active === 'findbar__input', `activeElement after typing = ${afterTyping.active}`);
   check('EVERY_KEYSTROKE_LANDS', afterTyping.value === query, `input value = ${JSON.stringify(afterTyping.value)}, typed ${JSON.stringify(query)}`);
 
-  const start = await waitForCount(win);
+  const start = await waitForCount({ win });
   const enoughMatches = start !== null && start.total >= 3;
   check('COUNTER_SHOWS_MATCHES', enoughMatches, `counter = ${JSON.stringify(await countText(win))}`);
-  await shot(win, 'projects-typed');
+  await shot({ win, name: 'projects-typed' });
   if (start === null || !enoughMatches) return;
 
   await verifyCycling(win, start);
-  await verifyChromiumAnchor(app, win, homeWindowId, query);
+  await verifyChromiumAnchor({ app, win, homeWindowId, query });
 
   await win.keyboard.press('Escape');
   await win.waitForTimeout(400);
   check('ESCAPE_CLOSES', !(await barOpen(win)), 'find bar gone after Escape');
-  await shot(win, 'projects-after-escape');
+  await shot({ win, name: 'projects-after-escape' });
 }
 
 /** Opens the first openable project card and waits for its `<webview>` guest to attach with a real
@@ -328,16 +327,16 @@ async function openGuestTab(win: Page): Promise<{ available: boolean; attached: 
  * catch this regression: the bug leaves the host document still reporting the find input as its
  * active element even after Chromium has moved keyboard focus into the guest frame.
  */
-async function verifyColdGuest(app: ElectronApplication, win: Page, homeWindowId: number): Promise<void> {
+async function verifyColdGuest({ app, win, homeWindowId }: { app: ElectronApplication; win: Page; homeWindowId: number }, _options = {}): Promise<void> {
   const { available, attached } = await openGuestTab(win);
   check('COLD_GUEST_TAB_AVAILABLE', available, 'an openable project card exists in this profile');
   if (!available) return;
   check('COLD_GUEST_ATTACHED', attached, 'a project tab webview attached with a real src, before any find has run on this window');
   if (!attached) return;
   await win.waitForTimeout(6000);
-  await shot(win, 'cold-tab-loaded');
+  await shot({ win, name: 'cold-tab-loaded' });
 
-  await openBar(app, win, homeWindowId);
+  await openBar({ app, win, homeWindowId });
   check('COLD_GUEST_BAR_OPENS', await barOpen(win), 'find bar present over the project tab, window still cold');
 
   // 'the' rather than a site-specific word like 'site': it must be a query this test can trust to
@@ -345,7 +344,7 @@ async function verifyColdGuest(app: ElectronApplication, win: Page, homeWindowId
   // for 'site' against the real tovu-com fixture's rendered text) — a near-universal English word,
   // still multi-character, still exercises the same one-letter-then-nothing regression.
   const query = 'the';
-  await typeQuery(win, query, 80);
+  await typeQuery({ win, text: query }, { msPerKey: 80 });
   const afterTyping = await inputState(win);
   const hasFocus = await win.evaluate(() => document.hasFocus());
   check('COLD_GUEST_INPUT_KEEPS_FOCUS', afterTyping.active === 'findbar__input', `activeElement after typing = ${afterTyping.active}`);
@@ -359,13 +358,13 @@ async function verifyColdGuest(app: ElectronApplication, win: Page, homeWindowId
     hasFocus,
     `document.hasFocus() = ${hasFocus} — activeElement alone does not catch a guest theft, since the host keeps reporting the input as active even after losing page focus`,
   );
-  await shot(win, 'cold-tab-typed');
+  await shot({ win, name: 'cold-tab-typed' });
 
-  const start = await waitForCount(win);
+  const start = await waitForCount({ win });
   check('COLD_GUEST_COUNTER_SHOWS_MATCHES', start !== null && start.total >= 1, `counter = ${JSON.stringify(await countText(win))}`);
   if (start === null) return;
 
-  const forward = await pressEnter(win, 1, { shotName: 'cold-tab-enter' });
+  const forward = await pressEnter({ win, times: 1 }, { shotName: 'cold-tab-enter' });
   check(
     'COLD_GUEST_ENTER_ADVANCES',
     advancesEveryStep(start.ordinal, forward, start.total),
@@ -388,18 +387,18 @@ async function verifyColdGuest(app: ElectronApplication, win: Page, homeWindowId
   }
 }
 
-async function verifyGuest(app: ElectronApplication, win: Page, homeWindowId: number): Promise<void> {
+async function verifyGuest({ app, win, homeWindowId }: { app: ElectronApplication; win: Page; homeWindowId: number }, _options = {}): Promise<void> {
   const { available, attached } = await openGuestTab(win);
   check('GUEST_TAB_AVAILABLE', available, 'an openable project card exists in this profile — the guest path went unverified');
   if (!available) return;
   check('GUEST_ATTACHED', attached, 'a project tab webview attached with a real src');
   if (!attached) return;
   await win.waitForTimeout(6000);
-  await shot(win, 'tab-loaded');
+  await shot({ win, name: 'tab-loaded' });
 
-  await verifyNativeTyping(app, win, homeWindowId, { label: 'GUEST', query: 'the', msPerKey: 150 });
+  await verifyNativeTyping({ app, win, homeWindowId, label: 'GUEST', query: 'the', msPerKey: 150 });
 
-  await openBar(app, win, homeWindowId);
+  await openBar({ app, win, homeWindowId });
   check('GUEST_BAR_OPENS', await barOpen(win), 'find bar present over the project tab');
 
   // WHERE a guest's find is reported is Chromium's choice, not ours, and it is not stable:
@@ -419,17 +418,17 @@ async function verifyGuest(app: ElectronApplication, win: Page, homeWindowId: nu
   }, homeWindowId);
 
   const query = 'e';
-  await typeQuery(win, query);
+  await typeQuery({ win, text: query });
   const afterTyping = await inputState(win);
   check('GUEST_INPUT_KEEPS_FOCUS', afterTyping.active === 'findbar__input', `activeElement after typing = ${afterTyping.active}`);
   check('GUEST_EVERY_KEYSTROKE_LANDS', afterTyping.value === query, `input value = ${JSON.stringify(afterTyping.value)}`);
 
-  const start = await waitForCount(win);
+  const start = await waitForCount({ win });
   check('GUEST_COUNTER_SHOWS_MATCHES', start !== null && start.total >= 3, `counter = ${JSON.stringify(await countText(win))}`);
-  await shot(win, 'tab-typed');
+  await shot({ win, name: 'tab-typed' });
   if (start === null || start.total < 3) return;
 
-  const forward = await pressEnter(win, 3, { shotName: 'tab-enter' });
+  const forward = await pressEnter({ win, times: 3 }, { shotName: 'tab-enter' });
   check('GUEST_ENTER_ADVANCES', advancesEveryStep(start.ordinal, forward, start.total), `${start.ordinal} -> ${forward.map((s) => s?.ordinal).join(' -> ')} of ${start.total}`);
   const topLevelFinds = await app.evaluate(() => (globalThis as { __topLevelFinds?: number }).__topLevelFinds ?? -1);
   const here = parseCount(await countText(win));
@@ -469,9 +468,9 @@ async function main(): Promise<void> {
     // every later `BrowserWindow` lookup targets this id instead of `getAllWindows()[0]`.
     const homeWindowId = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.id ?? -1);
     const includeGuest = process.env.FIND_VERIFY_SKIP_GUEST !== '1';
-    if (includeGuest) await verifyColdGuest(app, win, homeWindowId);
-    await verifyTopLevel(app, win, homeWindowId);
-    if (includeGuest) await verifyGuest(app, win, homeWindowId);
+    if (includeGuest) await verifyColdGuest({ app, win, homeWindowId });
+    await verifyTopLevel({ app, win, homeWindowId });
+    if (includeGuest) await verifyGuest({ app, win, homeWindowId });
   } finally {
     await app.close();
   }

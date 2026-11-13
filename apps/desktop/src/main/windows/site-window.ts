@@ -44,7 +44,7 @@ interface SiteWindowPorts<S extends SiteWindowServer, W extends SiteWindow, C ex
   };
   /** Spawn (or attach to) the site's server and arm its session — `main.ts`'s `startSiteBackend`. */
   startSiteBackend: (required: { siteDir: string; ctx: C }, optional: { port?: number }) => Promise<{ server: S; partition: string }>;
-  sitePartition: (siteDir: string) => string;
+  sitePartition: (input: { siteDir: string }, options?: Record<string, never>) => string;
   /** `main.ts`'s `createWindow` (see `app-window.ts`). */
   createWindow: (required: { url: string; title: string; partition: string }) => W;
   readSiteName: (siteDir: string) => string;
@@ -224,7 +224,7 @@ async function openSiteWindow<S extends SiteWindowServer, W extends SiteWindow, 
   // On macOS a closed window leaves its server supervised. Reopening reuses that server and
   // cookie jar instead of spawning a second process over the same content.db.
   const { server, partition } = already
-    ? { server: already.server, partition: ports.sitePartition(siteDir) }
+    ? { server: already.server, partition: ports.sitePartition({ siteDir }) }
     : await ports.startSiteBackend({ siteDir, ctx }, options);
 
   let window: W;

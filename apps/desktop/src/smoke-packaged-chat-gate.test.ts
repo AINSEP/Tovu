@@ -212,7 +212,7 @@ function base() {
       };
     },
     resolveSmokeTargets,
-    async withIsolatedSmokeTargets({ targets, run }) { await run(targets, isolated); },
+    async withIsolatedSmokeTargets({ targets, run }) { await run({ targets, directory: isolated }); },
     stdout: { write: (text: string) => out.push(text) },
     stderr: { write: (text: string) => err.push(text) },
   };

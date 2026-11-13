@@ -29,7 +29,7 @@ function ports(overrides: Partial<SmokeBridgeGatePorts> = {}) {
   const base: SmokeBridgeGatePorts = {
     exists: () => true,
     readDirectory: () => assert.fail("--app needs no directory listing"),
-    isolate: async ({ targets, run }) => run(targets, directory),
+    isolate: async ({ targets, run }) => run({ targets, directory }),
     spawnResolver: ((command: string, args: string[], options: unknown) => {
       resolverCalls.push([command, args, options]);
       return { status: 0, signal: null, stdout: JSON.stringify({ entries: [SITE, DESKTOP], desktopHttp: true }), stderr: "", pid: 1, output: [] };
@@ -89,10 +89,10 @@ test("one failing bridge stops the gate and still removes the user-data dir", as
 });
 
 test("formatGateFailure prints an Error's message or a non-Error value, redacted and bounded", () => {
-  assert.equal(formatGateFailure(new Error("smoke-bridge: nope")), "smoke-bridge: nope\n");
-  assert.equal(formatGateFailure("bare failure"), "bare failure\n");
+  assert.equal(formatGateFailure({ error: new Error("smoke-bridge: nope") }), "smoke-bridge: nope\n");
+  assert.equal(formatGateFailure({ error: "bare failure" }), "bare failure\n");
   const secret = ["ghp", "_", "y".repeat(36)].join("");
-  const line = formatGateFailure(new Error(`leaked ${secret} ${"z".repeat(5000)}`));
+  const line = formatGateFailure({ error: new Error(`leaked ${secret} ${"z".repeat(5000)}`) });
   assert.ok(!line.includes(secret));
   assert.ok(line.length <= 2_001);
 });

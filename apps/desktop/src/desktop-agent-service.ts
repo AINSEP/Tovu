@@ -32,10 +32,10 @@ export interface DesktopAgentServiceOptions {
  * @complexity O(n) in output characters plus the injected policy; bounded by the existing framer.
  */
 function daemonOutputSink({ sink, redact }: {
-  sink: Pick<Writable, "write">; redact: (text: string) => string;
+  sink: Pick<Writable, "write">; redact: (input: { text: string }, options?: Record<string, never>) => string;
 }, _options = {}): Writable {
   const privateKeys = createPrivateKeyLineRedactor({}, {});
-  const output = createRedactedOutputSink({ sink, redact: ({ text }, _optional = {}) => redact(privateKeys.redact({ text }, {})) });
+  const output = createRedactedOutputSink({ sink, redact: ({ text }, _optional = {}) => redact({ text: privateKeys.redact({ text }, {}) }) });
   output.on("unpipe", () => privateKeys.reset({}, {}));
   return output;
 }
@@ -117,11 +117,11 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
   type Site = { config: ScopedSite; token: string; server?: ChildProcess; host?: typeof channel; ready?: Promise<{ url: string; pid: number; token: string }> };
   const sites = new Map<SiteScopeKey, Site>();
   const bindings = new Set<() => void>();
-  const notices = new Set<(pid: number) => void>();
+  const notices = new Set<(input: { pid: number }, options?: Record<string, never>) => void>();
   const withdrawals = new Map<SiteScopeKey, Promise<void>>();
   // Frame first, then use the existing redactors. Site capabilities have no recognizable
   // shape; cover their exact values too. Mask local paths before credential replacement. Work is bounded by a framed line and the registered sites; no registry I/O.
-  const redact = (text: string) => {
+  const redact = ({ text }: { text: string }, _options = {}) => {
     const exactSecrets: string[] = [];
     for (const site of sites.values()) {
       exactSecrets.push(site.token, site.config.token);
@@ -139,7 +139,7 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
       child.once("exit", () => {
         if (daemonPid !== child.pid) return;
         channel?.dispose({}); daemonPid = undefined;
-        if (child.pid !== undefined) for (const notify of notices) notify(child.pid);
+        if (child.pid !== undefined) for (const notify of notices) notify({ pid: child.pid });
       });
       return child;
     },
@@ -244,7 +244,7 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
     const scopeKey = siteScopeKey({ siteDir });
     let workspaceId: string | undefined;
     let closed = false;
-    async function handleControl(payload: unknown) {
+    async function handleControl({ payload }: { payload: unknown }, _options = {}) {
       if (closed) throw new Error("site server disconnected");
       const request = daemonControlRequest.parse(payload);
       if (request.operation === "parking") { supervisor.markParking({ pid: request.pid }, {}); return {}; }
@@ -255,7 +255,7 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
       return demand({ ...request, scopeKey }, { server: child });
     }
     const control = createNodeIpcChannel({ peer: child }, { handle: async payload => {
-      try { return await handleControl(payload); }
+      try { return await handleControl({ payload }); }
       catch (error) {
         const refusalReason = siteControlRefusal({ error });
         if (!refusalReason) throw error;
@@ -263,7 +263,7 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
         throw Object.assign(new Error(refusalReason), { refusalReason });
       }
     } });
-    const notify = (pid: number) => { void control.request({ payload: { operation: "unavailable", pid } }, {}).catch((error: unknown) => console.error("[desktop-agent-service] Could not notify the site that the daemon is unavailable", describeErrorForLog({ err: error }))); };
+    const notify = ({ pid }: { pid: number }, _options = {}) => { void control.request({ payload: { operation: "unavailable", pid } }, {}).catch((error: unknown) => console.error("[desktop-agent-service] Could not notify the site that the daemon is unavailable", describeErrorForLog({ err: error }))); };
     notices.add(notify);
     function dispose(): void {
       if (closed) return;

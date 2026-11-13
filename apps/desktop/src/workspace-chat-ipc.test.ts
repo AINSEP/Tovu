@@ -85,7 +85,7 @@ function setup({ stream }: { stream?: (input: { runId: string; onEvent: (event: 
     ipcMain: { handle: (channel: string, listener: Handler) => { assert.ok(!handlers.has(channel), `duplicate ${channel}`); handlers.set(channel, listener); } },
     runtime: Promise.resolve(runtime),
     conversations: store,
-    resolveAddressee: (siteDir: string) => { calls.resolve!.push(siteDir); return siteDir === "/tracked" ? { siteDir, name: "Tracked" } : null; },
+    resolveAddressee: ({ siteDir }, _options = {}) => { calls.resolve!.push(siteDir); return siteDir === "/tracked" ? { siteDir, name: "Tracked" } : null; },
     listAgents: async (required: { rescan: boolean }) => { calls.listAgents!.push(required); return []; },
     pickDirectory: async (current?: string) => { calls.pick!.push(current); return "/picked"; },
   } as unknown as WorkspaceChatIpcDeps;
