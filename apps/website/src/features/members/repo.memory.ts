@@ -13,6 +13,7 @@
  * follow-up build. Repos enforce persistence invariants; the write service and
  * resolver own member lifecycle and authentication decisions.
  */
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { matchesRecordFields, upsertRecord } from "@jini-ai/core/records";
 import { MemberAuthError, MemberConflictError } from "./types.js";
 import type {
@@ -255,7 +256,14 @@ export class InMemoryMemberTierRepo implements MemberTierRepoPort {
     return this.rows.filter((row) => row.workspaceId === required.workspaceId);
   }
 
-  async save(record: MemberTierRecord): Promise<void> {
+  /** See {@link MemberTierRepoPort.save}. @complexity O(n) over tiers. */
+  async save(record: MemberTierRecord, optional: { expectedVersion?: number } = {}): Promise<void> {
+    const { expectedVersion } = optional;
+    if (expectedVersion !== undefined) {
+      const current = this.rows.find((row) => row.workspaceId === record.workspaceId && row.id === record.id);
+      await assertVersionedWrite({ changedRows: current?.version === expectedVersion ? 1 : 0, recordKind: "membership tier", recordId: record.id,
+        expectedVersion, readCurrentVersion: async () => current?.version ?? null });
+    }
     upsertRecord({ records: this.rows, record, identity: { id: record.id } });
   }
 }

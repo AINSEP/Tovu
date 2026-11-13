@@ -86,7 +86,12 @@ export interface MemberTierRepoPort {
   findById(required: { workspaceId: UUID; id: UUID }): Promise<MemberTierRecord | null>;
   findBySlug(required: { workspaceId: UUID; slug: string }): Promise<MemberTierRecord | null>;
   list(required: { workspaceId: UUID }): Promise<MemberTierRecord[]>;
-  save(record: MemberTierRecord): Promise<void>;
+  /**
+   * Upsert without `expectedVersion` (create/import); with it, a compare-and-set that throws
+   * `RecordVersionConflictError` (`@jini-ai/core/optimistic-concurrency`) when the stored version is
+   * no longer the one the editor read — two editors never silently overwrite each other.
+   */
+  save(record: MemberTierRecord, optional?: { expectedVersion?: number }): Promise<void>;
 }
 
 export interface MemberSubscriptionRepoPort {

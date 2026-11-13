@@ -1,3 +1,4 @@
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { MemberAuthError, MemberConflictError } from "./types.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type {
@@ -263,8 +264,19 @@ export class SqlMemberTierRepo implements MemberTierRepoPort {
     return rows.map(toMemberTierRecord);
   }
 
-  async save(record: MemberTierRecord): Promise<void> {
+  /** See {@link MemberTierRepoPort.save}. @complexity O(1); one more read on a conflict. */
+  async save(record: MemberTierRecord, optional: { expectedVersion?: number } = {}): Promise<void> {
     const row = toMemberTierRow(record);
+    const { expectedVersion } = optional;
+    if (expectedVersion !== undefined) {
+      // One conditional UPDATE, not read-then-write: two editors that read the same version cannot both land.
+      const result = await this.kernel.run((db) => db.updateTable("member_tiers").set(withoutId(row))
+        .where("workspace_id", "=", record.workspaceId).where("id", "=", record.id)
+        .where("version", "=", expectedVersion).executeTakeFirst());
+      await assertVersionedWrite({ changedRows: result.numUpdatedRows, recordKind: "membership tier", recordId: record.id, expectedVersion,
+        readCurrentVersion: async () => (await this.findById({ workspaceId: record.workspaceId, id: record.id }))?.version ?? null });
+      return;
+    }
     await this.kernel.run((db) =>
       db
         .insertInto("member_tiers")
