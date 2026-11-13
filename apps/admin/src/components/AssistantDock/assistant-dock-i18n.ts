@@ -963,7 +963,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
 /** `ASSISTANT_DOCK_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via
  *  `createDictionaryTranslator` (same fallback `trash-i18n.ts` uses) — a shared word this dict
  *  doesn't carry for a locale still renders translated instead of falling straight to English.
- *  Exported so `App.hooks.tsx`'s `translateAssistantDockLabel` and `AssistantDock.hooks.tsx`'s
+ *  Exported so `apps/admin/src/App.hooks.ts`'s `translateAssistantDockLabel` and `AssistantDock.hooks.tsx`'s
  *  `useAssistantDockChrome` can both call it directly instead of each duplicating the lookup. */
 const translateDockCopy = createDictionaryTranslator(
   { featureDictionary: ASSISTANT_DOCK_DICT }, { commonDictionary: COMMON_I18N },

@@ -13,7 +13,7 @@ import type { StaticExportPort } from "./static-export-port.hooks";
 /**
  * @file Everything the Static Site tab's "Build static export" action does, so `StaticSiteTab.tsx`
  * is only markup. Wired 2026-08-15 against `POST`/`GET .../system/export`
- * (`src/server/routes/admin/system/export-site.ts`) — see that route's header for the trigger+poll
+ * (`apps/website/src/server/inbound/admin-http/routes/system/export-site.ts`) — see that route's header for the trigger+poll
  * shape this hook mirrors: a real export is seconds to minutes, so a click starts the run and this
  * hook polls the status route until it settles, rather than holding one request open.
  *

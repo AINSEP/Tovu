@@ -90,7 +90,7 @@ const ACCESS_TOKENS_TAB = "access-tokens";
  * TAB itself rendered for every logged-in admin-panel user regardless of role, so an editor/viewer
  * saw a tab that would 403 on every action inside it. `useWiredSecurityPermissions` (`hooks/
  * use-security-permissions.hooks.ts`) reads the same permission client-side, UX-only
- * (`lib/permissions.ts`'s `hasPermission` — its own header states plainly this is not the security
+ * (`Jini packages/ui/src/features/panel-kit/helpers/permissions.ts`'s `hasPermission` — its own header states plainly this is not the security
  * boundary): the tab entry, the rendered `<SiteKeyTab />`, and a direct `?tab=site-key` link all
  * fall back to Access Tokens for a principal who does not hold it. `resolveSecurityTabId` treats a
  * still-loading permission read as "not permitted" (`hasPermission` naturally returns `false` for

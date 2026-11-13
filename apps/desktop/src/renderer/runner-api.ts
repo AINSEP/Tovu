@@ -87,7 +87,7 @@ export interface RunnerInventoryBridge {
    *  Optional so an older preload without it simply offers none. */
   listTokenSignInPlugins?: () => Promise<readonly TokenSignInPlugin[]>;
   /** Changes a site's display name (`config.json`'s `name`) and resolves the refreshed record.
-   *  Rejects with an operator-facing reason — surface it verbatim; see `use-rename-site.hooks.ts`. */
+   *  Rejects with an operator-facing reason — surface it verbatim; see `apps/desktop/src/renderer/use-site-rename.hooks.ts`. */
   renameSite: (input: RenameSiteInput) => Promise<SiteRecord>;
   /** One site's cached preview image as a `data:` URL, or `null` when no capture exists yet — the
    *  ordinary state for a site that has never been opened. Fetch again only when

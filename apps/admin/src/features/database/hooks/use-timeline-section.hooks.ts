@@ -35,7 +35,7 @@ import type { TimelineSectionPort } from "./timeline-section-port.hooks";
  * `applyFilters` committing the draft into `appliedFilters` does, by changing the query's key (see
  * `rules.ts`'s `KEYS` doc). This also removes the mount-time `useEffect` entirely — `useFetchQuery`
  * fetches on mount by construction, and `appliedFilters` already starts blank. "Load more" pages
- * are NOT folded into that query, for the identical reason `Jini forms/react/hooks/use-form-
+ * are NOT folded into that query, for the identical reason `Jini packages/admin/src/forms/react/hooks/use-form-
  * submissions.hooks.ts`/`@jini-ai/admin/comments/react`'s queue hook keep their own cursor-appended
  * pages local: `@jini-ai/ui/fetch-query`'s `QueryKey` doc binds one hook to one FIXED key.
  * `filtersRef` guards that local accumulation against the same class of race the base query gets

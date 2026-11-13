@@ -4,7 +4,7 @@ import { useEffect, useRef, type MouseEvent, type SyntheticEvent } from "react";
  * @file `EditMediaModal`'s native `<dialog>` lifecycle — the metadata edit form used to render as
  * a full-width `.card` pushing the grid down (`Media.tsx`'s own header comment has the history);
  * owner ask (2026-09-07): reach it from an eye icon on the card instead, as a modal. This hook owns
- * exactly the open/close/backdrop/Escape mechanics, same shape as `ThemePageDetailsModal.hooks.ts`'s
+ * exactly the open/close/backdrop/Escape mechanics, same shape as `apps/admin/src/features/pages/ThemePageDetailsModal.hooks.tsx`'s
  * `useThemePageDetailsModal` and `AssistantDock/MessageOverflowModal.hooks.tsx` — copied rather than
  * imported, same reasoning those two give each other: a future media-specific tweak (e.g. warning
  * on unsaved changes before backdrop-dismiss) should never silently change an unrelated table's

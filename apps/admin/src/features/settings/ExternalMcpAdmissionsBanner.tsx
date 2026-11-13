@@ -7,7 +7,7 @@ import type { ExternalMcpAdmissionsController } from "./hooks/use-external-mcp-a
 /**
  * @file "What the assistant is actually running" — the operator half of the refusal channel.
  *
- * The tab above this banner shows what was SAVED. `mcp-federation/trust.ts` R5 freezes the admitted
+ * The tab above this banner shows what was SAVED. `Jini packages/mcp/src/federation/trust.ts` R5 freezes the admitted
  * set at connect, so those are two different objects, and until now the only way to see the gap was
  * to read the daemon's terminal at the moment it booted. That is how this project discovered
  * Higgsfield's blocked `generate_image` in the first place — and on a desktop app nobody can SSH

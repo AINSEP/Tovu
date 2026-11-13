@@ -311,7 +311,7 @@ export function pickerValueToChoice(value: string): string | null {
  *
  * **The two guards are what keep the F01 data-loss fix intact** (see `use-page-editor.unit.test.ts`'s
  * own file header): `updatePageHtml`'s first call on a doc-format row converts it and DROPS
- * `body_json` (`routes/admin/pages/update-html.ts`). `html !== ""` means an ordinary Save or Publish
+ * `body_json` (`apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts`). `html !== ""` means an ordinary Save or Publish
  * that never touched the body still takes the metadata-only path — the editor loads `html` as `""`
  * for a doc-format Page, so an empty working copy is "nothing was authored", never "the operator
  * cleared it". {@link hasAuthoredDocument} means a legacy Page with a real Tiptap body is never
@@ -354,7 +354,7 @@ export function buildPageSavePlan(
       templateChoice: form.templateChoice,
       // The basis `save` guards the WHOLE save on. `updatePost` is the only one of the two write
       // routes that offers compare-and-set against a client-supplied version: `PUT /pages/:id/html`
-      // reads the row and writes it back inside one request (`routes/admin/pages/update-html.ts`),
+      // reads the row and writes it back inside one request (`apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts`),
       // so the version it conditions on is one it captured microseconds earlier and can never be
       // the version THIS editor loaded. That is why `save` now writes metadata first and only
       // reaches the body once this guard has passed — see `save`'s own doc.

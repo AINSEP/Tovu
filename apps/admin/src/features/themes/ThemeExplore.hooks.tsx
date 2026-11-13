@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent, type RefObject, type Synt
 
 /**
  * @file `ThemeExplore.tsx`'s fullscreen-preview `<dialog>` lifecycle, split out per the
- * `<Name>.tsx`/`<Name>.hooks.tsx` extraction pattern (`App.tsx`/`App.hooks.tsx`). Mirrored the image
+ * `<Name>.tsx`/`<Name>.hooks.tsx` extraction pattern (`App.tsx`/`apps/admin/src/App.hooks.ts`). Mirrored the image
  * preview's dialog hook exactly when written (that hook is now Jini's shared `useLightbox`, `@jini-ai/ui`
  * `Lightbox.hooks.ts`, since 2026-10-21) — same `showModal()`/`close()` with an `open`-attribute jsdom fallback, same Escape/backdrop
  * dismiss paths — `ThemeExplore.tsx`'s own comment already pointed to `ImagePreviewModal.tsx` as

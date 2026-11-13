@@ -24,7 +24,7 @@ export interface FakeTimelineSectionPortOptions {
  * An in-memory {@link TimelineSectionPort} for tests — "every port gets a fake" (see
  * `assistant-chats-dependencies.hooks.ts`). Always returns the same seeded page regardless of the
  * requested filters/cursor — this hook's own filter/cursor bookkeeping lives in the CALLER, not the
- * port (same precedent `comment-queue-dependencies.hooks.ts`'s own doc comment states for its
+ * port (same precedent `createFakeCommentQueuePort` uses for its
  * `listCommentsQueue`), so a test asserts the hook passed through the right options via the fake's
  * own call log instead of simulating server-side filtering.
  */

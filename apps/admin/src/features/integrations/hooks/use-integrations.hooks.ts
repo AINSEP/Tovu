@@ -33,7 +33,7 @@ import type { IntegrationsPort } from "./integrations-port.hooks";
  *
  * `@jini-ai/ui/fetch-query` migration (2026-08-12): the list read is `useFetchQuery({ key: KEYS.list, ...
  * })`; `create`/`togglePause`/`delete` are three independent `useFetchMutation`s that each
- * `invalidates: [KEYS.list]` — same three-independent-writes shape `redirects/hooks/use-
+ * `invalidates: [KEYS.list]` — same three-independent-writes shape `Jini packages/admin/src/redirects/react/hooks/use-
  * redirects.hooks.ts` (the pilot) established. `formError` (the create form's own inline error) is
  * a direct read of `createMutation.error` — it needs no `clearOtherWriteErrors` treatment since it
  * has no sibling on that channel and a mutation's own `.error` clears itself the next time `mutate`

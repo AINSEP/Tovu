@@ -5,7 +5,7 @@
  *
  * Why it matters: a copy run from its disk image cannot update itself (Squirrel cannot replace a
  * read-only bundle) and keeps the image busy so it cannot be ejected — see `isTransientAppPath` in
- * `sites-mcp-registration.ts` for the paths that stops this app from persisting.
+ * `apps/desktop/src/node-toolchain.ts` for the paths that stops this app from persisting.
  *
  * **Several copies at once.** The app has no single-instance lock (the owner runs several). The
  * prompt is not offered while another copy is open (`instance-presence.ts` records): moving a bundle

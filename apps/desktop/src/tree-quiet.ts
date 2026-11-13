@@ -15,8 +15,8 @@
  * corrupt build from two clean ones run the same day.
  *
  * This predicate can only see what changed DURING however long the caller chose to look, though —
- * it is a sample, not a proof of quiescence for the whole pack that follows. `scripts/verify-package.
- * mjs` (`src/asar-verify.ts`) is the real backstop: it compares the FINISHED archive's content
+ * it is a sample, not a proof of quiescence for the whole pack that follows. `apps/desktop/scripts/verify-package.
+ * ts` (`src/asar-verify.ts`) is the real backstop: it compares the FINISHED archive's content
  * against source, byte-for-byte, after the pack completes. A pass here does not make that check
  * optional.
  *

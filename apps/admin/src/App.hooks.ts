@@ -303,7 +303,7 @@ export function usePublishCriteriaDeepLink(
  * the "AI Assistant" panel's own `use-ai-assistant.hooks.ts` already calls, reading the sibling
  * `adminAssistantEnabled` field that route's own doc explains piggy-backing onto that response
  * — no new endpoint. `assistant-settings` is one of exactly two admin-assistant server modules
- * mounted UNCONDITIONALLY (`server/app.ts`'s module-mounting comment), so this GET stays reachable
+ * mounted UNCONDITIONALLY (`apps/website/src/server/runtime/composition/app.ts`'s module-mounting comment), so this GET stays reachable
  * and answers correctly with the flag off, unlike the four gated modules the dock itself would
  * otherwise call.
  *
@@ -908,7 +908,7 @@ export interface UseAgentPageBridge {
 /**
  * Owns agent-driven control of this tab: the DOM page driver scoped to `App.tsx`'s `<main>`, and
  * the frontend-session bridge that relays each `page.*` invocation the daemon sends down the
- * frontend-session SSE stream (proxied by `src/server/modules/assistant.ts`, already past
+ * frontend-session SSE stream (proxied by `apps/website/src/server/runtime/composition/modules/assistant.ts`, already past
  * `ToolExecutor`'s authorization/timeout/audit on the way in — this side only executes what
  * arrives).
  *
@@ -1046,7 +1046,7 @@ export function logFrontendSessionError(error: unknown): void {
 }
 
 /** The minimal shape this file needs from the WebMCP host surface (`document.modelContext`, or the
- *  older `navigator.modelContext` location — see `@jini-ai/agentic`'s `webmcp.js` module doc for
+ *  older `navigator.modelContext` location — see `@jini-ai/agentic`'s `Jini packages/agentic/src/core/webmcp.ts` module doc for
  *  why both are checked) — just `registerTool`, matching what `toWebMcpTool`'s
  *  {@link WebMcpToolRegistration} expects as `registerTool`'s second positional argument. */
 interface AdminWebMcpModelContext {

@@ -104,7 +104,7 @@ interface RoadmapItem {
  *
  * Per-visitor rate limiting used to be listed here and **shipped** in SPEC-046 REQ-7 — the public
  * chat endpoint is now bounded at 10 requests / 5 min / IP (`SITE_ASSISTANT_PER_IP` in
- * `server/middleware/rate-limit.ts`). It is deliberately not surfaced as a *control* yet: the window
+ * `apps/website/src/contracts/core/rate-limit/rate-limit.ts`). It is deliberately not surfaced as a *control* yet: the window
  * is a code constant, not an operator-editable setting, so a row here would imply a knob that does
  * not exist. Move it into the settings surface above, not back into this list, if it becomes tunable.
  */
@@ -367,7 +367,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
 /**
  * Manual recovery control for the Local CLI daemon process `AdminExecutionMode` just configured —
  * the "human's not gonna know how to restart a Node process" seam
- * (`server/routes/admin/system/assistant-daemon.ts`, backed by `src/assistant/daemon-supervisor.ts`).
+ * (`apps/website/src/server/inbound/admin-http/routes/system/assistant-daemon.ts`, backed by `apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts`).
  *
  * Renders directly under `AdminExecutionMode` in the same tab, not on its own tab: this control is
  * only meaningful in the context of "Local CLI" mode (a BYOK-mode admin has no daemon process to
@@ -482,7 +482,7 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
  *   (the ledger never sees it)"). It powers the assistant dock in THIS browser. A deployed server
  *   never sees it, and it cannot serve visitors.
  * - **This tab** is the SITE's key. It must live server-side, because the thing consuming it is
- *   `src/server/modules/site-assistant.ts` answering anonymous internet traffic on a machine the
+ *   `apps/website/src/server/runtime/composition/modules/site-assistant.ts` answering anonymous internet traffic on a machine the
  *   admin's browser is not.
  *
  * That is why the copy below states it in plain language rather than relying on the tab title: the

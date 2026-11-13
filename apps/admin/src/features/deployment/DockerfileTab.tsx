@@ -7,7 +7,7 @@ import { useWiredDockerfileSource } from "./hooks/use-dockerfile-source.hooks";
 
 /**
  * @file Dockerfile tab — the repo-root `Dockerfile`'s contents, fetched from and now also written to
- * `.../system/dockerfile` (`src/server/routes/admin/system/dockerfile-source.ts`).
+ * `.../system/dockerfile` (`apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts`).
  *
  * ## Third pass (2026-08-15) — read-only became editable
  *

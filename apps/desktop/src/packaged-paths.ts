@@ -45,7 +45,7 @@ interface DesktopRoots {
  * In a checkout the runnable Tovu tree IS the checkout: `dist/src/cli/main.js`, `apps/admin/dist`,
  * `apps/site-chat/dist` and `node_modules` all sit at their repo-relative paths. A packaged build
  * stages that same shape under `Contents/Resources/tovu/` (see
- * `development/scripts/stage-desktop-payload.mjs`), so every consumer — `resolveCliEntry`,
+ * `apps/desktop/scripts/stage-payload.ts`), so every consumer — `resolveCliEntry`,
  * `buildServeEnv`'s admin/site-chat dirs — keeps ONE `path.join` that is correct in both modes.
  * Preserving the repo-relative layout is what makes that possible; a flatter staged layout would
  * force every consumer to branch on mode individually.
@@ -113,7 +113,7 @@ function resolveDesktopRoots(input: DesktopRootsInput): DesktopRoots {
     // removes this app's last dependency on a system Node being installed.
     defaultCliMode: "compiled",
     userDataDir: path.join(input.appDataDir, PACKAGED_APP_DATA_NAME),
-    // Staged next to `tovu/`, not inside it: `stage-desktop-payload.mjs`'s tree mirrors the
+    // Staged next to `tovu/`, not inside it: `apps/desktop/scripts/stage-payload.ts`'s tree mirrors the
     // checkout's repo-relative shape, which has no `node_modules/npm` of its own to preserve — npm
     // is staged as a sibling resource instead (plan §5, S5's staging guard).
     npmRoot: path.join(input.resourcesPath, "npm"),

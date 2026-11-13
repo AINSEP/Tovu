@@ -3,9 +3,9 @@
  * an operator can act on. Pure — no React, no DOM — so every code's copy is directly assertable.
  *
  * The codes themselves are produced by two places and are NOT invented here:
- * - `apps/desktop/src/speech/transcription-port.cjs` — `unsupported-platform:<platform>`.
- * - `apps/desktop/src/speech/tovu-speech-helper.swift` (surfaced through
- *   `mac-on-device-transcriber.cjs`) — `speech-recognition-not-authorized:<status>`,
+ * - `apps/desktop/src/speech/transcription-port.ts` — `unsupported-platform:<platform>`.
+ * - `Jini packages/desktop-host/src/speech/macos/speech-helper.swift` (surfaced through
+ *   `apps/desktop/src/speech/mac-on-device-transcriber.ts`) — `speech-recognition-not-authorized:<status>`,
  *   `no-recognizer-for-locale`, `on-device-recognition-unavailable`, `swiftc-not-found: …`,
  *   `swiftc-failed: …`.
  *

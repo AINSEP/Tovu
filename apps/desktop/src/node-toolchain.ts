@@ -2,7 +2,7 @@
 import fs from "node:fs";
 // Launcher rationale: Jini/packages/desktop-host/src/node-toolchain/index.ts.
 // node-toolchain/{bin,npm-cache,npm-prefix} and the two TOVU_* env names are a cross-process
-// contract with apps/website/src/mcp-federation/stdio-launch-resolver.ts. Renaming one side can
+// contract with Jini packages/mcp/src/federation/stdio/stdio-launch-resolver.ts. Renaming one side can
 // silently fall back to system tooling; these private env names are not forwarded to MCP children.
 import path from "node:path";
 import {

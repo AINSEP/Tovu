@@ -13,7 +13,7 @@ import { createAdminShellNavigation } from "@jini-ai/admin/browser/shell-navigat
  * file keeps the export surface its ~14 call sites already use so none of them had to change.
  *
  * Why paths at all: the hash was never load-bearing. Both places that serve this app already fall
- * back to `index.html` for any `/admin/*` depth — `src/server/middleware/admin-static.ts` does it
+ * back to `index.html` for any `/admin/*` depth — `apps/website/src/server/inbound/admin-http/admin-static.ts` does it
  * explicitly (SEA and static-build branches), and Vite dev does it by default under
  * `base: "/admin/"`. So a real URL survives a refresh, and the hash was only costing us shareable
  * links.

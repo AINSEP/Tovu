@@ -76,7 +76,7 @@ export function useAssistantChats(port: AssistantChatsPort, options: { lastConve
 }
 
 /**
- * Binds the real `/api/assistant/chats` client — see `assistant-chats-dependencies.ts`.
+ * Binds the real `/api/assistant/chats` client — see `apps/admin/src/hooks/assistant-chats-dependencies.hooks.ts`.
  *
  * The wired half of the `useX(dependencies)` / `useWiredX()` pair, so a component composes this and
  * a test composes {@link useAssistantChats} with a fake. Deliberately free of logic of its own —

@@ -7,7 +7,7 @@ import type { AdminMenuItem } from "../../lib/api";
  * `<Name>.tsx`/`<Name>.hooks.tsx` extraction pattern (admin TSX-logic-sweep, 2026-09-05).
  * `MenuEditor.tsx`'s own state/API calls all live in `hooks/use-menu-editor.hooks.ts`; this is a
  * second, LOCAL hook for markup-adjacent interaction logic that hook has no reason to own — same
- * split `SitemapModal.hooks.tsx` uses for its own regenerate-then-refetch sequencing.
+ * split `Jini packages/admin/src/seo/react/hooks/SitemapModal.hooks.ts` uses for its own regenerate-then-refetch sequencing.
  *
  * `countDescendants` moves here too (rather than staying in `MenuEditor.tsx` and being imported
  * back, which would make the two files import each other): its one caller is

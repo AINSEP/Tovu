@@ -1,10 +1,10 @@
 /**
  * @file The one-time `#boot=<token>` fragment a zip-launched Tovu opens the admin with (run-from-zip
  * plan, Q2/S2, `ADS-memory/.local-artifacts/run-from-zip-plan-2026-09-23.md:46,112-117`). The
- * launcher opens `http://127.0.0.1:<port>/admin/#boot=<token>`; `App.hooks.tsx`'s boot effect calls
+ * launcher opens `http://127.0.0.1:<port>/admin/#boot=<token>`; `apps/admin/src/App.hooks.ts`'s boot effect calls
  * {@link takeBootToken} once, on mount, to read the token and scrub it from the URL bar in the same
  * synchronous pass — before anything else in that effect runs, including the network call that
- * redeems it. No logic belongs in `App.hooks.tsx`'s `.tsx` sibling (memory
+ * redeems it. No logic belongs in `apps/admin/src/App.hooks.ts`'s `.tsx` sibling (memory
  * `component_logic_belongs_hooks`), so this pure helper is the one place that parses or mutates the
  * fragment.
  *

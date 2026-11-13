@@ -6,7 +6,7 @@ import { useEffect, useRef, type MouseEvent, type SyntheticEvent } from "react";
  * focus trapping and Escape-as-close courtesy of the browser's own top layer, focus returned to
  * whichever `RowMenu` "Details" trigger opened this once it closes). Owned locally rather than
  * imported from that file — same reasoning that file's own header gives for not reusing
- * `ImagePreviewModal.hooks.tsx`: a future chat-pane-specific tweak to that hook should never
+ * `Jini packages/ui/src/features/admin-widgets/components/ImagePreviewModal.hooks.tsx`: a future chat-pane-specific tweak to that hook should never
  * silently change this unrelated admin-table modal's behavior too, and vice versa.
  *
  * Only one instance of this modal is ever mounted at a time — `ThemePagesTab.tsx` keeps a single

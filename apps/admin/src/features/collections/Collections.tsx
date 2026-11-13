@@ -17,13 +17,13 @@ import { PublishSectionButton } from "../publish-content/PublishSectionButton";
  * landing view: the content-type registry list plus the "New content type" modal.
  *
  * Structural reference: `FormsList.tsx` (list/fetch/loading/error/empty shape) crossed with
- * `Settings.tsx`'s `.settings-dialog` modal idiom, per design-spec.md §0.3/§1.3. The entry list
+ * `the former raw settings screen`'s `.settings-dialog` modal idiom, per design-spec.md §0.3/§1.3. The entry list
  * (`/admin/collections/{typeKey}`) and entry editor (`/admin/collections/{typeKey}/{entryId|new}`) are
  * separate routed screens — see `CollectionEntries.tsx`/`CollectionEntryEditor.tsx`.
  *
  * Reserved key + grammar validation (§1.3) is duplicated client-side as a fast-reject only; the
  * server's `VALIDATION_ERROR` (`InvalidKeyGrammarError`/`ReservedContentTypeKeyError`) is the
- * authoritative check, same disclosed pattern `Settings.tsx`'s header comment documents for its
+ * authoritative check, same disclosed pattern `the former raw settings screen`'s header comment documents for its
  * own client-side checks.
  *
  * SPEC-037 REQ-05: `EditFieldsDialog` wires the previously-unused `api.updateContentTypeFields` —

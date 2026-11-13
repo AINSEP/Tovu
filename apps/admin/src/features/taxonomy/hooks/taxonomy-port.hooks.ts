@@ -20,7 +20,7 @@ import type { AdminTaxonomyWithTerms, AdminTerm } from "@/lib/api";
  * `trashTerm`/`trashTaxonomy` (T8b, 2026-09-21) use the generic single-item Trash route
  * (`api.trash({ type: "term" | "taxonomy", id })`,
  * `taxonomy-dependencies.hooks.ts`), the same route every other admin delete button uses — see
- * `widgets-port.hooks.ts`'s `trashWidget` for the identical precedent. Object-argument shape (`{
+ * `Jini packages/admin/src/widgets/ports.ts`'s `trashWidget` for the identical precedent. Object-argument shape (`{
  * id }`) rather than a bare string, matching this workspace's exported/boundary-function convention.
  */
 export interface TaxonomyPort {

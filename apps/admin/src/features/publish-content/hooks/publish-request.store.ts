@@ -8,7 +8,7 @@ import { isPublishToLiveAvailable } from "./publish-availability.store";
  * @file `ADS-memory/.local-artifacts/publish-criteria-tool-webmcp-plan-2026-09-24.md` §4 S2 — the one
  * way anything OTHER than a person's own click opens the Publish dialog: `requestPublish(criteria)`.
  * A module-level store, not component state, because the three callers plan §0 lists (the Dashboard
- * button, the chat capability relayed through `App.hooks.tsx`, and the WebMCP projection landing in
+ * button, the chat capability relayed through `apps/admin/src/App.hooks.ts`, and the WebMCP projection landing in
  * S5) are none of them the component that renders the dialog — `App.tsx` is, at the top of the tree,
  * and it has no props route back down from any of the three.
  *

@@ -61,7 +61,7 @@ export default defineConfig({
    * unconditionally as `"production"` is correct here, not a paper-over: Rollup's minifier then
    * dead-code-eliminates the now-unreachable dev branches, so the literal string
    * `process.env.NODE_ENV` no longer appears in the output at all (verified: 0 occurrences,
-   * `check-no-process-global.mjs`).
+   * the original process-global check).
    *
    * The OTHER `process.*` reference `react-dom` ships (`process.emit(...)`, its dual-environment
    * uncaught-error reporter) is not touched by this and needs no fix: every call site is guarded by

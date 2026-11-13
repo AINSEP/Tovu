@@ -222,17 +222,17 @@ export default defineConfig({
         configure: destroyClientWhenUpstreamCloses,
       },
       // `@jini-ai/chat-react`'s runtime picker requests agent icons from this root-relative path
-      // (see `src/server/app.ts`'s matching route for why it can't just live under `/admin/`).
+      // (see `apps/website/src/server/runtime/composition/app.ts`'s matching route for why it can't just live under `/admin/`).
       "/agent-icons": { target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`, changeOrigin: false, secure: false },
       // `theme-static-assets.ts`'s `express.static` mount — a `static`-tier theme's own `css/`/
       // `js/`/`screenshots/` files, requested root-relative by the theme's own rendered HTML and by
-      // `Appearance.tsx`'s theme-card preview thumbnail. Without this, those requests 404 against
+      // `apps/admin/src/features/themes/Themes.tsx`'s theme-card preview thumbnail. Without this, those requests 404 against
       // Vite's own dev server (which has never heard of `/theme-assets`) instead of reaching the
       // backend that actually serves them, in production this is a non-issue since one server
       // serves both the built admin SPA and this mount.
       "/theme-preview-assets": { target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`, changeOrigin: false, secure: false },
       "/theme-assets": { target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`, changeOrigin: false, secure: false },
-      // `server/routes/ops/health.ts`'s `/readyz` — deliberately root-level and unauthenticated
+      // `apps/website/src/server/inbound/public-http/routes/ops/health.ts`'s `/readyz` — deliberately root-level and unauthenticated
       // (see that route's own doc), read by `lib/api.ts`'s `getAssistantDaemonReadyz` for the
       // "Restart assistant" admin control's live status line. Same reason `/agent-icons` above
       // needs its own proxy entry: a root-relative path that cannot live under `/admin/`, so

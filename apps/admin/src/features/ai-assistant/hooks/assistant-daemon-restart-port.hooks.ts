@@ -6,7 +6,7 @@
  * Two operations, deliberately not one: `restart()` (the mutation, `system.write`-gated) and
  * `getReadyz()` (the read, unauthenticated) answer different questions — "did a restart get
  * accepted?" and "is a failure currently latched?" — and the server-side route this restart calls
- * (`server/routes/admin/system/assistant-daemon.ts`) is explicit that the first can never imply the
+ * (`apps/website/src/server/inbound/admin-http/routes/system/assistant-daemon.ts`) is explicit that the first can never imply the
  * second (no "daemon became healthy" signal exists anywhere in the daemon supervisor). Folding them
  * into one call would invite exactly that conflation on this side too.
  */

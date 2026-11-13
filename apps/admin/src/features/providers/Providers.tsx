@@ -256,7 +256,7 @@ export function Providers(props: ProvidersProps) {
           // why the subtitle stays regardless. `saveStatusLabel` carries the restart notice rather
           // than "All changes saved", for the reason that tab's own comment gave: a saved row is
           // persisted but NOT live, because the admitted tool set is frozen at connect
-          // (`mcp-federation/trust.ts` R5). Telling an operator their change is saved, while the
+          // (`Jini packages/mcp/src/federation/trust.ts` R5). Telling an operator their change is saved, while the
           // running assistant still cannot see the server, would be true and useless. D-33
           // (2026-10-06): show it only after an actual configuration save — the standing "Changes
           // apply when Tovu restarts" pill read as a pending change on a fresh site.

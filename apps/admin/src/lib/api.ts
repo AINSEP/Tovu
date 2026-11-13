@@ -44,12 +44,12 @@ export interface AdminUser {
 
 /**
  * SPEC-007 Settings (core-only layered ledger) — client-side types mirroring
- * `features/settings/types.ts` + `api.spec.md` §5 response contracts.
+ * `Jini packages/core/src/settings/types.ts` + `api.spec.md` §5 response contracts.
  *
  * Note: only the 5 routes actually shipped in Phase 5 exist server-side
  * (`register-definitions`, `get-effective`, `set`, `clear`, `reset`) —
  * `SETTINGS_GET_RAW`/`SETTINGS_LIST_DEFINITIONS` from api.spec.md §1 were
- * deliberately not built (tasks.md T044). `Settings.tsx` works around the
+ * deliberately not built (tasks.md T044). the former raw settings screen worked around the
  * absence of a raw per-layer read and a definitions listing by composing two
  * `getSettingsEffective` calls (with/without `principalId`) to distinguish the
  * user layer from the rest — see that file's header comment for the exact
@@ -82,7 +82,7 @@ export interface SettingResetResponse {
  * `nanobanana`, …) — see `features/media/media-provider-catalog.ts` for why the spelling matters.
  *
  * Structurally `@jini-ai/ui`'s `MediaProviderCredentials` and mirrors
- * `src/media/provider-credential-store.ts`'s `MediaProviderCredentialView` on the server. `apiKey`
+ * `apps/website/src/features/media/provider-credential-store.ts`'s `MediaProviderCredentialView` on the server. `apiKey`
  * is send-only: the operator types one and it goes up, but no response ever carries it back — a
  * stored key comes back as `apiKeyConfigured`/`apiKeyTail` instead.
  */
@@ -94,7 +94,7 @@ export type AdminMediaProviderMap = Record<string, AdminMediaProviderCredentials
 
 /**
  * One configured external MCP server, as the admin tab sees it. Mirrors
- * `src/assistant/external-mcp-store.ts`'s `ExternalMcpServerView`.
+ * `apps/website/src/features/external-mcp/contracts.ts`'s `ExternalMcpServerView`.
  *
  * `envNames` without any matching values is the whole point of the shape, not an omission: the
  * variable names are what an operator needs in order to see which credentials are set, and the
@@ -102,7 +102,7 @@ export type AdminMediaProviderMap = Record<string, AdminMediaProviderCredentials
  */
 /**
  * The OAuth half of {@link AdminExternalMcpServer}. Mirrors
- * `src/assistant/external-mcp-store.ts`'s `ExternalMcpOAuthView` — never carries an access token, a
+ * `apps/website/src/features/external-mcp/contracts.ts`'s `ExternalMcpOAuthView` — never carries an access token, a
  * refresh token, or a client secret; `hasStoredToken` is presence only, the same technique the view
  * it mirrors uses.
  */
@@ -119,7 +119,7 @@ export interface AdminExternalMcpOAuthView {
 
 /**
  * One configured external MCP server, as the admin tab sees it. Mirrors
- * `src/assistant/external-mcp-store.ts`'s `ExternalMcpServerView`.
+ * `apps/website/src/features/external-mcp/contracts.ts`'s `ExternalMcpServerView`.
  *
  * `envNames` without any matching values is the whole point of the shape, not an omission: the
  * variable names are what an operator needs in order to see which credentials are set, and the
@@ -127,7 +127,7 @@ export interface AdminExternalMcpOAuthView {
  * to the two fields the generic streamable-HTTP + OAuth transport added on top of the original
  * stdio-only shape.
  */
-/** `POST .../mcp-servers/:serverId/oauth/connect`'s `auth`. Mirrors `src/assistant/external-mcp-oauth.ts`'s
+/** `POST .../mcp-servers/:serverId/oauth/connect`'s `auth`. Mirrors `apps/website/src/features/external-mcp/contracts.ts`'s
  *  `ExternalMcpConnectStart`; the device code itself never leaves the server. */
 export type AdminExternalMcpConnectStart =
   | { kind: "redirect_required"; authorizationUrl: string; expiresAt: string }
@@ -148,7 +148,7 @@ export interface AdminExternalMcpServer {
   serverId: string;
   label: string;
   transport: string;
-  /** One of `src/assistant/external-mcp-store.ts`'s `EXTERNAL_MCP_AUTH_MODES` — `none` | `static_env` | `oauth`. */
+  /** One of `apps/website/src/features/external-mcp/agent-tools.ts`'s `EXTERNAL_MCP_AUTH_MODES` — `none` | `static_env` | `oauth`. */
   authMode: string;
   enabled: boolean;
   command: string;
@@ -158,7 +158,7 @@ export interface AdminExternalMcpServer {
   allowedToolNames: string[];
   /**
    * The operator's SECOND, write-authorization list — mirrors
-   * `src/assistant/external-mcp-store.ts`'s `ExternalMcpServerView.writeAllowedToolNames`. A remote
+   * `apps/website/src/features/external-mcp/contracts.ts`'s `ExternalMcpServerView.writeAllowedToolNames`. A remote
    * tool declaring `readOnlyHint: false` is admitted only when it appears in BOTH this list and
    * {@link allowedToolNames} (`mcp-federation/trust.ts` R3's override). Independent of
    * `allowedToolNames`, never derived from it.
@@ -240,7 +240,7 @@ export interface AdminExternalMcpServerInput {
 
 /**
  * MCP's per-tool behaviour hints, exactly as a remote server declares them — mirrors
- * `src/assistant/mcp-federation/ports.ts`'s `RemoteToolAnnotations` verbatim. Self-declared by the
+ * `Jini packages/mcp/src/federation/ports.ts`'s `RemoteToolAnnotations` verbatim. Self-declared by the
  * thing being classified, so `mcp-federation/trust.ts` only ever lets these make a tool LESS
  * available, never more; see {@link AdminRemoteToolSurfaceEntry.hintsAbsent} for the gap that leaves.
  */
@@ -252,7 +252,7 @@ export interface AdminRemoteToolAnnotations {
   openWorldHint?: boolean;
 }
 
-/** One of `src/assistant/mcp-federation/trust.ts`'s `ToolRefusalReason` members — why the admission
+/** One of `Jini packages/mcp/src/federation/trust.ts`'s `ToolRefusalReason` members — why the admission
  *  gate would not admit a given tool today. */
 export type AdminToolRefusalReason =
   | "not-in-operator-allowlist"
@@ -265,7 +265,7 @@ export type AdminToolRefusalReason =
 
 /**
  * One ADVERTISED remote tool, described as an operator-facing record for the (not-yet-built)
- * write-tool picker — mirrors `mcp-federation/trust.ts`'s `RemoteToolSurfaceEntry` verbatim, field
+ * write-tool picker — mirrors `Jini packages/mcp/src/federation/trust.ts`'s `RemoteToolSurfaceEntry` verbatim, field
  * names included, per `probeExternalMcpServer`'s response (C-007).
  *
  * Covers every tool the remote listed, admitted or not, so a future picker can show the operator
@@ -299,7 +299,7 @@ export interface AdminExternalMcpProbeResult {
 
 /**
  * One connection's live admission accounting from the RUNNING agent daemon — a subset of
- * `mcp-federation/trust.ts`'s `FederatedAdmissionReport`, FLATTENED per connection by
+ * `Jini packages/mcp/src/federation/trust.ts`'s `FederatedAdmissionReport`, FLATTENED per connection by
  * {@link api.getExternalMcpAdmissions} (see {@link RawAdmissionConnection} for why that flattening
  * step exists and is not optional).
  *
@@ -449,7 +449,7 @@ function flattenAdmissionConnection(raw: RawAdmissionConnection): AdminFederated
 }
 
 /** One required-for-production env var's presence — never its value. Mirrors
- *  `DeploymentEnvVarStatus` in `src/server/routes/admin/system/deployment-overview.ts`. */
+ *  `DeploymentEnvVarStatus` in `apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts`. */
 export interface AdminDeploymentEnvVarStatus {
   name: string;
   set: boolean;
@@ -460,7 +460,7 @@ export interface AdminDeploymentEnvVarStatus {
   invalid?: true;
 }
 
-/** Mirrors `DeploymentOverviewSnapshot` in `src/server/routes/admin/system/deployment-overview.ts`
+/** Mirrors `DeploymentOverviewSnapshot` in `apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts`
  *  — see that type's own doc comments for what each field does and does not prove. */
 export interface AdminDeploymentOverview {
   mode: "production" | "local";
@@ -651,7 +651,7 @@ export interface AdminSiteActivation {
   restartInstructions: string;
 }
 
-/** Mirrors `DockerfileSourceSnapshot` in `src/server/routes/admin/system/dockerfile-source.ts`. */
+/** Mirrors `DockerfileSourceSnapshot` in `apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts`. */
 export interface AdminDockerfileSource {
   exists: boolean;
   contents: string | null;
@@ -671,10 +671,10 @@ export interface AdminDockerfileSource {
   etag: string;
 }
 
-/** Mirrors `ExportRunStatus` in `src/server/routes/admin/system/export-site.ts`. */
+/** Mirrors `ExportRunStatus` in `apps/website/src/server/inbound/admin-http/routes/system/export-site.ts`. */
 export type AdminExportRunStatus = "idle" | "running" | "completed" | "errored";
 
-/** Mirrors `ExportRunSnapshot` in `src/server/routes/admin/system/export-site.ts` — see that
+/** Mirrors `ExportRunSnapshot` in `apps/website/src/server/inbound/admin-http/routes/system/export-site.ts` — see that
  *  type's own doc comments for why it is a slim, JSON-safe summary rather than the full
  *  `ExportReport` (no route/asset bytes ever cross this boundary). */
 export interface AdminExportRunSnapshot {
@@ -757,7 +757,7 @@ export type AdminStaticPublishOutcome =
   | { ok: true; targetId: AdminStaticPublishTargetId; url: string; status: string; deploymentId?: string; basePath?: string }
   | { ok: false; code: "INVALID_CONFIG" | "NO_CREDENTIALS_CONFIGURED" | "EXPORT_FAILED" | "PROVIDER_ERROR"; message: string };
 
-/** Mirrors `PublishRunStatus` in `src/server/routes/admin/system/publish-site.ts`. */
+/** Mirrors `PublishRunStatus` in `apps/website/src/features/deployments/static-publish/publish-run.ts`. */
 export type AdminPublishRunStatus = "idle" | "running" | "completed" | "errored";
 
 /** Mirrors `PublishRunSnapshot` (same file) — the trigger+poll run slot for a publish to a
@@ -1084,7 +1084,7 @@ export interface AdminSourceControlCredentialsSnapshot {
 export type AdminCustomCredentialCategoryId = "source-control" | "hosting" | "media" | "ai" | "ops" | "general";
 
 /**
- * One saved custom-provider credential's non-secret summary (`src/server/routes/admin/system/
+ * One saved custom-provider credential's non-secret summary (`apps/website/src/server/inbound/admin-http/routes/system/
  * custom-credentials.ts`) — never carries the token or username. Unlike
  * {@link AdminSourceControlCredentialSummary}, `baseUrl`/`category` ARE part of this summary: both
  * are stored in the clear server-side specifically so the Access Tokens list can group/filter a
@@ -1149,7 +1149,7 @@ export interface AdminPublishDestinationView {
 }
 
 /** Mirrors `@jini-ai/ui`'s `ExecutionTab` `DetectedAgent` shape — see
- *  `src/server/routes/admin/assistant/detect-agents.ts`'s `toExecutionTabAgent`.
+ *  `apps/website/src/server/inbound/admin-http/routes/assistant/detect-agents.ts`'s `toExecutionTabAgent`.
  *
  *  Each model's `reasoning` mirrors `@jini-ai/agent-runtime`'s `RuntimeModelOption.reasoning`
  *  (`packages/agent-runtime/src/types.ts` in Jini) — a model's OWN effort levels, narrowed to
@@ -1321,7 +1321,7 @@ export interface SeoEntryMeta {
 }
 
 /**
- * Mirrors `apps/website/src/features/seo/types.ts`'s `SeoExtFields` — the per-entry override
+ * Mirrors `Jini packages/cms/src/seo/types.ts`'s `SeoExtFields` — the per-entry override
  * fields themselves. (The old comment here said "Mirrors `src/seo/types.ts`'s `SeoExtFields` — the
  * partial override bag `putSeoEntry` accepts", which had been wrong on both halves since
  * `eb10f5de`: the path moved, and the shape the route accepts is `SeoExtFieldsPatch`, not
@@ -1351,7 +1351,7 @@ export interface SeoEntryOverrides {
  * `null` means REMOVE this override, so resolution falls back through the site default to the
  * derived value; `undefined` (an omitted key) still means "leave unchanged". This distinction is
  * the whole point of the type: `setEntrySeoOverrides` (`write-service.ts`) stores `""` as a
- * genuine override, and `getEntryMeta` (`features/seo/seo.ts`) resolves overrides with `??`, so an
+ * genuine override, and `getEntryMeta` (`Jini packages/cms/src/seo/seo.ts`) resolves overrides with `??`, so an
  * override of `""` BEATS the site default and pins the entry to a blank. Before this widening the
  * admin could only ever send `""`, which is how a post reached `{"description":""}` with no way
  * back from the UI.
@@ -1396,7 +1396,7 @@ export interface AdminPost {
   showAuthor?: boolean;
   id: string;
   workspaceId: string;
-  // Was missing from this client-side type even though `toHeadlessPost` (server/http/shared/post.ts)
+  // Was missing from this client-side type even though `toHeadlessPost` (apps/website/src/server/inbound/public-http/http/shared/post.ts)
   // has always sent it — added here because PostEditor's delete affordance needs to tell a post
   // apart from a page (for confirm-dialog wording and for which list to return to) and every field
   // it needs already ships on the wire.
@@ -1409,7 +1409,7 @@ export interface AdminPost {
    * `bodyJson`; `"html"` is a bespoke, AI-generated Page whose real content is `bodyHtml`.
    *
    * Optional here only as prototype debt. The server already returns a proper discriminated union
-   * (`headless/contracts.ts`, `server/http/shared/post.ts`), and REQ-3 wants this type to mirror it
+   * (`headless/contracts.ts`, `apps/website/src/server/inbound/public-http/http/shared/post.ts`), and REQ-3 wants this type to mirror it
    * so that constructing Tiptap's props from an html-format entry is a COMPILE error rather than a
    * runtime branch. Widening this shared interface into a union touches every existing `AdminPost`
    * consumer, so for now `features/pages` narrows on `bodyFormat` explicitly and the compile-time
@@ -1772,7 +1772,7 @@ export interface AdminPolicyPermission {
   constraintJson?: string | null;
 }
 
-/** SPEC-044 (Workspace Administration) — mirrors `server/http/admin/workspace.ts`'s DTO. */
+/** SPEC-044 (Workspace Administration) — mirrors `apps/website/src/server/inbound/admin-http/http/workspace.ts`'s DTO. */
 export interface AdminWorkspace {
   id: string;
   name: string;
@@ -1781,7 +1781,7 @@ export interface AdminWorkspace {
 }
 
 /**
- * SPEC-010 Forms (Tier-1 sample plugin) — client-side types mirroring `server/http/admin/forms.ts`
+ * SPEC-010 Forms (Tier-1 sample plugin) — client-side types mirroring `apps/website/src/server/inbound/admin-http/http/forms.ts`
  * + api.spec.md §5. Response envelopes use `{ data: ... }` (Forms' own contract shape), unlike the
  * `{ menu: ... }`/`{ member: ... }`-style envelopes elsewhere in this file.
  */
@@ -1823,7 +1823,7 @@ export interface AdminFormSubmission {
   submittedAt: string;
 }
 
-/** Mirrors `src/server/http/admin/redirects.ts`'s `AdminRedirectDto` (SPEC-009). */
+/** Mirrors `apps/website/src/server/inbound/admin-http/http/redirects.ts`'s `AdminRedirectDto` (SPEC-009). */
 export interface AdminRedirect {
   id: string;
   workspaceId: string;
@@ -1863,7 +1863,7 @@ export interface RedirectImportRule {
   priority?: number;
 }
 
-/** Mirrors `toAdminRedirectImportResponse`'s shape (`server/http/admin/redirects.ts`) — the route
+/** Mirrors `toAdminRedirectImportResponse`'s shape (`apps/website/src/server/inbound/admin-http/http/redirects.ts`) — the route
  * always answers `207 Multi-Status`, so this is a plain success body, not an error path. */
 export interface AdminRedirectImportResponse {
   created: AdminRedirect[];
@@ -1871,8 +1871,8 @@ export interface AdminRedirectImportResponse {
 }
 
 /**
- * Collections (ADR-022/ADR-043) — mirrors `features/content-types/types.ts` +
- * `features/entries/types.ts`. The 18 routes these types back were wired in the
+ * Collections (ADR-022/ADR-043) — mirrors `Jini packages/cms/src/content-types/types.ts` +
+ * `Jini packages/cms/src/entries/types.ts`. The 18 routes these types back were wired in the
  * "Session 5" backend-gap-closure pass (`progress-ledger.md`); see this file's own
  * per-method comments for exact response envelope shapes.
  */
@@ -1936,7 +1936,7 @@ export interface AdminEntry {
 }
 
 /**
- * Categories & Tags (ADR-044) — mirrors `features/taxonomy/write-service.ts`'s `Taxonomy`/`Term`.
+ * Categories & Tags (ADR-044) — mirrors `Jini packages/cms/src/taxonomy/write-service.ts`'s `Taxonomy`/`Term`.
  */
 export interface AdminTaxonomy {
   id: string;
@@ -2209,7 +2209,7 @@ export interface CommentsSettings {
  * `purge` is intentionally separate (no `expectedVersion` guard, its own route/permission). */
 export type CommentModerationAction = "approve" | "spam" | "trash" | "restore";
 
-/** Mirrors `src/server/http/admin/plugins.ts`'s `AdminPluginEnvelope` (SPEC-005 REQ-10, api.spec.md
+/** Mirrors `apps/website/src/server/inbound/admin-http/http/plugins.ts`'s `AdminPluginEnvelope` (SPEC-005 REQ-10, api.spec.md
  * §5) — the `PLUGINS_LIST`/`PLUGIN_SET_ENABLED` per-plugin wire shape. */
 export interface AdminPlugin {
   id: string;
@@ -2273,7 +2273,7 @@ export interface AdminPluginProviderSettings {
   fields: AdminPluginProviderSettingField[];
 }
 
-/** One entry of {@link AdminPlugin.conflicts} — `features/plugin-runtime/plugin-claims.ts`'s
+/** One entry of {@link AdminPlugin.conflicts} — `Jini packages/plugins/src/host/plugin-claims.ts`'s
  *  `PluginConflict`. `heldBy` is `"core"` for a name Tovu itself reserves; `heldKey` is the holder's
  *  own spelling (a reserved prefix such as `/api/*` when that is what matched). */
 export interface AdminPluginConflict {
@@ -2496,7 +2496,7 @@ const unauthenticatedListeners = new Set<UnauthenticatedListener>();
  * `request()` below, carrying `code: "UNAUTHENTICATED"`, not a client-side guess. Returns an
  * unsubscribe function.
  *
- * Exists because `App.hooks.tsx`'s `useAdminSession` only ever checked auth ONCE, at boot
+ * Exists because `apps/admin/src/App.hooks.ts`'s `useAdminSession` only ever checked auth ONCE, at boot
  * (`api.me()` on mount) — a session that expires or is invalidated (server restart, admin revoke)
  * mid-tab left `user` stuck non-null forever, so `App.tsx`'s `if (!user) return <Login .../>` gate
  * never re-fired. Every OTHER screen's own `request()` call kept 401ing silently instead — the
@@ -2856,7 +2856,7 @@ export const api = {
    * Exchanges a single-use loopback boot token (the zip launcher's `#boot=<token>` sign-in link,
    * run-from-zip plan S2) for a real admin session cookie — the SAME route the desktop shell already
    * redeems (`server/inbound/admin-http/dev-auth.ts`'s `POST /auth/boot-session`; no new server
-   * route). `App.hooks.tsx`'s boot effect calls this with whatever `takeBootToken` read off the URL
+   * route). `apps/admin/src/App.hooks.ts`'s boot effect calls this with whatever `takeBootToken` read off the URL
    * fragment, then runs its existing `api.me()` chain unchanged — a rejected redemption (invalid,
    * spent, or absent) is swallowed by that caller and falls through to the normal `<Login>` screen.
    */
@@ -2893,7 +2893,7 @@ export const api = {
   getPost: (id: string) =>
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}`),
   // Template-preview fix (2026-08-11). Kind-blind like getPost/updatePost/deletePost above — one
-  // route serves both editors' Preview tabs (`routes/admin/posts/template-preview.ts`'s own file
+  // route serves both editors' Preview tabs (`apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts`'s own file
   // header explains why). NOT run through `request()`: the caller points an `<iframe src>` (or a
   // hidden form's `action`) directly at this URL rather than fetching+parsing JSON, so this only
   // builds the string.
@@ -2942,7 +2942,7 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(options),
     }, undefined, entry ? { failureEntry: entry } : {}),
-  // Soft delete (server/routes/admin/posts/delete.ts): trashes the row rather than removing it,
+  // Soft delete (apps/website/src/server/inbound/admin-http/routes/posts/delete.ts): trashes the row rather than removing it,
   // revertible server-side via POST /change-sets/:id/revert. Kind-blind like getPost/updatePost —
   // deletes whatever row has this id regardless of whether it is a post or a page, which is why
   // PostEditor (shared between both) calls this rather than deletePage.
@@ -3030,7 +3030,7 @@ export const api = {
   // **This route takes no `expectedVersion`, and its server-side compare-and-set does NOT protect a
   // second editor** — corrected 2026-09-07; this comment used to claim the opposite ("only this one
   // offers compare-and-set, a 409 rather than a silent overwrite when someone else edited the page
-  // since this editor loaded it"), and `routes/admin/pages/update-html.ts`'s own header still says
+  // since this editor loaded it"), and `apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts`'s own header still says
   // something similar. What the route actually does is `read()` then `write()` inside ONE request
   // (`PagesHtmlDocumentStore`, CIC-1), so the version it conditions on is one it captured
   // microseconds earlier — it serializes two writes racing inside the server, and can never see the
@@ -3045,7 +3045,7 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ html }),
     }),
-  // Soft delete (server/routes/admin/pages/delete.ts): same trash marker as deletePost, but
+  // Soft delete (apps/website/src/server/inbound/admin-http/routes/pages/delete.ts): same trash marker as deletePost, but
   // kind-guarded — 404s if the id's row is not actually kind:"page" (indistinguishable from
   // not-found, matching the rest of the pages/* routes' disclosed asymmetry).
   deletePage: (id: string) =>
@@ -3596,7 +3596,7 @@ export const api = {
 
   // "Execution mode" tab (`@jini-ai/ui`'s `ExecutionTab`) — Local CLI detection + BYOK connection
   // test/model discovery. Deliberately separate from the settings.* methods above: these are
-  // stateless egress probes (`src/server/modules/assistant-execution.ts`), not ledger CRUD, and the
+  // stateless egress probes (`apps/website/src/server/runtime/composition/modules/assistant-execution.ts`), not ledger CRUD, and the
   // `apiKey` field these two POST bodies carry is used for exactly one outbound request server-side
   // and never persisted (ADR-028 §6 — see `apps/admin/src/lib/execution-settings.ts`'s header).
   detectExecutionAgents: (_input: Record<string, never> = {}, { force = false }: { force?: boolean } = {}) =>
@@ -3636,13 +3636,13 @@ export const api = {
 
   // AI Assistant — the visitor-facing assistant's master switch. Same `{ data }` envelope and same
   // partial-PUT shape as Jini's SEO settings adapter, because the two routes are deliberately
-  // identical in contract (see `server/routes/admin/assistant/put-settings.ts`).
+  // identical in contract (see `apps/website/src/server/inbound/admin-http/routes/assistant/put-settings.ts`).
   //
   // GET's response also carries a sibling `adminAssistantEnabled` — the UNRELATED admin assistant's
   // own `TOVU_ADMIN_ASSISTANT=off` switch, piggy-backed onto this response rather than a new
-  // endpoint (`server/routes/admin/assistant/get-settings.ts`'s own doc explains why: this module is
+  // endpoint (`apps/website/src/server/inbound/admin-http/routes/assistant/get-settings.ts`'s own doc explains why: this module is
   // one of exactly two admin-assistant server modules mounted unconditionally, so it is reachable
-  // even with that flag off). `App.hooks.tsx`'s `useAdminAssistantAvailability` is the one reader.
+  // even with that flag off). `apps/admin/src/App.hooks.ts`'s `useAdminAssistantAvailability` is the one reader.
   getAssistantSettings: () =>
     authenticatedAdminRequest<{ data: PublicAssistantSettings; adminAssistantEnabled: boolean }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/assistant/settings` }),
   setAssistantSettings: (patch: Partial<PublicAssistantSettings>) =>
@@ -3678,7 +3678,7 @@ export const api = {
       throw e;
     }
   },
-  // `/readyz` (root-level, NOT under `/api/admin/v1` — see `server/routes/ops/health.ts`) is
+  // `/readyz` (root-level, NOT under `/api/admin/v1` — see `apps/website/src/server/inbound/public-http/routes/ops/health.ts`) is
   // deliberately unauthenticated and carries `assistantDaemonKnownFailed: true` only while a fresh
   // agent-daemon failure is latched (`readiness-state.ts`). Read directly rather than through
   // `request()`: both `200` (ready) and `503` (not ready) are ordinary, meaningful bodies here, not
@@ -3687,7 +3687,7 @@ export const api = {
     // Raw response, but through the same bounded fetch as `request()`: a bare `fetch` here queued
     // forever once long-lived SSE connections had used up the origin's connection budget.
     const res = await fetchOrThrowUnreachable("/readyz", { credentials: "same-origin" });
-    // `/readyz` (`server/routes/ops/health.ts`'s `registerReadyzRoute`) always answers JSON, on both
+    // `/readyz` (`apps/website/src/server/inbound/public-http/routes/ops/health.ts`'s `registerReadyzRoute`) always answers JSON, on both
     // its `200` and `503` branches — so a non-JSON response here means something ELSE answered
     // instead of the real route: a dev-server proxy gap (fixed 2026-08-17 in `vite.config.ts`, but
     // this guard is not just a workaround for that — the same class of failure is possible in
@@ -4053,7 +4053,7 @@ export const api = {
       body: JSON.stringify({ enabled }),
     }),
 
-  // Deployment panel (`src/server/routes/admin/system/deployment-overview.ts` /
+  // Deployment panel (`apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts` /
   // `dockerfile-source.ts`) — `system.read`-gated, same shape as `getModuleStatus` just above.
   /** Runtime mode, boot-gate/default-password status, agent-daemon known-failure state, db/uploads
    *  paths, and required-env-var presence (never values) — the Deployment panel's Overview tab. */
@@ -4150,7 +4150,7 @@ export const api = {
     ).then((body) => ({ ...body, etag }));
   },
 
-  // Static Site tab (`src/server/routes/admin/system/export-site.ts`) — trigger + poll, not a
+  // Static Site tab (`apps/website/src/server/inbound/admin-http/routes/system/export-site.ts`) — trigger + poll, not a
   // single synchronous call: a real export can take seconds to minutes, so `triggerSiteExport`
   // returns the moment the run STARTS (202) and a caller polls `getSiteExportStatus` for the
   // outcome. `system.export`-gated on trigger (writes to disk), `system.read` on the poll.
@@ -4165,7 +4165,7 @@ export const api = {
    *  `status` is no longer `"running"`. */
   getSiteExportStatus: () => request<AdminExportRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/export`),
 
-  // Static Site tab "Getting it online" card (`src/server/routes/admin/system/publish-site.ts`) —
+  // Static Site tab "Getting it online" card (`apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts`) —
   // publishing the current export straight to an installed static host plugin's target.
   // Same trigger+poll shape as
   // the export pair just above, plus a third pure-read preview route with no run of its own.
@@ -4209,7 +4209,7 @@ export const api = {
   listPublishDestinations: () =>
     request<AdminPublishDestination[]>(`/workspaces/${WORKSPACE_ID}/system/publish/destinations`),
 
-  // Static Site tab "Getting it online" card → credential management (`src/server/routes/admin/
+  // Static Site tab "Getting it online" card → credential management (`apps/website/src/server/inbound/admin-http/routes/
   // system/publish-credentials.ts`) — named provider connections for `triggerPublish`, stored
   // encrypted server-side and never read back. See `AdminPublishCredentialSummary`'s own doc for
   // exactly what a saved row can and cannot reveal.
@@ -4299,7 +4299,7 @@ export const api = {
   startFreshSiteKey: (confirm: string) =>
     request<AdminStartedFreshSiteKey>(`/workspaces/${WORKSPACE_ID}/system/site-key/start-fresh`, { method: "POST", body: JSON.stringify({ confirm }) }),
 
-  // Source Control page → credential management (`src/server/routes/admin/system/
+  // Source Control page → credential management (`apps/website/src/server/inbound/admin-http/routes/system/
   // source-control-credentials.ts`) — one saved GitHub/GitLab/Bitbucket identity connection per
   // provider, stored encrypted server-side and never read back. Structurally mirrors the
   // publish-credentials block above; see `AdminSourceControlCredentialSummary`'s own doc for
@@ -4349,7 +4349,7 @@ export const api = {
       path: `/workspaces/${WORKSPACE_ID}/system/credential-copy`, method: "POST", body: input,
     }, options),
 
-  // Access Tokens page → "Add custom provider" (`src/server/routes/admin/system/
+  // Access Tokens page → "Add custom provider" (`apps/website/src/server/inbound/admin-http/routes/system/
   // custom-credentials.ts`) — a user-defined provider (name, base URL, token, optional username,
   // category), stored encrypted server-side and never read back. Structurally mirrors the
   // source-control-credentials block above. `custom-credentials.write`-gated on every verb

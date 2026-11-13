@@ -10,7 +10,7 @@ import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/cata
  *    protocol, providerId, baseUrl, model, maxTokens for the ACTIVE selection
  *    — is stored as SPEC-007 `setting_definitions` values in the
  *    `core.execution` namespace, written through `api.setSetting` (the
- *    ADR-028 single write chokepoint). `src/assistant/execution-mode-
+ *    ADR-028 single write chokepoint). `apps/website/src/assistant/execution-mode-
  *    settings.ts` registers these definitions at server boot.
  *
  * 2. **Credential storage — now server-side, write-only (2026-08-05).**
@@ -507,7 +507,7 @@ async function restoreLedgerKeys(keys: readonly string[], previousValues: Readon
  * `loadExecutionConfig` always returns `byok.apiKey: ""` (this file's header, item 2 — the server
  * never returns key material), and `refresh()` fires on ANY out-of-band notification — including a
  * same-tab echo of THIS SLICE'S OWN debounced write arriving back over the settings-changed SSE feed
- * (`settings-events.ts`; `src/server/routes/admin/settings/events.ts` broadcasts to every open
+ * (`settings-events.ts`; `apps/website/src/server/inbound/admin-http/routes/settings/events.ts` broadcasts to every open
  * connection for the workspace on a ~1s poll, the writer's own tab included, with no self-exclusion).
  *
  * The failure this prevents: an operator types a key, then edits a ledger field (baseUrl, model,

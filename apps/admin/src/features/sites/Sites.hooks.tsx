@@ -19,7 +19,7 @@ import type { CreateSitePluginTokenField, CreateSitePluginTokensController } fro
  * inline where it needs the value (same idiom `TabBar.tsx`'s `{...tabHandleProps(tab)}` uses), so a
  * caller never composes its own boolean/array logic on top of what these return.
  *
- * `Sites.rules.ts` already holds this feature's screen-independent domain logic (`siteRowState`,
+ * `apps/admin/src/features/sites/rules.ts` already holds this feature's screen-independent domain logic (`siteRowState`,
  * `activationOutlook`, …) — testable without React and reused by more than this one screen's markup.
  * What lives here instead is logic that is specific to how `Sites.tsx` itself is laid out (which
  * props a given button's `disabled` depends on, which prefix a row's agent handles use, and which

@@ -502,7 +502,7 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
   const cardHandles = resolveExternalMcpCardHandles(list.sources);
 
   // What the RUNNING assistant admitted, as opposed to what this tab saved — two different objects,
-  // because `mcp-federation/trust.ts` R5 freezes the admitted set at connect. Until this banner
+  // because `Jini packages/mcp/src/federation/trust.ts` R5 freezes the admitted set at connect. Until this banner
   // existed the gap was visible only in the daemon's boot terminal.
   const savedAllowedToolNamesById = useSavedAllowedToolNamesById(list.sources);
   const admissions = useExternalMcpAdmissionsHook(savedAllowedToolNamesById);

@@ -1,5 +1,5 @@
 /**
- * @file The shared jsdom host for `App.render.test.ts` and `App.start-panel.render.test.ts`: one
+ * @file The shared jsdom host for `App.render.test.ts` and `apps/desktop/src/renderer/app/SiteStartPanel.render.test.ts`: one
  * jsdom per test PROCESS (node --test gives each file its own), the CSS resolve hook, the host
  * stand-ins, the recording desktop bridge and `renderApp`. See `App.render.test.ts` for why each
  * piece is a stand-in rather than a module mock. Not a test file itself.

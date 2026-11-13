@@ -113,7 +113,7 @@ function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentH
   // useMediaLightbox has an always-available Close target.
   const itemHandles = base && items ? buildAgentListHandles({ prefix: `${base}-item`, ids: items.map((item) => item.id) }) : undefined;
   // `{link}` must render as a real `<a>` node, not plain text — interpolate() can't produce that,
-  // so this splits the template around the token instead. See `lib/template-i18n.ts`'s own header.
+  // so this splits the template around the token instead. See `Jini packages/ui/src/features/i18n/template-i18n.ts`'s own header.
   const [emptyStateBefore, emptyStateAfter] = splitOnPlaceholders({ template: t("No media uploaded yet. Upload an asset from the {link} screen first."), tokens: ["{link}"] }
   );
 

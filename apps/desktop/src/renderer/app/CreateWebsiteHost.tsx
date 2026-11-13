@@ -11,7 +11,7 @@ import type { CreateSiteInput } from '../../contracts/project.js';
  * returns `<AppearancePage>` or `null` before it ever consults `isCreating`, so Settings →
  * Appearance unmounted the form regardless of that flag — silently destroying everything typed,
  * including a half-entered credential, with no confirmation. See
- * `development/notes/agent-navigation-dismissal.md` for the full trace. Keeping the form mounted
+ * the original agent-navigation dismissal investigation for the full trace. Keeping the form mounted
  * here and only hiding it fixes that for every incidental exit at once, human or agent-driven.
  *
  * `display: none` is what actually satisfies "hidden means unreachable": a hidden host is pulled

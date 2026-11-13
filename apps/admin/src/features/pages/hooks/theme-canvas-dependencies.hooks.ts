@@ -6,7 +6,7 @@ import type { ThemeCanvasPort, ThemeTokens } from "./theme-canvas-port.hooks";
  * instead of `lib/api`'s `api` client.
  */
 
-/** The live implementation — same status-check shape `post-template-dependencies.hooks.ts` uses for
+/** The live implementation — same status-check shape `apps/admin/src/components/TemplateSource/template-source-dependencies.hooks.ts` uses for
  *  the sibling `/theme-assets/...` fetch, with `.json()`/`.text()` chosen per what each method
  *  actually returns (a theme template's own markup has no reason to be valid JSON). */
 export const defaultThemeCanvasPort: ThemeCanvasPort = {

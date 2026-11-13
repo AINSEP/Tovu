@@ -50,7 +50,7 @@ import { PublishSectionButton } from "../publish-content/PublishSectionButton";
  * `newName`, no `parentId`; no deprecate-term route was wired). Rather than render dead buttons for
  * those two, this screen omits them entirely.
  *
- * Also disclosed: the production `Term` type (`features/taxonomy/write-service.ts`) has no `slug`
+ * Also disclosed: the production `Term` type (`Jini packages/cms/src/taxonomy/write-service.ts`) has no `slug`
  * field — design-spec.md §2.3 assumed one; this screen does not render a slug control.
  *
  * SPEC-037 REQ-02: `NewTaxonomyForm` wires the previously-unused `api.createTaxonomy` — a plain

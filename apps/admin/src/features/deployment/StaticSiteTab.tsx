@@ -53,12 +53,12 @@ function PublishFailureNotice({ controller, t: translate }: { controller: Static
  * The second pass's own header traced a grep (`runExportCommand|exportSite\b` against
  * `src/server/routes`) that returned nothing, and concluded the build button had to stay inert. That
  * grep is now stale for a second time, the same way it was corrected once already: a concurrent
- * agent landed `src/server/routes/admin/system/export-site.ts` (`POST`/`GET .../system/export`,
- * trigger+poll, `system.export`-gated) the same session, registered in `server/app.ts`, tested in
+ * agent landed `apps/website/src/server/inbound/admin-http/routes/system/export-site.ts` (`POST`/`GET .../system/export`,
+ * trigger+poll, `system.export`-gated) the same session, registered in `apps/website/src/server/runtime/composition/app.ts`, tested in
  * `export-site-route.test.ts`. The build button below now calls it for real, through
  * `useWiredStaticExport` (`hooks/use-static-export.hooks.ts`).
  *
- * The publish half tells the same story a second time over: `src/server/routes/admin/system/
+ * The publish half tells the same story a second time over: `apps/website/src/server/inbound/admin-http/routes/system/
  * publish-site.ts` (preview + trigger + poll, wrapping `features/deployments/static-publish/`) also
  * landed the same session, cookie-authed — a HUMAN clicking Publish in this admin, not the AI
  * assistant (`deployment_execute_static_publish`, the agent-tool half of this same feature, stays
@@ -967,7 +967,7 @@ function CredentialStepTodo({
  * capabilities`) started telling a human to come HERE and "hit verify on the token" whenever its
  * cached verification went cold (e.g. a server restart — `InMemoryPublishCredentialVerificationCache`
  * has no persistence), and grepping this file for "verify" turned up nothing to click (see
- * `development/e2e/deployment-static-site-verify-gap.spec.ts`'s header for the full live-reproduction
+ * the original verification-gap investigation for the full live-reproduction
  * chain). `POST .../credentials/:id/verify` (`publish-credentials.ts`) already existed and worked; the
  * gap was UI wiring only. {@link CredentialVerifyAction} closes it — a real re-check button living
  * inside `<summary>` itself (not the `<details>` content revealed on expand), because it has to stay

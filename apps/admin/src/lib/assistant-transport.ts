@@ -59,7 +59,7 @@ export interface CreateTovuAssistantTransportOptions {
    * agentId this set contains: "the caller trusts this adapter's CLI to carry its own multi-turn
    * conversation memory... and should skip resending the rendered transcript on follow-up turns"
    * (`types.ts`). Resending it anyway would duplicate everything the daemon's own `--resume`/
-   * `session/load` already restores (`agent-session-resume.ts`).
+   * `session/load` already restores (`Jini packages/daemon/src/session-coordination.ts`).
    *
    * Read fresh on every `startRun` call, same "never captured" convention {@link getExecutionConfig}/
    * {@link getAgUiEnabled} already establish: the admin's own `/api/agents` probe resolves
