@@ -14,7 +14,10 @@ function errorPayload({ record }: { record: Record<string, unknown> }, _options 
 
 /** Catalog ownership stays in the shared product map, including screens and actions. O(c) for c catalog IDs. */
 function catalogAllowsId({ kind, id }: { kind: 'action' | 'screen'; id: string }, _options = {}): boolean {
-  const rules = kind === 'action' ? PRODUCT_EVENTS.desktop_action!.action : PRODUCT_EVENTS.desktop_screen_viewed!.screen;
+  const eventName = kind === 'action' ? 'desktop_action' : 'desktop_screen_viewed';
+  const event = PRODUCT_EVENTS[eventName];
+  if (!event) throw new Error(`desktop telemetry catalog is missing ${eventName}`);
+  const rules = kind === 'action' ? event.action : event.screen;
   return Array.isArray(rules) && rules.includes(id);
 }
 

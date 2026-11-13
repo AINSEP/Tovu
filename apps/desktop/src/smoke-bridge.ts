@@ -18,14 +18,16 @@ export function resolveBridgeSmokeTargets(
 ): ReturnType<typeof resolveSmokeTargets> {
   const appAt = argv.indexOf("--app");
   const platformAt = argv.indexOf("--platform-dir");
-  if (appAt !== -1 && argv[appAt + 1]) {
-    const app = path.resolve(desktopRoot, argv[appAt + 1]!);
+  const appArg = appAt === -1 ? undefined : argv[appAt + 1];
+  const platformArg = platformAt === -1 ? undefined : argv[platformAt + 1];
+  if (appArg) {
+    const app = path.resolve(desktopRoot, appArg);
     return {
       executablePath: path.join(app, "Contents", "MacOS", "Tovu"),
       nodeModulesDir: path.join(app, "Contents", "Resources", "tovu", "node_modules"),
     };
-  } else if (platformAt !== -1 && argv[platformAt + 1]) {
-    const platformDir = path.resolve(desktopRoot, argv[platformAt + 1]!);
+  } else if (platformArg) {
+    const platformDir = path.resolve(desktopRoot, platformArg);
     return resolveSmokeTargets(platformDir, readDirectory(platformDir));
   } else {
     throw new Error("smoke-bridge: --platform-dir <dir> or --app <Tovu.app> is required");
@@ -228,7 +230,8 @@ export async function smokeBridge(
             send({ jsonrpc: "2.0", method: "notifications/initialized" });
             send({ jsonrpc: "2.0", id, method: "tools/list", params: {} });
           } else {
-            assertBridgeReplies({ initialize: initialize!, tools: reply, serverName: entry.serverName, toolName: entry.toolName });
+            if (!initialize) throw new Error('MCP bridge tools reply arrived without an initialize reply');
+            assertBridgeReplies({ initialize, tools: reply, serverName: entry.serverName, toolName: entry.toolName });
             resolve();
             return;
           }

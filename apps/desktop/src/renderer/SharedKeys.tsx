@@ -32,7 +32,8 @@ export function SharedKeys({ onClose, bridge = ownerStoreBridge({}) }: {
   const dialog = useRef<HTMLDialogElement>(null);
   const state = useSharedKeys({ bridge });
   useEffect(() => {
-    const node = dialog.current!;
+    const node = dialog.current;
+    if (!node) throw new Error('shared keys dialog is missing when opened');
     node.showModal();
     return () => node.close();
   }, []);

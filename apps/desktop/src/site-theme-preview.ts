@@ -97,7 +97,9 @@ export function createSiteThemePreviewSubscriptions(
         stream.revision = frame.revision;
         // A live stream implies watchers for its site: `sync` opens one only for a watched site, and
         // every path that empties a site's watchers (`watch`'s unsubscribe, `dispose`) stops it first.
-        for (const listener of watchers.get(siteDir)!) {
+        const listeners = watchers.get(siteDir);
+        if (!listeners) throw new Error(`theme preview stream has no watchers for ${siteDir}`);
+        for (const listener of listeners) {
           try { listener({ siteDir, ...frame }); } catch { /* A destroyed renderer cannot stop other tabs' notifications. */ }
         }
       } }, {});

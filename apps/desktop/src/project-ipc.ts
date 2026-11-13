@@ -607,7 +607,10 @@ function recordsWithRememberedNames(
   if (rows.some((row) => names.has(row.siteDir) && names.get(row.siteDir) !== row.displayName)) {
     try {
       updateProjectsFile(deps.projectsPath, (current) => ({
-        rows: current.rows.map((row) => names.has(row.siteDir) ? { ...row, displayName: names.get(row.siteDir)! } : row),
+        rows: current.rows.map((row) => {
+          const displayName = names.get(row.siteDir);
+          return displayName === undefined ? row : { ...row, displayName };
+        }),
         dismissed: current.dismissed,
       }));
     } catch (error) { console.warn('tovu desktop: could not remember website names', error); }
@@ -633,15 +636,17 @@ async function handleLocate(id: string, deps: Pick<ProjectIpcDeps, "dialog" | "c
     buttonLabel: "Use this folder",
     properties: ["openDirectory"],
   });
-  if (picked.canceled || picked.filePaths.length === 0) {
+  const [siteDir] = picked.filePaths; // Use the first picked path only after checking it exists.
+  if (picked.canceled || siteDir === undefined) {
     throw new Error("No folder was chosen.");
   }
-  const siteDir = picked.filePaths[0]!; // just checked `filePaths.length === 0` above, so index 0 exists
   const kind = deps.classifySiteDir(siteDir);
   if (kind !== "site") {
     throw new Error(`${siteDir} is not a complete Tovu site (${kind}). Pick the folder that holds this website.`);
   }
-  const row = repointTrackedSite(deps.projectsPath, id, siteDir).find((entry) => entry.siteDir === siteDir)!; // repointed onto, or merged into, this exact siteDir above
+  // The old row was repointed onto, or merged into, this exact siteDir above.
+  const row = repointTrackedSite(deps.projectsPath, id, siteDir).find((entry) => entry.siteDir === siteDir);
+  if (!row) throw new Error(`Located site ${siteDir} is missing from tracked projects.`);
   if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop", allowRelocation: true });
   return buildSiteRecord(row, deps);
 }
@@ -861,7 +866,9 @@ async function handleAddSite(
 
   const { siteDir, alreadyTracked } = deps.addSitePointer({ siteDir: folder, projectsPath: deps.projectsPath }, { workspace: deps.sharedSites });
   if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop", allowRelocation: true });
-  const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === siteDir)!; // addSitePointer just tracked this exact siteDir above, so a row for it always exists
+  // addSitePointer just tracked this exact siteDir above.
+  const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === siteDir);
+  if (!row) throw new Error(`Added site ${siteDir} is missing from tracked projects.`);
   // Read back rather than synthesized: an already-tracked folder keeps its ORIGINAL `createdAt` and
   // origin, and a fabricated row would report today's date and reorder the operator's grid.
   if (!alreadyTracked) {
@@ -886,7 +893,8 @@ async function pickSiteFolder(deps: Pick<ProjectIpcDeps, "dialog">): Promise<str
     // button would invite the one mistake the refusal then has to explain.
     properties: ["openDirectory"],
   });
-  return picked.canceled || picked.filePaths.length === 0 ? null : picked.filePaths[0]!;
+  const [folder] = picked.filePaths;
+  return picked.canceled || folder === undefined ? null : folder;
 }
 
 /** A path the renderer read off a drop. What it holds is checked by the verb it goes to. */
@@ -906,7 +914,8 @@ function droppedArchive({ value }: { value: unknown }): SiteArchiveSource {
 async function pickArchive(deps: Pick<ProjectIpcDeps, "dialog">): Promise<SiteArchiveSource | null> {
   const picked = await deps.dialog.showOpenDialog({ title: "Choose a .tovu.zip file", buttonLabel: "Import website",
     properties: ["openFile"], filters: [{ name: "Tovu website", extensions: ["zip"] }] });
-  return picked.canceled || picked.filePaths.length === 0 ? null : { file: picked.filePaths[0]! };
+  const [file] = picked.filePaths;
+  return picked.canceled || file === undefined ? null : { file };
 }
 
 /** Which archive to import; `null` when the dialog was cancelled. Remote input is checked by the importer. */
@@ -1061,7 +1070,9 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
 
   deps.cancelPreviewCapture?.({ siteDir: id }, {});
   if (openEntry !== undefined) {
-    await openEntry.server.stop!(); // an entry with no `.stop` never reaches this line in practice — `OpenSiteEntry.server.stop` is optional only because other, non-delete tests build entries that omit it
+    // The real server always has stop; the field is optional for tests of other handlers.
+    if (!openEntry.server.stop) throw new Error(`Cannot delete ${id}: its running server has no stop method.`);
+    await openEntry.server.stop();
     closeStoppedProject({ id, openEntry, deps });
   }
   // The row is the recovery handle for a partial erase: keep it until removal succeeds.
@@ -1114,7 +1125,15 @@ function closeStoppedProject(
   deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
   // A sites-home-opened (embedded-tab) entry has no `window` at all — see `openSiteServer` in
   // `main.ts` — so this is optional, not a missing null check.
-  if (openEntry.window && !openEntry.window.isDestroyed!()) openEntry.window.destroy!(); // present whenever `window` is (see `OpenSiteEntry.window`'s own doc: optional only for tests that never invoke it)
+  const window = openEntry.window;
+  if (window) {
+    // The real window has these methods; they are optional only for tests that never invoke them.
+    if (!window.isDestroyed) throw new Error(`Cannot close ${id}: its window has no isDestroyed method.`);
+    if (!window.isDestroyed()) {
+      if (!window.destroy) throw new Error(`Cannot close ${id}: its window has no destroy method.`);
+      window.destroy();
+    }
+  }
 }
 
 /** Erase the folder; translate failures while leaving untracking to the caller.
@@ -1216,11 +1235,12 @@ function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projec
     );
   }
 
-  const nameError = siteNameError({ name: input?.name });
-  if (nameError) throw new Error(nameError);
-  const duplicateError = duplicateSiteNameError({ name: input.name!, names: otherSiteNames({ deps, siteDir: row.siteDir }) });
+  const requestedName = input?.name;
+  const nameError = siteNameError({ name: requestedName });
+  if (nameError || typeof requestedName !== "string") throw new Error(nameError ?? "A site name is required to rename a website.");
+  const duplicateError = duplicateSiteNameError({ name: requestedName, names: otherSiteNames({ deps, siteDir: row.siteDir }) });
   if (duplicateError) throw new Error(duplicateError);
-  const name = deps.writeSiteName(row.siteDir, input?.name);
+  const name = deps.writeSiteName(row.siteDir, requestedName);
   // An explicit successful rename replaces any Add alias; otherwise the card would keep its old name.
   row.displayNameAlias = undefined;
   rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir: row.siteDir });
@@ -1247,7 +1267,14 @@ function retitleOpenSite(
   // "Open Recent" itself needs no refresh: `main.ts` builds those items with the directory path as
   // the label, not the site name, so a rename cannot stale them.
   const openWindow = openSites.get(siteDir)?.window;
-  if (openWindow && !openWindow.isDestroyed!()) openWindow.setTitle!(name); // present whenever `window` is (see `OpenSiteEntry.window`'s own doc)
+  if (openWindow) {
+    // The real window has these methods; see `OpenSiteEntry.window`'s optional test seam.
+    if (!openWindow.isDestroyed) throw new Error(`Cannot retitle ${siteDir}: its window has no isDestroyed method.`);
+    if (!openWindow.isDestroyed()) {
+      if (!openWindow.setTitle) throw new Error(`Cannot retitle ${siteDir}: its window has no setTitle method.`);
+      openWindow.setTitle(name);
+    }
+  }
 }
 
 /**
@@ -1437,8 +1464,9 @@ async function stopSiteServer(id: string, deps: Pick<ProjectIpcDeps, "openSites"
   deps.cancelPreviewCapture?.({ siteDir: id }, {});
   const openEntry = deps.openSites.get(id);
   if (openEntry === undefined) return;
+  if (!openEntry.server.stop) throw new Error(`Cannot stop ${id}: its running server has no stop method.`);
   deps.openSites.delete(id);
-  const teardown = openEntry.server.stop!().then(() => {
+  const teardown = openEntry.server.stop().then(() => {
     // By pid, never by site dir alone: a live SIBLING app instance can hold its own row for this same
     // site, and a close by site dir would take that one too (D-07). A failed Stop keeps this row.
     deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
@@ -1521,8 +1549,9 @@ async function handleAddSiteFolder({ deps }: { deps: Pick<ProjectIpcDeps, "dialo
     title: "Add sites folder", message: "Choose a folder containing Tovu website folders. Use Rescan to discover them.",
     buttonLabel: "Add folder", properties: ["openDirectory"],
   });
-  if (picked.canceled || picked.filePaths.length === 0) return null;
-  const root = fs.realpathSync(picked.filePaths[0]!);
+  const [folder] = picked.filePaths;
+  if (picked.canceled || folder === undefined) return null;
+  const root = fs.realpathSync(folder);
   const scanRoots = [...new Set([...deps.siteFolders.read({}).roots, root])];
   // Use the discovery owner before committing settings, including aggregate entry/root limits.
   // A failed scan leaves both shared config and legacy profile settings byte-for-byte unchanged.

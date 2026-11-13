@@ -58,7 +58,9 @@ export function mount({ t, element }: { t: TestContext; element: ReactElement },
     },
     async type(input, value) {
       await act(async () => {
-        Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')!.set!.call(input, value);
+        const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')?.set;
+        if (!setter) throw new Error('test input value setter is missing from the DOM');
+        setter.call(input, value);
         input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
       });
     },

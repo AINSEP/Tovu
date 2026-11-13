@@ -56,9 +56,9 @@ function summarize(conversation: StoredConversation): WorkspaceConversationSumma
  */
 function titleFrom(message: ChatMessage): string | null {
   if (message.role !== "user") return null;
-  // `!`: `split` always returns at least one element, even for an empty string, so the old `?? ""`
+  // `split` always returns a first element, even for an empty string, so the old `?? ""`
   // fallback could never be taken.
-  const firstLine = message.content.trim().split("\n")[0]!;
+  const firstLine = message.content.trim().split("\n", 1).join("");
   return firstLine === "" ? null : firstLine.slice(0, 60);
 }
 

@@ -90,9 +90,9 @@ interface PrebuildBuilt {
 export const EXCLUDED_PACKAGES = new Set(["@playwright", "@oven", "@rollup", "lucide-react"]);
 
 export function isExcluded(name: string): boolean {
-  // `!`: `split` always returns at least one element, even for a separator-free string.
-  const [head] = name.split(path.sep);
-  return EXCLUDED_PACKAGES.has(head!) || EXCLUDED_PACKAGES.has(name);
+  // `split` always returns a first element, even when the name contains no separator.
+  const head = name.split(path.sep, 1).join("");
+  return EXCLUDED_PACKAGES.has(head) || EXCLUDED_PACKAGES.has(name);
 }
 
 /** Copies a package tree, always omitting browser downloads and optionally nested dependencies.
@@ -236,8 +236,8 @@ export function strippableReason(relPath: string): "declaration" | "sourceMap" |
   const name = path.posix.basename(relPath);
   if (DECLARATION_PATTERN.test(name)) return "declaration";
   if (!name.endsWith(".map")) return undefined;
-  // `!`: `split` always returns at least one element.
-  return SOURCE_MAP_KEEP_SCOPES.has(relPath.split("/")[0]!) ? undefined : "sourceMap";
+  // `split` always returns a first segment, even when the path contains no separator.
+  return SOURCE_MAP_KEEP_SCOPES.has(relPath.split("/", 1).join("")) ? undefined : "sourceMap";
 }
 
 /** On-disk bytes of a file or tree — `st_blocks`, not `st_size`, because that is what the installed

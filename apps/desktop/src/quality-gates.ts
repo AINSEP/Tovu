@@ -150,12 +150,12 @@ function gateProblems(gate: GateEntry, seen: Set<string>, today: string, maxDisa
  * @complexity O(n) in gates.
  */
 export function validateManifest(manifest: GateManifest | null | undefined, today: string): string[] {
-  const gates = manifest?.gates;
-  if (!Array.isArray(gates)) return ['quality-gates.json has no "gates" array.'];
+  if (!manifest || !Array.isArray(manifest.gates)) return ['quality-gates.json has no "gates" array.'];
+  const gates = manifest.gates;
   if (gates.length === 0) return ['quality-gates.json lists zero gates — the harness would pass by measuring nothing.'];
 
-  // `!`: `gates` is an array, so `manifest` was not null or undefined.
-  const maxDisabledDays = manifest!.maxDisabledDays ?? DEFAULT_MAX_DISABLED_DAYS;
+  // An array of gates means the manifest was present.
+  const maxDisabledDays = manifest.maxDisabledDays ?? DEFAULT_MAX_DISABLED_DAYS;
   const problems: string[] = [];
   const seen = new Set<string>();
 

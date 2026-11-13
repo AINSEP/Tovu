@@ -31,9 +31,11 @@ export function navigateTabStrip(
   if (index < 0) return;
   const next = nextTabIndex({ key: event.key, index, count: tabs.length });
   if (next === undefined) return;
+  const tab = tabs[next];
+  if (!tab) throw new Error('tab strip navigation has no target tab');
   event.preventDefault();
-  tabs[next]!.focus();
-  tabs[next]!.click();
+  tab.focus();
+  tab.click();
 }
 
 /** Resolve horizontal tab navigation without touching focus or activation.
