@@ -8,7 +8,9 @@ import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media"
 import { readRecordedContentType } from "./content-type.js";
 import { resolveMediaByteSizes } from "./byte-size.js";
 import type { MediaRouteDeps, MediaRouteRegistrar } from "./deps.js";
-import { authorizeMediaOrRespond, readRouteParam, rejectForeignWorkspace, sendMediaNotFound } from "./route-guards.js";
+import { sendMediaNotFound } from "./route-guards.js";
+import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * POST soft-delete (trash) a media asset — first rung of the ADR-027 §5 deletion ladder. Gated by
@@ -26,7 +28,7 @@ export const registerAdminMediaTrashRoute: MediaRouteRegistrar = (app, deps) => 
     try {
       const principal = getAuthedPrincipal(res);
       const mediaId = readRouteParam({ req, name: "mediaId" });
-      const authorized = await authorizeMediaOrRespond({ res, authorize: deps.authorize, params: {
+      const authorized = await authorizeDirectOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "media.delete",
         workspaceId: deps.workspaceId,

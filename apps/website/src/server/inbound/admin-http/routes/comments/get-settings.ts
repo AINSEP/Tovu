@@ -3,6 +3,8 @@ import type { Express } from "express";
 
 import { getCommentsSettings } from "#src/features/comments/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import type { CommentsModerationRouteDeps } from "./deps.js";
 
 /** GET workspace-level `comments.*` settings (SPEC-035, ADR-028 Settings Layered Ledger wiring
@@ -13,28 +15,13 @@ import type { CommentsModerationRouteDeps } from "./deps.js";
  * field set. */
 export const registerAdminCommentsGetSettingsRoute = (app: Express, deps: CommentsModerationRouteDeps): void => {
   app.get("/api/admin/v1/workspaces/:workspaceId/comments/settings", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       await deps.commentsSettingsReady;
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "comments.configure",
-        workspaceId: deps.workspaceId,
-        entityType: "comments-settings",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'comments.configure' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "comments.configure", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "comments.configure", workspaceId: deps.workspaceId, entityType: "comments-settings" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const settings = await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
       res.json({ data: settings });

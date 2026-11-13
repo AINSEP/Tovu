@@ -7,7 +7,9 @@ import { decodeStrictBase64 } from "#src/contracts/core/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { MediaRouteRegistrar } from "./deps.js";
 import { parseOptionalStringField } from "./parse.js";
-import { authorizeMediaOrRespond, rejectForeignWorkspace, sendValidationOrInternalError } from "./route-guards.js";
+import { sendValidationOrInternalError } from "./route-guards.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { toStoredMediaResponse } from "./stored-media-response.js";
 
 /** An upload request's fields after {@link parseUploadRequestFields}. */
@@ -152,7 +154,7 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
       // route runs, but Express 4 doesn't catch a synchronous throw from an async handler
       // outside try/catch (the request would otherwise hang instead of 500ing).
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeMediaOrRespond({ res, authorize: deps.authorize, params: {
+      const authorized = await authorizeDirectOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "media.upload",
         workspaceId: deps.workspaceId,

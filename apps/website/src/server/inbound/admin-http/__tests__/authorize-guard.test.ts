@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
-import { authorizeOrRespond } from "../authorize-guard.js";
+import { authorizeDirectOrRespond, authorizeOrRespond } from "../authorize-guard.js";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -134,4 +134,41 @@ test("authorizeOrRespond: publishing grants allow only their capabilities regard
     code: "FORBIDDEN", details: { permission: "content.write", reason: "'content.write' is outside this publishing grant" },
   });
   assert.equal(ambientCalls, 0, "publishing authority cannot inherit ambient grants");
+});
+
+// `authorizeDirectOrRespond` (dedupe plan, group RG2): the ~85 routes that hand-rolled
+// `deps.authorize()` + the 403 block never consulted the publishing-credential override, and
+// switching them to `authorizeOrRespond` is an authorization change for the owner, not a refactor.
+// These pin both halves: the same 403 body, and the ambient `authorize` is still the one asked.
+
+test("authorizeDirectOrRespond: denial writes the same 403 body authorizeOrRespond writes", async () => {
+  const deny: RouteDeps["authorize"] = async () => ({ allowed: false, reason: "no_grant" });
+  const direct = createCapturingResponse();
+  const guarded = createCapturingResponse();
+  assert.equal(await authorizeDirectOrRespond({ res: direct.res, authorize: deny, params: PARAMS_BASE }), false);
+  assert.equal(await authorizeOrRespond(guarded.res, deny, PARAMS_BASE), false);
+  assert.equal(direct.capture.statusCode, 403);
+  assert.deepEqual(direct.capture.jsonBody, guarded.capture.jsonBody);
+  assert.deepEqual(direct.capture.jsonBody, {
+    error: "principal 'principal-1' is not authorized for 'widget.manage' (no_grant)",
+    code: "FORBIDDEN",
+    details: { permission: "widget.manage", reason: "no_grant" },
+  });
+});
+
+test("authorizeDirectOrRespond: allowed returns true and writes nothing", async () => {
+  const { res, capture } = createCapturingResponse();
+  const allow: RouteDeps["authorize"] = async () => ({ allowed: true, reason: "matched" });
+  assert.equal(await authorizeDirectOrRespond({ res, authorize: allow, params: PARAMS_BASE }), true);
+  assert.equal(capture.jsonBody, undefined);
+});
+
+test("authorizeDirectOrRespond: ignores a publishing grant and asks the ambient authorize (unchanged route behavior)", async () => {
+  const context = { sourceInstallationId: "source-installation", capabilities: ["publish_content.import"], entityTypes: ["post"], generation: 2 };
+  const { res } = createCapturingResponse();
+  res.locals.publishTrust = context;
+  let ambientCalls = 0;
+  const ambientAllow: RouteDeps["authorize"] = async () => { ambientCalls += 1; return { allowed: true, reason: "wildcard" }; };
+  assert.equal(await authorizeDirectOrRespond({ res, authorize: ambientAllow, params: { ...PARAMS_BASE, permission: "content.write" } }), true);
+  assert.equal(ambientCalls, 1);
 });
