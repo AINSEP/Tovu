@@ -20,8 +20,7 @@ the error's class + constant code (`describeErrorForLog`) and the request/incide
 error's message, stack, `name` or other fields. Full message + stack (`formatErrorForLog`, "L-full")
 is opt-in per row, only where the row shows the thrown error cannot carry untrusted input or a
 secret (three operator-run CLI script lines qualify). Why: a caught error's text can quote untrusted
-input (a parsed manifest, a request, a tool argument) or a credential no redaction pattern knows
-(a bare random listener token). Rev 1 and rev 2 both defaulted to full redacted text and both
+input (a parsed manifest, a request, a tool argument) or a credential no redaction pattern knows. Rev 1 and rev 2 both defaulted to full redacted text and both
 reviews found the same class of leak in rows nobody had re-checked; with metadata as the default, a
 missed row costs diagnostic detail, not a leak. Detail is not lost: the host sink/port still
 receives the original error object, and the request ID joins the log line to what the user copied.

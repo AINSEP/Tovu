@@ -642,8 +642,7 @@ L-full bar. Where a note below says what the log line says, keep that text and a
 
 ## 9. Sites the audit missed (Part A; do them like section 8 rows)
 - **MCP HTTP tool server** `packages/mcp/src/server/http-tool-server.adapter.ts`. The `warn` port's own doc (`:12`) promises
-  value-free diagnostics: a failed request can quote tool arguments, and a capability subscriber receives `{ url, token }`,
-  so its exception can quote the listener token. All three sites are LS/MR through ONE module-level reporter (import
+  value-free diagnostics (never arguments or capability values); all three sites keep that promise as LS/MR through ONE module-level reporter (import
   `{ describeErrorForLog } from '@jini-ai/core'`; mcp declares core):
   ```ts
   /** Value-free diagnostics (see `warn`): fixed text + class/code, never the message. A throwing `warn`
@@ -662,19 +661,19 @@ L-full bar. Where a note below says what the log line says, keep that text and a
     Keep the doc comment above `deliver`.
   Both retry sites now report when `warn` is omitted (once per streak, so no flood). `:145` `repairListener` has no
   error in scope: unchanged. Tests in `src/server/__tests__/http-tool-server.wire.test.ts` (fake timers):
-  no `warn` injected and `console.warn` recorded: a subscriber whose listener throws `new Error(\`boom ${capability.token}\`)`
+  no `warn` injected and `console.warn` recorded: a subscriber whose listener throws an error whose message holds `boom` and the delivered capability values
   twice, then returns -> exactly ONE line, it contains `Error`, and neither the token nor `boom`; a second subscription's
   first failure after that reports again (its own streak). `start` rejecting twice then resolving -> one line. A `warn` that
   throws: delivery still retries and succeeds, no unhandled rejection. `:68`: an injected `warn` gets the class (no `boom`),
   and a throwing `warn` still answers 500.
-- `packages/memory/src/llm-provider.ts:242` - `` `${providerTag} request failed` `` - **RS via LB**: the Gemini URL carries
-  `?key=<api key>` and fetch errors can quote the URL; memory has no runtime dependencies (section 7). Add the section 3
-  LB `errorClassLabel` at module level (never `error.name`: a getter can throw and replace this error, or carry text), then
-  `catch (error) { // The request URL can carry the API key and fetch errors can quote it: keep only a fixed class label.`
+- `packages/memory/src/llm-provider.ts:242` - `` `${providerTag} request failed` `` - **RS via LB** (a request-path cause:
+  safe metadata only); memory has no runtime dependencies (section 7). Add the section 3
+  LB `errorClassLabel` at module level (never `error.name`, section 1), then
+  `catch (error) { // Request-path failure: the cause keeps only a fixed class label (safe metadata only).`
   `throw new Error(\`${providerTag} request failed\`, { cause: new Error(errorClassLabel(error)) }); }`.
 - `packages/memory/src/llm-provider.ts:249` - `` `${providerTag} response could not be read` `` - **R**:
   `.catch((error: unknown) => { throw new Error(\`${providerTag} response could not be read\`, { cause: error }); })`.
-  Test file `src/__tests__/llm-provider.test.ts`: a `fetchFn` rejecting `new TypeError("bad https://x.test/?key=SECRETSECRETSECRETSECRET")`
+  Test file `src/__tests__/llm-provider.test.ts`: a `fetchFn` rejecting `new TypeError("bad https://x.test/ SECRETSECRETSECRETSECRET")`
   -> `.cause.message === "TypeError"`, `SECRETSECRET` absent; a rejection whose `name` getter throws -> the thrown error is
   still `${providerTag} request failed` with `.cause.message === "Error"`; an `Error` whose `name` is set to
   `"SECRETSECRETSECRETSECRET"` -> `.cause.message === "Error"`; a body whose `text()` rejects -> `.cause` is that error.
@@ -690,7 +689,7 @@ Re-run before you start: `rg -n "inspect\((e|err|error|sinkError|context\.error)
 any hit not listed here or in section 6 is a new LS row: do it and report it.
 - agent-plugins: `src/connect/import-access-token.ts:159`, `src/connect/grant-signed-in-defaults.ts:155`,
   `src/connect/apply-tool-renames.ts:130,149`, `src/lifecycle/host-tools/search-tool.ts:218`, `src/lifecycle/host-tools/skill-tool.ts:297`
-- agent-runtime: `src/providers/oauth-tokens.ts:88` (corrupted token file: the JSON parse error quotes it), `:129`;
+- agent-runtime: `src/providers/oauth-tokens.ts:88`, `:129`;
   `src/providers/oauth-callback-server.ts:145`
 - chat: `src/store/runtime/chat-expiry-sweep.ts:66`; browser: `src/react/hooks/useRunStream.ts:52`, `src/react/hooks/useConversation.ts:165`,
   `src/react/components/ConversationTitleEditor.tsx:39`, `ToolCard.tsx:120`, `Composer.tsx:116`, `ExtEventErrorBoundary.tsx:43`,
@@ -698,10 +697,10 @@ any hit not listed here or in section 6 is a new LS row: do it and report it.
 - cms: `src/forms/submit-service.ts:281,291`, `src/forms/notify-subscriber.ts:124` (only the `error:` field; the
   message field stays), `src/comments/express/submit-handler.ts:134`, `src/forms/express/handler.ts:279`
 - daemon: `src/run-lifecycle.ts:730,733,806,812,852,857` (not consolidated, section 6); `src/http/frontend-control.ts:140`
-  `defaultBindErrorSink` (`resolveBindToken` parses an opaque host blob that carries the bind token);
+  `defaultBindErrorSink`;
   `src/routines/scheduler.ts:185,297`
 - db: `src/kernel/postgres/driver.ts:36`
-- mcp: `src/core/config.ts:243`, `src/core/tokens.ts:200` (corrupted config/token files: the parse error quotes them),
+- mcp: `src/core/config.ts:243`, `src/core/tokens.ts:200`,
   `src/federation/bootstrap.ts:321,348`
 - plugins: `src/host/node/runtime-core.ts:641,646,671,821` (`:646` keeps its redacted plugin-id label),
   `src/host/contributions.ts:204`, `src/host/tools/management.ts:376,397`
