@@ -590,6 +590,17 @@ function composeSurfaceExecutor(
         : { settled: true, connectFailures: [] } }, {});
 }
 
+/** Register the assistant's own tools, then any the host adds after seeing them. O(t) in tools. */
+function registerSurfaceTools(
+  { registry, deps, surfaceExchanges }: { registry: ReturnType<typeof createToolRegistry>; deps: AssistantToolRegistryDeps; surfaceExchanges: SurfaceExchangeStore },
+  options: Pick<ByokToolSurfaceOptions, "contributions" | "hostRegistrations"> = {},
+): void {
+  const registrations = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions: options.contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS });
+  for (const registration of [...registrations, ...(options.hostRegistrations?.({ registrations }) ?? [])]) {
+    registry.register(registration);
+  }
+}
+
 /**
  * Builds one fresh registry+executor pair over the full admin tool catalog.
  *
@@ -635,10 +646,7 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
   };
   const surfaceExchanges = options.surfaceExchangeStore ?? createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
 
-  const registrations = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions: options.contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS });
-  for (const registration of [...registrations, ...(options.hostRegistrations?.({ registrations }) ?? [])]) {
-    registry.register(registration);
-  }
+  registerSurfaceTools({ registry, deps, surfaceExchanges }, options);
 
   // Injected (see the option's doc); a registrar must be idempotent and spawn nothing unless an
   // operator has opted in.

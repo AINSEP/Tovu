@@ -91,13 +91,23 @@ export function splitCustomAnswer(
   const { [CUSTOM_ANSWER_PARAM]: raw, ...rest } = params;
   const text = typeof raw === "string" ? raw.trim() : "";
   const pickedSingle = rest.choice === CUSTOM_CHOICE_VALUE;
-  const selections = Array.isArray(rest.selections) ? rest.selections : undefined;
-  const pickedMulti = selections?.includes(CUSTOM_CHOICE_VALUE) === true;
-  const realSelections = selections?.filter(value => value !== CUSTOM_CHOICE_VALUE);
-  const cleaned = realSelections ? { ...rest, selections: realSelections } : rest;
+  const { params: cleaned, pickedMulti } = withoutMultiCustomPick({ params: rest });
   if (!text || !(pickedSingle || pickedMulti)) return { params: cleaned, split: {} };
   if (!pickedSingle) return { params: cleaned, split: { freeText: text } };
   return typedCustomAnswer({ params: cleaned, text, question });
+}
+
+/** Removes the "Something else" pick from multi-select selections and reports whether it was there.
+ * @complexity O(s) in selections; pure.
+ */
+function withoutMultiCustomPick(
+  { params }: { params: Record<string, unknown> },
+  _options = {},
+): { params: Record<string, unknown>; pickedMulti: boolean } {
+  const selections = Array.isArray(params.selections) ? params.selections : undefined;
+  const pickedMulti = selections?.includes(CUSTOM_CHOICE_VALUE) === true;
+  const realSelections = selections?.filter(value => value !== CUSTOM_CHOICE_VALUE);
+  return { params: realSelections ? { ...params, selections: realSelections } : params, pickedMulti };
 }
 
 /** A picked single-select "Something else" becomes Jini's typed answer.
