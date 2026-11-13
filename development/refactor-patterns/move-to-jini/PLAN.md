@@ -1,0 +1,154 @@
+# Move Tovu code to Jini + break the import cycles: staged plan
+
+Status: DESIGN ONLY (2026-11-13). Nothing here has been executed. Branches: Tovu `design-d1` (clone `/Users/la/Programming/tovu-terra-d1`), Jini clone `/Users/la/Programming/jini-terra-d1` (Jini 0.7.1, lockstep: all 40 packages at 0.7.1).
+Executor: Codex Terra for stages marked TERRA; Opus (or Fable where noted) for stages marked OPUS. A Codex reviewer checks this design next, so every number below comes with the command that reproduces it.
+
+## 0. Inputs, tools and what the numbers mean
+
+| File (this folder) | What it is |
+|---|---|
+| `feature-cycles.mjs` | Feature-level import graph for `apps/<app>/src/features/*` (resolves `#src/*` and admin `@/*`; runtime edges by default, `--include-type` for type edges too). `--edges` prints file:line evidence, `--drop a->b` simulates a cut, `--assert-no-edge a->b` is the stage gate, `--max-scc N` / `--max-pairs N` are ratchets. Regex parser (static specifiers only); `import("x").T` in a type position counts as a type edge. |
+| `build-manifest.mjs` | Rebuilds `manifest.tsv` (one row per surveyed Tovu file: action, Jini package/subpath, survey label and host-contract text). Not committed: `manifest.tsv` is regenerated from the local survey (`ADS-memory/.local-artifacts/extraction-survey/2026-11-11`). |
+| `stage-lists.mjs` | Writes `stage-NN.files.tsv` from the manifest. The filters in that script ARE each stage's scope. |
+| `stage-NN.files.tsv` | Exact file list per stage (path, lines, action, package, subpath, survey label, survey host contract). |
+| `stage-NN.terra-prompt.md` / `stage-NN.opus-prompt.md` | Self-contained job prompt per stage. |
+
+Regenerate: `node development/refactor-patterns/move-to-jini/build-manifest.mjs /Users/la/Programming/Tovu/ADS-memory/.local-artifacts/extraction-survey/2026-11-11 && node development/refactor-patterns/move-to-jini/stage-lists.mjs`.
+
+Label sources and limits (state these whenever quoting a number):
+- Labels = Claude survey reports (full run first, then rounds 5→2, canary, pilot); Codex reports fill only files no Claude report labelled. Full-run judge overrides are applied only where the judge wrote `- **name → LABEL**`; prose overrides are not applied. 1,765 report rows with short/ambiguous paths could not be resolved; 548 files (37.9k lines) have no label at all (UNREVIEWED) and are in no stage.
+- Survey labels were made at Tovu c369798/a9c1184; all 3,356 files still exist on `design-d1` (manifest `exists_now`), but Terra's refactor commits since then may have changed contents. Every stage starts with a per-row re-check (Section 5, "READY check") so stale labels block a row instead of producing a wrong move.
+- Totals (lines, non-test files): MIXED 145.3k, STAY-PRODUCT 126.4k, STAY-WIRING 62.2k, MOVE-AFTER 36.5k, MOVE 22.3k, DELETE-AFTER-PARITY 10.0k, DEDUPE 6.8k, DELETE 6.7k, DEDUPE-AFTER-HARDENING 4.1k, DEDUPE-UNVERIFIED 1.7k, tier-0 data/barrels/shims ~41k, UNREVIEWED 37.9k.
+
+## 1. Import cycles: current state and how each one breaks
+
+Measured on `design-d1` with `node development/refactor-patterns/move-to-jini/feature-cycles.mjs` (matches the cloud static run, `cycles.tsv` frscc-1, same 24 members):
+
+- website, runtime edges: ONE SCC of 24 features (api-connections consent content-types custom-credentials deployments entries form-destinations media media-import navigation post project-keys publish-content publish-trust redirects settings site-backup site-export site-inspection source-control taxonomy theme trash widgets) + 3 mutual pairs.
+- website, incl. type edges: SCC of 32 + SCC of 2 (database/recovery), 18 mutual pairs.
+- admin: pages/posts/themes SCC + dashboard/publish-content pair (runtime).
+- Jini: 2 runtime module cycles (`admin/src/comments/react/components/QueueSection.tsx` <-> `hooks/QueueSection.hooks.ts`; `cms/src/forms/errors.ts` <-> `forms/stale-form.ts`). The 45 type-inclusive Jini module SCCs (mostly `contracts/<x>.ts` <-> `contracts/<x>/*.ts` barrels and component <-> `.hooks` pairs) are out of this plan's scope except the two runtime ones; they belong to the per-package size/split work.
+
+### 1.1 The big SCC breaks with 5 runtime edge cuts (verified by simulation)
+
+`node feature-cycles.mjs --drop "publish-trust->deployments,project-keys->api-connections,custom-credentials->deployments,custom-credentials->source-control,source-control->site-backup"` -> `sccs=0 mutual-pairs=0` (runtime).
+
+| # | Edge cut | File edges today | How | Stage |
+|---|---|---|---|---|
+| C1 | publish-trust -> deployments | `publish-trust/connect.ts:1` imports `isContainedDeployConfigPath` from `../deployments/index.js` | It is a re-export of `@jini-ai/devops/deploy` (`deployments/deploy-config-registry.ts:8-16`). Import it from `@jini-ai/devops/deploy` directly. This single edge collapses the SCC from 24 to 7 (the hub was publish-content -> publish-trust -> deployments -> {consent, settings, theme, ...} -> publish-content). | 03 TERRA |
+| C2 | project-keys -> api-connections | `project-keys/site-references.ts:4` imports `apiConnectionVaultScope, PLUGIN_STATE_FORMAT` from `api-connections/vault-stores.ts` | `PLUGIN_STATE_FORMAT` is a re-export of `#src/platform/secrets/vault-api-connection-meta` (vault-stores.ts:12-13): import it from there. Move `apiConnectionVaultScope` (declaration only) into `#src/platform/secrets/vault-api-connection-meta.ts`; `vault-stores.ts` imports it back. Moving a shared helper DOWN to platform. | 03 TERRA |
+| C3 | custom-credentials -> deployments | `custom-credentials/tool-registrations.ts:7` (runtime `invalidatePublishCredentialCompatibility`), `:9` (type `DeployTargetRegistry`) | PORT INVERSION: `CustomCredentialsToolDeps` gets an optional port `onCredentialChanged`, bound in composition by deployments. Sketch in 1.3. | 04 OPUS |
+| C4 | custom-credentials -> source-control | `custom-credentials/credential-ports.ts:15` (`buildSourceControlProviderForApi`, `LoadSourceControlProviders`), `write-files-validation.ts:2-3` (`RepositoryTargetValidator`, `repositoryTargetError`) | (a) `source-control/repository-target.ts` is a 20-line pass-through of `@jini-ai/devops/source-control` `repositoryTargetError(required, { validateTarget })`: DELETE it, every caller imports Jini directly (DEDUPE; done in 03). (b) PORT INVERSION for the write port: `bindSourceControlWritePort` moves into source-control; custom-credentials receives the bound port. Sketch in 1.3. | 03 (a) TERRA, 04 (b) OPUS |
+| C5 | source-control -> site-backup | `source-control/commit-site.ts:7-11` (static-copy, static-download-layout, static-download-landing, share-zip, share-policy) | MOVE the module that crosses: `commit-site.ts` (the `source_control_execute_commit` engine: "commit the built site into a repo") becomes `site-backup/commit-site.ts`, and its tool definition moves from `source-control/tool-registrations.ts` into `site-backup/tool-registrations.ts`. site-backup already depends on source-control (`backup-service.ts:30-33`), so the edge direction becomes uniform: site-backup -> source-control. The other direction (inverting `backup-service.ts`) was rejected: it uses 6 source-control functions + 3 types, commit-site uses 5 helpers from one file. | 04 OPUS |
+
+### 1.2 Type-inclusive cycles: 18 type-only back edges
+
+After C1-C5 the runtime graph is a DAG. These type-only edges point "up" that DAG and must be cut so the type-inclusive graph is acyclic too (`--include-type --drop "<C1-C5>,<these 18>"` -> `sccs=0 mutual-pairs=0`, verified):
+
+agent-plugins->api-connections, agent-plugins->external-mcp, agent-plugins->member-login, database->recovery, media->post, navigation->post, publish-content->content-types, publish-content->deployments, publish-content->entries, publish-content->media, publish-content->navigation, publish-content->post, publish-content->taxonomy, publish-content->theme, site-inspection->deployments, taxonomy->post, theme->site-guide, vendor-credentials->source-control.
+
+How (one recipe, stage 03): MOVE THE SHARED TYPE DOWN. Each imported name is a type. Follow re-exports to the declaring file. If it is declared in Jini, import it from Jini. Otherwise the declaration (plus same-file types it references) moves to `apps/website/src/contracts/core/<feature>/<declaring-basename>.ts`; the declaring file imports it back with `import type` and keeps its `export type { ... }` line so other importers need no change; the back-edge file imports from `#src/contracts/core/<feature>/...`. `contracts/core` is the existing lowest Tovu layer (50 files, imports only Jini/npm/platform). Why types and not ports: `publish-content/type-registry.ts` (lines 3-33) aggregates the port types of every content feature into `PublishContentPorts`; the features import publish-content's runtime kit, so the aggregate must be built from types that live below both.
+
+Admin (runtime, stage 03): `publish-content/hooks/use-publish-section-button.hooks.ts:4` -> `dashboard/dashboard-i18n.ts` (dictionary also used by `App.tsx`, `App.hooks.ts`): move `features/dashboard/dashboard-i18n.ts` to `apps/admin/src/lib/dashboard-i18n.ts`. `themes/hooks/use-theme-explore.hooks.ts:10` -> `pages/lib/theme-page-publish-state.ts` (`homeFallbackPublishReason`): move that one function to `features/themes/lib/home-fallback-publish-reason.ts`; pages imports it from themes (pages -> themes already exists). `pages/page-editor-i18n.ts:13` -> `posts/posts-i18n.ts` (the shared editor vocabulary, per its own comment): move `features/posts/posts-i18n.ts` to `apps/admin/src/lib/posts-i18n.ts`. Result: posts -> pages -> themes, dashboard -> publish-content, all one-way.
+
+Jini (stage 03, Jini clone): `cms/src/forms/errors.ts:51,53` uses inline `import('./stale-form.js').FormRetryDraft`: move `FormRetryAnswer` + `FormRetryDraft` (stale-form.ts:7-8) into `cms/src/forms/types.ts`; stale-form.ts and errors.ts import them from types.ts. `admin/src/comments/react/hooks/QueueSection.hooks.ts:8` renders `QueueActionsCell` from the component file that imports the hooks: move `QueueActionsCell` (QueueSection.tsx:52-) to `components/QueueActionsCell.tsx` and `useQueueActionsCell` (QueueSection.hooks.ts:23-) to `hooks/QueueActionsCell.hooks.ts`.
+
+### 1.3 Port sketches (stage 04)
+
+All ports follow the args rule `(required, optional = {})`, are declared by the CONSUMER feature (no import of the provider feature, not even `import type`), and carry a doc comment naming who fulfils them.
+
+```ts
+// apps/website/src/features/custom-credentials/credential-ports.ts  (consumer side)
+/** Called after a credential is created, rotated or deleted. Typically bound in composition by
+ *  deployments (`invalidatePublishCredentialCompatibility` over its registry + verification cache). */
+export type CredentialChangedPort = (
+  required: { workspaceId: UUID; after: CustomCredentialSummary | null },
+  optional?: Record<string, never>,
+) => void;
+
+/** The source-control half custom_credential_write_files needs. Typically bound by
+ *  `features/source-control/custom-credentials-write-port.ts` (the moved bindSourceControlWritePort). */
+export interface CustomCredentialsSourceControlPort {
+  readonly write: SourceControlWritePort;               // existing type; if declared in source-control, its declaration moves to contracts/core/source-control/
+  listProviders(required: { workspaceId: UUID }, optional?: Record<string, never>):
+    Promise<readonly { readonly id: string; readonly label: string; readonly baseUrl: string }[]>; // replaces tool-registrations.ts:299 loadSourceControlProviders(...).list()
+}
+
+// CustomCredentialsToolDeps (tool-registrations.ts:63): remove `loadSourceControlProviders`,
+// remove `publishCredentialVerificationCache` + registry use at :429, add
+//   readonly sourceControl: CustomCredentialsSourceControlPort;   // required: every host that registers these tools has source control
+//   readonly onCredentialChanged?: CredentialChangedPort;          // optional: hosts without static publish skip it
+// Composition (server/runtime/composition/deps.ts, where CustomCredentialsToolDeps is built) binds both.
+```
+
+## 2. Stages
+
+Order = lowest risk first. Each stage lands and is checked alone; stages 06-11 each have a Jini half and a Tovu half (Section 4).
+
+| Stage | Exec | Scope (exact list: `stage-NN.files.tsv`) | Files / lines | Jini change? |
+|---|---|---|---|---|
+| 01 | TERRA | DELETE dead code + T0 JINI-SHIM files (delete, repoint importers to Jini) | 200 / 7.1k | no |
+| 02 | TERRA | DEDUPE onto an EXISTING published Jini export (Tovu copy deleted, callers import Jini) | 45 / 3.5k | no |
+| 02b | OPUS | DEDUPE Tovu<->Tovu (pick the survivor per pair; the survey text names it only sometimes) | 47 / 3.3k | no |
+| 03 | TERRA | Cycle cuts that need no design: C1, C2, C4a, the 18 type back edges, 3 admin edges, 2 Jini runtime cycles | ~45 file edges | Jini: 2 internal moves (no export change) |
+| 04 | OPUS | Cycle cuts with ports/moves: C3, C4b, C5 (Section 1.3); then add the ratchet gate | ~6 files + composition | no |
+| 06 | TERRA | MOVE -> http-kit, diagnostics, analytics, sidecar, db, search | 13 / 1.6k | yes |
+| 07 | TERRA | MOVE -> integrations, mcp, daemon, agentic, agent-runtime, agent-plugins, plugins | 30 / 3.0k | yes |
+| 08 | TERRA | MOVE -> user-management, devops, platform, desktop-host, core | 35 / 4.8k | yes (core rows: see owner decision D2) |
+| 09 | TERRA | MOVE -> ui, ui-kit, admin, chat (non-visual moves only; files with className/CSS -> stage 12) | 34 / 2.5k | yes |
+| 10 | TERRA | MOVE -> cms: navigation, taxonomy, comments, redirects, trash, content-duplication, seo | 24 / 4.0k | yes |
+| 11 | TERRA | MOVE -> cms: media, post, entries, forms, form-destinations, widgets, content-types, plugin-runtime, contracts | 40 / 4.4k | yes |
+| 12 | OPUS | MOVE rows that are Express-bound, have no named package, name a package outside 06-11 (server, sandbox, commerce, cookie-consent, capability-providers), or were BLOCKED in 06-11 | 23 / 1.9k + blocked | yes |
+| 13 | OPUS->TERRA | MOVE-AFTER: verify each precondition, then hand READY rows to a Terra run using the stage 06-11 prompt | 271 / 36.5k | yes |
+| 14 | FABLE/OPUS | DEDUPE-AFTER-HARDENING, DEDUPE-UNVERIFIED, DELETE-AFTER-PARITY: Jini parity/hardening design, then dedupe | 100 / 15.8k | yes |
+| 15 | OPUS->TERRA | MIXED: Opus writes a function-level split spec per package (generic part -> Jini subpath, Tovu part stays with a port), Terra applies it | 474 / 145.3k | yes |
+| 16 | TERRA | Final gates, ratchets, one coordinated Jini release, Tovu version bump | - | release |
+
+Why this order: 01-02 only delete Tovu code against what Jini already publishes, so they need no release and shrink every later list. Cycle cuts (03-04) come before moves because moved files must not drag a cycle edge into Jini, and because 03-04 touch composition wiring that the moves later reuse. Moves go smallest/most-leaf packages first (06), then packages Tovu wires most (07-09), then cms (10-11, the largest single destination, 8.4k lines). Design-heavy buckets (12-15) run last, when the mechanical moves have shown which ports recur.
+
+What each stage removes from the cycle metrics: 03 = C1 (SCC 24 -> 7 runtime), C2, C4a, all 18 type back edges, admin SCCs -> 0, Jini runtime cycles -> 0. 04 = C3, C4b, C5 (website runtime SCC -> 0, type-inclusive -> 0). 06-15 must not add any edge back: every stage runs the ratchet `feature-cycles.mjs --include-type --max-scc 0 --max-pairs 0` (website and admin) once 04 has landed.
+
+Deleted-as-duplicate vs merged: stages 01/02/14 DELETE the Tovu file (the Jini code is the survivor, unchanged). Stage 02b merges two Tovu copies into one. Stages 06-13 MOVE (Tovu file becomes a Jini file; Tovu keeps only wiring). Stage 15 SPLITS (generic functions move; Tovu keeps the product part plus the port binding).
+
+## 3. Stages that need Fable/Opus, and why
+
+- 02b (Opus): two Tovu copies; choosing the survivor and reconciling diverged behaviour is judgment.
+- 04 (Opus): port inversion through composition (`deps.ts`, 1,980-line `composeSiteRouteDeps`) and moving a tool definition between features; Terra would have to decide what the bound ports carry.
+- 12 (Opus): Express handlers must be rewritten to `{ app: Server }` from `@jini-ai/core/contracts/server` (web Request -> Response) before they can live in Jini (owner rule: no server framework in Jini); rows with no package need a home decision.
+- 13 (Opus first): each MOVE-AFTER names a precondition ("after X moves", "after Jini hardening"); checking it is judgment, applying the move afterwards is Terra.
+- 14 (Fable for the hardest, Opus otherwise): parity/hardening of the Jini survivor (behaviour differences listed in the survey, e.g. `useAdminShellSession` vs Tovu `useAdminSession` bootstrap/permissions) is design work.
+- 15 (Opus first): MIXED files need function-level split decisions and port shapes; the survey text gives the intent per file but not always exact symbol lists.
+
+## 4. Release / versioning (how stages ship without blocking)
+
+Facts: Tovu depends on every `@jini-ai/*` package as `^0.7.0` (root `package.json`); Jini publishes all 40 packages in lockstep (0.7.1). Tovu's release gate is the published-package typecheck. `npm run link:jini` symlinks Tovu's node_modules at a Jini checkout (`JINI_PACKAGES_DIR`), and `check-no-linked-jini.mjs` fails any build while linked.
+
+Rules:
+1. Jini half first, Tovu half second, in that order inside each MOVE stage. A Jini half is ADDITIVE ONLY: new files and new named exports on an existing subpath; it never removes or renames an export Tovu still imports. So every published Jini 0.7.x stays compatible with the live Tovu `main`.
+2. During the refactor Tovu consumes the Jini refactor clone through `link:jini`, never a published build. HARD: the Tovu clone's `node_modules` is a symlink to `/Users/la/Programming/Tovu/node_modules` (the LIVE tree); `link:jini` there would relink the live tree. Before stage 06 the coordinator replaces that symlink with an APFS copy (`rm /Users/la/Programming/tovu-terra-d1/node_modules && cp -cR /Users/la/Programming/Tovu/node_modules /Users/la/Programming/tovu-terra-d1/node_modules`, same for `apps/admin/node_modules` and `apps/site-chat/node_modules` if present), then `JINI_PACKAGES_DIR=/Users/la/Programming/jini-terra-d1/packages npm run link:jini`. Every MOVE prompt checks this before touching anything and stops if `node_modules` still resolves into `/Users/la/Programming/Tovu`.
+3. Each Tovu stage commit message records the Jini commit it needs: a `Jini-Base: <sha>` trailer. Rolling back a Tovu stage never needs a Jini rollback (rule 1).
+4. Publishing: one coordinated lockstep release when the owner says merge (stage 16): 0.8.0 (minor: stage 16 removes Jini exports that only existed for Tovu shims, plus the Express-subpath cleanup if it lands). If Tovu CI must typecheck against published packages before that, publish prereleases `0.8.0-refactor.N` under the npm dist-tag `refactor` (never `latest`), and the refactor branch pins exact versions. Live Tovu `main` stays on `^0.7.0` and is untouched until the merge.
+5. Version ranges move once, in stage 16: `^0.7.0` -> `^0.8.0` for all `@jini-ai/*`, `npm run unlink:jini`, published typecheck.
+
+## 5. Shared mechanics every stage prompt repeats (summary)
+
+- READY check per row (mechanical, before any edit): file exists; for a MOVE, every import of the file resolves to (a) npm packages already in the target Jini package's `dependencies`, (b) `@jini-ai/core` or the target package itself, (c) files in the same stage's move set, or (d) a port named in the row. Anything else (a `#src/` or relative import outside the set, another `@jini-ai/<pkg>` value import, `express`, `react` outside a `react/` subfolder, the word "Tovu" in code or comments that cannot be made neutral by deleting a Tovu ID) -> the row is BLOCKED: do not move it, list it in the report with the blocking import. Blocked rows roll into stage 12.
+- Jini destination: `packages/<pkg>/src/<dir>/` where `<dir>` is the folder of the source file behind the `"./<subpath>"` export (dist path -> src path); empty subpath -> `src/`. A subpath not in the exports map -> BLOCKED (new subpaths are an Opus decision).
+- Moved code: keep every comment (why-comments move with code); replace Tovu SPEC/ADR/U/D IDs in comments by nothing (keep the sentence); args `(required, optional = {})` preserved as written (do not refactor signatures in a move); no new `as any`, `@ts-ignore`, `eslint-disable`, non-null `!`.
+- Tests move with code: a Tovu test whose only subjects are moved files moves to `<dir>/__tests__/` in Jini; `node:test` imports become `vitest` (`test`, `describe`, `it`, `before*`/`after*`); keep `node:assert/strict`. A test using `mock` from `node:test`, Tovu fixtures, or more than the moved subject stays in Tovu, repointed to the Jini import.
+- Checks are targeted only: one test file at a time, `--maxWorkers=2` for vitest, `--test-concurrency=1` for node; `tsc --noEmit -p packages/<pkg>/tsconfig.json` for the touched Jini package only; no Tovu-wide tsc, no suites; leave nothing running. The full typecheck/suite runs once per stage in the cloud batch (coordinator).
+- Commit: `git add -- <paths> && git commit -F msg -- <paths>`; never push; never `git add -A`, stash or checkout.
+
+## 6. Owner decisions (only the real ones)
+
+- D1. Prereleases: may the refactor publish `0.8.0-refactor.N` to public npm under a `refactor` dist-tag, or must Tovu stay on `link:jini` (no published typecheck) until the final 0.8.0? Default if unanswered: link only, publish once at the end.
+- D2. Pure runtime helpers in `@jini-ai/core` (outside `core/contracts`): stage 08 has 7 MOVE rows into core, stage 15 has 40 MIXED rows naming core. The open todos item says plan-v6 R5.1 forbids runtime code in core. Allow helpers in core root (not `contracts/`), or send them to the nearest domain package? Default if unanswered: stage 08 core rows are BLOCKED and wait.
+- D3. Where `commit-site` lives (C5): this plan moves "commit the built site to a repo" from source-control to site-backup. If the owner sees it as a source-control feature, the alternative is a port on `backup-service.ts` (bigger change). Default: move to site-backup.
+
+## 7. Assumptions a reviewer should check
+
+- Feature = first folder under `apps/<app>/src/features/`; the cloud script uses the same rule (`analyze-cycles.mjs:61`). Imports into `server/`, `platform/`, `contracts/` are not feature edges.
+- `contracts/core` may hold extracted Tovu types (it already holds 50 type/helper files); it imports only Jini, npm and `platform`.
+- `apps/admin/src/lib/` is a non-feature layer (it already holds `router`, `api`).
+- The stage lists exclude test files; tests follow their subjects (Section 5).
+- Label source per file (manifest `unit` column): full run 2,090, round 2/3/4 178/167/121, pilot 127, canary 66, Codex-only 59 (not cross-checked by a Claude reviewer; the READY check still applies).
