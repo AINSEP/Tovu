@@ -1,4 +1,5 @@
 import type { Kysely } from "kysely";
+import { decodeListCursor, pageFromOverfetch, type ListPage } from "@jini-ai/core/list-page";
 import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type {
@@ -95,17 +96,23 @@ export class SqlNewsletterCampaignRepo implements NewsletterCampaignRepoPort {
     return row ? toCampaignRecord(row) : null;
   }
 
-  async list(required: { workspaceId: string; afterId?: string; limit?: number }): Promise<CampaignRecord[]> {
+  /** Lists a workspace's campaign envelopes in ID order with a position-based continuation.
+   * @throws {ToolInputError} If the cursor is malformed.
+   * @complexity O(limit) returned rows, in one indexed query; storage errors propagate.
+   */
+  async list(required: { workspaceId: string }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<CampaignRecord>> {
+    const limit = Math.min(optional.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT);
+    const after = optional.cursor != null ? decodeListCursor({ cursor: optional.cursor, size: 1 }) : null;
     const rows = await this.kernel.run((db) => {
       // One bounded page of envelopes per list call; bodies are loaded only by findById.
       let query = db.selectFrom("newsletter_campaigns").selectAll().where("workspace_id", "=", required.workspaceId);
-      if (required.afterId) query = query.where("id", ">", required.afterId);
+      if (after) query = query.where("id", ">", String(after[0]));
       return query
         .orderBy("id", "asc")
-        .limit(required.limit ?? DEFAULT_LIST_LIMIT)
+        .limit(limit + 1)
         .execute();
     });
-    return rows.map(toCampaignRecord);
+    return pageFromOverfetch({ rows: rows.map(toCampaignRecord), limit, positionOf: campaign => [campaign.id] });
   }
 
   async saveCampaignRow(campaign: CampaignRecord): Promise<void> {
@@ -292,12 +299,16 @@ export class SqlNewsletterSubscriptionRepo implements NewsletterSubscriptionRepo
     return row ? toSubscriptionRecord(row) : null;
   }
 
+  /** Lists one workspace/list's subscriptions by ID using a position-based cursor.
+   * @throws {ToolInputError} If the cursor is malformed; storage failures propagate.
+   * @complexity O(limit) returned rows in one indexed query.
+   */
   async list(required: {
     workspaceId: string;
     listId: string;
-    afterId?: string;
-    limit?: number;
-  }): Promise<SubscriptionRow[]> {
+  }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<SubscriptionRow>> {
+    const limit = Math.min(optional.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT);
+    const after = optional.cursor != null ? decodeListCursor({ cursor: optional.cursor, size: 1 }) : null;
     const rows = await this.kernel.run((db) => {
       let query = db
         .withTables<NewsletterTables>()
@@ -305,13 +316,13 @@ export class SqlNewsletterSubscriptionRepo implements NewsletterSubscriptionRepo
         .selectAll()
         .where("workspace_id", "=", required.workspaceId)
         .where("list_id", "=", required.listId);
-      if (required.afterId) query = query.where("id", ">", required.afterId);
+      if (after) query = query.where("id", ">", String(after[0]));
       return query
         .orderBy("id", "asc")
-        .limit(required.limit ?? DEFAULT_LIST_LIMIT)
+        .limit(limit + 1)
         .execute();
     });
-    return rows.map(toSubscriptionRecord);
+    return pageFromOverfetch({ rows: rows.map(toSubscriptionRecord), limit, positionOf: row => [row.id] });
   }
 
   async listSubscribed(required: { workspaceId: string; listId: string }): Promise<SubscriptionRow[]> {

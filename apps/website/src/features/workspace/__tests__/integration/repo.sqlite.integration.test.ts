@@ -30,7 +30,7 @@ test("insert -> restart-simulated (fresh repo instance against the same file) ->
   const { db, filePath, tmpDir } = openTempContentDb();
   try {
     const repo = new SqliteWorkspaceRepo(db);
-    await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z" });
+    await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z", version: 1 });
 
     const dbAfterRestart = openContentDb(filePath);
     const repoAfterRestart = new SqliteWorkspaceRepo(dbAfterRestart);
@@ -48,7 +48,7 @@ test("findBySlug finds by slug, not by id, and returns null for an unknown slug"
   const { db, tmpDir } = openTempContentDb();
   try {
     const repo = new SqliteWorkspaceRepo(db);
-    await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z" });
+    await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z", version: 1 });
 
     const bySlug = await repo.findBySlug({ slug: "acme" });
     assert.ok(bySlug);
@@ -68,8 +68,8 @@ test("list() returns every workspace row", async () => {
   const { db, tmpDir } = openTempContentDb();
   try {
     const repo = new SqliteWorkspaceRepo(db);
-    await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z" });
-    await repo.insert({ id: "ws-2", name: "Globex", slug: "globex", createdAt: "2026-07-15T00:00:01.000Z" });
+    await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z", version: 1 });
+    await repo.insert({ id: "ws-2", name: "Globex", slug: "globex", createdAt: "2026-07-15T00:00:01.000Z", version: 1 });
 
     const all = await repo.list();
     assert.equal(all.length, 2);
@@ -86,12 +86,12 @@ test("update() changes only the targeted row's name/slug, leaving a sibling row 
   const { db, tmpDir } = openTempContentDb();
   try {
     const repo = new SqliteWorkspaceRepo(db);
-    await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z" });
-    await repo.insert({ id: "ws-2", name: "Globex", slug: "globex", createdAt: "2026-07-15T00:00:01.000Z" });
+    await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z", version: 1 });
+    await repo.insert({ id: "ws-2", name: "Globex", slug: "globex", createdAt: "2026-07-15T00:00:01.000Z", version: 1 });
 
     // The mutation this proves: if `update`'s `.where(eq(workspaces.id, record.id))` were ever
     // dropped or mistargeted, this would rename every row (or the wrong row) instead of just ws-1.
-    await repo.update({ id: "ws-1", name: "Acme Renamed", slug: "acme-renamed", createdAt: "2026-07-15T00:00:00.000Z" });
+    await repo.update({ id: "ws-1", name: "Acme Renamed", slug: "acme-renamed", createdAt: "2026-07-15T00:00:00.000Z", version: 2 });
 
     const renamed = await repo.findById({ id: "ws-1" });
     assert.equal(renamed?.name, "Acme Renamed");
@@ -109,8 +109,8 @@ test("delete() removes only the targeted row from real SQLite, leaving a sibling
   const { db, filePath, tmpDir } = openTempContentDb();
   try {
     const repo = new SqliteWorkspaceRepo(db);
-    await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z" });
-    await repo.insert({ id: "ws-2", name: "Globex", slug: "globex", createdAt: "2026-07-15T00:00:01.000Z" });
+    await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z", version: 1 });
+    await repo.insert({ id: "ws-2", name: "Globex", slug: "globex", createdAt: "2026-07-15T00:00:01.000Z", version: 1 });
 
     await repo.delete({ id: "ws-1" });
 
@@ -131,14 +131,14 @@ test("the schema's real UNIQUE constraint on slug is enforced by SQLite itself, 
   const { db, tmpDir } = openTempContentDb();
   try {
     const repo = new SqliteWorkspaceRepo(db);
-    await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z" });
+    await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z", version: 1 });
 
     // `createWorkspace` (the Jini package's write-service) checks `findBySlug` before inserting to
     // produce a friendly `WorkspaceConflictError` — this proves the DATABASE's own guarantee holds
     // independently, so a caller that skipped or raced that pre-check still cannot create two
     // workspace rows sharing one slug.
     await assert.rejects(
-      repo.insert({ id: "ws-2", name: "Acme Two", slug: "acme", createdAt: "2026-07-15T00:00:01.000Z" }),
+      repo.insert({ id: "ws-2", name: "Acme Two", slug: "acme", createdAt: "2026-07-15T00:00:01.000Z", version: 1 }),
       /UNIQUE constraint failed/
     );
 

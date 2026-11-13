@@ -28,6 +28,6 @@ test("resolves the one workspace row and rejects an unknown explicit id", async 
   await kernel.run((db) =>
     db.insertInto("workspaces").values({ id: "ws-pg", name: "PG", slug: "pg", created_at: "2026-09-28T00:00:00.000Z" }).execute()
   );
-  assert.deepEqual(await resolveWorkspace({ kernel }), { id: "ws-pg", name: "PG", slug: "pg", createdAt: "2026-09-28T00:00:00.000Z" });
+  assert.deepEqual(await resolveWorkspace({ kernel }), { id: "ws-pg", name: "PG", slug: "pg", createdAt: "2026-09-28T00:00:00.000Z", version: 1 });
   await assert.rejects(resolveWorkspace({ kernel }, { workspaceId: "missing" }), { name: "ValidationError" });
 });

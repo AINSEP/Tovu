@@ -1,4 +1,6 @@
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/inbound/admin-http/http/newsletter";
+import { ToolInputError } from "@jini-ai/core";
+import { parseListPageRequest } from "@jini-ai/core/list-page";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import type { NewsletterRouteDeps } from "./deps.js";
 
@@ -30,10 +32,15 @@ export const registerAdminNewsletterListCampaignsRoute: RouteRegistrar = (app, r
 
       await deps.newsletterReady;
       const status = typeof req.query.status === "string" ? req.query.status : undefined;
-      const campaigns = await deps.newsletterCampaignRepo.list({ workspaceId: deps.workspaceId });
-      const filtered = status ? campaigns.filter((c) => c.status === status) : campaigns;
-      res.status(200).json(toDataResponse(filtered));
+      const paging = parseListPageRequest({ value: req.query }, { defaultLimit: 100, maxLimit: 100 });
+      const page = await deps.newsletterCampaignRepo.list({ workspaceId: deps.workspaceId }, paging);
+      const filtered = status ? page.items.filter((c) => c.status === status) : page.items;
+      res.status(200).json({ ...toDataResponse(filtered), nextCursor: page.nextCursor });
     } catch (err) {
+      if (err instanceof ToolInputError) {
+        res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+        return;
+      }
       mapNewsletterErrorToResponse(err, res);
     }
   });

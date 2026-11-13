@@ -6,6 +6,7 @@
  * find/filter/push-or-replace methods. Rule-of-two adapter #1 (`repo.sqlite.ts` is #2).
  */
 import { upsertRecord } from "@jini-ai/core/records";
+import { decodeListCursor, pageFromArray, type ListPage } from "@jini-ai/core/list-page";
 import type {
   AudienceSnapshotRow,
   CampaignRecord,
@@ -49,14 +50,15 @@ export class InMemoryNewsletterCampaignRepo implements NewsletterCampaignRepoPor
     );
   }
 
-  async list(required: { workspaceId: string; afterId?: string; limit?: number }): Promise<CampaignRecord[]> {
-    const limit = required.limit ?? DEFAULT_LIST_LIMIT;
-    let rows = this.campaigns.filter((c) => c.workspaceId === required.workspaceId);
-    rows = rows.slice().sort((a, b) => a.id.localeCompare(b.id));
-    if (required.afterId) {
-      rows = rows.filter((c) => c.id > required.afterId!);
-    }
-    return rows.slice(0, limit);
+  /** Lists campaign envelopes with the same cursor contract as the SQL adapter.
+   * @throws {ToolInputError} If the cursor is malformed, including for an empty workspace.
+   * @complexity O(n log n) time and O(n) space for n stored campaigns; no I/O.
+   */
+  async list(required: { workspaceId: string }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<CampaignRecord>> {
+    const limit = Math.min(optional.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT);
+    if (optional.cursor != null) decodeListCursor({ cursor: optional.cursor, size: 1 });
+    return pageFromArray({ rows: this.campaigns.filter(c => c.workspaceId === required.workspaceId),
+      limit, cursor: optional.cursor ?? null, positionOf: campaign => [campaign.id] });
   }
 
   async saveCampaignRow(campaign: CampaignRecord): Promise<void> {
@@ -149,21 +151,18 @@ export class InMemoryNewsletterSubscriptionRepo implements NewsletterSubscriptio
     );
   }
 
+  /** Lists one list's subscriptions with the SQL adapter's position-based contract.
+   * @throws {ToolInputError} If the cursor is malformed, even for an empty list.
+   * @complexity O(n log n) time and O(n) space for n stored subscriptions; no I/O.
+   */
   async list(required: {
     workspaceId: string;
     listId: string;
-    afterId?: string;
-    limit?: number;
-  }): Promise<SubscriptionRow[]> {
-    const limit = required.limit ?? DEFAULT_LIST_LIMIT;
-    let rows = this.rows
-      .filter((r) => r.workspaceId === required.workspaceId && r.listId === required.listId)
-      .slice()
-      .sort((a, b) => a.id.localeCompare(b.id));
-    if (required.afterId) {
-      rows = rows.filter((r) => r.id > required.afterId!);
-    }
-    return rows.slice(0, limit);
+  }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<SubscriptionRow>> {
+    const limit = Math.min(optional.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT);
+    if (optional.cursor != null) decodeListCursor({ cursor: optional.cursor, size: 1 });
+    return pageFromArray({ rows: this.rows.filter(r => r.workspaceId === required.workspaceId && r.listId === required.listId),
+      limit, cursor: optional.cursor ?? null, positionOf: row => [row.id] });
   }
 
   async listSubscribed(required: { workspaceId: string; listId: string }): Promise<SubscriptionRow[]> {

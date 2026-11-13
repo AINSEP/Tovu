@@ -190,7 +190,7 @@ test("import-subscriptions: successful import returns 207 Multi-Status", async (
   assert.equal(repeated.status, 207);
   assert.deepEqual((repeated.json as { failed: unknown[] }).failed, []);
   assert.equal((repeated.json as { created: Array<{ id: string }> }).created[0]?.id, stored.id);
-  assert.deepEqual(await deps.newsletterSubscriptionRepo.list({ workspaceId: WORKSPACE_ID, listId: list.id, limit: 10 }), [stored]);
+  assert.deepEqual((await deps.newsletterSubscriptionRepo.list({ workspaceId: WORKSPACE_ID, listId: list.id }, { limit: 10 })).items, [stored]);
   assert.equal(mail.mock.calls.length, 2);
   const renewed = await deps.newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: WORKSPACE_ID, subscriptionId: stored.id });
   assert.equal(renewed.length, 1);

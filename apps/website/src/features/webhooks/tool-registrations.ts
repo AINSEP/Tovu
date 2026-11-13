@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import { ToolInputError } from "@jini-ai/core";
+import { requireExpectedVersion, versionConflictRule } from "@jini-ai/core/optimistic-concurrency";
 import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
 import { toolMetadata } from '../../contracts/core/tool-metadata/webhooks.js';
 /**
@@ -113,6 +114,7 @@ function toSubscriptionToolView(subscription: WebhookSubscriptionRecord, lastDel
     createdAt: subscription.createdAt,
     updatedAt: subscription.updatedAt,
     disabledAt: subscription.disabledAt,
+    version: subscription.version,
     lastDelivery: lastDelivery ? toDeliveryToolView(lastDelivery) : null,
   };
 }
@@ -183,6 +185,7 @@ export const webhooksDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
  * the OUTBOUND send path, which no tool in this catalog calls, so listing it would be speculative.
  */
 const WEBHOOKS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
+  versionConflictRule({ readToolId: "content_read.webhook_subscription" }),
   forbiddenRule({ domainPrefix: "WEBHOOKS", error: ForbiddenError }),
   { error: WebhookSubscriptionNotFoundError, code: "WEBHOOKS_SUBSCRIPTION_NOT_FOUND" },
   { error: WebhookSubscriptionValidationError, code: "WEBHOOKS_VALIDATION_FAILED" },
@@ -255,6 +258,7 @@ export function buildWebhooksRegistrations(
     /** Uses the existing validation/egress owner and never exposes signing material. */
     webhooks_update_subscription: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
+      const expectedVersion = requireExpectedVersion({ value: input.expectedVersion, readToolId: "content_read.webhook_subscription" });
       const subscriptionId = requireString({ input, key: "subscriptionId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
       if (!Array.isArray(input.topics) || !input.topics.every(topic => typeof topic === "string")) {
@@ -263,7 +267,7 @@ export function buildWebhooksRegistrations(
       const { subscription } = await updateSubscription({
         deps: { clock: routeDeps.clock, repo: routeDeps.webhookSubscriptionRepo, idGenerator: routeDeps.idGen, isAllowedTarget },
         input: { workspaceId: routeDeps.workspaceId, id: subscriptionId, label: requireString({ input, key: "label" }), targetUrl: requireString({ input, key: "targetUrl" }), topics: input.topics },
-      });
+      }, { expectedVersion });
       const deliveries = await routeDeps.webhookDeliveryRepo.listBySubscription({
         workspaceId: routeDeps.workspaceId, subscriptionId, limit: 1,
       });

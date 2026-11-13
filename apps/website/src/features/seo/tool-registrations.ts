@@ -25,6 +25,8 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/seo.js';
  *    which self-enforces nothing and is checked only at the handler).
  */
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { requireExpectedVersion, versionConflictRule } from "@jini-ai/core/optimistic-concurrency";
+import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "@jini-ai/core";
 import type { PostRepoPort } from "../post/index.js";
@@ -94,6 +96,7 @@ export interface SeoToolDeps {
 function seoOverridesPatchFromInput(input: Record<string, unknown>): SeoExtFieldsPatch {
   const patch: Record<string, unknown> = { ...input };
   delete patch.entryId;
+  delete patch.expectedVersion;
   return patch as SeoExtFieldsPatch;
 }
 
@@ -162,6 +165,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
     seo_set_entry_overrides: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const entryId = requireString({ input: input, key: "entryId" });
+      const expectedVersion = requireExpectedVersion({ value: input.expectedVersion, readToolId: "content_read.seo_entry_meta" });
       await routeDeps.seoReady;
 
       // Self-enforcing chokepoint (see file header) — no requireToolPermission call here.
@@ -178,7 +182,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
               patch: seoOverridesPatchFromInput(input),
               callerPrincipalId: ctx.principal.id,
             },
-          }) });
+          }, { expectedVersion }) });
       return { overrides };
     },
 
@@ -231,7 +235,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
     domain: "seo",
     catalogModule: "seo/agent-tools.ts",
     catalog: CATALOG_BY_ID,
-    handlers,
+    handlers: withModelFacingErrors({ handlers, rules: [versionConflictRule({ readToolId: "content_read.seo_entry_meta" })] }),
     derivedRisk: seoDerivedRisk,
   });
 }

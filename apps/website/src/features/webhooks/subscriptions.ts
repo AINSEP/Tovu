@@ -111,7 +111,7 @@ export function createSubscription({ deps, input }: CreateSubscriptionRequired, 
 }
 
 /** Translate the target-policy callback; validation completes before the replacement is saved. */
-export function updateSubscription({ deps, input }: UpdateSubscriptionRequired, optional: WebhookSubscriptionOptional = {}) {
+export function updateSubscription({ deps, input }: UpdateSubscriptionRequired, optional: WebhookSubscriptionOptional & { expectedVersion?: number } = {}) {
   return updateWebhookSubscription({ deps: adaptSubscriptionDeps(deps), input }, optional);
 }
 

@@ -227,7 +227,7 @@ test("the immutable slug is not accepted as an update input — the schema forbi
   const schema = catalogEntry("forms_update_definition").inputSchema as { properties: Record<string, unknown> };
   assert.equal("slug" in schema.properties, false, "forms_update_definition must not advertise a slug input");
 
-  const out = (await wired("forms_update_definition", deps).handler(executionContext({ formId: id, name: "Renamed", slug: "hijacked" }))) as {
+  const out = (await wired("forms_update_definition", deps).handler(executionContext({ formId: id, name: "Renamed", slug: "hijacked", expectedVersion: 1 }))) as {
     definition: { slug: string; name: string };
   };
   assert.equal(out.definition.slug, "contact", "slug must be unchanged even when supplied");
@@ -239,7 +239,7 @@ test("an empty update patch is refused rather than reported as a successful no-o
   const { id } = await seedDefinition(deps);
 
   await assert.rejects(
-    () => wired("forms_update_definition", deps).handler(executionContext({ formId: id })),
+    () => wired("forms_update_definition", deps).handler(executionContext({ formId: id, expectedVersion: 1 })),
     /at least one of 'name', 'fields', or 'notify' is required/,
   );
 });
@@ -274,7 +274,7 @@ test("a tool result is an explicit model-facing view: workspaceId and timestamps
     executionContext({ name: "Contact", slug: "contact", fields: VALID_FIELDS }),
   )) as { definition: Record<string, unknown> };
 
-  assert.deepEqual(Object.keys(created.definition).sort(), ["fields", "id", "name", "notify", "slug", "status"]);
+  assert.deepEqual(Object.keys(created.definition).sort(), ["fields", "id", "name", "notify", "slug", "status", "version"]);
   assert.equal("workspaceId" in created.definition, false, "the agent is already scoped to one workspace it cannot change");
   assert.equal("createdAt" in created.definition, false);
   assert.equal(created.definition.status, "active");
@@ -343,7 +343,7 @@ const TOOL_INPUTS: Record<string, (seededId: string) => Record<string, unknown>>
   "content_read.form_definition": () => ({}),
   forms_list_providers: () => ({}),
   forms_create_definition: () => ({ name: "Contact", slug: "contact-2", fields: VALID_FIELDS }),
-  forms_update_definition: (id) => ({ formId: id, name: "Renamed" }),
+  forms_update_definition: (id) => ({ formId: id, name: "Renamed", expectedVersion: 1 }),
   forms_set_definition_status: (id) => ({ formId: id, status: "disabled" }),
 };
 

@@ -17,7 +17,7 @@ testRouteFailureMatrix(routes);
 
 test('integrations list chooses latest timestamps independent of repository order and handles empty delivery history', async () => {
   const subscription = { id: 'sub', label: 'Test', targetUrl: 'https://example.com', topics: ['post.published'], status: 'active', secretVersion: 1, previousSecretVersion: null,
-    createdAt: '2026-10-01', updatedAt: '2026-10-01', disabledAt: null };
+    createdAt: '2026-10-01', updatedAt: '2026-10-01', disabledAt: null, version: 1 };
   const delivery = (id: string, createdAt: string) => ({ id, createdAt, status: 'delivered', attempts: 2, lastResponseStatus: 200, lastError: null, deliveredAt: createdAt });
   const newest = delivery('newest', '2026-10-19');
   const lookups: unknown[] = [];

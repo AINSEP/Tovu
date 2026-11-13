@@ -1,4 +1,5 @@
 import type { Selectable } from "kysely";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 
 import type { WorkspaceRecord, WorkspaceRepoPort } from "@jini-ai/cms/workspace";
 
@@ -12,7 +13,7 @@ import type { WorkspacesTable } from "../../platform/db/content-database.generat
  */
 
 function toRecord(row: Selectable<WorkspacesTable>): WorkspaceRecord {
-  return { id: row.id, name: row.name, slug: row.slug, createdAt: row.created_at };
+  return { id: row.id, name: row.name, slug: row.slug, createdAt: row.created_at, version: row.version };
 }
 
 export class SqlWorkspaceRepo implements WorkspaceRepoPort {
@@ -25,7 +26,7 @@ export class SqlWorkspaceRepo implements WorkspaceRepoPort {
     await this.kernel.run((db) =>
       db
         .insertInto("workspaces")
-        .values({ id: record.id, name: record.name, slug: record.slug, created_at: record.createdAt })
+        .values({ id: record.id, name: record.name, slug: record.slug, created_at: record.createdAt, version: record.version })
         .execute()
     );
   }
@@ -52,11 +53,23 @@ export class SqlWorkspaceRepo implements WorkspaceRepoPort {
   }
 
   /** SPEC-044 REQ-08. */
-  async update(record: WorkspaceRecord): Promise<void> {
+  async update(record: WorkspaceRecord, optional: { expectedVersion?: number } = {}): Promise<void> {
+    const { expectedVersion } = optional;
+    if (expectedVersion !== undefined) {
+      // Match the editor's basis in the UPDATE so concurrent saves cannot both succeed.
+      const result = await this.kernel.run((db) => db.updateTable("workspaces")
+        .set({ name: record.name, slug: record.slug, version: record.version })
+        .where("id", "=", record.id)
+        .where("version", "=", expectedVersion)
+        .executeTakeFirst());
+      await assertVersionedWrite({ changedRows: result.numUpdatedRows, recordKind: "workspace", recordId: record.id,
+        expectedVersion, readCurrentVersion: async () => (await this.findById({ id: record.id }))?.version ?? null });
+      return;
+    }
     await this.kernel.run((db) =>
       db
         .updateTable("workspaces")
-        .set({ name: record.name, slug: record.slug })
+        .set({ name: record.name, slug: record.slug, version: record.version })
         .where("id", "=", record.id)
         .execute()
     );

@@ -20,6 +20,7 @@ import {
 
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingRegistrationErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
+import { versionConflictRule } from "@jini-ai/core/optimistic-concurrency";
 
 export type { WorkspaceToolDeps };
 export const workspaceDerivedRisk: DerivedRiskByToolId = new Map([...sharedWorkspaceDerivedRisk, ["workspace_list", "none"]]);
@@ -36,9 +37,9 @@ export const workspaceDerivedRisk: DerivedRiskByToolId = new Map([...sharedWorks
  */
 export function buildWorkspaceRegistrations(
   deps: WorkspaceToolDeps,
-  { buildShared = buildSharedWorkspaceRegistrations }: { buildShared?: (deps: WorkspaceToolDeps) => ToolRegistration[] } = {},
+  { buildShared = buildSharedWorkspaceRegistrations }: { buildShared?: (deps: WorkspaceToolDeps, optional?: { readToolId?: string }) => ToolRegistration[] } = {},
 ): ToolRegistration[] {
-  const shared = buildShared(deps);
+  const shared = buildShared(deps, { readToolId: "content_read.workspace" });
   const get = shared.find(registration => registration.descriptor.id === "workspace_get");
   if (!get) throw new Error("workspace read owner is not registered");
   /** Preserves the existing permission/read owner, translating only its known missing-row refusal. */
@@ -81,6 +82,7 @@ export function buildWorkspaceRegistrations(
  * so arbitrary repository errors retain the transport's redaction.
  */
 const WORKSPACE_MODEL_FACING_RULES: readonly ModelFacingErrorRule[] = [
+  versionConflictRule({ readToolId: "content_read.workspace" }),
   { error: WorkspaceValidationError, code: "WORKSPACE_VALIDATION" },
   { error: WorkspaceConflictError, code: "WORKSPACE_CONFLICT" },
   { error: WorkspaceNotFoundError, code: "WORKSPACE_NOT_FOUND" },

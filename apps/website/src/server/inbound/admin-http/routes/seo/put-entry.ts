@@ -1,4 +1,6 @@
 import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { ToolInputError } from "@jini-ai/core";
+import { parseExpectedVersion, RecordVersionConflictError, versionConflictBody } from "@jini-ai/core/optimistic-concurrency";
 import {
   getEntryMeta,
   setEntrySeoOverrides,
@@ -16,6 +18,8 @@ import type { SeoRouteRegistrar } from "./deps.js";
 /** Maps `setEntrySeoOverrides`/`getEntryMeta`'s known thrown error types to this route's documented
  *  4xx response shapes; any other error (including a real bug) falls through to a generic 500. */
 function seoPutEntryErrorResponse(err: unknown, options: AdminFailurePorts = {}): { status: number; body: { error: string; code: string } } {
+  if (err instanceof ToolInputError) return { status: 400, body: { error: err.message, code: "VALIDATION_ERROR" } };
+  if (err instanceof RecordVersionConflictError) return { status: 409, body: versionConflictBody({ error: err }) };
   const live = entityNotLiveResponse(err);
   if (live) return live;
   if (err instanceof SeoFieldValidationError) {
@@ -62,6 +66,9 @@ export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = (app, deps) => {
       });
       if (!authorized) return;
 
+      const { expectedVersion: rawExpectedVersion, ...patch } = req.body ?? {};
+      const expectedVersion = parseExpectedVersion({ value: rawExpectedVersion });
+
       await setEntrySeoOverrides({
         deps: {
           postRepo: deps.seoDeps.postRepo,
@@ -73,10 +80,10 @@ export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = (app, deps) => {
         input: {
           workspaceId: deps.workspaceId,
           entryId,
-          patch: req.body ?? {},
+          patch,
           callerPrincipalId: principal.id,
         },
-      }, {});
+      }, expectedVersion === undefined ? {} : { expectedVersion });
 
       const read = await withCoverReadDeps({ deps: deps.seoDeps, workspaceId: deps.workspaceId, entryId });
       const meta = await getEntryMeta({

@@ -21,6 +21,7 @@ import type { AuthorizeFn, ChangeSetRepoPort } from "../../contracts/core/comman
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type OutboxPort, ForbiddenError, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
+import { requireExpectedVersion, versionConflictRule } from "@jini-ai/core/optimistic-concurrency";
 import type { ToolContributor } from "@jini-ai/core";
 import type { DuplicateResourceHandlerContributor } from "../../assistant/tool-contributions.js";
 import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
@@ -127,6 +128,7 @@ interface FormDefinitionToolView extends FormAuthoring {
   name: string;
   slug: string;
   status: FormDefinitionStatus;
+  version: number;
   fields: FieldDescriptor[];
   notify: NotifyConfig;
 }
@@ -154,6 +156,7 @@ function toFormDefinitionView(record: FormDefinitionRecord): FormDefinitionToolV
     name: record.name,
     slug: record.slug,
     status: record.status,
+    version: record.version,
     fields: record.fields.map((field) => ({ ...field })),
     notify: { enabled: record.notify.enabled, recipients: [...record.notify.recipients] },
     ...(authoring.mode === undefined ? {} : { mode: authoring.mode }),
@@ -308,6 +311,7 @@ function requireFormsPatch(input: Record<string, unknown>): { name?: string; fie
  * property, not in the `message` this surfaces.
  */
 const FORMS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
+  versionConflictRule({ readToolId: "content_read.form_definition" }),
   forbiddenRule({ domainPrefix: "FORMS", error: ForbiddenError }),
   { error: FormDefinitionNotFoundError, code: "FORMS_DEFINITION_NOT_FOUND" },
   { error: FormSubmissionNotFoundError, code: "FORMS_SUBMISSION_NOT_FOUND" },
@@ -372,6 +376,7 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
         catalog: CATALOG_BY_ID,
         isShapeRejection: isFormsShapeRejection,
         fn: async () => {
+          const expectedVersion = requireExpectedVersion({ value: input.expectedVersion, readToolId: "content_read.form_definition" });
           const { definition } = await updateFormDefinition({
             deps: formsDeps(routeDeps),
             input: {
@@ -380,7 +385,7 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
               formId: requireString({ input, key: "formId" }),
               patch: requireFormsPatch(input),
             },
-          });
+          }, { expectedVersion });
           return { definition: toFormDefinitionView(definition) };
         },
       });

@@ -55,7 +55,7 @@ export async function resolveWorkspace(
   options: ResolveWorkspaceOptions = {}
 ): Promise<WorkspaceRecord> {
   const selected = await required.kernel.run((db) => db.selectFrom("workspaces").selectAll().execute());
-  const rows: WorkspaceRecord[] = selected.map((row) => ({ id: row.id, name: row.name, slug: row.slug, createdAt: row.created_at }));
+  const rows: WorkspaceRecord[] = selected.map((row) => ({ id: row.id, name: row.name, slug: row.slug, createdAt: row.created_at, version: row.version }));
 
   const [only] = rows;
   if (only === undefined) {

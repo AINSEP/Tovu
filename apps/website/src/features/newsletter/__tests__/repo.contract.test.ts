@@ -10,6 +10,7 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
  */
 import assert from "node:assert/strict";
 import test from "node:test";
+import { encodeListCursor } from "@jini-ai/core/list-page";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { installNewsletterDataModule } from "../data-module-manifest.js";
@@ -116,11 +117,11 @@ for (const [name, makeRepo] of campaignAdapters) {
     assert.equal(found?.subject, "Hello");
     assert.deepEqual(found, campaign);
     assert.equal(await repo.findById({ workspaceId: "other-workspace", id: campaign.id }), null);
-    assert.deepEqual(await repo.list({ workspaceId: "other-workspace" }), []);
+    assert.deepEqual((await repo.list({ workspaceId: "other-workspace" })).items, []);
     assert.equal(found?.counters.recipients, 0);
 
     const listed = await repo.list({ workspaceId: WS });
-    assert.equal(listed.length, 1);
+    assert.equal(listed.items.length, 1);
 
     const revisions = await repo.listRevisions({ workspaceId: WS, campaignId: "camp-1" });
     assert.equal(revisions.length, 1);
@@ -199,7 +200,7 @@ for (const [name, makeRepo] of campaignAdapters) {
     const repo = await makeRepo();
     await repo.incrementCounter({ workspaceId: WS, id: "camp-1", counter: "delivered", updatedAt: LATER });
     assert.equal(await repo.findById({ workspaceId: WS, id: "camp-1" }), null);
-    assert.deepEqual(await repo.list({ workspaceId: WS }), []);
+    assert.deepEqual((await repo.list({ workspaceId: WS })).items, []);
   });
 }
 
@@ -483,11 +484,11 @@ for (const [name, makeRepo] of campaignAdapters) {
     const repo = await makeRepo();
     for (const id of ["page-3", "page-1", "page-5"]) await repo.saveCampaignRow(makeContractCampaign({ id }));
     await repo.saveCampaignRow(makeContractCampaign({ id: "page-2", workspaceId: "other-workspace" }));
-    assert.deepEqual((await repo.list({ workspaceId: WS })).map((row) => row.id), ["page-1", "page-3", "page-5"]);
-    assert.deepEqual((await repo.list({ workspaceId: WS, limit: 2 })).map((row) => row.id), ["page-1", "page-3"]);
-    assert.deepEqual((await repo.list({ workspaceId: WS, afterId: "page-1", limit: 1 })).map((row) => row.id), ["page-3"]);
-    assert.deepEqual((await repo.list({ workspaceId: WS, afterId: "page-2", limit: 1 })).map((row) => row.id), ["page-3"]);
-    assert.deepEqual(await repo.list({ workspaceId: WS, afterId: "page-9", limit: 1 }), []);
+    assert.deepEqual((await repo.list({ workspaceId: WS })).items.map((row) => row.id), ["page-1", "page-3", "page-5"]);
+    assert.deepEqual((await repo.list({ workspaceId: WS }, { limit: 2 })).items.map((row) => row.id), ["page-1", "page-3"]);
+    assert.deepEqual((await repo.list({ workspaceId: WS }, { cursor: encodeListCursor({ position: ["page-1"] }), limit: 1 })).items.map((row) => row.id), ["page-3"]);
+    assert.deepEqual((await repo.list({ workspaceId: WS }, { cursor: encodeListCursor({ position: ["page-2"] }), limit: 1 })).items.map((row) => row.id), ["page-3"]);
+    assert.deepEqual((await repo.list({ workspaceId: WS }, { cursor: encodeListCursor({ position: ["page-9"] }), limit: 1 })).items, []);
   });
 }
 for (const [name, makeRepo] of subscriptionAdapters) {
@@ -497,11 +498,11 @@ for (const [name, makeRepo] of subscriptionAdapters) {
     for (const id of ["page-3", "page-1", "page-5"]) await repo.save({ ...base, id, subscriberId: id });
     await repo.save({ ...base, id: "page-2", workspaceId: "other-workspace" });
     await repo.save({ ...base, id: "page-4", listId: "other-list" });
-    assert.deepEqual((await repo.list({ workspaceId: WS, listId: "list-1" })).map((row) => row.id), ["page-1", "page-3", "page-5"]);
-    assert.deepEqual((await repo.list({ workspaceId: WS, listId: "list-1", limit: 2 })).map((row) => row.id), ["page-1", "page-3"]);
-    assert.deepEqual((await repo.list({ workspaceId: WS, listId: "list-1", afterId: "page-1", limit: 1 })).map((row) => row.id), ["page-3"]);
-    assert.deepEqual((await repo.list({ workspaceId: WS, listId: "list-1", afterId: "page-2", limit: 1 })).map((row) => row.id), ["page-3"]);
-    assert.deepEqual(await repo.list({ workspaceId: WS, listId: "list-1", afterId: "page-9", limit: 1 }), []);
+    assert.deepEqual((await repo.list({ workspaceId: WS, listId: "list-1" })).items.map((row) => row.id), ["page-1", "page-3", "page-5"]);
+    assert.deepEqual((await repo.list({ workspaceId: WS, listId: "list-1" }, { limit: 2 })).items.map((row) => row.id), ["page-1", "page-3"]);
+    assert.deepEqual((await repo.list({ workspaceId: WS, listId: "list-1" }, { cursor: encodeListCursor({ position: ["page-1"] }), limit: 1 })).items.map((row) => row.id), ["page-3"]);
+    assert.deepEqual((await repo.list({ workspaceId: WS, listId: "list-1" }, { cursor: encodeListCursor({ position: ["page-2"] }), limit: 1 })).items.map((row) => row.id), ["page-3"]);
+    assert.deepEqual((await repo.list({ workspaceId: WS, listId: "list-1" }, { cursor: encodeListCursor({ position: ["page-9"] }), limit: 1 })).items, []);
   });
 }
 for (const [name, makeRepo] of sendAdapters) {
@@ -531,14 +532,14 @@ test("memory campaign seeds are copied, revisions stay campaign-scoped, and abse
   const repo = new InMemoryNewsletterCampaignRepo({ campaigns, revisions });
   campaigns.push(makeContractCampaign({ id: "late" }));
   revisions.push({ workspaceId: WS, campaignId: "camp-1", seq: 3, state: first, actorId: "actor", recordedAt: LATER });
-  assert.deepEqual(await repo.list({ workspaceId: WS }), [first]);
+  assert.deepEqual((await repo.list({ workspaceId: WS })).items, [first]);
   await repo.incrementCounter({ workspaceId: "other-workspace", id: "camp-1", counter: "delivered", updatedAt: LATER });
   await repo.incrementCounter({ workspaceId: WS, id: "missing", counter: "delivered", updatedAt: LATER });
   assert.deepEqual(await repo.findById({ workspaceId: WS, id: "camp-1" }), first);
   assert.deepEqual((await repo.listRevisions({ workspaceId: WS, campaignId: "camp-1" })).map((row) => row.seq), [1, 2]);
   assert.deepEqual(await new InMemoryNewsletterCampaignRepo({ campaigns: [first] }).listRevisions({ workspaceId: WS, campaignId: "camp-1" }), []);
-  assert.deepEqual(await new InMemoryNewsletterCampaignRepo({ revisions }).list({ workspaceId: WS }), []);
-  assert.deepEqual(await new InMemoryNewsletterCampaignRepo({}).list({ workspaceId: WS }), []);
+  assert.deepEqual((await new InMemoryNewsletterCampaignRepo({ revisions }).list({ workspaceId: WS })).items, []);
+  assert.deepEqual((await new InMemoryNewsletterCampaignRepo({}).list({ workspaceId: WS })).items, []);
 });
 
 test("memory list upserts and default lookup respect workspace and default flag", async () => {
@@ -577,7 +578,7 @@ test("memory subscriptions distinguish subscriber, list and workspace during loo
   await repo.remove({ workspaceId: WS, id: "sub-1" });
   assert.equal(await repo.findById({ workspaceId: WS, id: "sub-1" }), null);
   assert.deepEqual(await repo.findById({ workspaceId: "other-workspace", id: "sub-1" }), foreign);
-  assert.deepEqual(await repo.list({ workspaceId: WS, listId: "list-1" }), [otherSubscriber]);
+  assert.deepEqual((await repo.list({ workspaceId: WS, listId: "list-1" })).items, [otherSubscriber]);
 });
 
 test("memory audience snapshots miss on either lookup key and remain immutable within each workspace", async () => {
@@ -646,7 +647,7 @@ for (const [name, makeRepo] of campaignAdapters) {
     const repo = await makeRepo();
     for (let i = 0; i < 101; i++) await repo.saveCampaignRow(makeContractCampaign({ id: `c-${String(i).padStart(3, '0')}` }));
     await repo.saveCampaignRow(makeContractCampaign({ id: 'z-sending', status: 'sending' }));
-    assert.equal((await repo.list({ workspaceId: WS })).length, 100);
+    assert.equal((await repo.list({ workspaceId: WS })).items.length, 100);
     assert.equal(await repo.hasSending!({ workspaceId: WS }, {}), true);
     assert.equal(await repo.hasSending!({ workspaceId: 'other-workspace' }, {}), false);
     await repo.saveCampaignRow(makeContractCampaign({ id: 'z-sending', status: 'sent' }));

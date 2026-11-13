@@ -55,7 +55,7 @@ test('assistant discovers a fourth provider and saves its public configuration w
   assert.equal(created.ok, true, JSON.stringify(created));
   const definition = (await deps.formDefinitionRepo.list({ workspaceId: 'ws' }))[0]!;
   assert.deepEqual((definition as typeof definition & FormAuthoring).provider, selected);
-  const rejected = await call('forms_update_definition', { formId: definition.id, provider: { id: 'fourth_provider', config: { ...selected.config, apiKey: 'private' } } });
+  const rejected = await call('forms_update_definition', { formId: definition.id, expectedVersion: definition.version, provider: { id: 'fourth_provider', config: { ...selected.config, apiKey: 'private' } } });
   assert.ok(!rejected.ok, JSON.stringify(rejected));
   assert.match(rejected.error.message, /Form provider configuration contains a secret or a non-text value/);
   const unchanged = (await deps.formDefinitionRepo.list({ workspaceId: 'ws' }))[0]!;

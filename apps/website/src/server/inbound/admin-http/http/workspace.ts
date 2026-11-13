@@ -17,9 +17,10 @@ export interface AdminWorkspaceResponse {
   name: string;
   slug: string;
   createdAt: string;
+  version: number;
 }
 
 /** Serialize a `WorkspaceRecord` to `AdminWorkspaceResponse`. @complexity O(1). @overallScore 100 */
 export function toAdminWorkspaceResponse(workspace: WorkspaceRecord): AdminWorkspaceResponse {
-  return { id: workspace.id, name: workspace.name, slug: workspace.slug, createdAt: workspace.createdAt };
+  return { id: workspace.id, name: workspace.name, slug: workspace.slug, createdAt: workspace.createdAt, version: workspace.version };
 }

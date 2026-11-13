@@ -75,6 +75,8 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
       additionalProperties: false,
       required: [],
       properties: {
+        limit: { type: "integer", minimum: 1, maximum: 100, description: "Maximum campaigns to scan per page." },
+        cursor: { type: "string", description: "nextCursor from the previous call. Omit for the first page." },
         status: {
           type: "string",
           enum: ["draft", "scheduled", "sending", "sent", "paused", "canceled", "failed"],
@@ -116,7 +118,9 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
       type: "object",
       additionalProperties: false,
       required: ["listId"],
-      properties: { listId: LIST_ID_SCHEMA },
+      properties: { listId: LIST_ID_SCHEMA,
+        limit: { type: "integer", minimum: 1, maximum: 100, description: "Maximum subscriptions per page." },
+        cursor: { type: "string", description: "nextCursor from the previous call. Omit for the first page." } },
     },
   },
   {
