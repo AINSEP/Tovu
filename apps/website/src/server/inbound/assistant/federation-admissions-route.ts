@@ -8,7 +8,7 @@ import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
  * this process's own stderr and discarding it (`mcp-federation/bootstrap.ts`'s
  * `logFederatedAdmissionReport`, which still runs and is unaffected by this route).
  *
- * Why this exists: `mcp-federation/trust.ts` R5 freezes the admitted set at connect, on purpose
+ * Why this exists: `Jini packages/mcp/src/federation/trust.ts` R5 freezes the admitted set at connect, on purpose
  * (rug-pull protection — see that file's own header). The tab an operator edits, though, is not the
  * thing this daemon actually loaded; today the only way to see the gap between "what was saved" and
  * "what is live" is to read this process's terminal at the moment it booted. That is how this
@@ -21,11 +21,11 @@ import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
  * route (including this one) is registered, and this path is never added to that gate's
  * `exemptPaths`. So a caller with no/invalid bearer token gets the gate's own fail-closed 401 (or
  * 503 if the daemon's own token is unconfigured) before this handler ever runs — there is
- * deliberately no second auth check inside this file. See `daemon-auth.ts`.
+ * deliberately no second auth check inside this file. See `apps/website/src/assistant/daemon-access.ts`.
  *
  * In-memory and process-scoped, matching R5's own framing: `reports` is a LIVE getter over whatever
  * `attachFederatedMcpTools` has returned so far this process — the boot-time pass, plus every
- * federation hot-reload pass since (`mcp-federation/reload.ts`, `federation-reload-route.ts`) —
+ * federation hot-reload pass since (`Jini packages/mcp/src/federation/reload.ts`, `federation-reload-route.ts`) —
  * never persisted, and lost on restart, which is correct: it describes THIS process's admitted set,
  * and a stale answer here would be worse than an honest "ask again after the next boot."
  *
@@ -46,7 +46,7 @@ import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
  * treatment as `reports`, for the same reason: a reload can make a previously-failing row resolve
  * cleanly, and this must stop naming it the moment that happens, not keep reporting a stale failure.
  *
- * The intended caller is `src/server/routes/admin/external-mcp` (a separate phase, C-008), which
+ * The intended caller is `apps/website/src/server/inbound/admin-http/routes/external-mcp` (a separate phase, C-008), which
  * proxies this over the same authenticated `AGENT_DAEMON_URL` + `AGENT_DAEMON_TOKEN_ENV_VAR` channel
  * `assistant-daemon-client.ts` already uses. This route itself does not know or care who calls it —
  * it is the daemon's own honest answer to "what did you actually admit."

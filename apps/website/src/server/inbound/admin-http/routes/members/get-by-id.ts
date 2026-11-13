@@ -9,7 +9,7 @@ import type { MembersRouteDeps } from "./deps.js";
  * GET a single member by id.
  *
  * No dedicated `getAdminMemberById` business-logic function exists in
- * `src/members` (see `list.ts`'s file note) — this route calls
+ * `apps/website/src/features/members/index.ts` (see `list.ts`'s file note) — this route calls
  * `MemberRepoPort.findById` directly and throws the library's own
  * `MemberNotFoundError` on a miss, mirroring the not-found translation
  * `getAdminPostById` performs internally for posts.

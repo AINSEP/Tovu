@@ -21,7 +21,7 @@ export interface SiteProduct {
   priceId?: string;
   /**
    * `undefined` for a product source with no inventory tracking (Commerce, as of 2026-08-12 —
-   * `features/commerce/storefront.ts`'s own doc names this explicitly rather than fabricating a
+   * `Jini packages/commerce/src/catalog/storefront.ts`'s own doc names this explicitly rather than fabricating a
    * count). The sample store plugin always sets a real, decremented number. `buildTemplateRenderData`
    * passes this through unchanged; a template that reads `product.stock` sees Liquid's ordinary
    * nil/falsy behavior for the untracked case, not a lie about availability.
@@ -40,11 +40,11 @@ export interface SiteProduct {
   /**
    * Display-only spec pairs (e.g. `{label: "Material", value: "Combed cotton"}`), in author-chosen
    * order. `undefined` = none set. Structurally mirrors `CommerceProductSpec`
-   * (`features/commerce/types.ts`) WITHOUT importing it — same decoupling `storefront.ts`'s own
+   * (`Jini packages/commerce/src/catalog/types.ts`) WITHOUT importing it — same decoupling `storefront.ts`'s own
    * doc establishes for the whole `SiteProduct` shape. Safe to pass through unescaped-template-side
    * for the same reason as `currency` above (no `| raw` filter on either field in the template).
    *
-   * Deliberately NOT joined by a `description` field here — see `features/commerce/storefront.ts`'s
+   * Deliberately NOT joined by a `description` field here — see `Jini packages/commerce/src/catalog/storefront.ts`'s
    * file header for why: `product.liquid` reads `product.description` via `| raw` (unescaped,
    * trusting pre-sanitized HTML the same way `post.content` is), and no Commerce-sourced string
    * reaching this type today has ever been through a sanitizer. Adding the field to `SiteProduct`

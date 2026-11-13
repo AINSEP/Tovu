@@ -23,8 +23,8 @@ import type { JournalDatabase } from "../journal-kernel.js";
  * `database_ledger` table.
  *
  * How it relates to the project:
- * `server/deps.ts` constructs these against the journal kernel `database-journal-db.ts` opens
- * alongside `content.db`; `server/app.ts`'s in-memory test composition uses simple in-process
+ * `apps/website/src/server/runtime/composition/deps.ts` constructs these against the journal kernel `database-journal-db.ts` opens
+ * alongside `content.db`; `apps/website/src/server/runtime/composition/app.ts`'s in-memory test composition uses simple in-process
  * fakes instead (mirrors every other feature's app.ts/deps.ts split in this codebase).
  *
  * Architectural role:

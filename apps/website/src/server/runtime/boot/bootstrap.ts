@@ -316,7 +316,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
     {
       // Installs the Agent Plugins that ship with Tovu into this workspace's own package store and
       // records each INACTIVE until an operator enables it (see
-      // `features/agent-plugins/seed-bundled.ts` for why it re-runs every boot rather than once).
+      // `Jini packages/agent-plugins/src/lifecycle/seed-bundled.ts` for why it re-runs every boot rather than once).
       //
       // OPTIONAL, not critical, and deliberately so: a bundled plugin that fails to seed costs the
       // operator one dormant, disabled capability. Refusing to boot a whole CMS over that would be a
@@ -342,7 +342,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
           // Not a seed failure: every package is installed and every activation decision intact.
           // What is lost is this boot's record of WHICH digest the build published, so a bundled
           // plugin that was upgraded in place falls back to being refused as ambiguous until a
-          // later boot writes the ledger (`features/agent-plugins/bundled-digests.ts`).
+          // later boot writes the ledger (`Jini packages/agent-plugins/src/lifecycle/bundled-digests.ts`).
           // eslint-disable-next-line no-console
           console.warn(`[bundled-agent-plugins] the bundled-digest ledger could not be written: ${result.ledgerFailure}`);
         }

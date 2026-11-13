@@ -5,7 +5,7 @@ import { resolvePublicOrigin } from "../oauth/public-origin.js";
 /**
  * @file The public mount point and absolute URL for the external-MCP OAuth callback.
  *
- * Mirrors `routes/admin/connectors/callback-url.ts` exactly, including WHY it exists as its own
+ * Mirrors the connector callback URL builder exactly, including WHY it exists as its own
  * module: the connect route and the callback route must never drift apart, and a mismatch would
  * send the authorization server to a URL nothing serves — a failure that looks like a provider
  * problem and is not.

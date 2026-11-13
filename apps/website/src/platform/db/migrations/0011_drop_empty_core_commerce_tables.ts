@@ -116,7 +116,7 @@
  * Orders — the financial-truth header row for one checkout. `providerEventAt` is the ordering
  * cursor: the provider's own event timestamp for the last webhook event actually applied to this
  * row, compared — never blindly overwritten — on every subsequent delivery by
- * `features/commerce/webhook-inbox.ts`'s single atomic `UPDATE ... WHERE`. `totalAmountCents` is
+ * `Jini packages/commerce/src/catalog/webhook-inbox.ts`'s single atomic `UPDATE ... WHERE`. `totalAmountCents` is
  * denormalized from `commerceOrderItems` (computed once at checkout, not DB-enforced — SQLite
  * CHECK cannot aggregate across rows): the column-vs-document rule makes it a column anyway
  * because it is reported/sorted on, the same reasoning this file already applies denormalizing
@@ -146,7 +146,7 @@
  * provider's `eventId` is already globally unique per provider, and narrowing the constraint by
  * workspace would let the same event double-process if a provider ever misrouted it across
  * workspaces. That constraint stops replay; it does NOT stop out-of-order delivery by itself —
- * `features/commerce/webhook-inbox.ts`'s single atomic `UPDATE ... WHERE providerEventAt < ?`
+ * `Jini packages/commerce/src/catalog/webhook-inbox.ts`'s single atomic `UPDATE ... WHERE providerEventAt < ?`
  * against `commerceOrders` is the ordering half.
  */
 

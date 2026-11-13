@@ -23,7 +23,7 @@ function parseMembersListQuery(query: Request["query"]): { afterId: string | und
  * sees everything" behavior in `registerAdminPostListRoute`).
  *
  * No dedicated `listAdminMembers` business-logic function exists in
- * `src/members` (that library exports `MembersWriteService` mutations only,
+ * `apps/website/src/features/members/index.ts` (that library exports `MembersWriteService` mutations only,
  * no read-side wrappers) — this route calls `MemberRepoPort.list` directly.
  * That port is already keyset-paginated and bounded (`DEFAULT_LIST_LIMIT =
  * 100` in `repo.memory.ts`), so an `afterId`/`limit` query pair is passed

@@ -20,7 +20,7 @@ import { authorizeMediaOrRespond, readRouteParam, rejectForeignWorkspace } from 
  * `list.ts` requires, since this route serves exactly the assets that route
  * already lists to the same caller, not a separate higher-trust capability.
  * (`media.download_original` also exists in the catalog, but its own doc
- * comment in `identity/permissions.ts` reserves it for a future short-TTL
+ * comment in `Jini packages/user-management/src/core/builtin-permissions.ts` reserves it for a future short-TTL
  * signed-URL MINTING endpoint — a different, not-yet-built capability — not for
  * gating an ordinary authenticated-session preview fetch.)
  *
@@ -59,7 +59,7 @@ import { authorizeMediaOrRespond, readRouteParam, rejectForeignWorkspace } from 
  *    distinction is only ever visible to an already-authorized principal.
  *
  * RANGE SUPPORT: `Range: bytes=...` is honored via `parseRangeHeader`
- * (`http/range.ts`) so a `<video>` tag can seek instead of buffering the whole
+ * (`apps/website/src/server/inbound/admin-http/range.ts`) so a `<video>` tag can seek instead of buffering the whole
  * file — see that module's doc comment for the exact malformed/multi-range/
  * out-of-bounds handling this defers to.
  */

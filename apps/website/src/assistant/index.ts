@@ -32,7 +32,7 @@
 // A — Site Assistant (public/visitor-facing runtime)
 //
 // The anonymous-visitor chat's server-side surface (ADR-054, SPEC-046). Consumed almost entirely by
-// `server/modules/site-assistant.ts`'s SSE route composition.
+// `apps/website/src/server/runtime/composition/modules/site-assistant.ts`'s SSE route composition.
 // ---------------------------------------------------------------------------------------------
 export { createSiteCapabilityRegistry } from "./site/capability-registry.js";
 export type {
@@ -85,7 +85,7 @@ export type {
   SiteAssistantCredentialView,
   ResolvedSiteAssistantCredential,
 } from "./site-credential-store.js";
-// ADR-006 rule-of-two in-memory adapter — `server/app.ts`'s hermetic composition root.
+// ADR-006 rule-of-two in-memory adapter — `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition root.
 export { InMemorySiteAssistantCredentialRepo } from "./site-credential-store.memory.js";
 
 // `db/sqlite/site-credential-repo.sqlite.ts` picks up `SiteAssistantCredentialRepoPort`/
@@ -97,7 +97,7 @@ export { InMemorySiteAssistantCredentialRepo } from "./site-credential-store.mem
 // C — BYOK In-Process Execution (admin)
 //
 // The admin dock's provider-direct "API · BYOK" run path (ADR-049), a second execution mode
-// alongside the Local CLI daemon proxy in section D. Consumed by `server/modules/assistant-byok.ts`
+// alongside the Local CLI daemon proxy in section D. Consumed by `apps/website/src/server/runtime/composition/modules/assistant-byok.ts`
 // (the composition point) plus the execution-credential CRUD routes.
 // ---------------------------------------------------------------------------------------------
 export {
@@ -149,7 +149,7 @@ export type { ByokToolSurface, ByokToolSurfaceDeps } from "./byok-tool-surface.j
 // ---------------------------------------------------------------------------------------------
 // D — Admin Daemon Proxy / Process Composition
 //
-// Consumed by `server/modules/assistant.ts` (the Local CLI daemon-proxy composition — most of these
+// Consumed by `apps/website/src/server/runtime/composition/modules/assistant.ts` (the Local CLI daemon-proxy composition — most of these
 // files have exactly one external importer, this module) plus `src/index.ts` (the process entry
 // point, for daemon-lifecycle concerns).
 // ---------------------------------------------------------------------------------------------
@@ -248,7 +248,7 @@ export type { DuplicateResourceHandlerContributor } from "./tool-registrations.j
 //
 // `persistence/store-factory.ts` picks the concrete `ChatStoreFactory` (SQLite vs. in-memory) —
 // Category 3, an ADR-006 composition root selecting an adapter, not a leak. Consumed by
-// `server/app.ts` and `server/deps.ts`.
+// `apps/website/src/server/runtime/composition/app.ts` and `apps/website/src/server/runtime/composition/deps.ts`.
 // ---------------------------------------------------------------------------------------------
 export { createChatStoreFactory, createInMemoryChatHistory } from "./persistence/store-factory.js";
 export { createChatRunLedger, type ChatRunLedger, type RunSettlement } from "./persistence/run-ledger.js";
@@ -256,7 +256,7 @@ export type { ChatStoreFactory } from "./persistence/tenant-scope.js";
 
 // `persistence/agent-session-store.ts`'s SQLite/in-memory pair, same ADR-006 "composition root
 // selects the adapter" shape as the chat-history pair immediately above, for the same two
-// consumers (`server/app.ts` and `server/deps.ts`) plus `agent-daemon-server.ts`'s `onStarted` —
+// consumers (`apps/website/src/server/runtime/composition/app.ts` and `apps/website/src/server/runtime/composition/deps.ts`) plus `agent-daemon-server.ts`'s `onStarted` —
 // the per-conversation agent-CLI session id lookup that backs `AgentExecutorRunInput.resumeSessionId`/
 // `.newSessionId` (`RunEndPayload.sessionRef`'s round trip, `@jini-ai/protocol`'s doc on that field).
 // `AgentSessionStore` (the type) stays un-re-exported here, same "routes/types.ts deep-imports it

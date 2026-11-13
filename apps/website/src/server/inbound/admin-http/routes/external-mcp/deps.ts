@@ -4,7 +4,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file Narrow `RouteDeps` slice for the `external-mcp` server module, in the shape
- * `routes/admin/connectors/deps.ts` and `routes/admin/media/deps.ts` established.
+ * the connector route dependencies and `apps/website/src/server/inbound/admin-http/routes/media/deps.ts` established.
  *
  * One slice rather than connectors' two: every route here reads the same roster, and the write
  * routes need the sealer that the read route does not. Splitting on that axis would separate a

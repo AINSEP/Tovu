@@ -7,9 +7,9 @@ import { userAccountProtection } from "#src/features/identity/delete-user-servic
 /**
  * GET users — list a workspace's human (`kind='user'`) principals for the
  * admin UI. No dedicated `listUsers` business-logic function exists in
- * `src/identity` (that library exports grant-writing mutations, not
+ * `Jini packages/user-management/src/server/index.ts` (that library exports grant-writing mutations, not
  * read-side wrappers) — this route calls the repo ports directly, mirroring
- * `routes/admin/members/list.ts`'s reasoning.
+ * `apps/website/src/server/inbound/admin-http/routes/members/list.ts`'s reasoning.
  *
  * Non-human principals (`system`, `agent`, `api_key` — including the
  * disabled legacy `user-local` seed row) are filtered out: this screen is

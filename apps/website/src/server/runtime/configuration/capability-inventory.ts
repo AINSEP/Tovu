@@ -6,8 +6,8 @@
  * field completeness at compile time — a `CapabilityInventoryEntry` missing a required field
  * will not compile.
  *
- * `hasDurableAdapter` reflects `src/server/deps.ts` (`createSiteRouteDeps`) — the real
- * production composition root — as of this spec, not `src/server/app.ts` (the hermetic
+ * `hasDurableAdapter` reflects `apps/website/src/server/runtime/composition/deps.ts` (`createSiteRouteDeps`) — the real
+ * production composition root — as of this spec, not `apps/website/src/server/runtime/composition/app.ts` (the hermetic
  * in-memory test/dev composition, which is in-memory everywhere by design and never
  * production-classified-relevant). Per INV-03, this field is this inventory's own
  * independently-asserted verification, not a passthrough of any adapter's self-reported

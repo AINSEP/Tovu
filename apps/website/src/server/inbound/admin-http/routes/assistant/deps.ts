@@ -16,7 +16,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `getEffective`/`set` are here because `assistant/public-assistant-settings.ts`'s deps bags now take
  * them by injection rather than static import (module-cycle avoidance, see that file's header) — this
  * Pick is how the real functions reach these 2 routes without either route importing
- * `features/settings` itself. A genuine narrowing (mirrors `routes/admin/seo/deps.ts`'s identical
+ * `features/settings` itself. A genuine narrowing (mirrors `apps/website/src/server/inbound/admin-http/routes/seo/deps.ts`'s identical
  * rationale for the same settings shape), not a `RouteDeps` widening.
  *
  * ADR-058 folded the 3 site-credential registrars (`get-site-credential.ts`,
@@ -36,7 +36,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * could reach even without an extra permission gate — but they still need `adminExecutionCredentialRepo`
  * for the same reason the site-credential trio needs `siteAssistantCredentialRepo`.
  *
- * Deliberately NOT folded into `server/modules/assistant.ts`. That module is the session-gated
+ * Deliberately NOT folded into `apps/website/src/server/runtime/composition/modules/assistant.ts`. That module is the session-gated
  * reverse proxy in front of the agent-daemon process and shares none of these dependencies — it
  * holds no repo at all. Sharing a module would couple a settings CRUD pair to a streaming proxy's
  * lifetime for no reason beyond both having "assistant" in the name.

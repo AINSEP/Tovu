@@ -22,7 +22,7 @@ function parseCreateSubscriptionInput(req: Request): { label: string; targetUrl:
 /**
  * POST create a webhook subscription.
  *
- * Gated by `admin.integrations.manage` (registered in `identity/permissions.ts`), checked directly via
+ * Gated by `admin.integrations.manage` (registered in `Jini packages/user-management/src/core/builtin-permissions.ts`), checked directly via
  * `authorize()` — mirrors `members/disable.ts`'s pattern since subscription mutations are a direct
  * feature call, not routed through the SPEC-001 command gateway.
  */

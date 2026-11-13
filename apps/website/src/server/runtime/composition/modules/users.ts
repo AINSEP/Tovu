@@ -25,7 +25,7 @@ import type { ServerModuleHandle } from "./types.js";
  * @file ADR-046 Phase 3 (SPEC-040) — the `users` server module (users/roles/policies admin
  * CRUD, ADR-021/SPEC-006 identity RBAC).
  *
- * `UsersRouteDeps` (new this pass, `routes/admin/users/deps.ts`) is a genuine `Pick<RouteDeps,
+ * `UsersRouteDeps` (new this pass, `apps/website/src/server/inbound/admin-http/routes/users/deps.ts`) is a genuine `Pick<RouteDeps,
  * ...>` narrowing — see that file's header for the confirmed field set, and for why
  * `identityReposFrom`/`identityServiceDepsFrom` (the pre-existing, unrelated helper functions in
  * the same file) were retyped from `RouteDeps` to this same narrow type rather than left

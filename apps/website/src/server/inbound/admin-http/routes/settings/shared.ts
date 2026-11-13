@@ -93,7 +93,7 @@ export function resolveTargetWorkspaceId(
  *
  * Read is NOT implied by write here: this checks `settings.user.read` and nothing else, so the
  * permission model no longer conflates the two. Existing write-holders are not locked out —
- * `identity/permissions.ts` registers a one-time additive `settings.user.write -> settings.user.read`
+ * `Jini packages/user-management/src/core/builtin-permissions.ts` registers a one-time additive `settings.user.write -> settings.user.read`
  * grant fan-out for that, which is where the compatibility concern belongs (grant data), not here
  * (the authorization check).
  */

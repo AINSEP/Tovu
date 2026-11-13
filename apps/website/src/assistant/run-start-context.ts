@@ -62,7 +62,7 @@ function readRecoveryContext(
  * @param contextRef - The raw JSON string from `RunStartHandler`'s `request.contextRef`.
  * @returns The seven fields `onStarted` forwards into the prompt prefix, `principalByRunId`, the
  *   attachment claim step, `AgentExecutor.run()`'s `model` and `reasoning`, the Agent Plugin
- *   resolution step, and the per-conversation agent-session lookup (`agent-session-resume.ts`)
+ *   resolution step, and the per-conversation agent-session lookup (`Jini packages/daemon/src/session-coordination.ts`)
  *   respectively — plus the optional `pageContext` (`run-page-context.ts`) the prompt block is
  *   rendered from.
  * @throws If `contextRef` is not valid JSON, or decodes without a non-empty string `prompt` or

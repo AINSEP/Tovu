@@ -100,7 +100,7 @@ export interface AttachFederatedMcpToolsParams {
   connections?: readonly ResolvedFederatedConnection[];
   /**
    * Connections from a config source that is not the preset registry — today, the operator-editable
-   * roster in `assistant/external-mcp-store.ts`.
+   * roster in `apps/website/src/features/external-mcp/external-mcp-store.ts`.
    *
    * A second parameter rather than a second preset, because `FederatedMcpPresetResolver` cannot
    * express this source: it is synchronous (a DB read plus an unseal are not) and returns at most

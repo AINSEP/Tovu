@@ -49,9 +49,9 @@ const DRIZZLE_MIGRATIONS_TABLE = "__drizzle_migrations";
  * journal's head once the baseline is recorded — the same identity `.site-meta.json` is stamped with
  * on every dialect; SQLite schema-state reads still match legacy timestamps to the journal.
  *
- * `server/deps.ts` composes the real `SqliteDatabaseIntrospectionAdapter` against the SAME already-
+ * `apps/website/src/server/runtime/composition/deps.ts` composes the real `SqliteDatabaseIntrospectionAdapter` against the SAME already-
  * open `ContentDb` handle `restorePointsRepo`/`dbOps` reuse (no second connection is ever opened);
- * `server/app.ts`'s hermetic composition uses `repo.memory.ts`'s `InMemoryDatabaseIntrospectionAdapter`
+ * `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition uses `repo.memory.ts`'s `InMemoryDatabaseIntrospectionAdapter`
  * instead. `drift.ts` — now colocated in this same `db/` directory (see below) — is exactly the
  * "adapter that reads two real `SchemaSnapshot`s and passes them in" its own doc comment says
  * callers must supply.

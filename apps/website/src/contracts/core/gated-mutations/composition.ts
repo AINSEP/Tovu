@@ -67,7 +67,7 @@ export function buildGatewayDeps(params: {
 /**
  * The minimal `InstanceAuthorizeFn` binding: grants every permission to exactly the seeded owner
  * principal, denies everyone else — the RBAC-table equivalent of `authorize()`'s own
- * `owner_wildcard` precedent (`@jini-ai/user-management/server/authorize.ts`), reused here rather than
+ * `owner_wildcard` precedent (`Jini packages/user-management/src/server/authorize.ts`), reused here rather than
  * inventing new vocabulary. Disclosed simplification, same shape as `resolveActorClassIdentity`'s
  * disclosure below: `db/schema.sqlite.ts`'s RBAC tables (`principals`/`roles`/`policies`/...) are all
  * `workspace_id NOT NULL` — today's identity model has no dedicated instance-level policy/permission

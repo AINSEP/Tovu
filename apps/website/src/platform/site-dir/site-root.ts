@@ -18,7 +18,7 @@ import { createSitesWorkspace } from "./sites-home.js";
  * `agent-plugins/` and journals — ADR-012's install-dir model, already implemented for the CLI by
  * SPEC-003's `tovu init` / `tovu serve <dir>` (`boot-site-dir.ts`). This function is that same
  * model's DEFAULT for hosts that were never given an install dir: the non-CLI boot path
- * (`src/index.ts` -> `server/deps.ts`) and the two feature layouts below, all of which previously
+ * (`src/index.ts` -> `apps/website/src/server/runtime/composition/deps.ts`) and the two feature layouts below, all of which previously
  * derived their own `<cwd>/infra/...` path independently.
  *
  * Architectural role:
@@ -27,7 +27,7 @@ import { createSitesWorkspace } from "./sites-home.js";
  * or `src/cli` import (INV-06), which is what lets `src/features/{skills,agent-plugins}/layout.ts`
  * share it without either feature reaching into the composition root.
  *
- * Callers: `server/deps.ts`'s `siteDir()`, `features/skills/layout.ts`'s `resolveSkillLayout`,
+ * Callers: `apps/website/src/server/runtime/composition/deps.ts`'s `siteDir()`, `features/skills/layout.ts`'s `resolveSkillLayout`,
  * `features/agent-plugins/layout.ts`'s `resolveAgentPluginLayout`.
  */
 

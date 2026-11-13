@@ -383,11 +383,11 @@ async function main(): Promise<void> {
 }
 
 // ADR-049 (process-shape correction) — Tovu never spawns a coding-agent CLI itself; that lives
-// entirely in `src/assistant/agent-daemon-server.ts`, a separate OS process. `startAssistantDaemon`
+// entirely in `apps/website/src/server/inbound/assistant/agent-daemon-server.ts`, a separate OS process. `startAssistantDaemon`
 // (registered above inside `app.listen()`'s callback; demand awaits boot-readiness) now
 // owns the full spawn-and-supervise lifecycle — including automatic respawn with backoff, a
 // crash-loop cap, and the manual restart seam a future admin action can call — in
-// `src/assistant/daemon-supervisor.ts`. Moved out of this file because `index.ts` self-invokes
+// `apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts`. Moved out of this file because `index.ts` self-invokes
 // `main()` at module load (see this file's own header), so it can never be imported by a test;
 // `daemon-supervisor.ts` carries the same env-propagation (`TOVU_WORKSPACE`, `TOVU_PARENT_PID`),
 // process-group-detachment, and stdio-piping behavior this function used to, unchanged — see that

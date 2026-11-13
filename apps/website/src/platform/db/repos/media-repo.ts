@@ -37,7 +37,7 @@ import type {
  *
  * Architectural role:
  * Infrastructure adapters. `media` never imports this file — it depends only on the ports;
- * composition roots (`server/deps.ts`) bind the concrete classes.
+ * composition roots (`apps/website/src/server/runtime/composition/deps.ts`) bind the concrete classes.
  */
 
 type ContentQueries = Kysely<ContentDatabase>;
@@ -210,9 +210,9 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
    * Newest-first (owner-directed, 2026-09-11: "have a sort by to see our most recent images" —
    * she checks this list right after an agent plugin generates one, e.g. Higgsfield's
    * `media_import_from_url`, so "what did I just make" has to land at the top with no extra
-   * step). `MediaRepoPort.list()`'s own doc (`@jini-ai/cms/media/ports.ts`) never promised any
+   * step). `MediaRepoPort.list()`'s own doc (`Jini packages/cms/src/media/ports.ts`) never promised any
    * particular order, and no caller in this codebase sorted the result itself (confirmed: neither
-   * `listMedia()` in `@jini-ai/cms/media/media-service.ts`, nor `media_list_assets`'s handler in
+   * `listMedia()` in `Jini packages/cms/src/media/media-service.ts`, nor `media_list_assets`'s handler in
    * that same package's `tool-registrations.ts`, nor the admin route below, nor
    * `apps/admin/src/features/media/hooks/use-media.hooks.ts` on the client) — so choosing newest-
    * first here is additive, not a documented-contract break, and it is the ONE choke point both
@@ -232,7 +232,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
    * rows created by the same batch call in the same tick — rare enough that the tiebreaker's job
    * is determinism, not correctness of "which is newer."
    *
-   * Deliberately NOT added to `InMemoryMediaRepo.list()` (`@jini-ai/cms/media/repo.memory.ts`):
+   * Deliberately NOT added to `InMemoryMediaRepo.list()` (`Jini packages/cms/src/media/repo.memory.ts`):
    * that adapter lives in the separate Jini package/repo this file's own header says composition
    * roots bind against, not maintain, and production never constructs it (see this comment's own
    * "one choke point" note above) — a disclosed, Tovu-scoped fix, not a silent rule-of-two parity

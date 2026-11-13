@@ -57,13 +57,13 @@ import type { DeliverResult, SurfaceDeliveryRejectionReason, SurfaceExchangeStor
  * there, sharing the SAME store instance `buildAssistantToolRegistrations` was given — a different
  * instance would leave every A2UI exchange unreachable, 409-ing until the agent's call times out.
  *
- * Reached only through Tovu's own admin-session-authenticated proxy (`src/server/modules/
- * assistant.ts`), which attaches the daemon bearer token like every other forwarded route — so this
- * module adds no exemption to the daemon's global bearer gate (`daemon-auth.ts`) and trusts
- * {@link RUN_PRINCIPAL_HEADER} the same way `mcp-ui-tool-calls-route.ts` and `run-ownership.ts` do.
+ * Reached only through Tovu's own admin-session-authenticated proxy (`apps/website/src/server/runtime/composition/modules/assistant.ts`),
+ * which attaches the daemon bearer token like every other forwarded route — so this
+ * module adds no exemption to the daemon's global bearer gate (`apps/website/src/assistant/daemon-access.ts`) and trusts
+ * {@link RUN_PRINCIPAL_HEADER} the same way `mcp-ui-tool-calls-route.ts` and `apps/website/src/assistant/daemon-access.ts` do.
  */
 
-/** Mounted at the same path Tovu's proxy exposes to the browser — see `server/modules/assistant.ts`. */
+/** Mounted at the same path Tovu's proxy exposes to the browser — see `apps/website/src/server/runtime/composition/modules/assistant.ts`. */
 export const A2UI_ACTIONS_PATH = "/api/admin/v1/a2ui/actions";
 
 export interface A2uiActionsRouteDeps {

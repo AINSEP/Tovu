@@ -12,7 +12,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * taxonomy/deps.ts`'s identical rationale), not a `RouteDeps`-widening extension.
  *
  * `bus` (2026-09-03 outbox-drain audit fix) joins `outbox` for the same reason
- * `routes/admin/content/deps.ts`'s `ContentRouteDeps` and `routes/admin/workspace/deps.ts`'s
+ * `apps/website/src/server/inbound/admin-http/routes/content/deps.ts`'s `ContentRouteDeps` and `apps/website/src/server/inbound/admin-http/routes/workspace/deps.ts`'s
  * `WorkspaceRouteDeps` both carry the identical `EventBusDeps` pair (see that group's own doc in
  * `server/routes/types.ts`): `entries/{create,update,lifecycle}.ts` and `content-types/lifecycle.ts`
  * each enqueue an outbox event on a successful write and drain it with `processOutbox({

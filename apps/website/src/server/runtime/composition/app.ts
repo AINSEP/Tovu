@@ -125,7 +125,7 @@ import { createInMemoryChatHistory, createInMemoryAgentSessionStore, InMemorySit
 import { InMemoryExternalMcpServerRepo } from "../../../features/external-mcp/external-mcp-store.memory.js";
 // Deep-imported rather than routed through the barrel above: `assistant/index.ts`'s Section D
 // ("Admin Daemon Proxy / Process Composition") is documented as consumed by the DAEMON's own proxy
-// composition (`server/modules/assistant.ts`) — this route is the opposite of that, a plain static
+// composition (`apps/website/src/server/runtime/composition/modules/assistant.ts`) — this route is the opposite of that, a plain static
 // page served by THIS website server for the browser's iframe to load directly (see the route's own
 // module doc). Filing it under Section D would misdescribe it. `app.ts` is a composition root
 // (`.dependency-cruiser.mjs`'s `COMPOSITION_ROOTS`), exempt from `no-deep-imports:assistant` for
@@ -429,7 +429,7 @@ export interface CreateRouteDepsOptions {
    * call (REQ-02). Omitted by default — this composition root is documented "hermetic, no
    * filesystem" (see file header) and every existing caller relies on that; passing a real
    * directory here is opt-in, for a caller that specifically wants to exercise site-plugin
-   * discovery through this in-memory root instead of `server/deps.ts`'s SQLite one. */
+   * discovery through this in-memory root instead of `apps/website/src/server/runtime/composition/deps.ts`'s SQLite one. */
   readonly installDir?: string;
   /** D1 — the seed-version lookup this instance plans and applies imports against. Omitted means
    *  this hermetic root ships no seed ({@link NO_PUBLISH_CONTENT_SEED_HASH}); a two-instance test
@@ -963,7 +963,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // registers a content type into, silently breaking every collection-configured widget.
   const contentTypeRepo = new InMemoryContentTypeRepo();
   const contentTypeIndexProvisioner = new NoopContentTypeIndexProvisioner();
-  // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — mirrors `server/deps.ts`'s
+  // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — mirrors `apps/website/src/server/runtime/composition/deps.ts`'s
   // identical fix: without this, no test exercising the real HTTP path ever ran a dynamic widget
   // type (`menu`/`recent-entries`/`contact-form`) through its actual resolver, only test doubles.
   // No site directory means no creation zone; an unset `core.site.timezone` uses the server's zone.
@@ -1023,7 +1023,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
 
   // ADR-058: the SITE assistant credential store's OWN `KeyringPort` instance, deliberately not
   // `newsletterKeyring` above — see `routes/types.ts`'s `siteAssistantSecretKeyring` doc and ADR-058
-  // §2 for why a separate instance matters in the real composition root (`server/deps.ts`). This
+  // §2 for why a separate instance matters in the real composition root (`apps/website/src/server/runtime/composition/deps.ts`). This
   // hermetic root has no "fail closed on a missing env var" concern to preserve (there is no env var
   // here at all), so a second `InMemoryKeyring` is just the same rule-of-two test double, kept
   // distinct so this root's wiring shape matches `deps.ts`'s one-instance-per-purpose shape.
@@ -1172,7 +1172,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   });
   const federatedMcpPresetRegistry = createFederatedMcpPresetRegistry({});
   const skillLayout = resolveSkillLayout({ siteDir: siteBinding.dir });
-  // 2026-08-17 — hermetic double for `server/deps.ts`'s real `SqliteCustomCredentialSetRepo`; see
+  // 2026-08-17 — hermetic double for `apps/website/src/server/runtime/composition/deps.ts`'s real `SqliteCustomCredentialSetRepo`; see
   // `routes/types.ts`'s `customCredentialSetRepo` doc. One instance: the plugin connections read an
   // admin's own OAuth client from the same saved credentials the Access Tokens routes write.
   const customCredentialSetRepo = new InMemoryCustomCredentialSetRepo();
@@ -1272,7 +1272,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // not live in any SQLite database, so a real-adapter-over-scratch-db would edit rows nothing
     // else in this root can see. See `features/pages/html-document-store.memory.ts`'s header.
     // `entryRefsRepo` (SPEC-047 Slice 3) is the same instance `RouteDeps.entryRefsRepo` below
-    // exposes — one shared index, mirroring `server/deps.ts`'s identical wiring. No separate
+    // exposes — one shared index, mirroring `apps/website/src/server/runtime/composition/deps.ts`'s identical wiring. No separate
     // `revisions:` field to wire here (S1, fix plan 2026-09-24 row 14) — unlike the sqlite store,
     // this double's `deps.repo` is already the full `postRepo`, so its own `appendRevision` calls
     // use that same instance unconditionally; see `html-document-store.memory.ts`'s header.
@@ -1447,7 +1447,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // (Phase 4) until the real KeyringPort/HttpClientPort/SQLite adapters are wired in deps.ts.
     webhookSigner: createKeyringBackedSigner(newsletterKeyring),
     // `media` (ADR-027 walking skeleton): in-memory rows + in-memory blob bytes here so tests
-    // stay hermetic (no filesystem writes) — the real running server (`server/deps.ts`) uses
+    // stay hermetic (no filesystem writes) — the real running server (`apps/website/src/server/runtime/composition/deps.ts`) uses
     // `LocalFsBlobStore` for actual byte durability while keeping rows in-memory too (see that
     // file's comment for why: no SQLite adapter exists yet for this newer library, matching the
     // disclosed precedent the last several admin-section libraries followed).
@@ -1460,15 +1460,15 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // rows (no SQLite adapter yet, same disclosed precedent as the media repos above) and the
     // deterministic `InMemoryImageTransformer` test double here so hermetic tests never depend on
     // `sharp` being installed — see `src/media/image-transformer.sharp.ts`'s file header for the
-    // disclosed blocker on the real adapter, which `server/deps.ts` wires instead.
+    // disclosed blocker on the real adapter, which `apps/website/src/server/runtime/composition/deps.ts` wires instead.
     transformDefinitionRepo,
     imageTransformer: new InMemoryImageTransformer(),
     imageCodec: new SharpImageTransformer(),
     // SPEC-011 (Newsletter): in-memory adapters — no `declareDataModule()` boot step needed (that
-    // mechanism is SQLite-only), so `newsletterReady` resolves immediately, unlike `server/deps.ts`'s
+    // mechanism is SQLite-only), so `newsletterReady` resolves immediately, unlike `apps/website/src/server/runtime/composition/deps.ts`'s
     // real fire-and-forget install. `membersConsentCapability` stays `null` (unbound) — see that
     // file's identical note.
-    // T030: seed the default "all subscribers" list once, same as `server/deps.ts`'s real boot path.
+    // T030: seed the default "all subscribers" list once, same as `apps/website/src/server/runtime/composition/deps.ts`'s real boot path.
     newsletterReady: ensureDefaultList({
       deps: { listRepo: newsletterListRepoInMemory, clock, ids: idGen },
       input: { workspaceId: seededWorkspace.id },
@@ -1498,10 +1498,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     executeCommand,
     formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,
-    // matching `server/deps.ts`'s real composition's identical construction.
+    // matching `apps/website/src/server/runtime/composition/deps.ts`'s real composition's identical construction.
     siteAssistantRateLimiter: createRateLimiter({ profile: SITE_ASSISTANT_PER_IP, clock }),
     // ADR-041 §1/§2 (Database Timeline): in-memory ledger, same disclosed precedent as every other
-    // feature's hermetic test/dev composition above. `server/deps.ts`'s real composition opens
+    // feature's hermetic test/dev composition above. `apps/website/src/server/runtime/composition/deps.ts`'s real composition opens
     // the sidecar `ops/database-journal.db` and uses `SqliteDatabaseLedgerRepo` instead.
     databaseLedgerRepo: new InMemoryDatabaseLedgerRepo(),
     migrationRunsRepo: new InMemoryMigrationRunsRepo(),
@@ -1528,10 +1528,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     siteStatusRepo: new InMemorySiteStatusRepo(),
     disclosureWatermarkSource: new AlwaysUnavailableWatermarkSource(),
     deepLinkRestorePointLookup: new RestorePointDeepLinkLookup(restorePointsRepo),
-    // SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — same composition `server/deps.ts`
+    // SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — same composition `apps/website/src/server/runtime/composition/deps.ts`
     // wires for the real server, mirrored here for the hermetic test/dev composition (its own
     // `InMemoryTokenStore` instance — see `core/gated-mutations/composition.ts`'s file header for
-    // the disclosed `TokenStorePort` decision). `authorizeInstance` mirrors `server/deps.ts`'s own
+    // the disclosed `TokenStorePort` decision). `authorizeInstance` mirrors `apps/website/src/server/runtime/composition/deps.ts`'s own
     // owner-only instance-scope binding (`GatewayDeps.authorizeInstance`'s doc comment).
     gatedMutations: {
       gatewayDeps: buildGatewayDeps({
@@ -1602,7 +1602,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // for why a plain static import replaced the `require()` this used to carry.
     runExportSite,
     // Read ONCE here rather than deep in `export-run.ts`/`cli/commands/export.ts` — see
-    // `server/deps.ts`'s `resolveExportOutputRootDir` doc and `routes/types.ts`'s
+    // `apps/website/src/server/runtime/composition/deps.ts`'s `resolveExportOutputRootDir` doc and `routes/types.ts`'s
     // `exportOutputRootDir` doc. Rooted at the same `describeSiteBinding()` this root reports as
     // `siteBinding`, as are the publish and source-control roots below.
     exportOutputRootDir: resolveExportOutputRootDir({ siteDir: describeSiteBinding().dir }),
@@ -1612,7 +1612,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     adminAssistantEnabled: isAdminAssistantEnabled(),
     // 2026-08-16 — see `routes/types.ts`'s `createSiteApp` doc: the direct reference this file can
     // take (createApp is declared in this same module) closing `export -> server` for the in-memory
-    // composition root. `server/deps.ts`'s SQLite composition root needs the lazy-`require`d
+    // composition root. `apps/website/src/server/runtime/composition/deps.ts`'s SQLite composition root needs the lazy-`require`d
     // equivalent instead, since it cannot take a same-file reference.
     //
     // 2026-08-20 (RouteDeps-narrowing pass 2) — now NULLARY, closed over the `const routeDeps`
@@ -1638,14 +1638,14 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     resolveActiveThemeId: () => resolveActiveThemeId(routeDeps),
     listPublishedPosts: () =>
       listPublishedPosts({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } }),
-    // 2026-08-16 rework — hermetic double for `server/deps.ts`'s real `SqlitePublishHistoryStore`;
+    // 2026-08-16 rework — hermetic double for `apps/website/src/server/runtime/composition/deps.ts`'s real `SqlitePublishHistoryStore`;
     // see `routes/types.ts`'s `publishHistoryStore` doc.
     publishHistoryStore: new InMemoryPublishHistoryStore(),
     // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishExecutionMode` doc.
     // `executionModeFromEnv()` (not a hardcoded `"self-hosted-cli"`) so a test can still exercise
     // `TOVU_EXECUTION_MODE=hosted-api-only` against this hermetic root.
     publishExecutionMode: executionModeFromEnv(),
-    // Read ONCE here rather than deep in `static-publish/adapter.ts` — see `server/deps.ts`'s
+    // Read ONCE here rather than deep in `static-publish/adapter.ts` — see `apps/website/src/server/runtime/composition/deps.ts`'s
     // `resolvePublishOutputRootDir` doc and `routes/types.ts`'s `publishOutputRootDir` doc.
     publishOutputRootDir: resolvePublishOutputRootDir({ siteDir: describeSiteBinding().dir }),
     // Hermetic: every bundled plugin's own source directory (each hosting plugin ships its own
@@ -1664,19 +1664,19 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // And the bundled plugins' credential scheme rules — see `routes/types.ts`'s `loadAuthSchemes` doc.
     loadAuthSchemes: async () =>
       (await loadBundledCredentialSchemeRegistry({ sourceRoot: bundledAgentPluginsDir() })).rules,
-    // 2026-08-16 — hermetic double for `server/deps.ts`'s real (also in-memory — see
+    // 2026-08-16 — hermetic double for `apps/website/src/server/runtime/composition/deps.ts`'s real (also in-memory — see
     // `routes/types.ts`'s `publishCredentialVerificationCache` doc for why this cache is
     // deliberately never DB-backed) instance.
     publishCredentialVerificationCache: new InMemoryPublishCredentialVerificationCache(),
-    // 2026-08-15 — hermetic double for `server/deps.ts`'s real
+    // 2026-08-15 — hermetic double for `apps/website/src/server/runtime/composition/deps.ts`'s real
     // `SqliteSourceControlCredentialSetRepo`; see `routes/types.ts`'s
     // `sourceControlCredentialSetRepo` doc.
     sourceControlCredentialSetRepo: new InMemorySourceControlCredentialSetRepo(),
-    // Read ONCE here rather than deep in `source-control/commit-site.ts` — see `server/deps.ts`'s
+    // Read ONCE here rather than deep in `source-control/commit-site.ts` — see `apps/website/src/server/runtime/composition/deps.ts`'s
     // `resolveSourceControlExportRootDir` doc and `routes/types.ts`'s `sourceControlExportRootDir`
     // doc.
     sourceControlExportRootDir: resolveSourceControlExportRootDir({ siteDir: describeSiteBinding().dir }),
-    // 2026-08-16 (Phase 3) — hermetic double for `server/deps.ts`'s real
+    // 2026-08-16 (Phase 3) — hermetic double for `apps/website/src/server/runtime/composition/deps.ts`'s real
     // `SqliteVendorCredentialSetRepo`; see `routes/types.ts`'s `vendorCredentialSetRepo` doc.
     vendorCredentialSetRepo: new InMemoryVendorCredentialSetRepo({}),
     customCredentialSetRepo,
@@ -1684,7 +1684,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `routes/types.ts`'s `customCredentialsHttpClient` doc. `createDefaultHttpClient` performs no
     // I/O until a request is actually sent, so building a real one here (rather than a fake) keeps
     // this hermetic composition root's own tests exercising the real SSRF-guard/host-binding path.
-    // `CUSTOM_CREDENTIALS_EGRESS_POLICY`: the SAME policy `server/deps.ts` uses for its own instance
+    // `CUSTOM_CREDENTIALS_EGRESS_POLICY`: the SAME policy `apps/website/src/server/runtime/composition/deps.ts` uses for its own instance
     // (2026-09-10) — see that export's own doc for why this domain needed to follow a GET redirect
     // (GitHub's Actions job-logs endpoint 302s to a signed Azure Blob URL) and could no longer share
     // the mailer's zero-redirect `SINGLE_HOP_HTTPS_EGRESS_POLICY`.
@@ -2175,7 +2175,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // `mail_get_readiness`, `mail_list_activity`, `mail_get_activity`).
   registerAdminMailActivityRoutes(app, routeDeps);
   // Admin "Restart assistant" action (`system.write`-gated) — the manual recovery seam for the
-  // locally-spawned agent daemon, sibling to the on-demand recovery `server/modules/assistant.ts`'s
+  // locally-spawned agent daemon, sibling to the on-demand recovery `apps/website/src/server/runtime/composition/modules/assistant.ts`'s
   // daemon-proxy code now triggers automatically on a known-failed request. See that route file's
   // own header for why its response never claims the daemon is healthy again.
   registerAdminAssistantDaemonRoutes(app, routeDeps);
@@ -2243,7 +2243,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   mountRoutes(app, createCommentsModerationModule(routeDeps));
   // ADR-046 Phase 3 (SPEC-040): the `menus` server module — 6 admin CRUD/location-assignment
   // routes (ADR-029). `MenuRouteDeps` reused as-is from its existing location in
-  // `http/admin/menus.ts` (see `modules/menus.ts`'s file header for why it lives there).
+  // `apps/website/src/server/inbound/admin-http/http/menus.ts` (see `modules/menus.ts`'s file header for why it lives there).
   mountRoutes(app, createMenusModule(routeDeps));
   // SPEC-043 (widgets, ADR-047) — 13 admin routes (instance CRUD, region binding/placement,
   // server-side embed mutation) + the widgets.place/create/remove/diagnose AI tool surface.

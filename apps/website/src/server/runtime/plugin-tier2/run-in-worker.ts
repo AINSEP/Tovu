@@ -10,7 +10,7 @@
  * boundary and a heap cap per call, and the plugin's code never runs in the server's isolate.
  *
  * Every transport failure (timeout, crash, heap limit, malformed reply) rejects, so the caller —
- * `tier2/import-seam.ts`, then `hook-registry.ts` — fails the save closed and counts it toward
+ * `Jini packages/plugins/src/host/worker/import-seam.ts`, then `hook-registry.ts` — fails the save closed and counts it toward
  * quarantine exactly as for a throwing in-process filter.
  */
 import path from "node:path";
@@ -91,7 +91,7 @@ export interface CreateTier2WorkerRunnerOptional {
 }
 
 /**
- * Builds the runner `tier2/import-seam.ts` calls once per probe and once per filter invocation.
+ * Builds the runner `Jini packages/plugins/src/host/worker/import-seam.ts` calls once per probe and once per filter invocation.
  *
  * @returns A runner that rejects on timeout, worker error, exit without reply, or invalid reply.
  * @complexity O(1) own work per call (a fixed-size env allowlist), excluding worker startup and

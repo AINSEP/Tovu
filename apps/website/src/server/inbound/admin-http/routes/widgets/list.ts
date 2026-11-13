@@ -6,7 +6,7 @@ import type { RouteRegistrar } from "#src/server/routes/types";
 /**
  * GET the widget instance library (SPEC-043 REQ-04), `widgets.read`-gated. Defaults to
  * `active`-only (`?includeInactive=true` to also list `trash`/`purged`), narrowable by
- * `?widgetType=`. Mirrors `routes/admin/menus/list.ts`'s registration shape.
+ * `?widgetType=`. Mirrors `apps/website/src/server/inbound/admin-http/routes/menus/list.ts`'s registration shape.
  *
  * Response body carries optional `skippedCount` and `skippedIds` fields (dossier C5 follow-up,
  * 2026-08-03) — present only when `listWidgetInstances` dropped malformed records, so a client

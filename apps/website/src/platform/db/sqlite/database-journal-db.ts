@@ -15,7 +15,7 @@ import { applyDatabaseJournalSchema } from "./database-journal-schema.js";
  * local SQLite file on every content dialect.
  *
  * How it relates to the project:
- * The composition root (`server/deps.ts`) opens this alongside `content.db`, at
+ * The composition root (`apps/website/src/server/runtime/composition/deps.ts`) opens this alongside `content.db`, at
  * `<install-dir>/ops/database-journal.db` (ADR-012's install-dir tree), and injects the kernel into
  * `database-journal-repo.ts`'s adapters.
  *

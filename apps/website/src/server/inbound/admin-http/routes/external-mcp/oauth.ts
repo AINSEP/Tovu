@@ -30,7 +30,7 @@ const SHARED_MCP_PERMISSION = 'admin.integrations.manage';
  *
  * ## Rate limiting sits IN FRONT of the auth check
  *
- * Same ordering `routes/admin/connectors/connect.ts` uses, and for the same reason restated for
+ * Same ordering the connector connect route uses, and for the same reason restated for
  * this flow: every hit — even one that will be rejected — reaches a handler that mints sealed
  * `state` or makes a real outbound call to a third-party authorization server using the workspace's
  * own client id. `requireAdminSession` bounds WHO can call this, not how often. See

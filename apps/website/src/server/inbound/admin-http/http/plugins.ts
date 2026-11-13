@@ -7,6 +7,6 @@
  * module) needed it too and a feature reaching into `server/http/admin` for its own projection was
  * a back-edge into the composition root (2026-08-02 module-graph analysis, Phase 3-adjacent; same
  * treatment `Jini/packages/cms/src/widgets/where-used.ts` already received). Re-exported here purely so this file's own
- * consumers (`routes/admin/plugins/list.ts`/`set-enabled.ts`) keep their existing import site.
+ * consumers (`apps/website/src/server/inbound/admin-http/routes/plugins/list.ts`/`set-enabled.ts`) keep their existing import site.
  */
 export { toAdminPluginResponse, type AdminPluginEnvelope } from "#src/features/plugin-runtime/admin-response";

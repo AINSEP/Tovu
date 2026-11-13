@@ -14,7 +14,7 @@ import { resolveProtocol, resolvePublicOrigin } from "../oauth/public-origin.js"
  * is `CommentIngressPolicy` (rate-limit, honeypot, sanitize, spam-classify — see `Jini/packages/cms/src/comments/ingress.ts`).
  *
  * `authorIpHash` is computed HERE, at the HTTP boundary, from the raw request IP — the raw IP
- * itself is never passed into `ingressContext` or stored (mirrors `analytics/ingest.ts`'s
+ * itself is never passed into `ingressContext` or stored (mirrors `Jini packages/analytics/src/ingest.ts`'s
  * discard-raw-IP-at-the-boundary discipline).
  *
  * The salt is resolved once by the composition root (`resolveCommentsIpHashSalt`,

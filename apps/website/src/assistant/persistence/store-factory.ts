@@ -27,7 +27,7 @@ export function createChatStoreFactory(store: ChatKernel | SqliteConnectionSourc
 }
 
 /**
- * Chat history backed by a private in-memory database, for `server/app.ts`'s test composition
+ * Chat history backed by a private in-memory database, for `apps/website/src/server/runtime/composition/app.ts`'s test composition
  * root.
  *
  * Opened lazily, matching `InMemoryPostSearchIndex`'s reasoning next to it: many tests build route

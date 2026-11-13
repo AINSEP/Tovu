@@ -27,7 +27,7 @@ import type { GatedMutationTokensTable } from "../content-database.generated.js"
  *
  * Architectural role:
  * Infrastructure adapter. `core/gated-mutations` never imports this file — it depends only on
- * `TokenStorePort`; composition roots (`server/deps.ts`) bind the concrete class.
+ * `TokenStorePort`; composition roots (`apps/website/src/server/runtime/composition/deps.ts`) bind the concrete class.
  */
 
 function toRecord(row: Selectable<GatedMutationTokensTable>): ConfirmationTokenRecord {

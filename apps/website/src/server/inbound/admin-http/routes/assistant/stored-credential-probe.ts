@@ -60,7 +60,7 @@ import type { AssistantExecutionRouteDeps } from "./execution-deps.js";
  * principal can therefore still point the stored credential at a host they control and have the key
  * delivered there. That path is not silent the way this one was: it persists, `get-site-credential`
  * reports it back, it shows in the admin UI, and it breaks the live visitor assistant
- * (`server/modules/site-assistant.ts` uses the same stored endpoint) — so it is self-revealing where
+ * (`apps/website/src/server/runtime/composition/modules/site-assistant.ts` uses the same stored endpoint) — so it is self-revealing where
  * a body parameter left no trace at all. Closing it properly means constraining which endpoints may
  * be STORED, which is an allow-list and a product decision: `connection-guard.ts` deliberately
  * permits loopback for local Ollama, and real deployments point at custom gateways. That belongs in

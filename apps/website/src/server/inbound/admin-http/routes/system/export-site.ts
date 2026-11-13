@@ -44,7 +44,7 @@ export type { ExportRunCounts, ExportRunSnapshot, ExportRunStatus };
  * (`export-run.ts`) reads `RouteDeps.exportOutputRootDir` — the same `TOVU_EXPORT_DIR`
  * env-then-default value `cli/commands/export.ts`'s `resolveExportOutputDir` falls back to when its
  * own CLI-only `--out` flag is absent, both ultimately resolved once by the composition root
- * (`server/deps.ts`'s `resolveExportOutputRootDir`) — rather than accepting a caller-supplied path —
+ * (`apps/website/src/server/runtime/composition/deps.ts`'s `resolveExportOutputRootDir`) — rather than accepting a caller-supplied path —
  * the brief's own instruction ("do not invent a new location") doubles as a path-injection guard:
  * nothing here ever builds a filesystem path out of request input.
  *

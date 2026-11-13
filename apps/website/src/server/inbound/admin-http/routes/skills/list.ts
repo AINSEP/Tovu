@@ -11,7 +11,7 @@ import type { SkillsRouteRegistrar } from "./deps.js";
  * (skills-composer-typeahead), §Q1/§Contract Map.
  *
  * A plain read, same path grammar/workspace guard/authorize-then-project shape as
- * `routes/admin/plugins/list.ts`'s `PLUGINS_LIST`. Reads `<site>/skills/` fresh on every request via
+ * `apps/website/src/server/inbound/admin-http/routes/plugins/list.ts`'s `PLUGINS_LIST`. Reads `<site>/skills/` fresh on every request via
  * `loadInstalledSkillToolSources` — the SAME function the agent daemon calls once at boot
  * (`agent-daemon-server.ts:887`) to register `skill_*` tools, while the agent registries refresh before discovery and execution. Permission is
  * `admin.assistant.use` (D-3): the same permission the skill tools themselves declare

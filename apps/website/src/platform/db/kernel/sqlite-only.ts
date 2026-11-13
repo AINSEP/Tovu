@@ -7,7 +7,7 @@ import type { StorageKernel } from "./port.js";
  * (the no-raw-SQLite ratchet's one allowed place, `__tests__/no-raw-sqlite.boundary.test.ts`).
  *
  * Why these are not `listColumns`/`tableExists` (`dialect.ts`): their callers need SQLite's OWN
- * answer, byte for byte. Publish's "send by hand" (`sqlite/publish-backstop-row.sqlite.ts`) ships a
+ * answer, byte for byte. Publish's "send by hand" (`apps/website/src/features/publish-content/publish-backstop-row.sqlite.ts`) ships a
  * table's `PRAGMA table_info` shape to the other peer, which compares it to its own and hashes it into
  * the row's content hash — so the declared type keeps its case and `pk` keeps its key ordinal.
  * `listColumns` lower-cases the type and folds `pk` to a boolean, which would make an upgraded peer

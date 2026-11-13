@@ -106,7 +106,7 @@ function parseExternalMcpPutBody(rawBody: unknown) {
  * string clears them. Collapsing absent into empty is how a toggle would silently wipe a token.
  *
  * A saved row does NOT necessarily take effect until the agent daemon restarts — the admitted tool
- * set for any ONE connection is still frozen at connect (`mcp-federation/trust.ts` R5) and this route
+ * set for any ONE connection is still frozen at connect (`Jini packages/mcp/src/federation/trust.ts` R5) and this route
  * does not, and cannot, change that: editing an already-admitted connection's allowlist, credentials,
  * or transport here still needs a real restart, because that connection's one-time admission already
  * happened. `restartRequired: true` in the response reflects exactly that — it is conservative by
@@ -122,7 +122,7 @@ function parseExternalMcpPutBody(rawBody: unknown) {
  *
  * Federation hot-reload trigger (2026-09-11), fired unconditionally after every successful save,
  * best effort for enabled connections (OFF awaits Stop/cleanup): the daemon-side coordinator
- * (`mcp-federation/reload.ts`) is what actually decides whether anything changed — a save that only
+ * (`Jini packages/mcp/src/federation/reload.ts`) is what actually decides whether anything changed — a save that only
  * edited fields on an ALREADY-admitted connection is a genuine no-op there (R5, restated above), and
  * a fresh `authMode: "oauth"` row is a no-op too until its own callback later completes and fires
  * the PRIMARY trigger (`public-http/routes/external-mcp/oauth-callback.ts`). The one case this

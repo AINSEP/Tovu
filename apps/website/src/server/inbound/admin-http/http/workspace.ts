@@ -1,7 +1,7 @@
 import type { WorkspaceRecord } from "#src/features/workspace/index";
 
 /**
- * @file Admin-facing workspace response DTO (SPEC-044, mirrors `admin/users.ts`'s pattern).
+ * @file Admin-facing workspace response DTO (SPEC-044, mirrors `apps/website/src/server/inbound/admin-http/http/users.ts`'s pattern).
  *
  * Purpose:
  * `WorkspaceRecord` has no sensitive fields (unlike `UserRecord.passwordHash`), so this mapper is a

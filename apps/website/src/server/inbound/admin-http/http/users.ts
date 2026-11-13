@@ -1,7 +1,7 @@
 import type { PolicyRecord, PrincipalRecord, RoleRecord, UserRecord } from "@jini-ai/user-management";
 
 /**
- * @file Admin-facing user/role/policy response DTOs (mirrors `admin/members.ts`'s pattern).
+ * @file Admin-facing user/role/policy response DTOs (mirrors `apps/website/src/server/inbound/admin-http/http/members.ts`'s pattern).
  *
  * Purpose:
  * Maps internal identity records to what the admin API/UI may see.

@@ -77,7 +77,7 @@ export function openSqliteContentConnection(required: string | { filePath: strin
   const sqlite = open(filePath, {});
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
-  // SPEC-033 — defense in depth alongside `store-plugin.ts`'s identical fix: this connection can
+  // SPEC-033 — defense in depth alongside the store plugin's identical fix: this connection can
   // itself be the "second" connection relative to a separate one (e.g. the store plugin's own
   // dedicated handle) transiently holding a lock. Retry internally rather than throwing immediately.
   sqlite.pragma("busy_timeout = 5000");
@@ -171,7 +171,7 @@ export function openContentDb(required: string | { filePath: string }, options: 
  * `--dry-run` flag, this function cannot perform either: `better-sqlite3`'s own `readonly: true`
  * connection mode rejects any write at the SQLite level, not just at this module's call sites — the
  * same guarantee a `--dry-run` script needs and `openContentDb` structurally cannot give it (see the
- * `development/scripts/backfill-*-aad.ts` family and `backfill-custom-credential-usernames.ts`,
+ * AAD backfill script family and the custom credential username backfill,
  * each of which now opens its dry-run path through this function instead).
  *
  * A caller that needs to read a column only a not-yet-applied migration would add gets a loud SQLite

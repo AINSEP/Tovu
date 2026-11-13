@@ -10,7 +10,7 @@ import type { DomainEvent, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
  * @file THE `OutboxPort` adapter over `outbox_events` (ADR-046 Phase 1): one Kysely query body for
  * every dialect (storage plan §4, ADR-066). ADR-006 rule-of-two "second adapter" half;
  * `core/events/memory-bus.ts`'s `InMemoryOutbox` is the first. `sqlite/outbox-repo.sqlite.ts` is the
- * thin subclass the composition root (`server/deps.ts`) builds from the content db handle.
+ * thin subclass the composition root (`apps/website/src/server/runtime/composition/deps.ts`) builds from the content db handle.
  *
  * Events enqueued by `executeCommand()` (via `ChangeSetRepoPort.insert()`'s co-persisted write) and
  * by direct `OutboxPort.enqueue()` callers survive a restart. `enqueue()` is the plain single-row

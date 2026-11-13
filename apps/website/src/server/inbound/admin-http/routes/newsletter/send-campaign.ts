@@ -21,7 +21,7 @@ export interface SendCampaignRouteOptions {
  *
  * Chains `authorizeSend` -> `freezeAudience` -> `claimBatch` (orchestrator.spec.md §5:
  * `onFreezeAudience` runs "immediately after `authorizeSend` commits, before any batch is
- * claimed"), mirroring `routes/admin/posts/update.ts`'s inline `processOutbox` drain-after-write
+ * claimed"), mirroring `apps/website/src/server/inbound/admin-http/routes/posts/update.ts`'s inline `processOutbox` drain-after-write
  * idiom (`claimBatch` IS `processOutbox` for this pipeline — see `send-pipeline.ts`). Responds
  * `202` with the campaign as soon as `authorizeSend` itself succeeds (its own committed `status:
  * 'sending'`) — `freezeAudience`/`claimBatch` run best-effort immediately after; per

@@ -10,7 +10,7 @@ import type { ServerModuleHandle } from "./types.js";
  *
  * Split from the `users` module rather than folded into it: this family is the one with a
  * credential-kind restriction of its own (an api_key-authenticated caller is refused, see
- * `routes/admin/api-keys/deps.ts`'s `rejectApiKeyCredential`), and `ApiKeysRouteDeps` needs two
+ * `apps/website/src/server/inbound/admin-http/routes/api-keys/deps.ts`'s `rejectApiKeyCredential`), and `ApiKeysRouteDeps` needs two
  * fields `UsersRouteDeps` does not (`apiKeyRepo`, `apiKeySecretHasher`).
  *
  * Every route here registers under `/api/admin`, so all three sit behind the session gate

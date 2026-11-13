@@ -97,7 +97,7 @@ export function builtInThemesDir(): string {
  * above) rather than re-read deep in `features/deployments/export-run.ts` (the admin route's export
  * trigger + the `deployment_trigger_export` agent tool) or `cli/commands/export.ts` (`tovu export`)
  * — both now read `RouteDeps.exportOutputRootDir` instead, which this function feeds in both
- * composition roots (`server/app.ts`'s `createRouteDeps()` and this file's
+ * composition roots (`apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()` and this file's
  * `createSiteRouteDeps()`). See `routes/types.ts`'s `exportOutputRootDir` doc for the full
  * reasoning.
  *
@@ -147,7 +147,7 @@ export function resolvePublishOutputRootDir(required: { siteDir: string }, optio
  *
  * How it relates to the project:
  * - Used by the process entrypoint (`index.ts`) for the running server.
- * - Tests keep using the in-memory default in `server/app.ts` (hermetic).
+ * - Tests keep using the in-memory default in `apps/website/src/server/runtime/composition/app.ts` (hermetic).
  *
  * Note: outbox + event bus remain in-memory for now (events are fire-on-write
  * side effects, not yet durable across restarts) — a durable outbox is a later

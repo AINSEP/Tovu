@@ -724,7 +724,7 @@ export type EnsureAssistantDaemonStartedResult = DaemonSupervisorActionResult;
 
 /**
  * The on-demand/lazy-start seam — see this file's own header for the full rationale. Intended
- * caller: `server/modules/assistant.ts`'s daemon-proxy code, at the point it discovers the daemon
+ * caller: `apps/website/src/server/runtime/composition/modules/assistant.ts`'s daemon-proxy code, at the point it discovers the daemon
  * is unreachable, so a request that needs the assistant can trigger recovery itself instead of the
  * assistant staying down until an operator notices and either restarts Tovu or presses the manual
  * restart action. Single-flight and cooldown-guarded — safe to call on every such request, not

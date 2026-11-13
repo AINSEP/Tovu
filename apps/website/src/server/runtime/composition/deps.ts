@@ -408,7 +408,7 @@ import { createApp, siteAppBootWorkByDeps, startSettingsRegistration } from "./a
  * `TOVU_THEMES_DIR` env, then `<site>/themes` — the site's OWN themes root, and the only theme tree
  * anything reads or writes at runtime (`RouteDeps.themesDir`: the Theme Studio's file editor, the
  * agent theme tools, `__original-themes__/` resets, and both static-asset
- * mounts in `server/app.ts`).
+ * mounts in `apps/website/src/server/runtime/composition/app.ts`).
  *
  * Seeded from {@link builtInThemesDir} on a site's first boot — see `seedSiteThemes()`'s own header
  * for why that copies the whole ~19MB tree rather than filling in on demand.
@@ -648,7 +648,7 @@ function assertOverridesPairedOrAbsent(overrides?: Partial<CreateSiteRouteDepsOv
 
 /**
  * Builds `composePluginRuntime`'s optional `failureThreshold` field from `overrides` — the exact
- * undefined-check-and-conditional-spread shape `server/app.ts`'s `createRouteDeps` repeats for its
+ * undefined-check-and-conditional-spread shape `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps` repeats for its
  * own optional `composePluginRuntime` fields, hoisted here for the same reason
  * {@link assertOverridesPairedOrAbsent} is: one ternary counted once, not inline in the composition
  * root.
@@ -1061,7 +1061,7 @@ async function composeSiteRouteDeps(
   // Resolved ONCE and threaded down, the same discipline `exportOutputRootDir`/`themesDir` already
   // follow (see `routes/types.ts`). Seeded before anything discovers themes off it: on a site's
   // first boot `<site>/themes` does not exist yet, and `discoverAllBuiltInThemes` below would
-  // otherwise hand the admin an empty theme list. Deliberately NOT done in `server/app.ts`'s
+  // otherwise hand the admin an empty theme list. Deliberately NOT done in `apps/website/src/server/runtime/composition/app.ts`'s
   // in-memory `createRouteDeps()` — that is the hermetic/test path, and seeding there would copy
   // the whole ~19MB stock tree per test run.
   // The served site. Every `<site>/...` default below is rooted at its `dir`, never at `siteDir()`
@@ -1384,7 +1384,7 @@ async function composeSiteRouteDeps(
   });
 
   // SPEC-009 (Redirects, ADR-PIPE-009) — FIRST-TIME composition-root wiring of `origin`'s
-  // OriginRegistry and `routing`'s registration functions, mirroring `server/app.ts`'s identical
+  // OriginRegistry and `routing`'s registration functions, mirroring `apps/website/src/server/runtime/composition/app.ts`'s identical
   // wiring. `redirects` DOES get its real `SqliteRedirectRepo` here (unlike the in-memory-only
   // libraries above), since T014 built a full rule-of-two adapter for it.
   // ADR-046 Phase 1 (BR-04 resolution, 2026-07-16 swarm debate): durable SQLite outbox. Events
@@ -1739,7 +1739,7 @@ async function composeSiteRouteDeps(
   // Collections plan R1 — hoisted above `wireCoreResolvers` (was constructed later, inline, only for
   // the `ContentTaxonomyDeps` object below). Both `SqliteContentTypeRepo` instances would read the
   // same `content.db` either way (it is a stateless adapter over `db`), but one shared instance
-  // keeps this identical to `server/app.ts`'s hermetic root, where sharing is load-bearing.
+  // keeps this identical to `apps/website/src/server/runtime/composition/app.ts`'s hermetic root, where sharing is load-bearing.
   const contentTypeRepo = new SqliteContentTypeRepo(kernel);
   const contentTypeIndexProvisioner = new NoopContentTypeIndexProvisioner();
   // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — the boot-wiring pass
@@ -1804,7 +1804,7 @@ async function composeSiteRouteDeps(
 
   const { siteDirForKeyring, sources: siteKeySourcesList } = compositionSiteKeySources({ dbPath, runtimeMode, siteBinding: overrides.siteBinding });
 
-  // SPEC-011 (Newsletter) Stage 5 wiring — hoisted for the same reason `server/app.ts`'s identical
+  // SPEC-011 (Newsletter) Stage 5 wiring — hoisted for the same reason `apps/website/src/server/runtime/composition/app.ts`'s identical
   // hoisting comment explains: `newsletterSubscriberDirectory` must read the SAME member rows the
   // returned `memberRepo` field exposes, and `newsletterKeyring` is the ONE process-lifetime
   // `KeyringPort` instance also used to build `webhookSigner` below (one site key,
@@ -1891,8 +1891,8 @@ async function composeSiteRouteDeps(
   const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
   // 0012 retains legacy AAD until this fenced pass; no credential consumer may start first.
   // Safe alongside the settings-ledger chain: SqlSettingsRepo.transaction delegates to this SAME
-  // kernel. Jini db/kernel/kernel-core.ts takes an exclusive TurnLock through the awaited body;
-  // db/kernel/sqlite/driver.ts commits only after it resolves. The lock, not the sync driver alone,
+  // kernel. Jini packages/db/src/kernel/kernel-core.ts takes an exclusive TurnLock through the awaited body;
+  // Jini packages/db/src/kernel/sqlite/driver.ts commits only after it resolves. The lock, not the sync driver alone,
   // serializes BEGIN/COMMIT and prevents unrelated settings writes joining the vault transaction.
   await normalizeSiteVaultAtBoot({ kernel, workspaceId, siteDir: siteDirForKeyring, clock }, {
     keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer,
@@ -2322,7 +2322,7 @@ async function composeSiteRouteDeps(
     visitorToolsManagement: composeVisitorToolsManagement({ workspaceId, ready: assistantSettingsReady,
       settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals } }),
     // See `routes/types.ts`'s `adminAssistantEnabled` field doc — read once here, mirroring
-    // `server/app.ts`'s `createRouteDeps()`.
+    // `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`.
     adminAssistantEnabled: isAdminAssistantEnabled(),
     siteAssistantCredentialRepo,
     siteAssistantSecretSealer,
@@ -2532,7 +2532,7 @@ async function composeSiteRouteDeps(
     webhookSigner: createKeyringBackedSigner(newsletterKeyring),
     // ADR-046 Phase 1 (2026-07-16): durable SQLite adapters for all four route-consumed media
     // repos — previously in-memory (ADR-027 walking skeleton, rows lost on every restart). Bytes
-    // already used the real `LocalFsBlobStore` (unlike `server/app.ts`'s hermetic-test
+    // already used the real `LocalFsBlobStore` (unlike `apps/website/src/server/runtime/composition/app.ts`'s hermetic-test
     // composition) since durable byte database was always the one piece of Media pointless to fake
     // in the actual running server.
     mediaRepo,
@@ -2550,7 +2550,7 @@ async function composeSiteRouteDeps(
     adminPasswordResetReady,
     // ADR-027 §4 transform registry + rendition generation: registry rows are now durable too
     // (ADR-046 Phase 1). The real running server gets `SharpImageTransformer` (unlike
-    // `server/app.ts`'s hermetic-test composition, which uses the deterministic in-memory
+    // `apps/website/src/server/runtime/composition/app.ts`'s hermetic-test composition, which uses the deterministic in-memory
     // double). `sharp` is a pinned, installed dependency (`package.json`) — this stale "not
     // installed" note was flagged by the 2026-07-15 `/audit-work` batch (ADR-046 finding B-01)
     // and corrected here and in ADR-046 itself. See `src/media/image-transformer.sharp.ts`'s file
@@ -2578,7 +2578,7 @@ async function composeSiteRouteDeps(
     // SPEC-010 (Forms, Tier-1 sample plugin, ADR-PIPE-010): the real SQLite rule-of-two adapters
     // (unlike the several "no SQLite adapter yet" libraries noted above — Forms' C-012 ports both
     // ship one). `formsRateLimiter` is one process-lifetime counter store, matching
-    // `server/app.ts`'s hermetic-test composition's identical construction.
+    // `apps/website/src/server/runtime/composition/app.ts`'s hermetic-test composition's identical construction.
     formDefinitionRepo,
     formCollectionProviders: () => formCollectionProviders(),
     formSubmissionRepo,
@@ -2643,7 +2643,7 @@ async function composeSiteRouteDeps(
     // primitive composed into ZERO composition roots in this codebase as of this session"). One
     // process-lifetime `GatewayDeps`. `tokens: new SqliteTokenStore(kernel)` (SPEC-022 durability fix —
     // see `core/gated-mutations/composition.ts`'s file header): this composition root is the real
-    // production one, so its `gated-mutations` capability must be durable, unlike `server/app.ts`'s
+    // production one, so its `gated-mutations` capability must be durable, unlike `apps/website/src/server/runtime/composition/app.ts`'s
     // hermetic in-memory composition which still gets the default `InMemoryTokenStore`.
     // `authorizeInstance` closes the instance-scope authorization gap
     // (`GatewayDeps.authorizeInstance`'s doc comment): bound to `buildOwnerOnlyInstanceAuthorize`
@@ -2736,13 +2736,13 @@ async function composeSiteRouteDeps(
     // TEST GOTCHA.
     resolveStorefrontProducts: () => resolveStorefrontProducts(routeDeps),
     // 2026-09-03 — see `routes/types.ts`'s `resolveActiveThemeId`/`listPublishedPosts` docs and
-    // `server/app.ts`'s identical binding. Same nullary-closure-over-`routeDeps` shape as
+    // `apps/website/src/server/runtime/composition/app.ts`'s identical binding. Same nullary-closure-over-`routeDeps` shape as
     // `resolveStorefrontProducts` immediately above.
     resolveActiveThemeId: () => resolveActiveThemeId(routeDeps),
     listPublishedPosts: () =>
       listPublishedPosts({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } }),
     // 2026-08-16 rework — see `routes/types.ts`'s `publishHistoryStore` doc. Real, DB-backed;
-    // `server/app.ts`'s hermetic composition uses `InMemoryPublishHistoryStore` instead.
+    // `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition uses `InMemoryPublishHistoryStore` instead.
     publishHistoryStore: new SqlitePublishHistoryStore(kernel),
     // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishExecutionMode` doc.
     publishExecutionMode: executionModeFromEnv(),
@@ -2802,7 +2802,7 @@ async function composeSiteRouteDeps(
     mediaGenerationHttpClient: guardedOutboundHttpClient,
     mediaProviderRegistry: mediaProviders.registry,
     // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc and
-    // `server/app.ts`'s matching field for the identical closure-ordering reasoning (`routeDeps`
+    // `apps/website/src/server/runtime/composition/app.ts`'s matching field for the identical closure-ordering reasoning (`routeDeps`
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
     staticSiteContext: async () => {

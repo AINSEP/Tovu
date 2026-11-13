@@ -49,7 +49,7 @@ export interface ResolveCustomInstructionsDeps {
   settingsReady?: Promise<void>;
   /** The real `features/settings`'s own `getEffective` — injected rather than statically imported;
    *  see the `GetEffective` type's own doc. Wired to the real implementation at the composition root
-   *  (`RouteDeps.getEffective`, populated once in both `server/app.ts`/`server/deps.ts`). */
+   *  (`RouteDeps.getEffective`, populated once in both `apps/website/src/server/runtime/composition/app.ts`/`apps/website/src/server/runtime/composition/deps.ts`). */
   getEffective: GetEffective;
   /** The real `features/settings`'s own `INSTRUCTIONS_NAMESPACE` constant (`"core.instructions"`) —
    *  injected for uniformity with `getEffective` above rather than relocated to a new shared module;

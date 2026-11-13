@@ -22,8 +22,8 @@ import type { RouteDeps } from "#src/server/routes/types";
  * list — no totals, no breakdowns, no charts. Do not read more into the response shape than that.
  *
  * How it relates to the project:
- * - Mirrors `routes/admin/posts/list.ts`'s registrar shape and workspace-guard convention.
- * - `server/app.ts` gates all of `/api/admin` behind `requireAdminSession` before any admin
+ * - Mirrors `apps/website/src/server/inbound/admin-http/routes/posts/list.ts`'s registrar shape and workspace-guard convention.
+ * - `apps/website/src/server/runtime/composition/app.ts` gates all of `/api/admin` behind `requireAdminSession` before any admin
  *   registrar runs (see `inbound/admin-http/dev-auth.ts`), same as every other admin route — but that only
  *   proves *authentication*. FEAT-014/ADR-PIPE-014 closes the remaining *authorization* gap: this
  *   route previously had zero per-action `authorize()` call, unlike every sibling admin route.

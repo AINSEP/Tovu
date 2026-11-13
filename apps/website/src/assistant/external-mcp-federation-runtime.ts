@@ -29,7 +29,7 @@ export interface CreateFederationRuntimeParams {
   /** Reads the operator-editable roster fresh — today, `readEnabledExternalMcpConfigs` wrapped by
    *  `external-mcp-connection-source.ts`'s `createStoredExternalMcpConnectionSource`. Called once at
    *  boot and once per actual reload pass, never once per `reload()` caller — see
-   *  `mcp-federation/reload.ts`'s own coalescing doc. */
+   *  `Jini packages/mcp/src/federation/reload.ts`'s own coalescing doc. */
   readonly resolveConnections: () => Promise<readonly ResolvedFederatedConnection[]>;
   /**
    * Resolved before `start()`'s own boot pass ever calls `attach` — today, the installed-extension
@@ -52,7 +52,7 @@ export interface CreateFederationRuntimeParams {
   readonly attach?: typeof attachFederatedMcpTools;
   /** Test seam — the session factory for the boot pass only, matching
    *  `AttachFederatedMcpToolsParams.connect`'s own scope: a reload pass never overrides `connect` (see
-   *  `mcp-federation/reload.ts`'s `runOnePass`), so this has nothing to thread through there. */
+   *  `Jini packages/mcp/src/federation/reload.ts`'s `runOnePass`), so this has nothing to thread through there. */
   readonly connect?: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
 }
 
@@ -85,7 +85,7 @@ export interface FederationRuntime {
   /**
    * The boot roster's connection ids — `undefined` until `resolveConnections()` resolves
    * (the roster itself is not known yet), then fixed for the rest of boot. Lets a caller building
-   * `FederationBootStatus` (`federated-refusal-diagnosis.ts`) tell "a real, pending roster connection"
+   * `FederationBootStatus` (`Jini packages/daemon/src/tool-recovery/federated-refusal.ts`) tell "a real, pending roster connection"
    * apart from "never configured at all" while `!started`, without waiting for the whole boot pass —
    * see that file's `configuredConnectionIds` doc for why `undefined` and `[]` are different claims.
    */

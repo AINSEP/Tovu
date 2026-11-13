@@ -63,7 +63,7 @@ function sendUserDisableError(res: Response, err: unknown): void {
  * POST users/:principalId/disable — `DISABLE_PRINCIPAL` (SPEC-006 0.6.0, REQ-11, first HTTP route
  * for a transition specified since v0.5.0). Gated by `user.manage`; refuses the seeded owner
  * unconditionally and refuses any disable that would drop the active owner-`*` count to zero
- * (INV-08) — see `identity/admin-crud-service.ts`'s `disablePrincipal` for the full contract.
+ * (INV-08) — see `Jini packages/user-management/src/server/admin-crud-service.ts`'s `disablePrincipal` for the full contract.
  *
  * `disablePrincipal` returns only the updated `PrincipalRecord` — `toAdminUserResponse` also needs
  * the paired `UserRecord` (every `kind='user'` principal has one by construction, CREATE_USER's

@@ -10,7 +10,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * types (`AdminCommentsModerationQueueDeps`/`AdminCommentsModerateDeps`, ADR-031 §6/§9,
  * SPEC-033) — this type is a genuine union of those two plus `get-settings.ts`/`put-settings.ts`'s
  * actual field needs (read directly rather than guessed), mirroring
- * `routes/admin/taxonomy/deps.ts`'s/`routes/admin/content/deps.ts`'s identical narrowing
+ * `apps/website/src/server/inbound/admin-http/routes/taxonomy/deps.ts`'s/`apps/website/src/server/inbound/admin-http/routes/content/deps.ts`'s identical narrowing
  * rationale from SPEC-034/038.
  *
  * Each field's real reader, confirmed by reading all 4 registrar files directly:

@@ -45,7 +45,7 @@ export interface SqlDeviceAuthorizationStoreDeps {
 }
 
 /** The AAD every sealed `device_code` is bound to — identical shape to
- *  `assistant/external-mcp-oauth.ts`'s `ownerKeyOf`, restated here rather than imported so this
+ *  the external MCP OAuth `ownerKeyOf`, restated here rather than imported so this
  *  storage-only file does not have to reach into that module for a two-field template string.
  *  Exported so the vault inventory/recovery scan opens retained device rows through this store's own
  *  AAD rather than a restated copy. */

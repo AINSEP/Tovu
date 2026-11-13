@@ -49,9 +49,9 @@ import { canPublishToLive } from "#src/features/publish-content/live-site-policy
  * `sessions` row per login (REQ-06).
  *
  * How it relates to the project:
- * - Registered by `server/app.ts` ahead of admin routes.
+ * - Registered by `apps/website/src/server/runtime/composition/app.ts` ahead of admin routes.
  * - `TOVU_ADMIN_USER`/`TOVU_ADMIN_PASSWORD` still set the *seeded* owner's
- *   username/password at first boot (`identity/seed.ts`) — same env vars as
+ *   username/password at first boot (`Jini packages/user-management/src/server/seed.ts`) — same env vars as
  *   before, but they now seed a real hashed credential rather than being
  *   compared directly on every login.
  * - Route handlers that need "who is calling" read `getAuthedPrincipal(res)`
@@ -81,14 +81,14 @@ import { canPublishToLive } from "#src/features/publish-content/live-site-policy
  * promise (`registerAuthRoutes` still takes the full `RouteDeps` bag it's
  * registered against; `requireAdminSession`/`currentPrincipal` take only
  * `SessionAuthDeps` — see that type's own doc) — the composition roots
- * (`server/app.ts`) pass `routeDeps` in either way, since `RouteDeps` is a
+ * (`apps/website/src/server/runtime/composition/app.ts`) pass `routeDeps` in either way, since `RouteDeps` is a
  * strict superset of `SessionAuthDeps`. Not a port (ADR-006): one real
  * session/credential implementation.
  */
 const SESSION_COOKIE = "tovu_session";
 
 // The extracted minter keeps the 32-byte hex bearer and SHA-256 digest in
-// user-management/server/session-tokens.ts; binding it preserves existing session rows.
+// Jini packages/user-management/src/server/session-tokens.ts; binding it preserves existing session rows.
 const sessionTokens = new NodeSessionTokens({});
 // Tovu's absolute 30-day lifetime is product policy, passed explicitly to both minting paths.
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -795,7 +795,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
     // admin-role caller even though the DELETE route itself already lets them use it). Reuses the
     // exact function the route layer and the Trash restore/purge override both gate on, so this
     // affordance-hiding flag can never drift from the real boundary — see that function's own doc
-    // comment ("NOT A SECURITY BOUNDARY", `lib/permissions.ts`'s header on the admin side).
+    // comment ("NOT A SECURITY BOUNDARY", `Jini packages/admin/src/core/permissions/rules.ts`'s header on the admin side).
     const authServiceDeps = authServiceDepsFrom(deps);
     const canManageUserTrash = await callerMayManageUserTrash({
       deps: authServiceDeps,

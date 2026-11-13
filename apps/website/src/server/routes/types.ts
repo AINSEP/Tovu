@@ -206,7 +206,7 @@ export interface IdentityDeps {
   rolePolicyRepo: RolePolicyRepoPort;
   principalRoleRepo: PrincipalRoleRepoPort;
   principalPolicyRepo: PrincipalPolicyRepoPort;
-  /** argon2id hashing seam (INV-05) — see `identity/hasher.ts`. */
+  /** argon2id hashing seam (INV-05) — see `Jini packages/user-management/src/server/hasher.ts`. */
   passwordHasher: PasswordHasherPort;
   /** SPEC-006 REQ-08 — the `api_keys` repo port (`identity/api-key-types.ts`). Declared in this
    *  repo rather than in `@jini-ai/cms/identity`, which scopes API keys out of its own surface. */
@@ -220,7 +220,7 @@ export interface IdentityDeps {
   removeUser?: RemoveEntity;
   isInTrash: (principalId: UUID) => Promise<boolean>;
   /**
-   * Resolves once first-boot identity seeding (`identity/seed.ts`) completes.
+   * Resolves once first-boot identity seeding (`Jini packages/user-management/src/server/seed.ts`) completes.
    * Seeding hashes the owner's password (async, argon2id), so
    * `createRouteDeps()`/`createSiteRouteDeps()` return without waiting on it by kicking
    * the seed off immediately and handing back this promise; auth-adjacent
@@ -281,7 +281,7 @@ export interface MediaDeps {
    * `transform_registry` sidecar; `imageTransformer` is the seam that
    * actually runs the pixel operation (`InMemoryImageTransformer` in the
    * hermetic test/dev composition, `SharpImageTransformer` in the real
-   * running server — see `server/app.ts` / `server/deps.ts`).
+   * running server — see `apps/website/src/server/runtime/composition/app.ts` / `apps/website/src/server/runtime/composition/deps.ts`).
    */
   transformDefinitionRepo: TransformDefinitionRepoPort;
   imageTransformer: ImageTransformerPort;
@@ -292,8 +292,8 @@ export interface MediaDeps {
    * topping up `blobStore` with any stock seed blob it was missing — the fix for the production
    * incident where `content.seed.db` shipped real `media`/`asset_blobs` rows but no deploy path
    * ever shipped the bytes those rows' `storage_key`s point at. Optional (unlike `identityReady`):
-   * only `server/deps.ts`'s real SQLite composition wires this — the in-memory hermetic composition
-   * (`server/app.ts`'s `createRouteDeps()`) has no seed payload to hydrate from and leaves it unset,
+   * only `apps/website/src/server/runtime/composition/deps.ts`'s real SQLite composition wires this — the in-memory hermetic composition
+   * (`apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`) has no seed payload to hydrate from and leaves it unset,
    * exactly as `mediaTransformReady` is left un-exposed there for the same reason. No route gates on
    * this; it exists so a boot-integration test can await deterministic completion instead of racing
    * a fire-and-forget background copy.
@@ -327,13 +327,13 @@ export interface MediaDeps {
 export interface CredentialsDeps {
   /**
    * The SITE's encrypted provider credential store (ADR-058) — one row per workspace, backing the
-   * "Visitor's AI Assistant" admin tab and `server/modules/site-assistant.ts`'s runtime key
+   * "Visitor's AI Assistant" admin tab and `apps/website/src/server/runtime/composition/modules/site-assistant.ts`'s runtime key
    * resolution. Unlike `assistantSettingsReady` above, this needs no boot-time definition
    * registration (it is a plain table, not a `core.execution.*` ledger namespace), so there is no
    * matching `*Ready` promise — the repo is usable as soon as migrations have run.
    */
   siteAssistantCredentialRepo: SiteAssistantCredentialRepoPort;
-  /** Seals/opens the SITE credential above. See `integrations/secret-sealer.aesgcm.ts`'s header for
+  /** Seals/opens the SITE credential above. See `Jini packages/platform/src/secrets/secret-sealer.aesgcm.ts`'s header for
    *  why this is one shared sealing capability, not one per workspace. */
   siteAssistantSecretSealer: SecretSealerPort;
   /**
@@ -341,7 +341,7 @@ export interface CredentialsDeps {
    * (not just baked into the sealer) because `setSiteAssistantCredential` also needs
    * `keyring.activeKey()` directly, to know which site-key generation to stamp into a freshly-sealed
    * row. Deliberately its OWN `EnvOrFileKeyring` instance in the real composition root
-   * (`server/deps.ts`), constructed `{allowFileFallback:false}`, independent of the shared instance
+   * (`apps/website/src/server/runtime/composition/deps.ts`), constructed `{allowFileFallback:false}`, independent of the shared instance
    * webhook signing/newsletter tokens use — see ADR-058 §2 for why that asymmetry is intentional.
    */
   siteAssistantSecretKeyring: KeyringPort;
@@ -379,7 +379,7 @@ export interface CredentialsDeps {
   /**
    * The workspace's roster of external MCP servers, backing the admin's Settings → External MCP tab
    * and read by the agent daemon at boot to decide what to federate
-   * (`assistant/external-mcp-store.ts`).
+   * (`apps/website/src/features/external-mcp/external-mcp-store.ts`).
    *
    * Multi-row per workspace like `mediaProviderCredentialRepo` above. Its sealed column holds a
    * whole `KEY=VALUE` environment block rather than one key, sealed with the same shared ADR-058
@@ -414,7 +414,7 @@ export interface CredentialsDeps {
   approvalIdentityForRun?: SettingsToolDeps["approvalIdentityForRun"];
   /**
    * The OAuth subsystem for `authMode: "oauth"` external MCP connections
-   * (`assistant/external-mcp-oauth.ts`), or absent.
+   * (`apps/website/src/features/external-mcp/external-mcp-oauth.ts`), or absent.
    *
    * OPTIONAL: a narrow test double may have no reason to wire OAuth. The external-MCP module
    * registers no OAuth routes in that case, since a callback that can complete nothing is useless.
@@ -453,9 +453,9 @@ export interface CredentialsDeps {
   passkeyOrigin?: string;
   /**
    * 2026-08-15 — the `source_control_credential_sets` repo backing the admin Source Control page's
-   * connect/replace form (`routes/admin/system/source-control-credentials.ts`). Real
-   * `SqliteSourceControlCredentialSetRepo` in `server/deps.ts`; `InMemorySourceControlCredentialSetRepo`
-   * in `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
+   * connect/replace form (`apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts`). Real
+   * `SqliteSourceControlCredentialSetRepo` in `apps/website/src/server/runtime/composition/deps.ts`; `InMemorySourceControlCredentialSetRepo`
+   * in `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
    * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above — one
    * sealing capability app-wide. A deliberately SEPARATE table from the publish credentials in
    * `vendorCredentialSetRepo` below, not a widened `PublishProviderId` union — see `src/platform/db/schema.sqlite.ts`'s `sourceControlCredentialSets` doc comment for
@@ -466,8 +466,8 @@ export interface CredentialsDeps {
    * 2026-08-16 (Phase 3) — the `vendor_credential_sets` repo backing the unified vendor-scoped
    * credential redesign (`features/vendor-credentials/`; `db/schema.sqlite.ts`'s `vendorCredentialSets`
    * doc has the full "destination vs. vendor" reasoning). Real `SqliteVendorCredentialSetRepo`
-   * (`db/sqlite/vendor-credential-repo.sqlite.ts`) in `server/deps.ts`;
-   * `InMemoryVendorCredentialSetRepo` in `server/app.ts`'s hermetic composition, same rule-of-two
+   * (`apps/website/src/features/vendor-credentials/vendor-credential-repo.sqlite.ts`) in `apps/website/src/server/runtime/composition/deps.ts`;
+   * `InMemoryVendorCredentialSetRepo` in `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition, same rule-of-two
    * every other repo here follows. Sealed via the SAME shared `siteAssistantSecretSealer`/
    * `siteAssistantSecretKeyring` instances above — one sealing capability app-wide, same reasoning
    * `sourceControlCredentialSetRepo` already establishes.
@@ -479,9 +479,9 @@ export interface CredentialsDeps {
   vendorCredentialSetRepo: VendorCredentialSetRepoPort;
   /**
    * 2026-08-17 — the `custom_credential_sets` repo backing the admin Access Tokens page's
-   * "Add custom provider" form (`routes/admin/system/custom-credentials.ts`). Real
-   * `SqliteCustomCredentialSetRepo` in `server/deps.ts`; `InMemoryCustomCredentialSetRepo` in
-   * `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
+   * "Add custom provider" form (`apps/website/src/server/inbound/admin-http/routes/system/custom-credentials.ts`). Real
+   * `SqliteCustomCredentialSetRepo` in `apps/website/src/server/runtime/composition/deps.ts`; `InMemoryCustomCredentialSetRepo` in
+   * `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
    * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above —
    * one sealing capability app-wide, same reasoning `sourceControlCredentialSetRepo` already
    * establishes. A deliberately separate table from both of
@@ -557,7 +557,7 @@ export interface CredentialsDeps {
 export interface ContentTaxonomyDeps {
   /**
    * ADR-022/ADR-043 content-type registry write repo plus its listing capability
-   * (`features/content-types/list.ts`).
+   * (`Jini packages/cms/src/content-types/list.ts`).
    */
   contentTypeRepo: ContentTypeRepoPort & ContentTypeListPort;
   /**
@@ -583,8 +583,8 @@ export interface ContentTaxonomyDeps {
    * whichever one repo instance the route wires up as `deps.transaction` — `taxonomyRepo` is the
    * one both delete flows always have, so it is the canonical source. */
   /** Widened once more with `TaxonomyTrashReadPort` (`findForTrash`, a host-only addition — see
-   *  `EntryTermReadPort`'s doc above for why these are declared directly against `repo.sqlite.js`/
-   *  `trash-term.js` rather than folded into a certified Jini port) for `trashTaxonomy`'s read. */
+   *  `EntryTermReadPort`'s doc above for why these are declared directly against `apps/website/src/features/taxonomy/repo.sqlite.ts`/
+   *  `apps/website/src/features/taxonomy/trash-term.ts` rather than folded into a certified Jini port) for `trashTaxonomy`'s read. */
   /** Widened for publish-content (`features/taxonomy/publish-content.ts`) with the id-preserving
    *  import's `ImportableTaxonomyRepoPort` and the trash-inclusive `TaxonomyPublishReadPort`. */
   taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort & DeletableTaxonomyRepoPort & TransactionalRepoPort & TaxonomyTrashReadPort & ImportableTaxonomyRepoPort & TaxonomyPublishReadPort;
@@ -637,7 +637,7 @@ export interface CommentsDeps {
   commentWriteService: CommentWriteService;
   /** Fire-and-forget at boot (mirrors `newsletterReady`) — await (or, for the real server, go
    * through the ADR-046 Phase 2 boot lifecycle) before relying on the comments plugin tables
-   * existing. `server/app.ts`'s hermetic composition resolves this immediately (no dataModule
+   * existing. `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition resolves this immediately (no dataModule
    * declare needed against an in-memory repo). */
   commentsReady: Promise<void>;
   /** SPEC-035 (ADR-028 Settings Layered Ledger wiring) — resolves once the 6 `comments.*` setting
@@ -847,7 +847,7 @@ export interface PresentationDeps {
   themesDir: string;
   /**
    * Design C (ADS-memory w4-theme-lifecycle-designs.md §5 / w6 dispatch, 2026-09-16) — the package's
-   * own read-only stock themes root (`server/deps.ts`'s `builtInThemesDir()`), NOT `themesDir` above
+   * own read-only stock themes root (`apps/website/src/server/runtime/composition/deps.ts`'s `builtInThemesDir()`), NOT `themesDir` above
    * (which is the SITE's own themes root in every real boot path except the hermetic one). Threaded
    * through so `features/theme/theme-files.ts`'s `resolveThemeOriginalSource` can fall back to the
    * package's own generated catalog (Design D, `sync-originals.ts`) when an already-seeded site has
@@ -1019,9 +1019,9 @@ export interface ObservabilityDeps {
   legacyProviderCredential?: (required: { pluginId: string }) => Promise<boolean>;
   /**
    * `features/tool-audit`'s durable agent tool-attempt sink, BUILT BY THE COMPOSITION ROOT and
-   * injected — not resolved by whichever module happens to want one. `server/deps.ts` builds
+   * injected — not resolved by whichever module happens to want one. `apps/website/src/server/runtime/composition/deps.ts` builds
    * `new SqliteToolAttemptAuditSink(db)` over the SAME open `ContentDb` handle its other repos
-   * already share; `server/app.ts`'s hermetic composition builds `createInMemoryToolAttemptAuditSink()`.
+   * already share; `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition builds `createInMemoryToolAttemptAuditSink()`.
    * `modules/assistant-byok.ts` is the consumer. `agent-daemon-server.ts` is its own composition
    * root and reads this same field off the `RouteDeps` it already builds, so there is exactly one
    * construction per root rather than a hand-written copy per consumer.
@@ -1123,13 +1123,13 @@ export interface DatabaseOpsDeps {
   migrationRunsRepo: MigrationRunsRepoPort;
   /** R1b — the site's content kernel (the one open content database), for boot modules that
    * declare plugin tables on it (`store-plugin` in `runtime/boot/bootstrap.ts`) instead of opening
-   * a second connection to the same file. Set only by `server/deps.ts`; `server/app.ts`'s hermetic
+   * a second connection to the same file. Set only by `apps/website/src/server/runtime/composition/deps.ts`; `apps/website/src/server/runtime/composition/app.ts`'s hermetic
    * composition has no content database. */
   contentKernel?: ContentKernel;
   /**
    * One sweep of this workspace's due `domain_binding` checks (`verifyDueDomainBindings`), pre-bound
    * like `sweepTrash` so no route holds the DNS ports. `server/runtime/composition/serving-app.ts` is
-   * the only caller — it owns the timer. Set only by `server/deps.ts` (it needs the content
+   * the only caller — it owns the timer. Set only by `apps/website/src/server/runtime/composition/deps.ts` (it needs the content
    * database); absent elsewhere, including the hermetic root, so no sweep runs there.
    */
   verifyDueDomainBindings?: (required: { limit: number }) => Promise<string[]>;
@@ -1137,8 +1137,8 @@ export interface DatabaseOpsDeps {
   /** Owner-only reads of other local SQLite sites; absent in hermetic/deployed roots. */
   peerSiteReads?: PeerSiteReads;
   /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real in
-   * `server/deps.ts` (`store-bound-services.ts`): the async kernel stamp on every dialect
-   * (`platform/db/watermark-kernel.ts`), which Jini cms awaits; `noopStampWatermark` in `server/app.ts`'s in-memory composition,
+   * `apps/website/src/server/runtime/composition/deps.ts` (`store-bound-services.ts`): the async kernel stamp on every dialect
+   * (`platform/db/watermark-kernel.ts`), which Jini cms awaits; `noopStampWatermark` in `apps/website/src/server/runtime/composition/app.ts`'s in-memory composition,
    * which has no watermark table to advance. */
   stampWatermark: () => Promise<void> | void;
   /**
@@ -1394,8 +1394,8 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   agentSessions: AgentSessionStore;
   /**
    * ADR-036 §5 outbound HMAC signer. ADR-PIPE-015 Phase 1: built via `createKeyringBackedSigner`
-   * over a real `KeyringPort` (`server/deps.ts`'s composition uses `EnvOrFileKeyring`;
-   * `server/app.ts`'s hermetic test/dev composition uses the in-memory `InMemoryKeyring` test
+   * over a real `KeyringPort` (`apps/website/src/server/runtime/composition/deps.ts`'s composition uses `EnvOrFileKeyring`;
+   * `apps/website/src/server/runtime/composition/app.ts`'s hermetic test/dev composition uses the in-memory `InMemoryKeyring` test
    * double instead, to avoid touching real files/env in tests). Not consumed by any route yet —
    * the delivery worker is the first real consumer, and its activation stays gated behind
    * ADR-PIPE-015's Phase 4 "point of no return" until the real signer, guarded transport, and
@@ -1494,7 +1494,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   runExportSite: ExportEngine<RouteDeps>;
   /**
    * `TOVU_EXPORT_DIR` env, then the served site's `<site>/out/export` — the export engine's default output directory
-   * root, read ONCE at boot by `server/app.ts`'s `createRouteDeps()`/`server/deps.ts`'s
+   * root, read ONCE at boot by `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`/`apps/website/src/server/runtime/composition/deps.ts`'s
    * `resolveExportOutputRootDir()` (via `createSiteRouteDeps()`) rather than re-read deep inside
    * `features/deployments/export-run.ts`'s `startExportRun` or `cli/commands/export.ts`'s
    * `runExportCommand` — same "read once at the root, thread the value down" discipline `themesDir`
@@ -1537,7 +1537,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * serves them from, plus the Tovu version stamped into the backup's manifest. Resolved once by
    * `server/runtime/composition/deps.ts`'s `createSiteRouteDeps()`.
    *
-   * Optional because the in-memory `server/app.ts` runtime has no site folder on disk; both
+   * Optional because the in-memory `apps/website/src/server/runtime/composition/app.ts` runtime has no site folder on disk; both
    * site-backup tools then answer `UNAVAILABLE` instead of backing up nothing.
    */
   siteBackupSources?: SiteBackupSources;
@@ -1563,8 +1563,8 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   notifyExternalMcpRosterChanged?: () => Promise<void>;
   /**
    * `TOVU_ADMIN_ASSISTANT` off switch, read ONCE at boot (`admin-assistant-enabled.ts`'s
-   * `isAdminAssistantEnabled()`) by both composition roots — `server/app.ts`'s `createRouteDeps()`
-   * and `server/deps.ts`'s `createSiteRouteDeps()` — same "read once at the root, thread the
+   * `isAdminAssistantEnabled()`) by both composition roots — `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`
+   * and `apps/website/src/server/runtime/composition/deps.ts`'s `createSiteRouteDeps()` — same "read once at the root, thread the
    * value down" discipline `exportOutputRootDir` above establishes for its own env var.
    *
    * `app.ts`'s own module-mounting code reads this SAME field (not a second `isAdminAssistantEnabled()`
@@ -1633,7 +1633,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * 2026-08-16 rework of the original flat-JSON-file design (see `static-publish/publish-history.ts`'s
    * own header) — the append-only `publish_history` table backing `deployment_get_static_publish_capabilities`'s
    * `lastPublish` field. Real `SqlitePublishHistoryStore` (`db/sqlite/publish-history-repo.sqlite.ts`)
-   * in `server/deps.ts`; `InMemoryPublishHistoryStore` in `server/app.ts`'s hermetic composition, same
+   * in `apps/website/src/server/runtime/composition/deps.ts`; `InMemoryPublishHistoryStore` in `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition, same
    * rule-of-two every other repo/port here follows. `static-publish/publish-run.ts`'s
    * `startPublishRun`/`runPublishAndAwait` both take a `PublishHistoryStore` as a required
    * (non-defaulted) parameter — `publish-site.ts` and `publish-agent-tools.ts` pass this field
@@ -1651,7 +1651,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   publishExecutionMode: PublishExecutionMode;
   /**
    * `TOVU_PUBLISH_DIR` env, then the served site's `<site>/out/publish` — the static-publish flow's parent output
-   * directory, read ONCE at boot by `server/app.ts`'s `createRouteDeps()`/`server/deps.ts`'s
+   * directory, read ONCE at boot by `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`/`apps/website/src/server/runtime/composition/deps.ts`'s
    * `resolvePublishOutputRootDir()` (via `createSiteRouteDeps()`), same "read once at the root"
    * discipline `exportOutputRootDir` above establishes. `static-publish/adapter.ts`'s
    * `publishOutputDir` joins this with the target id to get the per-target directory it actually
@@ -1664,20 +1664,20 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   /**
    * This workspace's plugin-contributed deploy targets (`deploy-targets/registry.ts`): the one place
    * the publish route and the static-publish agent tools learn which targets exist and which config
-   * fields each takes. `server/deps.ts` loads the installed, activated Agent Plugins that ship
-   * targets, in plugin-id order; `server/app.ts`'s hermetic root reads every bundled plugin's source
+   * fields each takes. `apps/website/src/server/runtime/composition/deps.ts` loads the installed, activated Agent Plugins that ship
+   * targets, in plugin-id order; `apps/website/src/server/runtime/composition/app.ts`'s hermetic root reads every bundled plugin's source
    * directory directly (`loadBundledDeployTargetRegistry`).
    */
   loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
   /** Data-only installed host inventory; disabled plugins remain discoverable. */
   loadInstalledDeployTargets?: import("#src/features/deployments/contracts").LoadInstalledDeployTargets;
-  /** Fresh installed-plugin trust gates in production; server/app.ts's hermetic root reads the bundled plugins' sources. */
+  /** Fresh installed-plugin trust gates in production; apps/website/src/server/runtime/composition/app.ts's hermetic root reads the bundled plugins' sources. */
   loadDeployOps: (ctx: { workspaceId: string }) => Promise<import("#src/features/deployments/index").DeployOpsRegistry>;
   /**
    * This workspace's plugin-contributed git-host providers (`source-control/provider-registry.ts`),
    * read by `source_control_*`, `site_backup_*`, `custom_credential_write_files` and the Source
-   * Control credential route. `server/deps.ts` injects its boot-bound lifecycle to read the installed, activated
-   * Agent Plugins; `server/app.ts`'s hermetic root reads the bundled `github` plugin's source directly.
+   * Control credential route. `apps/website/src/server/runtime/composition/deps.ts` injects its boot-bound lifecycle to read the installed, activated
+   * Agent Plugins; `apps/website/src/server/runtime/composition/app.ts`'s hermetic root reads the bundled `github` plugin's source directly.
    */
   loadSourceControlProviders: LoadSourceControlProviders;
   /**
@@ -1688,9 +1688,9 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   loadPluginCredentialCards: LoadPluginCredentialCards;
   /**
-   * This workspace's self-describing token scheme rules (`custom-credentials/auth-schemes.ts`), read
-   * by `custom_credential_make_request`/`_verify`. `server/deps.ts` injects its boot-bound lifecycle to read the
-   * installed plugins; `server/app.ts`'s hermetic root reads the bundled plugins' sources.
+   * This workspace's self-describing token scheme rules (`apps/website/src/features/agent-plugins/auth-schemes.ts`), read
+   * by `custom_credential_make_request`/`_verify`. `apps/website/src/server/runtime/composition/deps.ts` injects its boot-bound lifecycle to read the
+   * installed plugins; `apps/website/src/server/runtime/composition/app.ts`'s hermetic root reads the bundled plugins' sources.
    */
   loadAuthSchemes: (ctx: { readonly workspaceId: string }) => Promise<readonly CredentialSchemeRule[]>;
   /**
@@ -1712,7 +1712,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `source-control` domain's own export scratch directory (deliberately separate from
    * `exportOutputRootDir`/`publishOutputRootDir` above so no two of these features ever race over
    * the same on-disk output — see `features/source-control/commit-site.ts`'s header), read ONCE at
-   * boot by `server/app.ts`'s `createRouteDeps()`/`server/deps.ts`'s
+   * boot by `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`/`apps/website/src/server/runtime/composition/deps.ts`'s
    * `resolveSourceControlExportRootDir()` (via `createSiteRouteDeps()`). `commit-site.ts`'s
    * `commitExportDir` joins this with the provider subdirectory (`"github"`) — never re-reads
    * `process.env` itself.

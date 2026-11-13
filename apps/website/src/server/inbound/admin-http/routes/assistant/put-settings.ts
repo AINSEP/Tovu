@@ -10,7 +10,7 @@ import { ValueValidationFailedError } from "#src/features/settings/index";
 
 /**
  * PUT (partial) the workspace's `site.assistant.*` settings — the route the admin's AI Assistant
- * screen flips the public switch through. Mirrors `routes/admin/seo/put-settings.ts` exactly: same
+ * screen flips the public switch through. Mirrors `apps/website/src/server/inbound/admin-http/routes/seo/put-settings.ts` exactly: same
  * auth gate as the matching GET, same `{ data }` envelope, same 400-on-validation /
  * 500-on-everything-else split, and the same return of the settings AS THEY NOW READ so the client
  * renders the persisted truth rather than the value it optimistically sent.

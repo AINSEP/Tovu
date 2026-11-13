@@ -37,7 +37,7 @@ import { redactedError } from "@jini-ai/diagnostics/observability/node";
  * when the caller supplies a flush port. Without one, a monitor leaves Node's listeners intact.
  *
  * Architectural role:
- * Boot-time process wiring, `src/server/boot/` sibling to `registerPluginSdkResolver()` (see that
+ * Boot-time process wiring, `apps/website/src/server/runtime/boot/` sibling to `registerPluginSdkResolver()` (see that
  * file's own header for this directory's shared "one real top-level boot path, testable via an
  * injectable seam" shape, reused here). Called from `index.ts`'s `main()` — `index.ts` is that one
  * real top-level boot path (never imported by a test), so this file itself must expose the actual

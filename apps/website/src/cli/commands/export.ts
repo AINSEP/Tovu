@@ -48,7 +48,7 @@ export interface RunExportCommandInput {
  *
  * `exportOutputRootDir` is `RouteDeps.exportOutputRootDir` — this command's own composition root
  * (`createSiteRouteDeps`, below) resolves the `TOVU_EXPORT_DIR`-env-then-default half of this
- * precedence chain exactly once (`server/deps.ts`'s `resolveExportOutputRootDir`); only the
+ * precedence chain exactly once (`apps/website/src/server/runtime/composition/site-paths.ts`'s `resolveExportOutputRootDir`); only the
  * CLI-only `--out` flag is decided here. This function never reads `process.env` itself.
  */
 function resolveExportOutputDir(input: RunExportCommandInput, exportOutputRootDir: string): string {

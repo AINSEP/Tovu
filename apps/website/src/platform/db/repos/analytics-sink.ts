@@ -25,7 +25,7 @@ import type { AnalyticsEventsTable } from "../content-database.generated.js";
  *
  * Architectural role:
  * Infrastructure adapter. `analytics` never imports this file — it depends only on
- * `AnalyticsSinkPort`; composition roots (`server/deps.ts`) bind the concrete class.
+ * `AnalyticsSinkPort`; composition roots (`apps/website/src/server/runtime/composition/deps.ts`) bind the concrete class.
  */
 
 const DEFAULT_LIST_LIMIT = 50;

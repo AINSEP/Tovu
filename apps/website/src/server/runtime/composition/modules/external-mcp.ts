@@ -24,12 +24,12 @@ import type { ServerModuleHandle } from "./types.js";
  * backing Settings → External MCP.
  *
  * This module configures external MCP servers that Tovu's agent daemon connects to and whose tools
- * the assistant may then call; `mcp-federation/trust.ts` is the separate trust tier for them.
+ * the assistant may then call; `Jini packages/mcp/src/federation/trust.ts` is the separate trust tier for them.
  *
  * Eleven routes now, not three. Ten are behind `requireAdminSession` under `/api/admin`, and ONE is
  * PUBLIC — the OAuth callback, mounted outside that prefix because a `SameSite=Strict` cookie
  * cannot survive the cross-site redirect that reaches it. That is the same shape
- * `modules/connectors.ts` already has, and the same argument; see
+ * the connectors module already has, and the same argument; see
  * `routes/external-mcp/oauth-callback.ts`.
  *
  * The OAuth routes are registered only when a service is wired. A deployment that never configures
@@ -44,7 +44,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcpOAuthRouteDeps): ServerModuleHandle {
   const oauthDeps = "externalMcpOAuth" in deps && deps.externalMcpOAuth !== undefined ? (deps as ExternalMcpOAuthRouteDeps) : null;
   // Separate instances per family (not one shared limiter) so a device-poll burst does not eat the
-  // callback's budget — the same reasoning `modules/connectors.ts` records for its four.
+  // callback's budget — the same reasoning the connectors module records for its four.
   const oauthLimiter = createRateLimiter({ profile: EXTERNAL_MCP_OAUTH_PER_IP, clock: deps.clock });
   const callbackLimiter = createRateLimiter({ profile: EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, clock: deps.clock });
   const probeLimiter = createExternalMcpProbeLimiter(deps);
@@ -52,7 +52,7 @@ export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcp
   return {
     name: "external-mcp",
     registerRoutes: (app) => {
-      // No ordering hazard of the kind `modules/connectors.ts` documents: the collection route, the
+      // No ordering hazard of the kind the connectors module documents: the collection route, the
       // `:serverId` routes, and the two new fixed-suffix routes (`/admissions`, `/:serverId/probe`)
       // all differ by HTTP method or by segment count, so no literal path can be swallowed as an id.
       registerAdminExternalMcpListRoute(app, deps);

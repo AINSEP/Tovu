@@ -14,7 +14,7 @@ import type { ExternalMcpRouteDeps } from "./deps.js";
  * read route and the write routes. One implementation is what keeps them from drifting.
  *
  * `admin.integrations.manage` rather than a new permission string, for the reason
- * `mcp-federation/trust.ts` already documents for federated CALLS: it is the existing
+ * `Jini packages/mcp/src/federation/trust.ts` already documents for federated CALLS: it is the existing
  * third-party-integration permission, it is site-owner-level rather than editor-level, and a
  * deployment that has already decided who may administer external integrations should not have to
  * decide again.

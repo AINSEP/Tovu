@@ -44,9 +44,9 @@ function sendTimelineError(res: Response, err: unknown): void {
  * read-first Timeline). Gated by `database.read` (ADR-041 §6's permission catalog).
  *
  * The first (and, for this dispatch, only) Database/Recovery admin route wired end-to-end against
- * a real adapter (`SqliteDatabaseLedgerRepo`, `server/deps.ts`) — demonstrates the sidecar journal
+ * a real adapter (`SqliteDatabaseLedgerRepo`, `apps/website/src/server/runtime/composition/deps.ts`) — demonstrates the sidecar journal
  * is genuinely reachable over HTTP, following the exact pattern
- * `routes/admin/redirects/list.ts` already established. The remaining Database/Recovery API
+ * `apps/website/src/server/inbound/admin-http/routes/redirects/list.ts` already established. The remaining Database/Recovery API
  * surface (migrate-forward plan/confirm/execute, restore-point creation, the restore ceremony,
  * the Tier-3 browser) stays unwired — that is the admin-UI-adjacent backend work item B in
  * `todos.md` anticipates, not this slice's scope (see the progress ledger's Session 4 entry).

@@ -14,8 +14,8 @@
  * A site directory is also where every backup, snapshot, and derived output lands. Observed in
  * `sites/tovu-dev/` at the time of writing: `chat.db` + `chat.db-wal`/`-shm` + `chat.db.bak`,
  * `content.db.bak`, `content.db.predelete.bak`, `content.db.bak-<timestamp>`, `content.seed.db`,
- * seven `restore-point-*.db` snapshots (written BESIDE `content.db` by design — Jini
- * `infra/src/db/sqlite/db-ops.ts`), plus `ops/`'s operational journals and `out/`'s publish and
+ * seven `restore-point-*.db` snapshots (written BESIDE `content.db` by design —
+ * `Jini packages/db/src/sqlite/db-ops.ts`), plus `ops/`'s operational journals and `out/`'s publish and
  * export output. Every `.db`/`.bak` among those is a FULL copy of the source site's database, and
  * the ones predating the split still hold the `ai_chats` rows a duplicate is supposed to leave
  * behind. All of them were copied into every duplicate.

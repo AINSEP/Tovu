@@ -24,7 +24,7 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
  * was reading.
  *
  * The desktop shell now detects this in its own process and shows a banner
- * (`apps/desktop/src/site-key-boot-guard.ts`). This function is the same detection for the OTHER
+ * (the desktop site-key boot guard). This function is the same detection for the OTHER
  * launcher — `npm run dev`, and a packaged `tovu serve` — where there is no shell to put a banner
  * in. It is a log line, and a log line is admittedly the weaker surface; its job is to be at BOOT,
  * beside everything else a developer reads while a server starts, rather than hours later beside a

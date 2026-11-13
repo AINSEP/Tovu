@@ -16,7 +16,7 @@ import type { ServerModuleHandle } from "./types.js";
  * @file The `agent-plugins` server module (2026-09-09) — mirrors `modules/plugins.ts`'s own
  * structure for the separate `.tovu-plugin` site/runtime family.
  *
- * `AgentPluginsRouteDeps` (`routes/admin/agent-plugins/deps.ts`) is a structural subset of
+ * `AgentPluginsRouteDeps` (`apps/website/src/server/inbound/admin-http/routes/agent-plugins/deps.ts`) is a structural subset of
  * `RouteDeps` (`workspaceId`/`authorize` only — see that file's own header for why this domain
  * needs no wider slice), so `RouteDeps` satisfies it with no cast, same as `widgets.ts`'s own
  * rationale for its module deps.

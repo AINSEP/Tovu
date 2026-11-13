@@ -4,7 +4,7 @@ import type { ContentDb } from "../platform/db/sqlite/content-db.js";
 
 /**
  * @file The site assistant credential repo on a site's SQLite `content.db`: {@link
- * SqlSiteAssistantCredentialRepo} (the one Kysely query body, `repos/site-credential-repo.ts`),
+ * SqlSiteAssistantCredentialRepo} (the one Kysely query body, `apps/website/src/assistant/site-credential-repo.ts`),
  * kept as a named class so the call sites that build it from the content db handle stay as they
  * are.
  */

@@ -38,7 +38,7 @@
  * {@link refuseNonReadOnlyDispatch} is the ONLY place the question "may this dispatch proceed?" is
  * answered, and it answers it by asking `@jini-ai/core`'s `isReadOnlyTool` through `@jini-ai/daemon/read-only-tools` — the single
  * read-only determination the route and `@jini-ai/cms`'s wiring already consult. Its other two
- * consumers (the executor gate below, and `tool-failure-recovery.ts`'s pre-dispatch check, which
+ * consumers (the executor gate below, and `Jini packages/daemon/src/tool-recovery/recovery.ts`'s pre-dispatch check, which
  * exists so a human is never asked to fill in a form whose answer would then be refused) call this
  * function; neither re-implements it. Changing what the constraint means is one edit, here.
  *
@@ -47,8 +47,8 @@
  * safety — the same posture `@jini-ai/core`'s `ToolDescriptor.readOnly` doc sets for its own
  * omitted flag.
  *
- * Architectural role: `src/assistant` composition-layer adapter, alongside `tool-executor-audit.ts`
- * and `tool-failure-recovery.ts` — depends on the kernel's `Principal`/`ToolRegistry`/`ToolExecutor`
+ * Architectural role: `src/assistant` composition-layer adapter, alongside `apps/website/src/assistant/tool-audit-preset.ts`
+ * and `apps/website/src/assistant/tool-recovery-preset.ts` — depends on the kernel's `Principal`/`ToolRegistry`/`ToolExecutor`
  * shapes and on no domain feature.
  */
 import { randomUUID } from "node:crypto";

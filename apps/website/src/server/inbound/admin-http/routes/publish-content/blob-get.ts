@@ -45,7 +45,7 @@ import type { PublishContentRouteRegistrar } from "./deps.js";
  *    directory opens with.
  * 2. A real permission check against the AUTHENTICATED principal (above). Knowing a sha — even
  *    having uploaded those very bytes under `publish_content.apply` — grants nothing;
- *    `__tests__/../publish-content-blob-get.test.ts` pins that case directly.
+ *    `apps/website/src/server/__tests__/routes/publish-content-blob-get.test.ts` pins that case directly.
  * 3. The storage key is DERIVED, never accepted: `computeBlobStorageKey({workspaceId, sha256})`
  *    with this composition's own `workspaceId`. A caller supplies 64 hex characters and nothing
  *    else, so there is no path/traversal surface and no way to address another workspace's bytes.

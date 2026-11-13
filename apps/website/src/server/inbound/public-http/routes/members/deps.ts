@@ -6,7 +6,7 @@ import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
  *
  * Purpose:
  * `MemberPublicRouteDeps` is deliberately NARROWER than
- * `routes/admin/members/deps.ts`'s `MembersRouteDeps` — no `authorize`, no
+ * `apps/website/src/server/inbound/admin-http/routes/members/deps.ts`'s `MembersRouteDeps` — no `authorize`, no
  * admin session dependency at all. This route family
  * (`POST .../sign-in`, `POST .../sign-in/complete`) must stay unauthenticated
  * by design (ADR-030 §3): a visitor has no admin session, and must never be
@@ -14,7 +14,7 @@ import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
  *
  * Architectural role:
  * Composition-boundary glue only — no business logic. Mirrors
- * `routes/admin/members/deps.ts`'s `toMembersWriteServiceDeps` helper.
+ * `apps/website/src/server/inbound/admin-http/routes/members/deps.ts`'s `toMembersWriteServiceDeps` helper.
  */
 import type {
   MagicLinkTokenRepoPort,

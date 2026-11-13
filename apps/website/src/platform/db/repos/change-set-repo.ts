@@ -21,7 +21,7 @@ import type {
  *
  * Purpose:
  * Change-set mutation history (ADR-008's audit/undo trail) previously lived only in-memory in the
- * real running server (`server/deps.ts`), lost on every restart — ADR-046's Context section names
+ * real running server (`apps/website/src/server/runtime/composition/deps.ts`), lost on every restart — ADR-046's Context section names
  * this explicitly as unacceptable for user-visible state. This adapter closes that gap.
  *
  * Transaction-participation scope (disclosed, deliberate): `insert()` writes the change-set header,
@@ -38,7 +38,7 @@ import type {
  *
  * Architectural role:
  * Infrastructure adapter. `core/commands` never imports this file — it depends only on
- * `ChangeSetRepoPort`; composition roots (`server/deps.ts`) bind the concrete class.
+ * `ChangeSetRepoPort`; composition roots (`apps/website/src/server/runtime/composition/deps.ts`) bind the concrete class.
  */
 
 function toRecord(row: Selectable<ChangeSetsTable>): ChangeSetRecord {

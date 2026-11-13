@@ -10,7 +10,7 @@ import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
  * restore-points list view — the "Backups" list, ADR-045 §3). Gated by `backup.read`.
  *
  * Reuses `database/restore-points.ts`'s `listRestorePoints` and the same `restorePointsRepo`
- * `routes/admin/database/restore-points.ts` reads — one persisted list, two gated views, per
+ * `apps/website/src/server/inbound/admin-http/routes/database/restore-points.ts` reads — one persisted list, two gated views, per
  * ADR-045 §1 ("Database and Recovery are sibling faces" of the same underlying record).
  */
 export function registerAdminRecoveryRestorePointsListRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {

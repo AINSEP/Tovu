@@ -17,7 +17,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * Purpose:
  * Serializes `navigation` library read models (`NavMenuEntry`,
  * `NavLocationBindingRow`) into stable admin JSON envelopes, mirroring
- * `server/http/admin/posts.ts`'s `toAdminPostResponse` pattern.
+ * `apps/website/src/server/inbound/admin-http/http/posts.ts`'s `toAdminPostResponse` pattern.
  *
  * Also declares `MenuRouteDeps` / `MenuRouteRegistrar` — the superset of the
  * shared `RouteDeps` (`server/routes/types.ts`) these routes need
@@ -25,7 +25,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `routes/types.ts` because that file is a shared collision point 4 parallel
  * agents are editing today for their own sections; folding these two fields
  * into `RouteDeps` and wiring `createRouteDeps()`/`createApp()`
- * (`server/app.ts`) is the integration step this build hands to the
+ * (`apps/website/src/server/runtime/composition/app.ts`) is the integration step this build hands to the
  * coordinator (see the wiring handoff report).
  *
  * Architectural role:

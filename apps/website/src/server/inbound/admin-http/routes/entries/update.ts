@@ -53,7 +53,7 @@ export function registerAdminEntryUpdateRoute(app: Express, deps: ContentTypesRo
           id: String(req.params.id),
           title: typeof body.title === "string" ? body.title : undefined,
           fieldsJson: body.fieldsJson,
-          // Forwarded rather than dropped. `features/entries/write-service.ts`'s
+          // Forwarded rather than dropped. `Jini packages/cms/src/entries/write-service.ts`'s
           // `updateEntry` has always supported `bodyJson` (and leaves the stored
           // value alone when it is `undefined`), but this route never read it —
           // so a rich-text edit to an existing entry returned 200 while the body

@@ -30,9 +30,9 @@ import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
  * prevent. The client is left to decide how to say "we could not determine this".
  *
  * `databaseIntrospection` was already composed into `RouteDeps` in BOTH composition roots
- * (`server/deps.ts`'s real `SqliteDatabaseIntrospectionAdapter`, `server/app.ts`'s
+ * (`apps/website/src/server/runtime/composition/deps.ts`'s real `SqliteDatabaseIntrospectionAdapter`, `apps/website/src/server/runtime/composition/app.ts`'s
  * `InMemoryDatabaseIntrospectionAdapter`) before this route — it was simply never read over HTTP.
- * See `routes/admin/database-recovery/deps.ts`, whose header previously listed it among the fields
+ * See `apps/website/src/server/inbound/admin-http/routes/database-recovery/deps.ts`, whose header previously listed it among the fields
  * excluded from `DatabaseRecoveryRouteDeps` for want of a consumer; this route is that consumer.
  */
 export function registerAdminDatabaseSchemaStateRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {
