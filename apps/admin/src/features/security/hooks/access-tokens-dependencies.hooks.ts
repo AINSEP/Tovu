@@ -17,21 +17,21 @@ export const defaultAccessTokensPort: AccessTokensPort = {
   publish: {
     list: () => api.listPublishCredentials(),
     create: (input, _optional = {}) => api.createPublishCredential(input).then((res) => res.credential),
-    update: ({ id, input }, _optional = {}) => api.updatePublishCredential(id, input).then((res) => res.credential),
-    remove: ({ id }, _optional = {}) => api.deletePublishCredential(id),
+    update: ({ id, input }, _optional = {}) => api.updatePublishCredential({ id, input }).then((res) => res.credential),
+    remove: ({ id }, _optional = {}) => api.deletePublishCredential({ id }),
   },
   sourceControl: {
     list: () => api.listSourceControlCredentials(),
     create: (input, _optional = {}) => api.createSourceControlCredential(input).then((res) => res.credential),
-    update: ({ id, input }, _optional = {}) => api.updateSourceControlCredential(id, input).then((res) => res.credential),
-    remove: ({ id }, _optional = {}) => api.deleteSourceControlCredential(id),
+    update: ({ id, input }, _optional = {}) => api.updateSourceControlCredential({ id, input }).then((res) => res.credential),
+    remove: ({ id }, _optional = {}) => api.deleteSourceControlCredential({ id }),
   },
   custom: {
     list: () => api.listCustomCredentials(),
     useKey: (input, _optional = {}) => api.useProjectKey(input),
     create: (input, _optional = {}) => api.createCustomCredential(input).then((res) => res.credential),
-    update: ({ id, input }, _optional = {}) => api.updateCustomCredential(id, input).then((res) => res.credential),
-    remove: ({ id }, _optional = {}) => api.deleteCustomCredential(id),
+    update: ({ id, input }, _optional = {}) => api.updateCustomCredential({ id, input }).then((res) => res.credential),
+    remove: ({ id }, _optional = {}) => api.deleteCustomCredential({ id }),
   },
 };
 

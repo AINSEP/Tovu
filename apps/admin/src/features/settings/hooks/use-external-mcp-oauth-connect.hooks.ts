@@ -96,7 +96,7 @@ export function useExternalMcpOAuthConnect(
     let stopped = false;
     const tick = async () => {
       try {
-        const result = await port.pollExternalMcpOAuthDevice(serverId);
+        const result = await port.pollExternalMcpOAuthDevice({ serverId });
         if (stopped) return;
         if (result.status === "connected") {
           finish();
@@ -104,7 +104,7 @@ export function useExternalMcpOAuthConnect(
         }
         timer = setTimeout(() => void tick(), result.retryAfterSeconds * 1000);
       } catch (error) {
-        if (!stopped) finish(describeApiError(error, fallbackError));
+        if (!stopped) finish(describeApiError({ e: error, fallback: fallbackError }));
       }
     };
     timer = setTimeout(() => void tick(), intervalSeconds * 1000);
@@ -131,7 +131,7 @@ export function useExternalMcpOAuthConnect(
       pollDevice(auth.intervalSeconds);
     } catch (error) {
       popup?.close();
-      setState({ phase: "idle", error: describeApiError(error, fallbackError) });
+      setState({ phase: "idle", error: describeApiError({ e: error, fallback: fallbackError }) });
     }
   }, [stop, win, grant, port, serverId, awaitRedirect, pollDevice, fallbackError]);
 
@@ -145,5 +145,5 @@ export function useExternalMcpOAuthConnect(
 
 /** Preserve the existing one-argument local port call while making shared saving explicit. */
 function startConnection({ port, serverId, options }: { port: ExternalMcpOAuthConnectPort; serverId: string; options: { destination?: "shared" } }) {
-  return options.destination ? port.connectExternalMcpOAuth(serverId, options) : port.connectExternalMcpOAuth(serverId);
+  return options.destination ? port.connectExternalMcpOAuth({ serverId }, options) : port.connectExternalMcpOAuth({ serverId });
 }

@@ -61,6 +61,6 @@ export function useRemoteImageImport(
     canSubmit: validUrl && mutation.status !== "pending",
     /** Typed but not importable: shown inline so the disabled button is explained. */
     urlInvalid: url.trim() !== "" && !validUrl,
-    error: mutation.error ? describeApiError(mutation.error, required.t("Could not import media.")) : null,
+    error: mutation.error ? describeApiError({ e: mutation.error, fallback: required.t("Could not import media.") }) : null,
   };
 }

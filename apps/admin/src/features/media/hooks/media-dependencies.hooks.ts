@@ -14,14 +14,14 @@ export const defaultMediaPort: MediaPort = {
   listMedia: () => api.listMedia(),
   uploadMedia: (input, options) => api.uploadMedia(input, options),
   updateMedia: (target, options) => api.updateMedia(target, options),
-  trashMedia: (id) => api.trashMedia(id),
-  deleteMedia: (id) => api.deleteMedia(id),
+  trashMedia: (id) => api.trashMedia({ id }),
+  deleteMedia: (id) => api.deleteMedia({ id }),
   // No media-specific restore route: the shared Trash restore already handles media rows.
   restoreMedia: async (id) => {
     const report = await api.restoreTrashItems({ items: [{ entityType: "media", entityId: id }] });
     return { restored: report.restored === 1 };
   },
-  mediaOriginalUrl: (id) => api.mediaOriginalUrl(id),
+  mediaOriginalUrl: (id) => api.mediaOriginalUrl({ id }),
   listUsers: () => api.listUsers(),
 };
 
@@ -53,7 +53,7 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
       // enough for a fake store's own uniqueness-free happy path; a test needing a REAL collision or
       // conflict must seed `options.media` directly with an explicit `slug`, same as `contentType`'s
       // own disclosed limit above.
-      slug: asciiSlug(input.filename) || "untitled",
+      slug: asciiSlug({ text: input.filename }) || "untitled",
       alt: opts.alt ?? "",
       caption: opts.caption ?? "",
       credit: opts.credit ?? "",

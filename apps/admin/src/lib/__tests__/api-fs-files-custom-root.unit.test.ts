@@ -29,7 +29,7 @@ test("setFsFilesCustomRoot PUTs the path verbatim in JSON and returns the canoni
   const path = "/Users/la/My project/#draft?";
   const response = { path: "/canonical/project" };
   const fetchMock = stubFetch(response);
-  await expect(api.setFsFilesCustomRoot(path)).resolves.toEqual(response);
+  await expect(api.setFsFilesCustomRoot({ path })).resolves.toEqual(response);
   expect(fetchMock).toHaveBeenCalledOnce();
   const [url, init] = fetchMock.mock.calls[0]!;
   expect(url).toBe(ENDPOINT);

@@ -10,5 +10,5 @@ export const defaultSiteKeyPort: SiteKeyPort = {
   generate: () => api.generateSiteKey(),
   importSiteKey: ({ siteKey }, _optional = {}) => api.importSiteKey({ siteKey }),
   previewStartFresh: () => api.previewSiteKeyStartFresh(),
-  startFresh: ({ confirm }, _optional = {}) => api.startFreshSiteKey(confirm),
+  startFresh: ({ confirm }, _optional = {}) => api.startFreshSiteKey({ confirm }),
 };

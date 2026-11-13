@@ -255,7 +255,7 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
     }
   }
 
-  const error = saveMutation.error ? describeApiError(saveMutation.error, t({ locale: locale, key: "failed to save media metadata" })) : null;
+  const error = saveMutation.error ? describeApiError({ e: saveMutation.error, fallback: t({ locale: locale, key: "failed to save media metadata" }) }) : null;
 
   const creators = useFetchQuery({
     key: ["media", "creator-names"],

@@ -455,7 +455,7 @@ describe("Library production port (createApiLibraryPort)", () => {
         calls.push(`updateMedia:${target.id}:${JSON.stringify(patch)}`);
         return { media: doc };
       },
-      trashMedia: async (id) => {
+      trashMedia: async ({ id }, _optional = {}) => {
         calls.push(`trashMedia:${id}`);
         return { media: doc };
       },
@@ -463,7 +463,7 @@ describe("Library production port (createApiLibraryPort)", () => {
         calls.push(`readDocumentText:${target.id}`);
         return { text: "hello", truncated: true };
       },
-      mediaOriginalUrl: (id) => `/original/${id}`,
+      mediaOriginalUrl: ({ id }, _optional = {}) => `/original/${id}`,
       me: async () => {
         calls.push("me");
         return { effectivePermissions: ["media.read"] };
@@ -523,7 +523,7 @@ describe("Library production port (createApiLibraryPort)", () => {
     const blob = await defaultLibraryPort.fetchDocumentBlob({ id: "doc 1" });
     expect(await blob.text()).toBe("bytes");
     const [url, init] = fetchFake.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe(api.mediaOriginalUrl("doc 1"));
+    expect(url).toBe(api.mediaOriginalUrl({ id: "doc 1" }));
     expect(init).toEqual({ credentials: "same-origin" });
   });
 });

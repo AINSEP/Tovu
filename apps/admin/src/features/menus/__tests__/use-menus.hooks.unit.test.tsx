@@ -127,7 +127,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
       .mockResolvedValueOnce({ menus: [MENU] })
       .mockResolvedValueOnce({ menus: [] });
     port.trash = vi.fn(() => {
-      throw new ApiError("not found", 404, "NOT_FOUND");
+      throw new ApiError({ message: "not found", status: 404 }, { code: "NOT_FOUND" });
     });
     const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
@@ -148,7 +148,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
   it("a 409 TRASH_VERSION_CHANGED on confirmTrash shows the reload message", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     port.trash = vi.fn(() => {
-      throw new ApiError("stale", 409, "TRASH_VERSION_CHANGED");
+      throw new ApiError({ message: "stale", status: 409 }, { code: "TRASH_VERSION_CHANGED" });
     });
     const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
@@ -241,7 +241,7 @@ describe("useMenus error and confirmation edges", () => {
 
   it.each([
     { failure: "offline", message: "delete failed" },
-    { failure: new ApiError("permission denied", 403, "FORBIDDEN"), message: "permission denied" },
+    { failure: new ApiError({ message: "permission denied", status: 403 }, { code: "FORBIDDEN" }), message: "permission denied" },
   ])("shows $message for an unclassified trash rejection", async ({ failure, message }) => {
     const port = createFakeMenusPort({ menus: [MENU] });
     port.trash = async () => { throw failure; };

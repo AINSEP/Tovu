@@ -120,8 +120,8 @@ export function visibleIntegrationsError(params: {
   hasSubscriptions: boolean;
   locale: string;
 }): string | null {
-  if (params.toggleError) return describeApiError(params.toggleError, t({ locale: params.locale, key: "failed to update subscription" }));
-  if (params.deleteError) return describeApiError(params.deleteError, t({ locale: params.locale, key: "failed to delete subscription" }));
+  if (params.toggleError) return describeApiError({ e: params.toggleError, fallback: t({ locale: params.locale, key: "failed to update subscription" }) });
+  if (params.deleteError) return describeApiError({ e: params.deleteError, fallback: t({ locale: params.locale, key: "failed to delete subscription" }) });
   if (params.hasSubscriptions) return null;
-  return params.listError ? describeApiError(params.listError, t({ locale: params.locale, key: "failed to load integrations" })) : null;
+  return params.listError ? describeApiError({ e: params.listError, fallback: t({ locale: params.locale, key: "failed to load integrations" }) }) : null;
 }

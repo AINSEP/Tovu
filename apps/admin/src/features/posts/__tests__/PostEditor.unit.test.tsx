@@ -1025,7 +1025,7 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     // `api.templatePreviewUrl`), so the pre-existing "Edit/Preview toolbar" characterization tests
     // below — written when `PostPreview` called `api.templatePreviewUrl` itself — still see realistic
     // URLs without restating that logic. Mirrors `PageEditor.unit.test.tsx`'s identical fixture.
-    templatePreviewUrl: post ? api.templatePreviewUrl(post.id, templateChoice) : "",
+    templatePreviewUrl: post ? api.templatePreviewUrl({ id: post.id, templateChoice }) : "",
     // `null` by default, matching `editor: null` above — see this describe block's own comment on
     // why a `null` `bodyJson` means the debounced auto-submit effect never fires in this DI harness.
     bodyJson: null,

@@ -9,7 +9,7 @@ import type { MediaPickerPort } from "./media-picker-port.hooks";
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultMediaPickerPort: MediaPickerPort = {
   listMedia: () => api.listMedia(),
-  mediaOriginalUrl: ({ id }, _options: Record<string, never> = {}) => api.mediaOriginalUrl(id),
+  mediaOriginalUrl: ({ id }, _options: Record<string, never> = {}) => api.mediaOriginalUrl({ id }),
 };
 
 /** Seed state for {@link createFakeMediaPickerPort}. */

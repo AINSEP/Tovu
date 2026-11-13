@@ -188,7 +188,7 @@ export function useTimelineSection(deps: TimelineSectionDependencies): TimelineS
       setMoreCursor(r.nextCursor);
     } catch (e) {
       if (filtersAtCall !== filtersRef.current) return;
-      setMoreError(describeApiError(e, t({ locale: locale, key: "failed to load the Database Timeline" })));
+      setMoreError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to load the Database Timeline" }) }));
     } finally {
       if (filtersAtCall === filtersRef.current) {
         loadingMoreRef.current = false;
@@ -198,7 +198,7 @@ export function useTimelineSection(deps: TimelineSectionDependencies): TimelineS
   }
 
   const rows = firstPage.data ? [...firstPage.data.items, ...morePages] : null;
-  const error = moreError ?? (firstPage.error ? describeApiError(firstPage.error, t({ locale: locale, key: "failed to load the Database Timeline" })) : null);
+  const error = moreError ?? (firstPage.error ? describeApiError({ e: firstPage.error, fallback: t({ locale: locale, key: "failed to load the Database Timeline" }) }) : null);
 
   return {
     rows,

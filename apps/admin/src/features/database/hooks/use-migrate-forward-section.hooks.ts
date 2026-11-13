@@ -175,7 +175,7 @@ export function useMigrateForwardSection(deps: MigrateForwardSectionDependencies
   // non-null at a time; a plain precedence chain is enough, no `clearOtherWriteErrors` needed.
   const rawError = startPlanMutation.error ?? confirmMutation.error ?? executeMutation.error;
   const errorKey = migrateForwardErrorKey({ planError: startPlanMutation.error, confirmError: confirmMutation.error, executeError: executeMutation.error });
-  const error = errorKey === null ? null : describeApiError(rawError, t({ locale: locale, key: errorKey }));
+  const error = errorKey === null ? null : describeApiError({ e: rawError, fallback: t({ locale: locale, key: errorKey }) });
 
   return { step, busy, error, plan, confirmationToken, done, reset, startPlan, doConfirm, doExecute, t: boundT, locale };
 }

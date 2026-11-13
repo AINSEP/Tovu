@@ -51,7 +51,7 @@ export interface ExternalMcpToolPickerPort {
 }
 
 export const defaultExternalMcpToolPickerPort: ExternalMcpToolPickerPort = {
-  probe: ({ serverId }, _options = {}) => api.probeExternalMcpServer(serverId),
+  probe: ({ serverId }, _options = {}) => api.probeExternalMcpServer({ serverId }),
 };
 
 export interface ExternalMcpToolPickerController {

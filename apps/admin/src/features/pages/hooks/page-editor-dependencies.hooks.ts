@@ -13,7 +13,7 @@ import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
  *  `redirectsHostPorts`. `getPresentation` narrows `api.getPresentation()`'s wider response down to
  *  the fields this port promises. */
 export const defaultPageEditorPort: PageEditorPort = {
-  getPage: ({ routeSlug }, _options = {}) => api.getPage(routeSlug),
+  getPage: ({ routeSlug }, _options = {}) => api.getPage({ id: routeSlug }),
   getPresentation: async () => {
     const { activeThemeTemplates, settings, availableThemes } = await api.getPresentation({ kind: "page" });
     const activeTheme = availableThemes.find((theme) => theme.id === settings.activeThemeId);
@@ -26,15 +26,15 @@ export const defaultPageEditorPort: PageEditorPort = {
       activeThemeTier: activeTheme?.tier ?? null,
     };
   },
-  updatePageHtml: ({ id, html }, _options = {}) => api.updatePageHtml(id, html),
+  updatePageHtml: ({ id, html }, _options = {}) => api.updatePageHtml({ id, html }),
   // The shared posts route saves pages too; `entry` makes a failure notice say "page".
-  updatePost: ({ target, patch }, _options = {}) => api.updatePost(target, patch, { entry: "page" }),
-  deletePage: ({ id }, _options = {}) => api.deletePage(id),
-  templatePreviewUrl: ({ id, templateChoice }, _options = {}) => api.templatePreviewUrl(id, templateChoice),
-  putAutosave: ({ id, draft }, options = {}) => api.putAutosave(id, draft, options),
+  updatePost: ({ target, patch }, _options = {}) => api.updatePost(target, { options: patch, entry: "page" }),
+  deletePage: ({ id }, _options = {}) => api.deletePage({ id }),
+  templatePreviewUrl: ({ id, templateChoice }, _options = {}) => api.templatePreviewUrl({ id, templateChoice }),
+  putAutosave: ({ id, draft }, options = {}) => api.putAutosave({ id, draft }, options),
   getBackupPrincipalId: () => getAdminDraftIdentity(),
-  getAutosave: ({ id }, _options = {}) => api.getAutosave(id),
-  discardAutosave: ({ id }, _options = {}) => api.discardAutosave(id),
+  getAutosave: ({ id }, _options = {}) => api.getAutosave({ id }),
+  discardAutosave: ({ id }, _options = {}) => api.discardAutosave({ id }),
 };
 
 /** Seed state for {@link createFakePageEditorPort}. */
@@ -172,10 +172,10 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
       const { expectedVersion, ...fields } = patch;
       if (expectedVersion !== undefined && expectedVersion !== page.version) {
         throw new ApiError(
-          `page '${page.id}' was modified by another save (expected version ${expectedVersion}, current version ${page.version})`,
-          409,
-          PAGE_VERSION_CONFLICT_CODE,
-          { details: { expectedVersion, currentVersion: page.version } }
+          { message: `page '${page.id}' was modified by another save (expected version ${expectedVersion}, current version ${page.version})`,
+          status: 409 },
+          { code: PAGE_VERSION_CONFLICT_CODE,
+          body: { details: { expectedVersion, currentVersion: page.version } } }
         );
       }
       page = { ...page, ...fields, version: page.version + 1 };

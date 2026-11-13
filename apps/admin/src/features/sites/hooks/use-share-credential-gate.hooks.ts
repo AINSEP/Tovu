@@ -91,7 +91,7 @@ export function useShareCredentialGate({ port, t, refresh, onDownloadError }: {
         await download(share);
       }
     } catch (error) {
-      if (alive.current) setFailure({ shareId: share.shareId, message: describeApiError(error, t("Couldn't save your answer. Try again.")) });
+      if (alive.current) setFailure({ shareId: share.shareId, message: describeApiError({ e: error, fallback: t("Couldn't save your answer. Try again.") }) });
     } finally {
       if (alive.current) setAcknowledgingId(null);
       refresh();

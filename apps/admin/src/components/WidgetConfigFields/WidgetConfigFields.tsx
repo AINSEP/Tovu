@@ -177,7 +177,7 @@ function findContentType({ collections, key }: { collections: AdminContentType[]
  *  `tovu_feature` example collection carries — which `agentHandle` throws on verbatim. Used only
  *  for the handle text; the visible label still goes through {@link humanizeFieldName}. */
 function fieldHandleSegment({ name }: { name: string }, _options: Record<string, never> = {}): string {
-  return asciiSlug(name);
+  return asciiSlug({ text: name });
 }
 
 /** The Collection `<select>` — its own component because the loading/error states from

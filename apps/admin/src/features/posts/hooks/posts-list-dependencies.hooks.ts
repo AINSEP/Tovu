@@ -10,8 +10,8 @@ import type { PostsListPort } from "./posts-list-port.hooks";
 /** The live implementation, as a module-level singleton. */
 export const defaultPostsListPort: PostsListPort = {
   listPosts: () => api.listPosts(),
-  updatePost: ({ target, patch }, _optional = {}) => api.updatePost(target, patch),
-  deletePost: ({ id }, _optional = {}) => api.deletePost(id),
+  updatePost: ({ target, patch }, _optional = {}) => api.updatePost(target, { options: patch }),
+  deletePost: ({ id }, _optional = {}) => api.deletePost({ id }),
 };
 
 /** Seed state for {@link createFakePostsListPort}. */
@@ -63,10 +63,10 @@ export function createFakePostsListPort(options: FakePostsListPortOptions = {}):
       const { expectedVersion, ...fields } = patch;
       if (expectedVersion !== undefined && expectedVersion !== current.version) {
         throw new ApiError(
-          `post '${current.id}' was modified by another save (expected version ${expectedVersion}, current version ${current.version})`,
-          409,
-          POST_VERSION_CONFLICT_CODE,
-          { details: { expectedVersion, currentVersion: current.version } }
+          { message: `post '${current.id}' was modified by another save (expected version ${expectedVersion}, current version ${current.version})`,
+          status: 409 },
+          { code: POST_VERSION_CONFLICT_CODE,
+          body: { details: { expectedVersion, currentVersion: current.version } } }
         );
       }
       const updated = { ...current, ...fields, version: current.version + 1 };

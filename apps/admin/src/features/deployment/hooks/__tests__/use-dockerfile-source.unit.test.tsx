@@ -360,7 +360,7 @@ describe("useDockerfileSource — save conflict (412, Terra audit finding C5)", 
    *  hook's OWN discrimination logic (`err instanceof ApiError && err.status === 412`), not just that
    *  some rejection was thrown. */
   function conflictError(current: { exists: boolean; contents: string | null }): ApiError {
-    return new ApiError("the Dockerfile changed on the server", 412, "DOCKERFILE_CONFLICT", { current });
+    return new ApiError({ message: "the Dockerfile changed on the server", status: 412 }, { code: "DOCKERFILE_CONFLICT", body: { current } });
   }
 
   it("populates saveConflict (not saveError) on a 412, and leaves draft completely untouched", async () => {

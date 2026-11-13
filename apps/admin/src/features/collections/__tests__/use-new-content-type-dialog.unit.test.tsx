@@ -310,7 +310,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
   });
 
   it("sets the locale-aware fallback error when the injected port rejects with an ApiError-shaped empty message", async () => {
-    const port = createFakeNewContentTypeDialogPort({ createError: new ApiError("", 500) });
+    const port = createFakeNewContentTypeDialogPort({ createError: new ApiError({ message: "", status: 500 }) });
     const onCreated = vi.fn();
     const { result } = renderHook(() => useNewContentTypeDialog({ onCreated, onCancel: vi.fn() }, { port, locale: "en" }), { wrapper });
 

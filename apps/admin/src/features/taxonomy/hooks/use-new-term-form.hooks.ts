@@ -86,7 +86,7 @@ export function useNewTermForm(
   }
 
   const saving = createMutation.status === "pending";
-  const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t({ locale: locale, key: "Failed to create term" })) : null);
+  const error = validationError ?? (createMutation.error ? describeApiError({ e: createMutation.error, fallback: t({ locale: locale, key: "Failed to create term" }) }) : null);
 
   return { open, setOpen, name, setName, parentId, setParentId, error, saving, submit };
 }

@@ -88,13 +88,13 @@ export function useVisitorTools(required: { port: VisitorToolsPort; t: (key: str
       if (error instanceof ApiError && error.code === VISITOR_TOOLS_CONFLICT_CODE) {
         setNotice({ kind: "conflict", message: t("Changed somewhere else. Showing the latest — try again.") });
         refetch();
-      } else setNotice({ kind: "error", message: describeApiError(error, t("Could not save.")) });
+      } else setNotice({ kind: "error", message: describeApiError({ e: error, fallback: t("Could not save.") }) });
       return false;
     } finally { locked.current = false; setBusyToolId(null); }
   }
 
   return {
-    view, loading: !view && !query.error, loadError: query.error ? describeApiError(query.error, t("Could not load visitor tools.")) : null,
+    view, loading: !view && !query.error, loadError: query.error ? describeApiError({ e: query.error, fallback: t("Could not load visitor tools.") }) : null,
     invalid: view?.policyState === "invalid", busyToolId, notice, configure, retry: refetch,
     /** The only write an unreadable policy accepts: every tool Off, no limits, no approval card. */
     repair: () => configure({ toolId: "site", mode: "off" }),

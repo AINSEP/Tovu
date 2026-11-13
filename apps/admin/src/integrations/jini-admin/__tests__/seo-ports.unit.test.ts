@@ -68,7 +68,7 @@ describe('SEO host ports', () => {
   });
 
   it('retains host error identity and the original empty-message fallback', async () => {
-    const error = new ApiError('', 403, 'DENIED', { detail: 'original detail' });
+    const error = new ApiError({ message: '', status: 403 }, { code: 'DENIED', body: { detail: 'original detail' } });
     const transport: SeoTransportPort = { request: async () => { throw error; }, url: ({ path }) => path };
     await expect(createSeoHostPorts({ transport }).seoApi.listSeoPosts({})).rejects.toBe(error);
     expect(describeSeoHostError({ error, fallback: 'failed to load entries' })).toBe('failed to load entries');

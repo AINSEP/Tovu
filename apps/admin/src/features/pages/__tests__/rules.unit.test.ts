@@ -616,7 +616,7 @@ describe("pagePartialSaveMessage", () => {
 describe("readPageVersionConflict", () => {
   it.each([undefined, {}, { details: null }, { details: { expectedVersion: "4", currentVersion: "5" } }])(
     "leaves unknown conflict versions null for body %j", (body) => {
-      const error = new ApiError("stale save", 409, "VERSION_CONFLICT", body);
+      const error = new ApiError({ message: "stale save", status: 409 }, { code: "VERSION_CONFLICT", body });
       expect(readPageVersionConflict({ e: error, attemptedStatus: "published" })).toEqual({
         expectedVersion: null, currentVersion: null, attemptedStatus: "published",
       });
@@ -624,7 +624,7 @@ describe("readPageVersionConflict", () => {
   );
 
   it("keeps the available version when only the current version is missing", () => {
-    const error = new ApiError("stale save", 409, "VERSION_CONFLICT", { details: { expectedVersion: 4 } });
+    const error = new ApiError({ message: "stale save", status: 409 }, { code: "VERSION_CONFLICT", body: { details: { expectedVersion: 4 } } });
     expect(readPageVersionConflict({ e: error, attemptedStatus: undefined })).toEqual({
       expectedVersion: 4, currentVersion: null, attemptedStatus: undefined,
     });

@@ -461,27 +461,27 @@ describe("defaultCredentialForProvider", () => {
 
 describe("classifyPublishCredentialSubmitError", () => {
   it("recognizes DUPLICATE_LABEL via e.message (the dispatched contract's own shape: { error: 'DUPLICATE_LABEL' }, no separate code)", () => {
-    const err = new ApiError("DUPLICATE_LABEL", 409);
+    const err = new ApiError({ message: "DUPLICATE_LABEL", status: 409 });
     expect(classifyPublishCredentialSubmitError({ e: err })).toEqual({ kind: "duplicate-label" });
   });
 
   it("recognizes DUPLICATE_LABEL via e.code too (this codebase's usual { error, code } shape)", () => {
-    const err = new ApiError("A credential with this label already exists.", 409, "DUPLICATE_LABEL");
+    const err = new ApiError({ message: "A credential with this label already exists.", status: 409 }, { code: "DUPLICATE_LABEL" });
     expect(classifyPublishCredentialSubmitError({ e: err })).toEqual({ kind: "duplicate-label" });
   });
 
   it("recognizes VALIDATION and surfaces body.detail when present", () => {
-    const err = new ApiError("VALIDATION", 400, undefined, { error: "VALIDATION", detail: "accountId is required for cloudflare-pages" });
+    const err = new ApiError({ message: "VALIDATION", status: 400 }, { code: undefined, body: { error: "VALIDATION", detail: "accountId is required for cloudflare-pages" } });
     expect(classifyPublishCredentialSubmitError({ e: err })).toEqual({ kind: "validation", detail: "accountId is required for cloudflare-pages" });
   });
 
   it("VALIDATION without a body.detail falls back to the error message itself, never throws or drops the failure", () => {
-    const err = new ApiError("VALIDATION", 400);
+    const err = new ApiError({ message: "VALIDATION", status: 400 });
     expect(classifyPublishCredentialSubmitError({ e: err })).toEqual({ kind: "validation", detail: "VALIDATION" });
   });
 
   it("falls through to 'generic' for an unrecognized ApiError and for a non-ApiError rejection", () => {
-    expect(classifyPublishCredentialSubmitError({ e: new ApiError("request failed (500)", 500) })).toEqual({ kind: "generic" });
+    expect(classifyPublishCredentialSubmitError({ e: new ApiError({ message: "request failed (500)", status: 500 }) })).toEqual({ kind: "generic" });
     expect(classifyPublishCredentialSubmitError({ e: new Error("network down") })).toEqual({ kind: "generic" });
     expect(classifyPublishCredentialSubmitError({ e: "not even an Error" })).toEqual({ kind: "generic" });
   });

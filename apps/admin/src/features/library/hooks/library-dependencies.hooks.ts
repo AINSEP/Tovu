@@ -9,9 +9,9 @@ export interface LibraryApiClient {
   listDocuments(): Promise<{ media: AdminMedia[] }>;
   uploadDocument(input: { filename: string; dataBase64: string }): Promise<{ media: AdminMedia }>;
   updateMedia(target: { id: string }, patch: { title: string }): Promise<{ media: AdminMedia }>;
-  trashMedia(id: string): Promise<{ media: AdminMedia }>;
+  trashMedia(required: { id: string }, optional?: Record<string, never>): Promise<{ media: AdminMedia }>;
   readDocumentText(target: { id: string }): Promise<{ text: string; truncated: boolean }>;
-  mediaOriginalUrl(id: string): string;
+  mediaOriginalUrl(required: { id: string }, optional?: Record<string, never>): string;
   me(): Promise<{ effectivePermissions?: string[] }>;
   listUsers(): Promise<{ users: ReadonlyArray<{ principalId: string; username: string }> }>;
 }
@@ -29,11 +29,11 @@ export function createApiLibraryPort({ client, fetchFn }: { client: LibraryApiCl
     listDocuments: () => client.listDocuments(),
     uploadDocument: (input, _optional = {}) => client.uploadDocument(input),
     renameDocument: ({ target, input }, _optional = {}) => client.updateMedia(target, { title: input.title }),
-    trashDocument: ({ id }, _optional = {}) => client.trashMedia(id),
+    trashDocument: ({ id }, _optional = {}) => client.trashMedia({ id }),
     readDocumentText: (target, _optional = {}) => client.readDocumentText(target),
-    documentDownloadUrl: ({ id }, _optional = {}) => client.mediaOriginalUrl(id),
+    documentDownloadUrl: ({ id }, _optional = {}) => client.mediaOriginalUrl({ id }),
     fetchDocumentBlob: async ({ id }, _optional = {}) => {
-      const res = await fetchFn({ url: client.mediaOriginalUrl(id), init: { credentials: "same-origin" } });
+      const res = await fetchFn({ url: client.mediaOriginalUrl({ id }), init: { credentials: "same-origin" } });
       if (!res.ok) throw new Error(`download failed (${res.status})`);
       return res.blob();
     },

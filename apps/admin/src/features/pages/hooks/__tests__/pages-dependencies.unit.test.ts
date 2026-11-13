@@ -88,7 +88,7 @@ describe("defaultPagesPort.updatePost", () => {
     const spy = vi.spyOn(api, "updatePost").mockResolvedValue({} as never);
     const { defaultPagesPort } = await import("../pages-dependencies.hooks");
     await defaultPagesPort.updatePost({ target: { id: "page-1" }, patch: { title: "x" } });
-    expect(spy).toHaveBeenCalledWith({ id: "page-1" }, { title: "x" }, { entry: "page" });
+    expect(spy).toHaveBeenCalledWith({ id: "page-1" }, { options: { title: "x" }, entry: "page" });
     spy.mockRestore();
   });
 });

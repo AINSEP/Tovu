@@ -2137,7 +2137,7 @@ describe("useThemeExplore — performRename failure and the non-selected-file te
 
   it("reports a NAME_TAKEN ApiError with its own dedicated message", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    port.renameThemeFile = () => Promise.reject(new ApiError("conflict", 409, "NAME_TAKEN"));
+    port.renameThemeFile = () => Promise.reject(new ApiError({ message: "conflict", status: 409 }, { code: "NAME_TAKEN" }));
     const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(2));
 
@@ -4035,7 +4035,7 @@ describe("useThemeExplore — toasts go through t()", () => {
     ["NO_ORIGINAL", "«This theme has no stored original, so nothing can be reset.»"],
   ])("maps the reset route's 409 %s to its own translated copy", async (code, expected) => {
     const port = toastPort();
-    port.resetThemeFile = () => Promise.reject(new ApiError("server English", 409, code));
+    port.resetThemeFile = () => Promise.reject(new ApiError({ message: "server English", status: 409 }, { code }));
     const { result } = await mount(port);
 
     await act(async () => {
@@ -4047,7 +4047,7 @@ describe("useThemeExplore — toasts go through t()", () => {
 
   it("keeps the server's own message for a reset refusal it has no copy for", async () => {
     const port = toastPort();
-    port.resetThemeFile = () => Promise.reject(new ApiError("'x' is generated output and cannot be reset here", 409, "READ_ONLY_FILE"));
+    port.resetThemeFile = () => Promise.reject(new ApiError({ message: "'x' is generated output and cannot be reset here", status: 409 }, { code: "READ_ONLY_FILE" }));
     const { result } = await mount(port);
 
     await act(async () => {
@@ -4070,7 +4070,7 @@ describe("useThemeExplore — toasts go through t()", () => {
 
   it("translates a NAME_TAKEN conflict, naming the taken name", async () => {
     const port = toastPort();
-    port.renameThemeFile = () => Promise.reject(new ApiError("taken", 409, "NAME_TAKEN"));
+    port.renameThemeFile = () => Promise.reject(new ApiError({ message: "taken", status: 409 }, { code: "NAME_TAKEN" }));
     const { result } = await mount(port);
     act(() => result.current.startRename(CSS));
     act(() => result.current.setRenameDraft("site.css"));

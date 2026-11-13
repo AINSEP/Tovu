@@ -82,7 +82,7 @@ export function visibleTaxonomyError(params: {
     const message = describeTrashError(params.deleteTaxonomyError, params.deleteTaxonomyFallback).message;
     if (message) return message;
   }
-  if (params.listError) return describeApiError(params.listError, params.listFallback);
+  if (params.listError) return describeApiError({ e: params.listError, fallback: params.listFallback });
   return null;
 }
 
@@ -195,7 +195,7 @@ export function describeTrashError(e: Error | null, fallback: string): { already
       return { alreadyGone: false, message: "This item changed since you loaded it. Reload and try again." };
     }
   }
-  return { alreadyGone: false, message: describeApiError(e, fallback) };
+  return { alreadyGone: false, message: describeApiError({ e, fallback }) };
 }
 
 /**

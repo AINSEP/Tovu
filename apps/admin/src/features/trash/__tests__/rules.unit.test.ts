@@ -23,7 +23,7 @@ it("uses page subtypes only for canonical posts and preserves legacy and unknown
 });
 
 it("localizes a settled Trash timeout with a refresh action", () => {
-  const error = new ApiError("the API timed out", 0, REQUEST_TIMEOUT_CODE, {});
+  const error = new ApiError({ message: "the API timed out", status: 0 }, { code: REQUEST_TIMEOUT_CODE, body: {} });
   expect(describeTrashLoadError({ error, locale: "en" })).toBe("The Tovu API did not respond. Try refreshing the Trash.");
   expect(describeTrashLoadError({ error, locale: "es" })).toBe("La API de Tovu no respondió. Prueba a actualizar la papelera.");
 });

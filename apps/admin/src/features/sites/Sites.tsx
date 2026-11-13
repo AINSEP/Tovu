@@ -366,7 +366,7 @@ export function Sites(props: SitesProps = {}) {
   useReturnToSiteListOnCreate(createdName, goToSiteList);
 
   if (listStatus === "error" && !snapshot) {
-    return <div className="notice error">{describeApiError(listError, t("Could not load the site list."))}</div>;
+    return <div className="notice error">{describeApiError({ e: listError, fallback: t("Could not load the site list.") })}</div>;
   }
   if (!snapshot) return <div className="notice">{t("Loading sites…")}</div>;
 

@@ -95,7 +95,7 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }, port: Restor
     port
       .computeRecoveryDisclosure({ restorePointId: props.point.id })
       .then(setDisclosure)
-      .catch((e) => setError(describeApiError(e, t({ locale: locale, key: "Failed to compute the discarded-write-window disclosure" }))));
+      .catch((e) => setError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to compute the discarded-write-window disclosure" }) })));
   }, [props.point.id, port]);
 
   async function startPlan() {
@@ -106,7 +106,7 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }, port: Restor
       setPlan({ planId: r.planId, planHash: r.planHash });
       setStep("planned");
     } catch (e) {
-      setCeremonyError(describeApiError(e, t({ locale: locale, key: "Failed to plan the restore" })));
+      setCeremonyError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to plan the restore" }) }));
     } finally {
       setBusy(false);
     }
@@ -125,7 +125,7 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }, port: Restor
       setConfirmationToken(r.confirmationToken);
       setStep("confirmed");
     } catch (e) {
-      setCeremonyError(describeApiError(e, t({ locale: locale, key: "Failed to confirm the restore" })));
+      setCeremonyError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to confirm the restore" }) }));
     } finally {
       setBusy(false);
     }
@@ -140,7 +140,7 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }, port: Restor
       setResult({ restoreRunId: r.restoreRunId, state: r.state, restartRequired: r.restartRequired });
       setStep("done");
     } catch (e) {
-      setCeremonyError(describeApiError(e, t({ locale: locale, key: "Failed to execute the restore" })));
+      setCeremonyError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to execute the restore" }) }));
     } finally {
       setBusy(false);
     }

@@ -235,7 +235,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     // An empty-message ApiError, not a plain Error — describeApiError only substitutes the
     // fallback for ApiError.message === "" (matching what a real 500-with-no-body response
     // becomes via `request()`); a plain Error's own (even empty) `.message` always wins.
-    const port = createFakeCollectionsPort({ types: [TYPE], lifecycleError: new ApiError("", 500) });
+    const port = createFakeCollectionsPort({ types: [TYPE], lifecycleError: new ApiError({ message: "", status: 500 }) });
     const { result } = renderHook(() => useCollections({ port, locale: "en", t: ({ key: k }, _optional = {}) => k }), { wrapper });
     await waitFor(() => expect(result.current.types).not.toBeNull());
 

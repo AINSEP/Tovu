@@ -34,7 +34,7 @@ export interface FakeTaxonomyPortOptions {
  *  narrows on `e instanceof ApiError`, so a plain `Error` with the same fields would silently fall
  *  through to the hard-error branch instead of the blocked one; the fake must throw the real class. */
 function blockedError(count: number): ApiError {
-  return new ApiError("TERM_HAS_CHILDREN", 409, "TERM_HAS_CHILDREN", { code: "TERM_HAS_CHILDREN", count });
+  return new ApiError({ message: "TERM_HAS_CHILDREN", status: 409 }, { code: "TERM_HAS_CHILDREN", body: { code: "TERM_HAS_CHILDREN", count } });
 }
 
 /**

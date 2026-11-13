@@ -12,8 +12,8 @@ describe('resolveConsentTabId', () => {
 
 describe('isConsentConflict', () => {
   it('is true only for an HTTP 409', () => {
-    expect(isConsentConflict({ error: new ApiError('x', 409) })).toBe(true);
-    expect(isConsentConflict({ error: new ApiError('x', 400) })).toBe(false);
+    expect(isConsentConflict({ error: new ApiError({ message: 'x', status: 409 }) })).toBe(true);
+    expect(isConsentConflict({ error: new ApiError({ message: 'x', status: 400 }) })).toBe(false);
     expect(isConsentConflict({ error: new Error('409') })).toBe(false);
   });
 });

@@ -108,9 +108,9 @@ function pickerError({ saveError, assignedError, taxonomiesError, locale }: {
   taxonomiesError: unknown;
   locale: string;
 }): string | null {
-  if (saveError) return describeApiError(saveError, t({ locale: locale, key: "Failed to save categories & tags" }));
+  if (saveError) return describeApiError({ e: saveError, fallback: t({ locale: locale, key: "Failed to save categories & tags" }) });
   const loadError = assignedError ?? taxonomiesError;
-  return loadError ? describeApiError(loadError, t({ locale: locale, key: "Failed to load categories & tags" })) : null;
+  return loadError ? describeApiError({ e: loadError, fallback: t({ locale: locale, key: "Failed to load categories & tags" }) }) : null;
 }
 
 /**
@@ -313,7 +313,7 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     creating: (taxonomyId) => createTarget === taxonomyId && createMutation.status === "pending",
     createError: (taxonomyId) =>
       createTarget === taxonomyId && createMutation.error
-        ? describeApiError(createMutation.error, t({ locale: locale, key: "Failed to create term" }))
+        ? describeApiError({ e: createMutation.error, fallback: t({ locale: locale, key: "Failed to create term" }) })
         : null,
     suggestions: (taxonomyId) =>
       (groupOf(taxonomyId)?.terms ?? []).filter((term) => !selected.has(term.id)).map((term) => term.name),

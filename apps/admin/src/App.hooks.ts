@@ -140,7 +140,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
     if (initialSession.current === null) {
       const bootToken = takeBootToken(location, history);
       if (bootToken) {
-        initialSession.current = sessionApi.redeemBootSession(bootToken).catch((error: unknown) => { console.error("[admin] Could not redeem the boot session", describeErrorForLog({ err: error })); }).then(() => sessionApi.me());
+        initialSession.current = sessionApi.redeemBootSession({ token: bootToken }).catch((error: unknown) => { console.error("[admin] Could not redeem the boot session", describeErrorForLog({ err: error })); }).then(() => sessionApi.me());
       } else {
         initialSession.current = readInitialAdminSession({ hostname: location.hostname, port: sessionApi }, { onLocalSignIn: publishSettingsRefresh });
       }
@@ -859,7 +859,7 @@ export function useChatDockLayout(): UseChatDockLayout {
    * the same focus/escape/sheet-sizing effects above rather than a second, divergent path.
    */
   useEffect(() => subscribeToAssistantDockRequests(setChatOpen), []);
-  useEffect(() => publishAssistantDockState(chatOpen), [chatOpen]);
+  useEffect(() => publishAssistantDockState({ open: chatOpen }), [chatOpen]);
 
   // Focus into the dock on open, back to the FAB on close (MSG-06). `tabIndex={-1}` on `App.tsx`'s
   // `<aside>` makes it a valid programmatic focus target without adding it to the normal Tab

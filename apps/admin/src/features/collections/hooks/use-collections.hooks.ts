@@ -137,10 +137,10 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
     }
   }
 
-  const error = list.error ? describeApiError(list.error, translate({ locale: locale, key: "failed to load content types" })) : null;
+  const error = list.error ? describeApiError({ e: list.error, fallback: translate({ locale: locale, key: "failed to load content types" }) }) : null;
   const actionError =
     lifecycleMutation.error && lastAttempt
-      ? describeApiError(lifecycleMutation.error, lifecycleFailureMessage({ locale, op: lastAttempt.op, label: lastAttempt.contentType.label }))
+      ? describeApiError({ e: lifecycleMutation.error, fallback: lifecycleFailureMessage({ locale, op: lastAttempt.op, label: lastAttempt.contentType.label }) })
       : null;
 
   return {

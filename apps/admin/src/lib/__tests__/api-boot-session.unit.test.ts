@@ -28,7 +28,7 @@ test("redeemBootSession POSTs the token to /auth/boot-session", async () => {
     })
   );
 
-  const result = await api.redeemBootSession("tok-abc123");
+  const result = await api.redeemBootSession({ token: "tok-abc123" });
 
   expect(calls).toHaveLength(1);
   expect(calls[0].url).toBe("/api/admin/v1/auth/boot-session");
@@ -48,5 +48,5 @@ test("redeemBootSession rejects on the documented 401 (invalid or spent token)",
     )
   );
 
-  await expect(api.redeemBootSession("bad-token")).rejects.toThrow("invalid or spent boot token");
+  await expect(api.redeemBootSession({ token: "bad-token" })).rejects.toThrow("invalid or spent boot token");
 });

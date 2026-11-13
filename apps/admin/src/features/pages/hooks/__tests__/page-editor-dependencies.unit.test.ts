@@ -52,7 +52,7 @@ describe("defaultPageEditorPort.deletePage", () => {
     const response = { post: PAGE };
     deletePage.mockResolvedValue(response);
     await expect(defaultPageEditorPort.deletePage({ id: "page-1" })).resolves.toEqual(response);
-    expect(deletePage).toHaveBeenCalledWith("page-1");
+    expect(deletePage).toHaveBeenCalledWith({ id: "page-1" });
   });
 });
 

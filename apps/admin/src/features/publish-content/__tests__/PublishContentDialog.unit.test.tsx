@@ -1529,7 +1529,7 @@ describe("PublishContentDialog — Overwrite on live, review fixes", () => {
     const refusal =
       "https://tovu.com is on an older Tovu, so it can't overwrite these yet. Update https://tovu.com, then publish again.";
     port.planPublish = async () => {
-      throw new ApiError(refusal, 502, "PEER_CANNOT_OVERWRITE", { error: refusal, code: "PEER_CANNOT_OVERWRITE" });
+      throw new ApiError({ message: refusal, status: 502 }, { code: "PEER_CANNOT_OVERWRITE", body: { error: refusal, code: "PEER_CANNOT_OVERWRITE" } });
     };
 
     await user.click(overwriteCheckbox("clash-a")!);
@@ -1541,11 +1541,11 @@ describe("PublishContentDialog — Overwrite on live, review fixes", () => {
     const user = await planFrom(port);
     const refusal = "'overwriteEntityKeys' can only be sent from a signed-in admin session or a publishing instance";
     port.planPublish = async () => {
-      throw new ApiError(refusal, 403, "FORBIDDEN", {
+      throw new ApiError({ message: refusal, status: 403 }, { code: "FORBIDDEN", body: {
         error: refusal,
         code: "FORBIDDEN",
         details: { permission: "publish_content.apply", reason: "credential_kind_not_permitted" },
-      });
+      } });
     };
 
     await user.click(overwriteCheckbox("clash-a")!);
@@ -1970,7 +1970,7 @@ describe("PublishContentDialog — destination reads and incomplete connections"
   });
 
   it("uses the destination-check fallback when an API error carries no message", async () => {
-    const port = createFakePublishContentPort({ destinationError: new ApiError("", 500) });
+    const port = createFakePublishContentPort({ destinationError: new ApiError({ message: "", status: 500 }) });
     renderDialog(port);
     await screen.findByText("Could not check whether this install can publish yet.");
     expect(primaryButton()).toBeDisabled();

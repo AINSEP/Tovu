@@ -10,27 +10,27 @@ export function useExternalMcpSharedChoice({ serverId, onChanged }: { serverId: 
   const [pending, setPending] = useState(false);
   async function load() {
     setPending(true); setError('');
-    try { setView(await api.listSharedMcpConnections(serverId)); }
-    catch (cause) { setError(describeApiError(cause, 'Saved connections could not be opened. Try opening them again.')); }
+    try { setView(await api.listSharedMcpConnections({ serverId })); }
+    catch (cause) { setError(describeApiError({ e: cause, fallback: 'Saved connections could not be opened. Try opening them again.' })); }
     finally { setPending(false); }
   }
   async function useSaved({ credentialId }: { credentialId: string }, _options = {}) {
     if (!credentialId) return;
     setPending(true); setError('');
     try { await api.useSharedMcpConnection({ serverId, credentialId }); await load(); onChanged(); }
-    catch (cause) { setError(describeApiError(cause, 'This saved connection could not be granted to this server. Choose another connection or sign in.')); }
+    catch (cause) { setError(describeApiError({ e: cause, fallback: 'This saved connection could not be granted to this server. Choose another connection or sign in.' })); }
     finally { setPending(false); }
   }
   async function stopHere() {
     setPending(true); setError('');
-    try { await api.stopSharedMcpConnection(serverId); await load(); onChanged(); }
-    catch (cause) { setError(describeApiError(cause, 'The connection could not be stopped here. Try again.')); }
+    try { await api.stopSharedMcpConnection({ serverId }); await load(); onChanged(); }
+    catch (cause) { setError(describeApiError({ e: cause, fallback: 'The connection could not be stopped here. Try again.' })); }
     finally { setPending(false); }
   }
   async function useLocal() {
     setPending(true); setError('');
-    try { await api.useLocalMcpConnection(serverId); await load(); onChanged(); }
-    catch (cause) { setError(describeApiError(cause, 'The local connection could not be selected. Try again.')); }
+    try { await api.useLocalMcpConnection({ serverId }); await load(); onChanged(); }
+    catch (cause) { setError(describeApiError({ e: cause, fallback: 'The local connection could not be selected. Try again.' })); }
     finally { setPending(false); }
   }
   return { view, error, pending, load, useSaved, stopHere, useLocal };

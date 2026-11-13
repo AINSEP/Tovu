@@ -53,7 +53,7 @@ export function useSiteListPrefs({ port }: { port: SiteListPrefsPort }, _options
     let current = true;
     port.load().then(
       (stored) => { if (current) { setPrefs(parseSiteListPrefs({ stored })); setReady(true); } },
-      (error: unknown) => { if (current) { setLoadError(describeApiError(error, String(error))); setReady(true); } },
+      (error: unknown) => { if (current) { setLoadError(describeApiError({ e: error, fallback: String(error) })); setReady(true); } },
     );
     return () => { current = false; };
   }, [port]);
@@ -63,7 +63,7 @@ export function useSiteListPrefs({ port }: { port: SiteListPrefsPort }, _options
     if (loadError !== null) return;
     lastSave.current = lastSave.current.then(() => port.save(next)).then(
       () => setSaveError(null),
-      (error: unknown) => setSaveError(describeApiError(error, String(error))),
+      (error: unknown) => setSaveError(describeApiError({ e: error, fallback: String(error) })),
     );
   }, [port, loadError]);
 

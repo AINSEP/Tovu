@@ -10,14 +10,14 @@ import type { RolesPort } from "./roles-port.hooks";
 export const defaultRolesPort: RolesPort = {
   listRoles: () => api.listRoles(),
   listPolicies: () => api.listPolicies(),
-  createRole: ({ name }, _optional = {}) => api.createRole(name),
+  createRole: ({ name }, _optional = {}) => api.createRole({ name }),
   updateRole: (input, _optional = {}) => api.updateRole(input),
-  deleteRole: ({ roleId }, _optional = {}) => api.deleteRole(roleId),
+  deleteRole: ({ roleId }, _optional = {}) => api.deleteRole({ roleId }),
   createPolicy: (input, options = {}) => api.createPolicy(input, options),
   updatePolicy: (target, options = {}) => api.updatePolicy(target, options),
-  deletePolicy: ({ policyId }, _optional = {}) => api.deletePolicy(policyId),
+  deletePolicy: ({ policyId }, _optional = {}) => api.deletePolicy({ policyId }),
   writePolicyPermission: (input, options = {}) => api.writePolicyPermission(input, options),
-  listPolicyPermissions: ({ policyId }, _optional = {}) => api.listPolicyPermissions(policyId),
+  listPolicyPermissions: ({ policyId }, _optional = {}) => api.listPolicyPermissions({ policyId }),
   removePolicyPermission: (input, _optional = {}) => api.removePolicyPermission(input),
 };
 

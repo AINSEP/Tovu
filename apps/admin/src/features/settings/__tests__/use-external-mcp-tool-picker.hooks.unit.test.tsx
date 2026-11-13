@@ -161,7 +161,7 @@ describe("MCP picker transport and draft lifecycle", () => {
   it("routes unsupported local-command errors through the supplied translator", async () => {
     // F2.4: failing to forward t leaves English workaround copy in a translated dialog.
     const translate = (key: string) => `translated:${key}`;
-    const port = { probe: async ({ serverId: id }: { serverId: string }, _options = {}) => { if (id !== "atlas") throw new Error(id); throw new ApiError("server prose", 400, "PROBE_UNSUPPORTED_TRANSPORT"); } };
+    const port = { probe: async ({ serverId: id }: { serverId: string }, _options = {}) => { if (id !== "atlas") throw new Error(id); throw new ApiError({ message: "server prose", status: 400 }, { code: "PROBE_UNSUPPORTED_TRANSPORT" }); } };
     const { result } = renderHook(() => useExternalMcpToolPicker({ ...initial, port, t: translate }), { wrapper });
     await waitFor(() => expect(result.current.unreachable).toBe("translated:This server runs as a local command and can't be probed yet — type its tool names into 'Allowed tools' on the server's own card instead."));
   });

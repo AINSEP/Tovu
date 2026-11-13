@@ -247,7 +247,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
       setSelected(new Set<string>());
       reloadAfterAction();
     } catch (e) {
-      setActionError(describeApiError(e, t({ locale: locale, key: "failed to restore" })));
+      setActionError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to restore" }) }));
     } finally {
       setBusy(false);
     }
@@ -265,7 +265,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
       setPurgeConfirmOpen(false);
       reloadAfterAction();
     } catch (e) {
-      setActionError(describeApiError(e, t({ locale: locale, key: "failed to delete permanently" })));
+      setActionError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to delete permanently" }) }));
     } finally {
       setBusy(false);
     }

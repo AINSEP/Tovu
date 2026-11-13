@@ -36,6 +36,6 @@ export function ownerRecoveryFailure(
   { error, message, action, step, t, secrets = [] }: { error: unknown; message: string; action: string; step: string; t: Translate; secrets?: string[] },
   _options = {},
 ): UserFacingError {
-  return formatUserFacingError({ message: describeApiError(error, t(message)), action: t(action), step, cause: error },
+  return formatUserFacingError({ message: describeApiError({ e: error, fallback: t(message) }), action: t(action), step, cause: error },
     { ...TOVU_ERROR_REDACTION_OPTIONS, exactSecrets: secrets.filter(Boolean) });
 }

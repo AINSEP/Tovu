@@ -8,7 +8,7 @@ function fakeRequest(status = 200, body: unknown = { ok: true }) {
   const calls: { method: string; path: string; body?: unknown }[] = [];
   const request = (async (input: { method: string; path: string; body?: unknown }, _optional = {}) => {
     calls.push(input);
-    if (status >= 400) throw new ApiError(String((body as { error?: string }).error ?? ''), status, (body as { code?: string }).code, body as Record<string, unknown>);
+    if (status >= 400) throw new ApiError({ message: String((body as { error?: string }).error ?? ''), status }, { code: (body as { code?: string }).code, body: body as Record<string, unknown> });
     return body;
   }) as ConsentRequest;
   return { calls, request };

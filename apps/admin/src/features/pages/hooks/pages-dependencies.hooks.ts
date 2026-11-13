@@ -10,9 +10,9 @@ import type { PagesPort } from "./pages-port.hooks";
 /** The live implementation, as a module-level singleton. */
 export const defaultPagesPort: PagesPort = {
   listPages: () => api.listPages(),
-  createPage: ({ title }, _options = {}) => api.createPage(title),
-  updatePost: ({ target, patch }, _options = {}) => api.updatePost(target, patch, { entry: "page" }),
-  deletePage: ({ id }, _options = {}) => api.deletePage(id),
+  createPage: ({ title }, _options = {}) => api.createPage({ title }),
+  updatePost: ({ target, patch }, _options = {}) => api.updatePost(target, { options: patch, entry: "page" }),
+  deletePage: ({ id }, _options = {}) => api.deletePage({ id }),
 };
 
 const FAKE_WORKSPACE_ID = "fake-ws";
@@ -89,10 +89,10 @@ export function createFakePagesPort(options: FakePagesPortOptions = {}): PagesPo
       const { expectedVersion, ...fields } = patch;
       if (expectedVersion !== undefined && expectedVersion !== current.version) {
         throw new ApiError(
-          `post '${current.id}' was modified by another save (expected version ${expectedVersion}, current version ${current.version})`,
-          409,
-          PAGE_VERSION_CONFLICT_CODE,
-          { details: { expectedVersion, currentVersion: current.version } }
+          { message: `post '${current.id}' was modified by another save (expected version ${expectedVersion}, current version ${current.version})`,
+          status: 409 },
+          { code: PAGE_VERSION_CONFLICT_CODE,
+          body: { details: { expectedVersion, currentVersion: current.version } } }
         );
       }
       const updated = { ...current, ...fields, version: current.version + 1 };

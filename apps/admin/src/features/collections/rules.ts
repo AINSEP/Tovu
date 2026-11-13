@@ -106,7 +106,7 @@ export function visibleEntryEditorError(params: {
   versionConflictMessage: string;
 }): string | null {
   const describe = ({ error, fallback }: { error: Error; fallback: string }, _optional = {}) =>
-    isVersionConflict(error) ? params.versionConflictMessage : describeApiError(error, fallback);
+    isVersionConflict(error) ? params.versionConflictMessage : describeApiError({ e: error, fallback });
   if (params.updateError) return describe({ error: params.updateError, fallback: params.saveFallback });
   if (params.createError) return describe({ error: params.createError, fallback: params.saveFallback });
   if (params.lifecycleError && params.lifecycleFallback) {
@@ -255,7 +255,7 @@ export const STALE_VERSION_MESSAGE = "This content type changed since you loaded
  */
 export function describeEditFieldsError({ e }: { e: unknown }, { localeOrTranslate = "en" }: { localeOrTranslate?: LocaleOrTranslate } = {}): string {
   if (e instanceof ApiError && e.status === 409) return STALE_VERSION_MESSAGE;
-  return describeApiError(e, localize({ localeOrTranslate, key: "Failed to update fields" }));
+  return describeApiError({ e, fallback: localize({ localeOrTranslate, key: "Failed to update fields" }) });
 }
 
 // ---------------------------------------------------------------------------

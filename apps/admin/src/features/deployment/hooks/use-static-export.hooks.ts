@@ -124,7 +124,7 @@ export function useStaticExport({ port, t, locale }: { port: StaticExportPort; t
     setRun(query.data);
   }, [query.status, query.data]);
 
-  const loadError = query.error ? exportLoadErrorMessage({ locale, error: describeApiError(query.error, "unknown error") }) : null;
+  const loadError = query.error ? exportLoadErrorMessage({ locale, error: describeApiError({ e: query.error, fallback: "unknown error" }) }) : null;
 
   // See this file's header for why this bypasses the query/`seededRef` entirely rather than being
   // the usual `useInvalidate()` one-liner. A failed background refresh is swallowed rather than
@@ -187,7 +187,7 @@ export function useStaticExport({ port, t, locale }: { port: StaticExportPort; t
           // `isRunning` false on the next render, which re-arms this very effect's cleanup and
           // re-enables the Build button — but `return` here (no `scheduleNext()`) is what actually
           // stops the loop; it must not depend on that later render having happened yet.
-          setPollError(exportPollErrorMessage({ locale: pollLocale, error: describeApiError(err, "unknown error") }));
+          setPollError(exportPollErrorMessage({ locale: pollLocale, error: describeApiError({ e: err, fallback: "unknown error" }) }));
           return;
         }
         scheduleNext();
@@ -226,7 +226,7 @@ export function useStaticExport({ port, t, locale }: { port: StaticExportPort; t
       const started = await port.triggerSiteExport({}, { options: { clean } });
       setRun(started);
     } catch (err) {
-      setTriggerError(exportTriggerErrorMessage({ locale, error: describeApiError(err, "unknown error") }));
+      setTriggerError(exportTriggerErrorMessage({ locale, error: describeApiError({ e: err, fallback: "unknown error" }) }));
     } finally {
       triggeringRef.current = false;
       setTriggering(false);

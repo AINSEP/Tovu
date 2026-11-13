@@ -102,7 +102,7 @@ describe("export credential warning", () => {
   });
 
   it("says when I understand could not be saved and keeps the download disabled", async () => {
-    const acknowledgeShare = vi.fn(async () => { throw new ApiError("Export acknowledgement requires an authorized admin session.", 403, "FORBIDDEN"); });
+    const acknowledgeShare = vi.fn(async () => { throw new ApiError({ message: "Export acknowledgement requires an authorized admin session.", status: 403 }, { code: "FORBIDDEN" }); });
     renderExport(createFakeSiteTransferPort({ listShares: async () => ({ shares: [share({ credentialWarnings: warnings, needsAcknowledgement: true })] }), acknowledgeShare }));
     const row = await exportRow();
     const box = within(row).getByRole("checkbox", { name: "I understand this export may contain credentials" }) as HTMLInputElement;

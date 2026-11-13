@@ -11,19 +11,19 @@ const lookups: Readonly<Record<string, (required: { id: string }) => Promise<Res
     return { params: {}, query: { tab: plugin.enabled ? "installed" : "downloaded" }, control: { query: plugin.pluginId, role: "button", intent: "details" } };
   },
   page: async ({ id }, _options = {}) => {
-    const { post } = await api.getPage(id);
+    const { post } = await api.getPage({ id });
     return { params: { slug: post.slug } };
   },
   post: async ({ id }, _options = {}) => {
-    const { post } = await api.getPost(id);
+    const { post } = await api.getPost({ id });
     return { params: { postId: post.id } };
   },
   menu: async ({ id }, _options = {}) => {
-    const { menu } = await api.getMenu(id);
+    const { menu } = await api.getMenu({ id });
     return { params: { menuId: menu.id } };
   },
   widget: async ({ id }, _options = {}) => {
-    const { widget } = await api.getWidget(id);
+    const { widget } = await api.getWidget({ id });
     return { params: { widgetId: widget.id } };
   },
 };

@@ -149,14 +149,14 @@ test("createSite POSTs { name } to /system/sites", async () => {
 
 test("activateSite POSTs to /system/sites/:name/activate with the name percent-encoded", async () => {
   const { calls } = stubFetchCapturing();
-  await api.activateSite("my site");
+  await api.activateSite({ name: "my site" });
   expect(calls[0].url).toBe(`${BASE}/system/sites/my%20site/activate`);
   expect(calls[0].init?.method).toBe("POST");
 });
 
 test("activateSite leaves an already-URL-safe name untouched", async () => {
   const { calls } = stubFetchCapturing();
-  await api.activateSite("tovu-com");
+  await api.activateSite({ name: "tovu-com" });
   expect(calls[0].url).toBe(`${BASE}/system/sites/tovu-com/activate`);
 });
 
@@ -244,7 +244,7 @@ test("createPublishCredential omits isDefault from the body when the caller does
 
 test("updatePublishCredential PUTs to /system/publish/credentials/:id, omitting connection when the caller doesn't pass one", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.updatePublishCredential("cred-1", { label: "Renamed", isDefault: true });
+  await api.updatePublishCredential({ id: "cred-1", input: { label: "Renamed", isDefault: true } });
   expect(calls[0].url).toBe(`${BASE}/system/publish/credentials/cred-1`);
   expect(calls[0].init?.method).toBe("PUT");
   expect(body()).toEqual({ label: "Renamed", isDefault: true });
@@ -252,14 +252,14 @@ test("updatePublishCredential PUTs to /system/publish/credentials/:id, omitting 
 
 test("deletePublishCredential DELETEs /system/publish/credentials/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.deletePublishCredential("cred-1");
+  await api.deletePublishCredential({ id: "cred-1" });
   expect(calls[0].url).toBe(`${BASE}/system/publish/credentials/cred-1`);
   expect(calls[0].init?.method).toBe("DELETE");
 });
 
 test("verifyPublishCredential POSTs to /system/publish/credentials/:id/verify with no body", async () => {
   const { calls } = stubFetchCapturing();
-  await api.verifyPublishCredential("cred-1");
+  await api.verifyPublishCredential({ id: "cred-1" });
   expect(calls[0].url).toBe(`${BASE}/system/publish/credentials/cred-1/verify`);
   expect(calls[0].init?.method).toBe("POST");
   expect(calls[0].init?.body).toBeUndefined();
@@ -292,7 +292,7 @@ test("createSourceControlCredential POSTs the input verbatim, including bitbucke
 
 test("updateSourceControlCredential PUTs to /system/source-control/credentials/:id, omitting connection when the caller doesn't pass one", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.updateSourceControlCredential("scc-1", { label: "Renamed" });
+  await api.updateSourceControlCredential({ id: "scc-1", input: { label: "Renamed" } });
   expect(calls[0].url).toBe(`${BASE}/system/source-control/credentials/scc-1`);
   expect(calls[0].init?.method).toBe("PUT");
   expect(body()).toEqual({ label: "Renamed" });
@@ -300,7 +300,7 @@ test("updateSourceControlCredential PUTs to /system/source-control/credentials/:
 
 test("deleteSourceControlCredential DELETEs /system/source-control/credentials/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.deleteSourceControlCredential("scc-1");
+  await api.deleteSourceControlCredential({ id: "scc-1" });
   expect(calls[0].url).toBe(`${BASE}/system/source-control/credentials/scc-1`);
   expect(calls[0].init?.method).toBe("DELETE");
 });
@@ -341,7 +341,7 @@ test("createCustomCredential includes additionalHosts when the caller passes the
 
 test("updateCustomCredential PUTs to /system/custom/credentials/:id, omitting username from the body when the caller doesn't pass it", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.updateCustomCredential("cc-1", { label: "Renamed" });
+  await api.updateCustomCredential({ id: "cc-1", input: { label: "Renamed" } });
   expect(calls[0].url).toBe(`${BASE}/system/custom/credentials/cc-1`);
   expect(calls[0].init?.method).toBe("PUT");
   expect(body()).toEqual({ label: "Renamed" });
@@ -350,7 +350,7 @@ test("updateCustomCredential PUTs to /system/custom/credentials/:id, omitting us
 
 test("updateCustomCredential sends a literal JSON null (not an omitted field) to clear a saved username", async () => {
   const { body } = stubFetchCapturing();
-  await api.updateCustomCredential("cc-1", { username: null });
+  await api.updateCustomCredential({ id: "cc-1", input: { username: null } });
   const parsed = body() as Record<string, unknown>;
   expect(Object.prototype.hasOwnProperty.call(parsed, "username")).toBe(true);
   expect(parsed.username).toBeNull();
@@ -358,7 +358,7 @@ test("updateCustomCredential sends a literal JSON null (not an omitted field) to
 
 test("deleteCustomCredential DELETEs /system/custom/credentials/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.deleteCustomCredential("cc-1");
+  await api.deleteCustomCredential({ id: "cc-1" });
   expect(calls[0].url).toBe(`${BASE}/system/custom/credentials/cc-1`);
   expect(calls[0].init?.method).toBe("DELETE");
 });

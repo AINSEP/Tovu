@@ -54,16 +54,16 @@ export function createServerPinnedProbes(stored: AdminExecutionCredential) {
       if (byok.apiKey.trim()) return ["typed-key-model"];
       if (!stored.baseUrl) {
         throw new ApiError(
-          "the admin execution credential has no saved endpoint, so this probe has no approved destination — save a base URL for the credential first, or supply an apiKey in this request",
-          400,
-          "STORED_CREDENTIAL_ENDPOINT_UNSET",
+          { message: "the admin execution credential has no saved endpoint, so this probe has no approved destination — save a base URL for the credential first, or supply an apiKey in this request",
+          status: 400 },
+          { code: "STORED_CREDENTIAL_ENDPOINT_UNSET" },
         );
       }
       if (stored.baseUrl !== byok.baseUrl) {
         throw new ApiError(
-          `the admin execution credential is saved for '${stored.baseUrl}' and cannot be probed against '${byok.baseUrl}' — save the new endpoint first, or supply an apiKey for it in this request`,
-          400,
-          "STORED_CREDENTIAL_ENDPOINT_MISMATCH",
+          { message: `the admin execution credential is saved for '${stored.baseUrl}' and cannot be probed against '${byok.baseUrl}' — save the new endpoint first, or supply an apiKey for it in this request`,
+          status: 400 },
+          { code: "STORED_CREDENTIAL_ENDPOINT_MISMATCH" },
         );
       }
       return ["gemini-flash-latest"];

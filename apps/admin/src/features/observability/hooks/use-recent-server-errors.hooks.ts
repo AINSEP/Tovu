@@ -74,7 +74,7 @@ export interface RecentServerErrorsController {
 export function useRecentServerErrors({ port, locale, t }: RecentServerErrorsDependencies): RecentServerErrorsController {
   const queryFetch = useQueryFetchCallback(async () => {
     try { return await port.getServerLogs({ level: "error", limit: RECENT_ERRORS_LIMIT }); }
-    catch (error) { throw new Error(describeApiError(error, translateObservability({ locale, key: "failed to load recent server errors" }))); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: translateObservability({ locale, key: "failed to load recent server errors" }) })); }
   }, [port, locale]);
   const query = useFetchQuery({ key: ["observability", "server-errors", RECENT_ERRORS_LIMIT], fetch: queryFetch }, { staleTime: 0 });
   const logs = query.data ?? null;

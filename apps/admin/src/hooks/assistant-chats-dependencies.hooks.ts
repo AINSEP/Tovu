@@ -37,11 +37,11 @@ import type { AssistantChatsPort } from "./assistant-chats-port.hooks";
  */
 export const defaultAssistantChatsPort: AssistantChatsPort = {
   listConversations,
-  createConversation: (_required, { firstMessage } = {}) => createConversation(firstMessage),
-  renameConversation: ({ id, title }, _options = {}) => renameConversation(id, title),
-  deleteConversation: ({ id }, _options = {}) => deleteConversation(id),
-  loadMessages: ({ conversationId }, _options = {}) => loadMessages(conversationId),
-  saveMessage: ({ conversationId, message }, _options = {}) => saveMessage(conversationId, message),
+  createConversation: (_required, { firstMessage } = {}) => createConversation({}, { firstMessage }),
+  renameConversation: ({ id, title }, _options = {}) => renameConversation({ id, title }),
+  deleteConversation: ({ id }, _options = {}) => deleteConversation({ id }),
+  loadMessages: ({ conversationId }, _options = {}) => loadMessages({ conversationId }),
+  saveMessage: ({ conversationId, message }, _options = {}) => saveMessage({ conversationId, message }),
 };
 
 /**
@@ -201,13 +201,13 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
        * real `remove()` race that this fake was actively hiding.
        */
       let index = conversations.findIndex((conversation) => conversation.id === conversationId);
-      if (index < 0) throw new HttpError(404, "Not Found");
+      if (index < 0) throw new HttpError({ status: 404, statusText: "Not Found" });
       // Before recording, so a throwing hook leaves the fake's durable state untouched — which is
       // exactly what a real failed `PUT` does, and what makes "was it actually persisted?" a
       // meaningful question to ask this fake afterwards.
       options.onSaveMessage?.(conversationId, message, attempts);
       index = conversations.findIndex((conversation) => conversation.id === conversationId);
-      if (index < 0) throw new HttpError(404, "Not Found");
+      if (index < 0) throw new HttpError({ status: 404, statusText: "Not Found" });
 
       // Upsert IN PLACE, preserving first-insert order — see {@link upsertMessage}.
       const existing = messages.get(conversationId) ?? [];

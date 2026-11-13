@@ -11,8 +11,8 @@ import { asciiSlug } from "../../../lib/ascii-slug";
 export const defaultThemesPort: ThemesPort = {
   getPresentation: () => api.getPresentation(),
   rescanThemes: () => api.rescanThemes(),
-  setActiveTheme: (activeThemeId) => api.setActiveTheme(activeThemeId),
-  duplicateTheme: (themeId, newName) => api.duplicateTheme(themeId, newName),
+  setActiveTheme: (activeThemeId) => api.setActiveTheme({ activeThemeId }),
+  duplicateTheme: (themeId, newName) => api.duplicateTheme({ themeId, newName }),
   trashTheme: async ({ themeId }) => {
     await api.trash({ type: "theme", id: themeId });
   },
@@ -58,7 +58,7 @@ export function createFakeThemesPort(options: FakeThemesPortOptions = {}): Theme
     async duplicateTheme(themeId, newName) {
       const source = availableThemes.find((theme) => theme.id === themeId);
       if (!source) throw new Error(`theme '${themeId}' was not found`);
-      const id = asciiSlug(newName);
+      const id = asciiSlug({ text: newName });
       availableThemeIds.push(id);
       availableThemes.push({ id, name: newName, tier: source.tier });
       return { theme: { id, name: newName } };

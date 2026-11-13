@@ -119,7 +119,7 @@ describe("AgentPluginUpdateControl, composed by its wired slot", () => {
     ["PLUGIN_MCP_PROVISION_FAILED", "The new version's MCP servers could not be set up; the previous version was restored."],
     ["UPDATE_JOURNAL_INVALID", "Could not update the plugin. Try again."],
   ])("a 409 %s refusal reads in plain words, never the server's text", async (code, message) => {
-    const port = createFakeAgentPluginInstallPort({ row: UPLOADED }, { failWith: new ApiError("server english", 409, code) });
+    const port = createFakeAgentPluginInstallPort({ row: UPLOADED }, { failWith: new ApiError({ message: "server english", status: 409 }, { code }) });
     const { onUpdated } = await openAndUpload(port);
     expect(await screen.findByRole("alert")).toHaveTextContent(message);
     expect(onUpdated).not.toHaveBeenCalled();
@@ -133,7 +133,7 @@ describe("useAgentPluginInstall — install vs update copy", () => {
   }
 
   it("an unrecognised install refusal is the install's own try-again line, translated", async () => {
-    const result = hookWith(async () => { throw new ApiError("raw", 409, "SOMETHING_NEW"); });
+    const result = hookWith(async () => { throw new ApiError({ message: "raw", status: 409 }, { code: "SOMETHING_NEW" }); });
     act(() => result.current.onFileChange({ target: { files: [zip()] } } as never));
     await act(async () => result.current.install());
     expect(result.current.error).toBe("t:Could not install the plugin. Try again.");

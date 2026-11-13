@@ -126,7 +126,7 @@ export function useNewContentTypeDialog(
   }
 
   const saving = createMutation.status === "pending";
-  const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t({ locale: locale, key: "Failed to create content type" })) : null);
+  const error = validationError ?? (createMutation.error ? describeApiError({ e: createMutation.error, fallback: t({ locale: locale, key: "Failed to create content type" }) }) : null);
 
   return { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit, cancel };
 }

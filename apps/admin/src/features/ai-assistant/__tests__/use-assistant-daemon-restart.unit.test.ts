@@ -125,7 +125,7 @@ describe("useAssistantDaemonRestart — restart()", () => {
   it("an UNEXPECTED restart() failure (network/403/500) lands in restartError, and restartResult is left untouched", async () => {
     const port: AssistantDaemonRestartPort = {
       restart: vi.fn(async () => {
-        throw new ApiError("forbidden", 403, "FORBIDDEN");
+        throw new ApiError({ message: "forbidden", status: 403 }, { code: "FORBIDDEN" });
       }),
       getReadyz: vi.fn(async () => ({ ready: true })),
     };

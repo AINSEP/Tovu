@@ -19,7 +19,7 @@ export const defaultOtherCredentialsPort: OtherCredentialsPort = {
   saveMediaProviders: (providers, _optional = {}) => api.saveMediaProviders(providers),
 
   listExternalMcpServers: () => api.listExternalMcpServers(),
-  deleteExternalMcpServer: ({ serverId }, _optional = {}) => api.deleteExternalMcpServer(serverId),
+  deleteExternalMcpServer: ({ serverId }, _optional = {}) => api.deleteExternalMcpServer({ serverId }),
 };
 
 /** {@link createFakeOtherCredentialsPort}'s site-assistant slice — one small named helper per

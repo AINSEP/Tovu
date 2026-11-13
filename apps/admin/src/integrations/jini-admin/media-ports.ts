@@ -49,7 +49,7 @@ export function mediaSessionGrants({ permissions }: { permissions: readonly stri
 }
 export const mediaEvents: MediaEventsPort = {
   subscribe({ onRefresh }) {
-    return subscribeToContentRefresh(scope => { if (contentRefreshApplies(scope, 'media')) onRefresh(); });
+    return subscribeToContentRefresh(scope => { if (contentRefreshApplies({ scope, resource: 'media' })) onRefresh(); });
   },
 };
 

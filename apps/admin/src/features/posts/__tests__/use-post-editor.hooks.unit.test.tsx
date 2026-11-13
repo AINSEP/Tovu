@@ -849,9 +849,9 @@ describe("usePostEditor — save", () => {
             // Model the server's version guard at write time, not an unconditional late write.
             const { expectedVersion, ...fields } = patch;
             if (expectedVersion !== undefined && expectedVersion !== state.version) {
-              reject(new ApiError("stale save", 409, "VERSION_CONFLICT", {
+              reject(new ApiError({ message: "stale save", status: 409 }, { code: "VERSION_CONFLICT", body: {
                 details: { expectedVersion, currentVersion: state.version },
-              }));
+              } }));
               return;
             }
             state = { ...state, ...fields, version: state.version + 1 } as AdminPost;
@@ -1772,7 +1772,7 @@ describe("usePostEditor — optimistic concurrency", () => {
       ...base,
       async updatePost() {
         // Same status, same route, no code — the exact envelope the slug-collision branch returns.
-        throw new ApiError("slug 'taken' already exists", 409);
+        throw new ApiError({ message: "slug 'taken' already exists", status: 409 });
       },
     };
     const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
@@ -2037,7 +2037,7 @@ describe("usePostEditor — remaining boundaries", () => {
 
   it("a save that fails before any row has loaded reports the error and parks no local backup", async () => {
     const port = createFakePostEditorPort({ post: POST, getPostError: "boom" });
-    port.updatePost = async () => { throw new ApiError("session expired", 401); };
+    port.updatePost = async () => { throw new ApiError({ message: "session expired", status: 401 }); };
     const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.error).toBe("boom"));
 

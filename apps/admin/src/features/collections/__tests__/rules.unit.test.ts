@@ -251,12 +251,12 @@ describe("validateEditFieldsDraft", () => {
 
 describe("describeEditFieldsError", () => {
   it("maps a 409 ApiError to the shared stale-version message", () => {
-    const err = new ApiError("Conflict", 409, "VERSION_CONFLICT");
+    const err = new ApiError({ message: "Conflict", status: 409 }, { code: "VERSION_CONFLICT" });
     expect(describeEditFieldsError({ e: err })).toBe(STALE_VERSION_MESSAGE);
   });
 
   it("does not use the stale-version message for a non-409 ApiError", () => {
-    const err = new ApiError("Server error", 500, "INTERNAL");
+    const err = new ApiError({ message: "Server error", status: 500 }, { code: "INTERNAL" });
     expect(describeEditFieldsError({ e: err })).not.toBe(STALE_VERSION_MESSAGE);
     expect(describeEditFieldsError({ e: err })).toBe("Server error");
   });
@@ -380,7 +380,7 @@ describe("visibleEntryEditorError — version conflicts", () => {
     lifecycleFallback: "Failed to publish entry",
     versionConflictMessage: "CONFLICT COPY",
   };
-  const conflict = new ApiError("expected version 2 for entry 'e1', found 3", 409, "VERSION_CONFLICT");
+  const conflict = new ApiError({ message: "expected version 2 for entry 'e1', found 3", status: 409 }, { code: "VERSION_CONFLICT" });
 
   it("shows the conflict copy, not the server message, when a save loses the compare-and-set", () => {
     expect(visibleEntryEditorError({ ...base, updateError: conflict })).toBe("CONFLICT COPY");
@@ -391,13 +391,13 @@ describe("visibleEntryEditorError — version conflicts", () => {
   });
 
   it("keeps the server message for a code-less 409", () => {
-    const slugTaken = new ApiError("slug 'x' already exists", 409);
+    const slugTaken = new ApiError({ message: "slug 'x' already exists", status: 409 });
     expect(visibleEntryEditorError({ ...base, updateError: slugTaken })).toBe("slug 'x' already exists");
     expect(visibleEntryEditorError({ ...base, lifecycleError: slugTaken })).toBe("slug 'x' already exists");
   });
 
   it("describes a create failure with the save fallback", () => {
-    expect(visibleEntryEditorError({ ...base, createError: new ApiError("", 500) })).toBe("save failed");
+    expect(visibleEntryEditorError({ ...base, createError: new ApiError({ message: "", status: 500 }) })).toBe("save failed");
   });
 
   it("shows nothing for a lifecycle error with no attempted op, or when nothing failed", () => {

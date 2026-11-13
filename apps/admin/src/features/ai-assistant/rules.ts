@@ -35,7 +35,7 @@ export function describeApiError({ e, fallback }: { e: unknown; fallback: string
       return "The server can't store keys yet: it has no site key. Set TOVU_SITE_KEY (hex) and restart. Your key was not saved.";
     if (e.code === "SITE_CREDENTIAL_VALIDATION_ERROR") return e.message || "That value was rejected.";
   }
-  return describeApiErrorDefault(e, fallback);
+  return describeApiErrorDefault({ e, fallback });
 }
 
 // The stored-key endpoint rules (`storedKeyIsForOtherEndpoint`, `hasUsableKey`, `storedKeyBlocksProbe`,

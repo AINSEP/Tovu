@@ -99,7 +99,7 @@ export function useTermDetailPanel(
       onRenamed();
     } catch (err) {
       if (activeTermIdRef.current !== renamingForTermId) return;
-      setError(describeApiError(err, t({ locale: locale, key: "Failed to rename term" })));
+      setError(describeApiError({ e: err, fallback: t({ locale: locale, key: "Failed to rename term" }) }));
     } finally {
       if (activeTermIdRef.current === renamingForTermId) setSaving(false);
     }

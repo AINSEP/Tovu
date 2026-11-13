@@ -76,7 +76,7 @@ export function siteKeyLockedNote(
 /** The server's own sentence for a refusal, else the shared fallback. @complexity O(1). */
 function recoveryErrorMessage({ err, t }: { err: unknown; t: Translate }, _optional: Record<string, never> = {}): string {
   if (err instanceof ApiError && typeof err.body?.detail === "string") return err.body.detail;
-  return describeApiError(err, t("unknown error"));
+  return describeApiError({ e: err, fallback: t("unknown error") });
 }
 
 function unlockedMessage({ resealed, t }: { resealed: number; t: Translate }, _optional: Record<string, never> = {}): string {

@@ -17,9 +17,9 @@ describe("Local CLI selection persistence", () => {
   });
 
   it("hydrates effort from the scalar ledger format after reload", () => {
-    const localCli = buildLocalCliConfigFromLedger(new Map<string, unknown>([
+    const localCli = buildLocalCliConfigFromLedger({ byKey: new Map<string, unknown>([
       ["localCli.agentId", "claude"], ["localCli.model", "opus"], ["localCli.reasoning", "max"],
-    ]));
+    ]) });
     expect(localCliSelectionFromConfig({ config: { ...DEFAULT_EXECUTION_CONFIG, localCli } }))
       .toEqual({ agentId: "claude", model: "opus", reasoning: "max" });
   });

@@ -232,35 +232,35 @@ describe("loadExecutionConfig", () => {
  */
 describe("readExecutionMode", () => {
   it("passes through a recognized mode", () => {
-    expect(readExecutionMode("byok", "local-cli")).toBe("byok");
+    expect(readExecutionMode({ raw: "byok", fallback: "local-cli" })).toBe("byok");
   });
   it("falls back on anything unrecognized, including undefined", () => {
-    expect(readExecutionMode(undefined, "local-cli")).toBe("local-cli");
-    expect(readExecutionMode("not-a-mode", "byok")).toBe("byok");
+    expect(readExecutionMode({ raw: undefined, fallback: "local-cli" })).toBe("local-cli");
+    expect(readExecutionMode({ raw: "not-a-mode", fallback: "byok" })).toBe("byok");
   });
 });
 
 describe("readByokProtocol", () => {
   it("passes through each of the four recognized protocols", () => {
     for (const protocol of ["anthropic", "openai", "azure", "google"] as const) {
-      expect(readByokProtocol(protocol, "anthropic")).toBe(protocol);
+      expect(readByokProtocol({ raw: protocol, fallback: "anthropic" })).toBe(protocol);
     }
   });
   it("falls back on an unrecognized protocol", () => {
-    expect(readByokProtocol("not-a-protocol", "openai")).toBe("openai");
+    expect(readByokProtocol({ raw: "not-a-protocol", fallback: "openai" })).toBe("openai");
   });
 });
 
 describe("readByokProviderId", () => {
   it("treats explicit null as the custom-endpoint selection, not a fallback trigger", () => {
-    expect(readByokProviderId(null, "anthropic")).toBeNull();
+    expect(readByokProviderId({ raw: null, fallback: "anthropic" })).toBeNull();
   });
   it("passes through a string providerId", () => {
-    expect(readByokProviderId("openai", "anthropic")).toBe("openai");
+    expect(readByokProviderId({ raw: "openai", fallback: "anthropic" })).toBe("openai");
   });
   it("falls back only on undefined/non-string, non-null values", () => {
-    expect(readByokProviderId(undefined, "anthropic")).toBe("anthropic");
-    expect(readByokProviderId(42, "anthropic")).toBe("anthropic");
+    expect(readByokProviderId({ raw: undefined, fallback: "anthropic" })).toBe("anthropic");
+    expect(readByokProviderId({ raw: 42, fallback: "anthropic" })).toBe("anthropic");
   });
 });
 
@@ -274,7 +274,7 @@ describe("buildByokConfigFromLedger", () => {
       ["byok.model", "gpt-4o"],
       ["byok.maxTokens", 4096],
     ]);
-    expect(buildByokConfigFromLedger(byKey, DEFAULT_EXECUTION_CONFIG)).toEqual({
+    expect(buildByokConfigFromLedger({ byKey, defaults: DEFAULT_EXECUTION_CONFIG })).toEqual({
       protocol: "openai",
       providerId: "openai",
       apiKey: "",
@@ -284,7 +284,7 @@ describe("buildByokConfigFromLedger", () => {
     });
   });
   it("falls back to defaults field-by-field on an empty map, and omits maxTokens", () => {
-    const result = buildByokConfigFromLedger(new Map(), DEFAULT_EXECUTION_CONFIG);
+    const result = buildByokConfigFromLedger({ byKey: new Map(), defaults: DEFAULT_EXECUTION_CONFIG });
     expect(result).toEqual(DEFAULT_EXECUTION_CONFIG.byok);
     expect(result.maxTokens).toBeUndefined();
   });
@@ -292,21 +292,21 @@ describe("buildByokConfigFromLedger", () => {
 
 describe("buildLocalCliConfigFromLedger", () => {
   it("returns agentId: null with no modelByAgentId when nothing is picked", () => {
-    expect(buildLocalCliConfigFromLedger(new Map())).toEqual({ agentId: null });
+    expect(buildLocalCliConfigFromLedger({ byKey: new Map() })).toEqual({ agentId: null });
   });
   it("returns the selected agent keyed into modelByAgentId when both are present", () => {
     const byKey = new Map<string, unknown>([
       ["localCli.agentId", "claude"],
       ["localCli.model", "claude-opus-5"],
     ]);
-    expect(buildLocalCliConfigFromLedger(byKey)).toEqual({
+    expect(buildLocalCliConfigFromLedger({ byKey })).toEqual({
       agentId: "claude",
       modelByAgentId: { claude: "claude-opus-5" },
     });
   });
   it("omits modelByAgentId when an agent is selected but has no model recorded", () => {
     const byKey = new Map<string, unknown>([["localCli.agentId", "claude"]]);
-    expect(buildLocalCliConfigFromLedger(byKey)).toEqual({ agentId: "claude" });
+    expect(buildLocalCliConfigFromLedger({ byKey })).toEqual({ agentId: "claude" });
   });
 
   // The reasoning-effort pick round-trips exactly like the model pick: one scalar for the
@@ -318,7 +318,7 @@ describe("buildLocalCliConfigFromLedger", () => {
       ["localCli.model", "claude-opus-5"],
       ["localCli.reasoning", "high"],
     ]);
-    expect(buildLocalCliConfigFromLedger(byKey)).toEqual({
+    expect(buildLocalCliConfigFromLedger({ byKey })).toEqual({
       agentId: "claude",
       modelByAgentId: { claude: "claude-opus-5" },
       reasoningByAgentId: { claude: "high" },
@@ -330,7 +330,7 @@ describe("buildLocalCliConfigFromLedger", () => {
       ["localCli.agentId", "claude"],
       ["localCli.model", "claude-opus-5"],
     ]);
-    expect(buildLocalCliConfigFromLedger(byKey)).toEqual({
+    expect(buildLocalCliConfigFromLedger({ byKey })).toEqual({
       agentId: "claude",
       modelByAgentId: { claude: "claude-opus-5" },
     });
@@ -339,7 +339,7 @@ describe("buildLocalCliConfigFromLedger", () => {
   // A reasoning value with no agent selected has nothing to key it under, so it is dropped
   // rather than attached to whichever agent is picked next.
   it("omits reasoningByAgentId when no agent is selected at all", () => {
-    expect(buildLocalCliConfigFromLedger(new Map<string, unknown>([["localCli.reasoning", "high"]]))).toEqual({
+    expect(buildLocalCliConfigFromLedger({ byKey: new Map<string, unknown>([["localCli.reasoning", "high"]]) })).toEqual({
       agentId: null,
     });
   });
@@ -772,18 +772,18 @@ describe("reconcileExecutionConfigRefresh — the 2026-08-05 autosave key-wipe f
 
 describe("hasUsableAdminKey", () => {
   it("is true when a non-empty apiKey is typed, regardless of stored state", () => {
-    expect(hasUsableAdminKey("sk-typed", null)).toBe(true);
-    expect(hasUsableAdminKey("sk-typed", { isSet: false })).toBe(true);
+    expect(hasUsableAdminKey({ apiKey: "sk-typed", stored: null })).toBe(true);
+    expect(hasUsableAdminKey({ apiKey: "sk-typed", stored: { isSet: false } })).toBe(true);
   });
 
   it("is true when nothing is typed but the server has a credential stored", () => {
-    expect(hasUsableAdminKey("", { isSet: true })).toBe(true);
-    expect(hasUsableAdminKey("   ", { isSet: true })).toBe(true);
+    expect(hasUsableAdminKey({ apiKey: "", stored: { isSet: true } })).toBe(true);
+    expect(hasUsableAdminKey({ apiKey: "   ", stored: { isSet: true } })).toBe(true);
   });
 
   it("is false when nothing is typed and nothing is stored", () => {
-    expect(hasUsableAdminKey("", null)).toBe(false);
-    expect(hasUsableAdminKey("", { isSet: false })).toBe(false);
+    expect(hasUsableAdminKey({ apiKey: "", stored: null })).toBe(false);
+    expect(hasUsableAdminKey({ apiKey: "", stored: { isSet: false } })).toBe(false);
   });
 });
 
@@ -792,22 +792,22 @@ describe("hasTypedAdminKey", () => {
   // hasUsableAdminKey deliberately: the pair only makes sense as a contrast, and the one row where
   // they DISAGREE is the whole reason both exist.
   it("is true only for a non-whitespace field value", () => {
-    expect(hasTypedAdminKey("sk-typed")).toBe(true);
-    expect(hasTypedAdminKey("  sk-padded  ")).toBe(true);
+    expect(hasTypedAdminKey({ apiKey: "sk-typed" })).toBe(true);
+    expect(hasTypedAdminKey({ apiKey: "  sk-padded  " })).toBe(true);
   });
 
   it("treats an empty field and a whitespace-only field alike as blank", () => {
-    expect(hasTypedAdminKey("")).toBe(false);
-    expect(hasTypedAdminKey("   ")).toBe(false);
-    expect(hasTypedAdminKey("\t\n ")).toBe(false);
+    expect(hasTypedAdminKey({ apiKey: "" })).toBe(false);
+    expect(hasTypedAdminKey({ apiKey: "   " })).toBe(false);
+    expect(hasTypedAdminKey({ apiKey: "\t\n " })).toBe(false);
   });
 
   it("ignores stored state entirely — the row where it must disagree with hasUsableAdminKey", () => {
     // The reported bug in one assertion. A stored key makes the credential USABLE, so the dock's
     // apiModeAvailable is right to say yes; it does not make an empty field WRITABLE, so Save key
     // must say no. Collapsing these two back into one predicate re-opens the bug.
-    expect(hasUsableAdminKey("", { isSet: true })).toBe(true);
-    expect(hasTypedAdminKey("")).toBe(false);
+    expect(hasUsableAdminKey({ apiKey: "", stored: { isSet: true } })).toBe(true);
+    expect(hasTypedAdminKey({ apiKey: "" })).toBe(false);
   });
 });
 
@@ -1122,34 +1122,34 @@ describe("createExecutionPort", () => {
 describe("L13 mutation gaps — ledger readers", () => {
   it("trims the selected agent, its model and its reasoning, and keys both maps by the trimmed id", () => {
     const byKey = new Map<string, unknown>([["localCli.agentId", "  claude \n"], ["localCli.model", " opus "], ["localCli.reasoning", "\thigh "]]);
-    expect(buildLocalCliConfigFromLedger(byKey)).toEqual({ agentId: "claude", modelByAgentId: { claude: "opus" }, reasoningByAgentId: { claude: "high" } });
+    expect(buildLocalCliConfigFromLedger({ byKey })).toEqual({ agentId: "claude", modelByAgentId: { claude: "opus" }, reasoningByAgentId: { claude: "high" } });
   });
   it("a whitespace-only agent is nothing selected; whitespace-only model/reasoning are omitted", () => {
-    expect(buildLocalCliConfigFromLedger(new Map<string, unknown>([["localCli.agentId", "   "], ["localCli.model", "opus"]]))).toEqual({ agentId: null });
-    expect(buildLocalCliConfigFromLedger(new Map<string, unknown>([["localCli.agentId", "codex"], ["localCli.model", "  "], ["localCli.reasoning", " "]]))).toEqual({ agentId: "codex" });
-    expect(buildLocalCliConfigFromLedger(new Map<string, unknown>([["localCli.agentId", 7], ["localCli.model", "opus"]]))).toEqual({ agentId: null });
+    expect(buildLocalCliConfigFromLedger({ byKey: new Map<string, unknown>([["localCli.agentId", "   "], ["localCli.model", "opus"]]) })).toEqual({ agentId: null });
+    expect(buildLocalCliConfigFromLedger({ byKey: new Map<string, unknown>([["localCli.agentId", "codex"], ["localCli.model", "  "], ["localCli.reasoning", " "]]) })).toEqual({ agentId: "codex" });
+    expect(buildLocalCliConfigFromLedger({ byKey: new Map<string, unknown>([["localCli.agentId", 7], ["localCli.model", "opus"]]) })).toEqual({ agentId: null });
   });
   it("every unrecognized mode and protocol value falls back, including case and type variants", () => {
-    for (const raw of [undefined, null, "", "BYOK", "local", 1, {}]) expect(readExecutionMode(raw, "byok")).toBe("byok");
-    expect(readExecutionMode("local-cli", "byok")).toBe("local-cli");
-    for (const raw of [undefined, null, "", "Anthropic", "bedrock", 1]) expect(readByokProtocol(raw, "google")).toBe("google");
+    for (const raw of [undefined, null, "", "BYOK", "local", 1, {}]) expect(readExecutionMode({ raw, fallback: "byok" })).toBe("byok");
+    expect(readExecutionMode({ raw: "local-cli", fallback: "byok" })).toBe("local-cli");
+    for (const raw of [undefined, null, "", "Anthropic", "bedrock", 1]) expect(readByokProtocol({ raw, fallback: "google" })).toBe("google");
   });
   it("maxTokens is kept only as a non-sentinel number", () => {
     const rows = (value: unknown) => new Map<string, unknown>([["byok.maxTokens", value]]);
-    expect(buildByokConfigFromLedger(rows(1), DEFAULT_EXECUTION_CONFIG).maxTokens).toBe(1);
+    expect(buildByokConfigFromLedger({ byKey: rows(1), defaults: DEFAULT_EXECUTION_CONFIG }).maxTokens).toBe(1);
     for (const value of [0, "4096", null, undefined]) {
-      expect(Object.hasOwn(buildByokConfigFromLedger(rows(value), DEFAULT_EXECUTION_CONFIG), "maxTokens")).toBe(false);
+      expect(Object.hasOwn(buildByokConfigFromLedger({ byKey: rows(value), defaults: DEFAULT_EXECUTION_CONFIG }), "maxTokens")).toBe(false);
     }
   });
   it("a non-string baseUrl or model falls back to the defaults", () => {
     const byKey = new Map<string, unknown>([["byok.baseUrl", 5], ["byok.model", null]]);
-    const result = buildByokConfigFromLedger(byKey, DEFAULT_EXECUTION_CONFIG);
+    const result = buildByokConfigFromLedger({ byKey, defaults: DEFAULT_EXECUTION_CONFIG });
     expect(result.baseUrl).toBe("https://api.anthropic.com");
     expect(result.model).toBe("");
   });
   it("a whitespace-only typed key with nothing stored is not usable", () => {
-    expect(hasUsableAdminKey(" \t ", null)).toBe(false);
-    expect(hasUsableAdminKey(" \t ", { isSet: false })).toBe(false);
+    expect(hasUsableAdminKey({ apiKey: " \t ", stored: null })).toBe(false);
+    expect(hasUsableAdminKey({ apiKey: " \t ", stored: { isSet: false } })).toBe(false);
   });
 });
 

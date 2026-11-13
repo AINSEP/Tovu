@@ -48,7 +48,7 @@ export interface ObservabilityStatusController {
 export function useObservabilityStatus({ port, locale, t }: ObservabilityStatusDependencies): ObservabilityStatusController {
   const queryFetch = useQueryFetchCallback(async () => {
     try { return await port.getObservabilityStatus(); }
-    catch (error) { throw new Error(describeApiError(error, translateObservability({ locale, key: "failed to load observability status" }))); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: translateObservability({ locale, key: "failed to load observability status" }) })); }
   }, [port, locale]);
   const query = useFetchQuery({ key: ["observability", "status"], fetch: queryFetch }, { staleTime: 0 });
   const status = query.data ?? null;
@@ -60,7 +60,7 @@ export function useObservabilityStatus({ port, locale, t }: ObservabilityStatusD
     if (sendingTestError || !port.sendTestError) return;
     setSendingTestError(true); setTestResult(null); setTestError(null);
     try { setTestResult(await port.sendTestError()); query.refetch(); }
-    catch (failure) { setTestError(describeApiError(failure, t("Failed to send test error"))); }
+    catch (failure) { setTestError(describeApiError({ e: failure, fallback: t("Failed to send test error") })); }
     finally { setSendingTestError(false); }
   };
   return { status, error, t, locale, sendingTestError, testResult, testError, sendTestError, refresh: query.refetch };

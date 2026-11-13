@@ -57,7 +57,7 @@ describe("useEmailProvider", () => {
 
   it("keeps a failed key draft for retry and reports the safe API message", async () => {
     const api = createEmailFake();
-    api.saveProviderKey.mockRejectedValue(new ApiError("Key refused", 400));
+    api.saveProviderKey.mockRejectedValue(new ApiError({ message: "Key refused", status: 400 }));
     const { result } = renderHook(() => useEmailProvider({ api, pluginApi: api }));
     act(() => result.current.setDraftField(PROVIDER.id, "token", "secret"));
     await act(() => result.current.saveKey(PROVIDER));
@@ -89,7 +89,7 @@ describe("adding email providers", () => {
     act(() => { pending = result.current.addProvider({ pluginId: MAIL_PLUGIN.pluginId }); });
     expect(result.current.adding).toBe(MAIL_PLUGIN.pluginId);
     await act(() => result.current.addProvider({ pluginId: "another" }));
-    expect(api.setAgentPluginEnabled).toHaveBeenCalledExactlyOnceWith("mail-plugin", { enabled: true });
+    expect(api.setAgentPluginEnabled).toHaveBeenCalledExactlyOnceWith({ pluginId: "mail-plugin", enabled: true });
     expect(api.listProviders).toHaveBeenCalledTimes(1);
     api.listProviders.mockResolvedValue({ setting: { transactional: null, bulk: null }, providers: [PROVIDER, { ...PROVIDER, id: "different-adapter-id", pluginId: MAIL_PLUGIN.pluginId }], refusals: [] });
     await act(async () => { finish({ agentPlugin: { ...MAIL_PLUGIN, enabled: true } }); expect(await pending).toBe("different-adapter-id"); });
@@ -105,8 +105,8 @@ describe("adding email providers", () => {
     api.listAgentPlugins.mockResolvedValue({ agentPlugins: [MAIL_PLUGIN] });
     const { result } = renderHook(() => useEmailProvider({ api, pluginApi: api }));
     await waitFor(() => expect(result.current.view.kind).toBe("loaded"));
-    if (failure === "enable") api.setAgentPluginEnabled.mockRejectedValueOnce(new ApiError("Permission refused", 403));
-    if (failure === "refresh") api.listProviders.mockRejectedValueOnce(new ApiError("Read refused", 403));
+    if (failure === "enable") api.setAgentPluginEnabled.mockRejectedValueOnce(new ApiError({ message: "Permission refused", status: 403 }));
+    if (failure === "refresh") api.listProviders.mockRejectedValueOnce(new ApiError({ message: "Read refused", status: 403 }));
     if (failure === "refused") api.listProviders.mockResolvedValueOnce({ setting: { transactional: null, bulk: null }, providers: [PROVIDER], refusals: ["Adapter refused from 'mail-plugin'", "Unrelated refusal from 'other-plugin'"] });
     await act(async () => { expect(await result.current.addProvider({ pluginId: MAIL_PLUGIN.pluginId })).toBeUndefined(); });
     expect(result.current.addError).toBe(failure === "enable" ? "Permission refused" : failure === "refresh" ? "Read refused" : failure === "refused" ? "Adapter refused from 'mail-plugin'" : "The plugin did not load an email provider.");
@@ -138,7 +138,7 @@ describe("adding email providers", () => {
 
   it("distinguishes forbidden reads from an empty catalog and retries the read", async () => {
     const api = createEmailFake();
-    api.listAgentPlugins.mockRejectedValueOnce(new ApiError("Cannot list plugins", 403));
+    api.listAgentPlugins.mockRejectedValueOnce(new ApiError({ message: "Cannot list plugins", status: 403 }));
     const { result } = renderHook(() => useEmailProvider({ api, pluginApi: api }));
     await waitFor(() => expect(result.current.addError).toBe("Cannot list plugins"));
     expect(result.current.choices).toBeNull();

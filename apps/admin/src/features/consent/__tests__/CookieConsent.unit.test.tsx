@@ -56,7 +56,7 @@ describe('CookieConsent: load', () => {
   });
 
   it('shows a load failure', async () => {
-    renderPage(fakeConsentPort({ get: () => Promise.reject(new ApiError('', 503)) }));
+    renderPage(fakeConsentPort({ get: () => Promise.reject(new ApiError({ message: '', status: 503 })) }));
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load cookie consent.");
   });
 });
@@ -90,7 +90,7 @@ describe('CookieConsent: publish', () => {
   });
 
   it('shows a publish error', async () => {
-    renderPage(fakeConsentPort({ get: () => Promise.resolve(withDraft), publish: () => Promise.reject(new ApiError('Storage is read-only.', 503)) }));
+    renderPage(fakeConsentPort({ get: () => Promise.resolve(withDraft), publish: () => Promise.reject(new ApiError({ message: 'Storage is read-only.', status: 503 })) }));
     await waitFor(() => expect(publishButton()).toBeEnabled());
     fireEvent.click(publishButton());
     expect(await screen.findByRole('alert')).toHaveTextContent('Storage is read-only.');
@@ -110,14 +110,14 @@ describe('CookieConsent: notices', () => {
   });
 
   it('shows a save error and keeps the edit', async () => {
-    renderPage(fakeConsentPort({ saveDraft: () => Promise.reject(new ApiError('Disk full.', 500)) }));
+    renderPage(fakeConsentPort({ saveDraft: () => Promise.reject(new ApiError({ message: 'Disk full.', status: 500 })) }));
     fireEvent.change(await screen.findByLabelText('Banner title'), { target: { value: 'Mine' } });
     expect(await screen.findByRole('alert')).toHaveTextContent('Disk full.');
     expect(screen.getByLabelText('Banner title')).toHaveValue('Mine');
   });
 
   it('shows a preview failure beside the frame', async () => {
-    renderPage(fakeConsentPort({ preview: () => Promise.reject(new ApiError('', 500)) }), 'look');
+    renderPage(fakeConsentPort({ preview: () => Promise.reject(new ApiError({ message: '', status: 500 })) }), 'look');
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't render the preview.");
   });
 });

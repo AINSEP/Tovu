@@ -272,9 +272,9 @@ describe("useSourceControlCredentials", () => {
 
   it.each([
     [new Error("server exploded"), "Could not save this connection (server exploded)."],
-    [new ApiError("duplicate", 409, "DUPLICATE_LABEL"), "This connection was already saved — reload the page and try again."],
-    [new ApiError("bad request", 400, "VALIDATION", { detail: "token is required" }), "Could not save this connection (token is required)."],
-    [new ApiError("server exploded", 500), "Could not save this connection (server exploded)."],
+    [new ApiError({ message: "duplicate", status: 409 }, { code: "DUPLICATE_LABEL" }), "This connection was already saved — reload the page and try again."],
+    [new ApiError({ message: "bad request", status: 400 }, { code: "VALIDATION", body: { detail: "token is required" } }), "Could not save this connection (token is required)."],
+    [new ApiError({ message: "server exploded", status: 500 }), "Could not save this connection (server exploded)."],
   ])("save() surfaces %s as the row error and clears saving", async (failure, expected) => {
     const createCredential = vi.fn().mockRejectedValue(failure);
     const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [] }), createCredential });

@@ -217,7 +217,7 @@ function keptMediaProviderSettings({ credentials }: { credentials: AdminMediaPro
  *  duplicate-label case here (nothing on this tier is named), so this is the plain
  *  `describeApiError`-wrapped base case only. @complexity O(1). */
 function otherCredentialSaveErrorMessage({ err, t, locale }: { err: unknown; t: Translate; locale: string }, _optional: Record<string, never> = {}): string {
-  return accessTokenSaveErrorMessage({ locale, error: translateCredentialMessage({ message: describeApiError(err, t("unknown error")), locale }) });
+  return accessTokenSaveErrorMessage({ locale, error: translateCredentialMessage({ message: describeApiError({ e: err, fallback: t("unknown error") }), locale }) });
 }
 
 export function useOtherCredentials(
@@ -381,7 +381,7 @@ async function refetchOneOrRecordFailure(
   try {
     await refetchOne({ port, store, setStoreStates, t, locale });
   } catch (err: unknown) {
-    const loadError = accessTokensLoadErrorMessage({ locale, error: translateCredentialMessage({ message: describeApiError(err, t("unknown error")), locale }) });
+    const loadError = accessTokensLoadErrorMessage({ locale, error: translateCredentialMessage({ message: describeApiError({ e: err, fallback: t("unknown error") }), locale }) });
     setStoreStates((prev) => ({ ...prev, [store.id]: { items: [], loadError } }));
   }
 }

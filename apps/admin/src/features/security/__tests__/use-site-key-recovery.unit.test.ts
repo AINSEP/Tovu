@@ -64,7 +64,7 @@ describe("useSiteKeyRecovery — Paste your old site key", () => {
 
   it("shows the server's sentence when the token doesn't open anything, and keeps the input", async () => {
     const detail = "That site key does not open this site's saved credentials. Nothing was changed.";
-    const port = makePort({ importSiteKey: vi.fn(async () => { throw new ApiError("SITE_KEY_DOES_NOT_OPEN", 409, undefined, { error: "SITE_KEY_DOES_NOT_OPEN", detail }); }) });
+    const port = makePort({ importSiteKey: vi.fn(async () => { throw new ApiError({ message: "SITE_KEY_DOES_NOT_OPEN", status: 409 }, { code: undefined, body: { error: "SITE_KEY_DOES_NOT_OPEN", detail } }); }) });
     const onRecovered = vi.fn();
     const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered }));
 
@@ -125,8 +125,8 @@ describe("useSiteKeyRecovery — Start fresh", () => {
   });
 
   it.each([
-    [new ApiError("Recovery forbidden", 403, undefined, { detail: 42 }), "Recovery forbidden"],
-    [new ApiError("Recovery unavailable", 503), "Recovery unavailable"],
+    [new ApiError({ message: "Recovery forbidden", status: 403 }, { code: undefined, body: { detail: 42 } }), "Recovery forbidden"],
+    [new ApiError({ message: "Recovery unavailable", status: 503 }), "Recovery unavailable"],
     ["unexpected refusal", "unknown error"],
   ])("uses the shared fallback for a refusal without a string detail (%s)", async (failure, message) => {
     const port = makePort({ importSiteKey: async () => {
@@ -229,7 +229,7 @@ describe("useSiteKeyRecovery — Start fresh", () => {
 
   it("shows the server's sentence when start fresh is refused, and keeps the confirm step open", async () => {
     const detail = "A restore point can't be made for this site's database right now, so nothing was changed.";
-    const port = makePort({ startFresh: vi.fn(async () => { throw new ApiError("RESTORE_POINT_UNAVAILABLE", 409, undefined, { error: "RESTORE_POINT_UNAVAILABLE", detail }); }) });
+    const port = makePort({ startFresh: vi.fn(async () => { throw new ApiError({ message: "RESTORE_POINT_UNAVAILABLE", status: 409 }, { code: undefined, body: { error: "RESTORE_POINT_UNAVAILABLE", detail } }); }) });
     const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered: vi.fn() }));
 
     await act(async () => result.current.openStartFresh());

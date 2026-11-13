@@ -12,11 +12,11 @@ import type { PluginsPort } from "./plugins-port.hooks";
 export const defaultPluginsPort: PluginsPort = {
   useProjectKey: (input, _optional = {}) => api.useProjectKey(input),
   listPlugins: () => authenticatedAdminRequest({ path: `/workspaces/${WORKSPACE_ID}/plugins`, method: "GET" }),
-  setPluginEnabled: ({ id, patch }, _optional = {}) => api.setPluginEnabled(id, patch),
-  uninstallPlugin: ({ id }, _optional = {}) => api.uninstallPlugin(id),
-  getPluginFiles: ({ id }, _optional = {}) => api.getPluginFiles(id),
-  getProviderSettings: ({ id }, _optional = {}) => api.getPluginProviderSettings(id),
-  saveProviderSettings: ({ id, values }, _optional = {}) => api.savePluginProviderSettings(id, values),
+  setPluginEnabled: ({ id, patch }, _optional = {}) => api.setPluginEnabled({ pluginId: id, enabled: patch.enabled }),
+  uninstallPlugin: ({ id }, _optional = {}) => api.uninstallPlugin({ pluginId: id }),
+  getPluginFiles: ({ id }, _optional = {}) => api.getPluginFiles({ pluginId: id }),
+  getProviderSettings: ({ id }, _optional = {}) => api.getPluginProviderSettings({ pluginId: id }),
+  saveProviderSettings: ({ id, values }, _optional = {}) => api.savePluginProviderSettings({ pluginId: id, values }),
 };
 
 /** Seed state for {@link createFakePluginsPort}. */
@@ -52,7 +52,7 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
     plugins,
     async useProjectKey({ keyId, use }, _optional = {}) {
       const card = Object.values(options.providerSettings ?? {}).find(card => card.keyId === keyId);
-      if (!card) throw new ApiError("project key not found", 404, "KEY_NOT_FOUND");
+      if (!card) throw new ApiError({ message: "project key not found", status: 404 }, { code: "KEY_NOT_FOUND" });
       card.usedByThisSite = use;
       card.usedBy = use ? ["this-site"] : [];
       return { keyId, usedByThisSite: use, usedBy: card.usedBy, appliesAt: "now" };
@@ -68,7 +68,7 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       // The real enable gate (`onPluginEnabled`, 2026-10-04): a plugin whose row lists conflicts is
       // refused with 409 PLUGIN_CONFLICT and stays off. Turning a plugin OFF is never refused.
       if (patch.enabled && (plugins[index].conflicts ?? []).length > 0) {
-        throw new ApiError(`Plugin '${id}' was not turned on because it claims things already in use.`, 409, "PLUGIN_CONFLICT");
+        throw new ApiError({ message: `Plugin '${id}' was not turned on because it claims things already in use.`, status: 409 }, { code: "PLUGIN_CONFLICT" });
       }
       const updated = { ...plugins[index], enabled: patch.enabled };
       plugins[index] = updated;
@@ -78,16 +78,16 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
 
     async uninstallPlugin({ id }, _optional = {}) {
       if (trashedPluginIds.has(id)) {
-        throw new ApiError("plugin is already in Trash", 409, "PLUGIN_IN_TRASH");
+        throw new ApiError({ message: "plugin is already in Trash", status: 409 }, { code: "PLUGIN_IN_TRASH" });
       }
       const index = plugins.findIndex((p) => p.id === id);
-      if (index < 0) throw new ApiError("plugin not found", 404, "PLUGIN_NOT_FOUND");
+      if (index < 0) throw new ApiError({ message: "plugin not found", status: 404 }, { code: "PLUGIN_NOT_FOUND" });
       const plugin = plugins[index];
       if (plugin.source === "built-in") {
-        throw new ApiError(`plugin '${id}' is a built-in plugin and cannot be uninstalled`, 422, "PLUGIN_NOT_UNINSTALLABLE");
+        throw new ApiError({ message: `plugin '${id}' is a built-in plugin and cannot be uninstalled`, status: 422 }, { code: "PLUGIN_NOT_UNINSTALLABLE" });
       }
       if (plugin.enabled) {
-        throw new ApiError(`plugin '${id}' is enabled and must be disabled everywhere before it can be uninstalled`, 409, "PLUGIN_ENABLED");
+        throw new ApiError({ message: `plugin '${id}' is enabled and must be disabled everywhere before it can be uninstalled`, status: 409 }, { code: "PLUGIN_ENABLED" });
       }
       trashedPluginIds.add(id);
       plugins.splice(index, 1);
@@ -96,20 +96,20 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
 
     async getPluginFiles({ id }, _optional = {}) {
       const listing = options.packageFiles?.[id];
-      if (!listing) throw new ApiError("plugin was not found", 404, "PLUGIN_NOT_FOUND");
+      if (!listing) throw new ApiError({ message: "plugin was not found", status: 404 }, { code: "PLUGIN_NOT_FOUND" });
       return listing;
     },
 
     async getProviderSettings({ id }, _optional = {}) {
       const card = options.providerSettings?.[id];
-      if (!card) throw new ApiError("this plugin declares no provider settings", 404, "PLUGIN_NOT_FOUND");
+      if (!card) throw new ApiError({ message: "this plugin declares no provider settings", status: 404 }, { code: "PLUGIN_NOT_FOUND" });
       return card;
     },
 
     async saveProviderSettings({ id, values }, _optional = {}) {
       const card = await this.getProviderSettings({ id });
       if (Object.entries(values).some(([name]) => !card.fields.some((field) => field.name === name))) {
-        throw new ApiError("values must map declared setting names to text", 400, "PROVIDER_SETTINGS_INVALID");
+        throw new ApiError({ message: "values must map declared setting names to text", status: 400 }, { code: "PROVIDER_SETTINGS_INVALID" });
       }
       // Like the server: a blank secret is kept only while every public field is unchanged (a blank
       // public field means its declared default, so filling in that default is no change).
@@ -126,11 +126,11 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       const kept = card.fields.filter((field) => field.secret && field.saved && !values[field.name]?.trim());
       if (changed.length > 0 && kept.length > 0) {
         const labels = (list: typeof kept) => list.map((field) => field.label).join(", ");
-        throw new ApiError(`Changing ${labels(changed)} needs ${labels(kept)} entered again.`, 400, "PROVIDER_SETTINGS_SECRET_REENTRY");
+        throw new ApiError({ message: `Changing ${labels(changed)} needs ${labels(kept)} entered again.`, status: 400 }, { code: "PROVIDER_SETTINGS_SECRET_REENTRY" });
       }
       const effectiveValues = Object.fromEntries(card.fields.map((field) => [field.name, effectiveFieldValue({ field, entered: values[field.name]?.trim() })]));
       const missing = card.fields.find((field) => providerSettingRequiredHere({ field, fields: card.fields, entered: values, values: effectiveValues }) && !effectiveValues[field.name]);
-      if (missing) throw new ApiError(`${missing.label} is required.${missing.hint ? " " + missing.hint : ""}`, 400, "PROVIDER_SETTINGS_REQUIRED");
+      if (missing) throw new ApiError({ message: `${missing.label} is required.${missing.hint ? " " + missing.hint : ""}`, status: 400 }, { code: "PROVIDER_SETTINGS_REQUIRED" });
       const fields = card.fields.map((field) => {
         const value = values[field.name]?.trim();
         if (value === undefined) return field;
@@ -140,7 +140,7 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       // Like the server: once settings are saved, the retired-key and can't-read notices are gone.
       const { legacyCredential: _retired, unreadable: _unreadable, ...current } = card;
       const providerSettings = options.providerSettings;
-      if (!providerSettings) throw new ApiError("this plugin declares no provider settings", 404, "PLUGIN_NOT_FOUND");
+      if (!providerSettings) throw new ApiError({ message: "this plugin declares no provider settings", status: 404 }, { code: "PLUGIN_NOT_FOUND" });
       const updated = { ...current, fields };
       providerSettings[id] = updated;
       return updated;

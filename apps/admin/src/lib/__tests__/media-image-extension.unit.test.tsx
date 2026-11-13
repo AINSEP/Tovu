@@ -69,7 +69,7 @@ describe("MediaImageNodeView", () => {
     render(<MediaImageNodeView {...fakeNodeViewProps({ assetId: "asset-1", transformName: "public", alt: "Dune" })} />);
 
     const img = screen.getByRole("img") as HTMLImageElement;
-    expect(img.src).toContain(api.mediaOriginalUrl("asset-1"));
+    expect(img.src).toContain(api.mediaOriginalUrl({ id: "asset-1" }));
     expect(img).toHaveAttribute("alt", "Dune");
     expect(screen.queryByLabelText("Broken image reference")).not.toBeInTheDocument();
   });
@@ -97,7 +97,7 @@ describe("MediaImageNodeView", () => {
     );
 
     const img = screen.getByRole("img") as HTMLImageElement;
-    expect(img.src).toContain(api.mediaOriginalUrl("asset-1"));
+    expect(img.src).toContain(api.mediaOriginalUrl({ id: "asset-1" }));
   });
 
   it("broken-ref branch: neither assetId/transformName nor src renders the unavailable label, no real <img>", () => {
@@ -208,7 +208,7 @@ describe("MediaImage mounted node view and HTML serialization", () => {
       expect(editor.getJSON().content?.find((node) => node.type === "image")?.attrs).toEqual({
         assetId: "asset-new", transformName: "public", alt: "New alt", src: null, title: null, width: null, height: null,
       });
-      expect(await screen.findByAltText("New alt")).toHaveAttribute("src", api.mediaOriginalUrl("asset-new"));
+      expect(await screen.findByAltText("New alt")).toHaveAttribute("src", api.mediaOriginalUrl({ id: "asset-new" }));
       expect(screen.queryByAltText("Old")).not.toBeInTheDocument();
     } finally { mounted.unmount(); editor.destroy(); }
   });

@@ -147,7 +147,7 @@ describe("useSites — create", () => {
   });
 
   it("surfaces the occupied-folder conflict in this feature's own words", async () => {
-    const createSite = vi.fn().mockRejectedValue(new ApiError("dir not empty", 409, "SITE_ALREADY_EXISTS"));
+    const createSite = vi.fn().mockRejectedValue(new ApiError({ message: "dir not empty", status: 409 }, { code: "SITE_ALREADY_EXISTS" }));
     const port = createFakeSitesPort(snapshotFixture(), { createSite });
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
@@ -162,7 +162,7 @@ describe("useSites — create", () => {
   });
 
   it("falls back to the server's own message for a code it has no copy for", async () => {
-    const createSite = vi.fn().mockRejectedValue(new ApiError("internal error", 500, "INTERNAL_ERROR"));
+    const createSite = vi.fn().mockRejectedValue(new ApiError({ message: "internal error", status: 500 }, { code: "INTERNAL_ERROR" }));
     const port = createFakeSitesPort(snapshotFixture(), { createSite });
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
@@ -296,7 +296,7 @@ describe("useSites — activate does NOT switch anything", () => {
 
   it("surfaces the capability refusal rather than pretending the choice was saved", async () => {
     const port = createFakeSitesPort(snapshotFixture({ switchingEnabled: false }), {
-      activateSite: () => Promise.reject(new ApiError("disabled", 403, "SITE_SWITCHING_DISABLED")),
+      activateSite: () => Promise.reject(new ApiError({ message: "disabled", status: 403 }, { code: "SITE_SWITCHING_DISABLED" })),
     });
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
@@ -361,7 +361,7 @@ describe("useSites — activate race safety", () => {
 
 describe("useSites — write error precedence", () => {
   it("does not let a stale Create failure mask a later, successful Activate", async () => {
-    const createSite = vi.fn().mockRejectedValue(new ApiError("dir not empty", 409, "SITE_ALREADY_EXISTS"));
+    const createSite = vi.fn().mockRejectedValue(new ApiError({ message: "dir not empty", status: 409 }, { code: "SITE_ALREADY_EXISTS" }));
     const activateSite = vi
       .fn()
       .mockResolvedValue({ ok: true, activeSiteName: "beta", restartRequired: true, restartInstructions: "Restart beta." });

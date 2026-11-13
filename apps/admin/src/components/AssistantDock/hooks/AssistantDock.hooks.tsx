@@ -1248,7 +1248,7 @@ async function fetchAgents(): Promise<ChatPaneAgent[]> {
     basePath: "/api/agents",
     requireJson: true,
     signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
-    errorFactory: ({ error }) => new ApiError(`GET ${AGENTS_URL} answered ${error.status}`, error.status, error.code, error.body),
+    errorFactory: ({ error }) => new ApiError({ message: `GET ${AGENTS_URL} answered ${error.status}`, status: error.status }, { code: error.code, body: error.body }),
   });
   return readAgentsResponse({ inventory, label: `GET ${AGENTS_URL}` });
 }
@@ -1303,7 +1303,7 @@ async function rescanAgentsInto(loader: CachedLoader<ChatPaneAgent[]>): Promise<
     basePath: "/api/agents",
     requireJson: true,
     signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
-    errorFactory: ({ error }) => new ApiError(`POST ${AGENTS_URL}/rescan answered ${error.status}`, error.status, error.code, error.body),
+    errorFactory: ({ error }) => new ApiError({ message: `POST ${AGENTS_URL}/rescan answered ${error.status}`, status: error.status }, { code: error.code, body: error.body }),
   }).catch((error: unknown) => {
     // Fall back on an unusable response; a failed/canceled fetch still rejects as before.
     if ((error instanceof ApiError && error.status > 0) || error instanceof SyntaxError) return null;

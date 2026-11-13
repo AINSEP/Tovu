@@ -21,7 +21,7 @@ it("stays hidden until the server confirms, and hidden for good when it refuses"
   expect(shown.result.current.available).toBe(false);
   await waitFor(() => expect(shown.result.current.available).toBe(true));
 
-  const refused = setup({ probe: async () => { throw new ApiError("not found", 404); }, pick: vi.fn() });
+  const refused = setup({ probe: async () => { throw new ApiError({ message: "not found", status: 404 }); }, pick: vi.fn() });
   await act(async () => { await Promise.resolve(); });
   expect(refused.result.current.available).toBe(false);
 });
@@ -53,7 +53,7 @@ it("ignores a second click while the dialog is open", async () => {
 });
 
 it("a failed dialog hides the button and reports it; a busy answer (another tab) does neither", async () => {
-  const pick = vi.fn().mockRejectedValueOnce(new ApiError("busy", 409)).mockRejectedValueOnce(new ApiError("picker-failed", 500));
+  const pick = vi.fn().mockRejectedValueOnce(new ApiError({ message: "busy", status: 409 })).mockRejectedValueOnce(new ApiError({ message: "picker-failed", status: 500 }));
   const { result, onFailed } = setup({ probe: async () => ({ available: true }), pick });
   await waitFor(() => expect(result.current.available).toBe(true));
   await act(async () => { result.current.pickFolder(); });

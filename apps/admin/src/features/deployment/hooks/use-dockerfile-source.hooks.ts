@@ -163,7 +163,7 @@ export function useDockerfileSource(
   }, [query.status, query.data]);
 
   const error = query.error
-    ? dockerfileLoadErrorMessage({ locale, error: describeApiError(query.error, "unknown error") })
+    ? dockerfileLoadErrorMessage({ locale, error: describeApiError({ e: query.error, fallback: "unknown error" }) })
     : null;
 
   // No `invalidates` — see this file's header for why a redundant re-`GET` of this hook's own read
@@ -242,7 +242,7 @@ export function useDockerfileSource(
   }
 
   const saveError = saveMutation.error
-    ? dockerfileSaveErrorMessage({ locale, error: describeApiError(saveMutation.error, "unknown error") })
+    ? dockerfileSaveErrorMessage({ locale, error: describeApiError({ e: saveMutation.error, fallback: "unknown error" }) })
     : null;
 
   async function reloadAfterConflict() {

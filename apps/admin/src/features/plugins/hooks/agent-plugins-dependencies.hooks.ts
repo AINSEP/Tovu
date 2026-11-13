@@ -10,8 +10,8 @@ import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
 /** The live implementation, as a module-level singleton — matches `defaultPluginsPort`. */
 export const defaultAgentPluginsPort: AgentPluginsPort = {
   listAgentPlugins: () => api.listAgentPlugins(),
-  setAgentPluginEnabled: ({ pluginId, input }, _optional = {}) => api.setAgentPluginEnabled(pluginId, input),
-  getAgentPluginFiles: ({ pluginId }, _optional = {}) => api.getAgentPluginFiles(pluginId),
+  setAgentPluginEnabled: ({ pluginId, input }, _optional = {}) => api.setAgentPluginEnabled({ pluginId, enabled: input.enabled }),
+  getAgentPluginFiles: ({ pluginId }, _optional = {}) => api.getAgentPluginFiles({ pluginId }),
 };
 
 /** Seed state for {@link createFakeAgentPluginsPort}. */

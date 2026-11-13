@@ -20,12 +20,12 @@ export const defaultUsersPort: UsersPort = {
   listPolicies: () => api.listPolicies(),
   createUser: (input, options = {}) => api.createUser(input, options),
   updateUser: (target, options = {}) => api.updateUser(target, options),
-  disableUser: ({ principalId }, _options = {}) => api.disableUser(principalId),
-  enableUser: ({ principalId }, _options = {}) => api.enableUser(principalId),
+  disableUser: ({ principalId }, _options = {}) => api.disableUser({ principalId }),
+  enableUser: ({ principalId }, _options = {}) => api.enableUser({ principalId }),
   resetUserPassword: (input, _options = {}) => api.resetUserPassword(input),
   assignRole: (input, _options = {}) => api.assignRole(input),
   attachPolicy: (input, _options = {}) => api.attachPolicy(input),
-  deleteUser: ({ principalId }, _options = {}) => api.deleteUser(principalId),
+  deleteUser: ({ principalId }, _options = {}) => api.deleteUser({ principalId }),
 };
 
 const FAKE_WORKSPACE_ID = "fake-ws";

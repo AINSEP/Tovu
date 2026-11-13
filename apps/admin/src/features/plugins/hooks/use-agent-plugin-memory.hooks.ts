@@ -72,7 +72,7 @@ export function useAgentPluginMemory(required: { pluginId: string; port: AgentPl
       const response = await write.mutate({ input: { pluginId, entryPath: current.entryPath, text: current.text } });
       if (generation.current !== requestGeneration) return;
       loader.replace({ value: response }); setStatus({ pluginId, message: t("Note saved.") });
-    } catch (error) { if (generation.current === requestGeneration) setStatus({ pluginId, message: describeApiError(error, t("Could not save note.")) }); }
+    } catch (error) { if (generation.current === requestGeneration) setStatus({ pluginId, message: describeApiError({ e: error, fallback: t("Could not save note.") }) }); }
     finally { saving.current = false; setSavingId(null); }
   };
   return { t, listing, entryPath: current.entryPath, text: current.text, setPath, setText, save,

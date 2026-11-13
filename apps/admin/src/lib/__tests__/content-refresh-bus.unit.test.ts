@@ -87,9 +87,9 @@ test("a subscriber added during a publish does not receive that same publish", (
 
 test("contentRefreshApplies treats an unknown scope as 'refresh everything'", () => {
   // The assistant-run publisher never narrows, so this branch carries every same-tab refresh.
-  expect(contentRefreshApplies(null, "taxonomy")).toBe(true);
-  expect(contentRefreshApplies(["taxonomy"], "taxonomy")).toBe(true);
-  expect(contentRefreshApplies(["posts", "taxonomy"], "taxonomy")).toBe(true);
-  expect(contentRefreshApplies(["posts"], "taxonomy")).toBe(false);
-  expect(contentRefreshApplies([], "taxonomy")).toBe(false);
+  expect(contentRefreshApplies({ scope: null, resource: "taxonomy" })).toBe(true);
+  expect(contentRefreshApplies({ scope: ["taxonomy"], resource: "taxonomy" })).toBe(true);
+  expect(contentRefreshApplies({ scope: ["posts", "taxonomy"], resource: "taxonomy" })).toBe(true);
+  expect(contentRefreshApplies({ scope: ["posts"], resource: "taxonomy" })).toBe(false);
+  expect(contentRefreshApplies({ scope: [], resource: "taxonomy" })).toBe(false);
 });

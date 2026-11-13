@@ -105,7 +105,7 @@ function sourceControlCredentialSubmitErrorMessage(err: unknown, t: Translate, l
   const classified = classifySourceControlCredentialSubmitError(err);
   if (classified.kind === "duplicate-label") return t("This connection was already saved — reload the page and try again.");
   if (classified.kind === "validation") return sourceControlCredentialSaveErrorMessage(locale, translateCredentialMessage({ message: classified.detail, locale }));
-  return sourceControlCredentialSaveErrorMessage(locale, describeApiError(err, t("unknown error")));
+  return sourceControlCredentialSaveErrorMessage(locale, describeApiError({ e: err, fallback: t("unknown error") }));
 }
 
 export function useSourceControlCredentials(
@@ -128,13 +128,13 @@ export function useSourceControlCredentials(
     setCredentials(query.data.credentials);
   }, [query.status, query.data]);
 
-  const loadError = query.error ? sourceControlCredentialsLoadErrorMessage(locale, describeApiError(query.error, t("unknown error"))) : null;
+  const loadError = query.error ? sourceControlCredentialsLoadErrorMessage(locale, describeApiError({ e: query.error, fallback: t("unknown error") })) : null;
 
   const providers = useMemo(
     // Each host's own text (label, guidance, field labels) in the viewer's locale.
     () => {
       const descriptors = providersQuery.data?.providers;
-      return sourceControlProviders(descriptors === undefined ? undefined : localizeSourceControlProviders(descriptors, locale), credentials ?? []);
+      return sourceControlProviders(descriptors === undefined ? undefined : localizeSourceControlProviders({ providers: descriptors, locale }), credentials ?? []);
     },
     [providersQuery.data, credentials, locale]
   );

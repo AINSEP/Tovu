@@ -60,7 +60,7 @@ function useProviderChoices(required: { pluginApi: PluginApi; refresh: () => Pro
     setAddError(null);
     setAddWarning(null);
     try {
-      const { warnings } = await pluginApi.setAgentPluginEnabled(pluginId, { enabled: true });
+      const { warnings } = await pluginApi.setAgentPluginEnabled({ pluginId, enabled: true });
       setAddWarning(warnings?.join(" ") || null);
       const report = await refresh();
       const provider = report.providers.find((p) => p.pluginId === pluginId);

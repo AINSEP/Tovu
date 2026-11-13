@@ -49,7 +49,7 @@ import type { MediaPickerPort } from "./media-picker-port.hooks";
 export function useMediaPickerItems({ port }: { port: MediaPickerPort }, { locale = DEFAULT_LOCALE }: { locale?: string } = {}) {
   const queryFetch = useQueryFetchCallback(async () => {
     try { return await port.listMedia(); }
-    catch (error) { throw new Error(describeApiError(error, sharedComponentsT({ locale, key: "failed to load media" }))); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: sharedComponentsT({ locale, key: "failed to load media" }) })); }
   }, [port, locale]);
   const query = useFetchQuery({ key: ["media"], fetch: queryFetch }, { staleTime: 0 });
   const items = query.data?.media.filter(item => item.status === "active") ?? null;

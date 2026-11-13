@@ -9,15 +9,15 @@ import type { ThemeExploreFileEntry, ThemeExplorePort } from "./theme-explore-po
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. Each method narrows the real route's wider response down
  *  to what the port declares (see `theme-explore-port.hooks.ts`'s own doc comment on why). */
 export const defaultThemeExplorePort: ThemeExplorePort = {
-  getThemeDetail: ({ themeId }) => api.getThemeDetail(themeId),
-  getThemeFile: ({ themeId, path }) => api.getThemeFile(themeId, path),
-  putThemeFile: (themeId, path, content) => api.putThemeFile(themeId, path, content),
-  resetThemeFile: (themeId, path) => api.resetThemeFile(themeId, path),
-  saveThemeOriginal: (themeId) => api.saveThemeOriginal(themeId),
-  renameThemeFile: (themeId, path, name) => api.renameThemeFile(themeId, path, name),
-  copyThemeFile: (themeId, path) => api.copyThemeFile(themeId, path),
-  deleteThemeFile: (themeId, path) => api.deleteThemeFile(themeId, path),
-  setPagePublished: (themeId, page, published) => api.setThemePagePublished(themeId, page, published),
+  getThemeDetail: ({ themeId }) => api.getThemeDetail({ themeId }),
+  getThemeFile: ({ themeId, path }) => api.getThemeFile({ themeId, path }),
+  putThemeFile: (themeId, path, content) => api.putThemeFile({ themeId, path, content }),
+  resetThemeFile: (themeId, path) => api.resetThemeFile({ themeId, path }),
+  saveThemeOriginal: (themeId) => api.saveThemeOriginal({ themeId }),
+  renameThemeFile: (themeId, path, name) => api.renameThemeFile({ themeId, path, name }),
+  copyThemeFile: (themeId, path) => api.copyThemeFile({ themeId, path }),
+  deleteThemeFile: (themeId, path) => api.deleteThemeFile({ themeId, path }),
+  setPagePublished: (themeId, page, published) => api.setThemePagePublished({ themeId, page, published }),
 };
 
 /** Seed state for {@link createFakeThemeExplorePort}. */

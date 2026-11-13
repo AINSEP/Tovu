@@ -53,7 +53,7 @@ function restartAccepted(result: unknown): boolean {
 function localActionErrorMessage(failure: unknown, t: Translate): string {
   const key = siteWriteErrorKey(failure);
   if (key) return t(key);
-  return describeApiError(failure instanceof Error ? failure : new Error("Request failed"), t("That request failed."));
+  return describeApiError({ e: failure instanceof Error ? failure : new Error("Request failed"), fallback: t("That request failed.") });
 }
 
 /** Only an enabled local host with an unfinished start needs startup polling. */

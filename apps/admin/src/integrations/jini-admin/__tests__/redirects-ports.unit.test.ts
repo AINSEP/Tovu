@@ -54,7 +54,7 @@ describe('redirects host ports', () => {
 
   it.each(['', 'operator error'])('retains host error fallback and details for message %j', async message => {
     const body = { detail: 'original detail' };
-    const transport: RedirectsTransportPort = { request: async () => { throw new ApiError(message, 409, 'CONFLICT', body); }, url: ({ path }) => path };
+    const transport: RedirectsTransportPort = { request: async () => { throw new ApiError({ message, status: 409 }, { code: 'CONFLICT', body }); }, url: ({ path }) => path };
     const { redirectsApi } = createRedirectsHostPorts({ transport });
     const error = await redirectsApi.listRedirects({}).catch(value => value);
     expect(error).toBeInstanceOf(AdminApiError);

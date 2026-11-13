@@ -15,7 +15,7 @@ import { pagePublicPath } from "../../pages/rules";
 export const defaultMenusPort: MenusPort = {
   listPages: async (_required, _optional = {}) => ({ pages: (await api.listPages()).posts.map(({ post }) => ({ id: post.id, title: post.title, status: post.status, publicPath: pagePublicPath({ slug: post.slug }) })) }),
   listMenus: () => api.listMenus(),
-  getMenu: ({ id }, _optional = {}) => api.getMenu(id),
+  getMenu: ({ id }, _optional = {}) => api.getMenu({ id }),
   createMenu: ({ input, options }, _optional = {}) => api.createMenu(input, options),
   updateMenuTree: ({ target, options }, _optional = {}) => api.updateMenuTree(target, options),
   trash: ({ id }) => api.trash({ type: "menu", id }),

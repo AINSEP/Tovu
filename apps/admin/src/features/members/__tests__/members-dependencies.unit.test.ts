@@ -49,14 +49,14 @@ describe("defaultMembersPort", () => {
     const result = { member: member() };
     getMember.mockResolvedValue(result);
     await expect(defaultMembersPort.getMember({ id: "m1" })).resolves.toEqual(result);
-    expect(getMember).toHaveBeenCalledWith("m1");
+    expect(getMember).toHaveBeenCalledWith({ id: "m1" });
   });
 
   it("disableMember forwards id to api.disableMember", async () => {
     const result = { member: member({ status: "disabled" }) };
     disableMember.mockResolvedValue(result);
     await expect(defaultMembersPort.disableMember({ id: "m1" })).resolves.toEqual(result);
-    expect(disableMember).toHaveBeenCalledWith("m1");
+    expect(disableMember).toHaveBeenCalledWith({ id: "m1" });
   });
 
   it("requestMemberMagicLink forwards the input to api.requestMemberMagicLink", async () => {

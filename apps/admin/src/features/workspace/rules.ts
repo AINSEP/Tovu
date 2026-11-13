@@ -25,7 +25,7 @@ export function describeApiError({ e, fallback, locale }: { e: unknown; fallback
     if (e.code === "RESOURCE_CONFLICT") return t({ locale: locale, key: "That slug is already in use." });
     if (e.code === "VALIDATION_ERROR") return e.message || t({ locale: locale, key: "Please correct the highlighted fields." });
   }
-  return describeApiErrorDefault(e, fallback);
+  return describeApiErrorDefault({ e, fallback });
 }
 
 /**

@@ -73,18 +73,18 @@ describe("storedKeyBlocksProbe", () => {
 describe("describeProbeError — the admin branch's endpoint-pin text", () => {
   it("replaces the server's MISMATCH refusal (owner screenshot 29) with the plain ask", () => {
     const refusal = new ApiError(
-      `the admin execution credential is saved for '${GOOGLE}' and cannot be probed against '${OPENAI}' — save the new endpoint first, or supply an apiKey for it in this request`,
-      400,
-      "STORED_CREDENTIAL_ENDPOINT_MISMATCH",
+      { message: `the admin execution credential is saved for '${GOOGLE}' and cannot be probed against '${OPENAI}' — save the new endpoint first, or supply an apiKey for it in this request`,
+      status: 400 },
+      { code: "STORED_CREDENTIAL_ENDPOINT_MISMATCH" },
     );
     expect(describeProbeError(refusal, "fallback")).toBe(STORED_KEY_OTHER_PROVIDER_COPY);
   });
 
   it("replaces the server's UNSET refusal with plain language", () => {
     const refusal = new ApiError(
-      "the admin execution credential has no saved endpoint, so this probe has no approved destination — save a base URL for the credential first, or supply an apiKey in this request",
-      400,
-      "STORED_CREDENTIAL_ENDPOINT_UNSET",
+      { message: "the admin execution credential has no saved endpoint, so this probe has no approved destination — save a base URL for the credential first, or supply an apiKey in this request",
+      status: 400 },
+      { code: "STORED_CREDENTIAL_ENDPOINT_UNSET" },
     );
     expect(describeProbeError(refusal, "fallback")).toBe(STORED_KEY_NO_ENDPOINT_COPY);
   });
@@ -100,7 +100,7 @@ describe("createProbeErrorDescriber — ExecutionTab's describeProbeError, in a 
     key === STORED_KEY_OTHER_PROVIDER_COPY ? "Tu clave guardada es de otro proveedor. Pega una clave para este." : key;
 
   it("translates the plain-language copy that replaces an endpoint-pin refusal", () => {
-    const refusal = new ApiError("saved for another endpoint", 400, "STORED_CREDENTIAL_ENDPOINT_MISMATCH");
+    const refusal = new ApiError({ message: "saved for another endpoint", status: 400 }, { code: "STORED_CREDENTIAL_ENDPOINT_MISMATCH" });
     expect(createProbeErrorDescriber(spanish)(refusal)).toBe("Tu clave guardada es de otro proveedor. Pega una clave para este.");
   });
 

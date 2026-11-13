@@ -95,7 +95,7 @@ test('the editor stays disabled while a save is in flight and becomes editable a
 
 test('status moves from loading to idle and reports a failed save with the bound translator', async () => {
   adminFailureChannel.reset();
-  let failure: Error = new ApiError('The note path is invalid. Choose another path.', 422);
+  let failure: Error = new ApiError({ message: 'The note path is invalid. Choose another path.', status: 422 });
   const port: AgentPluginMemoryPort = {
     read: async () => listing('example', 'Original'),
     saveNote: async () => { throw failure; },

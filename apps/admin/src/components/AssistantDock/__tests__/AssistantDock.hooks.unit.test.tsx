@@ -80,7 +80,7 @@ describe("useComposerCapabilities", () => {
       act(() => document.dispatchEvent(new Event("visibilitychange")));
       await flush();
       expect(fetchMock).toHaveBeenCalledTimes(3);
-      act(() => publishAssistantDockState(true));
+      act(() => publishAssistantDockState({ open: true }));
       expect(vi.getTimerCount()).toBe(0);
       await act(async () => { await vi.advanceTimersByTimeAsync(120_000); });
       expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -94,17 +94,17 @@ describe("useComposerCapabilities", () => {
       act(() => window.dispatchEvent(new Event(SKILLS_CHANGED_EVENT)));
       await flush();
       expect(fetchMock).toHaveBeenCalledTimes(6);
-      act(() => publishAssistantDockState(false));
+      act(() => publishAssistantDockState({ open: false }));
       expect(vi.getTimerCount()).toBe(0);
       await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
       expect(fetchMock).toHaveBeenCalledTimes(6);
-      act(() => publishAssistantDockState(true));
+      act(() => publishAssistantDockState({ open: true }));
       await flush();
       expect(fetchMock).toHaveBeenCalledTimes(7);
       expect(vi.getTimerCount()).toBe(1);
       unmount();
       expect(vi.getTimerCount()).toBe(0);
-      publishAssistantDockState(true);
+      publishAssistantDockState({ open: true });
       window.dispatchEvent(new Event("focus"));
       window.dispatchEvent(new Event(SKILLS_CHANGED_EVENT));
       document.dispatchEvent(new Event("visibilitychange"));
@@ -125,7 +125,7 @@ describe("useComposerCapabilities", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ skills: [] }), { headers: { ETag: 'W/"skills"' } }))
       .mockResolvedValueOnce(new Response(null, { status: 304 }));
     vi.stubGlobal("fetch", fetchMock);
-    publishAssistantDockState(true);
+    publishAssistantDockState({ open: true });
     const { result, unmount } = renderHook(() => useComposerCapabilities());
     try {
       await act(async () => { await vi.advanceTimersByTimeAsync(0); });

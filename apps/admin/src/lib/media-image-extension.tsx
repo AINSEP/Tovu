@@ -25,7 +25,7 @@ import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
  * through `getJSON()`/`setContent()` — the stored `src` would sit in `bodyJson` right next to the
  * ref, persisted forever, exactly the shape the ADR calls out by name. Instead, `assetId`/
  * `transformName` are the ONLY ref attrs this node stores; `MediaImageNodeView` computes
- * `api.mediaOriginalUrl(assetId)` (the authenticated admin preview route — safe here because the
+ * `api.mediaOriginalUrl({ id: assetId })` (the authenticated admin preview route — safe here because the
  * editor is itself an authenticated admin surface, unlike the public render path this ref
  * ultimately resolves against via a *different* URL, `/m/{assetId}/{transformName}.v{version}/…`,
  * built server-side at render time) purely for display, on every render, never written back into
@@ -43,7 +43,7 @@ import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 /**
  * The in-canvas rendered representation of an `image` node. Two branches, matching the two shapes
  * this node's schema now accepts:
- *  - REF (`assetId` set): live preview resolved from `api.mediaOriginalUrl(assetId)`, never
+ *  - REF (`assetId` set): live preview resolved from `api.mediaOriginalUrl({ id: assetId })`, never
  *    persisted — see this file's header for why. A "Replace" action reopens
  *    {@link MediaPickerDialog} to swap the referenced asset.
  *  - LEGACY (`src` set, no `assetId`): renders `attrs.src` directly, unchanged from the plain
@@ -60,7 +60,7 @@ export function MediaImageNodeView(props: NodeViewProps) {
   const t = createMediaImageTranslator({ locale });
 
   const isRef = assetId.length > 0 && transformName.length > 0;
-  const previewSrc = isRef ? api.mediaOriginalUrl(assetId) : legacySrc;
+  const previewSrc = isRef ? api.mediaOriginalUrl({ id: assetId }) : legacySrc;
 
   const replaceWith = createMediaImageReplace({ props, setPicking });
 

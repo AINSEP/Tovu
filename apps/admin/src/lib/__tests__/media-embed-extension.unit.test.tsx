@@ -89,8 +89,8 @@ describe("MediaEmbedNodeView", () => {
 
     await waitFor(() => expect(container.querySelector("video")).not.toBeNull());
     const video = container.querySelector("video") as HTMLVideoElement;
-    expect(contentType).toHaveBeenCalledWith("asset-1");
-    expect(video.src).toContain(api.mediaOriginalUrl("asset-1"));
+    expect(contentType).toHaveBeenCalledWith({ id: "asset-1" });
+    expect(video.src).toContain(api.mediaOriginalUrl({ id: "asset-1" }));
     expect(video).toHaveAttribute("controls");
     expect(video).toHaveTextContent("Rocket launch");
     expect(container.querySelector("img")).toBeNull();
@@ -112,7 +112,7 @@ describe("MediaEmbedNodeView", () => {
 
     await waitFor(() => expect(container.querySelector("img")).not.toBeNull());
     const img = container.querySelector("img") as HTMLImageElement;
-    expect(img.src).toContain(api.mediaOriginalUrl("asset-2"));
+    expect(img.src).toContain(api.mediaOriginalUrl({ id: "asset-2" }));
     expect(img).toHaveAttribute("alt", "A photo");
     expect(container.querySelector("video")).toBeNull();
   });
@@ -392,13 +392,13 @@ describe("Media mounted node view", () => {
     const mounted = render(<EditorContent editor={editor} />);
     try {
       const user = userEvent.setup();
-      expect(await screen.findByAltText("Old")).toHaveAttribute("src", api.mediaOriginalUrl("asset-old"));
+      expect(await screen.findByAltText("Old")).toHaveAttribute("src", api.mediaOriginalUrl({ id: "asset-old" }));
       await user.click(screen.getByRole("button", { name: "Replace" }));
       await user.click(await screen.findByTitle("New pick"));
       expect(editor.getJSON().content?.find((node) => node.type === "media")?.attrs).toEqual({
         assetId: "asset-new", transformName: "public", alt: "New alt", cssClass: null, htmlAttributes: null,
       });
-      expect(await screen.findByAltText("New alt")).toHaveAttribute("src", api.mediaOriginalUrl("asset-new"));
+      expect(await screen.findByAltText("New alt")).toHaveAttribute("src", api.mediaOriginalUrl({ id: "asset-new" }));
       expect(screen.queryByAltText("Old")).not.toBeInTheDocument();
     } finally { mounted.unmount(); editor.destroy(); }
   });

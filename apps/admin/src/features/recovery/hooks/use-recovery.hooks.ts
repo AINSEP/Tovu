@@ -87,7 +87,7 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
     try {
       const [status, result] = await Promise.all([port.getRecoveryStatus(), port.listRecoveryRestorePoints()]);
       return { status, points: result.items };
-    } catch (error) { throw new Error(describeApiError(error, t({ locale, key: "failed to load Recovery" }))); }
+    } catch (error) { throw new Error(describeApiError({ e: error, fallback: t({ locale, key: "failed to load Recovery" }) })); }
   }, [port, locale]);
   // Mount reads and tool-progress refreshes can overlap. The shared query cache owns read
   // settlement order so an earlier status/list response cannot overwrite a newer refresh.
@@ -121,7 +121,7 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
       await create.mutate({ input: {} });
       await loader.load().catch(() => {}); // Await settlement; query.error owns read failures, never retry an accepted capture.
     } catch (e) {
-      setError(describeApiError(e, t({ locale: locale, key: "Failed to create restore point" })));
+      setError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to create restore point" }) }));
     } finally {
       setCreating(false);
     }

@@ -508,7 +508,7 @@ export function AssistantDock({
         // stored yet" (same as `false`) — a brief false-negative on first paint, never a
         // false-positive, and it corrects itself the moment the GET resolves.
         {...executionChatPaneProps({ mode: executionConfig.mode, nativeToolPolicy: agentPermissions.nativeToolPolicy })}
-        apiModeAvailable={hasUsableAdminKey(executionConfig.byok.apiKey, { isSet: hasStoredAdminKey === true })}
+        apiModeAvailable={hasUsableAdminKey({ apiKey: executionConfig.byok.apiKey, stored: { isSet: hasStoredAdminKey === true } })}
         onExecutionModeChange={handleExecutionModeChange}
         // What the picker names as the runtime while BYOK is the active mode. Without it the
         // popover described the DETECTED CLI in both modes — an agent list with one row marked

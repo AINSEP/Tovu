@@ -23,7 +23,7 @@ import type {
  *
  * @complexity O(1).
  */
-export function descriptorText(i18n: AdminDescriptorI18n | undefined, locale: string, english: string): string {
+export function descriptorText({ i18n, locale, english }: { i18n: AdminDescriptorI18n | undefined; locale: string; english: string }, _optional: Record<string, never> = {}): string {
   if (i18n === undefined) return english;
   const exact = i18n[locale]?.[english];
   if (exact !== undefined) return exact;
@@ -32,22 +32,22 @@ export function descriptorText(i18n: AdminDescriptorI18n | undefined, locale: st
   return (base !== locale ? i18n[base]?.[english] : undefined) ?? english;
 }
 
-type Text = (english: string) => string;
+type Text = (required: { english: string }, optional?: Record<string, never>) => string;
 
 function localizeField(field: AdminPublishTargetField, text: Text): AdminPublishTargetField {
   return {
     ...field,
-    label: text(field.label),
-    ...(field.help !== undefined ? { help: text(field.help) } : {}),
-    ...(field.userHelp !== undefined ? { userHelp: text(field.userHelp) } : {}),
+    label: text({ english: field.label }),
+    ...(field.help !== undefined ? { help: text({ english: field.help }) } : {}),
+    ...(field.userHelp !== undefined ? { userHelp: text({ english: field.userHelp }) } : {}),
   };
 }
 
 function localizeCredential<C extends { help?: string; userHelp?: string; fields: AdminPublishTargetField[] }>(credential: C, text: Text): C {
   return {
     ...credential,
-    ...(credential.help !== undefined ? { help: text(credential.help) } : {}),
-    ...(credential.userHelp !== undefined ? { userHelp: text(credential.userHelp) } : {}),
+    ...(credential.help !== undefined ? { help: text({ english: credential.help }) } : {}),
+    ...(credential.userHelp !== undefined ? { userHelp: text({ english: credential.userHelp }) } : {}),
     fields: credential.fields.map((field) => localizeField(field, text)),
   };
 }
@@ -58,23 +58,23 @@ function localizeCredential<C extends { help?: string; userHelp?: string; fields
  *
  * @complexity O(t·f) in targets times declared fields.
  */
-export function localizePublishTargets(targets: readonly AdminPublishTargetDescriptor[] | undefined, locale: string): AdminPublishTargetDescriptor[] | undefined {
+export function localizePublishTargets({ targets, locale }: { targets: readonly AdminPublishTargetDescriptor[] | undefined; locale: string }, _optional: Record<string, never> = {}): AdminPublishTargetDescriptor[] | undefined {
   return targets?.map((target) => {
-    const text: Text = (english) => descriptorText(target.i18n, locale, english);
+    const text: Text = ({ english }, _optional = {}) => descriptorText({ i18n: target.i18n, locale, english });
     const credential: AdminPublishTargetCredentialSpec | undefined =
       target.credential === undefined
         ? undefined
         : {
             ...localizeCredential(target.credential, text),
-            ...(target.credential.vendorLabel !== undefined ? { vendorLabel: text(target.credential.vendorLabel) } : {}),
+            ...(target.credential.vendorLabel !== undefined ? { vendorLabel: text({ english: target.credential.vendorLabel }) } : {}),
           };
     return {
       ...target,
-      label: text(target.label),
+      label: text({ english: target.label }),
       configFields: target.configFields.map((field) => localizeField(field, text)),
       ...(credential !== undefined ? { credential } : {}),
       ...(target.projectName !== undefined
-        ? { projectName: { label: text(target.projectName.label), ...(target.projectName.help !== undefined ? { help: text(target.projectName.help) } : {}) } }
+        ? { projectName: { label: text({ english: target.projectName.label }), ...(target.projectName.help !== undefined ? { help: text({ english: target.projectName.help }) } : {}) } }
         : {}),
     };
   });
@@ -86,15 +86,13 @@ export function localizePublishTargets(targets: readonly AdminPublishTargetDescr
  *
  * @complexity O(p·f) in hosts times declared fields.
  */
-export function localizeSourceControlProviders(
-  providers: readonly AdminSourceControlProviderDescriptor[],
-  locale: string,
+export function localizeSourceControlProviders({ providers, locale }: { providers: readonly AdminSourceControlProviderDescriptor[]; locale: string }, _optional: Record<string, never> = {}
 ): AdminSourceControlProviderDescriptor[] {
   return providers.map((provider) => {
-    const text: Text = (english) => descriptorText(provider.i18n, locale, english);
+    const text: Text = ({ english }, _optional = {}) => descriptorText({ i18n: provider.i18n, locale, english });
     return {
       ...provider,
-      label: text(provider.label),
+      label: text({ english: provider.label }),
       ...(provider.credential !== undefined ? { credential: localizeCredential(provider.credential, text) } : {}),
     };
   });

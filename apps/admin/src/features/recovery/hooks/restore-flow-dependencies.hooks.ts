@@ -14,8 +14,8 @@ import type { RestoreFlowPort } from "./restore-flow-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultRestoreFlowPort: RestoreFlowPort = {
-  computeRecoveryDisclosure: ({ restorePointId }, _options = {}) => api.computeRecoveryDisclosure(restorePointId),
-  planRestore: ({ restorePointId }, _options = {}) => api.planRestore(restorePointId),
+  computeRecoveryDisclosure: ({ restorePointId }, _options = {}) => api.computeRecoveryDisclosure({ restorePointId }),
+  planRestore: ({ restorePointId }, _options = {}) => api.planRestore({ restorePointId }),
   confirmRestore: (input, _options = {}) => api.confirmRestore(input),
   executeRestore: (input, _options = {}) => api.executeRestore(input),
 };

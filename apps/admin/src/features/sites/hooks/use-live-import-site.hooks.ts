@@ -98,7 +98,7 @@ export function useLiveImportSite(
       else setError(interpolate({ template: t(NOT_STARTED), vars: { name: made } }));
     } catch (failure) {
       const key = siteWriteErrorKey(failure);
-      const reason = key ? t(key) : describeApiError(failure instanceof Error ? failure : new Error("Request failed"), t("Couldn't make the new site."));
+      const reason = key ? t(key) : describeApiError({ e: failure instanceof Error ? failure : new Error("Request failed"), fallback: t("Couldn't make the new site.") });
       setError(made === null ? reason : `${interpolate({ template: t(NOT_STARTED), vars: { name: made } })} ${reason}`);
     } finally {
       busy.current = false;

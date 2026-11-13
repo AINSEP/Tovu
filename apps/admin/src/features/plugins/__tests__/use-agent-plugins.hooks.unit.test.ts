@@ -184,7 +184,7 @@ describe("useAgentPlugins — onToggleEnabled", () => {
   });
 
   it("a plugin this Tovu cannot run is refused in the operator's language, not the server's sentence", async () => {
-    const refusal = new ApiError("Plugin 'site-compliance' is not compatible with this host's Agent Plugin contract.", 409, "PLUGIN_HOST_INCOMPATIBLE");
+    const refusal = new ApiError({ message: "Plugin 'site-compliance' is not compatible with this host's Agent Plugin contract.", status: 409 }, { code: "PLUGIN_HOST_INCOMPATIBLE" });
     const port = createFakeAgentPluginsPort({ agentPlugins: [{ ...SITE_COMPLIANCE, enabled: false }], failToggleWith: refusal });
     const { result } = renderHook(() => useAgentPlugins({ port, locale: "es", t: (key: string) => key }));
     await waitFor(() => expect(result.current.agentPlugins).toHaveLength(1));
@@ -198,7 +198,7 @@ describe("useAgentPlugins — onToggleEnabled", () => {
   });
 
   it("a plugin whose interrupted update awaits recovery says to restart Tovu", async () => {
-    const port = createFakeAgentPluginsPort({ agentPlugins: [SITE_COMPLIANCE], failToggleWith: new ApiError("Restart the host to recover the interrupted update.", 409, "PLUGIN_UPDATE_PENDING") });
+    const port = createFakeAgentPluginsPort({ agentPlugins: [SITE_COMPLIANCE], failToggleWith: new ApiError({ message: "Restart the host to recover the interrupted update.", status: 409 }, { code: "PLUGIN_UPDATE_PENDING" }) });
     const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.agentPlugins).toHaveLength(1));
     await act(async () => {

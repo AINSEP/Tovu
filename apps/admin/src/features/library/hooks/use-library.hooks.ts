@@ -140,7 +140,7 @@ function useLibraryUploads({ port, t }: { port: LibraryPort; t: (key: string) =>
           patch(next.key, { status: "done", error: null });
           invalidate({ key: LIBRARY_KEYS.documents });
         } catch (failure) {
-          patch(next.key, { status: "failed", error: describeApiError(failure, t("Upload failed.")) });
+          patch(next.key, { status: "failed", error: describeApiError({ e: failure, fallback: t("Upload failed.") }) });
         }
       }
     } finally {
@@ -192,7 +192,7 @@ function useLibraryPreview({ port, t }: { port: LibraryPort; t: (key: string) =>
     const settle = (next: Partial<LibraryPreviewState>) => {
       if (request.current === ticket) setPreview({ ...base, loading: false, ...next });
     };
-    const fail = (failure: unknown) => settle({ error: describeApiError(failure, t("Preview failed.")) });
+    const fail = (failure: unknown) => settle({ error: describeApiError({ e: failure, fallback: t("Preview failed.") }) });
     if (kind === "pdf") {
       port.fetchDocumentBlob({ id: item.id })
         .then((blob) => {
@@ -268,7 +268,7 @@ export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryCon
       await renameMutation.mutate({ input: { id: editingId, title: stem } });
       setEditingId(null);
     } catch (failure) {
-      setRowError(describeApiError(failure, t("Rename failed.")));
+      setRowError(describeApiError({ e: failure, fallback: t("Rename failed.") }));
     }
   }
 
@@ -282,7 +282,7 @@ export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryCon
       if (preview?.item.id === item.id) closePreview();
       setNotice(t("Moved to Trash."));
     } catch (failure) {
-      setRowError(describeApiError(failure, t("Move to Trash failed.")));
+      setRowError(describeApiError({ e: failure, fallback: t("Move to Trash failed.") }));
     } finally {
       setTrashingId(null);
     }
@@ -290,7 +290,7 @@ export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryCon
 
   return {
     documents: list.data ? sortDocuments(list.data.media) : undefined,
-    listError: list.error ? describeApiError(list.error, t("Couldn't load documents.")) : null,
+    listError: list.error ? describeApiError({ e: list.error, fallback: t("Couldn't load documents.") }) : null,
     permissions,
     userNames,
     uploads,

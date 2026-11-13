@@ -70,7 +70,7 @@ describe("useMediaPickerItems", () => {
   });
 
   it("describes a failed fetch instead of leaving items stuck loading", async () => {
-    vi.spyOn(api, "listMedia").mockRejectedValue(new ApiError("media table locked", 500));
+    vi.spyOn(api, "listMedia").mockRejectedValue(new ApiError({ message: "media table locked", status: 500 }));
     const { result } = renderHook(() => useWiredMediaPickerItems());
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
@@ -82,7 +82,7 @@ describe("useMediaPickerItems", () => {
     // An empty-message ApiError, not a plain Error — `describeApiError` only falls back to the
     // default on the ApiError branch's `e.message || fallback`; a plain `Error` with `message: ""`
     // would return that empty string as-is (see `describeApiError`'s own two branches).
-    vi.spyOn(api, "listMedia").mockRejectedValue(new ApiError("", 500));
+    vi.spyOn(api, "listMedia").mockRejectedValue(new ApiError({ message: "", status: 500 }));
     const { result } = renderHook(() => useWiredMediaPickerItems());
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
@@ -157,7 +157,7 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
     vi.stubGlobal("fetch", fetchFake);
     try {
       const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: {} }));
-      expect(result.current.mediaOriginalUrl({ id: "m1" })).toBe(api.mediaOriginalUrl("m1"));
+      expect(result.current.mediaOriginalUrl({ id: "m1" })).toBe(api.mediaOriginalUrl({ id: "m1" }));
       await waitFor(() => expect(result.current.items?.map((item) => item.id)).toEqual(["m1"]));
       expect(String((fetchFake.mock.calls[0] as unknown as [string])[0])).toMatch(/\/media/);
     } finally {
@@ -178,7 +178,7 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
     // default when `e.message` is falsy (see WidgetPickerDialog.hooks.unit.test.tsx's identical
     // "falls back to the given default" case for `useExistingInstances`).
     const port = createFakeMediaPickerPort();
-    port.listMedia = () => Promise.reject(new ApiError("", 500));
+    port.listMedia = () => Promise.reject(new ApiError({ message: "", status: 500 }));
     const { result } = renderHook(() => useMediaPickerItems({ port }, { locale: "es" }));
 
     await waitFor(() => expect(result.current.error).not.toBeNull());

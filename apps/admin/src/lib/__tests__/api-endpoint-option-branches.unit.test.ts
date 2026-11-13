@@ -447,7 +447,7 @@ test("setDockerfileSource merges the ETag response header into a successful resu
         })
     )
   );
-  await expect(api.setDockerfileSource("FROM node:22\n", '"abc123"')).resolves.toEqual({
+  await expect(api.setDockerfileSource({ contents: "FROM node:22\n", ifMatch: '"abc123"' })).resolves.toEqual({
     exists: true,
     contents: "FROM node:22\n",
     etag: '"def456"',
@@ -465,7 +465,7 @@ test("setDockerfileSource falls back to an empty-string etag when the response h
         })
     )
   );
-  await expect(api.setDockerfileSource("x", '"abc123"')).resolves.toEqual({ exists: true, contents: "x", etag: "" });
+  await expect(api.setDockerfileSource({ contents: "x", ifMatch: '"abc123"' })).resolves.toEqual({ exists: true, contents: "x", etag: "" });
 });
 
 // Regression for the 2026-09-04 complexity pass on `buildFetchInit` (`api.ts`): `setDockerfileSource`
@@ -480,7 +480,7 @@ test("setDockerfileSource falls back to an empty-string etag when the response h
 // doesn't intend), and this assertion goes red the moment it does.
 test("setDockerfileSource keeps Content-Type: application/json alongside its custom If-Match header, and still defaults credentials to same-origin", async () => {
   const { calls } = stubFetchCapturing();
-  await api.setDockerfileSource("FROM node:22\n", '"abc123"');
+  await api.setDockerfileSource({ contents: "FROM node:22\n", ifMatch: '"abc123"' });
   expect(calls[0].init?.headers).toEqual({
     "Content-Type": "application/json",
     "If-Match": '"abc123"',
@@ -494,7 +494,7 @@ test("setDockerfileSource preserves the 412 conflict snapshot in ApiError.body",
     error: "the Dockerfile changed on the server", code: "DOCKERFILE_CONFLICT", current,
   }, { status: 412 }));
   vi.stubGlobal("fetch", fetchMock);
-  await expect(api.setDockerfileSource("FROM node:22\n", '"old"')).rejects.toMatchObject({
+  await expect(api.setDockerfileSource({ contents: "FROM node:22\n", ifMatch: '"old"' })).rejects.toMatchObject({
     status: 412, code: "DOCKERFILE_CONFLICT", body: {
       error: "the Dockerfile changed on the server", code: "DOCKERFILE_CONFLICT", current,
     },

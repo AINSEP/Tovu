@@ -28,7 +28,7 @@ export function useStaticExportSelection({ port, t }: { port: SiteTransferPort; 
     selectedThemeIds,
     staticExportReady: roster.data !== undefined && !roster.error && selectedThemeIds.length > 0,
     staticOptionsLoading: roster.data === undefined && !roster.error,
-    staticOptionsError: roster.error ? describeApiError(roster.error, t("Couldn't load sites to export.")) : null,
+    staticOptionsError: roster.error ? describeApiError({ e: roster.error, fallback: t("Couldn't load sites to export.") }) : null,
     toggleStaticTheme: ({ themeId }: { themeId: string }, _options = {}) => {
       if (!installed.has(themeId)) return;
       setSelection(previous => previous?.includes(themeId) ? previous.filter(id => id !== themeId) : [...previous ?? [], themeId]);

@@ -253,8 +253,8 @@ export interface ExternalMcpController {
 async function checkSavedServer({ item, server, locale, port }: { item: SourceConfigItem; server: AdminExternalMcpServer; locale: string; port: ExternalMcpPort }): Promise<SourceConfigItem> {
   let message = credentialText({ id: 'saved', locale });
   if (server.transport !== 'stdio' && server.enabled) {
-    try { await port.probeExternalMcpServer(server.serverId); message = credentialText({ id: 'connected', locale }); }
-    catch (err) { message = translateCredentialMessage({ message: describeApiError(err, credentialText({ id: 'unreachable', locale })), locale }); }
+    try { await port.probeExternalMcpServer({ serverId: server.serverId }); message = credentialText({ id: 'connected', locale }); }
+    catch (err) { message = translateCredentialMessage({ message: describeApiError({ e: err, fallback: credentialText({ id: 'unreachable', locale }) }), locale }); }
   }
   return { ...item, statusMessage: [item.statusMessage, message].filter(Boolean).join(' · ') };
 }
@@ -309,23 +309,23 @@ export function useExternalMcp(
           const oauthIdentityIssue = validateExternalMcpOAuthIdentity(input.fields, t);
           if (oauthIdentityIssue) return { ok: false, message: oauthIdentityIssue };
           try {
-            const { server } = await port.saveExternalMcpServer(
+            const { server } = await port.saveExternalMcpServer({
               serverId,
-              toWriteBody({ fields: input.fields, enabled: true }, { label: input.fields.label })
-            );
+              body: toWriteBody({ fields: input.fields, enabled: true }, { label: input.fields.label }),
+            });
             setRestartRequired(true);
             const item = toItem({ server }, { locale });
             const checked = await checkSavedServer({ item, server, locale, port });
             lastKnown.current.set(item.id, checked);
             return { ok: true, source: checked };
           } catch (e) {
-            return { ok: false, message: translateCredentialMessage({ message: describeApiError(e, t("That server could not be saved.")), locale }) };
+            return { ok: false, message: translateCredentialMessage({ message: describeApiError({ e, fallback: t("That server could not be saved.") }), locale }) };
           }
         },
 
         async removeSource(id: string) {
           try {
-            await port.deleteExternalMcpServer(id);
+            await port.deleteExternalMcpServer({ serverId: id });
             setRestartRequired(true);
             lastKnown.current.delete(id);
             return true;
@@ -357,7 +357,7 @@ export function useExternalMcp(
             const previous = lastKnown.current.get(id);
             const merged = mergeSourceUpdate({ previous, patch });
             try {
-              const { server } = await port.saveExternalMcpServer(id, toWriteBody({ fields: merged.fields, enabled: merged.enabled }, { label: merged.label }));
+              const { server } = await port.saveExternalMcpServer({ serverId: id, body: toWriteBody({ fields: merged.fields, enabled: merged.enabled }, { label: merged.label }) });
               setRestartRequired(true);
               const item = toItem({ server }, { locale });
               const changedToken = (merged.fields.accessToken ?? '') !== '';
@@ -366,7 +366,7 @@ export function useExternalMcp(
               return checked;
             } catch (err) {
               if (!previous) return null;
-              return { ...previous, statusMessage: translateCredentialMessage({ message: describeApiError(err, t('That server could not be saved.')), locale }) };
+              return { ...previous, statusMessage: translateCredentialMessage({ message: describeApiError({ e: err, fallback: t('That server could not be saved.') }), locale }) };
             }
           } }, { key: id });
         },
@@ -400,14 +400,14 @@ export function useExternalMcp(
           }
           const startedAt = Date.now();
           try {
-            const { tools } = await port.probeExternalMcpServer(id);
+            const { tools } = await port.probeExternalMcpServer({ serverId: id });
             return {
               ok: true,
               message: `${tools.length} tool${tools.length === 1 ? "" : "s"} advertised.`,
               latencyMs: Date.now() - startedAt,
             };
           } catch (e) {
-            return { ok: false, message: translateCredentialMessage({ message: describeApiError(e, credentialText({ id: "unreachable", locale })), locale }) };
+            return { ok: false, message: translateCredentialMessage({ message: describeApiError({ e, fallback: credentialText({ id: "unreachable", locale }) }), locale }) };
           }
         },
       },

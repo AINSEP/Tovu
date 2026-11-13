@@ -48,7 +48,7 @@ type Credential = Awaited<ReturnType<typeof loadAdminExecutionCredential>>;
 
 /** Exactly what `request()` throws for the dev proxy's bare 500 while the API restarts. */
 function unreachable(): ApiError {
-  return new ApiError("cannot reach the Tovu API (HTTP 500) — is the server running?", 500, API_UNREACHABLE_CODE, {});
+  return new ApiError({ message: "cannot reach the Tovu API (HTTP 500) — is the server running?", status: 500 }, { code: API_UNREACHABLE_CODE, body: {} });
 }
 
 /** Exactly what `request()` throws for a fetch cut off by the page unloading. */
@@ -131,7 +131,7 @@ test("an API that stays down is still reported, once, after the retries give up"
 });
 
 test("a non-reachability failure is reported immediately, not retried", async () => {
-  const forbidden = new ApiError("forbidden", 403, "FORBIDDEN", {});
+  const forbidden = new ApiError({ message: "forbidden", status: 403 }, { code: "FORBIDDEN", body: {} });
   mockLoadExecutionConfig.mockRejectedValue(forbidden);
   mockLoadAdminExecutionCredential.mockResolvedValue({ isSet: false } as Credential);
 

@@ -10,5 +10,5 @@ const path = `/workspaces/${WORKSPACE_ID}/system/assistant-permanent-deletes`;
 /** Uses the same authenticated request/error boundary as subagents. */
 export const assistantPermanentDeletesPort: AssistantPermanentDeletesPort = {
   read: () => authenticatedAdminRequest({ path, method: "GET" }),
-  write: body => authenticatedAdminRequest({ path, method: "PUT", body }),
+  write: (body, _optional = {}) => authenticatedAdminRequest({ path, method: "PUT", body }),
 };

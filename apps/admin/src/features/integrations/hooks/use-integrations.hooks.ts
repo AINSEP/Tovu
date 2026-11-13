@@ -162,7 +162,7 @@ export function useIntegrations({ port, t, locale }: { port: IntegrationsPort; t
   }
 
   const subscriptions = list.data?.subscriptions ?? null;
-  const formError = createMutation.error ? describeApiError(createMutation.error, "failed to create subscription") : null;
+  const formError = createMutation.error ? describeApiError({ e: createMutation.error, fallback: "failed to create subscription" }) : null;
   const error = visibleIntegrationsError({
     toggleError: toggleMutation.error,
     deleteError: deleteMutation.error,

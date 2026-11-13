@@ -51,7 +51,7 @@ export function useIntegrationDeliveries(
   });
 
   const deliveries = list.data?.deliveries ?? null;
-  const error = list.error ? describeApiError(list.error, "failed to load deliveries") : null;
+  const error = list.error ? describeApiError({ e: list.error, fallback: "failed to load deliveries" }) : null;
 
   return { deliveries, error, t };
 }

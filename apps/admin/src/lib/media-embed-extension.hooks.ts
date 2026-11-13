@@ -66,12 +66,12 @@ export function mediaPreviewKind(contentType: string): "image" | "video" {
  * is in flight, and again whenever `assetId` changes (a Replace), so one asset's verdict never
  * carries over to the next. A failed lookup previews as an image.
  */
-function usePreviewKind(assetId: string, contentTypeOf: (assetId: string) => Promise<string>): MediaPreviewKind {
+function usePreviewKind(assetId: string, contentTypeOf: (required: { id: string }, optional?: Record<string, never>) => Promise<string>): MediaPreviewKind {
   const [resolved, setResolved] = useState<{ assetId: string; kind: "image" | "video" } | null>(null);
   useEffect(() => {
     if (!assetId) return undefined;
     let live = true;
-    contentTypeOf(assetId).then(
+    contentTypeOf({ id: assetId }).then(
       (contentType) => live && setResolved({ assetId, kind: mediaPreviewKind(contentType) }),
       () => live && setResolved({ assetId, kind: "image" })
     );
@@ -86,7 +86,7 @@ function usePreviewKind(assetId: string, contentTypeOf: (assetId: string) => Pro
 export interface MediaEmbedNodeViewController {
   assetId: string;
   alt: string;
-  /** `api.mediaOriginalUrl(assetId)` for a complete ref (`assetId` AND `transformName`), else `""` —
+  /** `api.mediaOriginalUrl({ id: assetId })` for a complete ref (`assetId` AND `transformName`), else `""` —
    *  the node view shows its broken-reference label for `""`. */
   previewSrc: string;
   /** Seeds `MediaEditDialog` from the node's current per-instance attrs. */
@@ -124,7 +124,7 @@ export interface MediaEmbedNodeViewController {
  */
 export function useMediaEmbedNodeView(
   props: NodeViewProps,
-  deps: { locale: string; contentTypeOf: (assetId: string) => Promise<string> }
+  deps: { locale: string; contentTypeOf: (required: { id: string }, optional?: Record<string, never>) => Promise<string> }
 ): MediaEmbedNodeViewController {
   const { assetId, transformName, alt, cssClass, htmlAttributes } = readMediaEmbedAttrs(props.node.attrs);
   const [picking, setPicking] = useState(false);
@@ -135,7 +135,7 @@ export function useMediaEmbedNodeView(
   return {
     assetId,
     alt,
-    previewSrc: isRef ? api.mediaOriginalUrl(assetId) : "",
+    previewSrc: isRef ? api.mediaOriginalUrl({ id: assetId }) : "",
     editInitial: { alt, cssClass, htmlAttributes },
     previewKind,
     picking,

@@ -28,8 +28,8 @@ export const defaultSourceControlCredentialsPort: SourceControlCredentialsPort =
   createCredential: (input: { label: string; connection: AdminSourceControlConnectionInput; isDefault?: boolean }) =>
     api.createSourceControlCredential(input).then((res) => res.credential),
   updateCredential: (id: string, input: { label?: string; connection?: AdminSourceControlConnectionInput; isDefault?: boolean }) =>
-    api.updateSourceControlCredential(id, input).then((res) => res.credential),
-  deleteCredential: (id: string) => api.deleteSourceControlCredential(id),
+    api.updateSourceControlCredential({ id, input }).then((res) => res.credential),
+  deleteCredential: (id: string) => api.deleteSourceControlCredential({ id }),
 };
 
 /** An in-memory {@link SourceControlCredentialsPort} for tests. Each of the four calls defaults to a

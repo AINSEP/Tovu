@@ -90,7 +90,7 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
   it("shows the translated conflict copy, not the raw server message, when a save loses the compare-and-set", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     port.updateMenuTree = vi.fn().mockRejectedValue(
-      new ApiError("menu 'm1' was modified concurrently (expected version 1, found 2)", 409, "VERSION_CONFLICT")
+      new ApiError({ message: "menu 'm1' was modified concurrently (expected version 1, found 2)", status: 409 }, { code: "VERSION_CONFLICT" })
     );
     const t = (key: string) => (key === VERSION_CONFLICT_MESSAGE ? "TRANSLATED CONFLICT" : key);
     const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t } }));
@@ -102,7 +102,7 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
 
   it("keeps the server message for a code-less 409 (slug already taken)", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
-    port.updateMenuTree = vi.fn().mockRejectedValue(new ApiError("slug 'main' already exists", 409));
+    port.updateMenuTree = vi.fn().mockRejectedValue(new ApiError({ message: "slug 'main' already exists", status: 409 }));
     const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: () => "TRANSLATED" } }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => { await result.current.save(); });
@@ -514,8 +514,8 @@ it("a failed save for a previous menu cannot put an error on the current menu", 
 });
 
 it.each([
-  { failure: new ApiError("Raw conflict", 409, "VERSION_CONFLICT"), expected: `translated:${VERSION_CONFLICT_MESSAGE}` },
-  { failure: new ApiError("Slug already exists", 409), expected: "Slug already exists" },
+  { failure: new ApiError({ message: "Raw conflict", status: 409 }, { code: "VERSION_CONFLICT" }), expected: `translated:${VERSION_CONFLICT_MESSAGE}` },
+  { failure: new ApiError({ message: "Slug already exists", status: 409 }), expected: "Slug already exists" },
   { failure: new Error("Permission denied"), expected: "Permission denied" },
   { failure: new Error(""), expected: "" },
   { failure: "not an Error", expected: "save failed" },

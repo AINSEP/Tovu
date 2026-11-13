@@ -166,7 +166,7 @@ function useResolvedWidget(widgetEntryId: string): { widget: AdminWidget | null 
     // unmounts — see this file's header on why a stale settle must not apply.
     let current = true;
     api
-      .getWidget(widgetEntryId)
+      .getWidget({ id: widgetEntryId })
       .then((r) => {
         if (!current) return;
         setWidget(r.widget);
@@ -218,7 +218,7 @@ function changeDialogController(
         changeInstance(created.id);
       } catch (e) {
         // eslint-disable-next-line no-alert -- this controller has no other error surface for the failed create.
-        window.alert(describeApiError(e, "failed to create widget"));
+        window.alert(describeApiError({ e, fallback: "failed to create widget" }));
       }
     },
     onCancel: close,
