@@ -9,7 +9,7 @@ export function usePluginProviderChoice({ field, value, onChange }: { field: Adm
   const options = field.options ?? [];
   const listed = options.some((option) => option.value === value);
   const [custom, setCustom] = useState(Boolean(field.allowCustom) && value !== "" && !listed);
-  const choose = (next: string) => {
+  const choose = ({ next }: { next: string }, _options = {}) => {
     setCustom(next === CUSTOM);
     onChange(next === CUSTOM ? "" : next);
   };

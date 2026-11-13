@@ -235,7 +235,7 @@ export interface ThemePageDetailsModalProps {
 }
 
 export function ThemePageDetailsModal({ row, onClose, t, useModal = useThemePageDetailsModal }: ThemePageDetailsModalProps) {
-  const { dialogRef, handleNativeCancel, handleBackdropClick } = useModal(row !== null, onClose);
+  const { dialogRef, handleNativeCancel, handleBackdropClick } = useModal({ open: row !== null, onClose });
 
   return (
     <dialog

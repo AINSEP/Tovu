@@ -81,10 +81,10 @@ export interface PagesProps {
  * these two data-fetching seams are touched; `Pages`'s local `activeTab` chrome state (owner
  * ruling, see that declaration's own comment) is untouched by this pass.
  */
-function resolvePagesHook(override: typeof useWiredPages | undefined): typeof useWiredPages {
+function resolvePagesHook({ override }: { override: typeof useWiredPages | undefined }, _options = {}): typeof useWiredPages {
   return override ?? useWiredPages;
 }
-function resolveThemePagesHook(override: typeof useWiredThemePages | undefined): typeof useWiredThemePages {
+function resolveThemePagesHook({ override }: { override: typeof useWiredThemePages | undefined }, _options = {}): typeof useWiredThemePages {
   return override ?? useWiredThemePages;
 }
 
@@ -97,15 +97,15 @@ function resolveThemePagesHook(override: typeof useWiredThemePages | undefined):
  * `postsListNotice`, matching this pair's existing "twin screens" convention (this file's own
  * header).
  */
-export function pagesListNotice(pages: AdminPost[] | null, error: string | null, t: Translate): ReactNode {
+export function pagesListNotice({ pages, error, t }: { pages: AdminPost[] | null; error: string | null; t: Translate }, _options = {}): ReactNode {
   if (error && !pages) return <div className="notice error">{error}</div>;
   if (!pages) return <div className="notice">{t("Loading pages…")}</div>;
   return null;
 }
 
 export function Pages(props: PagesProps) {
-  const usePagesHook = resolvePagesHook(props.usePagesHook);
-  const useThemePagesHook = resolveThemePagesHook(props.useThemePagesHook);
+  const usePagesHook = resolvePagesHook({ override: props.usePagesHook });
+  const useThemePagesHook = resolveThemePagesHook({ override: props.useThemePagesHook });
   const {
     pages,
     error,
@@ -137,7 +137,7 @@ export function Pages(props: PagesProps) {
   // `"mine"`, so a deep link opens directly on the right tab; read once, matching `useState`'s own
   // lazy-initializer contract — this must NOT re-resolve on every render, or a later in-page
   // `writePagesTabToUrl` call would immediately fight with it.
-  const [activeTab, setActiveTab] = useState<PagesTabId>(() => resolvePagesTabFromUrl());
+  const [activeTab, setActiveTab] = useState<PagesTabId>(() => resolvePagesTabFromUrl({}));
   // Same "My Pages" sort state as `Posts.tsx`'s `sort` (2026-09-02, multi-column sort pass; migrated
   // onto `DataTable`'s own shared sort mechanism the same day) — one active column at a time, local
   // chrome state per the same owner ruling above, passed straight through as `sort`/`onSortChange`.
@@ -149,7 +149,7 @@ export function Pages(props: PagesProps) {
   // that notice AND keeps TS's narrowing, so `rows={pages}` below type-checks as `AdminPost[]`
   // without an `as`/`!` assertion. (The earlier `if (notice) return notice; if (!pages) return null;`
   // pair restored that narrowing with a second `!pages` check that was unreachable in practice.)
-  if (!pages) return pagesListNotice(pages, error, t);
+  if (!pages) return pagesListNotice({ pages, error, t });
 
   return (
     <div className="page">
@@ -206,7 +206,7 @@ export function Pages(props: PagesProps) {
                 // onto `DataTable`'s own shared sort mechanism the same day) — `DataTable` now
                 // renders the button, caret, and `aria-sort` itself from this descriptor; only the
                 // domain-specific comparator and label wording stay here (`rules.ts`).
-                sort: { compare: comparePagesByTitle, label: (direction) => pageColumnSortLabel(t, t("Title"), direction) },
+                sort: { compare: comparePagesByTitle, label: (direction) => pageColumnSortLabel({ t, columnName: t("Title"), direction }) },
                 // The admin editor route (`panels.tsx`'s `/:slug` pattern) is one path segment, so a
                 // Page holding the root slug `"/"` (`pagePublicPath`'s own doc) can't be expressed in
                 // slug form at all — `pageAdminPath` (`rules.ts`) picks slug-vs-id per page so this
@@ -224,25 +224,25 @@ export function Pages(props: PagesProps) {
               {
                 key: "slug",
                 header: "Slug",
-                sort: { compare: comparePagesBySlug, label: (direction) => pageColumnSortLabel(t, t("Slug"), direction) },
+                sort: { compare: comparePagesBySlug, label: (direction) => pageColumnSortLabel({ t, columnName: t("Slug"), direction }) },
                 // The public site link and its visible text both go through `pagePublicPath` so the
                 // root-slug page reads "/" — a bare `/${page.slug}` template would render "//" and
                 // link nowhere real for that one page.
                 cell: (page) => (
                   <a
-                    href={siteUrl(pagePublicPath(page.slug))}
+                    href={siteUrl(pagePublicPath({ slug: page.slug }))}
                     target="_blank"
                     rel="noreferrer"
                     {...agentHandle({ handle: `${rowMenuHandleById.get(page.id)}-view-live` }, { role: "link", label: "Open this page on the live public site" })}
                   >
-                    {pagePublicPath(page.slug)}
+                    {pagePublicPath({ slug: page.slug })}
                   </a>
                 ),
               },
               {
                 key: "status",
                 header: t("Status"),
-                sort: { compare: comparePagesByStatus, label: (direction) => pageColumnSortLabel(t, t("Status"), direction) },
+                sort: { compare: comparePagesByStatus, label: (direction) => pageColumnSortLabel({ t, columnName: t("Status"), direction }) },
                 cell: (page) => <span className={`status status-${page.status}`}><ServerLabel value={page.status} /></span>,
               },
               {
@@ -250,7 +250,7 @@ export function Pages(props: PagesProps) {
                 header: t("Updated"),
                 // "desc" (newest first) is this column's own starting direction, unlike the other
                 // three's ascending default — unchanged from the pre-existing Updated-only feature.
-                sort: { compare: comparePagesByUpdated, defaultDirection: "desc", label: (direction) => updatedPageColumnSortLabel(t, direction) },
+                sort: { compare: comparePagesByUpdated, defaultDirection: "desc", label: (direction) => updatedPageColumnSortLabel({ t, direction }) },
                 cell: (page) => formatTimestamp({ iso: page.updatedAt }, { timeZone: "local" }),
               },
               {
@@ -260,17 +260,17 @@ export function Pages(props: PagesProps) {
                   <RowMenu
                     triggerLabel={t('Actions for "{title}"').replace("{title}", () => page.title)}
                     agentHandle={`${rowMenuHandleById.get(page.id)}-menu`}
-                    items={pageRowMenuItems(
+                    items={pageRowMenuItems({
                       page,
-                      {
+                      handlers: {
                         // Same `pageAdminPath` slug-vs-id reasoning as the Title column's own edit
                         // link above; `navigate` takes the bare route path directly.
-                        onEdit: (p) => navigate(pageAdminPath(p)),
+                        onEdit: ({ page }, _options = {}) => navigate(pageAdminPath(page)),
                         onTogglePublish: togglePagePublish,
                         onDelete: setPendingDelete,
                       },
                       locale,
-                    )}
+                    })}
                   />
                 ),
               },

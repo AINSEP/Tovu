@@ -98,7 +98,7 @@ export interface ThemePagesController {
  *
  * @complexity O(1).
  */
-function pageIdFromPath(path: string): string {
+function pageIdFromPath({ path }: { path: string }, _options = {}): string {
   const base = path.slice(path.lastIndexOf("/") + 1);
   return base.replace(/\.html$/, "");
 }
@@ -141,7 +141,7 @@ function mapThemePageRows(entries: readonly ThemePagesFileEntry[]): ThemePageRow
   return entries
     .filter((f) => f.group === "page")
     .map((f) => ({
-      pageId: pageIdFromPath(f.path),
+      pageId: pageIdFromPath({ path: f.path }),
       filePath: f.path,
       published: f.published ?? null,
       resettable: f.resettable,
@@ -189,7 +189,7 @@ export function useThemePages(port: ThemePagesPort): ThemePagesController {
   const fetchPages = useCallback(async () => {
     try {
       // `NO_THEME_ID` is an operator choice, not an id; fetching it would only 404.
-      const detail = activeThemeId === null || activeThemeId === NO_THEME_ID ? null : await port.getThemeDetail(activeThemeId);
+      const detail = activeThemeId === null || activeThemeId === NO_THEME_ID ? null : await port.getThemeDetail({ themeId: activeThemeId });
       return { pages: detail ? mapThemePageRows(detail.files) : [] };
     } catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load theme pages"); }
   }, [port, activeThemeId]);
@@ -206,7 +206,7 @@ export function useThemePages(port: ThemePagesPort): ThemePagesController {
   const query = useFetchQuery({ key, fetch: fetchPages }, { enabled: activeThemeId !== null, staleTime: 0 });
   const loader = useCachedLoader({ key, fetch: fetchPages }, { staleTime: 0 });
   const [actionError, setError] = useState<string | null>(null);
-  const publish = useFetchMutation({ run: ({ input }: { input: { themeId: string; pageId: string; published: boolean } }) => port.setPagePublished(input.themeId, input.pageId, input.published) }, { invalidates: [["themes"]] });
+  const publish = useFetchMutation({ run: ({ input }: { input: { themeId: string; pageId: string; published: boolean } }) => port.setPagePublished({ themeId: input.themeId, page: input.pageId, published: input.published }) }, { invalidates: [["themes"]] });
   const [savingPageId, setSavingPageId] = useState<string | null>(null);
 
   const setPagePublished = useCallback(

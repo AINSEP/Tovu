@@ -462,7 +462,7 @@ describe("useStandingDraftAutosave", () => {
 
   it("resumes autosaving on its own once the caller supplies a fresh basis — a reload needs no manual reset", async () => {
     const port = createFakePort({
-      putAutosave: vi.fn(async (_id: string, draft: StandingDraftAutosaveInput) => ({ applied: draft.baseVersion !== 1 })),
+      putAutosave: vi.fn(async ({ draft }: { id: string; draft: StandingDraftAutosaveInput }) => ({ applied: draft.baseVersion !== 1 })),
     });
     const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
 
@@ -558,7 +558,7 @@ describe("useStandingDraftAutosave", () => {
 
   it("does not carry a stale basis across an entryId change — a gate for one entry must not silence another", async () => {
     const port = createFakePort({
-      putAutosave: vi.fn(async (_id: string, _draft: StandingDraftAutosaveInput) => ({ applied: _id === "post-1" ? false : true })),
+      putAutosave: vi.fn(async ({ id }: { id: string; draft: StandingDraftAutosaveInput }) => ({ applied: id === "post-1" ? false : true })),
     });
     const { result, rerender } = renderHook(
       ({ entryId }: { entryId: string }) => useStandingDraftAutosave({ port, entryId, enabled: true }),
@@ -727,7 +727,7 @@ describe("exit flushes use an unload-safe transport", () => {
   function portRecordingOptions() {
     const optionsSeen: Array<{ keepalive?: boolean } | undefined> = [];
     const port = createFakePort({
-      putAutosave: vi.fn(async (_id: string, _draft: StandingDraftAutosaveInput, options?: { keepalive?: boolean }) => {
+      putAutosave: vi.fn(async (_required: { id: string; draft: StandingDraftAutosaveInput }, options?: { keepalive?: boolean }) => {
         optionsSeen.push(options);
         return { applied: true };
       }),

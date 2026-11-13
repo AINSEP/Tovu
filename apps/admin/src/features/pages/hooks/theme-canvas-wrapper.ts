@@ -65,7 +65,7 @@ function attributesOf(el: Element, options: { dropEmbedConfig: boolean }): Recor
  * itself) to, but not including, `<body>`, returning each level outermost-first — the exact shape
  * `@jini-ai/ui/html-editor`'s `applyCanvasContentWrapper` expects for `CanvasStyling.contentWrapper`.
  *
- * @param templateHtml - A theme template's raw HTML source, exactly as served from
+ * @param required.templateHtml - A theme template's raw HTML source, exactly as served from
  *   `/theme-assets/{themeId}/{pagesDir}/{templateChoice}` (see `templateMarkupUrl` in
  *   `use-theme-canvas-styling.hooks.ts`) — unresolved, marker still present. Works whether this is a
  *   full document (`<html>…<body>…`) or a bare fragment: `DOMParser` synthesizes the missing
@@ -78,7 +78,7 @@ function attributesOf(el: Element, options: { dropEmbedConfig: boolean }): Recor
  * @complexity O(n + d) — n = template markup size (one parse), d = the marker's own ancestor depth
  *   (one full walk up, independent of the document's overall size).
  */
-export function deriveContentWrapperChain(templateHtml: string): CanvasContentWrapperNode[] | null {
+export function deriveContentWrapperChain({ templateHtml }: { templateHtml: string }, _options = {}): CanvasContentWrapperNode[] | null {
   const doc = new DOMParser().parseFromString(templateHtml, "text/html");
   const marker = Array.from(doc.querySelectorAll("[data-embed-config]")).find(isContentMarker);
   if (!marker) return null;

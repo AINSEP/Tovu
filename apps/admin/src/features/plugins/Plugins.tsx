@@ -80,7 +80,7 @@ type PluginsTabId = (typeof PLUGINS_TAB_IDS)[number];
 /** Falls back to the Installed tab for an absent or unrecognized `?tab=` value, and for `add` when
  *  this server refuses local installs (that tab is disabled). Delegates to the shared
  *  `../../lib/resolve-active-tab-id` guard every other URL-deep-linked tabbed admin screen uses. */
-function resolvePluginsTabId(tabId: string | null | undefined, canInstall: boolean): PluginsTabId {
+function resolvePluginsTabId({ tabId, canInstall }: { tabId: string | null | undefined; canInstall: boolean }, _options = {}): PluginsTabId {
   const validIds = canInstall ? PLUGINS_TAB_IDS : PLUGINS_TAB_IDS.filter((id) => id !== "add");
   return resolveActiveTabId({ tabId: tabId, validIds: validIds, defaultId: "installed" });
 }
@@ -335,7 +335,7 @@ export function Plugins({ tabId, focusPluginId, usePluginsHook = useWiredPlugins
   // see `LoadedPlugins`'s own error notice below, and `use-plugins.hooks.ts`'s `reload()` header.
   if (error && !plugins) return <div className="notice error">{error}</div>;
   if (!plugins) return <div className="notice">{t("Loading plugins…")}</div>;
-  return <LoadedPlugins plugins={plugins} controller={controller} activeTabId={resolvePluginsTabId(tabId, controller.canInstallFolder === true)} focusPluginId={focusPluginId} />;
+  return <LoadedPlugins plugins={plugins} controller={controller} activeTabId={resolvePluginsTabId({ tabId, canInstall: controller.canInstallFolder === true })} focusPluginId={focusPluginId} />;
 }
 
 /** The screen once `PLUGINS_LIST` has settled: header, row error, tab bar, the active tab's panel,
@@ -360,8 +360,8 @@ function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { pl
   const tabs: TabBarTab[] = [
     { id: "installed", label: t("Installed"), icon: <InstalledTabIcon />, handle: "plugins-tab-installed", handleLabel: "Switch to the Installed tab — every plugin installed for this site, on or off" },
     { id: "downloaded", label: t("Downloaded"), icon: <DownloadedTabIcon />, handle: "plugins-tab-downloaded", handleLabel: "Switch to the Downloaded tab — every plugin on disk for this site, regardless of whether it's turned on" },
-    { id: "add", label: t("Add a plugin"), tag: addPluginTabSoonTag(locale, canInstall ? undefined : true), disabled: !canInstall, icon: <UploadIcon />, handle: "plugins-tab-add", handleLabel: "Switch to the Add a plugin tab — install a plugin from a folder on this server or a .zip" },
-    { id: "marketplace", label: t("Marketplace"), tag: marketplaceTabSoonTag(locale), icon: <MarketplaceTabIcon />, handle: "plugins-tab-marketplace", handleLabel: "Switch to the Marketplace tab — a future place to discover plugins" },
+    { id: "add", label: t("Add a plugin"), tag: addPluginTabSoonTag({ locale }, { enabled: canInstall ? undefined : true }), disabled: !canInstall, icon: <UploadIcon />, handle: "plugins-tab-add", handleLabel: "Switch to the Add a plugin tab — install a plugin from a folder on this server or a .zip" },
+    { id: "marketplace", label: t("Marketplace"), tag: marketplaceTabSoonTag({ locale }), icon: <MarketplaceTabIcon />, handle: "plugins-tab-marketplace", handleLabel: "Switch to the Marketplace tab — a future place to discover plugins" },
   ];
 
   return (

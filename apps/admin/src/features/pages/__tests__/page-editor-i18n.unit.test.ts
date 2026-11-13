@@ -96,7 +96,7 @@ describe("PAGE_EDITOR_DICT: cross-locale key parity", () => {
       "Page preview", "Loading pages…",
     ];
     for (const locale of locales) {
-      for (const key of MARKUP_KEYS) expect(t(locale, key), `${locale}, key ${JSON.stringify(key)}`).toBeTruthy();
+      for (const key of MARKUP_KEYS) expect(t({ locale, key }), `${locale}, key ${JSON.stringify(key)}`).toBeTruthy();
     }
   });
 });
@@ -108,15 +108,15 @@ describe("PAGE_EDITOR_DICT: cross-locale key parity", () => {
  */
 describe("template picker copy", () => {
   it.each(["Template", "View Template", "No templates for this theme"])("translates %j in every locale, not left in English", (key) => {
-    for (const locale of Object.keys(PAGE_EDITOR_DICT)) expect(t(locale, key), locale).not.toBe(key);
+    for (const locale of Object.keys(PAGE_EDITOR_DICT)) expect(t({ locale, key }), locale).not.toBe(key);
   });
 });
 
 describe("PAGE_EXTERNAL_CHANGE_MESSAGE", () => {
   it("is translated in every locale, not left in English", () => {
     for (const locale of Object.keys(PAGE_EDITOR_DICT)) {
-      expect(t(locale, PAGE_EXTERNAL_CHANGE_MESSAGE), locale).toBeTruthy();
-      expect(t(locale, PAGE_EXTERNAL_CHANGE_MESSAGE), locale).not.toBe(PAGE_EXTERNAL_CHANGE_MESSAGE);
+      expect(t({ locale, key: PAGE_EXTERNAL_CHANGE_MESSAGE }), locale).toBeTruthy();
+      expect(t({ locale, key: PAGE_EXTERNAL_CHANGE_MESSAGE }), locale).not.toBe(PAGE_EXTERNAL_CHANGE_MESSAGE);
     }
   });
 });
@@ -128,16 +128,16 @@ describe("scriptblocks translated host copy", () => {
     const keys = ["Animation · Kuinetic", "Canvas", "Autoplay video", "Scripted section", "Locked · Edit in HTML · Preview plays it", "Edit HTML", "Can't edit this source visually. Use HTML."];
     for (const [locale, dictionary] of Object.entries(SCRIPT_BLOCK_DICT)) {
       expect(Object.keys(dictionary).sort()).toEqual([...keys].sort());
-      for (const key of keys) expect(t(locale, key)).toBe(dictionary[key]);
+      for (const key of keys) expect(t({ locale, key })).toBe(dictionary[key]);
     }
-    for (const key of keys) expect(t("en", key)).toBe(key);
-    expect(t("es", "Edit HTML")).toBe("Editar HTML");
+    for (const key of keys) expect(t({ locale: "en", key })).toBe(key);
+    expect(t({ locale: "es", key: "Edit HTML" })).toBe("Editar HTML");
   });
 });
 
 it("translates the preview consent note in every admin locale", () => {
   const key = "Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.";
   for (const locale of Object.keys(PAGE_EDITOR_DICT)) {
-    expect(t(locale, key), locale).not.toBe(key);
+    expect(t({ locale, key }), locale).not.toBe(key);
   }
 });

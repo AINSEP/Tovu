@@ -10,8 +10,8 @@ const html = '<p>hello</p><div data-kui id="ring"></div>';
 const page: AdminPost = { id: "scriptblocks-page", workspaceId: "w", kind: "page", title: "Landing", slug: "scriptblocks", bodyJson: {}, bodyFormat: "html", bodyHtml: html, status: "draft", version: 1, updatedAt: "2026-10-11T00:00:00.000Z" };
 function harness() {
   const port = createFakePageEditorPort({ page });
-  const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: (_locale: string, key: string) => key, locale: "en" };
-  return { port, ...renderHook(() => usePageEditor("scriptblocks", deps)) };
+  const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: ({ key }: { locale: string; key: string }) => key, locale: "en" };
+  return { port, ...renderHook(() => usePageEditor({ routeSlug: "scriptblocks", deps })) };
 }
 describe("Page controller scriptblocks wiring", () => {
   it("Edit HTML flushes, switches tabs without dirtying content, and selects the exact tag", async () => {

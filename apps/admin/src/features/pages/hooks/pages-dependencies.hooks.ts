@@ -10,9 +10,9 @@ import type { PagesPort } from "./pages-port.hooks";
 /** The live implementation, as a module-level singleton. */
 export const defaultPagesPort: PagesPort = {
   listPages: () => api.listPages(),
-  createPage: (title) => api.createPage(title),
-  updatePost: (target, patch) => api.updatePost(target, patch, { entry: "page" }),
-  deletePage: (id) => api.deletePage(id),
+  createPage: ({ title }, _options = {}) => api.createPage(title),
+  updatePost: ({ target, patch }, _options = {}) => api.updatePost(target, patch, { entry: "page" }),
+  deletePage: ({ id }, _options = {}) => api.deletePage(id),
 };
 
 const FAKE_WORKSPACE_ID = "fake-ws";
@@ -60,13 +60,13 @@ export function createFakePagesPort(options: FakePagesPortOptions = {}): PagesPo
   readonly pages: AdminPost[];
   /** Advances one stored row's version as though a DIFFERENT operator had just saved it — see
    *  `posts-list-dependencies.hooks.ts`'s identical `simulateConcurrentSave`. */
-  simulateConcurrentSave(id: string, title?: string): void;
+  simulateConcurrentSave(required: { id: string }, optional?: { title?: string }): void;
 } {
   const pages = [...(options.pages ?? [])];
 
   return {
     pages,
-    simulateConcurrentSave(id, title = "Saved by someone else") {
+    simulateConcurrentSave({ id }, { title = "Saved by someone else" } = {}) {
       const index = pages.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake page not found: ${id}`);
       pages[index] = { ...pages[index], title, version: pages[index].version + 1 };
@@ -74,13 +74,13 @@ export function createFakePagesPort(options: FakePagesPortOptions = {}): PagesPo
     async listPages() {
       return { posts: pages.map((post) => ({ post })) };
     },
-    async createPage(title) {
+    async createPage({ title }) {
       if (options.createError) throw options.createError;
       const created = fakePage({ id: `fake-page-${pages.length + 1}`, title, slug: title.toLowerCase() });
       pages.push(created);
       return { post: created };
     },
-    async updatePost({ id }, patch) {
+    async updatePost({ target: { id }, patch }) {
       if (options.updateError) throw options.updateError;
       const index = pages.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake page not found: ${id}`);
@@ -99,7 +99,7 @@ export function createFakePagesPort(options: FakePagesPortOptions = {}): PagesPo
       pages[index] = updated;
       return { post: updated };
     },
-    async deletePage(id) {
+    async deletePage({ id }) {
       if (options.deleteError) throw options.deleteError;
       const index = pages.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake page not found: ${id}`);

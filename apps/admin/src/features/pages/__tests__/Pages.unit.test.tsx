@@ -77,7 +77,7 @@ function controller(overrides: Partial<PagesController> = {}): PagesController {
     // `Pages.tsx` destructures this from the hook rather than computing it itself (2026-09-07,
     // audit claim #2), so the fixture has to build it from whatever `pages` this call passes —
     // mirrors `posts/__tests__/Posts.unit.test.tsx`'s identical fixture line.
-    rowMenuHandleById: buildPageRowMenuHandleMap(pages),
+    rowMenuHandleById: buildPageRowMenuHandleMap({ pages }),
     ...overrides,
   };
 }
@@ -984,21 +984,21 @@ describe("Theme Pages tab — deep link via ?tab=", () => {
  */
 describe("pagesListNotice", () => {
   it("returns the error notice when there is an error and no list yet", () => {
-    expect(pagesListNotice(null, "boom", identityT)).not.toBeNull();
+    expect(pagesListNotice({ pages: null, error: "boom", t: identityT })).not.toBeNull();
   });
 
   it("returns the loading notice when there is no list and no error", () => {
-    expect(pagesListNotice(null, null, identityT)).not.toBeNull();
+    expect(pagesListNotice({ pages: null, error: null, t: identityT })).not.toBeNull();
   });
 
   it("prioritizes the error branch over the loading branch when both conditions could apply", () => {
-    render(<>{pagesListNotice(null, "boom", identityT)}</>);
+    render(<>{pagesListNotice({ pages: null, error: "boom", t: identityT })}</>);
     expect(screen.getByText("boom")).toBeInTheDocument();
     expect(screen.queryByText("Loading pages…")).not.toBeInTheDocument();
   });
 
   it("returns null once the list has loaded, even with an error set (the inline-banner case)", () => {
-    expect(pagesListNotice([], "a later error", identityT)).toBeNull();
+    expect(pagesListNotice({ pages: [], error: "a later error", t: identityT })).toBeNull();
   });
 });
 

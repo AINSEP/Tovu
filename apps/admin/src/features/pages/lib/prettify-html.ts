@@ -99,7 +99,7 @@ const TAG_PATTERN = new RegExp(String.raw`<\/?([a-zA-Z][a-zA-Z0-9:-]*)(?:${ATTRI
  *
  * @returns The index to resume tokenizing from, or `null` if `i` isn't the start of a comment.
  */
-function consumeComment(html: string, i: number, length: number, tokens: Token[]): number | null {
+function consumeComment({ html, i, length, tokens }: { html: string; i: number; length: number; tokens: Token[] }, _options = {}): number | null {
   if (!html.startsWith("<!--", i)) return null;
   const end = html.indexOf("-->", i + 4);
   const stop = end === -1 ? length : end + 3;
@@ -108,7 +108,7 @@ function consumeComment(html: string, i: number, length: number, tokens: Token[]
 }
 
 /** Consumes a `<!doctype ...>` declaration starting at `i`, if there is one — see {@link consumeComment}. */
-function consumeDoctype(html: string, i: number, length: number, tokens: Token[]): number | null {
+function consumeDoctype({ html, i, length, tokens }: { html: string; i: number; length: number; tokens: Token[] }, _options = {}): number | null {
   if (html.slice(i, i + 9).toLowerCase() !== "<!doctype") return null;
   const end = html.indexOf(">", i);
   const stop = end === -1 ? length : end + 1;
@@ -120,7 +120,7 @@ function consumeDoctype(html: string, i: number, length: number, tokens: Token[]
  *  own ternary chain scores independently. `tagName` is {@link TAG_PATTERN}'s own capture group: the
  *  pattern only matches when a name is present, so (unlike the earlier re-match of `raw` with an
  *  `?.[1] ?? ""` fallback) there is no "no name" case to handle. */
-function parseTagMeta(raw: string, tagName: string): {
+function parseTagMeta({ raw, tagName }: { raw: string; tagName: string }, _options = {}): {
   name: string;
   tagKind: "open" | "close" | "self-close";
 } {
@@ -135,7 +135,7 @@ function parseTagMeta(raw: string, tagName: string): {
 /** Consumes a {@link RAW_TEXT_ELEMENTS} element's entire opaque body as a second token, immediately
  *  after its opening tag — split out of {@link consumeTag}, called only when that tag just opened one,
  *  so its content is never re-tokenized as markup (see the file header). */
-function consumeRawTextBody(html: string, next: number, length: number, name: string, tokens: Token[]): number {
+function consumeRawTextBody({ html, next, length, name, tokens }: { html: string; next: number; length: number; name: string; tokens: Token[] }, _options = {}): number {
   const closeMatch = new RegExp(`</${name}\\s*>`, "i").exec(html.slice(next));
   const rawEnd = closeMatch ? next + closeMatch.index + closeMatch[0].length : length;
   tokens.push({ kind: "other", text: html.slice(next, rawEnd) });
@@ -148,19 +148,19 @@ function consumeRawTextBody(html: string, next: number, length: number, name: st
  * consume that element's entire body as a second token in the same call, so the resume index this
  * returns already skips past both.
  */
-function consumeTag(html: string, i: number, length: number, tokens: Token[]): number | null {
+function consumeTag({ html, i, length, tokens }: { html: string; i: number; length: number; tokens: Token[] }, _options = {}): number | null {
   if (html[i] !== "<") return null;
   TAG_PATTERN.lastIndex = i;
   const match = TAG_PATTERN.exec(html);
   if (!match) return null;
 
   const raw = match[0];
-  const { name, tagKind } = parseTagMeta(raw, match[1]);
+  const { name, tagKind } = parseTagMeta({ raw, tagName: match[1] });
   tokens.push({ kind: "tag", text: raw, tagKind, name });
   const next = i + raw.length;
 
   if (tagKind === "open" && RAW_TEXT_ELEMENTS.has(name)) {
-    return consumeRawTextBody(html, next, length, name, tokens);
+    return consumeRawTextBody({ html, next, length, name, tokens });
   }
   return next;
 }
@@ -169,7 +169,7 @@ function consumeTag(html: string, i: number, length: number, tokens: Token[]): n
  *  forever on it) up to the next `<` — the fallback {@link tokenizeHtml} reaches when none of
  *  {@link consumeComment}/{@link consumeDoctype}/{@link consumeTag} claimed the current position, so
  *  unlike them this always succeeds and returns a plain index rather than `number | null`. */
-function consumeText(html: string, i: number, length: number, tokens: Token[]): number {
+function consumeText({ html, i, length, tokens }: { html: string; i: number; length: number; tokens: Token[] }, _options = {}): number {
   const next = html.indexOf("<", i + 1);
   const stop = next === -1 ? length : next;
   tokens.push({ kind: "other", text: html.slice(i, stop) });
@@ -186,21 +186,21 @@ function consumeText(html: string, i: number, length: number, tokens: Token[]): 
  * returns the resume index on a match or `null` to fall through to the next. `consumeText` always
  * matches, so the chain always terminates.
  *
- * @param html Raw HTML, a full document or a fragment. Malformed input (an unmatched `<`, an
+ * @param required.html Raw HTML, a full document or a fragment. Malformed input (an unmatched `<`, an
  * unclosed tag) degrades to treating the offending character as literal text rather than throwing —
  * this function must never fail on already-broken content.
  */
-function tokenizeHtml(html: string): Token[] {
+function tokenizeHtml({ html }: { html: string }, _options = {}): Token[] {
   const tokens: Token[] = [];
   const length = html.length;
   let i = 0;
 
   while (i < length) {
     i =
-      consumeComment(html, i, length, tokens) ??
-      consumeDoctype(html, i, length, tokens) ??
-      consumeTag(html, i, length, tokens) ??
-      consumeText(html, i, length, tokens);
+      consumeComment({ html, i, length, tokens }) ??
+      consumeDoctype({ html, i, length, tokens }) ??
+      consumeTag({ html, i, length, tokens }) ??
+      consumeText({ html, i, length, tokens });
   }
 
   return tokens;
@@ -234,7 +234,7 @@ function isBlockTag(token: Token): boolean {
   return token.kind === "tag" && BLOCK_ELEMENTS.has(token.name);
 }
 
-function isZeroGapBlockBoundary(prev: Token | undefined, token: Token): boolean {
+function isZeroGapBlockBoundary({ prev, token }: { prev: Token | undefined; token: Token }, _options = {}): boolean {
   return prev !== undefined && isBlockTag(prev) && isBlockTag(token);
 }
 
@@ -248,13 +248,13 @@ function isZeroGapBlockBoundary(prev: Token | undefined, token: Token): boolean 
  * Idempotent: running it twice produces the same output as running it once (no zero-gap boundaries
  * remain after the first pass, since every insertion point it would touch is filled).
  *
- * @param html Raw HTML, a full document or a fragment. `""` returns `""`.
+ * @param required.html Raw HTML, a full document or a fragment. `""` returns `""`.
  * @returns The same markup with added structural whitespace only.
  */
-export function prettifyHtml(html: string): string {
+export function prettifyHtml({ html }: { html: string }, _options = {}): string {
   if (html === "") return html;
 
-  const tokens = tokenizeHtml(html);
+  const tokens = tokenizeHtml({ html });
   const stack: string[] = [];
   let depth = 0;
   let out = "";
@@ -269,7 +269,7 @@ export function prettifyHtml(html: string): string {
       depth = Math.max(0, depth - 1);
     }
 
-    if (isZeroGapBlockBoundary(tokens[idx - 1], token)) {
+    if (isZeroGapBlockBoundary({ prev: tokens[idx - 1], token })) {
       out += "\n" + INDENT.repeat(depth);
     }
 

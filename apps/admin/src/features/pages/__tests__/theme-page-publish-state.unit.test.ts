@@ -81,11 +81,11 @@ describe("themePagePath", () => {
   // own doc: the id `theme.pages` uses internally is not the id the site actually routes it at), so
   // its `"index"` branch has no path through the one production call site at all.
   it("maps 'index' to the root path, not '/index'", () => {
-    expect(themePagePath("index")).toBe("/");
+    expect(themePagePath({ pageId: "index" })).toBe("/");
   });
 
   it("maps any other page id to its own leading-slash path", () => {
-    expect(themePagePath("about")).toBe("/about");
+    expect(themePagePath({ pageId: "about" })).toBe("/about");
   });
 });
 
@@ -96,14 +96,14 @@ describe("themePagePath", () => {
  */
 describe("homeFallbackPublishReason", () => {
   it("is locked ON as the fallback while no page is the home page", () => {
-    expect(homeFallbackPublishReason(null, identityT)).toEqual({
+    expect(homeFallbackPublishReason({ homePage: null, t: identityT })).toEqual({
       on: true,
       reason: "Home page fallback — shown at / until one of your pages is set as the home page",
     });
   });
 
   it("is locked OFF, naming the page that replaced it, once a page is the home page", () => {
-    expect(homeFallbackPublishReason({ id: "p", slug: "/", title: "Home", kind: "page" }, identityT)).toEqual({
+    expect(homeFallbackPublishReason({ homePage: { id: "p", slug: "/", title: "Home", kind: "page" }, t: identityT })).toEqual({
       on: false,
       reason: "Not shown — Home is your home page",
     });
@@ -112,7 +112,7 @@ describe("homeFallbackPublishReason", () => {
 
 describe("lockedPublishReason", () => {
   it("keeps index on as the home fallback when asked without a row", () => {
-    expect(lockedPublishReason("index", identityT)).toEqual({
+    expect(lockedPublishReason({ pageId: "index", t: identityT })).toEqual({
       on: true,
       reason: "Home page fallback — shown at / until one of your pages is set as the home page",
     });

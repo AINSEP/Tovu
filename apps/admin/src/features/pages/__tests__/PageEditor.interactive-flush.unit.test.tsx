@@ -190,8 +190,8 @@ describe("PageEditor — recovered content remount", () => {
         savedByPrincipalId: "user-local",
       },
     });
-    const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: (_locale: string, key: string) => key, locale: "en" };
-    const usePageEditorHook = (slug: string) => usePageEditor(slug, deps);
+    const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: ({ key }: { locale: string; key: string }) => key, locale: "en" };
+    const usePageEditorHook = ({ routeSlug }: { routeSlug: string }) => usePageEditor({ routeSlug, deps });
     const view = render(<PageEditor slug="about" usePageEditorHook={usePageEditorHook} />);
     try {
       await screen.findByRole("button", { name: "Restore" });

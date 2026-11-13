@@ -51,7 +51,7 @@ describe("defaultPageEditorPort.deletePage", () => {
   it("forwards id to api.deletePage, returning the response unchanged", async () => {
     const response = { post: PAGE };
     deletePage.mockResolvedValue(response);
-    await expect(defaultPageEditorPort.deletePage("page-1")).resolves.toEqual(response);
+    await expect(defaultPageEditorPort.deletePage({ id: "page-1" })).resolves.toEqual(response);
     expect(deletePage).toHaveBeenCalledWith("page-1");
   });
 });
@@ -61,30 +61,30 @@ describe("createFakePageEditorPort — .current and id-mismatch guards", () => {
     const port = createFakePageEditorPort({ page: PAGE });
     expect(port.current).toEqual(PAGE);
 
-    await port.updatePageHtml("page-1", "<p>edited</p>");
+    await port.updatePageHtml({ id: "page-1", html: "<p>edited</p>" });
     expect(port.current.bodyHtml).toBe("<p>edited</p>");
 
-    await port.updatePost({ id: "page-1" }, { title: "Renamed" });
+    await port.updatePost({ target: { id: "page-1" }, patch: { title: "Renamed" } });
     expect(port.current.title).toBe("Renamed");
   });
 
   it("updatePageHtml rejects for an id that doesn't match the seeded page", async () => {
     const port = createFakePageEditorPort({ page: PAGE });
-    await expect(port.updatePageHtml("wrong-id", "<p>x</p>")).rejects.toThrow(
+    await expect(port.updatePageHtml({ id: "wrong-id", html: "<p>x</p>" })).rejects.toThrow(
       "fake page editor port: unknown page id wrong-id",
     );
   });
 
   it("updatePost rejects for an id that doesn't match the seeded page", async () => {
     const port = createFakePageEditorPort({ page: PAGE });
-    await expect(port.updatePost({ id: "wrong-id" }, { title: "x" })).rejects.toThrow(
+    await expect(port.updatePost({ target: { id: "wrong-id" }, patch: { title: "x" } })).rejects.toThrow(
       "fake page editor port: unknown page id wrong-id",
     );
   });
 
   it("deletePage rejects for an id that doesn't match the seeded page", async () => {
     const port = createFakePageEditorPort({ page: PAGE });
-    await expect(port.deletePage("wrong-id")).rejects.toThrow(
+    await expect(port.deletePage({ id: "wrong-id" })).rejects.toThrow(
       "fake page editor port: unknown page id wrong-id",
     );
     expect(port.deleteCalled).toBe(false);
@@ -124,12 +124,12 @@ describe("createFakePageEditorPort — getPresentation and templatePreviewUrl de
 
   it("templatePreviewUrl defaults templateChoice to '' when null", () => {
     const port = createFakePageEditorPort({ page: PAGE });
-    expect(port.templatePreviewUrl("page-1", null)).toBe("fake://template-preview/page-1?templateChoice=");
+    expect(port.templatePreviewUrl({ id: "page-1", templateChoice: null })).toBe("fake://template-preview/page-1?templateChoice=");
   });
 
   it("templatePreviewUrl includes an explicit templateChoice", () => {
     const port = createFakePageEditorPort({ page: PAGE });
-    expect(port.templatePreviewUrl("page-1", "blog-post.html")).toBe(
+    expect(port.templatePreviewUrl({ id: "page-1", templateChoice: "blog-post.html" })).toBe(
       "fake://template-preview/page-1?templateChoice=blog-post.html",
     );
   });

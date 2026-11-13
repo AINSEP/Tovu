@@ -49,19 +49,19 @@ export function Playground({ usePlaygroundCanvasHook = usePlaygroundCanvas }: Pl
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t("Studio")}</p>
-          <h1 className="page-title">{t("Playground")}</h1>
+          <p className="page-kicker">{t({ key: "Studio" })}</p>
+          <h1 className="page-title">{t({ key: "Playground" })}</h1>
           <p className="page-description">
-            {t("Ask the assistant to build anything — try “Show a pie chart of my posts vs pages.” Every real component is already available to it.")}
+            {t({ key: "Ask the assistant to build anything — try “Show a pie chart of my posts vs pages.” Every real component is already available to it." })}
           </p>
         </div>
       </div>
 
       <div className="card playground-canvas">
-        <h2 className="playground-panel-title">{t("Canvas")}</h2>
+        <h2 className="playground-panel-title">{t({ key: "Canvas" })}</h2>
         <div className="playground-canvas-body">
           <div className="playground-render-target" ref={registerCanvas} />
-          <p className="playground-empty-state">{t("Nothing drawn yet — ask the assistant.")}</p>
+          <p className="playground-empty-state">{t({ key: "Nothing drawn yet — ask the assistant." })}</p>
         </div>
       </div>
     </div>

@@ -998,7 +998,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // (`use-external-entry-refresh.hooks.ts`): a clean editor takes the new row; a dirty one is left alone.
   const externalRefresh = useExternalEntryRefresh<AdminPost>({
     loaded: savedPost,
-    fetchLatest: (id) => port.getPost({ id }).then((loaded) => loaded.post),
+    fetchLatest: ({ id }, _options = {}) => port.getPost({ id }).then((loaded) => loaded.post),
     isDirty: () => isDirty,
     isSaving: () => saving,
     applyLatest: applyExternalPost,
@@ -1391,7 +1391,7 @@ export function useWiredPostEditor(postId: string): PostEditorController {
   // The reused Pages notice and its load-error copy keep their existing translation owner.
   const t = (key: string): string => {
     const text = translate({ locale, key });
-    return text === key ? translatePageEditor(locale, key) : text;
+    return text === key ? translatePageEditor({ locale, key }) : text;
   };
   return usePostEditor(postId, { port: defaultPostEditorPort, navigate: realNavigate, t });
 }

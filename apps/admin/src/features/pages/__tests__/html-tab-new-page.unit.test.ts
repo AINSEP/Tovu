@@ -36,9 +36,9 @@ describe("new-page HTML tab metadata validation regression", () => {
     // dependency-keyed effects forever (the worker ran out of heap).
     const deps = {
       port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(),
-      locale: "en", t: (_locale: string, key: string) => key,
+      locale: "en", t: ({ key }: { locale: string; key: string }) => key,
     };
-    const { result } = renderHook(() => usePageEditor("untitled", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "untitled", deps }));
     await waitFor(() => expect(result.current.page?.id).toBe(page.id));
     act(() => {
       result.current.setView("html");

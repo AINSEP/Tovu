@@ -449,7 +449,7 @@ export function AgentPlugins({
       label: t("Add a plugin"),
       // `TabbedDialogTab` has no tag slot, so the "Soon" tag rides `navHint`; styles.css turns this
       // screen's nav hint into the sidebar's `.soon` pill beside the label.
-      navHint: addPluginTabSoonTag(locale),
+      navHint: addPluginTabSoonTag({ locale }),
       icon: <UploadIcon />,
       title: t("Agent Plugins"),
       subtitle: t("Install a package you already have."),
@@ -458,7 +458,7 @@ export function AgentPlugins({
     {
       id: "marketplace",
       label: t("Marketplace"),
-      navHint: marketplaceTabSoonTag(locale),
+      navHint: marketplaceTabSoonTag({ locale }),
       icon: <MarketplaceIcon />,
       title: t("Agent Plugin Marketplace"),
       subtitle: t("A future place to discover portable Agent Plugins."),

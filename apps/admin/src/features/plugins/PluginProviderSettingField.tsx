@@ -29,7 +29,7 @@ function ChoiceControl({ field, id, value, onChange, t, controlAttrs }: Omit<Pro
   const { options, listed, custom, choose } = usePluginProviderChoice({ field, value, onChange });
   return (
     <>
-      <select id={id} value={custom ? CUSTOM : value} onChange={(event) => choose(event.target.value)} {...controlAttrs}>
+      <select id={id} value={custom ? CUSTOM : value} onChange={(event) => choose({ next: event.target.value })} {...controlAttrs}>
         {!custom && !listed ? <option value="">—</option> : null}
         {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         {field.allowCustom ? <option value={CUSTOM}>{t("Custom…")}</option> : null}

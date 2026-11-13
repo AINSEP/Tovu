@@ -53,7 +53,7 @@ export const PAGES_RESOURCE = "pages";
  *
  * @complexity O(1).
  */
-export function pagePublicPath(slug: string): string {
+export function pagePublicPath({ slug }: { slug: string }, _options = {}): string {
   return slug === "/" ? "/" : `/${slug}`;
 }
 
@@ -98,7 +98,7 @@ export function pageAdminPath(page: PageAdminHandle): string {
  *  state and navigation, and so a test can assert exactly which one a given row wires up — same
  *  shape as `posts/rules.ts`'s `PostRowMenuHandlers`. */
 export interface PageRowMenuHandlers {
-  onEdit: (page: AdminPost) => void;
+  onEdit: (required: { page: AdminPost }) => void;
   onTogglePublish: (page: AdminPost) => void;
   onDelete: (page: AdminPost) => void;
 }
@@ -125,15 +125,15 @@ export interface PageRowMenuHandlers {
  * @complexity Time/space: O(1) — exactly three entries, no iteration.
  * @overallScore 100
  */
-export function pageRowMenuItems(page: AdminPost, handlers: PageRowMenuHandlers, locale: string): RowMenuItem[] {
-  const t = (key: string): string => translate({ locale: locale, key: key });
-  const items: RowMenuItem[] = [{ key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit(page) }];
+export function pageRowMenuItems({ page, handlers, locale }: { page: AdminPost; handlers: PageRowMenuHandlers; locale: string }, _options = {}): RowMenuItem[] {
+  const t = ({ key }: { key: string }, _options = {}): string => translate({ locale: locale, key: key });
+  const items: RowMenuItem[] = [{ key: "edit", label: t({ key: "Edit" }), onSelect: () => handlers.onEdit({ page }) }];
   items.push(
     page.status === "published"
-      ? { key: "unpublish", label: t("Unpublish"), onSelect: () => handlers.onTogglePublish(page) }
-      : { key: "publish", label: t("Publish"), onSelect: () => handlers.onTogglePublish(page) }
+      ? { key: "unpublish", label: t({ key: "Unpublish" }), onSelect: () => handlers.onTogglePublish(page) }
+      : { key: "publish", label: t({ key: "Publish" }), onSelect: () => handlers.onTogglePublish(page) }
   );
-  items.push({ key: "delete", label: t("Delete"), destructive: true, onSelect: () => handlers.onDelete(page) });
+  items.push({ key: "delete", label: t({ key: "Delete" }), destructive: true, onSelect: () => handlers.onDelete(page) });
   return items;
 }
 
@@ -150,7 +150,7 @@ export function pageRowMenuItems(page: AdminPost, handlers: PageRowMenuHandlers,
  *
  * @complexity Time/space: O(n) in page count.
  */
-export function buildPageRowMenuHandleMap(pages: AdminPost[] | null): Map<string, string> {
+export function buildPageRowMenuHandleMap({ pages }: { pages: AdminPost[] | null }, _options = {}): Map<string, string> {
   if (!pages) return new Map();
   const handles = buildAgentListHandles({ prefix: "pages-row", ids: pages.map((page) => page.id) }
   );
@@ -158,13 +158,13 @@ export function buildPageRowMenuHandleMap(pages: AdminPost[] | null): Map<string
 }
 
 /** The callbacks a Theme Page row's menu needs. Passed in rather than imported, same reasoning as
- *  {@link PageRowMenuHandlers} above — in particular, `onEdit` takes a bare `pageId` rather than
+ *  {@link PageRowMenuHandlers} above — in particular, `onEdit` takes a `pageId` rather than
  *  building the Theme Studio href itself, so this module stays free of navigation: the caller
  *  (`ThemePagesTab.tsx`) already holds the narrowed, non-null `themeId` `themeStudioHref` needs, and
  *  is the one place that calls it. */
 export interface ThemePageRowMenuHandlers {
   onOpenDetails: (pageId: string) => void;
-  onEdit: (pageId: string) => void;
+  onEdit: (required: { pageId: string }) => void;
 }
 
 /**
@@ -187,10 +187,10 @@ export interface ThemePageRowMenuHandlers {
  *
  * @complexity O(1) — exactly two entries, no iteration.
  */
-export function themePageRowMenuItems(row: ThemePageRow, handlers: ThemePageRowMenuHandlers, t: Translate): RowMenuItem[] {
+export function themePageRowMenuItems({ row, handlers, t }: { row: ThemePageRow; handlers: ThemePageRowMenuHandlers; t: Translate }, _options = {}): RowMenuItem[] {
   return [
     { key: "details", label: t("Details"), onSelect: () => handlers.onOpenDetails(row.pageId) },
-    { key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit(row.pageId) },
+    { key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit({ pageId: row.pageId }) },
   ];
 }
 
@@ -274,7 +274,7 @@ export const THEME_DEFAULT_SENTINEL = "__theme-default__";
  *
  * @complexity O(n) in `availableTemplates.length` — one bounded scan of the two shell candidates.
  */
-export function pagePickerValue(templateChoice: string | null, availableTemplates: string[]): string {
+export function pagePickerValue({ templateChoice, availableTemplates }: { templateChoice: string | null; availableTemplates: string[] }, _options = {}): string {
   if (templateChoice !== null) return templateChoice;
   const shipped = STATIC_TIER_PAGE_SHELL_TEMPLATES.find((name) => availableTemplates.includes(name));
   return shipped ?? THEME_DEFAULT_SENTINEL;
@@ -289,7 +289,7 @@ export function pagePickerValue(templateChoice: string | null, availableTemplate
  *
  * @complexity O(1).
  */
-export function pickerValueToChoice(value: string): string | null {
+export function pickerValueToChoice({ value }: { value: string }, _options = {}): string | null {
   return value === THEME_DEFAULT_SENTINEL ? null : value;
 }
 
@@ -320,7 +320,7 @@ export function pickerValueToChoice(value: string): string | null {
  *
  * @complexity Time O(1), space O(1) — one property read and one length check.
  */
-export function pageAcceptsHtmlBody(page: SavablePage, html: string): boolean {
+export function pageAcceptsHtmlBody({ page, html }: { page: SavablePage; html: string }, _options = {}): boolean {
   if (page.bodyFormat === "html") return true;
   return html !== "" && !hasAuthoredDocument(page.bodyJson);
 }
@@ -338,11 +338,13 @@ export function pageAcceptsHtmlBody(page: SavablePage, html: string): boolean {
  * @complexity Time/space: O(1).
  */
 export function buildPageSavePlan(
-  page: VersionedSavablePage,
-  form: { title: string; slug: string; status: "draft" | "published"; templateChoice: string | null; html: string },
-  nextStatus?: "draft" | "published"
+  { page, form }: {
+    page: VersionedSavablePage;
+    form: { title: string; slug: string; status: "draft" | "published"; templateChoice: string | null; html: string };
+  },
+  { nextStatus }: { nextStatus?: "draft" | "published" } = {},
 ): PageSavePlan {
-  const canSaveHtml = pageAcceptsHtmlBody(page, form.html);
+  const canSaveHtml = pageAcceptsHtmlBody({ page, html: form.html });
   const statusToWrite = nextStatus ?? form.status;
   return {
     canSaveHtml,
@@ -378,7 +380,7 @@ export function buildPageAutosaveDraft(
   page: VersionedSavablePage,
   form: { title: string; slug: string; html: string }
 ): StandingDraftAutosaveInput {
-  if (pageAcceptsHtmlBody(page, form.html)) {
+  if (pageAcceptsHtmlBody({ page, html: form.html })) {
     return { bodyFormat: "html", bodyHtml: form.html, title: form.title, slug: form.slug, baseVersion: page.version };
   }
   return { bodyFormat: "doc", bodyJson: page.bodyJson, title: form.title, slug: form.slug, baseVersion: page.version };
@@ -387,14 +389,14 @@ export function buildPageAutosaveDraft(
 /** Whether a recovered standing draft was captured before a real Save/Publish since superseded it —
  *  see `PostRepoPort.writeAutosave`'s own server-side doc for why `baseVersion` is the signal.
  *  Drives the recovery banner's "from N minutes ago" vs "from before a newer save" wording. */
-export function isAutosaveDraftStale(draftBaseVersion: number, currentVersion: number): boolean {
+export function isAutosaveDraftStale({ draftBaseVersion, currentVersion }: { draftBaseVersion: number; currentVersion: number }, _options = {}): boolean {
   return draftBaseVersion !== currentVersion;
 }
 
 /** The recovery banner's own message — pulled out of `PageEditor.tsx` so the component stays markup
  *  only (`use-page-editor.hooks.ts`'s file header's own rule). `nowMs` is threaded through rather
  *  than read internally, same reasoning `formatRelativeMinutesAgo` itself documents. */
-export function pageAutosaveBannerMessage(savedAt: string, nowMs: number, stale: boolean): string {
+export function pageAutosaveBannerMessage({ savedAt, nowMs, stale }: { savedAt: string; nowMs: number; stale: boolean }, _options = {}): string {
   const when = formatRelativeMinutesAgo({ iso: savedAt, nowMs: nowMs });
   return stale ? `Unsaved changes from before a newer save (captured ${when})` : `Unsaved changes from ${when}`;
 }
@@ -466,9 +468,7 @@ export interface PageSaveConflict {
  *
  * @complexity Time/space: O(1).
  */
-export function readPageVersionConflict(
-  e: unknown,
-  attemptedStatus: "draft" | "published" | undefined
+export function readPageVersionConflict({ e, attemptedStatus }: { e: unknown; attemptedStatus: "draft" | "published" | undefined }, _options = {}
 ): PageSaveConflict | null {
   if (!isVersionConflict(e)) return null;
   const details = (e.body?.details ?? {}) as Record<string, unknown>;
@@ -505,16 +505,16 @@ export function pageVersionConflictMessage(t: Translate, conflict: PageSaveConfl
 /** The save-success message — the one piece of copy in `save` that depends on `canSaveHtml`, split
  *  out alongside {@link buildPageSavePlan} for the same reason. `t`/`locale` are threaded through
  *  rather than imported, matching every other pure function in this module. */
-export function pageSaveSuccessMessage(t: (locale: string, key: string) => string, locale: string, canSaveHtml: boolean): string {
+export function pageSaveSuccessMessage({ t, locale, canSaveHtml }: { t: (required: { locale: string; key: string }) => string; locale: string; canSaveHtml: boolean }, _options = {}): string {
   return canSaveHtml
-    ? t(locale, "Saved")
-    : t(locale, "Saved title, slug, and status. This page's body uses the document editor and can't be edited here yet.");
+    ? t({ locale, key: "Saved" })
+    : t({ locale, key: "Saved title, slug, and status. This page's body uses the document editor and can't be edited here yet." });
 }
 
 /** The message when a Save came back with the version it was based on — the server found nothing
  *  different and wrote nothing (no-op save guard, 2026-10-10). Same copy as the Posts editor's. */
-export function pageUnchangedSaveMessage(t: (locale: string, key: string) => string, locale: string, version: number): string {
-  return t(locale, "No changes found · nothing new saved (version {version})").replace("{version}", String(version));
+export function pageUnchangedSaveMessage({ t, locale, version }: { t: (required: { locale: string; key: string }) => string; locale: string; version: number }, _options = {}): string {
+  return t({ locale, key: "No changes found · nothing new saved (version {version})" }).replace("{version}", String(version));
 }
 
 /** The exact English copy {@link pagePartialSaveMessage} wraps in `t()` — also the dictionary key
@@ -534,9 +534,9 @@ const PAGE_PARTIAL_SAVE_COPY =
  *
  * @complexity Time/space: O(1).
  */
-export function pagePartialSaveMessage(t: (locale: string, key: string) => string, locale: string, reason: unknown): string {
-  const why = reason instanceof Error && reason.message ? reason.message : t(locale, "failed to save page");
-  return `${t(locale, PAGE_PARTIAL_SAVE_COPY)} (${why})`;
+export function pagePartialSaveMessage({ t, locale, reason }: { t: (required: { locale: string; key: string }) => string; locale: string; reason: unknown }, _options = {}): string {
+  const why = reason instanceof Error && reason.message ? reason.message : t({ locale, key: "failed to save page" });
+  return `${t({ locale, key: PAGE_PARTIAL_SAVE_COPY })} (${why})`;
 }
 
 /**
@@ -575,7 +575,7 @@ export function pageEditorSurface(view: PageEditorView, canvasStyling: ThemeCanv
 /** The pending-html preview form's `target` — see `PageEditorController.previewFormRef`. `""` before
  *  `page` loads, since `PagePreview` never renders that early. Split out of `usePageEditor` under the
  *  complexity ceiling. */
-export function pagePreviewFormTarget(page: AdminPost | null): string {
+export function pagePreviewFormTarget({ page }: { page: AdminPost | null }, _options = {}): string {
   return page ? `page-preview-pending-${page.id}` : "";
 }
 
@@ -656,10 +656,7 @@ export const PAGE_EXTERNAL_CHANGE_MESSAGE =
 /** The Page editor's `useDirtyGuard` baseline: the loaded row's title/slug/status plus the saved html
  *  and template choice. `null` before `page` loads, which the guard reads as "nothing is dirty yet".
  *  Split out of `usePageEditor` under the complexity ceiling. */
-export function pageDirtyGuardBaseline(
-  page: AdminPost | null,
-  savedHtml: string,
-  savedTemplateChoice: string | null,
+export function pageDirtyGuardBaseline({ page, savedHtml, savedTemplateChoice }: { page: AdminPost | null; savedHtml: string; savedTemplateChoice: string | null }, _options = {}
 ): { title: string; slug: string; status: AdminPost["status"]; html: string; templateChoice: string | null } | null {
   if (!page) return null;
   return { title: page.title, slug: page.slug, status: page.status, html: savedHtml, templateChoice: savedTemplateChoice };
@@ -718,7 +715,7 @@ export function comparePagesByUpdated(a: AdminPost, b: AdminPost): number {
  *
  * @complexity Time/space: O(1).
  */
-export function pageColumnSortLabel(t: Translate, columnName: string, direction: DataTableSortDirection | null): string {
+export function pageColumnSortLabel({ t, columnName, direction }: { t: Translate; columnName: string; direction: DataTableSortDirection | null }, _options = {}): string {
   if (direction === null) return t("Not sorted by {columnName}. Activate to sort ascending.").replace("{columnName}", () => columnName);
   return direction === "asc"
     ? t("Sorted by {columnName}, ascending. Activate to sort descending.").replace("{columnName}", () => columnName)
@@ -728,7 +725,7 @@ export function pageColumnSortLabel(t: Translate, columnName: string, direction:
 /** Same contract as {@link pageColumnSortLabel}, phrased in the Updated column's own "newest"/
  *  "oldest" vocabulary rather than generic "ascending"/"descending" — mirrors `posts/rules.ts`'s
  *  `updatedColumnSortLabel` verbatim. */
-export function updatedPageColumnSortLabel(t: Translate, direction: DataTableSortDirection | null): string {
+export function updatedPageColumnSortLabel({ t, direction }: { t: Translate; direction: DataTableSortDirection | null }, _options = {}): string {
   if (direction === null) return t("Not sorted by updated date. Activate to sort newest first.");
   return direction === "desc"
     ? t("Sorted by updated date, newest first. Activate to sort oldest first.")

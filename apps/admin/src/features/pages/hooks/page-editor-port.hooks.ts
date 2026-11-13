@@ -28,7 +28,7 @@ import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autos
  * own header for why the hook itself stays ignorant of both features either way.
  */
 export interface PageEditorPort extends StandingDraftAutosavePort {
-  getPage(routeSlug: string): Promise<{ post: AdminPost; pluginEmbeds?: readonly AdminPagePluginEmbed[] }>;
+  getPage(required: { routeSlug: string }): Promise<{ post: AdminPost; pluginEmbeds?: readonly AdminPagePluginEmbed[] }>;
   getPresentation(): Promise<{
     activeThemeTemplates: string[];
     /** `PresentationSettings.activeThemeId` — feeds the Interactive tab's canvas stylesheet and
@@ -45,7 +45,7 @@ export interface PageEditorPort extends StandingDraftAutosavePort {
      *  `activeThemeTier` documents. Gates whether `TemplateSourceModal` attempts a fetch at all. */
     activeThemeTier: ThemeTier | null;
   }>;
-  updatePageHtml(id: string, html: string): Promise<{ post: AdminPost }>;
+  updatePageHtml(required: { id: string; html: string }): Promise<{ post: AdminPost }>;
   /**
    * `expectedVersion` (2026-09-07) is the optimistic-concurrency basis, NOT a field of the page:
    * the `AdminPost.version` this editor loaded, which the server compares and rejects with
@@ -55,12 +55,14 @@ export interface PageEditorPort extends StandingDraftAutosavePort {
    * had; `usePageEditor` always sends it once the row has loaded.
    */
   updatePost(
-    target: { id: string },
-    patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & {
-      expectedVersion?: number;
+    required: {
+      target: { id: string };
+      patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & {
+        expectedVersion?: number;
+      };
     }
   ): Promise<{ post: AdminPost }>;
-  deletePage(id: string): Promise<{ post: AdminPost }>;
+  deletePage(required: { id: string }): Promise<{ post: AdminPost }>;
   /**
    * Synchronous URL builder for the admin-only template-preview iframe — NOT a network call itself;
    * the browser navigates to the returned URL when the iframe's `src` is set. Belongs on the port
@@ -71,5 +73,5 @@ export interface PageEditorPort extends StandingDraftAutosavePort {
    * value ("no template"); a real filename requests that template — see `lib/api.ts`'s own
    * `templatePreviewUrl` for the exact query-string contract this mirrors.
    */
-  templatePreviewUrl(id: string, templateChoice: string | null): string;
+  templatePreviewUrl(required: { id: string; templateChoice: string | null }): string;
 }

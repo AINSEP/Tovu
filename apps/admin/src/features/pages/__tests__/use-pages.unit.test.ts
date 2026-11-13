@@ -514,7 +514,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
     await waitFor(() => expect(result.current.pages).not.toBeNull());
 
-    port.simulateConcurrentSave(PAGE.id, "Their edit");
+    port.simulateConcurrentSave({ id: PAGE.id }, { title: "Their edit" });
 
     await act(async () => {
       await result.current.togglePagePublish(PAGE);

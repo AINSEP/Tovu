@@ -35,7 +35,7 @@ export interface PluginProviderSettingsDialogProps {
 }
 
 /** Field names are manifest keys (`apiKey`); agent handles allow only lowercase words joined by hyphens. */
-function handleWords(name: string): string {
+function handleWords({ name }: { name: string }, _options = {}): string {
   return name.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
@@ -73,10 +73,10 @@ function unenteredFieldValue(field: { secret?: boolean; saved?: boolean; default
 
 function SettingsSubtitle({ card, t }: { card: AdminPluginProviderSettings | null; t: (key: string) => string }) {
   if (!card) return null;
-  return <p className="provider-settings-subtitle">{settingsSubtitleText(card, t)}</p>;
+  return <p className="provider-settings-subtitle">{settingsSubtitleText({ card, t })}</p>;
 }
 
-function settingsSubtitleText(card: AdminPluginProviderSettings, t: (key: string) => string): string {
+function settingsSubtitleText({ card, t }: { card: AdminPluginProviderSettings; t: (key: string) => string }, _options = {}): string {
   if (card.store !== "project") return t(card.projectAvailable ? "Saved for this site only" : "Saved for this site");
   if (card.usedBy.length) return interpolate({ template: t("Used by {sites}"), vars: { sites: card.usedBy.join(", ") } });
   return t("Saved to your project — not used by any site yet");
@@ -108,7 +108,7 @@ export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose,
           </Button> : null}
           {fields.map((field) => (
             <ProviderSettingField key={field.name} field={{ ...field, required: providerSettingRequiredHere({ field, fields, entered: values, values: effectiveValues }) }} id={`${fieldId}-${field.name}`} value={values[field.name] ?? ""}
-              onChange={(value) => setValue({ name: field.name, value })} handle={`${agentHandleBase}-setting-${handleWords(field.name)}`} pluginName={plugin.name} t={t} />
+              onChange={(value) => setValue({ name: field.name, value })} handle={`${agentHandleBase}-setting-${handleWords({ name: field.name })}`} pluginName={plugin.name} t={t} />
           ))}
         </div>
         {error ? <p className="save-error" role="alert">{error}</p> : null}

@@ -117,7 +117,7 @@ function Header(props: { controller: EmailTemplateEditorController; locale: stri
       <a
         className="content-editor-back"
         href={adminHref("/email?tab=templates")}
-        aria-label={`${pageEditorT(locale, "Back")}: ${t({ locale, key: "Templates" })}`}
+        aria-label={`${pageEditorT({ locale, key: "Back" })}: ${t({ locale, key: "Templates" })}`}
         {...agentHandle({ handle: "email-template-back" }, { role: "link", label: "Back to the email templates list" })}
       >
         <Icon name="arrow-left" size={22} aria-hidden="true" />

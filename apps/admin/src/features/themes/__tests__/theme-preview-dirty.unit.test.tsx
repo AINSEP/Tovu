@@ -34,7 +34,7 @@ it("theme refresh remounts and resubmits the dirty page preview without replacin
     port,
     themeCanvasPort: createFakeThemeCanvasPort(),
     navigate: () => {},
-    t: (_locale: string, key: string) => key,
+    t: ({ key }: { locale: string; key: string }) => key,
     locale: "en",
   };
   const submissions: HTMLFormElement[] = [];
@@ -43,7 +43,7 @@ it("theme refresh remounts and resubmits the dirty page preview without replacin
   });
   render(
     <FetchQueryProvider>
-      <PageEditor slug="contact" usePageEditorHook={(slug) => usePageEditor(slug, deps)} />
+      <PageEditor slug="contact" usePageEditorHook={({ routeSlug }) => usePageEditor({ routeSlug, deps })} />
     </FetchQueryProvider>,
   );
   await waitFor(() => expect(screen.getByTitle("Page preview")).toBeTruthy());

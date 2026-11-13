@@ -73,8 +73,8 @@ export interface PagesController {
  * re-render (`sort`, `locale`) does not rebuild this map and hand `RowMenu` a new handle-string
  * identity every time. Mirrors `use-posts.hooks.ts`'s `usePostRowMenuHandleMap` verbatim.
  */
-export function usePageRowMenuHandleMap(pages: AdminPost[] | null): Map<string, string> {
-  return useMemo(() => buildPageRowMenuHandleMap(pages), [pages]);
+export function usePageRowMenuHandleMap({ pages }: { pages: AdminPost[] | null }, _options = {}): Map<string, string> {
+  return useMemo(() => buildPageRowMenuHandleMap({ pages }), [pages]);
 }
 
 export interface PagesDependencies {
@@ -112,7 +112,7 @@ export function usePages(deps: PagesDependencies): PagesController {
   const query = useFetchQuery({ key, fetch: fetchList }, { staleTime: 0 });
   const loader = useCachedLoader({ key, fetch: fetchList }, { staleTime: 0 });
   const pages = query.data ?? null;
-  function setPages(update: (current: AdminPost[] | null) => AdminPost[] | null) {
+  function setPages({ update }: { update: (current: AdminPost[] | null) => AdminPost[] | null }, _options = {}) {
     const next = update(loader.peek() ?? null);
     if (next !== null) loader.replace({ value: next });
   }
@@ -134,13 +134,13 @@ export function usePages(deps: PagesDependencies): PagesController {
   const load = useCallback(() => invalidate({ key: ["pages"] }), [invalidate]);
   useContentRefreshSubscription(PAGES_RESOURCE, load);
 
-  const rowMenuHandleById = usePageRowMenuHandleMap(pages);
+  const rowMenuHandleById = usePageRowMenuHandleMap({ pages });
 
   async function createPage() {
     setCreating(true);
     setError(null);
     try {
-      const { post } = await write.mutate({ input: () => port.createPage("Untitled") }) as Awaited<ReturnType<typeof port.createPage>>;
+      const { post } = await write.mutate({ input: () => port.createPage({ title: "Untitled" }) }) as Awaited<ReturnType<typeof port.createPage>>;
       // The Pages editor, not the Posts one. "New Page" and "ask the assistant to build me a page"
       // are two doors to the same destination — neither of them is a Tiptap screen.
       // `pageAdminPath` (`rules.ts`) — same slug-vs-id-vs-root-slug rule `Pages.tsx`'s own row
@@ -182,11 +182,11 @@ export function usePages(deps: PagesDependencies): PagesController {
     setRowSavingId(page.id);
     setError(null);
     try {
-      const { post: updated } = await write.mutate({ input: () => port.updatePost(
-        { id: page.id },
-        { title: page.title, slug: page.slug, bodyJson: page.bodyJson, status: nextStatus, expectedVersion: page.version }
-      ) }) as Awaited<ReturnType<typeof port.updatePost>>;
-      setPages((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
+      const { post: updated } = await write.mutate({ input: () => port.updatePost({
+        target: { id: page.id },
+        patch: { title: page.title, slug: page.slug, bodyJson: page.bodyJson, status: nextStatus, expectedVersion: page.version },
+      }) }) as Awaited<ReturnType<typeof port.updatePost>>;
+      setPages({ update: (prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev) });
     } catch (e) {
       setError(e instanceof Error ? e.message : t(nextStatus === "published" ? "failed to publish page" : "failed to unpublish page"));
     } finally {
@@ -225,8 +225,8 @@ export function usePages(deps: PagesDependencies): PagesController {
     setRowSavingId(page.id);
     setError(null);
     try {
-      await write.mutate({ input: () => port.deletePage(page.id) });
-      setPages((prev) => (prev ? prev.filter((p) => p.id !== page.id) : prev));
+      await write.mutate({ input: () => port.deletePage({ id: page.id }) });
+      setPages({ update: (prev) => (prev ? prev.filter((p) => p.id !== page.id) : prev) });
     } catch (e) {
       setError(e instanceof Error ? e.message : t("failed to delete page"));
     } finally {
