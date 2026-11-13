@@ -70,7 +70,7 @@ async function pullOfThreePosts(beforeSaveHook: BeforeSaveHookPort) {
   registerPublishContentContributor(contributePostPublish());
   registerPublishContentContributor(contributeTaxonomyPublish());
   registerPublishContentContributor(contributeTermPublish());
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const outbox = new InMemoryOutbox();
   const ports = { post: { repo: postRepo, forgetRemoved: async () => {}, remove: removeVia(postRepo) } };
   let changeSetCount = 0;

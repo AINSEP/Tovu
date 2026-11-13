@@ -121,7 +121,7 @@ export async function announceDueGoLives(
 
 type IntervalHandle = { unref?: () => void };
 
-function warn(error: unknown): void {
+function warn({ error }: { error: unknown }, _optional: Record<string, never> = {}): void {
   console.error("[post-go-live-sweep] sweep failed; retrying after the idle interval", error);
 }
 
@@ -148,12 +148,12 @@ export function startPostGoLiveSweep(
   required: { deps: { repo: GoLiveCandidatesPort; outbox: OutboxPort; clock: ClockPort }; workspaceId: string },
   optional: {
     intervalMs?: number;
-    onError?: (error: unknown) => void;
-    timers?: { setInterval: (fn: () => void, ms: number) => IntervalHandle; clearInterval: (handle: IntervalHandle) => void };
+    onError?: (required: { error: unknown }, optional?: Record<string, never>) => void;
+    timers?: { setInterval: (required: { fn: () => void; ms: number }, optional?: Record<string, never>) => IntervalHandle; clearInterval: (required: { handle: IntervalHandle }, optional?: Record<string, never>) => void };
   } = {}
 ): { stop(): Promise<void> } {
   const { intervalMs = POST_GO_LIVE_SWEEP_INTERVAL_MS, onError = warn } = optional;
-  const timers = optional.timers ?? { setInterval: (fn, ms) => setInterval(fn, ms), clearInterval: (handle) => clearInterval(handle as ReturnType<typeof setInterval>) };
+  const timers: NonNullable<typeof optional.timers> = optional.timers ?? { setInterval: ({ fn, ms }, _optional = {}) => setInterval(fn, ms), clearInterval: ({ handle }, _optional = {}) => clearInterval(handle as ReturnType<typeof setInterval>) };
   if (!Number.isSafeInteger(intervalMs) || intervalMs <= 0) throw new RangeError("post go-live sweep interval must be positive");
   const { deps, workspaceId } = required;
   let afterIso: string | undefined;
@@ -165,7 +165,7 @@ export function startPostGoLiveSweep(
       await announceDueGoLives({ deps, input: { workspaceId, nowIso } }, { afterIso });
       afterIso = new Date(Date.parse(nowIso) - POST_GO_LIVE_LOOKBACK_MS).toISOString();
     } catch (error) {
-      try { onError(error); } catch { /* A logging failure cannot reject timer work. */ }
+      try { onError({ error }); } catch { /* A logging failure cannot reject timer work. */ }
     }
   };
   const pass = (): void => {
@@ -173,12 +173,12 @@ export function startPostGoLiveSweep(
     active = run().finally(() => { active = undefined; });
   };
   pass();
-  const timer = timers.setInterval(pass, intervalMs);
+  const timer = timers.setInterval({ fn: pass, ms: intervalMs });
   timer.unref?.();
   return {
     stop: async () => {
       stopped = true;
-      timers.clearInterval(timer);
+      timers.clearInterval({ handle: timer });
       await active;
     },
   };

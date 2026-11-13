@@ -30,7 +30,7 @@ function harness(
   themeDeps: Pick<PagesToolDeps, "themes" | "themesDir" | "resolveActiveThemeId"> = {},
   storeFactory?: PagesToolDeps["pagesHtmlStore"],
 ) {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const registrations = buildPagesRegistrations({
     ...themeDeps,
     workspaceId: WS,

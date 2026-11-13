@@ -59,8 +59,8 @@ function recordingForget(): {
 }
 
 const ADAPTERS: Array<{ name: string; make: () => PostRepoPort }> = [
-  { name: "InMemoryPostRepo", make: () => new InMemoryPostRepo() },
-  { name: "SqlitePostRepo", make: () => new SqlitePostRepo(openContentDb(":memory:")) },
+  { name: "InMemoryPostRepo", make: () => new InMemoryPostRepo({}) },
+  { name: "SqlitePostRepo", make: () => new SqlitePostRepo({ store: openContentDb(":memory:") }) },
   { name: "PglitePostRepo", make: () => makePglitePostRepo().repo },
 ];
 

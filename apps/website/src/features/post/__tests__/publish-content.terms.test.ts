@@ -76,9 +76,9 @@ async function sites() {
 test("an untagged post keeps its schemaVersion-1 hash byte-for-byte, with or without taxonomy ports", async () => {
   registerOnly([contributePostPublish()]);
   const row = post({ id: "p-untagged", slug: "untagged" });
-  const bare = contributePostPublish().build(makeSite({ post: { repo: new InMemoryPostRepo([row]) } }));
+  const bare = contributePostPublish().build(makeSite({ post: { repo: new InMemoryPostRepo({}, { initialRows: [row] }) } }));
   const withTerms = sqliteContentSite();
-  const tagged = contributePostPublish().build(makeSite({ ...withTerms.ports, post: { repo: new InMemoryPostRepo([row]) } }));
+  const tagged = contributePostPublish().build(makeSite({ ...withTerms.ports, post: { repo: new InMemoryPostRepo({}, { initialRows: [row] }) } }));
 
   for (const handler of [bare, tagged]) {
     const packed: PackedEntity[] = [];

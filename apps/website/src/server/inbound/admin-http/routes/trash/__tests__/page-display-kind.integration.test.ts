@@ -27,7 +27,7 @@ function harness(t: { after(fn: () => Promise<void>): void }) {
   db.$client.prepare("INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WS, WS, WS, AT);
   const kernel = contentKernel(db);
   t.after(() => kernel.close());
-  const postRepo = new SqlitePostRepo(db);
+  const postRepo = new SqlitePostRepo({ store: db });
   const trashRepo = new SqliteTrashRepo(db);
   let seq = 0;
   const trash = createTrashService({

@@ -72,7 +72,7 @@ async function bootDaemonToolSurface(repo: PluginActivationRepoPort): Promise<To
   await registerEnabledPluginCapabilityTools(registry, { withExtensionApprovalPolicy,
     authorize: async () => ({ allowed: true }) as never,
     workspaceId: WORKSPACE,
-    postRead: requiredPostReader({ repo: new InMemoryPostRepo([post()]) }),
+    postRead: requiredPostReader({ repo: new InMemoryPostRepo({}, { initialRows: [post()] }) }),
     discoverPlugins: async () => [RECORD],
     pluginActivationRepo: repo,
   });

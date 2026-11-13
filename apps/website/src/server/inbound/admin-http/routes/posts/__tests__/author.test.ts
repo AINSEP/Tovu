@@ -13,7 +13,7 @@ import { registerAdminPostUpdateRoute } from "../update.js";
 import { registerAdminPostAutosaveRoute } from "../autosave.js";
 
 async function fixture(t: { after: (cleanup: () => Promise<void>) => void }) {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   let sequence = 0;
   const deps = { workspaceId: "ws", postRepo, clock: { nowMs: () => Date.parse("2026-10-09T00:00:00Z"), nowIso: () => "2026-10-09T00:00:00.000Z" },
     idGen: { newId: () => `author-rest-${++sequence}` }, changeSets: new InMemoryChangeSetRepo(), outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(),

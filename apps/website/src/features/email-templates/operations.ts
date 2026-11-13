@@ -182,11 +182,11 @@ export async function createEmailTemplate(
   const seed = html ?? emailTemplateSkeleton({ subject, fields: readFieldsInput({ value: input.fields }) });
   const row = newTemplateRow({ deps: deps, name: name });
   // Both adapters join the same kernel transaction, so conversion failure leaves no hidden doc row.
-  return deps.postRepo.transaction(async () => {
+  return deps.postRepo.transaction({ fn: async () => {
     await deps.postRepo.save(row);
     await deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: row.id, actorId }, { allowedKinds: new Set([EMAIL_TEMPLATE_KIND]) }).ensureHtmlFormat(seed);
     return toDetail(await loadTemplate({ deps: deps, id: row.id }));
-  });
+  } });
 }
 
 /**

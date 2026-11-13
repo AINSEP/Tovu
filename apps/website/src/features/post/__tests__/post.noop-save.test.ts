@@ -95,7 +95,7 @@ function saveContract(makeRepo: () => PostRepoPort): void {
   });
 }
 
-describe("no-op saves: memory", () => saveContract(() => new InMemoryPostRepo()));
+describe("no-op saves: memory", () => saveContract(() => new InMemoryPostRepo({})));
 describeEachDialect("no-op saves: SQL", {
   tables: ["posts", "post_revisions"], make: (kernel) => postRepoFor(kernel),
 }, (repo) => saveContract(repo));
@@ -114,7 +114,7 @@ test("no-op saves skip both write ports and revision append, with or without exp
       return super.appendRevision(input);
     }
   }
-  const repo = new CountingRepo();
+  const repo = new CountingRepo({});
   const post = (await createPost({ deps: { repo, clock }, input: { ...key, title: "Hello" } })).post;
   const before = [repo.writes, repo.appends];
   for (const expectedVersion of [post.version, undefined]) {
@@ -124,7 +124,7 @@ test("no-op saves skip both write ports and revision append, with or without exp
 });
 
 test("an unchanged request rechecks its version after an awaited plugin hook", async () => {
-  const repo = new InMemoryPostRepo();
+  const repo = new InMemoryPostRepo({});
   const post = (await createPost({ deps: { repo, clock }, input: { ...key, title: "Hello" } })).post;
   const deps = { repo, clock, outbox: new InMemoryOutbox() };
   assert.equal((await updatePost({ deps, input: inputFor(post) })).post.version, post.version);

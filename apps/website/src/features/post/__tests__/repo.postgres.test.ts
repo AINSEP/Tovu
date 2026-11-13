@@ -65,23 +65,23 @@ test("two connections: a concurrent appendRevision waits for the open one and ch
   const released = new Promise<void>((resolve) => (release = resolve));
   // A caller's own transaction around the append (as updatePost does): the lock is held to its end.
   let holderPid = 0;
-  const inA = first.transaction(async () => {
+  const inA = first.transaction({ fn: async () => {
     [{ pid: holderPid }] = await first.query(sql<{ pid: number }>`SELECT pg_backend_pid() AS pid`);
     const result = await repoA.appendRevision(revision(2));
     appended();
     await released;
     return result;
-  });
+  } });
   await appendedInA;
 
   let settled = false;
   let waiterPid!: (pid: number) => void;
   const waiterReady = new Promise<number>(resolve => { waiterPid = resolve; });
-  const inB = second.transaction(async () => {
+  const inB = second.transaction({ fn: async () => {
     const [{ pid }] = await second.query(sql<{ pid: number }>`SELECT pg_backend_pid() AS pid`);
     waiterPid(pid);
     return repoB.appendRevision(revision(3));
-  }).finally(() => { settled = true; });
+  } }).finally(() => { settled = true; });
   let waited = false;
   try {
     const pid = await Promise.race([waiterReady, inB.then(() => { throw new Error("append completed before its connection was observed"); })]);

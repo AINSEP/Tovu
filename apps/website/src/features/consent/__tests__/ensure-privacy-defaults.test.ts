@@ -11,7 +11,7 @@ import { ensureSitePrivacyDefaults, type PrivacyDefaultsDeps } from '../ensure-p
 
 const clock = { nowMs: () => 0, nowIso: () => '2026-10-22T00:00:00.000Z' };
 function fixture() {
-  const repo = new InMemoryPostRepo();
+  const repo = new InMemoryPostRepo({});
   let counter = 0, url = '', writes = 0, seeds = 0, inTransaction = false;
   const transact = repo.transaction.bind(repo);
   repo.transaction = async fn => transact(async () => {

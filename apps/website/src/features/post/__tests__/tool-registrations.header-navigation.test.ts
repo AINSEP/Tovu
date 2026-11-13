@@ -26,7 +26,7 @@ function registrations(): Map<string, ToolRegistration> {
   const deps = {
     workspaceId: "ws-header-nav", clock: { nowMs: () => Date.parse("2026-11-02T00:00:00.000Z") },
     idGen: { newId: () => `id-${++counter}` }, changeSets: new InMemoryChangeSetRepo(),
-    outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(), postRepo: new InMemoryPostRepo(),
+    outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(), postRepo: new InMemoryPostRepo({}),
     authorize: async () => ({ allowed: true, reason: "matched" }),
   } as unknown as PostToolDeps;
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });

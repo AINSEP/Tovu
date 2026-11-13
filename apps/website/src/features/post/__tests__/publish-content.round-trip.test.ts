@@ -36,7 +36,7 @@ const IMPORTING_OPERATOR = "operator-running-the-import";
 
 function makeDeps(rows: PostRecord[]) {
   const outbox = new InMemoryOutbox();
-  const postRepo = new InMemoryPostRepo(rows);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: rows });
   return {
     workspaceId: WORKSPACE_ID,
     postRepo,

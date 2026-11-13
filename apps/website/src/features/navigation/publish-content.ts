@@ -70,8 +70,8 @@ export const contributeMenusPublish = (): PublishContentContributor =>
     permission: "admin.menus.update",
     dependsOn: ["post", "page"],
     ports: (deps) => deps.ports.menu,
-    list: (p, workspaceId) => p.repo.list({ workspaceId }),
-    find: (p, workspaceId, id) => p.repo.findById({ workspaceId, id }),
+    list: ({ ports: p, workspaceId }) => p.repo.list({ workspaceId }),
+    find: ({ ports: p, workspaceId, id }) => p.repo.findById({ workspaceId, id }),
     isTrashed: (row) => row.status === "trash",
     // `NavMenuEntry` has no authorship/provenance field, so everything packed is hashed.
     fields: {

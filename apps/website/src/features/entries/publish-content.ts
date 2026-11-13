@@ -62,11 +62,11 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
     // The owning type and assigned terms are checked at write time; media and relation ids resolve at render.
     dependsOn: ["content-type", "term"],
     ports: (deps) => deps.ports["collection-entry"],
-    list: async (p, workspaceId) => {
+    list: async ({ ports: p, workspaceId }) => {
       const rows = await p.entries.listByWorkspaceExcludingTypes({ workspaceId, excludeTypes: WIDGET_TYPES });
       return Promise.all(rows.map((row) => withTerms(p, { ...row, deletedAt: null })));
     },
-    find: async (p, workspaceId, id) => {
+    find: async ({ ports: p, workspaceId, id }) => {
       const row = await p.entries.findAnyById({ workspaceId, id });
       return row ? withTerms(p, row) : null;
     },

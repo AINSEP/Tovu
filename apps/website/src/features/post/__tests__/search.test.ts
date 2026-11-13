@@ -57,36 +57,36 @@ test("extractPostPlainText pulls the text out of a real TipTap document", () => 
     }
   );
 
-  assert.equal(extractPostPlainText(body), "Pricing Plans start at ten dollars a month. Includes support");
+  assert.equal(extractPostPlainText({ bodyJson: body }), "Pricing Plans start at ten dollars a month. Includes support");
 });
 
 test("extractPostPlainText keeps adjacent marked runs inside a paragraph fused, and separates blocks", () => {
   // "This is " + "bold" + " text." are three text nodes of ONE paragraph and must not gain spaces
   // between them; two paragraphs must not run their words together.
   const body = doc(para("This is ", "bold", " text."), para("Second paragraph."));
-  assert.equal(extractPostPlainText(body), "This is bold text. Second paragraph.");
+  assert.equal(extractPostPlainText({ bodyJson: body }), "This is bold text. Second paragraph.");
 });
 
 test("extractPostPlainText is vocabulary-blind — an unrecognized node type still contributes its text", () => {
   // The renderer's `default:` case would render this node's children with no formatting; search must
   // likewise not lose the words just because the node type is new (a plugin block, say).
   const body = doc({ type: "someFutureCallout", content: [para("important announcement")] });
-  assert.equal(extractPostPlainText(body), "important announcement");
+  assert.equal(extractPostPlainText({ bodyJson: body }), "important announcement");
 });
 
 test("extractPostPlainText tolerates non-document input rather than throwing", () => {
   for (const value of [null, undefined, 42, "a string", [], {}, { type: "doc" }]) {
-    assert.equal(extractPostPlainText(value), "", `${JSON.stringify(value) ?? "undefined"} must project to empty text`);
+    assert.equal(extractPostPlainText({ bodyJson: value }), "", `${JSON.stringify(value) ?? "undefined"} must project to empty text`);
   }
 });
 
 test("extractPostPlainText ignores a text node whose 'text' is not a string", () => {
-  assert.equal(extractPostPlainText(doc({ type: "paragraph", content: [{ type: "text", text: 12 }, { type: "text", text: "ok" }] })), "ok");
+  assert.equal(extractPostPlainText({ bodyJson: doc({ type: "paragraph", content: [{ type: "text", text: 12 }, { type: "text", text: "ok" }] }) }), "ok");
 });
 
 test("extractPostPlainText caps an unbounded document at MAX_INDEXED_BODY_CHARS", () => {
   const huge = doc(...Array.from({ length: 400 }, () => para("x".repeat(1000))));
-  const text = extractPostPlainText(huge);
+  const text = extractPostPlainText({ bodyJson: huge });
 
   assert.equal(text.length, MAX_INDEXED_BODY_CHARS, "the cap must be exact, not approximate");
 });
@@ -97,7 +97,7 @@ test("extractPostPlainText stops at the depth cap instead of overflowing the sta
   let node: unknown = para("buried");
   for (let i = 0; i < 500; i += 1) node = { type: "blockquote", content: [node] };
 
-  const text = extractPostPlainText(doc(para("shallow"), node));
+  const text = extractPostPlainText({ bodyJson: doc(para("shallow"), node) });
   assert.match(text, /shallow/);
   assert.doesNotMatch(text, /buried/);
 });
@@ -112,27 +112,27 @@ test("toPostSearchDocument carries id/title/slug through and projects only the b
 // ---------------------------------------------------------------------------
 
 test("toSearchTerms lowercases and splits on anything non-alphanumeric", () => {
-  assert.deepEqual(toSearchTerms("Pricing & Plans, v2!"), ["pricing", "plans", "v2"]);
+  assert.deepEqual(toSearchTerms({ query: "Pricing & Plans, v2!" }), ["pricing", "plans", "v2"]);
 });
 
 test("toSearchTerms preserves accented and non-Latin letters as searchable terms", () => {
-  assert.deepEqual(toSearchTerms("CAFÉ naïve"), ["café", "naïve"]);
-  assert.deepEqual(toSearchTerms("日本語"), ["日本語"]);
-  assert.deepEqual(toSearchTerms("cafe\u0301"), ["café"]);
+  assert.deepEqual(toSearchTerms({ query: "CAFÉ naïve" }), ["café", "naïve"]);
+  assert.deepEqual(toSearchTerms({ query: "日本語" }), ["日本語"]);
+  assert.deepEqual(toSearchTerms({ query: "cafe\u0301" }), ["café"]);
 });
 
 test("toSearchTerms strips every FTS5 query operator — no caller string can reach MATCH as syntax", () => {
   // Each of these means something to FTS5: a phrase, a prefix, a boolean, a proximity operator, a
   // column filter. All must come back as plain terms or nothing at all.
-  assert.deepEqual(toSearchTerms('"exact phrase"'), ["exact", "phrase"]);
-  assert.deepEqual(toSearchTerms("pric*"), ["pric"]);
-  assert.deepEqual(toSearchTerms("a NEAR/3 b"), ["a", "near", "3", "b"]);
-  assert.deepEqual(toSearchTerms("title:secret"), ["title", "secret"]);
-  assert.deepEqual(toSearchTerms("^anchored (grouped) -negated"), ["anchored", "grouped", "negated"]);
+  assert.deepEqual(toSearchTerms({ query: '"exact phrase"' }), ["exact", "phrase"]);
+  assert.deepEqual(toSearchTerms({ query: "pric*" }), ["pric"]);
+  assert.deepEqual(toSearchTerms({ query: "a NEAR/3 b" }), ["a", "near", "3", "b"]);
+  assert.deepEqual(toSearchTerms({ query: "title:secret" }), ["title", "secret"]);
+  assert.deepEqual(toSearchTerms({ query: "^anchored (grouped) -negated" }), ["anchored", "grouped", "negated"]);
 });
 
 test("toSearchTerms returns nothing for a query with no letter or digit", () => {
-  assert.deepEqual(toSearchTerms("  !!! ??? --- "), []);
+  assert.deepEqual(toSearchTerms({ query: "  !!! ??? --- " }), []);
 });
 
 // ---------------------------------------------------------------------------

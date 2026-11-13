@@ -339,7 +339,7 @@ test("the 'owner' principal is unaffected — it clears the gate on its '*' wild
  *  a store that records every method it is asked for so a refusal can be proven to touch nothing. */
 async function toolHarness() {
   const chain = await buildChain();
-  const postRepo = new InMemoryPostRepo([]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   const storeCalls: string[] = [];
 
   const registrations = buildPagesRegistrations({

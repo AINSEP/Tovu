@@ -22,7 +22,7 @@ test(`enabling a plugin mid-session makes its guidance discoverable through relo
   const registry = createToolRegistry({});
   let catalog = buildToolCatalogQuery(registry);
   const extensions = attachAssistantToolExtensions(registry, {
-    ...site.deps, workspaceId, agentPluginLayout, postRepo: new InMemoryPostRepo(), pluginActivationRepo: new InMemoryPluginActivationRepo(),
+    ...site.deps, workspaceId, agentPluginLayout, postRepo: new InMemoryPostRepo({}), pluginActivationRepo: new InMemoryPluginActivationRepo(),
     authorize: async () => ({ allowed: true, reason: 'matched' }), discoverPlugins: async () => [],
     registerInstalled: registerInstalledExtensionTools,
     federation: { deps: { workspaceId, authorize: async () => ({ allowed: true, reason: 'matched' }) },

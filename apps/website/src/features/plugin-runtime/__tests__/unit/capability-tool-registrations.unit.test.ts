@@ -92,7 +92,7 @@ function post(overrides: Partial<PostRecord> = {}): PostRecord {
 }
 
 function deps(overrides: Partial<PluginCapabilityToolDeps> & { postRepo?: PostRepoPort } = {}): PluginCapabilityToolDeps {
-  const { postRepo = new InMemoryPostRepo(), ...ports } = overrides;
+  const { postRepo = new InMemoryPostRepo({}), ...ports } = overrides;
   return {
     authorize: async () => ({ allowed: true }) as never,
     workspaceId: WORKSPACE,
@@ -197,7 +197,7 @@ const WORD_COUNT_SOURCE: PluginCapabilityToolSource = {
 test("the built registration is read-only, content.read-gated, and requires a postId", async () => {
   const requests: unknown[] = [];
   const [registration] = buildPluginCapabilityToolRegistrations({ sources: [WORD_COUNT_SOURCE], deps: deps({
-    postRepo: new InMemoryPostRepo([post()]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post()] }),
     authorize: async (request) => {
       requests.push(request);
       assert.deepEqual(request, { principalId: PRINCIPAL_ID, permission: "content.read", workspaceId: WORKSPACE, entityType: "post", entityId: "post-1" });
@@ -233,7 +233,7 @@ test("the handler refuses a caller the authorizer denies", async () => {
   const requests: unknown[] = [];
   const registrations = buildPluginCapabilityToolRegistrations(
     { sources: [WORD_COUNT_SOURCE], deps: deps({
-      postRepo: new InMemoryPostRepo([post({ ext: { "word-count": { count: 42 } } })]),
+      postRepo: new InMemoryPostRepo({}, { initialRows: [post({ ext: { "word-count": { count: 42 } } })] }),
       authorize: async (request) => {
         requests.push(request);
         return { allowed: false, reason: "nope" } as never;
@@ -250,7 +250,7 @@ test("the handler refuses a caller the authorizer denies", async () => {
 });
 
 test("reading an existing post that already carries the plugin's stored field returns the real value", async () => {
-  const postRepo = new InMemoryPostRepo([post({ ext: { "word-count": { count: 42 } } })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [post({ ext: { "word-count": { count: 42 } } })] });
   const registrations = buildPluginCapabilityToolRegistrations({ sources: [WORD_COUNT_SOURCE], deps: deps({ postRepo }), withExtensionApprovalPolicy });
   const registration = registrations.find((entry) => entry.descriptor.id === "plugin_capability_word_count");
   assert.ok(registration);
@@ -272,7 +272,7 @@ test("stored falsy computed values are returned without a not-computed note", as
     ],
   };
   const fields = { count: 0, flag: false, label: "" };
-  const postRepo = new InMemoryPostRepo([post({ ext: { "word-count": fields } })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [post({ ext: { "word-count": fields } })] });
   const [registration] = buildPluginCapabilityToolRegistrations({ sources: [source], deps: deps({ postRepo }), withExtensionApprovalPolicy });
   assert.ok(registration);
   const result = await registration.handler(toolContext({ postId: "post-1" })) as Record<string, unknown>;
@@ -281,7 +281,7 @@ test("stored falsy computed values are returned without a not-computed note", as
 });
 
 test("reading a post that has never been saved since the plugin was enabled returns null + an explanatory note, not an error", async () => {
-  const postRepo = new InMemoryPostRepo([post()]); // no `ext` at all
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [post()] }); // no `ext` at all
   const registrations = buildPluginCapabilityToolRegistrations({ sources: [WORD_COUNT_SOURCE], deps: deps({ postRepo }), withExtensionApprovalPolicy });
   const registration = registrations.find((entry) => entry.descriptor.id === "plugin_capability_word_count");
   assert.ok(registration);
@@ -305,7 +305,7 @@ test("reading a nonexistent postId throws with the exact not-found message", asy
 test("an ext bag shaped unexpectedly (not an object) degrades to null + note rather than throwing", async () => {
   // Defensive case: `post.ext` is a generic JsonObject at the type level (see post.ts's own field
   // doc) — this asserts the handler's `isRecord` narrowing, not merely the happy path.
-  const postRepo = new InMemoryPostRepo([post({ ext: { "word-count": "not-an-object" } as never })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [post({ ext: { "word-count": "not-an-object" } as never })] });
   const registrations = buildPluginCapabilityToolRegistrations({ sources: [WORD_COUNT_SOURCE], deps: deps({ postRepo }), withExtensionApprovalPolicy });
   const registration = registrations.find((entry) => entry.descriptor.id === "plugin_capability_word_count");
   assert.ok(registration);
@@ -411,7 +411,7 @@ test("a fresh tier-2 call previews the stored post through the port and returns 
   const stored = post({ ext: { "content-analyzer": { score: 10, summary: "stale" }, "word-count": { count: 3 } } });
   const calls: Array<{ pluginId: string; entry: unknown }> = [];
   const [registration] = buildPluginCapabilityToolRegistrations({ sources: [await contentAnalyzerSource()], deps: deps({
-    postRepo: new InMemoryPostRepo([stored]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [stored] }),
     pluginActivationRepo: activationRepoWith([enabledActivation("content-analyzer")]),
     previewPluginBeforeSave: async (pluginId, entry) => {
       calls.push({ pluginId, entry });
@@ -437,7 +437,7 @@ test("a fresh tier-2 call previews the stored post through the port and returns 
 test("a fresh call on a post with no ext hands the plugin an empty ext", async () => {
   const entries: unknown[] = [];
   const [registration] = buildPluginCapabilityToolRegistrations({ sources: [await contentAnalyzerSource()], deps: deps({
-    postRepo: new InMemoryPostRepo([post()]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post()] }),
     previewPluginBeforeSave: async (_pluginId, entry) => {
       entries.push(entry.ext);
       return { score: 1 };
@@ -449,7 +449,7 @@ test("a fresh call on a post with no ext hands the plugin an empty ext", async (
 });
 
 test("a tier-2 plugin this process has not attached falls back to its stored values, still parsed", async () => {
-  const postRepo = new InMemoryPostRepo([post({ ext: { "content-analyzer": { score: 70, report: JSON.stringify(CONTENT_ANALYZER_REPORT) } } })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [post({ ext: { "content-analyzer": { score: 70, report: JSON.stringify(CONTENT_ANALYZER_REPORT) } } })] });
   const [registration] = buildPluginCapabilityToolRegistrations({ sources: [await contentAnalyzerSource()], deps: deps({
     postRepo,
     previewPluginBeforeSave: async () => null,
@@ -463,7 +463,7 @@ test("a tier-2 plugin this process has not attached falls back to its stored val
 
 test("without a preview port a tier-2 plugin reads its stored values", async () => {
   const [registration] = buildPluginCapabilityToolRegistrations({ sources: [await contentAnalyzerSource()], deps: deps({
-    postRepo: new InMemoryPostRepo([post({ ext: { "content-analyzer": { score: 70 } } })]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post({ ext: { "content-analyzer": { score: 70 } } })] }),
   }), withExtensionApprovalPolicy });
   assert.ok(registration);
   const result = (await registration.handler(toolContext({ postId: "post-1" }))) as Record<string, unknown>;
@@ -474,7 +474,7 @@ test("without a preview port a tier-2 plugin reads its stored values", async () 
 test("a tier-3 plugin never calls the preview port", async () => {
   let previews = 0;
   const [registration] = buildPluginCapabilityToolRegistrations({ sources: [{ ...WORD_COUNT_SOURCE, runsFresh: false }], deps: deps({
-    postRepo: new InMemoryPostRepo([post({ ext: { "word-count": { count: 42 } } })]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post({ ext: { "word-count": { count: 42 } } })] }),
     previewPluginBeforeSave: async () => {
       previews += 1;
       return { count: 1 };
@@ -489,7 +489,7 @@ test("a tier-3 plugin never calls the preview port", async () => {
 
 test("a fresh run that fails reaches the model as a ToolInputError naming the plugin, not a redacted crash", async () => {
   const [registration] = buildPluginCapabilityToolRegistrations({ sources: [await contentAnalyzerSource()], deps: deps({
-    postRepo: new InMemoryPostRepo([post()]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post()] }),
     previewPluginBeforeSave: async () => {
       throw new Error("plugin 'content-analyzer' beforeSave hook failed");
     },
@@ -511,7 +511,7 @@ test("only a string holding a JSON object or array is parsed; other strings are 
     fields: ["list", "broken", "plain", "numeric"].map((key) => ({ path: `ext.word-count.${key}`, fieldKey: key, type: "string" as const, description: key })),
   };
   const [registration] = buildPluginCapabilityToolRegistrations({ sources: [source], deps: deps({
-    postRepo: new InMemoryPostRepo([post({ ext: { "word-count": { list: "[1,2]", broken: "{not json", plain: "hello", numeric: "42" } } })]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post({ ext: { "word-count": { list: "[1,2]", broken: "{not json", plain: "hello", numeric: "42" } } })] }),
   }), withExtensionApprovalPolicy });
   assert.ok(registration);
   const result = (await registration.handler(toolContext({ postId: "post-1" }))) as Record<string, unknown>;

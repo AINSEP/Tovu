@@ -55,7 +55,7 @@ async function boot({ t }: { t: import("node:test").TestContext }, _options = {}
     TOVU_SITE_ASSISTANT_MODEL: "env-model", TOVU_SITE_ASSISTANT_BASE_URL: endpoint }).registerRoutes?.(app);
   // A real declarative renderer with no disk theme/build dependency; homepage content proves
   // the negative markup assertions reached a successful page, rather than an error response.
-  deps.postRepo = new InMemoryPostRepo([]);
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   const themes: DiscoveredTheme[] = [{ manifest: { id: "tovu-official", name: "Visitor test", version: "1.0.0", tier: "declarative", engine: 1 },
     tokens: {}, tokensLight: {}, pages: {}, partials: {}, templates: { home: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Visitor readiness page" }] }] } },
     liquidTemplates: {}, handlebarsTemplates: {}, dir: "/nonexistent/visitorai-test", css: "", source: "site", status: "valid", errors: [] }];

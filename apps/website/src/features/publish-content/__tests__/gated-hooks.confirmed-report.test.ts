@@ -170,7 +170,7 @@ test("publish-content applies the report the gateway verified, not one re-derive
     actorId: ACTOR_ID,
     clock,
     idGen,
-    publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { repo: new InMemoryPostRepo() } } },
+    publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { repo: new InMemoryPostRepo({}) } } },
     bundleRepo,
     baselineRepo,
     blobStore: { exists: async () => true },
@@ -225,7 +225,7 @@ function minimalHooks(bundleRepo: InMemoryPublishContentBundleRepo, extraDeps: R
   const clock = { nowMs: () => Date.parse("2026-09-20T12:00:00.000Z") };
   const hooks = buildPublishContentImportHooks({
     workspaceId: WORKSPACE_ID, bundleId: BUNDLE_ID, actorId: ACTOR_ID, clock, idGen,
-    publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { repo: new InMemoryPostRepo() } }, ...extraDeps } as never,
+    publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { repo: new InMemoryPostRepo({}) } }, ...extraDeps } as never,
     bundleRepo, baselineRepo: new InMemoryPublishContentBaselineRepo(), blobStore: { exists: async () => true },
     dbOps: { captureRestorePoint: async () => ({ artifactRef: "artifact-min", watermarkAtCapture: 1 }) },
     restorePointsRepo: { save: async () => {} },

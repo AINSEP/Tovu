@@ -86,6 +86,6 @@ async function mirrorPosts(kernel: ContentKernel, posts: readonly PostRecord[]):
   await kernel.run((db) => db.deleteFrom("posts").execute());
   for (const post of posts) {
     await kernel.run((db) => db.insertInto("posts").values(toRow(post)).execute());
-    await sqlitePostSearch.upsert(kernel, toPostSearchDocument(post));
+    await sqlitePostSearch.upsert({ kernel, document: toPostSearchDocument(post) });
   }
 }

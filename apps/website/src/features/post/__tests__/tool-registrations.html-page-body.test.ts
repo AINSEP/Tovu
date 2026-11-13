@@ -31,7 +31,7 @@ const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-09-24T00:00:00.000Z";
 
 function fakeRouteDeps<R extends InMemoryPostRepo | SqlitePostRepo = InMemoryPostRepo>(
-  postRepo: R = new InMemoryPostRepo() as R
+  postRepo: R = new InMemoryPostRepo({}) as R
 ) {
   let counter = 0;
   const deps = {
@@ -148,7 +148,7 @@ test("content_post_update: the real sqlite placeholder bodyJson, JSON-serialized
   // can't prove the guard's deep-equal matches what an agent actually sends. This one reads through
   // `SqlitePostRepo` (whose `toRecord` fills an html row's NULL `body_json` with the placeholder)
   // and round-trips that bodyJson through JSON, as the tool transport does.
-  const { deps, postRepo } = fakeRouteDeps(new SqlitePostRepo(openContentDb(":memory:")));
+  const { deps, postRepo } = fakeRouteDeps(new SqlitePostRepo({ store: openContentDb(":memory:") }));
   const generated = `<section data-agent-element="page-body" data-agent-role="region"><p>Real content</p></section>`;
   await seedHtmlPage(deps, postRepo, generated);
   const registrations = registrationsFor(deps);

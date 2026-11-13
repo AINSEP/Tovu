@@ -59,7 +59,7 @@ function makePost(overrides: Partial<PostRecord> = {}): PostRecord {
 }
 
 function makeDeps(rows: PostRecord[]) {
-  const postRepo = new InMemoryPostRepo(rows);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: rows });
   return {
     workspaceId: WORKSPACE_ID,
     postRepo,

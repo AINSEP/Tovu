@@ -16,7 +16,7 @@ async function fixture(dbPath = ':memory:') {
   db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w',at);
   const mediaRepo = new SqlMediaRepo(kernel), blobRepo = new SqlAssetBlobRepo(kernel), renditionRepo = new SqlAssetRenditionRepo(kernel);
   const outbox = new SqlOutboxAdapter(kernel), clock = { nowMs: () => Date.parse(at) };
-  const media = { mediaRepo, blobRepo, renditionRepo, blobStore: new InMemoryBlobStore(), clock, entryRefsRepo: new SqlEntryRefsRepo(kernel), postRepo: new SqlitePostRepo(kernel) };
+  const media = { mediaRepo, blobRepo, renditionRepo, blobStore: new InMemoryBlobStore(), clock, entryRefsRepo: new SqlEntryRefsRepo(kernel), postRepo: new SqlitePostRepo({ store: kernel }) };
   await mediaRepo.save({ id: 'm', workspaceId: 'w', slug: 'photo', originalFilename: 's-photo.png', title: '', alt: '', caption: '', credit: '', source: { sha256: 'hash' }, status: 'active', createdAt: at, updatedAt: at, version: 1, width: null, height: null, cssClass: null, htmlAttributes: null });
   const prove = () => scheduleFormAttachmentCleanup({ outbox, workspaceId: 'w', mediaId: 'm', sha256: 'hash', now: clock.nowMs(), graceMs: 1000 });
   return { db, kernel, media, outbox, clock, prove, workspaceId: 'w' };

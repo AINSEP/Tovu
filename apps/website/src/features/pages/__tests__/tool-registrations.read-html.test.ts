@@ -31,7 +31,7 @@ interface PageRead {
 
 /** Real domain/store plus the production batch selection and executor normalization gates. */
 function readerHarness(_required: Record<string, never>, { authorize, docBodyAsPageHtml }: Pick<Partial<PagesToolDeps>, "authorize" | "docBodyAsPageHtml"> = {}) {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const deps: PagesToolDeps = {
     workspaceId, postRepo: repo, authorize: authorize ?? (async () => ({ allowed: true, reason: "test" })),
     pagesHtmlStore: scope => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }),

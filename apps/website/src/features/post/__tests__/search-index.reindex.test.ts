@@ -28,7 +28,7 @@ const docPost: PostRecord = {
 
 /** What the pre-f7ca1e766 projection wrote for an HTML post: the empty doc placeholder's text. */
 async function writeLegacyProjection(kernel: ContentKernel, post: PostRecord): Promise<void> {
-  await postSearchFor(kernel).upsert(kernel, { postId: post.id as UUID, title: post.title, slug: post.slug, bodyText: "" });
+  await postSearchFor(kernel).upsert({ kernel, document: { postId: post.id as UUID, title: post.title, slug: post.slug, bodyText: "" } });
 }
 
 const tables = ["posts", "post_revisions", "post_search_document", "setting_values_global"];

@@ -23,7 +23,7 @@ const clock = { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z") };
 const WS = "ws-move";
 
 function harness() {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const registrations = buildPagesRegistrations({
     workspaceId: WS,
     authorize: async () => ({ allowed: true, reason: "matched" }),

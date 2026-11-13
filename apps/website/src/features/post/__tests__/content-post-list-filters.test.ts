@@ -42,7 +42,7 @@ function record(overrides: Partial<PostRecord> = {}): PostRecord {
 }
 
 function fixture({ rows = [record()] }: { rows?: PostRecord[] }, { allow = true }: { allow?: boolean } = {}) {
-  const postRepo = new InMemoryPostRepo(rows);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: rows });
   const reads: string[] = [];
   const listRows = postRepo.list.bind(postRepo);
   const findRow = postRepo.findById.bind(postRepo);

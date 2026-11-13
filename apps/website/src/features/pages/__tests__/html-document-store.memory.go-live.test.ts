@@ -28,14 +28,14 @@ test("InMemoryPagesHtmlDocumentStore: write and conversion after go-live announc
   const page = (fields: Record<string, unknown>) =>
     buildPostRecord({ id: "page-1", workspaceId: WS, kind: "page", status: "published", publishAt: GO_LIVE, updatedAt: SAVED, version: 1, ...fields });
 
-  const htmlRepo = new InMemoryPostRepo([page({ bodyFormat: "html", bodyHtml: "<p>v1</p>", bodyJson: null })]);
+  const htmlRepo = new InMemoryPostRepo({}, { initialRows: [page({ bodyFormat: "html", bodyHtml: "<p>v1</p>", bodyJson: null })] });
   const written = recordingOutbox();
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo: htmlRepo, clock, outbox: written });
   await store.read();
   await store.write("<p>v2</p>");
   assert.deepEqual(written.ids, [GO_LIVE_ID]);
 
-  const docRepo = new InMemoryPostRepo([page({})]);
+  const docRepo = new InMemoryPostRepo({}, { initialRows: [page({})] });
   const converted = recordingOutbox();
   await new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo: docRepo, clock, outbox: converted }).ensureHtmlFormat("<p>seed</p>");
   assert.deepEqual(converted.ids, [GO_LIVE_ID]);

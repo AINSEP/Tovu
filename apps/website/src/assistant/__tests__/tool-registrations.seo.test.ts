@@ -79,7 +79,7 @@ async function fakeRouteDeps(options: { allow?: boolean; posts?: PostRecord[] } 
   const allow = options.allow ?? true;
   const authorizeCalls: Array<Record<string, unknown>> = [];
 
-  const postRepo = new InMemoryPostRepo(options.posts ?? [seedPost()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: options.posts ?? [seedPost()] });
   const settingsRepo = new InMemorySettingsRepo();
 
   const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };

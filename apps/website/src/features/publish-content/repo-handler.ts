@@ -68,9 +68,9 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   readonly ports: (deps: PublishContentDeps) => Ports | undefined;
   /** The `PublishContentDeps.ports` key the not-wired messages name. Defaults to `entityType`. */
   readonly portsKey?: string;
-  readonly list: (ports: Ports, workspaceId: string) => Promise<readonly Row[]>;
+  readonly list: (required: { ports: Ports; workspaceId: string }, optional?: Record<string, never>) => Promise<readonly Row[]>;
   /** Must also return a trashed row, so precheck can refuse it rather than plan a create. */
-  readonly find: (ports: Ports, workspaceId: string, id: string) => Promise<Row | null>;
+  readonly find: (required: { ports: Ports; workspaceId: string; id: string }, optional?: Record<string, never>) => Promise<Row | null>;
   /** Defaults to `row.id`. */
   readonly idOf?: (row: Row) => string;
   /** Defaults to `row.version`. */
@@ -114,7 +114,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   /** When set, `write` runs inside `executeCommand` (inverse = the prior row; rollback = `restore`
    *  or, for a create, `remove`). When unset, the domain write keeps its own revision (redirect, menu). */
   readonly undo?: {
-    readonly restore: (ctx: RepoWriteContext<Row, Ports>, prior: Row) => Promise<void>;
+    readonly restore: (required: { ctx: RepoWriteContext<Row, Ports>; prior: Row }, optional?: Record<string, never>) => Promise<void>;
     readonly remove: (ctx: RepoWriteContext<Row, Ports>) => Promise<void>;
     /** Defaults to `Import <type> '<id>' via publish-content`. `ctx.existing` is not read yet. */
     readonly summary?: (ctx: RepoWriteContext<Row, Ports>) => string | Promise<string>;
@@ -196,7 +196,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
     async function* pack(): AsyncIterable<PackedEntity> {
       const p = ports();
       if (!p) return;
-      const rows = (await config.list(p, workspaceId)).filter((row) => !config.isTrashed?.(row) && (config.include?.(row) ?? true));
+      const rows = (await config.list({ ports: p, workspaceId })).filter((row) => !config.isTrashed?.(row) && (config.include?.(row) ?? true));
       for (const row of config.packOrder ? config.packOrder(rows) : rows) {
         const displayLabel = config.displayLabel?.(row);
         yield {
@@ -214,7 +214,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
 
     async function inspect(id: string): Promise<{ version: number; hash: string } | null> {
       const p = ports();
-      const row = p ? await config.find(p, workspaceId, id) : null;
+      const row = p ? await config.find({ ports: p, workspaceId, id }) : null;
       return row ? { version: versionOf(row), hash: hashOf(row) } : null;
     }
 
@@ -240,7 +240,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       if (!p) return notWired(entityType, entity.id, `${portsKey} port`);
       const addressReason = await precheckAddress({ entity, p });
       if (addressReason !== null) return addressReason;
-      const existing = await config.find(p, workspaceId, entity.id);
+      const existing = await config.find({ ports: p, workspaceId, id: entity.id });
       if (existing && config.isTrashed?.(existing)) return trashedAtDestination(entityType, entity.id);
       return (await config.validate?.({ ports: p, workspaceId, entity, existing })) ?? null;
     }
@@ -293,7 +293,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
 
       const { undo } = config;
       if (!undo) {
-        const written = await write(await config.find(p, workspaceId, entity.id));
+        const written = await write(await config.find({ ports: p, workspaceId, id: entity.id }));
         return { ...written, changeSetId: written.changeSetId ?? entity.id };
       }
       const { changeSets, authorize, outbox } = deps;
@@ -315,14 +315,14 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
           operation: expectedVersion === undefined ? "create" : "update",
           // Read inside the gateway so the CAS check and the inverse are the same, freshest read.
           captureInverse: async () => {
-            prior = await config.find(p, workspaceId, entity.id);
+            prior = await config.find({ ports: p, workspaceId, id: entity.id });
             return prior ? ({ ...prior } as unknown as JsonObject) : null;
           },
           execute: () => write(prior),
           captureEntityVersion: ({ result: written }) => written.version ?? null,
           rollback: async () => {
             for (const sideEffect of rollbacks.reverse()) await sideEffect();
-            await (prior ? undo.restore(ctx(prior), prior) : undo.remove(ctx(null)));
+            await (prior ? undo.restore({ ctx: ctx(prior), prior }) : undo.remove(ctx(null)));
           },
         },
       });

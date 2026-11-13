@@ -849,7 +849,7 @@ test("disabling through the real runtime callback stops the filter contributing 
   const source = markerSource("disable-marker");
   const runtime = composePluginRuntime({ workspaceId: WORKSPACE, clock: clock(), activationRepo: repo, sources: [source] });
   const deps = { clock: clock(), repo, discovery: await runtime.discoverPlugins(), onEnabled: runtime.onPluginEnabled, onDisabled: runtime.onPluginDisabled };
-  const postRepo = new InMemoryPostRepo([]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   const save = (id: string) => createPost({ deps: { repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id, title: id } });
   await setPluginEnabled({ deps, input: { workspaceId: WORKSPACE, pluginId: source.manifest.id, enabled: true } });
   await save("before-disable");
@@ -895,7 +895,7 @@ test("runtime SDK content reads and extension writes are isolated across overlap
   };
   const runtime = composePluginRuntime({ workspaceId: WORKSPACE, clock: clock(), activationRepo: repo, sources: [sdkSource] });
   await runtime.onPluginEnabled(sdkSource.manifest.id);
-  const postRepo = new InMemoryPostRepo([]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   const save = (id: string, title: string) => createPost({ deps: { repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id, title } });
   await Promise.all([save("first", "First title"), save("second", "Second title")]);
   assert.deepEqual((await postRepo.findById({ workspaceId: WORKSPACE, id: "first" }))?.ext, { "sdk-marker": { firstOnly: true, title: "First title" } });

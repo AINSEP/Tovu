@@ -76,7 +76,7 @@ function rename(record: PostRecord, slug: string, extra: { status?: "draft" | "p
 
 test("a published entry's slug change hands the capture its old and new public paths", async () => {
   const record = seed();
-  const repo = new InMemoryPostRepo([record]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [record] });
   const capture = recordingCapture();
 
   await updatePost({ deps: deps(repo, capture), input: rename(record, "renamed", { actorId: "principal-7" }) });
@@ -90,7 +90,7 @@ test("an unattributed slug change is captured as the system actor", async () => 
   const record = seed();
   const capture = recordingCapture();
 
-  await updatePost({ deps: deps(new InMemoryPostRepo([record]), capture), input: rename(record, "renamed") });
+  await updatePost({ deps: deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), input: rename(record, "renamed") });
 
   assert.equal(capture.calls[0]?.actor, SYSTEM_ACTOR_ID);
 });
@@ -99,7 +99,7 @@ test("a published entry moving ONTO the root slug is captured with '/' as its ne
   const record = seed({ kind: "page" });
   const capture = recordingCapture();
 
-  await updatePost({ deps: deps(new InMemoryPostRepo([record]), capture), input: rename(record, ROOT_SLUG) });
+  await updatePost({ deps: deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), input: rename(record, ROOT_SLUG) });
 
   assert.deepEqual(capture.calls.map(({ oldPath, newPath }) => ({ oldPath, newPath })), [{ oldPath: "/hello-world", newPath: "/" }]);
 });
@@ -108,7 +108,7 @@ test("a draft's slug change captures nothing: its old URL was never public", asy
   const record = seed({ status: "draft" });
   const capture = recordingCapture();
 
-  await updatePost({ deps: deps(new InMemoryPostRepo([record]), capture), input: rename(record, "renamed") });
+  await updatePost({ deps: deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), input: rename(record, "renamed") });
 
   assert.deepEqual(capture.calls, []);
 });
@@ -117,7 +117,7 @@ test("publishing a draft under a new slug captures nothing: the old URL was a dr
   const record = seed({ status: "draft" });
   const capture = recordingCapture();
 
-  await updatePost({ deps: deps(new InMemoryPostRepo([record]), capture), input: rename(record, "renamed", { status: "published" }) });
+  await updatePost({ deps: deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), input: rename(record, "renamed", { status: "published" }) });
 
   assert.deepEqual(capture.calls, []);
 });
@@ -126,7 +126,7 @@ test("unpublishing under a new slug still captures: the old URL was public until
   const record = seed();
   const capture = recordingCapture();
 
-  await updatePost({ deps: deps(new InMemoryPostRepo([record]), capture), input: rename(record, "renamed", { status: "draft" }) });
+  await updatePost({ deps: deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), input: rename(record, "renamed", { status: "draft" }) });
 
   assert.equal(capture.calls.length, 1);
 });
@@ -135,7 +135,7 @@ test("a published save that keeps its slug captures nothing", async () => {
   const record = seed();
   const capture = recordingCapture();
 
-  await updatePost({ deps: deps(new InMemoryPostRepo([record]), capture), input: { ...rename(record, record.slug), title: "New title" } });
+  await updatePost({ deps: deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), input: { ...rename(record, record.slug), title: "New title" } });
 
   assert.deepEqual(capture.calls, []);
 });
@@ -144,14 +144,14 @@ test("the homepage page leaving the root slug captures nothing: '/' must not red
   const record = seed({ kind: "page", slug: ROOT_SLUG });
   const capture = recordingCapture();
 
-  await updatePost({ deps: deps(new InMemoryPostRepo([record]), capture), input: rename(record, "about") });
+  await updatePost({ deps: deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), input: rename(record, "about") });
 
   assert.deepEqual(capture.calls, []);
 });
 
 test("no bound capture (lookup returns undefined) still saves the rename", async () => {
   const record = seed();
-  const repo = new InMemoryPostRepo([record]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [record] });
 
   const { post } = await updatePost({ deps: deps(repo, undefined), input: rename(record, "renamed") });
 
@@ -161,7 +161,7 @@ test("no bound capture (lookup returns undefined) still saves the rename", async
 
 test("no lookup injected at all (a caller predating the slot) still saves the rename", async () => {
   const record = seed();
-  const repo = new InMemoryPostRepo([record]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [record] });
 
   const { post } = await updatePost({ deps: { repo, clock, outbox: noopOutbox }, input: rename(record, "renamed") });
 
@@ -170,7 +170,7 @@ test("no lookup injected at all (a caller predating the slot) still saves the re
 
 test("a capture that throws rolls the rename back: no moved entry without its redirect (INV-02)", async () => {
   const record = seed();
-  const repo = new InMemoryPostRepo([record]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [record] });
   const capture = recordingCapture({ fail: new Error("redirect insert failed") });
 
   await assert.rejects(() => updatePost({ deps: deps(repo, capture), input: rename(record, "renamed") }), /redirect insert failed/);
@@ -183,7 +183,7 @@ test("a capture that throws rolls the rename back: no moved entry without its re
 for (const reserved of ["admin", "api"]) {
   test(`updatePost refuses a rename onto the reserved slug '${reserved}' with create's message, writing nothing`, async () => {
     const record = seed();
-    const repo = new InMemoryPostRepo([record]);
+    const repo = new InMemoryPostRepo({}, { initialRows: [record] });
     const capture = recordingCapture();
 
     await assert.rejects(
@@ -204,7 +204,7 @@ for (const reserved of ["admin", "api"]) {
 // rename could store a slug create would have refused.
 test("updatePost refuses a 121-character slug with create's message, writing nothing", async () => {
   const record = seed();
-  const repo = new InMemoryPostRepo([record]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [record] });
   const capture = recordingCapture();
 
   await assert.rejects(
@@ -222,7 +222,7 @@ test("updatePost refuses a 121-character slug with create's message, writing not
 
 test("updatePost accepts a slug of exactly 120 characters", async () => {
   const record = seed();
-  const repo = new InMemoryPostRepo([record]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [record] });
 
   const { post } = await updatePost({ deps: deps(repo, undefined), input: rename(record, "a".repeat(120)) });
 

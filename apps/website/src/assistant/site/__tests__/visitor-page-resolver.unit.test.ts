@@ -11,7 +11,7 @@ test('visitor navigation requires published public IDs and rejects encoded reser
     buildPostRecord({ id: 'draft', workspaceId: 'ws', slug: 'draft', status: 'draft' }),
     buildPostRecord({ id: 'reserved', workspaceId: 'ws', slug: '%61dmin/settings', status: 'published' }),
   ];
-  const deps = { postRepo: new InMemoryPostRepo(posts), workspaceId: 'ws', listPublishedPosts, memberAccess: anonymousMemberAccess() };
+  const deps = { postRepo: new InMemoryPostRepo({}, { initialRows: posts }), workspaceId: 'ws', listPublishedPosts, memberAccess: anonymousMemberAccess() };
   assert.equal((await resolveVisitorPageTarget({ deps, input: { page: 'public' } })).path, '/about');
   for (const input of [{ page: 'draft' }, { page: 'reserved' }, { page: '/admin' }, { page: 'public', query: { redirect: '/admin' } }, { page: 'public', entity: { type: 'user', id: 'public' } }]) {
     await assert.rejects(resolveVisitorPageTarget({ deps, input }));

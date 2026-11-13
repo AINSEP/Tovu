@@ -63,7 +63,7 @@ function adapterOver(postRepo: InMemoryPostRepo, optional: { withHardDelete: boo
 }
 
 test("the post adapter purges for real once hardDelete is wired — the row and its ledger are gone", async () => {
-  const postRepo = new InMemoryPostRepo([seed()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [seed()] });
   const adapter = adapterOver(postRepo, { withHardDelete: true });
   const hidden = await adapter.hide({ workspaceId: WS, entityId: "post-1", at: AT, expectedVersion: 3 });
   assert.deepEqual(hidden, { ok: true, version: 4 });
@@ -76,7 +76,7 @@ test("the post adapter purges for real once hardDelete is wired — the row and 
 });
 
 test("without hardDelete the same adapter still stands down rather than claiming a removal", async () => {
-  const postRepo = new InMemoryPostRepo([seed()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [seed()] });
   const adapter = adapterOver(postRepo, { withHardDelete: false });
   await adapter.hide({ workspaceId: WS, entityId: "post-1", at: AT, expectedVersion: 3 });
 
@@ -88,7 +88,7 @@ test("without hardDelete the same adapter still stands down rather than claiming
 
 test("hide then unhide restores the stored payload and marker with a fresh timestamp and version", async () => {
   const original = { ...seed(), bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Keep this body" }] }] } };
-  const postRepo = new InMemoryPostRepo([original]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [original] });
   const adapter = adapterOver(postRepo, { withHardDelete: true });
   assert.deepEqual(await adapter.hide({ workspaceId: WS, entityId: original.id, at: AT, expectedVersion: 3 }), { ok: true, version: 4 });
   assert.deepEqual(await postRepo.findById({ workspaceId: WS, id: original.id }), { ...original, deletedAt: AT, updatedAt: AT, version: 4 });

@@ -133,8 +133,8 @@ function baseConfig(overrides: Partial<RepoPublishTypeConfig<Row, ItemPorts>> = 
     entityType: "item",
     permission: "admin.items.manage",
     ports: (deps) => (deps as TestDeps).itemPorts,
-    list: (ports, workspaceId) => ports.repo.list(workspaceId),
-    find: (ports, workspaceId, id) => ports.repo.find(workspaceId, id),
+    list: ({ ports, workspaceId }) => ports.repo.list(workspaceId),
+    find: ({ ports, workspaceId, id }) => ports.repo.find(workspaceId, id),
     isTrashed: (row) => row.status === "trashed",
     include: (row) => row.status !== "hidden",
     fields: { id: "local", workspaceId: "local", slug: "transferred", title: "transferred", note: "provenance", status: "transferred", version: "local" },
@@ -277,7 +277,7 @@ test("precheck compares the address holder by idOf, so a natural-key type is not
   const handler = buildHandler(
     baseConfig({
       idOf: (row) => row.slug,
-      find: (ports, workspaceId, slug) => ports.repo.findBySlug(workspaceId, slug),
+      find: ({ ports, workspaceId, id: slug }) => ports.repo.findBySlug(workspaceId, slug),
       address: { field: "slug", holder: (ports, workspaceId, slug) => ports.repo.findBySlug(workspaceId, slug) },
     }),
     makeDeps({ repo })
@@ -426,7 +426,7 @@ test("undo.restore is called on rollback when a prior row existed", async () => 
   const handler = buildHandler(
     baseConfig({
       undo: {
-        restore: async (ctx, prior) => {
+        restore: async ({ ctx, prior }) => {
           restoreCalledWith = prior;
           ctx.ports.repo.put(prior);
         },
@@ -574,7 +574,7 @@ for (const operation of ["create", "update"] as const) {
         ctx.onRollback(async () => { assert.equal(association, "second"); association = "first"; order.push("second"); });
       },
       undo: {
-        restore: async (ctx, row) => { order.push("restore"); assert.equal(association, "original"); ctx.ports.repo.put(row); },
+        restore: async ({ ctx, prior: row }) => { order.push("restore"); assert.equal(association, "original"); ctx.ports.repo.put(row); },
         remove: async (ctx) => { order.push("remove"); assert.equal(association, "original"); ctx.ports.repo.remove(ctx.id); },
       },
     }), makeDeps({ repo }, { changeSets: throwingChangeSets() }));

@@ -47,7 +47,7 @@ function runContract(name: string, makeRepo: () => PostRepoPort & GoLiveCandidat
   });
 }
 
-runContract("memory", () => new InMemoryPostRepo());
+runContract("memory", () => new InMemoryPostRepo({}));
 
 describeEachDialect("post go-live candidates", { tables: ["posts", "post_revisions"], make: postRepoFor }, (makeRepo) => {
   runContract("sql", makeRepo);

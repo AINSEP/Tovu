@@ -63,7 +63,7 @@ function nextRecord(from: PostRecord, text: string): PostRecord {
 function openTempSqliteRepo() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "post-save-if-version-sqlite-"));
   const db = openContentDb(path.join(tmpDir, "content.db"));
-  return { db, repo: new SqlitePostRepo(db), cleanup: () => fs.rmSync(tmpDir, { recursive: true, force: true }) };
+  return { db, repo: new SqlitePostRepo({ store: db }), cleanup: () => fs.rmSync(tmpDir, { recursive: true, force: true }) };
 }
 
 /** Runs the same behavioral contract against both `PostRepoPort` adapters. `withRepo` hands the
@@ -170,7 +170,7 @@ function runSaveIfVersionContract(
 }
 
 runSaveIfVersionContract("InMemoryPostRepo", async () => {
-  const repo = new InMemoryPostRepo([baseRecord()]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [baseRecord()] });
   return { repo, teardown: () => {} };
 });
 

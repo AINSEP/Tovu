@@ -21,7 +21,7 @@ const EMPTY_DOC = { type: "doc", content: [] };
 
 function fakeRouteDeps(options: { allow?: boolean } = {}) {
   let allow = options.allow ?? true;
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const changeSets = new InMemoryChangeSetRepo();
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();

@@ -2055,7 +2055,7 @@ async function composeSiteRouteDeps(
   // are stateless wrappers over the shared kernel, so a second instance would behave
   // identically, but reusing one matches this root's existing single-instance convention (see
   // `outbox`/`settingsRepo` above).
-  const postRepo = new SqlitePostRepo(kernel);
+  const postRepo = new SqlitePostRepo({ store: kernel });
 
   // Task 8 of the publish-content (Publish Content) feature — same "reuse one instance" convention
   // as `postRepo` just above: `publishContentApplyPort`'s own bundle/baseline reads must hit the

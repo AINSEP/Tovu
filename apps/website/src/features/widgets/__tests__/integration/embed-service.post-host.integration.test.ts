@@ -40,7 +40,7 @@ function makeSharedRepos() {
     entryRepo: new InMemoryEntryRepo(),
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
     changeSets: new InMemoryChangeSetRepo(),
   };
 }

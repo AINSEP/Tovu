@@ -37,7 +37,7 @@ function baseDeps(themesDir: string): ContentRouteDeps {
     // The detail route now does one `postRepo.list()` per request (slug-collision signal,
     // `contentRecordsBySlug`) — an empty in-memory repo, matching every fixture in this file that
     // has no posts of its own to collide with any theme page.
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
   } as unknown as ContentRouteDeps;
 }
 
@@ -134,7 +134,7 @@ test("malformed theme.json: the route still 200s on a theme loadTheme marked inv
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes,
     themesDir: root,
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
   } as unknown as ContentRouteDeps;
   const app = buildTestApp(deps);
   const baseUrl = await startTestServer(app, t);
@@ -166,7 +166,7 @@ test("an unrecognized theme root triggers the route's outer catch-all 500", asyn
     // The detail route now does one `postRepo.list()` per request (slug-collision signal,
     // `contentRecordsBySlug`) — an empty in-memory repo, matching every fixture in this file that
     // has no posts of its own to collide with any theme page.
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
   } as unknown as ContentRouteDeps;
   const app = buildTestApp(deps);
   const baseUrl = await startTestServer(app, t);

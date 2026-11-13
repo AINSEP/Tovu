@@ -90,7 +90,7 @@ function seed(overrides: Partial<PostRecord> = {}): PostRecord {
 // ---------------------------------------------------------------------------
 
 test("deletePost stamps a trash marker and keeps the row (soft, not hard)", async () => {
-  const repo = new InMemoryPostRepo([seed()]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed()] });
 
   const { post } = await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
@@ -108,7 +108,7 @@ test("deletePost stamps a trash marker and keeps the row (soft, not hard)", asyn
 });
 
 test("deletePost rejects an unknown id", async () => {
-  const repo = new InMemoryPostRepo([seed()]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed()] });
   await assert.rejects(
     () => deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "nope" } }),
     PostNotFoundError,
@@ -116,7 +116,7 @@ test("deletePost rejects an unknown id", async () => {
 });
 
 test("deletePost rejects an already-trashed row rather than bumping the version a second time", async () => {
-  const repo = new InMemoryPostRepo([seed()]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed()] });
   await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
   await assert.rejects(
@@ -129,7 +129,7 @@ test("deletePost rejects an already-trashed row rather than bumping the version 
 });
 
 test("deletePost is workspace-scoped — another workspace's id is not found", async () => {
-  const repo = new InMemoryPostRepo([seed()]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed()] });
   await assert.rejects(
     () => deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: "other-ws", id: "post-1" } }),
     PostNotFoundError,
@@ -137,7 +137,7 @@ test("deletePost is workspace-scoped — another workspace's id is not found", a
 });
 
 test("deletePost is kind-blind, exactly like updatePost — the kind guard belongs to the route/tool", async () => {
-  const repo = new InMemoryPostRepo([seed({ id: "pg1", kind: "page", slug: "about" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed({ id: "pg1", kind: "page", slug: "about" })] });
   const { post } = await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "pg1" } });
   assert.equal(post.kind, "page");
 });
@@ -147,7 +147,7 @@ test("deletePost is kind-blind, exactly like updatePost — the kind guard belon
 // ---------------------------------------------------------------------------
 
 test("deleting a PUBLISHED row emits entry.unpublished (SEO's sitemap-cache invalidation signal)", async () => {
-  const repo = new InMemoryPostRepo([seed({ status: "published" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed({ status: "published" })] });
   const { outbox, events } = recordingOutbox();
 
   await deletePost({ deps: { repo, clock, outbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
@@ -160,7 +160,7 @@ test("deleting a PUBLISHED row emits entry.unpublished (SEO's sitemap-cache inva
 });
 
 test("deleting a DRAFT row emits nothing — it was never on the public site", async () => {
-  const repo = new InMemoryPostRepo([seed({ status: "draft" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed({ status: "draft" })] });
   const { outbox, events } = recordingOutbox();
 
   await deletePost({ deps: { repo, clock, outbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
@@ -173,11 +173,11 @@ test("deleting a DRAFT row emits nothing — it was never on the public site", a
 // ---------------------------------------------------------------------------
 
 test("a trashed row disappears from listAdminPosts, listAdminPages, and listPublishedPosts", async () => {
-  const repo = new InMemoryPostRepo([
+  const repo = new InMemoryPostRepo({}, { initialRows: [
     seed({ id: "p1", slug: "p1", kind: "post", status: "published" }),
     seed({ id: "p2", slug: "p2", kind: "post", status: "published" }),
     seed({ id: "g1", slug: "g1", kind: "page", status: "published" }),
-  ]);
+  ] });
 
   await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "p1" } });
   await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "g1" } });
@@ -193,7 +193,7 @@ test("a trashed row disappears from listAdminPosts, listAdminPages, and listPubl
 });
 
 test("a trashed row 404s from getAdminPostById, indistinguishably from a missing id", async () => {
-  const repo = new InMemoryPostRepo([seed()]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed()] });
   await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
   const trashed = await getAdminPostById({ deps: { repo }, input: { workspaceId: WS, id: "post-1" } }).then(
@@ -215,7 +215,7 @@ test("a trashed row 404s from getAdminPostById, indistinguishably from a missing
 });
 
 test("a trashed PUBLISHED row vanishes from the public site (getPublishedPostBySlug)", async () => {
-  const repo = new InMemoryPostRepo([seed({ status: "published" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed({ status: "published" })] });
   const before = await getPublishedPostBySlug({ deps: { repo }, input: { workspaceId: WS, slug: "hello-world" } });
   assert.equal(before.post.id, "post-1");
 
@@ -228,7 +228,7 @@ test("a trashed PUBLISHED row vanishes from the public site (getPublishedPostByS
 });
 
 test("updatePost refuses to edit a trashed row — there is no edit-through-the-trash path", async () => {
-  const repo = new InMemoryPostRepo([seed()]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed()] });
   await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
   await assert.rejects(
@@ -249,7 +249,7 @@ test("updatePost refuses to edit a trashed row — there is no edit-through-the-
 // is moved aside (`<slug>-trashed`) so the new write takes the slug. Full certification lives in
 // `post.trashed-slug-release.test.ts`; these two keep the delete-side view of the same rule.
 test("a trashed row yields its slug: creating a new post with that explicit slug moves the trashed row aside", async () => {
-  const repo = new InMemoryPostRepo([seed({ slug: "hello-world" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed({ slug: "hello-world" })] });
   await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
   const { post } = await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new-1", title: "Hello World", slug: "hello-world" } });
@@ -258,7 +258,7 @@ test("a trashed row yields its slug: creating a new post with that explicit slug
 });
 
 test("a DERIVED slug takes a trashed row's slug instead of suffixing past it", async () => {
-  const repo = new InMemoryPostRepo([seed({ slug: "hello-world" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed({ slug: "hello-world" })] });
   await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
   const { post } = await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new-1", title: "Hello World" } });
@@ -270,8 +270,8 @@ test("a DERIVED slug takes a trashed row's slug instead of suffixing past it", a
 // ---------------------------------------------------------------------------
 
 const ADAPTERS: Array<{ name: string; make: () => PostRepoPort }> = [
-  { name: "InMemoryPostRepo", make: () => new InMemoryPostRepo() },
-  { name: "SqlitePostRepo", make: () => new SqlitePostRepo(openContentDb(":memory:")) },
+  { name: "InMemoryPostRepo", make: () => new InMemoryPostRepo({}) },
+  { name: "SqlitePostRepo", make: () => new SqlitePostRepo({ store: openContentDb(":memory:") }) },
   { name: "PglitePostRepo", make: () => makePglitePostRepo().repo },
 ];
 

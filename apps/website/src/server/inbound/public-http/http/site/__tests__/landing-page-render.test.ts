@@ -40,7 +40,7 @@ test("no-theme public render keeps the landing page scripts and button SVGs", as
 test("static-tier template render keeps the landing page scripts and button SVGs, saved and pending", async () => {
   const deps = createRouteDeps();
   const post = buildPostRecord({ workspaceId: deps.workspaceId, kind: "page", bodyFormat: "html", bodyHtml: body });
-  deps.postRepo = new InMemoryPostRepo([post]);
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
   const theme = {
     manifest: { id: "landing-test", name: "Landing test", version: "1.0.0", tier: "static", engine: 1, templates: ["post.html"] },
     dir: "/nonexistent/landing-test", tokens: {}, tokensLight: {}, templates: {}, liquidTemplates: {}, handlebarsTemplates: {},

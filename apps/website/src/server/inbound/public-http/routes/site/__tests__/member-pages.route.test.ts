@@ -86,7 +86,7 @@ test("login provider slots ship empty and hidden: core names no provider, the sc
 for (const theme of [starter, marketing]) {
   test(`GET each member page renders in the ${theme.manifest.id} theme with the member script`, async (t) => {
     assert.equal(theme.status, "valid", JSON.stringify(theme.errors));
-    const { server, baseUrl } = await startServer({ ...authenticatedDeps(), themes: [theme], postRepo: new InMemoryPostRepo([]) });
+    const { server, baseUrl } = await startServer({ ...authenticatedDeps(), themes: [theme], postRepo: new InMemoryPostRepo({}, { initialRows: [] }) });
     t.after(() => closeServer(server));
     for (const [route, entry] of Object.entries(MEMBER_PAGES)) {
       const res = await fetch(`${baseUrl}${route}`, {
@@ -122,7 +122,7 @@ for (const { theme, enabled } of [
     test(`member pages in ${theme.manifest.tier} theme construct consent assets when enabled=${enabled}`, async (t) => {
       assert.equal(theme.status, "valid", JSON.stringify(theme.errors));
       const { server, baseUrl } = await startServer({ ...authenticatedDeps(), ...consentOverrides(enabled),
-        themes: [theme], postRepo: new InMemoryPostRepo([]) });
+        themes: [theme], postRepo: new InMemoryPostRepo({}, { initialRows: [] }) });
       t.after(() => closeServer(server));
       for (const route of ["/signin", "/forgot-password", "/reset-password", "/account"]) {
         const response = await fetch(`${baseUrl}${route}`, { headers: route === "/account" ? { cookie: memberCookie } : {} });
@@ -176,7 +176,7 @@ test("unknown, expired and revoked member sessions cannot render /account", asyn
 });
 
 test("the tovu-starter header carries the member Sign in hook on every public page", async (t) => {
-  const { server, baseUrl } = await startServer({ themes: [starter], postRepo: new InMemoryPostRepo([]) });
+  const { server, baseUrl } = await startServer({ themes: [starter], postRepo: new InMemoryPostRepo({}, { initialRows: [] }) });
   t.after(() => closeServer(server));
   const html = await (await fetch(baseUrl)).text();
   assert.match(html, /<a href="\/signin" class="[^"]*\bnav-signin\b[^"]*" data-member-nav\b/);
@@ -188,7 +188,7 @@ test("/signin wins over an authored Page with the same slug", async (t) => {
   const authored = { id: "authored-signin", workspaceId: base.workspaceId, title: "Old mock", slug: "signin", bodyJson: {},
     bodyFormat: "html", bodyHtml: "<p>AUTHORED_SIGNIN_MOCK</p>", status: "published", kind: "page",
     updatedAt: "2026-10-24T00:00:00.000Z", version: 1 } as unknown as PostRecord;
-  const { server, baseUrl } = await startServer({ themes: [starter], postRepo: new InMemoryPostRepo([authored]) });
+  const { server, baseUrl } = await startServer({ themes: [starter], postRepo: new InMemoryPostRepo({}, { initialRows: [authored] }) });
   t.after(() => closeServer(server));
   const html = await (await fetch(`${baseUrl}/signin`)).text();
   assert.ok(html.includes('data-member-page="signin"'));
@@ -196,7 +196,7 @@ test("/signin wins over an authored Page with the same slug", async (t) => {
 });
 
 test("a static export keeps the theme's plain Sign in link: no member script", async (t) => {
-  const { server, baseUrl } = await startServer({ themes: [starter], postRepo: new InMemoryPostRepo([]) });
+  const { server, baseUrl } = await startServer({ themes: [starter], postRepo: new InMemoryPostRepo({}, { initialRows: [] }) });
   t.after(() => closeServer(server));
   const html = await (await fetch(baseUrl, { headers: { "x-tovu-static-export": "1" } })).text();
   assert.ok(html.includes("data-member-nav"), "the link itself is the theme's and stays");
@@ -246,7 +246,7 @@ test('static pages with consent off load theme and plugin declarations without t
   const consent = consentOverrides(false);
   consent.cookieConsent!.scriptDeclarations = async () => ({ scripts: [{ src: '/plugin-menu.js' }], problems: [] });
   const { server, baseUrl } = await startServer({ ...authenticatedDeps(), ...consent,
-    themes: [theme], postRepo: new InMemoryPostRepo([]) });
+    themes: [theme], postRepo: new InMemoryPostRepo({}, { initialRows: [] }) });
   t.after(() => closeServer(server));
   for (const route of ['/', '/signin', '/missing-page']) {
     const response = await fetch(`${baseUrl}${route}`);

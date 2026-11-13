@@ -41,7 +41,7 @@ const NOW = "2026-09-07T00:00:00.000Z";
 const EMPTY_DOC = { type: "doc", content: [] };
 
 function fakeRouteDeps(overrides: Record<string, unknown> = {}) {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const changeSets = new InMemoryChangeSetRepo();
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();

@@ -44,7 +44,7 @@ function postRecord(overrides: Partial<PostRecord> = {}): PostRecord {
 
 test('renderHtmlPageBody: two "content" markers referencing the SAME id with DIFFERENT header options must render each occurrence with ITS OWN header setting, not whichever one won the resolve-time Map collapse', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecord()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord()] });
 
   const html =
     `<section id="with-header"><main data-embed-config='{"type":"content","id":"entity-1","header":true}'></main></section>` +

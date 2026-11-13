@@ -30,7 +30,7 @@ test("native multipart preserves choice arrays, file bytes, duplicate scalar con
 test("form upload storage delegates to real media/blob/rendition ports and supports compensating cleanup", async () => {
   let id = 0; const mediaRepo = new InMemoryVersionedMediaRepo(); const blobRepo = new InMemoryAssetBlobRepo({}); const renditionRepo = new InMemoryAssetRenditionRepo({}); const blobStore = new InMemoryBlobStore(); const contentTypes = new InMemoryMediaContentTypeStore();
   const attributionRequests: { workspaceId: string }[] = [];
-  const storage = createFormFileStorage({ media: { clock: { nowMs: () => 0 }, idGen: { newId: () => `asset-${++id}` }, mediaRepo, blobRepo, renditionRepo, blobStore, entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo() }, contentTypes, resolveCreatedByPrincipal: async (required) => { attributionRequests.push(required); return "site-system"; } });
+  const storage = createFormFileStorage({ media: { clock: { nowMs: () => 0 }, idGen: { newId: () => `asset-${++id}` }, mediaRepo, blobRepo, renditionRepo, blobStore, entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo({}) }, contentTypes, resolveCreatedByPrincipal: async (required) => { attributionRequests.push(required); return "site-system"; } });
   assert.equal(storage.detectContentType({ bytes: png }), "image/png");
   assert.equal(storage.detectContentType({ bytes: new TextEncoder().encode("%PDF-1.7") }), "application/pdf");
   assert.equal(storage.detectContentType({ bytes: new Uint8Array([77, 90]) }), "application/octet-stream");
@@ -55,7 +55,7 @@ test("form upload removes its asset when recording the content type fails and pr
   const storage = createFormFileStorage({
     media: { clock: { nowMs: () => 0 }, idGen: { newId: () => `asset-${++id}` }, mediaRepo, blobRepo,
       renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(),
-      entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo() },
+      entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo({}) },
     contentTypes, resolveCreatedByPrincipal: async () => "site-system",
   });
   await assert.rejects(storage.store({ workspaceId: "ws", submissionId: "submission", fieldId: "photo",
@@ -74,7 +74,7 @@ test("form discard keeps a referenced upload trashed rather than bypassing the r
   const storage = createFormFileStorage({
     media: { clock: { nowMs: () => 0 }, idGen: { newId: () => `asset-${++id}` }, mediaRepo, blobRepo,
       renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(),
-      entryRefsRepo, postRepo: new InMemoryPostRepo() },
+      entryRefsRepo, postRepo: new InMemoryPostRepo({}) },
     contentTypes: new InMemoryMediaContentTypeStore(), resolveCreatedByPrincipal: async () => "site-system",
   });
   const reference = await storage.store({ workspaceId: "ws", submissionId: "submission", fieldId: "photo",
@@ -115,7 +115,7 @@ test("form upload attribution failure writes no media or blob", async () => {
   const attributionError = new Error("identity seed failed");
   const storage = createFormFileStorage({
     media: { clock: { nowMs: () => 0 }, idGen: { newId: () => "must-not-be-used" }, mediaRepo,
-      entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo(),
+      entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo({}),
       blobRepo, renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore() },
     contentTypes: new InMemoryMediaContentTypeStore(),
     resolveCreatedByPrincipal: async () => { throw attributionError; },

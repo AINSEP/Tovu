@@ -75,7 +75,7 @@ class NoOriginRegistry implements OriginRegistryPort {
 }
 
 test("GET /llms.txt: a published, publicly-visible page appears, linked with an absolute URL and its real derived description", async (t) => {
-  const postRepo = new InMemoryPostRepo([pagePost()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [pagePost()] });
   const app = buildLlmsOnlyApp({ postRepo });
   const baseUrl = await startTestServer(app, t);
 
@@ -86,11 +86,11 @@ test("GET /llms.txt: a published, publicly-visible page appears, linked with an 
 });
 
 test("GET /llms.txt: titles sort independently of insertion order and empty bodies have no fabricated description", async (t) => {
-  const postRepo = new InMemoryPostRepo([
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [
     pagePost({ id: "z", slug: "zebra", title: "Zebra Guide" }),
     pagePost({ id: "a", slug: "alpha", title: "Alpha Guide", bodyJson: { type: "doc", content: [] } }),
     pagePost({ id: "m", slug: "middle", title: "Middle Guide" }),
-  ]);
+  ] });
   const baseUrl = await startTestServer(buildLlmsOnlyApp({ postRepo, originRegistry: new NoOriginRegistry() }), t);
   const res = await fetch(`${baseUrl}/llms.txt`);
   assert.equal(res.status, 200);
@@ -102,7 +102,7 @@ test("GET /llms.txt: titles sort independently of insertion order and empty bodi
 });
 
 test("GET /llms.txt: a draft page does not appear", async (t) => {
-  const postRepo = new InMemoryPostRepo([pagePost({ status: "draft" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [pagePost({ status: "draft" })] });
   const app = buildLlmsOnlyApp({ postRepo });
   const baseUrl = await startTestServer(app, t);
 
@@ -113,7 +113,7 @@ test("GET /llms.txt: a draft page does not appear", async (t) => {
 });
 
 test("GET /llms.txt: an effective-noindex page does not appear", async (t) => {
-  const postRepo = new InMemoryPostRepo([pagePost({ seoExtJson: JSON.stringify({ noindex: true }) })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [pagePost({ seoExtJson: JSON.stringify({ noindex: true }) })] });
   const app = buildLlmsOnlyApp({ postRepo });
   const baseUrl = await startTestServer(app, t);
 
@@ -124,7 +124,7 @@ test("GET /llms.txt: an effective-noindex page does not appear", async (t) => {
 });
 
 test("GET /llms.txt: a members-gated published page does not appear to an anonymous reader (ADR-030 §4)", async (t) => {
-  const postRepo = new InMemoryPostRepo([pagePost({ memberAccessJson: JSON.stringify({ visibility: "members" }) })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [pagePost({ memberAccessJson: JSON.stringify({ visibility: "members" }) })] });
   const app = buildLlmsOnlyApp({ postRepo });
   const baseUrl = await startTestServer(app, t);
 
@@ -139,7 +139,7 @@ test("GET /llms.txt: a members-gated published page does not appear to an anonym
 });
 
 test("GET /llms.txt: a trashed page that still carries status: 'published' does not appear (softDelete never clears status, ADR-030-adjacent 2026-09-04 fix)", async (t) => {
-  const postRepo = new InMemoryPostRepo([pagePost({ deletedAt: "2026-09-04T00:00:00.000Z" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [pagePost({ deletedAt: "2026-09-04T00:00:00.000Z" })] });
   const app = buildLlmsOnlyApp({ postRepo });
   const baseUrl = await startTestServer(app, t);
 
@@ -154,7 +154,7 @@ test("GET /llms.txt: a trashed page that still carries status: 'published' does 
 });
 
 test("GET /llms.txt: with NO verified origin registered, the page URL still uses the serving origin", async (t) => {
-  const postRepo = new InMemoryPostRepo([pagePost()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [pagePost()] });
   const app = buildLlmsOnlyApp({ postRepo, originRegistry: new NoOriginRegistry() });
   const baseUrl = await startTestServer(app, t);
 
@@ -169,7 +169,7 @@ test("GET /llms.txt: a post-read failure is caught and reported as a plain-text 
   // Mutate the real repo instance's own `list`, rather than spreading it into a plain object --
   // `InMemoryPostRepo`'s methods live on its prototype, so a spread would silently drop
   // `findById`/`findBySlug`/etc. too.
-  const postRepo = new InMemoryPostRepo([]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   postRepo.list = async () => {
     throw new Error("post store unavailable");
   };
@@ -187,7 +187,7 @@ for (const description of ["Field notes from the garden.", undefined]) {
   test(`GET /llms.txt uses the site's title and ${description ? 'configured summary' : 'no fabricated summary'}`, async t => {
     const base = createRouteDeps();
     await Promise.all([base.siteTitleReady, base.seoReady]);
-    const deps: SeoRouteDeps = { ...base, postRepo: new InMemoryPostRepo([]), siteDisplayName: { read: () => "Garden Journal" } };
+    const deps: SeoRouteDeps = { ...base, postRepo: new InMemoryPostRepo({}, { initialRows: [] }), siteDisplayName: { read: () => "Garden Journal" } };
     deps.seoDeps = createSeoDeps({ deps }, {});
     const settings = await deps.seoDeps.settings.getSeoSettings({ workspaceId: deps.workspaceId });
     deps.seoDeps.settings.getSeoSettings = async () => ({ ...settings, defaultDescription: description });

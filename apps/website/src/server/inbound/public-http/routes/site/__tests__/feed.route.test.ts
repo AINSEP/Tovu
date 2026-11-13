@@ -49,7 +49,7 @@ function post(overrides: Partial<PostRecord>): PostRecord {
 }
 
 async function fetchFeed(t: test.TestContext, posts: PostRecord[]): Promise<{ res: Response; body: string; baseUrl: string }> {
-  const app = await buildFeedOnlyApp({ postRepo: new InMemoryPostRepo(posts) });
+  const app = await buildFeedOnlyApp({ postRepo: new InMemoryPostRepo({}, { initialRows: posts }) });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/feed.xml`);
   return { res, body: await res.text(), baseUrl };
@@ -100,7 +100,7 @@ test("GET /feed.xml: newest first, at most 20 items", async (t) => {
 });
 
 test("GET /feed.xml: a post-read failure is a plain-text 500", async (t) => {
-  const postRepo = new InMemoryPostRepo([]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   postRepo.list = async () => {
     throw new Error("post store unavailable");
   };

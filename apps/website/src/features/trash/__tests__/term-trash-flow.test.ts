@@ -130,7 +130,7 @@ function harness(): Harness {
     taxonomies: taxonomyRepo,
     terms: termRepo,
     entryTerms: entryTermRepo,
-    posts: new SqlitePostRepo(db),
+    posts: new SqlitePostRepo({ store: db }),
     outbox,
   };
 }

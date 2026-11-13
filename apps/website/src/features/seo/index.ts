@@ -41,9 +41,9 @@ export function createSeoPostPort({ postRepo }: { postRepo: PostRepoPort }, _opt
     // Call through the receiver so prototype methods keep `this` and fault-injection remains live.
     findById: reader.findById,
     list: reader.list,
-    extractPlainText: ({ html }) => extractPlainTextFromHtml(html),
+    extractPlainText: ({ html }) => extractPlainTextFromHtml({ html }),
     isTrashed: ({ post }) => isTrashed(post),
-    transaction: ({ fn }) => postRepo.transaction(fn),
+    transaction: ({ fn }) => postRepo.transaction({ fn }),
     // The read port returns the COMPLETE PostRecord; Jini spreads it rather than projecting it.
     // These casts restore the host type at storage boundaries, never manufacture missing fields.
     saveIfVersion: ({ record, ifVersion }) => postRepo.saveIfVersion({ record: record as PostRecord, ifVersion }),

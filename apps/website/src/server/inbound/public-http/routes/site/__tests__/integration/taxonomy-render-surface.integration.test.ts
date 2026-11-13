@@ -117,7 +117,7 @@ test("integration: GET /:slug renders a Page's assigned category/tag terms as pl
   const app = createApp(
     testDeps({
       themes: [pageShellTheme()],
-      postRepo: new InMemoryPostRepo([post]),
+      postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
       entryTermReadRepo: stubEntryTermReadRepo(post.id),
     })
   );
@@ -142,7 +142,7 @@ test("integration: GET /:slug places the terms block right after the entry's con
   const app = createApp(
     testDeps({
       themes: [pageShellTheme(`<html><body><main><article><div data-embed-config='{"type":"content"}'></div></article></main><footer>Site footer</footer></body></html>`)],
-      postRepo: new InMemoryPostRepo([post]),
+      postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
       entryTermReadRepo: stubEntryTermReadRepo(post.id),
     })
   );
@@ -166,7 +166,7 @@ test("integration: GET /:slug renders no terms block when nothing is assigned (b
   const app = createApp(
     testDeps({
       themes: [pageShellTheme()],
-      postRepo: new InMemoryPostRepo([post, tagged]),
+      postRepo: new InMemoryPostRepo({}, { initialRows: [post, tagged] }),
       entryTermReadRepo: stubEntryTermReadRepo(tagged.id),
     })
   );
@@ -292,7 +292,7 @@ test("integration: GET /:slug renders assigned terms through the DECLARATIVE tie
   const app = createApp(
     testDeps({
       themes: [declarativeTierTheme()],
-      postRepo: new InMemoryPostRepo([post]),
+      postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
       entryTermReadRepo: stubEntryTermReadRepo(post.id, "post"),
     })
   );
@@ -310,7 +310,7 @@ test("integration: GET /:slug renders assigned terms through the TEMPLATED (Liqu
   const app = createApp(
     testDeps({
       themes: [templatedTierTheme()],
-      postRepo: new InMemoryPostRepo([post]),
+      postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
       entryTermReadRepo: stubEntryTermReadRepo(post.id, "post"),
     })
   );
@@ -330,7 +330,7 @@ test("integration: GET /:slug renders assigned terms through the HANDLEBARS tier
   const app = createApp(
     testDeps({
       themes: [handlebarsTierTheme()],
-      postRepo: new InMemoryPostRepo([post]),
+      postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
       entryTermReadRepo: stubEntryTermReadRepo(post.id, "post"),
     })
   );

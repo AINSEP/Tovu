@@ -82,7 +82,7 @@ async function startApp(t: test.TestContext, themesDir: string = makeThemesRoot(
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "site" }),
     themesDir,
     packageThemesDir,
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
   } as unknown as ContentRouteDeps;
   const app = express();
   app.use(express.json());
@@ -171,7 +171,7 @@ test("detail listing: modified reflects the disk at request time, not a boot-tim
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "site" }),
     themesDir,
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
   } as unknown as ContentRouteDeps;
   const app = express();
   app.use((_req: Request, res: Response, next: NextFunction) => {

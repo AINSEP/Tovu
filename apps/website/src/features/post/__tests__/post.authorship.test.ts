@@ -28,7 +28,7 @@ import { makePglitePostRepo } from "./pglite-repo.fixture.js";
 function openTempSqliteRepo() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "post-authorship-sqlite-"));
   const db = openContentDb(path.join(tmpDir, "content.db"));
-  return { repo: new SqlitePostRepo(db), cleanup: () => fs.rmSync(tmpDir, { recursive: true, force: true }) };
+  return { repo: new SqlitePostRepo({ store: db }), cleanup: () => fs.rmSync(tmpDir, { recursive: true, force: true }) };
 }
 
 /** Runs the same behavioral contract against both `PostRepoPort` adapters. */
@@ -119,7 +119,7 @@ function runAuthorshipContract(
 }
 
 runAuthorshipContract("InMemoryPostRepo", async () => ({
-  repo: new InMemoryPostRepo([]),
+  repo: new InMemoryPostRepo({}, { initialRows: [] }),
   teardown: () => {},
 }));
 

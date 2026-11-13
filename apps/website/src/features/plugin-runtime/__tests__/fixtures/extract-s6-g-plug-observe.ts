@@ -166,7 +166,7 @@ async function bootCapabilityRegistry(activations: PluginActivationRecord[] | In
     withExtensionApprovalPolicy,
     authorize: async (request) => { authorizeCalls.push(request); return { allowed: true } as never; },
     workspaceId: CAP_WORKSPACE,
-    postRead: requiredPostReader({ repo: new InMemoryPostRepo([capPost({ ext: { "word-count": { count: 42, readingTimeMinutes: 0 }, "content-analyzer": { score: 10, report: "{\"v\":1}" } } }), capPost({ id: "post-empty" })]) }),
+    postRead: requiredPostReader({ repo: new InMemoryPostRepo({}, { initialRows: [capPost({ ext: { "word-count": { count: 42, readingTimeMinutes: 0 }, "content-analyzer": { score: 10, report: "{\"v\":1}" } } }), capPost({ id: "post-empty" })] }) }),
     discoverPlugins: async () => ALL_CAPABILITY_MANIFESTS.map(discoveryRecord),
     pluginActivationRepo: repo,
     ...extra,
@@ -178,7 +178,7 @@ async function bootCapabilityRegistry(activations: PluginActivationRecord[] | In
 export async function observeCapabilityTools(): Promise<unknown> {
   const allEnabled = ALL_CAPABILITY_MANIFESTS.map((manifest) => capActivation(manifest.id));
   const sources = await loadEnabledPluginCapabilityToolSources({ workspaceId: CAP_WORKSPACE, discoverPlugins: async () => ALL_CAPABILITY_MANIFESTS.map(discoveryRecord), pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: allEnabled }) });
-  const registrations = buildPluginCapabilityToolRegistrations({ sources, deps: { authorize: async () => ({ allowed: true }) as never, workspaceId: CAP_WORKSPACE, postRead: requiredPostReader({ repo: new InMemoryPostRepo() }), pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: allEnabled }) }, withExtensionApprovalPolicy });
+  const registrations = buildPluginCapabilityToolRegistrations({ sources, deps: { authorize: async () => ({ allowed: true }) as never, workspaceId: CAP_WORKSPACE, postRead: requiredPostReader({ repo: new InMemoryPostRepo({}) }), pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: allEnabled }) }, withExtensionApprovalPolicy });
   const stored = await bootCapabilityRegistry(allEnabled);
   const fresh = await bootCapabilityRegistry(allEnabled, { previewPluginBeforeSave: async (pluginId, entry) => ({ score: 84, summary: `fresh:${pluginId}:${entry.slug}`, report: "{\"v\":1,\"score\":84}" }) });
   const freshFails = await bootCapabilityRegistry(allEnabled, { previewPluginBeforeSave: async () => { throw new Error("worker exploded"); } });

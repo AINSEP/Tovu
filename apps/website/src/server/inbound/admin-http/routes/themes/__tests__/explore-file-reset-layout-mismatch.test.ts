@@ -97,7 +97,7 @@ async function startApp(t: test.TestContext, packageCatalog = false): Promise<{ 
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "site" }),
     themesDir,
     packageThemesDir,
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
   } as unknown as ContentRouteDeps;
   const app = express();
   app.use(express.json());

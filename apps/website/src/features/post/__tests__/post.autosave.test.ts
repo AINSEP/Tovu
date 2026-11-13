@@ -44,7 +44,7 @@ function baseRecord(overrides: Partial<PostRecord> = {}): PostRecord {
 function openTempSqliteRepo() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "post-autosave-sqlite-"));
   const db = openContentDb(path.join(tmpDir, "content.db"));
-  return { repo: new SqlitePostRepo(db), cleanup: () => fs.rmSync(tmpDir, { recursive: true, force: true }) };
+  return { repo: new SqlitePostRepo({ store: db }), cleanup: () => fs.rmSync(tmpDir, { recursive: true, force: true }) };
 }
 
 /** Runs the same behavioral contract against both `PostRepoPort` adapters. `withRepo` hands the
@@ -216,7 +216,7 @@ function runAutosaveContract(name: string, withRepo: () => Promise<{ repo: PostR
 }
 
 runAutosaveContract("InMemoryPostRepo", async () => {
-  const repo = new InMemoryPostRepo([baseRecord()]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [baseRecord()] });
   return { repo, teardown: () => {} };
 });
 

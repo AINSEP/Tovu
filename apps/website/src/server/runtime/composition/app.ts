@@ -467,7 +467,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // TOVU_DB=memory can still serve public routes; anonymous audit traffic shares this bounded sink.
   const toolAttemptAuditSink = createInMemoryToolAttemptAuditSink({});
   const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [seededWorkspace] });
-  const postRepo = new InMemoryPostRepo(seededPosts);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: seededPosts });
   const presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [seededPresentation] });
   const settingsRepo = new InMemorySettingsRepo();
   // Canonical Jini clocks use milliseconds; existing CMS/DB host ports still read ISO timestamps.

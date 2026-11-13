@@ -41,7 +41,7 @@ const post = {
 } as unknown as PostRecord;
 
 async function blogHtml(t: TestContext, overrides: Partial<ReturnType<typeof createRouteDeps>>, body: string): Promise<string> {
-  const deps = { ...createRouteDeps(), themes: [theme(body)], postRepo: new InMemoryPostRepo([post]), ...overrides };
+  const deps = { ...createRouteDeps(), themes: [theme(body)], postRepo: new InMemoryPostRepo({}, { initialRows: [post] }), ...overrides };
   await deps.siteTitleReady;
   const server = createServer(createApp(deps));
   server.listen(0);
@@ -94,7 +94,7 @@ const OCTOBER_TIME = `<time datetime="${OCTOBER_INSTANT}">Oct 30, 2026</time>`;
 test("an unconfigured Pacific site's content and preview markers show Oct 30 without browser JavaScript", async (t) => {
   useProcessZone(t, "America/Los_Angeles");
   for (const marker of [CONTENT, PREVIEWS]) {
-    const html = await blogHtml(t, { postRepo: new InMemoryPostRepo([octoberPost]) }, marker);
+    const html = await blogHtml(t, { postRepo: new InMemoryPostRepo({}, { initialRows: [octoberPost] }) }, marker);
     assert.ok(html.includes(OCTOBER_TIME), html);
   }
 });
@@ -102,14 +102,14 @@ test("an unconfigured Pacific site's content and preview markers show Oct 30 wit
 test("an unconfigured Pacific site's page content marker uses the same local date", async (t) => {
   useProcessZone(t, "America/Los_Angeles");
   const page = { ...octoberPost, kind: "page" as const };
-  const html = await blogHtml(t, { postRepo: new InMemoryPostRepo([page]) }, CONTENT);
+  const html = await blogHtml(t, { postRepo: new InMemoryPostRepo({}, { initialRows: [page] }) }, CONTENT);
   assert.ok(html.includes(OCTOBER_TIME), html);
 });
 
 test("an unconfigured Pacific site's Liquid article and listing use the same local date", async (t) => {
   useProcessZone(t, "America/Los_Angeles");
   for (const route of ["/", "/late-post"]) {
-    assert.equal(await liquidPageText(t, { postRepo: new InMemoryPostRepo([octoberPost]) }, route),
+    assert.equal(await liquidPageText(t, { postRepo: new InMemoryPostRepo({}, { initialRows: [octoberPost] }) }, route),
       `2026-10-30|2026-10-30|${OCTOBER_INSTANT}`);
   }
 });
@@ -127,7 +127,7 @@ test("static export writes the Pacific date into article and listing HTML with u
   staticTheme.manifest.templates = ["article.html"];
   staticTheme.pages.article = `<html><body>${CONTENT}</body></html>`;
   deps.themes = [staticTheme];
-  deps.postRepo = new InMemoryPostRepo([{ ...octoberPost, templateChoice: "article.html" }]);
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: [{ ...octoberPost, templateChoice: "article.html" }] });
   const report = await exportSite({ routeDeps: deps, outputDir, includeThemePreviews: false });
   for (const routePath of ["/blog", "/late-post"]) {
     const route = report.routes.succeeded.find(item => item.path === routePath);
@@ -149,7 +149,7 @@ function liquidTheme(): DiscoveredTheme {
 }
 
 async function liquidPageText(t: TestContext, overrides: Partial<ReturnType<typeof createRouteDeps>>, path: string): Promise<string> {
-  const deps = { ...createRouteDeps(), themes: [liquidTheme()], postRepo: new InMemoryPostRepo([post]), ...overrides };
+  const deps = { ...createRouteDeps(), themes: [liquidTheme()], postRepo: new InMemoryPostRepo({}, { initialRows: [post] }), ...overrides };
   await deps.siteTitleReady;
   const server = createServer(createApp(deps));
   server.listen(0);

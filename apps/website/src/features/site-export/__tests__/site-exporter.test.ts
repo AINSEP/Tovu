@@ -96,8 +96,8 @@ class FailingSlugPostRepo implements PostRepoPort {
   listRevisions(required: Parameters<PostRepoPort["listRevisions"]>[0]) {
     return this.inner.listRevisions(required);
   }
-  transaction<T>(fn: () => Promise<T>): Promise<T> {
-    return this.inner.transaction(fn);
+  transaction<T>({ fn }: { fn: () => Promise<T> }, _optional: Record<string, never> = {}): Promise<T> {
+    return this.inner.transaction({ fn });
   }
 }
 
@@ -1493,10 +1493,10 @@ test("exportSite: a see-more listing with a card <template> exports its JSON bat
     },
     partials: {}, css: "", source: "site", status: "valid", errors: [],
   } as unknown as DiscoveredTheme];
-  base.postRepo = new InMemoryPostRepo(Array.from({ length: 30 }, (_, i) => ({
+  base.postRepo = new InMemoryPostRepo({}, { initialRows: Array.from({ length: 30 }, (_, i) => ({
     id: `json-export-${i}`, workspaceId: base.workspaceId, title: `Json export ${i}`, slug: `json-export-${i}`, bodyJson: { type: "doc", content: [] },
     bodyFormat: "doc", bodyHtml: null, status: "published", kind: "post", updatedAt: new Date(Date.UTC(2026, 0, 30 - i)).toISOString(), version: 1,
-  }) as PostRecord));
+  }) as PostRecord) });
 
   const report = await exportSite({ routeDeps: base, outputDir });
 
@@ -1527,10 +1527,10 @@ test("exportSite: a paged post listing exports every page as <page>/page/<n>/ind
     pages: { index: `<html><body>${paged}</body></html>`, blog: `<html><body>${paged}</body></html>` },
     partials: {}, css: "", source: "site", status: "valid", errors: [],
   } as unknown as DiscoveredTheme];
-  base.postRepo = new InMemoryPostRepo(Array.from({ length: 25 }, (_, i) => ({
+  base.postRepo = new InMemoryPostRepo({}, { initialRows: Array.from({ length: 25 }, (_, i) => ({
     id: `paged-export-${i}`, workspaceId: base.workspaceId, title: `Paged export ${i}`, slug: `paged-export-${i}`, bodyJson: { type: "doc", content: [] },
     bodyFormat: "doc", bodyHtml: null, status: "published", kind: "post", updatedAt: new Date(Date.UTC(2026, 0, 30 - i)).toISOString(), version: 1,
-  }) as PostRecord));
+  }) as PostRecord) });
 
   const report = await exportSite({ routeDeps: base, outputDir });
 

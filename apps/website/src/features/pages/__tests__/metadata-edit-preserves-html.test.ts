@@ -58,7 +58,7 @@ async function seedHtmlPage(repo: InMemoryPostRepo, html: string) {
 }
 
 test("updatePost: renaming an html-format Page keeps its bodyFormat and body_html intact", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const generated = `<section data-agent-element="page-hero" data-agent-role="region"><h1>Pricing</h1></section>`;
   await seedHtmlPage(repo, generated);
 
@@ -85,7 +85,7 @@ test("updatePost: renaming an html-format Page keeps its bodyFormat and body_htm
 });
 
 test("updatePost: a caller-supplied bodyJson is ignored on an html-format Page, never written alongside body_html", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const generated = `<section data-agent-element="page-body" data-agent-role="region"><p>Real content</p></section>`;
   await seedHtmlPage(repo, generated);
   const original = await repo.findById({ workspaceId: "ws-1", id: "page-1" });
@@ -113,7 +113,7 @@ test("updatePost: a caller-supplied bodyJson is ignored on an html-format Page, 
 });
 
 test("updatePost: a doc-format Page is unaffected — the fix must not widen the CIC-3 guarantee", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   await createPost({
     deps: { repo, clock },
     input: { workspaceId: "ws-1", id: "page-2", title: "About", kind: "page" },

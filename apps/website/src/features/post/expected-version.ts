@@ -46,7 +46,7 @@ export const VERSION_CONFLICT_CODE = "VERSION_CONFLICT";
  *
  * @complexity O(1).
  */
-export function parseExpectedVersion(raw: unknown): number | undefined {
+export function parseExpectedVersion({ raw }: { raw: unknown }, _optional: Record<string, never> = {}): number | undefined {
   if (raw === undefined) return undefined;
   if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 0) {
     throw new PostValidationError(EXPECTED_VERSION_REJECTION);

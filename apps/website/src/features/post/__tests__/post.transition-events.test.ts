@@ -46,7 +46,7 @@ function seedPost(overrides: Partial<Parameters<InMemoryPostRepo["save"]>[0]> = 
 }
 
 test("updatePost transition table: not-published -> published emits exactly one entry.published event", async () => {
-  const repo = new InMemoryPostRepo([seedPost({ status: "draft" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost({ status: "draft" })] });
   const outbox = new RecordingOutbox();
 
   await updatePost({
@@ -68,7 +68,7 @@ test("updatePost transition table: not-published -> published emits exactly one 
 });
 
 test("updatePost transition table: published -> published (edited) emits exactly one entry.updated event", async () => {
-  const repo = new InMemoryPostRepo([seedPost({ status: "published" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost({ status: "published" })] });
   const outbox = new RecordingOutbox();
 
   await updatePost({
@@ -88,7 +88,7 @@ test("updatePost transition table: published -> published (edited) emits exactly
 });
 
 test("updatePost transition table: published -> not-published emits exactly one entry.unpublished event", async () => {
-  const repo = new InMemoryPostRepo([seedPost({ status: "published" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost({ status: "published" })] });
   const outbox = new RecordingOutbox();
 
   await updatePost({
@@ -108,7 +108,7 @@ test("updatePost transition table: published -> not-published emits exactly one 
 });
 
 test("updatePost transition table: not-published -> not-published (edited) emits no event", async () => {
-  const repo = new InMemoryPostRepo([seedPost({ status: "draft" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost({ status: "draft" })] });
   const outbox = new RecordingOutbox();
 
   await updatePost({
@@ -127,7 +127,7 @@ test("updatePost transition table: not-published -> not-published (edited) emits
 });
 
 test("updatePost transition table: the emitted event's payload carries entryId + contentType", async () => {
-  const repo = new InMemoryPostRepo([seedPost({ status: "draft", kind: "page" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost({ status: "draft", kind: "page" })] });
   const outbox = new RecordingOutbox();
 
   await updatePost({

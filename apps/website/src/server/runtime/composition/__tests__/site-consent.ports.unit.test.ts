@@ -73,7 +73,7 @@ test('privacy defaults wait for the dependency literal, then bind title, owner, 
   const { InMemoryPostRepo } = await import('#src/features/post/repo.memory');
   const { InMemorySiteTitlePreservationStore } = await import('#src/features/settings/site-title');
   const { ensureSiteTitleSettingDefinition } = await import('#src/features/settings/site-title');
-  const settingsRepo = new InMemorySettingsRepo(); const postRepo = new InMemoryPostRepo();
+  const settingsRepo = new InMemorySettingsRepo(); const postRepo = new InMemoryPostRepo({});
   let count = 0; const ids = { newId: () => `binding-${++count}` };
   const clock = { nowMs: () => Date.parse('2026-10-22T00:00:00.000Z'), nowIso: () => '2026-10-22T00:00:00.000Z' };
   const principals = { findActiveById: async ({ id }: { id: string }) => ({ id }) };

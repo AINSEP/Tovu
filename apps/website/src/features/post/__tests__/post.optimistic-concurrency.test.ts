@@ -66,7 +66,7 @@ function operatorSave(repo: InMemoryPostRepo, text: string, expectedVersion?: nu
 }
 
 test("updatePost rejects a second save built on a superseded version, and operator A's content survives", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
 
   // Both operators opened the post while it was at version 1.
   const first = await operatorSave(repo, "operator A", 1);
@@ -98,14 +98,14 @@ test("updatePost rejects a second save built on a superseded version, and operat
 });
 
 test("PostVersionConflictError is a PostConflictError, so callers already mapping that to 409 need no change", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
   await operatorSave(repo, "operator A", 1);
 
   await assert.rejects(() => operatorSave(repo, "operator B", 1), PostConflictError);
 });
 
 test("updatePost applies normally when expectedVersion matches the row's current version", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
 
   const result = await operatorSave(repo, "in sync", 1);
 
@@ -117,7 +117,7 @@ test("updatePost applies normally when expectedVersion matches the row's current
 });
 
 test("updatePost without expectedVersion keeps the pre-existing last-write-wins behavior (additive, non-breaking)", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
 
   await operatorSave(repo, "operator A");
   const second = await operatorSave(repo, "operator B");
@@ -132,7 +132,7 @@ test("updatePost without expectedVersion keeps the pre-existing last-write-wins 
 });
 
 test("a not-found row beats a stale expectedVersion — the version guard never leaks a row's existence", async () => {
-  const repo = new InMemoryPostRepo([{ ...seedPost, deletedAt: "2026-09-06T00:30:00.000Z" }]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [{ ...seedPost, deletedAt: "2026-09-06T00:30:00.000Z" }] });
 
   await assert.rejects(
     () => operatorSave(repo, "operator B", 1),

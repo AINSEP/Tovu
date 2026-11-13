@@ -70,7 +70,7 @@ function seededPost(overrides: Partial<PostRecord> = {}): PostRecord {
 
 function fakeRouteDeps(options: { allow?: boolean; allowedPermissions?: string[] } = {}) {
   const allow = options.allow ?? true;
-  const postRepo = new InMemoryPostRepo([seededPost()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [seededPost()] });
   const changeSets = new InMemoryChangeSetRepo();
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();

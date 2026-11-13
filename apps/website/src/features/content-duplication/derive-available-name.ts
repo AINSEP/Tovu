@@ -59,13 +59,13 @@ import {
  */
 export const MAX_SUFFIX_ATTEMPTS = 1000;
 
-/** Bind the host's positional callbacks to Jini's object-shaped naming policy. O(1), no I/O. */
+/** Bind the host's naming callbacks to Jini's naming policy. O(1), no I/O. */
 function namingPolicy(options: {
-  isTaken: (candidate: string) => Promise<boolean>;
+  isTaken: (required: { candidate: string }, optional?: Record<string, never>) => Promise<boolean>;
   withSuffix?: (base: string, suffix: number) => string;
 }): NamingPolicy {
   return {
-    isTaken: ({ candidate }) => options.isTaken(candidate),
+    isTaken: ({ candidate }) => options.isTaken({ candidate }),
     withSuffix: ({ base, suffix }) => options.withSuffix ? options.withSuffix(base, suffix) : `${base} ${suffix}`,
     exhaustionMessage: ({ base, maxAttempts }) =>
       `no free name could be derived from '${base}' after ${maxAttempts} attempts — give the copy an explicit name`,
@@ -96,7 +96,7 @@ function namingPolicy(options: {
  * {@link MAX_SUFFIX_ATTEMPTS}.
  */
 export function deriveAvailableName(required: { base: string }, options: {
-  isTaken: (candidate: string) => Promise<boolean>;
+  isTaken: (required: { candidate: string }, optional?: Record<string, never>) => Promise<boolean>;
   withSuffix?: (base: string, suffix: number) => string;
   onExhausted?: () => never;
 }): Promise<string> {
@@ -124,7 +124,7 @@ export function deriveAvailableName(required: { base: string }, options: {
  * {@link TRAILING_NUMBER_PATTERN}) plus {@link deriveAvailableName}'s own O(k).
  */
 export function deriveDuplicateName(required: { sourceName: string }, options: {
-  isTaken: (candidate: string) => Promise<boolean>;
+  isTaken: (required: { candidate: string }, optional?: Record<string, never>) => Promise<boolean>;
 }): Promise<string> {
   return findDuplicateName({ ...required, ...namingPolicy(options) }, { maxAttempts: MAX_SUFFIX_ATTEMPTS });
 }

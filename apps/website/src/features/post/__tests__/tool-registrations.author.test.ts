@@ -12,7 +12,7 @@ import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations
 import { postAgentToolCatalog } from "../agent-tools.js";
 
 function fixture() {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   let sequence = 0;
   const deps = {
     workspaceId: "ws-author-tools", clock: { nowMs: () => Date.parse("2026-10-09T00:00:00Z") },

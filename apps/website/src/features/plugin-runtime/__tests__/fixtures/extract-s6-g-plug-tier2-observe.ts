@@ -57,7 +57,7 @@ export async function observeTier2Success(): Promise<unknown> {
   const importedInProcess: string[] = [];
   const { runtime, enabled, row } = await enabledRuntime("tier2-echo", SUCCESS_TIMEOUT_MS, importedInProcess);
   const afterEnable = await row();
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const saved = await settle(() => createPost({ deps: { repo: postRepo, clock, beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id: "p1", title: "Hello" } }));
   const savedExt = (await postRepo.findById({ workspaceId: WORKSPACE, id: "p1" }))?.ext;
   const preview = await settle(() => runtime.previewPluginBeforeSave("tier2-echo", draft("Preview me")));

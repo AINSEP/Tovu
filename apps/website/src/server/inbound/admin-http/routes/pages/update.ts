@@ -42,7 +42,7 @@ function parsePageUpdateBody(
     // accepts a basis, so a mistyped `"3"` is a 400 here exactly as it is on `posts/update.ts`
     // rather than coercing to "no basis sent" and becoming an unguarded save by a client that
     // believes it is protected.
-    expectedVersion: parseExpectedVersion(body.expectedVersion),
+    expectedVersion: parseExpectedVersion({ raw: body.expectedVersion }),
   };
 }
 

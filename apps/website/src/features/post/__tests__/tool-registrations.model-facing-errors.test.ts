@@ -53,7 +53,7 @@ const EMPTY_DOC = { type: "doc", content: [] };
 function makeRouteDeps(options: { allow?: boolean } = {}) {
   const allow = options.allow ?? true;
   let counter = 0;
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const deps = {
     workspaceId: WORKSPACE_ID,
     clock: { nowMs: () => Date.parse(NOW) },

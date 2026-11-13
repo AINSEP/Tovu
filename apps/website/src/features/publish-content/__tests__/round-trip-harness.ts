@@ -134,7 +134,7 @@ export function sqliteContentSite() {
   const workspaceId = WORKSPACE_ID;
   const repos = {
     db,
-    posts: new SqlitePostRepo(db),
+    posts: new SqlitePostRepo({ store: db }),
     entries: new SqliteEntryRepo(db),
     contentTypes: new InMemoryContentTypeRepo(),
     taxonomies: new SqliteTaxonomyRepo({ db, workspaceId }),

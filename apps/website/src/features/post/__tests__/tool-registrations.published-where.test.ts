@@ -24,7 +24,7 @@ const NOW = "2026-10-05T00:00:00.000Z";
 
 function deps(runtimeMode: "local" | "production") {
   let counter = 0;
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   return {
     postRepo,
     deps: {

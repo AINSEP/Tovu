@@ -46,7 +46,7 @@ async function register(extra: { agentPluginTools?: AgentPluginExecutableToolHos
   await registerInstalledExtensionTools(
     { register: (registration: ToolRegistration) => void installed.push(registration) },
     testSiteLayoutContext({
-      ...layout.deps, authorize: allowAll, workspaceId: WORKSPACE, postRepo: new InMemoryPostRepo([]),
+      ...layout.deps, authorize: allowAll, workspaceId: WORKSPACE, postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
       pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [] }), discoverPlugins: async () => [], ...extra,
     }),
     "[executable-tools-test]",
@@ -120,7 +120,7 @@ test("every family that fails is logged once with the registrar's prefix, a non-
   await registerInstalledExtensionTools(
     { register: (registration: ToolRegistration) => void installed.push(registration) },
     testSiteLayoutContext({
-      ...layout.deps, agentPluginLayout: brokenLayout as never, skillLayout: brokenLayout as never, authorize: allowAll, workspaceId: WORKSPACE, postRepo: new InMemoryPostRepo([]),
+      ...layout.deps, agentPluginLayout: brokenLayout as never, skillLayout: brokenLayout as never, authorize: allowAll, workspaceId: WORKSPACE, postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
       pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [] }),
       discoverPlugins: async () => { throw "discovery offline"; },
     }),
