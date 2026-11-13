@@ -508,8 +508,12 @@ function readBundledTemplateFallback(
   const themeDir = join(packageThemesDir, THEME_CATALOG_DIR, manifest.tier, manifest.id);
   if (!existsSync(join(themeDir, "theme.json"))) return undefined;
   const bundled = loadTheme({ themeDir, id: manifest.id, source: "built-in" }, { packageThemesDir: null });
-  if (bundled.status !== "valid" || bundled.manifest.tier !== manifest.tier || bundled.manifest.apiVersion !== manifest.apiVersion) return undefined;
-  return bundled;
+  return matchesSiteTheme({ bundled, manifest }) ? bundled : undefined;
+}
+
+/** A package original stands in only when it is valid and has the site theme's tier and API version. */
+function matchesSiteTheme({ bundled, manifest }: { bundled: DiscoveredTheme; manifest: ThemeManifest }, _options: Record<string, never> = {}): boolean {
+  return bundled.status === "valid" && bundled.manifest.tier === manifest.tier && bundled.manifest.apiVersion === manifest.apiVersion;
 }
 
 /**
