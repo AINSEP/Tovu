@@ -33,12 +33,11 @@ READY (2026-11-13). Self-contained. Background and the reason for every decision
   - tests: cd apps/admin && npx vitest run --maxWorkers=2 src/features/collections
 - **T15** EXTRACT SHARED HELPER — risk L; est. −22 lines; divergence: idPrefix, handle prefix, showRemoveButton, removeButtonLabel differ (parameterised)
   - tests: cd apps/admin && npx vitest run --maxWorkers=2 src/features/collections
-- **T16** EXTRACT SHARED HELPER — risk M; est. −60 lines; divergence: copy, handles, labels, extra dependents <p> differ (parameterised); markup identical
+- **T16** EXTRACT SHARED HELPER (markup here; hook lifecycle -> Jini T16J, adopted in job 11) — risk L; est. −35 lines here; divergence: copy, handles, labels, extra dependents <p> differ (parameterised); markup identical
   - tests: cd apps/admin && npx vitest run --maxWorkers=2 src/features/plugins src/features/settings
 - **T17** EXTRACT SHARED HELPER — risk L; est. −22 lines; divergence: none
   - tests: cd apps/admin && npx vitest run --maxWorkers=2 src/components/WidgetConfigFields
-- **T18** EXTRACT SHARED HELPER — risk M; est. −45 lines; divergence: agent-plugins compares with ===; others with field equality (passed as same); port call shapes differ (adapted in wrappers)
-  - tests: cd apps/admin && npx vitest run --maxWorkers=2 src/components/AssistantDock
+- **T18** moved to job dedupe-11 (Jini owner T18J)
 - **T19** EXTRACT SHARED HELPER — risk L; est. −13 lines; divergence: none
   - tests: cd apps/admin && npx vitest run --maxWorkers=2  src/features/deployment
 - **T20** EXTRACT SHARED HELPER — risk L; est. −9 lines; divergence: none
@@ -47,18 +46,25 @@ READY (2026-11-13). Self-contained. Background and the reason for every decision
   - tests: cd apps/admin && npx vitest run --maxWorkers=2 src/features/menus
 - **T22** EXTRACT SHARED HELPER — risk L; est. −22 lines; divergence: none
   - tests: cd apps/admin && npx vitest run --maxWorkers=2 src/lib/__tests__/credential-submit-error.unit.test.ts src/features/deployment src/features/source-control
-- **T23** EXTRACT SHARED HELPER — risk M; est. −35 lines; divergence: interval/limit constants and error message builders differ (parameters)
-  - tests: cd apps/admin && npx vitest run --maxWorkers=2 src/features/deployment
+- **T23** moved to job dedupe-11 (Jini owner T23J)
 - **T27** EXTRACT SHARED HELPER — risk L; est. −40 lines; divergence: none (all 5 frames identical attrs)
   - tests: cd apps/desktop && node --import ./scripts/one-react.ts --import tsx --test --test-concurrency=1 src/renderer/**/*icon*.test.ts* (run the renderer suite files that import icons/tool-icons)
 
 ## Recipes (exact before → after)
 
 ### T03: one `LINE_ICON` for the admin icon sets
-1. Create `apps/admin/src/components/line-icon.ts`:
+Scope: a style constant of THIS admin's icon family (incidental SVG scaffolding, not a mechanism), so its owner is the admin's shared `components/` layer. Jini's `packages/admin/src/seo/react/components/SeoIcons.tsx` has the same literal for Jini's own icon set: KEEP it (another repo's design system; a cross-repo 9-line token would couple two icon families).
+1. Create `apps/admin/src/components/line-icon.ts`. Its doc carries the combined rationale moved from the 12 copies (do not drop any reason):
 ```ts
-/** Shared attributes for a decorative line icon — the same 24px grid, 1.5 stroke, and round joins
- *  every `*-visuals.tsx` set in this admin uses, so every icon row reads as one family. */
+/**
+ * Shared attributes for a decorative line icon: the same 24px grid, 1.5 stroke and round joins as the
+ * sidebar's own glyph set and Jini's `seo/react/components/SeoIcons.tsx`, so every icon row and tab
+ * row in this admin reads as one family rather than a borrowed set.
+ * `aria-hidden`: each icon sits directly beside a text label, or inside a button or link, that
+ * already carries the accessible name, so the glyph is decoration.
+ * Lives in `components/` (the admin's shared layer) so features share it without importing across a
+ * feature boundary. Icon artwork stays in each feature's own visuals file.
+ */
 export const LINE_ICON = {
   viewBox: "0 0 24 24",
   fill: "none",
@@ -69,10 +75,25 @@ export const LINE_ICON = {
   "aria-hidden": true,
 } as const;
 ```
-2. Apply these steps to each of the 12 files listed in the TSV row:
-   - Delete the local `const LINE_ICON = {...} as const;` and its two-line doc comment.
-   - Add `import { LINE_ICON } from "@/components/line-icon";`. If the file uses relative imports only, use the relative path instead.
-3. Leave every icon body unchanged. Keep each file's `@file` header. If a header says "importing a glyph across a feature boundary…", append one sentence: "The shared stroke attributes come from `components/line-icon.ts`."
+2. Site manifest (checked at 60f52fea1: all 12 literals are byte-identical after whitespace). In each file delete the local `const LINE_ICON = {…} as const;` and ONLY the doc comment directly above it (column "comment"), add `import { LINE_ICON } from "@/components/line-icon";` (relative path if the file has no `@/` imports), and in its place leave the one-line pointer given in column "pointer" so the file-specific reason stays where it was:
+
+| file (under `apps/admin/src/features/`) | comment directly above (delete) | pointer to leave |
+|---|---|---|
+| `media/Media.hooks.tsx` | 4 lines, "Shared attributes … `aria-hidden`, because each sits directly beside the text label…" | `// Line-icon attributes and the aria-hidden reason: components/line-icon.ts.` |
+| `database/database-visuals.tsx` | 3 lines | `// Line-icon attributes: components/line-icon.ts.` |
+| `roles/Roles.hooks.tsx` | 7 lines (incl. "Local rather than imported across a feature boundary…") | `// Line-icon attributes: components/line-icon.ts (the admin's shared layer replaced the per-feature copies this comment used to justify; App.tsx sidebar glyphs and SettingsUi.tsx tab icons remain inline SVG).` |
+| `themes/themes-visuals.tsx` | 1 line | `// Line-icon attributes: components/line-icon.ts.` |
+| `plugins/plugins-visuals.tsx` | 3 lines | `// Line-icon attributes: components/line-icon.ts.` |
+| `plugins/agent-plugins-visuals.tsx` | 2 lines | `// Line-icon attributes: components/line-icon.ts.` |
+| `observability/observability-visuals.tsx` | 2 lines | `// Line-icon attributes: components/line-icon.ts.` |
+| `library/Library.hooks.tsx` | NONE (the comment above is the `@file` header: keep it) | (none) |
+| `source-control/source-control-visuals.tsx` | 3 lines | `// Line-icon attributes: components/line-icon.ts.` |
+| `deployment/deployment-visuals.tsx` | 2 lines ("matching the sidebar's own glyph set") | `// Line-icon attributes: components/line-icon.ts.` |
+| `security/security-visuals.tsx` | NONE (the comment above is the `@file` header: keep it) | (none) |
+| `sites/sites-visuals.tsx` | 2 lines | `// Line-icon attributes: components/line-icon.ts.` |
+
+   If a deleted comment holds a sentence not covered by the new file doc, add that sentence to the new doc (never drop it).
+3. Leave every icon body and every `@file` header unchanged, except: where a header says icons are "redrawn locally rather than imported cross-feature" (security, source-control), append "The shared stroke attributes come from `components/line-icon.ts`."
 
 ### T05: one version-conflict reader
 1. Add to `apps/admin/src/lib/version-conflict.ts`:
@@ -220,33 +241,13 @@ const RealFieldControl = makeNumberFieldControl({ step: undefined });
    - Edit dialog: `idPrefix="ct-edit-field"`, `showRemoveButton={true}`, its remove label.
 4. The Add-field agent label text is identical in both dialogs ("Add another field to this content type"), so keep it as a constant inside the helper.
 
-### T16: `ConfirmActionDialog` + `useEscapeCancelFocusTrap`
-1. Add to `apps/admin/src/hooks/use-focus-trap.hooks.ts`:
-```ts
-export function useEscapeCancelFocusTrap(
-  required: { onCancel: () => void },
-  _optional: Record<string, never> = {},
-): RefObject<HTMLDivElement | null> {
-  const { onCancel } = required;
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(dialogRef);
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onCancel]);
-  return dialogRef;
-}
-```
-2. In the 3 hooks (`use-plugin-remove-confirm`, `use-agent-plugin-disable-confirm`, `use-external-mcp-remove-confirm`), replace the ref, focus-trap and effect lines with `const dialogRef = useEscapeCancelFocusTrap({ onCancel: props.onCancel });`. Keep the copy builders.
-3. Create `apps/admin/src/components/ConfirmActionDialog.tsx`.
-   - Props: `{ dialogRef; titleId; title: string; body: string; extra?: string | null; onCancel; onConfirm; cancelText: string; confirmText: string; cancelHandle: string; cancelAgentLabel: string; confirmHandle: string; confirmAgentLabel: string }`.
+### T16: `ConfirmActionDialog` (markup, now) + hook (job dedupe-11, after the Jini release)
+The Escape + focus-trap lifecycle is a generic mechanism: its owner is Jini `@jini-ai/ui/panel-kit#useEscapeCancelFocusTrap` (job dedupe-06, T16J). The three Tovu hooks switch to it in job dedupe-11 (gate R1). Here only the shared product markup moves:
+1. Create `apps/admin/src/components/ConfirmActionDialog.tsx` (product markup: Tovu class names and agent handles stay in Tovu).
+   - Props (one object): `{ dialogRef: RefObject<HTMLDivElement | null>; titleId: string; title: string; body: string; extra?: string | null; onCancel: () => void; onConfirm: () => void; cancelText: string; confirmText: string; cancelHandle: string; cancelAgentLabel: string; confirmHandle: string; confirmAgentLabel: string }`.
    - It renders the exact markup shared by the three dialogs: backdrop div, then the dialog div with role, aria and stopPropagation, then h2, then p, then `{extra ? <p>{extra}</p> : null}`, then the `editor-actions` span holding Cancel (`btn-secondary autoFocus`) and Confirm (`btn-danger`).
-4. Each of the 3 dialogs renders `<ConfirmActionDialog …/>` with its current strings and handles.
-   - Only AgentPluginDisable passes `extra={copy.dependents}`.
-   - Move each dialog's "Cancel is the default-focused control…" comment to just above its `<ConfirmActionDialog` call.
+2. Each of the 3 dialogs (`PluginRemoveConfirm`, `AgentPluginDisableConfirm`, `ExternalMcpRemoveConfirm`; find them with `rg -ln "use-plugin-remove-confirm|use-agent-plugin-disable-confirm|use-external-mcp-remove-confirm" apps/admin/src --glob '*.tsx'`) renders `<ConfirmActionDialog …/>` with its current strings and handles. Only AgentPluginDisable passes `extra={copy.dependents}`. Move each dialog's "Cancel is the default-focused control…" comment to just above its `<ConfirmActionDialog` call.
+3. Do NOT touch the three hooks' ref/focus-trap/Escape lines in this job.
 
 ### T17: WidgetConfigFields
 1. Add `type FetchedConfigFieldsProps = { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void; agentHandle?: string; t: Translate } & FetchedOptionsSeam;`.
@@ -263,21 +264,8 @@ case "contact-form": {
    - Define it as `const FETCHED_CONFIG_EDITORS = { "recent-entries": RecentEntriesConfigFields, menu: MenuConfigFields, "contact-form": ContactFormConfigFields } as const;`.
    - Place that constant after the three functions.
 
-### T18: `useOptimisticStoredValue`
-1. Create `components/AssistantDock/hooks/use-optimistic-stored-value.hooks.ts` with the signature in the TSV.
-   - The body is the state machine from `use-chat-display-preferences.hooks.ts`, generalized:
-     - `useFetchQuery({ key, fetch: load }, { staleTime: 0 })` and `useInvalidate`;
-     - optimistic state, `saveFailed`, the `lastRequested` and `pendingSaves` refs;
-     - `value = optimistic ?? query.data ?? fallback`;
-     - a subscribe effect that invalidates the key;
-     - a drop effect: `pendingSaves.current === 0 && optimistic !== null && query.data !== undefined && same(optimistic, query.data)`;
-     - `update(compute)`: `previous = lastRequested.current ?? value; next = compute(previous)`, then save with the same then/catch bookkeeping.
-   - Wrap `load`, `save` and `subscribe` in refs, so that callers' inline lambdas do not re-run the effects. The subscribe effect depends on `[invalidate]` plus a `subscribeRef`.
-   - Keep the three "A quick second flip must diff against the last requested…" comments as one comment on `update`.
-2. Rewrite each wrapper, keeping its exported name, port and controller types:
-   - Runtime preferences: `useOptimisticStoredValue({ queryKey: QUERY_KEY, load: () => port.load({}, {}), save: (next, previous) => port.save({ next, previous }, {}), subscribe: (listener) => port.subscribe({ listener }, {}), fallback: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, same: sameRuntimePreferences })`. Return `{ preferences: value, update: (patch) => update((prev) => ({ ...prev, ...patch })), saveFailed }`.
-   - Agent plugins: `same: (a, b) => a === b`. Return `update: (mode) => update(() => mode)`.
-   - Display preferences: `load: () => port.load()`, `save: (n, p) => port.save(n, p)`, `subscribe: (l) => port.subscribeToSettingsRefresh(l)`, `same: (a, b) => sameChatDisplay({ a, b })`.
+### T18: moved to job dedupe-11
+Generic mechanism: Jini owner `@jini-ai/ui/panel-kit#useOptimisticStoredValue` (job dedupe-06, T18J); the three Tovu wrappers adopt it after the Jini release (gate R1). Nothing to do here.
 
 ### T19, T20, T21: type-only extractions
 - T19, in `DockerfileTab.tsx`:
@@ -304,23 +292,8 @@ case "contact-form": {
 5. Move both describe blocks into `src/lib/__tests__/credential-submit-error.unit.test.ts`, keeping the union of cases.
 6. Update the `{@link}` mentions in `deployment-i18n.tsx:2526` and `source-control-i18n.ts:591`.
 
-### T23: `useBoundedStatusPoll`
-1. Create `features/deployment/hooks/use-bounded-status-poll.hooks.ts` with the TSV signature.
-   - Internals:
-     - `failuresRef = useRef(0)`;
-     - `inputsRef = useRef(required); inputsRef.current = required;`;
-     - an effect keyed on `[required.active]` holding the exact loop from `use-static-export.hooks.ts:166-202`;
-     - read `fetchStatus`, `onStatus`, `onGiveUp`, `intervalMs` and `failureLimit` from `inputsRef.current` at effect start;
-     - on success, `failuresRef.current = 0; onStatus(status); if (status.status === "running") scheduleNext();`;
-     - on reaching the limit, `onGiveUp(err); return;`.
-   - Return `{ resetFailures: () => { failuresRef.current = 0; } }`.
-   - Move these comments into the new file verbatim: "Counts CONSECUTIVE poll failures…", the "Poll loop: re-armed only when…" paragraph, and the C2 "Bounded" comment.
-2. Export hook: delete `pollFailuresRef`, `pollInputs` and the effect, then:
-```ts
-const { resetFailures } = useBoundedStatusPoll({ active: isRunning, intervalMs: EXPORT_POLL_INTERVAL_MS, failureLimit: POLL_FAILURE_LIMIT, fetchStatus: () => port.getSiteExportStatus(), onStatus: setRun, onGiveUp: (err) => setPollError(exportPollErrorMessage(locale, describeApiError(err, "unknown error"))) });
-```
-   Line 221 `pollFailuresRef.current = 0` becomes `resetFailures()`.
-3. Publish hook: the same, with `PUBLISH_POLL_INTERVAL_MS`, `PUBLISH_POLL_FAILURE_LIMIT`, `getPublishStatus`, `publishPollErrorMessage` and `UNKNOWN_ERROR`. Line 330 becomes `resetFailures()`.
+### T23: moved to job dedupe-11
+Generic mechanism: Jini owner `@jini-ai/ui/panel-kit#useBoundedStatusPoll` (job dedupe-06, T23J); the export and publish hooks adopt it after the Jini release (gate R1). Nothing to do here.
 
 ### T27: desktop `IconFrame`
 1. Create `apps/desktop/src/renderer/icon-frame.tsx`. It must not contain module-level JSX:

@@ -14,6 +14,8 @@ READY (2026-11-13). Self-contained. Background and the reason for every decision
 - Commit once per group (or once per job if the groups are tiny), by explicit paths: `git add -- <paths> && git commit -F msg -- <paths>`. Never `git add -A`, never stash/checkout/reset, never push.
 - Report: per group `DONE | STALE | SKIPPED` + lines removed (from `git diff --stat`), tests run with pass/fail counts, anything that looked like a bug (do not fix bugs that are not in the recipe; list them).
 
+Cross-package rule (PLAN.md "Coordinator gates"): a step that imports from package P a name that this job adds to P is Phase B and runs only after the dispatch says the gate is done (P reviewed and built in this clone). Here: J02 steps 3-4 (chat imports the new `@jini-ai/ui/a2ui` export) need gate H2. Nothing in Tovu may use the new panel-kit hooks (T16J/T18J/T23J) until the Jini release (gate R1); that adoption is job dedupe-11.
+
 ## Groups in this job (decision, risk, expected saving, divergence, tests)
 - **J01** EXTRACT SHARED HELPER — risk L; est. −90 lines; divergence: none (Glob/Grep/Web cards already render class "op-title" with no shimmer = shimmer:false)
   - tests: cd packages/chat && npx vitest run --maxWorkers=2 src/react/components/__tests__/ToolCard.test.tsx src/react/components/__tests__/ToolCard.long-chat-memory.test.tsx src/react/components/__tests__/ToolCard.cli-events.test.tsx
@@ -31,20 +33,27 @@ READY (2026-11-13). Self-contained. Background and the reason for every decision
   - tests: cd packages/chat && npx vitest run --maxWorkers=2 src/react/features/chat-pane/hooks
 - **J43** EXTRACT SHARED HELPER — risk L; est. −16 lines; divergence: none (absent props instead of explicit undefined = same DOM)
   - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/interactive-ui/providers
-- **J48** MERGE INTO EXISTING — risk M; est. −40 lines; divergence: YES (not owner-blocking): survivor listens to pointerdown, the copies to mousedown, so tests switch fireEvent.mouseDown -> pointerDown. With a null ref the survivor closes; the copies documented "never counts as outside" (unreachable while the menu is rendered). Survivor behavior kept
+- **J48** MERGE INTO EXISTING — risk M; est. −25 lines; divergence: YES, pinned by a characterization test: survivor listens to pointerdown (copies: mousedown; a real click fires both, so one dismissal either way) and closes on a null ref (unreachable while rendered). The four public predicates STAY exported (compatibility)
   - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/react/__tests__/components/HeaderActionsMenu.test.tsx src/react/__tests__/components/LanguageMenu.test.tsx src/react/__tests__/components/PaletteTweaks.test.tsx
 - **J50** EXTRACT SHARED HELPER — risk L; est. −8 lines; divergence: none
   - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/react/__tests__/components/BrandLogo.test.tsx
 - **J51** EXTRACT SHARED HELPER — risk L; est. −15 lines; divergence: none
   - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/connectors src/features/skills src/features/resource-dashboard
-- **J59** EXTRACT SHARED HELPER — risk L; est. −20 lines; divergence: public kind type widens from SourceActionKind to string (backward compatible)
+- **J59** EXTRACT SHARED HELPER — risk L; est. −8 lines; divergence: none; shared helper takes object args, the four public positional names in source-config-list stay as one-line adapters
   - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/resource-dashboard src/features/source-config-list
-- **JR03** MERGE INTO EXISTING — risk L; est. −28 lines; divergence: none (inline copies are the same identity-preserving delete)
+- **JR03** MERGE INTO EXISTING — risk L; est. −24 lines; divergence: none (inline copies are the same identity-preserving delete); object args (not public)
   - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/connectors/__tests__/hooks/useConnectorAuthorization.test.ts src/features/connectors/__tests__/hooks/useConnectorAuthorization.stale-race.test.ts src/features/connectors/__tests__/hooks/useConnectorDetail.test.ts src/features/connectors/__tests__/rules.test.ts src/features/memory/__tests__/react/hooks/useMemoryConnectors.rules.test.ts src/features/memory/__tests__/react/hooks/useMemoryConnectors.test.tsx
 - **JR04** EXTRACT SHARED HELPER — risk L; est. −16 lines; divergence: none
   - tests: same as JR03
 - **JR05** EXTRACT SHARED HELPER — risk L; est. −24 lines; divergence: arrow keys: preventDefault now runs after the caret move instead of before (same synchronous handler; not observable)
   - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/lexical-rich-text-editor/react/hooks/useMentionAtomicNavigation.test.ts src/features/lexical-rich-text-editor/react/components/RichTextInput.test.tsx
+
+- **T16J** EXTRACT SHARED HELPER (Jini half of Tovu T16) — risk L; est. +25 here, −30 in Tovu after R1; divergence: none (same document keydown Escape + panel-kit focus trap the 3 Tovu copies use)
+  - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/panel-kit/__tests__/use-escape-cancel-focus-trap.test.tsx
+- **T18J** EXTRACT SHARED HELPER (Jini half of Tovu T18) — risk M; est. +60 here, −100 in Tovu after R1; divergence: none; lifecycle pinned: effects depend on the `port` object's identity, exactly like the 3 Tovu copies
+  - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/panel-kit/__tests__/use-optimistic-stored-value.test.tsx
+- **T23J** EXTRACT SHARED HELPER (Jini half of Tovu T23) — risk M; est. +50 here, −70 in Tovu after R1; divergence: none; the "still running" test becomes an injected `shouldContinue`
+  - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/panel-kit/__tests__/use-bounded-status-poll.test.tsx
 
 ## Recipes (exact before → after)
 
@@ -82,6 +91,7 @@ Delete each card's now-unused `isRunning`. DelegatedToolCard and GenericCard sta
 ## J02 A2UI node renderer (MERGE, ui survivor)
 1. packages/ui/src/features/a2ui/renderer.tsx: rename `RenderNode` -> `A2uiComponentNode`, `export` it and `export type A2uiComponentNodeProps = NodeProps`. Change `NodeProps.registry` and `renderRegistryComponent`'s `registry` to `Pick<InteractiveUiRegistry, 'resolveById'>`. In `resolveText` replace the `as Parameters<...>` cast with `DynamicValueSchema.parse(value)` (import it from './protocol.js'; add `DynamicValueSchema` to protocol.ts re-export list from '@jini-ai/agentic/a2ui' if missing) and MOVE chat's comment "Text props already passed the catalog schema. Parsing preserves that wire type…" above it. MOVE chat's why-comments for Text variant ("`variant` is always populated…"), Button variant ("Always populated…") and Card ("A single-child wrapper…" minus the self-reference) onto the same cases here.
 2. packages/ui/src/features/a2ui/index.ts: add `export { A2uiComponentNode, type A2uiComponentNodeProps } from './renderer.js';`.
+Steps 1-2 are Phase A (ui only): type-check ui, run its a2ui tests, commit, report `J02 PHASE A DONE (needs H2)`. Steps 3-4 are Phase B (only after "H2 done: @jini-ai/ui built").
 3. packages/chat/src/react/components/A2uiSurfaceCard.tsx: delete `function RenderComponent` (lines ~58-185) and render `<A2uiComponentNode interpreter=… surfaceId=… componentId=… ancestors={new Set()} onAction=… registry=… />` where RenderComponent was used; import from '@jini-ai/ui/a2ui'. Drop the now-unused `DynamicValueSchema`/`ReactNode` imports if unused. Keep the module doc but change "this renderer has React cases…" to "renders through `@jini-ai/ui/a2ui`'s `A2uiComponentNode`".
 4. Tests: update chat expectations from curly to straight quotes: A2uiSurfaceCard.test.tsx lines ~339, ~363 and A2uiSurfaceCard.registry.test.tsx lines ~27, ~32 (`“x”` -> `"x"`).
 
@@ -148,8 +158,11 @@ export function clickableRowProps(
 ```
 In both data-table.tsx files, replace the four row attributes with `{...clickableRowProps({ row, index }, { onRowClick })}`. Their `onRowClick` prop type becomes `DataTableRowClick` (the doc stays).
 
-## J48 menu dismiss hooks (MERGE into useDismissOnOutsideOrEscape)
-HeaderActionsMenu.tsx: `useHeaderActionsMenuDismiss(params)` body becomes `useDismissOnOutsideOrEscape({ onDismiss: params.onDismiss }, { enabled: params.open, containerRef: params.containerRef });`. Keep its exported name and signature (it is public through `export *`), and import from '../../browser/index.js'. Do the same for LanguageMenu `useLanguageMenuDismiss` and PaletteTweaks `usePaletteDismiss` (keep its rootRef creation and return). Delete `isOutsideHeaderMenu`, `isHeaderMenuDismissKey`, `isOutsideLanguageMenu` and `isLanguageMenuDismissKey`, but first confirm that `rg -n "isOutside(Header|Language)Menu|is(Header|Language)MenuDismissKey" /Users/la/Programming/Tovu/apps /Users/la/Programming/Tovu/sites -g '!node_modules'` finds nothing. Update the two test files: remove the predicate tests and use `fireEvent.pointerDown` for outside clicks.
+## J48 menu dismiss hooks (MERGE into useDismissOnOutsideOrEscape) — public predicates stay
+1. FIRST write the characterization test `packages/ui/src/react/components/__tests__/menu-dismiss-hooks.characterization.test.tsx` (vitest + the testing library the two existing menu tests use). For each of `useHeaderActionsMenuDismiss`, `useLanguageMenuDismiss`, `usePaletteDismiss`: with the menu open, (a) Escape calls `onDismiss` once, (b) a pointer press inside the container does not, (c) a pointer press outside does, (d) with the menu closed nothing dismisses, (e) after unmount nothing dismisses. Fire BOTH `pointerDown` and `mouseDown` for (b)/(c) and assert one call in total for (c) — today's hooks listen to mousedown, the survivor to pointerdown, so a real click (pointerdown then mousedown) dismisses exactly once before and after. Run it: GREEN before the change.
+2. HeaderActionsMenu.tsx: `useHeaderActionsMenuDismiss(params)` body becomes `useDismissOnOutsideOrEscape({ onDismiss: params.onDismiss }, { enabled: params.open, containerRef: params.containerRef });` (import from '../../browser/index.js'). Same for LanguageMenu `useLanguageMenuDismiss` and PaletteTweaks `usePaletteDismiss` (keep its rootRef creation and return). Hook names and signatures stay (public through `export *`).
+3. KEEP `isOutsideHeaderMenu`, `isHeaderMenuDismissKey`, `isOutsideLanguageMenu`, `isLanguageMenuDismissKey` exported with their bodies and docs unchanged: they are public through `packages/ui/src/index.ts`'s `export *` barrels and a package consumer may import them. Add to each doc: "Kept for compatibility; the menu's own hook now uses `useDismissOnOutsideOrEscape`." Removing them is a breaking release (owner question O9 in PLAN.md).
+4. Existing menu tests: keep the predicate tests; switch outside-click tests to `fireEvent.pointerDown`. Re-run the characterization test (GREEN) and both menu tests. If `packages/ui/CHANGELOG.md` exists, add under Unreleased: "Header/Language/Palette menu dismiss hooks listen to pointerdown (via useDismissOnOutsideOrEscape); a synthetic mousedown alone no longer dismisses."
 
 ## J50 BrandLogo (EXTRACT type)
 `export interface ResolveLogoSrcOptions { stage: LogoStage; brandId?: string | undefined; resolveBrandLogoUrl?: ((brandId: string) => string) | undefined; logoSrc?: string | null | undefined; host?: string | undefined; faviconSize: number; resolveFaviconUrl: (host: string, size: number) => string; }`. Use it in `resolveLogoSrc(opts: ResolveLogoSrcOptions)` and `useResolvedLogoSrc(opts: ResolveLogoSrcOptions)`.
@@ -164,14 +177,25 @@ export function fakeLatencyDelay(_required: Record<string, never>, { latencyMs =
 ```
 In the 11 sites (`rg -n "latencyMs > 0 \? new Promise" packages/ui/src`), replace the `const delay = …` two lines with `const delay = fakeLatencyDelay({}, { latencyMs });`. Keep `const latencyMs = options.latencyMs ?? 0;` only where something else (delayedRejection) still uses it; otherwise inline `options.latencyMs`.
 
-## J59 pending-action helpers (EXTRACT to ui/utils)
-New `ui/src/utils/pending-actions.ts` holds the four resource-dashboard functions verbatim (kind: string) plus their docs, with the "re-derived fresh here (deliberately not imported cross-feature…)" clause rewritten to "shared by every feature that tracks per-item in-flight actions". source-config-list/rules.ts replaces its four functions with `export { pendingActionKey, isActionPending, withPendingAction, withoutPendingAction } from '../../utils/pending-actions.js';`, which keeps the public barrel unchanged. resource-dashboard/rules.ts does the same (not public). Update the resource-dashboard/index.ts comment: there is now one copy, re-exported through source-config-list.
+## J59 pending-action helpers (EXTRACT to ui/utils, object args; public positional names stay as adapters)
+1. New `ui/src/utils/pending-actions.ts` with the resource-dashboard docs (the "re-derived fresh here (deliberately not imported cross-feature…)" clause becomes "shared by every feature that tracks per-item in-flight actions"; keep the rest):
+```ts
+export function pendingActionKey({ id, kind }: { id: string; kind: string }, _optional: Record<string, never> = {}): string { return `${kind}:${id}`; }
+export function isActionPending({ pendingKeys, id, kind }: { pendingKeys: ReadonlySet<string>; id: string; kind: string }, _optional: Record<string, never> = {}): boolean
+export function withPendingAction({ pendingKeys, id, kind }: { pendingKeys: ReadonlySet<string>; id: string; kind: string }, _optional: Record<string, never> = {}): ReadonlySet<string>
+export function withoutPendingAction({ pendingKeys, id, kind }: { pendingKeys: ReadonlySet<string>; id: string; kind: string }, _optional: Record<string, never> = {}): ReadonlySet<string>
+```
+   Bodies = today's (withoutPendingAction returns the same set when the key is absent).
+2. `features/source-config-list/rules.ts` (PUBLIC via its index and the root barrel): keep the four exported names, positional signatures, `SourceActionKind` parameter types and the `pendingActionKey` doc; each body becomes one line delegating, e.g. `return isActionPending_({ pendingKeys, id, kind });` with `import { pendingActionKey as pendingActionKey_, isActionPending as isActionPending_, withPendingAction as withPendingAction_, withoutPendingAction as withoutPendingAction_ } from '../../utils/pending-actions.js';`.
+3. `features/resource-dashboard/rules.ts` (not public): delete its four functions; repoint its callers (`rg -n "pendingActionKey|isActionPending|withPendingAction|withoutPendingAction" packages/ui/src/features/resource-dashboard`) to the object form from `../../utils/pending-actions.js`. Update the resource-dashboard/index.ts comment: one copy, in `utils/pending-actions.ts`.
 
-## JR03 withoutKey -> connectors/rules.ts (MERGE)
-1. MOVE `withoutKey` (with its doc) from `ui/src/features/connectors/hooks/useConnectorAuthorization.ts` to `ui/src/features/connectors/rules.ts`. In useConnectorAuthorization.ts add `withoutKey` to its `../rules.js` import and add `export { withoutKey } from '../rules.js';` (its test imports it from the hook file).
-2. useConnectorAuthorization.ts: each `setCancelFailed((curr) => { if (curr[connectorId] === undefined) return curr; const next = { ...curr }; delete next[connectorId]; return next; });` and the same `setAuthError` shape becomes `setX((curr) => withoutKey(curr, connectorId));` (4 sites: cancel success ~222, sweep ~250, cancel ~323/~329). Keep the stale-race comment block (~245-248) and the "This clear's `curr[connectorId] !== undefined` guard is …" comment directly above their calls.
-3. useConnectorDetail.ts: the 2 `setFailedIds` copies become `setFailedIds((curr) => withoutKey(curr, connectorId));`; add `withoutKey` to its `../rules.js` import.
-4. `ui/src/features/memory/react/hooks/useMemoryConnectors.rules.ts`: delete the `withoutKey` body; add `import { withoutKey } from '../../../connectors/rules.js';` and `export { withoutKey } from '../../../connectors/rules.js';`. Reword its doc to: "Shared with `features/connectors/rules.ts` (one copy): this slice already imports connector reducers from there, per `../../rules.ts`'s header." OWNER DECISION: this replaces the old "intentionally duplicated per slice" reason, which the slice header contradicts.
+## JR03 withoutKey -> connectors/rules.ts (MERGE, object args)
+`withoutKey` is not public (only the two hook files and their tests import it), so it changes to object args without adapters.
+1. MOVE `withoutKey` (with its doc) from `ui/src/features/connectors/hooks/useConnectorAuthorization.ts` to `ui/src/features/connectors/rules.ts` as `export function withoutKey<T>({ record, key }: { record: Record<string, T>; key: string }, _optional: Record<string, never> = {}): Record<string, T>` (body unchanged: returns `record` itself when `key` is absent).
+2. useConnectorAuthorization.ts: import it from `../rules.js`; every call (existing `withoutKey(curr, connectorId)` at ~121/122/142 and the inline copies `setX((curr) => { if (curr[connectorId] === undefined) return curr; const next = { ...curr }; delete next[connectorId]; return next; })` at the cancel-success, sweep and cancel sites) becomes `setX((curr) => withoutKey({ record: curr, key: connectorId }))`. Keep the stale-race comment block (~245-248) and the "This clear's `curr[connectorId] !== undefined` guard is …" comment directly above their calls.
+3. useConnectorDetail.ts: the 2 `setFailedIds` copies become `setFailedIds((curr) => withoutKey({ record: curr, key: connectorId }))`; import from `../rules.js`.
+4. `ui/src/features/memory/react/hooks/useMemoryConnectors.rules.ts`: delete the `withoutKey` body; add `import { withoutKey } from '../../../connectors/rules.js';` and `export { withoutKey } from '../../../connectors/rules.js';`; update its callers to the object form. Reword its doc to: "Shared with `features/connectors/rules.ts` (one copy): this slice already imports connector reducers from there, per `../../rules.ts`'s header." Its old comment said "intentionally duplicated per slice"; that reason contradicts the slice header (the small owner item on the JR03 row of PLAN.md; not blocking).
+5. Tests: `features/connectors/__tests__/hooks/useConnectorAuthorization.test.ts` and `features/memory/__tests__/react/hooks/useMemoryConnectors.rules.test.ts` import `withoutKey` from `../../rules.js` / keep their import path and switch their calls to the object form.
 
 ## JR04 withoutConnectedEntries (EXTRACT, ui/connectors/rules.ts)
 ```ts
@@ -230,3 +254,66 @@ return mergeRegister(
   registerMentionCaretKey({ editor, command: KEY_DELETE_COMMAND, act: (selection) => removeMentionAtCaret(selection, false) }),
 );
 ```
+
+## Panel-kit lifecycle hooks (T16J, T18J, T23J) — generic UI mechanisms get a Jini owner
+Why: these are reusable UI lifecycles (Escape-to-cancel dialog focus, optimistic stored value, bounded status polling). A Tovu-only owner would force the next product to copy them or import Tovu. They go to `@jini-ai/ui/panel-kit` (Tovu admin already imports `useFocusTrap` and `useFetchQuery` from there); Tovu keeps thin wrappers holding product copy and port bindings (job dedupe-11). Each new file gets a `@file` doc naming the Tovu copies it replaces. Export each hook and its types from `packages/ui/src/features/panel-kit/index.ts` next to `useFocusTrap`. Tests use the same render helpers/providers as the existing panel-kit hook tests (`rg -l "renderHook" packages/ui/src/features/panel-kit`).
+
+### T16J `useEscapeCancelFocusTrap`
+`packages/ui/src/features/panel-kit/hooks/use-escape-cancel-focus-trap.hooks.ts`:
+```ts
+/** Ref for a confirm dialog: focus stays trapped inside it and Escape anywhere in the document calls `onCancel`. */
+export function useEscapeCancelFocusTrap({ onCancel }: { onCancel: () => void }, _optional: Record<string, never> = {}): RefObject<HTMLDivElement | null> {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap({ containerRef: dialogRef });
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onCancel();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onCancel]);
+  return dialogRef;
+}
+```
+Test: Escape calls `onCancel` once; another key does not; after unmount Escape does nothing; a new `onCancel` identity replaces the old listener (old not called).
+
+### T18J `useOptimisticStoredValue`
+`packages/ui/src/features/panel-kit/hooks/use-optimistic-stored-value.hooks.ts`:
+```ts
+export interface StoredValuePort<T> {
+  load(): Promise<T>;
+  save(required: { next: T; previous: T }): Promise<void>;
+  subscribe(required: { listener: () => void }): () => void;
+}
+export interface OptimisticStoredValue<T> { value: T; update: (compute: (previous: T) => T) => void; saveFailed: boolean }
+export function useOptimisticStoredValue<T>(
+  { queryKey, port, fallback, same }: { queryKey: QueryKey; port: StoredValuePort<T>; fallback: T; same: (required: { a: T; b: T }) => boolean },
+  _optional: Record<string, never> = {},
+): OptimisticStoredValue<T>
+```
+Body = Tovu `apps/admin/src/components/AssistantDock/hooks/use-chat-display-preferences.hooks.ts` (at 60f52fea1), generalized, with the SAME dependency identities (this is the lifecycle the review checked):
+- `const load = useCallback(() => port.load(), [port]);` `const query = useFetchQuery({ key: queryKey, fetch: load }, { staleTime: 0 });` `const invalidate = useInvalidate();`
+- optimistic state, `saveFailed` state, `lastRequested` and `pendingSaves` refs; `value = optimistic ?? query.data ?? fallback` (use explicit `!== null` / `!== undefined` checks, not truthiness).
+- subscribe effect: `useEffect(() => port.subscribe({ listener: () => invalidate({ key: queryKey }) }), [port, invalidate, queryKey]);` — it depends on `port` itself, so a new port unsubscribes the old one and subscribes the new one. Do NOT hold `port`/`subscribe` in a ref.
+- drop effect on `[optimistic, query.data, same]`: `pendingSaves.current === 0 && optimistic !== null && query.data !== undefined && same({ a: optimistic, b: query.data })` -> clear `lastRequested`, `setOptimistic(null)`.
+- `update = useCallback((compute) => { const previous = lastRequested.current ?? value; const next = compute(previous); … port.save({ next, previous }).then(ok, fail) }, [value, port, invalidate, queryKey])` with today's then/catch bookkeeping; the comment "A reversal must undo the last requested write, even before its re-read (or React render)." moves onto `update` (the three Tovu copies carry the same sentence; keep it once, plus any extra sentence one copy has).
+- doc on the hook: "`queryKey` and `same` must be stable (module-level); `port` identity drives subscription — memoize an adapted port on its source port."
+Test (characterization of the lifecycle): (1) render with port A, rerender with port B: A's unsubscribe called once, B.subscribe called once, B's listener triggers a refetch through B.load; (2) two quick updates: the second `save` receives the first's `next` as `previous`; (3) the optimistic value is dropped once the re-read equals it (`same`), not before; (4) a rejected save sets `saveFailed` and keeps the optimistic value.
+
+### T23J `useBoundedStatusPoll`
+`packages/ui/src/features/panel-kit/hooks/use-bounded-status-poll.hooks.ts`:
+```ts
+export function useBoundedStatusPoll<S>(
+  required: {
+    active: boolean; intervalMs: number; failureLimit: number;
+    fetchStatus: () => Promise<S>;
+    onStatus: (required: { status: S }) => void;
+    shouldContinue: (required: { status: S }) => boolean;
+    onGiveUp: (required: { error: unknown }) => void;
+  },
+  _optional: Record<string, never> = {},
+): { resetFailures: () => void }
+```
+Body = the loop in Tovu `apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts:166-202` (at 60f52fea1): `failuresRef = useRef(0)`; `inputsRef = useRef(required); inputsRef.current = required;`; one effect keyed on `[required.active]` that reads `fetchStatus`, `onStatus`, `shouldContinue`, `onGiveUp`, `intervalMs`, `failureLimit` from `inputsRef.current` at effect start (today's `pollInputs.current` capture), schedules with `setTimeout`, on success `failuresRef.current = 0; onStatus({ status }); if (shouldContinue({ status })) scheduleNext();`, on failure counts and at the limit calls `onGiveUp({ error })` and returns without scheduling, and cancels + clears the timer on cleanup. Returns `{ resetFailures: () => { failuresRef.current = 0; } }`. Move these comments verbatim from the Tovu file, renaming only identifiers (`isRunning` -> `active`, `setPollError` -> `onGiveUp`): "Counts CONSECUTIVE poll failures…", the "Poll loop: re-armed only when…" paragraph, the C2 "Bounded" comment.
+Test (fake timers): re-arms only when `active` flips to true (a new `onStatus` identity does not re-arm); a success resets the failure count; `failureLimit` consecutive failures call `onGiveUp` once and stop fetching; `shouldContinue` false stops; unmount mid-wait fetches nothing more.
+
