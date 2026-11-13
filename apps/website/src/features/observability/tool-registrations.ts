@@ -33,6 +33,7 @@ export function buildObservabilityRegistrations(deps: ObservabilityToolDeps, _op
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId,
           principalId: ctx.principal.id, permission: "system.write" }, { entityType: "observability" });
         if (!deps.sendTelemetryTest) throw new ToolInputError({ message: "Telemetry test is unavailable on this server." });
+        ctx.signal.throwIfAborted();
         return deps.sendTelemetryTest({});
       },
     }, rules: [forbiddenRule({ domainPrefix: "OBSERVABILITY", error: ForbiddenError })] }),

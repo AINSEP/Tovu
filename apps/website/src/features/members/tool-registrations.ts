@@ -198,6 +198,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
     members_create: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member" });
+      ctx.signal.throwIfAborted();
       const { member } = await createMember({ deps: { ...toMembersWriteServiceDeps(deps), onMemberCreated: ({ workspaceId, memberId, creationSource, initialState }) => {
         void deps.tracker?.capture({ name: "member_registered", userId: ctx.principal.id }, { properties: {
           eventId: `member-registered:${workspaceId}:${memberId}`, creationSource, initialState,
@@ -243,6 +244,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
     members_delete: async (ctx) => {
       const memberId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "memberId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
+      ctx.signal.throwIfAborted();
       return trashMember({ workspaceId: deps.workspaceId, memberId, actor: { principalId: ctx.principal.id } },
         { members: deps.memberRepo, remove: deps.removeMember, clock: { nowIso: () => nowIso({ clock: deps.clock }) } });
     },
@@ -252,6 +254,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
 
+      ctx.signal.throwIfAborted();
       const { member } = await disableMember({ deps: toMembersWriteServiceDeps(deps), input: { workspaceId: deps.workspaceId, memberId } });
       return { member: toMemberToolView(member) };
     },

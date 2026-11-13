@@ -363,6 +363,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
           // bytes — most registered vendors return PNG (`dispatch/stub.ts`'s placeholder included),
           // but this is no longer an OpenAI-specific fact now that `model` can select any vendor.
           const contentType = "image/png";
+          ctx.signal.throwIfAborted();
           const { media } = await uploadMedia({
             deps: {
               clock: routeDeps.clock,

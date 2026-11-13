@@ -170,6 +170,7 @@ export function buildRedirectsRegistrations(
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_REDIRECTS_PERMISSION }, { entityType: "redirect" });
 
+      ctx.signal.throwIfAborted();
       const { record } = await createRedirect({
         deps: routeDeps.redirectsWriteDeps,
         input: {
@@ -191,6 +192,7 @@ export function buildRedirectsRegistrations(
       const id = requireString({ input: input, key: "id" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_REDIRECTS_PERMISSION }, { entityType: "redirect", entityId: id });
 
+      ctx.signal.throwIfAborted();
       const { record } = await updateRedirect({
         deps: routeDeps.redirectsWriteDeps,
         input: {
@@ -252,6 +254,7 @@ export function buildRedirectsRegistrations(
         };
       });
 
+      ctx.signal.throwIfAborted();
       const { created, failed } = await importRedirects({
         deps: routeDeps.redirectsWriteDeps,
         input: { workspaceId: routeDeps.workspaceId, actorId: ctx.principal.id, rules },

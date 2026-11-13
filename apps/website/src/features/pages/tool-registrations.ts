@@ -649,6 +649,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
         return { written: false, reason: describeHandleCollision(id, handle, madeAmbiguous) };
       }
       try {
+        ctx.signal.throwIfAborted();
         await store.write(next);
       } catch (err) {
         throw toModelFacingWriteError(err);
@@ -710,6 +711,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
         };
       }
       try {
+        ctx.signal.throwIfAborted();
         await store.write(moved.html);
       } catch (err) {
         throw toModelFacingWriteError(err);

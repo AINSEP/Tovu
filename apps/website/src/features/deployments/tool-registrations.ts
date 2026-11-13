@@ -150,6 +150,7 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
       const ifMatch = requireString({ input: input, key: "ifMatch" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "system.write" }, { entityType: "dockerfile-source" });
 
+      ctx.signal.throwIfAborted();
       const result = writeDockerfileSourceWithIfMatch({ contents, ifMatch });
       if (!result.ok) {
         // Thrown, not returned — `ToolExecutor` reads a thrown error as the failed execution and

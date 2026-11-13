@@ -307,6 +307,7 @@ export function buildCommentsRegistrations(
       // reached the domain-function way Forms/Identity use, not the explicit-handler way the rest
       // of this file uses. See settings.ts's own comment on that override for why.
       await routeDeps.commentsSettingsReady;
+      ctx.signal.throwIfAborted();
       const settings = await setCommentsSettings(
         {
           settingsRepo: routeDeps.settingsRepo,

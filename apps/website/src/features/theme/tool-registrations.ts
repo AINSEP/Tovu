@@ -682,6 +682,7 @@ export function buildThemesRegistrations(
 
         assertCompiledWriteBoundaryUnchanged(theme, relativePath, content);
         let previousRevision: { trashedPath: string; note: string } | undefined;
+        ctx.signal.throwIfAborted();
         writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content }, { overwriteOversized,
           onRevision: ({ trashedPath }) => { previousRevision = { trashedPath,
             note: `Read the previous bytes with theme_read_file at '${trashedPath}' and write them back to '${relativePath}' with theme_write_file to undo.` }; },
@@ -731,6 +732,7 @@ export function buildThemesRegistrations(
         const occurrencesReplaced = replaceAll ? countOccurrences(currentContent, oldString) : 1;
 
         assertCompiledWriteBoundaryUnchanged(theme, relativePath, nextContent);
+        ctx.signal.throwIfAborted();
         writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content: nextContent });
         const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
         // Checked against the whole file after the edit, the same warning `theme_write_file` returns.
@@ -836,6 +838,7 @@ export function buildThemesRegistrations(
 
         const slash = relativePath.lastIndexOf("/");
         const destPath = slash === -1 ? name : `${relativePath.slice(0, slash)}/${name}`;
+        ctx.signal.throwIfAborted();
         const finalPath = performThemeFileRename(routeDeps, theme, { sourcePath: relativePath, destPath, name }, existingPaths);
 
         const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
@@ -882,6 +885,7 @@ export function buildThemesRegistrations(
         }
 
         const destPath = nextAvailableFileName({ desiredPath: sourcePath, existingPaths });
+        ctx.signal.throwIfAborted();
         copyThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath, destPath });
         const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
 
@@ -906,6 +910,7 @@ export function buildThemesRegistrations(
       return withSchemaOnRejection({ toolId: "theme_trash_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const theme = findThemeOrThrow(routeDeps, themeId);
 
+        ctx.signal.throwIfAborted();
         const { trashedPath, reloaded } = trashThemeFile({ deps: routeDeps, theme, relativePath });
 
         return {
@@ -966,6 +971,7 @@ export function buildThemesRegistrations(
           if (lock) throw new ThemeFileIdentityLockedError(lock.error);
         }
 
+        ctx.signal.throwIfAborted();
         renameThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath: trashedPath, destPath: restoreTo });
         pruneRestoredThemeTrash({ themeDir: theme.dir, trashedPath });
         const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);

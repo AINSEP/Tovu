@@ -115,6 +115,7 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
       await deps.newsletterReady;
       const owner = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: await deps.ownerPrincipalId });
       if (!owner?.email?.trim()) throw new ToolInputError({ message: "NEWSLETTER_OWNER_EMAIL_MISSING: Set the site owner's email in their user profile before sending a test." });
+      ctx.signal.throwIfAborted();
       const { results } = await sendTestCampaign({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId, testAddresses: [owner.email] } });
       // Provider error text can carry an email or endpoint; the caller receives only a fixed recovery note.
       if (results[0]?.outcome !== "sent") return { delivered: false, mailDeliveryAvailable: true, note: "The mail provider did not accept the test email. Check the email provider configuration and retry." };

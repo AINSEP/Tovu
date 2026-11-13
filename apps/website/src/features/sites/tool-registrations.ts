@@ -204,6 +204,7 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
 
         const workspace = routeDeps.sitesWorkspace ?? createSitesWorkspace({}, { cwd: switcherBase });
         const targetDir = path.join(workspace.home({}), targetName);
+        ctx.signal.throwIfAborted();
         const result = await resolved.duplicateSite({ sourceDir: source.dir, targetDir, name: displayName });
         workspace.registry({}).merge({ entries: [{ id: result.siteId, name: displayName ?? targetName, path: result.dir, createdBy: "Web", lastOpened: null }] });
         return { name: targetName, dir: result.dir, siteId: result.siteId, sourceName };
@@ -214,6 +215,7 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
       const switcherBase = await gateSiteSwitchWrite(routeDeps, switcherEnabled, ctx.principal.id);
       return withSchemaOnRejection({ toolId: "sites_create_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         // No access tokens from chat: a pasted token would sit in the transcript. The admin Create form takes them.
+        ctx.signal.throwIfAborted();
         const created = orThrowRefusal(await createSiteForOwner({ workspaceId: routeDeps.workspaceId, switcherBase, name, actorId: ctx.principal.id, source: "assistant" }, { createSite: routeDeps.createSite, tracker: routeDeps.tracker, bundledSourceRoot: routeDeps.bundledSourceRoot }));
         return created.site;
       } });

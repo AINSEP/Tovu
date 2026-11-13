@@ -192,6 +192,7 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
       }
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission }, { entityType, entityId });
 
+      ctx.signal.throwIfAborted();
       const outcome = await routeDeps.trash.restore({
         workspaceId: routeDeps.workspaceId,
         entityType,
