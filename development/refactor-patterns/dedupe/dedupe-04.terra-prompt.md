@@ -1,11 +1,13 @@
 # Terra job dedupe-04: Tovu admin + desktop: shared React pieces
 
-READY (2026-11-13). Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Tovu clone you are given.
+READY (2026-11-13; revised after review d3r: T13 factory signatures, size rule, T16 hook / T18 / T23 / T11 are Opus UI work, see `opus-ui-backlog.md`). Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Tovu clone you are given.
 
 ## Rules for every group in this job (read before editing)
 - HARD: stop before ~250k tokens of context. If you get close: commit what is done (by explicit paths), list the groups you did not finish under "REMAINING" in your report, and stop.
 - Do exactly the recipe. If a recipe's "before" text is not in the file (code moved or changed), search the same file for the same code by content; if it is gone or differs in behavior, SKIP that group and report it as `STALE <id>: <what you saw>`. Never improvise a different design.
-- No `eslint-disable`, no `as any`, no non-null `!`, no `@ts-ignore`. New functions take `(required: {...}, optional: {...} = {})`.
+- No `eslint-disable`, no `as any`, no non-null `!`, no `@ts-ignore`.
+- Signatures: every function this job creates or gives a new shared home takes `(required: {...}, optional: {...} = {})`; with nothing optional write `_optional: Record<string, never> = {}`, with nothing required `_required: Record<string, never> = {}`. A defaulted trailing object never breaks an existing caller. Where an existing exported name has a different shape and callers exist, keep that name as a one-line adapter over the new function. Only three shapes are exempt: React components (one props object), callbacks whose shape a library fixes (e.g. DataTable compare `(a, b)`), and the positional type guards owner decision O2 covers. Each recipe that uses an exemption names it.
+- Size: every function you create, move or merge is at most 50 lines, with cyclomatic AND cognitive complexity at most 10 (at most 9/9 under Tovu `apps/admin`). A recipe that moves code says how to split it when needed. If a body you move is still over a limit, split it only by pure extract-function: the same statements in the same order, locals passed in one object, and each comment moving with its lines. If that cannot be done without changing behavior, SKIP the group and report `OVER-LIMIT <id>: <function> <lines>/<complexity>`.
 - "Why" comments are never deleted: when code moves, its comment moves with it to the survivor; when two copies carry different why-comments, the survivor keeps both.
 - Do not change response text, status codes, error messages, defaults or ordering unless the recipe says so. Where a recipe says "behavior differs", write the failing test first (run it, see it RED), then make the change, then see it GREEN.
 - Plugins never import each other (`packages/agent-plugins/src/<id>/`, `content/agent-plugins/<id>/`); no new package; a shared helper goes only where the recipe says.
@@ -33,11 +35,11 @@ READY (2026-11-13). Self-contained. Background and the reason for every decision
   - tests: cd apps/admin && npx vitest run --maxWorkers=2 src/features/collections
 - **T15** EXTRACT SHARED HELPER — risk L; est. −22 lines; divergence: idPrefix, handle prefix, showRemoveButton, removeButtonLabel differ (parameterised)
   - tests: cd apps/admin && npx vitest run --maxWorkers=2 src/features/collections
-- **T16** EXTRACT SHARED HELPER (markup here; hook lifecycle -> Jini T16J, adopted in job 11) — risk L; est. −35 lines here; divergence: copy, handles, labels, extra dependents <p> differ (parameterised); markup identical
+- **T16** EXTRACT SHARED HELPER (markup only; the hook lifecycle is Opus UI work, `opus-ui-backlog.md` T16) — risk L; est. −35 lines here; divergence: copy, handles, labels, extra dependents <p> differ (parameterised); markup identical
   - tests: cd apps/admin && npx vitest run --maxWorkers=2 src/features/plugins src/features/settings
 - **T17** EXTRACT SHARED HELPER — risk L; est. −22 lines; divergence: none
   - tests: cd apps/admin && npx vitest run --maxWorkers=2 src/components/WidgetConfigFields
-- **T18** moved to job dedupe-11 (Jini owner T18J)
+- **T18** moved to the Opus UI backlog (`opus-ui-backlog.md`)
 - **T19** EXTRACT SHARED HELPER — risk L; est. −13 lines; divergence: none
   - tests: cd apps/admin && npx vitest run --maxWorkers=2  src/features/deployment
 - **T20** EXTRACT SHARED HELPER — risk L; est. −9 lines; divergence: none
@@ -46,7 +48,7 @@ READY (2026-11-13). Self-contained. Background and the reason for every decision
   - tests: cd apps/admin && npx vitest run --maxWorkers=2 src/features/menus
 - **T22** EXTRACT SHARED HELPER — risk L; est. −22 lines; divergence: none
   - tests: cd apps/admin && npx vitest run --maxWorkers=2 src/lib/__tests__/credential-submit-error.unit.test.ts src/features/deployment src/features/source-control
-- **T23** moved to job dedupe-11 (Jini owner T23J)
+- **T23** moved to the Opus UI backlog (`opus-ui-backlog.md`)
 - **T27** EXTRACT SHARED HELPER — risk L; est. −40 lines; divergence: none (all 5 frames identical attrs)
   - tests: cd apps/desktop && node --import ./scripts/one-react.ts --import tsx --test --test-concurrency=1 src/renderer/**/*icon*.test.ts* (run the renderer suite files that import icons/tool-icons)
 
@@ -153,7 +155,7 @@ export function readVersionConflict(
 - Move the `expectedVersion (2026-09-07)…` doc paragraph onto `PagesPort.updatePost`'s doc in `pages-port.hooks.ts`. Append it after the existing 2026-09-18 note.
 
 ### T10: use the Jini dialog open/close helpers
-In each of these 3 files:
+A pure function repoint (no hook or effect changes); the hooks' lifecycle stays as it is (its consolidation, T11, is Opus UI work under owner decision O3). In each of these 3 files:
 - `components/AssistantDock/MessageOverflowModal.hooks.tsx`
 - `features/pages/ThemePageDetailsModal.hooks.tsx`
 - `features/media/hooks/use-edit-media-modal.hooks.ts`
@@ -164,6 +166,7 @@ do the following:
 - Replace the calls: `openDialog(dialog)` becomes `openLightboxDialog(dialog)`, and `closeDialog(dialog)` becomes `closeLightboxDialog(dialog)`.
 
 ### T12: `OtherCredentialRemoveButton` (file-private)
+React component (one props object): exempt from the two-object form.
 1. In `features/security/OtherCredentialsSection.tsx`, add this component:
 ```tsx
 function OtherCredentialRemoveButton({ row, translate, dialogRef }: { row: OtherCredentialRowState; translate: Translate; dialogRef: RefObject<HTMLDialogElement | null> }) {
@@ -193,7 +196,7 @@ function OtherCredentialRemoveButton({ row, translate, dialogRef }: { row: Other
 
 ### T13: CollectionEntryEditor control factories
 ```tsx
-function makeNumberFieldControl(required: { step: string | undefined }) {
+function makeNumberFieldControl(required: { step: string | undefined }, _optional: Record<string, never> = {}) {
   return function NumberFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
     return (
       <input
@@ -207,7 +210,7 @@ function makeNumberFieldControl(required: { step: string | undefined }) {
     );
   };
 }
-function makeStringFieldControl(required: { type: "datetime-local" | undefined }) {
+function makeStringFieldControl(required: { type: "datetime-local" | undefined }, _optional: Record<string, never> = {}) {
   return function StringFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
     return (
       <input
@@ -225,11 +228,13 @@ const DatetimeFieldControl = makeStringFieldControl({ type: "datetime-local" });
 const IntegerFieldControl = makeNumberFieldControl({ step: "1" });
 const RealFieldControl = makeNumberFieldControl({ step: undefined });
 ```
+- The returned `NumberFieldControl` / `StringFieldControl` are React components (one props object, `FieldControlProps`): exempt from the two-object form.
 - Delete the four old functions.
 - `FIELD_CONTROLS` stays as it is.
 - Keep the `relation` reuse comment.
 
 ### T15: `ContentTypeFieldsSection` (file-private, Collections.tsx)
+React component (one props object): exempt from the two-object form. It renders markup only (no effect, no state), so it stays well under 50 lines.
 1. Props: `{ fields: DraftField[]; fieldHandles: string[]; idPrefix: string; handlePrefix: "new-content-type" | "edit-fields"; showRemoveButton: boolean; removeButtonLabel: string; updateField; removeField; addField; error: string | null; t: Translate }`.
 2. It renders, verbatim:
    - the `<div>` holding the `h3` "Fields" heading;
@@ -241,8 +246,8 @@ const RealFieldControl = makeNumberFieldControl({ step: undefined });
    - Edit dialog: `idPrefix="ct-edit-field"`, `showRemoveButton={true}`, its remove label.
 4. The Add-field agent label text is identical in both dialogs ("Add another field to this content type"), so keep it as a constant inside the helper.
 
-### T16: `ConfirmActionDialog` (markup, now) + hook (job dedupe-11, after the Jini release)
-The Escape + focus-trap lifecycle is a generic mechanism: its owner is Jini `@jini-ai/ui/panel-kit#useEscapeCancelFocusTrap` (job dedupe-06, T16J). The three Tovu hooks switch to it in job dedupe-11 (gate R1). Here only the shared product markup moves:
+### T16: `ConfirmActionDialog` (markup only)
+The Escape + focus-trap lifecycle in the three hooks is NOT part of this job: it is Opus UI work (`opus-ui-backlog.md` T16, which reuses Jini's existing `useDismissOnOutsideOrEscape` + `useFocusTrap`). Here only the shared product markup moves. `ConfirmActionDialog` is a React component (one props object): exempt from the two-object form.
 1. Create `apps/admin/src/components/ConfirmActionDialog.tsx` (product markup: Tovu class names and agent handles stay in Tovu).
    - Props (one object): `{ dialogRef: RefObject<HTMLDivElement | null>; titleId: string; title: string; body: string; extra?: string | null; onCancel: () => void; onConfirm: () => void; cancelText: string; confirmText: string; cancelHandle: string; cancelAgentLabel: string; confirmHandle: string; confirmAgentLabel: string }`.
    - It renders the exact markup shared by the three dialogs: backdrop div, then the dialog div with role, aria and stopPropagation, then h2, then p, then `{extra ? <p>{extra}</p> : null}`, then the `editor-actions` span holding Cancel (`btn-secondary autoFocus`) and Confirm (`btn-danger`).
@@ -264,8 +269,8 @@ case "contact-form": {
    - Define it as `const FETCHED_CONFIG_EDITORS = { "recent-entries": RecentEntriesConfigFields, menu: MenuConfigFields, "contact-form": ContactFormConfigFields } as const;`.
    - Place that constant after the three functions.
 
-### T18: moved to job dedupe-11
-Generic mechanism: Jini owner `@jini-ai/ui/panel-kit#useOptimisticStoredValue` (job dedupe-06, T18J); the three Tovu wrappers adopt it after the Jini release (gate R1). Nothing to do here.
+### T18: moved to the Opus UI backlog
+A UI lifecycle consolidation (optimistic value + port subscription), so Opus designs and builds it (`opus-ui-backlog.md` T18). Nothing to do here.
 
 ### T19, T20, T21: type-only extractions
 - T19, in `DockerfileTab.tsx`:
@@ -292,10 +297,11 @@ Generic mechanism: Jini owner `@jini-ai/ui/panel-kit#useOptimisticStoredValue` (
 5. Move both describe blocks into `src/lib/__tests__/credential-submit-error.unit.test.ts`, keeping the union of cases.
 6. Update the `{@link}` mentions in `deployment-i18n.tsx:2526` and `source-control-i18n.ts:591`.
 
-### T23: moved to job dedupe-11
-Generic mechanism: Jini owner `@jini-ai/ui/panel-kit#useBoundedStatusPoll` (job dedupe-06, T23J); the export and publish hooks adopt it after the Jini release (gate R1). Nothing to do here.
+### T23: moved to the Opus UI backlog
+A UI lifecycle consolidation (self-scheduling poll), so Opus designs and builds it (`opus-ui-backlog.md` T23). Nothing to do here.
 
 ### T27: desktop `IconFrame`
+React component (one props object): exempt from the two-object form.
 1. Create `apps/desktop/src/renderer/icon-frame.tsx`. It must not contain module-level JSX:
 ```tsx
 import type { JSX, ReactNode } from 'react';

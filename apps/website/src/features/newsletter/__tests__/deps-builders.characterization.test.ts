@@ -48,6 +48,30 @@ test("admin toSendPipelineDeps: unsubscribe deps present, real sleep, launch gat
   assert.equal(bundle.launchGateDeps.mailer, routeDeps.mailer);
 });
 
+test("admin toSendPipelineDeps: sleep really waits (pending until the requested delay has elapsed)", async (t) => {
+  // `typeof sleep === "function"` above would also accept a no-op `async () => {}`; the admin
+  // binding's sleep is a real timer wait, so pin that under mocked timers.
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const bundle = toSendPipelineDeps(sentinels() as unknown as NewsletterRouteDeps);
+  const sleep = bundle.sleep;
+  assert.ok(sleep, "the admin binding supplies sleep");
+  let settled = false;
+  const pending = sleep(250).then(() => { settled = true; });
+  await flushMicrotasks();
+  assert.equal(settled, false, "a no-op sleep would already have resolved");
+  t.mock.timers.tick(249);
+  await flushMicrotasks();
+  assert.equal(settled, false, "still pending 1 ms before the requested delay");
+  t.mock.timers.tick(1);
+  await pending;
+  assert.equal(settled, true);
+});
+
+/** Lets already-resolved promise chains run; only `setTimeout` is mocked, so `setImmediate` is real. */
+async function flushMicrotasks(): Promise<void> {
+  await new Promise<void>((resolve) => setImmediate(resolve));
+}
+
 test("tool toNewsletterSendPipelineDeps: no unsubscribe, no sleep, launch gate follows newsletterSendingEnabled", async () => {
   const withToggle = toNewsletterSendPipelineDeps(sentinels({ newsletterSendingEnabled: sendingOn }) as unknown as NewsletterToolDeps);
   assert.equal("unsubscribe" in withToggle, false);

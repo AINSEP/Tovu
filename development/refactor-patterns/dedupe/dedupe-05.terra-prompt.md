@@ -1,6 +1,6 @@
 # Terra job dedupe-05: Jini core-level helpers (land first among Jini jobs)
 
-READY (2026-11-13, revised for gates). Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Jini clone you are given (Jini only; paths below are relative to the Jini repo root).
+READY (2026-11-13, revised for gates; revised after review d3r: J05 is split into small functions with exact signatures, size rule). Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Jini clone you are given (Jini only; paths below are relative to the Jini repo root).
 
 ## Two phases (PLAN.md "Coordinator gates")
 Other packages type-check against the BUILT `@jini-ai/core`, so a package cannot import a core name this job adds until core is reviewed and built.
@@ -11,7 +11,9 @@ Other packages type-check against the BUILT `@jini-ai/core`, so a package cannot
 ## Rules for every group in this job (read before editing)
 - HARD: stop before ~250k tokens of context. If you get close: commit what is done (by explicit paths), list the groups you did not finish under "REMAINING" in your report, and stop.
 - Do exactly the recipe. If a recipe's "before" text is not in the file (code moved or changed), search the same file for the same code by content; if it is gone or differs in behavior, SKIP that group and report it as `STALE <id>: <what you saw>`. Never improvise a different design.
-- No `eslint-disable`, no `as any`, no non-null `!`, no `@ts-ignore`. New functions take `(required: {...}, optional: {...} = {})`.
+- No `eslint-disable`, no `as any`, no non-null `!`, no `@ts-ignore`.
+- Signatures: every function this job creates or gives a new shared home takes `(required: {...}, optional: {...} = {})`; with nothing optional write `_optional: Record<string, never> = {}`, with nothing required `_required: Record<string, never> = {}`. A defaulted trailing object never breaks an existing caller. Where an existing exported name has a different shape and callers exist, keep that name as a one-line adapter over the new function. Only three shapes are exempt: React components (one props object), callbacks whose shape a library fixes (e.g. DataTable compare `(a, b)`), and the positional type guards owner decision O2 covers. Each recipe that uses an exemption names it.
+- Size: every function you create, move or merge is at most 50 lines, with cyclomatic AND cognitive complexity at most 10 (at most 9/9 under Tovu `apps/admin`). A recipe that moves code says how to split it when needed. If a body you move is still over a limit, split it only by pure extract-function: the same statements in the same order, locals passed in one object, and each comment moving with its lines. If that cannot be done without changing behavior, SKIP the group and report `OVER-LIMIT <id>: <function> <lines>/<complexity>`.
 - "Why" comments are never deleted: when code moves, its comment moves with it to the survivor; when two copies carry different why-comments, the survivor keeps both.
 - Do not change response text, status codes, error messages, defaults or ordering unless the recipe says so. Where a recipe says "behavior differs", write the failing test first (run it, see it RED), then make the change, then see it GREEN.
 - Plugins never import each other (`packages/agent-plugins/src/<id>/`, `content/agent-plugins/<id>/`); no new package; a shared helper goes only where the recipe says.
@@ -46,9 +48,146 @@ Other packages type-check against the BUILT `@jini-ai/core`, so a package cannot
 In connection-guard.ts and ssrf-guard.ts: delete `function looksLikeIpLiteral`; add `import { isIpLiteralHostname } from '@jini-ai/core';`; replace `looksLikeIpLiteral(hostname)` with `isIpLiteralHostname({ hostname })`. Update the ssrf-guard.test.ts:143 comment "looksLikeIpLiteral's bracket-stripping branch" -> "isIpLiteralHostname's bracketed-IPv6 branch".
 
 ## J05 tagged text suppressor (EXTRACT to @jini-ai/core/text)
-1. (Phase A) New packages/core/src/text/tagged-text-suppression.ts: move from packages/artifacts/src/text-suppression.ts verbatim: `StreamTextEvent`, `StreamEventSink`, `ArtifactTextSuppressor` (export also as `TaggedTextSuppressor` alias), `ArtifactTextSuppressorStats`, `MAX_CANDIDATE_LENGTH`, `createTaggedTextSuppressor` (object-arg form, with its doc comment), `emitWithTextSuppressor` (object-arg form), `possibleTagStart`. Export all from packages/core/src/text/index.ts. Add packages/core/src/text/__tests__/tagged-text-suppression.test.ts by moving the createTaggedTextSuppressor/emit cases from artifacts' test.
-2. (Phase B, after H1) artifacts/src/text-suppression.ts: delete the moved code; `import { createTaggedTextSuppressor, type ArtifactTextSuppressor } from '@jini-ai/core/text';` and `export { createTaggedTextSuppressor, emitWithTextSuppressor, type ArtifactTextSuppressor, type ArtifactTextSuppressorStats, type StreamTextEvent, type StreamEventSink } from '@jini-ai/core/text';` (public names unchanged). Keep compactTagCandidate, createXmlTagTextSuppressor, tool-call regexes/predicates and their comments.
-3. (Phase B, after H1) agent-runtime/src/agent-protocol/acp/text-suppression.ts: delete its `createTaggedTextSuppressor`, `possibleTagStart`, `MAX_CANDIDATE_LENGTH`, `ArtifactTextSuppressor`, `ArtifactTextSuppressorStats`, `EventSink`, `emitWithTextSuppressor`; import them from '@jini-ai/core/text'; keep the DSML/tool_call regexes + `isPossible*` predicates, wrapping them as `isPossibleOpen: ({ text }) => isPossibleDsmlArtifactOpen(text)` etc. Re-export `emitWithTextSuppressor` and the types for session.ts. In session.ts change `suppressor.strip(text)` -> `suppressor.strip({ text })` and `emitWithTextSuppressor(s, onEvent, text)` -> `emitWithTextSuppressor({ suppressor: s, onEvent, text })`; same in its tests.
+1. (Phase A) New `packages/core/src/text/tagged-text-suppression.ts`. Source: `packages/artifacts/src/text-suppression.ts` (Jini 48e6159a4). `createTaggedTextSuppressor` there is 86 lines (54–139), over the 50-line limit, so it is NOT moved verbatim. It is split as below. The state machine, the statement order inside each branch and every comment stay exactly as they are today. Only the closure variables become fields of one state object that the factory owns.
+   - Move unchanged, with their docs: the module doc's first paragraph (the second and third paragraphs, about de-branding and the named instances, stay in artifacts), `StreamTextEvent`, `StreamEventSink`, `ArtifactTextSuppressor`, `ArtifactTextSuppressorStats` and `MAX_CANDIDATE_LENGTH` (exported). Also export `type TaggedTextSuppressor = ArtifactTextSuppressor`. The interface methods (`strip({ text })`, `flush()`, `isSuppressing()`, `hasPendingCandidate()`, `stats()`) keep their current shape: the interface is already public from `@jini-ai/artifacts`, and changing it would break its consumers.
+   - Merge agent-runtime's `@param` docs (`acp/text-suppression.ts`, the doc above its `createTaggedTextSuppressor`, the doc above `emitWithTextSuppressor` and the doc above `possibleTagStart`) into the matching docs below. Keep every sentence from both copies.
+   - Exact code (file-private unless marked `export`):
+```ts
+/** The open/close patterns a suppressor matches; see {@link createTaggedTextSuppressor}. */
+export interface TaggedTextMatchers {
+  openRe: RegExp;
+  closeRe: RegExp;
+  isPossibleOpen: (required: { text: string }) => boolean;
+  isPossibleClose: (required: { text: string }) => boolean;
+}
+
+/** Mutable per-suppressor state; owned by one {@link createTaggedTextSuppressor} call, never shared. */
+interface SuppressionState {
+  suppressing: boolean;
+  candidate: string;
+  suppressedChars: number;
+  suppressedChunks: number;
+  openedBlocks: number;
+  closedBlocks: number;
+}
+
+function noteSuppressed({ state, text }: { state: SuppressionState; text: string }, _optional: Record<string, never> = {}): void {
+  if (text.length <= 0) return;
+  state.suppressedChars += text.length;
+  state.suppressedChunks += 1;
+}
+
+/** Inside a block: hide everything up to and including the close tag, holding back a possible close-tag tail. */
+function stripInsideBlock({ state, matchers, current }: { state: SuppressionState; matchers: TaggedTextMatchers; current: string }, _optional: Record<string, never> = {}): string {
+  const close = matchers.closeRe.exec(current);
+  if (!close || close.index === undefined) {
+    const closeCandidateStart = possibleTagStart({ text: current, predicate: matchers.isPossibleClose });
+    if (closeCandidateStart !== -1) {
+      state.candidate = current.slice(closeCandidateStart);
+      noteSuppressed({ state, text: current.slice(0, closeCandidateStart) });
+    } else {
+      noteSuppressed({ state, text: current });
+    }
+    return '';
+  }
+  state.suppressing = false;
+  const end = close.index + close[0].length;
+  state.closedBlocks += 1;
+  noteSuppressed({ state, text: current.slice(0, end) });
+  return stripText({ state, matchers, text: current.slice(end) });
+}
+
+/** Outside a block: emit text before an open tag (then suppress from it), or hold back a possible open-tag tail. */
+function stripOutsideBlock({ state, matchers, current }: { state: SuppressionState; matchers: TaggedTextMatchers; current: string }, _optional: Record<string, never> = {}): string {
+  const open = matchers.openRe.exec(current);
+  if (open && open.index !== undefined) {
+    state.suppressing = true;
+    state.openedBlocks += 1;
+    const prefix = current.slice(0, open.index);
+    const tail = current.slice(open.index + open[0].length);
+    noteSuppressed({ state, text: open[0] });
+    return `${prefix}${stripText({ state, matchers, text: tail })}`;
+  }
+
+  const candidateStart = possibleTagStart({ text: current, predicate: matchers.isPossibleOpen });
+  if (candidateStart === -1) return current;
+
+  state.candidate = current.slice(candidateStart);
+  return current.slice(0, candidateStart);
+}
+
+/** One `strip` step: prepend the held-back candidate, then run the branch for the current mode. */
+function stripText({ state, matchers, text }: { state: SuppressionState; matchers: TaggedTextMatchers; text: string }, _optional: Record<string, never> = {}): string {
+  const current = `${state.candidate}${text}`;
+  state.candidate = '';
+  return state.suppressing
+    ? stripInsideBlock({ state, matchers, current })
+    : stripOutsideBlock({ state, matchers, current });
+}
+
+function flushCandidate({ state }: { state: SuppressionState }, _optional: Record<string, never> = {}): string {
+  const text = state.candidate;
+  state.candidate = '';
+  return state.suppressing ? '' : text;
+}
+
+function statsOf({ state }: { state: SuppressionState }, _optional: Record<string, never> = {}): ArtifactTextSuppressorStats {
+  return {
+    suppressedChars: state.suppressedChars,
+    suppressedChunks: state.suppressedChunks,
+    openedBlocks: state.openedBlocks,
+    closedBlocks: state.closedBlocks,
+    pendingCandidateChars: state.candidate.length,
+    suppressing: state.suppressing,
+  };
+}
+
+/** (artifacts' doc "Builds a suppressor for a tagged block delimited by `openRe`/`closeRe`. …", moved verbatim, plus agent-runtime's @param lines) */
+export function createTaggedTextSuppressor(required: TaggedTextMatchers, _optional: Record<string, never> = {}): ArtifactTextSuppressor {
+  const state: SuppressionState = { suppressing: false, candidate: '', suppressedChars: 0, suppressedChunks: 0, openedBlocks: 0, closedBlocks: 0 };
+  return {
+    strip: ({ text }) => stripText({ state, matchers: required, text }),
+    flush: () => flushCandidate({ state }),
+    isSuppressing: () => state.suppressing,
+    hasPendingCandidate: () => state.candidate.length > 0,
+    stats: () => statsOf({ state }),
+  };
+}
+
+/** (artifacts' one-line doc plus agent-runtime's @param/@returns lines) */
+export function emitWithTextSuppressor(
+  { suppressor, onEvent, text }: { suppressor: ArtifactTextSuppressor; onEvent: StreamEventSink; text: string },
+  _optional: Record<string, never> = {},
+): boolean {
+  const delta = suppressor.strip({ text });
+  if (!delta) return false;
+  onEvent({ type: 'text_delta', delta });
+  return true;
+}
+
+/** (agent-runtime's "Finds the start index of the rightmost `<`-prefixed suffix…" doc, moved) */
+export function possibleTagStart(
+  { text, predicate }: { text: string; predicate: (required: { text: string }) => boolean },
+  _optional: Record<string, never> = {},
+): number {
+  const min = Math.max(0, text.length - MAX_CANDIDATE_LENGTH);
+  let index = text.lastIndexOf('<');
+  while (index >= min) {
+    const tail = text.slice(index);
+    if (predicate({ text: tail })) return index;
+    if (index === 0) break;
+    index = text.lastIndexOf('<', index - 1);
+  }
+  return -1;
+}
+```
+   - Why these exact splits: the two branches of today's `strip` (`if (suppressing) {…}` and the rest) become `stripInsideBlock` and `stripOutsideBlock` with their statements unchanged. The recursive `strip({ text: … })` calls become `stripText(…)`, which does the same candidate prepend and reset first. So the calls happen in the same order and the state changes are the same. Each function is under 25 lines, with cyclomatic complexity of 4 or less.
+   - `possibleTagStart` is exported because artifacts keeps `compactTagCandidate`'s comment, which names it ("always a `possibleTagStart` tail slice"). Update that comment to "`@jini-ai/core/text`'s `possibleTagStart`". Neither package calls it directly after the move.
+   - Export from `packages/core/src/text/index.ts`: `createTaggedTextSuppressor`, `emitWithTextSuppressor`, `possibleTagStart`, `MAX_CANDIDATE_LENGTH` and the types `TaggedTextMatchers`, `TaggedTextSuppressor`, `ArtifactTextSuppressor`, `ArtifactTextSuppressorStats`, `StreamTextEvent`, `StreamEventSink`.
+   - Test: add `packages/core/src/text/__tests__/tagged-text-suppression.test.ts` by COPYING (not moving, because artifacts keeps its own until Phase B) the artifacts test cases that exercise `createTaggedTextSuppressor`, `emitWithTextSuppressor` and the backtracking loop. Copy every assertion unchanged, including the stats counts after open, close, split-chunk and flush. Copy, rather than rewrite, so the same assertions run against the split version. Run it GREEN. If any case fails, the split changed behavior: fix the split, never the assertion.
+   - Signatures of the moved exports: `createTaggedTextSuppressor(required, _optional = {})` and `emitWithTextSuppressor(required, _optional = {})`. artifacts' current callers pass one object, so they keep compiling. agent-runtime's acp copy is NOT public (only `session.ts` imports it; `@jini-ai/agent-runtime` exports no `acp/text-suppression` subpath), so its positional callers switch in step 3 without adapters.
+2. (Phase B, after H1) artifacts/src/text-suppression.ts: delete the moved code; `import { createTaggedTextSuppressor, type ArtifactTextSuppressor } from '@jini-ai/core/text';` and `export { createTaggedTextSuppressor, emitWithTextSuppressor, type ArtifactTextSuppressor, type ArtifactTextSuppressorStats, type StreamTextEvent, type StreamEventSink } from '@jini-ai/core/text';` (public names unchanged). Keep compactTagCandidate, createXmlTagTextSuppressor, tool-call regexes/predicates and their comments, plus the module doc's de-branding paragraphs. Delete the copied core cases from artifacts' test only if they are now exact duplicates of the core test; keep every artifacts-specific case (XML/tool-call instances).
+3. (Phase B, after H1) agent-runtime/src/agent-protocol/acp/text-suppression.ts: delete its `createTaggedTextSuppressor`, `possibleTagStart`, `MAX_CANDIDATE_LENGTH`, `ArtifactTextSuppressor`, `ArtifactTextSuppressorStats`, `EventSink`, `emitWithTextSuppressor`; import them from '@jini-ai/core/text'; keep the DSML/tool_call regexes + `isPossible*` predicates, wrapping them as `isPossibleOpen: ({ text }) => isPossibleDsmlArtifactOpen(text)` etc. (they stay file-private and positional: unchanged code, not new shared functions). Re-export `emitWithTextSuppressor` and the types for session.ts. In session.ts change `suppressor.strip(text)` -> `suppressor.strip({ text })` and `emitWithTextSuppressor(s, onEvent, text)` -> `emitWithTextSuppressor({ suppressor: s, onEvent, text })`; same in its tests.
 Do NOT change the artifacts tool_call regex here (separate bug, see report).
 
 ## J09 errorCode/errorMessage (EXTRACT to @jini-ai/core/primitives)

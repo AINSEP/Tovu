@@ -1,13 +1,15 @@
 # Terra job dedupe-10: OWNER-GATED (run only the groups the owner approved)
 
-READY (2026-11-13). Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Tovu+Jini clone you are given.
+READY (2026-11-13; revised after review d3r: T11 moved to the Opus UI backlog, `opus-ui-backlog.md`; size rule). JR01 and J46a are the only groups, both under owner decision O2. Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Tovu+Jini clone you are given.
 
 Each group below needs the owner's yes first (see PLAN.md, Owner decisions). Skip every group the dispatch does not name as approved.
 
 ## Rules for every group in this job (read before editing)
 - HARD: stop before ~250k tokens of context. If you get close: commit what is done (by explicit paths), list the groups you did not finish under "REMAINING" in your report, and stop.
 - Do exactly the recipe. If a recipe's "before" text is not in the file (code moved or changed), search the same file for the same code by content; if it is gone or differs in behavior, SKIP that group and report it as `STALE <id>: <what you saw>`. Never improvise a different design.
-- No `eslint-disable`, no `as any`, no non-null `!`, no `@ts-ignore`. New functions take `(required: {...}, optional: {...} = {})`.
+- No `eslint-disable`, no `as any`, no non-null `!`, no `@ts-ignore`.
+- Signatures: every function this job creates or gives a new shared home takes `(required: {...}, optional: {...} = {})`; with nothing optional write `_optional: Record<string, never> = {}`, with nothing required `_required: Record<string, never> = {}`. A defaulted trailing object never breaks an existing caller. Where an existing exported name has a different shape and callers exist, keep that name as a one-line adapter over the new function. Only three shapes are exempt: React components (one props object), callbacks whose shape a library fixes (e.g. DataTable compare `(a, b)`), and the positional type guards owner decision O2 covers. Each recipe that uses an exemption names it.
+- Size: every function you create, move or merge is at most 50 lines, with cyclomatic AND cognitive complexity at most 10 (at most 9/9 under Tovu `apps/admin`). A recipe that moves code says how to split it when needed. If a body you move is still over a limit, split it only by pure extract-function: the same statements in the same order, locals passed in one object, and each comment moving with its lines. If that cannot be done without changing behavior, SKIP the group and report `OVER-LIMIT <id>: <function> <lines>/<complexity>`.
 - "Why" comments are never deleted: when code moves, its comment moves with it to the survivor; when two copies carry different why-comments, the survivor keeps both.
 - Do not change response text, status codes, error messages, defaults or ordering unless the recipe says so. Where a recipe says "behavior differs", write the failing test first (run it, see it RED), then make the change, then see it GREEN.
 - Plugins never import each other (`packages/agent-plugins/src/<id>/`, `content/agent-plugins/<id>/`); no new package; a shared helper goes only where the recipe says.
@@ -19,13 +21,13 @@ Each group below needs the owner's yes first (see PLAN.md, Owner decisions). Ski
 ## Groups in this job (decision, risk, expected saving, divergence, tests)
 - **JR01** EXTRACT SHARED HELPER — risk L; est. −80 lines; divergence: none for the 26 replaced copies (all are non-null + non-array). Excluded on purpose: array-permissive copies (agent-runtime claude-segment-usage, qoder-stream, pi-rpc/internal, elevenlabs; agentic a2ui/surface-properties; chat run-activity; search registry), shape-typed guards (commerce Candidate, search contribution Shape, agent-runtime json-event-stream JsonObject export), protocol/delegated-result (protocol has no core dependency)
   - tests: cd packages/core && npx vitest run --maxWorkers=2 src/records.test.ts ; then npx tsc --noEmit -p packages/<pkg>/tsconfig.json for each touched package ; per touched file run its colocated test: cd packages/<pkg> && npx vitest run --maxWorkers=2 $(rg -l '<basename-without-ext>' src --glob '*.test.ts' | head -3)
-- **T11** EXTRACT SHARED HELPER (Jini home; Tovu adoption in job 11 after R1) — risk M; est. +40 Jini, −75 Tovu; divergence: none
-  - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/admin-widgets/components/Lightbox/__tests__/use-native-modal-dialog.hooks.test.tsx
+- **T11** moved to the Opus UI backlog (it must reuse ui-kit's existing `useNativeDialog`, not add a second native-dialog lifecycle; owner decision O3).
 - **T33** moved to job dedupe-03.
 
 ## Recipes (exact before → after)
 
 ## JR01 isRecord copies -> core `isObjectRecord` (EXTRACT, core + 11 packages) - OWNER DECISION O2: positional guard
+Exemption from the two-object form: `isObjectRecord(value)` is a positional type guard (O2), named here as the rules require.
 Phase A = step 1 (core only; commit; report `JR01 PHASE A DONE (needs H6)`). Phase B = steps 2-4, only after the dispatch says "H6 done: @jini-ai/core built".
 1. `packages/core/src/records.ts`, after `isNonArrayRecord`:
 ```ts
@@ -48,16 +50,6 @@ agent-plugins/src/admin-surfaces/{surface-capabilities,surface-handlers,delivery
 3. `mcp/src/server/tool-arguments.ts` exports `isRecord`: replace its definition with `export { isObjectRecord as isRecord } from '@jini-ai/core/records';` so its importers stay unchanged.
 4. J46a (same owner gate O2; runs with JR01): new `daemon/src/core/is-record.ts` containing `export { isObjectRecord as isRecord } from '@jini-ai/core/records';` plus this moved comment: "Positional on purpose: TypeScript narrows only the argument a guard names, so core's object-arg `isNonArrayRecord` cannot narrow `input.body` in place." Then, in each of these 22 files, delete the local `isRecord` (all have the body `typeof value === 'object' && value !== null && !Array.isArray(value)` or the same with operands reordered) and import `isRecord` from the new module by relative path: `run-lifecycle.ts`, `tool-result-surfaces.ts`, `tool-result-media.ts`, `terminal-session.ts`, `remote-tool-executor.ts`, `http/remote-run-events.ts`, `http/media.ts`, `http/research.ts`, `http/db-ops.ts`, `http/frontend-sessions.ts`, `http/routines.ts`, `http/memory.ts`, `http/tool-execution-routes.ts`, `http/runs.ts`, `http/attachment-lookup-routes.ts`, `http/xai.ts`, `http/connectors.ts`, `http/delegated-tools.ts`, `http/frontend-request-route.ts` (all under `packages/daemon/src/`). The three EXPORTED copies keep their export so importers stay unchanged: `http/model-proxy-fields.ts`, `http/resource-request.ts`, `agent-executor/values.ts` each become `export { isRecord } from '<relative>/core/is-record.js';`.
 NOT touched (one line each): array-permissive copies (agent-runtime claude-segment-usage, qoder-stream, pi-rpc/internal, elevenlabs; agentic a2ui/surface-properties; chat run-activity; search registry) change behavior if replaced; shape-typed guards (commerce `Candidate`, search contribution `Shape`, agent-runtime json-event-stream `JsonObject` export); protocol/delegated-result.ts (protocol does not depend on core).
-
-### T11 (ONLY if the owner approves O3): `useNativeModalDialog` gets a Jini home
-Why Jini: a native-`<dialog>` open/close lifecycle with Escape and backdrop dismissal is a generic UI mechanism (owner rule: generic -> Jini). Its pieces already live in `@jini-ai/ui/admin-widgets` (`openLightboxDialog` / `closeLightboxDialog`, which Tovu adopts in T10), so the hook goes beside them. Tovu adopts it in job dedupe-11 after the Jini release (gate R1).
-1. Jini: new `packages/ui/src/features/admin-widgets/components/Lightbox/use-native-modal-dialog.hooks.ts`:
-   - `export interface NativeModalDialogController` = Tovu `MessageOverflowModalController` (apps/admin/src/components/AssistantDock/MessageOverflowModal.hooks.tsx), field docs included.
-   - `export function useNativeModalDialog({ open, onClose }: { open: boolean; onClose: () => void }, _optional: Record<string, never> = {}): NativeModalDialogController` with the body of Tovu `useMessageOverflowModal`, calling `openLightboxDialog` / `closeLightboxDialog` from `./Lightbox.hooks.js`, and its doc block (rename only identifiers).
-   - Export both from `packages/ui/src/features/admin-widgets/index.ts` next to `openLightboxDialog`.
-   - Test `.../Lightbox/__tests__/use-native-modal-dialog.hooks.test.tsx`: open=true opens the dialog once; open=false closes it; a native `cancel` event is prevented and calls `onClose`; a click whose target is the dialog itself calls `onClose`, a click on a child does not.
-   - Type-check ui; run the test; commit; report `T11 JINI DONE (Tovu half = job 11 after R1)`.
-2. Tovu: nothing in this job. The three components switch in `dedupe-11.terra-prompt.md` (T11).
 
 ### T33
 Moved to job dedupe-03 (both launch-gate bindings are now passed in explicitly, so the merge no longer needs O4's answer). Nothing to do here.
