@@ -235,6 +235,26 @@ MOVE_SCOPE = {
 }
 
 
+# Shared by the MOVE and SPLIT templates so each generated prompt is self-contained (no "see the
+# stage-06 prompt" references; review of the split dry-run, 2026-11-13).
+PREFLIGHT = f"""## Preflight (stop and report if 1 or 2 fails)
+1. `test -w {JINI}/packages && test -d {JINI}/node_modules && git -C {JINI} status --short` (note pre-existing changes; never touch them). No `node_modules` in the Jini clone = no Jini typecheck, tests or cycle check are possible: stop and report "Jini clone not installed" (the coordinator installs it; you never do).
+2. Tovu `node_modules` must be the coordinator's APFS copy linked to this Jini clone, never the live tree:
+```
+cd {TOVU}
+test ! -L node_modules && echo "node_modules is a real folder"
+python3 -c 'import os;print(os.path.realpath("node_modules/@jini-ai/core"))'   # must print {JINI}/packages/core
+```
+   If `node_modules` is a symlink, or `@jini-ai/core` resolves into `/Users/la/Programming/Tovu` or `/Users/la/Programming/Jini`: do the Jini half only, skip the whole Tovu half, and report "Tovu half skipped: node_modules not linked to the Jini clone (PLAN.md 4.2)". Never fix it yourself.
+3. Run the ratchet gate (below) and paste the output.
+"""
+
+TEST_CONVERT = f"""   - imports: `import {{ describe, it, test, beforeEach, afterEach, beforeAll, afterAll, onTestFinished }} from 'vitest'` (only the names used); top-level/`describe`-level `before` -> `beforeAll`, `after` -> `afterAll`, `beforeEach`/`afterEach` unchanged; keep `node:assert/strict` as is; repoint the subject import to the relative Jini path.
+   - test context: vitest passes no node:test context. `t.after(fn)` inside a test -> `onTestFinished(fn)` (same timing: after that test, pass or fail), and drop the now-unused `t` parameter. ANY other context use (`t.mock`, `t.skip`, `t.todo`, `t.plan`, `t.test`, `t.diagnostic`, `t.signal`, `t.name`, `t.before*`, `t.afterEach`) or a node:test options object (`test(name, {{ skip | only | todo | timeout | concurrency }}, fn)`) = the test STAYS in Tovu (table `S(...)`; re-check, the table is a hint).
+   - after converting, `grep -nE "\\bt\\.|node:test" <jini test>` must print nothing.
+"""
+
+
 def move_prompt(nn, scope, extra, table, input_tsv):
     return BUDGET_T + f"""
 # Terra job, stage {nn}: move Tovu files into Jini ({scope})
@@ -248,17 +268,7 @@ These files are generic (the 2026-11-11 survey labelled them MOVE): they belong 
 ## Release rule (owner decision D1, default)
 No npm publish, no version bump, no `changeset version`, no prerelease. Tovu consumes this Jini clone through `link:jini` (already set up by the coordinator) until one final lockstep 0.8.0 release in stage 16. Your release note is a changeset FILE only (Jini half, step 6).
 
-## Preflight (stop and report if 1 or 2 fails)
-1. `test -w {JINI}/packages && test -d {JINI}/node_modules && git -C {JINI} status --short` (note pre-existing changes; never touch them). No `node_modules` in the Jini clone = no Jini typecheck, tests or cycle check are possible: stop and report "Jini clone not installed" (the coordinator installs it; you never do).
-2. Tovu `node_modules` must be the coordinator's APFS copy linked to this Jini clone, never the live tree:
-```
-cd {TOVU}
-test ! -L node_modules && echo "node_modules is a real folder"
-python3 -c 'import os;print(os.path.realpath("node_modules/@jini-ai/core"))'   # must print {JINI}/packages/core
-```
-   If `node_modules` is a symlink, or `@jini-ai/core` resolves into `/Users/la/Programming/Tovu` or `/Users/la/Programming/Jini`: do the Jini half only, skip the whole Tovu half, and report "Tovu half skipped: node_modules not linked to the Jini clone (PLAN.md 4.2)". Never fix it yourself.
-3. Run the ratchet gate (below) and paste the output.
-
+{PREFLIGHT}
 ## Input
 `{input_tsv}` (columns: path, loc, action, pkg, subpath, exists_now, feature, label, home, was, route). `home` is the survey's text: the destination and the host contract (what the host must supply). `was` (if set) is the survey path before an earlier stage moved the file (`successors.tsv`); if a one-line re-export shim is still at `was`, its importers are repointed too and the shim is deleted with the row. Scope: {scope}.{extra}
 Pre-check table (computed when this prompt was written; it is a HINT: re-check every row). "export -> entry file" = the `package.json` export key and the Jini source file behind it; the moved file goes in that entry's folder. Tests: `M` = only imports files of this stage (candidate to move to Jini), `[t.after->onTestFinished]` = convert that call (Jini half step 3), `S(...)` = stays in Tovu, repointed (reason in brackets). "prod importers" = non-test Tovu files to repoint. "pre-check" = imports or strings that block the move unless a port solves them; `API name(...)` = an export to convert or block (Public API shape); `own-pkg` = rewrite to the declaring leaf file; `console.*` = BLOCKED (Logging); `WAITS D2` = owner gate.
@@ -281,10 +291,7 @@ Read the file. The row's `home`/`label` text must still describe it: every host 
 1. Copy the file to `{JINI}/packages/<pkg>/<dest folder>/<basename>` (same name; no `git mv` across repos). Rewrite its imports: the target package's own subpaths -> relative paths to the DECLARING leaf file (see "Imports of the target package itself"; never the entry file); files of this stage that move with it -> relative paths; host-contract types -> the port declared in the file (Ports). Apply "Public API shape" to its exports. Keep every comment; drop Tovu SPEC/ADR/U/D IDs and the word Tovu from comments by minimal rewording ("the host").
 2. Export it from the entry file: add `export * from './<basename>.js';` (or `export {{ a, b }} from` / `export type {{ ... }} from` when the entry uses named lists). If a name collides with an existing export of that entry, BLOCKED "name clash: <name>".
 3. Tests. Each `M` test: copy to `<dest folder>/__tests__/<test basename>` in Jini and convert `node:test` to vitest. The conversion is exactly this and nothing else:
-   - imports: `import {{ describe, it, test, beforeEach, afterEach, beforeAll, afterAll, onTestFinished }} from 'vitest'` (only the names used); top-level/`describe`-level `before` -> `beforeAll`, `after` -> `afterAll`, `beforeEach`/`afterEach` unchanged; keep `node:assert/strict` as is; repoint the subject import to the relative Jini path.
-   - test context: vitest passes no node:test context. `t.after(fn)` inside a test -> `onTestFinished(fn)` (same timing: after that test, pass or fail), and drop the now-unused `t` parameter. ANY other context use (`t.mock`, `t.skip`, `t.todo`, `t.plan`, `t.test`, `t.diagnostic`, `t.signal`, `t.name`, `t.before*`, `t.afterEach`) or a node:test options object (`test(name, {{ skip | only | todo | timeout | concurrency }}, fn)`) = the test STAYS in Tovu (table `S(...)`; re-check, the table is a hint).
-   - after converting, `grep -nE "\\bt\\.|node:test" <jini test>` must print nothing.
-   A test that uses `mock`/`t.mock` from `node:test`, Tovu fixtures or helpers, or files outside this stage stays in Tovu (Tovu half, step 3). If the moved file ends up with no test in Jini, report it as `NO-JINI-TEST` (the package has a 100% coverage gate; the coordinator's cloud run measures it).
+{TEST_CONVERT}   A test that uses `mock`/`t.mock` from `node:test`, Tovu fixtures or helpers, or files outside this stage stays in Tovu (Tovu half, step 3). If the moved file ends up with no test in Jini, report it as `NO-JINI-TEST` (the package has a 100% coverage gate; the coordinator's cloud run measures it).
 4. Per moved test: `cd {JINI} && pnpm --filter @jini-ai/<pkg> exec vitest run <test path relative to the package> --maxWorkers=2`.
 5. Per touched package: `pnpm --filter @jini-ai/<pkg> exec tsc -p tsconfig.json --noEmit`, then the module-cycle ratchet `python3 {TOVU}/{D}/jini-cycles.py <pkg> --baseline {TOVU}/{D}/.cycles-<pkg>-before.txt` (exit 1 = the move made a Jini import cycle the Tovu gates cannot see: fix the import to a leaf file or undo that row), then build it so the linked Tovu sees the new exports: `pnpm --filter @jini-ai/<pkg> run build`. `npx eslint <new Jini files>` from `{JINI}`.
 6. Release note: write `{JINI}/.changeset/move-to-jini-stage-{nn}.md`:
@@ -333,27 +340,29 @@ Each Tovu file in this batch mixes generic code (moves to Jini) with product cod
 ## Release rule (owner decision D1, default)
 No npm publish, no version bump, no prerelease. Tovu consumes this Jini clone through `link:jini`. Your release note is a changeset FILE only (`{JINI}/.changeset/move-to-jini-stage-15-{batch}.md`, `minor`, one line per touched package, no host-app names).
 
-## Preflight (stop and report if 1 or 2 fails)
-Same as `{D}/stage-06.terra-prompt.md` "Preflight" 1-3 (Jini clone writable and installed; Tovu `node_modules` is the APFS copy linked to `{JINI}`; ratchet gate output pasted).
-
+{PREFLIGHT}
 ## Input
 `{spec_tsv}` (columns: path, symbol, kind, closure, jini_pkg, export_key, jini_file, port, api, stays, tests). One row per moving symbol; rows of the same `path` form one Tovu file's split.
+This job has no pre-check table: where a block below mentions "the table" or "the pre-check column", check that item yourself.
 
 {D2_GATE}
 ## Per Tovu file: check before editing (mechanical; any failure = the whole file is BLOCKED, untouched)
 1. Snapshot: `grep -nE "^export " <path>` -> the file's exported names today (keep this list for step "After").
 2. Every `symbol` and every `closure` member exists in the file as a top-level declaration (`grep -n -w`).
 3. Dependency closure: read each moving declaration. Every identifier it uses is one of: another moving symbol or closure member of this file; an import the spec allows (npm already in the Jini package's deps, `@jini-ai/core`, the target package (rewrite to the declaring leaf file, never the entry), `node:*`); or the row's `port`. Anything else (a `stays` symbol, a `#src/` or relative Tovu import, `console.*`, `process.env`, a Tovu string) = BLOCKED "closure: <identifier>". Never widen the spec yourself.
-4. `api` is `(required, optional = {{}})`-shaped and matches the declaration (or the spec says how to convert it, see `{D}/stage-06.terra-prompt.md` "Public API shape"); otherwise BLOCKED.
+4. `api` is `(required, optional = {{}})`-shaped and matches the declaration (or the spec says how to convert it, see "Public API shape" below); otherwise BLOCKED.
+
+{API_SHAPE}
 
 ## Jini half (per file that passed)
 1. `python3 {TOVU}/{D}/jini-cycles.py <pkg> > {TOVU}/{D}/.cycles-<pkg>-before.txt` before the first edit to a package.
 2. Create or extend `jini_file`: the moving declarations with their doc comments and why-comments, in source order; imports rewritten as in check 3; the port interface declared there with a doc comment naming who fulfils it. Drop Tovu SPEC/ADR/U/D IDs from comments by minimal rewording.
 3. Export the moved names from the `export_key` entry file (`export {{ a, b }} from './<file>.js'` / `export type {{ ... }}`). Name clash with an existing export = BLOCKED.
-4. Tests: a Tovu test listed in `tests` whose ONLY subjects are moving symbols moves to `<jini dir>/__tests__/` with the node:test -> vitest conversion of `{D}/stage-06.terra-prompt.md` Jini half step 3 (including the `t.after` -> `onTestFinished` rule); any other test stays in Tovu and is repointed.
+4. Tests: a Tovu test listed in `tests` whose ONLY subjects are moving symbols moves to `<jini dir>/__tests__/` converted exactly as below; any other test stays in Tovu and is repointed.
+{TEST_CONVERT}
 5. `pnpm --filter @jini-ai/<pkg> exec tsc -p tsconfig.json --noEmit`; `python3 {TOVU}/{D}/jini-cycles.py <pkg> --baseline {TOVU}/{D}/.cycles-<pkg>-before.txt` (exit 0); `pnpm --filter @jini-ai/<pkg> run build`; each moved test once (single-file command).
 
-## Tovu half (per file whose Jini half is DONE)
+## Tovu half (only if Preflight 2 passed; per file whose Jini half is DONE)
 1. Remove ONLY the moving declarations (symbol rows + closure members) from `path`. Do not touch any other line except imports.
 2. Imports: add `import {{ ... }} from "@jini-ai/<pkg>/<export_key>"` for every moved name the remaining code still uses (`import type` for types); delete imports that only the removed code used (`grep -n -w` each).
 3. Ports: bind the port at the call sites the spec's `stays` column names, passing the existing Tovu implementation. More than 5 call sites or new wiring in `server/runtime/composition/*` = undo this file in both repos and mark it BLOCKED.
