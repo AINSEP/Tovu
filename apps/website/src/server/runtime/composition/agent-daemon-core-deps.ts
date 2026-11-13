@@ -67,8 +67,7 @@ export async function createAgentDaemonCoreDeps(required: { env: NodeJS.ProcessE
   const { env, token } = required;
   const site = createDaemonCoreClient({ baseUrl: env.TOVU_SITE_CALLBACK_ORIGIN ?? env.TOVU_SITE_LISTENER_ORIGIN ?? "", token }, { fetch: optional.fetch });
   const snapshot = await site.bootstrap();
-  if (env.TOVU_WORKSPACE && env.TOVU_WORKSPACE !== snapshot.workspaceId) throw new DaemonCoreError({ reason: "the daemon workspace does not match its site server" });
-  if (env.TOVU_SITE_DIR && path.resolve(env.TOVU_SITE_DIR) !== path.resolve(snapshot.siteBinding.dir)) throw new DaemonCoreError({ reason: "the daemon directory does not match its site server" });
+  assertSnapshotMatchesEnv({ env, snapshot });
   const client = await openRetainedClient({ env, snapshot }, optional);
   let closing: Promise<void> | undefined;
   /** Telemetry failure cannot leave a borrowed DB connection alive. Idempotence shares the drain. */
@@ -94,6 +93,12 @@ export async function createAgentDaemonCoreDeps(required: { env: NodeJS.ProcessE
     await close().catch((cleanupError: unknown) => console.error("[agent-daemon] Could not close the failed composition", describeErrorForLog({ err: cleanupError })));
     throw error;
   }
+}
+
+/** Refuse a site server that answers for a different workspace or directory than this daemon's own. */
+function assertSnapshotMatchesEnv({ env, snapshot }: { env: NodeJS.ProcessEnv; snapshot: DaemonCoreSnapshot }, _options = {}): void {
+  if (env.TOVU_WORKSPACE && env.TOVU_WORKSPACE !== snapshot.workspaceId) throw new DaemonCoreError({ reason: "the daemon workspace does not match its site server" });
+  if (env.TOVU_SITE_DIR && path.resolve(env.TOVU_SITE_DIR) !== path.resolve(snapshot.siteBinding.dir)) throw new DaemonCoreError({ reason: "the daemon directory does not match its site server" });
 }
 
 /** Existing memory and kernel-backed adapters, imported from their implementation leaves.

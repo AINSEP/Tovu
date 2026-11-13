@@ -48,25 +48,36 @@ export function localSiteSupervisorForHost({ binding, workspaceId }: { binding: 
   const existing = hosts.get(binding.dir);
   if (existing) return existing.supervisor;
   const tls = resolveDevTls(resolveDevTlsCertPaths(resolveCheckoutRoot()));
-  const excludedPorts = [process.env.PORT, process.env.JINI_AGENT_DAEMON_PORT,
-    process.env.JINI_AGENT_DAEMON_URL ? new URL(process.env.JINI_AGENT_DAEMON_URL).port : undefined]
-    .filter((value) => value !== undefined).map(Number);
+  const excludedPorts = hostOwnedPorts({ env: process.env });
   const pool = localSitePoolOptions({ workspaceId, scheme: tls.active ? "https" : "http" });
   const supervisor = createLocalSiteSupervisor({ processPort: createLocalSiteProcessPort({ switcherBase: base }, { env: pool.env }), servingName: binding.name, scheme: tls.active ? "https" : "http" },
     { maxConcurrent: pool.maxConcurrent, excludedPorts, evictIdle: pool.evictIdle,
       ...(process.env.TOVU_DEV_SUPERVISOR_PID ? { devSession: process.env.TOVU_DEV_SUPERVISOR_PID,
         intentPort: createLocalSiteIntentStore({ servingSiteDir: binding.dir }) } : {}) });
+  hosts.set(binding.dir, { supervisor, detach: stopSupervisorOnHostExit({ supervisor }) });
+  return supervisor;
+}
+
+/** Ports this API process and its daemon already hold, so no local site is placed on them. */
+function hostOwnedPorts({ env }: { env: NodeJS.ProcessEnv }, _optional = {}): number[] {
+  return [env.PORT, env.JINI_AGENT_DAEMON_PORT,
+    env.JINI_AGENT_DAEMON_URL ? new URL(env.JINI_AGENT_DAEMON_URL).port : undefined]
+    .filter((value) => value !== undefined).map(Number);
+}
+
+/** Stop the supervisor's children when this host exits or is signalled.
+ * @returns A detach that removes exactly these listeners.
+ */
+function stopSupervisorOnHostExit({ supervisor }: { supervisor: LocalSiteSupervisorPort }, _optional = {}): () => void {
   // Run before daemon/store exit handlers can call process.exit; the adapter signals synchronously.
   const shutdown = () => { void supervisor.shutdown().catch((error: unknown) => console.error("[local-sites] Could not shut down the supervisor", describeErrorForLog({ err: error }))); };
   const killNow = () => supervisor.killNow();
   for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.prependOnceListener(signal, shutdown);
   process.once("exit", killNow);
-  const detach = () => {
+  return () => {
     for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.removeListener(signal, shutdown);
     process.removeListener("exit", killNow);
   };
-  hosts.set(binding.dir, { supervisor, detach });
-  return supervisor;
 }
 
 /** Called after the API listens: assemble eagerly, then let the old host's tree release its lease.
