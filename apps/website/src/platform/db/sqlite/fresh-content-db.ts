@@ -1,3 +1,4 @@
+import { OPTIMISTIC_CONCURRENCY_VERSIONS_STATEMENTS } from '../migrations/0042_optimistic_concurrency_versions.js';
 import { OWNER_PASSKEYS_SQL } from '../migrations/0041_owner_passkeys.js';
 import { OWNER_MFA_SQL } from '../migrations/0040_owner_mfa.js';
 import { OWNER_RECOVERY_CODES_SQL } from '../migrations/0039_owner_recovery_codes.js';
@@ -214,6 +215,9 @@ export function bootstrapFreshContentDb(
     "0039_owner_recovery_codes": () => client.exec(OWNER_RECOVERY_CODES_SQL),
     "0040_owner_mfa": () => { for (const statement of OWNER_MFA_SQL) client.exec(statement); },
     "0041_owner_passkeys": () => { for (const statement of OWNER_PASSKEYS_SQL) client.exec(statement); },
+    "0042_optimistic_concurrency_versions": () => {
+      for (const statement of OPTIMISTIC_CONCURRENCY_VERSIONS_STATEMENTS) client.exec(statement);
+    },
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);
     },

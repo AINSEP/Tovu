@@ -26,6 +26,8 @@ export const workspaces = sqliteTable("workspaces", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   createdAt: text("created_at").notNull(),
+  /** Optimistic-concurrency version: bumped by every editable save; writes compare it (refactor pattern lost-update, 2026-11-13). */
+  version: integer("version").notNull().default(1),
 });
 
 export const posts = sqliteTable(
@@ -976,6 +978,8 @@ export const webhookSubscriptions = sqliteTable(
     createdByPluginId: text("created_by_plugin_id"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
+    /** Optimistic-concurrency version: bumped by every editable save; writes compare it (refactor pattern lost-update, 2026-11-13). */
+    version: integer("version").notNull().default(1),
     disabledAt: text("disabled_at"),
   },
   (table) => [index("idx_webhook_subscriptions_workspace").on(table.workspaceId)]
@@ -1044,6 +1048,8 @@ export const identityUsers = sqliteTable(
     email: text("email"),
     passwordHash: text("password_hash").notNull(),
     lastLoginAt: text("last_login_at"),
+    /** Optimistic-concurrency version: bumped by every editable save; writes compare it (refactor pattern lost-update, 2026-11-13). */
+    version: integer("version").notNull().default(1),
   },
   (table) => [uniqueIndex("idx_identity_users_workspace_username").on(table.workspaceId, table.username)]
 );
@@ -1103,6 +1109,8 @@ export const roles = sqliteTable(
     workspaceId: text("workspace_id").notNull(),
     name: text("name").notNull(),
     isBuiltin: integer("is_builtin").notNull(),
+    /** Optimistic-concurrency version: bumped by every editable save; writes compare it (refactor pattern lost-update, 2026-11-13). */
+    version: integer("version").notNull().default(1),
   },
   (table) => [uniqueIndex("idx_roles_workspace_name").on(table.workspaceId, table.name)]
 );
@@ -1116,6 +1124,8 @@ export const policies = sqliteTable(
     description: text("description"),
     isBuiltin: integer("is_builtin").notNull(),
     isFrozen: integer("is_frozen").notNull(),
+    /** Optimistic-concurrency version: bumped by every editable save; writes compare it (refactor pattern lost-update, 2026-11-13). */
+    version: integer("version").notNull().default(1),
   },
   (table) => [uniqueIndex("idx_policies_workspace_name").on(table.workspaceId, table.name)]
 );
@@ -2032,6 +2042,9 @@ export const externalMcpServers = sqliteTable(
     oauthRefreshLeaseUntil: text("oauth_refresh_lease_until"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
+
+    /** Optimistic-concurrency version: bumped by every editable save; writes compare it (refactor pattern lost-update, 2026-11-13). */
+    version: integer("version").notNull().default(1),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.serverId] }),
