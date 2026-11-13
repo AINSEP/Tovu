@@ -94,7 +94,7 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
       columns={[
         { key: "type", header: t("Type"), cell: (share) => share.file.endsWith(".tovu.zip") ? t("Tovu backup") : t("Static site") },
         { key: "date", header: t("Date"), cellClassName: "site-transfer-num", cell: (share) => formatTimestamp({ iso: share.createdAt }, { timeZone: "local" }) },
-        { key: "size", header: t("Size"), cellClassName: "site-transfer-num", cell: (share) => formatTransferBytes(share.bytes) },
+        { key: "size", header: t("Size"), cellClassName: "site-transfer-num", cell: (share) => formatTransferBytes({ bytes: share.bytes }) },
         { key: "link", header: t("Link"), cell: (share) => <ShareLinkCell share={share} t={t} /> },
         {
           key: "status",
@@ -164,7 +164,7 @@ function ExportAcknowledge({ share, gate, index, controller, t }: { share: SiteS
 
 function ShareLinkCell({ share, t }: { share: SiteShare; t: Translate }) {
   if (!share.url) return <span className="muted-cell">{t("Zip only")}</span>;
-  return <span className="site-transfer-link" title={share.url}>{shortLink(share.url)}</span>;
+  return <span className="site-transfer-link" title={share.url}>{shortLink({ link: share.url })}</span>;
 }
 
 /** Human-only reveal: keep the native control private even when its export row is published. */
@@ -216,7 +216,7 @@ function ShareActions({ share, index, controller, t }: { share: SiteShare; index
       ) : (
         <a
           className="btn-secondary"
-          href={controller.downloadHref(share)}
+          href={controller.downloadHref({ share: share })}
           download={share.file}
           // The server is asked first, so a refusal shows its reason instead of being saved as the "zip".
           onClick={event => { event.preventDefault(); void controller.download(share); }}

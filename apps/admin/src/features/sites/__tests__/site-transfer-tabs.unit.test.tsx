@@ -73,7 +73,7 @@ describe("site transfer display rules", () => {
   it.each([
     [null, "—"], [-1, "—"], [Number.NaN, "—"], [512, "512 B"], [2048, "2 KB"], [3 * 1024 ** 2, "3.0 MB"], [1.5 * 1024 ** 3, "1.5 GB"],
   ])("formatTransferBytes(%s) is %s", (bytes, expected) => {
-    expect(formatTransferBytes(bytes)).toBe(expected);
+    expect(formatTransferBytes({ bytes: bytes })).toBe(expected);
   });
 
   it("gives each export and import state its label and tone", () => {
@@ -90,9 +90,9 @@ describe("site transfer display rules", () => {
   });
 
   it("shortens links to host and path, and names an uploaded zip without a path", () => {
-    expect(shortLink("https://example.com/_share/abc/x.zip?y=1")).toBe("example.com/_share/abc/x.zip");
-    expect(shortLink("https://example.com/")).toBe("example.com");
-    expect(shortLink("not a url")).toBe("not a url");
+    expect(shortLink({ link: "https://example.com/_share/abc/x.zip?y=1" })).toBe("example.com/_share/abc/x.zip");
+    expect(shortLink({ link: "https://example.com/" })).toBe("example.com");
+    expect(shortLink({ link: "not a url" })).toBe("not a url");
     expect(importSourceLabel({ url: "https://example.com/s/abc" }, t)).toBe("example.com/s/abc");
     expect(importSourceLabel({ uploadId: "u-1" }, t)).toBe("Uploaded zip");
   });
@@ -369,7 +369,7 @@ function exportController(overrides: Partial<SiteExportController> = {}): SiteEx
     staticThemes: [], selectedThemeIds: [], staticExportReady: false, staticOptionsLoading: false, staticOptionsError: null, toggleStaticTheme: vi.fn(), selectAllStaticThemes: vi.fn(),
     shares: [], listError: null, exporting: false, exportError: null, zipOnly: false,
     exportSite: vi.fn(async () => {}), exportingStatic: false, exportStaticSite: vi.fn(async () => {}), revokingId: null, revoke: vi.fn(async () => {}),
-    copiedId: null, copyLink: vi.fn(async () => {}), downloadHref: item => `/download/${item.shareId}`,
+    copiedId: null, copyLink: vi.fn(async () => {}), downloadHref: ({ share }) => `/download/${share.shareId}`,
     credentialGate: () => null, acknowledge: vi.fn(async () => {}), download: vi.fn(async () => {}), ...overrides };
 }
 function importController(overrides: Partial<SiteImportController> = {}): SiteImportController {
@@ -570,7 +570,7 @@ describe("transfer tab presentation contracts", () => {
     const finish = within(table).getByRole("button", { name: "Finish setup" });
     handle(finish, "sites-import-2-finish", "button", "Finish this import's owner password step");
     await userEvent.click(finish);
-    expect(controller.resume).toHaveBeenCalledExactlyOnceWith(pending);
+    expect(controller.resume).toHaveBeenCalledExactlyOnceWith({ item: pending });
     const open = within(table).getByRole("link", { name: "Open" });
     handle(open, "sites-import-1-open", "link", "Open this imported site's admin");
     expect(open.getAttribute("target")).toBe("_blank");
@@ -630,7 +630,7 @@ describe("transfer tab browser contracts", () => {
     render(<SiteImportTab t={t} useImport={() => controller} canMakeSites />);
     expect(screen.getByText("Loading imports…").className).toBe("notice");
     await userEvent.clear(screen.getByLabelText("Share link"));
-    expect(controller.setLink).toHaveBeenCalledWith("");
+    expect(controller.setLink).toHaveBeenCalledWith({ next: "" });
     await userEvent.clear(screen.getByLabelText("Website address"));
     expect(controller.setLiveAddress).toHaveBeenCalledWith("");
     await userEvent.clear(screen.getByLabelText("Password"));

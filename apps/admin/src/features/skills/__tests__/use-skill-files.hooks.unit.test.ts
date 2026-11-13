@@ -30,12 +30,12 @@ describe("useSkillFiles", () => {
     const { result } = renderHook(() => useSkillFiles({ toolId: listing.toolId, read, t }));
     expect(result.current.status).toEqual({ text: "Loading skill files…", role: "status" });
     await waitFor(() => expect(result.current.files).toHaveLength(3));
-    expect(read).toHaveBeenCalledWith(listing.toolId);
+    expect(read).toHaveBeenCalledWith({ toolId: listing.toolId });
     expect(result.current.selectedFile).toEqual({ relativePath: "SKILL.md", content: "Rules" });
     expect(result.current.status).toBeNull();
-    act(() => result.current.selectFile("references/check.md"));
+    act(() => result.current.selectFile({ path: "references/check.md" }));
     expect(result.current.selectedFile?.content).toBe("Check");
-    act(() => result.current.selectFile("unknown.md"));
+    act(() => result.current.selectFile({ path: "unknown.md" }));
     expect(result.current.selectedFile?.relativePath).toBe("SKILL.md");
   });
 
@@ -57,13 +57,13 @@ describe("useSkillFiles", () => {
 
   it("discards stale reads and resets selection when inspecting another skill", async () => {
     let resolveFirst!: (value: SkillFiles) => void;
-    const read = vi.fn((id: string) => id === "first" ? new Promise<SkillFiles>(resolve => { resolveFirst = resolve; }) : Promise.resolve(listing));
+    const read = vi.fn(({ toolId }: { toolId: string }) => toolId === "first" ? new Promise<SkillFiles>(resolve => { resolveFirst = resolve; }) : Promise.resolve(listing));
     const { result, rerender } = renderHook(({ toolId }) => useSkillFiles({ toolId, read, t }), { initialProps: { toolId: "first" } });
     rerender({ toolId: "second" });
     await waitFor(() => expect(result.current.files).toHaveLength(3));
     await act(async () => resolveFirst({ ...listing, files: [] }));
     expect(result.current.files).toHaveLength(3);
-    act(() => result.current.selectFile("references/check.md"));
+    act(() => result.current.selectFile({ path: "references/check.md" }));
     rerender({ toolId: "third" });
     expect(result.current.files).toEqual([]);
     await waitFor(() => expect(result.current.selectedFile?.relativePath).toBe("SKILL.md"));

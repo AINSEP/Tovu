@@ -581,7 +581,7 @@ const SOURCE_CONTROL_CREDENTIALS_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   en: "Could not load source control connections ({error}).",
 };
 
-export function sourceControlCredentialsLoadErrorMessage(locale: string, error: string): string {
+export function sourceControlCredentialsLoadErrorMessage({ locale, error }: { locale: string; error: string }, _optional = {}): string {
   return interpolate({ template: localeEntry({ table: SOURCE_CONTROL_CREDENTIALS_LOAD_ERROR_TEMPLATE, locale }), vars: { error } }
   );
 }
@@ -595,7 +595,7 @@ const SOURCE_CONTROL_CREDENTIAL_SAVE_ERROR_TEMPLATE: Record<string, string> = {
   en: "Could not save this connection ({error}).",
 };
 
-export function sourceControlCredentialSaveErrorMessage(locale: string, error: string): string {
+export function sourceControlCredentialSaveErrorMessage({ locale, error }: { locale: string; error: string }, _optional = {}): string {
   return interpolate({ template: localeEntry({ table: SOURCE_CONTROL_CREDENTIAL_SAVE_ERROR_TEMPLATE, locale }), vars: { error } }
   );
 }

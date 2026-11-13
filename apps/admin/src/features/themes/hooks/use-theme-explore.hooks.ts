@@ -534,7 +534,7 @@ function isSameOpenFile(a: OpenFileSnapshot, b: OpenFileSnapshot): boolean {
  * @complexity O(s) in the text length, for the buffer comparison.
  */
 function refreshableOpenFilePath(open: OpenFileSnapshot): string | null {
-  if (!isOpenFileLoaded(open.loadedFile, open.themeId, open.selected)) return null;
+  if (!isOpenFileLoaded({ loaded: open.loadedFile, themeId: open.themeId, selected: open.selected })) return null;
   return open.source === open.savedSource ? open.selected : null;
 }
 
@@ -555,7 +555,7 @@ export function shouldAdoptRefreshedText({
   current: OpenFileSnapshot;
   content: string;
 }): boolean {
-  if (!isSameOpenFile(current, started) || !isOpenFileLoaded(current.loadedFile, started.themeId, started.selected)) {
+  if (!isSameOpenFile(current, started) || !isOpenFileLoaded({ loaded: current.loadedFile, themeId: started.themeId, selected: started.selected })) {
     return false;
   }
   return (
@@ -655,7 +655,7 @@ export function requestedSelectionMove({
     file: files.find((f) => f.path === path),
     path,
     selected: open.selected,
-    sourceLoaded: isOpenFileLoaded(open.loadedFile, themeId, open.selected),
+    sourceLoaded: isOpenFileLoaded({ loaded: open.loadedFile, themeId: themeId, selected: open.selected }),
   });
   return hold ? { kind: "hold", path } : { kind: "open", path };
 }
@@ -682,7 +682,7 @@ export function loadedFileAfterRename(
   loaded: { themeId: string; path: string } | null,
   { themeId, from, to, renamed }: { themeId: string; from: string; to: string; renamed: ThemeExploreFile | undefined }
 ): { themeId: string; path: string } | null {
-  if (!isOpenFileLoaded(loaded, themeId, from) || renamed?.readable !== true || renamed?.editable !== true) return loaded;
+  if (!isOpenFileLoaded({ loaded: loaded, themeId: themeId, selected: from }) || renamed?.readable !== true || renamed?.editable !== true) return loaded;
   return { themeId, path: to };
 }
 
@@ -751,7 +751,7 @@ async function fetchThemeExploreState(
   themeId: string,
   port: ThemeExplorePort
 ): Promise<{ detail: ThemeExploreDetail; files: ThemeExploreFile[] }> {
-  const r = await port.getThemeDetail(themeId);
+  const r = await port.getThemeDetail({ themeId: themeId });
   return {
     detail: {
       id: r.id,
@@ -912,7 +912,7 @@ export function useThemeExplore(
   const detailKey = useMemo(() => ["themes", "detail", themeId] as const, [themeId]);
   // One definition of "read this theme's detail", used both as the loader's own default fetch and by
   // `cachedReads.getThemeDetail` below for any id.
-  const detailFetchFor = useCallback((id: string) => () => port.getThemeDetail(id), [port]);
+  const detailFetchFor = useCallback((id: string) => () => port.getThemeDetail({ themeId: id }), [port]);
   const fetchDetail = useMemo(() => detailFetchFor(themeId), [detailFetchFor, themeId]);
   const detailLoader = useCachedLoader({ key: detailKey, fetch: fetchDetail }, { staleTime: 0 });
   const sourceKey = useMemo(() => ["themes", "source", themeId] as const, [themeId]);
@@ -920,8 +920,8 @@ export function useThemeExplore(
   // `cachedReads.getThemeFile`), so an argument-less `load()` here would be a bug — the loader rejects it.
   const sourceLoader = useCachedLoader<Awaited<ReturnType<ThemeExplorePort["getThemeFile"]>>>({ key: sourceKey }, { staleTime: 0 });
   const cachedReads = useMemo<ThemeExplorePort>(() => ({ ...port,
-    getThemeDetail: id => detailLoader.load({ key: ["themes", "detail", id], fetch: detailFetchFor(id) }),
-    getThemeFile: (id, path) => sourceLoader.load({ key: ["themes", "file", id, path], fetch: () => port.getThemeFile(id, path) }),
+    getThemeDetail: ({ themeId: id }) => detailLoader.load({ key: ["themes", "detail", id], fetch: detailFetchFor(id) }),
+    getThemeFile: ({ themeId: id, path }) => sourceLoader.load({ key: ["themes", "file", id, path], fetch: () => port.getThemeFile({ themeId: id, path }) }),
   }), [port, detailLoader, sourceLoader, detailFetchFor]);
   const listingKey = useMemo(() => ["themes", "explore", themeId] as const, [themeId]);
   const fetchListing = useCallback(() => fetchThemeExploreState(themeId, cachedReads), [themeId, cachedReads]);
@@ -1082,17 +1082,17 @@ export function useThemeExplore(
   // toggle, a rename or delete of another file) must not re-read the open file: that would overwrite
   // `source` and discard edits typed since.
   const selectedReadable = files.find((f) => f.path === selected)?.readable;
-  const sourceLoaded = isOpenFileLoaded(loadedFile, themeId, selected);
+  const sourceLoaded = isOpenFileLoaded({ loaded: loadedFile, themeId: themeId, selected: selected });
   // The read below is for a click `select` is holding, else the open file. It keys off that file's own
   // `readable` flag and loaded state, for the same reason given for `selectedReadable` above.
   const readPath = readPathFor(pendingSelection, themeId, selected);
   const readPathReadable = files.find((f) => f.path === readPath)?.readable;
-  const readPathLoaded = isOpenFileLoaded(loadedFile, themeId, readPath);
+  const readPathLoaded = isOpenFileLoaded({ loaded: loadedFile, themeId: themeId, selected: readPath });
 
   const textKey = useMemo(() => ["themes", "file", themeId, readPath ?? "", fileReadNonce] as const, [themeId, readPath, fileReadNonce]);
   const fetchText = useCallback(() => {
     if (readPath === null) throw new Error("theme file read has no selected path");
-    return cachedReads.getThemeFile(themeId, readPath);
+    return cachedReads.getThemeFile({ themeId, path: readPath });
   }, [themeId, readPath, cachedReads]);
   useFetchQuery({ key: textKey, fetch: fetchText }, { enabled: readPath !== null && readPathReadable !== false && !readPathLoaded, staleTime: 0 });
   const textLoader = useCachedLoader({ key: textKey, fetch: fetchText }, { staleTime: 0 });
@@ -1214,7 +1214,7 @@ export function useThemeExplore(
     if (path === null) return;
     const generation = openFileTextSettlement.next();
     try {
-      const { content } = await cachedReads.getThemeFile(started.themeId, path);
+      const { content } = await cachedReads.getThemeFile({ themeId: started.themeId, path });
       if (!openFileTextSettlement.isCurrent({ generation })) return;
       if (!shouldAdoptRefreshedText({ started, current: openFileRef.current, content })) return;
       setSource(content);
@@ -1243,10 +1243,11 @@ export function useThemeExplore(
     // effect's `loadedFile` clear being the only thing standing between a stale buffer and the server.
     // An externally deleted file may deliberately still have an unsaved buffer open.
     if (selected === null || !sourceLoaded || selectedReadable !== true) return;
+    const selectedPath = selected;
     setSaving(true);
     setError(null);
     try {
-      await write.mutate({ input: () => port.putThemeFile(themeId, selected, source) }) as Awaited<ReturnType<typeof port.putThemeFile>>;
+      await write.mutate({ input: () => port.putThemeFile({ themeId: themeId, path: selectedPath, content: source }) }) as Awaited<ReturnType<typeof port.putThemeFile>>;
       setSavedSource(source);
       setNotice(translateWith(tRef.current, "Saved {file}", "file", selected));
       setPreviewNonce((n) => n + 1);
@@ -1268,10 +1269,11 @@ export function useThemeExplore(
    */
   const reset = useCallback(async () => {
     if (selected === null) return;
+    const selectedPath = selected;
     setResetting(true);
     setError(null);
     try {
-      const r = await write.mutate({ input: () => port.resetThemeFile(themeId, selected) }) as Awaited<ReturnType<typeof port.resetThemeFile>>;
+      const r = await write.mutate({ input: () => port.resetThemeFile({ themeId: themeId, path: selectedPath }) }) as Awaited<ReturnType<typeof port.resetThemeFile>>;
       // Adopt the server's returned content rather than re-fetching: it is the text of the bytes just
       // restored, so the editor cannot briefly show the pre-reset source. `null` means the file is
       // past the server's text-read limit. Its bytes are restored, but there is no text to edit, so
@@ -1310,7 +1312,7 @@ export function useThemeExplore(
     setSavingOriginal(true);
     setError(null);
     try {
-      await write.mutate({ input: () => port.saveThemeOriginal(themeId) }) as Awaited<ReturnType<typeof port.saveThemeOriginal>>;
+      await write.mutate({ input: () => port.saveThemeOriginal({ themeId: themeId }) }) as Awaited<ReturnType<typeof port.saveThemeOriginal>>;
       modifiedRefreshSettlement.next();
       setNotice(tRef.current("Saved as this theme's original"));
       const refetched = await refetchAfterMutation(themeId, cachedReads, tRef.current);
@@ -1347,7 +1349,7 @@ export function useThemeExplore(
       setRenaming(true);
       setError(null);
       try {
-        const r = await write.mutate({ input: () => port.renameThemeFile(themeId, sourcePath, name) }) as Awaited<ReturnType<typeof port.renameThemeFile>>;
+        const r = await write.mutate({ input: () => port.renameThemeFile({ themeId: themeId, path: sourcePath, name: name }) }) as Awaited<ReturnType<typeof port.renameThemeFile>>;
         modifiedRefreshSettlement.next();
         const refetched = await refetchAfterMutation(themeId, cachedReads, tRef.current);
         // Superseded by a newer rename call started after this one — that later call owns
@@ -1477,7 +1479,7 @@ export function useThemeExplore(
       setCopyingPath(path);
       setError(null);
       try {
-        const r = await write.mutate({ input: () => port.copyThemeFile(themeId, path) }) as Awaited<ReturnType<typeof port.copyThemeFile>>;
+        const r = await write.mutate({ input: () => port.copyThemeFile({ themeId: themeId, path: path }) }) as Awaited<ReturnType<typeof port.copyThemeFile>>;
         modifiedRefreshSettlement.next();
         // The copy is done whatever the re-read says — see `refetchAfterMutation`. Selecting the new
         // file waits for a list that has it.
@@ -1544,7 +1546,7 @@ export function useThemeExplore(
     setDeleting(true);
     setError(null);
     try {
-      await write.mutate({ input: () => port.deleteThemeFile(themeId, path) }) as Awaited<ReturnType<typeof port.deleteThemeFile>>;
+      await write.mutate({ input: () => port.deleteThemeFile({ themeId: themeId, path: path }) }) as Awaited<ReturnType<typeof port.deleteThemeFile>>;
       modifiedRefreshSettlement.next();
       // The file is gone from here on, whatever the re-read says — see `refetchAfterMutation`. The
       // dialog closes and the notice says so; a failed re-read drops the file from the list locally
@@ -1624,7 +1626,7 @@ export function useThemeExplore(
       setPublishing(true);
       setError(null);
       try {
-        const r = await write.mutate({ input: () => port.setPagePublished(themeId, pageId, published) }) as Awaited<ReturnType<typeof port.setPagePublished>>;
+        const r = await write.mutate({ input: () => port.setPagePublished({ themeId: themeId, page: pageId, published: published }) }) as Awaited<ReturnType<typeof port.setPagePublished>>;
         setFiles((prev) => prev.map((f) => (f.path === file.path ? { ...f, published: r.published } : f)));
         setNotice(translateWith(tRef.current, r.published ? "Published {page}" : "Unpublished {page}", "page", pageId));
       } catch (e) {

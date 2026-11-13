@@ -73,9 +73,9 @@ export interface SourceControlCredentialsController {
   rows: readonly SourceControlCredentialRowState[] | undefined;
   loadError: string | null;
 
-  setToken: (providerId: AdminSourceControlProviderId, value: string) => void;
+  setToken: (required: { providerId: AdminSourceControlProviderId; value: string }, optional?: Record<string, never>) => void;
   /** Sets one of the host's other declared fields. */
-  setField: (providerId: AdminSourceControlProviderId, name: string, value: string) => void;
+  setField: (required: { providerId: AdminSourceControlProviderId; name: string; value: string }, optional?: Record<string, never>) => void;
   /** Creates or replaces one provider's saved connection from its own row's current draft — see
    *  this file's header for the create-vs-update decision. A no-op when the row is not ready.
    *  Resolves either way — a failure is surfaced through that row's own `error`. */
@@ -101,17 +101,15 @@ function blankRowFormState(): RowFormState {
  *  `save` stores as that row's `error` — pulled out of `save` for the same complexity-budget reason
  *  `use-publish-credentials.hooks.ts`'s own `publishCredentialSubmitErrorMessage` documents.
  *  @complexity O(1). */
-function sourceControlCredentialSubmitErrorMessage(err: unknown, t: Translate, locale: string): string {
-  const classified = classifySourceControlCredentialSubmitError(err);
+function sourceControlCredentialSubmitErrorMessage({ err, t, locale }: { err: unknown; t: Translate; locale: string }, _optional = {}): string {
+  const classified = classifySourceControlCredentialSubmitError({ e: err });
   if (classified.kind === "duplicate-label") return t("This connection was already saved — reload the page and try again.");
-  if (classified.kind === "validation") return sourceControlCredentialSaveErrorMessage(locale, translateCredentialMessage({ message: classified.detail, locale }));
-  return sourceControlCredentialSaveErrorMessage(locale, describeApiError(err, t("unknown error")));
+  if (classified.kind === "validation") return sourceControlCredentialSaveErrorMessage({ locale: locale, error: translateCredentialMessage({ message: classified.detail, locale }) });
+  return sourceControlCredentialSaveErrorMessage({ locale: locale, error: describeApiError(err, t("unknown error")) });
 }
 
 export function useSourceControlCredentials(
-  port: SourceControlCredentialsPort,
-  t: Translate,
-  locale: string
+  { port, t, locale }: { port: SourceControlCredentialsPort; t: Translate; locale: string }, _optional = {}
 ): SourceControlCredentialsController {
   const query = useFetchQuery({ key: ["source-control", "credentials"], fetch: () => port.listCredentials() });
   // The hosts come from plugins. A failed load lists none; saved connections still show, unlisted.
@@ -128,33 +126,33 @@ export function useSourceControlCredentials(
     setCredentials(query.data.credentials);
   }, [query.status, query.data]);
 
-  const loadError = query.error ? sourceControlCredentialsLoadErrorMessage(locale, describeApiError(query.error, t("unknown error"))) : null;
+  const loadError = query.error ? sourceControlCredentialsLoadErrorMessage({ locale: locale, error: describeApiError(query.error, t("unknown error")) }) : null;
 
   const providers = useMemo(
     // Each host's own text (label, guidance, field labels) in the viewer's locale.
     () => {
       const descriptors = providersQuery.data?.providers;
-      return sourceControlProviders(descriptors === undefined ? undefined : localizeSourceControlProviders(descriptors, locale), credentials ?? []);
+      return sourceControlProviders({ descriptors: descriptors === undefined ? undefined : localizeSourceControlProviders(descriptors, locale), credentials: credentials ?? [] });
     },
     [providersQuery.data, credentials, locale]
   );
 
   const [formStates, setFormStates] = useState<Record<string, RowFormState>>({});
 
-  function patchForm(providerId: AdminSourceControlProviderId, patch: (prev: RowFormState) => Partial<RowFormState>) {
+  function patchForm({ providerId, patch }: { providerId: AdminSourceControlProviderId; patch: (prev: RowFormState) => Partial<RowFormState> }, _optional = {}) {
     setFormStates((prev) => {
       const current = prev[providerId] ?? blankRowFormState();
       return { ...prev, [providerId]: { ...current, ...patch(current) } };
     });
   }
 
-  function setToken(providerId: AdminSourceControlProviderId, value: string) {
+  function setToken({ providerId, value }: { providerId: AdminSourceControlProviderId; value: string }, _optional = {}) {
     const error = credentialDraftError({ value }, { locale });
-    patchForm(providerId, () => ({ token: value, error }));
+    patchForm({ providerId: providerId, patch: () => ({ token: value, error }) });
   }
 
-  function setField(providerId: AdminSourceControlProviderId, name: string, value: string) {
-    patchForm(providerId, (current) => ({ values: { ...current.values, [name]: value } }));
+  function setField({ providerId, name, value }: { providerId: AdminSourceControlProviderId; name: string; value: string }, _optional = {}) {
+    patchForm({ providerId: providerId, patch: (current) => ({ values: { ...current.values, [name]: value } }) });
   }
 
   async function save(providerId: AdminSourceControlProviderId) {
@@ -162,15 +160,15 @@ export function useSourceControlCredentials(
     const info = providers.find((provider) => provider.id === providerId);
     const fields: SourceControlCredentialFormFields = { providerId, token: formState.token, values: formState.values };
     const error = credentialDraftError({ value: fields.token }, { locale, required: !defaultSourceControlCredentialForProvider(credentials ?? [], providerId) });
-    if (error) { patchForm(providerId, () => ({ error })); return; }
+    if (error) { patchForm({ providerId: providerId, patch: () => ({ error }) }); return; }
     if (info === undefined || !sourceControlCredentialRowReadyToSave(fields, info)) return;
 
     const existing = defaultSourceControlCredentialForProvider(credentials ?? [], providerId);
-    patchForm(providerId, () => ({ saving: true, error: null }));
+    patchForm({ providerId: providerId, patch: () => ({ saving: true, error: null }) });
     try {
       const connection = buildSourceControlConnectionInput(fields, info.fields);
       const result = existing
-        ? await port.updateCredential(existing.id, { connection })
+        ? await port.updateCredential({ id: existing.id, input: { connection } })
         : await port.createCredential({ label: SOURCE_CONTROL_CREDENTIAL_ROW_LABEL, connection });
       setCredentials((prev) => {
         const base = prev ?? [];
@@ -178,7 +176,7 @@ export function useSourceControlCredentials(
       });
       setFormStates((prev) => ({ ...prev, [providerId]: blankRowFormState() }));
     } catch (err) {
-      patchForm(providerId, () => ({ saving: false, error: sourceControlCredentialSubmitErrorMessage(err, t, locale) }));
+      patchForm({ providerId: providerId, patch: () => ({ saving: false, error: sourceControlCredentialSubmitErrorMessage({ err: err, t: t, locale: locale }) }) });
     }
   }
 
@@ -210,5 +208,5 @@ export function useSourceControlCredentials(
 export function useWiredSourceControlCredentials(): SourceControlCredentialsController {
   const locale = useAdminLocale();
   const t = (key: string): string => defaultT({ locale: locale, key: key });
-  return useSourceControlCredentials(defaultSourceControlCredentialsPort, t, locale);
+  return useSourceControlCredentials({ port: defaultSourceControlCredentialsPort, t: t, locale: locale });
 }

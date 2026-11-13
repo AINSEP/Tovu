@@ -23,7 +23,7 @@ function credentialGateWarnings({ refusal, share }: { refusal: ShareDownloadRefu
   return refusal?.credentialWarnings.length ? refusal.credentialWarnings : share.credentialWarnings ?? [];
 }
 
-function withoutKey<T>(record: Readonly<Record<string, T>>, key: string): Record<string, T> {
+function withoutKey<T>({ record, key }: { record: Readonly<Record<string, T>>; key: string }, _optional = {}): Record<string, T> {
   const next = { ...record };
   delete next[key];
   return next;
@@ -35,7 +35,7 @@ function withoutKey<T>(record: Readonly<Record<string, T>>, key: string): Record
  * @complexity O(1) per action; two requests per download check at most, one per acknowledgement.
  */
 export function useShareCredentialGate({ port, t, refresh, onDownloadError }: {
-  port: SiteTransferPort; t: Translate; refresh: () => void; onDownloadError: (message: string) => void;
+  port: SiteTransferPort; t: Translate; refresh: () => void; onDownloadError: (required: { message: string }, optional?: Record<string, never>) => void;
 }, _options = {}) {
   const [acknowledged, setAcknowledged] = useState<ReadonlySet<string>>(() => new Set());
   const [refusals, setRefusals] = useState<Readonly<Record<string, ShareDownloadRefusal>>>({});
@@ -65,7 +65,7 @@ export function useShareCredentialGate({ port, t, refresh, onDownloadError }: {
     const refusal = await port.shareDownloadRefusal({ share });
     if (!alive.current) return;
     if (!refusal) { port.downloadShare({ share }); return; }
-    if (refusal.status !== 409) { onDownloadError(refusal.message ?? t("Download failed.")); return; }
+    if (refusal.status !== 409) { onDownloadError({ message: refusal.message ?? t("Download failed.") }); return; }
     pendingDownload.current = share.shareId;
     setAcknowledged(previous => { const next = new Set(previous); next.delete(share.shareId); return next; });
     setRefusals(previous => ({ ...previous, [share.shareId]: refusal }));
@@ -85,7 +85,7 @@ export function useShareCredentialGate({ port, t, refresh, onDownloadError }: {
       await port.acknowledgeShare({ shareId: share.shareId });
       if (!alive.current) return;
       setAcknowledged(previous => new Set(previous).add(share.shareId));
-      setRefusals(previous => withoutKey(previous, share.shareId));
+      setRefusals(previous => withoutKey({ record: previous, key: share.shareId }));
       if (pendingDownload.current === share.shareId) {
         pendingDownload.current = null;
         await download(share);

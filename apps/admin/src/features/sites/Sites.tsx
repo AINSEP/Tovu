@@ -363,7 +363,7 @@ export function Sites(props: SitesProps = {}) {
 
   // Before the early returns below, so this screen never changes its hook order between the
   // loading, error, and loaded renders.
-  useReturnToSiteListOnCreate(createdName, goToSiteList);
+  useReturnToSiteListOnCreate({ createdName: createdName, returnToList: goToSiteList });
 
   if (listStatus === "error" && !snapshot) {
     return <div className="notice error">{describeApiError(listError, t("Could not load the site list."))}</div>;

@@ -91,7 +91,7 @@ function ArchiveSource({ controller, t }: { controller: SiteImportController; t:
       {controller.file ? (
         <div className="site-transfer-file">
           <span className="site-transfer-file-name">{controller.file.name}</span>
-          <span className="site-transfer-num">{formatTransferBytes(controller.file.size)}</span>
+          <span className="site-transfer-num">{formatTransferBytes({ bytes: controller.file.size })}</span>
           <button type="button" className="btn-secondary" disabled={controller.importing} onClick={controller.clearFile}
             {...agentHandle({ handle: "sites-import-file-remove" }, { role: "button", label: "Remove the chosen .tovu.zip" })}>
             {t("Remove")}
@@ -103,7 +103,7 @@ function ArchiveSource({ controller, t }: { controller: SiteImportController; t:
             accept=".zip,application/zip"
             prompt={t("Drop a .tovu.zip here, or click to browse")}
             helper={t("Up to 300 MB")}
-            onFiles={controller.chooseFiles}
+            onFiles={(files) => controller.chooseFiles({ files })}
           />
           <button type="button" className="btn-secondary" disabled={controller.importing} onClick={() => openZonePicker({ zone: zone.current })}
             {...agentHandle({ handle: "sites-import-file-choose" }, { role: "button", label: "Choose a .tovu.zip file to import" })}>
@@ -121,7 +121,7 @@ function ArchiveSource({ controller, t }: { controller: SiteImportController; t:
           placeholder="https://"
           value={controller.link}
           disabled={controller.importing}
-          onChange={(event) => controller.setLink(event.target.value)}
+          onChange={(event) => controller.setLink({ next: event.target.value })}
           {...agentHandle({ handle: "sites-import-link" }, { role: "field", label: "Tovu share link to import" })}
         />
       </div>
@@ -371,7 +371,7 @@ function CurrentImportNotices({ item, t }: { item: SiteImport | null | undefined
 function ImportAction({ item, index, controller, t }: { item: SiteImport; index: number; controller: SiteImportController; t: Translate }) {
   if (item.state === "needs-owner") {
     return (
-      <button type="button" className="btn-secondary" onClick={() => controller.resume(item)}
+      <button type="button" className="btn-secondary" onClick={() => controller.resume({ item: item })}
         {...agentHandle({ handle: `sites-import-${index + 1}-finish` }, { role: "button", label: "Finish this import's owner password step" })}>
         {t("Finish setup")}
       </button>

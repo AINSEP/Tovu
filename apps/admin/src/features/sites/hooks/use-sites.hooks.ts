@@ -132,7 +132,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     invalidates: [KEYS.list],
   });
   const activateMutation = useFetchMutation({
-    run: ({ input: name }: { input: string }) => port.activateSite(name),
+    run: ({ input: name }: { input: string }) => port.activateSite({ name }),
   }, {
     invalidates: [KEYS.list],
   });
@@ -157,7 +157,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
   // the hook itself would otherwise accept. Tab-local — two tabs still race; that needs a server check.
   const writes = useSerialWrites();
 
-  const nameErrorKey = siteNameErrorKey(createName);
+  const nameErrorKey = siteNameErrorKey({ raw: createName });
 
   // The view's own `setCreateName` — every edit to the field also clears a still-showing "Created."
   // banner, so it can never sit next to a name the operator has since changed their mind about
@@ -180,7 +180,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
 
   const createSite = useCallback(() => {
     const name = createName.trim();
-    if (siteNameErrorKey(name) !== null) return;
+    if (siteNameErrorKey({ raw: name }) !== null) return;
     if (creatingRef.current) return;
     creatingRef.current = true;
     // Clears a stale Activate failure so it cannot mask THIS write's own outcome below — mirrors
@@ -202,7 +202,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
         setCreatedName(result.site.name);
         setCreatedAdminLogin(resolveCreatedAdminLogin({ customPassword, starterAdminPassword: list.data?.starterAdminPassword, t }));
         setAdminPasswordRaw("");
-        setCreatedTokens(resolveCreatedTokens(result.agentPluginTokens, pluginTokens.displayNames, t));
+        setCreatedTokens(resolveCreatedTokens({ result: result.agentPluginTokens, displayNames: pluginTokens.displayNames, t: t }));
         pluginTokens.clear();
         // Raw, not the wrapped `setCreateName` — that also clears `createdName`, which would erase
         // the very name just set on the line above before the banner ever renders it.
@@ -231,7 +231,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
             // `activation`/`activatingName` now, and applying this stale result would let whichever
             // request happens to settle LAST win regardless of which row was actually clicked last.
             if (!activateSettlement.isCurrent({ generation })) return;
-            if (result.url) port.openSite?.(result.url);
+            if (result.url) port.openSite?.({ url: result.url });
             setActivation(result);
           }, () => { /* activateMutation.error reports a failed write. */ })
           .catch((error: unknown) => console.error("[sites] Could not finish handling site activation", describeErrorForLog({ err: error })))
@@ -244,7 +244,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     [activateMutation, createMutation, activateSettlement, writes, port],
   );
 
-  const view = readSnapshot(list.data);
+  const view = readSnapshot({ snapshot: list.data });
 
   return {
     localSites,
@@ -253,7 +253,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     sites: view.sites,
     listStatus: list.status,
     listError: list.error,
-    writeError: resolveWriteError(createMutation.error ?? activateMutation.error, t),
+    writeError: resolveWriteError({ error: createMutation.error ?? activateMutation.error, t: t }),
     switchingEnabled: view.switchingEnabled,
     outlook: view.outlook,
     createName,
@@ -262,7 +262,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     shownStarterPassword: resolveShownStarterPassword({ adminPassword, starterAdminPassword: list.data?.starterAdminPassword }),
     createdAdminLogin,
     setCreateName,
-    createNameError: resolveCreateNameError(createName, nameErrorKey, t),
+    createNameError: resolveCreateNameError({ raw: createName, key: nameErrorKey, t: t }),
     createSite,
     creating: createMutation.status === "pending",
     createdName,
@@ -287,20 +287,18 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
  *
  * @complexity Time/space: O(1).
  */
-function resolveWriteError(error: Error | null, t: Translate): string | null {
+function resolveWriteError({ error, t }: { error: Error | null; t: Translate }, _optional = {}): string | null {
   if (error === null) return null;
-  const key = siteWriteErrorKey(error);
+  const key = siteWriteErrorKey({ e: error });
   return key === null ? describeApiError(error, t("That request failed.")) : t(key);
 }
 
 /** {@link SitesController.createdTokens} from a create response.
  *  @complexity O(n) in the plugin ids returned. */
 function resolveCreatedTokens(
-  result: { status: "none" | "saved" | "failed"; pluginIds: string[] } | undefined,
-  displayNames: (pluginIds: readonly string[]) => string[],
-  t: Translate,
+  { result, displayNames, t }: { result: { status: "none" | "saved" | "failed"; pluginIds: string[] } | undefined; displayNames: (pluginIds: readonly string[]) => string[]; t: Translate }, _optional = {},
 ): { names: string[]; note: string } | null {
-  const key = createdTokensNoteKey(result?.status);
+  const key = createdTokensNoteKey({ status: result?.status });
   return key === null || !result ? null : { names: displayNames(result.pluginIds), note: t(key) };
 }
 
@@ -313,7 +311,7 @@ function resolveCreatedTokens(
  *
  * @complexity Time/space: O(1).
  */
-function resolveCreateNameError(raw: string, key: string | null, t: Translate): string | null {
+function resolveCreateNameError({ raw, key, t }: { raw: string; key: string | null; t: Translate }, _optional = {}): string | null {
   if (key === null || raw.length === 0) return null;
   return t(key);
 }

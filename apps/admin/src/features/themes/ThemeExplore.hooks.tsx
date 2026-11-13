@@ -23,7 +23,7 @@ import { useEffect, useRef, useState, type MouseEvent, type RefObject, type Synt
  *  method if not already in that state" checks; behavior-preserving for the jsdom fallback branch
  *  too, since `setAttribute`/`removeAttribute` were already idempotent no-ops when already correct.
  *  @complexity O(1) — four independent branches, no iteration, no nesting deeper than one level. */
-function syncFullscreenDialog(dialog: HTMLDialogElement | null, fullscreen: boolean): void {
+function syncFullscreenDialog({ dialog, fullscreen }: { dialog: HTMLDialogElement | null; fullscreen: boolean }, _optional = {}): void {
   if (!dialog) return;
   if (fullscreen === dialog.open) return;
   const supportsNativeDialog = typeof dialog.showModal === "function" && typeof dialog.close === "function";
@@ -69,7 +69,7 @@ export function useThemeExploreFullscreen(): ThemeExploreFullscreenController {
   // Same open/close lifecycle `ImagePreviewModal.tsx` established for a native `<dialog>` driven by
   // a boolean prop — see `syncFullscreenDialog`'s own doc comment for the mechanism.
   useEffect(() => {
-    syncFullscreenDialog(dialogRef.current, fullscreen);
+    syncFullscreenDialog({ dialog: dialogRef.current, fullscreen: fullscreen });
   }, [fullscreen]);
 
   function closeFullscreen() {

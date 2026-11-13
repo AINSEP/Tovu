@@ -9,15 +9,15 @@ import type { ThemeExploreFileEntry, ThemeExplorePort } from "./theme-explore-po
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. Each method narrows the real route's wider response down
  *  to what the port declares (see `theme-explore-port.hooks.ts`'s own doc comment on why). */
 export const defaultThemeExplorePort: ThemeExplorePort = {
-  getThemeDetail: (themeId) => api.getThemeDetail(themeId),
-  getThemeFile: (themeId, path) => api.getThemeFile(themeId, path),
-  putThemeFile: (themeId, path, content) => api.putThemeFile(themeId, path, content),
-  resetThemeFile: (themeId, path) => api.resetThemeFile(themeId, path),
-  saveThemeOriginal: (themeId) => api.saveThemeOriginal(themeId),
-  renameThemeFile: (themeId, path, name) => api.renameThemeFile(themeId, path, name),
-  copyThemeFile: (themeId, path) => api.copyThemeFile(themeId, path),
-  deleteThemeFile: (themeId, path) => api.deleteThemeFile(themeId, path),
-  setPagePublished: (themeId, page, published) => api.setThemePagePublished(themeId, page, published),
+  getThemeDetail: ({ themeId }, _optional = {}) => api.getThemeDetail(themeId),
+  getThemeFile: ({ themeId, path }, _optional = {}) => api.getThemeFile(themeId, path),
+  putThemeFile: ({ themeId, path, content }, _optional = {}) => api.putThemeFile(themeId, path, content),
+  resetThemeFile: ({ themeId, path }, _optional = {}) => api.resetThemeFile(themeId, path),
+  saveThemeOriginal: ({ themeId }, _optional = {}) => api.saveThemeOriginal(themeId),
+  renameThemeFile: ({ themeId, path, name }, _optional = {}) => api.renameThemeFile(themeId, path, name),
+  copyThemeFile: ({ themeId, path }, _optional = {}) => api.copyThemeFile(themeId, path),
+  deleteThemeFile: ({ themeId, path }, _optional = {}) => api.deleteThemeFile(themeId, path),
+  setPagePublished: ({ themeId, page, published }, _optional = {}) => api.setThemePagePublished(themeId, page, published),
 };
 
 /** Seed state for {@link createFakeThemeExplorePort}. */
@@ -52,31 +52,31 @@ export function createFakeThemeExplorePort(options: FakeThemeExplorePortOptions 
       return { ...detail, files: [...files] };
     },
 
-    async getThemeFile(_themeId, path) {
+    async getThemeFile({ themeId: _themeId, path }, _optional = {}) {
       const content = contents.get(path);
       if (content === undefined) throw new Error(`fake theme file not found: ${path}`);
       return { content };
     },
 
-    async putThemeFile(_themeId, path, content) {
+    async putThemeFile({ themeId: _themeId, path, content }, _optional = {}) {
       contents.set(path, content);
       return { path, bytes: content.length };
     },
 
-    async resetThemeFile(_themeId, path) {
+    async resetThemeFile({ themeId: _themeId, path }, _optional = {}) {
       const original = contents.get(path) ?? "";
       return { content: original };
     },
 
     /** Like the server: refused when there already is one; afterwards every file is resettable. */
-    async saveThemeOriginal(themeId) {
+    async saveThemeOriginal({ themeId }, _optional = {}) {
       if (detail.hasOriginal) throw new Error(`theme '${themeId}' already has a stored original`);
       detail = { ...detail, hasOriginal: true };
       files = files.map((f) => ({ ...f, resettable: true }));
       return { saved: true };
     },
 
-    async renameThemeFile(_themeId, path, name) {
+    async renameThemeFile({ themeId: _themeId, path, name }, _optional = {}) {
       const nextPath = path.slice(0, path.lastIndexOf("/") + 1) + name;
       const content = contents.get(path);
       if (content !== undefined) {
@@ -87,7 +87,7 @@ export function createFakeThemeExplorePort(options: FakeThemeExplorePortOptions 
       return { path: nextPath };
     },
 
-    async copyThemeFile(_themeId, path) {
+    async copyThemeFile({ themeId: _themeId, path }, _optional = {}) {
       const base = path.slice(path.lastIndexOf("/") + 1);
       const dot = base.lastIndexOf(".");
       const copyName = dot > 0 ? `${base.slice(0, dot)}-1${base.slice(dot)}` : `${base}-1`;
@@ -99,13 +99,13 @@ export function createFakeThemeExplorePort(options: FakeThemeExplorePortOptions 
       return { path: nextPath };
     },
 
-    async deleteThemeFile(_themeId, path) {
+    async deleteThemeFile({ themeId: _themeId, path }, _optional = {}) {
       files = files.filter((f) => f.path !== path);
       contents.delete(path);
       return { path };
     },
 
-    async setPagePublished(_themeId, page, published) {
+    async setPagePublished({ themeId: _themeId, page, published }, _optional = {}) {
       // Same basename-minus-`.html` derivation `explore.ts`'s `pageIdForPagePath` uses — a fake
       // stand-in for that lookup, not a second copy of the real predicate this port has no business
       // re-implementing.

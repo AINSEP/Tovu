@@ -87,7 +87,7 @@ export interface ProvidersTabProps {
  *  documents (a resolver counts one branch here rather than an inline `??` counting against the
  *  component body's own complexity budget). */
 function resolveSourceControlCredentialsHook(
-  override: typeof useWiredSourceControlCredentials | undefined
+  { override }: { override: typeof useWiredSourceControlCredentials | undefined }, _optional = {}
 ): typeof useWiredSourceControlCredentials {
   return override ?? useWiredSourceControlCredentials;
 }
@@ -96,7 +96,7 @@ export function ProvidersTab(props: ProvidersTabProps) {
   // Subscribes to the admin locale so a language switch re-renders this tab; every string itself
   // goes through the controller's own `t`.
   useAdminLocale();
-  const useSourceControlCredentialsHook = resolveSourceControlCredentialsHook(props.useSourceControlCredentialsHook);
+  const useSourceControlCredentialsHook = resolveSourceControlCredentialsHook({ override: props.useSourceControlCredentialsHook });
   const controller = useSourceControlCredentialsHook();
 
   return (
@@ -403,7 +403,7 @@ function SourceControlCredentialFields({
             // design. See `security/AccessTokensTab.tsx`'s token input for the full reasoning.
             autoComplete="new-password"
             value={row.token}
-            onChange={(e) => controller.setToken(row.providerId, e.target.value)}
+            onChange={(e) => controller.setToken({ providerId: row.providerId, value: e.target.value })}
             {...agentHandle({ handle: `source-control-credentials-token-${row.providerId}` }, {
               role: "field",
               label: `${info.label} access token — stored encrypted, never shown again once saved`,
@@ -429,7 +429,7 @@ function SourceControlCredentialFields({
               id={`source-control-credentials-${fieldNameHandleSegment({ fieldName: field.name })}-${row.providerId}`}
               autoComplete="new-password"
               value={row.values[field.name] ?? ""}
-              onChange={(e) => controller.setField(row.providerId, field.name, e.target.value)}
+              onChange={(e) => controller.setField({ providerId: row.providerId, name: field.name, value: e.target.value })}
               {...agentHandle({ handle: `source-control-credentials-${fieldNameHandleSegment({ fieldName: field.name })}-${row.providerId}` }, {
                 role: "field",
                 label: `${info.label} ${field.label}`,

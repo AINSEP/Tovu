@@ -24,12 +24,12 @@ const FILES: ThemeExploreSelectableFile[] = [
 
 describe("resolveThemeExploreSelectionValue", () => {
   it("matches an exact theme-relative path, including a non-page file", () => {
-    expect(resolveThemeExploreSelectionValue(FILES, "render/pages/about.html")).toBe("render/pages/about.html");
-    expect(resolveThemeExploreSelectionValue(FILES, "theme.json")).toBe("theme.json");
+    expect(resolveThemeExploreSelectionValue({ files: FILES, value: "render/pages/about.html" })).toBe("render/pages/about.html");
+    expect(resolveThemeExploreSelectionValue({ files: FILES, value: "theme.json" })).toBe("theme.json");
   });
 
   it("matches a bare page label", () => {
-    expect(resolveThemeExploreSelectionValue(FILES, "about")).toBe("render/pages/about.html");
+    expect(resolveThemeExploreSelectionValue({ files: FILES, value: "about" })).toBe("render/pages/about.html");
   });
 
   /**
@@ -37,27 +37,27 @@ describe("resolveThemeExploreSelectionValue", () => {
    * the extension a bare `?page=` link never carries — used to match nothing at all. This is form 3.
    */
   it("matches a page label with .html appended back on", () => {
-    expect(resolveThemeExploreSelectionValue(FILES, "about.html")).toBe("render/pages/about.html");
-    expect(resolveThemeExploreSelectionValue(FILES, "404.html")).toBe("render/pages/404.html");
+    expect(resolveThemeExploreSelectionValue({ files: FILES, value: "about.html" })).toBe("render/pages/about.html");
+    expect(resolveThemeExploreSelectionValue({ files: FILES, value: "404.html" })).toBe("render/pages/404.html");
   });
 
   it("does not resolve a bare label or label+.html against a non-page file — only the exact path can address it", () => {
-    expect(resolveThemeExploreSelectionValue(FILES, "theme.css")).toBeNull();
-    expect(resolveThemeExploreSelectionValue(FILES, "theme")).toBeNull();
+    expect(resolveThemeExploreSelectionValue({ files: FILES, value: "theme.css" })).toBeNull();
+    expect(resolveThemeExploreSelectionValue({ files: FILES, value: "theme" })).toBeNull();
   });
 
   it("returns null for a value naming nothing in the theme at all", () => {
-    expect(resolveThemeExploreSelectionValue(FILES, "does-not-exist")).toBeNull();
-    expect(resolveThemeExploreSelectionValue(FILES, "does-not-exist.html")).toBeNull();
+    expect(resolveThemeExploreSelectionValue({ files: FILES, value: "does-not-exist" })).toBeNull();
+    expect(resolveThemeExploreSelectionValue({ files: FILES, value: "does-not-exist.html" })).toBeNull();
   });
 
   it("prefers the exact-path form even when a value could also be read as a label", () => {
-    expect(resolveThemeExploreSelectionValue(FILES, "render/pages/index.html")).toBe("render/pages/index.html");
+    expect(resolveThemeExploreSelectionValue({ files: FILES, value: "render/pages/index.html" })).toBe("render/pages/index.html");
     const collidingFiles: ThemeExploreSelectableFile[] = [
       { path: "render/pages/theme.html", label: "theme.json", kind: "page" },
       ...FILES,
     ];
-    expect(resolveThemeExploreSelectionValue(collidingFiles, "theme.json")).toBe("theme.json");
+    expect(resolveThemeExploreSelectionValue({ files: collidingFiles, value: "theme.json" })).toBe("theme.json");
   });
 });
 

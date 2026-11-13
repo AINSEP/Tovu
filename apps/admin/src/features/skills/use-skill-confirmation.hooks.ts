@@ -3,7 +3,7 @@ import { useFocusTrap } from "../../hooks/use-focus-trap.hooks";
 import type { useSkillInstall } from "./use-skill-install.hooks";
 
 /** Sibling dialog behavior: Escape, contained Tab navigation and focus return. */
-export function useSkillConfirmation(active: boolean, onCancel: () => void) {
+export function useSkillConfirmation({ active, onCancel }: { active: boolean; onCancel: () => void }, _optional = {}) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, active);
   useEffect(() => {
@@ -25,7 +25,7 @@ export function useSkillConfirmation(active: boolean, onCancel: () => void) {
 }
 
 export function useSkillInstallConfirmation(install: ReturnType<typeof useSkillInstall>) {
-  const confirmation = useSkillConfirmation(install.pending !== null, install.cancel);
+  const confirmation = useSkillConfirmation({ active: install.pending !== null, onCancel: install.cancel });
   return {
     ...confirmation,
     source: install.pending && "githubUrl" in install.pending ? install.pending.githubUrl : "Uploaded skill files",

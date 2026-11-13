@@ -160,7 +160,7 @@ function themeExplorePreviewNotice(t: Translate): string {
  *
  * @complexity O(1).
  */
-function canSaveSelectedFile(file: ThemeExploreFile | undefined): boolean {
+function canSaveSelectedFile({ file }: { file: ThemeExploreFile | undefined }, _optional = {}): boolean {
   return file === undefined || file.editable;
 }
 
@@ -426,7 +426,7 @@ function ThemeExploreFileRow({
 function ThemeExploreFileGroupTabs({ groups, t }: { groups: ThemeExploreFileGroupsController; t: Translate }) {
   const { tabs, activeGroup, chooseGroup } = groups;
   const activeId = activeGroup ?? "";
-  const { onKeyDown } = useTabBarKeyboard({ tabs, activeId, onChange: (id) => chooseGroup(id as ThemeFileGroup) });
+  const { onKeyDown } = useTabBarKeyboard({ tabs, activeId, onChange: (id) => chooseGroup({ group: id as ThemeFileGroup }) });
   return (
     <div className="theme-explore-groups" role="tablist" aria-label={t("File groups")} onKeyDown={onKeyDown}>
       {tabs.map((tab) => (
@@ -439,7 +439,7 @@ function ThemeExploreFileGroupTabs({ groups, t }: { groups: ThemeExploreFileGrou
           aria-controls="theme-explore-files-panel"
           className={tab.key === activeGroup ? "theme-explore-group is-active" : "theme-explore-group"}
           tabIndex={resolveTabBarTabIndex({ tabs, activeId, tab })}
-          onClick={() => chooseGroup(tab.key)}
+          onClick={() => chooseGroup({ group: tab.key })}
           {...agentHandle({ handle: `theme-explore-group-${tab.key}` }, { role: "button", label: `Show this theme's ${tab.label} files` })}
         >
           {t(tab.label)}
@@ -835,7 +835,7 @@ function ThemeExploreToolbarButtons({
       {/* Absent, not disabled, for a read-only file — a greyed-out button invites "why can't I?",
           where absence just means the option does not apply to this file. `dirty` can never become
           true for a read-only file (its textarea has no `onChange`), so this is belt-and-suspenders. */}
-      {canSaveSelectedFile(selectedFile) ? (
+      {canSaveSelectedFile({ file: selectedFile }) ? (
         <button
           className="btn-primary"
           disabled={!dirty || saving}
@@ -1248,7 +1248,7 @@ function ThemeExploreContent({
 
   const selectedFile = files.find((f) => f.path === selected);
   const publishState = selectedFilePublishState(selectedFile, t);
-  const previewMode = themeExplorePreviewMode(selectedFile);
+  const previewMode = themeExplorePreviewMode({ file: selectedFile });
 
   return (
     <div className="page">

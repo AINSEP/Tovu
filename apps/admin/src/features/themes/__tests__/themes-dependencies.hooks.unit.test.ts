@@ -47,7 +47,7 @@ describe("defaultThemesPort — real api wiring", () => {
       settings: { workspaceId: "ws", activeThemeId: "quartz", updatedAt: new Date(0).toISOString() },
       availableThemeIds: ["basic", "quartz"],
     });
-    await expect(defaultThemesPort.setActiveTheme("quartz")).resolves.toMatchObject({
+    await expect(defaultThemesPort.setActiveTheme({ activeThemeId: "quartz" })).resolves.toMatchObject({
       settings: { activeThemeId: "quartz" },
     });
     expect(spy).toHaveBeenCalledWith("quartz");
@@ -61,7 +61,7 @@ describe("defaultThemesPort — real api wiring", () => {
       availableThemeIds: ["basic", "quartz", "quartz-copy"],
     };
     const spy = vi.spyOn(api, "duplicateTheme").mockResolvedValue(copy);
-    await expect(defaultThemesPort.duplicateTheme("quartz", "Quartz copy")).resolves.toEqual(copy);
+    await expect(defaultThemesPort.duplicateTheme({ themeId: "quartz", newName: "Quartz copy" })).resolves.toEqual(copy);
     expect(spy).toHaveBeenCalledWith("quartz", "Quartz copy");
   });
 
@@ -70,7 +70,7 @@ describe("defaultThemesPort — real api wiring", () => {
 describe("createFakeThemesPort — duplicateTheme", () => {
   it("rejects a copy of a theme that is not installed and leaves the list unchanged", async () => {
     const port = createFakeThemesPort();
-    await expect(port.duplicateTheme("missing", "Copy")).rejects.toThrow("theme 'missing' was not found");
+    await expect(port.duplicateTheme({ themeId: "missing", newName: "Copy" })).rejects.toThrow("theme 'missing' was not found");
     await expect(port.getPresentation()).resolves.toMatchObject({ availableThemeIds: ["basic"] });
   });
 });

@@ -21,7 +21,7 @@ describe("Sites request lifecycle", () => {
       currentSite: { name: "owner", dir: "/sites/owner", listed: true, dirOverridden: false },
       persistedSiteName: null,
     }));
-    const port = createFakeSitesPort(sites);
+    const port = createFakeSitesPort({ snapshot: sites });
     vi.stubGlobal("fetch", async (url: string) => {
       const path = String(url).split("?")[0]!;
       reads.set(path, (reads.get(path) ?? 0) + 1);

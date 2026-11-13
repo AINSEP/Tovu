@@ -11,8 +11,8 @@ import { asciiSlug } from "../../../lib/ascii-slug";
 export const defaultThemesPort: ThemesPort = {
   getPresentation: () => api.getPresentation(),
   rescanThemes: () => api.rescanThemes(),
-  setActiveTheme: (activeThemeId) => api.setActiveTheme(activeThemeId),
-  duplicateTheme: (themeId, newName) => api.duplicateTheme(themeId, newName),
+  setActiveTheme: ({ activeThemeId }, _optional = {}) => api.setActiveTheme(activeThemeId),
+  duplicateTheme: ({ themeId, newName }, _optional = {}) => api.duplicateTheme(themeId, newName),
   trashTheme: async ({ themeId }) => {
     await api.trash({ type: "theme", id: themeId });
   },
@@ -48,14 +48,14 @@ export function createFakeThemesPort(options: FakeThemesPortOptions = {}): Theme
       return { added: [], removed: [], total: availableThemeIds.length, availableThemeIds: [...availableThemeIds], duplicateIds: [] };
     },
 
-    async setActiveTheme(activeThemeId) {
+    async setActiveTheme({ activeThemeId }, _optional = {}) {
       settings = { ...settings, activeThemeId };
       return { settings, availableThemeIds: [...availableThemeIds] };
     },
 
     /** Adds the copy to the installed list under a name-derived id, the way the server would —
      *  minus the server's collision suffixing, which a test scripts with distinct names. */
-    async duplicateTheme(themeId, newName) {
+    async duplicateTheme({ themeId, newName }, _optional = {}) {
       const source = availableThemes.find((theme) => theme.id === themeId);
       if (!source) throw new Error(`theme '${themeId}' was not found`);
       const id = asciiSlug(newName);

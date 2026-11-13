@@ -17,7 +17,7 @@ export const SITE_LIST_KEY = "sitesList";
 
 export interface SiteListPrefsPort {
   load(): Promise<unknown>;
-  save(next: SiteListPrefs): Promise<void>;
+  save(required: { next: SiteListPrefs }, optional?: Record<string, never>): Promise<void>;
 }
 
 export interface SiteListPrefsController {
@@ -33,7 +33,7 @@ export interface SiteListPrefsController {
 
 export const defaultSiteListPrefsPort: SiteListPrefsPort = {
   load: async () => (await loadNamespaceValues(INTERFACE_NAMESPACE)).get(SITE_LIST_KEY),
-  save: async (next) => { await saveChangedEntries(INTERFACE_NAMESPACE, "user", [{ key: SITE_LIST_KEY, valueJson: next, changed: true }]); },
+  save: async ({ next }, _optional = {}) => { await saveChangedEntries(INTERFACE_NAMESPACE, "user", [{ key: SITE_LIST_KEY, valueJson: next, changed: true }]); },
 };
 
 /**
@@ -61,7 +61,7 @@ export function useSiteListPrefs({ port }: { port: SiteListPrefsPort }, _options
   const onPrefsChange = useCallback((next: SiteListPrefs) => {
     setPrefs(next);
     if (loadError !== null) return;
-    lastSave.current = lastSave.current.then(() => port.save(next)).then(
+    lastSave.current = lastSave.current.then(() => port.save({ next })).then(
       () => setSaveError(null),
       (error: unknown) => setSaveError(describeApiError(error, String(error))),
     );

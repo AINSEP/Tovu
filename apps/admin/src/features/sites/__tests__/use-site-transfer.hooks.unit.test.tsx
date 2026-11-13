@@ -306,7 +306,7 @@ describe("useSiteExport", () => {
     const port = createFakeSiteTransferPort({ listShares: async () => ({ shares: [share({ url: null }), share({ shareId: "old" })] }) });
     const { result } = renderHook(() => useSiteExport({ port, t }), { wrapper });
     await waitFor(() => expect(result.current.zipOnly).toBe(true));
-    expect(result.current.downloadHref(share())).toBe("/download/share-1");
+    expect(result.current.downloadHref({ share: share() })).toBe("/download/share-1");
   });
 
   it("is not zip-only with no exports, and names a list failure", async () => {
@@ -327,7 +327,7 @@ describe("share link and website address rules", () => {
     ["not a link", false],
     ["", false],
   ])("validShareLink(%j) is %s", (link, expected) => {
-    expect(validShareLink(link)).toBe(expected);
+    expect(validShareLink({ link: link })).toBe(expected);
   });
 
   it.each([
@@ -337,11 +337,11 @@ describe("share link and website address rules", () => {
     ["file:///etc/passwd", false],
     ["example.com", false],
   ])("validWebsiteAddress(%j) is %s", (address, expected) => {
-    expect(validWebsiteAddress(address)).toBe(expected);
+    expect(validWebsiteAddress({ address: address })).toBe(expected);
   });
 
   it("drafts a request naming the trimmed address and the site-import plugin", () => {
-    expect(liveImportPrompt("  https://example.com ")).toBe("Import the live website at https://example.com into this site with the site-import agent plugin.");
+    expect(liveImportPrompt({ address: "  https://example.com " })).toBe("Import the live website at https://example.com into this site with the site-import agent plugin.");
   });
 });
 
@@ -352,7 +352,7 @@ describe("useSiteImport", () => {
     const port = createFakeSiteTransferPort({ startImport, completeImportOwner });
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
 
-    act(() => result.current.setLink(" https://example.com/s/abc "));
+    act(() => result.current.setLink({ next: " https://example.com/s/abc " }));
     expect(result.current.canImport).toBe(true);
     await act(() => result.current.startImport());
     expect(startImport).toHaveBeenCalledWith({ url: "https://example.com/s/abc" });
@@ -380,8 +380,8 @@ describe("useSiteImport", () => {
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
     const zip = new File(["PK"], "mingjie.tovu.zip", { type: "application/zip" });
 
-    act(() => result.current.setLink("https://example.com/s/abc"));
-    act(() => result.current.chooseFiles([zip]));
+    act(() => result.current.setLink({ next: "https://example.com/s/abc" }));
+    act(() => result.current.chooseFiles({ files: [zip] }));
     expect(result.current.file).toBe(zip);
     expect(result.current.link).toBe("");
     await act(() => result.current.startImport());
@@ -393,17 +393,17 @@ describe("useSiteImport", () => {
   it("refuses a file that is not a .zip, and typing a link clears a chosen file", () => {
     const port = createFakeSiteTransferPort();
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
-    act(() => result.current.chooseFiles([new File(["x"], "notes.pdf")]));
+    act(() => result.current.chooseFiles({ files: [new File(["x"], "notes.pdf")] }));
     expect(result.current.file).toBeNull();
     expect(result.current.importError).toBe("Choose a .tovu.zip file.");
-    act(() => result.current.chooseFiles([]));
+    act(() => result.current.chooseFiles({ files: [] }));
     expect(result.current.file).toBeNull();
 
-    act(() => result.current.chooseFiles([new File(["PK"], "a.ZIP")]));
+    act(() => result.current.chooseFiles({ files: [new File(["PK"], "a.ZIP")] }));
     expect(result.current.importError).toBeNull();
-    act(() => result.current.setLink("https://example.com/s/abc"));
+    act(() => result.current.setLink({ next: "https://example.com/s/abc" }));
     expect(result.current.file).toBeNull();
-    act(() => result.current.chooseFiles([new File(["PK"], "a.zip")]));
+    act(() => result.current.chooseFiles({ files: [new File(["PK"], "a.zip")] }));
     act(() => result.current.clearFile());
     expect(result.current.file).toBeNull();
     expect(result.current.canImport).toBe(false);
@@ -414,10 +414,10 @@ describe("useSiteImport", () => {
     const startImport = vi.fn(() => new Promise<SiteImport>((resolve) => { release = resolve; }));
     const port = createFakeSiteTransferPort({ startImport });
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
-    act(() => result.current.chooseFiles([new File(["PK"], "site.tovu.zip")]));
-    act(() => result.current.setLink(""));
+    act(() => result.current.chooseFiles({ files: [new File(["PK"], "site.tovu.zip")] }));
+    act(() => result.current.setLink({ next: "" }));
     expect(result.current.file?.name).toBe("site.tovu.zip");
-    act(() => result.current.setLink("https://example.com/s/abc"));
+    act(() => result.current.setLink({ next: "https://example.com/s/abc" }));
     let first: Promise<void> = Promise.resolve();
     act(() => { first = result.current.startImport(); });
     await waitFor(() => expect(result.current.importing).toBe(true));
@@ -430,7 +430,7 @@ describe("useSiteImport", () => {
   it("refuses a link that is not https, without calling the server", async () => {
     const port = createFakeSiteTransferPort();
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
-    act(() => result.current.setLink("http://example.com/s/abc"));
+    act(() => result.current.setLink({ next: "http://example.com/s/abc" }));
     await act(() => result.current.startImport());
     expect(result.current.importError).toBe("Paste an https:// share link.");
     expect(result.current.current).toBeNull();
@@ -439,7 +439,7 @@ describe("useSiteImport", () => {
   it("says no site changed when the import fails, keeping the source to retry", async () => {
     const port = createFakeSiteTransferPort({ startImport: async () => { throw new ApiError("", 500); } });
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
-    act(() => result.current.setLink("https://example.com/s/abc"));
+    act(() => result.current.setLink({ next: "https://example.com/s/abc" }));
     await act(() => result.current.startImport());
     expect(result.current.importError).toBe("Import failed. No site was changed.");
     expect(result.current.importing).toBe(false);
@@ -453,7 +453,7 @@ describe("useSiteImport", () => {
     });
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
     await waitFor(() => expect(result.current.imports).toHaveLength(1));
-    act(() => result.current.resume(result.current.imports![0]!));
+    act(() => result.current.resume({ item: result.current.imports![0]! }));
     act(() => { result.current.setPassword("pw"); result.current.setConfirm("pw"); });
     await act(() => result.current.completeOwner());
     expect(result.current.ownerError).toBe("Couldn't create the site.");
@@ -475,7 +475,7 @@ describe("useSiteImport", () => {
     await waitFor(() => expect(result.current.importError).toBe(reason));
     expect(result.current.listError).toBeNull();
     expect(result.current.imports).toEqual([]);
-    act(() => result.current.chooseFiles([new File(["PK"], "site.tovu.zip")]));
+    act(() => result.current.chooseFiles({ files: [new File(["PK"], "site.tovu.zip")] }));
     expect(result.current.canImport).toBe(false);
     await act(() => result.current.startImport());
     expect(uploadImportZip).not.toHaveBeenCalled();
@@ -486,7 +486,7 @@ describe("useSiteImport", () => {
     const { result } = renderHook(() => useSiteImport({ port: createFakeSiteTransferPort({ uploadImportZip }), t }), { wrapper });
     const huge = new File(["PK"], "huge.tovu.zip");
     Object.defineProperty(huge, "size", { value: 300 * 1024 * 1024 + 1 });
-    act(() => result.current.chooseFiles([huge]));
+    act(() => result.current.chooseFiles({ files: [huge] }));
     await act(() => result.current.startImport());
     expect(uploadImportZip).not.toHaveBeenCalled();
     expect(result.current.importError).toBe("This zip is over the 300 MB limit.");
@@ -500,7 +500,7 @@ describe("useSiteImport", () => {
     });
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
     await waitFor(() => expect(result.current.imports).toEqual([]));
-    act(() => result.current.chooseFiles([new File(["PK"], "site.tovu.zip")]));
+    act(() => result.current.chooseFiles({ files: [new File(["PK"], "site.tovu.zip")] }));
     await act(() => result.current.startImport());
     expect(result.current.importError).toBe("Another ZIP upload is running.");
   });
@@ -510,7 +510,7 @@ describe("useSiteImport", () => {
       uploadImportZip: async () => { throw new ApiError("cannot reach the Tovu API — is the server running?", 0, API_UNREACHABLE_CODE); },
     });
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
-    act(() => result.current.chooseFiles([new File(["PK"], "site.tovu.zip")]));
+    act(() => result.current.chooseFiles({ files: [new File(["PK"], "site.tovu.zip")] }));
     await act(() => result.current.startImport());
     expect(result.current.importError).toBe("cannot reach the Tovu API — is the server running?");
   });
@@ -532,7 +532,7 @@ describe("useSiteImport", () => {
     act(() => result.current.setLiveAddress("https://example.com"));
     expect(result.current.liveAddressValid).toBe(true);
     act(() => result.current.startLiveImport());
-    expect(insertText).toHaveBeenCalledWith(liveImportPrompt("https://example.com"));
+    expect(insertText).toHaveBeenCalledWith(liveImportPrompt({ address: "https://example.com" }));
     expect(dockRequests).toEqual([true]);
     unsubscribe();
   });

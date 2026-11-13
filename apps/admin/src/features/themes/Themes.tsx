@@ -56,7 +56,7 @@ const THEME_BLURBS: Record<string, string> = {
  *
  * @complexity O(1).
  */
-function actionButtonAriaLabel(idleVerb: string, busyVerb: string, busy: boolean, itemName: string): string {
+function actionButtonAriaLabel({ idleVerb, busyVerb, busy, itemName }: { idleVerb: string; busyVerb: string; busy: boolean; itemName: string }, _optional = {}): string {
   return `${busy ? busyVerb : idleVerb} ${itemName}`;
 }
 
@@ -166,9 +166,7 @@ export interface ThemesProps {
  * @complexity Time/space: O(1) — fixed-size id list (four tab groups), not caller-controlled.
  */
 function resolveThemesActiveTabId(
-  tabId: string | null | undefined,
-  settings: PresentationSettings,
-  themeTiers: Record<string, ThemeTier>,
+  { tabId, settings, themeTiers }: { tabId: string | null | undefined; settings: PresentationSettings; themeTiers: Record<string, ThemeTier> }, _optional = {},
 ): string {
   const validTabIds: readonly string[] = THEME_TAB_GROUPS;
   return resolveActiveTabId({ tabId: tabId, validIds: validTabIds, defaultId: defaultThemeTabGroup(settings, themeTiers) });
@@ -323,7 +321,7 @@ function ThemeActivateSwitch({
       className="agent-plugin-switch theme-card-switch"
       disabled={control.disabled}
       onClick={() => void activate(control.target)}
-      aria-label={actionButtonAriaLabel(t("Activate"), t(control.busyKey), control.busy, name)}
+      aria-label={actionButtonAriaLabel({ idleVerb: t("Activate"), busyVerb: t(control.busyKey), busy: control.busy, itemName: name })}
       title={t(control.titleKey)}
       {...agentHandle({ handle: `${handleBase}-activate` }, {
         role: "checkbox",
@@ -412,7 +410,7 @@ function ThemeGrid({
 }) {
   // A delete can only be requested through `onRequestDelete`, which exists only when `trash` does,
   // so the hook's `trash` is only ever called with `trash` defined.
-  const deletion = useThemeDeleteRequest({ t, trash: (themeId) => {
+  const deletion = useThemeDeleteRequest({ t, trash: ({ themeId }, _optional = {}) => {
     if (!trash) throw new Error("theme delete action is unavailable");
     return trash(themeId);
   } });
@@ -561,7 +559,7 @@ function ThemesToolbar({
  * pointer, and the second click of a double-click would activate that theme too (owner, 2026-11-03).
  * @returns The first active theme id, or `undefined` before settings load. @complexity O(1).
  */
-function useFirstActiveTheme(settings: PresentationSettings | null | undefined): string | undefined {
+function useFirstActiveTheme({ settings }: { settings: PresentationSettings | null | undefined }, _optional = {}): string | undefined {
   const [first, setFirst] = useState(settings?.activeThemeId);
   if (first === undefined && settings) setFirst(settings.activeThemeId);
   return first;
@@ -597,7 +595,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
     dismissTrashNotice,
     t,
   } = withThemeDefaults(useThemesHook());
-  const firstActiveThemeId = useFirstActiveTheme(settings);
+  const firstActiveThemeId = useFirstActiveTheme({ settings: settings });
 
   // Combines the original two guards (`error && !settings` / `!settings`) into one `if` so
   // TypeScript still narrows `settings` to non-null for everything below, while keeping only one
@@ -612,7 +610,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
   // `resolveThemesActiveTabId` folds in the same "fall back to the active theme's own tab group"
   // default `manualTab ?? defaultThemeTabGroup(...)` used before this prop existed, and
   // additionally guards against an unrecognized/stale query value (see that function's own doc).
-  const activeTab = resolveThemesActiveTabId(tabId, settings, themeTiers);
+  const activeTab = resolveThemesActiveTabId({ tabId: tabId, settings: settings, themeTiers: themeTiers });
   // `?? []` is a guard, not a live branch: `resolveThemesActiveTabId` only returns a real
   // `ThemeTabGroup` now that the theme Marketplace tab is gone (2026-10-04).
   // The theme active when the screen opened first, then A-Z by display name (`sortThemesForDisplay`).

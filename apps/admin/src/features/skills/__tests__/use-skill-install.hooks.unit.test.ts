@@ -114,7 +114,7 @@ it("an older install cannot dismiss a newer proposal and waits for the installed
   const refreshed = deferred<void>();
   const started = deferred<void>();
   const requests = installEndpoint(() => response.promise);
-  const { result } = renderHook(() => useSkillInstall(async () => { started.resolve(); await refreshed.promise; }));
+  const { result } = renderHook(() => useSkillInstall({}, { onInstalled: async () => { started.resolve(); await refreshed.promise; } }));
   act(() => result.current.propose(proposal));
   let completion!: Promise<void>;
   act(() => { completion = result.current.confirm(); });
@@ -134,7 +134,7 @@ it("a refused install retains the proposal and releases the confirmation lock fo
     ? Response.json({ error: "Skill archive refused" }, { status: 400 })
     : Response.json({ skill: {} }));
   let installed = 0;
-  const { result } = renderHook(() => useSkillInstall(() => { installed++; }));
+  const { result } = renderHook(() => useSkillInstall({}, { onInstalled: () => { installed++; } }));
   act(() => result.current.propose(proposal));
   await act(async () => { await result.current.confirm(); });
   expect(result.current.error).toBe("Skill archive refused");
@@ -152,7 +152,7 @@ it("a refused install retains the proposal and releases the confirmation lock fo
 
 it("a non-Error callback failure uses the install fallback and releases busy state", async () => {
   const requests = installEndpoint();
-  const { result } = renderHook(() => useSkillInstall(async () => { throw "refresh unavailable"; }));
+  const { result } = renderHook(() => useSkillInstall({}, { onInstalled: async () => { throw "refresh unavailable"; } }));
   act(() => result.current.propose(proposal));
   await act(async () => { await result.current.confirm(); });
   expect(requests).toEqual([{ ...proposal, confirmed: true }]);

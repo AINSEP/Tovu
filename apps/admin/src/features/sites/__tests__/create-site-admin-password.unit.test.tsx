@@ -30,7 +30,7 @@ function Harness({ port }: { port: SitesPort }) {
 
 function setup(listing: AdminSitesSnapshot = snapshot) {
   const requests: Parameters<SitesPort["createSite"]>[0][] = [];
-  const port = createFakeSitesPort(listing, { createSite: async (input) => {
+  const port = createFakeSitesPort({ snapshot: listing }, { createSite: async (input) => {
     requests.push(input);
     return { site: { name: input.name, dir: `/repo/sites/${input.name}`, siteId: "fake-site-id" } };
   } });

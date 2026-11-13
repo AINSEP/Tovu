@@ -13,10 +13,10 @@ import type { AdminLocalSiteAction, AdminCreatedSite, AdminCreatedSiteAgentPlugi
  * having them injected.
  */
 export interface SitesPort {
-  openSite?(url: string): void;
-  manageLocalSite?(input: { name: string; action: AdminLocalSiteAction; confirmed?: boolean; checked?: boolean }): Promise<unknown>;
+  openSite?(required: { url: string }, optional?: Record<string, never>): void;
+  manageLocalSite?(input: { name: string; action: AdminLocalSiteAction; confirmed?: boolean; checked?: boolean }, optional?: Record<string, never>): Promise<unknown>;
   listSites(): Promise<AdminSitesSnapshot>;
-  createSite(input: { name: string; adminPassword?: string; agentPluginTokens?: Record<string, string> }): Promise<{ site: AdminCreatedSite; agentPluginTokens?: AdminCreatedSiteAgentPluginTokens }>;
+  createSite(input: { name: string; adminPassword?: string; agentPluginTokens?: Record<string, string> }, optional?: Record<string, never>): Promise<{ site: AdminCreatedSite; agentPluginTokens?: AdminCreatedSiteAgentPluginTokens }>;
   listTokenSignInPlugins(): Promise<{ plugins: AdminTokenSignInPlugin[] }>;
-  activateSite(name: string): Promise<AdminSiteActivation>;
+  activateSite(required: { name: string }, optional?: Record<string, never>): Promise<AdminSiteActivation>;
 }

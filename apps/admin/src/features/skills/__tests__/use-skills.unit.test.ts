@@ -24,8 +24,8 @@ function deferred<T>() {
 function skillsPort() {
   return {
     listSkills: async () => [skill],
-    enableSkill: async (_id: string, _enabled: boolean): Promise<void> => { throw new Error("Unexpected skill toggle"); },
-    removeSkill: async (_id: string): Promise<void> => { throw new Error("Unexpected skill removal"); },
+    enableSkill: async (_input: { toolId: string; enabled: boolean }): Promise<void> => { throw new Error("Unexpected skill toggle"); },
+    removeSkill: async (_input: { toolId: string }): Promise<void> => { throw new Error("Unexpected skill removal"); },
   };
 }
 
@@ -62,7 +62,7 @@ describe("useSkills", () => {
     const port = { ...skillsPort(), listSkills: async () => {
       if (!installed.length) throw new Error("Refresh unavailable");
       return installed;
-    }, removeSkill: async (id: string) => { expect(id).toBe(skill.toolId); installed = []; } };
+    }, removeSkill: async ({ toolId }: { toolId: string }) => { expect(toolId).toBe(skill.toolId); installed = []; } };
     const { result } = renderHook(() => useSkills({ port }));
     await waitFor(() => expect(result.current.rows).toHaveLength(1));
     act(() => result.current.rows[0]!.onRemove());
@@ -101,8 +101,8 @@ describe("useSkills", () => {
     const port = { ...skillsPort(), listSkills: async () => {
       readbacks.push([...installed]);
       return installed;
-    }, removeSkill: async (id: string) => {
-      expect(id).toBe(skill.toolId);
+    }, removeSkill: async ({ toolId }: { toolId: string }) => {
+      expect(toolId).toBe(skill.toolId);
       writes++;
       await removal.promise;
       installed = [];
@@ -139,8 +139,8 @@ describe("useSkills", () => {
   it("shows the change fallback for non-Error failures and clears it after a successful retry", async () => {
     let fail = true;
     let installed = skill;
-    const port = { ...skillsPort(), listSkills: async () => [installed], enableSkill: async (id: string, enabled: boolean) => {
-      expect(id).toBe(skill.toolId);
+    const port = { ...skillsPort(), listSkills: async () => [installed], enableSkill: async ({ toolId, enabled }: { toolId: string; enabled: boolean }) => {
+      expect(toolId).toBe(skill.toolId);
       if (fail) throw "offline";
       installed = { ...skill, enabled };
     } };
@@ -172,7 +172,7 @@ describe("useSkills", () => {
 
   it("confirming without a selected skill leaves the list unchanged", async () => {
     const removed: string[] = [];
-    const port = { ...skillsPort(), removeSkill: async (id: string) => { removed.push(id); } };
+    const port = { ...skillsPort(), removeSkill: async ({ toolId }: { toolId: string }) => { removed.push(toolId); } };
     const { result } = renderHook(() => useSkills({ port }));
     await waitFor(() => expect(result.current.rows).toHaveLength(1));
     act(() => result.current.onConfirmRemove());

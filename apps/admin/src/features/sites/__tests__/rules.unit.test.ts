@@ -138,11 +138,11 @@ describe("sitesInDisplayOrder", () => {
 
 describe("readSnapshot", () => {
   it("defaults switchingEnabled to FALSE before the first load, so nothing offers a write mid-load", () => {
-    expect(readSnapshot(undefined)).toEqual({ sites: [], switchingEnabled: false, outlook: { kind: "none" } });
+    expect(readSnapshot({ snapshot: undefined })).toEqual({ sites: [], switchingEnabled: false, outlook: { kind: "none" } });
   });
 
   it("passes the loaded snapshot's own values through", () => {
-    const view = readSnapshot(snapshotFixture({ persistedSiteName: "beta" }));
+    const view = readSnapshot({ snapshot: snapshotFixture({ persistedSiteName: "beta" }) });
     expect(view.switchingEnabled).toBe(true);
     expect(view.outlook).toEqual({ kind: "pending", name: "beta" });
     expect(view.sites).toHaveLength(1);
@@ -151,22 +151,22 @@ describe("readSnapshot", () => {
 
 describe("siteNameErrorKey", () => {
   it("accepts a lowercase dashed name", () => {
-    expect(siteNameErrorKey("my-second-site")).toBeNull();
+    expect(siteNameErrorKey({ raw: "my-second-site" })).toBeNull();
   });
 
   it("rejects an empty or whitespace-only name", () => {
-    expect(siteNameErrorKey("")).toBe("Enter a folder name.");
-    expect(siteNameErrorKey("   ")).toBe("Enter a folder name.");
+    expect(siteNameErrorKey({ raw: "" })).toBe("Enter a folder name.");
+    expect(siteNameErrorKey({ raw: "   " })).toBe("Enter a folder name.");
   });
 
   it("rejects uppercase, spaces, and path separators", () => {
-    expect(siteNameErrorKey("Bad Name!")).toBe("Use lowercase letters, digits, and dashes only.");
-    expect(siteNameErrorKey("../escape")).toBe("Use lowercase letters, digits, and dashes only.");
+    expect(siteNameErrorKey({ raw: "Bad Name!" })).toBe("Use lowercase letters, digits, and dashes only.");
+    expect(siteNameErrorKey({ raw: "../escape" })).toBe("Use lowercase letters, digits, and dashes only.");
   });
 
   it("rejects a name over 100 characters", () => {
-    expect(siteNameErrorKey("a".repeat(101))).toBe("That name is too long (100 characters maximum).");
-    expect(siteNameErrorKey("a".repeat(100))).toBeNull();
+    expect(siteNameErrorKey({ raw: "a".repeat(101) })).toBe("That name is too long (100 characters maximum).");
+    expect(siteNameErrorKey({ raw: "a".repeat(100) })).toBeNull();
   });
 });
 
@@ -181,32 +181,32 @@ describe("siteWriteErrorKey", () => {
     ["AGENT_PLUGIN_TOKEN_INVALID", "That access token didn't work. Check it, or leave it empty and connect later from chat. No site was created."],
     ["AGENT_PLUGIN_TOKEN_UNSUPPORTED", "That service can't be connected with an access token here. Leave it empty and connect later from chat. No site was created."],
   ])("explains %s with its own recovery guidance", (code, expected) => {
-    expect(siteWriteErrorKey(new ApiError("write refused", 409, code))).toBe(expected);
+    expect(siteWriteErrorKey({ e: new ApiError("write refused", 409, code) })).toBe(expected);
   });
 
   it("translates the capability refusal and the occupied-folder conflict", () => {
-    expect(siteWriteErrorKey(new ApiError("nope", 403, "SITE_SWITCHING_DISABLED"))).toBe(
+    expect(siteWriteErrorKey({ e: new ApiError("nope", 403, "SITE_SWITCHING_DISABLED") })).toBe(
       "Site switching is turned off on this deployment.",
     );
-    expect(siteWriteErrorKey(new ApiError("nope", 409, "SITE_ALREADY_EXISTS"))).toBe(
+    expect(siteWriteErrorKey({ e: new ApiError("nope", 409, "SITE_ALREADY_EXISTS") })).toBe(
       "A folder with that name already exists under sites/.",
     );
   });
 
   it("defers to the shared fallback for an unrecognised ApiError code", () => {
-    expect(siteWriteErrorKey(new ApiError("boom", 500, "INTERNAL_ERROR"))).toBeNull();
+    expect(siteWriteErrorKey({ e: new ApiError("boom", 500, "INTERNAL_ERROR") })).toBeNull();
   });
 
   it("defers to the shared fallback for an ApiError that carries no code", () => {
-    expect(siteWriteErrorKey(new ApiError("boom", 502))).toBeNull();
+    expect(siteWriteErrorKey({ e: new ApiError("boom", 502) })).toBeNull();
   });
 
   it("defers to the shared fallback for a failure that is not an ApiError", () => {
-    expect(siteWriteErrorKey(new Error("network down"))).toBeNull();
+    expect(siteWriteErrorKey({ e: new Error("network down") })).toBeNull();
   });
 
   it("defers to the shared fallback for a code that names an Object.prototype member", () => {
-    expect(siteWriteErrorKey(new ApiError("odd", 400, "toString"))).toBeNull();
+    expect(siteWriteErrorKey({ e: new ApiError("odd", 400, "toString") })).toBeNull();
   });
 });
 
@@ -257,10 +257,10 @@ describe("createdTokensNoteKey", () => {
     ["saved", "will connect when this site first starts."],
     ["failed", "couldn't be saved. Open the site and ask the assistant to connect it."],
   ] as const)("explains a %s token outcome", (status, expected) => {
-    expect(createdTokensNoteKey(status)).toBe(expected);
+    expect(createdTokensNoteKey({ status: status })).toBe(expected);
   });
 
   it.each(["none", undefined] as const)("says nothing for a %s token outcome", (status) => {
-    expect(createdTokensNoteKey(status)).toBeNull();
+    expect(createdTokensNoteKey({ status: status })).toBeNull();
   });
 });

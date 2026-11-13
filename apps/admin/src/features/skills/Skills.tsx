@@ -73,7 +73,7 @@ export function Skills({ useSkillsHook = useSkills, useLocaleHook = useAdminLoca
   const locale = useLocaleHook();
   const t = useSkillsTranslator({ locale });
   const controller = useSkillsHook({ t });
-  const filesModal = useSkillFilesModal(controller.inspecting, controller.onCloseFiles, { t });
+  const filesModal = useSkillFilesModal({ skill: controller.inspecting, onClose: controller.onCloseFiles }, { t });
   const tabs: SettingsDialogTab[] = [
     { id: "skills", label: t("Skills"), icon: <SkillDocumentIcon />, title: t("Skills"), subtitle: t("Instructions for your assistant. Type /sk in chat to use one."), panel: <InstalledSkillsPanel controller={controller} t={t} /> },
     { id: "add", label: t("Add a skill"), title: t("Skills"), subtitle: t("Instructions for your assistant. Type /sk in chat to use one."), panel: <AddSkillPanel controller={controller} t={t} /> },
