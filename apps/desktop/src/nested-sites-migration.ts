@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Reverse the shipped 0.1.14 nesting at startup through the existing stopped-site CLI owner. */
 import fs from "node:fs";
 import path from "node:path";
@@ -76,7 +77,9 @@ export async function migrateNestedSitesHome(
     }
     removeDisposableNestedCache({ root });
     removeNestedSitesContainer({ root }, { report, removeDir });
-  } catch {
-    report("Tovu could not inspect the former sites folder; existing website paths remain available.");
+  } catch (err) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    report(`Tovu could not inspect the former sites folder; existing website paths remain available. Details: ${errorDiagnostic}.`);
   }
 }

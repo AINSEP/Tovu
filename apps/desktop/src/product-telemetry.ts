@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Electron policy over the shared product tracker, consent and native crash-upload ports. */
 import path from 'node:path';
 import { createNoopTracker, type Tracker } from '@jini-ai/diagnostics/observability';
@@ -23,7 +24,11 @@ function startNativeReporting({ active, product, readConsent, crashReporter, obs
   try {
     crashReporter.start({ ...product.crashUpload, uploadToServer: true, compress: true });
     return true;
-  } catch { warn('[product-telemetry] native crash reporting is unavailable'); return false; }
+  } catch (err) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    warn(`[product-telemetry] native crash reporting is unavailable: ${errorDiagnostic}`); return false;
+  }
 }
 
 /** Development has no implicit product config; an explicit path enables boot, not export permission.

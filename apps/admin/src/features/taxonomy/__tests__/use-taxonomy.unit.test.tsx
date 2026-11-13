@@ -307,7 +307,7 @@ describe("delete taxonomy", () => {
     const { result } = renderHook(() => useWiredTaxonomy(), { wrapper });
     await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP]));
     await act(async () => { await result.current.copyHtmlEmbed({ taxonomy: GROUP.taxonomy }); });
-    expect(result.current.copyFeedback).toBe("Could not copy embed");
+    expect(result.current.copyFeedback).toBe("The taxonomy HTML embed could not be copied. Check your browser's clipboard permissions and try again.");
   });
 
   it("on a taxonomy 404: closes the dialog, clears its selection, and refetches without an error", async () => {

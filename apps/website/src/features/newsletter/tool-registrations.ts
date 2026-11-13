@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { toolMetadata } from '../../contracts/core/tool-metadata/newsletter.js';
 /**
  * @file Newsletter's half of ADR-049 Decision 4 (ADR-PIPE-011/SPEC-011): maps `agent-tools.ts`'s
@@ -323,10 +324,12 @@ async function resendPendingSubscriptionConfirmation(
         input: { workspaceId: deps.workspaceId, subscriptionId: subscription.id, recipientEmail: contact.email },
       });
     }
-  } catch {
+  } catch (err) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
     // A contact-specific failure must not turn this acknowledgement into an enumeration oracle.
     // Keep diagnostics free of addresses, tokens and provider endpoints.
-    console.error("[newsletter] confirmation request could not be processed; inspect mail configuration");
+    console.error("[newsletter] confirmation request could not be processed; inspect mail configuration", errorDiagnostic);
   }
   return { delivered: true, mailDeliveryAvailable: true };
 }

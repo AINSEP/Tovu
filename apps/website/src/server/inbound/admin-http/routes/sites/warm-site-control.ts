@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Warm children delegate Sites management to the original dev host, never own another pool. */
 import type { Express } from 'express';
 import { requestLoopbackHttp } from '@jini-ai/platform/net';
@@ -42,8 +43,10 @@ export function registerWarmSiteControl({ app, binding, workspaceId }: { app: Ex
       const snapshot = JSON.parse(reply.body.toString('utf8')) as Record<string, unknown>;
       res.status(reply.status).json(req.method === 'GET' && (suffix === '' || suffix.startsWith('?'))
         ? warmSiteListing({ snapshot, binding }) : snapshot);
-    } catch {
-      console.warn('tovu dev: warm site management host is unavailable.');
+    } catch (err) {
+      let errorDiagnostic = "[diagnostic unavailable]";
+      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+      console.warn('tovu dev: warm site management host is unavailable.', errorDiagnostic);
       res.status(503).json({ error: 'The dev site manager is unavailable. Return to the original dev server.' });
     }
   });

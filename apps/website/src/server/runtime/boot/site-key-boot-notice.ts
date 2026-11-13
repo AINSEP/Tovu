@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { homedir } from "node:os";
 import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/index";
 import { inspectSiteKeyMaterial, type SiteKeyStatus } from "#src/features/webhooks/index";
@@ -84,10 +85,12 @@ export function warnIfNoSiteKeyAtBoot(deps: SiteKeyBootNoticeDeps = {}): void {
   let status: SiteKeyStatus;
   try {
     status = deps.inspect ? deps.inspect() : inspectLocalSiteKey({ mode, env, siteDir: deps.siteDir });
-  } catch {
+  } catch (err) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
     // Reported rather than rethrown: this runs on the boot path, and "I could not check" is still
     // worth saying out loud — it is the same class of surprise as "there is no key".
-    safely(log, ["[site-key] could not determine whether this server has usable site key material."]);
+    safely(log, [`[site-key] could not determine whether this server has usable site key material. Details: ${errorDiagnostic}.`]);
     return;
   }
   if (status.active) return;

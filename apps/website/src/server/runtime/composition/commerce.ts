@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { ToolRegistration } from '@jini-ai/core';
 import type { AuthorizeFn } from '@jini-ai/cms/core';
 import { buildRegistrations as buildCommerceStatusTools, buildCommerceCatalogRegistrations } from '@jini-ai/commerce/tools';
@@ -75,8 +76,10 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   let activationUnreadable = false;
   async function isActive(): Promise<boolean> {
     try { const active = await enabled('commerce'); activationUnreadable = false; return active; }
-    catch {
-      if (!activationUnreadable) warn('Commerce activation cannot be confirmed. Checkout is paused; existing payments continue draining. Re-enable Commerce through plugin settings once activation storage is available.');
+    catch (err) {
+      let errorDiagnostic = "[diagnostic unavailable]";
+      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+      if (!activationUnreadable) warn(`Commerce activation cannot be confirmed. Checkout is paused; existing payments continue draining. Re-enable Commerce through plugin settings once activation storage is available. Details: ${errorDiagnostic}.`);
       activationUnreadable = true; return false;
     }
   }
@@ -229,7 +232,11 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
       if (await isActive()) { const current = await resolve(); if (current) await current.server.activate(); }
       else if (storageReady) await ensurePaymentSchema();
       if (storageReady) { await resolve(); await worker.kick(); }
-    } catch { warn('Commerce is unavailable; the rest of the site remains online.'); }
+    } catch (err) {
+      let errorDiagnostic = "[diagnostic unavailable]";
+      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+      warn(`Commerce is unavailable; the rest of the site remains online. Details: ${errorDiagnostic}.`);
+    }
   }
   async function quarantinedOrder({ tx, scope, row }: { tx: LedgerTx; scope: LedgerKeyScope; row: QuarantineRecord }): Promise<string | null> {
     const payment = row.paymentId ? await tx.getPayment({ ...scope, id: row.paymentId }) : null;
@@ -323,13 +330,21 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
         try {
           if (!await catalogAvailable(options.readiness)) return [];
           return catalog.listProducts({});
-        } catch { warn('The catalog is unavailable; the rest of the site remains online.'); return []; }
+        } catch (err) {
+          let errorDiagnostic = "[diagnostic unavailable]";
+          try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+          warn(`The product catalog could not be listed; the rest of the site remains online. Details: ${errorDiagnostic}.`); return [];
+        }
       },
       findProduct: async (input, options = {}) => {
         try {
           if (!await catalogAvailable(options.readiness)) return null;
           return catalog.findProduct(input);
-        } catch { warn('The catalog is unavailable; the rest of the site remains online.'); return null; }
+        } catch (err) {
+          let errorDiagnostic = "[diagnostic unavailable]";
+          try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+          warn(`The product catalog could not find this product; the rest of the site remains online. Details: ${errorDiagnostic}.`); return null;
+        }
       },
     },
     close: async () => { closed = true; await warming; await worker.close(); await schema?.catch(() => {}); },

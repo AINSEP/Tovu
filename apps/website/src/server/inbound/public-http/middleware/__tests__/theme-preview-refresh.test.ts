@@ -351,7 +351,12 @@ test("preview reload writes a fresh refresh frame, and a themes path that cannot
   failed.res.locals.principal = { id: "owner" };
   await reload({ params: { workspaceId: "ws" } }, failed.res);
   assert.equal(failed.capture.statusCode, 500);
-  assert.deepEqual(failed.capture.jsonBody, { error: "preview reload failed" });
+  const failure = failed.capture.jsonBody as { error: string; errorId: string; details: { failure: { step: string; copyText: string } } };
+  assert.match(failure.error, /^Theme previews could not be refreshed\./);
+  assert.ok(failure.errorId);
+  assert.equal(failure.details.failure.step, "Refresh theme previews");
+  assert.ok(failure.details.failure.copyText.includes(failure.errorId));
+  assert.ok(!failure.details.failure.copyText.includes(blocker));
 });
 
 test("registered refresh remembers only the 512 most recent authenticated preview revisions, and never an anonymous one", async (t) => {

@@ -709,7 +709,7 @@ test("a throwing history store preserves the successful remote apply and logs no
     publishHistory: { store, workspaceId: "source-ws", clock: { nowMs: () => 0 } },
   }, { bundleId: "b1", confirmationToken: "token" }), result);
   assert.equal(http.calls.length, 1);
-  assert.deepEqual(warnings, [["[publish-content] destination history write failed after remote apply"]]);
+  assert.deepEqual(warnings, [["[publish-content] destination history write failed after remote apply", "Error"]]);
 });
 
 test("outbound failures, refusals and malformed success bodies never establish destinations", async () => {

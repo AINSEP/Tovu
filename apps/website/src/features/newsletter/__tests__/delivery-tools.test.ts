@@ -501,7 +501,7 @@ for (const scenario of ["pending", "missing", "subscribed", "no-contact", "abort
 }
 
 for (const failureAt of ["subscription", "contact", "send"] as const) {
-  test(`L299 resend hides ${failureAt} failures and logs only its fixed diagnostic`, async (t) => {
+  test(`L299 resend hides ${failureAt} failures and logs only safe error metadata`, async (t) => {
     const h = await fixture();
     await h.deps.newsletterSubscriptionRepo.save({ id: "subscription", workspaceId: "ws", listId: "list", subscriberId: "subscriber", status: "pending", source: "admin", subscribedAt: null, unsubscribedAt: null, consentRevisionIdAtSubscribe: null, createdAt: NOW, updatedAt: NOW });
     const failure = new Error("reader@example.com private provider detail");
@@ -515,7 +515,7 @@ for (const failureAt of ["subscription", "contact", "send"] as const) {
     const tool = buildNewsletterRegistrations(h.deps).find(entry => entry.descriptor.id === "newsletter_resend_confirmation")!;
     h.tools.set(tool.descriptor.id, tool);
     assert.deepEqual(await h.call(tool.descriptor.id, { subscriptionId: "subscription" }), { delivered: true, mailDeliveryAvailable: true });
-    assert.deepEqual(log.mock.calls.map(call => call.arguments), [["[newsletter] confirmation request could not be processed; inspect mail configuration"]]);
+    assert.deepEqual(log.mock.calls.map(call => call.arguments), [["[newsletter] confirmation request could not be processed; inspect mail configuration", "Error"]]);
     assert.deepEqual(h.messages, []);
   });
 }

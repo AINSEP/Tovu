@@ -101,7 +101,7 @@ test('status moves from loading to idle and reports a failed save with the bound
   await waitFor(() => expect(result.current.editorDisabled).toBe(false));
   expect(result.current.status).toBeNull();
   await act(async () => { await result.current.save(); });
-  expect(result.current.status).toBe('T:Could not save note.');
+  expect(result.current.status).toBe('T:The plugin note could not be saved. T:Check whether the note was saved before trying again.');
 });
 
 test('a save status from a previous plugin is hidden while the next plugin loads', async () => {
@@ -158,6 +158,6 @@ test.each(['resolves', 'rejects'] as const)('a save that %s after switching plug
   await waitFor(() => expect(result.current.text).toBe('second note'));
   await act(async () => { settle(); await saving; });
   expect(result.current.status).not.toBe('Note saved.');
-  expect(result.current.status).not.toBe('Could not save note.');
+  expect(result.current.status).not.toBe('The plugin note could not be saved. Check whether the note was saved before trying again.');
   expect(result.current.text).toBe('second note');
 });

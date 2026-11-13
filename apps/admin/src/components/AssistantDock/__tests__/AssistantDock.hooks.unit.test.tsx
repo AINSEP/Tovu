@@ -344,7 +344,7 @@ describe("openMcpUiLink", () => {
   it("refuses a javascript: URL — a View cannot run script in this admin origin via a rendered link", () => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
 
-    expect(() => openMcpUiLink("javascript:alert(document.cookie)")).toThrow("Could not open the link.");
+    expect(() => openMcpUiLink("javascript:alert(document.cookie)")).toThrow("The plugin link could not be opened. Ask the plugin provider for an HTTPS link or a path on this site.");
 
     expect(openSpy).not.toHaveBeenCalled();
   });
@@ -356,14 +356,14 @@ describe("openMcpUiLink", () => {
     "blob:https://admin.example.com/1234",
   ])("refuses a non-https URL: %s", (url) => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
-    expect(() => openMcpUiLink(url)).toThrow("Could not open the link.");
+    expect(() => openMcpUiLink(url)).toThrow("The plugin link could not be opened. Ask the plugin provider for an HTTPS link or a path on this site.");
     expect(openSpy).not.toHaveBeenCalled();
   });
 
   it("reports an unparseable URL to the host", () => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
 
-    expect(() => openMcpUiLink("not a url")).toThrow("Could not open the link.");
+    expect(() => openMcpUiLink("not a url")).toThrow("The plugin link could not be opened. Ask the plugin provider for an HTTPS link or a path on this site.");
     expect(openSpy).not.toHaveBeenCalled();
   });
 
@@ -385,7 +385,7 @@ describe("openMcpUiLink", () => {
   it("refuses a protocol-relative URL — it names another host, not an in-app path", () => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
 
-    expect(() => openMcpUiLink("//evil.example.com/x")).toThrow("Could not open the link.");
+    expect(() => openMcpUiLink("//evil.example.com/x")).toThrow("The plugin link could not be opened. Ask the plugin provider for an HTTPS link or a path on this site.");
 
     expect(openSpy).not.toHaveBeenCalled();
   });

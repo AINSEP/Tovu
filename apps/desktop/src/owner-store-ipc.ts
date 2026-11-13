@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** S3 trusted sites-home bridge. The CLI owns persistence; main owns dialogs, files and scheduling.
  * Shared keys are project references: nothing here copies a key into a site or opens an owner store.
  */
@@ -190,8 +191,10 @@ export async function settleLegacyOwnerStore({ run, removeFiles, notify, log }: 
     if (reply.data.legacy === 'empty') { removeFiles(); return 'removed'; }
     if (reply.data.legacy === 'available') notify();
     return reply.data.legacy;
-  } catch {
-    log('tovu desktop: the older shared-key store could not be checked; it was left in place.');
+  } catch (err) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    log(`tovu desktop: the older shared-key store could not be checked; it was left in place. Details: ${errorDiagnostic}.`);
     return 'failed';
   }
 }

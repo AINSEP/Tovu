@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminTaxonomy, AdminTaxonomyWithTerms } from "@/lib/api";
 import { useTaxonomyHtmlEmbed } from "../hooks/use-taxonomy-html-embed.hooks";
+import { adminFailureChannel } from "@/lib/admin-failure-channel";
 
 /** Copy writes the saved-identity embed and shows translated feedback for success and failure. */
 
@@ -45,7 +46,9 @@ describe("useTaxonomyHtmlEmbed", () => {
     const clipboard = { writeText: async () => { throw new DOMException("denied", "NotAllowedError"); } };
     const { result } = renderHook(() => useTaxonomyHtmlEmbed({ taxonomies: [], t }, { clipboard }));
     await act(async () => { await result.current.copyHtmlEmbed({ taxonomy: tax("tx_1", "Topics") }); });
-    expect(result.current.copyFeedback).toBe("«Could not copy embed»");
+    expect(result.current.copyFeedback).toBe("«The taxonomy HTML embed could not be copied.» «Check your browser's clipboard permissions and try again.»");
+    expect(adminFailureChannel.getSnapshot()).toMatchObject({ step: "Copy taxonomy HTML embed" });
+    expect(adminFailureChannel.getSnapshot()?.copyText).toContain("denied");
   });
 
   it("uses the browser clipboard when no port is injected", async () => {
