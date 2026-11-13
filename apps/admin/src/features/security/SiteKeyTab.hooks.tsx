@@ -15,7 +15,7 @@ export interface RevealedKeyCopyState {
   copy: () => Promise<void>;
 }
 
-export function useRevealedKeyCopy(hex: string): RevealedKeyCopyState {
+export function useRevealedKeyCopy({ hex }: { hex: string }, _optional: Record<string, never> = {}): RevealedKeyCopyState {
   const [copied, setCopied] = useState(false);
 
   async function copy(): Promise<void> {

@@ -37,7 +37,7 @@ const REMOVE_FROM_TOVU = "Remove from Tovu";
  * mirrors `ProviderGroup` (one heading, one row) with exactly zero or one row inside, never more.
  */
 
-function entryHandleLabel(name: string, purposeLabel: string, configured: boolean): string {
+function entryHandleLabel({ name, purposeLabel, configured }: { name: string; purposeLabel: string; configured: boolean }, _optional: Record<string, never> = {}): string {
   return configured ? `${name} — ${purposeLabel}, configured` : `${name} — ${purposeLabel}, not configured`;
 }
 
@@ -53,7 +53,7 @@ export function OtherCredentialEntry({ store, row, controller }: { store: OtherC
       className="access-tokens-provider-group"
       {...agentHandle({ handle: `security-other-credentials-${store.id}-${agentHandleSegment({ value: row?.itemId ?? "none" })}` }, {
         role: "region",
-        label: entryHandleLabel(name, store.purposeLabel, row !== undefined),
+        label: entryHandleLabel({ name, purposeLabel: store.purposeLabel, configured: row !== undefined }),
       })}
     >
       <h3 className="access-tokens-provider-heading">
@@ -238,7 +238,7 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
 const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCredentialRowState; controller: OtherCredentialsController; t: Translate }>(
   function OtherCredentialRemoveDialog({ row, controller, t: translate }, ref) {
     const locale = useAdminLocale();
-    const { close, confirm } = useOtherCredentialRemoveDialog(ref, row, controller);
+    const { close, confirm } = useOtherCredentialRemoveDialog({ ref, row, controller });
     // `aria-labelledby`, not left implicit — same fix, same reasoning, as Tier 1's own
     // `RemoveConfirmDialog` (`AccessTokensTab.tsx`): a native `<dialog>` gets no accessible name
     // for free from an `<h2>` inside it, and this doc comment's own header already promises this

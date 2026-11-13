@@ -62,7 +62,7 @@ describe("roles port contracts", () => {
   it("the default permission port reads and deletes through the authenticated policy endpoints", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ policyPermissions: [] }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
-    await expect(defaultRolesPort.listPolicyPermissions("policy/one")).resolves.toEqual({ policyPermissions: [] });
+    await expect(defaultRolesPort.listPolicyPermissions({ policyId: "policy/one" })).resolves.toEqual({ policyPermissions: [] });
     await expect(defaultRolesPort.removePolicyPermission({ policyId: "policy/one", policyPermissionId: "permission/one" })).resolves.toEqual({});
     expect(fetchMock.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
       ["/api/admin/v1/workspaces/workspace-local/policies/policy%2Fone/permissions", "GET"],
@@ -74,7 +74,7 @@ describe("roles port contracts", () => {
     const port = createFakeRolesPort();
     expect(await port.listRoles()).toEqual({ roles: [] });
     expect(await port.listPolicies()).toEqual({ policies: [] });
-    const { role } = await port.createRole("Writer");
+    const { role } = await port.createRole({ name: "Writer" });
     const { policy } = await port.createPolicy({ name: "Read" });
     expect(role).toEqual({ id: "fake-role-1", workspaceId: "fake-ws", name: "Writer", isBuiltin: false });
     expect(policy).toEqual({ id: "fake-policy-1", workspaceId: "fake-ws", name: "Read", description: undefined, isBuiltin: false, isFrozen: false });
@@ -82,8 +82,8 @@ describe("roles port contracts", () => {
     await port.updatePolicy({ policyId: policy.id });
     expect(await port.listRoles()).toEqual({ roles: [{ ...role, name: "Editor" }] });
     expect(await port.listPolicies()).toEqual({ policies: [policy] });
-    await port.deleteRole(role.id);
-    await port.deletePolicy(policy.id);
+    await port.deleteRole({ roleId: role.id });
+    await port.deletePolicy({ policyId: policy.id });
     expect(port.roles).toEqual([]);
     expect(port.policies).toEqual([]);
   });
@@ -91,10 +91,10 @@ describe("roles port contracts", () => {
   it("fake writes to missing roles and policies reject without changing siblings", async () => {
     const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY] });
     await expect(port.updateRole({ roleId: "absent", name: "Overwrite" })).rejects.toThrow("fake role not found: absent");
-    await expect(port.deleteRole("absent")).rejects.toThrow("fake role not found: absent");
+    await expect(port.deleteRole({ roleId: "absent" })).rejects.toThrow("fake role not found: absent");
     await expect(port.updatePolicy({ policyId: "absent" }, { name: "Overwrite" })).rejects.toThrow("fake policy not found: absent");
-    await expect(port.deletePolicy("absent")).rejects.toThrow("fake policy not found: absent");
-    await expect(port.listPolicyPermissions("absent")).rejects.toThrow("fake policy not found: absent");
+    await expect(port.deletePolicy({ policyId: "absent" })).rejects.toThrow("fake policy not found: absent");
+    await expect(port.listPolicyPermissions({ policyId: "absent" })).rejects.toThrow("fake policy not found: absent");
     await expect(port.writePolicyPermission({ policyId: "absent", permission: "content.read" })).rejects.toThrow("fake policy not found: absent");
     expect(port.roles).toEqual([ROLE]);
     expect(port.policies).toEqual([POLICY]);
@@ -106,8 +106,8 @@ describe("roles port contracts", () => {
     const port = createFakeRolesPort({ policies: [POLICY, { ...POLICY, id: "other" }], initialPolicyPermissions: [permission] });
     await expect(port.removePolicyPermission({ policyId: POLICY.id, policyPermissionId: permission.id })).rejects.toThrow("policy permission 'permission' was not found on policy 'p1'");
     await expect(port.removePolicyPermission({ policyId: "absent", policyPermissionId: permission.id })).rejects.toThrow("fake policy not found: absent");
-    expect(await port.listPolicyPermissions(POLICY.id)).toEqual({ policyPermissions: [] });
-    expect(await port.listPolicyPermissions("other")).toEqual({ policyPermissions: [permission] });
+    expect(await port.listPolicyPermissions({ policyId: POLICY.id })).toEqual({ policyPermissions: [] });
+    expect(await port.listPolicyPermissions({ policyId: "other" })).toEqual({ policyPermissions: [permission] });
     expect(port.policyPermissions).toEqual([permission]);
   });
 
@@ -116,10 +116,10 @@ describe("roles port contracts", () => {
       const failure = new Error(`${operation} denied`);
       const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY], [`${operation}Error`]: failure });
       const actions = {
-        createRole: () => port.createRole("New"), updateRole: () => port.updateRole({ roleId: ROLE.id, name: "New" }),
-        deleteRole: () => port.deleteRole(ROLE.id), createPolicy: () => port.createPolicy({ name: "New" }),
-        updatePolicy: () => port.updatePolicy({ policyId: POLICY.id }, { name: "New" }), deletePolicy: () => port.deletePolicy(POLICY.id),
-        listPermissions: () => port.listPolicyPermissions(POLICY.id),
+        createRole: () => port.createRole({ name: "New" }), updateRole: () => port.updateRole({ roleId: ROLE.id, name: "New" }),
+        deleteRole: () => port.deleteRole({ roleId: ROLE.id }), createPolicy: () => port.createPolicy({ name: "New" }),
+        updatePolicy: () => port.updatePolicy({ policyId: POLICY.id }, { name: "New" }), deletePolicy: () => port.deletePolicy({ policyId: POLICY.id }),
+        listPermissions: () => port.listPolicyPermissions({ policyId: POLICY.id }),
       };
       await expect(actions[operation]()).rejects.toBe(failure);
       expect(port.roles).toEqual([ROLE]);
@@ -336,7 +336,7 @@ describe("onSaveRole", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "bad name", code: "VALIDATION_ERROR" }, 400));
 
     await act(async () => {
-      await result.current.onSaveRole(ROLE.id);
+      await result.current.onSaveRole({ roleId: ROLE.id });
     });
 
     expect(result.current.editingRoleId).toBe(ROLE.id);
@@ -354,7 +354,7 @@ describe("onSaveRole", () => {
       .mockResolvedValueOnce(jsonResponse({ policies: [POLICY] }));
 
     await act(async () => {
-      await result.current.onSaveRole(ROLE.id);
+      await result.current.onSaveRole({ roleId: ROLE.id });
     });
 
     expect(result.current.editingRoleId).toBeNull();
@@ -375,7 +375,7 @@ describe("togglePermissionForm", () => {
       result.current.setResourceTypeInput("stale-type");
     });
 
-    act(() => result.current.togglePermissionForm(POLICY.id));
+    act(() => result.current.togglePermissionForm({ policyId: POLICY.id }));
 
     expect(result.current.permissionPolicyId).toBe(POLICY.id);
     expect(result.current.permissionInput).toBe("");
@@ -384,15 +384,15 @@ describe("togglePermissionForm", () => {
 
   it("closes the form (back to null) when toggled a second time for the same policy", async () => {
     const { result } = await renderLoaded();
-    act(() => result.current.togglePermissionForm(POLICY.id));
-    act(() => result.current.togglePermissionForm(POLICY.id));
+    act(() => result.current.togglePermissionForm({ policyId: POLICY.id }));
+    act(() => result.current.togglePermissionForm({ policyId: POLICY.id }));
     expect(result.current.permissionPolicyId).toBeNull();
   });
 
   it("switches to a different policy's form rather than closing, when a different id is toggled", async () => {
     const { result } = await renderLoaded();
-    act(() => result.current.togglePermissionForm(POLICY.id));
-    act(() => result.current.togglePermissionForm("other-policy"));
+    act(() => result.current.togglePermissionForm({ policyId: POLICY.id }));
+    act(() => result.current.togglePermissionForm({ policyId: "other-policy" }));
     expect(result.current.permissionPolicyId).toBe("other-policy");
   });
 });
@@ -402,7 +402,7 @@ describe("onWritePermission", () => {
     const { result } = await renderLoaded();
     const callsBefore = fetchMock.mock.calls.length;
     await act(async () => {
-      await result.current.onWritePermission(POLICY.id);
+      await result.current.onWritePermission({ policyId: POLICY.id });
     });
     expect(fetchMock.mock.calls.length).toBe(callsBefore);
   });
@@ -414,7 +414,7 @@ describe("onWritePermission", () => {
     // names this policy, which — outside a test calling the hook method directly — is exactly the
     // real UI's own constraint (the form only renders inside POLICY's own open panel).
     fetchMock.mockResolvedValueOnce(jsonResponse({ policyPermissions: [] }));
-    await act(async () => result.current.togglePermissionForm(POLICY.id));
+    await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
     await waitFor(() => expect(result.current.permissionRows).toEqual([]));
 
     act(() => {
@@ -434,7 +434,7 @@ describe("onWritePermission", () => {
     );
 
     await act(async () => {
-      await result.current.onWritePermission(POLICY.id);
+      await result.current.onWritePermission({ policyId: POLICY.id });
     });
 
     expect(result.current.permissionInput).toBe("");
@@ -454,7 +454,7 @@ describe("onWritePermission", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "unknown", code: "PERMISSION_UNKNOWN" }, 422));
 
     await act(async () => {
-      await result.current.onWritePermission(POLICY.id);
+      await result.current.onWritePermission({ policyId: POLICY.id });
     });
 
     expect(result.current.rowError).toBe("That permission is not recognized.");
@@ -480,7 +480,7 @@ describe("t/locale (2026-08-11, standing i18n rule)", () => {
     const { result } = renderHook(() => useWiredRoles(), { wrapper });
 
     await waitFor(() => expect(result.current.locale).toBe("es"));
-    expect(result.current.t("Roles & Permissions")).toBe("Roles y permisos");
+    expect(result.current.t({ key: "Roles & Permissions" })).toBe("Roles y permisos");
   });
 });
 
@@ -578,7 +578,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       result.current.setEditingPolicyName("Renamed Policy");
       result.current.setEditingPolicyDescription("Updated description");
     });
-    await act(async () => result.current.onSavePolicy(POLICY.id));
+    await act(async () => result.current.onSavePolicy({ policyId: POLICY.id }));
     expect(port.policies).toEqual([{ ...POLICY, name: "Renamed Policy", description: "Updated description" }]);
     await waitFor(() => expect(result.current.policies).toEqual(port.policies));
     expect(result.current.editingPolicyId).toBeNull();
@@ -595,7 +595,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       result.current.setEditingPolicyName("Renamed Policy");
       result.current.setEditingPolicyDescription("Updated description");
     });
-    await act(async () => result.current.onSavePolicy(POLICY.id));
+    await act(async () => result.current.onSavePolicy({ policyId: POLICY.id }));
     expect(result.current.rowError).toBe("update denied");
     expect(result.current.editingPolicyId).toBe(POLICY.id);
     expect(result.current.editingPolicyName).toBe("Renamed Policy");
@@ -638,7 +638,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
     expect(result.current.permissionRows).toEqual([]);
-    await act(async () => result.current.togglePermissionForm(POLICY.id));
+    await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
 
     await waitFor(() => expect(result.current.permissionRows).toEqual([PERMISSION_ROW]));
     expect(result.current.permissionsLoading).toBe(false);
@@ -653,10 +653,10 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
-    await act(async () => result.current.togglePermissionForm(POLICY.id));
+    await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
     await waitFor(() => expect(result.current.permissionRows).toEqual([PERMISSION_ROW]));
 
-    await act(async () => result.current.togglePermissionForm(POLICY.id));
+    await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
     expect(result.current.permissionPolicyId).toBeNull();
     expect(result.current.permissionRows).toEqual([]);
   });
@@ -670,11 +670,11 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     });
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
-    await act(async () => result.current.togglePermissionForm(POLICY.id));
+    await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
     await waitFor(() => expect(result.current.permissionRows).toHaveLength(2));
 
     await act(async () => {
-      await result.current.onRemovePermission(POLICY.id, PERMISSION_ROW.id);
+      await result.current.onRemovePermission({ policyId: POLICY.id, policyPermissionId: PERMISSION_ROW.id });
     });
 
     expect(port.policyPermissions).toEqual([other]);
@@ -693,11 +693,11 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     });
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
-    await act(async () => result.current.togglePermissionForm(POLICY.id));
+    await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
     await waitFor(() => expect(result.current.permissionRows).toHaveLength(1));
 
     await act(async () => {
-      await result.current.onRemovePermission(POLICY.id, PERMISSION_ROW.id);
+      await result.current.onRemovePermission({ policyId: POLICY.id, policyPermissionId: PERMISSION_ROW.id });
     });
 
     expect(result.current.rowError).toBe("boom");
@@ -716,7 +716,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
     act(() => result.current.setPermissionInput("content.write"));
     await act(async () => {
-      await result.current.onWritePermission(POLICY.id);
+      await result.current.onWritePermission({ policyId: POLICY.id });
     });
 
     expect(result.current.rowError).toBe("boom");
@@ -750,7 +750,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       });
       const { result } = renderHook(() => useRoles({ port }), { wrapper });
       await waitFor(() => expect(result.current.roles).not.toBeNull());
-      await act(async () => result.current.togglePermissionForm(POLICY.id));
+      await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
       await waitFor(() => expect(result.current.permissionRows).toHaveLength(2));
 
       act(() => result.current.setPendingPermissionRemove({ policyId: POLICY.id, row: PERMISSION_ROW }));
@@ -786,7 +786,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       });
       const { result } = renderHook(() => useRoles({ port }), { wrapper });
       await waitFor(() => expect(result.current.roles).not.toBeNull());
-      await act(async () => result.current.togglePermissionForm(POLICY.id));
+      await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
       await waitFor(() => expect(result.current.permissionRows).toHaveLength(1));
 
       act(() => result.current.setPendingPermissionRemove({ policyId: POLICY.id, row: PERMISSION_ROW }));
@@ -818,12 +818,12 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
       const { result } = renderHook(() => useRoles({ port }), { wrapper });
       await waitFor(() => expect(result.current.roles).not.toBeNull());
-      await act(async () => result.current.togglePermissionForm(POLICY.id));
+      await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
       await waitFor(() => expect(result.current.permissionRows).toHaveLength(2));
 
       let p1!: Promise<void>;
       act(() => {
-        p1 = result.current.onRemovePermission(POLICY.id, PERMISSION_ROW.id);
+        p1 = result.current.onRemovePermission({ policyId: POLICY.id, policyPermissionId: PERMISSION_ROW.id });
       });
       expect(result.current.removingPermissionId).toBe(PERMISSION_ROW.id);
       // `useFetchMutation`'s `mutate` reaches the port call a microtask later than this synchronous
@@ -833,7 +833,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
       let p2!: Promise<void>;
       act(() => {
-        p2 = result.current.onRemovePermission(POLICY.id, other.id);
+        p2 = result.current.onRemovePermission({ policyId: POLICY.id, policyPermissionId: other.id });
       });
       expect(result.current.removingPermissionId).toBe(other.id);
       await waitFor(() => expect(port.removePolicyPermission).toHaveBeenCalledTimes(2));
@@ -865,7 +865,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     const otherPolicy = { id: "p2", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, isFrozen: false };
     const deferred: Record<string, { resolve: (v: { policyPermissions: AdminPolicyPermission[] }) => void }> = {};
     const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY, otherPolicy] });
-    port.listPolicyPermissions = vi.fn((policyId: string) => {
+    port.listPolicyPermissions = vi.fn(({ policyId }: { policyId: string }) => {
       return new Promise<{ policyPermissions: AdminPolicyPermission[] }>((resolve) => {
         deferred[policyId] = { resolve };
       });
@@ -875,8 +875,8 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
     // Open POLICY's panel, then switch to `otherPolicy`'s before POLICY's load resolves.
-    act(() => result.current.togglePermissionForm(POLICY.id));
-    act(() => result.current.togglePermissionForm(otherPolicy.id));
+    act(() => result.current.togglePermissionForm({ policyId: POLICY.id }));
+    act(() => result.current.togglePermissionForm({ policyId: otherPolicy.id }));
     await waitFor(() => expect(port.listPolicyPermissions).toHaveBeenCalledTimes(2));
     expect(result.current.permissionPolicyId).toBe(otherPolicy.id);
 
@@ -912,13 +912,13 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     const port = createFakeRolesPort({ policies: [POLICY, otherPolicy], initialPolicyPermissions: rows });
     const listPermissions = port.listPolicyPermissions.bind(port);
     let rejectOld!: (reason: Error) => void;
-    port.listPolicyPermissions = (policyId) => policyId === POLICY.id
+    port.listPolicyPermissions = ({ policyId }) => policyId === POLICY.id
       ? new Promise((_resolve, reject) => { rejectOld = reject; })
-      : listPermissions(policyId);
+      : listPermissions({ policyId });
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.policies).not.toBeNull());
-    act(() => result.current.togglePermissionForm(POLICY.id));
-    await act(async () => result.current.togglePermissionForm(otherPolicy.id));
+    act(() => result.current.togglePermissionForm({ policyId: POLICY.id }));
+    await act(async () => result.current.togglePermissionForm({ policyId: otherPolicy.id }));
     expect(result.current.permissionRows).toEqual(rows);
 
     await act(async () => { rejectOld(new Error("stale permission load failed")); });
@@ -944,7 +944,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
     act(() => result.current.startEditRole(ROLE));
     act(() => {
-      void result.current.onSaveRole(ROLE.id);
+      void result.current.onSaveRole({ roleId: ROLE.id });
     });
     await waitFor(() => expect(port.updateRole).toHaveBeenCalledTimes(1));
 
@@ -972,7 +972,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
     act(() => result.current.startEditPolicy(POLICY));
     act(() => {
-      void result.current.onSavePolicy(POLICY.id);
+      void result.current.onSavePolicy({ policyId: POLICY.id });
     });
     await waitFor(() => expect(port.updatePolicy).toHaveBeenCalledTimes(1));
 
@@ -1030,16 +1030,16 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
-    await act(async () => result.current.togglePermissionForm(POLICY.id));
+    await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
     act(() => result.current.setPermissionInput("a.perm"));
     act(() => {
-      void result.current.onWritePermission(POLICY.id);
+      void result.current.onWritePermission({ policyId: POLICY.id });
     });
     await waitFor(() => expect(port.writePolicyPermission).toHaveBeenCalledTimes(1));
 
     // Before POLICY's write settles, the operator switches to a DIFFERENT policy's panel and
     // types a NEW, unrelated value there.
-    await act(async () => result.current.togglePermissionForm(otherPolicy.id));
+    await act(async () => result.current.togglePermissionForm({ policyId: otherPolicy.id }));
     act(() => result.current.setPermissionInput("b.perm"));
     expect(result.current.permissionInput).toBe("b.perm");
 
@@ -1079,18 +1079,18 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       const { result } = renderHook(() => useRoles({ port }), { wrapper });
       await waitFor(() => expect(result.current.roles).not.toBeNull());
 
-      await act(async () => result.current.togglePermissionForm(POLICY.id));
+      await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
       await waitFor(() => expect(result.current.permissionRows).toEqual([rowA]));
 
       act(() => result.current.setPermissionInput("content.write"));
       let p!: Promise<void>;
       act(() => {
-        p = result.current.onWritePermission(POLICY.id);
+        p = result.current.onWritePermission({ policyId: POLICY.id });
       });
       await waitFor(() => expect(port.writePolicyPermission).toHaveBeenCalledTimes(1));
 
       // Before POLICY's write settles, the operator switches to a DIFFERENT policy's panel.
-      await act(async () => result.current.togglePermissionForm(otherPolicy.id));
+      await act(async () => result.current.togglePermissionForm({ policyId: otherPolicy.id }));
       await waitFor(() => expect(result.current.permissionRows).toEqual([rowB]));
 
       release();
@@ -1128,12 +1128,12 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
       let p!: Promise<void>;
       act(() => {
-        p = result.current.onRemovePermission(POLICY.id, rowA1.id);
+        p = result.current.onRemovePermission({ policyId: POLICY.id, policyPermissionId: rowA1.id });
       });
       await waitFor(() => expect(port.removePolicyPermission).toHaveBeenCalledTimes(1));
 
       // Before the removal settles, the operator opens a DIFFERENT policy's panel.
-      await act(async () => result.current.togglePermissionForm(otherPolicy.id));
+      await act(async () => result.current.togglePermissionForm({ policyId: otherPolicy.id }));
       await waitFor(() => expect(result.current.permissionRows).toEqual([rowB]));
 
       release();
@@ -1165,7 +1165,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       const { result } = renderHook(() => useRoles({ port }), { wrapper: strictWrapper });
       await waitFor(() => expect(result.current.roles).not.toBeNull());
 
-      await act(async () => result.current.togglePermissionForm(POLICY.id));
+      await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
       await waitFor(() => expect(result.current.permissionPolicyId).toBe(POLICY.id));
 
       // **Fails today:** the updater-body side effect fires twice under Strict Mode.

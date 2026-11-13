@@ -100,7 +100,7 @@ export interface RoleRowController {
   draftName: string;
   setDraftName: (name: string) => void;
   startRename: (role: AdminRole) => void;
-  saveRename: (roleId: string) => Promise<void>;
+  saveRename: (required: { roleId: string }, optional?: Record<string, never>) => Promise<void>;
   /** Which row has a write in flight — drives the per-row Saving… label, not a page-wide spinner. */
   savingId: string | null;
   requestDelete: (role: AdminRole | null) => void;
@@ -110,7 +110,7 @@ export interface RolesSectionProps {
   roles: AdminRole[];
   create: RoleCreateFormController;
   row: RoleRowController;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
   locale: string;
 }
 
@@ -138,11 +138,11 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
           page — the same utility `TabBar.tsx` itself uses for its dot label. `Seo.tsx`'s
           "Per-entry SEO" heading stays VISIBLE by the same rule: it is not a verbatim repeat of its
           tab ("Pages & posts"), so it still tells a sighted reader something. */}
-      <h2 className="visually-hidden">{t("Roles")}</h2>
+      <h2 className="visually-hidden">{t({ key: "Roles" })}</h2>
       <form onSubmit={create.submit} className="notice integrations-form form-measure">
         {create.error ? <span className="save-error">{create.error}</span> : null}
         <label>
-          {t("Role name")}
+          {t({ key: "Role name" })}
           <input
             value={create.name}
             onChange={(e) => create.setName(e.target.value)}
@@ -155,7 +155,7 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
           disabled={create.saving || !create.name}
           {...agentHandle({ handle: "roles-create-submit" }, { role: "button", label: "Create this new role" })}
         >
-          {create.saving ? t("Creating…") : t("Create role")}
+          {create.saving ? t({ key: "Creating…" }) : t({ key: "Create role" })}
         </button>
       </form>
       <DataTable
@@ -164,14 +164,14 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>{t("No roles yet.")}</p>
+              <p>{t({ key: "No roles yet." })}</p>
             </div>
           </div>
         }
         columns={[
           {
             key: "name",
-            header: t("Name"),
+            header: t({ key: "Name" }),
             cell: (role, index) =>
               row.editingId === role.id ? (
                 <input
@@ -183,10 +183,10 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
                 role.name
               ),
           },
-          { key: "type", header: t("Type"), cell: (role) => (role.isBuiltin ? t("Built-in") : t("Custom")) },
+          { key: "type", header: t({ key: "Type" }), cell: (role) => (role.isBuiltin ? t({ key: "Built-in" }) : t({ key: "Custom" })) },
           {
             key: "actions",
-            header: t("More"),
+            header: t({ key: "More" }),
             cell: (role, index) => {
               if (role.isBuiltin) return <span className="muted-cell">—</span>;
               if (row.editingId === role.id) return (
@@ -194,25 +194,25 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
                   <button
                     type="button"
                     disabled={row.savingId === role.id}
-                    onClick={() => row.saveRename(role.id)}
+                    onClick={() => row.saveRename({ roleId: role.id })}
                     {...agentHandle({ handle: `${roleMenuHandles[index]}-save` }, { role: "button", label: `Save this role's new name` })}
                   >
-                    {row.savingId === role.id ? t("Saving…") : t("Save")}
+                    {row.savingId === role.id ? t({ key: "Saving…" }) : t({ key: "Save" })}
                   </button>
                   <button
                     type="button"
                     onClick={() => row.setEditingId(null)}
                     {...agentHandle({ handle: `${roleMenuHandles[index]}-cancel` }, { role: "button", label: "Cancel renaming this role" })}
                   >
-                    {t("Cancel")}
+                    {t({ key: "Cancel" })}
                   </button>
                 </span>
               );
               return (
                 <RowMenu
-                  triggerLabel={`${t("Actions for role")} "${role.name}"`}
+                  triggerLabel={`${t({ key: "Actions for role" })} "${role.name}"`}
                   agentHandle={`${roleMenuHandles[index]}-menu`}
-                  items={roleMenuItems(role, { onRename: row.startRename, onDelete: row.requestDelete }, locale)}
+                  items={roleMenuItems({ role, handlers: { onRename: row.startRename, onDelete: row.requestDelete }, locale })}
                 />
               );
             },
@@ -234,7 +234,7 @@ export interface PolicyRowController {
   draftDescription: string;
   setDraftDescription: (description: string) => void;
   startRename: (policy: AdminPolicy) => void;
-  saveRename: (policyId: string) => Promise<void>;
+  saveRename: (required: { policyId: string }, optional?: Record<string, never>) => Promise<void>;
   savingId: string | null;
   requestDelete: (policy: AdminPolicy | null) => void;
 }
@@ -250,8 +250,8 @@ export interface PolicyPermissionController {
   setPermission: (permission: string) => void;
   resourceType: string;
   setResourceType: (resourceType: string) => void;
-  toggleForm: (policyId: string) => void;
-  write: (policyId: string) => Promise<void>;
+  toggleForm: (required: { policyId: string }, optional?: Record<string, never>) => void;
+  write: (required: { policyId: string }, optional?: Record<string, never>) => Promise<void>;
   /** The open policy's current permission rows, and the removal of one (OQ-10). Part of THIS
    *  controller rather than {@link PolicyRowController} because the list is only ever shown inside
    *  this same panel — it opens, loads, and closes with the add form. */
@@ -271,7 +271,7 @@ export interface PolicyRowProps {
    *  `PoliciesSection` (via `buildAgentListHandles`); see `Users.tsx`'s `UserRowProps.agentBase`
    *  for why a per-instance uniqueness search does not work here. */
   agentBase: string;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
   locale: string;
 }
 
@@ -280,7 +280,7 @@ interface PolicyRowActionsProps {
   row: PolicyRowController;
   permission: PolicyPermissionController;
   agentBase: string;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
   locale: string;
 }
 
@@ -297,35 +297,35 @@ function PolicyRowActions({ policy, row, permission, agentBase, t, locale }: Pol
         <button
           type="button"
           disabled={row.savingId === policy.id}
-          onClick={() => row.saveRename(policy.id)}
+          onClick={() => row.saveRename({ policyId: policy.id })}
           {...agentHandle({ handle: `${agentBase}-save` }, { role: "button", label: "Save this policy's new name and description" })}
         >
-          {row.savingId === policy.id ? t("Saving…") : t("Save")}
+          {row.savingId === policy.id ? t({ key: "Saving…" }) : t({ key: "Save" })}
         </button>
         <button
           type="button"
           onClick={() => row.setEditingId(null)}
           {...agentHandle({ handle: `${agentBase}-cancel` }, { role: "button", label: "Cancel renaming this policy" })}
         >
-          {t("Cancel")}
+          {t({ key: "Cancel" })}
         </button>
       </span>
     );
   }
   return (
     <RowMenu
-      triggerLabel={`${t("Actions for policy")} "${policy.name}"`}
+      triggerLabel={`${t({ key: "Actions for policy" })} "${policy.name}"`}
       agentHandle={`${agentBase}-menu`}
-      items={policyMenuItems(
+      items={policyMenuItems({
         policy,
-        permission.openForPolicyId,
-        {
+        permissionPolicyId: permission.openForPolicyId,
+        handlers: {
           onRename: row.startRename,
           onTogglePermissionForm: permission.toggleForm,
           onDelete: row.requestDelete,
         },
         locale,
-      )}
+      })}
     />
   );
 }
@@ -334,13 +334,13 @@ interface PolicyPermissionFormProps {
   policyId: string;
   savingId: string | null;
   permission: PolicyPermissionController;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 interface PolicyPermissionListProps {
   policyId: string;
   permission: PolicyPermissionController;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 /** The open policy's current permissions, each with a Remove (OQ-10). A separate top-level
@@ -348,8 +348,8 @@ interface PolicyPermissionListProps {
  *  reason `PolicyRowActions` is one: its loading/empty/list three-way branch plus the per-row
  *  disabled ternary would otherwise all count in the form's own scope. */
 function PolicyPermissionList({ policyId, permission, t }: PolicyPermissionListProps) {
-  if (permission.loading) return <p className="muted-cell">{t("Loading permissions…")}</p>;
-  if (permission.rows.length === 0) return <p className="muted-cell">{t("No permissions yet.")}</p>;
+  if (permission.loading) return <p className="muted-cell">{t({ key: "Loading permissions…" })}</p>;
+  if (permission.rows.length === 0) return <p className="muted-cell">{t({ key: "No permissions yet." })}</p>;
   // Only the currently-open policy's own permission list is ever mounted at once, so a handle
   // needs to be unique within THIS list, not across every policy — same reasoning `Roles`' own
   // per-policy `agentBase` already applies one level up.
@@ -364,11 +364,11 @@ function PolicyPermissionList({ policyId, permission, t }: PolicyPermissionListP
           <button
             type="button"
             disabled={permission.removingId === row.id}
-            aria-label={`${t("Remove permission")} ${row.permission}`}
+            aria-label={`${t({ key: "Remove permission" })} ${row.permission}`}
             onClick={() => permission.requestRemove({ policyId, row })}
             {...agentHandle({ handle: removeHandles[index] }, { role: "button", label: `Remove the "${row.permission}" permission from this policy` })}
           >
-            {permission.removingId === row.id ? t("Removing…") : t("Remove")}
+            {permission.removingId === row.id ? t({ key: "Removing…" }) : t({ key: "Remove" })}
           </button>
         </li>
       ))}
@@ -387,30 +387,30 @@ function PolicyPermissionForm({ policyId, savingId, permission, t }: PolicyPermi
     <tr>
       <td colSpan={4}>
         <div className="notice integrations-form">
-          <p>{t("Current permissions")}</p>
+          <p>{t({ key: "Current permissions" })}</p>
           <PolicyPermissionList policyId={policyId} permission={permission} t={t} />
           <label>
-            {t("Permission")}
+            {t({ key: "Permission" })}
             <span className="editor-actions permission-form-fields">
               <input
                 value={permission.permission}
                 onChange={(e) => permission.setPermission(e.target.value)}
-                placeholder={t("e.g. content.write")}
+                placeholder={t({ key: "e.g. content.write" })}
                 {...agentHandle({ handle: `${formHandleBase}-permission` }, { role: "field", label: "Permission string to grant, e.g. content.write" })}
               />
               <input
                 value={permission.resourceType}
                 onChange={(e) => permission.setResourceType(e.target.value)}
-                placeholder={t("resource type (optional)")}
+                placeholder={t({ key: "resource type (optional)" })}
                 {...agentHandle({ handle: `${formHandleBase}-resource-type` }, { role: "field", label: "Optional resource type this permission is scoped to" })}
               />
               <button
                 type="button"
                 disabled={!permission.permission || savingId === policyId}
-                onClick={() => permission.write(policyId)}
+                onClick={() => permission.write({ policyId })}
                 {...agentHandle({ handle: `${formHandleBase}-add` }, { role: "button", label: "Add this permission to the policy" })}
               >
-                {savingId === policyId ? t("Saving…") : t("Add")}
+                {savingId === policyId ? t({ key: "Saving…" }) : t({ key: "Add" })}
               </button>
             </span>
           </label>
@@ -452,8 +452,8 @@ export function PolicyRow({ policy, row, permission, agentBase, t, locale }: Pol
           )}
         </td>
         <td>
-          {policy.isBuiltin ? t("Built-in") : t("Custom")}
-          {policy.isFrozen ? ` ${t("(frozen)")}` : ""}
+          {policy.isBuiltin ? t({ key: "Built-in" }) : t({ key: "Custom" })}
+          {policy.isFrozen ? ` ${t({ key: "(frozen)" })}` : ""}
         </td>
         <td>
           <PolicyRowActions policy={policy} row={row} permission={permission} agentBase={agentBase} t={t} locale={locale} />
@@ -482,7 +482,7 @@ export interface PoliciesSectionProps {
   create: PolicyCreateFormController;
   row: PolicyRowController;
   permission: PolicyPermissionController;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
   locale: string;
 }
 
@@ -498,11 +498,11 @@ export function PoliciesSection({ policies, create, row, permission, t, locale }
   return (
     <>
       {/* Hidden for view, kept for assistive tech — see the matching note in `RolesSection`. */}
-      <h2 className="visually-hidden">{t("Policies")}</h2>
+      <h2 className="visually-hidden">{t({ key: "Policies" })}</h2>
       <form onSubmit={create.submit} className="notice integrations-form form-measure">
         {create.error ? <span className="save-error">{create.error}</span> : null}
         <label>
-          {t("Policy name")}
+          {t({ key: "Policy name" })}
           <input
             value={create.name}
             onChange={(e) => create.setName(e.target.value)}
@@ -511,7 +511,7 @@ export function PoliciesSection({ policies, create, row, permission, t, locale }
           />
         </label>
         <label>
-          {t("Description (optional)")}
+          {t({ key: "Description (optional)" })}
           <input
             value={create.description}
             onChange={(e) => create.setDescription(e.target.value)}
@@ -523,13 +523,13 @@ export function PoliciesSection({ policies, create, row, permission, t, locale }
           disabled={create.saving || !create.name}
           {...agentHandle({ handle: "policies-create-submit" }, { role: "button", label: "Create this new policy" })}
         >
-          {create.saving ? t("Creating…") : t("Create policy")}
+          {create.saving ? t({ key: "Creating…" }) : t({ key: "Create policy" })}
         </button>
       </form>
       {policies.length === 0 ? (
         <div className="card">
           <div className="empty-state">
-            <p>{t("No policies yet.")}</p>
+            <p>{t({ key: "No policies yet." })}</p>
           </div>
         </div>
       ) : (
@@ -537,10 +537,10 @@ export function PoliciesSection({ policies, create, row, permission, t, locale }
           <table className="list-table">
             <thead>
               <tr>
-                <th>{t("Name")}</th>
-                <th>{t("Description")}</th>
-                <th>{t("Type")}</th>
-                <th>{t("More")}</th>
+                <th>{t({ key: "Name" })}</th>
+                <th>{t({ key: "Description" })}</th>
+                <th>{t({ key: "Type" })}</th>
+                <th>{t({ key: "More" })}</th>
               </tr>
             </thead>
             <tbody>
@@ -569,18 +569,18 @@ interface RoleDeleteDialogProps {
   setPendingRoleDelete: (role: AdminRole | null) => void;
   rowSavingId: string | null;
   onDeleteRole: () => Promise<void>;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
   locale: string;
 }
 
 /** The role-delete confirm dialog — extracted from `Roles` verbatim. */
 function RoleDeleteDialog({ pendingRoleDelete, setPendingRoleDelete, rowSavingId, onDeleteRole, t, locale }: RoleDeleteDialogProps) {
-  const { prefix, suffix } = roleDeleteBodyParts(locale);
+  const { prefix, suffix } = roleDeleteBodyParts({ locale });
   return (
     <ConfirmDialog
       open={pendingRoleDelete !== null}
       agentHandle="roles-delete-role"
-      title={t("Delete role?")}
+      title={t({ key: "Delete role?" })}
       body={
         pendingRoleDelete ? (
           <p>
@@ -590,7 +590,7 @@ function RoleDeleteDialog({ pendingRoleDelete, setPendingRoleDelete, rowSavingId
           </p>
         ) : null
       }
-      confirmLabel={t("Delete")}
+      confirmLabel={t({ key: "Delete" })}
       destructive
       pending={pendingRoleDelete !== null && rowSavingId === pendingRoleDelete.id}
       onConfirm={onDeleteRole}
@@ -604,18 +604,18 @@ interface PolicyDeleteDialogProps {
   setPendingPolicyDelete: (policy: AdminPolicy | null) => void;
   rowSavingId: string | null;
   onDeletePolicy: () => Promise<void>;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
   locale: string;
 }
 
 /** The policy-delete confirm dialog — extracted from `Roles` verbatim. */
 function PolicyDeleteDialog({ pendingPolicyDelete, setPendingPolicyDelete, rowSavingId, onDeletePolicy, t, locale }: PolicyDeleteDialogProps) {
-  const { prefix, suffix } = policyDeleteBodyParts(locale);
+  const { prefix, suffix } = policyDeleteBodyParts({ locale });
   return (
     <ConfirmDialog
       open={pendingPolicyDelete !== null}
       agentHandle="roles-delete-policy"
-      title={t("Delete policy?")}
+      title={t({ key: "Delete policy?" })}
       body={
         pendingPolicyDelete ? (
           <p>
@@ -625,7 +625,7 @@ function PolicyDeleteDialog({ pendingPolicyDelete, setPendingPolicyDelete, rowSa
           </p>
         ) : null
       }
-      confirmLabel={t("Delete")}
+      confirmLabel={t({ key: "Delete" })}
       destructive
       pending={pendingPolicyDelete !== null && rowSavingId === pendingPolicyDelete.id}
       onConfirm={onDeletePolicy}
@@ -639,7 +639,7 @@ interface PermissionRemoveDialogProps {
   setPendingPermissionRemove: (target: PendingPermissionRemove | null) => void;
   removingPermissionId: string | null;
   onConfirmRemovePermission: () => Promise<void>;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
   locale: string;
 }
 
@@ -656,13 +656,13 @@ function PermissionRemoveDialog({
   t,
   locale,
 }: PermissionRemoveDialogProps) {
-  const { prefix, suffix } = permissionRemoveBodyParts(locale);
+  const { prefix, suffix } = permissionRemoveBodyParts({ locale });
   const pending = pendingPermissionRemove;
   return (
     <ConfirmDialog
       open={pending !== null}
       agentHandle="roles-remove-permission"
-      title={t("Remove permission?")}
+      title={t({ key: "Remove permission?" })}
       body={
         pending ? (
           <p>
@@ -673,7 +673,7 @@ function PermissionRemoveDialog({
           </p>
         ) : null
       }
-      confirmLabel={t("Remove")}
+      confirmLabel={t({ key: "Remove" })}
       tone="warning"
       pending={pending !== null && removingPermissionId === pending.row.id}
       onConfirm={onConfirmRemovePermission}
@@ -804,10 +804,10 @@ export function Roles({ tabId, useRolesHook = useWiredRoles }: RolesProps = {}) 
     locale,
   } = controller;
   const { prefix: descriptionPrefix, linkLabel: descriptionLinkLabel, suffix: descriptionSuffix } =
-    rolesDescriptionParts(locale);
+    rolesDescriptionParts({ locale });
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!roles || !policies) return <div className="notice">{t("Loading roles & permissions…")}</div>;
+  if (!roles || !policies) return <div className="notice">{t({ key: "Loading roles & permissions…" })}</div>;
 
   const activeTabId = resolveRolesTabId(tabId);
 
@@ -815,8 +815,8 @@ export function Roles({ tabId, useRolesHook = useWiredRoles }: RolesProps = {}) 
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t("People")}</p>
-          <h1 className="page-title">{t("Roles & Permissions")}</h1>
+          <p className="page-kicker">{t({ key: "People" })}</p>
+          <h1 className="page-title">{t({ key: "Roles & Permissions" })}</h1>
           <p className="page-description">
             {descriptionPrefix}
             <a href="/admin/users">{descriptionLinkLabel}</a>
@@ -830,8 +830,8 @@ export function Roles({ tabId, useRolesHook = useWiredRoles }: RolesProps = {}) 
       {rowError ? <div className="notice error">{rowError}</div> : null}
 
       <TabBar
-        ariaLabel={t("Roles & Permissions")}
-        tabs={resolveRolesTabs(t)}
+        ariaLabel={t({ key: "Roles & Permissions" })}
+        tabs={resolveRolesTabs((key) => t({ key }))}
         activeId={activeTabId}
         onChange={goToRolesTab}
         containerHandle="roles-tab-bar"

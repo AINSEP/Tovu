@@ -22,11 +22,11 @@ import type {
  */
 export interface OtherCredentialsPort {
   getSiteAssistantCredential(): Promise<{ data: SiteAssistantCredential }>;
-  setSiteAssistantCredential(patch: SiteAssistantCredentialPatch): Promise<{ data: SiteAssistantCredential }>;
+  setSiteAssistantCredential(patch: SiteAssistantCredentialPatch, optional?: Record<string, never>): Promise<{ data: SiteAssistantCredential }>;
   deleteSiteAssistantCredential(): Promise<{ data: SiteAssistantCredential }>;
 
   getAdminByokCredential(): Promise<{ data: AdminExecutionCredential }>;
-  setAdminByokCredential(patch: AdminExecutionCredentialPatch): Promise<{ data: AdminExecutionCredential }>;
+  setAdminByokCredential(patch: AdminExecutionCredentialPatch, optional?: Record<string, never>): Promise<{ data: AdminExecutionCredential }>;
   deleteAdminByokCredential(): Promise<{ data: AdminExecutionCredential }>;
 
   getMediaProviders(): Promise<AdminMediaProviderMap>;
@@ -34,8 +34,8 @@ export interface OtherCredentialsPort {
    *  own doc), so a caller replacing or removing ONE provider's key must still round-trip every other
    *  provider's own entry unchanged. See `use-other-credentials.hooks.ts`'s `replaceMediaProviderKey`/
    *  `removeMediaProviderKey` for where that reconstruction happens. */
-  saveMediaProviders(providers: AdminMediaProviderMap): Promise<AdminMediaProviderMap>;
+  saveMediaProviders(providers: AdminMediaProviderMap, optional?: Record<string, never>): Promise<AdminMediaProviderMap>;
 
   listExternalMcpServers(): Promise<{ servers: AdminExternalMcpServer[] }>;
-  deleteExternalMcpServer(serverId: string): Promise<{ removed: boolean; restartRequired: boolean }>;
+  deleteExternalMcpServer(required: { serverId: string }, optional?: Record<string, never>): Promise<{ removed: boolean; restartRequired: boolean }>;
 }

@@ -38,16 +38,20 @@ export interface RemoveConfirmDialogActions {
 /**
  * `RemoveConfirmDialog`'s close/confirm — extracted verbatim, same two calls, same order.
  *
- * @param ref - The forwarded ref `RemoveConfirmDialog` receives from its caller.
- * @param row - The token row this confirm dialog is for.
- * @param controller - `AccessTokensController.removeToken` is the one call this hook makes.
+ * @param required - The dialog and controller inputs.
+ * @param required.ref - The forwarded ref `RemoveConfirmDialog` receives from its caller.
+ * @param required.row - The token row this confirm dialog is for.
+ * @param required.controller - `AccessTokensController.removeToken` is the one call this hook makes.
  * @returns `close`/`confirm`, wired directly to the dialog's Cancel/"Remove from Tovu" buttons.
  * @complexity O(1).
  */
 export function useRemoveConfirmDialog(
-  ref: ForwardedRef<HTMLDialogElement>,
-  row: AccessTokenRow,
-  controller: AccessTokensController
+  { ref, row, controller }: {
+    ref: ForwardedRef<HTMLDialogElement>;
+    row: AccessTokenRow;
+    controller: AccessTokensController;
+  },
+  _optional: Record<string, never> = {},
 ): RemoveConfirmDialogActions {
   function close(): void {
     (ref as RefObject<HTMLDialogElement>).current?.close();
@@ -170,9 +174,12 @@ function otherCredentialGroupEntries(group: OtherCredentialGroupState): MergedSe
  * bound {@link sortAccessTokenGroups} itself documents), space O(n) for the built entry list.
  */
 export function useMergedSecretsOrder(
-  controller: AccessTokensController,
-  otherController: OtherCredentialsController,
-  query: string
+  { controller, otherController, query }: {
+    controller: AccessTokensController;
+    otherController: OtherCredentialsController;
+    query: string;
+  },
+  _optional: Record<string, never> = {},
 ): readonly MergedSecretsEntry[] {
   const providerGroups = controller.groups;
   const otherGroups = otherController.groups;

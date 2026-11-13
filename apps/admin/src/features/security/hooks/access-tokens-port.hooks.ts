@@ -35,23 +35,23 @@ export interface AccessTokensPort {
   };
   readonly publish: {
     list(): Promise<AdminPublishCredentialsSnapshot>;
-    create(input: { label: string; connection: AdminPublishConnectionInput; isDefault?: boolean; worksFor?: string[] }): Promise<AdminPublishCredentialSummary>;
+    create(input: { label: string; connection: AdminPublishConnectionInput; isDefault?: boolean; worksFor?: string[] }, optional?: Record<string, never>): Promise<AdminPublishCredentialSummary>;
     update(
-      id: string,
-      input: { label?: string; connection?: AdminPublishConnectionInput; isDefault?: boolean; worksFor?: string[] }
+      required: { id: string; input: { label?: string; connection?: AdminPublishConnectionInput; isDefault?: boolean; worksFor?: string[] } },
+      optional?: Record<string, never>
     ): Promise<AdminPublishCredentialSummary>;
     /** Idempotent — deleting an id that is already gone still resolves. */
-    remove(id: string): Promise<void>;
+    remove(required: { id: string }, optional?: Record<string, never>): Promise<void>;
   };
   readonly sourceControl: {
     list(): Promise<AdminSourceControlCredentialsSnapshot>;
-    create(input: { label: string; connection: AdminSourceControlConnectionInput; isDefault?: boolean }): Promise<AdminSourceControlCredentialSummary>;
+    create(input: { label: string; connection: AdminSourceControlConnectionInput; isDefault?: boolean }, optional?: Record<string, never>): Promise<AdminSourceControlCredentialSummary>;
     update(
-      id: string,
-      input: { label?: string; connection?: AdminSourceControlConnectionInput; isDefault?: boolean }
+      required: { id: string; input: { label?: string; connection?: AdminSourceControlConnectionInput; isDefault?: boolean } },
+      optional?: Record<string, never>
     ): Promise<AdminSourceControlCredentialSummary>;
     /** Idempotent — deleting an id that is already gone still resolves. */
-    remove(id: string): Promise<void>;
+    remove(required: { id: string }, optional?: Record<string, never>): Promise<void>;
   };
   /** Backs the "Add custom provider" capability — a THIRD, separate method group rather than
    *  folding into `publish`/`sourceControl` above, same "differently-shaped connection input"
@@ -69,10 +69,9 @@ export interface AccessTokensPort {
       baseUrl: string;
       additionalHosts?: readonly string[];
       connection: AdminCustomConnectionInput;
-    }): Promise<AdminCustomCredentialSummary>;
+    }, optional?: Record<string, never>): Promise<AdminCustomCredentialSummary>;
     update(
-      id: string,
-      input: {
+      required: { id: string; input: {
         worksFor?: string[];
         label?: string;
         category?: AdminCustomCredentialCategoryId;
@@ -82,9 +81,10 @@ export interface AccessTokensPort {
          *  omit/`null`/string tri-state and the server-side precedence when both are sent. */
         username?: string | null;
         connection?: AdminCustomConnectionInput;
-      }
+      } },
+      optional?: Record<string, never>
     ): Promise<AdminCustomCredentialSummary>;
     /** Idempotent — deleting an id that is already gone still resolves. */
-    remove(id: string): Promise<void>;
+    remove(required: { id: string }, optional?: Record<string, never>): Promise<void>;
   };
 }

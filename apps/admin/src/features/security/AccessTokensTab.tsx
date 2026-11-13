@@ -103,10 +103,10 @@ function acceptsAnotherToken(info: { kind: string; unlisted?: boolean }): boolea
   return info.kind !== "custom" && !info.unlisted;
 }
 
-function resolveAccessTokensHook(override: typeof useWiredAccessTokens | undefined): typeof useWiredAccessTokens {
+function resolveAccessTokensHook({ override }: { override: typeof useWiredAccessTokens | undefined }, _optional: Record<string, never> = {}): typeof useWiredAccessTokens {
   return override ?? useWiredAccessTokens;
 }
-function resolveOtherCredentialsHook(override: typeof useWiredOtherCredentials | undefined): typeof useWiredOtherCredentials {
+function resolveOtherCredentialsHook({ override }: { override: typeof useWiredOtherCredentials | undefined }, _optional: Record<string, never> = {}): typeof useWiredOtherCredentials {
   return override ?? useWiredOtherCredentials;
 }
 
@@ -115,8 +115,8 @@ const SHOW_COPY_KEYS_ENTRY = true;
 
 export function AccessTokensTab(props: AccessTokensTabProps) {
   useAdminLocale();
-  const useAccessTokensHook = resolveAccessTokensHook(props.useAccessTokensHook);
-  const useOtherCredentialsHook = resolveOtherCredentialsHook(props.useOtherCredentialsHook);
+  const useAccessTokensHook = resolveAccessTokensHook({ override: props.useAccessTokensHook });
+  const useOtherCredentialsHook = resolveOtherCredentialsHook({ override: props.useOtherCredentialsHook });
   const controller = useAccessTokensHook();
   // Tier 2 reads `query`/`category` FROM Tier 1's own controller rather than owning either — one
   // search box, one category filter, across both tiers (this file's own header). See
@@ -158,7 +158,7 @@ export function AccessTokensTab(props: AccessTokensTabProps) {
  * own doc), so calling it early costs nothing. */
 function AccessTokensBody({ controller, otherController }: { controller: AccessTokensController; otherController: OtherCredentialsController }) {
   const addCustomDialogRef = useRef<HTMLDialogElement>(null);
-  const merged = useMergedSecretsOrder(controller, otherController, controller.query);
+  const merged = useMergedSecretsOrder({ controller, otherController, query: controller.query });
   if (controller.loadError) {
     return (
       <p className="notice error" role="status" {...agentHandle({ handle: "security-access-tokens-load-error" }, { role: "status", label: "Shows the error when saved access tokens could not be loaded" })}>
@@ -712,14 +712,14 @@ function ExistingTokenFields({
         token={state.token}
         values={state.values}
         username={state.username}
-        onNameChange={(v) => controller.setExistingField(state.row.id, { name: v })}
-        onTokenChange={(v) => controller.setExistingField(state.row.id, { token: v })}
-        onFieldChange={(name, v) => controller.setExistingField(state.row.id, { values: { ...state.values, [name]: v } })}
-        onUsernameChange={(v) => controller.setExistingField(state.row.id, { username: v })}
+        onNameChange={(v) => controller.setExistingField({ rowId: state.row.id, patch: { name: v } })}
+        onTokenChange={(v) => controller.setExistingField({ rowId: state.row.id, patch: { token: v } })}
+        onFieldChange={(name, v) => controller.setExistingField({ rowId: state.row.id, patch: { values: { ...state.values, [name]: v } } })}
+        onUsernameChange={(v) => controller.setExistingField({ rowId: state.row.id, patch: { username: v } })}
         connected
         t={translate}
       />
-      {info.kind !== "source-control" ? <WorksForField value={state.worksFor} options={controller.worksForOptions} onChange={worksFor => controller.setExistingField(state.row.id, { worksFor })} t={translate} /> : null}
+      {info.kind !== "source-control" ? <WorksForField value={state.worksFor} options={controller.worksForOptions} onChange={worksFor => controller.setExistingField({ rowId: state.row.id, patch: { worksFor } })} t={translate} /> : null}
       <SharedKeyReplaceNote row={state.row} t={translate} />
       <div className="access-tokens-row-actions">
         <button
@@ -836,7 +836,7 @@ function AddTokenForm({ info, state, controller, t: translate }: { info: AccessT
 const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow; info: AccessTokenProviderInfo; controller: AccessTokensController; isLastForProvider: boolean; t: Translate }>(
   function RemoveConfirmDialog({ row, info, controller, isLastForProvider, t: translate }, ref) {
     const locale = useAdminLocale();
-    const { close, confirm } = useRemoveConfirmDialog(ref, row, controller);
+    const { close, confirm } = useRemoveConfirmDialog({ ref, row, controller });
     // `aria-labelledby`, not left implicit: a native `<dialog>` has no accessible name of its own
     // from an `<h2>` sitting inside it — that link has to be stated, the same way the shared
     // `ConfirmDialog` (`@jini-ai/admin/react`) already does via its own `titleId`. Without it, every

@@ -117,7 +117,7 @@ function baseController(overrides: Partial<RolesController> = {}): RolesControll
     setPendingPolicyDelete: vi.fn(),
     onDeletePolicy: vi.fn(),
 
-    t: (key: string) => key,
+    t: ({ key }: { key: string }) => key,
     locale: "en",
 
     ...overrides,
@@ -221,7 +221,7 @@ describe("tabs", () => {
   it("reuses the existing section-heading i18n keys as tab labels, adding no new copy strings", () => {
     // Both labels go through the real dictionary, so a locale that already translates the "Roles"
     // and "Policies" headings translates the tabs too — the point of reusing the keys.
-    renderRoles({ locale: "es", t: (key) => realT({ locale: "es", key }) });
+    renderRoles({ locale: "es", t: ({ key }) => realT({ locale: "es", key }) });
     expect(screen.getByRole("tab", { name: realT({ locale: "es", key: "Roles" }) })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: realT({ locale: "es", key: "Policies" }) })).toBeInTheDocument();
   });
@@ -285,7 +285,7 @@ describe("inline policy rename", () => {
     expect(screen.getByDisplayValue("Updated description")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /actions for policy/i })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(controller.onSavePolicy).toHaveBeenCalledWith(CUSTOM_POLICY.id);
+    expect(controller.onSavePolicy).toHaveBeenCalledWith({ policyId: CUSTOM_POLICY.id });
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(controller.setEditingPolicyId).toHaveBeenCalledWith(null);
     expect(controller.onSavePolicy).toHaveBeenCalledTimes(1);
@@ -322,7 +322,7 @@ describe("inline permission form", () => {
     const addButton = screen.getByRole("button", { name: /^add$/i });
     expect(addButton).toBeEnabled();
     await user.click(addButton);
-    expect(controller.onWritePermission).toHaveBeenCalledWith(CUSTOM_POLICY.id);
+    expect(controller.onWritePermission).toHaveBeenCalledWith({ policyId: CUSTOM_POLICY.id });
   });
 });
 
@@ -496,13 +496,13 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
     };
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([CUSTOM_POLICY]));
-    act(() => result.current.togglePermissionForm(CUSTOM_POLICY.id));
+    act(() => result.current.togglePermissionForm({ policyId: CUSTOM_POLICY.id }));
     await waitFor(() => expect(result.current.rowError).toBe("policy store unavailable"));
     expect(result.current.permissionsLoading).toBe(false);
     expect(result.current.permissionRows).toEqual([]);
-    act(() => result.current.togglePermissionForm(CUSTOM_POLICY.id));
+    act(() => result.current.togglePermissionForm({ policyId: CUSTOM_POLICY.id }));
     unavailable = false;
-    act(() => result.current.togglePermissionForm(CUSTOM_POLICY.id));
+    act(() => result.current.togglePermissionForm({ policyId: CUSTOM_POLICY.id }));
     await waitFor(() => expect(result.current.permissionRows).toEqual([PERMISSION_ROW]));
     expect(result.current.rowError).toBeNull();
     expect(result.current.permissionsLoading).toBe(false);
@@ -525,13 +525,13 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
       else { result.current.startEditPolicy(CUSTOM_POLICY); result.current.setEditingPolicyName("First renamed"); }
     });
     let pendingFirst!: Promise<void>;
-    act(() => { pendingFirst = kind === "role" ? result.current.onSaveRole(CUSTOM_ROLE.id) : result.current.onSavePolicy(CUSTOM_POLICY.id); });
+    act(() => { pendingFirst = kind === "role" ? result.current.onSaveRole({ roleId: CUSTOM_ROLE.id }) : result.current.onSavePolicy({ policyId: CUSTOM_POLICY.id }); });
     act(() => {
       if (kind === "role") { result.current.startEditRole(roleB); result.current.setEditingRoleName("Second renamed"); }
       else { result.current.startEditPolicy(policyB); result.current.setEditingPolicyName("Second renamed"); }
     });
     let pendingSecond!: Promise<void>;
-    act(() => { pendingSecond = kind === "role" ? result.current.onSaveRole(roleB.id) : result.current.onSavePolicy(policyB.id); });
+    act(() => { pendingSecond = kind === "role" ? result.current.onSaveRole({ roleId: roleB.id }) : result.current.onSavePolicy({ policyId: policyB.id }); });
     await act(async () => { first.release(); await pendingFirst; });
     expect(result.current.rowSavingId).toBe(kind === "role" ? roleB.id : policyB.id);
     expect(kind === "role" ? result.current.editingRoleId : result.current.editingPolicyId).toBe(kind === "role" ? roleB.id : policyB.id);
@@ -550,8 +550,8 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
     const second = gate();
     const deleteRole = port.deleteRole;
     const deletePolicy = port.deletePolicy;
-    port.deleteRole = async id => { await (id === CUSTOM_ROLE.id ? first : second).promise; return deleteRole(id); };
-    port.deletePolicy = async id => { await (id === CUSTOM_POLICY.id ? first : second).promise; return deletePolicy(id); };
+    port.deleteRole = async input => { await (input.roleId === CUSTOM_ROLE.id ? first : second).promise; return deleteRole(input); };
+    port.deletePolicy = async input => { await (input.policyId === CUSTOM_POLICY.id ? first : second).promise; return deletePolicy(input); };
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([CUSTOM_POLICY, policyB]));
     act(() => { if (kind === "role") result.current.setPendingRoleDelete(CUSTOM_ROLE); else result.current.setPendingPolicyDelete(CUSTOM_POLICY); });
@@ -599,16 +599,16 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
     port.writePolicyPermission = async (input, options) => { await (input.policyId === CUSTOM_POLICY.id ? first : second).promise; return write(input, options); };
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([CUSTOM_POLICY, policyB]));
-    act(() => result.current.togglePermissionForm(CUSTOM_POLICY.id));
+    act(() => result.current.togglePermissionForm({ policyId: CUSTOM_POLICY.id }));
     await waitFor(() => expect(result.current.permissionsLoading).toBe(false));
     act(() => result.current.setPermissionInput("content.write"));
     let pendingFirst!: Promise<void>;
-    act(() => { pendingFirst = result.current.onWritePermission(CUSTOM_POLICY.id); });
-    act(() => result.current.togglePermissionForm(policyB.id));
+    act(() => { pendingFirst = result.current.onWritePermission({ policyId: CUSTOM_POLICY.id }); });
+    act(() => result.current.togglePermissionForm({ policyId: policyB.id }));
     await waitFor(() => expect(result.current.permissionsLoading).toBe(false));
     act(() => result.current.setPermissionInput("content.read"));
     let pendingSecond!: Promise<void>;
-    act(() => { pendingSecond = result.current.onWritePermission(policyB.id); });
+    act(() => { pendingSecond = result.current.onWritePermission({ policyId: policyB.id }); });
     await act(async () => { first.release(); await pendingFirst; });
     expect(result.current.rowSavingId).toBe(policyB.id);
     expect(result.current.permissionInput).toBe("content.read");
@@ -739,7 +739,7 @@ describe("section/row controller seam", () => {
     };
   }
 
-  const t = (key: string): string => key;
+  const t = ({ key }: { key: string }): string => key;
 
   it("renders RolesSection from nothing but a create form and a row controller", async () => {
     const create = roleCreate({ name: "Editor" });
@@ -755,7 +755,7 @@ describe("section/row controller seam", () => {
     render(<RolesSection roles={[CUSTOM_ROLE]} create={roleCreate()} row={row} t={t} locale="en" />);
 
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    expect(row.saveRename).toHaveBeenCalledWith(CUSTOM_ROLE.id);
+    expect(row.saveRename).toHaveBeenCalledWith({ roleId: CUSTOM_ROLE.id });
 
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(row.setEditingId).toHaveBeenCalledWith(null);
@@ -775,7 +775,7 @@ describe("section/row controller seam", () => {
     // The permission form is open, and the row is NOT mid-rename — two controllers, two states.
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Add" }));
-    expect(permission.write).toHaveBeenCalledWith(CUSTOM_POLICY.id);
+    expect(permission.write).toHaveBeenCalledWith({ policyId: CUSTOM_POLICY.id });
     expect(row.saveRename).not.toHaveBeenCalled();
   });
 
@@ -820,7 +820,7 @@ describe("section/row controller seam", () => {
     // English in every locale with no error and no failing test. This binds the real translator to
     // `es` and asserts the Spanish copy, which only passes if each key matches character for
     // character (the ellipsis in "Loading permissions…" is the easiest one to get wrong).
-    const spanish = (key: string) => realT({ locale: "es", key: key });
+    const spanish = ({ key }: { key: string }) => realT({ locale: "es", key: key });
     render(
       <table>
         <tbody>

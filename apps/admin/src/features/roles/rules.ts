@@ -51,7 +51,7 @@ const STATIC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
  *
  * @complexity Time/space: O(1) — a fixed set of code checks, no iteration.
  */
-export function describeApiError(e: unknown, fallback: string, locale: string): string {
+export function describeApiError({ e, fallback, locale }: { e: unknown; fallback: string; locale: string }, _optional: Record<string, never> = {}): string {
   if (e instanceof ApiError) {
     if (e.code === "VALIDATION_ERROR") return e.message || t({ locale: locale, key: "Please correct the highlighted fields." });
     const staticMessage = e.code ? STATIC_ERROR_MESSAGES[e.code] : undefined;
@@ -72,7 +72,7 @@ export interface RoleRowMenuHandlers {
  *
  * @complexity Time/space: O(1) — exactly two entries, no iteration.
  */
-export function roleMenuItems(role: AdminRole, handlers: RoleRowMenuHandlers, locale: string): RowMenuItem[] {
+export function roleMenuItems({ role, handlers, locale }: { role: AdminRole; handlers: RoleRowMenuHandlers; locale: string }, _optional: Record<string, never> = {}): RowMenuItem[] {
   return [
     { key: "rename", label: t({ locale: locale, key: "Rename" }), onSelect: () => handlers.onRename(role) },
     { key: "delete", label: t({ locale: locale, key: "Delete" }), destructive: true, onSelect: () => handlers.onDelete(role) },
@@ -84,7 +84,7 @@ export function roleMenuItems(role: AdminRole, handlers: RoleRowMenuHandlers, lo
  *  read from state so this module stays free of state and navigation. */
 export interface PolicyRowMenuHandlers {
   onRename: (policy: AdminPolicy) => void;
-  onTogglePermissionForm: (policyId: string) => void;
+  onTogglePermissionForm: (required: { policyId: string }, optional?: Record<string, never>) => void;
   onDelete: (policy: AdminPolicy) => void;
 }
 
@@ -95,17 +95,20 @@ export interface PolicyRowMenuHandlers {
  * @complexity Time/space: O(1) — exactly three entries, no iteration.
  */
 export function policyMenuItems(
-  policy: AdminPolicy,
-  permissionPolicyId: string | null,
-  handlers: PolicyRowMenuHandlers,
-  locale: string,
+  { policy, permissionPolicyId, handlers, locale }: {
+    policy: AdminPolicy;
+    permissionPolicyId: string | null;
+    handlers: PolicyRowMenuHandlers;
+    locale: string;
+  },
+  _optional: Record<string, never> = {},
 ): RowMenuItem[] {
   return [
     { key: "rename", label: t({ locale: locale, key: "Rename" }), onSelect: () => handlers.onRename(policy) },
     {
       key: "permission",
       label: permissionPolicyId === policy.id ? t({ locale: locale, key: "Close" }) : t({ locale: locale, key: "Add permission" }),
-      onSelect: () => handlers.onTogglePermissionForm(policy.id),
+      onSelect: () => handlers.onTogglePermissionForm({ policyId: policy.id }),
     },
     { key: "delete", label: t({ locale: locale, key: "Delete" }), destructive: true, onSelect: () => handlers.onDelete(policy) },
   ];

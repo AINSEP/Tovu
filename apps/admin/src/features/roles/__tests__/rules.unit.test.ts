@@ -31,35 +31,35 @@ describe("describeApiError", () => {
     ["GRANT_EXCEEDS_ISSUER", "You cannot grant a permission you do not hold."],
   ])("maps ApiError code %s to its screen-specific copy", (code, expected) => {
     const err = new ApiError("raw server message", 400, code);
-    expect(describeApiError(err, "fallback", "en")).toBe(expected);
+    expect(describeApiError({ e: err, fallback: "fallback", locale: "en" })).toBe(expected);
   });
 
   it("uses the ApiError's own message for VALIDATION_ERROR when present", () => {
     const err = new ApiError("Name is required", 400, "VALIDATION_ERROR");
-    expect(describeApiError(err, "fallback", "en")).toBe("Name is required");
+    expect(describeApiError({ e: err, fallback: "fallback", locale: "en" })).toBe("Name is required");
   });
 
   it("falls back to the generic validation copy when VALIDATION_ERROR carries no message", () => {
     const err = new ApiError("", 400, "VALIDATION_ERROR");
-    expect(describeApiError(err, "fallback", "en")).toBe("Please correct the highlighted fields.");
+    expect(describeApiError({ e: err, fallback: "fallback", locale: "en" })).toBe("Please correct the highlighted fields.");
   });
 
   it("defers to the shared default translation for an unrecognized ApiError code", () => {
     const err = new ApiError("some other server message", 500, "SOME_OTHER_CODE");
-    expect(describeApiError(err, "fallback", "en")).toBe("some other server message");
+    expect(describeApiError({ e: err, fallback: "fallback", locale: "en" })).toBe("some other server message");
   });
 
   it.each([undefined, ""])("preserves the server message when the ApiError code is %s", (code) => {
     const err = new ApiError("Role service unavailable", 503, code);
-    expect(describeApiError(err, "Could not load roles", "es")).toBe("Role service unavailable");
+    expect(describeApiError({ e: err, fallback: "Could not load roles", locale: "es" })).toBe("Role service unavailable");
   });
 
   it("defers to the shared default translation for a plain Error", () => {
-    expect(describeApiError(new Error("network down"), "fallback", "en")).toBe("network down");
+    expect(describeApiError({ e: new Error("network down"), fallback: "fallback", locale: "en" })).toBe("network down");
   });
 
   it("uses the fallback for a non-Error, non-ApiError thrown value", () => {
-    expect(describeApiError("boom", "fallback", "en")).toBe("fallback");
+    expect(describeApiError({ e: "boom", fallback: "fallback", locale: "en" })).toBe("fallback");
   });
 
   // C4 — table-driven translation of each static override into the operator's locale (es).
@@ -69,17 +69,17 @@ describe("describeApiError", () => {
     ["PERMISSION_UNKNOWN", "Ese permiso no se reconoce."],
     ["GRANT_EXCEEDS_ISSUER", "No puedes otorgar un permiso que no posees."],
   ])("translates the %s override into the operator's locale (es)", (code, expected) => {
-    expect(describeApiError(new ApiError("raw", 400, code), "fallback", "es")).toBe(expected);
+    expect(describeApiError({ e: new ApiError("raw", 400, code), fallback: "fallback", locale: "es" })).toBe(expected);
   });
 
   it("translates the VALIDATION_ERROR fallback into the operator's locale (es)", () => {
-    expect(describeApiError(new ApiError("", 400, "VALIDATION_ERROR"), "fallback", "es")).toBe(
+    expect(describeApiError({ e: new ApiError("", 400, "VALIDATION_ERROR"), fallback: "fallback", locale: "es" })).toBe(
       "Corrige los campos resaltados.",
     );
   });
 
   it("falls back to English for an unrecognized locale", () => {
-    expect(describeApiError(new ApiError("raw", 400, "FORBIDDEN"), "fallback", "xx")).toBe(
+    expect(describeApiError({ e: new ApiError("raw", 400, "FORBIDDEN"), fallback: "fallback", locale: "xx" })).toBe(
       "You do not have permission to do that.",
     );
   });
@@ -264,7 +264,7 @@ describe("roles-i18n — C4 keys", () => {
 
 describe("roleMenuItems", () => {
   it("returns exactly Rename then Delete, with Delete marked destructive", () => {
-    const items = roleMenuItems(ROLE, { onRename: vi.fn(), onDelete: vi.fn() }, "en");
+    const items = roleMenuItems({ role: ROLE, handlers: { onRename: vi.fn(), onDelete: vi.fn() }, locale: "en" });
     expect(items.map((i) => i.key)).toEqual(["rename", "delete"]);
     expect(items[0]).toMatchObject({ label: "Rename" });
     expect(items[1]).toMatchObject({ label: "Delete", destructive: true });
@@ -273,7 +273,7 @@ describe("roleMenuItems", () => {
   it("wires Rename's onSelect to onRename with the role, not onDelete", () => {
     const onRename = vi.fn();
     const onDelete = vi.fn();
-    const items = roleMenuItems(ROLE, { onRename, onDelete }, "en");
+    const items = roleMenuItems({ role: ROLE, handlers: { onRename, onDelete }, locale: "en" });
     items[0].onSelect?.();
     expect(onRename).toHaveBeenCalledWith(ROLE);
     expect(onDelete).not.toHaveBeenCalled();
@@ -282,76 +282,76 @@ describe("roleMenuItems", () => {
   it("wires Delete's onSelect to onDelete with the role, not onRename", () => {
     const onRename = vi.fn();
     const onDelete = vi.fn();
-    const items = roleMenuItems(ROLE, { onRename, onDelete }, "en");
+    const items = roleMenuItems({ role: ROLE, handlers: { onRename, onDelete }, locale: "en" });
     items[1].onSelect?.();
     expect(onDelete).toHaveBeenCalledWith(ROLE);
     expect(onRename).not.toHaveBeenCalled();
   });
 
   it("translates labels to Spanish when locale is es", () => {
-    const items = roleMenuItems(ROLE, { onRename: vi.fn(), onDelete: vi.fn() }, "es");
+    const items = roleMenuItems({ role: ROLE, handlers: { onRename: vi.fn(), onDelete: vi.fn() }, locale: "es" });
     expect(items.map((i) => i.label)).toEqual(["Renombrar", "Eliminar"]);
   });
 });
 
 describe("policyMenuItems", () => {
   it("returns exactly Rename, permission-toggle, then Delete", () => {
-    const items = policyMenuItems(
-      POLICY,
-      null,
-      { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
-      "en",
-    );
+    const items = policyMenuItems({
+      policy: POLICY,
+      permissionPolicyId: null,
+      handlers: { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
+      locale: "en",
+    });
     expect(items.map((i) => i.key)).toEqual(["rename", "permission", "delete"]);
     expect(items[2]).toMatchObject({ label: "Delete", destructive: true });
   });
 
   it("labels the toggle 'Add permission' when this policy's form is not open", () => {
-    const items = policyMenuItems(
-      POLICY,
-      null,
-      { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
-      "en",
-    );
+    const items = policyMenuItems({
+      policy: POLICY,
+      permissionPolicyId: null,
+      handlers: { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
+      locale: "en",
+    });
     expect(items[1].label).toBe("Add permission");
   });
 
   it("labels the toggle 'Add permission' when a DIFFERENT policy's form is open", () => {
-    const items = policyMenuItems(
-      POLICY,
-      "some-other-policy-id",
-      { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
-      "en",
-    );
+    const items = policyMenuItems({
+      policy: POLICY,
+      permissionPolicyId: "some-other-policy-id",
+      handlers: { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
+      locale: "en",
+    });
     expect(items[1].label).toBe("Add permission");
   });
 
   it("labels the toggle 'Close' when THIS policy's form is open", () => {
-    const items = policyMenuItems(
-      POLICY,
-      POLICY.id,
-      { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
-      "en",
-    );
+    const items = policyMenuItems({
+      policy: POLICY,
+      permissionPolicyId: POLICY.id,
+      handlers: { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
+      locale: "en",
+    });
     expect(items[1].label).toBe("Close");
   });
 
   it("wires the toggle's onSelect to onTogglePermissionForm with the policy id", () => {
     const onTogglePermissionForm = vi.fn();
-    const items = policyMenuItems(
-      POLICY,
-      null,
-      { onRename: vi.fn(), onTogglePermissionForm, onDelete: vi.fn() },
-      "en",
-    );
+    const items = policyMenuItems({
+      policy: POLICY,
+      permissionPolicyId: null,
+      handlers: { onRename: vi.fn(), onTogglePermissionForm, onDelete: vi.fn() },
+      locale: "en",
+    });
     items[1].onSelect?.();
-    expect(onTogglePermissionForm).toHaveBeenCalledWith(POLICY.id);
+    expect(onTogglePermissionForm).toHaveBeenCalledWith({ policyId: POLICY.id });
   });
 
   it("wires Rename and Delete to the policy, independently of each other", () => {
     const onRename = vi.fn();
     const onDelete = vi.fn();
-    const items = policyMenuItems(POLICY, null, { onRename, onTogglePermissionForm: vi.fn(), onDelete }, "en");
+    const items = policyMenuItems({ policy: POLICY, permissionPolicyId: null, handlers: { onRename, onTogglePermissionForm: vi.fn(), onDelete }, locale: "en" });
     items[0].onSelect?.();
     expect(onRename).toHaveBeenCalledExactlyOnceWith(POLICY);
     expect(onDelete).not.toHaveBeenCalled();
@@ -363,20 +363,20 @@ describe("policyMenuItems", () => {
   });
 
   it("translates labels to Spanish when locale is es, including the toggle's open/closed state", () => {
-    const closedItems = policyMenuItems(
-      POLICY,
-      null,
-      { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
-      "es",
-    );
+    const closedItems = policyMenuItems({
+      policy: POLICY,
+      permissionPolicyId: null,
+      handlers: { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
+      locale: "es",
+    });
     expect(closedItems.map((i) => i.label)).toEqual(["Renombrar", "Agregar permiso", "Eliminar"]);
 
-    const openItems = policyMenuItems(
-      POLICY,
-      POLICY.id,
-      { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
-      "es",
-    );
+    const openItems = policyMenuItems({
+      policy: POLICY,
+      permissionPolicyId: POLICY.id,
+      handlers: { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
+      locale: "es",
+    });
     expect(openItems[1].label).toBe("Cerrar");
   });
 });

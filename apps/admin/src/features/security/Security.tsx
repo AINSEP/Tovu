@@ -111,7 +111,7 @@ const ACCESS_TOKENS_ONLY_TAB_IDS: readonly SecurityTabId[] = [ACCESS_TOKENS_TAB]
  *  followed by a principal who does not hold `admin.security.site-key.manage`: `validIds` narrows to
  *  {@link ACCESS_TOKENS_ONLY_TAB_IDS} for them, so `site-key` reads as just as "unrecognized" as a
  *  typo would, and they land on Access Tokens instead of an empty panel. */
-function resolveSecurityTabId(tabId: string | null | undefined, canManageSiteKey: boolean): SecurityTabId {
+function resolveSecurityTabId({ tabId, canManageSiteKey }: { tabId: string | null | undefined; canManageSiteKey: boolean }, _optional: Record<string, never> = {}): SecurityTabId {
   const validIds: readonly SecurityTabId[] = canManageSiteKey ? SECURITY_TAB_IDS : ACCESS_TOKENS_ONLY_TAB_IDS;
   return resolveActiveTabId({ tabId: tabId, validIds: validIds, defaultId: ACCESS_TOKENS_TAB });
 }
@@ -130,16 +130,16 @@ export interface SecurityProps {
 }
 
 function resolveSecurityPermissionsHook(
-  override: typeof useWiredSecurityPermissions | undefined
+  { override }: { override: typeof useWiredSecurityPermissions | undefined }, _optional: Record<string, never> = {}
 ): typeof useWiredSecurityPermissions {
   return override ?? useWiredSecurityPermissions;
 }
 
 export function Security(props: SecurityProps) {
   const locale = useAdminLocale();
-  const useSecurityPermissionsHook = resolveSecurityPermissionsHook(props.useSecurityPermissionsHook);
+  const useSecurityPermissionsHook = resolveSecurityPermissionsHook({ override: props.useSecurityPermissionsHook });
   const { canManageSiteKey } = useSecurityPermissionsHook();
-  const activeTabId = resolveSecurityTabId(props.tabId, canManageSiteKey);
+  const activeTabId = resolveSecurityTabId({ tabId: props.tabId, canManageSiteKey });
 
   const tabs: TabBarTab[] = [
     {

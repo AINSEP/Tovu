@@ -1423,7 +1423,7 @@ const ROLES_DESCRIPTION_PARTS: Record<string, { prefix: string; linkLabel: strin
   },
 };
 
-export function rolesDescriptionParts(locale: string): { prefix: string; linkLabel: string; suffix: string } {
+export function rolesDescriptionParts({ locale }: { locale: string }, _optional: Record<string, never> = {}): { prefix: string; linkLabel: string; suffix: string } {
   return localeEntry({ table: ROLES_DESCRIPTION_PARTS, locale });
 }
 
@@ -1455,7 +1455,7 @@ const ROLE_DELETE_BODY_PARTS: Record<string, { prefix: string; suffix: string }>
   bn: { prefix: 'ভূমিকা "', suffix: '" মুছবেন?' },
 };
 
-export function roleDeleteBodyParts(locale: string): { prefix: string; suffix: string } {
+export function roleDeleteBodyParts({ locale }: { locale: string }, _optional: Record<string, never> = {}): { prefix: string; suffix: string } {
   return localeEntry({ table: ROLE_DELETE_BODY_PARTS, locale });
 }
 
@@ -1485,7 +1485,7 @@ const POLICY_DELETE_BODY_PARTS: Record<string, { prefix: string; suffix: string 
   bn: { prefix: 'নীতি "', suffix: '" মুছবেন?' },
 };
 
-export function policyDeleteBodyParts(locale: string): { prefix: string; suffix: string } {
+export function policyDeleteBodyParts({ locale }: { locale: string }, _optional: Record<string, never> = {}): { prefix: string; suffix: string } {
   return localeEntry({ table: POLICY_DELETE_BODY_PARTS, locale });
 }
 
@@ -1519,6 +1519,6 @@ const PERMISSION_REMOVE_BODY_PARTS: Record<string, { prefix: string; suffix: str
   bn: { prefix: 'এই নীতি থেকে "', suffix: '" অনুমতি সরাবেন? এই নীতি থাকা প্রত্যেকে এটি হারাবে।' },
 };
 
-export function permissionRemoveBodyParts(locale: string): { prefix: string; suffix: string } {
+export function permissionRemoveBodyParts({ locale }: { locale: string }, _optional: Record<string, never> = {}): { prefix: string; suffix: string } {
   return localeEntry({ table: PERMISSION_REMOVE_BODY_PARTS, locale });
 }

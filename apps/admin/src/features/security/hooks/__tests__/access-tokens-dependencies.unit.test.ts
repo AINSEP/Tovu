@@ -123,11 +123,11 @@ describe("defaultAccessTokensPort.publish", () => {
   it("forwards works-for metadata edits and clears without a connection", async () => {
     const publish = publishCredential({ worksFor: ["github"] });
     updatePublishCredential.mockResolvedValue({ credential: publish });
-    await expect(defaultAccessTokensPort.publish.update(publish.id, { worksFor: ["github"] })).resolves.toEqual(publish);
+    await expect(defaultAccessTokensPort.publish.update({ id: publish.id, input: { worksFor: ["github"] } })).resolves.toEqual(publish);
     expect(updatePublishCredential).toHaveBeenCalledWith(publish.id, { worksFor: ["github"] });
     const custom = customCredential({ worksFor: [] });
     updateCustomCredential.mockResolvedValue({ credential: custom });
-    await expect(defaultAccessTokensPort.custom.update(custom.id, { worksFor: [] })).resolves.toEqual(custom);
+    await expect(defaultAccessTokensPort.custom.update({ id: custom.id, input: { worksFor: [] } })).resolves.toEqual(custom);
     expect(updateCustomCredential).toHaveBeenCalledWith(custom.id, { worksFor: [] });
   });
   it("list delegates to api.listPublishCredentials, returning the snapshot unchanged", async () => {
@@ -148,13 +148,13 @@ describe("defaultAccessTokensPort.publish", () => {
   it("update forwards id + input to api.updatePublishCredential and unwraps the envelope", async () => {
     const credential = publishCredential({ label: "Renamed" });
     updatePublishCredential.mockResolvedValue({ credential });
-    await expect(defaultAccessTokensPort.publish.update("cred-1", { label: "Renamed" })).resolves.toEqual(credential);
+    await expect(defaultAccessTokensPort.publish.update({ id: "cred-1", input: { label: "Renamed" } })).resolves.toEqual(credential);
     expect(updatePublishCredential).toHaveBeenCalledWith("cred-1", { label: "Renamed" });
   });
 
   it("remove forwards id to api.deletePublishCredential", async () => {
     deletePublishCredential.mockResolvedValue(undefined);
-    await expect(defaultAccessTokensPort.publish.remove("cred-1")).resolves.toBeUndefined();
+    await expect(defaultAccessTokensPort.publish.remove({ id: "cred-1" })).resolves.toBeUndefined();
     expect(deletePublishCredential).toHaveBeenCalledWith("cred-1");
   });
 });
@@ -208,13 +208,13 @@ describe("defaultAccessTokensPort.sourceControl", () => {
   it("update forwards id + input to api.updateSourceControlCredential and unwraps the envelope", async () => {
     const credential = sourceControlCredential({ label: "Renamed" });
     updateSourceControlCredential.mockResolvedValue({ credential });
-    await expect(defaultAccessTokensPort.sourceControl.update("sc-1", { label: "Renamed" })).resolves.toEqual(credential);
+    await expect(defaultAccessTokensPort.sourceControl.update({ id: "sc-1", input: { label: "Renamed" } })).resolves.toEqual(credential);
     expect(updateSourceControlCredential).toHaveBeenCalledWith("sc-1", { label: "Renamed" });
   });
 
   it("remove forwards id to api.deleteSourceControlCredential", async () => {
     deleteSourceControlCredential.mockResolvedValue(undefined);
-    await expect(defaultAccessTokensPort.sourceControl.remove("sc-1")).resolves.toBeUndefined();
+    await expect(defaultAccessTokensPort.sourceControl.remove({ id: "sc-1" })).resolves.toBeUndefined();
     expect(deleteSourceControlCredential).toHaveBeenCalledWith("sc-1");
   });
 });
@@ -238,13 +238,13 @@ describe("defaultAccessTokensPort.custom", () => {
   it("update forwards id + input to api.updateCustomCredential and unwraps the envelope", async () => {
     const credential = customCredential({ label: "Renamed" });
     updateCustomCredential.mockResolvedValue({ credential });
-    await expect(defaultAccessTokensPort.custom.update("cc-1", { label: "Renamed" })).resolves.toEqual(credential);
+    await expect(defaultAccessTokensPort.custom.update({ id: "cc-1", input: { label: "Renamed" } })).resolves.toEqual(credential);
     expect(updateCustomCredential).toHaveBeenCalledWith("cc-1", { label: "Renamed" });
   });
 
   it("remove forwards id to api.deleteCustomCredential", async () => {
     deleteCustomCredential.mockResolvedValue(undefined);
-    await expect(defaultAccessTokensPort.custom.remove("cc-1")).resolves.toBeUndefined();
+    await expect(defaultAccessTokensPort.custom.remove({ id: "cc-1" })).resolves.toBeUndefined();
     expect(deleteCustomCredential).toHaveBeenCalledWith("cc-1");
   });
 });
@@ -260,18 +260,18 @@ describe("createFakeAccessTokensPort — defaults", () => {
   it("every unstubbed create/update rejects with a named 'not stubbed for this test' error", async () => {
     const port = createFakeAccessTokensPort();
     await expect(port.publish.create({ label: "x", connection: { providerId: "github-pages", token: "t" } })).rejects.toThrow("publish.create not stubbed for this test");
-    await expect(port.publish.update("id", {})).rejects.toThrow("publish.update not stubbed for this test");
+    await expect(port.publish.update({ id: "id", input: {} })).rejects.toThrow("publish.update not stubbed for this test");
     await expect(port.sourceControl.create({ label: "x", connection: { providerId: "github", token: "t" } })).rejects.toThrow("sourceControl.create not stubbed for this test");
-    await expect(port.sourceControl.update("id", {})).rejects.toThrow("sourceControl.update not stubbed for this test");
+    await expect(port.sourceControl.update({ id: "id", input: {} })).rejects.toThrow("sourceControl.update not stubbed for this test");
     await expect(port.custom.create({ label: "x", category: "general", baseUrl: "https://x", connection: { token: "t" } })).rejects.toThrow("custom.create not stubbed for this test");
-    await expect(port.custom.update("id", {})).rejects.toThrow("custom.update not stubbed for this test");
+    await expect(port.custom.update({ id: "id", input: {} })).rejects.toThrow("custom.update not stubbed for this test");
   });
 
   it("every unstubbed remove resolves (a safe idempotent default), never throwing", async () => {
     const port = createFakeAccessTokensPort();
-    await expect(port.publish.remove("id")).resolves.toBeUndefined();
-    await expect(port.sourceControl.remove("id")).resolves.toBeUndefined();
-    await expect(port.custom.remove("id")).resolves.toBeUndefined();
+    await expect(port.publish.remove({ id: "id" })).resolves.toBeUndefined();
+    await expect(port.sourceControl.remove({ id: "id" })).resolves.toBeUndefined();
+    await expect(port.custom.remove({ id: "id" })).resolves.toBeUndefined();
   });
 
   it("an override wins over its group's default for all three groups", async () => {

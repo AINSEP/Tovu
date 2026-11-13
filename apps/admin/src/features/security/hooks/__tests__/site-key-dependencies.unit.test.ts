@@ -21,8 +21,8 @@ it.each([
     return Response.json(reply);
   });
   vi.stubGlobal("fetch", fetch);
-  const value = method === "importSiteKey" ? await defaultSiteKeyPort.importSiteKey("  old-token-42  ")
-    : method === "startFresh" ? await defaultSiteKeyPort.startFresh("START FRESH")
+  const value = method === "importSiteKey" ? await defaultSiteKeyPort.importSiteKey({ siteKey: "  old-token-42  " })
+    : method === "startFresh" ? await defaultSiteKeyPort.startFresh({ confirm: "START FRESH" })
     : await defaultSiteKeyPort[method]();
   expect(value).toEqual(reply);
   expect(fetch).toHaveBeenCalledTimes(1);
@@ -39,7 +39,7 @@ it("preserves the API refusal when importing a token, then permits a retry", asy
       : Response.json({ outcome: "unlocked", resealed: 2, fingerprint: "fp-42", keyFilePath: "/key", runtimeMode: "local" });
   });
   vi.stubGlobal("fetch", fetch);
-  await expect(defaultSiteKeyPort.importSiteKey("old-token-42")).rejects.toMatchObject({ status: 409, body: { error: "SITE_KEY_DOES_NOT_OPEN", detail: "Wrong site key" } });
-  await expect(defaultSiteKeyPort.importSiteKey("old-token-42")).resolves.toEqual({ outcome: "unlocked", resealed: 2, fingerprint: "fp-42", keyFilePath: "/key", runtimeMode: "local" });
+  await expect(defaultSiteKeyPort.importSiteKey({ siteKey: "old-token-42" })).rejects.toMatchObject({ status: 409, body: { error: "SITE_KEY_DOES_NOT_OPEN", detail: "Wrong site key" } });
+  await expect(defaultSiteKeyPort.importSiteKey({ siteKey: "old-token-42" })).resolves.toEqual({ outcome: "unlocked", resealed: 2, fingerprint: "fp-42", keyFilePath: "/key", runtimeMode: "local" });
   expect(fetch).toHaveBeenCalledTimes(2);
 });

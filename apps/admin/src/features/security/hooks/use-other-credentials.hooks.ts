@@ -86,7 +86,7 @@ export interface OtherCredentialsController {
    *  category — pairs with `AccessTokensController.matchCount` the same way. */
   matchCount: number;
 
-  setDraftToken: (key: string, value: string) => void;
+  setDraftToken: (required: { key: string; value: string }, optional?: Record<string, never>) => void;
   replace: (row: OtherCredentialRowState) => Promise<void>;
   remove: (row: OtherCredentialRowState) => Promise<void>;
 
@@ -114,25 +114,33 @@ function idleStoreState(): StoreState {
 /** Reads one single-`apiKey` store's current value into its (0 or 1) row — `site-assistant`/
  *  `admin-byok` share this exact "isSet, plus a server hint" shape; only the two GET calls' own field
  *  names differ, which the two small readers below normalize before this shared mapper ever runs. @complexity O(1). */
-function singleKeyItems(store: OtherCredentialStoreInfo, isSet: boolean, valueFact: string, updatedAt: string | null): RawStoreItem[] {
+function singleKeyItems(
+  { store, isSet, valueFact, updatedAt }: {
+    store: OtherCredentialStoreInfo;
+    isSet: boolean;
+    valueFact: string;
+    updatedAt: string | null;
+  },
+  _optional: Record<string, never> = {},
+): RawStoreItem[] {
   if (!isSet) return [];
   return [{ itemId: store.id, name: store.label, valueFact, updatedAt }];
 }
 
-async function readSiteAssistant(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, locale: string): Promise<RawStoreItem[]> {
+async function readSiteAssistant({ port, store, locale }: { port: OtherCredentialsPort; store: OtherCredentialStoreInfo; locale: string }, _optional: Record<string, never> = {}): Promise<RawStoreItem[]> {
   const { data } = await port.getSiteAssistantCredential();
-  return singleKeyItems(store, data.isSet, formatCredentialHint({ hint: data.tokenHint, locale }) || maskedTailFact(data.masked?.replace(/^••••/, "") ?? ""), data.updatedAt);
+  return singleKeyItems({ store, isSet: data.isSet, valueFact: formatCredentialHint({ hint: data.tokenHint, locale }) || maskedTailFact(data.masked?.replace(/^••••/, "") ?? ""), updatedAt: data.updatedAt });
 }
-async function readAdminByok(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, locale: string): Promise<RawStoreItem[]> {
+async function readAdminByok({ port, store, locale }: { port: OtherCredentialsPort; store: OtherCredentialStoreInfo; locale: string }, _optional: Record<string, never> = {}): Promise<RawStoreItem[]> {
   const { data } = await port.getAdminByokCredential();
-  return singleKeyItems(store, data.isSet, formatCredentialHint({ hint: data.tokenHint, locale }) || maskedTailFact(data.masked?.replace(/^••••/, "") ?? ""), data.updatedAt);
+  return singleKeyItems({ store, isSet: data.isSet, valueFact: formatCredentialHint({ hint: data.tokenHint, locale }) || maskedTailFact(data.masked?.replace(/^••••/, "") ?? ""), updatedAt: data.updatedAt });
 }
 /** Every configured media-provider key — one row per provider whose `apiKeyConfigured` is true, not
  *  one row for the whole store (the owner's own mock names a SPECIFIC provider, "Cloudinary (media)",
  *  as its own row — see `rules.ts`'s `OtherCredentialStoreInfo.label` doc for the placeholder-vs-item
  *  heading split this produces). @complexity O(p) in this workspace's own (small) configured-provider
  *  count. */
-async function readMediaProviders(port: OtherCredentialsPort, locale = 'en'): Promise<RawStoreItem[]> {
+async function readMediaProviders({ port }: { port: OtherCredentialsPort }, { locale = 'en' }: { locale?: string } = {}): Promise<RawStoreItem[]> {
   const map: AdminMediaProviderMap = await port.getMediaProviders();
   return Object.entries(map)
     .filter(([, credentials]) => credentials.apiKeyConfigured)
@@ -145,7 +153,7 @@ async function readMediaProviders(port: OtherCredentialsPort, locale = 'en'): Pr
 }
 /** Every configured external MCP server — @complexity O(s) in this workspace's own (small) server
  *  count. */
-async function readExternalMcpServers(port: OtherCredentialsPort, t: Translate, locale = 'en'): Promise<RawStoreItem[]> {
+async function readExternalMcpServers({ port, t }: { port: OtherCredentialsPort; t: Translate }, { locale = 'en' }: { locale?: string } = {}): Promise<RawStoreItem[]> {
   const { servers } = await port.listExternalMcpServers();
   return servers.filter(server => !server.builtIn).map((server) => ({
     itemId: server.serverId,
@@ -158,17 +166,17 @@ async function readExternalMcpServers(port: OtherCredentialsPort, t: Translate, 
 /** Dispatches one store's read by id — the one place `OtherCredentialStoreId` is switched over for
  *  reads, mirroring `rules.ts`'s `buildAccessTokenConnectionInput` dispatch-by-kind pattern.
  *  @complexity O(1) plus whichever reader's own complexity. */
-type StoreReader = (port: OtherCredentialsPort, store: OtherCredentialStoreInfo, t: Translate, locale: string) => Promise<RawStoreItem[]>;
+type StoreReader = (required: { port: OtherCredentialsPort; store: OtherCredentialStoreInfo; t: Translate; locale: string }, optional?: Record<string, never>) => Promise<RawStoreItem[]>;
 
 const STORE_READERS: Record<OtherCredentialStoreInfo["id"], StoreReader> = {
-  "site-assistant": (port, store, _t, locale) => readSiteAssistant(port, store, locale),
-  "admin-byok": (port, store, _t, locale) => readAdminByok(port, store, locale),
-  "media-provider": (port, _store, _t, locale) => readMediaProviders(port, locale),
-  "external-mcp": (port, _store, t, locale) => readExternalMcpServers(port, t, locale),
+  "site-assistant": ({ port, store, locale }, _optional = {}) => readSiteAssistant({ port, store, locale }),
+  "admin-byok": ({ port, store, locale }, _optional = {}) => readAdminByok({ port, store, locale }),
+  "media-provider": ({ port, locale }, _optional = {}) => readMediaProviders({ port }, { locale }),
+  "external-mcp": ({ port, t, locale }, _optional = {}) => readExternalMcpServers({ port, t }, { locale }),
 };
 
-function readStore(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, t: Translate, locale = 'en'): Promise<RawStoreItem[]> {
-  return STORE_READERS[store.id](port, store, t, locale);
+function readStore({ port, store, t }: { port: OtherCredentialsPort; store: OtherCredentialStoreInfo; t: Translate }, { locale = 'en' }: { locale?: string } = {}): Promise<RawStoreItem[]> {
+  return STORE_READERS[store.id]({ port, store, t, locale });
 }
 
 /** Builds the full `{apiKey?, baseUrl?, model?}` map to PUT back for a media-provider Replace/Remove
@@ -178,20 +186,27 @@ function readStore(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, 
  *  `buildProviderUpsertRow`), so sending `{}` used to null them on every other provider. The target
  *  provider carries its new key plus its own `baseUrl`/`model` (Replace) or is omitted entirely
  *  (Remove). @complexity O(p) in this workspace's own (small) configured-provider count. */
-function rebuildMediaProviderMap(current: AdminMediaProviderMap, providerId: string, patch: { apiKey: string } | { remove: true }): AdminMediaProviderMap {
+function rebuildMediaProviderMap(
+  { current, providerId, patch }: {
+    current: AdminMediaProviderMap;
+    providerId: string;
+    patch: { apiKey: string } | { remove: true };
+  },
+  _optional: Record<string, never> = {},
+): AdminMediaProviderMap {
   const next: AdminMediaProviderMap = {};
   for (const [id, credentials] of Object.entries(current)) {
     if (id === providerId) continue;
-    next[id] = keptMediaProviderSettings(credentials);
+    next[id] = keptMediaProviderSettings({ credentials });
   }
-  if (!("remove" in patch)) next[providerId] = { apiKey: patch.apiKey, ...keptMediaProviderSettings(current[providerId]) };
+  if (!("remove" in patch)) next[providerId] = { apiKey: patch.apiKey, ...keptMediaProviderSettings({ credentials: current[providerId] }) };
   return next;
 }
 
 /** The writable, non-secret settings of one provider's GET view — `baseUrl`/`model` when present,
  *  never the read-only markers (`apiKeyConfigured`/`apiKeyTail`/`source`), which are view facts the
  *  PUT does not take. @complexity O(1). */
-function keptMediaProviderSettings(credentials: AdminMediaProviderMap[string] | undefined): AdminMediaProviderMap[string] {
+function keptMediaProviderSettings({ credentials }: { credentials: AdminMediaProviderMap[string] | undefined }, _optional: Record<string, never> = {}): AdminMediaProviderMap[string] {
   return {
     ...(credentials?.baseUrl !== undefined ? { baseUrl: credentials.baseUrl } : {}),
     ...(credentials?.model !== undefined ? { model: credentials.model } : {}),
@@ -201,15 +216,18 @@ function keptMediaProviderSettings(credentials: AdminMediaProviderMap[string] | 
 /** Translates a rejected Tier-2 write into the same save-error string Tier 1 uses — no
  *  duplicate-label case here (nothing on this tier is named), so this is the plain
  *  `describeApiError`-wrapped base case only. @complexity O(1). */
-function otherCredentialSaveErrorMessage(err: unknown, t: Translate, locale: string): string {
+function otherCredentialSaveErrorMessage({ err, t, locale }: { err: unknown; t: Translate; locale: string }, _optional: Record<string, never> = {}): string {
   return accessTokenSaveErrorMessage(locale, translateCredentialMessage({ message: describeApiError(err, t("unknown error")), locale }));
 }
 
 export function useOtherCredentials(
-  port: OtherCredentialsPort,
-  t: Translate,
-  locale: string,
-  filter: { query: string; category: AccessTokenCategoryId }
+  { port, t, locale, filter }: {
+    port: OtherCredentialsPort;
+    t: Translate;
+    locale: string;
+    filter: { query: string; category: AccessTokenCategoryId };
+  },
+  _optional: Record<string, never> = {},
 ): OtherCredentialsController {
   const [storeStates, setStoreStates] = useState<Record<string, StoreState>>(() =>
     Object.fromEntries(OTHER_CREDENTIAL_STORES.map((store) => [store.id, idleStoreState()]))
@@ -221,7 +239,7 @@ export function useOtherCredentials(
   const writes = useSerialWrites();
   const reloadStores = useCallback(() => {
     void writes.run({ task: () => Promise.all(OTHER_CREDENTIAL_STORES.map(store =>
-      refetchOneOrRecordFailure(port, store, setStoreStates, t, locale)
+      refetchOneOrRecordFailure({ port, store, setStoreStates, t, locale })
     )) });
   }, [writes, port, t, locale]);
   const fetchedRef = useRef(false);
@@ -238,7 +256,7 @@ export function useOtherCredentials(
   // each write read the map only after the previous write (and its refetch) settled. Tab-local by
   // nature — two browser sessions still race; closing that needs a server-side concurrency check.
 
-  function setDraftToken(key: string, value: string): void {
+  function setDraftToken({ key, value }: { key: string; value: string }, _optional: Record<string, never> = {}): void {
     setDrafts((prev) => ({ ...prev, [key]: { token: value, saving: prev[key]?.saving ?? false, error: credentialDraftError({ value }, { locale }) } }));
   }
 
@@ -254,11 +272,11 @@ export function useOtherCredentials(
     if (error) { setDrafts(prev => ({ ...prev, [row.key]: { token, saving: false, error } })); return; }
     setDrafts((prev) => ({ ...prev, [row.key]: { token, saving: true, error: null } }));
     try {
-      await writeReplace(port, row.store.id, row.itemId, token);
-      await refetchOne(port, row.store, setStoreStates, t, locale);
+      await writeReplace({ port, storeId: row.store.id, itemId: row.itemId, apiKey: token });
+      await refetchOne({ port, store: row.store, setStoreStates, t, locale });
       setDrafts((prev) => ({ ...prev, [row.key]: { token: "", saving: false, error: null } }));
     } catch (err) {
-      setDrafts((prev) => ({ ...prev, [row.key]: { token, saving: false, error: otherCredentialSaveErrorMessage(err, t, locale) } }));
+      setDrafts((prev) => ({ ...prev, [row.key]: { token, saving: false, error: otherCredentialSaveErrorMessage({ err, t, locale }) } }));
     }
   }
 
@@ -268,10 +286,10 @@ export function useOtherCredentials(
 
   async function removeNow(row: OtherCredentialRowState): Promise<void> {
     try {
-      await writeRemove(port, row.store.id, row.itemId);
-      await refetchOne(port, row.store, setStoreStates, t, locale);
+      await writeRemove({ port, storeId: row.store.id, itemId: row.itemId });
+      await refetchOne({ port, store: row.store, setStoreStates, t, locale });
     } catch (err) {
-      setDrafts((prev) => ({ ...prev, [row.key]: { token: prev[row.key]?.token ?? "", saving: false, error: otherCredentialSaveErrorMessage(err, t, locale) } }));
+      setDrafts((prev) => ({ ...prev, [row.key]: { token: prev[row.key]?.token ?? "", saving: false, error: otherCredentialSaveErrorMessage({ err, t, locale }) } }));
     }
   }
 
@@ -283,7 +301,7 @@ export function useOtherCredentials(
         // `allSettled` above already proved every store's `items` is defined.
         const items = storeStates[store.id]?.items;
         if (!items) throw new Error(`credential store ${store.id} has no loaded items`);
-        return buildGroup(store, items, drafts, filter.query);
+        return buildGroup({ store, items, drafts, query: filter.query });
       })
     : undefined;
 
@@ -301,10 +319,13 @@ export function useOtherCredentials(
  *  (possibly still-empty) result. Pulled out of {@link useOtherCredentials} purely for the complexity
  *  gate. @complexity O(n) in this store's own (small) item count. */
 function buildGroup(
-  store: OtherCredentialStoreInfo,
-  items: readonly RawStoreItem[],
-  drafts: Record<string, { token: string; saving: boolean; error: string | null }>,
-  query: string
+  { store, items, drafts, query }: {
+    store: OtherCredentialStoreInfo;
+    items: readonly RawStoreItem[];
+    drafts: Record<string, { token: string; saving: boolean; error: string | null }>;
+    query: string;
+  },
+  _optional: Record<string, never> = {},
 ): OtherCredentialGroupState {
   const rows = items
     .filter((item) => otherCredentialMatchesQuery(store, item.name, query))
@@ -333,26 +354,32 @@ function buildGroup(
  *  server-side map to rebuild it, so a stale local copy is not a safe base for a second consecutive
  *  write). @complexity O(1) plus whichever reader's own complexity. */
 async function refetchOne(
-  port: OtherCredentialsPort,
-  store: OtherCredentialStoreInfo,
-  setStoreStates: (updater: (prev: Record<string, StoreState>) => Record<string, StoreState>) => void,
-  t: Translate,
-  locale: string
+  { port, store, setStoreStates, t, locale }: {
+    port: OtherCredentialsPort;
+    store: OtherCredentialStoreInfo;
+    setStoreStates: (updater: (prev: Record<string, StoreState>) => Record<string, StoreState>) => void;
+    t: Translate;
+    locale: string;
+  },
+  _optional: Record<string, never> = {},
 ): Promise<void> {
-  const items = await readStore(port, store, t, locale);
+  const items = await readStore({ port, store, t }, { locale });
   setStoreStates((prev) => ({ ...prev, [store.id]: { items, loadError: null } }));
 }
 
 /** {@link refetchOne}, recording a failed read as that store's load error instead of rejecting. */
 async function refetchOneOrRecordFailure(
-  port: OtherCredentialsPort,
-  store: OtherCredentialStoreInfo,
-  setStoreStates: (updater: (prev: Record<string, StoreState>) => Record<string, StoreState>) => void,
-  t: Translate,
-  locale: string
+  { port, store, setStoreStates, t, locale }: {
+    port: OtherCredentialsPort;
+    store: OtherCredentialStoreInfo;
+    setStoreStates: (updater: (prev: Record<string, StoreState>) => Record<string, StoreState>) => void;
+    t: Translate;
+    locale: string;
+  },
+  _optional: Record<string, never> = {},
 ): Promise<void> {
   try {
-    await refetchOne(port, store, setStoreStates, t, locale);
+    await refetchOne({ port, store, setStoreStates, t, locale });
   } catch (err: unknown) {
     const loadError = accessTokensLoadErrorMessage(locale, translateCredentialMessage({ message: describeApiError(err, t("unknown error")), locale }));
     setStoreStates((prev) => ({ ...prev, [store.id]: { items: [], loadError } }));
@@ -364,7 +391,15 @@ async function refetchOneOrRecordFailure(
  *  every other supported store is a direct single-field PUT. `external-mcp`
  *  never reaches here (`replace` checks `supportsReplace` first). @complexity O(1) plus the
  *  media-provider rebuild's own O(p). */
-async function writeReplace(port: OtherCredentialsPort, storeId: OtherCredentialStoreInfo["id"], itemId: string, apiKey: string): Promise<void> {
+async function writeReplace(
+  { port, storeId, itemId, apiKey }: {
+    port: OtherCredentialsPort;
+    storeId: OtherCredentialStoreInfo["id"];
+    itemId: string;
+    apiKey: string;
+  },
+  _optional: Record<string, never> = {},
+): Promise<void> {
   if (storeId === "site-assistant") {
     await port.setSiteAssistantCredential({ apiKey });
     return;
@@ -375,14 +410,21 @@ async function writeReplace(port: OtherCredentialsPort, storeId: OtherCredential
   }
   if (storeId === "media-provider") {
     const current = await port.getMediaProviders();
-    await port.saveMediaProviders(rebuildMediaProviderMap(current, itemId, { apiKey }));
+    await port.saveMediaProviders(rebuildMediaProviderMap({ current, providerId: itemId, patch: { apiKey } }));
   }
 }
 
 /** Dispatches one store's Remove write — mirrors {@link writeReplace}'s dispatch, but every store
  *  here DOES support Remove (unlike Replace, §8/the owner ruling never narrows Remove to a subset).
  *  @complexity O(1) plus the media-provider rebuild's own O(p). */
-async function writeRemove(port: OtherCredentialsPort, storeId: OtherCredentialStoreInfo["id"], itemId: string): Promise<void> {
+async function writeRemove(
+  { port, storeId, itemId }: {
+    port: OtherCredentialsPort;
+    storeId: OtherCredentialStoreInfo["id"];
+    itemId: string;
+  },
+  _optional: Record<string, never> = {},
+): Promise<void> {
   if (storeId === "site-assistant") {
     await port.deleteSiteAssistantCredential();
     return;
@@ -393,10 +435,10 @@ async function writeRemove(port: OtherCredentialsPort, storeId: OtherCredentialS
   }
   if (storeId === "media-provider") {
     const current = await port.getMediaProviders();
-    await port.saveMediaProviders(rebuildMediaProviderMap(current, itemId, { remove: true }));
+    await port.saveMediaProviders(rebuildMediaProviderMap({ current, providerId: itemId, patch: { remove: true } }));
     return;
   }
-  await port.deleteExternalMcpServer(itemId);
+  await port.deleteExternalMcpServer({ serverId: itemId });
 }
 
 /**
@@ -407,5 +449,5 @@ async function writeRemove(port: OtherCredentialsPort, storeId: OtherCredentialS
 export function useWiredOtherCredentials(filter: { query: string; category: AccessTokenCategoryId }): OtherCredentialsController {
   const locale = useAdminLocale();
   const boundT = (key: string): string => defaultT({ locale: locale, key: key });
-  return useOtherCredentials(defaultOtherCredentialsPort, boundT, locale, filter);
+  return useOtherCredentials({ port: defaultOtherCredentialsPort, t: boundT, locale, filter });
 }

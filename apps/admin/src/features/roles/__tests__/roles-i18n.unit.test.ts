@@ -64,7 +64,7 @@ describe("permissionRemoveBodyParts — C1", () => {
 
   for (const locale of LOCALES) {
     it(`has a non-empty, translated prefix/suffix for ${locale}`, () => {
-      const parts = permissionRemoveBodyParts(locale);
+      const parts = permissionRemoveBodyParts({ locale });
       expect(parts.prefix.length).toBeGreaterThan(0);
       expect(parts.suffix.length).toBeGreaterThan(0);
       expect(parts.prefix).not.toBe(en.prefix);
@@ -77,6 +77,6 @@ describe("permissionRemoveBodyParts — C1", () => {
   }
 
   it("falls back to English for an unrecognized locale", () => {
-    expect(permissionRemoveBodyParts("xx")).toEqual(en);
+    expect(permissionRemoveBodyParts({ locale: "xx" })).toEqual(en);
   });
 });
