@@ -20,7 +20,7 @@ import { useWiredDeploymentOverview } from "./hooks/use-deployment-overview.hook
 /**
  * @file Overview tab — the screen's actual "which path" moment, above how THIS instance happens to
  * be running right now. Every diagnostic value here is either `AdminDeploymentOverview` (read live
- * from `GET .../system/deployment-overview`, see `src/server/routes/admin/system/deployment-
+ * from `GET .../system/deployment-overview`, see `apps/website/src/server/inbound/admin-http/routes/system/deployment-
  * overview.ts`) or a translated label derived from it by `rules.ts`'s pure helpers — nothing on
  * this tab is invented.
  *

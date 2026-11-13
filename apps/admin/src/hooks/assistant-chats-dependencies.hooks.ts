@@ -71,7 +71,7 @@ export function upsertMessage(list: readonly ChatMessage[], message: ChatMessage
 /**
  * Returns `conversation` with a derived fallback title applied, or `conversation` unchanged.
  *
- * Naming happens on APPEND, mirroring `src/server/modules/assistant-chats.ts` — and this fake has
+ * Naming happens on APPEND, mirroring `apps/website/src/server/runtime/composition/modules/assistant-chats.ts` — and this fake has
  * to model it, because it is the ONLY way any conversation this hook creates ever gets a name. Both
  * `create()` and lazy adoption call `createConversation()` with no `firstMessage`, so the
  * create-time seed never fires on any path the hook actually takes. Without this, no test using the

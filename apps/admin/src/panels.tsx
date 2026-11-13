@@ -243,7 +243,7 @@ const PANELS: readonly TovuAdminPanel[] = [
         // whichever entity was current when Save was clicked. Navigate mid-save and the late
         // response commits over the newly-displayed entity — then the NEXT save reads the stale id
         // and writes to the wrong record. Remounting per id closes the whole class at the routing
-        // layer instead of one hand-rolled staleness ref per hook. `Seo.tsx:245` already does this
+        // layer instead of one hand-rolled staleness ref per hook. `Jini packages/admin/src/seo/react/pages/SeoPage.tsx:443` already does this
         // (`<SeoEntryPanel key={entryId} …>`) and is why that panel was never vulnerable.
         // `postEditorRouteKey`: the editor's own save can rename the slug in the URL; that is the same
         // record, so it keeps its key instead of remounting (see `post-editor-route-key.ts`).
@@ -828,7 +828,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     description: "Review customer orders and their status.",
     // No screen yet — `soon: true` + `Placeholder`, the same shape `skills`/`newsletter` use
     // for a genuinely unbuilt-but-real nav entry. `p_store__orders` exists as a
-    // table (`store-plugin.ts`) but there is no admin API or screen for it yet, so it renders the
+    // table (`Jini packages/commerce/src/store/store-plugin.ts`) but there is no admin API or screen for it yet, so it renders the
     // plain single-page placeholder rather than `PlaceholderTabs` — there is no named sub-list
     // (Stripe/PayPal, GitHub/AWS) to preview the way `payments`/`deployment` do. `soonPreviewable`
     // is still set, by owner decision: every row in Commerce previews as a real, clickable link
@@ -850,7 +850,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "products",
     description: "Manage products and their catalog details.",
     // Same shape and reasoning as `orders` above: `p_store__products` exists as a table with rows
-    // in it (`store-plugin.ts`), but no admin API or screen exists yet.
+    // in it (`Jini packages/commerce/src/store/store-plugin.ts`), but no admin API or screen exists yet.
     render: ({ Placeholder }) => <Placeholder sectionId="products" agentHandle="products" />,
     nav: {
       label: "Products",
@@ -870,10 +870,10 @@ const PANELS: readonly TovuAdminPanel[] = [
     // Same `soon` + `Placeholder` shape as `orders`/`products` above, but the most speculative of
     // the four — worth being honest about rather than implying parity. Products has 3 seeded rows,
     // a public `routes/site/products.ts`, and a storefront theme actually serving them; Orders has 0
-    // rows but a real, wired path to get them (`store-plugin.ts`'s `checkout()`, called from
+    // rows but a real, wired path to get them (`Jini packages/commerce/src/store/store-plugin.ts`'s `checkout()`, called from
     // `routes/site/store.ts`'s buy action — unexercised, not unbuilt). `member_tiers`/
     // `member_subscriptions` (referenced by `payments`'s own comment above) are one level further
-    // back: `SqliteMemberTierRepo`/`SqliteMemberSubscriptionRepo` (`src/members/repo.sqlite.ts`)
+    // back: `SqliteMemberTierRepo`/`SqliteMemberSubscriptionRepo` (`apps/website/src/features/members/repo.sqlite.ts`)
     // implement full CRUD against them, but nothing in the app calls those methods — no route, no
     // plugin, no admin API. Verified via `grep` for their method names outside that one file and its
     // tests: no hits. This is the recurring-billing counterpart to Payments' provider configuration,
@@ -959,7 +959,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     anyOfPermissions: ["system.read"],
     // Five real tabs (Overview, Static Site, Full Site, Dockerfile, History) replaced the
     // `PlaceholderTabs` stub (Home/GitHub/AWS) this pass. `soon: true` is dropped: that flag means
-    // "announced but not yet built" (see `PlaceholderTabs.tsx`'s own doc), and this screen no
+    // "announced but not yet built" (see `PlaceholderTabs`'s own doc), and this screen no
     // longer renders a generic "X is coming soon" panel anywhere — Overview and Dockerfile are
     // backed by real endpoints, and Static Site/Full Site/History are honest, real empty/explainer
     // states rather than placeholders. Same `?tab=` deep-linking convention as `settings`'s own

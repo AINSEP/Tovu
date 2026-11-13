@@ -21,7 +21,7 @@
  *
  * ## Why a bus rather than a prop
  *
- * The publisher is `App.hooks.tsx`'s `useAgentPageBridge` — an effect with no relationship to
+ * The publisher is `apps/admin/src/App.hooks.ts`'s `useAgentPageBridge` — an effect with no relationship to
  * `App.tsx`'s own render body beyond the `agentBridge` it already returns, which carries no signal
  * for "a capability just executed." Threading one through would grow that return type for a single
  * consumer. Modeled directly on `settings-refresh-bus.ts`: fire-and-forget, no payload, because the

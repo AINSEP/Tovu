@@ -138,7 +138,7 @@ function selectedDockAgent({ mode, agents, agentId }: {
  * the page genuinely resizes rather than reserving a gap."
  *
  * Hosts `@jini-ai/chat/react`'s `<ChatPane>` against Tovu's own `@jini-ai/core`+`@jini-ai/daemon`
- * kernel (`src/assistant/agent-daemon-server.ts`, proxied by `src/server/modules/assistant.ts`).
+ * kernel (`apps/website/src/server/inbound/assistant/agent-daemon-server.ts`, proxied by `apps/website/src/server/runtime/composition/modules/assistant.ts`).
  * Tool execution is not a prop here — it happens server-side: the spawned coding-agent CLI gets
  * `.mcp.json`-injected access to Tovu's registered tools (`src/assistant/tool-registrations.ts`)
  * and calls them through the daemon's `/api/delegated-tool-calls` gate, which shows up in this
@@ -146,8 +146,8 @@ function selectedDockAgent({ mode, agents, agentId }: {
  *
  * `uploadAttachments` below wires the composer's existing (host-agnostic, `@jini-ai/chat/react`-
  * native) drag-and-drop and file-picker mechanism to this daemon's own `/api/attachments` route —
- * see that route's registration in `src/assistant/agent-daemon-server.ts` and its proxy pass-
- * through in `src/server/modules/assistant.ts` for the rest of the chain (`onStarted` claims the
+ * see that route's registration in `apps/website/src/server/inbound/assistant/agent-daemon-scope.ts` and its proxy pass-
+ * through in `apps/website/src/server/runtime/composition/modules/assistant.ts` for the rest of the chain (`onStarted` claims the
  * upload and hands the daemon's `AgentExecutor.run()` real `imagePaths`). No `attachmentAccept` is
  * passed — see that prop's own doc, below, for why.
  *

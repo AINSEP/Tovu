@@ -45,7 +45,7 @@ const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
  *  report ITSELF as an unregistered gate script on every run. */
 const RUNNER_BASENAME = "check-gates.ts";
 
-/** Gate scripts are `scripts/check-*.mjs` by convention — that convention is what makes property 3
+/** Gate scripts are `apps/desktop/scripts/check-*.ts` by convention — that convention is what makes property 3
  *  (a script on disk that nothing runs is a hard failure) checkable at all.
  *  @complexity O(n) in files in `scripts/`. */
 function gateScriptsOnDisk(scriptsDir: string): string[] {

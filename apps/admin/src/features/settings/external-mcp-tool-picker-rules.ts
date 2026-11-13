@@ -42,7 +42,7 @@ import { parseSavedToolNames } from "./external-mcp-admissions-rules";
  */
 
 /**
- * The exact prefix `mcp-federation/trust.ts`'s `describeFederatedTool` (R6) stamps onto every
+ * The exact prefix `Jini packages/mcp/src/federation/trust.ts`'s `describeFederatedTool` (R6) stamps onto every
  * federated tool's description before it ever reaches the model — provenance the MODEL needs, since
  * it cannot otherwise tell a remote's self-description from Tovu's own instructions. `row.description`
  * carries that same wrapped string (`describeRemoteToolSurface` reuses `describeFederatedTool`

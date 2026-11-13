@@ -2,7 +2,7 @@
  * `ChatTransport` over Electron IPC — the renderer half of the fleet chat.
  *
  * The port is written for a streaming transport, and Electron's `invoke` is not one. The shape that
- * closes the gap is documented on the main-process side (`main/workspace-chat-ipc.ts`); what matters
+ * closes the gap is documented on the main-process side (`apps/desktop/src/workspace-chat-ipc.ts`); what matters
  * here is the consequence: every run's events arrive on ONE shared push channel, tagged with a
  * subscription id this module minted. So this module owns a demultiplexer — one channel listener,
  * installed once, fanning out to per-subscription records — rather than a listener per run. A
@@ -298,7 +298,7 @@ function buildChatStartPayload(subscriptionId: string, agentId: string, input: S
     ...(input.context?.['reasoning'] === undefined ? {} : { reasoning: String(input.context['reasoning']) }),
     // `StartRunInput.attachments` is `ChatPane`'s own record of this turn's staged `+` files
     // (`chat-attachments.ts` populated their `.path` when `uploadAttachments` ran) — only their
-    // paths cross into main, which is the only part `runner-daemon.ts` forwards on to the agent.
+    // paths cross into main, which is the only part `apps/desktop/src/desktop-agent.ts` forwards on to the agent.
     ...(input.attachments === undefined || input.attachments.length === 0
       ? {}
       : { attachmentPaths: input.attachments.map((attachment) => attachment.path) }),

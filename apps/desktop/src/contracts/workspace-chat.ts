@@ -1,7 +1,7 @@
 /**
  * Browser-safe contract for the LEFT-hand "Workspace chat" — Runner's operator agent.
  *
- * Mirrors `runtime-inventory.ts`/`project-registry.ts`: channel constants and DTOs only,
+ * Mirrors `runtime-inventory.ts`/`the project registry contract`: channel constants and DTOs only,
  * no logic. The one structural difference is that a chat turn STREAMS, and Electron's
  * `ipcRenderer.invoke` is strictly request/response — so this contract has two halves:
  *

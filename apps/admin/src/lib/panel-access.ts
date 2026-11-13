@@ -5,9 +5,9 @@ import { hasPermission } from "@jini-ai/ui/panel-kit";
  * @file Which admin sections the signed-in operator can use — the sidebar filter and the direct-URL
  * gate, both answered from each panel's own `anyOfPermissions` declaration in `panels.tsx`.
  *
- * NOT A SECURITY BOUNDARY (same contract as `lib/permissions.ts`): this only decides whether a nav
+ * NOT A SECURITY BOUNDARY (same contract as `Jini packages/ui/src/features/panel-kit/helpers/permissions.ts`): this only decides whether a nav
  * row shows and whether a screen mounts. Every route still re-checks server-side in
- * `identity/authorize.ts`. The point is UX: an editor used to see Users and Roles & Permissions and
+ * `Jini packages/user-management/src/server/authorize.ts`. The point is UX: an editor used to see Users and Roles & Permissions and
  * land on a screen whose first read the server answered 403.
  *
  * Why a Tovu field and not `@jini-ai/admin/core`'s own `AdminPanel.permissions`: that field (and its

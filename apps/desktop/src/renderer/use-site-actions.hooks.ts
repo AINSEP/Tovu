@@ -5,7 +5,7 @@
  * **Why it calls the bridge directly instead of arriving as a prop from `App.tsx`.** `onOpen` and
  * `onDelete` are drilled down three component levels because `App.tsx` owns the projects list and
  * has to react to them — a delete removes a card, an open adds a tab. This one does not: opening a
- * browser changes nothing in this window at all. `App.tsx:515`'s `openInBrowser` already calls
+ * browser changes nothing in this window at all. `apps/desktop/src/renderer/use-site-workspace.hooks.ts:289`'s `openInBrowser` already calls
  * `openSiteExternal` the same way from the workspace bar.
  *
  * **Start is no longer here.** It was, back when the ⋮ menu was a stopped site's only way up; the

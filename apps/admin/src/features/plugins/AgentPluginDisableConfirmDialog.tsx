@@ -7,7 +7,7 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
  * @file Confirmation gate in front of the SAME underlying operation from two different controls.
  * There is no admin uninstall route — the only two agent-plugins routes are `GET .../agent-plugins`
  * (list) and `PATCH .../agent-plugins/:pluginId` (set-enabled); `uninstallAgentPlugin()`
- * (`features/agent-plugins/uninstall.ts`) is reachable only from an assistant tool and refuses every
+ * (`Jini packages/agent-plugins/src/lifecycle/uninstall.ts`) is reachable only from an assistant tool and refuses every
  * bundled package outright — see `AgentPluginRow`'s own header for why its trash icon is honestly
  * disabled for that reason. So "remove this plugin", mechanically, is what turning it off already
  * does: `resolveAgentPluginRefs()` refuses to pin a disabled plugin into a run, which is the only

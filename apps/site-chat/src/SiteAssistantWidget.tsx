@@ -14,7 +14,7 @@ import { confirmSiteAssistantTool } from './tool-confirmation';
  * @file The whole public-site chat widget (ADR-054 Task 2) — a floating action button that opens
  * `@jini-ai/chat/react`'s own `ChatPane`, unmodified, against the public site-assistant transport.
  *
- * Mirrors `apps/admin/src/components/AssistantDock.tsx`'s shape in exactly one respect worth naming:
+ * Mirrors `apps/admin/src/components/AssistantDock/AssistantDock.tsx`'s shape in exactly one respect worth naming:
  * the pane is toggled with `hidden`, never a conditional `{open && <ChatPane/>}`, so a visitor who
  * closes the panel and reopens it lands back in the same conversation instead of losing it. Every
  * other admin-dock concern (attachments, working directory, conversation history, MCP-UI tool

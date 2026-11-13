@@ -265,7 +265,7 @@ export function visibleSections(): readonly RunnerSection[] {
  * Every `desktop.*` verb this build declares, as a literal union.
  *
  * Derived from {@link RUNNER_SECTIONS} rather than restated, for the same reason `SECTION_IDS` in
- * `runner-tools.ts` is derived: a second hand-maintained copy drifts. The literal union lets
+ * `the Runner tool registry` is derived: a second hand-maintained copy drifts. The literal union lets
  * consumers check tool names at compile time, so a mirror cannot name a verb this app does not
  * actually declare. A typo in a hand-maintained mirror would otherwise silently grant a tool
  * name the bridge never advertises.

@@ -138,7 +138,7 @@ export function parseOptionalPixelSize(value: string): number | null {
  * new one is needed.
  *
  * Widened 2026-09-23 (widget-attrs plan §2) to match the shared server parser
- * (`apps/website/src/contracts/core/embeds/html-attributes.ts`'s `EMBED_HTML_ATTRIBUTE_ALLOWED_NAMES`,
+ * (`Jini packages/cms/src/widgets/markers/html-attributes.ts`'s `EMBED_HTML_ATTRIBUTE_ALLOWED_NAMES`,
  * this list's twin — see that file's own header for why it is a separate copy, not a shared import
  * across the browser/Node boundary) one-for-one: `class`/`id`/`style`/`title`/`role`/`tabindex`/
  * `lang`/`dir`/`hidden`/`translate`/`draggable` are global attributes any element can carry

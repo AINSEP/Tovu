@@ -4,7 +4,7 @@
  *
  * ## Wiring
  *
- * `App.hooks.tsx`'s `useAgentPageBridge` registers {@link renderAdminScreenshotCanvas} (indirectly,
+ * `apps/admin/src/App.hooks.ts`'s `useAgentPageBridge` registers {@link renderAdminScreenshotCanvas} (indirectly,
  * through {@link captureAdminScreenshotToolResult}) under `createFrontendSessionBridge`'s
  * `executors: {"admin.": ...}` prefix map — the same host-extension seam that file's own module doc
  * describes `chat.*`/`page.*` claiming, just exercised here by a Tovu-native verb instead of a Jini
@@ -54,7 +54,7 @@
  *    permission dialog on every screenshot reintroduces exactly that friction.
  * 3. **Server-side headless Chromium against an authenticated URL.** True pixels and high fidelity,
  *    but it renders a FRESH page load — wrong scroll position, no open dialog, no in-progress edit,
- *    none of the state that made the operator ask in the first place. `site-evidence/browser-port.ts`
+ *    none of the state that made the operator ask in the first place. `Jini packages/diagnostics/src/web-evidence/browser-port.ts`
  *    (Tovu's own existing headless-browser adapter) already documents that Chromium may be entirely
  *    ABSENT from a self-hosted Tovu image, which would make this capability silently unavailable in
  *    exactly the deployments most likely to need it (an operator with no screenshot tool of their
@@ -71,7 +71,7 @@
  * - Cross-origin `<img>` elements without permissive CORS headers taint the canvas and render blank.
  * - `<canvas>`/WebGL content and `<video>` frames frequently do not rasterize correctly.
  * - Only the `<main>` content area is captured (never the assistant's own chat dock, which sits
- *   outside it — see `App.hooks.tsx`'s `useAgentPageBridge` doc for why that boundary already
+ *   outside it — see `apps/admin/src/App.hooks.ts`'s `useAgentPageBridge` doc for why that boundary already
  *   exists), and only what is clipped to the CURRENT viewport — content scrolled out of view is not
  *   included, by design (see {@link renderAdminScreenshotCanvas}).
  * - Complex CSS (filters, some blend modes, a custom font not yet loaded) can visually drift from
@@ -82,7 +82,7 @@
  *
  * Every successful capture publishes {@link publishScreenshotCaptured} so the admin sees an
  * announcement, never a silent capture. This module does not call that bus directly — see this
- * file's own wiring note in `App.hooks.tsx` for why that stays the caller's responsibility.
+ * file's own wiring note in `apps/admin/src/App.hooks.ts` for why that stays the caller's responsibility.
  */
 
 /** Mirrors `@jini-ai/daemon`'s `ToolResultTextBlock`/`ToolResultImageBlock` field names exactly
@@ -135,7 +135,7 @@ export interface CapturedCanvas {
 export type RenderElementToCanvas = (element: HTMLElement) => Promise<CapturedCanvas>;
 
 export interface CaptureAdminScreenshotOptions {
-  /** `App.hooks.tsx`'s `contentEl` — `null` before it mounts, or if the effect tore the bridge down. */
+  /** `apps/admin/src/App.hooks.ts`'s `contentEl` — `null` before it mounts, or if the effect tore the bridge down. */
   readonly element: HTMLElement | null;
   readonly renderElementToCanvas: RenderElementToCanvas;
 }

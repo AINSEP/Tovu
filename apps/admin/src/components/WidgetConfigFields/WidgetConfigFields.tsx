@@ -423,7 +423,7 @@ interface FetchedOptionsSeam {
 }
 
 /** `menu` (MENU_REGISTRATION: `{ menuRef: string }`) — dropdown over `api.listMenus()`, mirrors
- * `Seo.tsx`'s `EntryPicker` exactly. */
+ * `Jini packages/admin/src/seo/react/pages/SeoPage.tsx`'s `EntryPicker` exactly. */
 function MenuConfigFields({
   useFetchedOptions: useOptions = useFetchedOptions,
   t,

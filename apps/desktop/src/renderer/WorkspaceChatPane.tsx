@@ -134,7 +134,7 @@ export function WorkspaceChatPane({
           // Deliberately unrestricted, unlike Tovu's `attachmentAccept="image/*"`: that limit
           // exists because Tovu's daemon-side pipeline only handles images today, and Runner has
           // no such pipeline to outrun — a staged file's absolute path is simply handed to the
-          // fleet agent (`runner-daemon.ts`'s `imagePaths`/`extraAllowedDirs`), which already has
+          // fleet agent (`apps/desktop/src/desktop-agent.ts`'s `imagePaths`/`extraAllowedDirs`), which already has
           // full filesystem/Bash access on this machine and can act on any file type directly.
         />
       )}

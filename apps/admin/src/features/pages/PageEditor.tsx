@@ -1160,7 +1160,7 @@ function PageEditorPane({
  *    POSTs the working-copy `html` into `templatePreviewUrl` (`usePageEditor`'s pre-built URL,
  *    `port.templatePreviewUrl`/`lib/api.ts`'s own `templatePreviewUrl` — the admin-only render
  *    through the SAME pipeline as branch 1: `renderViaTemplate`,
- *    `routes/admin/posts/template-preview.ts`, looked up by id instead of by public slug), landing
+ *    `apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts`, looked up by id instead of by public slug), landing
  *    the response inside a same-named `<iframe>`. `POST`, not the plain `GET` `<iframe src>` this
  *    branch used before 2026-09-09, because a `GET` can only carry `templateChoice` on the query
  *    string — it cannot hand the endpoint this page's own PENDING, possibly-unsaved `html`, which is

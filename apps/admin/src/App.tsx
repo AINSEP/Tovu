@@ -720,7 +720,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
     // this file's own dialog copy; `tApp(navLocale, "Cancel")` resolves through `tApp`'s fallback to
     // `COMMON_I18N` (`lib/i18n-common.ts`, `"Cancel"` already covers all 21 locales) since
     // `app-i18n.ts`'s own `APP_DICT` defines no `"Cancel"` key of its own — see
-    // `createDictionaryTranslator`'s doc comment in `lib/dictionary-translator.ts`.
+    // `createDictionaryTranslator`'s doc comment in `Jini packages/ui/src/features/i18n/dictionary-translator.ts`.
     <AdminModulesProvider permissions={effectivePermissions ?? NO_PERMISSIONS}>
     <ChartRegistryProvider key={user.id} principalId={user.id}>
     <ConfirmDialogDefaultsProvider cancelLabel={tApp({ locale: navLocale, key: "Cancel" })}>

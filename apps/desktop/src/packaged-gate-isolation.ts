@@ -33,7 +33,7 @@ export async function withIsolatedSmokeTargets(
   { targets, run }: { targets: SmokeTargets; run: (targets: SmokeTargets, directory: string) => void | Promise<void> },
   { tempRoot = tmpdir(), platform = process.platform }: { tempRoot?: string; platform?: NodeJS.Platform } = {},
 ): Promise<void> {
-  // Real path: macOS tmpdir is /var -> /private/var, and an entry like bin/mcp-bridge.ts runs only
+  // Real path: macOS tmpdir is /var -> /private/var, and an entry like apps/desktop/bin/tovu-desktop.ts runs only
   // when argv[1] equals its own resolved URL, so a symlinked path makes it exit 0 without serving.
   const directory = realpathSync(mkdtempSync(path.join(tempRoot, "tovu-gate-")));
   try {

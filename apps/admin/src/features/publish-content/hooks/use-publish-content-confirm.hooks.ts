@@ -240,7 +240,7 @@ function primaryKindFor(
 /**
  * Builds the primary button's label. Counted copy is assembled from `t()`-resolved fragments rather
  * than one interpolated key, because this app's translator is a key lookup with no interpolation
- * (`lib/dictionary-translator.ts`) — the alternative is a key per possible count.
+ * (`Jini packages/ui/src/features/i18n/dictionary-translator.ts`) — the alternative is a key per possible count.
  *
  * The connect offer takes priority over every phase check below it: while it is present, the same
  * button IS the connect action (see this file's header note on why one control is reused rather

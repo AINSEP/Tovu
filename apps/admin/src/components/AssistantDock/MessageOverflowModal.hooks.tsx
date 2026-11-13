@@ -1,14 +1,14 @@
 import { useEffect, useRef, type MouseEvent, type SyntheticEvent } from "react";
 
 /**
- * @file `MessageOverflowModal`'s `<dialog>` lifecycle — mirrors `ImagePreviewModal.hooks.tsx`'s
+ * @file `MessageOverflowModal`'s `<dialog>` lifecycle — mirrors `Jini packages/ui/src/features/admin-widgets/components/ImagePreviewModal.hooks.tsx`'s
  * open/close/backdrop/Escape handling line for line (same native `<dialog>` foundation
  * `@jini-ai/admin/react`'s `ConfirmDialog` uses: real focus trapping, Escape-as-close, and a
  * backdrop, all courtesy of the browser's own top layer). Owned locally rather than importing that
  * file's hook directly — `ImagePreviewModal.tsx`'s own doc gives the same reasoning for why IT
  * doesn't reuse `ConfirmDialog`'s implementation despite the identical lifecycle shape: a future
  * image-specific tweak to that hook should never silently change an unrelated modal's behavior too.
- * No `-port.hooks.ts` pair, same reasoning as `ImagePreviewModal.hooks.tsx`: the only outside
+ * No `-port.hooks.ts` pair, same reasoning as `Jini packages/ui/src/features/admin-widgets/components/ImagePreviewModal.hooks.tsx`: the only outside
  * dependency is the native `<dialog>` element's own synchronous `showModal`/`close`, nothing async
  * to fake a rejection for.
  */

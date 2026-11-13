@@ -21,7 +21,7 @@ import { HistoryIcon, LayersIcon, OverviewIcon, StaticSiteIcon } from "./deploym
  * `TabBar` (`@jini-ai/ui/tab-strip`), not `@jini-ai/ui`'s `SettingsDialogShell` — this is a
  * full-page screen, not a dialog-shaped surface. `SettingsDialogShell` bundles its own vertical
  * sidebar plus a kicker/title/subtitle header, which is the right shape for Settings' 13 tabs but
- * would fight this screen's own `.page-header` the same way `PlaceholderTabs.tsx`'s doc comment
+ * would fight this screen's own `.page-header` the same way `PlaceholderTabs`'s doc comment
  * describes a past `--page-flow` mismatch. `TabBar` is the horizontal, headerless primitive
  * `Pages.tsx`/`ThemeExplore.tsx`-adjacent screens already use for exactly this "one page, several
  * flat tabs" shape.

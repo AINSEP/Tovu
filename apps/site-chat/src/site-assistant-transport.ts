@@ -1,6 +1,6 @@
 /**
  * @file The PUBLIC site chat's implementation of `@jini-ai/chat/core`'s `ChatTransport` port
- * (ADR-054 Task 2), the browser half of `src/server/modules/site-assistant.ts`.
+ * (ADR-054 Task 2), the browser half of `apps/website/src/server/runtime/composition/modules/site-assistant.ts`.
  *
  * Deliberately NOT a copy of `apps/admin/src/lib/assistant-transport.ts`, and not only because this
  * bundle must not import admin code at all (enforced by `vite.config.ts`'s `forbidAdminImports`):
@@ -121,7 +121,7 @@ function drainCompleteFrames(buffer: string, onFrame: (event: string, data: unkn
 
 /**
  * Parses one `fetch` response body as the `event:`/`data:` SSE framing `sse()` writes
- * (`src/server/modules/site-assistant.ts`), invoking `onFrame` once per complete frame and `onChunk`
+ * (`apps/website/src/server/runtime/composition/modules/site-assistant.ts`), invoking `onFrame` once per complete frame and `onChunk`
  * once per received chunk (any bytes, complete frame or not — the idle timer's "still alive" signal).
  *
  * Hand-rolled rather than a library SSE client because `fetch` is required here (a POST body), and

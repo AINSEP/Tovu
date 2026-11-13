@@ -3,7 +3,7 @@
  * than a direct `fetch` call. Follows the `useX(dependencies)` / `useWiredX()` pair documented in
  * `development/docs/architecture/wired-hooks-convention.md`.
  *
- * Like `features/posts`' `post-template-port.hooks.ts` — and unlike most ports in this app — the real
+ * Like `apps/admin/src/components/TemplateSource/template-source-port.hooks.ts` — and unlike most ports in this app — the real
  * implementation wraps the browser's global `fetch`, not `lib/api`'s `api` client: a theme's token
  * files are served as static assets under `/theme-assets/{themeId}/tokens.json`
  * (`theme-static-assets.ts`'s `express.static` mount, proxied through Vite in dev by

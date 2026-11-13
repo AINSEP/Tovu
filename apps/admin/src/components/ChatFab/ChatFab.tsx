@@ -78,7 +78,7 @@ function fabActionLabel(locale: string, action: "open" | "close", label: string)
 /**
  * Floating toggle for the global assistant dock (ADR-049), and — per MSG-09 — draggable to
  * wherever the operator wants it out of the way. Mirrors
- * `examples/reference-web/src/ChatFab.tsx`'s role in Jini's own reference app: a fixed-position
+ * `Jini packages/chat/src/react/components/ChatFab.tsx`'s role in Jini's own reference app: a fixed-position
  * button that opens/closes the docked chat pane without ever unmounting it — see
  * `AssistantDock.tsx`'s module doc for why the dock itself uses `hidden`, not conditional render.
  *

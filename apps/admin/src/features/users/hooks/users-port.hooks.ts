@@ -27,7 +27,7 @@ export interface UsersPort {
    *  trash/restore/purge users at all (owner or the built-in `admin` role — the OWNER DECISION
    *  2026-09-24 gate `/auth/me` computes server-side via `callerMayManageUserTrash`, the exact
    *  function the DELETE route itself is gated on). Drives whether the row-menu Delete item renders
-   *  — affordance-hiding only, never the real boundary; see `lib/permissions.ts`'s header. */
+   *  — affordance-hiding only, never the real boundary; see `Jini packages/ui/src/features/panel-kit/helpers/permissions.ts`'s header. */
   me(): Promise<{ user: { id: string }; canManageUserTrash: boolean; effectivePermissions?: string[] }>;
   listRoles(): Promise<{ roles: AdminRole[] }>;
   listPolicies(): Promise<{ policies: AdminPolicy[] }>;

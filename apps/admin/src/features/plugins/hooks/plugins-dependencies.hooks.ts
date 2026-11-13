@@ -35,7 +35,7 @@ export interface FakePluginsPortOptions {
  * `fetch`. Shipped alongside the real binding per the pattern's "every port gets a fake" rule.
  *
  * `uninstallPlugin` re-implements the real route's own two preconditions (`uninstallPlugin()`,
- * `features/plugin-runtime/uninstall.ts`) rather than always succeeding: a fake that skipped them
+ * `Jini packages/plugins/src/host/uninstall.ts`) rather than always succeeding: a fake that skipped them
  * would let a component test "confirm the built-in refusal" only by asserting against a mocked
  * rejection, never against the same rule the real server enforces. Thrown as `ApiError` with the
  * real route's own `code`s, so `rules.ts`'s `describeApiError` maps them exactly as it would the

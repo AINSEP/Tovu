@@ -21,7 +21,7 @@ import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
  * Why HTTP at all, inside one process: the bridge is a separate child the CLI spawns, and its only
  * way back is the daemon URL it is handed. The listener binds 127.0.0.1 on an ephemeral port, and a
  * credential is valid only while its run is live — the same two properties the site daemon's own
- * delegated route rests on (`run-scoped-credential.ts` there).
+ * delegated route rests on (`apps/website/src/server/inbound/assistant/agent-daemon-scope.ts` there).
  */
 import fs from "node:fs";
 import path from "node:path";

@@ -39,7 +39,7 @@ const UNKNOWN_ERROR = "The publish service returned no explanation. Check publis
  * @file Everything the Static Site tab's "Getting it online" provider form does — target selection,
  * the host's config fields and projectName, the preview action, and the publish
  * trigger+poll — so `StaticSiteTab.tsx` is only markup. Wired 2026-08-15 against
- * `src/server/routes/admin/system/publish-site.ts`'s three routes (preview, trigger, status).
+ * `apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts`'s three routes (preview, trigger, status).
  *
  * ## One form, fields from the host's descriptor
  *

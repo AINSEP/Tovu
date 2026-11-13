@@ -10,7 +10,7 @@
  * sentinel round-trips, which are the only genuinely subtle part.
  *
  * The server counterpart registering these definitions is
- * `src/features/settings/ui-tab-definitions.ts`; the sentinel choices are
+ * `Jini packages/core/src/settings/ui-tab-definitions.ts`; the sentinel choices are
  * explained there and mirrored (not re-derived) here.
  */
 

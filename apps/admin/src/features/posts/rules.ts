@@ -19,7 +19,7 @@ import { t as translate } from "./posts-i18n";
  * one.
  *
  * Named `rules.ts` to match the convention `@jini-ai/chat` already uses for the same job
- * (`features/chat-pane/rules.ts`, `features/model-picker/rules.ts`): the slice's decisions live in
+ * (`features/chat-pane/rules.ts`, `model picker rules`): the slice's decisions live in
  * one importable, directly testable module with no React in it.
  *
  * The bar for landing here is "does it compute something", not "is it rendered". A function that
@@ -321,7 +321,7 @@ export function hexOrDefault(value: string | null, fallback: string): string {
 // (a paragraph with NO explicit textStyle mark, i.e. exactly what `value: ""` represents) computes
 // to `font-family: "DM Sans"`, `font-size: 16px`, `line-height: 1.6` (`.editor-body .tiptap p`'s
 // own declared ratio in this same file). That baseline is deliberately NOT the published site's own
-// body defaults (`.post-detail-body` in `src/themes/static/basic/css/styles.css`: 17px/1.7,
+// body defaults (`.post-detail-body` in `the basic theme stylesheet`: 17px/1.7,
 // no family override so it also inherits `--font-ui`/DM Sans) — the editor was never meant to be
 // pixel-parity WYSIWYG for size/line-height, only for the content itself, so this label states what
 // the CONTROL currently shows on screen, not a promise about the published page.

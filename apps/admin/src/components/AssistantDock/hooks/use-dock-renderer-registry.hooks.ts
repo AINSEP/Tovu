@@ -25,7 +25,7 @@ import { buildAssistantMcpUiSandboxProxyUrl, openMcpUiLink } from "./AssistantDo
  * `onToolCall: createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/api/admin/v1/mcp-ui/tool-calls" })` is what
  * completes the confirmation loop: when a human clicks "Delete" in the rendered dialog, the View
  * posts a `tools/call`, and this relays it (same-origin, session cookie) to Tovu's own
- * admin-session-authenticated proxy (`src/server/modules/assistant.ts`), which forwards it to the
+ * admin-session-authenticated proxy (`apps/website/src/server/runtime/composition/modules/assistant.ts`), which forwards it to the
  * daemon-side redemption route (`src/assistant/mcp-ui-tool-calls-route.ts`) — the one place that
  * actually holds the `content_post_delete` handler and its held-open surface exchange. `path` is
  * required rather than the library's own bare-daemon default (`/api/mcp-ui/tool-calls`): Tovu mounts

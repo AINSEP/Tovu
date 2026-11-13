@@ -8,7 +8,7 @@ import { useSyncExternalStore } from "react";
  *
  * `false` only on the live site: the server answers `/auth/me` with `canPublishToLive: false` when
  * `TOVU_RUNTIME_MODE=production` (`features/publish-content/live-site-policy.ts` on the server,
- * which also refuses the push routes). `App.hooks.tsx` feeds this store from that response.
+ * which also refuses the push routes). `apps/admin/src/App.hooks.ts` feeds this store from that response.
  *
  * Defaults to `true`: every screen that shows a Publish button sits behind the sign-in gate, which
  * only opens after `/auth/me` answered, and an older server without the field could publish.

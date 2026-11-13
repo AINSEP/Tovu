@@ -20,7 +20,7 @@ import type { MediaProviderOption } from "@jini-ai/ui";
  * UI-spelled id would be saved successfully and then never resolve at generation time — a silent
  * failure with no error anywhere. Keying the UI off the engine's own catalogue makes that
  * divergence unrepresentable rather than merely documented; the server rejects the UI spellings
- * too (`src/media/provider-credential-store.ts`), so both ends agree.
+ * too (`apps/website/src/features/media/provider-credential-store.ts`), so both ends agree.
  *
  * ## Why the import is `/catalog` and not `/media-providers`
  *

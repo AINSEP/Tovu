@@ -1223,7 +1223,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   /**
    * Soft delete — distinct from the Draft/Published status select, and the copy in the view says so
    * explicitly: the select changes `status` (unpublish — content stays, drops off the site, still
-   * editable here); this moves the whole row to the trash (server/routes/admin/posts/delete.ts's
+   * editable here); this moves the whole row to the trash (apps/website/src/server/inbound/admin-http/routes/posts/delete.ts's
    * soft-delete route).
    *
    * The `ConfirmDialog` body and the `post-delete` agentHandle label state only the observable

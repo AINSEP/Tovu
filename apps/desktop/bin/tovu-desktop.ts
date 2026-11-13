@@ -178,7 +178,7 @@ function runTovuDesktopCli(argv: string[], io: Io): number {
   return EXIT_USAGE;
 }
 
-/** Run only as the process, never on import — see `bin/mcp-bridge.mjs`'s identical guard. */
+/** Run only as the process, never on import — see `apps/desktop/scripts/check-tree-quiet.ts`'s identical guard. */
 if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   process.exitCode = runTovuDesktopCli(process.argv.slice(2), {
     out: (text) => process.stdout.write(text.endsWith("\n") ? text : `${text}\n`),

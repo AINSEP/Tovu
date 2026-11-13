@@ -155,7 +155,7 @@ const PLUGIN_SOURCE_COPY: Record<AdminPlugin["source"], string> = {
 
 /** tier-1/tier-3 reuse the install preview's trust sentences; tier-2 (built-ins only — a sideloaded
  *  package cannot claim it) runs in a separate worker over the capability-scoped SDK
- *  (`plugin-runtime/tier2/run-call.ts`). */
+ *  (`Jini packages/plugins/src/host/worker/run-call.ts`). */
 const PLUGIN_TIER_COPY: Record<AdminPlugin["tier"], string> = {
   "tier-1": "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.",
   "tier-2": "This plugin runs code in a separate worker, limited to the capabilities it declares.",
@@ -288,7 +288,7 @@ export function pluginSubline(plugin: AdminPlugin): string {
 
 /**
  * Why the Downloaded tab's Remove cannot succeed for `plugin`, or `null` when it can — the two
- * refusals `PLUGIN_UNINSTALL` itself makes (`features/plugin-runtime/uninstall.ts`), built-in first:
+ * refusals `PLUGIN_UNINSTALL` itself makes (`Jini packages/plugins/src/host/uninstall.ts`), built-in first:
  * a built-in has nothing on disk to remove whether or not it is on, while an enabled site plugin
  * only needs turning off (`PLUGIN_ENABLED`). The screen shows Remove disabled and pointing at the
  * matching note, instead of offering a click the server always refuses (2026-09-13 fix).

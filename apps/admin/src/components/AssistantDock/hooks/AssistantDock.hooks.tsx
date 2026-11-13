@@ -525,7 +525,7 @@ export function useByokRuntime(
 
 /**
  * Brand mark for a BYOK provider, keyed by `ProviderPreset.id`, resolved against the artwork this
- * host actually ships in `src/public/agent-icons/`.
+ * host actually ships in `Jini packages/ui/src/react/components/agent-icons/`.
  *
  * Maps to CLI-agent icon ids because that is the asset set `AgentIcon` reads and the marks are the
  * vendors' own — `gemini.svg` is Google's logo whether a Gemini CLI or a Gemini API key is what
@@ -1056,7 +1056,7 @@ function withLatestLocalCliSelection(
  *
  * `''` baseUrl: `createDaemonAttachmentUploader` builds `${baseUrl}/api/attachments`, so an empty
  * string resolves to the same bare `/api/attachments` relative path `AGENTS_URL`/the rescan route
- * below already use — same-origin, proxied by `src/server/modules/assistant.ts` to the agent
+ * below already use — same-origin, proxied by `apps/website/src/server/runtime/composition/modules/assistant.ts` to the agent
  * daemon, matching every other request this dock makes. Memoized for the same reason the transport
  * is: it owns internal per-uploader batch-quota state (`create-daemon-attachment-uploader.ts`'s
  * `batchUsage` map), so rebuilding it on every render would silently reset a turn's running quota
@@ -1075,7 +1075,7 @@ function withLatestLocalCliSelection(
  * client-side check that mirrors a server-side one it cannot reach (see `rules.ts`'s
  * `MEDIA_HTML_ATTRIBUTE_ALLOWED_NAMES` doc for the same "keep identical, by hand" pattern).
  *
- * Owner-directed (2026-09-21): must stay equal to `apps/website/src/features/media/upload-limits.ts`'s
+ * Owner-directed (2026-09-21): must stay equal to `apps/website/src/contracts/core/upload-limits.ts`'s
  * `TOVU_MAX_UPLOAD_BYTES` (50 MiB) and `agent-daemon-server.ts`'s `ATTACHMENT_MAX_BATCH_BYTES`
  * (100 MiB, `TOVU_MAX_UPLOAD_BYTES * 2`) — update both together if either changes.
  */
@@ -1254,7 +1254,7 @@ async function fetchAgents(): Promise<ChatPaneAgent[]> {
 /** The client-side cache key for `/api/agents`, scoped to the current admin boot below. */
 const AGENTS_QUERY_KEY = ["assistant", "agents"] as const;
 
-// Match @jini-ai/agent-runtime/src/model-discovery.ts:8; its export requires Node APIs.
+// Match Jini packages/agent-runtime/src/model-discovery.ts:8; its export requires Node APIs.
 const AGENTS_STALE_TIME_MS = 15 * 60_000;
 const AGENTS_RETRY_TIME_MS = 30_000;
 const AGENTS_PENDING_DELAYS_MS = [1_000, 2_000, 4_000] as const;
@@ -1718,7 +1718,7 @@ function includeIfNonEmptyArray<K extends string, V>(key: K, value: readonly V[]
  *   composer's currently-pinned Agent Plugin chips.
  * @param input.conversationId - `chats.activeId` (`useChatsSeam`) — the same id already passed to
  *   `<ChatPane conversationId={...}>` for message persistence. Lets `agent-daemon-server.ts`'s
- *   `onStarted` key its per-conversation agent-CLI session lookup (`agent-session-resume.ts`,
+ *   `onStarted` key its per-conversation agent-CLI session lookup (`Jini packages/daemon/src/session-coordination.ts`,
  *   `RunEndPayload.sessionRef`'s round trip) — see that file's own doc. `undefined` before any
  *   conversation is active (e.g. `chats.activeId` is `null` right after "New chat").
  * @returns The context object to merge into a run's `contextRef`.

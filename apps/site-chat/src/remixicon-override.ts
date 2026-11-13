@@ -31,7 +31,7 @@
  * This version instead ships both `apps/site-chat/public/remixicon.css` AND
  * `apps/site-chat/public/remixicon.woff2` as plain static files. Vite's `publicDir` copies them to
  * `dist/` UNCHANGED (no hashing, no processing, no JS-bundle involvement at all), and
- * `src/server/middleware/site-chat-static.ts`'s `express.static(distDir)` mount (the same mechanism
+ * `apps/website/src/server/inbound/public-http/middleware/site-chat-static.ts`'s `express.static(distDir)` mount (the same mechanism
  * that already serves `site-assistant.js`/`.css`) serves them at `/site-chat/remixicon.css` and
  * `/site-chat/remixicon.woff2` with zero server-side changes. Because both files sit in `dist/`
  * together, `remixicon.css`'s own `@font-face { src: url("./remixicon.woff2") }` resolves correctly

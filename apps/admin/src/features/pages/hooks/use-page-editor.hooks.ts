@@ -507,7 +507,7 @@ function applySavedPage(
  * **Metadata first, body second — reversed 2026-09-07, deliberately.** It used to be body first,
  * on the reasoning that "if the metadata write fails on a slug conflict, the operator's actual
  * content is already safe". That ordering is exactly what made a concurrency guard impossible:
- * `PUT /pages/:id/html` (`routes/admin/pages/update-html.ts`) reads the row and writes it back
+ * `PUT /pages/:id/html` (`apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts`) reads the row and writes it back
  * inside ONE request, so the version its compare-and-set conditions on is one it captured
  * microseconds earlier — never the version this editor loaded — and it bumps `version` on the way
  * through. Writing it first therefore both clobbered the other operator's body AND invalidated the
