@@ -3,20 +3,21 @@
 ## Problem
 List calls with a limit but no cursor and no "more exist" signal (members 100, newsletter 100, other-site keys 50, visitor assistant 20) return the first N rows silently.
 The admin screen and the assistant both believe they have everything; older rows are unreachable.
-Forms submissions, trash, comments and the Jini admin entity list already page as `{ items, nextCursor }`; the rest do not.
+Forms submissions, trash, comments and the Jini admin entity list already page as `{ items, nextCursor }`; Jini media (`packages/cms/src/media/list-page.ts` `listMediaPage`) and the media tools already return `{ media, nextCursor }` / `{ documents, nextCursor }` — the existing-key-plus-`nextCursor` shape T3/T4 copy; the Jini chat store pages conversations/messages with its own owner-bound cursor (`packages/chat/src/store/sql/cursor.ts`). The rest do not.
 
 ## Rule
 Every capped list returns `{ items, nextCursor }` (`nextCursor: null` on the last page) over a keyset order ending in the row id, and accepts `{ limit?, cursor? }`. Tools tell the model in words when the list is incomplete. Admin lists show "Load more" while `nextCursor !== null`. Deliberate caps listed as exempt stay as they are.
 
 ## Mechanism (already built — use it)
-Jini `@jini-ai/core/list-page` (Jini commit 71121e5e3, `packages/core/src/list-page.ts`):
+Jini `@jini-ai/core/list-page` (Jini clone branch `w3-db-main`, commit 64619ab41 on Jini main 0.7.1; `packages/core/src/list-page.ts`):
 - `interface ListPage<T> { items: readonly T[]; nextCursor: string | null }`
 - `parseListPageRequest({ value: { limit, cursor } }, { defaultLimit, maxLimit }?) → { limit, cursor: string | null }` — query strings or tool input; over-large limits are clamped, malformed ones are a `ToolInputError` (400).
 - `encodeListCursor({ position })` / `decodeListCursor({ cursor, size })` — opaque base64url of the position `[...sortValues, id]`; a foreign cursor is refused ("invalid cursor"), never restarts at page one.
 - `pageFromOverfetch({ rows, limit, positionOf })` — cut a page from a query that fetched `limit + 1` rows.
 - `pageFromArray({ rows, limit, cursor, positionOf })` — the in-memory twin (ascending; for a descending order make `positionOf` return the key so ascending order matches, or keep SQL ascending).
 - `listPageForModel({ page, toolId })` → `{ items, nextCursor, more? }` — `more` says "This is NOT the full list … call <tool> again with cursor set to nextCursor".
-Existing `${createdAt}::${id}` cursors (`@jini-ai/cms` `encodeKeysetCursor`, Tovu `platform/db/keyset-cursor.ts`) stay where they are; new sites use `encodeListCursor`.
+Existing cursors stay where they are: `@jini-ai/cms` `encodeKeysetCursor` (`packages/cms/src/core/keyset-cursor.ts:17`, used by media), Tovu `platform/db/keyset-cursor.ts`, and the chat store's owner-bound `encodeCursor` (a chat list site reuses THAT one, so a cursor cannot cross owners). Every other new site uses `encodeListCursor`.
+Worked example (T1 + T2 + T3 + T4, commit b1aed55c1 in the Tovu clone): members — `apps/website/src/features/members/repo.ts` `SqlMemberRepo.list`, `repo.memory.ts`, `tool-registrations.ts` `members_list`, `server/inbound/admin-http/routes/members/list.ts`; test template `apps/website/src/features/members/__tests__/member-repo.list-cursor.test.ts`.
 
 ## Decision table
 
@@ -39,16 +40,16 @@ const rows = await this.kernel.run((db) => {
 });
 return pageFromOverfetch({ rows: rows.map(toRecord), limit, positionOf: (r) => [r.k, r.id] });
 ```
-Keep the existing default/max constants. Keep an `afterId` parameter ONLY if a caller outside this repo still passes it; otherwise replace it with `cursor`.
+Keep the existing default/max constants. The repo itself takes only `cursor`; an `afterId` the tool or route already accepts stays there as an alias: `encodeListCursor({ position: [afterId] })` (id-only orders). Callers that read the old array move to `.items` in the same commit.
 
 ### T2 T-MEMORY — in-memory twin
 `return pageFromArray({ rows: filtered, limit, cursor: optional.cursor ?? null, positionOf: (r) => [r.k, r.id] });` with the same limit clamp as the SQL repo.
 
 ### T3 T-TOOL — assistant list tool
-Input schema: add `cursor: { type: "string", description: "nextCursor from the previous call. Omit for the first page." }` and `limit` (integer, 1..max). Handler: `const { limit, cursor } = parseListPageRequest({ value: input }, { defaultLimit: X, maxLimit: X });` → call the repo → `return { ...listPageForModel({ page, toolId: "<this tool id>" }), items: page.items.map(toView) }` — keep the tool's existing array key name too if its description names it (e.g. `members: page.items.map(toView)`), so: `{ members, nextCursor, more }`. Remove a now-dead `afterId` input only if no prompt/skill text names it (`rg -n "afterId" content apps/website/src/assistant`); otherwise keep it as an alias mapped to `encodeListCursor({ position: [afterId] })` for id-only orders.
+Input schema: add `cursor: { type: "string", description: "nextCursor from the previous call. Omit for the first page." }` and `limit` (integer, 1..max). Handler: `const { limit, cursor } = parseListPageRequest({ value: input }, { defaultLimit: X, maxLimit: X });` → call the repo → `return { ...listPageForModel({ page, toolId: "<this tool id>" }), items: page.items.map(toView) }` — keep the tool's existing array key name too if its description names it (e.g. `members: page.items.map(toView)`), so: `{ members, nextCursor, more }`. Keep an existing `afterId` input as an alias mapped to `encodeListCursor({ position: [afterId] })` (id-only orders), refusing both at once; keep any existing "unknown afterId" refusal. Add `cursor` to the schema and update the schema contract test (members: `agent-tools.contract.test.ts`).
 
 ### T4 T-HTTP — GET route
-`const { limit, cursor } = parseListPageRequest({ value: req.query }, { defaultLimit, maxLimit });` → `res.json({ <existingKey>: page.items.map(toResponse), nextCursor: page.nextCursor })`. KEEP the existing array key (no client breaks); ADD `nextCursor`. Map `ToolInputError` to `400 { error, code: "VALIDATION_ERROR" }`.
+`const { limit, cursor } = parseListPageRequest({ value: req.query }, { defaultLimit, maxLimit });` → `res.json({ <existingKey>: page.items.map(toResponse), nextCursor: page.nextCursor })`. KEEP the existing array key (no client breaks); ADD `nextCursor`. Map `ToolInputError` to `400 { error, code: "VALIDATION_ERROR" }`. If the route already parses `limit` leniently (bad limit → default) and a test pins that, keep that parse and read only `cursor` (members route does).
 
 ### T5 T-ADMIN — admin list screen/hook
 Keep fetched pages in state; render a "Load more" button below the list while `nextCursor !== null` that fetches with `cursor=nextCursor` and appends. Follow `@jini-ai/admin` `EntityList` (`packages/admin/src/react/entities/EntityList.tsx`) and the theme's existing button. Never auto-load every page in a loop. Show nothing extra on the last page.
@@ -68,4 +69,4 @@ Keep fetched pages in state; render a "Load more" button below the list while `n
 3. Run one file only (commands in `lost-update.md` → Verify; same resolver shim).
 
 ## Status / remaining (2026-11-13)
-Done: Jini mechanism with unit tests (25 cases). NOT done: an example site fix in Tovu (context budget). First Terra pilot = members (repo + memory + `members_list` tool + admin members route), then STOP for review before the rest.
+Done: Jini mechanism on main (`w3-db-main` 64619ab41, unit tests). Members example (T1+T2+T3+T4, b1aed55c1): regression test 12/12 RED before, GREEN after; mutation `limit(limit + 1)`→`limit(limit)` 4 RED; route and tool mutations (drop `nextCursor`) RED. NOT done: T5 admin "Load more" for members (`apps/admin/src/features/members/`, `api.listMembers` in `apps/admin/src/lib/api.ts`) — a UI change; and the Jini release + Tovu bump.
