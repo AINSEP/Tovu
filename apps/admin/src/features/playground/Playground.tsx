@@ -1,7 +1,7 @@
+import { createPlaygroundTranslator } from "./Playground.hooks";
 import "../../styles/playground.css";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { usePlaygroundCanvas } from "./hooks/use-playground-canvas.hooks";
-import { t as translatePlayground } from "./playground-i18n";
 
 /**
  * @file The Studio "Playground" screen — a whiteboard for the assistant.
@@ -43,7 +43,7 @@ export interface PlaygroundProps {
 export function Playground({ usePlaygroundCanvasHook = usePlaygroundCanvas }: PlaygroundProps = {}) {
   const { registerCanvas } = usePlaygroundCanvasHook();
   const locale = useAdminLocale();
-  const t = (key: string) => translatePlayground({ locale: locale, key: key });
+  const t = createPlaygroundTranslator({ locale });
 
   return (
     <div className="page">

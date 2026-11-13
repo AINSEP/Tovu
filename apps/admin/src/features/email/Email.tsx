@@ -1,3 +1,4 @@
+import { createEmailTabLabel } from "./Email.hooks";
 import { agentHandle } from "@jini-ai/agentic";
 import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
@@ -197,7 +198,7 @@ export function Email(props: { tabId?: string | null; part?: string | null; useE
     hooks, locale, part: props.part,
     onPart: (next) => navigate(`/email?tab=${activeId}&p=${encodeURIComponent(next)}`, { replace: true }),
   };
-  const tabLabel = (id: EmailTabId) => t({ locale, key: TAB_LABELS[id] });
+  const tabLabel = createEmailTabLabel({ locale, labels: TAB_LABELS });
   return (
     <div className="page email-page">
       <div className="page-header">

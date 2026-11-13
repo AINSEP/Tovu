@@ -1,3 +1,4 @@
+import { navigateDeploymentTab } from "./Deployment.hooks";
 import { agentHandle } from "@jini-ai/agentic";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
@@ -103,9 +104,6 @@ export function Deployment(props: DeploymentProps) {
     },
   ];
 
-  function handleTabChange(nextTabId: string) {
-    navigate(`/deployment?tab=${nextTabId}`, { replace: true });
-  }
 
   return (
     <div className="page">
@@ -128,7 +126,7 @@ export function Deployment(props: DeploymentProps) {
         ariaLabel={t({ locale: locale, key: "Deployment" })}
         tabs={tabs}
         activeId={activeTabId}
-        onChange={handleTabChange}
+        onChange={(nextTabId) => navigateDeploymentTab({ nextTabId })}
         containerHandle="deployment-tab-bar"
       />
       {deploymentTabPanel(activeTabId)}

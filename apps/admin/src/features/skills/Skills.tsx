@@ -1,9 +1,8 @@
+import { useSkillsTranslator } from "./Skills.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { agentHandle } from "@jini-ai/agentic";
 import { SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
 import { ErrorNotice, type Translate } from "@jini-ai/ui/panel-kit";
-import { useCallback } from "react";
-import { t as translateSkills } from "./skills-i18n";
 import "@jini-ai/ui/settings-dialog.css";
 import { SkillInstallConfirmation } from "./SkillInstallConfirmation";
 import { SkillRemoveConfirmDialog } from "./SkillRemoveConfirmDialog";
@@ -72,7 +71,7 @@ export function Skills({ useSkillsHook = useSkills, useLocaleHook = useAdminLoca
 } = {}) {
   const themeBoundary = useAdminThemeBoundary({}, {});
   const locale = useLocaleHook();
-  const t = useCallback((key: string) => translateSkills({ locale, key }), [locale]);
+  const t = useSkillsTranslator({ locale });
   const controller = useSkillsHook({ t });
   const filesModal = useSkillFilesModal(controller.inspecting, controller.onCloseFiles, { t });
   const tabs: SettingsDialogTab[] = [

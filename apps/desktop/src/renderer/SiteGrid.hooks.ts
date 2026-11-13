@@ -263,3 +263,15 @@ export function siteCardTone(status: SiteRecord['status'], _options = {}): SiteC
 export function cardOpenClass({ openable }: { openable: boolean }, _options = {}): string {
   return openable ? 'is-openable' : '';
 }
+
+/** Parent-folder display keeps the saved path spelling, including Windows separators. O(n). */
+export function siteCardParentFolder({ installDir }: { installDir: string }, _options = {}): string {
+  const separator = (index: number) => installDir[index] === '/' || installDir[index] === "\\";
+  let end = installDir.length;
+  while (separator(end - 1)) end--;
+  let start = end;
+  while (start > 0 && !separator(start - 1)) start--;
+  if (start === 0) return installDir || '/';
+  while (separator(start - 1)) start--;
+  return installDir.slice(0, start) || '/';
+}

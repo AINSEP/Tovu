@@ -1,3 +1,4 @@
+import { createGoToTemplateInEditor } from "./TemplateSourceModal.hooks";
 import { agentHandle } from "@jini-ai/agentic";
 import { CodeView, CodeWrapToggle } from "@/components/CodeView/CodeView";
 import { useCodeWrap } from "@/components/CodeView/use-code-wrap.hooks";
@@ -6,8 +7,7 @@ import { PreviewModalShell } from "@jini-ai/ui/preview-modal-shell";
 
 import type { ThemeTier } from "@/lib/api";
 import type { Translate } from "@jini-ai/ui/panel-kit";
-import { navigate } from "@/lib/router";
-import { templateEditUrl, useWiredTemplateSource } from "./use-template-source.hooks";
+import { useWiredTemplateSource } from "./use-template-source.hooks";
 
 /**
  * @file "View Template" (2026-08-10) — read-only inspection of the theme page a Post's or Page's
@@ -101,14 +101,7 @@ export function TemplateSourceModal({
   // Wrap on by default, same toggle as the plugin files viewer (owner, 2026-10-10).
   const { wrap, toggleWrap } = useCodeWrap();
 
-  // Closing before navigating (not after — `navigate()` doesn't return a completion signal to
-  // sequence on) so this modal's own state never lingers mounted-but-stale under whatever screen
-  // Theme Explore renders next.
-  function goToTemplateInEditor() {
-    if (!confirmLeave()) return;
-    onClose();
-    navigate(templateEditUrl(themeId, templateFilename));
-  }
+  const goToTemplateInEditor = createGoToTemplateInEditor({ themeId, templateFilename, confirmLeave, onClose });
 
   let stageContent;
   if (themeTier === null) {

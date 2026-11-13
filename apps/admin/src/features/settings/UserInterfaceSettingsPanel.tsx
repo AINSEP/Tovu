@@ -1,7 +1,7 @@
+import { createUserInterfaceSettingsPanelTranslator } from "./UserInterfaceSettingsPanel.hooks";
 import { agentHandle } from "@jini-ai/agentic";
 
 import "./user-interface-settings.css";
-import { t as tInterface } from "./settings-interface-i18n";
 import { useUserInterfaceTab, type UserInterfaceTabSlice } from "./hooks/use-user-interface-tab.hooks";
 
 /**
@@ -14,7 +14,7 @@ import { useUserInterfaceTab, type UserInterfaceTabSlice } from "./hooks/use-use
  */
 export function UserInterfaceSettingsPanel(props: { slice: UserInterfaceTabSlice; locale: string }) {
   const tab = useUserInterfaceTab(props.slice);
-  const t = (key: string) => tInterface({ locale: props.locale, key: key });
+  const t = createUserInterfaceSettingsPanelTranslator({ locale: props.locale });
   return (
     <>
       <InterfaceSwitchRow

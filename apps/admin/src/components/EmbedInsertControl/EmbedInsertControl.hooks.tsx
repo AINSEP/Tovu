@@ -1,3 +1,4 @@
+import { t as translateForEmbedInsertControl } from "../shared-components-i18n";
 import type { WidgetPickerPort } from "../WidgetPickerDialog/widget-picker-port.hooks";
 import { useState } from "react";
 import { useWidgetAddControl } from "../WidgetPickerDialog/WidgetPickerDialog";
@@ -66,4 +67,9 @@ export function useEmbedInsertControl(editor: EmbedEditor | null, { widgetPort, 
   // "Widget…" full-flow path in the component's JSX (via the untouched `WidgetAddControl`) calls it
   // directly from its own `onResolved`, exactly as the pre-split component did inline.
   return { open, setOpen, widgetMode, setWidgetMode, mediaPicking, setMediaPicking, formControl, menuControl, galleryControl, insertWidget };
+}
+
+/** Bind this screen's copy to the current locale. */
+export function createEmbedInsertControlTranslator({ locale }: { locale: string }, _options = {}) {
+  return (key: string): string => translateForEmbedInsertControl({ locale, key });
 }

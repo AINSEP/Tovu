@@ -1,3 +1,4 @@
+import { createThemePublishClick } from "./ThemeExplore.hooks";
 import { themeExplorePreviewMode, useThemeExplorePreview, type ThemeExplorePreviewMode } from "./hooks/use-theme-explore-preview.hooks";
 import { WiredThemePreviewReloadButton } from "./ThemePreviewReloadButton";
 import { CodeView, CodeWrapToggle } from "../../components/CodeView/CodeView";
@@ -1000,12 +1001,7 @@ function ThemeExplorePublishToggle({
   const disabled = state.kind === "locked" || publishing;
   const reasonId = state.kind === "locked" ? "theme-explore-publish-reason" : undefined;
 
-  // Guarded on `state.kind` (inside `dispatchPublishToggle`) rather than relying solely on the DOM's
-  // own "disabled buttons don't fire click" behavior — so a locked switch can never dispatch a
-  // publish call no matter what wraps or simulates the click.
-  function handleClick() {
-    dispatchPublishToggle(state, setPagePublished);
-  }
+  const handleClick = createThemePublishClick({ state, setPagePublished, dispatchPublishToggle });
 
   return (
     <div className="theme-explore-publish-toggle">

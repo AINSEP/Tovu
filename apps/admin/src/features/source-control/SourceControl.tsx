@@ -1,3 +1,4 @@
+import { navigateSourceControlTab } from "./SourceControl.hooks";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -83,9 +84,6 @@ export function SourceControl(props: SourceControlProps) {
     },
   ];
 
-  function handleTabChange(nextTabId: string) {
-    navigate(`/source-control?tab=${nextTabId}`, { replace: true });
-  }
 
   return (
     <div className="page">
@@ -109,7 +107,7 @@ export function SourceControl(props: SourceControlProps) {
         ariaLabel={t({ locale: locale, key: "Source Control" })}
         tabs={tabs}
         activeId={activeTabId}
-        onChange={handleTabChange}
+        onChange={(nextTabId) => navigateSourceControlTab({ nextTabId })}
         containerHandle="source-control-tab-bar"
       />
       {/* `providers` is the only tab (SOURCE_CONTROL_TAB_IDS) and `activeTabId` always resolves to

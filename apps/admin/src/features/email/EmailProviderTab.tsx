@@ -1,3 +1,4 @@
+import { createEmailProviderLabel, createEmailProviderSelect } from "./EmailProviderTab.hooks";
 import type { ChangeEvent } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
@@ -33,7 +34,7 @@ function Lanes(props: { status: AdminMailStatus | null; providers: readonly Mail
   const { status, locale } = props;
   const lanes = status?.lanes ?? [];
   if (lanes.length === 0) return null;
-  const label = (id: string | null) => (id === null ? t({ locale, key: "None" }) : props.providers.find((p) => p.id === id)?.label ?? id);
+  const label = createEmailProviderLabel({ locale, providers: props.providers });
   return (
     <dl className="email-facts">
       {lanes.map((lane) => {
@@ -191,7 +192,7 @@ export const CAPABILITIES_PART = "_capabilities";
 
 function AddProvider(props: { controller: EmailProviderController; locale: string; onSelect?: (id: string) => void }) {
   const { controller, locale } = props;
-  const select = (id: string | undefined) => { if (id) props.onSelect?.(id); };
+  const select = createEmailProviderSelect({ props });
   return (
     <>
       {controller.addError ? <div className="email-row" role="alert">

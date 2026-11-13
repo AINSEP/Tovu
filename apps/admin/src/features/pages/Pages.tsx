@@ -1,3 +1,4 @@
+import { createPagesTabSelect } from "./Pages.hooks";
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { DataTableSortState } from "@jini-ai/admin/core";
 import { agentHandle } from "@jini-ai/agentic";
@@ -25,7 +26,7 @@ import {
 } from "./rules";
 import { useWiredPages } from "./hooks/use-pages.hooks";
 import { useWiredThemePages } from "./hooks/use-theme-pages.hooks";
-import { resolvePagesTabFromUrl, writePagesTabToUrl, type PagesTabId } from "./hooks/pages-tab-url.hooks";
+import { resolvePagesTabFromUrl, type PagesTabId } from "./hooks/pages-tab-url.hooks";
 import { ThemePagesTab } from "./ThemePagesTab";
 
 /**
@@ -142,10 +143,7 @@ export function Pages(props: PagesProps) {
   // chrome state per the same owner ruling above, passed straight through as `sort`/`onSortChange`.
   const [sort, setSort] = useState<DataTableSortState>(DEFAULT_PAGE_SORT);
 
-  function selectTab(id: PagesTabId) {
-    setActiveTab(id);
-    writePagesTabToUrl(id);
-  }
+  const selectTab = createPagesTabSelect({ setActiveTab });
 
   // `pagesListNotice` answers non-null exactly when `pages` is null, so gating on `!pages` returns
   // that notice AND keeps TS's narrowing, so `rows={pages}` below type-checks as `AdminPost[]`

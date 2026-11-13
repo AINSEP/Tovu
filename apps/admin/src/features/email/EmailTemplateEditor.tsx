@@ -1,3 +1,4 @@
+import { createEmailPageTranslator } from "./EmailTemplateEditor.hooks";
 import { useEffect } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 import { Icon } from "@jini-ai/ui";
@@ -146,7 +147,7 @@ function Header(props: { controller: EmailTemplateEditorController; locale: stri
 /** HTML | Preview tabs (Pages' segmented tablist and keyboard contract), device widths, As sent. */
 function Toolbar(props: { controller: EmailTemplateEditorController; view: EmailTemplateViewState; locale: string }) {
   const { controller, view, locale } = props;
-  const pageT = (key: string) => pageEditorT(locale, key);
+  const pageT = createEmailPageTranslator({ locale });
   const { onKeyDown } = useTabBarKeyboard({ tabs: TABS, activeId: view.tab, onChange: (id) => view.setTab(id as EmailTemplateTab) });
   return (
     <div className="page-editor-toolbar">

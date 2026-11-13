@@ -1,6 +1,6 @@
+import { CUSTOM, usePluginProviderChoice } from "./PluginProviderSettingField.hooks";
 import { agentHandle } from "@jini-ai/agentic";
 import { interpolate } from "@jini-ai/ui/panel-kit";
-import { useState } from "react";
 
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import type { AdminPluginProviderSettingField } from "@/lib/api";
@@ -24,18 +24,9 @@ export interface ProviderSettingFieldProps {
   readonly t: (key: string) => string;
 }
 
-/** The `Custom…` option's value; never a real setting value (those are URLs or plain text). */
-const CUSTOM = "\u0000custom";
-
 /** A select of the declared options; "Custom…" (when allowed) reveals a text input for any other value. */
 function ChoiceControl({ field, id, value, onChange, t, controlAttrs }: Omit<ProviderSettingFieldProps, "handle" | "pluginName"> & { controlAttrs: Record<string, unknown> }) {
-  const options = field.options ?? [];
-  const listed = options.some((option) => option.value === value);
-  const [custom, setCustom] = useState(Boolean(field.allowCustom) && value !== "" && !listed);
-  const choose = (next: string) => {
-    setCustom(next === CUSTOM);
-    onChange(next === CUSTOM ? "" : next);
-  };
+  const { options, listed, custom, choose } = usePluginProviderChoice({ field, value, onChange });
   return (
     <>
       <select id={id} value={custom ? CUSTOM : value} onChange={(event) => choose(event.target.value)} {...controlAttrs}>

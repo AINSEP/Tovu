@@ -1,3 +1,4 @@
+import { siteCardParentFolder } from './SiteGrid.hooks.js';
 import { namePasteHandler } from '../contracts/site-name.js';
 /**
  * The site grid: one card per website, and each card's inline delete-confirm overlay. Split out
@@ -230,17 +231,6 @@ function SiteCard({
   const powerError = power.errorOf(project.id);
   const connection = sitePortPresentation({ port: project.port, status });
   const statusCopy = siteCardStatus({ project, connection });
-  /** Parent-folder display keeps the saved path spelling, including Windows separators. O(n). */
-  function siteCardParentFolder({ installDir }: { installDir: string }, _options = {}): string {
-    const separator = (index: number) => installDir[index] === '/' || installDir[index] === "\\";
-    let end = installDir.length;
-    while (separator(end - 1)) end--;
-    let start = end;
-    while (start > 0 && !separator(start - 1)) start--;
-    if (start === 0) return installDir || '/';
-    while (separator(start - 1)) start--;
-    return installDir.slice(0, start) || '/';
-  }
   const parentFolder = siteCardParentFolder({ installDir: project.installDir });
 
   // The inline panel owns the card; its actions must not share space with the menu trigger, and the

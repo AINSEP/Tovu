@@ -1,3 +1,4 @@
+import { createAuthenticationTranslator } from "./Authentication.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import {
@@ -11,7 +12,7 @@ import type { ReactElement } from "react";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import type { Translate } from "@jini-ai/ui/panel-kit";
-import { providerBackendNote, t as translateAuthentication } from "./authentication-i18n";
+import { providerBackendNote } from "./authentication-i18n";
 import {
   AUTHENTICATION_PROVIDER_SCHEMAS,
   type AuthenticationCredentialFieldSchema,
@@ -139,7 +140,7 @@ function AuthenticationHomePanel({ t }: { t: Translate }): ReactElement {
 export function Authentication(): ReactElement {
   const themeBoundary = useAdminThemeBoundary({}, {});
   const locale = useAdminLocale();
-  const t: Translate = (key) => translateAuthentication({ locale: locale, key: key });
+  const t: Translate = createAuthenticationTranslator({ locale });
   const tabs: SettingsDialogTab[] = [
     {
       id: "home",

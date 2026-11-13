@@ -1,5 +1,5 @@
 /** Metadata-only Shared Keys state. Secrets are passed through once and never enter React state. */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import type { LegacyImportReport, OwnerStoreBridge, OwnerStoreEntry, OwnerStoreReply, SharedOAuthDisconnectReport } from '../contracts/owner-store.js';
 import { ownerStoreBridge } from './runner-api.js';
 
@@ -102,4 +102,55 @@ export function useSharedKeys({ bridge = ownerStoreBridge({}) }: { bridge?: Owne
     return () => { mounted.current = false; };
   }, [run]);
   return { entries, loaded, busy, message, error, available: bridge !== undefined, run };
+}
+
+/** Build the submit action for KeyForm. */
+export function createKeyFormSubmit({ bridge, state, entry }: { bridge: OwnerStoreBridge; state: ReturnType<typeof useSharedKeys>; entry?: OwnerStoreEntry }, _options = {}) {
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const fields = new FormData(form);
+    const provider = String(fields.get('provider')).trim();
+    const replacement = entry ? { id: entry.id, kind: entry.kind, label: entry.label, provider: entry.provider,
+      expectedRevision: entry.revision, meta: {}, payload: { token: String(fields.get('token')) } } : {
+      kind: 'vendor' as const, label: String(fields.get('label')).trim(), provider,
+      expectedRevision: null, meta: { credentialType: 'vendor', worksFor: [provider] },
+      payload: { vendorId: provider, token: String(fields.get('token')) },
+    };
+    const input = { store: 'project' as const, entry: replacement };
+    form.reset();
+    void state.run({ action: () => bridge.put(input, {}) });
+  };
+  return submit;
+}
+
+/** Build the submit action for ProviderKeyForm. */
+export function createProviderKeyFormSubmit({ bridge, state, entry }: { bridge: OwnerStoreBridge; state: ReturnType<typeof useSharedKeys>; entry: OwnerStoreEntry }, _options = {}) {
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const input = form.elements.namedItem('secrets') as HTMLInputElement;
+    let secrets: Record<string, string>;
+    try {
+      secrets = JSON.parse(input.value);
+      if (!secrets || Array.isArray(secrets) || typeof secrets !== 'object' || !Object.values(secrets).every(value => typeof value === 'string')) throw new Error();
+    } catch { input.setCustomValidity('Enter a JSON object with secret field names and their new text values.'); input.reportValidity(); return; }
+    input.setCustomValidity('');
+    form.reset();
+    void state.run({ action: () => bridge.put({ store: 'project', entry: { id: entry.id, kind: entry.kind, label: entry.label, provider: entry.provider,
+      expectedRevision: entry.revision, meta: {}, payload: { secrets } } }, {}) });
+  };
+  return submit;
+}
+
+/** Build the submit action for ImportForm. */
+export function createImportFormSubmit({ bridge, state }: { bridge: OwnerStoreBridge; state: ReturnType<typeof useSharedKeys> }, _options = {}) {
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const passphrase = String(new FormData(form).get('passphrase'));
+    form.reset();
+    void state.run({ action: () => bridge.import({ source: 'backup', passphrase }, {}) });
+  };
+  return submit;
 }

@@ -1,3 +1,4 @@
+import { t as translateForWidgetEmbed } from "../app-i18n";
 import { useEffect, useState, type ComponentProps } from "react";
 import type { NodeViewProps } from "@tiptap/react";
 
@@ -222,4 +223,9 @@ function changeDialogController(
     },
     onCancel: close,
   };
+}
+
+/** Bind this screen's copy to the current locale. */
+export function createWidgetEmbedTranslator({ locale }: { locale: string }, _options = {}) {
+  return (key: string): string => translateForWidgetEmbed({ locale, key });
 }

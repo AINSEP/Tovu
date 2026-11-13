@@ -1,3 +1,4 @@
+import { createWidgetEmbedTranslator } from "./widget-embed-extension.hooks";
 import { mergeAttributes, Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
 import type { AdminWidget } from "./api";
@@ -9,7 +10,6 @@ import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields/WidgetConf
 import { PlacementContentFields } from "../components/WidgetConfigFields/PlacementContentFields";
 import { HtmlAttributeRows } from "../components/WidgetConfigFields/HtmlAttributeRows";
 import { t as sharedComponentsT } from "../components/shared-components-i18n";
-import { t as translateApp } from "../app-i18n";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 import { uniqueId } from "./unique-id";
 
@@ -57,7 +57,7 @@ export function widgetTypeLabel(widget: AdminWidget | null | undefined): string 
  *  of only lowering its ESLint per-closure score. Exported for direct testability. */
 export function WidgetEmbedStatus({ widget, isBroken, typeLabel }: { widget: AdminWidget | null | undefined; isBroken: boolean; typeLabel: string }) {
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateApp({ locale: locale, key: key });
+  const t = createWidgetEmbedTranslator({ locale });
   if (widget === undefined) return <span className="notice">{t("Loading widget…")}</span>;
   if (isBroken) {
     return (
@@ -86,7 +86,7 @@ export function WidgetEmbedNodeView(props: NodeViewProps) {
   // `widget-embed-extension.hooks.ts`.
   const view = useWidgetEmbedNodeView(props);
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateApp({ locale: locale, key: key });
+  const t = createWidgetEmbedTranslator({ locale });
 
   return (
     <NodeViewWrapper as="div" className={view.nodeClassName} data-drag-handle contentEditable={false}>
@@ -207,7 +207,7 @@ function WidgetEmbedInsertControlEnabled(props: {
 }) {
   const editor = props.editor;
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateApp({ locale: locale, key: key });
+  const t = createWidgetEmbedTranslator({ locale });
   return (
     <WidgetAddControl
       triggerLabel={t("Insert widget")}
