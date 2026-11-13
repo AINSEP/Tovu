@@ -37,21 +37,54 @@ function shareStep({ req }: { req: Request }, _options = {}): string {
   return steps[`${req.method} ${suffix}`] ?? "Site sharing";
 }
 
+type SiteShareBackend = NonNullable<RouteDeps["siteShareBackend"]>;
+type ShareFail = (res: Response, error: unknown, req: Request) => void;
+
+interface GateShareRequestInput { req: Request; res: Response; deps: RouteDeps }
+
+/** Workspace, session-kind, RBAC and storage checks shared by every share route; answers the refusal itself and returns false. */
+async function gateShareRequest({ req, res, deps }: GateShareRequestInput, { artifact = false }: { artifact?: boolean } = {}): Promise<SiteShareBackend | false> {
+  res.set({ "Cache-Control": "no-store" });
+  const step = shareStep({ req });
+  if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ code: "NOT_FOUND", message: `${step} failed: this workspace is not available.` }); return false; }
+  const trust = getPublishTrustContext(res);
+  // Only the two artifact routes admit connected-computer sessions; admin operations keep RBAC.
+  if (trust && !artifact) { res.status(403).json({ code: "FORBIDDEN", message: `${step} requires an authorized admin session.` }); return false; }
+  if (!await authorizeOrRespond(res, trust ? publishTrustAuthorizeFor(trust) : deps.authorize, { principalId: getAuthedPrincipal(res).id, workspaceId: deps.workspaceId, permission: trust ? "publish_content.apply" : "site-backup.push", entityType: "site-backup" })) return false;
+  if (!deps.siteShareBackend) { res.status(503).json({ code: "UNAVAILABLE", message: `${step} requires a site folder and private artifact storage.` }); return false; }
+  return deps.siteShareBackend;
+}
+
+interface SendShareDownloadInput { req: Request; res: Response; deps: RouteDeps; backend: SiteShareBackend; fail: ShareFail }
+
+/** Streams one acknowledged, unrevoked export ZIP; a storage miss after headers are chosen answers JSON instead. */
+async function sendShareDownload({ req, res, deps, backend, fail }: SendShareDownloadInput): Promise<void> {
+  const registry = backend.registry;
+  const row = await registry.get({ shareId: String(req.params.shareId), site: deps.workspaceId });
+  if (!row || row.status === "revoked") { res.status(404).json({ code: "NOT_FOUND", message: "Export download failed: this export is missing or was revoked." }); return; }
+  if (row.needsAcknowledgement) {
+    res.status(409).json({ code: "ACKNOWLEDGE_CREDENTIALS", message: "This export may contain credentials. Review the warnings and acknowledge that you understand before downloading.", credentialWarnings: row.credentialWarnings ?? [] });
+    return;
+  }
+  res.set({ ...SHARE_DOWNLOAD_HEADERS, "Content-Disposition": `attachment; filename="${row.file}"` });
+  res.sendFile(`${row.shareId}.tovu.zip`, { root: registry.directory, dotfiles: "deny", cacheControl: false, lastModified: false }, error => {
+    if (!error) return;
+    if (res.headersSent) { res.destroy(); return; }
+    res.removeHeader("Content-Disposition");
+    res.type("application/json");
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      res.status(404).json({ code: "NOT_FOUND", message: "Export download failed: the ZIP is missing from storage. Create a new export." });
+      return;
+    }
+    fail(res, error, req);
+  });
+}
+
 /** Authenticated management and ZIP-only download. Mounted under the existing admin session gate. */
 export function registerAdminSiteShareRoutes(required: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
   const { app, deps } = required;
   const root = "/api/admin/v1/workspaces/:workspaceId/site-shares";
-  const gate = async (req: Request, res: Response, artifact = false) => {
-    res.set({ "Cache-Control": "no-store" });
-    const step = shareStep({ req });
-    if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ code: "NOT_FOUND", message: `${step} failed: this workspace is not available.` }); return false; }
-    const trust = getPublishTrustContext(res);
-    // Only the two artifact routes admit connected-computer sessions; admin operations keep RBAC.
-    if (trust && !artifact) { res.status(403).json({ code: "FORBIDDEN", message: `${step} requires an authorized admin session.` }); return false; }
-    if (!await authorizeOrRespond(res, trust ? publishTrustAuthorizeFor(trust) : deps.authorize, { principalId: getAuthedPrincipal(res).id, workspaceId: deps.workspaceId, permission: trust ? "publish_content.apply" : "site-backup.push", entityType: "site-backup" })) return false;
-    if (!deps.siteShareBackend) { res.status(503).json({ code: "UNAVAILABLE", message: `${step} requires a site folder and private artifact storage.` }); return false; }
-    return deps.siteShareBackend;
-  };
+  const gate = (req: Request, res: Response, artifact = false) => gateShareRequest({ req, res, deps }, { artifact });
   const fail = (res: Response, error: unknown, req: Request) => sendSiteShareFailure({ res, error, tracker: deps.tracker }, { step: shareStep({ req }) });
   app.get(root, async (req, res) => {
     try { const backend = await gate(req, res); if (backend) res.json({ shares: await backend.list({}) }); }
@@ -89,25 +122,7 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
     try {
       const backend = await gate(req, res);
       if (!backend) return;
-      const registry = backend.registry;
-      const row = await registry.get({ shareId: String(req.params.shareId), site: deps.workspaceId });
-      if (!row || row.status === "revoked") { res.status(404).json({ code: "NOT_FOUND", message: "Export download failed: this export is missing or was revoked." }); return; }
-      if (row.needsAcknowledgement) {
-        res.status(409).json({ code: "ACKNOWLEDGE_CREDENTIALS", message: "This export may contain credentials. Review the warnings and acknowledge that you understand before downloading.", credentialWarnings: row.credentialWarnings ?? [] });
-        return;
-      }
-      res.set({ ...SHARE_DOWNLOAD_HEADERS, "Content-Disposition": `attachment; filename="${row.file}"` });
-      res.sendFile(`${row.shareId}.tovu.zip`, { root: registry.directory, dotfiles: "deny", cacheControl: false, lastModified: false }, error => {
-        if (!error) return;
-        if (res.headersSent) { res.destroy(); return; }
-        res.removeHeader("Content-Disposition");
-        res.type("application/json");
-        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-          res.status(404).json({ code: "NOT_FOUND", message: "Export download failed: the ZIP is missing from storage. Create a new export." });
-          return;
-        }
-        fail(res, error, req);
-      });
+      await sendShareDownload({ req, res, deps, backend, fail });
     } catch (error) { fail(res, error, req); }
   });
   app.delete(`${root}/:shareId`, async (req, res) => {
