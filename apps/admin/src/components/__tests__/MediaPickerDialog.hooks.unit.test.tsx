@@ -157,7 +157,7 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
     vi.stubGlobal("fetch", fetchFake);
     try {
       const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: {} }));
-      expect(result.current.mediaOriginalUrl("m1")).toBe(api.mediaOriginalUrl("m1"));
+      expect(result.current.mediaOriginalUrl({ id: "m1" })).toBe(api.mediaOriginalUrl("m1"));
       await waitFor(() => expect(result.current.items?.map((item) => item.id)).toEqual(["m1"]));
       expect(String((fetchFake.mock.calls[0] as unknown as [string])[0])).toMatch(/\/media/);
     } finally {
@@ -234,7 +234,7 @@ describe("useMediaPickerItems / useMediaPickerDialog — injected port (no api s
 describe("createFakeMediaPickerPort — mediaOriginalUrl", () => {
   it("returns a distinct fake:// URL, never the real api.mediaOriginalUrl shape", () => {
     const port = createFakeMediaPickerPort();
-    expect(port.mediaOriginalUrl("m1")).toBe("fake://media-picker-original/m1");
+    expect(port.mediaOriginalUrl({ id: "m1" })).toBe("fake://media-picker-original/m1");
   });
 });
 

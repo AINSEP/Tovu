@@ -42,7 +42,7 @@ export type TemplateSourceFetchState =
  *  theme id or filename with a space/`#`/`?` would otherwise either 404 against the exact static path
  *  or get parsed as a query string; `pagesDir`'s own `/` is intentionally left unencoded, matching a
  *  real static path segment. */
-export function templateAssetUrl(themeId: string, templateFilename: string, apiVersion: 2 | undefined): string {
+export function templateAssetUrl({ themeId, templateFilename, apiVersion }: { themeId: string; templateFilename: string; apiVersion: 2 | undefined }, _options: Record<string, never> = {}): string {
   const { pagesDir } = resolveThemeLayout(apiVersion);
   return `/theme-assets/${encodeURIComponent(themeId)}/${pagesDir}/${encodeURIComponent(templateFilename)}`;
 }
@@ -60,12 +60,12 @@ export function templateAssetUrl(themeId: string, templateFilename: string, apiV
  * minus `.html`) always resolves it without needing `pagesDir` at all. Built with `URLSearchParams`,
  * matching that module's own encoding.
  *
- * @param themeId - The active theme id.
- * @param templateFilename - The selected template's filename (e.g. `posts-default.html`).
+ * @param required.themeId - The active theme id.
+ * @param required.templateFilename - The selected template's filename (e.g. `posts-default.html`).
  * @returns A `/themes/explore?theme=...&page=...` route path.
  * @complexity O(1).
  */
-export function templateEditUrl(themeId: string, templateFilename: string): string {
+export function templateEditUrl({ themeId, templateFilename }: { themeId: string; templateFilename: string }, _options: Record<string, never> = {}): string {
   const params = new URLSearchParams({ theme: themeId, page: templateFilename.replace(/\.html$/, "") });
   return `/themes/explore?${params.toString()}`;
 }
@@ -77,30 +77,33 @@ export function templateEditUrl(themeId: string, templateFilename: string): stri
  * (`TemplateSourceModal`'s render), which is also why this never fetches at all for a non-static
  * theme.
  *
- * @param themeId - The active theme id — used to build the fetch URL.
- * @param themeTier - The active theme's capability tier. Only `"static"` triggers a fetch;
+ * @param required.themeId - The active theme id — used to build the fetch URL.
+ * @param required.themeTier - The active theme's capability tier. Only `"static"` triggers a fetch;
  *   anything else (including `null`, meaning the tier itself could not be determined) leaves this
  *   in its initial `loading` state forever, since the caller renders its own explanation instead
  *   of ever showing that state.
- * @param themeApiVersion - The active theme's manifest `apiVersion` — `2` or `undefined` (v1) — used
+ * @param required.themeApiVersion - The active theme's manifest `apiVersion` — `2` or `undefined` (v1) — used
  *   to pick the right `pages`/`render/pages` folder via `templateAssetUrl`. Unknown-but-tier-known
  *   (e.g. presentation settings loaded but the theme's own `apiVersion` field wasn't in that
  *   response) is treated the same as `undefined` (v1), matching `resolveThemeLayout`'s own default.
- * @param templateFilename - The selected template's filename.
- * @param port - Injected {@link TemplateSourcePort} — see `template-source-port.hooks.ts`.
+ * @param required.templateFilename - The selected template's filename.
+ * @param required.port - Injected {@link TemplateSourcePort} — see `template-source-port.hooks.ts`.
  * @returns The current {@link TemplateSourceFetchState}.
  * @complexity Time/space: O(n) in the fetched document's size — one request, no retry loop.
  */
 export function useTemplateSource(
-  themeId: string,
-  themeTier: ThemeTier | null,
-  themeApiVersion: 2 | undefined,
-  templateFilename: string,
-  port: TemplateSourcePort,
+  { themeId, themeTier, themeApiVersion, templateFilename, port }: {
+    themeId: string;
+    themeTier: ThemeTier | null;
+    themeApiVersion: 2 | undefined;
+    templateFilename: string;
+    port: TemplateSourcePort;
+  },
+  _options: Record<string, never> = {},
 ): TemplateSourceFetchState {
   // Keyed reads replace the cleanup flag: a prior route's source cannot populate this key.
   const queryFetch = useQueryFetchCallback(async () => {
-    try { return await port.fetchTemplateSource(templateAssetUrl(themeId, templateFilename, themeApiVersion)); }
+    try { return await port.fetchTemplateSource({ url: templateAssetUrl({ themeId, templateFilename, apiVersion: themeApiVersion }) }); }
     catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load the template"); }
   }, [port, themeId, themeApiVersion, templateFilename]);
   // Query ownership handles StrictMode cleanup/replay without a module-level disposed flag
@@ -119,17 +122,20 @@ export function useTemplateSource(
  * `TemplateSourceModal.tsx` composes this and a test composes {@link useTemplateSource} with
  * `createFakeTemplateSourcePort`.
  *
- * @param themeId - See {@link useTemplateSource}.
- * @param themeTier - See {@link useTemplateSource}.
- * @param themeApiVersion - See {@link useTemplateSource}.
- * @param templateFilename - See {@link useTemplateSource}.
+ * @param required.themeId - See {@link useTemplateSource}.
+ * @param required.themeTier - See {@link useTemplateSource}.
+ * @param required.themeApiVersion - See {@link useTemplateSource}.
+ * @param required.templateFilename - See {@link useTemplateSource}.
  * @returns The current {@link TemplateSourceFetchState}.
  */
 export function useWiredTemplateSource(
-  themeId: string,
-  themeTier: ThemeTier | null,
-  themeApiVersion: 2 | undefined,
-  templateFilename: string,
+  { themeId, themeTier, themeApiVersion, templateFilename }: {
+    themeId: string;
+    themeTier: ThemeTier | null;
+    themeApiVersion: 2 | undefined;
+    templateFilename: string;
+  },
+  _options: Record<string, never> = {},
 ): TemplateSourceFetchState {
-  return useTemplateSource(themeId, themeTier, themeApiVersion, templateFilename, defaultTemplateSourcePort);
+  return useTemplateSource({ themeId, themeTier, themeApiVersion, templateFilename, port: defaultTemplateSourcePort });
 }

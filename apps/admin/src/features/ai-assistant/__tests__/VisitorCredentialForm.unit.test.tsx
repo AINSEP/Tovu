@@ -112,34 +112,34 @@ describe("visitorCredentialSaveStatusMessage", () => {
   it("asks for this provider's key in plain language when the stored key belongs to another endpoint", () => {
     expect(
       visitorCredentialSaveStatusMessage(
-        { status: "idle" },
-        { isSet: true, masked: "••••mw4w", provider: "google", baseUrl: "https://generativelanguage.googleapis.com", model: null, updatedAt: null },
-        undefined,
-        true,
+        { saveState: { status: "idle" },
+        stored: { isSet: true, masked: "••••mw4w", provider: "google", baseUrl: "https://generativelanguage.googleapis.com", model: null, updatedAt: null } },
+        { t: undefined,
+        storedKeyIsForOtherEndpoint: true },
       ),
     ).toBe("Your saved key is for a different provider. Paste a key for this one.");
   });
 
   it("reports Saving… while saving, regardless of stored", () => {
-    expect(visitorCredentialSaveStatusMessage({ status: "saving" }, null)).toBe("Saving…");
+    expect(visitorCredentialSaveStatusMessage({ saveState: { status: "saving" }, stored: null })).toBe("Saving…");
   });
 
   it("reports success once saved", () => {
-    expect(visitorCredentialSaveStatusMessage({ status: "saved", at: null }, null)).toBe("Saved to the server, encrypted.");
+    expect(visitorCredentialSaveStatusMessage({ saveState: { status: "saved", at: null }, stored: null })).toBe("Saved to the server, encrypted.");
   });
 
   it("reports the stored key when idle and a key is stored", () => {
     expect(
-      visitorCredentialSaveStatusMessage({ status: "idle" }, { isSet: true, masked: "••••ab12", provider: "google", baseUrl: null, model: null, updatedAt: null }),
+      visitorCredentialSaveStatusMessage({ saveState: { status: "idle" }, stored: { isSet: true, masked: "••••ab12", provider: "google", baseUrl: null, model: null, updatedAt: null } }),
     ).toBe("Stored on the server, encrypted. Paste a new key to replace it.");
   });
 
   it("prompts to paste a key, naming the button that writes it, when idle and nothing is stored", () => {
-    expect(visitorCredentialSaveStatusMessage({ status: "idle" }, null)).toBe("Paste your key, check it with Show, then press Save key.");
+    expect(visitorCredentialSaveStatusMessage({ saveState: { status: "idle" }, stored: null })).toBe("Paste your key, check it with Show, then press Save key.");
   });
 
   it("returns null on error (the error itself renders separately)", () => {
-    expect(visitorCredentialSaveStatusMessage({ status: "error", message: "boom" }, null)).toBeNull();
+    expect(visitorCredentialSaveStatusMessage({ saveState: { status: "error", message: "boom" }, stored: null })).toBeNull();
   });
 });
 
@@ -317,7 +317,7 @@ describe("VisitorCredentialForm", () => {
     const toggle = screen.getByRole("switch");
     expect(screen.queryByText("Save a key in step 1 first.")).toBeNull();
     fireEvent.click(toggle);
-    expect(setPublicEnabled).toHaveBeenCalledWith(true);
+    expect(setPublicEnabled).toHaveBeenCalledWith({ publicEnabled: true });
   });
 
   it("the panel blocks the switch with its reason until a key is stored", () => {
@@ -374,7 +374,7 @@ describe("VisitorCredentialForm", () => {
     for (const baseUrl of ["https://api.openai.com/v1", "https://openrouter.ai/api/v1"]) {
       const preset = DEFAULT_PROVIDER_PRESETS.find((p) => p.baseUrl === baseUrl)!;
       await user.selectOptions(screen.getByRole("combobox", { name: "Provider" }), preset.id);
-      expect(selectPresetById).toHaveBeenLastCalledWith(preset.id);
+      expect(selectPresetById).toHaveBeenLastCalledWith({ presetId: preset.id });
     }
   });
 

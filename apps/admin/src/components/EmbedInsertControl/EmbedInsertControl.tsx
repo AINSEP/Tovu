@@ -229,14 +229,14 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
           setOpen(false);
         }}
         onPickForm={() => {
-          formControl.setPickerType("contact-form");
+          formControl.setPickerType({ next: "contact-form" });
           setOpen(false);
         }}
         onPickMenu={() => {
-          menuControl.setPickerType("menu");
+          menuControl.setPickerType({ next: "menu" });
           setOpen(false);
         }}
-        onPickGallery={() => { galleryControl.setPickerType("gallery"); setOpen(false); }}
+        onPickGallery={() => { galleryControl.setPickerType({ next: "gallery" }); setOpen(false); }}
         onEnterWidgetMode={() => {
           // The menu item unmounts on open; give the native dialog a persistent
           // opener to restore instead of capturing the removed item's body fallback.
@@ -273,18 +273,18 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
       <WidgetShortcutPicker
         pickerType={formControl.pickerType}
         error={formControl.error}
-        onUseExisting={formControl.handleUseExisting}
-        onCreateNew={formControl.handleCreateNew}
-        onCancel={() => formControl.setPickerType(null)}
+        onUseExisting={(widgetInstanceId) => formControl.handleUseExisting({ widgetInstanceId })}
+        onCreateNew={(title, config) => formControl.handleCreateNew({ title, config })}
+        onCancel={() => formControl.setPickerType({ next: null })}
         agentHandle={base ? `${base}-form-dialog` : undefined}
       />
-      <WidgetShortcutPicker pickerType={galleryControl.pickerType} error={galleryControl.error} onUseExisting={galleryControl.handleUseExisting} onCreateNew={galleryControl.handleCreateNew} onCancel={() => galleryControl.setPickerType(null)} agentHandle={subHandle({ base, suffix: "gallery-dialog" })} />
+      <WidgetShortcutPicker pickerType={galleryControl.pickerType} error={galleryControl.error} onUseExisting={(widgetInstanceId) => galleryControl.handleUseExisting({ widgetInstanceId })} onCreateNew={(title, config) => galleryControl.handleCreateNew({ title, config })} onCancel={() => galleryControl.setPickerType({ next: null })} agentHandle={subHandle({ base, suffix: "gallery-dialog" })} />
       <WidgetShortcutPicker
         pickerType={menuControl.pickerType}
         error={menuControl.error}
-        onUseExisting={menuControl.handleUseExisting}
-        onCreateNew={menuControl.handleCreateNew}
-        onCancel={() => menuControl.setPickerType(null)}
+        onUseExisting={(widgetInstanceId) => menuControl.handleUseExisting({ widgetInstanceId })}
+        onCreateNew={(title, config) => menuControl.handleCreateNew({ title, config })}
+        onCancel={() => menuControl.setPickerType({ next: null })}
         agentHandle={base ? `${base}-menu-dialog` : undefined}
       />
     </span>

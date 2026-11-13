@@ -19,9 +19,9 @@ function fakeRows(overrides: Partial<HtmlAttributeRowsController> = {}) {
   const vm: HtmlAttributeRowsController = {
     rows: [],
     dropped: [],
-    setRow: (index, patch) => calls.push(["setRow", index, patch]),
+    setRow: ({ index, patch }) => calls.push(["setRow", index, patch]),
     addRow: () => calls.push(["addRow"]),
-    removeRow: (index) => calls.push(["removeRow", index]),
+    removeRow: ({ index }) => calls.push(["removeRow", index]),
     ...overrides,
   };
   return { calls, useRows: () => vm };

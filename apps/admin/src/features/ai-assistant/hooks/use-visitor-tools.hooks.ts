@@ -113,7 +113,7 @@ export function useVisitorToolLimitsDraft(required: { tool: VisitorToolView; con
   const dirty = !parsed.error && Object.keys(parsed.patch).length > 0;
   return {
     draft: shown, invalid: parsed.error, dirty,
-    edit: (key: keyof LimitsDraft, value: string) => setDraft({ ...shown, [key]: value }),
+    edit: ({ key, value }: { key: keyof LimitsDraft; value: string }, _options: Record<string, never> = {}) => setDraft({ ...shown, [key]: value }),
     reset: () => setDraft(null),
     save: async () => {
       if (parsed.error || !dirty) return;

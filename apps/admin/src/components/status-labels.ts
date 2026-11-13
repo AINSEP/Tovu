@@ -19,30 +19,30 @@ const ENGLISH_LABELS: Readonly<Record<string, string>> = {
   paused: "Paused", delivering: "Delivering", delivered: "Delivered", failed: "Failed", dead: "Failed permanently", canceled: "Canceled",
 };
 
-export function serverLabel(value: string, locale: string): string {
+export function serverLabel({ value, locale }: { value: string; locale: string }, _options: Record<string, never> = {}): string {
   if (!KNOWN_SERVER_LABELS.has(value)) return value;
   const label = t({ locale, key: value });
   return label === value ? ENGLISH_LABELS[value] ?? value : label;
 }
 
-export function recipientLabel(count: number, locale: string): string {
-  return serverLabel(count === 1 ? "recipient" : "recipients", locale);
+export function recipientLabel({ count, locale }: { count: number; locale: string }, _options: Record<string, never> = {}): string {
+  return serverLabel({ value: count === 1 ? "recipient" : "recipients", locale });
 }
 
-export function pluginMetadataLabel(values: readonly string[], locale: string): string {
-  return values.map((value) => serverLabel(value, locale)).join(" · ");
+export function pluginMetadataLabel({ values, locale }: { values: readonly string[]; locale: string }, _options: Record<string, never> = {}): string {
+  return values.map((value) => serverLabel({ value, locale })).join(" · ");
 }
 
 /** Render-only wrappers let table cell callbacks localize values without altering their protocol
  * value or threading a second locale dependency through each feature's data model. */
 export function ServerLabel({ value }: { value: string }) {
-  return serverLabel(value, useAdminLocale());
+  return serverLabel({ value, locale: useAdminLocale() });
 }
 
 export function RecipientLabel({ count }: { count: number }) {
-  return recipientLabel(count, useAdminLocale());
+  return recipientLabel({ count, locale: useAdminLocale() });
 }
 
 export function PluginMetadataLabel({ values }: { values: readonly string[] }) {
-  return pluginMetadataLabel(values, useAdminLocale());
+  return pluginMetadataLabel({ values, locale: useAdminLocale() });
 }

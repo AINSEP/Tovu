@@ -41,7 +41,7 @@ import { useWidgetPreview } from "./WidgetPreview.hooks";
 
 const TABS: ReadonlyArray<{ id: MediaContentMode; label: string }> = [{ id: "media", label: "Media" }, { id: "html", label: "Raw HTML" }];
 
-function handle(base: string | undefined, suffix: string, role: "field" | "button", label: string) {
+function handle({ base, suffix, role, label }: { base: string | undefined; suffix: string; role: "field" | "button"; label: string }, _options: Record<string, never> = {}) {
   return base ? agentHandle({ handle: `${base}-${suffix}` }, { role, label }) : {};
 }
 
@@ -53,7 +53,7 @@ function layoutLabel(layout: MediaLayout, t: Translate): string {
   return t("Masonry");
 }
 
-function problemText(problem: MediaSlugProblem, slug: string, t: Translate): string {
+function problemText({ problem, slug, t }: { problem: MediaSlugProblem; slug: string; t: Translate }, _options: Record<string, never> = {}): string {
   if (problem === "empty") return t("Type a media slug.");
   if (problem === "invalid") return t("Slugs can't contain spaces or slashes.");
   if (problem === "duplicate") return t("Already in this list.");
@@ -94,7 +94,7 @@ export function MediaContentEditor({ widgetType, config, onChange, t = (key) => 
 }
 
 function EditorTabs({ vm, t, base, panelId }: { vm: MediaContentEditorController; t: Translate; base: string | undefined; panelId: string }) {
-  const { onKeyDown } = useTabBarKeyboard({ tabs: TABS, activeId: vm.mode, onChange: (id) => vm.setMode(id as MediaContentMode) });
+  const { onKeyDown } = useTabBarKeyboard({ tabs: TABS, activeId: vm.mode, onChange: (id) => vm.setMode({ mode: id as MediaContentMode }) });
   return (
     <div className="media-content-editor__tabs">
       <div className="segmented" role="tablist" aria-label={t("Widget content")} onKeyDown={onKeyDown}>
@@ -102,8 +102,8 @@ function EditorTabs({ vm, t, base, panelId }: { vm: MediaContentEditorController
           <button key={tab.id} type="button" role="tab" aria-selected={vm.mode === tab.id} aria-controls={panelId}
             className={vm.mode === tab.id ? "is-active" : undefined}
             tabIndex={resolveTabBarTabIndex({ tabs: TABS, activeId: vm.mode, tab })}
-            onClick={() => vm.setMode(tab.id)}
-            {...handle(base, `tab-${tab.id}`, "button", `Switch to the ${tab.label} tab`)}>
+            onClick={() => vm.setMode({ mode: tab.id })}
+            {...handle({ base, suffix: `tab-${tab.id}`, role: "button", label: `Switch to the ${tab.label} tab` })}>
             {tab.id === "media" ? t("Media") : t("Raw HTML")}
           </button>
         ))}
@@ -149,8 +149,8 @@ function MediaTab({ vm, t, base }: { vm: MediaContentEditorController; t: Transl
           <span className="segmented media-content-editor__layouts" role="radiogroup" aria-labelledby={layoutLabelId}>
             {vm.layouts.map((layout) => (
               <button key={layout} type="button" role="radio" aria-checked={vm.media.layout === layout}
-                className={vm.media.layout === layout ? "is-active" : undefined} onClick={() => vm.setLayout(layout)}
-                {...handle(base, `layout-${layout}`, "button", `Use the ${layout} layout`)}>
+                className={vm.media.layout === layout ? "is-active" : undefined} onClick={() => vm.setLayout({ layout })}
+                {...handle({ base, suffix: `layout-${layout}`, role: "button", label: `Use the ${layout} layout` })}>
                 {layoutLabel(layout, t)}
               </button>
             ))}
@@ -160,14 +160,14 @@ function MediaTab({ vm, t, base }: { vm: MediaContentEditorController; t: Transl
           <label className="media-content-editor__field">
             {t("Columns")}
             <input type="number" min={1} max={6} className="media-content-editor__number" value={vm.media.columns ?? 3}
-              onChange={(event) => vm.setColumns(event.target.value)} {...handle(base, "columns", "field", "Number of columns")} />
+              onChange={(event) => vm.setColumns({ value: event.target.value })} {...handle({ base, suffix: "columns", role: "field", label: "Number of columns" })} />
           </label>
         ) : null}
         <span className="media-content-editor__field">
           <label>
             {t("Aspect ratio")}
             <input className="field-mono media-content-editor__ratio" placeholder="4/3" value={vm.media.aspectRatio ?? ""}
-              onChange={(event) => vm.setAspectRatio(event.target.value)} {...handle(base, "aspect-ratio", "field", "Aspect ratio, e.g. 16/9")} />
+              onChange={(event) => vm.setAspectRatio({ aspectRatio: event.target.value })} {...handle({ base, suffix: "aspect-ratio", role: "field", label: "Aspect ratio, e.g. 16/9" })} />
           </label>
           <InfoTip label={t("e.g. 1, 4/3, 16/9")} />
         </span>
@@ -191,7 +191,7 @@ function MediaTab({ vm, t, base }: { vm: MediaContentEditorController; t: Transl
 
 function Thumbnail({ row, vm, t }: { row: MediaItemRow; vm: MediaContentEditorController; t: Translate }) {
   if (row.problem === "unknown") return <span className="media-content-editor__thumb is-missing"><Icon name="alert-triangle" size={18} aria-hidden="true" /></span>;
-  if (row.asset && row.kind === "image") return <img className="media-content-editor__thumb" src={vm.mediaUrl(row.asset)} alt="" loading="lazy" width={48} height={48} />;
+  if (row.asset && row.kind === "image") return <img className="media-content-editor__thumb" src={vm.mediaUrl({ asset: row.asset })} alt="" loading="lazy" width={48} height={48} />;
   if (row.kind === "video") return <span className="media-content-editor__thumb" title={t("Video file")}><Icon name="play" size={18} aria-label={t("Video file")} /></span>;
   if (row.kind === "audio") return <span className="media-content-editor__thumb" title={t("Audio file")}><Icon name="volume" size={18} aria-label={t("Audio file")} /></span>;
   return <span className="media-content-editor__thumb"><Icon name="image" size={18} aria-hidden="true" /></span>;
@@ -204,21 +204,21 @@ function MediaItemRowView({ row, index, vm, t }: { row: MediaItemRow; index: num
       <Thumbnail row={row} vm={vm} t={t} />
       <input className={`field-mono media-content-editor__slug${row.showsSlugEnd ? " is-end-first" : ""}`} value={row.item.slug} spellCheck={false} autoComplete="off"
         aria-label={`${t("Media slug")} ${n}`} aria-invalid={row.problem ? true : undefined} title={row.item.slug}
-        onChange={(event) => vm.updateItem(index, { slug: event.target.value.trim() })} />
+        onChange={(event) => vm.updateItem({ index, patch: { slug: event.target.value.trim() } })} />
       {/* Clearing alt/caption omits the key, so the library's own text is used at render time
           (contract); the placeholder shows that fallback. */}
       <input className="media-content-editor__alt" value={row.item.alt ?? ""} placeholder={mediaTextPlaceholder({ row, field: "alt", t })}
-        aria-label={`${t("Alt text")} ${n}`} onChange={(event) => vm.updateItem(index, { alt: event.target.value || undefined })} />
+        aria-label={`${t("Alt text")} ${n}`} onChange={(event) => vm.updateItem({ index, patch: { alt: event.target.value || undefined } })} />
       <input className="media-content-editor__caption" value={row.item.caption ?? ""} placeholder={mediaTextPlaceholder({ row, field: "caption", t })}
-        aria-label={`${t("Caption")} ${n}`} onChange={(event) => vm.updateItem(index, { caption: event.target.value || undefined })} />
+        aria-label={`${t("Caption")} ${n}`} onChange={(event) => vm.updateItem({ index, patch: { caption: event.target.value || undefined } })} />
       <RowActions index={index} vm={vm} t={t} />
-      {row.problem ? <p className="field-error media-content-editor__row-error">{rowProblemText(row.problem, row.item.slug, t)}</p> : null}
+      {row.problem ? <p className="field-error media-content-editor__row-error">{rowProblemText({ problem: row.problem, slug: row.item.slug, t })}</p> : null}
     </li>
   );
 }
 
-function rowProblemText(problem: NonNullable<MediaItemRow["problem"]>, slug: string, t: Translate): string {
-  return problem === "unknown" ? t("Not in the media library") : problemText(problem, slug, t);
+function rowProblemText({ problem, slug, t }: { problem: NonNullable<MediaItemRow["problem"]>; slug: string; t: Translate }, _options: Record<string, never> = {}): string {
+  return problem === "unknown" ? t("Not in the media library") : problemText({ problem, slug, t });
 }
 
 function RowActions({ index, vm, t }: { index: number; vm: MediaContentEditorController; t: Translate }) {
@@ -229,19 +229,19 @@ function RowActions({ index, vm, t }: { index: number; vm: MediaContentEditorCon
     <span className="media-content-editor__row-actions">
       <DockHeaderTip label={t("Move up")}>
         <button type="button" className="btn-ghost media-content-editor__icon" disabled={index === 0}
-          aria-label={`${t("Move up")} ${n}`} onClick={() => vm.moveItem(index, -1)}>
+          aria-label={`${t("Move up")} ${n}`} onClick={() => vm.moveItem({ index, delta: -1 })}>
           <Icon name="arrow-up" size={14} aria-hidden="true" />
         </button>
       </DockHeaderTip>
       <DockHeaderTip label={t("Move down")}>
         <button type="button" className="btn-ghost media-content-editor__icon is-down" disabled={last}
-          aria-label={`${t("Move down")} ${n}`} onClick={() => vm.moveItem(index, 1)}>
+          aria-label={`${t("Move down")} ${n}`} onClick={() => vm.moveItem({ index, delta: 1 })}>
           <Icon name="arrow-up" size={14} aria-hidden="true" />
         </button>
       </DockHeaderTip>
       <DockHeaderTip label={t("Remove")}>
         <button type="button" className="btn-ghost media-content-editor__icon"
-          aria-label={`${t("Remove")} ${n}`} onClick={() => vm.removeItem(index)}>
+          aria-label={`${t("Remove")} ${n}`} onClick={() => vm.removeItem({ index })}>
           <Icon name="close" size={14} aria-hidden="true" />
         </button>
       </DockHeaderTip>
@@ -255,19 +255,19 @@ function AddMediaRow({ vm, t, base }: { vm: MediaContentEditorController; t: Tra
   return (
     <>
       <div className="media-content-editor__add">
-        <button type="button" className="btn-secondary media-content-editor__compact" disabled={full} onClick={() => vm.openPicker("items")}
-          {...handle(base, "choose", "button", "Choose media from the library")}>
+        <button type="button" className="btn-secondary media-content-editor__compact" disabled={full} onClick={() => vm.openPicker({ target: "items" })}
+          {...handle({ base, suffix: "choose", role: "button", label: "Choose media from the library" })}>
           <Icon name="image" size={14} aria-hidden="true" />
           {t("Choose from library")}
         </button>
         <span className="media-content-editor__slug-add">
           <input className="field-mono" list={listId} value={vm.slugDraft} placeholder={t("Add by slug")} aria-label={t("Add by slug")}
             spellCheck={false} autoComplete="off" disabled={full} aria-invalid={vm.slugProblem ? true : undefined}
-            onChange={(event) => vm.setSlugDraft(event.target.value)}
+            onChange={(event) => vm.setSlugDraft({ value: event.target.value })}
             onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); vm.addSlug(); } }}
-            {...handle(base, "slug", "field", "Media slug to add")} />
+            {...handle({ base, suffix: "slug", role: "field", label: "Media slug to add" })} />
           <button type="button" className="btn-ghost media-content-editor__compact" disabled={full} onClick={vm.addSlug}
-            {...handle(base, "slug-add", "button", "Add the typed media slug")}>
+            {...handle({ base, suffix: "slug-add", role: "button", label: "Add the typed media slug" })}>
             <Icon name="plus" size={14} aria-hidden="true" />
             {t("Add")}
           </button>
@@ -277,7 +277,7 @@ function AddMediaRow({ vm, t, base }: { vm: MediaContentEditorController; t: Tra
           {(vm.pickable ?? []).map((asset) => <option key={asset.id} value={asset.slug}>{asset.title}</option>)}
         </datalist>
       </div>
-      {vm.slugProblem ? <p className="field-error" role="alert">{problemText(vm.slugProblem.problem, vm.slugProblem.slug, t)}</p> : null}
+      {vm.slugProblem ? <p className="field-error" role="alert">{problemText({ problem: vm.slugProblem.problem, slug: vm.slugProblem.slug, t })}</p> : null}
     </>
   );
 }
@@ -289,14 +289,14 @@ function AttributesSection({ vm, t, base }: { vm: MediaContentEditorController; 
         <label className="media-content-editor__field">
           {t("CSS class")}
           <input className="field-mono media-content-editor__class" value={vm.media.cssClass ?? ""} spellCheck={false}
-            onChange={(event) => vm.setCssClass(event.target.value)} {...handle(base, "css-class", "field", "CSS class on the layout root")} />
+            onChange={(event) => vm.setCssClass({ cssClass: event.target.value })} {...handle({ base, suffix: "css-class", role: "field", label: "CSS class on the layout root" })} />
         </label>
         <span className="media-content-editor__field">
           {t("HTML attributes")}
           <InfoTip label={t("data-*, aria-*, class, id, style. Unsafe ones are dropped.")} />
         </span>
       </div>
-      <HtmlAttributeRows value={vm.media.htmlAttributes ?? ""} onChange={vm.setHtmlAttributes} t={t} agentHandle={base} />
+      <HtmlAttributeRows value={vm.media.htmlAttributes ?? ""} onChange={(htmlAttributes) => vm.setHtmlAttributes({ htmlAttributes })} t={t} agentHandle={base} />
     </div>
   );
 }
@@ -305,8 +305,8 @@ function HtmlTab({ vm, t, base }: { vm: MediaContentEditorController; t: Transla
   return (
     <>
       <div className="media-content-editor__toolbar">
-        <button type="button" className="btn-secondary media-content-editor__compact" onClick={() => vm.openPicker("html")}
-          {...handle(base, "insert-media", "button", "Insert library media at the cursor")}>
+        <button type="button" className="btn-secondary media-content-editor__compact" onClick={() => vm.openPicker({ target: "html" })}
+          {...handle({ base, suffix: "insert-media", role: "button", label: "Insert library media at the cursor" })}>
           <Icon name="image" size={14} aria-hidden="true" />
           {t("Insert media…")}
         </button>
@@ -321,8 +321,8 @@ function HtmlTab({ vm, t, base }: { vm: MediaContentEditorController; t: Transla
         </div>
         <textarea ref={vm.htmlRef} className="media-content-editor__source" value={vm.html} wrap="off" spellCheck={false}
           aria-label={t("HTML source")} aria-invalid={vm.htmlTooLong ? true : undefined} placeholder={'<img data-media-slug="…" alt="…">'}
-          onChange={(event) => vm.setHtml(event.target.value)} onScroll={vm.onHtmlScroll}
-          {...handle(base, "html", "field", "Raw HTML for this media content")} />
+          onChange={(event) => vm.setHtml({ html: event.target.value })} onScroll={vm.onHtmlScroll}
+          {...handle({ base, suffix: "html", role: "field", label: "Raw HTML for this media content" })} />
       </div>
       {vm.htmlTooLong ? (
         <p className="field-error" role="alert">
@@ -336,7 +336,7 @@ function HtmlTab({ vm, t, base }: { vm: MediaContentEditorController; t: Transla
 function PickerThumb({ asset, vm }: { asset: AdminMedia; vm: MediaContentEditorController }) {
   if (asset.contentType?.startsWith("video/")) return <span className="media-content-editor__picker-icon"><Icon name="play" size={22} aria-hidden="true" /></span>;
   if (asset.contentType?.startsWith("audio/")) return <span className="media-content-editor__picker-icon"><Icon name="volume" size={22} aria-hidden="true" /></span>;
-  return <img src={vm.mediaUrl(asset)} alt="" loading="lazy" />;
+  return <img src={vm.mediaUrl({ asset })} alt="" loading="lazy" />;
 }
 
 /** Multi-select over the active library — images, video and audio. Same grid/item classes as
@@ -349,7 +349,7 @@ function LibraryPicker({ vm, t, base }: { vm: MediaContentEditorController; t: T
           <div className="media-picker-grid">
             {vm.pickable.map((asset) => (
               <label key={asset.id} className="media-picker-item" title={asset.slug}>
-                <input type="checkbox" checked={vm.picked.includes(asset.slug)} onChange={() => vm.togglePicked(asset.slug)} />
+                <input type="checkbox" checked={vm.picked.includes(asset.slug)} onChange={() => vm.togglePicked({ slug: asset.slug })} />
                 <PickerThumb asset={asset} vm={vm} />
                 <span className="media-picker-item-title">{asset.title}</span>
               </label>
@@ -361,7 +361,7 @@ function LibraryPicker({ vm, t, base }: { vm: MediaContentEditorController; t: T
         <span className="editor-actions">
           <button data-jini-autofocus="" type="button" className="btn-secondary" onClick={vm.cancelPicker}>{t("Cancel")}</button>
           <button type="button" className="btn-primary" disabled={vm.picked.length === 0} onClick={vm.confirmPicker}
-            {...handle(base, "picker-add", "button", "Add the checked media")}>
+            {...handle({ base, suffix: "picker-add", role: "button", label: "Add the checked media" })}>
             {t("Add selected")}
           </button>
         </span>

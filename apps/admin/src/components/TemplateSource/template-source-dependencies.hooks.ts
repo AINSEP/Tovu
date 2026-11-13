@@ -12,7 +12,7 @@ import type { TemplateSourcePort } from "./template-source-port.hooks";
 /** The live implementation — same status-check/`.text()` shape `TemplateSourceModal.tsx`'s
  *  pre-extraction inline `fetch(...).then(...)` chain used. */
 export const defaultTemplateSourcePort: TemplateSourcePort = {
-  async fetchTemplateSource(url: string): Promise<string> {
+  async fetchTemplateSource({ url }: { url: string }): Promise<string> {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`the theme server responded with ${res.status}`);
     return res.text();

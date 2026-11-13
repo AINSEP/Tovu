@@ -104,7 +104,7 @@ describe("useEmbedInsertControl — formControl / menuControl are independent pi
   it("setting formControl's pickerType does not affect menuControl — two genuinely separate hook instances", () => {
     const { result } = renderHook(() => useEmbedInsertControl({ editor: fakeEditor() }));
 
-    act(() => result.current.formControl.setPickerType("contact-form"));
+    act(() => result.current.formControl.setPickerType({ next: "contact-form" }));
 
     expect(result.current.formControl.pickerType).toBe("contact-form");
     expect(result.current.menuControl.pickerType).toBeNull();
@@ -113,7 +113,7 @@ describe("useEmbedInsertControl — formControl / menuControl are independent pi
   it("setting menuControl's pickerType does not affect formControl", () => {
     const { result } = renderHook(() => useEmbedInsertControl({ editor: fakeEditor() }));
 
-    act(() => result.current.menuControl.setPickerType("menu"));
+    act(() => result.current.menuControl.setPickerType({ next: "menu" }));
 
     expect(result.current.menuControl.pickerType).toBe("menu");
     expect(result.current.formControl.pickerType).toBeNull();
@@ -123,9 +123,9 @@ describe("useEmbedInsertControl — formControl / menuControl are independent pi
     const editor = fakeEditor();
     const { result } = renderHook(() => useEmbedInsertControl({ editor }));
 
-    act(() => result.current.formControl.setPickerType("contact-form"));
+    act(() => result.current.formControl.setPickerType({ next: "contact-form" }));
     await act(async () => {
-      await result.current.formControl.handleUseExisting("cf1");
+      await result.current.formControl.handleUseExisting({ widgetInstanceId: "cf1" });
     });
 
     expect(editor.commands.insertWidgetEmbed).toHaveBeenCalledWith(expect.objectContaining({ widgetEntryId: "cf1" }));
@@ -137,9 +137,9 @@ describe("useEmbedInsertControl — formControl / menuControl are independent pi
     vi.mocked(editor.commands.insertWidgetEmbed).mockReturnValue(false);
     const { result } = renderHook(() => useEmbedInsertControl({ editor }));
 
-    act(() => result.current.formControl.setPickerType("contact-form"));
+    act(() => result.current.formControl.setPickerType({ next: "contact-form" }));
     await act(async () => {
-      await result.current.formControl.handleUseExisting("cf1");
+      await result.current.formControl.handleUseExisting({ widgetInstanceId: "cf1" });
     });
 
     expect(editor.commands.insertWidgetEmbed).toHaveBeenCalledWith(expect.objectContaining({ widgetEntryId: "cf1" }));
@@ -159,9 +159,9 @@ describe("useEmbedInsertControl — formControl / menuControl are independent pi
     const editor = fakeEditor();
     const { result } = renderHook(() => useEmbedInsertControl({ editor }));
 
-    act(() => result.current.menuControl.setPickerType("menu"));
+    act(() => result.current.menuControl.setPickerType({ next: "menu" }));
     await act(async () => {
-      await result.current.menuControl.handleUseExisting("m1");
+      await result.current.menuControl.handleUseExisting({ widgetInstanceId: "m1" });
     });
 
     expect(editor.commands.insertWidgetEmbed).toHaveBeenCalledWith(expect.objectContaining({ widgetEntryId: "m1" }));

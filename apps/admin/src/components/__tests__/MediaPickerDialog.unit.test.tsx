@@ -183,7 +183,7 @@ describe("MediaPickerDialog — useDialog injection", () => {
       },
       // A `fake://` scheme the real `api.mediaOriginalUrl` could never produce — see the assertion
       // below.
-      mediaOriginalUrl: (id) => `fake://media-picker-original/${id}`,
+      mediaOriginalUrl: ({ id }) => `fake://media-picker-original/${id}`,
       // Identity passthrough — the component now destructures `t` off the controller (Batch D2's
       // i18n wiring); a fake that omits it would throw on the first `t(...)` call. Same note as
       // `WidgetPickerDialog.unit.test.tsx`'s `useFakeDialog`.
@@ -223,7 +223,7 @@ describe("MediaPickerDialog — translated copy (t injection)", () => {
       items: null,
       error: null,
       select: onSelect,
-      mediaOriginalUrl: (id) => `fake://${id}`,
+      mediaOriginalUrl: ({ id }) => `fake://${id}`,
       t: fakeT,
       locale: "es",
       ...overrides,
@@ -325,7 +325,7 @@ describe("MediaPickerDialog — accept filter", () => {
       items,
       error: null,
       select: onSelect,
-      mediaOriginalUrl: (id) => `fake://${id}`,
+      mediaOriginalUrl: ({ id }) => `fake://${id}`,
       t: (key: string) => key,
       locale: "en",
     });

@@ -30,7 +30,7 @@ describe("visitor widget setting", () => {
     await act(async () => { await result.current.setWidget({ widget: "vanilla" }); });
     await waitFor(() => expect(result.current.settings).toEqual({ publicEnabled: false, widget: "vanilla" }));
     expect(f.writes).toEqual([{ widget: "vanilla" }]);
-    await act(async () => { await result.current.setPublicEnabled(true); });
+    await act(async () => { await result.current.setPublicEnabled({ publicEnabled: true }); });
     await waitFor(() => expect(result.current.settings).toEqual({ publicEnabled: true, widget: "vanilla" }));
   });
 

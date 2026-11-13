@@ -37,7 +37,7 @@ const FEATURED_IMAGE_ACCEPT: readonly string[] = ["image/*"];
 
 /** The preview for a chosen image: its rendition when one is offered, else the original. */
 function featuredPreviewUrl(value: string, rendition: ((id: string) => string) | undefined, port: Pick<MediaPickerPort, "mediaOriginalUrl">): string {
-  return rendition ? rendition(value) : port.mediaOriginalUrl(value);
+  return rendition ? rendition(value) : port.mediaOriginalUrl({ id: value });
 }
 
 export function usePostFeaturedImage(

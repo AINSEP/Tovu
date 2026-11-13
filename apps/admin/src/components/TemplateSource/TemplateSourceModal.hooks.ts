@@ -10,7 +10,7 @@ export function createGoToTemplateInEditor({ themeId, templateFilename, confirmL
   function goToTemplateInEditor() {
     if (!confirmLeave()) return;
     onClose();
-    navigate(templateEditUrl(themeId, templateFilename));
+    navigate(templateEditUrl({ themeId, templateFilename }));
   }
 
   return goToTemplateInEditor;

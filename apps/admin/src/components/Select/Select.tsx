@@ -18,7 +18,7 @@ export function Select({ useDropdown, ...props }: SelectProps) {
 }
 
 /** Keep the host's helper contract while Jini resolves translated trigger copy. */
-export function resolveSelectTriggerLabel(selectedOption: SelectOption | null, placeholder: string | undefined, t: Translate = (key) => key) {
+export function resolveSelectTriggerLabel({ selectedOption, placeholder }: { selectedOption: SelectOption | null; placeholder: string | undefined }, { t = (key) => key }: { t?: Translate } = {}) {
   return resolvePackageLabel({ selectedOption, placeholder }, { t });
 }
 // Search/listbox rationale: Jini/packages/ui/src/features/admin-widgets/components/Select/Select.tsx.

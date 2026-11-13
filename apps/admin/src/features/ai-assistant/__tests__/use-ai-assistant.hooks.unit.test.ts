@@ -21,32 +21,32 @@ afterEach(() => {
 
 describe("resolveAiAssistantRequestedTabId", () => {
   it("passes through a tabId that names a real tab", () => {
-    expect(resolveAiAssistantRequestedTabId("admin")).toBe("admin");
-    expect(resolveAiAssistantRequestedTabId("visitor")).toBe("visitor");
-    expect(resolveAiAssistantRequestedTabId("roadmap")).toBe("roadmap");
+    expect(resolveAiAssistantRequestedTabId({ tabId: "admin" })).toBe("admin");
+    expect(resolveAiAssistantRequestedTabId({ tabId: "visitor" })).toBe("visitor");
+    expect(resolveAiAssistantRequestedTabId({ tabId: "roadmap" })).toBe("roadmap");
   });
 
   it("falls back to undefined for null (no ?tab= at all)", () => {
-    expect(resolveAiAssistantRequestedTabId(null)).toBeUndefined();
+    expect(resolveAiAssistantRequestedTabId({ tabId: null })).toBeUndefined();
   });
 
   it("falls back to undefined for undefined", () => {
-    expect(resolveAiAssistantRequestedTabId(undefined)).toBeUndefined();
+    expect(resolveAiAssistantRequestedTabId({ tabId: undefined })).toBeUndefined();
   });
 
   it("falls back to undefined for an id naming no real tab (typo, stale link)", () => {
-    expect(resolveAiAssistantRequestedTabId("not-a-real-tab")).toBeUndefined();
+    expect(resolveAiAssistantRequestedTabId({ tabId: "not-a-real-tab" })).toBeUndefined();
   });
 
   it("falls back to undefined for an empty string", () => {
-    expect(resolveAiAssistantRequestedTabId("")).toBeUndefined();
+    expect(resolveAiAssistantRequestedTabId({ tabId: "" })).toBeUndefined();
   });
 });
 
 describe("navigateToAiAssistantTab", () => {
   it("writes the tab id into ?tab= via a replace, not a push", () => {
     const initialLength = window.history.length;
-    navigateToAiAssistantTab("admin");
+    navigateToAiAssistantTab({ nextTabId: "admin" });
     expect(window.location.search).toBe("?tab=admin");
     // A `replace`, not a `push` — no new history entry was created.
     expect(window.history.length).toBe(initialLength);

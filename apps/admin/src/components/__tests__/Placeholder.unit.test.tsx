@@ -79,14 +79,14 @@ describe("an id absent from nav.ts entirely", () => {
 describe("findNavGroupLabel", () => {
   it("returns the item's own nav group label", () => {
     // "newsletter" sits in the "Marketing" group (panels.tsx) — the ordinary, matching-group case.
-    expect(findNavGroupLabel("newsletter")).toBe("Marketing");
+    expect(findNavGroupLabel({ sectionId: "newsletter" })).toBe("Marketing");
   });
 
   it("falls back to 'Overview' for an id in the ungrouped top row, whose nav group carries no label", () => {
     // "dashboard" is one of `panels.tsx`'s "Ungrouped top row" entries — `buildNav` (Jini's
     // `@jini-ai/admin/core`) deliberately omits `label` for that group, so this exercises the
     // `group.label ?? "Overview"` fallback with REAL nav data, not a synthetic gap.
-    expect(findNavGroupLabel("dashboard")).toBe("Overview");
+    expect(findNavGroupLabel({ sectionId: "dashboard" })).toBe("Overview");
   });
 
   it("falls back to 'Overview' for an id present in no nav group at all", () => {
@@ -96,7 +96,7 @@ describe("findNavGroupLabel", () => {
     // `getNav()`, so this path is not reachable through it today — but the function itself is
     // general-purpose and exported, and its own "no match found" behavior is part of what it
     // promises callers.
-    expect(findNavGroupLabel("no-such-section-anywhere")).toBe("Overview");
+    expect(findNavGroupLabel({ sectionId: "no-such-section-anywhere" })).toBe("Overview");
   });
 });
 

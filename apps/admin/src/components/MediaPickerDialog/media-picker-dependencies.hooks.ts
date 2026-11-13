@@ -9,7 +9,7 @@ import type { MediaPickerPort } from "./media-picker-port.hooks";
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultMediaPickerPort: MediaPickerPort = {
   listMedia: () => api.listMedia(),
-  mediaOriginalUrl: (id) => api.mediaOriginalUrl(id),
+  mediaOriginalUrl: ({ id }, _options: Record<string, never> = {}) => api.mediaOriginalUrl(id),
 };
 
 /** Seed state for {@link createFakeMediaPickerPort}. */
@@ -32,7 +32,7 @@ export function createFakeMediaPickerPort(options: FakeMediaPickerPortOptions = 
     // `/workspaces/.../media/.../original` shape — so a test asserting a rendered thumbnail's `src`
     // came from THIS fake fails if `MediaPickerDialog.tsx` ever goes back to calling the real `api`
     // directly.
-    mediaOriginalUrl(id) {
+    mediaOriginalUrl({ id }) {
       return `fake://media-picker-original/${id}`;
     },
   };

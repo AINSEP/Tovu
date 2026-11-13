@@ -18,5 +18,5 @@ import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/li
  */
 export interface VisitorCredentialFormPort {
   getAssistantSiteCredential(): Promise<{ data: SiteAssistantCredential }>;
-  setAssistantSiteCredential(patch: SiteAssistantCredentialPatch): Promise<{ data: SiteAssistantCredential }>;
+  setAssistantSiteCredential(patch: SiteAssistantCredentialPatch, optional?: Record<string, never>): Promise<{ data: SiteAssistantCredential }>;
 }
