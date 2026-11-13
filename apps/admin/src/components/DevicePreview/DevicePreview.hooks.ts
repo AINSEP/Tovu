@@ -87,8 +87,8 @@ export function devicePreviewFrameStyles({
  * @complexity O(1).
  */
 export function devicePreviewButtonHandleProps(
-  handlePrefix: string | undefined,
-  entry: { key: DevicePreviewDevice; label: string },
+  { handlePrefix, entry }: { handlePrefix: string | undefined; entry: { key: DevicePreviewDevice; label: string } },
+  _options: Record<string, never> = {},
 ) {
   if (!handlePrefix) return {};
   return agentHandle({ handle: `${handlePrefix}-${entry.key}` }, { role: "button", label: `Preview at ${entry.label} width` });

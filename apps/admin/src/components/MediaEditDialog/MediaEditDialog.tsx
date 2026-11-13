@@ -54,18 +54,14 @@ export interface MediaEditDialogProps {
 }
 
 export function MediaEditDialog({ initial, onSave, onCancel, showAlt = true, useDialog = useWiredMediaEditDialog, children, renderHtmlAttributes }: MediaEditDialogProps) {
-  const { alt, cssClass, htmlAttributes, setAlt, setCssClass, setHtmlAttributes, htmlAttributesError, save, t } = useDialog(
-    initial,
-    onSave,
-    onCancel
-  );
+  const { alt, cssClass, htmlAttributes, setAlt, setCssClass, setHtmlAttributes, htmlAttributesError, save, t } = useDialog({ initial, onSave, onCancel });
   // Native modality keeps Tab inside; Jini also restores the opener when this dialog unmounts.
   const altId = useId();
   const cssClassId = useId();
   const htmlAttributesId = useId();
 
   return (
-    <Dialog open title={showAlt ? t("Edit this instance") : t("Style")} onClose={() => onCancel()}
+    <Dialog open title={showAlt ? t({ key: "Edit this instance" }) : t({ key: "Style" })} onClose={() => onCancel()}
       className="settings-dialog jini-domain-dialog media-node-edit-dialog">
       {/* `media-node-edit-dialog`, NOT `media-edit-dialog` — that exact class name is already
           taken by `Media.tsx`'s unrelated native `<dialog>` asset-metadata editor
@@ -78,7 +74,7 @@ export function MediaEditDialog({ initial, onSave, onCancel, showAlt = true, use
         {showAlt ? (
           <div className="field">
             <label className="field-label" htmlFor={altId}>
-              {t("Alt text (optional)")}
+              {t({ key: "Alt text (optional)" })}
             </label>
             <input data-jini-autofocus="" id={altId} value={alt} onChange={(e) => setAlt(e.target.value)} />
           </div>
@@ -86,7 +82,7 @@ export function MediaEditDialog({ initial, onSave, onCancel, showAlt = true, use
 
         <div className="field">
           <label className="field-label" htmlFor={cssClassId}>
-            {t("CSS class (optional)")}
+            {t({ key: "CSS class (optional)" })}
           </label>
           {/* When Alt is hidden (`showAlt={false}`), this is the first field in the dialog, so it
               takes the always-present native focus target otherwise marked on Alt — see
@@ -105,10 +101,10 @@ export function MediaEditDialog({ initial, onSave, onCancel, showAlt = true, use
         <div className="widget-picker-footer">
           <span className="editor-actions">
             <button type="button" className="btn-secondary" onClick={onCancel}>
-              {t("Cancel")}
+              {t({ key: "Cancel" })}
             </button>
             <button type="button" className="btn-primary" onClick={save}>
-              {t("Save")}
+              {t({ key: "Save" })}
             </button>
           </span>
         </div>
@@ -124,7 +120,7 @@ function HtmlAttributesField({ htmlAttributesId, htmlAttributes, setHtmlAttribut
     renderHtmlAttributes ? (
       <div className="field" role="group" aria-labelledby={htmlAttributesId}>
         <span className="field-label" id={htmlAttributesId}>
-          {t("HTML attributes (optional)")}
+          {t({ key: "HTML attributes (optional)" })}
         </span>
         {renderHtmlAttributes({ value: htmlAttributes, onChange: setHtmlAttributes })}
         {htmlAttributesError ? <p className="field-error">{htmlAttributesError}</p> : null}
@@ -132,7 +128,7 @@ function HtmlAttributesField({ htmlAttributesId, htmlAttributes, setHtmlAttribut
     ) : (
       <div className="field">
         <label className="field-label" htmlFor={htmlAttributesId}>
-          {t("HTML attributes (optional)")}
+          {t({ key: "HTML attributes (optional)" })}
         </label>
         <input
           id={htmlAttributesId}

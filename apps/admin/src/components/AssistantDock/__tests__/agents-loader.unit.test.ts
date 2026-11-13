@@ -42,7 +42,7 @@ describe("replaceAgents", () => {
     const agents = agentsList();
     const loader = fakeLoader(() => undefined);
 
-    expect(replaceAgents(loader, agents)).toBe(agents);
+    expect(replaceAgents({ loader, agents })).toBe(agents);
 
     expect(loader.replace).toHaveBeenCalledWith({ value: agents });
     expect(deadlineOf(agents)).toBe(BASE + 15 * 60_000);

@@ -43,8 +43,8 @@ export function resolveSlowRunDetail(events: readonly unknown[]): string | undef
  * before `runStreaming` catches up to `false`, this still hides immediately instead of parroting a
  * stale "still working" for one more render.
  *
- * @param runStreaming - {@link ExtEventRenderProps.runStreaming}.
- * @param runSucceeded - {@link ExtEventRenderProps.runSucceeded}.
+ * @param input.runStreaming - {@link ExtEventRenderProps.runStreaming}.
+ * @param input.runSucceeded - {@link ExtEventRenderProps.runSucceeded}.
  * @param options.awaitingAnswer - {@link ExtEventRenderProps.awaitingAnswer}. A run held on an open
  *   form or card is waiting on the person, not slow: the daemon's watchdog still fires (it sees no
  *   events while the form waits), and saying "taking longer than usual" under the form made a run
@@ -56,8 +56,7 @@ export function resolveSlowRunDetail(events: readonly unknown[]): string | undef
  * @complexity Time/space: O(1).
  */
 export function isSlowRunNoticeVisible(
-  runStreaming: boolean,
-  runSucceeded: boolean,
+  { runStreaming, runSucceeded }: { runStreaming: boolean; runSucceeded: boolean },
   { awaitingAnswer = false }: { awaitingAnswer?: boolean } = {},
 ): boolean {
   return runStreaming && !runSucceeded && !awaitingAnswer;

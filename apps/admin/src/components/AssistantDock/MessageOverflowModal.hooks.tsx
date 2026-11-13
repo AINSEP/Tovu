@@ -44,14 +44,14 @@ export interface MessageOverflowModalController {
  * (Escape, backdrop click) — the close button itself stays a plain `onClick={onClose}` in the
  * component, since it needs no state of its own.
  *
- * @param open - Whether the dialog should be showing.
- * @param onClose - Called on any dismiss path (close button, backdrop click, Escape).
+ * @param input.open - Whether the dialog should be showing.
+ * @param input.onClose - Called on any dismiss path (close button, backdrop click, Escape).
  * @returns `dialogRef` to attach to the `<dialog>` element, plus its `cancel`/backdrop-click
  *   handlers.
  * @complexity Time/space: O(1) per open/close transition — one `showModal`/`close` call, no other
  *   state.
  */
-export function useMessageOverflowModal(open: boolean, onClose: () => void): MessageOverflowModalController {
+export function useMessageOverflowModal({ open, onClose }: { open: boolean; onClose: () => void }, _options: Record<string, never> = {}): MessageOverflowModalController {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {

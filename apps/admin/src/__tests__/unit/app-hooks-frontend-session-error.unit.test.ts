@@ -29,7 +29,7 @@ describe("logFrontendSessionError", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const error = new Error("malformed frame: expected a JSON object, got null");
 
-    logFrontendSessionError(error);
+    logFrontendSessionError({ error });
 
     expect(errorSpy).toHaveBeenCalledWith("[admin] frontend session", error);
   });
@@ -41,7 +41,7 @@ describe("logFrontendSessionError", () => {
     const event = new Event("error");
     Object.defineProperty(event, "target", { value: target });
 
-    logFrontendSessionError(event);
+    logFrontendSessionError({ error: event });
 
     expect(errorSpy).not.toHaveBeenCalled();
     expect(warnSpy).not.toHaveBeenCalled();
@@ -54,7 +54,7 @@ describe("logFrontendSessionError", () => {
     const event = new Event("error");
     Object.defineProperty(event, "target", { value: target });
 
-    logFrontendSessionError(event);
+    logFrontendSessionError({ error: event });
 
     expect(errorSpy).not.toHaveBeenCalled();
     expect(warnSpy).toHaveBeenCalledWith("[admin] frontend session stream closed; reopen the admin to reconnect");
@@ -66,7 +66,7 @@ describe("logFrontendSessionError", () => {
     const event = new Event("error");
     if (readyState !== null) Object.defineProperty(event, "target", { value: { readyState } });
 
-    logFrontendSessionError(event);
+    logFrontendSessionError({ error: event });
 
     expect(errorSpy).not.toHaveBeenCalled();
     expect(warnSpy).not.toHaveBeenCalled();

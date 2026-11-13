@@ -76,7 +76,7 @@ export function AdminThemeSchemeControl({ port, env }: { port?: AdminThemePort; 
               aria-checked={checked}
               className={checked ? "is-active" : undefined}
               disabled={!picker.ready || !schemeOptionAvailable({ theme: activeTheme, value: option.value }, {})}
-              onClick={() => picker.selectPreference(option.value)}
+              onClick={() => picker.selectPreference({ preference: option.value })}
               {...agentHandle({ handle: `admin-themes-scheme-${option.value}` }, { role: "button", label: `${option.label} color scheme` })}
             >
               {t({ locale, key: option.label })}
@@ -125,7 +125,7 @@ export function AdminThemes({ port, env, themes = ADMIN_THEMES }: { port?: Admin
               aria-checked={active}
               disabled={!picker.ready}
               className={`theme-card admin-theme-card${active ? " active" : ""}`}
-              onClick={() => picker.selectTheme(theme.id)}
+              onClick={() => picker.selectTheme({ themeId: theme.id })}
               {...agentHandle({ handle: `admin-themes-card-${theme.id}` }, { role: "button", label: `${theme.name} admin theme` })}
             >
               <ThemeSwatch theme={theme} scheme={scheme} />

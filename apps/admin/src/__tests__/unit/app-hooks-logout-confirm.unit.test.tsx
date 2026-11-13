@@ -12,14 +12,14 @@ import { useLogoutConfirm } from "../../App.hooks";
 
 describe("useLogoutConfirm", () => {
   it("starts closed and not pending", () => {
-    const { result } = renderHook(() => useLogoutConfirm(vi.fn(async () => {})));
+    const { result } = renderHook(() => useLogoutConfirm({ logout: vi.fn(async () => {}) }));
     expect(result.current.open).toBe(false);
     expect(result.current.pending).toBe(false);
   });
 
   it("request() opens the dialog without calling logout", () => {
     const logout = vi.fn(async () => {});
-    const { result } = renderHook(() => useLogoutConfirm(logout));
+    const { result } = renderHook(() => useLogoutConfirm({ logout }));
 
     act(() => result.current.request());
 
@@ -29,7 +29,7 @@ describe("useLogoutConfirm", () => {
 
   it("cancel() closes the dialog without calling logout", () => {
     const logout = vi.fn(async () => {});
-    const { result } = renderHook(() => useLogoutConfirm(logout));
+    const { result } = renderHook(() => useLogoutConfirm({ logout }));
 
     act(() => result.current.request());
     act(() => result.current.cancel());
@@ -40,7 +40,7 @@ describe("useLogoutConfirm", () => {
 
   it("confirm() calls the given logout exactly once and closes the dialog", async () => {
     const logout = vi.fn(async () => {});
-    const { result } = renderHook(() => useLogoutConfirm(logout));
+    const { result } = renderHook(() => useLogoutConfirm({ logout }));
 
     act(() => result.current.request());
     await act(async () => {
@@ -60,7 +60,7 @@ describe("useLogoutConfirm", () => {
           releaseLogout = resolve;
         }),
     );
-    const { result } = renderHook(() => useLogoutConfirm(logout));
+    const { result } = renderHook(() => useLogoutConfirm({ logout }));
 
     act(() => result.current.request());
     let confirmSettled = false;
@@ -81,7 +81,7 @@ describe("useLogoutConfirm", () => {
   it("clears pending and closes the dialog when logout rejects", async () => {
     let rejectLogout!: (error: Error) => void;
     const logout = vi.fn(() => new Promise<void>((_resolve, reject) => { rejectLogout = reject; }));
-    const { result } = renderHook(() => useLogoutConfirm(logout));
+    const { result } = renderHook(() => useLogoutConfirm({ logout }));
     act(() => result.current.request());
     let confirmation!: Promise<void>;
     act(() => { confirmation = result.current.confirm(); });

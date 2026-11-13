@@ -164,8 +164,8 @@ describe("useAdminThemePicker", () => {
       preference: first === "appearance" ? DEFAULT_APPEARANCE.theme : undefined,
     }));
     act(() => {
-      result.current.selectTheme("different-theme");
-      result.current.selectPreference("dark");
+      result.current.selectTheme({ themeId: "different-theme" });
+      result.current.selectPreference({ preference: "dark" });
     });
     expect(port.saveInterface).not.toHaveBeenCalled();
     expect(port.saveAppearance).not.toHaveBeenCalled();
@@ -187,9 +187,9 @@ describe("useAdminThemePicker", () => {
     const { env } = fakeEnv();
     const { result, rerender } = renderHook(() => useAdminThemePicker({}, { port, env }));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    act(() => result.current.selectTheme(""));
+    act(() => result.current.selectTheme({ themeId: "" }));
     expect(result.current).toMatchObject({ ready: true, themeId: "", preference: "light" });
-    act(() => result.current.selectPreference("dark"));
+    act(() => result.current.selectPreference({ preference: "dark" }));
     expect(result.current).toMatchObject({ ready: true, themeId: "", preference: "dark" });
     rerender();
     expect(result.current).toMatchObject({ ready: true, themeId: "", preference: "dark" });
@@ -209,7 +209,7 @@ describe("useAdminThemePicker", () => {
     const { env } = fakeEnv();
     const { result } = renderHook(() => useAdminThemePicker({}, { port, env }));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    act(() => result.current.selectTheme("classic"));
+    act(() => result.current.selectTheme({ themeId: "classic" }));
     expect(env.root.getAttribute("data-admin-theme")).toBe("classic");
     expect(result.current.themeId).toBe("classic");
     expect(port.saveInterface).toHaveBeenCalledWith(DEFAULT_INTERFACE, { ...DEFAULT_INTERFACE, adminTheme: "default" });
@@ -222,7 +222,7 @@ describe("useAdminThemePicker", () => {
     const { env } = fakeEnv();
     const { result } = renderHook(() => useAdminThemePicker({}, { port, env }));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    act(() => result.current.selectPreference("dark"));
+    act(() => result.current.selectPreference({ preference: "dark" }));
     expect(env.root.getAttribute("data-color-scheme")).toBe("dark");
     expect(port.saveAppearance).toHaveBeenCalledWith({ ...DEFAULT_APPEARANCE, theme: "dark" }, DEFAULT_APPEARANCE);
     await waitFor(() => expect(result.current.preference).toBe("dark"));
@@ -234,7 +234,7 @@ describe("useAdminThemePicker", () => {
     const { env } = fakeEnv();
     const { result } = renderHook(() => useAdminThemePicker({}, { port, env }));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    act(() => result.current.selectTheme("classic"));
+    act(() => result.current.selectTheme({ themeId: "classic" }));
     await waitFor(() => expect(result.current.error).toBe("offline"));
     expect(result.current.themeId).toBe("default");
     expect(env.root.getAttribute("data-admin-theme")).toBe("classic");
@@ -246,13 +246,13 @@ describe("useAdminThemePicker", () => {
     port.loadInterface = vi.fn(() => new Promise<InterfaceConfig>((resolveLoad) => { release = resolveLoad; }));
     const { env } = fakeEnv();
     const { result } = renderHook(() => useAdminThemePicker({}, { port, env }));
-    act(() => result.current.selectTheme("classic"));
+    act(() => result.current.selectTheme({ themeId: "classic" }));
     expect(port.saveInterface).not.toHaveBeenCalled();
     await waitFor(() => expect(port.loadInterface).toHaveBeenCalled());
     await act(async () => release(DEFAULT_INTERFACE));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    act(() => result.current.selectTheme("classic"));
-    act(() => result.current.selectPreference("light"));
+    act(() => result.current.selectTheme({ themeId: "classic" }));
+    act(() => result.current.selectPreference({ preference: "light" }));
     expect(port.saveInterface).not.toHaveBeenCalled();
     expect(port.saveAppearance).not.toHaveBeenCalled();
     expect(env.root.hasAttribute("data-admin-theme")).toBe(false);
@@ -295,7 +295,7 @@ describe("useAdminThemePicker — browser defaults and odd rejections", () => {
     try {
       const { result } = renderHook(() => useAdminThemePicker({}, { port }));
       await waitFor(() => expect(result.current.ready).toBe(true));
-      act(() => result.current.selectPreference("dark"));
+      act(() => result.current.selectPreference({ preference: "dark" }));
       expect(root.getAttribute("data-color-scheme")).toBe("dark");
       await waitFor(() => expect(port.saveAppearance).toHaveBeenCalledWith(expect.objectContaining({ theme: "dark" }), expect.anything()));
     } finally {
@@ -309,7 +309,7 @@ describe("useAdminThemePicker — browser defaults and odd rejections", () => {
     const { env } = fakeEnv();
     const { result } = renderHook(() => useAdminThemePicker({}, { port, env }));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    act(() => result.current.selectPreference("dark"));
+    act(() => result.current.selectPreference({ preference: "dark" }));
     expect(env.root.getAttribute("data-color-scheme")).toBe("dark");
     await waitFor(() => expect(result.current.error).toBe("ledger busy"));
     expect(result.current.preference).toBe("light");

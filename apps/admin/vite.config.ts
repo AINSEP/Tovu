@@ -68,7 +68,7 @@ const redirectBareAdmin: Plugin = {
 // (2026-09-05 audit finding). Mirrors `dev-tls.ts`'s and `dev.mjs`'s own copies of this same parse.
 const certPath = path.resolve(__dirname, "../../.certs/localhost.pem");
 const keyPath = path.resolve(__dirname, "../../.certs/localhost-key.pem");
-const devTlsDisabled = isDevTlsExplicitlyDisabled(process.env.TOVU_DISABLE_DEV_TLS);
+const devTlsDisabled = isDevTlsExplicitlyDisabled({ raw: process.env.TOVU_DISABLE_DEV_TLS });
 const httpsOptions =
   !devTlsDisabled && existsSync(certPath) && existsSync(keyPath)
     ? { cert: readFileSync(certPath), key: readFileSync(keyPath) }

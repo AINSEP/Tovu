@@ -39,11 +39,11 @@ function newPlacementId(): string {
  * (never through `useWidgetAddControl`'s own `selectedType`/`<Select>` step — that path is only
  * exercised by the "Widget…" full flow, via the untouched `WidgetAddControl`).
  *
- * @param editor - The live TipTap editor, or `null` before it's ready. Read only through
+ * @param input.editor - The live TipTap editor, or `null` before it's ready. Read only through
  *   `insertWidget`'s optional chaining here — the component's own `if (!editor) return null`
  *   early-return still guards the JSX, same as before this split.
  */
-export function useEmbedInsertControl(editor: EmbedEditor | null, { widgetPort, mintPlacementId = newPlacementId }: { widgetPort?: WidgetPickerPort; mintPlacementId?: () => string } = {}) {
+export function useEmbedInsertControl({ editor }: { editor: EmbedEditor | null }, { widgetPort, mintPlacementId = newPlacementId }: { widgetPort?: WidgetPickerPort; mintPlacementId?: () => string } = {}) {
   const [open, setOpen] = useState(false);
   const [widgetMode, setWidgetMode] = useState(false);
   const [mediaPicking, setMediaPicking] = useState(false);
@@ -53,17 +53,18 @@ export function useEmbedInsertControl(editor: EmbedEditor | null, { widgetPort, 
   // closed and nothing appeared. Throwing hands it to `useWidgetAddControl`'s existing onResolved
   // catch, which shows "failed to place widget" / "created but not placed" in the control's error
   // slot. A null editor stays a no-op: the component renders nothing until the editor exists.
-  const insertWidget = (widgetEntryId: string) => {
+  const insertWidget = ({ widgetEntryId }: { widgetEntryId: string }, _options: Record<string, never> = {}) => {
     if (!editor) return;
     const placed = editor.commands.insertWidgetEmbed({ placementId: mintPlacementId(), widgetEntryId });
     if (!placed) throw new Error("the editor could not place the widget at the cursor");
   };
 
-  const formControl = useWidgetAddControl({ triggerLabel: "Form", onResolved: insertWidget }, { port: widgetPort });
-  const menuControl = useWidgetAddControl({ triggerLabel: "Menu", onResolved: insertWidget }, { port: widgetPort });
-  const galleryControl = useWidgetAddControl({ triggerLabel: "Gallery", onResolved: insertWidget }, { port: widgetPort });
+  const onResolved = (widgetEntryId: string) => insertWidget({ widgetEntryId });
+  const formControl = useWidgetAddControl({ triggerLabel: "Form", onResolved }, { port: widgetPort });
+  const menuControl = useWidgetAddControl({ triggerLabel: "Menu", onResolved }, { port: widgetPort });
+  const galleryControl = useWidgetAddControl({ triggerLabel: "Gallery", onResolved }, { port: widgetPort });
 
-  // `insertWidget` is returned too, not just consumed by the two pinned controls above — the
+  // `insertWidget` is returned too, not just consumed by the pinned controls above — the
   // "Widget…" full-flow path in the component's JSX (via the untouched `WidgetAddControl`) calls it
   // directly from its own `onResolved`, exactly as the pre-split component did inline.
   return { open, setOpen, widgetMode, setWidgetMode, mediaPicking, setMediaPicking, formControl, menuControl, galleryControl, insertWidget };
@@ -71,5 +72,5 @@ export function useEmbedInsertControl(editor: EmbedEditor | null, { widgetPort, 
 
 /** Bind this screen's copy to the current locale. */
 export function createEmbedInsertControlTranslator({ locale }: { locale: string }, _options = {}) {
-  return (key: string): string => translateForEmbedInsertControl({ locale, key });
+  return ({ key }: { key: string }, _options: Record<string, never> = {}): string => translateForEmbedInsertControl({ locale, key });
 }

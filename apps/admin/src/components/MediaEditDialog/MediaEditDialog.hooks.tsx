@@ -60,18 +60,18 @@ export interface MediaEditDialogController {
   save: () => void;
   /** Translates the dialog's own copy (`media-i18n.ts`, keyed by the English string) for the same
    *  locale the validation hint uses, so the component never reads the locale itself. */
-  t: (key: string) => string;
+  t: (input: { key: string }, options?: Record<string, never>) => string;
 }
 
 /**
  * Owns `MediaEditDialog`'s draft state on top of the node's current attrs: three controlled text
  * fields and the live `htmlAttributes` validation hint. Jini owns native cancellation.
  *
- * @param initial - The `media` node's current `alt`/`cssClass`/`htmlAttributes` attrs.
- * @param onSave - Called with the new `{alt, cssClass, htmlAttributes}` triple on Save — the
+ * @param input.initial - The `media` node's current `alt`/`cssClass`/`htmlAttributes` attrs.
+ * @param input.onSave - Called with the new `{alt, cssClass, htmlAttributes}` triple on Save — the
  *   caller (`MediaEmbedNodeView`) forwards this straight into `props.updateAttributes`.
- * @param _onCancel - Retained for the existing hook ABI; the component forwards cancellation to Jini.
- * @param deps - Injected dependencies; `deps.locale` drives {@link describeMediaHtmlAttributeError}
+ * @param input._onCancel - Retained for the existing hook ABI; the component forwards cancellation to Jini.
+ * @param input.deps - Injected dependencies; `deps.locale` drives {@link describeMediaHtmlAttributeError}
  *   and the returned `t`.
  * @returns The dialog's full render-time contract — see {@link MediaEditDialogController}.
  * @complexity Time/space O(n) in the `htmlAttributes` draft's length (one validation parse per
@@ -83,10 +83,11 @@ export interface MediaEditDialogController {
  *   the now-modal dialog), and closing it left focus on `<body>`.
  */
 export function useMediaEditDialog(
-  initial: MediaEditDialogValue,
-  onSave: (value: MediaEditDialogValue) => void,
-  _onCancel: () => void,
-  deps: { locale: string }
+  { initial, onSave, _onCancel, deps }: {
+    initial: MediaEditDialogValue; onSave: (value: MediaEditDialogValue) => void;
+    _onCancel: () => void; deps: { locale: string };
+  },
+  _options: Record<string, never> = {},
 ): MediaEditDialogController {
   const [alt, setAlt] = useState(initial.alt ?? "");
   const [cssClass, setCssClass] = useState(initial.cssClass ?? "");
@@ -109,7 +110,7 @@ export function useMediaEditDialog(
     });
   }
 
-  const t = (key: string) => mediaT({ locale: deps.locale, key: key });
+  const t = ({ key }: { key: string }, _options: Record<string, never> = {}) => mediaT({ locale: deps.locale, key });
 
   return { alt, cssClass, htmlAttributes, setAlt, setCssClass, setHtmlAttributes, htmlAttributesError, save, t };
 }
@@ -120,10 +121,11 @@ export function useMediaEditDialog(
  * composes {@link useMediaEditDialog} with a fixed `locale`.
  */
 export function useWiredMediaEditDialog(
-  initial: MediaEditDialogValue,
-  onSave: (value: MediaEditDialogValue) => void,
-  onCancel: () => void
+  { initial, onSave, onCancel }: {
+    initial: MediaEditDialogValue; onSave: (value: MediaEditDialogValue) => void; onCancel: () => void;
+  },
+  _options: Record<string, never> = {},
 ): MediaEditDialogController {
   const locale = useAdminLocale();
-  return useMediaEditDialog(initial, onSave, onCancel, { locale });
+  return useMediaEditDialog({ initial, onSave, _onCancel: onCancel, deps: { locale } });
 }

@@ -385,9 +385,9 @@ export function useExecutionConfig(
    */
   const handleExecutionModeChange = useCallback((mode: "local" | "api") => {
     const nextMode: ExecutionConfig["mode"] = mode === "api" ? "byok" : "local-cli";
-    const write = applyExecutionConfigChange(setExecutionConfig, (previous) =>
-      previous.mode === nextMode ? previous : { ...previous, mode: nextMode });
-    if (write) persistWrite(write, "[AssistantDock] failed to save execution mode");
+    const write = applyExecutionConfigChange({ setExecutionConfig, change: (previous) =>
+      previous.mode === nextMode ? previous : { ...previous, mode: nextMode } });
+    if (write) persistWrite({ write, failureLog: "[AssistantDock] failed to save execution mode" });
     // `setExecutionConfig` added: it's a `useCallback([], ...)`-wrapped setter (itself stable for
     // the component's lifetime, see its own declaration above), so listing it is a no-op that only
     // satisfies the linter — Part 2 triage fix, not a suppression.
@@ -521,9 +521,9 @@ export function useByokRuntime(
    */
   const handleByokModelChange = useCallback(
     (model: string) => {
-      const write = applyExecutionConfigChange(setExecutionConfig, (previous) =>
-        previous.byok.model === model ? previous : { ...previous, byok: { ...previous.byok, model } });
-      if (write) persistWrite(write, "[AssistantDock] failed to save BYOK model");
+      const write = applyExecutionConfigChange({ setExecutionConfig, change: (previous) =>
+        previous.byok.model === model ? previous : { ...previous, byok: { ...previous.byok, model } } });
+      if (write) persistWrite({ write, failureLog: "[AssistantDock] failed to save BYOK model" });
     },
     [setExecutionConfig, persistWrite],
   );
@@ -672,9 +672,9 @@ export function useLocalCliSelection(
     const generation = pickGeneration.current;
     localCliSelectionRef.current = selection;
     setLocalCliSelection(selection);
-    const write = applyExecutionConfigChange(setExecutionConfig, (previous) => withLocalCliSelection({ previous, selection }));
+    const write = applyExecutionConfigChange({ setExecutionConfig, change: (previous) => withLocalCliSelection({ previous, selection }) });
     if (write) {
-      void persistRef.current(write, "[AssistantDock] failed to save Local CLI selection").then((saved) => {
+      void persistRef.current({ write, failureLog: "[AssistantDock] failed to save Local CLI selection" }).then((saved) => {
         if (saved && generation === pickGeneration.current) touchedRef.current = false;
       });
     }
@@ -784,10 +784,10 @@ export function useComposerCapabilities(_input: Record<string, never> = {}, _opt
  * the `useMemo` call itself out of the component body — no I/O, no seam: `locale` is the only input
  * and `createChatI18nAdapter` is a pure function of it.
  *
- * @param locale - `useWiredAdminLocale()`'s current value.
+ * @param input.locale - `useWiredAdminLocale()`'s current value.
  * @returns The memoized adapter, stable for as long as `locale` does not change.
  * @example
- * const chatI18n = useChatI18n(locale);
+ * const chatI18n = useChatI18n({ locale });
  */
 export interface UseSelectedAgentPlugins {
   /** Every currently-pinned Agent Plugin ref, in pin order — see {@link addPluginRef}. */
@@ -842,8 +842,8 @@ export function useSelectedAgentPlugins(): UseSelectedAgentPlugins {
   return { selectedPluginRefIds, addPluginRef, removePluginRef };
 }
 
-export function useChatI18n(locale: string): I18nAdapter {
-  return useMemo(() => createChatI18nAdapter(locale), [locale]);
+export function useChatI18n({ locale }: { locale: string }, _options: Record<string, never> = {}): I18nAdapter {
+  return useMemo(() => createChatI18nAdapter({ locale }), [locale]);
 }
 
 /**
@@ -908,7 +908,7 @@ export function useAssistantTransport(
     readLocalCliSelectionForSend?: (config: ExecutionConfig) => ChatPaneAgentSelection;
     ensureConversationId?: () => Promise<string | null>;
     persistUserTurn?: (conversationId: string, message: ChatMessage) => Promise<void>;
-    onDaemonStartingChange?: (starting: boolean) => void;
+    onDaemonStartingChange?: (input: { starting: boolean }, options?: Record<string, never>) => void;
   },
   { createTransport = createTovuAssistantTransport, prepareBinding = prepareAssistantPageBinding }: { createTransport?: typeof createTovuAssistantTransport; prepareBinding?: typeof prepareAssistantPageBinding } = {},
 ): ReturnType<typeof createTovuAssistantTransport> {
@@ -958,7 +958,7 @@ export function useAssistantTransport(
           const signal = AbortSignal.any(signals);
           await pageBindToken({ bridge: fresh.agentBridge, signal }, {
             prepareBinding: io.current.prepareBinding,
-            onDaemonStartingChange: (starting) => io.current.input.onDaemonStartingChange?.(starting),
+            onDaemonStartingChange: ({ starting }) => io.current.input.onDaemonStartingChange?.({ starting }),
           });
           signal.throwIfAborted();
           if (fresh.agentBridge) {
@@ -1008,18 +1008,18 @@ async function pageBindToken(
   { bridge, signal }: { bridge?: FrontendSessionBridge | null; signal?: AbortSignal },
   { prepareBinding, onDaemonStartingChange }: {
     prepareBinding: typeof prepareAssistantPageBinding;
-    onDaemonStartingChange: (starting: boolean) => void;
+    onDaemonStartingChange: (input: { starting: boolean }, options?: Record<string, never>) => void;
   },
 ): Promise<string | undefined> {
   signal?.throwIfAborted();
   let activationPending = true;
-  const timer = setTimeout(() => onDaemonStartingChange(true), 500);
+  const timer = setTimeout(() => onDaemonStartingChange({ starting: true }), 500);
   // Stop and activation settlement may both arrive; a late completion must not clear a new send.
   const finishActivation = () => {
     if (!activationPending) return;
     activationPending = false;
     clearTimeout(timer);
-    onDaemonStartingChange(false);
+    onDaemonStartingChange({ starting: false });
   };
   signal?.addEventListener("abort", finishActivation, { once: true });
   try {
@@ -1294,7 +1294,7 @@ function rememberAgentsDeadline(
 }
 
 /** Writes a fresh inventory into the cache and everything that reads it. */
-export function replaceAgents(loader: CachedLoader<ChatPaneAgent[]>, agents: ChatPaneAgent[]): ChatPaneAgent[] {
+export function replaceAgents({ loader, agents }: { loader: CachedLoader<ChatPaneAgent[]>; agents: ChatPaneAgent[] }, _options: Record<string, never> = {}): ChatPaneAgent[] {
   recordAgents(agents);
   loader.replace({ value: agents });
   rememberAgentsDeadline({ agents: loader.peek() ?? agents });
@@ -1317,7 +1317,7 @@ async function rescanAgentsInto(loader: CachedLoader<ChatPaneAgent[]>): Promise<
   });
   // An empty rescan is normal during daemon restart; the fresh GET below retries it.
   const rescanned = inventory === null ? null : await readAgentsResponse({ inventory, label: `POST ${AGENTS_URL}/rescan` }).catch(() => null);
-  return replaceAgents(loader, rescanned ?? (await fetchAgents()));
+  return replaceAgents({ loader, agents: rescanned ?? (await fetchAgents()) });
 }
 
 /** Shares GET ownership through Jini's boot-scoped cache; accepted snapshot deadlines govern reads.
@@ -1685,7 +1685,7 @@ export function useMessagesChangeHandler(
 /** `value === undefined ? {} : { [key]: value }` as a named helper — same complexity-budget
  *  rationale as `use-external-mcp.hooks.ts`'s `includeIfDefined`: moves this branch out of
  *  {@link resolveRunContext}'s own scope without changing what it sends on the wire. */
-function includeIfDefined<K extends string, V>(key: K, value: V | undefined): { [P in K]?: V } {
+function includeIfDefined<K extends string, V>({ key, value }: { key: K; value: V | undefined }, _options: Record<string, never> = {}): { [P in K]?: V } {
   return (value === undefined ? {} : { [key]: value }) as { [P in K]?: V };
 }
 
@@ -1697,13 +1697,13 @@ function includeIfDefined<K extends string, V>(key: K, value: V | undefined): { 
  *  `null` is accepted alongside `undefined` and treated identically — `conversationId` is
  *  `chats.activeId`, which is `null` (not `undefined`) between chats. The `typeof` guard already
  *  excluded it; only the parameter type had not said so. */
-function includeIfNonEmptyString<K extends string>(key: K, value: string | null | undefined): { [P in K]?: string } {
+function includeIfNonEmptyString<K extends string>({ key, value }: { key: K; value: string | null | undefined }, _options: Record<string, never> = {}): { [P in K]?: string } {
   return (typeof value === "string" && value.length > 0 ? { [key]: value } : {}) as { [P in K]?: string };
 }
 
 /** Same rationale as {@link includeIfNonEmptyString}, for `pluginRefIds` — a non-empty readonly
  *  array rather than a non-empty string. */
-function includeIfNonEmptyArray<K extends string, V>(key: K, value: readonly V[] | undefined): { [P in K]?: readonly V[] } {
+function includeIfNonEmptyArray<K extends string, V>({ key, value }: { key: K; value: readonly V[] | undefined }, _options: Record<string, never> = {}): { [P in K]?: readonly V[] } {
   return (value && value.length > 0 ? { [key]: value } : {}) as { [P in K]?: readonly V[] };
 }
 
@@ -1755,20 +1755,20 @@ export function resolveRunContext(
   pageContext?: AgentScreenContext;
 } {
   return {
-    ...includeIfDefined("frontendBindToken", bindToken),
-    ...includeIfNonEmptyString("model", model),
+    ...includeIfDefined({ key: "frontendBindToken", value: bindToken }),
+    ...includeIfNonEmptyString({ key: "model", value: model }),
     // The Execution tab's persisted "Reasoning effort" pick, carried on exactly the same terms as
     // `model` — including the empty-string omission, since `""` is the ledger's own "no explicit
     // effort" and sending it would mean the same thing as sending nothing while looking like a
     // real selection on the wire.
-    ...includeIfNonEmptyString("reasoning", reasoning),
+    ...includeIfNonEmptyString({ key: "reasoning", value: reasoning }),
     // Omitted entirely when empty, same "absent means none" convention as the two fields above —
     // a run with no pinned plugin carries no key for it, matching `attachmentIds`'s own posture in
     // `assistant-transport.ts`'s `buildLocalCliContextRef`.
-    ...includeIfNonEmptyArray("pluginRefIds", pluginRefIds),
-    ...includeIfNonEmptyArray("selectedSkills", selectedSkills),
-    ...includeIfNonEmptyString("conversationId", conversationId),
-    ...includeIfDefined("pageContext", pageContext),
+    ...includeIfNonEmptyArray({ key: "pluginRefIds", value: pluginRefIds }),
+    ...includeIfNonEmptyArray({ key: "selectedSkills", value: selectedSkills }),
+    ...includeIfNonEmptyString({ key: "conversationId", value: conversationId }),
+    ...includeIfDefined({ key: "pageContext", value: pageContext }),
   };
 }
 
@@ -1790,10 +1790,10 @@ export function resolveRunContext(
  * The old same-origin route stays mounted server-side (harmless, and it may still have other
  * consumers), but this admin dock no longer points an iframe at it.
  *
- * @param hostOrigin - This admin app's own real origin — `globalThis.location.origin`, always, never
+ * @param input.hostOrigin - This admin app's own real origin — `globalThis.location.origin`, always, never
  *   a value parsed back out of this document's own URL.
  */
-export function buildAssistantMcpUiSandboxProxyUrl(hostOrigin: string): URL {
+export function buildAssistantMcpUiSandboxProxyUrl({ hostOrigin }: { hostOrigin: string }, _options: Record<string, never> = {}): URL {
   return new URL(buildSandboxProxyDataUrl(hostOrigin));
 }
 
@@ -1823,11 +1823,11 @@ export function buildAssistantMcpUiSandboxProxyUrl(hostOrigin: string): URL {
  * `Referer` header, matching how this app already opens every other off-site link — see memory
  * `links_open_new_tab`.
  *
- * @param url - The View's requested target, exactly as `useMcpUiHost` receives it from the
+ * @param input.url - The View's requested target, exactly as `useMcpUiHost` receives it from the
  *   `ui/open-link` request — not yet validated.
  * @complexity O(1) — one `URL` parse, at most one `window.open` call.
  */
-export function openMcpUiLink(url: string): void {
+export function openMcpUiLink({ url }: { url: string }, _options: Record<string, never> = {}): void {
   if (/^\/(?!\/)/.test(url)) {
     window.open(new URL(url, window.location.origin).href, "_blank", "noopener,noreferrer");
     return;
@@ -1926,7 +1926,7 @@ export function useRunContext(
  * @file Seam layer (2026-08-18, added after the inline-hook-extraction pass above, in response to
  * live review of that pass): one `use*Seam` wrapper per `INFO.md` rule-3 injectable prop on
  * `AssistantDockProps`, each fusing "pick the override or default the real hook" and "call it" into
- * a single call `AssistantDock.tsx` makes directly — `const { … } = useExecutionConfigSeam(props.useExecutionConfig)`
+ * a single call `AssistantDock.tsx` makes directly — `const { … } = useExecutionConfigSeam({ override: props.useExecutionConfig })`
  * — rather than the two-step `const useXState = resolveXHook(props.useX); const { … } = useXState();`
  * the component previously did for each of the eight seamed hooks.
  *
@@ -1951,7 +1951,7 @@ export function useRunContext(
  */
 
 export function useChatsSeam(
-  override: (() => UseAssistantChats) | undefined,
+  { override }: { override: (() => UseAssistantChats) | undefined },
   { principalId }: { principalId?: string } = {},
 ): UseAssistantChats {
   // `principalId` reaches only the wired hook: it scopes the remembered last conversation, which an
@@ -1967,7 +1967,7 @@ export interface AssistantDockChrome {
    *  `assistant-dock-i18n.ts`'s own `t`, which falls back to `COMMON_I18N` via
    *  `createDictionaryTranslator` before returning the raw key. Recomputed each render (cheap: one
    *  object lookup), not memoized — matches this closure's pre-extraction behavior exactly. */
-  t: (key: string) => string;
+  t: (input: { key: string }, options?: Record<string, never>) => string;
   /** The `I18nAdapter` `<JiniChatProvider i18n={...}>` takes — `@jini-ai/chat/react`'s OWN
    *  translation contract, covering the `ConversationList` switcher mounted in `header` below, a
    *  DIFFERENT (larger, package-owned) key set than `t` above. See {@link useChatI18n}. */
@@ -1999,7 +1999,7 @@ export function resolveAssistantConversationTitle({ chats, fallback }: {
  * either stubbing `lib/settings-tabs` globally or asserting only ever the English default.
  *
  * Bundles `locale`, `t`, and `chatI18n` into one call — not three separate ones
- * (`useAdminLocaleSeam(...)`, an inline `t` closure, `useChatI18n(locale)`) — because all three
+ * (`useAdminLocaleSeam(...)`, an inline `t` closure, `useChatI18n({ locale })`) — because all three
  * exist for exactly one shared purpose (translating this dock's own chrome) and were only ever
  * consumed together at the one call site in `AssistantDock.tsx`. A prior revision of this pass kept
  * them as three separate steps in the component body; that was redundant on inspection — three
@@ -2025,46 +2025,44 @@ export function resolveAssistantConversationTitle({ chats, fallback }: {
  * (also a shared, externally-defined hook) already gets one without every OTHER `useAssistantChats`
  * call site needing to.
  *
- * @param useAdminLocaleOverride - {@link AssistantDockProps.useAdminLocale}. Defaults to the real
+ * @param input.useAdminLocaleOverride - {@link AssistantDockProps.useAdminLocale}. Defaults to the real
  *   `useWiredAdminLocale`.
  * @returns `{ locale, t, chatI18n }` — see {@link AssistantDockChrome}.
  * @example
- * const { locale, t, chatI18n } = useAssistantDockChrome(useAdminLocale);
+ * const { locale, t, chatI18n } = useAssistantDockChrome({ useAdminLocaleOverride: useAdminLocale });
  */
-export function useAssistantDockChrome(useAdminLocaleOverride: (() => string) | undefined): AssistantDockChrome {
+export function useAssistantDockChrome({ useAdminLocaleOverride }: { useAdminLocaleOverride: (() => string) | undefined }, _options: Record<string, never> = {}): AssistantDockChrome {
   const locale = (useAdminLocaleOverride ?? useWiredAdminLocale)();
-  const t = (key: string): string => translateAssistantDockLabel(locale, key);
-  const chatI18n = useChatI18n(locale);
+  const t = ({ key }: { key: string }, _options: Record<string, never> = {}): string => translateAssistantDockLabel({ locale, key });
+  const chatI18n = useChatI18n({ locale });
   return { locale, t, chatI18n };
 }
 
-export function useExecutionConfigSeam(override: typeof useExecutionConfig | undefined): UseExecutionConfig {
+export function useExecutionConfigSeam({ override }: { override: typeof useExecutionConfig | undefined }, _options: Record<string, never> = {}): UseExecutionConfig {
   return (override ?? useExecutionConfig)();
 }
 
 export function useByokRuntimeSeam(
-  override: typeof useByokRuntime | undefined,
-  input: {
-    executionConfig: ExecutionConfig;
-    setExecutionConfig: React.Dispatch<React.SetStateAction<ExecutionConfig>>;
+  { override, input }: {
+    override: typeof useByokRuntime | undefined;
+    input: { executionConfig: ExecutionConfig; setExecutionConfig: React.Dispatch<React.SetStateAction<ExecutionConfig>> };
   },
+  _options: Record<string, never> = {},
 ): UseByokRuntime {
   return (override ?? useByokRuntime)(input);
 }
 
 export function useLocalCliSelectionSeam(
-  override: typeof useLocalCliSelection | undefined,
-  input: {
-    executionConfig: ExecutionConfig;
-    setExecutionConfig: React.Dispatch<React.SetStateAction<ExecutionConfig>>;
-    configLoaded: boolean;
+  { override, input }: {
+    override: typeof useLocalCliSelection | undefined;
+    input: { executionConfig: ExecutionConfig; setExecutionConfig: React.Dispatch<React.SetStateAction<ExecutionConfig>>; configLoaded: boolean };
   },
+  _options: Record<string, never> = {},
 ): UseLocalCliSelection {
   return (override ?? useLocalCliSelection)(input);
 }
 
-export function useComposerCapabilitiesSeam(
-  override: typeof useComposerCapabilities | undefined,
+export function useComposerCapabilitiesSeam({ override }: { override: typeof useComposerCapabilities | undefined }, _options: Record<string, never> = {}
 ): UseComposerCapabilities {
   return (override ?? useComposerCapabilities)();
 }
@@ -2075,23 +2073,21 @@ export function useAssistantTransportSeam(
   { useTransport = useAssistantTransport }: { useTransport?: typeof useAssistantTransport } = {},
 ): { transport: ReturnType<typeof createTovuAssistantTransport>; daemonStarting: boolean } {
   const [daemonStarting, setDaemonStarting] = useState(false);
-  const transport = useTransport({ ...input, onDaemonStartingChange: setDaemonStarting });
+  const transport = useTransport({ ...input, onDaemonStartingChange: ({ starting }) => setDaemonStarting(starting) });
   return { transport, daemonStarting };
 }
 
-export function useAttachmentUploaderSeam(
-  override: typeof useAttachmentUploader | undefined,
+export function useAttachmentUploaderSeam({ override }: { override: typeof useAttachmentUploader | undefined }, _options: Record<string, never> = {}
 ): ReturnType<typeof createDaemonAttachmentUploader> {
   return (override ?? useAttachmentUploader)();
 }
 
-export function useAttachmentValidatorSeam(
-  override: typeof useAttachmentValidator | undefined,
+export function useAttachmentValidatorSeam({ override }: { override: typeof useAttachmentValidator | undefined }, _options: Record<string, never> = {}
 ): ReturnType<typeof createChatAttachmentValidator> {
   return (override ?? useAttachmentValidator)();
 }
 
-export function useRuntimeAccessSeam(override: typeof useRuntimeAccess | undefined): ChatPaneRuntimeAccess {
+export function useRuntimeAccessSeam({ override }: { override: typeof useRuntimeAccess | undefined }, _options: Record<string, never> = {}): ChatPaneRuntimeAccess {
   return (override ?? useRuntimeAccess)();
 }
 
@@ -2101,14 +2097,12 @@ function useNoAgentsPlaceholder(): undefined {
 
 /** {@link useAgentsPlaceholder} reads the REAL runtime access's cache, so it only applies when that
  *  real access is in use: an injected `useRuntimeAccess` fake has no cache to seed from. */
-export function useAgentsPlaceholderSeam(
-  runtimeAccessOverride: typeof useRuntimeAccess | undefined,
+export function useAgentsPlaceholderSeam({ runtimeAccessOverride }: { runtimeAccessOverride: typeof useRuntimeAccess | undefined }, _options: Record<string, never> = {}
 ): readonly ChatPaneAgent[] | undefined {
   return (runtimeAccessOverride ? useNoAgentsPlaceholder : useAgentsPlaceholder)();
 }
 
-export function useWorkingDirectoryAccessSeam(
-  override: typeof useWorkingDirectoryAccess | undefined,
+export function useWorkingDirectoryAccessSeam({ override }: { override: typeof useWorkingDirectoryAccess | undefined }, _options: Record<string, never> = {}
 ): ChatPaneWorkingDirectoryAccess | undefined {
   return (override ?? useWorkingDirectoryAccess)();
 }
@@ -2123,8 +2117,8 @@ export function useWorkingDirectoryAccessSeam(
  * given" to resolve — `useComposerVoiceInput` (a bare call in `AssistantDock.tsx`, no seam) is the
  * closer precedent, not the eight/nine `use*Seam` hooks.
  *
- * @param input - {@link UseFolderDropInput} — passed straight through to `useFolderDrop`.
- * @param onReady - `AssistantDockProps.onFolderDropCaptureReady`. Invoked once per identity change
+ * @param input.input - {@link UseFolderDropInput} — passed straight through to `useFolderDrop`.
+ * @param input.onReady - `AssistantDockProps.onFolderDropCaptureReady`. Invoked once per identity change
  *   of `handleDropCapture` (which itself only changes if `input.composerHandle` or `useFolderDrop`'s
  *   internal callbacks change — effectively once per mount). `undefined` when the caller (e.g. a
  *   test rendering `AssistantDock` directly) does not care to receive it.
@@ -2134,10 +2128,14 @@ export function useWorkingDirectoryAccessSeam(
  * @complexity Time/space: O(1) beyond what `useFolderDrop` itself costs.
  */
 export function useFolderDropBridge(
-  input: UseFolderDropInput,
-  onReady: ((handleDropCapture: (event: DragEvent<HTMLElement>) => void) => void) | undefined,
-  proposeSkillFiles?: (files: readonly File[], paths?: readonly string[]) => Promise<void>,
-  onSkillDropError?: (message: string) => void,
+  { input, onReady }: {
+    input: UseFolderDropInput;
+    onReady: ((handleDropCapture: (event: DragEvent<HTMLElement>) => void) => void) | undefined;
+  },
+  { proposeSkillFiles, onSkillDropError }: {
+    proposeSkillFiles?: (files: readonly File[], paths?: readonly string[]) => Promise<void>;
+    onSkillDropError?: (message: string) => void;
+  } = {},
 ): UseFolderDrop {
   const folderDrop = useFolderDrop(input);
   const handleDropCapture = useCallback((event: DragEvent<HTMLElement>) => {

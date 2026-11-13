@@ -1231,7 +1231,7 @@ describe("resolveRunContext", () => {
 
 describe("useChatI18n", () => {
   it("builds an adapter matching createChatI18nAdapter's own contract for the given locale", () => {
-    const { result } = renderHook(() => useChatI18n("es"));
+    const { result } = renderHook(() => useChatI18n({ locale: "es" }));
 
     expect(result.current.locale).toBe("es");
     expect(result.current.t("Conversations")).toBe("Conversaciones");
@@ -1240,7 +1240,7 @@ describe("useChatI18n", () => {
   });
 
   it("memoizes the adapter across re-renders while locale is unchanged", () => {
-    const { result, rerender } = renderHook(({ locale }) => useChatI18n(locale), {
+    const { result, rerender } = renderHook(({ locale }) => useChatI18n({ locale }), {
       initialProps: { locale: "es" },
     });
     const first = result.current;
@@ -1251,7 +1251,7 @@ describe("useChatI18n", () => {
   });
 
   it("rebuilds the adapter when locale changes", () => {
-    const { result, rerender } = renderHook(({ locale }) => useChatI18n(locale), {
+    const { result, rerender } = renderHook(({ locale }) => useChatI18n({ locale }), {
       initialProps: { locale: "es" },
     });
     const first = result.current;
@@ -1267,7 +1267,7 @@ describe("useAssistantDockChrome", () => {
   it("defaults to the real useWiredAdminLocale when no override is passed", () => {
     mockUseWiredAdminLocale.mockReturnValue("fr");
 
-    const { result } = renderHook(() => useAssistantDockChrome(undefined));
+    const { result } = renderHook(() => useAssistantDockChrome({ useAdminLocaleOverride: undefined }));
 
     expect(mockUseWiredAdminLocale).toHaveBeenCalled();
     expect(result.current.locale).toBe("fr");
@@ -1275,7 +1275,7 @@ describe("useAssistantDockChrome", () => {
 
   it("uses the injected override instead of the real hook when one is passed", () => {
     const override = vi.fn(() => "xx-TEST"); // not a real locale any dictionary or fetch could produce
-    const { result } = renderHook(() => useAssistantDockChrome(override));
+    const { result } = renderHook(() => useAssistantDockChrome({ useAdminLocaleOverride: override }));
 
     expect(override).toHaveBeenCalled();
     expect(mockUseWiredAdminLocale).not.toHaveBeenCalled();
@@ -1283,25 +1283,25 @@ describe("useAssistantDockChrome", () => {
   });
 
   it("t() translates a dictionary-covered key for the resolved locale", () => {
-    const { result } = renderHook(() => useAssistantDockChrome(() => "es"));
+    const { result } = renderHook(() => useAssistantDockChrome({ useAdminLocaleOverride: () => "es" }));
 
-    expect(result.current.t("Tovu assistant")).toBe("Asistente de Tovu");
+    expect(result.current.t({ key: "Tovu assistant" })).toBe("Asistente de Tovu");
   });
 
   it("t() falls back to the raw key for a locale/key combination the dictionary does not cover", () => {
-    const { result } = renderHook(() => useAssistantDockChrome(() => "es"));
+    const { result } = renderHook(() => useAssistantDockChrome({ useAdminLocaleOverride: () => "es" }));
 
-    expect(result.current.t("Some unmapped key")).toBe("Some unmapped key");
+    expect(result.current.t({ key: "Some unmapped key" })).toBe("Some unmapped key");
   });
 
   it("t() falls back to the raw key entirely for a locale with no dictionary entry at all", () => {
-    const { result } = renderHook(() => useAssistantDockChrome(() => "xx-TEST"));
+    const { result } = renderHook(() => useAssistantDockChrome({ useAdminLocaleOverride: () => "xx-TEST" }));
 
-    expect(result.current.t("Tovu assistant")).toBe("Tovu assistant");
+    expect(result.current.t({ key: "Tovu assistant" })).toBe("Tovu assistant");
   });
 
   it("chatI18n is the same adapter useChatI18n(locale) would build — composed, not reimplemented", () => {
-    const { result } = renderHook(() => useAssistantDockChrome(() => "es"));
+    const { result } = renderHook(() => useAssistantDockChrome({ useAdminLocaleOverride: () => "es" }));
 
     expect(result.current.chatI18n.locale).toBe("es");
     expect(result.current.chatI18n.t("Conversations")).toBe("Conversaciones");
@@ -1411,7 +1411,7 @@ describe("useAssistantTransport — the send-time execution re-read", () => {
     const executionConfigRef = { current: { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" } as ExecutionConfig };
     const agentBridge = { bindToken: () => token } as unknown as FrontendSessionBridge;
     const { result } = renderHook(() => useAssistantTransport({ executionConfigRef, agentBridge,
-      onDaemonStartingChange: starting => { if (!starting) token = undefined; },
+      onDaemonStartingChange: ({ starting }) => { if (!starting) token = undefined; },
     }, { createTransport, prepareBinding: async () => "live-before-settlement" }));
     await expect(result.current.startRun({ agentId: "codex" } as unknown as RunInput, handlers)).rejects.toThrow(/not attached/);
     expect(startRun).not.toHaveBeenCalled();
@@ -1424,7 +1424,7 @@ describe("useAssistantTransport — the send-time execution re-read", () => {
     const executionConfigRef = { current: { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" } as ExecutionConfig };
     const agentBridge = { bindToken: () => "live" } as unknown as FrontendSessionBridge;
     const { result } = renderHook(() => useAssistantTransport({ executionConfigRef, agentBridge,
-      onDaemonStartingChange: starting => { if (!starting) stop.abort(reason); },
+      onDaemonStartingChange: ({ starting }) => { if (!starting) stop.abort(reason); },
     }, { createTransport, prepareBinding: async () => "live" }));
     await expect(result.current.startRun({ agentId: "codex", signal: stop.signal } as unknown as RunInput, handlers)).rejects.toBe(reason);
     expect(startRun).not.toHaveBeenCalled();
@@ -2248,7 +2248,7 @@ describe("useWorkingDirectoryAccessSeam", () => {
   it("defaults to usable native directory access in a supported browser", async () => {
     const picker = vi.fn().mockResolvedValue({ name: "seam-project" });
     vi.stubGlobal("showDirectoryPicker", picker);
-    const { result, rerender } = renderHook(() => useWorkingDirectoryAccessSeam(undefined));
+    const { result, rerender } = renderHook(() => useWorkingDirectoryAccessSeam({ override: undefined }));
     const first = result.current;
     expect(first).toBeDefined();
     rerender();
@@ -2259,7 +2259,7 @@ describe("useWorkingDirectoryAccessSeam", () => {
   });
 
   it("defaults to the real useWorkingDirectoryAccess when no override is given", () => {
-    const { result } = renderHook(() => useWorkingDirectoryAccessSeam(undefined));
+    const { result } = renderHook(() => useWorkingDirectoryAccessSeam({ override: undefined }));
 
     expect(result.current).toBeUndefined();
   });
@@ -2267,7 +2267,7 @@ describe("useWorkingDirectoryAccessSeam", () => {
   it("uses the override instead of the real hook when one is given", () => {
     const fakeAccess = { pickWorkingDirectory: vi.fn() } as never;
 
-    const { result } = renderHook(() => useWorkingDirectoryAccessSeam(() => fakeAccess));
+    const { result } = renderHook(() => useWorkingDirectoryAccessSeam({ override: () => fakeAccess }));
 
     expect(result.current).toBe(fakeAccess);
   });
@@ -2278,7 +2278,7 @@ describe("useChatsSeam", () => {
     const fakeChats = { activeId: null } as unknown as UseAssistantChats;
     mockUseWiredAssistantChats.mockReturnValue(fakeChats);
 
-    const { result } = renderHook(() => useChatsSeam(undefined));
+    const { result } = renderHook(() => useChatsSeam({ override: undefined }));
 
     expect(result.current).toBe(fakeChats);
     expect(mockUseWiredAssistantChats).toHaveBeenCalled();
@@ -2288,7 +2288,7 @@ describe("useChatsSeam", () => {
     const fakeChats = { activeId: "conv-1" } as unknown as UseAssistantChats;
     const override = vi.fn(() => fakeChats);
 
-    const { result } = renderHook(() => useChatsSeam(override));
+    const { result } = renderHook(() => useChatsSeam({ override }));
 
     expect(result.current).toBe(fakeChats);
     expect(mockUseWiredAssistantChats).not.toHaveBeenCalled();
@@ -2314,7 +2314,7 @@ describe("useFolderDropBridge", () => {
     desktop.tovuFiles = {};
     try {
       // No `onSkillDropError`: a host may omit it, and the drop must still be captured.
-      const { result } = renderHook(() => useFolderDropBridge({ composerHandle: { current: null } }, undefined, proposeSkillFiles));
+      const { result } = renderHook(() => useFolderDropBridge({ input: { composerHandle: { current: null } }, onReady: undefined }, { proposeSkillFiles }));
       result.current.handleDropCapture(event);
       await waitFor(() => expect(proposeSkillFiles).toHaveBeenCalledTimes(1));
       expect(proposeSkillFiles.mock.calls[0]![0]).toEqual([skillFile]);
@@ -2342,7 +2342,7 @@ describe("useFolderDropBridge", () => {
     } as unknown as Parameters<ReturnType<typeof useFolderDropBridge>["handleDropCapture"]>[0];
     expect((window as unknown as { tovuFiles?: unknown }).tovuFiles).toBeUndefined();
     const proposeSkillFiles = vi.fn();
-    const { result } = renderHook(() => useFolderDropBridge({ composerHandle: { current: null } }, undefined, proposeSkillFiles));
+    const { result } = renderHook(() => useFolderDropBridge({ input: { composerHandle: { current: null } }, onReady: undefined }, { proposeSkillFiles }));
     result.current.handleDropCapture(event);
     expect(event.preventDefault).toHaveBeenCalledTimes(1);
     expect(event.stopPropagation).toHaveBeenCalledTimes(1);
@@ -2356,7 +2356,7 @@ describe("useFolderDropBridge", () => {
     const onReady = vi.fn();
     const composerHandle = { current: null };
 
-    const { result } = renderHook(() => useFolderDropBridge({ composerHandle }, onReady));
+    const { result } = renderHook(() => useFolderDropBridge({ input: { composerHandle }, onReady }));
 
     expect(onReady).toHaveBeenCalledTimes(1);
     expect(onReady).toHaveBeenCalledWith(result.current.handleDropCapture);
@@ -2369,7 +2369,7 @@ describe("useFolderDropBridge", () => {
     mockUseFolderDrop.mockReturnValue({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture: vi.fn() });
     const composerHandle = { current: null };
 
-    expect(() => renderHook(() => useFolderDropBridge({ composerHandle }, undefined))).not.toThrow();
+    expect(() => renderHook(() => useFolderDropBridge({ input: { composerHandle }, onReady: undefined }))).not.toThrow();
   });
 
   it("re-publishes only when handleDropCapture's identity actually changes", () => {
@@ -2379,7 +2379,7 @@ describe("useFolderDropBridge", () => {
     const onReady = vi.fn();
     const composerHandle = { current: null };
 
-    const { result, rerender } = renderHook(() => useFolderDropBridge({ composerHandle }, onReady));
+    const { result, rerender } = renderHook(() => useFolderDropBridge({ input: { composerHandle }, onReady }));
     const published = result.current.handleDropCapture;
     expect(onReady).toHaveBeenCalledTimes(1);
 
@@ -2403,7 +2403,7 @@ describe("useFolderDropBridge", () => {
     mockUseFolderDrop.mockReturnValue(fake);
     const composerHandle = { current: null };
 
-    const { result } = renderHook(() => useFolderDropBridge({ composerHandle }, undefined));
+    const { result } = renderHook(() => useFolderDropBridge({ input: { composerHandle }, onReady: undefined }));
 
     expect(result.current.notice).toBe(fake.notice);
     expect(result.current.dismiss).toBe(fake.dismiss);

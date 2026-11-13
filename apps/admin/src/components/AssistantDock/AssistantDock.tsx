@@ -341,7 +341,7 @@ export function AssistantDock({
   // and — via `chatI18n` — the `ConversationList` switcher mounted in `header` below. See
   // {@link useAssistantDockChrome}'s own doc for why `locale`/`t`/`chatI18n` are one hook rather
   // than three separate calls.
-  const { locale, t, chatI18n } = useAssistantDockChrome(useAdminLocale);
+  const { locale, t, chatI18n } = useAssistantDockChrome({ useAdminLocaleOverride: useAdminLocale });
   const conversationDelete = useConfirmRequest({});
   // Gear menu: per-operator transcript display, applied to the pane at once.
   const chatDisplay = useDockDisplayPreferences(useChatDisplayPreferencesOverride);
@@ -350,24 +350,23 @@ export function AssistantDock({
   // Gear menu: per-person runtime switches; the server reads them when it starts the next run.
   const runtimePreferences = useAssistantRuntimePreferences();
   const chatSettings = useChatSettingsDialog({});
-  const agentPermissions = useDockAgentPermissions({ t, openSettings: chatSettings.show });
+  const agentPermissions = useDockAgentPermissions({ t: (key) => t({ key }), openSettings: chatSettings.show });
 
-  const executionPolicy = useTovuDockExecution({ controller: useExecutionConfigSeam(useExecutionConfigOverride), locale }, { usePolicy: useExecutionPolicy });
+  const executionPolicy = useTovuDockExecution({ controller: useExecutionConfigSeam({ override: useExecutionConfigOverride }), locale }, { usePolicy: useExecutionPolicy });
   const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded, readExecutionConfigForSend } = executionPolicy;
   // The dock, not the layout, owns the pre-warm: only it knows the chat's execution mode.
   const pageActivationError = useLocalCliDaemonPrewarm({ mode: executionConfig.mode, configLoaded, agentBridge });
-  const { byokRuntime, handleByokModelChange } = useByokRuntimeSeam(useByokRuntimeOverride, { executionConfig, setExecutionConfig });
-  const { localCliSelection, handleLocalCliSelectionChange, readLocalCliSelectionForSend } = useLocalCliSelectionSeam(useLocalCliSelectionOverride, {
-    executionConfig,
-    setExecutionConfig,
-    configLoaded,
+  const { byokRuntime, handleByokModelChange } = useByokRuntimeSeam({ override: useByokRuntimeOverride, input: { executionConfig, setExecutionConfig } });
+  const { localCliSelection, handleLocalCliSelectionChange, readLocalCliSelectionForSend } = useLocalCliSelectionSeam({
+    override: useLocalCliSelectionOverride,
+    input: { executionConfig, setExecutionConfig, configLoaded },
   });
 
   // Resolved BEFORE the transport, which now takes `chats.ensureConversationId`: turn 1's run must
   // be able to adopt this pane's conversation before it is dispatched, because the lazy adoption
   // driven by `onMessagesChange` starts too late for the run to carry the id. See
   // `CreateTovuAssistantTransportOptions.ensureConversationId` for the full mechanism.
-  const chats = useChatsSeam(useChats, { principalId });
+  const chats = useChatsSeam({ override: useChats }, { principalId });
   const { transport, daemonStarting } = useAssistantTransportSeam({
     agentBridge,
     executionConfigRef,
@@ -380,17 +379,17 @@ export function AssistantDock({
     // `use-assistant-chats.hooks.ts`.
     persistUserTurn: chats.persistUserTurn,
   }, { useTransport: useAssistantTransportOverride });
-  const uploadOrdinaryAttachments = useAttachmentUploaderSeam(useAttachmentUploaderOverride);
+  const uploadOrdinaryAttachments = useAttachmentUploaderSeam({ override: useAttachmentUploaderOverride });
   const skillInstall = useSkillInstall();
   const uploadAttachments = useSkillAwareAttachmentUploader({ uploadAttachments: uploadOrdinaryAttachments, proposeFiles: skillInstall.proposeFiles });
-  const validateAttachments = useAttachmentValidatorSeam(useAttachmentValidatorOverride);
+  const validateAttachments = useAttachmentValidatorSeam({ override: useAttachmentValidatorOverride });
   // D-21(b): the picker's inventory has no auth status, so the sign-in warning reads Settings'
   // detection; its wrapped runtimeAccess re-probes auth on the picker's own Rescan.
-  const pickerRuntimeAccess = useRuntimeAccessSeam(useRuntimeAccessOverride);
+  const pickerRuntimeAccess = useRuntimeAccessSeam({ override: useRuntimeAccessOverride });
   const selectedAgentAuth = useSelectedAgentAuthWarning({ mode: executionConfig.mode, agentId: localCliSelection.agentId, locale, runtimeAccess: pickerRuntimeAccess });
   const runtimeAccess = executionPolicy.runtimeAccess(selectedAgentAuth.runtimeAccess);
   // The picker's instant list while `listAgents` is still in flight — see `useAgentsPlaceholder`.
-  const agentsPlaceholder = executionPolicy.agents(useAgentsPlaceholderSeam(useRuntimeAccessOverride));
+  const agentsPlaceholder = executionPolicy.agents(useAgentsPlaceholderSeam({ runtimeAccessOverride: useRuntimeAccessOverride }));
   const selectedAgent = selectedDockAgent({ mode: executionConfig.mode, agents: agentsPlaceholder, agentId: localCliSelection.agentId });
   const runtime = { ...runtimePreferences, visible: visibleAssistantRuntimePreferences({ agent: selectedAgent }) };
   /**
@@ -399,7 +398,7 @@ export function AssistantDock({
    * `useComposerCapabilities`'s own doc (`AssistantDock.hooks.tsx`) for why it starts empty and how
    * a failed projection degrades.
    */
-  const { composerCapabilities } = useComposerCapabilitiesSeam(useComposerCapabilitiesOverride);
+  const { composerCapabilities } = useComposerCapabilitiesSeam({ override: useComposerCapabilitiesOverride });
   /**
    * The composer's pinned-Agent-Plugin chips (2026-08-21) — see {@link useSelectedAgentPlugins}'s
    * own doc for why this is host state rather than part of `@jini-ai/chat`'s own composer state,
@@ -432,7 +431,7 @@ export function AssistantDock({
   // SPEC-053: folder-drop-to-path + fs-files `custom` root wiring — reuses `voiceInput`'s own
   // `composerHandle` (the same "insert text into the composer" seam a voice transcript already goes
   // through) rather than owning a second ref to the same `ChatPaneComposerHandle`.
-  const folderDrop = useFolderDropBridge({ composerHandle: voiceInput.composerHandle }, onFolderDropCaptureReady, skillInstall.proposeFiles, skillInstall.fail);
+  const folderDrop = useFolderDropBridge({ input: { composerHandle: voiceInput.composerHandle }, onReady: onFolderDropCaptureReady }, { proposeSkillFiles: skillInstall.proposeFiles, onSkillDropError: skillInstall.fail });
   // The composer's folder button: a picked path is handled exactly like a desktop folder drop; a
   // dialog that fails to open hides the button and falls back to the paste hint.
   const folderPicker = useNativeFolderPicker({ onPicked: folderDrop.insertFolderPath, onFailed: folderDrop.showPathHint });
@@ -452,7 +451,7 @@ export function AssistantDock({
     conversationId: chats.activeId,
   });
   // Shown on one ellipsized line, so the full name rides along as the hover tooltip.
-  const activeTitle = resolveAssistantConversationTitle({ chats, fallback: t("Tovu assistant") });
+  const activeTitle = resolveAssistantConversationTitle({ chats, fallback: t({ key: "Tovu assistant" }) });
   // One policy-gated selection handler for both the failure card and the picker.
   const handleSelectionChange = executionPolicy.selectionChange(handleLocalCliSelectionChange);
   const failureSurface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages: chats.initialMessages,
@@ -464,7 +463,7 @@ export function AssistantDock({
     <JiniChatProvider transport={failureSurface.transport} i18n={chatI18n} extEventRendererRegistry={renderers.registry}>
       <FailureSurfaceContext.Provider value={failureSurface.actions}>
       <SkillInstallConfirmation install={skillInstall} locale={locale} />
-      {pageActivationError && <div className="jini-chat-pane__notice" role="alert">{t(pageActivationError)}</div>}
+      {pageActivationError && <div className="jini-chat-pane__notice" role="alert">{t({ key: pageActivationError })}</div>}
       {/* ChatPane takes `transport` directly as well as via the provider — the package's
           components read their dependencies from props, not implicitly from context. */}
       <div className="admin-chat-dock-drop" data-testid="admin-chat-driver-root" data-tovu-local-cli={executionPolicy.visibility} data-conversation-id={chats.activeId ?? ""} ref={discoveryDraft.rootRef} style={{ display: "contents" }} onClickCapture={captureComposerClick} onChangeCapture={discoveryDraft.captureDraft} onDropCapture={folderDrop.handleDropCapture}>
@@ -474,7 +473,7 @@ export function AssistantDock({
         // gets in — pushing new messages into a live pane would fight its own state.
         key={chats.paneKey}
         transport={failureSurface.transport}
-        sendingLabel={daemonStarting ? t("Starting assistant…") : undefined}
+        sendingLabel={daemonStarting ? t({ key: "Starting assistant…" }) : undefined}
         deliverTypedAnswer={typedAnswerPoster}
         deliverMidRunMessage={midRunMessagePoster}
         onSecretRedacted={onAdminSecretRedacted}
@@ -535,8 +534,8 @@ export function AssistantDock({
             locale={locale} t={t} chatI18n={chatI18n} conversationDelete={conversationDelete} chatDisplay={chatDisplay}
             agentPlugins={agentPlugins} runtime={runtime} onMoreSettings={agentPermissions.onMoreSettings} empty={emptyState.empty} />
         }
-        title={t("Tovu assistant")}
-        placeholder={t("Ask the assistant to do something…")}
+        title={t({ key: "Tovu assistant" })}
+        placeholder={t({ key: "Ask the assistant to do something…" })}
         onMessagesChange={emptyState.handleMessagesChange}
         runContext={runContext}
         // Wires the daemon-relayed `chat.*` capability channel to THIS live pane instance — see
@@ -649,8 +648,8 @@ export function AssistantDock({
         // needs." and "Which admin sections exist, and what does each one manage?"
       />
       <ConfirmDialog {...conversationDelete.dialog} />
-      <ChatSettingsDialog open={chatSettings.open} onClose={chatSettings.close} t={t}
-        displaySections={dockSettingsMenuSections({ t }, { display: chatDisplay, agentPlugins })} permissions={agentPermissions} />
+      <ChatSettingsDialog open={chatSettings.open} onClose={chatSettings.close} t={(key) => t({ key })}
+        displaySections={dockSettingsMenuSections({ t: (key) => t({ key }) }, { display: chatDisplay, agentPlugins })} permissions={agentPermissions} />
       </div>
       </FailureSurfaceContext.Provider>
     </JiniChatProvider>

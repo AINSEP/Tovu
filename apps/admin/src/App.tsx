@@ -115,7 +115,7 @@ const NO_PERMISSIONS: readonly string[] = [];
  * @complexity O(n + p·r·s) time and O(n + s) space: n URL characters, p registered panels,
  * r patterns per panel, s path segments. Legacy/alias rewrites add only a bounded parsing pass.
  */
-export function parseRoute(routePath: string): Route {
+export function parseRoute({ routePath }: { routePath: string }, _options: Record<string, never> = {}): Route {
   // Everything before the first `?` (the query is `matchRoute`'s to read). A replace rather than
   // `split("?")[0]`, whose `?? ""` fallback for an index that always exists could never fire.
   const rawPath = routePath.split("?", 1)[0];
@@ -125,7 +125,7 @@ export function parseRoute(routePath: string): Route {
   // Keep the original query bytes; serializing URLSearchParams would change encodings/order.
   if (rawPath === "/assistant" || rawPath === "/assistant/") {
     const redirectPath = `/ai-assistant${routePath.slice(rawPath.length)}`;
-    return { ...parseRoute(redirectPath), redirectPath };
+    return { ...parseRoute({ routePath: redirectPath }), redirectPath };
   }
 
   if (parts[0] === "section" && parts[1]) {
@@ -137,7 +137,7 @@ export function parseRoute(routePath: string): Route {
     // ignored, matching the single inline branch this replaces (`/section/settings/foo` never
     // looked past `settings` either). The query is kept: `/section/sites?tab=import` must still
     // reach the moved-tab resolver below, not the Sites gate.
-    return parseRoute(`/${id}${routePath.slice(rawPath.length)}`);
+    return parseRoute({ routePath: `/${id}${routePath.slice(rawPath.length)}` });
   }
 
   // Sites' old Export/Import tabs first: their new home is not under Add-ons, and the redirect has to
@@ -195,7 +195,7 @@ interface RouteAccess {
  * its own small `view` switch (see `panels.tsx`), which is what lets a panel own its URL space
  * without a shared dispatch to edit.
  */
-function renderRoute(route: Route, siteSection: SiteSectionAvailability, access: RouteAccess): ReactNode {
+function renderRoute({ route, siteSection, access }: { route: Route; siteSection: SiteSectionAvailability; access: RouteAccess }, _options: Record<string, never> = {}): ReactNode {
   // Replace the old URL before mounting its screen; the canonical route retains the same gate.
   if (route.redirectPath) return <IntegrationsRedirect routePath={route.redirectPath} />;
   if (route.unknownSectionId !== undefined) {
@@ -205,7 +205,7 @@ function renderRoute(route: Route, siteSection: SiteSectionAvailability, access:
   // gate sits HERE rather than inside `panels.tsx`'s own `sites` render thunk so the panel manifest
   // stays a pure declaration of what this admin can show, and so "which sections this deployment
   // has" is answered in the one place that already owns routing.
-  const gate = resolveSiteSectionRouteGate(route.panelId, siteSection);
+  const gate = resolveSiteSectionRouteGate({ panelId: route.panelId, availability: siteSection });
   if (gate === "redirect") return <UnavailableSectionRedirect />;
   if (gate === "hold") return null;
   // A panel the operator holds none of the permissions for: say so, rather than mount a screen
@@ -369,7 +369,7 @@ function AssistantChrome(props: {
   /** The signed-in admin's id — scopes the assistant's remembered last conversation. */
   principalId: string;
   /** Bound translator — see `App`'s own `dockT` for where this comes from. */
-  dockT: (key: string) => string;
+  dockT: (input: { key: string }, options?: Record<string, never>) => string;
   locale: string;
   /** Settings → User Interface, via `useInterfacePreferences` (`resolveChatFabClearance` reads it). */
   hideFabWhileOpen: boolean;
@@ -458,27 +458,27 @@ function AssistantChrome(props: {
             that). */}
         <div className="chat-sheet-bar">
           <span className="chat-sheet-handle" aria-hidden="true" />
-          <span className="chat-sheet-bar-title">{dockT("Tovu assistant")}</span>
+          <span className="chat-sheet-bar-title">{dockT({ key: "Tovu assistant" })}</span>
           <span className="chat-sheet-bar-actions">
             <button
               type="button"
               className="chat-sheet-action"
               onClick={() => setSheetExpanded((current) => !current)}
               aria-expanded={sheetExpanded}
-              aria-label={sheetExpanded ? dockT("Collapse assistant panel") : dockT("Expand assistant panel")}
-              title={sheetExpanded ? dockT("Collapse assistant panel") : dockT("Expand assistant panel")}
+              aria-label={sheetExpanded ? dockT({ key: "Collapse assistant panel" }) : dockT({ key: "Expand assistant panel" })}
+              title={sheetExpanded ? dockT({ key: "Collapse assistant panel" }) : dockT({ key: "Expand assistant panel" })}
             >
               <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
                 {sheetExpanded ? <path d="M4 6.5 9 11.5l5-5" /> : <path d="M4 11.5 9 6.5l5 5" />}
               </svg>
             </button>
             {/* Same white tip under it as the dock header's other icon buttons (owner, 2026-10-11). */}
-            <DockHeaderTip label={dockT("Close AI chat")}>
+            <DockHeaderTip label={dockT({ key: "Close AI chat" })}>
               <button
                 type="button"
                 className="chat-sheet-action"
                 onClick={() => setChatOpen(false)}
-                aria-label={dockT("Close AI chat")}
+                aria-label={dockT({ key: "Close AI chat" })}
               >
                 <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
                   <path d="M5 5 13 13M13 5 5 13" strokeLinecap="round" />
@@ -497,7 +497,7 @@ function AssistantChrome(props: {
         ref={chatFabRef}
         open={chatOpen}
         onToggle={() => setChatOpen((current) => !current)}
-        label={dockT("assistant")}
+        label={dockT({ key: "assistant" })}
         locale={locale}
         avoidBottomPx={avoidBottomPx}
         avoidRightPx={avoidRightPx}
@@ -543,21 +543,20 @@ export interface AppProps {
  * a function's OWN body as one of that function's own branches — a call out to a separately-scoped
  * resolver does not.
  */
-function resolveSessionHook(override: typeof useAdminSession | undefined): typeof useAdminSession {
+function resolveSessionHook({ override }: { override: typeof useAdminSession | undefined }, _options: Record<string, never> = {}): typeof useAdminSession {
   return override ?? useAdminSession;
 }
-function resolveDrawerHook(override: typeof useSidebarDrawer | undefined): typeof useSidebarDrawer {
+function resolveDrawerHook({ override }: { override: typeof useSidebarDrawer | undefined }, _options: Record<string, never> = {}): typeof useSidebarDrawer {
   return override ?? useSidebarDrawer;
 }
-function resolveLinkInterceptorHook(
-  override: typeof useInternalLinkInterceptor | undefined
+function resolveLinkInterceptorHook({ override }: { override: typeof useInternalLinkInterceptor | undefined }, _options: Record<string, never> = {}
 ): typeof useInternalLinkInterceptor {
   return override ?? useInternalLinkInterceptor;
 }
-function resolveChatDockHook(override: typeof useChatDockLayout | undefined): typeof useChatDockLayout {
+function resolveChatDockHook({ override }: { override: typeof useChatDockLayout | undefined }, _options: Record<string, never> = {}): typeof useChatDockLayout {
   return override ?? useChatDockLayout;
 }
-function resolveAgentBridgeHook(override: typeof useAgentPageBridge | undefined): typeof useAgentPageBridge {
+function resolveAgentBridgeHook({ override }: { override: typeof useAgentPageBridge | undefined }, _options: Record<string, never> = {}): typeof useAgentPageBridge {
   return override ?? useAgentPageBridge;
 }
 
@@ -569,7 +568,7 @@ export function App(props: AppProps) {
   // attributes are given, never `undefined` — so `App` is never invoked with zero arguments the way
   // a plain function call could be. `AppProps`' five fields are all optional, so `{}` satisfies the
   // type and this compiles the same as before for every existing call site.
-  const useSession = resolveSessionHook(props.useSession);
+  const useSession = resolveSessionHook({ override: props.useSession });
   const session = useSession();
   return <AdminBootScopeContext.Provider value={{ principalId: session.user?.id ?? null, checking: session.checking }}>
     <AdminShell {...props} session={session} />
@@ -577,10 +576,10 @@ export function App(props: AppProps) {
 }
 
 function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSession> }) {
-  const useDrawer = resolveDrawerHook(props.useDrawer);
-  const useLinkInterceptor = resolveLinkInterceptorHook(props.useLinkInterceptor);
-  const useChatDock = resolveChatDockHook(props.useChatDock);
-  const useAgentBridge = resolveAgentBridgeHook(props.useAgentBridge);
+  const useDrawer = resolveDrawerHook({ override: props.useDrawer });
+  const useLinkInterceptor = resolveLinkInterceptorHook({ override: props.useLinkInterceptor });
+  const useChatDock = resolveChatDockHook({ override: props.useChatDock });
+  const useAgentBridge = resolveAgentBridgeHook({ override: props.useAgentBridge });
 
   // `effectivePermissions` stays `undefined` until known — the nav filter and route gate below read
   // that as "show everything"; `AdminModulesProvider` gets `[]` for it, as before.
@@ -589,23 +588,23 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
   // (`App.hooks.tsx`) for why this is its own hook rather than a `useSession()` field. Called
   // unconditionally here, ahead of the `checking`/`!user` early returns below (rules of hooks),
   // same reasoning `useAdminAssistantAvailability` just below already documents for itself.
-  const logoutConfirm = useLogoutConfirm(logout);
+  const logoutConfirm = useLogoutConfirm({ logout });
   // `TOVU_ADMIN_ASSISTANT=off` — see `useAdminAssistantAvailability`'s own doc for why this is a
   // separate hook rather than a `useSession()` field, and why it is called unconditionally here
   // (before the `checking`/`!user` early returns below) even though it only fetches once `user` is
   // set: React's rules of hooks forbid calling it conditionally.
-  const adminAssistantEnabled = useAdminAssistantAvailability(user);
+  const adminAssistantEnabled = useAdminAssistantAvailability({ user });
   // `TOVU_ENABLE_SITE_SWITCHER` — whether this deployment has a Sites section at all. Called
   // unconditionally here for the same rules-of-hooks reason as the line above, and read TWICE
   // below (the nav filter and the route gate) from this one value, so the sidebar and the router
   // can never disagree about whether the section exists. See `useSiteSectionAvailability`. The one
   // exception is the pending window: the sidebar keeps the last confirmed answer so the Sites row
   // does not arrive late and shift the rows under it, while the route gate still holds.
-  const siteSection = useSiteSectionAvailability(user);
+  const siteSection = useSiteSectionAvailability({ user });
   const sidebarSiteSection = useSidebarSiteSection(siteSection);
   const routePath = useRouteLocation();
   useDesktopViewRelease({ routePath, signedIn: Boolean(user) && !checking });
-  const route = useMemo(() => parseRoute(routePath), [routePath]);
+  const route = useMemo(() => parseRoute({ routePath }), [routePath]);
   // Tells the assistant which screen each message is sent from; an editor adds its open entry.
   useAgentScreenRoute({ path: routePath, section: agentPageId(route), view: route.view });
   // The admin's own page views (route template only) and errors, relayed by the server.
@@ -701,7 +700,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
   if (checking) return <div className="boot-screen">{tApp({ locale: navLocale, key: "Loading Tovu…" })}</div>;
   if (!user) return <Login onLogin={handleLogin} />;
 
-  const content: ReactNode = renderRoute(route, siteSection, { permissions: effectivePermissions, locale: navLocale });
+  const content: ReactNode = renderRoute({ route, siteSection, access: { permissions: effectivePermissions, locale: navLocale } });
 
   return (
     // Sets the translated "Cancel" once for every `ConfirmDialog` mounted anywhere beneath this
@@ -829,7 +828,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
             see the announcement either way — see `screenshotAnnounced`'s own comment above. */}
         {screenshotAnnounced ? (
           <Toast
-            message={dockT("The assistant just captured a screenshot of this screen.")}
+            message={dockT({ key: "The assistant just captured a screenshot of this screen." })}
             tone="default"
             ttlMs={5000}
             onDismiss={dismissScreenshotAnnouncement}
@@ -846,7 +845,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
             scope={openPublishRequest.scope}
             onPlanned={openPublishRequest.resolve}
             onCancel={closePublishRequest}
-            t={dashboardT}
+            t={(key) => dashboardT({ key })}
             port={undefined}
           />
         ) : null}

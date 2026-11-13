@@ -174,7 +174,7 @@ describe("MediaPickerDialog — useDialog injection", () => {
     const listMedia = vi.spyOn(api, "listMedia");
     const mediaOriginalUrlSpy = vi.spyOn(api, "mediaOriginalUrl");
     const select = vi.fn();
-    const fakeUseDialog: typeof useWiredMediaPickerDialog = (onSelect) => ({
+    const fakeUseDialog: typeof useWiredMediaPickerDialog = ({ onSelect }) => ({
       items: [mediaItem({ id: "fake-1", title: "Fake asset" })],
       error: null,
       select: (item) => {
@@ -219,7 +219,7 @@ describe("MediaPickerDialog — translated copy (t injection)", () => {
   const fakeT = (key: string) => FAKE_DICT[key] ?? key;
 
   function fakeDialog(overrides: Partial<MediaPickerDialogController>): typeof useWiredMediaPickerDialog {
-    return (onSelect) => ({
+    return ({ onSelect }) => ({
       items: null,
       error: null,
       select: onSelect,
@@ -321,7 +321,7 @@ describe("MediaPickerDialog — accept filter", () => {
   // Regression (2026-10-05): the post editor's featured-image picker offered videos. A caller's
   // `accept` list now filters the legacy dialog's grid with the same rule the Jini picker applies.
   function dialogWith(items: AdminMedia[]): typeof useWiredMediaPickerDialog {
-    return (onSelect) => ({
+    return ({ onSelect }) => ({
       items,
       error: null,
       select: onSelect,
