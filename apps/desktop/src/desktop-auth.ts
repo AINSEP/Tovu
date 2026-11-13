@@ -127,7 +127,7 @@ interface AuthNet<TSession, TRequest extends AuthRequest = AuthRequest> {
  * @throws {Error} when the url is unparseable, not `http:`, or not a loopback literal.
  * @complexity O(1).
  */
-function assertLoopbackAdminUrl(adminUrl: string): URL {
+function assertLoopbackAdminUrl({ adminUrl }: { adminUrl: string }, _options = {}): URL {
   let parsed: URL;
   try {
     parsed = new URL(adminUrl);
@@ -150,11 +150,11 @@ function assertLoopbackAdminUrl(adminUrl: string): URL {
  * syntax (`persist:` prefix, `/` separators) and does not leak the operator's directory layout into
  * a partition directory name under `userData`.
  *
- * @param siteDir absolute site directory.
+ * @param input.siteDir absolute site directory.
  * @returns e.g. `persist:tovu-site-1f3c…`
  * @complexity O(n) in the path length.
  */
-function sitePartition(siteDir: string): string {
+function sitePartition({ siteDir }: { siteDir: string }, _options = {}): string {
   const digest = crypto.createHash("sha256").update(path.resolve(siteDir)).digest("hex").slice(0, 32);
   return `persist:tovu-site-${digest}`;
 }
@@ -171,7 +171,7 @@ export function armDesktopOwnerSignIn({ session, adminUrl, capability }: {
   ): void } };
   adminUrl: string; capability: string;
 }, _options = {}): void {
-  const origin = assertLoopbackAdminUrl(adminUrl);
+  const origin = assertLoopbackAdminUrl({ adminUrl });
   if (!/^[a-f0-9]{64}$/.test(capability) || origin.username || origin.password) throw new Error("Invalid desktop owner sign-in capability or origin.");
   const urls = ["local-boot-session", "reset-owner"].map(action => new URL(`/api/admin/v1/auth/${action}`, origin.origin).href);
   session.webRequest.onBeforeSendHeaders({ urls }, (details, callback) => {
@@ -213,7 +213,7 @@ async function redeemBootSession<TSession>(deps: {
   // `async` so the loopback guard REJECTS rather than throwing synchronously. A Promise-returning
   // function that can also throw before returning its promise is a trap for any caller using
   // `.catch()`, and this particular throw is the security guard.
-  const origin = assertLoopbackAdminUrl(deps.adminUrl);
+  const origin = assertLoopbackAdminUrl({ adminUrl: deps.adminUrl });
   const body = JSON.stringify({ token: deps.bootToken });
 
   return new Promise((resolve) => {
@@ -327,7 +327,7 @@ async function hasValidSession<TSession>(deps: {
   session: TSession & CookieJarSession;
   adminUrl: string;
 }): Promise<boolean> {
-  const origin = assertLoopbackAdminUrl(deps.adminUrl);
+  const origin = assertLoopbackAdminUrl({ adminUrl: deps.adminUrl });
   if (!(await hasActiveSessionCookie(deps))) return false;
 
   return new Promise((resolve) => {
@@ -416,7 +416,7 @@ async function endSiteSession<TSession>(deps: {
   session: TSession;
   adminUrl: string;
 }): Promise<AuthOutcome> {
-  const origin = assertLoopbackAdminUrl(deps.adminUrl);
+  const origin = assertLoopbackAdminUrl({ adminUrl: deps.adminUrl });
 
   return new Promise((resolve) => {
     const request = deps.net.request({

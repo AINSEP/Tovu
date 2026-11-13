@@ -48,7 +48,7 @@ interface AddSitePointerError {
   code: string;
 }
 class AddSitePointerError extends Error {
-  constructor(code: string, message: string) {
+  constructor({ code, message }: { code: string; message: string }) {
     super(message);
     this.name = "AddSitePointerError";
     this.code = code;
@@ -58,7 +58,7 @@ class AddSitePointerError extends Error {
 /** One {@link REFUSALS} entry. */
 interface RefusalEntry {
   code: string;
-  describe: (dir: string) => string;
+  describe: (input: { dir: string }, options?: Record<string, never>) => string;
 }
 
 /**
@@ -76,27 +76,27 @@ interface RefusalEntry {
 const REFUSALS: Record<string, RefusalEntry> = Object.freeze({
   empty: {
     code: "SITE_DIR_EMPTY",
-    describe: (dir) =>
+    describe: ({ dir }, _options = {}) =>
       `${dir} does not exist, or is an empty folder — there is no Tovu site here to add. ` +
       `Adding a website only ever points at a site that already exists; it never creates one. ` +
       `Check the path, or use "Create website" to make a new site in an empty folder.`,
   },
   incomplete: {
     code: "SITE_DIR_INCOMPLETE",
-    describe: (dir) =>
+    describe: ({ dir }, _options = {}) =>
       `${dir} looks like a half-initialized or damaged Tovu site — it is missing one of the two ` +
       `files every site has (config.json and .site-meta.json). Repairing it is not something ` +
       `adding a website will do. Point at a complete site's folder instead.`,
   },
   occupied: {
     code: "SITE_DIR_OCCUPIED",
-    describe: (dir) =>
+    describe: ({ dir }, _options = {}) =>
       `${dir} is a folder of unrelated files, not a Tovu site (no config.json and no ` +
       `.site-meta.json). If your site lives in a subfolder, point at that subfolder instead.`,
   },
   unreadable: {
     code: "SITE_DIR_UNREADABLE",
-    describe: (dir) =>
+    describe: ({ dir }, _options = {}) =>
       `${dir} cannot be examined — it may be on an unmounted volume, be a broken symlink, or deny ` +
       `this app permission to read it. Nothing was added.`,
   },
@@ -104,12 +104,12 @@ const REFUSALS: Record<string, RefusalEntry> = Object.freeze({
 
 /** The refusal for one non-`"site"` verdict, with an unmapped verdict refused rather than admitted
  *  — see {@link REFUSALS}. @complexity O(1). */
-function refusalFor(kind: string, dir: string): AddSitePointerError {
+function refusalFor({ kind, dir }: { kind: string; dir: string }, _options = {}): AddSitePointerError {
   const refusal = REFUSALS[kind];
   if (refusal === undefined) {
-    return new AddSitePointerError("SITE_DIR_UNUSABLE", `${dir} is not a usable Tovu site (${kind}). Nothing was added.`);
+    return new AddSitePointerError({ code: "SITE_DIR_UNUSABLE", message: `${dir} is not a usable Tovu site (${kind}). Nothing was added.` });
   }
-  return new AddSitePointerError(refusal.code, refusal.describe(dir));
+  return new AddSitePointerError({ code: refusal.code, message: refusal.describe({ dir }) });
 }
 
 /**
@@ -128,7 +128,7 @@ function refusalFor(kind: string, dir: string): AddSitePointerError {
  *
  * @complexity O(n) in the path length.
  */
-function normalizeSiteDirPath(rawSiteDir: string, cwd: string): string {
+function normalizeSiteDirPath({ rawSiteDir, cwd }: { rawSiteDir: string; cwd: string }, _options = {}): string {
   return path.resolve(cwd, rawSiteDir);
 }
 
@@ -182,10 +182,10 @@ interface AddSitePointerResult {
  */
 function addSitePointer(input: AddSitePointerInput, options: SiteIdentityOptions = {}): AddSitePointerResult {
   const classify = input.classifySiteDir ?? classifySiteDirSafely;
-  const siteDir = normalizeSiteDirPath(input.siteDir, input.cwd ?? process.cwd());
+  const siteDir = normalizeSiteDirPath({ rawSiteDir: input.siteDir, cwd: input.cwd ?? process.cwd() });
 
   const kind = classify(siteDir);
-  if (kind !== "site") throw refusalFor(kind, siteDir);
+  if (kind !== "site") throw refusalFor({ kind, dir: siteDir });
   ensureIndependentSiteIdentity({ siteDir }, options);
 
   // Read BEFORE the write, because afterwards both answers are gone: `trackSite` is idempotent

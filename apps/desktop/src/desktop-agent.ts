@@ -77,7 +77,7 @@ interface DesktopAgentRuntime {
   readonly lifecycle: RunLifecycle;
   readonly daemonUrl: string;
   /** The site a live run was started against, or `null`. Exposed for the tools and for tests. */
-  addresseeOf(runId: string): TurnAddressee | null;
+  addresseeOf(input: { runId: string }, options?: Record<string, never>): TurnAddressee | null;
   /** Ids of every registered tool — the set the agent receives (desktop.* + site.* entry points). */
   toolIds(): readonly string[];
   startTurn(required: DesktopTurnInput, optional?: DesktopTurnOptions): Promise<{ runId: string }>;
@@ -90,7 +90,7 @@ interface DesktopAgentRuntimeRequired {
   /** The agent CLI's working directory; created if missing. Lives under the app's userData. */
   workDir: string;
   /** Builds the tool table; handed the runtime's own per-run addressee lookup. */
-  buildTools: (ports: { addresseeOf: (runId: string) => TurnAddressee | null }) => ToolRegistration[];
+  buildTools: (ports: { addresseeOf: (input: { runId: string }, options?: Record<string, never>) => TurnAddressee | null }) => ToolRegistration[];
 }
 
 interface DesktopAgentRuntimeOptions {
@@ -132,7 +132,7 @@ const DESKTOP_SYSTEM_OVERLAY = [
  * screen for THIS turn. Pure.
  * @complexity O(n) in the prompt length.
  */
-function turnPrompt(prompt: string, addressee: TurnAddressee | null): string {
+function turnPrompt({ prompt, addressee }: { prompt: string; addressee: TurnAddressee | null }, _options = {}): string {
   const scope = addressee === null
     ? "[Desktop context] No website is on screen. Only desktop.* tools apply this turn."
     : `[Desktop context] On screen: the website "${addressee.name}" (${addressee.siteDir}). site.list_tools / site.call_tool reach it this turn.`;
@@ -143,7 +143,7 @@ function turnPrompt(prompt: string, addressee: TurnAddressee | null): string {
  * The bearer token a `jini-mcp` child presents, from `Authorization: Bearer <token>`. Pure.
  * @complexity O(n) in the header length.
  */
-function bearerToken(header: string | undefined): string | undefined {
+function bearerToken({ header }: { header: string | undefined }, _options = {}): string | undefined {
   if (header === undefined) return undefined;
   const value = header.trim();
   if (!/^Bearer\s/i.test(value)) return undefined;
@@ -164,7 +164,7 @@ function authorizeBridgeRequest(
   request: { path: string; authorization: string | undefined; body: unknown },
   credentials: Pick<RunScopedCredentials, "resolveCaller">,
 ): AuthDecision {
-  const token = bearerToken(request.authorization);
+  const token = bearerToken({ header: request.authorization });
   if (token === undefined) return { allowed: false, status: 401, error: "missing bearer credential" };
   const caller = credentials.resolveCaller({ token });
   if (caller === undefined) return { allowed: false, status: 401, error: "credential is not valid for any live run" };
@@ -183,7 +183,7 @@ function authorizeBridgeRequest(
 function registryCatalog(registry: ToolRegistry): ToolCatalogQuery {
   const entries = (): readonly ToolDescriptor[] => registry.list({});
   return {
-    search: ({ query }, optional) => {
+    search: ({ query }, optional = {}) => {
       const terms = query.toLowerCase().split(/\s+/).filter((term) => term !== "");
       const scored = entries().map((descriptor) => {
         const haystack = `${descriptor.id} ${descriptor.description ?? ""}`.toLowerCase();
@@ -341,7 +341,7 @@ async function createDesktopAgentRuntime(
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   /** Live runs only — deleted on terminal, which is what expires their bridge credentials. */
   const liveRuns = new Map<string, { addressee: TurnAddressee | null }>();
-  const addresseeOf = (runId: string) => liveRuns.get(runId)?.addressee ?? null;
+  const addresseeOf = ({ runId }: { runId: string }, _options = {}) => liveRuns.get(runId)?.addressee ?? null;
   const credentials = createRunScopedCredentials({
     principalOfLiveRun: ({ runId }) => (liveRuns.has(runId) ? DESKTOP_OPERATOR.id : undefined),
     crypto: createNodeCredentialCrypto({}),
@@ -403,7 +403,7 @@ async function createDesktopAgentRuntime(
     void lifecycle.waitForTerminal({ runId: run.id }).then(() => gaps.flush()).finally(() => gapCollectors.delete(gaps));
     await lifecycle.stream({ runId: run.id, onEvent: event => gaps.observe({ event }, {}) });
     void fullCliContext.run(nativeToolAccess, () => executor.run(
-      { runId: run.id, agentId: input.agentId, prompt: turnPrompt(input.prompt, addressee), cwd: nativeToolAccess ? addressee?.siteDir ?? required.workDir : required.workDir },
+      { runId: run.id, agentId: input.agentId, prompt: turnPrompt({ prompt: input.prompt, addressee }), cwd: nativeToolAccess ? addressee?.siteDir ?? required.workDir : required.workDir },
       {
         permissionMode: isHostedAssistantRuntime({ env: required.agentRuntime.hostEnv }, { hostSignals }) ? 'restricted' : 'bypass',
         nativeToolAccess,

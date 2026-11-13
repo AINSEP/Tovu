@@ -106,16 +106,15 @@ export function diffAgainstBaseline(
 /**
  * Turn one ESLint JSON run into a verdict.
  *
- * @param results ESLint's `-f json` output, already parsed.
- * @param baseline the grandfathered violations.
- * @param minFilesLinted the smallest plausible scan size; below this the run is not trusted.
+ * @param input.results ESLint's `-f json` output, already parsed.
+ * @param input.baseline the grandfathered violations.
+ * @param input.minFilesLinted the smallest plausible scan size; below this the run is not trusted.
  * @returns `{ current, added, removed, filesLinted, failures }`.
  * @complexity O(n) in results.
  */
 export function evaluateRun(
-  results: readonly EslintFileResult[],
-  baseline: readonly ComplexityViolation[],
-  minFilesLinted: number
+  { results, baseline, minFilesLinted }: { results: readonly EslintFileResult[]; baseline: readonly ComplexityViolation[]; minFilesLinted: number },
+  _options = {},
 ): ComplexityRunVerdict {
   const current: ComplexityViolation[] = [];
   for (const result of results) {
@@ -154,7 +153,7 @@ export function evaluateRun(
  * @returns `null` when usable, else the reason it is not.
  * @complexity O(1).
  */
-export function rejectUnusableEslintRun(status: number | null, stdout: string | null | undefined): string | null {
+export function rejectUnusableEslintRun({ status, stdout }: { status: number | null; stdout: string | null | undefined }, _options = {}): string | null {
   if (status !== 0 && status !== 1) {
     return `eslint exited ${status} — that is a CRASH, not a finding. Exit 0 and 1 are the only usable outcomes.`;
   }

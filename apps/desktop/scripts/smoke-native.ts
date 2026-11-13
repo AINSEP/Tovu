@@ -54,7 +54,7 @@ interface SmokeNativePorts {
 }
 
 /** Throw so the isolated app is cleaned up before main reports exit 1. */
-function fail(message: string): never {
+function fail({ message }: { message: string }, _options = {}): never {
   throw new Error(message);
 }
 
@@ -62,32 +62,32 @@ function fail(message: string): never {
 function platformDirFromArgv(argv: readonly string[]): string {
   const flagAt = argv.indexOf("--platform-dir");
   const platformDirArg = flagAt !== -1 ? argv[flagAt + 1] : undefined;
-  if (!platformDirArg) fail("smoke-native: --platform-dir <dir> is required");
+  if (!platformDirArg) fail({ message: "smoke-native: --platform-dir <dir> is required" });
   return path.resolve(DESKTOP_ROOT, platformDirArg);
 }
 
 /** Locates the packaged executable and its staged `node_modules` under `platformDir`, exiting with
  *  a specific reason when either cannot be found. */
-function locateTargets(platformDir: string, ports: SmokeNativePorts): SmokeTargets {
+function locateTargets({ platformDir, ports }: { platformDir: string; ports: SmokeNativePorts }, _options = {}): SmokeTargets {
   let entryNames: string[];
   try {
     entryNames = ports.readDirectory(platformDir);
   } catch (error) {
-    fail(`smoke-native: cannot read ${platformDir}: ${(error as Error).message}`);
+    fail({ message: `smoke-native: cannot read ${platformDir}: ${(error as Error).message}` });
   }
 
   let targets: SmokeTargets;
   try {
     targets = resolveSmokeTargets(platformDir, entryNames);
   } catch (error) {
-    fail((error as Error).message);
+    fail({ message: (error as Error).message });
   }
 
   if (!ports.exists(targets.executablePath)) {
-    fail(`smoke-native: resolved executable does not exist: ${targets.executablePath}`);
+    fail({ message: `smoke-native: resolved executable does not exist: ${targets.executablePath}` });
   }
   if (!ports.exists(targets.nodeModulesDir)) {
-    fail(`smoke-native: resolved node_modules dir does not exist: ${targets.nodeModulesDir}`);
+    fail({ message: `smoke-native: resolved node_modules dir does not exist: ${targets.nodeModulesDir}` });
   }
   return targets;
 }
@@ -104,11 +104,11 @@ function spawnSmoke(targets: SmokeTargets, ports: SmokeNativePorts): string {
   });
 
   if (spawned.error) {
-    fail(`smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}`);
+    fail({ message: `smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}` });
   }
   if (spawned.stdout) ports.out(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stdout }) }, { maxLength: 2_000 }) + "\n");
   if (spawned.stderr) ports.err(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stderr }) }, { maxLength: 2_000 }) + "\n");
-  if (spawned.status !== 0) fail(`smoke-native: child failed (code ${spawned.status ?? "none"}, signal ${spawned.signal ?? "none"})\n${spawned.stdout ?? ""}`);
+  if (spawned.status !== 0) fail({ message: `smoke-native: child failed (code ${spawned.status ?? "none"}, signal ${spawned.signal ?? "none"})\n${spawned.stdout ?? ""}` });
   return spawned.stdout ?? "";
 }
 
@@ -120,11 +120,11 @@ async function runGate({ targets, directory, ports }: { targets: SmokeTargets; d
   try {
     result = parseSmokeOutput(stdout);
   } catch (error) {
-    fail((error as Error).message);
+    fail({ message: (error as Error).message });
   }
 
   if (!result.ok) {
-    fail("smoke-native: one or more native modules failed inside the packaged binary");
+    fail({ message: "smoke-native: one or more native modules failed inside the packaged binary" });
   }
   ports.out("smoke-native: OK — better-sqlite3, sharp, and argon2 all round-tripped\n");
   checkEntryImports(targets, ports);
@@ -164,9 +164,9 @@ function checkEntryImports(targets: SmokeTargets, ports: SmokeNativePorts): void
   try {
     result = parseEntryLoadOutput(stdout);
   } catch (error) {
-    fail((error as Error).message);
+    fail({ message: (error as Error).message });
   }
-  if (!result.ok) fail(`smoke-native: packaged entries import modules the app does not ship:\n  ${result.unresolved.join("\n  ")}`);
+  if (!result.ok) fail({ message: `smoke-native: packaged entries import modules the app does not ship:\n  ${result.unresolved.join("\n  ")}` });
   ports.out("smoke-native: OK — every static import of the shell and server entries resolves\n");
 }
 
@@ -180,9 +180,9 @@ function spawnEntryLoad(targets: SmokeTargets, ports: SmokeNativePorts): string 
     cwd: path.dirname(targets.executablePath),
     encoding: "utf8",
   });
-  if (spawned.error) fail(`smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}`);
+  if (spawned.error) fail({ message: `smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}` });
   if (spawned.stderr) ports.err(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stderr }) }, { maxLength: 2_000 }) + "\n");
-  if (spawned.status !== 0) fail(`smoke-native: entry-load child failed (code ${spawned.status ?? "none"}, signal ${spawned.signal ?? "none"})\n${spawned.stdout ?? ""}`);
+  if (spawned.status !== 0) fail({ message: `smoke-native: entry-load child failed (code ${spawned.status ?? "none"}, signal ${spawned.signal ?? "none"})\n${spawned.stdout ?? ""}` });
   return spawned.stdout ?? "";
 }
 
@@ -195,13 +195,13 @@ function spawnEntryLoad(targets: SmokeTargets, ports: SmokeNativePorts): string 
  */
 async function runSmokeNativeGate({ argv }: { argv: readonly string[] }, ports: SmokeNativePorts): Promise<void> {
   await ports.isolate({
-    targets: locateTargets(platformDirFromArgv(argv), ports), run: (targets, directory) => runGate({ targets, directory, ports }),
+    targets: locateTargets({ platformDir: platformDirFromArgv(argv), ports }), run: ({ targets, directory }, _options = {}) => runGate({ targets, directory, ports }),
   });
 }
 
 /** The one stderr line a failed gate prints: redacted and bounded, an Error's message or the value
  *  itself. @complexity O(n) in the message length. */
-function formatGateFailure(error: unknown): string {
+function formatGateFailure({ error }: { error: unknown }, _options = {}): string {
   return sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n";
 }
 
@@ -212,7 +212,7 @@ if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLTo
     ownerStatus: runPackagedOwnerStoreStatus,
     out: process.stdout.write.bind(process.stdout), err: process.stderr.write.bind(process.stderr), env: process.env,
   }).catch((error: unknown) => {
-    process.stderr.write(formatGateFailure(error));
+    process.stderr.write(formatGateFailure({ error }));
     process.exitCode = 1;
   });
 }

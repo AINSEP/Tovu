@@ -62,7 +62,7 @@ function harness(overrides: Partial<SiteWindowPorts<FakeServer, FakeWindow, Ctx>
       log.push(`spawn ${siteDir}`);
       return { server: fakeServer(spawned), partition: `persist:${siteDir}` };
     },
-    sitePartition: (siteDir) => `persist:${siteDir}`,
+    sitePartition: ({ siteDir }, _options = {}) => `persist:${siteDir}`,
     createWindow: ({ url, title, partition }) => { log.push(`window ${url} ${title} ${partition}`); return fakeWindow(`w${log.length}`); },
     readSiteName: (siteDir) => `Name of ${siteDir}`,
     recordSiteClosed: ({ registryPath, siteDir, pid }) => { log.push(`row-closed ${registryPath} ${siteDir} ${pid}`); },

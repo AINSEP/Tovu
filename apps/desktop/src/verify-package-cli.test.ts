@@ -43,13 +43,13 @@ function harness(fs: VerifyPackageFs, overrides: Partial<VerifyPackagePorts> = {
   const ptyChecked: string[][] = [];
   const ports: VerifyPackagePorts = {
     fs,
-    verify(asarPath, sourceRoot, prefixes): AsarVerification {
+    verify({ asarPath, sourceRoot, prefixes }, _options = {}): AsarVerification {
       verified.push(`${asarPath}|${sourceRoot}|${prefixes.join(",")}`);
       return { checkedCount: 3, mismatches: [] };
     },
-    isEmptyVerification: (count) => count === 0,
-    formatMismatchReport: (mismatches) => `REPORT(${mismatches.map((item) => item.relPath).join(",")})`,
-    bundledNpmFailures(dirs) { npmChecked.push(dirs); return []; },
+    isEmptyVerification: ({ checkedCount }, _options = {}) => checkedCount === 0,
+    formatMismatchReport: ({ mismatches }, _options = {}) => `REPORT(${mismatches.map((item) => item.relPath).join(",")})`,
+    bundledNpmFailures({ resourcesDirs }, _options = {}) { npmChecked.push(resourcesDirs); return []; },
     ptyHelperFailures(dirs) { ptyChecked.push(dirs); return []; },
     prefixes: ["src", "dist"],
     stdout: { write: (text: string) => out.push(text) },
@@ -138,7 +138,7 @@ test("a byte mismatch exits 1 with the formatted report and never reaches the np
 
 test("a missing bundled npm exits 1 and lists every missing file", () => {
   const { ports, out, err } = harness(fakeFs({}), {
-    bundledNpmFailures: (dirs) => dirs.map((dir) => `npm/bin/npx-cli.js (under ${dir})`),
+    bundledNpmFailures: ({ resourcesDirs }, _options = {}) => resourcesDirs.map((dir) => `npm/bin/npx-cli.js (under ${dir})`),
   });
   assert.equal(runVerifyPackage({ argv: ["--asar", "/a/Resources/app.asar"], desktopRoot: ROOT }, ports), 1);
   assert.equal(err.length, 1);

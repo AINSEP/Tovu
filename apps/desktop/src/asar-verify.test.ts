@@ -52,27 +52,27 @@ test("collects nested files under a directory prefix", () => {
   const header = {
     src: { files: { "a.js": { size: 1, offset: "0" }, sub: { files: { "b.js": { size: 2, offset: "1" } } } } },
   };
-  assert.deepEqual(filesUnderPrefixes(header, ["src"]).sort(), ["src/a.js", "src/sub/b.js"]);
+  assert.deepEqual(filesUnderPrefixes({ headerFiles: header, prefixes: ["src"] }).sort(), ["src/a.js", "src/sub/b.js"]);
 });
 
 test("a prefix naming a FILE directly (the nested Electron entry) is included as-is, not walked", () => {
   const header = { src: { files: { main: { files: { "index.ts": { size: 4, offset: "0" } } } } } };
-  assert.deepEqual(filesUnderPrefixes(header, ["src/main/index.ts"]), ["src/main/index.ts"]);
+  assert.deepEqual(filesUnderPrefixes({ headerFiles: header, prefixes: ["src/main/index.ts"] }), ["src/main/index.ts"]);
 });
 
 test("an entry-file prefix inside a directory prefix adds no second copy of that file", () => {
   const header = { src: { files: { "a.js": { size: 1, offset: "0" }, main: { files: { "index.ts": { size: 4, offset: "1" } } } } } };
-  assert.deepEqual(filesUnderPrefixes(header, ["src", "src/main/index.ts"]).sort(), ["src/a.js", "src/main/index.ts"]);
+  assert.deepEqual(filesUnderPrefixes({ headerFiles: header, prefixes: ["src", "src/main/index.ts"] }).sort(), ["src/a.js", "src/main/index.ts"]);
 });
 
 test("symlinks are excluded — they carry no bytes of their own to compare", () => {
   const header = { src: { files: { "linked.js": { link: "elsewhere" }, "real.js": { size: 1, offset: "0" } } } };
-  assert.deepEqual(filesUnderPrefixes(header, ["src"]), ["src/real.js"]);
+  assert.deepEqual(filesUnderPrefixes({ headerFiles: header, prefixes: ["src"] }), ["src/real.js"]);
 });
 
 test("a prefix absent from the archive is silently skipped, not an error", () => {
   const header = { src: { files: {} } };
-  assert.deepEqual(filesUnderPrefixes(header, ["src", "bin", "src/main/index.ts"]), []);
+  assert.deepEqual(filesUnderPrefixes({ headerFiles: header, prefixes: ["src", "bin", "src/main/index.ts"] }), []);
 });
 
 test("only the requested prefixes are walked — an unrelated top-level entry (node_modules) never appears", () => {
@@ -80,13 +80,13 @@ test("only the requested prefixes are walked — an unrelated top-level entry (n
     src: { files: { "a.js": { size: 1, offset: "0" } } },
     node_modules: { files: { "x.js": { size: 9, offset: "9" } } },
   };
-  assert.deepEqual(filesUnderPrefixes(header, ["src"]), ["src/a.js"]);
+  assert.deepEqual(filesUnderPrefixes({ headerFiles: header, prefixes: ["src"] }), ["src/a.js"]);
 });
 
 // --- formatMismatchReport: pure formatting -------------------------------------------------------
 
 test("the report names every mismatched file individually and explains the failure class", () => {
-  const report = formatMismatchReport([{ relPath: "src/tracked-sites.ts", reason: "content differs from source" }]);
+  const report = formatMismatchReport({ mismatches: [{ relPath: "src/tracked-sites.ts", reason: "content differs from source" }] });
   assert.match(report, /MISMATCH\s+src\/tracked-sites\.ts/);
   assert.match(report, /length-correct\/content-wrong/);
   assert.match(report, /^1 file\(s\)/);
@@ -131,7 +131,7 @@ test("an entry the header lists but extractFile cannot read is reported as a rea
     await packArchive(path.join(root, "src"), asarPath, { unpack: "**/gone.js" });
     rmSync(`${asarPath}.unpacked`, { recursive: true, force: true });
 
-    const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, path.join(root, "src"), ["a.js", "gone.js"]);
+    const { checkedCount, mismatches } = verifyAsarAgainstSource({ asarPath, sourceRoot: path.join(root, "src"), prefixes: ["a.js", "gone.js"] });
     assert.equal(checkedCount, 2);
     assert.equal(mismatches.length, 1);
     assert.equal(mismatches[0]!.relPath, "gone.js");
@@ -144,7 +144,7 @@ test("an entry the header lists but extractFile cannot read is reported as a rea
 test("a clean archive matches source on every file, byte-for-byte", async () => {
   const { root, asarPath, files } = await buildFixture();
   try {
-    const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "src/main/index.ts"]);
+    const { checkedCount, mismatches } = verifyAsarAgainstSource({ asarPath, sourceRoot: root, prefixes: ["src", "bin", "src/main/index.ts"] });
     assert.equal(checkedCount, Object.keys(files).length);
     assert.deepEqual(mismatches, []);
   } finally {
@@ -170,7 +170,7 @@ test("DELIBERATE CORRUPTION: one entry rewritten in place, same length, differen
     archiveBuf.set(corrupted, at);
     writeFileSync(asarPath, archiveBuf);
 
-    const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "src/main/index.ts"]);
+    const { checkedCount, mismatches } = verifyAsarAgainstSource({ asarPath, sourceRoot: root, prefixes: ["src", "bin", "src/main/index.ts"] });
     assert.equal(checkedCount, Object.keys(files).length, "corruption must not change which files are checked");
     assert.equal(mismatches.length, 1, "exactly one file was corrupted — exactly one mismatch must be reported");
     assert.equal(mismatches[0]!.relPath, target, "the gate must name the actual corrupted file");
@@ -184,7 +184,7 @@ test("a checked prefix with NOTHING shipped under it is a mismatch, not a partia
   // bridge. `src` alone still yields a non-zero checkedCount, so only a per-prefix check catches it.
   const { root, asarPath } = await buildFixture();
   try {
-    const { mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "src/main/index.ts", "dist"]);
+    const { mismatches } = verifyAsarAgainstSource({ asarPath, sourceRoot: root, prefixes: ["src", "bin", "src/main/index.ts", "dist"] });
     assert.deepEqual(mismatches, [{ relPath: "dist", reason: "nothing under this checked prefix is in app.asar" }]);
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -202,7 +202,7 @@ test("the entry prefix is checked on its own: an archive shipping src/ WITHOUT s
     const asarPath = path.join(root, "app.asar"); // sibling to `payload`, never inside the tree being packed
     await packArchive(payload, asarPath);
 
-    const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, payload, ["src", "src/main/index.ts"]);
+    const { checkedCount, mismatches } = verifyAsarAgainstSource({ asarPath, sourceRoot: payload, prefixes: ["src", "src/main/index.ts"] });
     assert.equal(checkedCount, 1);
     assert.deepEqual(mismatches, [{ relPath: "src/main/index.ts", reason: "nothing under this checked prefix is in app.asar" }]);
   } finally {
@@ -214,7 +214,7 @@ test("a file present in the archive but deleted from source is reported as missi
   const { root, asarPath, files } = await buildFixture();
   try {
     rmSync(path.join(root, "bin", "c.mjs"));
-    const { mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "src/main/index.ts"]);
+    const { mismatches } = verifyAsarAgainstSource({ asarPath, sourceRoot: root, prefixes: ["src", "bin", "src/main/index.ts"] });
     assert.equal(mismatches.length, 1);
     assert.equal(mismatches[0]!.relPath, "bin/c.mjs");
     assert.match(mismatches[0]!.reason, /missing from the source tree/);
@@ -289,7 +289,7 @@ test("a corrupted compiled preload under dist/ IS caught, using the real product
 
     // Uses the REAL exported production constant, not a hand-copied list — so this test tracks
     // scripts/verify-package.ts's actual wiring and cannot silently drift out of sync with it.
-    const { mismatches } = verifyAsarAgainstSource(asarPath, root, VERIFIED_PREFIXES);
+    const { mismatches } = verifyAsarAgainstSource({ asarPath, sourceRoot: root, prefixes: VERIFIED_PREFIXES });
     assert.equal(mismatches.length, 1, "the corrupted compiled preload must be reported");
     assert.equal(mismatches[0]!.relPath, target);
   } finally {
@@ -312,7 +312,7 @@ test("REGRESSION DOCUMENTATION: the pre-fix prefix list (src, bin and the entry 
     // is written at its current path, src/main/index.ts, since the fixture ships no root main.ts). It is
     // a fixed literal on purpose — it documents the historical gap, not current production wiring (that
     // is the job of the test above, which imports VERIFIED_PREFIXES directly).
-    const { mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "src/main/index.ts"]);
+    const { mismatches } = verifyAsarAgainstSource({ asarPath, sourceRoot: root, prefixes: ["src", "bin", "src/main/index.ts"] });
     assert.deepEqual(mismatches, [], "without dist/, the corrupted compiled preload goes undetected");
   } finally {
     teardown();
@@ -329,7 +329,7 @@ test("a .map file present in dist/ on disk but excluded from packing is never ch
     // what got packed — the exact shape electron-builder's own exclusion leaves behind.
     writeFileSync(path.join(root, "dist", "preload", "preload.mjs.map"), '{"version":3,"fixture":true}\n');
 
-    const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, root, VERIFIED_PREFIXES);
+    const { checkedCount, mismatches } = verifyAsarAgainstSource({ asarPath, sourceRoot: root, prefixes: VERIFIED_PREFIXES });
     // filesUnderPrefixes walks the ARCHIVE header only (never scans the source directory), so a file
     // that was never packed cannot appear in the checked set at all.
     assert.equal(checkedCount, Object.keys(files).length, "the .map file must not be added to the checked set");
@@ -353,7 +353,7 @@ test("a stale dist/ file left behind by an incremental build (no current .ts sou
     writeFileSync(path.join(root, orphanRel), "// orphaned build output, no current .ts source\n");
     await packArchive(root, asarPath);
 
-    const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, root, VERIFIED_PREFIXES);
+    const { checkedCount, mismatches } = verifyAsarAgainstSource({ asarPath, sourceRoot: root, prefixes: VERIFIED_PREFIXES });
     assert.equal(checkedCount, Object.keys(files).length + 1, "the orphan was genuinely packed, so it IS checked");
     assert.deepEqual(
       mismatches,
@@ -371,9 +371,9 @@ test("a stale dist/ file left behind by an incremental build (no current .ts sou
 // checkedCount === 0 must be a hard failure in scripts/verify-package.ts, never a silent pass.
 
 test("isEmptyVerification is true only when checkedCount is exactly 0", () => {
-  assert.equal(isEmptyVerification(0), true);
-  assert.equal(isEmptyVerification(1), false);
-  assert.equal(isEmptyVerification(4), false);
+  assert.equal(isEmptyVerification({ checkedCount: 0 }), true);
+  assert.equal(isEmptyVerification({ checkedCount: 1 }), false);
+  assert.equal(isEmptyVerification({ checkedCount: 4 }), false);
 });
 
 // --- toArchiveEntryPath: pure separator conversion, no fs ---------------------------------------
@@ -384,24 +384,24 @@ test("isEmptyVerification is true only when checkedCount is exactly 0", () => {
 // fix, and it is injectable-separator so the win32 branch is provable on any host OS.
 
 test("toArchiveEntryPath is a no-op for POSIX separators (the default on this host)", () => {
-  assert.equal(toArchiveEntryPath("src/sub/b.js", "/"), "src/sub/b.js");
+  assert.equal(toArchiveEntryPath({ relPath: "src/sub/b.js" }, { sep: "/" }), "src/sub/b.js");
 });
 
 test("toArchiveEntryPath converts every POSIX segment separator to the given separator (win32 simulation)", () => {
-  assert.equal(toArchiveEntryPath("src/sub/b.js", "\\"), "src\\sub\\b.js");
-  assert.equal(toArchiveEntryPath("package.json", "\\"), "package.json", "a path with no separator is unchanged either way");
+  assert.equal(toArchiveEntryPath({ relPath: "src/sub/b.js" }, { sep: "\\" }), "src\\sub\\b.js");
+  assert.equal(toArchiveEntryPath({ relPath: "package.json" }, { sep: "\\" }), "package.json", "a path with no separator is unchanged either way");
 });
 
 test("toArchiveEntryPath defaults to the real host path.sep when none is passed", () => {
   // On this test's host (macOS/Linux CI), path.sep is "/", so the default call must equal the
   // explicit POSIX case above — pins the default without hard-coding which OS the suite runs on.
-  assert.equal(toArchiveEntryPath("src/a.js"), path.sep === "/" ? "src/a.js" : "src\\a.js");
+  assert.equal(toArchiveEntryPath({ relPath: "src/a.js" }), path.sep === "/" ? "src/a.js" : "src\\a.js");
 });
 
 // --- bundledNpmFailures: the bundled npm must be present in every resources dir -----------------
 
 test("bundledNpmFailures: no resources dir to check is a failure, never a vacuous pass", () => {
-  assert.deepEqual(bundledNpmFailures([]), ["no packaged resources directory was found to check for the bundled npm"]);
+  assert.deepEqual(bundledNpmFailures({ resourcesDirs: [] }), ["no packaged resources directory was found to check for the bundled npm"]);
 });
 
 test("bundledNpmFailures: passes when npx-cli.js and npm's own node_modules are both present, names each one missing otherwise", () => {
@@ -416,9 +416,9 @@ test("bundledNpmFailures: passes when npx-cli.js and npm's own node_modules are 
     mkdirSync(path.join(complete, "npm", "node_modules", "@npmcli", "arborist"), { recursive: true });
     writeFileSync(path.join(complete, "npm", "node_modules", "@npmcli", "arborist", "package.json"), "{}");
 
-    assert.deepEqual(bundledNpmFailures([complete]), []);
+    assert.deepEqual(bundledNpmFailures({ resourcesDirs: [complete] }), []);
     const arborist = path.join(noDeps, "npm", "node_modules", "@npmcli", "arborist", "package.json");
-    assert.deepEqual(bundledNpmFailures([complete, noDeps]), [`${arborist} (under ${noDeps})`]);
+    assert.deepEqual(bundledNpmFailures({ resourcesDirs: [complete, noDeps] }), [`${arborist} (under ${noDeps})`]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

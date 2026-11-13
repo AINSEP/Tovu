@@ -36,7 +36,7 @@ function ports(runs: Run[] = [{ stdout: NATIVE_OK }, { stdout: ENTRIES_OK }], ov
       const run = queue.shift() ?? assert.fail("unexpected extra packaged run");
       return { status: 0, signal: null, stdout: "", stderr: "", pid: 1, output: [], ...run };
     }) as unknown as SmokeNativePorts["spawn"],
-    isolate: async ({ targets, run }) => run(targets, "/isolated"),
+    isolate: async ({ targets, run }) => run({ targets, directory: "/isolated" }),
     ownerStatus: async () => OWNER_OK,
     out: (text) => out.push(text),
     err: (text) => err.push(text),
@@ -127,9 +127,9 @@ test("a native child with no stdout at all fails as unparseable rather than pass
 });
 
 test("formatGateFailure prints an Error's message or a non-Error value, bounded", () => {
-  assert.equal(formatGateFailure(new Error("smoke-native: nope")), "smoke-native: nope\n");
-  assert.equal(formatGateFailure(42), "42\n");
-  assert.ok(formatGateFailure(new Error("x".repeat(5000))).length <= 2_001);
+  assert.equal(formatGateFailure({ error: new Error("smoke-native: nope") }), "smoke-native: nope\n");
+  assert.equal(formatGateFailure({ error: 42 }), "42\n");
+  assert.ok(formatGateFailure({ error: new Error("x".repeat(5000)) }).length <= 2_001);
 });
 
 test("the real entry with no --platform-dir prints the refusal and exits 1", () => {
@@ -145,7 +145,7 @@ test('owner-store check receives the isolated Windows payload and cleanup runs o
     nodeModulesDir: path.join(directory, 'win-unpacked', 'resources', 'tovu', 'node_modules') };
   const fixture = ports(undefined, {
     readDirectory: () => ['win-unpacked'],
-    isolate: async ({ run }) => { try { await run(targets, directory); } finally { cleaned = true; } },
+    isolate: async ({ run }) => { try { await run({ targets, directory }); } finally { cleaned = true; } },
     ownerStatus: async input => {
       assert.deepEqual(input, { targets, directory });
       return { version: 1, ok: false, action: 'status', error: { code: 'operation-failed', message: 'not echoed' } };

@@ -36,8 +36,8 @@ interface DesktopChatMainDeps {
  * @complexity O(n) in the tracked-site count.
  */
 function resolveTrackedAddressee(
-  siteDir: string,
-  ports: { readTracked: () => readonly { siteDir: string }[]; readSiteName: (siteDir: string) => string },
+  { siteDir, ports }: { siteDir: string; ports: { readTracked: () => readonly { siteDir: string }[]; readSiteName: (siteDir: string) => string } },
+  _options = {},
 ): TurnAddressee | null {
   const resolved = path.resolve(path.sep, siteDir);
   const tracked = ports.readTracked().some((row) => row.siteDir === resolved);
@@ -70,9 +70,12 @@ function startDesktopChat(deps: DesktopChatMainDeps, optional: { siteTools?: Sit
     ipcMain: deps.ipcMain,
     runtime,
     conversations,
-    resolveAddressee: (siteDir) => resolveTrackedAddressee(siteDir, {
-      readTracked: () => readTrackedSites(deps.projectsPath),
-      readSiteName: deps.readSiteName,
+    resolveAddressee: ({ siteDir }, _options = {}) => resolveTrackedAddressee({
+      siteDir,
+      ports: {
+        readTracked: () => readTrackedSites(deps.projectsPath),
+        readSiteName: deps.readSiteName,
+      },
     }),
     listAgents: createAgentInventory({
       defs: AGENT_DEFS,

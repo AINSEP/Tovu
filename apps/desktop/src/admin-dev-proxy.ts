@@ -100,7 +100,7 @@ function adminDevProxyCandidates(input: AdminDevProxyInput): string[] {
  *
  * @complexity O(1); one request, abandoned after {@link PROBE_TIMEOUT_MS}.
  */
-function probeOrigin(origin: string, requestFn: ProbeRequestFn | undefined): Promise<boolean> {
+function probeOrigin({ origin, requestFn }: { origin: string; requestFn: ProbeRequestFn | undefined }, _options = {}): Promise<boolean> {
   return new Promise((resolve) => {
     let target: URL;
     try {
@@ -148,7 +148,7 @@ function probeOrigin(origin: string, requestFn: ProbeRequestFn | undefined): Pro
  */
 async function resolveAdminDevProxyUrl(input: ResolveAdminDevProxyInput): Promise<string | null> {
   for (const candidate of adminDevProxyCandidates(input)) {
-    if (await probeOrigin(candidate, input.requestFn)) return candidate;
+    if (await probeOrigin({ origin: candidate, requestFn: input.requestFn })) return candidate;
   }
   return null;
 }

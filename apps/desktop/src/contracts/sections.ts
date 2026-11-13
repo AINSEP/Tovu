@@ -240,7 +240,7 @@ const SECTIONS: readonly RunnerSection[] = RUNNER_SECTIONS;
 
 const SECTIONS_BY_ID = new Map<string, RunnerSection>(SECTIONS.map((s) => [s.id, s]));
 
-export function findSection(id: string): RunnerSection | undefined {
+export function findSection({ id }: { id: string }, _options = {}): RunnerSection | undefined {
   return SECTIONS_BY_ID.get(id);
 }
 

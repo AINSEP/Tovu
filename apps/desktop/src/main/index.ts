@@ -424,7 +424,7 @@ const siteThemePreviews = createSiteThemePreviewSubscriptions({ ports: {
   current: ({ siteDir }) => {
     const entry = openSites.get(siteDir);
     return entry ? { port: entry.server.port, workspaceId: entry.server.workspaceId,
-      partition: sitePartition(siteDir), lifecycle: entry.server } : undefined;
+      partition: sitePartition({ siteDir }), lifecycle: entry.server } : undefined;
   },
   open: ({ target, getRevision, onFrame }) => openSiteThemePreviewStream({
     target, getRevision, onFrame,
@@ -560,7 +560,7 @@ const desktopAgentService = createDesktopAgentService({
 }, {});
 const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   agentService: desktopAgentService,
-  partitionFor: ({ siteDir }) => sitePartition(siteDir),
+  partitionFor: ({ siteDir }) => sitePartition({ siteDir }),
   attachRunning: ({ siteDir }) => attachRunningSite({ workspace: sharedSites, dir: siteDir }),
   rememberOpen: ({ siteDir }) => rememberSharedSiteOpen({ workspace: sharedSites, dir: siteDir }),
   resolveAdminDevProxyUrl: () => resolveAdminDevProxyUrl({ isPackaged: app.isPackaged, env: process.env }),
@@ -582,7 +582,7 @@ const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
 
 /** Resolve through the existing canonical site/server owner, never through a renderer claim. */
 const currentPreviewTarget = createPreviewTargetResolver({ ports: { openSite: ({ siteDir }) => openSites.get(siteDir),
-  readLease: ({ siteDir }) => sharedSites.running({ path: siteDir }).read({}), partitionFor: ({ siteDir }) => sitePartition(siteDir) } });
+  readLease: ({ siteDir }) => sharedSites.running({ path: siteDir }).read({}), partitionFor: ({ siteDir }) => sitePartition({ siteDir }) } });
 const livePreviewGuests = createLivePreviewGuests<BrowserWindow, WebContents>({
   resolve: ({ url }) => {
     let origin: string;

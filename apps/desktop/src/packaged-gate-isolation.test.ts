@@ -44,7 +44,7 @@ for (const layout of ["mac", "windows"] as const) {
     const tempRoot = process.platform === "win32" ? root : path.join(root, "tmp-alias");
     if (process.platform !== "win32") symlinkSync(root, tempRoot);
     let copiedDirectory = "";
-    await withIsolatedSmokeTargets({ targets: { executablePath, nodeModulesDir }, run(targets, directory) {
+    await withIsolatedSmokeTargets({ targets: { executablePath, nodeModulesDir }, run({ targets, directory }, _options = {}) {
       copiedDirectory = directory;
       assert.equal(path.dirname(directory), realpathSync(root));
       assert.notEqual(targets.executablePath, executablePath);
@@ -70,7 +70,7 @@ test("the win32 copier keeps relative symlinks verbatim, whatever host runs it",
   writeFileSync(path.join(appRoot, "app.asar"), "signed bytes");
   symlinkSync("app.asar", path.join(appRoot, "relative-link"));
   let seen = "";
-  await withIsolatedSmokeTargets({ targets, run(copied, directory) {
+  await withIsolatedSmokeTargets({ targets, run({ targets: copied, directory }, _options = {}) {
     seen = readFileSync(copied.executablePath, "utf8");
     assert.equal(readlinkSync(path.join(directory, "win-unpacked", "relative-link")), "app.asar", "not rewritten to an absolute path into the source");
     assert.ok(existsSync(copied.nodeModulesDir));

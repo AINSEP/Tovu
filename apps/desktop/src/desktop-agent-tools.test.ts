@@ -49,7 +49,7 @@ function harness(overrides: Partial<DesktopAgentToolDeps> = {}) {
   };
   const tools = buildDesktopAgentTools({
     sitesToolContext: { projectsPath, revealPath: async () => {} },
-    addresseeOf: (runId) => addressees.get(runId) ?? null,
+    addresseeOf: ({ runId }, _options = {}) => addressees.get(runId) ?? null,
     siteTools,
     navigate: ({ section }) => navigated.push(section),
     ...overrides,

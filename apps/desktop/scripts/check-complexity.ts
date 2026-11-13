@@ -134,7 +134,7 @@ function writeBaseline(violations: readonly ComplexityViolation[], ports: Comple
 /** Prints a verdict against the debt list and returns the exit code. Split from
  *  {@link runComplexityGate} to keep both under the ceiling this gate enforces. @complexity O(n). */
 function reportAgainstBaseline(results: readonly EslintFileResult[], baseline: readonly ComplexityViolation[], ports: ComplexityGatePorts): number {
-  const { added, removed, failures, filesLinted } = evaluateRun(results, baseline, MIN_FILES_LINTED);
+  const { added, removed, failures, filesLinted } = evaluateRun({ results, baseline, minFilesLinted: MIN_FILES_LINTED });
 
   ports.out(`check-complexity — ${filesLinted} files linted at ${THRESHOLD}/${THRESHOLD}\n`);
   for (const violation of removed) {
@@ -163,7 +163,7 @@ function reportAgainstBaseline(results: readonly EslintFileResult[], baseline: r
 function runComplexityGate({ argv }: { argv: readonly string[] }, ports: ComplexityGatePorts, { debtPath = DEBT_PATH }: { debtPath?: string } = {}): number {
   try {
     const run = ports.lint();
-    const unusable = rejectUnusableEslintRun(run.status, run.stdout);
+    const unusable = rejectUnusableEslintRun({ status: run.status, stdout: run.stdout });
     if (unusable) {
       ports.err(`check-complexity: FAIL — ${unusable}\n`);
       if (run.stderr.trim()) ports.err(sanitizeUntrustedText({ text: redactLocalText({ text: run.stderr }) }, { maxLength: 2_000 }) + "\n");
@@ -172,7 +172,7 @@ function runComplexityGate({ argv }: { argv: readonly string[] }, ports: Complex
 
     const results = toRepoRelative(JSON.parse(run.stdout));
     if (argv.includes("--update")) {
-      writeBaseline(evaluateRun(results, [], MIN_FILES_LINTED).current, ports, debtPath);
+      writeBaseline(evaluateRun({ results, baseline: [], minFilesLinted: MIN_FILES_LINTED }).current, ports, debtPath);
       return 0;
     }
     if (!ports.exists(debtPath)) {

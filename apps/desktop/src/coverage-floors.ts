@@ -73,12 +73,12 @@
 import * as coverage from "@jini-ai/devops/checks/coverage";
 export type { LcovCounters, CoverageAxis, CoverageArea, RunnerGlobs, TestPass } from "@jini-ai/devops/checks/coverage";
 export type AreaResult = coverage.DiskAreaResult;
-export const pct = (hit: number, found: number) => coverage.pct({ hit, found });
-export const isMeasurableSource = (relPath: string) => coverage.isMeasurableSource({ file: relPath });
-export const isInExcludedDir = (relPath: string, excludeDirs: readonly string[] = []) => coverage.isInExcludedDir({ file: relPath, excludeDirs });
-export const parseNodeTestScript = (script: string) => coverage.parseNodeTestScript({ script });
+export const pct = ({ hit, found }: { hit: number; found: number }, _options = {}) => coverage.pct({ hit, found });
+export const isMeasurableSource = ({ relPath }: { relPath: string }, _options = {}) => coverage.isMeasurableSource({ file: relPath });
+export const isInExcludedDir = ({ relPath }: { relPath: string }, { excludeDirs = [] }: { excludeDirs?: readonly string[] } = {}) => coverage.isInExcludedDir({ file: relPath, excludeDirs });
+export const parseNodeTestScript = ({ script }: { script: string }, _options = {}) => coverage.parseNodeTestScript({ script });
 export const runnerSplitDrift = (passes: readonly coverage.RunnerGlobs[], scriptPasses: readonly coverage.RunnerGlobs[]) => coverage.runnerSplitDrift({ passes, scriptPasses });
-export const evaluateArea = (area: coverage.CoverageArea, onDisk: readonly string[], records: ReadonlyMap<string, coverage.LcovCounters>) => coverage.evaluateDiskArea({ area, onDisk, coverage: records });
+export const evaluateArea = ({ area, onDisk, records }: { area: coverage.CoverageArea; onDisk: readonly string[]; records: ReadonlyMap<string, coverage.LcovCounters> }, _options = {}) => coverage.evaluateDiskArea({ area, onDisk, coverage: records });
 export const formatArea = (result: AreaResult, area: coverage.CoverageArea) => coverage.formatDiskArea({ result, area }, { noFloorMessage: "(no floor — see coverage-floors.json)" });
 
 /** Where the source inventory is walked (recursively), relative to the desktop root. The desktop
@@ -109,7 +109,7 @@ export function isProductionSource({ file }: { file: string }): boolean {
 export function areaOwns({ area, file }: { area: coverage.CoverageArea; file: string }): boolean {
   if (!(area.extensions ?? []).some((ext) => file.endsWith(ext))) return false;
   // isInExcludedDir is a plain "is this path at or under one of these directories" test.
-  return isInExcludedDir(file, area.dirs ?? []) && !isInExcludedDir(file, area.excludeDirs ?? []);
+  return isInExcludedDir({ relPath: file }, { excludeDirs: area.dirs ?? [] }) && !isInExcludedDir({ relPath: file }, { excludeDirs: area.excludeDirs ?? [] });
 }
 
 /** One `excluded` entry in `coverage-floors.json`: a source file deliberately outside every area. */
@@ -202,7 +202,7 @@ function staleDebt({ debt, records }: { debt: Readonly<Record<string, number>>; 
 function underFloor({ file, records, policy }: { file: string; records: Records; policy: PerFileBranchPolicy }): FileBranch[] {
   const counters = records.get(file);
   if (!counters) return [];
-  const branch = pct(counters.brh, counters.brf);
+  const branch = pct({ hit: counters.brh, found: counters.brf });
   const debtFloor = policy.debt?.[file];
   const floor = debtFloor ?? policy.floor;
   return branch < floor ? [{ file, branch, floor, fromDebt: debtFloor !== undefined }] : [];
@@ -212,7 +212,7 @@ function underFloor({ file, records, policy }: { file: string; records: Records;
  *  @complexity O(1). */
 function isRepaid({ file, records, policy }: { file: string; records: Records; policy: PerFileBranchPolicy }): boolean {
   const counters = records.get(file);
-  return counters !== undefined && pct(counters.brh, counters.brf) >= policy.floor;
+  return counters !== undefined && pct({ hit: counters.brh, found: counters.brf }) >= policy.floor;
 }
 
 /**
@@ -306,7 +306,7 @@ export const LINE_ACCURATE_PASS_ID = "node";
  * flagged (`spellcheck-menu.ts`'s two `cut`s are real).
  * @complexity O(f) in the record's FN entries.
  */
-export function foreignImageFunctions(record: string, sourceLines: readonly string[]): string[] {
+export function foreignImageFunctions({ record, sourceLines }: { record: string; sourceLines: readonly string[] }, _options = {}): string[] {
   const fns = [...record.matchAll(/^FN:(\d+),(.+)$/gm)].map((m) => ({ line: Number(m[1]), name: (m[2] ?? "").trim() }));
   const counts = new Map<string, number>();
   for (const { name } of fns) counts.set(name, (counts.get(name) ?? 0) + 1);
@@ -325,7 +325,7 @@ export interface LcovImage { line: LcovAxisImage; branch: LcovAxisImage; funcs: 
 
 /** Every regex match's [key, count] in record order, with `-` (lcov's "never taken") read as 0.
  *  @complexity O(n) in record lines. */
-function countedEntries(record: string, pattern: RegExp, keyOf: (match: RegExpMatchArray) => string, countAt: number): Map<string, number> {
+function countedEntries({ record, pattern, keyOf, countAt }: { record: string; pattern: RegExp; keyOf: (match: RegExpMatchArray) => string; countAt: number }, _options = {}): Map<string, number> {
   const entries = new Map<string, number>();
   for (const match of record.matchAll(pattern)) entries.set(keyOf(match), Number(match[countAt]) || 0);
   return entries;
@@ -336,7 +336,7 @@ function countedEntries(record: string, pattern: RegExp, keyOf: (match: RegExpMa
  *  {@link TEST_PASSES}); two closures sharing a name stay two functions. Branches are keyed by line
  *  and order within the line.
  *  @complexity O(1). */
-function ordinalKey(seen: Map<string, number>, base: string): string {
+function ordinalKey({ seen, base }: { seen: Map<string, number>; base: string }, _options = {}): string {
   const n = (seen.get(base) ?? 0) + 1;
   seen.set(base, n);
   return `${base}#${n}`;
@@ -345,12 +345,12 @@ function ordinalKey(seen: Map<string, number>, base: string): string {
 /** The function entries: every `FN:` found (0 hits) overlaid with its `FNDA:` count. Node writes one
  *  `FNDA:` per `FN:`, in the same order, so the k-th of a name pairs with the k-th.
  *  @complexity O(n) in record lines. */
-function functionEntries(record: string): Map<string, number> {
+function functionEntries({ record }: { record: string }, _options = {}): Map<string, number> {
   const entries = new Map<string, number>();
   const declared = new Map<string, number>();
-  for (const m of record.matchAll(/^FN:\d+,(.+)$/gm)) entries.set(ordinalKey(declared, (m[1] ?? "").trim()), 0);
+  for (const m of record.matchAll(/^FN:\d+,(.+)$/gm)) entries.set(ordinalKey({ seen: declared, base: (m[1] ?? "").trim() }), 0);
   const counted = new Map<string, number>();
-  for (const m of record.matchAll(/^FNDA:(\d+),(.+)$/gm)) entries.set(ordinalKey(counted, (m[2] ?? "").trim()), Number(m[1]));
+  for (const m of record.matchAll(/^FNDA:(\d+),(.+)$/gm)) entries.set(ordinalKey({ seen: counted, base: (m[2] ?? "").trim() }), Number(m[1]));
   return entries;
 }
 
@@ -359,12 +359,12 @@ function functionEntries(record: string): Map<string, number> {
  * @complexity O(n) in record lines.
  */
 export function readLcovImage({ record }: { record: string }): LcovImage {
-  const num = (key: string): number => Number(new RegExp(`^${key}:(\\d+)$`, "m").exec(record)?.[1] ?? 0);
+  const num = ({ key }: { key: string }, _options = {}): number => Number(new RegExp(`^${key}:(\\d+)$`, "m").exec(record)?.[1] ?? 0);
   const branchSeen = new Map<string, number>();
   return {
-    line: { found: num("LF"), hit: num("LH"), entries: countedEntries(record, /^DA:(\d+),(\d+)/gm, (m) => m[1] ?? "", 2) },
-    branch: { found: num("BRF"), hit: num("BRH"), entries: countedEntries(record, /^BRDA:(\d+),[^,\n]*,[^,\n]*,(\d+|-)$/gm, (m) => ordinalKey(branchSeen, m[1] ?? ""), 2) },
-    funcs: { found: num("FNF"), hit: num("FNH"), entries: functionEntries(record) },
+    line: { found: num({ key: "LF" }), hit: num({ key: "LH" }), entries: countedEntries({ record, pattern: /^DA:(\d+),(\d+)/gm, keyOf: (m) => m[1] ?? "", countAt: 2 }) },
+    branch: { found: num({ key: "BRF" }), hit: num({ key: "BRH" }), entries: countedEntries({ record, pattern: /^BRDA:(\d+),[^,\n]*,[^,\n]*,(\d+|-)$/gm, keyOf: (m) => ordinalKey({ seen: branchSeen, base: m[1] ?? "" }), countAt: 2 }) },
+    funcs: { found: num({ key: "FNF" }), hit: num({ key: "FNH" }), entries: functionEntries({ record }) },
   };
 }
 

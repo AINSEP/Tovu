@@ -169,7 +169,7 @@ export function App({
   useRunnerNavigation(setActiveId, setActiveTab);
   const tabClose = useTabCloseAsk({ projects, closeTab: closeProjectTab, onSiteUpdated: applySiteRecord });
   const runningCount = countRunningSites(projects);
-  const active = findSection(activeId);
+  const active = findSection({ id: activeId });
   useProductScreen({ screen: appScreen({ appearanceOpen, showSitesHome, isCreating, isImporting, activeId }) });
 
   return (

@@ -87,24 +87,24 @@ function createDeps(overrides: Record<string, unknown> = {}) {
 }
 
 test("cleanCreateTokens trims, drops blanks, and refuses anything but a small map of plugin ids to strings", () => {
-  assert.deepEqual(cleanCreateTokens(undefined), {});
-  assert.deepEqual(cleanCreateTokens({ supabase: `  ${TOKEN}  `, other: "   " }), { supabase: TOKEN });
+  assert.deepEqual(cleanCreateTokens({ raw: undefined }), {});
+  assert.deepEqual(cleanCreateTokens({ raw: { supabase: `  ${TOKEN}  `, other: "   " } }), { supabase: TOKEN });
   for (const bad of ["x", ["x"], { "Bad Id": "x" }, { supabase: 1 }, { supabase: "x".repeat(4097) }, Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`p${i}`, "x"]))]) {
-    assert.throws(() => cleanCreateTokens(bad), (err: unknown) => err instanceof Error && /not in the expected shape\. Nothing was created\./.test(err.message) && !err.message.includes(TOKEN));
+    assert.throws(() => cleanCreateTokens({ raw: bad }), (err: unknown) => err instanceof Error && /not in the expected shape\. Nothing was created\./.test(err.message) && !err.message.includes(TOKEN));
   }
 });
 
 test("parseCreatedTokensLine reads tovu init's line, and nothing when there is none", () => {
-  assert.deepEqual(parseCreatedTokensLine("created site 'a' at /a\nagent-plugin-tokens: saved supabase,crm\n"), { status: "saved", pluginIds: ["supabase", "crm"] });
-  assert.deepEqual(parseCreatedTokensLine("agent-plugin-tokens: failed supabase\n"), { status: "failed", pluginIds: ["supabase"] });
-  assert.equal(parseCreatedTokensLine("created site 'a' at /a\n"), null);
-  assert.deepEqual(withCreatedTokens({ id: "a" }, ""), { id: "a" });
+  assert.deepEqual(parseCreatedTokensLine({ output: "created site 'a' at /a\nagent-plugin-tokens: saved supabase,crm\n" }), { status: "saved", pluginIds: ["supabase", "crm"] });
+  assert.deepEqual(parseCreatedTokensLine({ output: "agent-plugin-tokens: failed supabase\n" }), { status: "failed", pluginIds: ["supabase"] });
+  assert.equal(parseCreatedTokensLine({ output: "created site 'a' at /a\n" }), null);
+  assert.deepEqual(withCreatedTokens({ record: { id: "a" }, initOutput: "" }), { id: "a" });
 });
 
 test("assertTokensCanReachFolder refuses tokens for a folder that already holds a site, and nothing else", () => {
-  assert.throws(() => assertTokensCanReachFolder({ supabase: TOKEN }, false), /already holds a website/);
-  assertTokensCanReachFolder({ supabase: TOKEN }, true);
-  assertTokensCanReachFolder({}, false);
+  assert.throws(() => assertTokensCanReachFolder({ tokens: { supabase: TOKEN }, folderWasEmpty: false }), /already holds a website/);
+  assertTokensCanReachFolder({ tokens: { supabase: TOKEN }, folderWasEmpty: true });
+  assertTokensCanReachFolder({ tokens: {}, folderWasEmpty: false });
   assert.deepEqual(initTokenOptions({}, { output: "" }), {}, "no tokens = exactly the old init options");
 });
 
@@ -119,7 +119,7 @@ test("initSiteDir hands tokens to tovu init on stdin with the flag, never on arg
     dir: "/new/site",
     baseEnv: { TOVU_ADMIN_PASSWORD: "inherited-test-password", TOVU_ADMIN_USER: "inherited-test-user" },
     agentPluginTokens: { supabase: TOKEN },
-    onInitOutput: (output) => (reported = output),
+    onInitOutput: ({ output }, _options = {}) => (reported = output),
     spawnFn: (_command, spawnArgs, options) => {
       args = spawnArgs;
       env = options.env ?? {};
@@ -162,9 +162,9 @@ test("handleCreate passes the tokens to adoptSiteDir and returns tovu init's out
   const siteDir = writeSite(path.join(dir, "made"), "site-made");
   let adoptInput: Record<string, unknown> = {};
   const deps = createDeps({
-    adoptSiteDir: async (input: Record<string, unknown> & { onInitOutput?: (output: string) => void }) => {
+    adoptSiteDir: async (input: Record<string, unknown> & { onInitOutput?: (input: { output: string }, options?: Record<string, never>) => void }) => {
       adoptInput = input;
-      input.onInitOutput?.("agent-plugin-tokens: saved supabase\n");
+      input.onInitOutput?.({ output: "agent-plugin-tokens: saved supabase\n" });
       return siteDir;
     },
   });

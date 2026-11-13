@@ -394,7 +394,7 @@ function safeDiagnostic(item: unknown): string {
 export async function smokePackagedChatCli(deps: ChatGateDeps): Promise<0 | 1> {
   try {
     const targets = await resolveGateTargets(deps);
-    await deps.withIsolatedSmokeTargets({ targets, run: (isolated, directory) => runGate(deps, isolated, directory) });
+    await deps.withIsolatedSmokeTargets({ targets, run: ({ targets: isolated, directory }, _options = {}) => runGate(deps, isolated, directory) });
     return 0;
   } catch (error) {
     const errors: unknown[] = error instanceof AggregateError ? error.errors : [error];

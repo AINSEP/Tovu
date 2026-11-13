@@ -88,10 +88,10 @@ function formatMismatch({ relPath, reason }: AsarMismatch): string {
 /**
  * The full mismatch report for a human. Pure formatting only — no filesystem, no archive access.
  *
- * @param mismatches as produced by {@link verifyAsarAgainstSource}.
+ * @param input.mismatches as produced by {@link verifyAsarAgainstSource}.
  * @complexity O(n) in mismatches.
  */
-export function formatMismatchReport(mismatches: AsarMismatch[]): string {
+export function formatMismatchReport({ mismatches }: { mismatches: AsarMismatch[] }, _options = {}): string {
   return [
     `${mismatches.length} file(s) in app.asar do NOT match source, byte-for-byte:`,
     ...mismatches.map(formatMismatch),
@@ -102,15 +102,15 @@ export function formatMismatchReport(mismatches: AsarMismatch[]): string {
 }
 
 /** Compare content through shared verification, binding the host filesystem and archive SDK. */
-export function verifyAsarAgainstSource(asarPath: string, sourceRoot: string, prefixes: string[]): AsarVerification {
+export function verifyAsarAgainstSource({ asarPath, sourceRoot, prefixes }: { asarPath: string; sourceRoot: string; prefixes: string[] }, _options = {}): AsarVerification {
   return verify({ archivePath: asarPath, sourceRoot, prefixes, separator: path.sep, fs: createNodePackagingFilesystem({}), archive: createAsarArchiveReader({ asar }) }, {
     readFailureMessage: ({ error }) => `present in the asar header but extractFile could not read it (${(error as Error).message})`,
     contentMismatchMessage: "content differs from source (sizes can still match — this is compared byte-for-byte, never by length)",
   });
 }
-export const filesUnderPrefixes = (headerFiles: Record<string, AsarHeaderNode> | undefined, prefixes: string[]) => files({ headerFiles, prefixes });
-export const isEmptyVerification = (checkedCount: number) => empty({ checkedCount });
-export const toArchiveEntryPath = (relPath: string, sep: string = path.sep) => entryPath({ relPath, separator: sep });
+export const filesUnderPrefixes = ({ headerFiles, prefixes }: { headerFiles: Record<string, AsarHeaderNode> | undefined; prefixes: string[] }, _options = {}) => files({ headerFiles, prefixes });
+export const isEmptyVerification = ({ checkedCount }: { checkedCount: number }, _options = {}) => empty({ checkedCount });
+export const toArchiveEntryPath = ({ relPath }: { relPath: string }, { sep = path.sep }: { sep?: string } = {}) => entryPath({ relPath, separator: sep });
 /**
  * The bundled npm's missing load-bearing files across `resourcesDirs`, as report lines — checked on
  * disk, not in the asar, because `extraResources` ships `Resources/npm/` as real files outside it
@@ -124,7 +124,7 @@ export const toArchiveEntryPath = (relPath: string, sep: string = path.sep) => e
  * @returns one line per missing file, or `[]` when every dir has both.
  * @complexity O(n) in `resourcesDirs.length`.
  */
-export function bundledNpmFailures(resourcesDirs: string[]): string[] {
+export function bundledNpmFailures({ resourcesDirs }: { resourcesDirs: string[] }, _options = {}): string[] {
   const fs = createNodePackagingFilesystem({});
   const requiredFiles = ["npm/bin/npx-cli.js", "npm/node_modules/@npmcli/arborist/package.json"];
   if (!resourcesDirs.length) return npmFailures({ resourcesDirs, requiredFiles, fs });

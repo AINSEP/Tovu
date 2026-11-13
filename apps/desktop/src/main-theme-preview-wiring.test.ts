@@ -20,7 +20,7 @@ test("the theme stream fetches through the site's own partition, sending its adm
   const start = source.indexOf("const siteThemePreviews = createSiteThemePreviewSubscriptions(");
   assert.notEqual(start, -1, "expected the theme-preview controller in the entry");
   const block = source.slice(start, source.indexOf("\n} });", start));
-  assert.match(block, /partition: sitePartition\(siteDir\)/);
+  assert.match(block, /partition: sitePartition\(\{ siteDir \}\)/);
   assert.match(block, /session\.fromPartition\(target\.partition\)\.fetch\(String\(url\), \{ \.\.\.init, credentials: "include" \}\)/);
 });
 

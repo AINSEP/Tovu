@@ -371,7 +371,7 @@ interface AdoptSiteDirInput {
   adminPassword?: string;
   cliMode?: "source" | "compiled";
   agentPluginTokens?: Readonly<Record<string, string>>;
-  onInitOutput?: (output: string) => void;
+  onInitOutput?: (input: { output: string }, options?: Record<string, never>) => void;
 }
 
 /** {@link handleAddSite}'s own `addSitePointer` shape — mirrors `add-site-pointer.ts`'s real
@@ -509,7 +509,7 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
     // (`desktop-auth.ts`'s `sitePartition`), not of whether a server currently answers on it. The
     // embedded-tab renderer needs it either way: `SiteWorkspace`'s `<webview>` sets it up front,
     // before the tab knows whether the site is up yet.
-    partition: sitePartition(row.siteDir),
+    partition: sitePartition({ siteDir: row.siteDir }),
     templateId: "tovu",
     templateVersion: null,
     database: { kind: "sqlite" as const },
@@ -742,7 +742,7 @@ async function handleCreate(
   // see `project-delete-guard.ts`. Create must refuse a folder another app took before either
   // classification, rather than recording its existing site as one this app made.
   const wasEmpty = deps.classifySiteDir(target) === "empty";
-  assertTokensCanReachFolder(agentPluginTokens, wasEmpty);
+  assertTokensCanReachFolder({ tokens: agentPluginTokens, folderWasEmpty: wasEmpty });
   if (!wasEmpty && input.adminPassword !== undefined) throw new Error("An admin password can only be set while creating a new site. Change an existing site's password under Users.");
   if (!wasEmpty) throw new Error("The new website folder was created by another app. Try creating this website again.");
   const names = otherSiteNames({ deps, siteDir: target });
@@ -761,7 +761,7 @@ async function handleCreate(
     });
   };
   const siteDir = await withDirectoryFileLock({ lockPath: `${target}.creation.lock`, run: adopt }, { staleMs: Infinity });
-  return withCreatedTokens(recordCreatedSite({ siteDir, displayName }, deps), init.output);
+  return withCreatedTokens({ record: recordCreatedSite({ siteDir, displayName }, deps), initOutput: init.output });
 }
 
 /**
@@ -811,7 +811,7 @@ function validateCreateInput({ input }: { input: CreateSiteInput }, _options = {
   }
   // Checked before the dialog for the same reason as the database choice: a malformed map is refused
   // before anyone picks a folder.
-  const agentPluginTokens = cleanCreateTokens(input.agentPluginTokens);
+  const agentPluginTokens = cleanCreateTokens({ raw: input.agentPluginTokens });
   if (input.adminPassword !== undefined && (typeof input.adminPassword !== "string" || input.adminPassword.length === 0)) {
     throw new Error("Admin password must be a nonempty string.");
   }

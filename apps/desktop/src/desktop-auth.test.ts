@@ -29,7 +29,7 @@ import type { AuthRequestOptions } from "./desktop-auth.ts";
 
 test("accepts the loopback origins a spawned child actually binds", () => {
   for (const url of ["http://127.0.0.1:3001/admin/", "http://127.0.0.1:65535/", "http://[::1]:3001/admin/"]) {
-    assert.doesNotThrow(() => assertLoopbackAdminUrl(url), `expected ${url} to be accepted`);
+    assert.doesNotThrow(() => assertLoopbackAdminUrl({ adminUrl: url }), `expected ${url} to be accepted`);
   }
 });
 
@@ -49,13 +49,13 @@ test("refuses every non-loopback host, including ones that merely LOOK loopback"
     "http://0.0.0.0:3001/admin/",
   ];
   for (const url of hostile) {
-    assert.throws(() => assertLoopbackAdminUrl(url), /desktop sign-in refused/, `expected ${url} to be refused`);
+    assert.throws(() => assertLoopbackAdminUrl({ adminUrl: url }), /desktop sign-in refused/, `expected ${url} to be refused`);
   }
 });
 
 test("refuses non-http schemes and unparseable input", () => {
   for (const url of ["https://127.0.0.1:3001/", "file:///etc/passwd", "ftp://127.0.0.1/", "not a url"]) {
-    assert.throws(() => assertLoopbackAdminUrl(url), /desktop sign-in refused/, `expected ${url} to be refused`);
+    assert.throws(() => assertLoopbackAdminUrl({ adminUrl: url }), /desktop sign-in refused/, `expected ${url} to be refused`);
   }
 });
 
@@ -64,17 +64,17 @@ test("refuses non-http schemes and unparseable input", () => {
 // --------------------------------------------------------------------------
 
 test("every site dir gets its own partition, and the same dir always gets the same one", () => {
-  const a = sitePartition("/sites/alpha");
-  const b = sitePartition("/sites/beta");
+  const a = sitePartition({ siteDir: "/sites/alpha" });
+  const b = sitePartition({ siteDir: "/sites/beta" });
   assert.notEqual(a, b);
-  assert.equal(a, sitePartition("/sites/alpha"));
+  assert.equal(a, sitePartition({ siteDir: "/sites/alpha" }));
   // Path-equivalent spellings must not produce two jars for one site.
-  assert.equal(a, sitePartition("/sites/./alpha"));
+  assert.equal(a, sitePartition({ siteDir: "/sites/./alpha" }));
   assert.match(a, /^persist:tovu-site-[0-9a-f]{32}$/);
 });
 
 test("the partition name does not leak the operator's directory layout", () => {
-  assert.equal(sitePartition("/Users/someone/Secret Client Work/site").includes("Secret"), false);
+  assert.equal(sitePartition({ siteDir: "/Users/someone/Secret Client Work/site" }).includes("Secret"), false);
 });
 
 // --------------------------------------------------------------------------

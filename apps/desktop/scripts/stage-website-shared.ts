@@ -31,11 +31,11 @@ const OUT_DIR = path.join(DESKTOP_ROOT, "staging", "website-shared");
 const SHARED_SPECIFIER = /["']((?:\.\.\/)+website\/src\/[^"']+)["']/g;
 
 /** Shell source files: what ships in app.asar and can import website code. */
-function shellSources(dir: string): string[] {
+function shellSources({ dir }: { dir: string }, _options = {}): string[] {
   const found: string[] = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const abs = path.join(dir, entry.name);
-    if (entry.isDirectory()) found.push(...shellSources(abs));
+    if (entry.isDirectory()) found.push(...shellSources({ dir: abs }));
     else if (entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts")) found.push(abs);
   }
   return found;
@@ -53,7 +53,7 @@ function sharedImports(files: readonly string[]): string[] {
   return [...shared].sort();
 }
 
-const sources = [...shellSources(path.join(DESKTOP_ROOT, "src")), ...shellSources(path.join(DESKTOP_ROOT, "bin"))];
+const sources = [...shellSources({ dir: path.join(DESKTOP_ROOT, "src") }), ...shellSources({ dir: path.join(DESKTOP_ROOT, "bin") })];
 const entryPoints = sharedImports(sources);
 fs.rmSync(OUT_DIR, { recursive: true, force: true });
 fs.mkdirSync(OUT_DIR, { recursive: true });

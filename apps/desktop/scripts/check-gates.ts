@@ -48,7 +48,7 @@ const RUNNER_BASENAME = "check-gates.ts";
 /** Gate scripts are `apps/desktop/scripts/check-*.ts` by convention — that convention is what makes property 3
  *  (a script on disk that nothing runs is a hard failure) checkable at all.
  *  @complexity O(n) in files in `scripts/`. */
-function gateScriptsOnDisk(scriptsDir: string): string[] {
+function gateScriptsOnDisk({ scriptsDir }: { scriptsDir: string }, _options = {}): string[] {
   try {
     return readdirSync(scriptsDir).filter(
       (name) => name.startsWith("check-") && name.endsWith(".ts") && name !== RUNNER_BASENAME
@@ -62,8 +62,8 @@ function gateScriptsOnDisk(scriptsDir: string): string[] {
  *  @complexity O(1). */
 function todayIso(): string {
   const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const pad = ({ n }: { n: number }, _options = {}) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad({ n: now.getMonth() + 1 })}-${pad({ n: now.getDate() })}`;
 }
 
 /**
@@ -92,7 +92,7 @@ function runGate(gate: GateEntry & { id: string; run: string }): GateExitCode {
 /** Prints the manifest problems and returns whether any were found. Kept separate so `main` stays
  *  well under the complexity ceiling this harness itself enforces.
  *  @complexity O(n). */
-function reportProblems(heading: string, problems: readonly string[]): boolean {
+function reportProblems({ heading, problems }: { heading: string; problems: readonly string[] }, _options = {}): boolean {
   if (problems.length === 0) return false;
   process.stderr.write(`\ncheck-gates: ${heading}\n`);
   for (const problem of problems) process.stderr.write(`  - ${problem}\n`);
@@ -106,7 +106,7 @@ function reportProblems(heading: string, problems: readonly string[]): boolean {
  *
  * @complexity O(n) in argv.
  */
-function flagValue(argv: readonly string[], flag: string, fallback: string): string {
+function flagValue({ argv, flag, fallback }: { argv: readonly string[]; flag: string; fallback: string }, _options = {}): string {
   const at = argv.indexOf(flag);
   if (at === -1 || !argv[at + 1]) return fallback;
   return path.resolve(argv[at + 1]!); // !: non-empty already checked on the line above
@@ -123,30 +123,30 @@ function isRunnable(gate: GateEntry): gate is GateEntry & { id: string; run: str
 
 /** Reports every way the manifest fails to describe this harness honestly. Returns whether any did.
  *  @complexity O(n) in gates. */
-function reportManifestProblems(manifest: GateManifest, gates: readonly GateEntry[], scriptsDir: string): boolean {
-  const driftProblems = detectGateDrift(gates, gateScriptsOnDisk(scriptsDir)).map(
+function reportManifestProblems({ manifest, gates, scriptsDir }: { manifest: GateManifest; gates: readonly GateEntry[]; scriptsDir: string }, _options = {}): boolean {
+  const driftProblems = detectGateDrift(gates, gateScriptsOnDisk({ scriptsDir })).map(
     (name) =>
       `scripts/${name} exists but no gate in quality-gates.json runs it. A gate nobody invokes is ` +
       `how this repo ended up with 11 dead check scripts — register it or delete it.`
   );
-  const unsound = reportProblems(
-    "quality-gates.json is not a sound description of this harness:",
-    validateManifest(manifest, todayIso())
-  );
-  return reportProblems("gate scripts on disk that nothing runs:", driftProblems) || unsound;
+  const unsound = reportProblems({
+    heading: "quality-gates.json is not a sound description of this harness:",
+    problems: validateManifest(manifest, todayIso()),
+  });
+  return reportProblems({ heading: "gate scripts on disk that nothing runs:", problems: driftProblems }) || unsound;
 }
 
 function main(): void {
   const argv = process.argv.slice(2);
-  const manifestPath = flagValue(argv, "--manifest", path.join(DESKTOP_ROOT, "quality-gates.json"));
-  const scriptsDir = flagValue(argv, "--scripts-dir", path.join(DESKTOP_ROOT, "scripts"));
+  const manifestPath = flagValue({ argv, flag: "--manifest", fallback: path.join(DESKTOP_ROOT, "quality-gates.json") });
+  const scriptsDir = flagValue({ argv, flag: "--scripts-dir", fallback: path.join(DESKTOP_ROOT, "scripts") });
   const manifest: GateManifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   // `asGateEntryArray` throws a clear, index-naming error for a malformed entry (e.g. `null`) rather
   // than letting it pass a blind cast and crash later inside `gateProblems`/`detectGateDrift`; a
   // non-array `gates` is left to `validateManifest`'s own "no gates array" problem, below.
   const gates = asGateEntryArray(manifest.gates);
 
-  const unsound = reportManifestProblems(manifest, gates, scriptsDir);
+  const unsound = reportManifestProblems({ manifest, gates, scriptsDir });
 
   // Every enabled gate runs even after an earlier one fails: a run that halts at the first failure
   // reports exactly one problem when several exist, which is the behaviour `ci-local.sh` was

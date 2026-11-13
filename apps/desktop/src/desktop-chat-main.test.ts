@@ -19,10 +19,10 @@ import { WORKSPACE_CHAT_IPC, type ChatIpcMain } from "./workspace-chat-ipc.ts";
 
 test("a renderer-reported folder resolves only to a tracked site, normalized, with its display name", () => {
   const ports = { readTracked: () => [{ siteDir: "/sites/alpha" }], readSiteName: (dir: string) => `name of ${dir}` };
-  assert.deepEqual(resolveTrackedAddressee("/sites/alpha", ports), { siteDir: "/sites/alpha", name: "name of /sites/alpha" });
-  assert.deepEqual(resolveTrackedAddressee("/sites/beta/../alpha/", ports), { siteDir: "/sites/alpha", name: "name of /sites/alpha" });
-  assert.equal(resolveTrackedAddressee("/sites/untracked", ports), null, "an arbitrary folder never becomes the turn's site");
-  assert.deepEqual(resolveTrackedAddressee("sites/alpha", ports), { siteDir: "/sites/alpha", name: "name of /sites/alpha" },
+  assert.deepEqual(resolveTrackedAddressee({ siteDir: "/sites/alpha", ports }), { siteDir: "/sites/alpha", name: "name of /sites/alpha" });
+  assert.deepEqual(resolveTrackedAddressee({ siteDir: "/sites/beta/../alpha/", ports }), { siteDir: "/sites/alpha", name: "name of /sites/alpha" });
+  assert.equal(resolveTrackedAddressee({ siteDir: "/sites/untracked", ports }), null, "an arbitrary folder never becomes the turn's site");
+  assert.deepEqual(resolveTrackedAddressee({ siteDir: "sites/alpha", ports }), { siteDir: "/sites/alpha", name: "name of /sites/alpha" },
     "a relative report is anchored at the filesystem root, never at this process's cwd");
 });
 

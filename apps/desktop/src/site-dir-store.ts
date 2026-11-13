@@ -275,7 +275,7 @@ interface InitSiteDirInput {
    *  read — and checked there before anything is created. */
   agentPluginTokens?: Readonly<Record<string, string>>;
   /** Called with `tovu init`'s output once it succeeds (its `agent-plugin-tokens:` line). */
-  onInitOutput?: (output: string) => void;
+  onInitOutput?: (input: { output: string }, options?: Record<string, never>) => void;
 }
 
 /**
@@ -344,7 +344,7 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
           reject(new Error(`tovu init for ${input.dir} could not receive its ${subject}: ${deliveryError.message}`));
           return;
         }
-        input.onInitOutput?.(output);
+        input.onInitOutput?.({ output });
         resolve(input.dir);
       });
     });
@@ -394,7 +394,7 @@ interface ResolveOrInitSiteDirInput {
   cliMode?: CliMode;
   /** See {@link InitSiteDirInput}. Used only when this call runs `tovu init`. */
   agentPluginTokens?: Readonly<Record<string, string>>;
-  onInitOutput?: (output: string) => void;
+  onInitOutput?: (input: { output: string }, options?: Record<string, never>) => void;
 }
 
 /**
@@ -468,7 +468,7 @@ interface AdoptSiteDirInput {
   cliMode?: CliMode;
   /** See {@link InitSiteDirInput}. */
   agentPluginTokens?: Readonly<Record<string, string>>;
-  onInitOutput?: (output: string) => void;
+  onInitOutput?: (input: { output: string }, options?: Record<string, never>) => void;
 }
 
 /**

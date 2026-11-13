@@ -137,10 +137,10 @@ interface SeedFs {
  * @param ports.now the clock stamped into the seeded project's `createdAt`. */
 export function seedSitePowerProfile(
   { siteDir, shotDir, userDataDir }: { siteDir: string | undefined; shotDir: string; userDataDir: string },
-  { fs, log, now }: { fs: SeedFs; log: (line: string) => void; now: () => Date },
+  { fs, log, now }: { fs: SeedFs; log: (input: { line: string }, options?: Record<string, never>) => void; now: () => Date },
 ): string | null {
   if (!siteDir || !fs.existsSync(path.join(siteDir, "config.json"))) {
-    log("FAIL:: SITE_POWER_SITE_DIR must name a real Tovu site directory (one with config.json)");
+    log({ line: "FAIL:: SITE_POWER_SITE_DIR must name a real Tovu site directory (one with config.json)" });
     return null;
   }
   // The display name the seeded card must carry, read from the site's own config.json rather than

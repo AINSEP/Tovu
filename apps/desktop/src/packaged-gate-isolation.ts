@@ -30,7 +30,7 @@ type SmokeTargets = { executablePath: string; nodeModulesDir: string };
  * @param options.platform selects the copier (`cpSync` on win32, `cp -R` elsewhere); `process.platform` by default.
  */
 export async function withIsolatedSmokeTargets(
-  { targets, run }: { targets: SmokeTargets; run: (targets: SmokeTargets, directory: string) => void | Promise<void> },
+  { targets, run }: { targets: SmokeTargets; run: (input: { targets: SmokeTargets; directory: string }, options?: Record<string, never>) => void | Promise<void> },
   { tempRoot = tmpdir(), platform = process.platform }: { tempRoot?: string; platform?: NodeJS.Platform } = {},
 ): Promise<void> {
   // Real path: macOS tmpdir is /var -> /private/var, and an entry like apps/desktop/bin/tovu-desktop.ts runs only
@@ -49,9 +49,12 @@ export async function withIsolatedSmokeTargets(
       execFileSync(command, ["-R", appRoot, copiedRoot], { stdio: "pipe" });
     }
     await run({
-      executablePath: path.join(copiedRoot, path.relative(appRoot, targets.executablePath)),
-      nodeModulesDir: path.join(copiedRoot, path.relative(appRoot, targets.nodeModulesDir)),
-    }, directory);
+      targets: {
+        executablePath: path.join(copiedRoot, path.relative(appRoot, targets.executablePath)),
+        nodeModulesDir: path.join(copiedRoot, path.relative(appRoot, targets.nodeModulesDir)),
+      },
+      directory,
+    });
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

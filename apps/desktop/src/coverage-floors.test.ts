@@ -38,58 +38,58 @@ function cov(entries: [string, LcovCounters][]): Map<string, LcovCounters> {
 }
 
 test("pct treats zero-found as 100 — correct for a file with no branches", () => {
-  assert.equal(pct(0, 0), 100);
-  assert.equal(pct(1, 2), 50);
+  assert.equal(pct({ hit: 0, found: 0 }), 100);
+  assert.equal(pct({ hit: 1, found: 2 }), 50);
 });
 
 test("test files and .d.ts files are not production source", () => {
-  assert.equal(isMeasurableSource("src/a.js"), true);
-  assert.equal(isMeasurableSource("src/a.test.js"), false);
-  assert.equal(isMeasurableSource("src/a.spec.ts"), false);
-  assert.equal(isMeasurableSource("src/a.d.ts"), false);
-  assert.equal(isMeasurableSource("src/renderer/electron-webview.d.ts"), false);
+  assert.equal(isMeasurableSource({ relPath: "src/a.js" }), true);
+  assert.equal(isMeasurableSource({ relPath: "src/a.test.js" }), false);
+  assert.equal(isMeasurableSource({ relPath: "src/a.spec.ts" }), false);
+  assert.equal(isMeasurableSource({ relPath: "src/a.d.ts" }), false);
+  assert.equal(isMeasurableSource({ relPath: "src/renderer/electron-webview.d.ts" }), false);
 });
 
 // --- excludeDirs: cutting an area by role, not by extension --------------------------------------
 
 test("a path inside an excluded directory, at any depth, is excluded", () => {
-  assert.equal(isInExcludedDir("src/renderer/App.hooks.ts", ["src/renderer"]), true);
-  assert.equal(isInExcludedDir("src/renderer/deep/nested/x.ts", ["src/renderer"]), true);
-  assert.equal(isInExcludedDir("src/contracts/project.ts", ["src/renderer", "src/contracts"]), true);
+  assert.equal(isInExcludedDir({ relPath: "src/renderer/App.hooks.ts" }, { excludeDirs: ["src/renderer"] }), true);
+  assert.equal(isInExcludedDir({ relPath: "src/renderer/deep/nested/x.ts" }, { excludeDirs: ["src/renderer"] }), true);
+  assert.equal(isInExcludedDir({ relPath: "src/contracts/project.ts" }, { excludeDirs: ["src/renderer", "src/contracts"] }), true);
 });
 
 test("the excluded directory itself counts as excluded, so a walk can prune it", () => {
-  assert.equal(isInExcludedDir("src/renderer", ["src/renderer"]), true);
+  assert.equal(isInExcludedDir({ relPath: "src/renderer" }, { excludeDirs: ["src/renderer"] }), true);
 });
 
 test("a sibling that merely SHARES the prefix is not excluded — the match is on a directory boundary", () => {
   // A bare startsWith would put src/renderer-foo/ and src/renderer.js in the renderer role, and a
   // main-process file would silently leave the 96/90/90 area it belongs to.
-  assert.equal(isInExcludedDir("src/renderer-foo/x.js", ["src/renderer"]), false);
-  assert.equal(isInExcludedDir("src/renderer.js", ["src/renderer"]), false);
-  assert.equal(isInExcludedDir("src/rendererx/y.ts", ["src/renderer"]), false);
+  assert.equal(isInExcludedDir({ relPath: "src/renderer-foo/x.js" }, { excludeDirs: ["src/renderer"] }), false);
+  assert.equal(isInExcludedDir({ relPath: "src/renderer.js" }, { excludeDirs: ["src/renderer"] }), false);
+  assert.equal(isInExcludedDir({ relPath: "src/rendererx/y.ts" }, { excludeDirs: ["src/renderer"] }), false);
 });
 
 test("the match is anchored at the start of the path, not anywhere inside it", () => {
-  assert.equal(isInExcludedDir("src/speech/src/renderer/x.js", ["src/renderer"]), false);
+  assert.equal(isInExcludedDir({ relPath: "src/speech/src/renderer/x.js" }, { excludeDirs: ["src/renderer"] }), false);
 });
 
 test("a trailing slash in the configured directory changes nothing, including the boundary", () => {
-  assert.equal(isInExcludedDir("src/renderer/x.ts", ["src/renderer/"]), true);
-  assert.equal(isInExcludedDir("src/renderer", ["src/renderer/"]), true);
-  assert.equal(isInExcludedDir("src/renderer-foo/x.ts", ["src/renderer/"]), false);
+  assert.equal(isInExcludedDir({ relPath: "src/renderer/x.ts" }, { excludeDirs: ["src/renderer/"] }), true);
+  assert.equal(isInExcludedDir({ relPath: "src/renderer" }, { excludeDirs: ["src/renderer/"] }), true);
+  assert.equal(isInExcludedDir({ relPath: "src/renderer-foo/x.ts" }, { excludeDirs: ["src/renderer/"] }), false);
 });
 
 test("no excludeDirs — absent or empty — excludes nothing", () => {
-  assert.equal(isInExcludedDir("src/renderer/x.ts", []), false);
-  assert.equal(isInExcludedDir("src/renderer/x.ts", undefined), false);
+  assert.equal(isInExcludedDir({ relPath: "src/renderer/x.ts" }, { excludeDirs: [] }), false);
+  assert.equal(isInExcludedDir({ relPath: "src/renderer/x.ts" }, { excludeDirs: undefined }), false);
 });
 
 // --- the core trap: percentages cannot see their own scope shrinking ---------------------------
 
 test("a file on disk with NO coverage record fails the area, even at 100% on what was measured", () => {
   const area = { id: "js", floors: { line: 90 } };
-  const result = evaluateArea(area, ["src/a.js", "src/b.js"], cov([["src/a.js", perfect]]));
+  const result = evaluateArea({ area, onDisk: ["src/a.js", "src/b.js"], records: cov([["src/a.js", perfect]]) });
 
   assert.equal(result.actual.line, 100, "the measured half really is at 100%");
   assert.ok(result.failures.length > 0, "and the area must STILL fail");
@@ -100,7 +100,7 @@ test("a file on disk with NO coverage record fails the area, even at 100% on wha
 
 test("an explicitly grandfathered gap does NOT fail — debt is allowed when it is declared", () => {
   const area = { id: "ts", floors: { line: 90 }, knownUnmeasured: ["src/b.ts"] };
-  const result = evaluateArea(area, ["src/a.ts", "src/b.ts"], cov([["src/a.ts", perfect]]));
+  const result = evaluateArea({ area, onDisk: ["src/a.ts", "src/b.ts"], records: cov([["src/a.ts", perfect]]) });
 
   assert.deepEqual(result.failures, []);
   assert.deepEqual(result.unmeasured, ["src/b.ts"], "but it is still reported");
@@ -109,7 +109,7 @@ test("an explicitly grandfathered gap does NOT fail — debt is allowed when it 
 test("a THIRD unmeasured file fails even when two are grandfathered — the list cannot grow", () => {
   const known = ["src/1.ts", "src/2.ts"];
   const area = { id: "ts", knownUnmeasured: known };
-  const result = evaluateArea(area, [...known, "src/3.ts", "src/a.ts"], cov([["src/a.ts", perfect]]));
+  const result = evaluateArea({ area, onDisk: [...known, "src/3.ts", "src/a.ts"], records: cov([["src/a.ts", perfect]]) });
 
   assert.deepEqual(result.newlyUnmeasured, ["src/3.ts"]);
   assert.ok(result.failures.some((f) => /src\/3\.ts/.test(f)));
@@ -121,7 +121,7 @@ test("the grandfather list is an ENUMERATION, not a count — nine DIFFERENT fil
   // green — a scope that silently widened without ever growing.
   const area = { id: "ts", knownUnmeasured: ["src/old-a.ts", "src/old-b.ts"] };
   const onDisk = ["src/new-a.ts", "src/new-b.ts", "src/covered.ts"];
-  const result = evaluateArea(area, onDisk, cov([["src/covered.ts", perfect]]));
+  const result = evaluateArea({ area, onDisk, records: cov([["src/covered.ts", perfect]]) });
 
   assert.equal(result.unmeasured.length, 2, "the COUNT of gaps is unchanged");
   assert.deepEqual(
@@ -134,7 +134,7 @@ test("the grandfather list is an ENUMERATION, not a count — nine DIFFERENT fil
 
 test("swapping ONE grandfathered file for another fails, even at an identical count", () => {
   const area = { id: "ts", knownUnmeasured: ["src/a.ts", "src/b.ts"] };
-  const result = evaluateArea(area, ["src/a.ts", "src/c.ts"], cov([]));
+  const result = evaluateArea({ area, onDisk: ["src/a.ts", "src/c.ts"], records: cov([]) });
 
   assert.equal(result.unmeasured.length, 2);
   assert.deepEqual(result.newlyUnmeasured, ["src/c.ts"], "the substituted file is caught by name");
@@ -143,7 +143,7 @@ test("swapping ONE grandfathered file for another fails, even at an identical co
 
 test("a grandfathered file that regained coverage is flagged so the list shrinks", () => {
   const area = { id: "ts", knownUnmeasured: ["src/b.ts"] };
-  const result = evaluateArea(area, ["src/b.ts"], cov([["src/b.ts", perfect]]));
+  const result = evaluateArea({ area, onDisk: ["src/b.ts"], records: cov([["src/b.ts", perfect]]) });
 
   assert.deepEqual(result.recovered, ["src/b.ts"]);
   assert.deepEqual(result.failures, [], "recovering is not itself a failure, only a prompt");
@@ -153,7 +153,7 @@ test("an area whose directory vanished fails instead of reading as a clean 100%"
   // pct()'s zero-found-is-100 convention would otherwise report perfect scores on an empty area —
   // the exact shape of a gate that has silently stopped gating.
   const area = { id: "bin", floors: { line: 85, branch: 80, funcs: 62 }, minFilesOnDisk: 2 };
-  const result = evaluateArea(area, [], cov([]));
+  const result = evaluateArea({ area, onDisk: [], records: cov([]) });
 
   assert.equal(result.actual.line, 100, "the percentages really do read 100");
   assert.ok(result.failures.some((f) => /expected at least 2/.test(f)));
@@ -162,7 +162,7 @@ test("an area whose directory vanished fails instead of reading as a clean 100%"
 
 test("a partial disappearance fails too, not only a total one", () => {
   const area = { id: "js", minFilesOnDisk: 24 };
-  const result = evaluateArea(area, ["src/a.js", "src/b.js"], cov([["src/a.js", perfect], ["src/b.js", perfect]]));
+  const result = evaluateArea({ area, onDisk: ["src/a.js", "src/b.js"], records: cov([["src/a.js", perfect], ["src/b.js", perfect]]) });
   assert.ok(result.failures.some((f) => /only 2 file\(s\) found on disk, expected at least 24/.test(f)));
 });
 
@@ -170,7 +170,7 @@ test("a partial disappearance fails too, not only a total one", () => {
 
 test("an area below its line floor fails and names the axis", () => {
   const area = { id: "js", floors: { line: 90, branch: 90, funcs: 90 } };
-  const result = evaluateArea(area, ["src/a.js"], cov([["src/a.js", poor]]));
+  const result = evaluateArea({ area, onDisk: ["src/a.js"], records: cov([["src/a.js", poor]]) });
 
   assert.ok(result.failures.some((f) => /line 50\.00% < floor 90%/.test(f)));
   assert.ok(result.failures.some((f) => /branch 50\.00% < floor 90%/.test(f)));
@@ -179,7 +179,7 @@ test("an area below its line floor fails and names the axis", () => {
 
 test("an axis with NO configured floor is never a failure", () => {
   const area = { id: "ts", floors: { line: 40, branch: 40 } };
-  const result = evaluateArea(area, ["src/a.ts"], cov([["src/a.ts", poor]]));
+  const result = evaluateArea({ area, onDisk: ["src/a.ts"], records: cov([["src/a.ts", poor]]) });
 
   assert.deepEqual(result.failures, [], "funcs at 20% must not fail when no funcs floor is set");
   assert.equal(result.actual.funcs, 20);
@@ -187,7 +187,7 @@ test("an axis with NO configured floor is never a failure", () => {
 
 test("an area at exactly its floor passes", () => {
   const area = { id: "js", floors: { line: 50 } };
-  const result = evaluateArea(area, ["src/a.js"], cov([["src/a.js", poor]]));
+  const result = evaluateArea({ area, onDisk: ["src/a.js"], records: cov([["src/a.js", poor]]) });
   assert.deepEqual(result.failures, []);
 });
 
@@ -195,7 +195,7 @@ test("an area at exactly its floor passes", () => {
 
 test("the rendered area names every unmeasured file, every run", () => {
   const area = { id: "ts", floors: { line: 70 }, knownUnmeasured: ["src/b.ts", "src/c.ts"] };
-  const result = evaluateArea(area, ["src/a.ts", "src/b.ts", "src/c.ts"], cov([["src/a.ts", perfect]]));
+  const result = evaluateArea({ area, onDisk: ["src/a.ts", "src/b.ts", "src/c.ts"], records: cov([["src/a.ts", perfect]]) });
   const text = formatArea(result, area);
 
   assert.match(text, /OK {2}\s+ts/);
@@ -207,7 +207,7 @@ test("the rendered area names every unmeasured file, every run", () => {
 
 test("an axis with no floor is rendered as such rather than as a silent pass", () => {
   const area = { id: "ts", floors: { line: 70 } };
-  const text = formatArea(evaluateArea(area, ["src/a.ts"], cov([["src/a.ts", perfect]])), area);
+  const text = formatArea(evaluateArea({ area, onDisk: ["src/a.ts"], records: cov([["src/a.ts", perfect]]) }), area);
   assert.match(text, /funcs.*no floor/);
 });
 
@@ -220,14 +220,14 @@ const AGREEING_PASSES = [
 ];
 
 test("a chained node --test script parses into one pass per command, quotes stripped", () => {
-  assert.deepEqual(parseNodeTestScript(SCRIPT), [
+  assert.deepEqual(parseNodeTestScript({ script: SCRIPT }), [
     { nodeArgs: [], globs: ["src/**/*.test.js", "src/*.test.ts"] },
     { nodeArgs: ["--import", "tsx"], globs: ["src/renderer/**/*.test.ts"] },
   ]);
 });
 
 test("the same globs under the same runners report no drift, whatever the glob order", () => {
-  assert.deepEqual(runnerSplitDrift(AGREEING_PASSES, parseNodeTestScript(SCRIPT)), []);
+  assert.deepEqual(runnerSplitDrift(AGREEING_PASSES, parseNodeTestScript({ script: SCRIPT })), []);
 });
 
 test("a glob moved from bare node to tsx is drift on both runners, by name", () => {
@@ -237,7 +237,7 @@ test("a glob moved from bare node to tsx is drift on both runners, by name", () 
     { id: "node", nodeArgs: [], globs: ["src/**/*.test.js"] },
     { id: "tsx", nodeArgs: ["--import", "tsx"], globs: ["src/renderer/**/*.test.ts", "src/*.test.ts"] },
   ];
-  assert.deepEqual(runnerSplitDrift(moved, parseNodeTestScript(SCRIPT)), [
+  assert.deepEqual(runnerSplitDrift(moved, parseNodeTestScript({ script: SCRIPT })), [
     'package.json runs src/*.test.ts under "node"; TEST_PASSES does not',
     'TEST_PASSES runs src/*.test.ts under "node --import tsx"; package.json does not',
   ]);
@@ -247,19 +247,19 @@ test("a glob only one side runs is drift, whichever side it is on", () => {
   // Two passes on one runner must merge, not replace each other: a replaced set would also report
   // src/renderer/**/*.test.ts here.
   const extra = [...AGREEING_PASSES, { id: "tsx2", nodeArgs: ["--import", "tsx"], globs: ["src/contracts/**/*.test.ts"] }];
-  assert.deepEqual(runnerSplitDrift(extra, parseNodeTestScript(SCRIPT)), [
+  assert.deepEqual(runnerSplitDrift(extra, parseNodeTestScript({ script: SCRIPT })), [
     'TEST_PASSES runs src/contracts/**/*.test.ts under "node --import tsx"; package.json does not',
   ]);
-  assert.deepEqual(runnerSplitDrift([AGREEING_PASSES[0]!], parseNodeTestScript(SCRIPT)), [
+  assert.deepEqual(runnerSplitDrift([AGREEING_PASSES[0]!], parseNodeTestScript({ script: SCRIPT })), [
     'package.json runs src/renderer/**/*.test.ts under "node --import tsx"; TEST_PASSES does not',
   ]);
 });
 
 test("a command the guard cannot read throws instead of comparing as zero globs", () => {
-  assert.throws(() => parseNodeTestScript('node --test "src/**/*.test.js" && vitest run'), {
+  assert.throws(() => parseNodeTestScript({ script: 'node --test "src/**/*.test.js" && vitest run' }), {
     message: 'not a "node [args] --test <globs>" command: vitest run',
   });
-  assert.throws(() => parseNodeTestScript("node src/main.js"), {
+  assert.throws(() => parseNodeTestScript({ script: "node src/main.js" }), {
     message: 'not a "node [args] --test <globs>" command: node src/main.js',
   });
 });
@@ -520,22 +520,22 @@ const DOUBLE_IMAGE_RECORD = [
 ].join("\n");
 
 test("a second image of the same file is named by every function it re-lists at a line that does not declare it", () => {
-  assert.deepEqual(foreignImageFunctions(DOUBLE_IMAGE_RECORD, SHARED_SITES_SOURCE), ["createSitesWorkspace", "desktopSourceRoots"]);
+  assert.deepEqual(foreignImageFunctions({ record: DOUBLE_IMAGE_RECORD, sourceLines: SHARED_SITES_SOURCE }), ["createSitesWorkspace", "desktopSourceRoots"]);
 });
 
 test("a single image is clean, even with a function whose start line does not spell its name", () => {
   const single = "SF:src/shared-sites.ts\nFN:3,createSitesWorkspace\nFN:7,desktopSourceRoots\nFN:5,roots\nFNF:3\nFNH:3";
-  assert.deepEqual(foreignImageFunctions(single, SHARED_SITES_SOURCE), []);
+  assert.deepEqual(foreignImageFunctions({ record: single, sourceLines: SHARED_SITES_SOURCE }), []);
 });
 
 test("two real closures that share a name, each on its own declaring line, are not a second image", () => {
   const source = ["const a = { cut: () => 1 };", "const b = { cut: () => 2 };"];
-  assert.deepEqual(foreignImageFunctions("SF:src/menu.ts\nFN:1,cut\nFN:2,cut\nFNDA:1,cut\nFNDA:0,cut", source), []);
+  assert.deepEqual(foreignImageFunctions({ record: "SF:src/menu.ts\nFN:1,cut\nFN:2,cut\nFNDA:1,cut\nFNDA:0,cut", sourceLines: source }), []);
 });
 
 test("a duplicated name pointing past the end of the file is foreign; anonymous wrappers never are", () => {
   const record = "SF:src/x.ts\nFN:1,anonymous_1\nFN:9,anonymous_1\nFN:3,createSitesWorkspace\nFN:40,createSitesWorkspace";
-  assert.deepEqual(foreignImageFunctions(record, SHARED_SITES_SOURCE), ["createSitesWorkspace"]);
+  assert.deepEqual(foreignImageFunctions({ record, sourceLines: SHARED_SITES_SOURCE }), ["createSitesWorkspace"]);
 });
 
 // --- two images of one file are a UNION, never the "better" copy ---------------------------------

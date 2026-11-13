@@ -106,23 +106,23 @@ interface CoverageGateContext {
  *  `excludeDirs`, repo-relative to the desktop root, sorted. This is the DENOMINATOR — the lcov
  *  never gets to decide what exists. An excluded directory is pruned, not walked.
  *  @complexity O(n) in files walked. */
-function filesOnDisk(dir: string, exts: readonly string[], excludeDirs: readonly string[], desktopRoot: string): string[] {
+function filesOnDisk({ dir, exts, excludeDirs, desktopRoot }: { dir: string; exts: readonly string[]; excludeDirs: readonly string[]; desktopRoot: string }, _options = {}): string[] {
   const root = path.join(desktopRoot, dir);
   if (!existsSync(root)) return [];
   const out: string[] = [];
-  const walk = (abs: string) => {
+  const walk = ({ abs }: { abs: string }, _options = {}) => {
     for (const entry of readdirSync(abs, { withFileTypes: true })) {
       const next = path.join(abs, entry.name);
       const rel = path.relative(desktopRoot, next).split(path.sep).join("/");
       if (entry.isDirectory()) {
-        if (entry.name === "node_modules" || entry.name.startsWith(".") || isInExcludedDir(rel, excludeDirs)) continue;
-        walk(next);
+        if (entry.name === "node_modules" || entry.name.startsWith(".") || isInExcludedDir({ relPath: rel }, { excludeDirs })) continue;
+        walk({ abs: next });
         continue;
       }
       if (exts.some((ext) => rel.endsWith(ext)) && isProductionSource({ file: rel })) out.push(rel);
     }
   };
-  walk(root);
+  walk({ abs: root });
   return out.sort();
 }
 
@@ -134,14 +134,14 @@ function sourceInventory({ root }: { root: string }): string[] {
   const topLevel = readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isFile() && isProductionSource({ file: entry.name }))
     .map((entry) => entry.name);
-  return [...INVENTORY_DIRS.flatMap((dir) => filesOnDisk(dir, SOURCE_EXTENSIONS, [], root)), ...topLevel].sort();
+  return [...INVENTORY_DIRS.flatMap((dir) => filesOnDisk({ dir, exts: SOURCE_EXTENSIONS, excludeDirs: [], desktopRoot: root })), ...topLevel].sort();
 }
 
 /** Parse an lcov into `Map<relPath, image>`. Paths outside this package (Jini's dist, anything
  *  reached through a symlink) are dropped rather than counted. A file recorded twice is the union of
  *  both images ({@link unionLcovImages}), the same rule mergeCoverage applies across passes.
  *  @complexity O(n) in lcov records. */
-function parseLcov(text: string, desktopRoot: string): Map<string, LcovImage> {
+function parseLcov({ text, desktopRoot }: { text: string; desktopRoot: string }, _options = {}): Map<string, LcovImage> {
   const byFile = new Map<string, LcovImage>();
   for (const record of text.split(/^end_of_record$/m)) {
     const sf = /^SF:(.*)$/m.exec(record);
@@ -161,7 +161,7 @@ function parseLcov(text: string, desktopRoot: string): Map<string, LcovImage> {
  *  Status comes directly from spawnSync; an exhausted output buffer fails. Empty test globs are
  *  refused before spawning, because node itself would report it as a clean pass of zero tests.
  *  @complexity O(n) in test files globbed, plus the suite's own cost. */
-function runSuite(pass: TestPass, includes: readonly string[], lcovPath: string, ctx: CoverageGateContext): SuiteResult {
+function runSuite({ pass, includes, lcovPath, ctx }: { pass: TestPass; includes: readonly string[]; lcovPath: string; ctx: CoverageGateContext }, _options = {}): SuiteResult {
   const testFiles = globSync(pass.globs as string[], { cwd: ctx.root, exclude: (name) => name === "node_modules" });
   if (testFiles.length === 0) {
     return { status: null, message: `no test file matches ${pass.globs.join(" ")}, which node would pass as 0 tests` };
@@ -190,11 +190,11 @@ function runSuite(pass: TestPass, includes: readonly string[], lcovPath: string,
  *  counts every line, function and branch any pass ran ({@link unionLcovImages}); keeping only the
  *  pass with more hit lines read the other pass's work as unrun.
  *  @complexity O(n) in lcov records. */
-function mergeCoverage(lcovPaths: readonly string[], desktopRoot: string): Map<string, LcovCounters> {
+function mergeCoverage({ lcovPaths, desktopRoot }: { lcovPaths: readonly string[]; desktopRoot: string }, _options = {}): Map<string, LcovCounters> {
   const images = new Map<string, LcovImage>();
   for (const file of lcovPaths) {
     if (!existsSync(file)) continue;
-    for (const [rel, image] of parseLcov(readFileSync(file, "utf8"), desktopRoot)) {
+    for (const [rel, image] of parseLcov({ text: readFileSync(file, "utf8"), desktopRoot })) {
       const prev = images.get(rel);
       images.set(rel, prev ? unionLcovImages({ a: prev, b: image }) : image);
     }
@@ -206,9 +206,9 @@ function mergeCoverage(lcovPaths: readonly string[], desktopRoot: string): Map<s
  *  SUITE itself passed — coverage numbers from a failed run are not evidence, so that is reported
  *  separately from the floors.
  *  @complexity O(p) in passes, plus the suites' own cost. */
-function produceCoverage(config: CoverageConfig, lcovPaths: readonly string[], ctx: CoverageGateContext): boolean {
+function produceCoverage({ config, lcovPaths, ctx }: { config: CoverageConfig; lcovPaths: readonly string[]; ctx: CoverageGateContext }, _options = {}): boolean {
   const includes = config.coverageInclude ?? [];
-  const results = TEST_PASSES.map((pass, i) => ({ id: pass.id, ...runSuite(pass, includes, lcovPaths[i]!, ctx) }));
+  const results = TEST_PASSES.map((pass, i) => ({ id: pass.id, ...runSuite({ pass, includes, lcovPath: lcovPaths[i]!, ctx }) }));
   // !: lcovPaths is built as `TEST_PASSES.map(...)` in main, so it has exactly TEST_PASSES's length.
   if (results.every((r) => r.status === 0)) return true;
   const summary = results.map((r) => `${r.id}=${r.message ?? r.status}`).join(", ");
@@ -222,15 +222,15 @@ function produceCoverage(config: CoverageConfig, lcovPaths: readonly string[], c
 /** Evaluates and prints every configured area. Returns whether any failed, and every file the
  *  areas scanned on disk (the per-file floor judges exactly those).
  *  @complexity O(n) in areas. */
-function evaluateAreas(config: CoverageConfig, coverage: ReadonlyMap<string, LcovCounters>, ctx: CoverageGateContext): { failed: boolean; files: string[] } {
+function evaluateAreas({ config, coverage, ctx }: { config: CoverageConfig; coverage: ReadonlyMap<string, LcovCounters>; ctx: CoverageGateContext }, _options = {}): { failed: boolean; files: string[] } {
   ctx.out("\n" + "=".repeat(66) + "\nDESKTOP COVERAGE FLOORS\n" + "=".repeat(66) + "\n");
   let failed = false;
   const files: string[] = [];
   for (const area of config.areas) {
     // !: every area entry in coverage-floors.json sets both dirs and extensions; the type leaves
     // them optional because CoverageArea also describes narrower future config shapes.
-    const onDisk = area.dirs!.flatMap((dir) => filesOnDisk(dir, area.extensions!, area.excludeDirs ?? [], ctx.root));
-    const result = evaluateArea(area, onDisk, coverage);
+    const onDisk = area.dirs!.flatMap((dir) => filesOnDisk({ dir, exts: area.extensions!, excludeDirs: area.excludeDirs ?? [], desktopRoot: ctx.root }));
+    const result = evaluateArea({ area, onDisk, records: coverage });
     ctx.out(`${formatArea(result, area)}\n`);
     if (result.failures.length > 0) failed = true;
     files.push(...onDisk);
@@ -274,9 +274,9 @@ function warnForeignImages(lcovPaths: readonly string[], ctx: CoverageGateContex
   const lcovPath = lcovPaths[TEST_PASSES.findIndex((pass) => pass.id === LINE_ACCURATE_PASS_ID)];
   if (lcovPath === undefined || !existsSync(lcovPath)) return;
   for (const record of readFileSync(lcovPath, "utf8").split(/^end_of_record$/m)) {
-    const rel = recordSourcePath(record, ctx.root);
+    const rel = recordSourcePath({ record, root: ctx.root });
     if (rel === undefined) continue;
-    const names = foreignImageFunctions(record, readFileSync(path.join(ctx.root, rel), "utf8").split("\n"));
+    const names = foreignImageFunctions({ record, sourceLines: readFileSync(path.join(ctx.root, rel), "utf8").split("\n") });
     if (names.length === 0) continue;
     ctx.out(
       `\n  WARNING ${rel} was loaded a second way (${names.join(", ")} listed again at lines that do not declare them). ` +
@@ -289,7 +289,7 @@ function warnForeignImages(lcovPaths: readonly string[], ctx: CoverageGateContex
 /** The desktop-relative path one lcov record measured, or undefined for a record with no `SF:`, a
  *  file outside this package (Jini's dist, anything through node_modules), or one no longer on disk.
  *  @complexity O(1) plus one stat. */
-function recordSourcePath(record: string, root: string): string | undefined {
+function recordSourcePath({ record, root }: { record: string; root: string }, _options = {}): string | undefined {
   const sf = /^SF:(.*)$/m.exec(record)?.[1]?.trim();
   if (!sf) return undefined;
   const rel = path.relative(root, path.resolve(root, sf)).split(path.sep).join("/");
@@ -323,9 +323,9 @@ function runCoverageGate(ctx: CoverageGateContext): number {
     const tmp = mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-cov-"));
     const lcovPaths = TEST_PASSES.map((pass) => path.join(tmp, `${pass.id}.lcov`));
 
-    const suitePassed = produceCoverage(config, lcovPaths, ctx);
-    const coverage = mergeCoverage(lcovPaths, ctx.root);
-    const areas = evaluateAreas(config, coverage, ctx);
+    const suitePassed = produceCoverage({ config, lcovPaths, ctx });
+    const coverage = mergeCoverage({ lcovPaths, desktopRoot: ctx.root });
+    const areas = evaluateAreas({ config, coverage, ctx });
     warnForeignImages(lcovPaths, ctx);
     const perFileFailed = evaluatePerFile({ config, coverage, files: areas.files }, ctx);
     const inventoryFailed = evaluateInventory({ config }, ctx);
