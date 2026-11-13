@@ -1,5 +1,6 @@
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import type { MailFeedbackRoute } from "#src/features/mail/index";
+import { reportServerFailure } from "../../admin-http/routes/system/site-share-errors.js";
 
 /**
  * @file Mounts `POST /hooks/mail/:providerId` (provider bounce/complaint webhooks; unauthenticated,
@@ -32,9 +33,10 @@ export function registerMailFeedbackRoute({ app, route }: { app: Express; route:
       const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
       const result = await route.handle({ providerId: req.params.providerId, rawBody: new Uint8Array(body), headers: req.headers });
       res.status(result.status).json(result.body);
-    } catch {
+    } catch (error) {
       // Never echo internals to an unauthenticated caller; the provider retries a 5xx.
-      res.status(500).json({ ok: false, error: "feedback could not be recorded" });
+      const { errorId } = reportServerFailure({ error, operation: "mail-feedback:record" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).json({ ok: false, error: "The mail provider's delivery report could not be recorded. The provider retries it.", errorId });
     }
   });
 }
