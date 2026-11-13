@@ -29,7 +29,7 @@ READY (2026-11-13). Self-contained. Background and the reason for every decision
   - tests: cd packages/agent-runtime && npx vitest run --maxWorkers=2 src/__tests__/mmd-routes.test.ts
 - **J21** EXTRACT SHARED HELPER — risk L; est. −65 lines; divergence: none (all pass timeoutMs 15_000 + DEFAULT_MODEL_OPTION; args differ per CLI and stay at call sites)
   - tests: cd packages/agent-runtime && npx vitest run --maxWorkers=2 src/defs/__tests__/acp-defs.test.ts
-- **J25** MERGE INTO EXISTING — risk M; est. −110 lines; divergence: YES: image-part pick uses || (agent-runtime) vs ?? (integrations); survivor keeps || (falls through an empty inlineData to inline_data). Header builder identical
+- **J25** MERGE INTO EXISTING (Phase A here; Phase B after gate H3) — risk M; est. −110 lines; divergence: YES: image-part pick uses || (agent-runtime) vs ?? (integrations); survivor keeps || (falls through an empty inlineData to inline_data). Header builder identical
   - tests: cd packages/integrations && npx vitest run --maxWorkers=2 src/media-providers/dispatch/providers/__tests__/aihubmix.test.ts ; cd packages/agent-runtime && npx vitest run --maxWorkers=2 src/providers/__tests__/aihubmix.test.ts src/providers/__tests__/model-catalog.test.ts
 - **J30** EXTRACT SHARED HELPER — risk L; est. −60 lines; divergence: none if applied only where headers are exactly {authorization: Bearer apiKey, content-type: application/json}
   - tests: cd packages/integrations && npx vitest run --maxWorkers=2 src/media-providers/dispatch/__tests__/openai-compatible.test.ts src/media-providers/dispatch/providers/__tests__
@@ -94,10 +94,30 @@ export function acpModelFetcher({ args }: { args: readonly string[] }, { timeout
 ```
 (import type RuntimeAgentDef from '../types.js'; check for an import cycle shared.ts<->types.ts: types are type-only, fine.) In auggie, cline, devin, goose, kilo, kimi, kiro, reasonix, trae-cli, vibe: `fetchModels: acpModelFetcher({ args: [<existing args>] }),`, drop `detectAcpModels` from their imports.
 
-## J25 aihubmix (MERGE into integrations)
-1. integrations/.../aihubmix-shared.ts: convert every exported function to the object-arg signatures listed in the TSV (copy agent-runtime's bodies and JSDoc; aihubmixHeaders spreads `aihubmixAppCodeHeader()`; image part pick uses `||`). Update callers in integrations/.../providers/aihubmix.ts and its tests.
-2. integrations/src/media-providers/index.ts: export those names + types.
-3. agent-runtime/src/providers/aihubmix.ts: delete AIHUBMIX_APP_CODE … aihubmixWireModel (lines ~30-192) and replace with `export { AIHUBMIX_APP_CODE, AIHUBMIX_DEFAULT_BASE_URL, aihubmixHeaders, aihubmixAppCodeHeader, classifyAIHubMixModel, aihubmixOriginFromBase, aihubmixGeminiImageUrl, aihubmixGeminiImageBytes, aihubmixWireModel, type AIHubMixProtocol, type AIHubMixGeminiImageRequest } from '@jini-ai/integrations/media-providers';` Keep its module doc (move the APP-Code why-paragraph to aihubmix-shared.ts too) and everything from AIHUBMIX_VIDEO_SECONDS on.
+## J25 aihubmix (MERGE into integrations) — Phase A in this job, Phase B only after gate H3
+Phase A (integrations only):
+1. `packages/integrations/src/media-providers/dispatch/providers/aihubmix-shared.ts`: change the exported positional functions to EXACTLY these signatures (agent-runtime's current public ones, `packages/agent-runtime/src/providers/aihubmix.ts` at 48e6159a4; no `_optional` parameter is added because agent-runtime re-exports them unchanged). Copy agent-runtime's bodies and JSDoc; `aihubmixHeaders` spreads `aihubmixAppCodeHeader()`; the Gemini image-part pick uses `||`. `AIHUBMIX_APP_CODE`, `AIHUBMIX_DEFAULT_BASE_URL`, `AIHubMixProtocol`, `AIHubMixGeminiImageRequest` stay as they are.
+```ts
+export function aihubmixHeaders({ apiKey }: { apiKey: string }): Record<string, string>
+export function aihubmixAppCodeHeader(): Record<string, string>
+export function classifyAIHubMixModel({ model }: { model: string }): AIHubMixProtocol
+export function aihubmixOriginFromBase({ baseUrl }: { baseUrl: string }): string
+export function aihubmixGeminiImageUrl({ baseUrl, wireModel }: { baseUrl: string; wireModel: string }): string
+export async function aihubmixGeminiImageBytes({ req, doFetch }: { req: AIHubMixGeminiImageRequest; doFetch: (requiredArgs: { url: string; init: RequestInit }) => Promise<Response> }): Promise<Buffer>
+export function aihubmixWireModel({ catalogId }: { catalogId: string }): string
+```
+   Keep this file's module doc (APP-Code paragraph, "Simplified from the origin", "Not ported"); add any sentence of agent-runtime's module doc about APP-Code that it lacks. Update the only callers: `providers/aihubmix.ts` (import at ~line 63; switch each call to the object form) and `providers/__tests__/aihubmix-shared.test.ts`.
+2. Narrow subpath (do NOT export these from the `./media-providers` barrel): create `packages/integrations/src/media-providers/aihubmix.ts` containing a one-line doc and `export * from './dispatch/providers/aihubmix-shared.js';`. In `packages/integrations/package.json` add, next to each `./media-providers/catalog` entry: `jini.entries["./media-providers/aihubmix"] = "node"`; `exports["./media-providers/aihubmix"] = { "types": "./dist/media-providers/aihubmix.d.ts", "import": "./dist/media-providers/aihubmix.js", "default": "./dist/media-providers/aihubmix.js" }`; `typesVersions["*"]["media-providers/aihubmix"] = ["./dist/media-providers/aihubmix.d.ts"]`. Why narrow: `aihubmix-shared.ts` has no imports, while the `./media-providers` barrel re-exports the SQLite task store, staging and dispatch; agent-runtime loads integrations lazily today (`model-discovery-adapters.ts:309-321`), so its provider path must not start loading that whole barrel.
+3. Type-check integrations only; run its aihubmix tests. Commit. Report `J25 PHASE A DONE (needs H3)`. Stop J25 here.
+
+Phase B (run ONLY when the dispatch says "H3 done: @jini-ai/integrations built"):
+4. `packages/agent-runtime/src/providers/aihubmix.ts`: delete `AIHUBMIX_APP_CODE` … `aihubmixWireModel` (lines ~30-192) and put in their place:
+```ts
+import { aihubmixOriginFromBase } from '@jini-ai/integrations/media-providers/aihubmix';
+export { AIHUBMIX_APP_CODE, AIHUBMIX_DEFAULT_BASE_URL, aihubmixHeaders, aihubmixAppCodeHeader, classifyAIHubMixModel, aihubmixOriginFromBase, aihubmixGeminiImageUrl, aihubmixGeminiImageBytes, aihubmixWireModel, type AIHubMixProtocol, type AIHubMixGeminiImageRequest } from '@jini-ai/integrations/media-providers/aihubmix';
+```
+   The `import` line is required: `aihubmixCatalogUrl` (kept, ~line 226) calls `aihubmixOriginFromBase`, and `export … from` creates no local binding. At 48e6159a4 that is the only deleted name used below line 192 (checked); if `rg -n "aihubmixHeaders|aihubmixAppCodeHeader|classifyAIHubMixModel|aihubmixGeminiImageUrl|aihubmixGeminiImageBytes|aihubmixWireModel|AIHUBMIX_APP_CODE|AIHUBMIX_DEFAULT_BASE_URL" packages/agent-runtime/src/providers/aihubmix.ts` shows another use after your edit, add that name to the `import` line too. Keep the module doc and everything from `AIHUBMIX_VIDEO_SECONDS` on.
+5. `cd packages/agent-runtime && npx tsc --noEmit -p tsconfig.json`, then its two aihubmix tests. Commit.
 
 ## J30 JSON POST init (EXTRACT, integrations)
 openai-compatible.ts next to withRequestInit:
