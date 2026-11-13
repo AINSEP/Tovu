@@ -51,6 +51,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "assistant": "assistant",
     "server": "server",
     "failed to load recent server errors": "failed to load recent server errors",
+    "failed to load observability status": "failed to load observability status",
     "Copy": "Copy",
     "Copied": "Copied",
     "Copy the time, source and full message, ready to paste.": "Copy the time, source and full message, ready to paste.",
