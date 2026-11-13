@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { DocumentAssets } from '@jini-ai/cms/presentation';
 import type { DeclaredScript } from '@jini-ai/cookie-consent';
 import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
@@ -37,8 +38,10 @@ function loadClient(_required = {}, { resolve = createRequire(import.meta.url).r
     const body = fs.readFileSync(resolve('@jini-ai/cookie-consent/client.min.js'));
     const hash = createHash('sha256').update(body).digest('hex').slice(0, 12);
     return { body, src: `${CONSENT_ENDPOINT}/client-${hash}.min.js` };
-  } catch {
-    console.warn('[consent] The cookie preferences client could not be loaded. Its browser route is disabled.');
+  } catch (err) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    console.warn('[consent] The cookie preferences client could not be loaded. Its browser route is disabled.', errorDiagnostic);
     return undefined;
   }
 }
@@ -95,7 +98,11 @@ function mountReceipts({ app, deps }: { app: Express; deps: RouteDeps }, _option
       } }, { regionMode: config.regionMode === 'opt-in' ? 'opt-in' : 'auto',
         allow: async () => (await limiter.check({ key: consentRateLimitKey({ address: resolveClientIp(req) }) })).allowed });
       res.status(response.status).set(Object.fromEntries(response.headers)).send(await response.text());
-    } catch { console.error('[consent] save failed'); res.status(503).set('Cache-Control', 'no-store').json({ error: 'Your choice could not be saved. Try again.' }); }
+    } catch (err) {
+      let errorDiagnostic = "[diagnostic unavailable]";
+      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+      console.error('[consent] save failed', errorDiagnostic); res.status(503).set('Cache-Control', 'no-store').json({ error: 'Your choice could not be saved. Try again.' });
+    }
   });
 }
 
@@ -310,7 +317,11 @@ function mountContext({ app, consent }: { app: Express; consent: SiteCookieConse
         clearLegacyCookie({ req, res });
       }
       res.json({ enabled, policy: config.policyVersion, regionMode: config.regionMode === 'opt-in' ? 'opt-in' : 'auto' });
-    } catch { console.error('[consent] public context unavailable'); res.status(503).json({ error: 'Cookie preferences could not be loaded. Wait a minute, then reload to try again.' }); }
+    } catch (err) {
+      let errorDiagnostic = "[diagnostic unavailable]";
+      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+      console.error('[consent] public context unavailable', errorDiagnostic); res.status(503).json({ error: 'Cookie preferences could not be loaded. Wait a minute, then reload to try again.' });
+    }
   });
 }
 
@@ -342,8 +353,10 @@ function mountStaticThemeLoader({ app, deps }: { app: Express; deps: RouteDeps }
         for(const attr of node.attributes)script.setAttribute(attr.name,attr.value);
         script.async=false;document.body.append(script);}
     })();`);
-    } catch {
-      console.error('[consent] static loader unavailable');
+    } catch (err) {
+      let errorDiagnostic = "[diagnostic unavailable]";
+      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+      console.error('[consent] static loader unavailable', errorDiagnostic);
       res.status(503).type('text/javascript').set('Cache-Control', 'no-store').send('/* Cookie preferences could not be loaded. Wait a minute, then reload to try again. */');
     }
   });
@@ -408,7 +421,11 @@ export function applySiteCookieConsent({ app, deps, consent }: { app: Express; d
   try {
     const extension = fs.readFileSync(path.join(path.dirname(resolve('@jini-ai/cookie-consent/client.min.js')), 'extensions.min.js'));
     app.get(EXTENSION_SRC, (_req, res) => { res.type('text/javascript').set('Cache-Control', 'public, max-age=60').send(extension); });
-  } catch { console.warn('[consent] The cookie preferences extensions could not be loaded. Their browser route is disabled.'); }
+  } catch (err) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    console.warn('[consent] The cookie preferences extensions could not be loaded. Their browser route is disabled.', errorDiagnostic);
+  }
   mountStaticThemeLoader({ app, deps });
   mountContext({ app, consent });
   mountReceipts({ app, deps });

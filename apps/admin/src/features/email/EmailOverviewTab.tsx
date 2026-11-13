@@ -42,6 +42,7 @@ const REASON: Record<string, string> = {
 function UseRow(props: { row: MailUseRow; locale: string }) {
   const { row, locale } = props;
   const state = USE_STATE[row.state];
+  const evidence = row.evidence;
   return (
     <li className="email-use">
       <div className="email-row">
@@ -54,8 +55,8 @@ function UseRow(props: { row: MailUseRow; locale: string }) {
         </ul>
       ) : null}
       <span className="jini-field-hint">
-        {row.evidence
-          ? t({ locale, key: "Last send: {outcome}, {when}" }).replace("{outcome}", row.evidence.outcome).replace("{when}", () => when(row.evidence!.at, locale))
+        {evidence
+          ? t({ locale, key: "Last send: {outcome}, {when}" }).replace("{outcome}", () => evidence.outcome).replace("{when}", () => when(evidence.at, locale))
           : t({ locale, key: "No sends yet" })}
       </span>
     </li>

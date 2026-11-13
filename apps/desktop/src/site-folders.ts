@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Tovu site discovery settings, stored in the shared config; legacy MRU-profile imports preserve discovery.
  * Atomic replacement and cross-process locking remain owned by Jini's durable JSON adapter.
  */
@@ -138,7 +139,11 @@ function sharedSiteFolders({ workspace, filePath, createdSiteDirs, quarantine }:
     }
   };
   try { importLegacyRoots(); }
-  catch { console.warn("tovu desktop: legacy sites folder import could not complete; using shared settings and retrying next boot."); }
+  catch (err) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    console.warn("tovu desktop: legacy sites folder import could not complete; using shared settings and retrying next boot.", errorDiagnostic);
+  }
   return { read,
     add({ root }, _options = {}) {
       const policy = { homeDir: workspace.homeDir, sitesHome: workspace.home({}) };

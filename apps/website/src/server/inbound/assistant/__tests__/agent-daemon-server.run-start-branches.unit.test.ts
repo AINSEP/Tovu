@@ -232,7 +232,7 @@ describe("onStarted continuation — early stops and prompt assembly", () => {
     const run = conversationRun();
     const input = await start({ prompt: "go" }, run, { siteTools: site(async () => { throw new Error("offline"); }) });
     assert.equal(input.prompt, "<<SUBAGENT_DISPATCH>>\n\ngo");
-    assert.deepEqual(run.calls.warnings, ["[agent-plugins] automatic preflight unavailable"]);
+    assert.deepEqual(run.calls.warnings, ["[agent-plugins] automatic preflight unavailable Error"]);
   });
 
   test("an unavailable preflight cannot silently omit an explicitly selected plugin", async () => {

@@ -498,7 +498,7 @@ export function pageVersionConflictMessage(t: Translate, conflict: PageSaveConfl
   return t(
     "Someone else saved this while you were editing — you were working from {basis}, and {current} is now stored. Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
   )
-    .replace("{basis}", basis)
+    .replace("{basis}", () => basis)
     .replace("{current}", () => current);
 }
 

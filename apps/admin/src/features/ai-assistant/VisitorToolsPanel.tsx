@@ -167,6 +167,6 @@ function VisitorToolLimits({ tool, title, controller, t }: { tool: VisitorToolVi
 /** Format the default budget hint independently of the interactive limits editor. */
 export function visitorToolDefaultLimitsText({ defaults, t }: { defaults?: VisitorToolView["limits"]; t: (key: string) => string }, _options = {}): string {
   return t("Default: {ip} per visitor/hour, {site} per site/day.")
-    .replace("{ip}", String(defaults?.perIpPerHour ?? ""))
+    .replace("{ip}", () => String(defaults?.perIpPerHour ?? ""))
     .replace("{site}", () => String(defaults?.perSitePerDay ?? ""));
 }

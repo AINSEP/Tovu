@@ -161,7 +161,7 @@ function RemovalBody(props: { controller: EmailActivityController; locale: strin
   return (
     <div className="email-removal">
       <p>
-        {t({ locale, key: "Blocked since {when} ({why})." }).replace("{when}", when(step.plan.suppressedAt, locale)).replace("{why}", () => t({ locale, key: SUPPRESSION_REASON[step.plan.suppressionReason] }))}
+        {t({ locale, key: "Blocked since {when} ({why})." }).replace("{when}", () => when(step.plan.suppressedAt, locale)).replace("{why}", () => t({ locale, key: SUPPRESSION_REASON[step.plan.suppressionReason] }))}
       </p>
       <ul className="email-reasons">{step.plan.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
       <p className="jini-field-hint">{t({ locale, key: "Reason: {reason}" }).replace("{reason}", () => step.plan.reason)}</p>

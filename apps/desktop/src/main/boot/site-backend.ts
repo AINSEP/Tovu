@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /**
  * @file Spawn-or-reuse one site's `tovu serve` and seed its admin session — the site-open half that
  * `main.ts`'s own-server windows ({@link SiteBackend.startSiteBackend}) and sites-home tabs
@@ -159,7 +160,11 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
     const captureBridge = await ports.startCaptureBridge();
     let desktopMcpEnv: Record<string, string> | undefined;
     try { desktopMcpEnv = await ports.desktopMcpEnv?.(); }
-    catch { ports.warn("tovu-desktop: desktop tools listener unavailable; retrying automatically."); }
+    catch (err) {
+      let errorDiagnostic = "[diagnostic unavailable]";
+      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+      ports.warn(`tovu-desktop: desktop tools listener unavailable; retrying automatically. Details: ${errorDiagnostic}.`);
+    }
     let server: TServer;
     try {
       server = await ports.startServer({

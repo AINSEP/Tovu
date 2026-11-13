@@ -254,7 +254,9 @@ test('start-up settle: a failed or thrown status keeps every file, shows nothing
   for (const status of [ownerStoreFailure({ action: 'status', code: 'recovery-required' }), new Error(secret)]) {
     const f = settleFixture(status);
     assert.equal(await settleLegacyOwnerStore(f.ports), 'failed');
-    assert.deepEqual(f.events, ['run:status', 'log:tovu desktop: the older shared-key store could not be checked; it was left in place.']);
+    assert.deepEqual(f.events, ['run:status', status instanceof Error
+      ? 'log:tovu desktop: the older shared-key store could not be checked; it was left in place. Details: Error.'
+      : 'log:tovu desktop: the older shared-key store could not be checked; it was left in place.']);
     assert.ok(!f.events.join('').includes(secret));
   }
 });

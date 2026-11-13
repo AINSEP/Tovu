@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { assistantDaemonToken, previousAssistantDaemonConnection } from "../../lifecycle/assistant-daemon-connection.js";
 import { ensureAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
 import { fetchWithDaemonParkRecovery } from "../../lifecycle/daemon-demand-fetch.js";
@@ -765,7 +766,11 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
             if (successor === watch || successor?.daemon !== watch.daemon) watch.daemon.release?.({ runId, principalId: watch.principalId }, {});
             await options.onAttemptEnded?.({ runId });
           }
-          catch { console.warn("[assistant-run-finalizer] attempt resource cleanup unavailable"); }
+          catch (err) {
+            let errorDiagnostic = "[diagnostic unavailable]";
+            try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+            console.warn("[assistant-run-finalizer] attempt resource cleanup unavailable", errorDiagnostic);
+          }
           finally { if (active.get(runId)?.watch === watch) active.delete(runId); }
         });
       active.set(runId, { watch, done });

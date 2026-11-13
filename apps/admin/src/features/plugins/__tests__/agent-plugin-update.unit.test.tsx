@@ -220,6 +220,7 @@ describe("rules — lifecycle fields", () => {
   it("agentPluginWarningText translates the server's known warnings, keeping ids, and passes unknown ones through", () => {
     expect(agentPluginWarningText({ warning: "Needs x:y", translate })).toBe("[Needs {capabilities}]".replace("{capabilities}", "x:y"));
     expect(agentPluginWarningText({ warning: "consumer needs mail:send", translate })).toBe("[{plugin} needs {capability}]".replace("{plugin}", "consumer").replace("{capability}", "mail:send"));
+    expect(agentPluginWarningText({ warning: "plugin$& needs mail:send", translate })).toBe("[plugin$& needs mail:send]");
     expect(agentPluginWarningText({ warning: "Unknown release version; explicit replacement required.", translate })).toBe("[This package has no release version to compare.]");
     expect(agentPluginWarningText({ warning: "Same version with different bytes; explicit replacement required.", translate })).toBe("[Same version number as the installed one, with different contents.]");
     expect(agentPluginWarningText({ warning: "Something the server added later", translate })).toBe("Something the server added later");

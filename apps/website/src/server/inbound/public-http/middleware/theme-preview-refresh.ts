@@ -2,6 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { requestThemePreviewRefresh } from "#src/features/theme/preview-refresh";
 import { syncThemeRoster } from "#src/features/theme/theme-roster-sync";
 import { requireAdminSession, getAuthedPrincipal } from "../../admin-http/dev-auth.js";
+import { sendAdminFailure } from "../../admin-http/routes/system/site-share-errors.js";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /** Unique asset directory also versions relative CSS imports, url() assets and JS module imports. */
@@ -104,8 +105,10 @@ export function registerThemePreviewRefresh(
       }
       try {
         res.json(requestThemePreviewRefresh({ themesDir: deps.themesDir }));
-      } catch {
-        res.status(500).json({ error: "preview reload failed" });
+      } catch (error) {
+        sendAdminFailure({ res, error }, { operation: "theme-preview-reload",
+          message: "Theme previews could not be refreshed.",
+          failure: { step: "Refresh theme previews", action: "Try refreshing the previews again. Copy details and report this problem if it still fails." } });
       }
     },
   );

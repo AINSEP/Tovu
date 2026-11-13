@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /**
  * @file `send-pipeline.ts` — `NewsletterSendPipeline` (ADR-PIPE-011 C-017, orchestrator.spec.md §4,
  * REQ-16/17/18/19/20/24/28/29, INV-02/06/08/10).
@@ -383,9 +384,11 @@ export async function resumeCampaign(required: {
   if (!result.campaign.audienceSnapshotId) return result;
   try {
     await requeuePendingSends({ deps: required.deps, campaign: result.campaign, audienceSnapshotId: result.campaign.audienceSnapshotId });
-  } catch {
+  } catch (err) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
     // Do not expose repository/provider diagnostics or turn an already-committed resume into a refusal.
-    console.error("[newsletter] pending delivery requeue failed after resume; inspect the send log before retrying");
+    console.error("[newsletter] pending delivery requeue failed after resume; inspect the send log before retrying", errorDiagnostic);
     return { ...result, requeueFailed: true };
   }
   return result;

@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { withFileLock as withDirectoryFileLock } from "@jini-ai/platform/fs";
 import { createSitesWorkspace, shareSiteDirectories, type SitesWorkspace } from "./shared-sites.ts";
 import { ensureIndependentSiteIdentity, type SiteIdentityOptions } from "./site-directory-identity.ts";
@@ -549,7 +550,11 @@ export function importSharedSiteDiscovery(
     const rows = readTrackedSites(projectsPath);
     if (rows.length) shareSiteDirectories({ workspace: sharedSites, dirs: rows.map((row) => row.siteDir), createdBy: "desktop-legacy", migration: `projects:${projectsPath}` });
     adoptWithUniqueNames({ deps: { projectsPath, readSiteName }, siteDirs: sharedSites.registry({}).list({}).map((entry) => entry.path) });
-  } catch { console.warn("tovu desktop: shared discovery is unavailable; showing local website cards."); }
+  } catch (err) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    console.warn("tovu desktop: shared discovery is unavailable; showing local website cards.", errorDiagnostic);
+  }
 }
 
 /**
@@ -775,7 +780,11 @@ function recordCreatedSite(
   // Remember the created site's parent beyond MRU eviction/card
   // removal, so a site created beside it by the CLI or web admin can appear on the next scan.
   try { deps.siteFolders?.rememberCreated({ siteDir }); }
-  catch { console.warn("tovu desktop: could not remember the created website folder; the website was created successfully."); }
+  catch (err) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    console.warn("tovu desktop: could not remember the created website folder; the website was created successfully.", errorDiagnostic);
+  }
   rememberSiteName({ projectsPath: deps.projectsPath, siteDir, displayName });
   const displayNameAlias = displayName !== deps.readSiteName(siteDir) ? displayName : undefined;
   rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias });
@@ -1086,7 +1095,11 @@ function assertNoOtherServer(
  */
 function removeFromSharedCatalog({ id, sharedSites }: { id: string; sharedSites: SitesWorkspace | undefined }, _options = {}): void {
   try { sharedSites?.registry({}).remove({ path: id }); }
-  catch { console.warn("tovu desktop: could not remove the erased website from the shared catalog."); }
+  catch (err) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    console.warn("tovu desktop: could not remove the erased website from the shared catalog.", errorDiagnostic);
+  }
 }
 
 /** Remove this process's stopped handle and close its window before folder deletion.

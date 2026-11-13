@@ -31,6 +31,7 @@ import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistant
 import { resolveAssistantRuntimeLaunch } from "../../assistant-runtime-guidance.js";
 import { createAgentSelectionResolver, getAgentDef } from "@jini-ai/agent-runtime";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 
 const rawSource = ts.createSourceFile(
   "agent-daemon-scope.ts",
@@ -64,7 +65,7 @@ export function evaluateDaemonExpression<T>(expression: ts.Node, bindings: Recor
   const code = ts.transpileModule(`return (${expression.getText(daemonSource)});`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText;
-  const scopedBindings = { env: { ...process.env }, authEnv: { ...process.env }, siteId: "test-scope", disposed: false, ownerRetentionTimers: new Set(), ...bindings };
+  const scopedBindings = { env: { ...process.env }, authEnv: { ...process.env }, siteId: "test-scope", disposed: false, ownerRetentionTimers: new Set(), describeErrorForLog, ...bindings };
   return new Function(...Object.keys(scopedBindings), code)(...Object.values(scopedBindings)) as T;
 }
 
@@ -217,6 +218,6 @@ export function evaluateDaemonStatements<T>(statements: readonly ts.Statement[],
   const code = ts.transpileModule(`return (async () => { ${statements.map((statement) => statement.getText(daemonSource)).join("\n")} return (${result}); })();`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText;
-  const scopedBindings = { env: { ...process.env }, authEnv: { ...process.env }, siteId: "test-scope", disposed: false, ownerRetentionTimers: new Set(), ...bindings };
+  const scopedBindings = { env: { ...process.env }, authEnv: { ...process.env }, siteId: "test-scope", disposed: false, ownerRetentionTimers: new Set(), describeErrorForLog, ...bindings };
   return new Function(...Object.keys(scopedBindings), code)(...Object.values(scopedBindings)) as Promise<T>;
 }

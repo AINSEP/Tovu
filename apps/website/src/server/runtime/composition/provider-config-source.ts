@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { isDeepStrictEqual } from 'node:util';
 import type { SiteKeyReferences } from "#src/features/project-keys/site-references";
 import { migrateProviderSettings, type PluginProviderDeclaration } from "@jini-ai/plugins/host";
@@ -160,8 +161,10 @@ export function withAttachedProject(
       if (!await attached(input)) return null;
       const value = await read(input);
       return await attached(input) ? value : null;
-    } catch {
-      console.warn('[shared-keys] Provider settings could not be read. Retry Shared Keys; local settings remain available. Details: P25_SHARED_PROVIDER_READ_FAILED; secret values omitted.');
+    } catch (err) {
+      let errorDiagnostic = "[diagnostic unavailable]";
+      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+      console.warn('[shared-keys] Provider settings could not be read. Retry Shared Keys; local settings remain available. Details: P25_SHARED_PROVIDER_READ_FAILED; secret values omitted.', errorDiagnostic);
       return null;
     }
   }
