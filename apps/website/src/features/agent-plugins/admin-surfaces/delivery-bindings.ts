@@ -124,8 +124,9 @@ function toStored({ ownership, draft, bindingId }: { ownership: Ownership; draft
  */
 function keepHiddenFormIds({ ownership, stored, previous }: { ownership: Ownership; stored: FormDeliveryBinding; previous: FormDeliveryBinding | undefined }, _optional: Record<string, never> = {}): FormDeliveryBinding {
   if (stored.formIds === undefined || previous?.formIds === undefined) return stored;
-  const hidden = previous.formIds.filter((formId) => !ownership.slugByFormId.has(formId) && !stored.formIds!.includes(formId));
-  return hidden.length === 0 ? stored : { ...stored, formIds: [...stored.formIds, ...hidden] };
+  const formIds = stored.formIds;
+  const hidden = previous.formIds.filter((formId) => !ownership.slugByFormId.has(formId) && !formIds.includes(formId));
+  return hidden.length === 0 ? stored : { ...stored, formIds: [...formIds, ...hidden] };
 }
 
 /** The index of one of this plugin's stored bindings. @throws AdminSurfaceActionError `binding-not-found`. @complexity O(b). */

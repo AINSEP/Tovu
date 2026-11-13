@@ -13,7 +13,7 @@ const ARTIFACT_KEY = new RegExp(`^_share/(${SHARE_TOKEN_PATTERN})/([a-z0-9][a-z0
 function parseArtifactKey({ key }: { key: string }, _optional: Record<string, never> = {}): { token: string; file: string } {
   const match = ARTIFACT_KEY.exec(key);
   if (!match) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Invalid share artifact key." });
-  return { token: match[1]!, file: match[2]! };
+  return { token: match[1], file: match[2] };
 }
 
 /** A 200 anonymous attachment of exactly `bytes`, served uncached, unsniffed and unindexed. */

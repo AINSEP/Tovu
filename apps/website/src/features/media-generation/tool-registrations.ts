@@ -210,7 +210,9 @@ async function resolveDefaultImageModel(routeDeps: MediaGenerationToolDeps, imag
   const checkedProviders = new Set<string>();
   for (const modelId of imageModelIds) {
     // Non-null: every id in imageModelIds is derived from this same registry (agent-tools.ts).
-    const providerId = routeDeps.mediaProviderRegistry.findModel({ id: modelId })!.provider;
+    const model = routeDeps.mediaProviderRegistry.findModel({ id: modelId });
+    if (model == null) throw new Error(`Media generation registry has no model ${modelId}`);
+    const providerId = model.provider;
     if (checkedProviders.has(providerId)) continue;
     checkedProviders.add(providerId);
     const credential = await resolveCredentialForProvider(routeDeps, providerId);
@@ -348,7 +350,9 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
           const allowStubFallback = optionalBoolean({ input, key: "allowStubFallback" }) ?? false;
           // Guaranteed non-null: `model` was just validated against `imageModelIds`, itself
           // derived from this same registry (`agent-tools.ts`'s own doc for both).
-          const providerId = registry.findModel({ id: model })!.provider;
+          const registeredModel = registry.findModel({ id: model });
+          if (registeredModel == null) throw new Error(`Media generation registry has no model ${model}`);
+          const providerId = registeredModel.provider;
 
           const credential = await resolveCredentialForProvider(routeDeps, providerId);
           if (!credential && !allowStubFallback) {

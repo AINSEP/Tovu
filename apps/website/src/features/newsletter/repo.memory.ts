@@ -53,8 +53,9 @@ export class InMemoryNewsletterCampaignRepo implements NewsletterCampaignRepoPor
     const limit = required.limit ?? DEFAULT_LIST_LIMIT;
     let rows = this.campaigns.filter((c) => c.workspaceId === required.workspaceId);
     rows = rows.slice().sort((a, b) => a.id.localeCompare(b.id));
-    if (required.afterId) {
-      rows = rows.filter((c) => c.id > required.afterId!);
+    const afterId = required.afterId;
+    if (afterId) {
+      rows = rows.filter((c) => c.id > afterId);
     }
     return rows.slice(0, limit);
   }
@@ -160,8 +161,9 @@ export class InMemoryNewsletterSubscriptionRepo implements NewsletterSubscriptio
       .filter((r) => r.workspaceId === required.workspaceId && r.listId === required.listId)
       .slice()
       .sort((a, b) => a.id.localeCompare(b.id));
-    if (required.afterId) {
-      rows = rows.filter((r) => r.id > required.afterId!);
+    const afterId = required.afterId;
+    if (afterId) {
+      rows = rows.filter((r) => r.id > afterId);
     }
     return rows.slice(0, limit);
   }
@@ -236,8 +238,9 @@ export class InMemoryNewsletterSendRepo implements NewsletterSendRepoPort {
       .filter((r) => r.workspaceId === required.workspaceId && r.campaignId === required.campaignId)
       .slice()
       .sort((a, b) => a.id.localeCompare(b.id));
-    if (required.afterId) {
-      rows = rows.filter((r) => r.id > required.afterId!);
+    const afterId = required.afterId;
+    if (afterId) {
+      rows = rows.filter((r) => r.id > afterId);
     }
     return rows.slice(0, limit);
   }

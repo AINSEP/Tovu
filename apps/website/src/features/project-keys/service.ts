@@ -84,7 +84,11 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
   const use: ProjectKeysPort["use"] = async (selected, _optional = {}) => {
     if (!siteId) throw new ToolInputError({ message: "This site has no id yet; restart it." });
     // Adoption runs after the card's approval and before the grant; a site key becomes a Shared Key here.
-    const input = selected.use && isSiteKey(selected) ? { ...selected, ...(await siteKeys!.adopt(selected)) } : selected;
+    let input = selected;
+    if (selected.use && isSiteKey(selected)) {
+      if (!siteKeys) throw new Error("Project key adoption has no site key source");
+      input = { ...selected, ...(await siteKeys.adopt(selected)) };
+    }
     await transaction({ run: async () => {
       const row = await find(input);
       if (input.use) {
@@ -124,7 +128,8 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
     listGranted: async input => (await listRows(input)).map(row => ({ ...row, usedBy: [] })),
     permissionFor: async input => {
       if (!isSiteKey(input)) return projectKeyPermission({ row: await find(input) });
-      const row = await siteKeys!.find(input);
+      if (!siteKeys) throw new Error("Project key lookup has no site key source");
+      const row = await siteKeys.find(input);
       if (!row) throw new ToolInputError({ message: "This saved key is no longer on that site. Open Use a saved key again." });
       return projectKeyPermission({ row });
     },

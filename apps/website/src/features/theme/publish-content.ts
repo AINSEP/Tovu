@@ -503,7 +503,9 @@ async function readBlob({ deps, sha256 }: { deps: PublishContentDeps; sha256: st
   if (await isBlockedLibraryBlob({ deps, sha256 })) {
     throw new PublishContentApplyRowError("blocked", "Library documents cannot be published");
   }
-  const { blobStore } = deps.ports.media!;
+  const media = deps.ports.media;
+  if (!media) throw new PublishContentApplyRowError("blocked", "Theme publishing has no media store");
+  const { blobStore } = media;
   const workspaceId = deps.workspaceId;
   const storageKey = computeBlobStorageKey({ workspaceId, sha256 });
   if (!(await blobStore.exists({ storageKey }))) return null;
@@ -723,13 +725,13 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
       await mkdir(stagingDir);
       for (const file of files) {
         const bytes = await readBlob({ deps, sha256: file.sha256 });
-        if (!bytes) blocked(`${title} was not published: the bytes for "${file.path}" never reached this site`);
-        if (sha256Of(bytes!) !== file.sha256) blocked(`${title} was not published: the bytes for "${file.path}" do not match their checksum`);
+        if (!bytes) return blocked(`${title} was not published: the bytes for "${file.path}" never reached this site`);
+        if (sha256Of(bytes) !== file.sha256) blocked(`${title} was not published: the bytes for "${file.path}" do not match their checksum`);
         const abs = path.join(stagingDir, ...file.path.split("/"));
         await mkdir(path.dirname(abs), { recursive: true });
         const handle = await open(abs, fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_WRONLY | fsConstants.O_NOFOLLOW, file.mode);
         try {
-          await handle.writeFile(bytes!);
+          await handle.writeFile(bytes);
         } finally {
           await handle.close();
         }
@@ -776,6 +778,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
           // Authoritative re-check inside the gateway, after `authorize` (same order as media).
           const incoming = await precheckIncoming(entity);
           if ("reason" in incoming) return blocked(incoming.reason);
+          if (!address) return blocked(`${title} was not published: '${entity.id}' is not a valid theme tree address`);
           try {
             await stageFiles(incoming.files);
             swapped = await swapIntoPlace();
@@ -783,7 +786,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
             await rm(stagingDir, { recursive: true, force: true });
             throw err;
           }
-          await prunePreviousCopies(themesDir, address!);
+          await prunePreviousCopies(themesDir, address);
           // The renderer serves partials/pages from memory, not disk — re-read them now.
           await themePort?.onReplaced?.();
           return swapped;
@@ -792,9 +795,10 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
         // The gateway calls rollback only after `execute` resolved (`executeCommand` in
         // @jini-ai/cms core/commands/command.ts), and every resolving `execute` has swapped.
         rollback: async () => {
+          if (!swapped) throw new Error("Theme publish rollback has no completed swap");
           const discard = `${stagingDir}.rollback`;
           await rename(target, discard);
-          if (swapped!.previous) await rename(swapped!.previous, target);
+          if (swapped.previous) await rename(swapped.previous, target);
           await rm(discard, { recursive: true, force: true });
           await themePort?.onReplaced?.();
         },

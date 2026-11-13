@@ -84,13 +84,17 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
 
   /** See PostRepoPort.listHtmlByKind: filter before loading any body and bound the result. */
   async listHtmlByKind(required: { workspaceId: string; kind: import("./post.js").PostKind; limit: number; before?: { updatedAt: string; id: string } }, _options = {}): Promise<PostRecord[]> {
+    const before = required.before;
     const rows = await this.kernel.run(db => db.selectFrom("posts").selectAll()
       .where("workspace_id", "=", required.workspaceId).where("kind", "=", required.kind)
       .where("body_format", "=", "html").where("body_html", "is not", null).where("deleted_at", "is", null)
-      .$if(required.before !== undefined, qb => qb.where(eb => eb.or([
-        eb("updated_at", "<", required.before!.updatedAt),
-        eb.and([eb("updated_at", "=", required.before!.updatedAt), eb("id", ">", required.before!.id)]),
-      ])))
+      .$if(before !== undefined, qb => {
+        if (before === undefined) throw new Error("Post pagination has no cursor");
+        return qb.where(eb => eb.or([
+          eb("updated_at", "<", before.updatedAt),
+          eb.and([eb("updated_at", "=", before.updatedAt), eb("id", ">", before.id)]),
+        ]));
+      })
       .orderBy("updated_at", "desc").orderBy("id", "asc").limit(required.limit).execute());
     return rows.map(toRecord);
   }

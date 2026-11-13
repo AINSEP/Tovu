@@ -539,7 +539,7 @@ function catalogDependencies(
   const known = new Set(originalOrder);
   // Seeded with every registered type, so a lookup by a registered type (each contributor's own
   // `entityType`, every dependent, every `originalOrder` entry) always finds a count; the
-  // non-null reads below rely on that instead of a fallback that could never be taken.
+  // checked reads below enforce that invariant instead of using a fallback that could never be taken.
   const inDegree = new Map<string, number>(originalOrder.map((entityType) => [entityType, 0]));
   const dependents = new Map<string, string[]>();
 
@@ -550,7 +550,9 @@ function catalogDependencies(
           `publish-content type '${contributor.entityType}' depends on unregistered type '${dependency}'`
         );
       }
-      inDegree.set(contributor.entityType, inDegree.get(contributor.entityType)! + 1);
+      const count = inDegree.get(contributor.entityType);
+      if (count === undefined) throw new PublishContentCatalogConfigurationError(`publish-content type '${contributor.entityType}' has no dependency count`);
+      inDegree.set(contributor.entityType, count + 1);
       const waiting = dependents.get(dependency) ?? [];
       waiting.push(contributor.entityType);
       dependents.set(dependency, waiting);
@@ -587,7 +589,9 @@ export function buildPublishContentCatalog(deps: PublishContentDeps): PublishCon
     applyOrder.push(next);
     remaining.delete(next);
     for (const dependent of dependents.get(next) ?? []) {
-      inDegree.set(dependent, inDegree.get(dependent)! - 1);
+      const count = inDegree.get(dependent);
+      if (count === undefined) throw new PublishContentCatalogConfigurationError(`publish-content type '${dependent}' has no dependency count`);
+      inDegree.set(dependent, count - 1);
     }
   }
 

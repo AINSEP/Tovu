@@ -120,7 +120,8 @@ export class InMemoryPublishHistoryStore implements PublishHistoryStore {
     const latest = new Map<string, PublishHistoryEntry>();
     const rows = this.entriesByWorkspace.get(input.workspaceId) ?? [];
     for (let i = rows.length - 1; i >= 0; i -= 1) {
-      const row = rows[i]!;
+      const row = rows[i];
+      if (row === undefined) throw new Error("Publish history has no row at its recorded position");
       const key = JSON.stringify([row.kind ?? "static", row.target, row.projectName]);
       if (isReplayableDestination({ row }) && !latest.has(key)) latest.set(key, row);
       if (latest.size > 200) break;
@@ -131,7 +132,9 @@ export class InMemoryPublishHistoryStore implements PublishHistoryStore {
   async getLast(input: { workspaceId: UUID; target: StaticPublishTargetId }): Promise<PublishHistoryEntry | null> {
     const rows = this.entriesByWorkspace.get(input.workspaceId) ?? [];
     for (let i = rows.length - 1; i >= 0; i -= 1) {
-      if ((rows[i]!.kind ?? "static") === "static" && rows[i]!.target === input.target) return rows[i]!;
+      const row = rows[i];
+      if (row === undefined) throw new Error("Publish history has no row at its recorded position");
+      if ((row.kind ?? "static") === "static" && row.target === input.target) return row;
     }
     return null;
   }

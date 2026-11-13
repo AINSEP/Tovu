@@ -581,6 +581,7 @@ async function duplicateFormDefinition(
     ));
 
   const actor = { id: input.principalId, kind: AGENT_TOOL_PRINCIPAL_KIND };
+  const provider = (source as FormDefinitionRecord & FormAuthoring).provider;
   const { definition } = await createFormDefinition({
     deps: formsDeps(routeDeps),
     input: {
@@ -594,7 +595,7 @@ async function duplicateFormDefinition(
       // to prevent on the post side.
       fields: source.fields.map((field) => ({ ...field })),
       ...((source as { mode?: string }).mode === "html" ? { mode: "html" as const, html: (source as { html?: string }).html ?? "" } : {}),
-      ...((source as FormDefinitionRecord & FormAuthoring).provider ? { provider: structuredClone((source as FormDefinitionRecord & FormAuthoring).provider!) } : {}),
+      ...(provider ? { provider: structuredClone(provider) } : {}),
       notify: { enabled: source.notify.enabled, recipients: [...source.notify.recipients] },
     },
   });

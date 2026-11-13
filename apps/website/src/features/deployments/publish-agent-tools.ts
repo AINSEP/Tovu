@@ -1133,7 +1133,8 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
           const active = getPublishRunSnapshot();
           if (active.status === "running") {
             trackBlockedToolPublish({ deps, principalId: approvedCtx.principal.id, target, reasonClass: "busy" });
-            return { published: false, cancelled: false, code: "ALREADY_RUNNING", jobId: getPublishJobSnapshot({ workspaceId: deps.workspaceId, jobId: active.jobId! })?.jobId, message: "A publish is already running. Call deployment_get_static_publish_status with this jobId (or {} for the latest job on this site). Do not start another publish." };
+            if (active.jobId === undefined) throw new Error("Running static publish has no job ID");
+            return { published: false, cancelled: false, code: "ALREADY_RUNNING", jobId: getPublishJobSnapshot({ workspaceId: deps.workspaceId, jobId: active.jobId })?.jobId, message: "A publish is already running. Call deployment_get_static_publish_status with this jobId (or {} for the latest job on this site). Do not start another publish." };
           }
           const job = startPublishRun({
             deps: { credentialSource, loadDeployTargets: deployTargetsLoader(deps), buildTarget: deps.buildTarget, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders, pluginExportHosts: deps.pluginExportHosts },

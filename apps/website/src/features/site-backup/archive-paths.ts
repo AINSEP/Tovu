@@ -44,7 +44,9 @@ export function archiveToRuntimePath(required: { path: string; files: ReadonlyMa
   const prefix = theme[1] ? "themes/__originals__/" : "themes/";
   let tier = "untrusted";
   try {
-    const manifest = JSON.parse(required.files.get(`${prefix}${theme[2]}/theme.json`)!.toString("utf8"));
+    const bytes = required.files.get(`${prefix}${theme[2]}/theme.json`);
+    if (bytes === undefined) throw new Error("Archived theme has no manifest");
+    const manifest = JSON.parse(bytes.toString("utf8"));
     if (["static", "declarative", "code"].includes(manifest.tier)) tier = manifest.tier;
   } catch { /* A malformed/missing manifest preserves the whole theme in quarantine. */ }
   const result = `themes/${theme[1] ? "__original-themes__/" : ""}${tier}/${theme[2]}/${theme[3]}`;
@@ -72,7 +74,7 @@ export function archiveSecretScanPath(required: { path: string; plugins: readonl
 const UNIT_LABELS: Record<string, string> = { themes: "Theme", "agent-plugins": "Agent plugin", plugins: "Plugin", skills: "Skill" };
 function unitLabel({ unit }: { unit: string }, _optional: Record<string, never> = {}): string {
   const parts = unit.split("/");
-  return `${UNIT_LABELS[parts[0]!] ?? "Extension"} '${parts.at(-1)}'`;
+  return `${UNIT_LABELS[parts[0]] ?? "Extension"} '${parts.at(-1)}'`;
 }
 
 /** One warning per edited unit; multiple edited files must not duplicate notices. */

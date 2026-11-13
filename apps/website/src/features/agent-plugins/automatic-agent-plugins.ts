@@ -198,7 +198,8 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
       const maturity = entry.maturities.get(pluginId);
       return { pluginId, ...result, ...(maturity ? { maturity } : {}), ...(result.status !== 'loaded' ? { note: notes[result.status] } : {}) };
     } },
-  })[0]!;
+  })[0];
+  if (loadRegistration === undefined) throw new Error('Agent Plugin guidance has no load tool registration');
   /** Dispose an attempt alias. Durable attempt replacement retains a pending exchange until its
    * answer/normal exchange expiry; explicit disposal aborts it. O(1), no persistent writes.
    */

@@ -43,7 +43,7 @@ export async function prepareArchiveExtensions(required: { sources: SiteBackupSo
 function isSupersededBundledRevision(required: { file: PlannedDiskFile; selected: ReadonlyMap<string, string> }): boolean {
   const revision = /^agent-plugins\/ws\/[^/]+\/([^/]+)\/package\/sha256\/([a-f0-9]{64})\//.exec(required.file.path);
   if (!revision) return false;
-  const selected = required.selected.get(revision[1]!);
+  const selected = required.selected.get(revision[1]);
   return selected !== undefined && selected !== revision[2];
 }
 
@@ -53,11 +53,15 @@ async function includeThemeOriginals(required: { sources: SiteBackupSources; fil
     const [, tier, id] = file.path.split("/");
     const originalPrefix = `themes/__original-themes__/${tier}/${id}/`;
     if (required.files.some(file => file.path.startsWith(originalPrefix))) continue;
-    const original = resolveThemeOriginalSource({ manifest: { tier: tier as "static", id: id! }, siteThemesRoot: required.sources.themesDir, packageThemesRoot: optional.packageThemesRoot });
+    const original = resolveThemeOriginalSource({ manifest: { tier: tier as "static", id }, siteThemesRoot: required.sources.themesDir, packageThemesRoot: optional.packageThemesRoot });
     if (original) {
       const collected = await collectSiteBackupFiles({ sources: { ...required.sources, themesDir: original.originalDir }, include: { database: false, media: false, themes: true, plugins: false, settings: false } }, { profile: "share" });
       required.notices.push(...(collected.notices ?? []));
-      if (collected.skipped.length) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Cannot export theme original '${id}': ${collected.skipped[0]!.reason}.` });
+      if (collected.skipped.length) {
+        const skipped = collected.skipped[0];
+        if (skipped === undefined) throw new Error("Theme original export has no skipped-file details");
+        throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Cannot export theme original '${id}': ${skipped.reason}.` });
+      }
       required.files.push(...collected.files.filter(file => file.path.startsWith("themes/")).map(file => ({ ...file, path: originalPrefix + file.path.slice("themes/".length) })));
     } else {
       // A theme without a recorded baseline still needs a recoverable original in v2.
@@ -98,11 +102,11 @@ async function unindexedAgentRecords(required: { files: readonly PlannedDiskFile
     const match = /^agent-plugins\/ws\/[^/]+\/([^/]+)\/package\/sha256\/([a-f0-9]{64})\//.exec(file.path);
     if (!match) continue;
     const [, id, digest] = match;
-    const previous = known.get(id!);
+    const previous = known.get(id);
     if (previous && previous !== digest) throw new SiteShareRefusal({ code: "UNSUPPORTED_PLUGIN", message: `Plugin '${id}' has multiple installed digests.` });
     if (!previous) {
-      known.set(id!, digest!);
-      extras.push({ kind: "agent", id: id!, version: "unknown", digest: digest!, enabled: false, shipped: true });
+      known.set(id, digest);
+      extras.push({ kind: "agent", id, version: "unknown", digest, enabled: false, shipped: true });
     }
   }
   return extras;

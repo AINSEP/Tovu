@@ -58,7 +58,8 @@ function choosePath({ folder, path, policy, reserved }: { folder: string; path: 
 /** Per-destination checks that need no write: theme scope/containment, media file name and type. */
 function checkFile({ deps, destination, path, bytes }: { deps: AssetToolDeps; destination: AssetDestination; path: string; bytes: Buffer }): void {
   if (destination.kind === "theme") {
-    const theme = findThemeOrThrow(deps, destination.themeId!);
+    if (destination.themeId === undefined) throw new ToolInputError({ message: "Theme asset destination has no theme ID" });
+    const theme = findThemeOrThrow(deps, destination.themeId);
     assertThemeFileWritable(theme, path);
     resolveThemeFilePath({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path });
   }
@@ -75,7 +76,10 @@ export function prepareAssetWrites({ deps, destination, files, policy = "overwri
   const prepared: PreparedAssets = { destination, files: [], skipped: [] };
   let folder: string | undefined;
   if (destination.kind === "site") folder = deps.siteBinding.dir;
-  if (destination.kind === "theme") folder = findThemeOrThrow(deps, destination.themeId!).dir;
+  if (destination.kind === "theme") {
+    if (destination.themeId === undefined) throw new ToolInputError({ message: "Theme asset destination has no theme ID" });
+    folder = findThemeOrThrow(deps, destination.themeId).dir;
+  }
   const reserved = new Set<string>();
   for (const file of files) {
     const path = folder ? choosePath({ folder, path: file.path, policy, reserved }) : file.path;
@@ -112,9 +116,11 @@ export async function writeAssetFiles({ deps, ctx, prepared }: { deps: AssetTool
     }
     return { written: files.map(({ path }) => path), skipped, media };
   }
-  const theme = findThemeOrThrow(deps, destination.themeId!);
+  const themeId = destination.themeId;
+  if (themeId === undefined) throw new ToolInputError({ message: "Theme asset destination has no theme ID" });
+  const theme = findThemeOrThrow(deps, themeId);
   for (const file of files) writeThemeBinaryFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: file.path, bytes: file.bytes });
-  const reloaded = files.length ? reloadThemeInPlace(deps, theme, destination.themeId!) : theme;
+  const reloaded = files.length ? reloadThemeInPlace(deps, theme, themeId) : theme;
   return { written: files.map(({ path }) => path), skipped, status: reloaded.status, errors: reloaded.errors };
 }
 

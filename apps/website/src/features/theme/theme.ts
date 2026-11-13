@@ -535,15 +535,18 @@ function inheritBundledTemplates(
     const kinds = bundled.manifest.templateFor?.[name];
     return kinds === undefined ? [] : [[name, kinds]];
   }));
+  const inheritedPages = missing.map((name) => {
+    const id = name.replace(/\.html$/, "");
+    const html = bundled.pages[id];
+    if (html === undefined) throw new Error(`Bundled theme template '${name}' has no page source`);
+    return { name, id, html };
+  });
   return {
-    inheritedTemplateSources: Object.fromEntries(missing.map((name) => [
-      `${resolveThemeLayout(manifest.apiVersion).pagesDir}/${name}`, bundled.pages[name.replace(/\.html$/, "")]!,
+    inheritedTemplateSources: Object.fromEntries(inheritedPages.map(({ name, html }) => [
+      `${resolveThemeLayout(manifest.apiVersion).pagesDir}/${name}`, html,
     ])),
     manifest: { ...manifest, templates: [...(manifest.templates ?? []), ...added], templateFor: { ...templateFor, ...manifest.templateFor } },
-    pages: { ...Object.fromEntries(missing.map((name) => {
-      const id = name.replace(/\.html$/, "");
-      return [id, bundled.pages[id]!];
-    })), ...pages },
+    pages: { ...Object.fromEntries(inheritedPages.map(({ id, html }) => [id, html])), ...pages },
   };
 }
 

@@ -53,11 +53,19 @@ function coreColumn(column: PgColumn): TransferColumn {
 function coreIndexes(cfg: ReturnType<typeof getTableConfig>): TransferIndex[] {
   const declared = cfg.indexes.map((index) => ({
     name: index.config.name ?? `${cfg.name}_idx`,
-    columns: index.config.columns.filter(column => !is(column, SQL)).map(column => (column as IndexedColumn).name!),
+    columns: index.config.columns.filter(column => !is(column, SQL)).map(column => {
+      const name = (column as IndexedColumn).name;
+      if (name === undefined) throw new Error(`Index ${index.config.name ?? cfg.name} has a column with no name`);
+      return name;
+    }),
     // Drizzle's index rendering omits table qualifiers. Only the developer-owned schema supplies
     // expressions; introspected plugin expressions remain excluded by Jini's snapshot planner.
-    ...(index.config.columns.some(column => is(column, SQL)) ? { expressions: index.config.columns.map(column =>
-      is(column, SQL) ? `(${dialect.sqlToQuery(new SQL(column.queryChunks).inlineParams(), "indexes").sql})` : quoteIdent({ name: (column as IndexedColumn).name! })) } : {}),
+    ...(index.config.columns.some(column => is(column, SQL)) ? { expressions: index.config.columns.map(column => {
+      if (is(column, SQL)) return `(${dialect.sqlToQuery(new SQL(column.queryChunks).inlineParams(), "indexes").sql})`;
+      const name = (column as IndexedColumn).name;
+      if (name === undefined) throw new Error(`Index ${index.config.name ?? cfg.name} has a column with no name`);
+      return quoteIdent({ name });
+    }) } : {}),
     unique: index.config.unique,
     // Only the developer-owned Postgres schema supplies SQL; plugin predicates stay excluded.
     ...(index.config.where === undefined ? {} : { where: dialect.sqlToQuery(index.config.where).sql }),

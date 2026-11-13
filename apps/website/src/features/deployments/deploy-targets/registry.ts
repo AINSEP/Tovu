@@ -135,7 +135,11 @@ function buildRegistry<T extends Pick<LoadedDeployTarget, "descriptor" | "plugin
   const unique = new Map<string, T>();
   const allRefusals = [...refusals];
   for (const [id, claimants] of byId) {
-    if (claimants.length === 1) unique.set(id, claimants[0]!);
+    if (claimants.length === 1) {
+      const claimant = claimants[0];
+      if (claimant === undefined) throw new Error(`Deploy target ${id} has no claimant`);
+      unique.set(id, claimant);
+    }
     else {
       const owners = claimants.map((target) => `'${target.pluginId}'`).sort().join(", ");
       allRefusals.push(`deploy target '${id}' was not loaded: more than one plugin declares it (${owners})`);

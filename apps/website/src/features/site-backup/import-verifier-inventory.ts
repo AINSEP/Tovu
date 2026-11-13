@@ -81,7 +81,7 @@ export async function scanArchiveMetadata(required: { archive: Buffer; reader: A
 function sharedWrapperFolder(required: { entries: readonly AgentPluginArchiveEntry[] }): string {
   const tops = new Set(required.entries.map(entry => {
     const parts = entry.entryPath.replace(/\/$/, "").split("/");
-    return parts.length > 1 || entry.kind === "directory" ? parts[0]! : "";
+    return parts.length > 1 || entry.kind === "directory" ? parts[0] : "";
   }));
   const [top] = tops;
   return tops.size === 1 && top ? top + "/" : "";
@@ -133,8 +133,8 @@ function claimFile(required: { claims: EntryClaims; entry: FileEntry }): void {
   claimSharePath({ path: name, directory: false, aliases: claims.aliases, files: claims.fileAliases });
   if (claims.directories.has(name)) refuseArchive({ message: "ZIP file/directory collision." });
   const size = entry.declaredSize;
-  if (!Number.isSafeInteger(size) || size! < 0) refuseArchive({ message: "ZIP has an invalid declared size." });
-  claims.sizes.push({ path: name, bytes: size! });
+  if (typeof size !== "number" || !Number.isSafeInteger(size) || size < 0) refuseArchive({ message: "ZIP has an invalid declared size." });
+  claims.sizes.push({ path: name, bytes: size });
   checkShareLimits({ files: claims.sizes });
 }
 
@@ -219,7 +219,8 @@ async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyM
   if (!expected) refuseArchive({ message: "Unlisted ZIP file." });
   const unit = archiveCodeUnit({ path: entry.entryPath });
   if (!unit && expected.bytes !== entry.declaredSize) refuseArchive({ message: "ZIP size mismatch." });
-  const content = await readBounded({ entry, maxBytes: Math.min(entry.declaredSize!, required.remainingBytes), signal: optional.signal });
+  if (typeof entry.declaredSize !== "number" || !Number.isSafeInteger(entry.declaredSize) || entry.declaredSize < 0) refuseArchive({ message: "ZIP has an invalid declared size." });
+  const content = await readBounded({ entry, maxBytes: Math.min(entry.declaredSize, required.remainingBytes), signal: optional.signal });
   verifyListedIntegrity({ content, expected, unit, modified: required.modified });
   return content;
 }

@@ -548,12 +548,12 @@ function selectThemeReadContent(content: string, selection: Exclude<ThemeReadSel
 function pageThemeReadContent({ content, offset }: { content: string; offset: number | undefined }, _options = {}) {
   const bytes = Buffer.from(content, "utf8");
   const start = offset ?? 0;
-  if (start > bytes.length || (bytes[start]! & 0xc0) === 0x80) {
+  if (start > bytes.length || (bytes[start] & 0xc0) === 0x80) {
     throw new ToolInputError({ message: "theme_read_file: offset must be a UTF-8 boundary within the selected text. Use the preceding nextOffset and keep the line selection unchanged." });
   }
   if (offset === undefined && bytes.length <= 4000) return { content };
   let end = Math.min(bytes.length, start + 4000);
-  while (end < bytes.length && (bytes[end]! & 0xc0) === 0x80) end--;
+  while (end < bytes.length && (bytes[end] & 0xc0) === 0x80) end--;
   const truncated = end < bytes.length;
   return { content: bytes.subarray(start, end).toString("utf8"), offset: start,
     nextOffset: truncated ? end : null, totalBytes: bytes.length, truncated };

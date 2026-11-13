@@ -66,7 +66,9 @@ export function bindDeployOpsRuntime(deps:DeployOpsToolDeps):DeployOpsRuntime {
       classifyError:classifyCredentialedRequestError,
       request:async(required,optional)=>{
         const {signal}=optional;
-        const requestDeps:CredentialedRequestDeps={repo:deps.customCredentialSetRepo,sealer:deps.siteAssistantSecretSealer,httpClient:deps.deployOpsHttpClient!,clock:deps.clock,...(deps.customCredentialsAudit?{audit:deps.customCredentialsAudit}:{}),loadAuthSchemes:deps.loadAuthSchemes};
+        const httpClient = deps.deployOpsHttpClient;
+        if (httpClient === undefined) throw new Error('Deployment operations have no HTTP client');
+        const requestDeps:CredentialedRequestDeps={repo:deps.customCredentialSetRepo,sealer:deps.siteAssistantSecretSealer,httpClient,clock:deps.clock,...(deps.customCredentialsAudit?{audit:deps.customCredentialsAudit}:{}),loadAuthSchemes:deps.loadAuthSchemes};
         let transportTruncated = false;
     // Preserve the text clipping flag the credential API does not expose in its returned shape.
     const boundedDeps: CredentialedRequestDeps = { ...requestDeps, httpClient: { send: async (request, _optional = {}) => {

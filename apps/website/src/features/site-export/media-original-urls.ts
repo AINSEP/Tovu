@@ -32,7 +32,7 @@ async function localOriginalPaths({ body, deps, locations }: { body: string; dep
       if (!origin || !sameOrigin({ url: match[0], origin })) continue;
     }
     let key: string | undefined;
-    try { key = decodeURIComponent(match[2]!); } catch { /* Malformed escapes are not media keys. */ }
+    try { key = decodeURIComponent(match[2]); } catch { /* Malformed escapes are not media keys. */ }
     // Absolute URLs stay absolute (sitemaps and og:image require them); only the path is upgraded.
     if (key !== undefined) paths.set(match[0], { prefix: match[1] ?? "", key });
   }
@@ -55,7 +55,9 @@ export async function rewriteMediaOriginalUrls(
   const replacements = new Map<string, string>();
   for (const [url, record] of records) {
     const type = contentTypes.get(record.source.sha256);
-    const { prefix, key } = paths.get(url)!;
+    const path = paths.get(url);
+    if (path === undefined) throw new Error("Export media record has no matching URL path");
+    const { prefix, key } = path;
     const query = new URL(url, "https://export.invalid").searchParams;
     query.delete("v");
     if (type) replacements.set(url, prefix + mediaPublicPath({ key, sha256: record.source.sha256, variant: { kind: "original", contentType: type } }) + (query.size ? `&${query}` : ""));

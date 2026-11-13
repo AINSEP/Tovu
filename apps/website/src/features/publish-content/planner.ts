@@ -442,7 +442,7 @@ async function attachReferencedBy(
   rows: readonly PublishContentOutcomeRow[],
   handlerByType: ReadonlyMap<string, PublishContentHandler>
 ): Promise<readonly PublishContentOutcomeRow[]> {
-  const ids = [...new Set(rows.filter((row) => row.retires !== null).map((row) => row.retires!.entityId))];
+  const ids = [...new Set(rows.flatMap((row) => row.retires === null ? [] : [row.retires.entityId]))];
   if (ids.length === 0) return rows;
 
   const holders: ReferenceHolder[] = [];

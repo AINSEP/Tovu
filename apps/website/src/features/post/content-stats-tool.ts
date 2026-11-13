@@ -131,7 +131,8 @@ async function summarizeMedia(deps: ContentStatsToolDeps, scope: { workspaceId: 
   const types = await readMediaTypes({ deps, assets });
   const media = { total: assets.length, images: 0, videos: 0, other: 0 };
   for (const asset of assets) {
-    const mime = types.get(asset.source.sha256)!;
+    const mime = types.get(asset.source.sha256);
+    if (mime === undefined) throw new Error("Content statistics have no media type for an asset");
     if (mime.startsWith("image/")) media.images++;
     else if (mime.startsWith("video/")) media.videos++;
     else media.other++;

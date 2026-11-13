@@ -389,7 +389,8 @@ export async function importMediaEntity(required: {
 async function replaceImportedMedia({ deps, input, existing, bytes }: {
   deps: ImportMediaEntityDeps; input: ImportMediaEntityInput; existing: MediaRecord | null; bytes: Uint8Array;
 }, _options = {}): Promise<ImportMediaEntityResult> {
-  const reviewed = input.sourceReplacement!;
+  const reviewed = input.sourceReplacement;
+  if (reviewed === undefined) throw new Error("Media replacement has no reviewed source");
   if (!existing || existing.version !== reviewed.version || existing.source.sha256 !== reviewed.sourceSha256) {
     return { status: "conflict", reason: "The live file changed after review. Plan publishing again and review Overwrite on live." };
   }

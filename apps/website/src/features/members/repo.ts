@@ -422,11 +422,15 @@ export class SqlMemberSessionRepo implements MemberSessionRepoPort {
         .where(eb => eb.or([eb("credentials_revoked_at", "is", null),
           eb("credentials_revoked_at", "<", required.revokedAt)]))
         .execute());
+      const exceptSessionId = options.exceptSessionId;
       await this.kernel.run(db => db.updateTable("member_sessions")
         .set({ revoked_at: required.revokedAt })
         .where("workspace_id", "=", required.workspaceId).where("member_id", "=", required.memberId)
         // Exclude in SQL: revoking then restoring the current row could resurrect a concurrent sign-out.
-        .$if(options.exceptSessionId !== undefined, query => query.where("id", "!=", options.exceptSessionId!))
+        .$if(exceptSessionId !== undefined, query => {
+          if (exceptSessionId === undefined) throw new Error("Member session exclusion has no session ID");
+          return query.where("id", "!=", exceptSessionId);
+        })
         .where("revoked_at", "is", null).execute());
     });
   }

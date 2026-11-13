@@ -111,9 +111,13 @@ function updateMcpEffects({ deps, actor }: { deps: AgentPluginsInstallToolDeps; 
 /** The candidate's bytes from a folder, a local zip or a chat attachment, size-capped before reading. */
 async function readToolArchive({ deps, ctx }: { deps: AgentPluginsInstallToolDeps; ctx: ToolExecutionContext }, _optional = {}) {
   const request = deps.pluginInstallSource.readRequest({ input: ctx.input });
-  const archive = request.kind === "folder"
-    ? await zipLocalFolder({ path: request.path!, maxBytes: maxAgentPluginInstallArchiveBytes() })
-    : await deps.pluginInstallSource.readArchive({ request, ownerId: ctx.principal.id, runId: ctx.run.id, maxBytes: maxAgentPluginInstallArchiveBytes() }, { ...(deps.readInstallAttachment ? { readAttachment: deps.readInstallAttachment } : {}) });
+  let archive;
+  if (request.kind === "folder") {
+    if (request.path === undefined) throw new ToolInputError({ message: "Agent Plugin folder source has no path" });
+    archive = await zipLocalFolder({ path: request.path, maxBytes: maxAgentPluginInstallArchiveBytes() });
+  } else {
+    archive = await deps.pluginInstallSource.readArchive({ request, ownerId: ctx.principal.id, runId: ctx.run.id, maxBytes: maxAgentPluginInstallArchiveBytes() }, { ...(deps.readInstallAttachment ? { readAttachment: deps.readInstallAttachment } : {}) });
+  }
   return { request, archive, expectedSha256: createHash("sha256").update(archive).digest("hex") };
 }
 

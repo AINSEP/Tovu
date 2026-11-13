@@ -50,12 +50,12 @@ function assertJoinedContext({ vault, row, kind }: { vault: SecretsVaultTable; r
 
 /** The vault record behind a context-checked payload; one missing any sealed part is refused. */
 function toVaultRecord({ vault }: { vault: SecretsVaultTable }): VaultRecord {
-  const parts = [vault.sealed_key_id, vault.sealed_ciphertext, vault.sealed_nonce, vault.sealed_alg];
-  if (parts.some(value => typeof value !== "string")) throw new VaultError({ code: "invalid-record" });
+  const { sealed_key_id, sealed_ciphertext, sealed_nonce, sealed_alg } = vault;
+  if (typeof sealed_key_id !== "string" || typeof sealed_ciphertext !== "string" || typeof sealed_nonce !== "string" || typeof sealed_alg !== "string") throw new VaultError({ code: "invalid-record" });
   return { workspaceId: vault.workspace_id, id: vault.id, kind: vault.kind, ownerKey: vault.owner_key,
     principalId: vault.principal_id, binding: vault.binding, provider: vault.provider, label: vault.label,
     isDefault: toBool(vault.is_default) ?? false, revision: Number(vault.revision),
-    sealed: { keyId: vault.sealed_key_id!, ciphertext: vault.sealed_ciphertext!, nonce: vault.sealed_nonce!, alg: vault.sealed_alg! },
+    sealed: { keyId: sealed_key_id, ciphertext: sealed_ciphertext, nonce: sealed_nonce, alg: sealed_alg },
     last4: vault.last4, tokenLength: vault.token_length, meta: typeof vault.meta === "string" ? JSON.parse(vault.meta) : vault.meta,
     createdAt: vault.created_at, updatedAt: vault.updated_at };
 }

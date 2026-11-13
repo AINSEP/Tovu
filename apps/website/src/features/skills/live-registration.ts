@@ -25,8 +25,14 @@ export function createLiveSkillRegistration(registry: ToolRegistry): (tools: rea
   registry.list = required => adapter.list(required);
   registry.has = ({ toolId }) => adapter.has({ id: toolId });
   return tools => replace({ tools: tools.map(tool => ({ descriptor: tool.descriptor,
-    policy: { authorize: ({ context }) => tool.policy.authorize(context.authorization!) },
-    handler: ({ context }) => tool.handler(context.execution!, context.options),
+    policy: { authorize: ({ context }) => {
+      if (!context.authorization) throw new Error("Live skill tool has no authorization context");
+      return tool.policy.authorize(context.authorization);
+    } },
+    handler: ({ context }) => {
+      if (!context.execution) throw new Error("Live skill tool has no execution context");
+      return tool.handler(context.execution, context.options);
+    },
   })) });
 }
 

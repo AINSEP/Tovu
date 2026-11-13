@@ -57,7 +57,8 @@ function collectElements({ content }: { content: string }): { all: Element[]; id
   const all: Element[] = [];
   const stack: Node[] = [...parseFragment(content).childNodes].reverse();
   while (stack.length) {
-    const node = stack.pop()!;
+    const node = stack.pop();
+    if (node === undefined) throw new Error('Theme WebMCP scan has no pending node');
     if (!('tagName' in node) || NON_ELEMENTS.has(node.tagName)) continue;
     all.push(node);
     const id = attr(node, 'id'); if (id) ids.set(id, node);

@@ -46,7 +46,7 @@ function vaultSummary({ summary }: { summary: VaultSummary }, _options = {}): So
     accountLabel: summary.meta.accountLabel as string | null, createdAt: summary.createdAt, updatedAt: summary.updatedAt };
 }
 function vault(deps: SourceControlCredentialReadDeps & Partial<SourceControlCredentialWriteDeps>, _options = {}) {
-  return credentialVault({ ...deps, sealer: deps.sealer!, storageError: () => new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
+  return credentialVault({ ...deps, storageError: () => new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
 }
 
 /**
@@ -266,7 +266,8 @@ async function preservedProvider({ raw, existing, registry }: {
   const providerId = (raw as Record<string, unknown>).providerId;
   if (providerId === undefined || providerId === existing) return existing;
   const descriptor = requireProvider({ providerId, registry: await registry() });
-  const paired = descriptor.credential?.fields.find(field => field.required && field.name !== descriptor.credential!.tokenField);
+  const credential = descriptor.credential;
+  const paired = credential?.fields.find(field => field.required && field.name !== credential.tokenField);
   if (paired) throw new SourceControlCredentialValidationError(`moving to ${descriptor.id} requires a new token and ${paired.name}`);
   return descriptor.id;
 }
@@ -412,7 +413,9 @@ async function probeSavedConnection({ deps, summary, connection, workspaceId }: 
   try { if (probe.accountLabel !== null) assertPlainAccountLabel({ value: probe.accountLabel }); } catch { probe.accountLabel = null; }
   if (probe.accountLabel !== null) {
     // This is the saved revision, not a new read's revision: an old probe must not heal a rotation.
-    try { await deps.repo.vault!.patchMeta({ workspaceId: summary.workspaceId, id: summary.id,
+    try {
+      if (!deps.repo.vault) throw new Error("Source control credential has no vault");
+      await deps.repo.vault.patchMeta({ workspaceId: summary.workspaceId, id: summary.id,
       expectedRevision: summary.revision, patch: { accountLabel: assertPlainAccountLabel({ value: probe.accountLabel }) }, updatedAt: summary.updatedAt }); }
     catch { /* A metadata failure does not undo the saved token. */ }
   }
@@ -449,7 +452,8 @@ export async function updateSourceControlCredential(
   const { scoped, record: existing } = located;
   const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
-  const row = await scoped.deps.repo.vault!.find({ workspaceId: scoped.workspaceId, id: input.id });
+  if (!scoped.deps.repo.vault) throw new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+  const row = await scoped.deps.repo.vault.find({ workspaceId: scoped.workspaceId, id: input.id });
   if (!row) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
   const where = credentialScope({ workspaceId: scoped.workspaceId, kind: "source-control" });
   const patch = await normalizeConnectionPatch({ raw: input.connection, existing: existing.providerId, registry: () => credentialRegistry({ deps, workspaceId: input.workspaceId }) });
@@ -500,7 +504,11 @@ async function selectSourceControlCredential({ repo, workspaceId, providerId, cl
   const all = await repo.listByProvider({ workspaceId, providerId });
   const rows = all.filter(row => !claimed.has(row.label));
   for (const row of all) claimed.add(row.label);
-  return rows.find(row => row.isDefault) ?? (rows.length === 1 ? rows[0]! : null);
+  const selected = rows.find(row => row.isDefault);
+  if (selected || rows.length !== 1) return selected ?? null;
+  const only = rows[0];
+  if (only === undefined) throw new Error("Source control credential inventory has no sole row");
+  return only;
 }
 
 /** The selected credential's metadata for a host, never decrypted: this site's, else the project's. */

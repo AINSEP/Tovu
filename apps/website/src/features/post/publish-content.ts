@@ -541,17 +541,19 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
           // The slug too: a retire renames it, so a revert from history must be able to move it back.
           return { deletedAt: holder.deletedAt ?? null, slug: holder.slug };
         },
-        execute: () =>
-          retirePostForReplacement({
+        execute: () => {
+          if (!holder) throw new Error("Publish overwrite has no captured post");
+          return retirePostForReplacement({
             deps: { repo: postRepo, clock: deps.clock, outbox, remove: removePost },
             input: {
               workspaceId: deps.workspaceId,
               id: target.entityId,
-              expectedVersion: holder!.version,
+              expectedVersion: holder.version,
               today: todayStamp({ nowIso: clockNowIso({ clock: deps.clock }) }),
               actorId: input.principalId,
             },
-          }),
+          });
+        },
         captureEntityVersion: ({ result }) => result.post.version,
         rollback: undoRetire,
       },

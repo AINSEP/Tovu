@@ -210,8 +210,8 @@ function omittedApiRow(row: VaultArchiveEntry, consumed: ReadonlySet<string>): b
   return !consumed.has(row.id) && !transient;
 }
 
-/** One failed pair gets one notice, even when both its record and tokens are unusable. */
-function markFailedApiPair(row: VaultArchiveEntry, consumed: Set<string>): void {
+/** Mark both halves consumed. One failed pair gets one notice, even when both its record and tokens are unusable. */
+function markApiPairConsumed(row: VaultArchiveEntry, consumed: Set<string>): void {
   consumed.add(row.id);
   const record = row.payload?.record;
   if (isObject(record) && typeof record.key === "string") consumed.add(record.key);
@@ -241,11 +241,10 @@ export function rebindApiConnectionArchive(required: { entries: readonly VaultAr
     try {
       const pair = reboundConnection({ row, rows, workspaceId: required.workspaceId });
       entries.push(...pair);
-      consumed.add(row.id);
-      consumed.add((row.payload!.record as VaultMeta).key as string);
+      markApiPairConsumed(row, consumed);
     } catch {
       omitted++;
-      markFailedApiPair(row, consumed);
+      markApiPairConsumed(row, consumed);
     }
   }
   omitted += api.filter(row => omittedApiRow(row, consumed)).length;

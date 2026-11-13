@@ -6,7 +6,8 @@ function hasBareMediaToken({ html }: { html: string }, _options = {}): boolean {
   const nodes: DefaultTreeAdapterMap['childNode'][] = [...parseFragment(html).childNodes];
   const token = /\{\{\s*media:/;
   while (nodes.length) {
-    const node = nodes.pop()!;
+    const node = nodes.pop();
+    if (node === undefined) throw new Error('Page HTML scan has no node to inspect');
     if ('value' in node && token.test(node.value)) return true;
     if ('attrs' in node && node.attrs.some(attr => attr.name !== 'data-embed-config' && token.test(attr.value))) return true;
     if ('childNodes' in node) nodes.push(...node.childNodes);

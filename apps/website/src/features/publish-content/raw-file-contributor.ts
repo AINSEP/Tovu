@@ -66,7 +66,10 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
     async function selectedFile({ relPath }: { relPath: string }, _options = {}): Promise<{ reason: string | null; file: RawFileSnapshot | null }> {
       let reason = pathReason(relPath);
       let file: RawFileSnapshot | null = null;
-      if (!reason) try { file = await files!.read({ relPath }); } catch (error) {
+      if (!reason) try {
+        if (!files) throw new Error("Send by hand has no file reader");
+        file = await files.read({ relPath });
+      } catch (error) {
         // Only expected refusals are public skips; driver/I/O details belong to the failure handler.
         if (!(error instanceof BackstopRefusal)) throw error;
         reason = error.message;
@@ -82,7 +85,9 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
       const reason = await check(entity, file.bytes);
       if (reason) skipped.push({ entityType: "raw-file", id: relPath, label: relPath, reason });
       else {
-        deps.backstop!.fileBlobIndex!.set(state.sha256 as string, { absPath: file.absPath, size: file.bytes.byteLength });
+        const index = deps.backstop?.fileBlobIndex;
+        if (!index) throw new Error("Send by hand has no file blob index");
+        index.set(state.sha256 as string, { absPath: file.absPath, size: file.bytes.byteLength });
         return entity;
       }
       return null;
@@ -111,7 +116,7 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
         let total = 0;
         for (const relPath of selected) {
           const { reason: readReason, file } = await selectedFile({ relPath });
-          if (readReason || !file) { skipped.push({ entityType: "raw-file", id: relPath, label: relPath, reason: readReason! }); continue; }
+          if (readReason || !file) { skipped.push({ entityType: "raw-file", id: relPath, label: relPath, reason: readReason ?? "The selected file no longer exists." }); continue; }
           total += file.bytes.byteLength;
           if (total > BACKSTOP_LIMITS.bytes) throw new BackstopRefusal({ message: "Choose files totaling at most 50 MB per send." });
           const entity = await packFile({ relPath, file });

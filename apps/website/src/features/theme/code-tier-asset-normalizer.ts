@@ -282,9 +282,15 @@ function rewriteCssUrlSegment({ segment }: { segment: string }, _options = {}): 
   let quoteIndex = 0;
   for (let match = starts.exec(segment); match; match = starts.exec(segment)) {
     whitespace.lastIndex = starts.lastIndex;
-    const leading = whitespace.exec(segment)!;
+    const leading = whitespace.exec(segment);
+    if (!leading) throw new Error("CSS URL scan could not read leading whitespace");
     const start = leading.index + leading[0].length;
-    while (quoteIndex < quotes.length && quotes[quoteIndex]!.index < start) quoteIndex++;
+    while (quoteIndex < quotes.length) {
+      const quote = quotes[quoteIndex];
+      if (quote === undefined) throw new Error("CSS URL scan has no quote at its recorded position");
+      if (quote.index >= start) break;
+      quoteIndex++;
+    }
     const parsed = cssUrlContent({ segment, start, contentEnd, quotes, quoteIndex });
     if (parsed) {
       if (!isRelativeCssUrl(parsed.rawUrl)) return segment;

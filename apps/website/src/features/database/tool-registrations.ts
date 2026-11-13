@@ -148,6 +148,8 @@ export function buildDatabaseRegistrations(
     dbOps: routeDeps.dbOps, clock: routeDeps.clock, idGen: routeDeps.idGen,
     requirePermission: request => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: request.principalId, permission: request.permission }, { entityType: request.entityType }),
   }, { messages: TOVU_DATABASE_MESSAGES });
+  const restorePointTool = portable.find(tool => tool.descriptor.id === "backup_create_restore_point");
+  if (restorePointTool === undefined) throw new Error("Database tools have no backup restore point registration");
   const handlers: Record<string, ToolHandler> = {
     ...Object.fromEntries(portable.filter(tool => tool.descriptor.id !== "backup_create_restore_point").map(tool => [tool.descriptor.id, tool.handler])),
 
@@ -176,7 +178,7 @@ export function buildDatabaseRegistrations(
     },
 
 
-    backup_create_restore_point: portable.find(tool => tool.descriptor.id === "backup_create_restore_point")!.handler,
+    backup_create_restore_point: restorePointTool.handler,
 
     // Plans as the agent, asks the human, then confirms as the human and executes as the agent
     // inside the same operation lock and cost-class refusal the admin execute route uses.

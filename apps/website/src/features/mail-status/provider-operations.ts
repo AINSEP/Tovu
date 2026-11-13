@@ -97,13 +97,14 @@ export async function saveMailProviderCredential(
   required: { control: MailProviderControl | undefined; credentials: CustomCredentialWriteDeps; workspaceId: string; providerId: string; input: MailProviderCredentialInput },
   optional: { projectKeys?: Pick<ProjectKeysPort, "savedResult"> } = {}
 ): Promise<MailProviderConfiguration> {
-  const { control, credentials, workspaceId, input } = required;
+  const { credentials, workspaceId, input } = required;
+  const control = requireControl({ control: required.control });
   const plan = await planMailProviderCredential({ control, providerId: required.providerId });
   const credential = plan.credential.credentialId
     ? await rotate({ credentials, workspaceId, id: plan.credential.credentialId, input })
     : await create({ credentials, workspaceId, plan, input });
   await optional.projectKeys?.savedResult({ result: { saved: true, credential } });
-  control!.invalidate?.();
+  control.invalidate?.();
   const fresh = await readMailProviderConfigurations({ control });
   return fresh.providers.find((entry) => entry.id === plan.provider.id) ?? plan.provider;
 }

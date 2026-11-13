@@ -1478,7 +1478,8 @@ async function duplicatePostOrPage(
         // Seeds the new row's HTML body — mirrors pages_write_html's own `ensureHtmlFormat` step.
         // `created.post` is stale after this (still "doc" format, version 1); re-read to return the
         // row's real, post-conversion state.
-        await routeDeps.pagesHtmlStore!({ workspaceId: routeDeps.workspaceId, postId: newId }).ensureHtmlFormat(sourceHtml);
+        if (!routeDeps.pagesHtmlStore) throw new Error("Post duplication has no HTML page store");
+        await routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: newId }).ensureHtmlFormat(sourceHtml);
         return getAdminPostById({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId, id: newId } });
       } }),
       captureEntityVersion: ({ result }) => result.post.version,

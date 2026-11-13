@@ -318,7 +318,7 @@ function readRepoFile({ relPath }: { relPath: string }, _options = {}): string {
  */
 function extractOrThrow({ source, pattern, describe, sourceFile }: { source: string; pattern: RegExp; describe: string; sourceFile: string }, _options = {}): string {
   const match = source.match(pattern);
-  if (!match) {
+  if (!match || match[1] === undefined) {
     throw new Error(
       `tovu deploy config: could not derive ${describe} from ${sourceFile} — its format changed since ` +
         `deploy-config.ts's extraction pattern was written. Update the pattern in deploy-config.ts to match ` +
@@ -326,7 +326,7 @@ function extractOrThrow({ source, pattern, describe, sourceFile }: { source: str
         `be derived.`
     );
   }
-  return match[1]!;
+  return match[1];
 }
 
 /**

@@ -64,7 +64,8 @@ function normalizeOne(raw: unknown, index: number): ImageOutput {
     refuse(`${at}: ${errors}`);
   }
   const format = o.format as ImageFormat;
-  if (!(FORMATS[format] as readonly string[]).includes((o.path as string).split(".").pop()!.toLowerCase())) refuse(`${at}: ${format} needs a .${FORMATS[format][0]} extension on '${String(o.path)}'`);
+  const extension = (o.path as string).split(".").pop();
+  if (extension === undefined || !(FORMATS[format] as readonly string[]).includes(extension.toLowerCase())) refuse(`${at}: ${format} needs a .${FORMATS[format][0]} extension on '${String(o.path)}'`);
   return { ...o, format, stripMetadata: o.stripMetadata !== false, icoSizes: (o.icoSizes as number[] | undefined) ?? DEFAULT_ICO_SIZES } as ImageOutput;
 }
 
@@ -120,7 +121,9 @@ async function renderOne({ source, output: o, limits, imageCodec }: { source: Bu
   if (o.format !== "ico") return encode({ source, output: o, limits, imageCodec });
   const pngs = [];
   for (const size of o.icoSizes) pngs.push(await encode({ source, output: { ...o, format: "png", resize: { ...o.resize, fit: o.resize?.fit === "cover" ? "cover" : "contain", width: size, height: size, withoutEnlargement: false } }, limits, imageCodec }));
-  const largest = pngs.reduce((a, b) => (b.width > a.width ? b : a), pngs[0]!);
+  const first = pngs[0];
+  if (first === undefined) throw new ImageTransformError({ message: "ICO image has no sizes to render" });
+  const largest = pngs.reduce((a, b) => (b.width > a.width ? b : a), first);
   return { path: o.path, format: "ico", width: largest.width, height: largest.height, bytes: encodeIco({ entries: pngs }) };
 }
 

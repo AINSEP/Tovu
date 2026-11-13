@@ -333,7 +333,8 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
           const title = optionalString({ input, key: "title" });
           // uploadMedia derives its title by stripping the final extension. A synthetic suffix lets
           // an explicit editorial title keep its punctuation and spaces; this is never a disk path.
-          const filename = title === undefined ? relativePath.split(/[\\/]/).at(-1)! : `${title}.imported`;
+          const filename = title === undefined ? relativePath.split(/[\\/]/).at(-1) : `${title}.imported`;
+          if (filename === undefined) throw new Error("Media import path has no filename");
           ctx.signal.throwIfAborted();
           const result = await persistImportedMedia({
             routeDeps, actorId: ctx.principal.id,

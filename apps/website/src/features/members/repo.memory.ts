@@ -214,7 +214,8 @@ export class InMemoryMemberRepo implements MemberRepoPort {
     }
 
     // Match the durable adapter: stale writes cannot resurrect a trashed member.
-    const existing = this.rows[index]!;
+    const existing = this.rows[index];
+    if (existing === undefined) throw new Error("Member repository has no row at the matched position");
     const cutoffRegressed = existing.credentialsRevokedAt !== undefined
       && (record.credentialsRevokedAt === undefined || existing.credentialsRevokedAt > record.credentialsRevokedAt);
     if (existing.status === "trash" || existing.version > record.version || cutoffRegressed) {

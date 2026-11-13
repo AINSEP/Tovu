@@ -894,11 +894,14 @@ export function renderStaticFragment(
   { theme, html, label }: { theme: DiscoveredTheme; html: string; label: string },
   _optional: Record<string, never> = {},
 ): string {
-  return renderStaticPage({
+  const rendered = renderStaticPage({
     theme,
     pageId: label,
     htmlOverride: wrapPartialInHostDocument(html, theme.manifest.apiVersion),
-  })!; // htmlOverride is always supplied, so renderStaticPage's missing-source branch cannot run.
+  });
+  // htmlOverride is always supplied, so renderStaticPage's missing-source branch cannot run.
+  if (rendered === null) throw new Error("Static theme fragment has no rendered page");
+  return rendered;
 }
 
 /**

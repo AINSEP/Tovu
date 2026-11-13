@@ -492,7 +492,9 @@ function treeFileContentReason({ file, spec }: { file: FileTreeFileInput; spec: 
     if (file.textSample === undefined) return `"${file.path}" is missing the text required for its secret scan`;
     const hits = scanTextForSecrets(file.textSample);
     if (hits.length > 0) {
-      return `"${file.path}" looks like it holds a key (${hits[0]!.patternName})`;
+      const hit = hits[0];
+      if (hit === undefined) throw new Error("Secret scan reported a hit without details");
+      return `"${file.path}" looks like it holds a key (${hit.patternName})`;
     }
   }
   return null;

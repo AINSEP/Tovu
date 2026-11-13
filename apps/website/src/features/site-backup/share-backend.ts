@@ -113,14 +113,17 @@ async function captureSelection({ ports, themeIds, signal, publicUrl }: { ports:
   const media = new Map<string, Buffer>(), sizes: { path: string; bytes: number }[] = [];
   for (const themeId of selected) {
     signal.throwIfAborted();
-    const theme = installed.get(themeId)!;
+    const theme = installed.get(themeId);
+    if (theme === undefined) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: `Selected theme '${themeId}' is not installed.` });
     const copy = await captureStaticSite({ ...ports, now: () => instant, context: async () => ({ ...context, themeId, theme: theme.title }) }, { themeId, publicUrl });
     if ("reason" in copy) throw new SiteShareRefusal({ code: "UNAVAILABLE", message: `${themeId}: ${copy.reason}` });
     retainStaticCapture({ copy, media, sizes });
     copies.push(copy);
   }
   signal.throwIfAborted();
-  return { copy: copies[0]!, copies, activeThemeId, themes };
+  const copy = copies[0];
+  if (copy === undefined) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Select at least one theme to share." });
+  return { copy, copies, activeThemeId, themes };
 }
 
 /** Retired option fails closed for internal callers as well as HTTP. */

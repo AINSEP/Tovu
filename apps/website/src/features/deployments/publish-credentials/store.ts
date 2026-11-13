@@ -106,7 +106,7 @@ function vaultSummary({ summary, providerId, publishHosts = [], defaultFor = [] 
     createdAt: summary.createdAt, updatedAt: summary.updatedAt };
 }
 function vault(deps: PublishCredentialReadDeps & Partial<PublishCredentialWriteDeps>, _options = {}) {
-  return credentialVault({ ...deps, sealer: deps.sealer!, storageError: () => new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
+  return credentialVault({ ...deps, storageError: () => new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
 }
 export interface PublishCredentialReadDeps {
   repo: VendorCredentialSetRepoPort;
@@ -117,7 +117,9 @@ export interface PublishCredentialReadDeps {
 /** The store a listed row came from: rows carry their own store's workspace id. */
 function scopeOfRow<D extends PublishCredentialReadDeps>(deps: D, input: { workspaceId: string; row: { workspaceId: string } }): ScopedCredentialDeps<D> {
   const scopes = credentialScopes(deps, input.workspaceId);
-  return scopes.find(scoped => scoped.workspaceId === input.row.workspaceId) ?? scopes[0]!;
+  const scope = scopes.find(scoped => scoped.workspaceId === input.row.workspaceId) ?? scopes[0];
+  if (scope === undefined) throw new Error("Publish credential has no storage scope");
+  return scope;
 }
 
 /** The vendor row with this id, from the first store holding it (ids are unique across both). @complexity O(scopes). */
@@ -182,7 +184,9 @@ export async function listPublishCredentials(deps: PublishCredentialReadDeps, in
     if (providerId === undefined) return [];
     const defaultFor = [...defaults].filter(([, id]) => id === row.id).map(([host]) => host);
     const summary = vaultSummary({ summary: row, providerId, publishHosts, defaultFor });
-    return [{ ...summary, vendorId: row.provider ?? registry.get(providerId)!.descriptor.credential!.vendorId, ...reportedScope({ deps, workspaceId: input.workspaceId, row }) }];
+    const vendorId = row.provider ?? registry.get(providerId)?.descriptor.credential?.vendorId;
+    if (vendorId === undefined) throw new Error(`Publish target ${providerId} has no credential vendor`);
+    return [{ ...summary, vendorId, ...reportedScope({ deps, workspaceId: input.workspaceId, row }) }];
   });
 }
 
@@ -408,7 +412,8 @@ async function isPublishLabelConflict({ error, target, input }: { error: unknown
   if (isUniqueViolation(error)) return true;
   if (!(error instanceof VaultError) || error.code !== "conflict") return false;
   if (input.expectedRevision === null) return true;
-  const current = await target.deps.repo.vault!.find({ workspaceId: input.workspaceId, id: input.id });
+  if (!target.deps.repo.vault) throw new VaultError({ code: "invalid-record" });
+  const current = await target.deps.repo.vault.find({ workspaceId: input.workspaceId, id: input.id });
   if (!current || current.revision !== input.expectedRevision) return false;
   // The unique label belongs to its provider, so moving providers can conflict without a rename.
   return current.label !== input.label || (input.provider !== undefined && current.provider !== input.provider);
@@ -533,7 +538,8 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
   const scoped = sharedReplacementScope({ deps, scoped: located.scoped });
   const label = input.label !== undefined ? validateLabel({ raw: input.label }) : existing.label;
   const requestedDefault = optionalBoolean({ raw: input.isDefault, field: "isDefault" });
-  const row = await scoped.deps.repo.vault!.find({ workspaceId: scoped.workspaceId, id: input.id });
+  if (!scoped.deps.repo.vault) throw new VaultError({ code: "invalid-record" });
+  const row = await scoped.deps.repo.vault.find({ workspaceId: scoped.workspaceId, id: input.id });
   if (!row) throw new PublishCredentialNotFoundError(`no publish credential '${input.id}' in this workspace`);
   const { providerId, accountLabel, ...changes } = await connectionChanges({ deps: scoped.deps, input, existing, registry, host, row });
   await assertLabelFreeOnSite({ deps, target: scoped, workspaceId: input.workspaceId, vendorId: changes.provider, label, providerId });
@@ -541,7 +547,9 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
     expectedRevision: row.revision, label, ...changes,
     meta: { ...row.meta, worksFor: updatedWorksFor({ value: input.worksFor, row, provider: changes.provider, host }), accountLabel },
     ...(requestedDefault === true ? { isDefault: true } : {}) } });
-  return (await describeCredential(deps, { workspaceId: input.workspaceId, id: summary.id }))!;
+  const described = await describeCredential(deps, { workspaceId: input.workspaceId, id: summary.id });
+  if (!described) throw new PublishCredentialNotFoundError(`saved publish credential '${summary.id}' could not be found`);
+  return described;
 }
 
 async function connectionChanges({ deps, input, existing, registry, host, row }: {
@@ -630,7 +638,9 @@ async function resolveFromInventory({ deps, input, registry, rows }: {
   if (!provider || !selectPublishCredential({ registry, credentials: rows, provider, id: input.id })) return null;
   const resolved = await openPublishVaultRecord({ deps, input, candidate });
   if (!resolved || !selectPublishCredential({ registry, credentials: [resolved.summary], provider, id: input.id })) return null;
-  const connection = publishConnectionFromPayload({ providerId, spec: registry.get(providerId)!.descriptor.credential!,
+  const spec = registry.get(providerId)?.descriptor.credential;
+  if (!spec) return null;
+  const connection = publishConnectionFromPayload({ providerId, spec,
     summary: resolved.summary, payload: resolved.payload });
   return { providerId, vendorId: provider.vendorId, label: resolved.summary.label,
     isDefault: selectPublishCredential({ registry, credentials: rows, provider })?.id === input.id, connection };
@@ -659,8 +669,9 @@ function publishConnectionFromPayload({ providerId, spec, summary, payload }: {
 }, _options = {}): PublishConnectionInput {
   if (!payload) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
   const { vendorId: _vendorId, ...fields } = payload as Record<string, string>;
-  const connection = summary.meta.credentialType === "custom" ? { providerId, [spec.tokenField]: fields.token! } : { ...fields, providerId };
-  if (typeof connection[spec.tokenField] !== "string" || !connection[spec.tokenField]!.trim()) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+  const connection = summary.meta.credentialType === "custom" ? { providerId, [spec.tokenField]: fields.token } : { ...fields, providerId };
+  const token = connection[spec.tokenField];
+  if (typeof token !== "string" || !token.trim()) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
   return connection;
 }
 

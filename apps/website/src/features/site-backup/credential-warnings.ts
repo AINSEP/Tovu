@@ -21,7 +21,7 @@ export function warnCredentialContent(required: { path: string; text: string; cr
   for (const match of result.text.matchAll(/\[REDACTED:([a-z_]+)\]/g)) {
     const count = original.get(match[0]) ?? 0;
     if (count > 0) { original.set(match[0], count - 1); continue; }
-    kinds.add(MATCH_KINDS[match[1]!] ?? "provider key shape");
+    kinds.add(MATCH_KINDS[match[1]] ?? "provider key shape");
   }
   // A replacement can absorb an existing tag. Still warn even if no new marker survives.
   if (!kinds.size) kinds.add("credential-looking content");

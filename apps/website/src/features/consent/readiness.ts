@@ -41,7 +41,8 @@ function unmanagedWarnings(html: string, available: number): { warnings: Consent
   const nodes: Node[] = [...parse(html).childNodes];
   const warnings: ConsentWarning[] = [];
   while (nodes.length) {
-    const node = nodes.pop()!;
+    const node = nodes.pop();
+    if (node === undefined) throw new Error('Consent readiness has no node to inspect');
     if (!('tagName' in node)) continue;
     const warning = unmanaged(node);
     if (warning) {
@@ -61,7 +62,11 @@ export function consentDeclarationReadiness({ html, scripts, runtimeSlot, proble
   const declarationLimit = runtimeSlot ? LIMIT : LIMIT - 1;
   const input = Array.isArray(scripts) ? scripts.slice(0, declarationLimit) : scripts;
   const checked = validateScripts({ scripts: input });
-  const declarations: DeclaredScript[] = checked.scripts.map(script => ({ ...script, src: sourceLabel(script.src)! }));
+  const declarations: DeclaredScript[] = checked.scripts.map(script => {
+    const src = sourceLabel(script.src);
+    if (src === null) throw new Error('Consent readiness has a declaration with no source');
+    return { ...script, src };
+  });
   const problems: ConsentProblem[] = [...evidenceProblems, ...checked.problems].map(problem => typeof problem === 'string' ? { code: 'INVALID_SCRIPT_DECLARATION', message: problem } : problem);
   const categories = CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false }));
   if (Buffer.byteLength(html, 'utf8') > 1_000_000) return { declarations, warnings: [] as ConsentWarning[], categories, truncated: true,

@@ -50,7 +50,9 @@ export function sanitizePageHtml({ html }: { html: string }, { reportDrops = ({ 
   const drop = (key: string): false => { dropped.set(key, (dropped.get(key) ?? 0) + 1); return false; };
   const parents: { parent: DefaultTreeAdapterMap['documentFragment'] | Element; depth: number }[] = [{ parent: root, depth: 0 }];
   while (parents.length) {
-    const { parent, depth } = parents.pop()!;
+    const pending = parents.pop();
+    if (pending === undefined) throw new Error('Media HTML sanitizer has no pending parent');
+    const { parent, depth } = pending;
     parent.childNodes = parent.childNodes.filter(child => {
       if (!('tagName' in child)) return child.nodeName === '#text';
       // Bound native serializer recursion as well as our own traversal on imported HTML.
@@ -123,7 +125,9 @@ function resolveMediaTree({ root, visit }: { root: DefaultTreeAdapterMap['docume
   const elements: Element[] = [];
   const stack: { node: Child; parent: Element | DefaultTreeAdapterMap['documentFragment'] }[] = root.childNodes.map(node => ({ node, parent: root }));
   while (stack.length) {
-    const { node, parent } = stack.pop()!;
+    const pending = stack.pop();
+    if (pending === undefined) throw new Error('Media HTML scan has no pending node');
+    const { node, parent } = pending;
     if (!visit(node)) {
       dropped.add(node);
       if (node.nodeName === '#text' && 'tagName' in parent) dropped.add(parent);

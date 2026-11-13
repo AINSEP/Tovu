@@ -774,7 +774,9 @@ function regularRevisionFile({ root, normalized }: { root: string; normalized: s
     file = join(file, part);
     if (!lstatSync(file, { throwIfNoEntry: false })?.isDirectory()) return undefined;
   }
-  file = join(file, parts.at(-1)!);
+  const name = parts.at(-1);
+  if (name === undefined) throw new Error("Theme file path has no filename");
+  file = join(file, name);
   return lstatSync(file, { throwIfNoEntry: false })?.isFile() ? file : undefined;
 }
 

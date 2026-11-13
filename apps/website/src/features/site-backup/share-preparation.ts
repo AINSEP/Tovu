@@ -33,7 +33,9 @@ export async function prepareShareContent(required: { dbOps: DbOpsPort; snapshot
   if (!projected.archiveMedia && projected.media.length) throw new SiteShareRefusal({ code: "INVALID_MEDIA", message: "Share projection has no archive media metadata." });
   const copies = await bufferArchiveMedia({ sources: projected.archiveMedia ?? [], blobStore: required.blobStore, imageTransformer: required.imageTransformer, ledger }, optional);
   const bytes = await required.rewriteMedia({ bytes: projected.bytes, copies }, optional);
-  ledger.sizes.find(file => file.path === "content.db")!.bytes = bytes.length;
+  const database = ledger.sizes.find(file => file.path === "content.db");
+  if (database === undefined) throw new Error("Share size ledger has no content database");
+  database.bytes = bytes.length;
   checkShareLimits({ files: ledger.sizes });
   if (savedKeys) addBuffered({ ledger, file: { path: SAVED_KEYS_PATH, content: savedKeys.encryptedKeys } });
   const name = await addPortableSettings({ files: collected.files, siteDir: required.sources.siteDir, ledger });

@@ -232,7 +232,11 @@ async function pickCredentialLabel({ deps, providers, requested }: { deps: SiteB
   const apiOrigins = providers.map((provider) => provider.apiOrigin);
   const where = apiOrigins.join(" or ");
   const matching = saved.filter((credential) => apiOrigins.includes(originOf({ url: credential.baseUrl }) ?? "")).map((credential) => credential.label);
-  if (matching.length === 1) return { ok: true, label: matching[0]! };
+  if (matching.length === 1) {
+    const label = matching[0];
+    if (label === undefined) throw new Error("Backup credential match has no label");
+    return { ok: true, label };
+  }
   if (matching.length === 0) {
     return {
       ok: false,

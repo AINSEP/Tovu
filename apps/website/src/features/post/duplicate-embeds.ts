@@ -65,7 +65,9 @@ function queueEmbedObject(
   // would leave the copy sharing mutable objects with its source.
   const entries = Object.entries(source);
   for (let i = entries.length - 1; i >= 0; i--) {
-    const [key, value] = entries[i]!;
+    const entry = entries[i];
+    if (entry === undefined) throw new Error("Embed copy has no source entry at its recorded position");
+    const [key, value] = entry;
     stack.push({ node: value, place: ({ value: cloned }, _optional = {}) => { copy[key] = cloned; } });
   }
 }
@@ -79,7 +81,9 @@ function walk({ root, newPlacementId }: { root: unknown; newPlacementId: () => s
   let result: unknown;
   const stack: EmbedCopyFrame[] = [{ node: root, place: ({ value }, _optional = {}) => { result = value; } }];
   while (stack.length > 0) {
-    const { node, place } = stack.pop()!;
+    const frame = stack.pop();
+    if (frame === undefined) throw new Error("Embed copy has no frame to process");
+    const { node, place } = frame;
     if (Array.isArray(node)) {
       const copy: unknown[] = [];
       copy.length = node.length;

@@ -45,12 +45,15 @@ export function domainPublishTool(required: {
       const details = planned.details as DomainPublishDetails;
       return { hooks, planned, details };
     },
-    describe: ({ prepared: { details } }, _options = {}) => ({
-      toolId: 'deployment_execute_static_publish', errorCode: 'DOMAIN_PUBLISH', title: 'Publish and change these domain bindings?',
-      details: domainPublishRows({ inspection: details.inspection!, projectName, target: config.target }),
-      warning: 'The listed records, bindings and whole overlapping routes will be changed. This can interrupt the existing site and other hosts covered by wildcard routes. Mail, TXT and CAA stay unchanged. There is no automatic rollback. Cancel to keep everything as it is.',
-      danger: true, confirmLabel: 'Publish and apply these changes',
-    }),
+    describe: ({ prepared: { details } }, _options = {}) => {
+      if (!details.inspection) throw new Error('Domain publish plan has no inspection');
+      return {
+        toolId: 'deployment_execute_static_publish', errorCode: 'DOMAIN_PUBLISH', title: 'Publish and change these domain bindings?',
+        details: domainPublishRows({ inspection: details.inspection, projectName, target: config.target }),
+        warning: 'The listed records, bindings and whole overlapping routes will be changed. This can interrupt the existing site and other hosts covered by wildcard routes. Mail, TXT and CAA stay unchanged. There is no automatic rollback. Cancel to keep everything as it is.',
+        danger: true, confirmLabel: 'Publish and apply these changes',
+      };
+    },
     run: async ({ ctx, prepared: { hooks, planned }, confirmer }, _options = {}) => {
       const consent = await checkToolPublishConsent({ deps, principalId: ctx.principal.id });
       if (consent) {
@@ -99,11 +102,13 @@ function makeHooks(required: {
     executeMutation: async ({ details }) => {
       signal.throwIfAborted();
       if (getPublishRunSnapshot().status === 'running') throw new ToolInputError({ message: 'ALREADY_RUNNING: A publish is running. Wait for it to finish, then preview again.' });
-      const domainPlan = details.inspection!.domains!;
+      const domainPlan = details.inspection?.domains;
+      if (!domainPlan) throw new Error('Domain publish plan has no domain inspection');
+      if (!details.credentialBinding) throw new Error('Domain publish plan has no credential binding');
       return startPublishRun({ deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders, pluginExportHosts: deps.pluginExportHosts }, input: {
         requestId: required.requestId, productEvent: { userId: actorId, source: "assistant" }, workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound,
         config, projectName, ...(details.credentialId ? { credentialId: details.credentialId } : {}),
-        domainApproval: { plan: domainPlan, credentialBinding: details.credentialBinding!, authorize: async ({ fingerprint }) => {
+        domainApproval: { plan: domainPlan, credentialBinding: details.credentialBinding, authorize: async ({ fingerprint }) => {
           // The approved background job outlives the initiating call. Recheck permission and
           // approval expiry here; cancelling that call after enqueue does not revoke this job.
           await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: actorId, permission: 'deployments.publish' });
@@ -117,7 +122,8 @@ function makeHooks(required: {
 /** The plugin fingerprint binds exact inventory and operations canonically. Preserve that contract:
  * response ordering alone must not invalidate a human's consent at the shared gateway. */
 function inspectionPlanHash({ details }: { details: DomainPublishDetails }, _options = {}): string {
-  const inspected = details.inspection!;
+  const inspected = details.inspection;
+  if (!inspected?.domains) throw new Error('Domain publish plan has no domain inspection');
   return planHashOf({ ...details, inspection: { resourceName: inspected.resourceName, targetId: inspected.targetId,
-    hostingChanges: inspected.hostingChanges, domainFingerprint: inspected.domains!.fingerprint } });
+    hostingChanges: inspected.hostingChanges, domainFingerprint: inspected.domains.fingerprint } });
 }
