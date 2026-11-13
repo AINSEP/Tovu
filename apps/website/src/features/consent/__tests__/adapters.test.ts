@@ -221,7 +221,7 @@ test('privacy bootstrap failure is reported without blocking consent and retries
   let attempts = 0;
   const options = { ensurePrivacyDefaults: async () => { if (++attempts === 1) throw failure; } };
   await createSiteConsentReadiness({ ...deps, after: Promise.resolve(), systemPrincipalId: 'system-test' }, options);
-  assert.deepEqual(logged, [['[consent] privacy defaults failed: privacy bootstrap failed']]);
+  assert.deepEqual(logged, [['[consent] privacy defaults failed: Error']]);
   assert.deepEqual(await createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: 'site-a' }).get(), { ...SITE_CONSENT_DEFAULTS, reopen: 'link' });
   await createSiteConsentReadiness({ ...deps, after: Promise.resolve(), systemPrincipalId: 'system-test' }, options);
   assert.equal(attempts, 2);

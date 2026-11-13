@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useLocalSites, type LocalSitesController } from "./use-local-sites.hooks";
 import { useSiteConfirm, type SiteConfirmController } from "./use-site-confirm.hooks";
 import { useCallback, useRef, useState } from "react";
@@ -193,9 +194,8 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     // An omitted password uses the server-owned default; never ship that credential in the bundle.
     const passwordInput = adminPassword === "" ? {} : { adminPassword };
     const customPassword = adminPassword !== "";
-    // `.catch` is required even though `mutate` itself never raises `unhandledrejection` (see
-    // `MutationResult.mutate`'s own doc): `.then` above it produces a NEW promise, and that one
-    // has no handler of its own. The failure is reported through `createMutation.error`.
+    // `mutate` reports its own rejection through `createMutation.error`, but `.then` creates a new
+    // promise that also needs a handler; errors in its success callback need their own diagnostic.
     createMutation
       .mutate({ input: agentPluginTokens ? { name, ...passwordInput, agentPluginTokens } : { name, ...passwordInput } })
       .then((result) => {
@@ -207,8 +207,8 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
         // Raw, not the wrapped `setCreateName` — that also clears `createdName`, which would erase
         // the very name just set on the line above before the banner ever renders it.
         setCreateNameRaw("");
-      })
-      .catch(() => {})
+      }, () => { /* createMutation.error reports a failed write. */ })
+      .catch((error: unknown) => console.error("[sites] Could not finish handling the created site", describeErrorForLog({ err: error })))
       .finally(() => {
         creatingRef.current = false;
       });
@@ -233,8 +233,8 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
             if (!activateSettlement.isCurrent({ generation })) return;
             if (result.url) port.openSite?.(result.url);
             setActivation(result);
-          })
-          .catch(() => {})
+          }, () => { /* activateMutation.error reports a failed write. */ })
+          .catch((error: unknown) => console.error("[sites] Could not finish handling site activation", describeErrorForLog({ err: error })))
           .finally(() => {
             if (!activateSettlement.isCurrent({ generation })) return;
             setActivatingName(null);

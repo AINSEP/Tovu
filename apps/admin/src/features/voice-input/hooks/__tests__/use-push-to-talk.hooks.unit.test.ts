@@ -305,7 +305,8 @@ describe("usePushToTalk — recording lifecycle", () => {
  * waiting on the permission prompt.
  */
 describe("usePushToTalk — unmount releases the microphone", () => {
-  it.each(["recording", "requesting-mic"] as const)("discards cleanup failures after unmount from %s", async phase => {
+  it.each(["recording", "requesting-mic"] as const)("reports cleanup failures after unmount from %s", async phase => {
+    const logError = vi.spyOn(console, "error").mockImplementation(() => {});
     let grant!: () => void;
     const start = new Promise<void>(resolve => { grant = resolve; });
     const capture = fakeCapture({
@@ -326,6 +327,8 @@ describe("usePushToTalk — unmount releases the microphone", () => {
     }
     expect(capture.stopAndTranscribe).toHaveBeenCalledTimes(1);
     expect(onTranscript).not.toHaveBeenCalled();
+    await waitFor(() => expect(logError).toHaveBeenCalledWith("[voice] Could not stop or transcribe voice capture", "Error"));
+    logError.mockRestore();
   });
 
   it("unmount while recording stops the capture", async () => {

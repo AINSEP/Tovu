@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useEffect, useState } from "react";
 
 import type { CanvasStyling } from "@jini-ai/ui/html-editor";
@@ -309,7 +310,12 @@ export function useThemeCanvasStyling(
     Promise.all([
       port.fetchThemeTokens(themeTokensUrl(themeId)),
       // A theme with no light variant is normal, not an error — see `themeLightTokensUrl`.
-      port.fetchThemeTokens(themeLightTokensUrl(themeId)).catch(() => undefined),
+      port.fetchThemeTokens(themeLightTokensUrl(themeId)).catch((error: unknown) => {
+        if (!(error instanceof Error && error.message === "the theme server responded with 404")) {
+          console.error("[theme-canvas] Could not load light theme tokens", describeErrorForLog({ err: error }));
+        }
+        return undefined;
+      }),
       templateMarkup,
       // Fire-and-forget (Bug B, Slice B1): warms the browser's HTTP cache for the SAME stylesheet URL
       // `InteractiveHtmlEditor` is about to link into its canvas, so that request has a better chance

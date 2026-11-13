@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { reportSitesSyncWarning } from "./platform/site-dir/sites-home.js";
 import { pinDefaultSiteRoot } from "./platform/site-dir/index.js";
 import { claimSiteRunning } from "./platform/site-dir/site-running.js";
@@ -344,7 +345,7 @@ async function main(): Promise<void> {
   // the all-interfaces container default without Express's required-hostname overload ambiguity.
   server.once("close", () => {
     void themeWatcher.stop();
-    void shutdownLocalSiteHosts({}).catch(() => {});
+    void shutdownLocalSiteHosts({}).catch((error: unknown) => console.error("[local-sites] Could not shut down local site hosts", describeErrorForLog({ err: error })));
   });
   requestHandler = app;
 

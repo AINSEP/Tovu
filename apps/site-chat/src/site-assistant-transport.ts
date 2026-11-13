@@ -250,6 +250,7 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
           });
 
           if (!response.ok) {
+            // A non-JSON refusal still reaches the visitor with its HTTP status below.
             const body = (await response.json().catch(() => null)) as { error?: string } | null;
             fail(new Error(body?.error || `site assistant request failed (${response.status})`));
             finish();

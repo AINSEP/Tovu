@@ -680,7 +680,7 @@ for (const failure of [new Error("layout unavailable"), "layout unavailable"]) {
       assert.equal(response.status, 200);
       assert.equal((await response.json()).agentPlugin.enabled, true);
       assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins["site-compliance"]?.enabled, true);
-      assert.deepEqual(warnings.mock.calls.map(call => call.arguments), [["[agent-plugins] 'site-compliance': MCP provisioning could not run — layout unavailable"]]);
+      assert.deepEqual(warnings.mock.calls.map(call => call.arguments), [[`[agent-plugins] 'site-compliance': MCP provisioning could not run — ${failure instanceof Error ? "Error" : "string"}`]]);
     });
   });
 }

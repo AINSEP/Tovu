@@ -56,6 +56,7 @@ export function createInMemoryCredentialLifecycle(_options = {}): NonNullable<Me
   return {
     transaction: <T>(work: () => Promise<T>): Promise<T> => {
       const run = tail.then(work);
+      // The transaction caller receives run; this tail only keeps the queue usable.
       tail = run.catch(() => undefined);
       return run;
     },

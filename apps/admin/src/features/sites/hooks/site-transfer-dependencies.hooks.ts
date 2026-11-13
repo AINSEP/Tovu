@@ -91,11 +91,14 @@ const IMPORTS = `/workspaces/${WORKSPACE_ID}/site-imports`;
  *  cannot run (offline, an old server) answers `null`: the download proceeds as it always did.
  * @complexity O(1) requests; two only when refused. */
 async function readDownloadRefusal({ href }: { href: string }, _options?: Record<string, never>): Promise<ShareDownloadRefusal | null> {
+  // A failed optional HEAD probe leaves the browser to attempt the ordinary download.
   const head = await fetch(href, { method: "HEAD", credentials: "same-origin" }).catch(() => null);
   if (!head || head.ok) return null;
+  // If the optional refusal details cannot be read, retain the HEAD status below.
   const response = await fetch(href, { method: "GET", credentials: "same-origin" }).catch(() => null);
   // Acknowledged in between: the GET is the zip itself; let the browser's own download fetch it.
   if (response?.ok) return null;
+  // Old servers may return a non-JSON refusal; its HTTP status is still useful.
   const body = (await response?.json().catch(() => null) ?? {}) as { code?: unknown; message?: unknown; credentialWarnings?: unknown };
   return {
     status: response?.status ?? head.status,

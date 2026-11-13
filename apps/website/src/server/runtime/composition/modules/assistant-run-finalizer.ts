@@ -197,6 +197,7 @@ export function createHttpRunDaemonClient(
         headers: daemonHeaders(principalId, token), signal: signal ?? AbortSignal.timeout(5_000),
       });
       // The response headers establish the status; a stalled body must not stall recovery.
+      // The status is already known; disposing the unused response body is best effort.
       void response.body?.cancel().catch(() => undefined);
       return response.status;
     } catch {
@@ -416,6 +417,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     const abort = new AbortController();
     try {
       return await withinDeadline({
+        // An unavailable or aborted status probe deliberately falls back to recovery.
         work: client.runStatus(required, { signal: abort.signal }).catch(() => null), timeoutMs: statusTimeoutMs,
       }, { fallback: null });
     } finally { abort.abort(); }
@@ -565,6 +567,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     const signal = watch.abortStream.signal;
     const response = await watch.daemon.openEvents({ runId: watch.runId, principalId: watch.principalId }, { signal });
     if (signal.aborted) {
+      // The stream was already aborted; body cancellation is best-effort cleanup.
       void response.body?.cancel().catch(() => undefined);
       return { kind: "dropped" };
     }

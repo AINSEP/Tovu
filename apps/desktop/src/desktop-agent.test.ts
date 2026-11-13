@@ -253,7 +253,7 @@ test("an executor that rejects before terminalizing the run fails the run with a
   const terminal = await h.chat.lifecycle.waitForTerminal({ runId });
   assert.equal(terminal.state, "failed");
   await new Promise((resolve) => setImmediate(resolve));
-  assert.deepEqual(h.errors[0], [`[desktop-agent] run ${runId} failed to start`, failure]);
+  assert.deepEqual(h.errors[0], [`[desktop-agent] run ${runId} failed to start`, "Error"]);
   assert.equal(h.chat.addresseeOf(runId), null);
 });
 
@@ -352,7 +352,7 @@ test("a failed start whose own fallback finish also fails is swallowed, after re
 
   assert.equal(finish.mock.callCount(), 1);
   assert.deepEqual(finish.mock.calls[0]!.arguments[0], { runId, status: "failed", code: null, signal: null, resumable: false });
-  assert.deepEqual(h.errors, [[`[desktop-agent] run ${runId} failed to start`, failure]]);
+  assert.deepEqual(h.errors, [[`[desktop-agent] run ${runId} failed to start`, "Error"], ["[desktop-agent] Could not finish the failed run", "Error"]]);
   assert.deepEqual(unhandled, []);
   const events: unknown[] = [];
   await h.chat.lifecycle.stream({ runId, onEvent: (event) => { events.push(event); } });

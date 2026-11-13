@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { ensureSettingDefinitions, getEffective, type EnsureSettingDefinitionsDeps, type SettingsRepoPort, type SettingDefinitionSpec } from '@jini-ai/core/settings';
 
 import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_REGION_MODES, type SiteConsentSettings } from './config.js';
@@ -34,7 +35,7 @@ export function createSiteConsentReadiness({ after, systemPrincipalId, ...requir
   const ready = after.then(() => ensureSiteConsentDefinitions(required, { systemPrincipalId })).then(async () => {
     // An optional content repair must not prevent the owner opening consent settings to fix it.
     try { await ensurePrivacyDefaults?.(); }
-    catch (error) { console.error(`[consent] privacy defaults failed: ${error instanceof Error ? error.message : ''}`); }
+    catch (error) { console.error(`[consent] privacy defaults failed: ${describeErrorForLog({ err: error })}`); }
   });
   // Attach a rejection observer now; a request may arrive long after registration fails.
   void ready.catch(() => undefined);

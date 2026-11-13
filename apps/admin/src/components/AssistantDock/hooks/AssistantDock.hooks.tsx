@@ -1307,6 +1307,7 @@ async function rescanAgentsInto(loader: CachedLoader<ChatPaneAgent[]>): Promise<
     if ((error instanceof ApiError && error.status > 0) || error instanceof SyntaxError) return null;
     throw error;
   });
+  // An empty rescan is normal during daemon restart; the fresh GET below retries it.
   const rescanned = inventory === null ? null : await readAgentsResponse({ inventory, label: `POST ${AGENTS_URL}/rescan` }).catch(() => null);
   return replaceAgents(loader, rescanned ?? (await fetchAgents()));
 }

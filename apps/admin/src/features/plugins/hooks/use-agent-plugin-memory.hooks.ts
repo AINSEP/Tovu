@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -35,6 +36,7 @@ export function useAgentPluginMemory(required: { pluginId: string; port: AgentPl
   const generation = useRef(0);
   const hydrated = useRef<string | null>(null);
   const saving = useRef(false);
+  const loadErrorMessage = t("Could not load memory.");
   useEffect(() => {
     generation.current++;
     setStatus(null);
@@ -49,9 +51,13 @@ export function useAgentPluginMemory(required: { pluginId: string; port: AgentPl
       const first = listing.notes.find(file => file.relativePath === "project.md") ?? listing.notes[0];
       hydrated.current = pluginId;
       setDraft({ pluginId, entryPath: first?.relativePath ?? "project.md", text: first?.text ?? "" });
-    }).catch(() => {}); // The reactive query exposes this read's error.
+    }, () => { /* The reactive query exposes this read's error. */ })
+      .catch((error: unknown) => {
+        console.error("[agent-plugin-memory] Could not apply the loaded notes", describeErrorForLog({ err: error }));
+        if (!cancelled) setStatus({ pluginId, message: loadErrorMessage });
+      });
     return () => { cancelled = true; };
-  }, [pluginId, loader]);
+  }, [pluginId, loader, loadErrorMessage]);
   const listing = query.data ?? null;
   const current = draft.pluginId === pluginId ? draft : { pluginId, entryPath: "project.md", text: "" };
   const setText = (text: string) => setDraft({ ...current, text });

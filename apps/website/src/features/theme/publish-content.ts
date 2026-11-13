@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { createHash } from "node:crypto";
 import { constants as fsConstants, type Dirent, type Stats } from "node:fs";
 import { chmod, lstat, mkdir, open, readFile, readdir, realpath, rename, rm, rmdir, stat } from "node:fs/promises";
@@ -538,7 +539,10 @@ async function prunePreviousCopies(themesDir: string, address: ThemeTreeAddress)
     for (const { keyDir } of copies.slice(KEEP_PREVIOUS_COPIES)) {
       await rm(path.join(keyDir, address.tier, address.themeId), { recursive: true, force: true });
       for (const emptied of [path.join(keyDir, address.tier), keyDir]) {
-        await rmdir(emptied).catch(() => undefined); // still holds another tree's copy — keep it.
+        await rmdir(emptied).catch((error: unknown) => {
+          // A nonempty directory still holds another tree's copy; an absent one is already clean.
+          if (!(error instanceof Error && 'code' in error && (error.code === 'ENOTEMPTY' || error.code === 'EEXIST' || error.code === 'ENOENT'))) console.error('[theme-publish] Could not remove an empty backup directory', describeErrorForLog({ err: error }));
+        });
       }
     }
   } catch {

@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getVoiceInputPort, type VoiceInputAvailability, type VoiceInputPort } from "../voice-input-port";
@@ -91,8 +92,10 @@ function resolveCreateCapture(overrideCreateCapture: ((port: VoiceInputPort) => 
   return overrideCreateCapture ?? createMicPushToTalkCapture;
 }
 
-/** A discarded hold's transcript (or its failure) is not wanted by anyone. */
-function ignoreDiscardedTranscript(): void {}
+/** A discarded hold's transcript is unwanted; report failures because capture cleanup may also have failed. */
+function ignoreDiscardedTranscript(error: unknown): void {
+  console.error("[voice] Could not stop or transcribe voice capture", describeErrorForLog({ err: error }));
+}
 
 /**
  * Drives the push-to-talk gesture end to end for one composer mic button.
@@ -127,7 +130,7 @@ export function usePushToTalk(options: UsePushToTalkOptions, overrides: UsePushT
       unmountedRef.current = true;
       const live = liveCaptureRef.current;
       liveCaptureRef.current = null;
-      if (live) void live.stopAndTranscribe().catch(() => {});
+      if (live) void live.stopAndTranscribe().catch(ignoreDiscardedTranscript);
     },
     [],
   );
@@ -163,7 +166,7 @@ export function usePushToTalk(options: UsePushToTalkOptions, overrides: UsePushT
       .start()
       .then(() => {
         if (unmountedRef.current) {
-          void capture.stopAndTranscribe().catch(() => {});
+          void capture.stopAndTranscribe().catch(ignoreDiscardedTranscript);
           return;
         }
         liveCaptureRef.current = capture;

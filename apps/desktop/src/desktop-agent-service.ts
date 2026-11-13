@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** One cold Jini supervisor per desktop instance. Sites retain tools and durable authority. */
 import { spawn as nodeSpawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
@@ -262,7 +263,7 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
         throw Object.assign(new Error(refusalReason), { refusalReason });
       }
     } });
-    const notify = (pid: number) => { void control.request({ payload: { operation: "unavailable", pid } }, {}).catch(() => {}); };
+    const notify = (pid: number) => { void control.request({ payload: { operation: "unavailable", pid } }, {}).catch((error: unknown) => console.error("[desktop-agent-service] Could not notify the site that the daemon is unavailable", describeErrorForLog({ err: error }))); };
     notices.add(notify);
     function dispose(): void {
       if (closed) return;

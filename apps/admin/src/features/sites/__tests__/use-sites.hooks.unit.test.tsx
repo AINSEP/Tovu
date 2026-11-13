@@ -265,6 +265,22 @@ describe("useSites — activate does NOT switch anything", () => {
     expect(result.current.activatingName).toBeNull();
   });
 
+  it("reports a post-activation navigation failure without exposing its message", async () => {
+    const logError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const port = {
+      ...createFakeSitesPort(snapshotFixture(), {
+        activateSite: async (name: string) => ({ ok: true, activeSiteName: name, restartRequired: false, restartInstructions: "", url: "/" }),
+      }),
+      openSite: () => { throw new Error("private-token"); },
+    };
+    const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
+    await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
+    await act(async () => { result.current.activate("beta"); });
+    await waitFor(() => expect(logError).toHaveBeenCalledWith("[sites] Could not finish handling site activation", "Error"));
+    expect(result.current.activatingName).toBeNull();
+    logError.mockRestore();
+  });
+
   it("reports a pending choice TOVU_SITE_DIR would defeat as ignored, not as queued", async () => {
     const port = createFakeSitesPort(
       snapshotFixture({

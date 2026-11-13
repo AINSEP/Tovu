@@ -607,6 +607,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
   let closedEarly = false;
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   res.on("close", () => {
+    // Closing the response already ends this reader; cancellation is best-effort cleanup.
     reader?.cancel().catch(() => undefined);
     if (runFinished) return;
     if (daemonRunId) {

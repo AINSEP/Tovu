@@ -1,5 +1,5 @@
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
-import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 /**
  * @file `GET /api/admin/v1/workspaces/:ws/themes/:themeId/preview` — a Themes card's picture of the
  * theme's OWN render.
@@ -59,7 +59,7 @@ function settleWithin(work: Promise<void>, ms: number): Promise<void> {
   const timeout = new Promise<void>((resolve) => { timer = setTimeout(resolve, ms); });
   return Promise.race([work.catch((error: unknown) => {
     console.warn("[theme-preview] Could not wait for the preview capture:",
-      redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text);
+      describeErrorForLog(error));
   }), timeout]).finally(() => clearTimeout(timer));
 }
 

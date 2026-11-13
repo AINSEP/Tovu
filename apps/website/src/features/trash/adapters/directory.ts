@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { chmod, lstat, mkdir, readdir, realpath, rename, rm, rmdir, stat } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -167,7 +168,7 @@ export function unhideIfRemoveThrows<R extends { workspaceId: string; id: string
     } catch (error) {
       await adapter
         .unhide({ workspaceId: required.workspaceId, entityId: required.id, at: required.at, expectedVersion: null })
-        .catch(() => {});
+        .catch((rollbackError: unknown) => console.error("[trash] Could not unhide the directory after a failed removal", describeErrorForLog({ err: rollbackError })));
       throw error;
     }
   };

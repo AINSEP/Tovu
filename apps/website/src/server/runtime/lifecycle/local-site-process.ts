@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { listSites, runningSiteUrl } from "#src/platform/site-dir/index";
 import { rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -213,9 +214,18 @@ export function createLocalSiteProcessPort(
         pid: child.pid,
         async tryRetire() {
           try { return (await retirementRequest("POST")).status === 204; }
-          catch { await retirementRequest("DELETE").catch(() => {}); return false; }
+          catch {
+            // Retirement is an optional probe; undo a partial request before refusing eviction.
+            await retirementRequest("DELETE").then((response) => {
+              if (response.status !== 204) diagnostics.record({ level: "error", message: `Could not cancel site retirement: HTTP ${response.status}` });
+            }).catch((error: unknown) => diagnostics.record({ level: "error", message: `Could not cancel site retirement: ${describeErrorForLog({ err: error })}` }));
+            return false;
+          }
         },
-        async cancelRetirement() { await retirementRequest("DELETE"); },
+        async cancelRetirement() {
+          const response = await retirementRequest("DELETE");
+          if (response.status !== 204) throw new Error(`Could not cancel site retirement: HTTP ${response.status}`);
+        },
         onExit({ listener }) { listeners.add(listener); if (exited) listener(); },
         async ready() {
           if (!childEnv.TOVU_ADMIN_DIST) await waitForLocalAdminBuild({ runtimeDir: buildRoot!, exited: () => exited });
@@ -242,8 +252,8 @@ export function createLocalSiteProcessPort(
         },
         killNow() {
           diagnostics.record({ message: `pid=${child.pid} host shutdown requested tree termination` });
-          void adapter.terminateProcess({ child }).catch(() => {});
-          if (daemon) void adapter.terminateProcess({ child: daemon }).catch(() => {});
+          void adapter.terminateProcess({ child }).catch((error: unknown) => diagnostics.record({ level: "error", message: `Could not terminate the site process: ${describeErrorForLog({ err: error })}` }));
+          if (daemon) void adapter.terminateProcess({ child: daemon }).catch((error: unknown) => diagnostics.record({ level: "error", message: `Could not terminate the site daemon: ${describeErrorForLog({ err: error })}` }));
         },
       };
     },

@@ -8,7 +8,7 @@ import { readReviewedFile, reviewedFileIdentity, type ReviewedFile, type Reviewe
 
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
-import { listSitePluginPackage, type PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import { listSitePluginPackage, PluginPackagePathError, type PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import type { AgentPluginLayout } from "../agent-plugins/layout.js";
 
 /**
@@ -487,7 +487,11 @@ async function walkSitePlugins(required: { sink: WalkSink; sources: SiteBackupSo
  *  excluded or changed. */
 async function sitePluginPackageFiles(required: { sink: WalkSink; installDir: string; record: PluginDiscoveryRecord }): Promise<PlannedDiskFile[] | null> {
   const { record } = required;
-  const listed = await listSitePluginPackage({ installDir: required.installDir, record }).catch(() => null);
+  // A damaged or changed package is omitted and reported in the backup scope notes.
+  const listed = await listSitePluginPackage({ installDir: required.installDir, record }).catch((error: unknown) => {
+    if (!(error instanceof PluginPackagePathError)) console.error("[site-backup] Could not inspect an installed plugin", describeErrorForLog({ err: error }));
+    return null;
+  });
   if (listed === null) return null;
   const staged: WalkSink = { ...required.sink, files: [], skipped: [] };
   for (const file of listed.files) {
@@ -545,7 +549,7 @@ export async function captureDatabaseSnapshot(input: { dbOps: DbOpsPort; scopeId
   try {
     return await readRestorePoint(input, { ...optional, directory });
   } finally {
-    await rm(directory, { recursive: true, force: true }).catch(() => undefined);
+    await rm(directory, { recursive: true, force: true }).catch((error: unknown) => console.error("[site-backup] Could not remove the snapshot directory", describeErrorForLog({ err: error })));
   }
 }
 
@@ -565,7 +569,10 @@ async function readRestorePoint(input: { dbOps: DbOpsPort; scopeId: string }, op
   } catch (err) {
     return { ok: false, message: "the database snapshot could not be read back; nothing was backed up", logDetail: describeErrorForLog({ err }) };
   } finally {
-    await unlink(artifactRef).catch(() => undefined);
+    await unlink(artifactRef).catch((error: unknown) => {
+      // An already removed snapshot needs no further cleanup.
+      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) console.error("[site-backup] Could not remove the snapshot", describeErrorForLog({ err: error }));
+    });
   }
 }
 
@@ -663,7 +670,11 @@ function staleResult(file: PlannedDiskFile): ReadPlannedFileResult {
  *  realpath differs, i.e. one reached through a linked folder (`O_NOFOLLOW` guards only the last name). */
 async function readDiskFile(file: PlannedDiskFile, optional: ReadPlannedFileOptions & { unlinkedPath?: boolean }): Promise<ReadPlannedFileResult> {
   // Preserve the stricter absolute-path check for pinned package/theme bytes.
-  if (optional.unlinkedPath && (await realpath(file.absPath).catch(() => null)) !== file.absPath) return staleResult(file);
+  if (optional.unlinkedPath && (await realpath(file.absPath).catch((error: unknown) => {
+    // Removed paths and broken links are an ordinary stale-plan refusal.
+    if (!(error instanceof Error && "code" in error && (error.code === "ENOENT" || error.code === "ENOTDIR" || error.code === "ELOOP"))) console.error("[site-backup] Could not resolve the planned file", describeErrorForLog({ err: error }));
+    return null;
+  })) !== file.absPath) return staleResult(file);
   const fileSystem = optional.fileSystem ?? (optional.openFile ? {
     open: optional.openFile, lstat: (file: string) => lstat(file, { bigint: true }), realpath,
   } : undefined);

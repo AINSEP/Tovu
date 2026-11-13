@@ -48,6 +48,7 @@ export function createVisitorToolBudgets({ clock }: { clock: Clock }, _options =
   return {
     charge(target, _optional = {}) {
       const result = pending.then(() => consume(target));
+      // The caller receives result; this recovery only keeps the budget queue usable.
       pending = result.catch(() => undefined);
       return result;
     },

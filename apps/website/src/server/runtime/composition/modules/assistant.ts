@@ -116,6 +116,7 @@ async function relayResponse(upstream: globalThis.Response, req: Request, res: R
   }
   const reader = upstream.body.getReader();
   res.on("close", () => {
+    // The downstream connection is closed, so upstream cancellation is best-effort cleanup.
     reader.cancel().catch(() => undefined);
   });
   try {
@@ -203,6 +204,7 @@ export async function activateFrontendDaemon({ req, res }: { req: Request; res: 
   const response = await fetchAgentDaemon(req, res, { ...daemon, path: "/api/active", method: "GET" });
   if (!response) return;
   if (!response.ok) {
+    // A non-JSON refusal still reports the upstream status to the browser.
     const body: unknown = await response.json().catch(() => undefined);
     const detail = maskLocalPaths({ text: redactSecrets({ input: JSON.stringify(body ?? { status: response.status }) },
       { exactSecrets: [assistantDaemonToken({}, {})].filter((value): value is string => Boolean(value)) }) }).slice(0, 2048);

@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { renderPage, PageWorkTimeout, PUBLIC_RENDER_LAUNCH_OPTIONS, createRenderBrowserPool, type RenderBrowserPool, type RenderBrowserLease } from "@jini-ai/diagnostics/web-evidence/playwright";
 import { importPlaywrightChromium } from "#src/platform/headless-browser/lazy-browser";
 import type { HttpClientPort } from "#src/platform/http/index";
@@ -174,7 +175,7 @@ export function createPlaywrightPageCapture(
         return await Promise.race([work, deadline]);
       } catch (error) {
         // A page that hung the renderer can also hang its context's close: drop the whole browser.
-        if (!browserPool && error instanceof PageCaptureError && error.kind === "timeout") void browser.close().catch(() => {});
+        if (!browserPool && error instanceof PageCaptureError && error.kind === "timeout") void browser.close().catch((closeError: unknown) => console.error("[screenshot] Could not close the timed-out browser", describeErrorForLog({ err: closeError })));
         throw error;
       } finally {
         clearTimeout(timer);

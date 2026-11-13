@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /**
  * @file Own-server mode's one-window-per-site open, extracted from `main.ts`'s `openSiteWindow` so
  * its decisions are verified without Electron: reuse a live window, reuse a retained server, roll a
@@ -113,9 +114,9 @@ function trackSiteTeardown<S extends SiteWindowServer, W extends SiteWindow, C e
   // the last window (see `shutdown-tracker.ts`).
   ports.trackTeardown({
     promise: (revokeSession ? ports.endSiteSession({ partition, adminUrl: server.adminUrl }) : Promise.resolve())
-      .catch(() => {})
+      .catch((error: unknown) => ports.logError(`[tovu-desktop] Could not end the site session: ${describeErrorForLog({ err: error })}`))
       .then(() => stopSiteServer({ siteDir, ctx, server, ports }))
-      .catch((error: unknown) => ports.logError(`[tovu-desktop] site shutdown failed: ${(error as Error).message}`)),
+      .catch((error: unknown) => ports.logError(`[tovu-desktop] site shutdown failed: ${describeErrorForLog({ err: error })}`)),
   });
 }
 

@@ -6,7 +6,7 @@ import type { UserRepoPort } from "@jini-ai/user-management";
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
+import { describeErrorForLog, forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE, type MailerPort, type MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { MailProviderControl, MailStatusReport } from "../../platform/mail/index.js";
@@ -113,7 +113,10 @@ export function buildMailStatusRegistrations(deps: MailStatusToolDeps, surfaces:
         await permission(deps, ctx, "admin.forms.manage");
         const plan = await planMailTestSend({ ...{ principalId: ctx.principal.id, ...(to === undefined ? {} : { to }) }, deps: deps });
         // Display metadata must not prevent preparing a send when the catalog read is unavailable.
-        const providers = await deps.mailProviderControl?.describe?.().catch(() => undefined);
+        const providers = await deps.mailProviderControl?.describe?.().catch((error: unknown) => {
+          console.error("[mail] Could not read the provider catalog", describeErrorForLog({ err: error }));
+          return undefined;
+        });
         return { ...plan, providerLabel: providers?.providers.find(provider => provider.id === plan.approval.providerId)?.label ?? plan.driver };
       },
       describe: ({ prepared }) => ({ toolId: "mail_send_test", errorCode: "MAIL", title: `Send a test email to ${prepared.to}?`,

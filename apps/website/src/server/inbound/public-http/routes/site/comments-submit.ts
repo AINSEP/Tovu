@@ -1,5 +1,5 @@
 import { captureVisitorEvent } from "../../visitor-analytics.js";
-import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 import { urlencoded, type Express, type RequestHandler } from "express";
 import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
@@ -100,7 +100,7 @@ export function registerCommentsSubmitRoute(app: Express, deps: CommentsSubmitDe
   // below re-awaits the same promise and hands that failure to Express's error path instead.
   handler.catch((error: unknown) => {
     console.error("[comments] Could not prepare the comment submission handler:",
-      redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text);
+      describeErrorForLog(error));
   });
   const submit: RequestHandler = async (request, response, next) => {
     if (!isSameOriginCommentPost({ request })) {

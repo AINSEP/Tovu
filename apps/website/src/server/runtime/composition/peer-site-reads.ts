@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Write-free host composition for owner-only reads of registered local SQLite sites. */
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
 import fs from 'node:fs';
@@ -358,7 +359,7 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
     cache.delete(key); cache.set(key, entry);
     clearTimeout(entry.timer);
     entry.timer = schedule(() => {
-      pending = pending.then(() => remove(key, entry)).catch(() => {});
+      pending = pending.then(() => remove(key, entry)).catch((error: unknown) => console.error("[peer-sites] Could not close an idle site", describeErrorForLog({ err: error })));
     }, idleMs);
     entry.timer.unref();
   };
@@ -452,6 +453,7 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
         throw new ToolInputError({ message: 'This site cannot be read. Open it in Tovu and try again.' });
       }
     });
+    // The caller receives work; this recovery keeps later site reads runnable.
     pending = work.catch(() => {});
     return work;
   };

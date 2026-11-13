@@ -87,6 +87,22 @@ test("GET /identity on a keyless instance answers 503 instead of hanging", async
   assert.deepEqual(sent.body, KEYLESS_BODY);
 });
 
+test("keyless handshakes stay quiet and unexpected identity failures are redacted", async (t) => {
+  const errors = t.mock.method(console, "error", () => {});
+  async function attempt(error: Error) {
+    const handler = routes({ targetInstallationId: Promise.reject(error) }).get("GET /api/publish-trust/v1/identity");
+    assert.ok(handler);
+    const { res, sent } = fakeRes();
+    await handler(fakeReq(), res);
+    assert.equal(sent.status, 503);
+    assert.deepEqual(sent.body, KEYLESS_BODY);
+  }
+  await attempt(new Error("no site key: none of the configured sources resolved (/private/path)"));
+  assert.equal(errors.mock.callCount(), 0);
+  await attempt(new TypeError("sensitive-token"));
+  assert.deepEqual(errors.mock.calls.map(call => call.arguments), [["[publish-trust] Could not derive the site's publishing identity for the handshake:", "TypeError"]]);
+});
+
 test("POST /challenge on a keyless instance answers 503 instead of hanging", async () => {
   const { res, sent } = fakeRes();
   await routes().get("POST /api/publish-trust/v1/challenge")!(fakeReq(), res);
@@ -134,6 +150,7 @@ test("POST /session answers 500 rather than hanging when the grant store throws"
   assert.equal(sent.status, 500);
   assert.deepEqual(sent.body, { error: "the publishing handshake failed", code: "INTERNAL_ERROR" });
   assert.equal(logged.length, 1);
+  assert.equal(JSON.stringify(logged).includes("grant store exploded"), false);
 });
 
 for (const [field, value] of [

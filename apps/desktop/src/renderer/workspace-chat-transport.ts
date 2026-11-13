@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /**
  * `ChatTransport` over Electron IPC — the renderer half of the fleet chat.
  *
@@ -313,10 +314,10 @@ function buildChatStartPayload(subscriptionId: string, agentId: string, input: S
  */
 function wireCancelSignal(bridge: RunnerInventoryBridge, cancelSignal: AbortSignal | undefined, runId: string): void {
   if (cancelSignal?.aborted === true) {
-    void bridge.chatStop(runId).catch(() => {});
+    void bridge.chatStop(runId).catch((error: unknown) => console.error("[workspace-chat] Could not stop the run", describeErrorForLog({ err: error })));
     return;
   }
-  cancelSignal?.addEventListener('abort', () => void bridge.chatStop(runId).catch(() => {}), { once: true });
+  cancelSignal?.addEventListener('abort', () => void bridge.chatStop(runId).catch((error: unknown) => console.error('[workspace-chat] Could not stop the run', describeErrorForLog({ err: error }))), { once: true });
 }
 
 export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): WorkspaceChatTransport {
@@ -391,6 +392,7 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
         const { runId } = await bridge.chatStart(buildChatStartPayload(subscriptionId, agentId, input));
         record.runId = runId;
         // Main now owns the subscription; a pane that was already gone must detach it too.
+        // The pane is gone, so a late teardown failure has no remaining listener to notify.
         if (alreadyDetached) void bridge.chatDetach(subscriptionId).catch(() => {});
         wireCancelSignal(bridge, input.cancelSignal, runId);
         return { runId };

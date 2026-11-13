@@ -18,6 +18,7 @@ import { assistantCliPermissions } from "#src/assistant/assistant-subagents-poli
 import { type AssistantCliPermissions } from "#src/contracts/headless/index";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { sniffContentType } from "@jini-ai/cms/media";
 import { prepareByokMessageAttachments } from "./byok-message-attachments.js";
@@ -672,7 +673,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   const releaseRun = idlePark.hold({}, {});
   void runLifecycle.waitForTerminal({ runId: run.id }).catch((error: unknown) => {
     console.error(`[agent-daemon] run ${run.id}: could not wait for completion before releasing activity:`,
-      redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text);
+      describeErrorForLog(error));
   }).finally(releaseRun);
   function noteFullRunInput({ runId, input }: { runId: string; input: string }, _optional = {}): void {
     if (routeDeps.aiTraceSink?.capture === "full") tracing.noteRunInput({ runId, input });
@@ -748,7 +749,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   if (pageContext !== undefined) runActiveContexts.record(run.id, pageContext);
   void runLifecycle.waitForTerminal({ runId: run.id }).catch((error: unknown) => {
     console.error(`[agent-daemon] run ${run.id}: could not wait for completion before cleaning up:`,
-      redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text);
+      describeErrorForLog(error));
   }).finally(() => {
     const releaseCleanup = idlePark.hold({}, {});
     pluginAbort.abort();
@@ -1652,11 +1653,11 @@ void probeMcpBridge({ entry: bridgePreflightEntry({ injection: bridgeInjection }
   disposeAiTracing();
   await assistantInventory.dispose({}).catch((cleanupError: unknown) => {
     console.error("[agent-daemon] Could not dispose the agent inventory after startup failed:",
-      redactSecretShapes({ text: String((cleanupError as { message?: unknown } | null)?.message ?? cleanupError) }).text);
+      describeErrorForLog(cleanupError));
   });
   await daemonStore?.close().catch((cleanupError: unknown) => {
     console.error("[agent-daemon] Could not close the daemon store after startup failed:",
-      redactSecretShapes({ text: String((cleanupError as { message?: unknown } | null)?.message ?? cleanupError) }).text);
+      describeErrorForLog(cleanupError));
   });
   throw error;
 }
