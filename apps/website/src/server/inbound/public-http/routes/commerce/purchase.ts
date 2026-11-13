@@ -10,6 +10,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { uniqueMemberCookie } from "../members/oidc-deps.js";
 import { isSameOriginCommentPost } from "../site/comments-submit.js";
 import { resolveProtocol } from "../oauth/public-origin.js";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 /** Narrow structural port; no credential, provider or ledger mutation capability crosses HTTP. */
 export interface CommerceHttpPort {
@@ -187,6 +188,6 @@ export function registerCommerceRoutes({ app, deps }: { app: IRouter; deps: Comm
       await reject(context, missing ? 404 : 503, missing ? "This order is unavailable for your account." : "The shop could not check your order. Retry this same order shortly; its payment status may still be updating.", missing ? "COMMERCE_NOT_FOUND" : "CHECKOUT_RETRY");
     }
   };
-  app.get("/commerce/return", page);
-  app.get("/commerce/cancel", page);
+  app.get("/commerce/return", asyncRoute({ handler: page }));
+  app.get("/commerce/cancel", asyncRoute({ handler: page }));
 }

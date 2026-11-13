@@ -12,6 +12,7 @@ import {
   type CustomFsRootStoreOptional,
 } from "#src/features/fs-files/custom-root-store";
 import type { RouteDeps } from "#src/server/routes/types";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 /**
  * @file Admin chat composer's folder control: `GET`/`PUT`/`DELETE` on
@@ -75,16 +76,16 @@ async function rejectUnlessAuthorized(
 }
 
 export function registerAdminFsFilesCustomRootRoutes(app: Express, deps: AdminFsFilesCustomRootDeps): void {
-  app.get(BASE_PATH, async (req, res) => {
+  app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps, FS_FILES_READ_PERMISSION)) return;
     const status = getCustomFsRootStatus(deps.workspaceId, (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }));
     // `vanished`/`vanishedPath` are only present (never `false`/absent-by-omission) when a
     // previously-set folder no longer stats as a directory — additive beyond the original
     // `{ path }` shape, so an existing caller reading only `path` sees no change.
     res.status(200).json(status.vanished ? { path: null, vanished: true, vanishedPath: status.vanishedPath } : { path: status.path ?? null });
-  });
+  } }));
 
-  app.put(BASE_PATH, async (req, res) => {
+  app.put(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps, FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION)) return;
 
     const path = req.body?.path;
@@ -103,11 +104,11 @@ export function registerAdminFsFilesCustomRootRoutes(app: Express, deps: AdminFs
       }
       sendAdminFailure({ res, error: err }, { operation: "routes/fs-files/custom-root", code: "INTERNAL_ERROR" });
     }
-  });
+  } }));
 
-  app.delete(BASE_PATH, async (req, res) => {
+  app.delete(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps, FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION)) return;
     setCustomFsRoot(deps.workspaceId, null, (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }));
     res.status(200).json({ path: null });
-  });
+  } }));
 }

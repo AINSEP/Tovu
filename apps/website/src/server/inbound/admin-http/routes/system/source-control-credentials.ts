@@ -15,6 +15,7 @@ import {
 } from "#src/features/source-control/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 /**
  * @file Admin Source Control page's credential CRUD backend.
@@ -127,7 +128,7 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
   // hosts): id, label, the declared credential form and its translations (`i18n`). `switchedOff` names each host an installed
   // but switched-off plugin declares, so the page can say which plugin to turn back on. Plugin load
   // refusals go to the server log, never the response.
-  app.get(PROVIDERS_PATH, async (req, res) => {
+  app.get(PROVIDERS_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
       const registry = await deps.loadSourceControlProviders(deps.workspaceId);
@@ -144,9 +145,9 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
     } catch (err) {
       sendStoreError(res, err);
     }
-  });
+  } }));
 
-  app.get(BASE_PATH, async (req, res) => {
+  app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
       const credentials: SourceControlCredentialSummary[] = await listSourceControlCredentials(readDeps, { workspaceId: deps.workspaceId });
@@ -154,9 +155,9 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
     } catch (err) {
       sendStoreError(res, err);
     }
-  });
+  } }));
 
-  app.post(BASE_PATH, async (req, res) => {
+  app.post(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
@@ -175,9 +176,9 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
     } catch (err) {
       sendStoreError(res, err);
     }
-  });
+  } }));
 
-  app.put(`${BASE_PATH}/:id`, async (req, res) => {
+  app.put(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
@@ -192,9 +193,9 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
     } catch (err) {
       sendStoreError(res, err);
     }
-  });
+  } }));
 
-  app.delete(`${BASE_PATH}/:id`, async (req, res) => {
+  app.delete(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
       // Idempotent — `deleteSourceControlCredential`/`SourceControlCredentialSetRepoPort.delete` are
@@ -206,5 +207,5 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
     } catch (err) {
       sendStoreError(res, err);
     }
-  });
+  } }));
 }

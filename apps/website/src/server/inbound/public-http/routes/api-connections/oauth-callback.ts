@@ -8,6 +8,7 @@ import { API_CONNECTION_OAUTH_CALLBACK_PATH, type ApiConnectionHost } from "#src
 import { clearedBrowserBindingCookie, readBrowserBinding } from "#src/features/api-connections/browser-binding";
 import { renderOAuthCallbackPage, type OAuthCallbackFailureReason } from "../oauth/callback-page.js";
 import { resolvePublicOrigin } from "../oauth/public-origin.js";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });
 
@@ -98,7 +99,7 @@ function safeErrorLabel(error: unknown): string {
  */
 export function registerApiConnectionOAuthCallbackRoute(app: Express, deps: ApiConnectionOAuthCallbackRouteDeps): void {
   const log = deps.log ?? ((line: string) => { consoleLogger.error({ message: line }); });
-  app.get(API_CONNECTION_OAUTH_CALLBACK_PATH, async (req, res) => {
+  app.get(API_CONNECTION_OAUTH_CALLBACK_PATH, asyncRoute({ handler: async (req, res) => {
     // First: the route is anonymous and each hit can cost an outbound token exchange.
     if (!(await deps.callbackLimiter.check({ key: resolveClientIp(req) })).allowed) return send(res, 429, "rate_limited");
     const params = stringParams(req.query as Record<string, unknown>);
@@ -121,5 +122,5 @@ export function registerApiConnectionOAuthCallbackRoute(app: Express, deps: ApiC
       log(`api-connection oauth callback failed: ${safeErrorLabel(error)}`);
       return send(res, 400, classify(error));
     }
-  });
+  } }));
 }

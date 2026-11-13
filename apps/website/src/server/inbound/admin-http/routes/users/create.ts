@@ -7,6 +7,7 @@ import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UsernameInTrashError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "./deps.js";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 /** This route's three body fields, read off an untyped body in one place.
  *  @complexity O(1). */
@@ -73,7 +74,7 @@ async function usernameHeldByTrashedUser(deps: UsersRouteDeps, rawUsername: stri
  * `members/disable.ts` calling identity functions directly.
  */
 export const registerAdminUserCreateRoute: UsersRouteRegistrar = (app, deps) => {
-  app.post("/api/admin/v1/workspaces/:workspaceId/users", async (req, res) => {
+  app.post("/api/admin/v1/workspaces/:workspaceId/users", asyncRoute({ handler: async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
@@ -107,5 +108,5 @@ export const registerAdminUserCreateRoute: UsersRouteRegistrar = (app, deps) => 
       }
       sendUserCreateError(res, err);
     }
-  });
+  } }));
 };

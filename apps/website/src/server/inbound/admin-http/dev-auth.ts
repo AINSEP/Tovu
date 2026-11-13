@@ -834,7 +834,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
     defaultPasswordByHash.set(passwordHash, result);
     return result;
   };
-  app.get("/api/admin/v1/auth/me/password-status", async (req, res) => {
+  app.get("/api/admin/v1/auth/me/password-status", asyncRoute({ handler: async (req, res) => {
     const principal = await currentPrincipal(deps, req, { localOwnerSignIn });
     if (!principal) {
       res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });
@@ -850,5 +850,5 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
       : false;
 
     res.json({ usesDefaultPassword });
-  });
+  } }));
 }

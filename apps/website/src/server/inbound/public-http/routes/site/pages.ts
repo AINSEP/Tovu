@@ -102,6 +102,7 @@ import { injectMemberAuthScript } from "../../http/site/member-auth-script.js";
 import { isHttpsRequest } from "../oauth/public-origin.js";
 import { MEMBER_SESSION_COOKIE } from "../../http/members.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 /**
  * SPEC-008 T049 — builds the `PageHeadContext` for one render (home/page have
@@ -3026,7 +3027,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
     return undefined;
   });
 
-  app.get("/:slug", async (req, res, next) => {
+  app.get("/:slug", asyncRoute({ handler: async (req, res, next) => {
     const deps = withListingBatch(appDeps, req);
     const slug = resolveRequestedSlug(req, next);
     if (slug === undefined) return;
@@ -3110,5 +3111,5 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
     } catch (err) {
       await handleSlugRouteError({ err, req, res, next, deps, theme, staticMenus, slug });
     }
-  });
+  } }));
 };

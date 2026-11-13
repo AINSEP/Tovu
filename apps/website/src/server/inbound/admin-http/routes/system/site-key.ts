@@ -32,6 +32,7 @@ import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platfo
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 /**
  * @file Admin Secrets panel → Site key tab's backend: `GET`, `POST .../generate`, and
@@ -260,7 +261,7 @@ async function rejectUnlessAuthorized(req: Request, res: Response, deps: AdminSi
 }
 
 export function registerAdminSiteKeyRoutes(app: Express, deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter): void {
-  app.get(BASE_PATH, async (req, res) => {
+  app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
     const { sources } = resolveSiteKeySources(deps);
     const status = inspectSiteKeyMaterial({ sources });
@@ -274,18 +275,18 @@ export function registerAdminSiteKeyRoutes(app: Express, deps: AdminSiteKeyDeps,
         !status.active && !status.invalid ? await siteHasKeyDependentData(deps) : false,
     });
     res.status(200).json({ ...status, state, runtimeMode: resolveRuntimeMode() });
-  });
+  } }));
 
-  app.post(`${BASE_PATH}/reveal`, async (req, res) => {
+  app.post(`${BASE_PATH}/reveal`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
     const { sources } = resolveSiteKeySources(deps);
     const reveal = revealSiteKeyMaterial({ sources });
     // The raw key value goes out in this body — never let a shared/browser cache retain it.
     res.set("Cache-Control", "no-store");
     res.status(200).json({ ...reveal, runtimeMode: resolveRuntimeMode() });
-  });
+  } }));
 
-  app.post(`${BASE_PATH}/generate`, async (req, res) => {
+  app.post(`${BASE_PATH}/generate`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
     try {
       const result = await generateSiteKey(deps, siteKey);
@@ -302,23 +303,23 @@ export function registerAdminSiteKeyRoutes(app: Express, deps: AdminSiteKeyDeps,
 
       sendAdminFailure({ res, error: err }, { operation: "routes/system/site-key", code: "INTERNAL_ERROR" });
     }
-  });
+  } }));
 
-  app.post(`${BASE_PATH}/import`, async (req, res) => {
+  app.post(`${BASE_PATH}/import`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
     await respondWithRecovery(res, () => importSiteKey(deps, siteKey, { siteKey: (req.body as { siteKey?: unknown } | undefined)?.siteKey, actorId: getAuthedPrincipal(res).id }));
-  });
+  } }));
 
-  app.get(`${BASE_PATH}/start-fresh`, async (req, res) => {
+  app.get(`${BASE_PATH}/start-fresh`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
     await respondWithRecovery(res, () => previewStartFresh(deps, siteKey));
-  });
+  } }));
 
-  app.post(`${BASE_PATH}/start-fresh`, async (req, res) => {
+  app.post(`${BASE_PATH}/start-fresh`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
     const confirm = (req.body as { confirm?: unknown } | undefined)?.confirm;
     await respondWithRecovery(res, () => startFresh(deps, siteKey, { confirm, actorId: getAuthedPrincipal(res).id }));
-  });
+  } }));
 }
 
 /** Sends a recovery result `no-store` (the request carried a token; never let a cache keep either). */

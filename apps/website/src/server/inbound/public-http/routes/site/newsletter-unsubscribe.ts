@@ -4,6 +4,7 @@ import { processUnsubscribe } from "#src/features/newsletter/unsubscribe";
 import { NewsletterUnsubscribeTokenInvalidError } from "#src/features/newsletter/index";
 import { escapeHtml } from "#src/platform/html/escape";
 import { toPublicUnsubscribeDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 /**
  * @file `UNSUBSCRIBE` (api.spec.md §1a) — `GET|POST /newsletter/unsubscribe?token=...`. Public,
@@ -38,8 +39,8 @@ export function registerPublicNewsletterUnsubscribeRoute(app: Express, deps: New
     }
   };
 
-  app.get("/newsletter/unsubscribe", handler);
-  app.post("/newsletter/unsubscribe", handler);
+  app.get("/newsletter/unsubscribe", asyncRoute({ handler: handler }));
+  app.post("/newsletter/unsubscribe", asyncRoute({ handler: handler }));
 }
 
 function renderPage(title: string, message: string): string {

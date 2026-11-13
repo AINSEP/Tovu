@@ -7,6 +7,7 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 /**
  * @file Standing-draft autosave for Posts AND Pages (2026-09-06 dispatch) — one route file, kind-
@@ -142,7 +143,7 @@ function parseAutosaveBody(rawBody: unknown): Pick<PostAutosaveSnapshot, "bodyFo
 export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (app, deps) => {
   const path = "/api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave";
 
-  app.put(path, rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }), async (req, res) => {
+  app.put(path, rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }), asyncRoute({ handler: async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
@@ -175,9 +176,9 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (app, deps)
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/posts/autosave/save", code: "INTERNAL_ERROR", message: "The post draft could not be saved." });
     }
-  });
+  } }));
 
-  app.get(path, async (req, res) => {
+  app.get(path, asyncRoute({ handler: async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
@@ -191,9 +192,9 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (app, deps)
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/posts/autosave/read", code: "INTERNAL_ERROR", message: "The post draft could not be loaded." });
     }
-  });
+  } }));
 
-  app.delete(path, async (req, res) => {
+  app.delete(path, asyncRoute({ handler: async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
@@ -207,5 +208,5 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (app, deps)
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/posts/autosave/clear", code: "INTERNAL_ERROR", message: "The post draft could not be cleared." });
     }
-  });
+  } }));
 };
