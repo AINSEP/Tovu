@@ -55,7 +55,7 @@ Other packages type-check against the BUILT `@jini-ai/*` (exports point to `dist
 | H4 | review 09 J42/JR02 Phase A, build `@jini-ai/platform` and `@jini-ai/http-kit` | 09 J42 platform side, JR02 steps 1–4 | 09 J42 daemon side, JR02 steps 5–6 | "H4 done: @jini-ai/platform built" / "H4 done: @jini-ai/http-kit built" |
 | H5 | reserved, unused (no prompt references it) | — | — | — |
 | H6 | review 10 JR01 step 1, build `@jini-ai/core` | 10 JR01 step 1 | 10 JR01 steps 2–4 incl. J46a | "H6 done: @jini-ai/core built" |
-| R1 | Jini release: jobs 05–09 (and job 10 T11 if O3 is approved) reviewed, merged, released to npm with a version bump; Tovu's `@jini-ai/*` minimum versions and lockfile updated to that release | 05–09 (+10 T11) | job 11 (all groups); job 11 (its precondition script checks the installed names and stops with `BLOCKED R1`) | dispatch names the release; no fixed phrase |
+| R1 | Jini release: jobs 05–09 (and job 10 T11 if O3 is approved) reviewed, merged, released to npm with a version bump; Tovu's `@jini-ai/*` minimum versions and lockfile updated to that release | 05–09 (+10 T11) | job 11, all groups (its precondition script checks the installed names and stops with `BLOCKED R1`) | dispatch names the release; no fixed phrase |
 
 ## Owner decisions (all OPEN)
 
