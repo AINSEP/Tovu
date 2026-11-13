@@ -1,6 +1,6 @@
 # Terra job: check the Stop signal before each tool's first write
 
-NOT READY: dispatch only after "REMAINING WORK" step 1 in `development/refactor-patterns/abort-before-write.md` is done.
+NOT READY: dispatch only after "REMAINING WORK" step 1 in `development/refactor-patterns/abort-before-write.md` is done. The jini rows came from a STALE Jini branch: re-run the audit on Jini `w3-da-main` (main-071) and replace them first.
 
 Repos: the Tovu clone (rows marked tovu) and the Jini clone (rows marked jini). Read `development/refactor-patterns/abort-before-write.md` first; it is the whole spec.
 
