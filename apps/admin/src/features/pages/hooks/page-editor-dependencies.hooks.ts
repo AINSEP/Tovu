@@ -31,10 +31,10 @@ export const defaultPageEditorPort: PageEditorPort = {
   updatePost: (target, patch) => api.updatePost(target, patch, { entry: "page" }),
   deletePage: (id) => api.deletePage(id),
   templatePreviewUrl: (id, templateChoice) => api.templatePreviewUrl(id, templateChoice),
-  putAutosave: (id, draft, options) => api.putAutosave(id, draft, options),
+  putAutosave: ({ id, draft }, options = {}) => api.putAutosave(id, draft, options),
   getBackupPrincipalId: () => getAdminDraftIdentity(),
-  getAutosave: (id) => api.getAutosave(id),
-  discardAutosave: (id) => api.discardAutosave(id),
+  getAutosave: ({ id }, _optional = {}) => api.getAutosave(id),
+  discardAutosave: ({ id }, _optional = {}) => api.discardAutosave(id),
 };
 
 /** Seed state for {@link createFakePageEditorPort}. */
@@ -200,7 +200,7 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
     // baseVersion`, so a draft built on a superseded basis is refused and nothing is parked. The
     // call is still recorded, because "the editor sent a write the server threw away" is the
     // observation a stale-basis test needs.
-    async putAutosave(id, draft) {
+    async putAutosave({ id, draft }, _options = {}) {
       if (id !== page.id) throw new Error(`fake page editor port: unknown page id ${id}`);
       putAutosaveCalls.push(draft);
       if (draft.baseVersion !== page.version) return { applied: false };

@@ -102,16 +102,16 @@ describe("createFakePageEditorPort — .current and id-mismatch guards", () => {
     };
     const port = createFakePageEditorPort({ page: PAGE, autosave });
 
-    await expect(port.putAutosave("wrong-id", {
+    await expect(port.putAutosave({ id: "wrong-id", draft: {
       bodyFormat: "html",
       bodyHtml: "<p>wrong page</p>",
       title: "Wrong title",
       slug: "wrong-page",
       baseVersion: PAGE.version,
-    })).rejects.toThrow("fake page editor port: unknown page id wrong-id");
+    } })).rejects.toThrow("fake page editor port: unknown page id wrong-id");
 
     expect(port.putAutosaveCalls).toEqual([]);
-    await expect(port.getAutosave(PAGE.id)).resolves.toEqual({ autosave });
+    await expect(port.getAutosave({ id: PAGE.id })).resolves.toEqual({ autosave });
     expect(port.current).toEqual(PAGE);
   });
 });

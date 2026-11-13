@@ -81,11 +81,11 @@ describe("buildPackageFileTree", () => {
 
 describe("ancestorFolderPaths", () => {
   it("lists every containing folder, outermost first", () => {
-    expect(ancestorFolderPaths("skills/deploy/references/x.md")).toEqual(["skills", "skills/deploy", "skills/deploy/references"]);
+    expect(ancestorFolderPaths({ filePath: "skills/deploy/references/x.md" })).toEqual(["skills", "skills/deploy", "skills/deploy/references"]);
   });
 
   it("is empty for a root file", () => {
-    expect(ancestorFolderPaths("plugin.json")).toEqual([]);
+    expect(ancestorFolderPaths({ filePath: "plugin.json" })).toEqual([]);
   });
 });
 
@@ -107,7 +107,7 @@ describe("visiblePackageFileRows", () => {
   const tree = buildPackageFileTree(DEPLOY_PATHS);
 
   it("shows only root entries while every folder is collapsed", () => {
-    const rows = visiblePackageFileRows(tree, () => false);
+    const rows = visiblePackageFileRows({ nodes: tree, isExpanded: () => false });
     expect(rows.map((row) => row.node.path)).toEqual([
       "mcp.json",
       "plugin.json",
@@ -122,7 +122,7 @@ describe("visiblePackageFileRows", () => {
 
   it("walks into expanded folders with depth, parent and position within the folder", () => {
     const open = new Set(["skills", "skills/deploy"]);
-    const rows = visiblePackageFileRows(tree, (path) => open.has(path));
+    const rows = visiblePackageFileRows({ nodes: tree, isExpanded: ({ path }) => open.has(path) });
     const skillRows = rows.slice(4, 8).map(({ node, depth, parentPath, setSize, posInSet }) => [node.path, depth, parentPath, setSize, posInSet]);
     expect(skillRows).toEqual([
       ["skills", 0, null, 6, 5],
@@ -134,7 +134,7 @@ describe("visiblePackageFileRows", () => {
 
   it("hides a collapsed folder's descendants even when a nested folder is open", () => {
     const open = new Set(["skills/deploy"]);
-    const rows = visiblePackageFileRows(tree, (path) => open.has(path));
+    const rows = visiblePackageFileRows({ nodes: tree, isExpanded: ({ path }) => open.has(path) });
     expect(rows.some((row) => row.node.path.startsWith("skills/"))).toBe(false);
   });
 });
@@ -142,9 +142,9 @@ describe("visiblePackageFileRows", () => {
 describe("packageFileTreeKeyAction", () => {
   const tree = buildPackageFileTree(DEPLOY_PATHS);
   const open = new Set(["skills", "skills/deploy"]);
-  const isExpanded = (path: string) => open.has(path);
-  const rows = visiblePackageFileRows(tree, isExpanded);
-  const act = (current: string, key: string) => packageFileTreeKeyAction(rows, current, key, isExpanded);
+  const isExpanded = ({ path }: { path: string }) => open.has(path);
+  const rows = visiblePackageFileRows({ nodes: tree, isExpanded });
+  const act = (current: string, key: string) => packageFileTreeKeyAction({ rows, currentPath: current, key, isExpanded });
 
   it("moves down and up, stopping at the ends", () => {
     expect(act("deploy-configs", "ArrowDown")).toEqual({ focus: "skills" });
@@ -182,7 +182,7 @@ describe("packageFileTreeKeyAction", () => {
 
   it("ignores other keys and an empty tree", () => {
     expect(act("mcp.json", "a")).toEqual({});
-    expect(packageFileTreeKeyAction([], "x", "ArrowDown", () => false)).toEqual({});
+    expect(packageFileTreeKeyAction({ rows: [], currentPath: "x", key: "ArrowDown", isExpanded: () => false })).toEqual({});
   });
 
   it("treats an unknown current path as the first row", () => {
@@ -203,6 +203,6 @@ describe("packageFileIconKind", () => {
     ["LICENSE", "file"],
     ["archive.xyz", "file"],
   ] as const)("%s -> %s", (name, kind) => {
-    expect(packageFileIconKind(name)).toBe(kind);
+    expect(packageFileIconKind({ fileName: name })).toBe(kind);
   });
 });

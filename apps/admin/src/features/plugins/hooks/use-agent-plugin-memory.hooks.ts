@@ -66,8 +66,8 @@ export function useAgentPluginMemory(required: { pluginId: string; port: AgentPl
   }, [pluginId, loader, loadErrorMessage]);
   const listing = query.data ?? null;
   const current = draft.pluginId === pluginId ? draft : { pluginId, entryPath: "project.md", text: "" };
-  const setText = (text: string) => setDraft({ ...current, text });
-  const setPath = (entryPath: string) => setDraft({ pluginId, entryPath, text: listing?.notes.find(file => file.relativePath === entryPath)?.text ?? "" });
+  const setText = ({ text }: { text: string }, _optional = {}) => setDraft({ ...current, text });
+  const setPath = ({ entryPath }: { entryPath: string }, _optional = {}) => setDraft({ pluginId, entryPath, text: listing?.notes.find(file => file.relativePath === entryPath)?.text ?? "" });
   const save = async () => {
     if (saving.current || !listing || hydrated.current !== pluginId) return;
     saving.current = true;

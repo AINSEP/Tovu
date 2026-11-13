@@ -8,7 +8,7 @@ function renderDropZone() {
   const received: File[][] = [];
   const lock = { current: false };
   function Harness() {
-    const drop = useZipDrop({ onDropFiles: files => received.push(files), isLocked: () => lock.current });
+    const drop = useZipDrop({ onDropFiles: ({ files }) => received.push(files), isLocked: () => lock.current });
     const inputRef = useRef<HTMLInputElement>(null);
     return <ZipDropZone drop={drop} glyph="+" title="Drop package" hint="ZIP files" busy={false}
       chooseLabel="Choose file" onChoose={() => inputRef.current?.click()} inputRef={inputRef}

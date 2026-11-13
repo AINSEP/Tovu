@@ -106,7 +106,7 @@ describe("new posts stay local until their first Save", () => {
     act(() => { saving = result.current.save(); publishing = result.current.save("published"); });
     await act(async () => { release(); await Promise.all([saving, publishing]); });
     expect(create).toHaveBeenCalledTimes(1);
-    expect(update).toHaveBeenCalledWith({ id: port.post.id }, expect.objectContaining({ status: "published", expectedVersion: 1 }));
+    expect(update).toHaveBeenCalledWith({ target: { id: port.post.id }, patch: expect.objectContaining({ status: "published", expectedVersion: 1 }) });
     expect(port.post.status).toBe("published");
     expect(result.current.post?.status).toBe("published");
     expect(result.current.saving).toBe(false);
@@ -179,7 +179,7 @@ describe("new posts stay local until their first Save", () => {
     act(() => result.current.setTitle("Another title"));
     await act(() => result.current.save());
     expect(create).toHaveBeenCalledTimes(1);
-    expect(update).toHaveBeenCalledWith({ id: port.post.id }, expect.objectContaining({ expectedVersion: 1 }));
+    expect(update).toHaveBeenCalledWith({ target: { id: port.post.id }, patch: expect.objectContaining({ expectedVersion: 1 }) });
   });
 
   it("a refused first Save keeps the text and route, and can be retried without a partial row", async () => {
@@ -761,7 +761,7 @@ describe("usePostEditor — save", () => {
   it("says 'No changes found' when the save comes back with the same version, 'Saved · version N' when it bumps", async () => {
     const port = createFakePostEditorPort({ post: POST }); // POST.version === 3
     const realUpdate = port.updatePost.bind(port);
-    port.updatePost = async (_target, patch) => {
+    port.updatePost = async ({ patch }) => {
       port.updatePostCalls.push(patch);
       return { post: port.post }; // the server's no-op answer: the stored row, version unchanged
     };
@@ -840,7 +840,7 @@ describe("usePostEditor — save", () => {
           activeThemeStaticPageIds: [],
         };
       },
-      updatePost(_target, patch) {
+      updatePost({ patch }) {
         return new Promise((resolve, reject) => {
           // Each call parks its own resolution instead of settling immediately, so the test
           // controls the ORDER two overlapping `save()` calls settle in, independent of which one
@@ -940,7 +940,7 @@ describe("usePostEditor — save", () => {
           activeThemeStaticPageIds: [],
         };
       },
-      updatePost(_target, patch) {
+      updatePost({ patch }) {
         return new Promise((resolve) => {
           resolvers.push(() => {
             state = { ...state, ...patch, version: state.version + 1 } as AdminPost;
@@ -1047,11 +1047,11 @@ describe("usePostEditor — writes target the loaded row's id, not the route slu
       act(() => result.current.setSlug("renamed-twice"));
       await act(async () => vi.advanceTimersByTimeAsync(3001));
       expect(putAutosave).toHaveBeenCalledTimes(1);
-      expect(putAutosave).toHaveBeenCalledWith(POST.id, expect.objectContaining({
+      expect(putAutosave).toHaveBeenCalledWith({ id: POST.id, draft: expect.objectContaining({
         slug: "renamed-twice", baseVersion: POST.version + 1,
-      }), { keepalive: false });
+      }) }, { keepalive: false });
       expect(await putAutosave.mock.results[0].value).toEqual({ applied: true });
-      expect((await port.getAutosave(POST.id)).autosave?.slug).toBe("renamed-twice");
+      expect((await port.getAutosave({ id: POST.id })).autosave?.slug).toBe("renamed-twice");
     } finally {
       vi.useRealTimers();
     }
@@ -1084,7 +1084,7 @@ describe("usePostEditor — delete", () => {
     });
 
     expect(navigate).toHaveBeenCalledWith("/posts");
-    expect(deletePost).toHaveBeenCalledExactlyOnceWith(POST.id);
+    expect(deletePost).toHaveBeenCalledExactlyOnceWith({ id: POST.id });
   });
 
   it("removes a PAGE and navigates to /pages — kind-aware, not hardcoded to /posts", async () => {
@@ -1099,7 +1099,7 @@ describe("usePostEditor — delete", () => {
     });
 
     expect(navigate).toHaveBeenCalledWith("/pages");
-    expect(deletePost).toHaveBeenCalledExactlyOnceWith(PAGE.id);
+    expect(deletePost).toHaveBeenCalledExactlyOnceWith({ id: PAGE.id });
   });
 
   it("a failed delete surfaces the error and resets deleting/confirmingDelete without navigating", async () => {
@@ -1420,17 +1420,17 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
       get discardAutosaveCalled() {
         return base.discardAutosaveCalled;
       },
-      async putAutosave(id, draft) {
+      async putAutosave({ id, draft }) {
         ops.push("put:start");
         await new Promise<void>((resolve) => {
           releasePut = resolve;
         });
         ops.push("put:end");
-        return base.putAutosave(id, draft);
+        return base.putAutosave({ id, draft });
       },
-      async discardAutosave(id) {
+      async discardAutosave({ id }) {
         ops.push("discard");
-        return base.discardAutosave(id);
+        return base.discardAutosave({ id });
       },
     };
 
@@ -1520,7 +1520,7 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
       expect(result.current.autosaveStaleBasis).toBeNull();
 
       // Another operator saves. This editor is not told, and still believes it is on POST.version.
-      port.simulateConcurrentSave();
+      port.simulateConcurrentSave({});
 
       act(() => result.current.setTitle("Typed while the other tab was saving"));
       await act(async () => vi.advanceTimersByTimeAsync(3001));
@@ -1554,7 +1554,7 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
       await act(async () => vi.advanceTimersByTimeAsync(0));
       expect(result.current.editor).not.toBeNull();
 
-      port.simulateConcurrentSave();
+      port.simulateConcurrentSave({});
       act(() => result.current.setTitle("Typed while the other tab was saving"));
       await act(async () => vi.advanceTimersByTimeAsync(3001));
       expect(result.current.autosaveStaleBasis).not.toBeNull();
@@ -1647,7 +1647,7 @@ describe("usePostEditor — optimistic concurrency", () => {
     await waitFor(() => expect(result.current.dirty).toBe(true));
 
     // Another operator saves first.
-    act(() => port.simulateConcurrentSave("Their version"));
+    act(() => port.simulateConcurrentSave({}, { title: "Their version" }));
 
     await act(async () => {
       await result.current.save();
@@ -1674,7 +1674,7 @@ describe("usePostEditor — optimistic concurrency", () => {
     // read the documented no-basis fallback instead of the behavior it means to pin.
     await waitFor(() => expect(result.current.post).not.toBeNull());
     act(() => result.current.setTitle("Mine"));
-    act(() => port.simulateConcurrentSave("Theirs"));
+    act(() => port.simulateConcurrentSave({}, { title: "Theirs" }));
 
     await act(async () => {
       await result.current.save();
@@ -1696,7 +1696,7 @@ describe("usePostEditor — optimistic concurrency", () => {
     // read the documented no-basis fallback instead of the behavior it means to pin.
     await waitFor(() => expect(result.current.post).not.toBeNull());
     act(() => result.current.setTitle("Mine, published"));
-    act(() => port.simulateConcurrentSave("Theirs"));
+    act(() => port.simulateConcurrentSave({}, { title: "Theirs" }));
 
     await act(async () => {
       await result.current.save("published");
@@ -1704,7 +1704,7 @@ describe("usePostEditor — optimistic concurrency", () => {
     expect(result.current.saveConflict?.attemptedStatus).toBe("published");
 
     // The row can advance again while the operator is deciding whether to overwrite.
-    act(() => port.simulateConcurrentSave("Their next revision"));
+    act(() => port.simulateConcurrentSave({}, { title: "Their next revision" }));
     expect(result.current.saveConflict?.currentVersion).toBe(4);
 
     await act(async () => {
@@ -1730,7 +1730,7 @@ describe("usePostEditor — optimistic concurrency", () => {
     // read the documented no-basis fallback instead of the behavior it means to pin.
     await waitFor(() => expect(result.current.post).not.toBeNull());
     act(() => result.current.setTitle("Mine"));
-    act(() => port.simulateConcurrentSave("Theirs"));
+    act(() => port.simulateConcurrentSave({}, { title: "Theirs" }));
     await act(async () => {
       await result.current.save();
     });
@@ -1754,7 +1754,7 @@ describe("usePostEditor — optimistic concurrency", () => {
     // read the documented no-basis fallback instead of the behavior it means to pin.
     await waitFor(() => expect(result.current.post).not.toBeNull());
     act(() => result.current.setTitle("Mine"));
-    act(() => port.simulateConcurrentSave("Theirs"));
+    act(() => port.simulateConcurrentSave({}, { title: "Theirs" }));
     await act(async () => {
       await result.current.save();
     });
@@ -1877,7 +1877,7 @@ it("postpolish: a settling Save preserves a later cover toggle and manual slug e
   const update = port.updatePost.bind(port);
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
-  port.updatePost = async (target, patch) => { const result = await update(target, patch); await gate; return result; };
+  port.updatePost = async ({ target, patch }) => { const result = await update({ target, patch }); await gate; return result; };
   const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
   await waitFor(() => expect(result.current.title).toBe(POST.title));
   await waitFor(() => expect(result.current.dirty).toBe(false));
@@ -1900,7 +1900,7 @@ describe("usePostEditor coverage boundaries", () => {
     await waitFor(() => expect(result.current.post).not.toBeNull());
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     act(() => result.current.setTitle("Keep my work"));
-    act(() => port.simulateConcurrentSave("Their work"));
+    act(() => port.simulateConcurrentSave({}, { title: "Their work" }));
     await act(async () => { await result.current.save("published"); });
     const conflict = result.current.saveConflict;
     expect(conflict).toEqual({ expectedVersion: 3, currentVersion: 4, attemptedStatus: "published" });
@@ -2070,7 +2070,7 @@ describe("usePostEditor — remaining boundaries", () => {
     const update = port.updatePost.bind(port);
     let release!: () => void;
     const gate = new Promise<void>((resolve) => { release = resolve; });
-    port.updatePost = async (target, patch) => { await gate; return update(target, patch); };
+    port.updatePost = async ({ target, patch }) => { await gate; return update({ target, patch }); };
     const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     act(() => result.current.setShowAuthor(true));

@@ -189,13 +189,13 @@ export const TOOLBAR_DEFAULTS: ToolbarState = {
  * single `editor === null` check this table exists to hoist out of the ~40 repeated
  * `editor?.<probe>() ?? <default>` fallbacks the old inline selector had. `Toolbar`'s own
  * `useEditorState` still calls this from ONE selector (`selector: ({ editor }) =>
- * probeToolbar(editor)`), so batching is untouched: `Toolbar` still re-renders once per relevant
+ * probeToolbar({ editor })`), so batching is untouched: `Toolbar` still re-renders once per relevant
  * editor state change, not once per field — splitting into multiple `useEditorState` calls was
  * considered and rejected for exactly that reason (see this file's `BubbleFormattingMenu`, which
  * legitimately needs its own separate call because it mounts independently, not because sharing
  * one selector across components is fine).
  */
-export function probeToolbar(editor: Editor | null): ToolbarState {
+export function probeToolbar({ editor }: { editor: Editor | null }, _optional = {}): ToolbarState {
   if (!editor) return TOOLBAR_DEFAULTS;
   const keys = Object.keys(TOOLBAR_PROBES) as (keyof typeof TOOLBAR_PROBES)[];
   const entries = keys.map((key) => [key, TOOLBAR_PROBES[key](editor)] as const);
@@ -221,7 +221,7 @@ function Toolbar({
 }) {
   const s = useEditorState({
     editor,
-    selector: ({ editor }) => probeToolbar(editor),
+    selector: ({ editor }) => probeToolbar({ editor }),
   });
 
   const chain = createFocusedEditorChain({ editor });
@@ -603,7 +603,7 @@ export const BUBBLE_MENU_DEFAULTS: BubbleMenuState = {
 
 /** Same "one early return replaces N repeated null checks" shape as `probeToolbar` above, scaled
  *  down to this menu's five fields. */
-export function probeBubbleMenu(editor: Editor | null): BubbleMenuState {
+export function probeBubbleMenu({ editor }: { editor: Editor | null }, _optional = {}): BubbleMenuState {
   if (!editor) return BUBBLE_MENU_DEFAULTS;
   const keys = Object.keys(BUBBLE_MENU_PROBES) as (keyof typeof BUBBLE_MENU_PROBES)[];
   const entries = keys.map((key) => [key, BUBBLE_MENU_PROBES[key](editor)] as const);
@@ -613,7 +613,7 @@ export function probeBubbleMenu(editor: Editor | null): BubbleMenuState {
 function BubbleFormattingMenu({ editor, urlDialog, t }: { editor: Editor; urlDialog: PostUrlDialogController; t: Translate }) {
   const s = useEditorState({
     editor,
-    selector: ({ editor }) => probeBubbleMenu(editor),
+    selector: ({ editor }) => probeBubbleMenu({ editor }),
   });
   const chain = createFocusedEditorChain({ editor });
 

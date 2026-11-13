@@ -430,7 +430,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     await waitFor(() => expect(result.current.posts).not.toBeNull());
 
     // Another operator (the full editor, say) saves first.
-    port.simulateConcurrentSave(POST.id, "Their edit");
+    port.simulateConcurrentSave({ id: POST.id }, { title: "Their edit" });
 
     await act(async () => {
       await result.current.togglePostPublish(POST);

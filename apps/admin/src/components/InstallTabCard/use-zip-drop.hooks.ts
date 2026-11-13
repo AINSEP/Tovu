@@ -9,7 +9,7 @@ import { useState, type DragEvent } from "react";
  * @param required.isLocked - True while an upload is in flight: a drop is then ignored, not queued.
  */
 export function useZipDrop(
-  required: { onDropFiles: (files: File[]) => void; isLocked: () => boolean },
+  required: { onDropFiles: (required: { files: File[] }, optional?: Record<string, never>) => void; isLocked: () => boolean },
   _optional: Record<string, never> = {},
 ) {
   const [dragging, setDragging] = useState(false);
@@ -24,7 +24,7 @@ export function useZipDrop(
       event.preventDefault();
       setDragging(false);
       if (required.isLocked()) return;
-      required.onDropFiles(Array.from(event.dataTransfer.files ?? []));
+      required.onDropFiles({ files: Array.from(event.dataTransfer.files ?? []) });
     },
   };
 }

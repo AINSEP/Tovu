@@ -85,7 +85,7 @@ describe("createFakePluginInstallPort", () => {
 describe("createFakeAgentPluginsPort", () => {
   it("refuses to toggle a plugin that is not installed", async () => {
     const port = createFakeAgentPluginsPort({ agentPlugins: [{ pluginId: "a", enabled: false } as AdminAgentPlugin] });
-    await expect(port.setAgentPluginEnabled("missing", { enabled: true })).rejects.toThrow("fake port: 'missing' is not installed");
+    await expect(port.setAgentPluginEnabled({ pluginId: "missing", input: { enabled: true } })).rejects.toThrow("fake port: 'missing' is not installed");
   });
 });
 
@@ -95,25 +95,25 @@ describe("createFakePluginsPort refusals mirror the real routes", () => {
 
   it("refuses to toggle an unknown plugin", async () => {
     const port = createFakePluginsPort({ plugins: [userPlugin] });
-    await expect(port.setPluginEnabled("missing", { enabled: true })).rejects.toThrow("fake plugin not found: missing");
+    await expect(port.setPluginEnabled({ id: "missing", patch: { enabled: true } })).rejects.toThrow("fake plugin not found: missing");
   });
 
   it("refuses to uninstall an unknown, built-in, or already-trashed plugin", async () => {
     const port = createFakePluginsPort({ plugins: [userPlugin, builtIn] });
-    await expect(port.uninstallPlugin("missing")).rejects.toMatchObject({ status: 404, code: "PLUGIN_NOT_FOUND" });
-    await expect(port.uninstallPlugin("core")).rejects.toMatchObject({ status: 422, code: "PLUGIN_NOT_UNINSTALLABLE" });
-    await expect(port.uninstallPlugin("user")).resolves.toEqual({ pluginId: "user", trashed: true });
-    await expect(port.uninstallPlugin("user")).rejects.toMatchObject({ status: 409, code: "PLUGIN_IN_TRASH" });
+    await expect(port.uninstallPlugin({ id: "missing" })).rejects.toMatchObject({ status: 404, code: "PLUGIN_NOT_FOUND" });
+    await expect(port.uninstallPlugin({ id: "core" })).rejects.toMatchObject({ status: 422, code: "PLUGIN_NOT_UNINSTALLABLE" });
+    await expect(port.uninstallPlugin({ id: "user" })).resolves.toEqual({ pluginId: "user", trashed: true });
+    await expect(port.uninstallPlugin({ id: "user" })).rejects.toMatchObject({ status: 409, code: "PLUGIN_IN_TRASH" });
   });
 
   it("refuses to uninstall a plugin that is still enabled", async () => {
     const port = createFakePluginsPort({ plugins: [{ ...userPlugin, enabled: true }] });
-    await expect(port.uninstallPlugin("user")).rejects.toMatchObject({ status: 409, code: "PLUGIN_ENABLED" });
+    await expect(port.uninstallPlugin({ id: "user" })).rejects.toMatchObject({ status: 409, code: "PLUGIN_ENABLED" });
     expect(port.plugins.map((plugin) => plugin.id)).toEqual(["user"]);
   });
 
   it("answers 404 for package files it has no listing for", async () => {
     const port = createFakePluginsPort({ plugins: [userPlugin] });
-    await expect(port.getPluginFiles("user")).rejects.toMatchObject({ status: 404, code: "PLUGIN_NOT_FOUND" });
+    await expect(port.getPluginFiles({ id: "user" })).rejects.toMatchObject({ status: 404, code: "PLUGIN_NOT_FOUND" });
   });
 });

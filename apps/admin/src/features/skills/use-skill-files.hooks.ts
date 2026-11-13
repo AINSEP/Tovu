@@ -40,7 +40,7 @@ export function useSkillFiles({ toolId, read, t }: SkillFilesDependencies) {
   const selectedPath = selection?.toolId === toolId ? selection.path : "SKILL.md";
   const validPath = skillSelectedPath({ loaded, selectedPath });
   return {
-    ...packageFilesViewState(loaded, validPath, skillCopy),
+    ...packageFilesViewState({ read: loaded, selectedPath: validPath, translate: skillCopy }),
     failure,
     selectFile: (path: string) => setSelection({ toolId, path }),
     t: skillCopy,

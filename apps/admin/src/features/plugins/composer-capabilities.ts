@@ -87,7 +87,7 @@ export interface TovuComposerCapability {
   readonly groupId: string;
   readonly groupLabel: string;
   readonly item: ComposerDiscoveryItem;
-  readonly resolve?: (argument: string | null | undefined) => ComposerHostBinding;
+  readonly resolve?: (required: { argument: string | null | undefined }, optional?: Record<string, never>) => ComposerHostBinding;
   /** See {@link TovuComposerCapabilityPreview}. Absent for a capability with nothing to preview. */
   readonly preview?: TovuComposerCapabilityPreview;
   /**
@@ -154,10 +154,10 @@ export function emptyComposerCapabilityProjection(): ComposerCapabilityProjectio
  * {@link projectComposerCapabilities}'s loop body purely to keep that function's own cognitive
  * complexity under the gate — same behavior, same error text, one less level of loop-nested `if`.
  */
-function registerItemId(
+function registerItemId({ byItemId, capability }: {
   byItemId: Map<string, TovuComposerCapability>,
   capability: TovuComposerCapability,
-): void {
+}, _optional = {}): void {
   const existing = byItemId.get(capability.item.id);
   if (existing) {
     throw new Error(
@@ -175,10 +175,10 @@ function registerItemId(
  * exists to prevent for item ids. No-op for a capability that never sets `pluginRefId` (most
  * don't) — see {@link TovuComposerCapability.pluginRefId}'s own doc.
  */
-function registerPluginRef(
+function registerPluginRef({ byPluginRefId, capability }: {
   byPluginRefId: Map<string, TovuComposerCapability>,
   capability: TovuComposerCapability,
-): void {
+}, _optional = {}): void {
   if (!capability.pluginRefId) return;
   const existingByRef = byPluginRefId.get(capability.pluginRefId);
   if (existingByRef) {
@@ -193,11 +193,11 @@ function registerPluginRef(
 /** The capability's group, creating and ordering it on first sight — same behavior as the
  *  inlined `let group = ...; if (!group) {...}` this replaces, extracted for the same
  *  complexity-budget reason as {@link registerItemId}/{@link registerPluginRef}. */
-function getOrCreateGroup(
+function getOrCreateGroup({ itemsByGroup, groupOrder, capability }: {
   itemsByGroup: Map<string, { label: string; items: ComposerDiscoveryItem[] }>,
   groupOrder: string[],
   capability: TovuComposerCapability,
-): { label: string; items: ComposerDiscoveryItem[] } {
+}, _optional = {}): { label: string; items: ComposerDiscoveryItem[] } {
   let group = itemsByGroup.get(capability.groupId);
   if (!group) {
     group = { label: capability.groupLabel, items: [] };
@@ -225,9 +225,9 @@ export async function projectComposerCapabilities(
   const byPluginRefId = new Map<string, TovuComposerCapability>();
 
   for (const capability of capabilities) {
-    registerItemId(byItemId, capability);
-    registerPluginRef(byPluginRefId, capability);
-    const group = getOrCreateGroup(itemsByGroup, groupOrder, capability);
+    registerItemId({ byItemId, capability });
+    registerPluginRef({ byPluginRefId, capability });
+    const group = getOrCreateGroup({ itemsByGroup, groupOrder, capability });
     group.items.push(capability.item);
   }
 
@@ -342,7 +342,7 @@ const BUNDLED_CAPABILITIES: readonly TovuComposerCapability[] = [
     // grammar-validated search text; `content_post_search`'s own schema requires `query` non-empty,
     // which the composer's `required: true` argument already guarantees before `resolve` is called
     // for real (see the item's own doc above).
-    resolve: (argument) => ({
+    resolve: ({ argument }, _optional = {}) => ({
       kind: "allowlisted-tool-call",
       toolName: "content_post_search",
       params: { query: argument ?? "" },
@@ -351,7 +351,7 @@ const BUNDLED_CAPABILITIES: readonly TovuComposerCapability[] = [
 ];
 
 /** Resolves only actions backed by an existing Tovu route; inventory rows never carry functions. */
-export function resolveTovuComposerDiscoveryRoute(itemId: string): string | null {
+export function resolveTovuComposerDiscoveryRoute({ itemId }: { itemId: string }, _optional = {}): string | null {
   return itemId === "mcp:settings" ? "/settings?tab=external-mcp" : null;
 }
 
@@ -383,7 +383,7 @@ function discoveryName(item: ComposerDiscoveryItem): string {
   return item.command?.toLowerCase() ?? discoveryLabelName(item);
 }
 
-function nameMatchRank(name: string, query: string): number {
+function nameMatchRank({ name, query }: { name: string; query: string }, _optional = {}): number {
   if (name === query) return 0;
   if (name.startsWith(query)) return 1;
   if (name.split(/[^\p{L}\p{N}]+/u).some(word => word.startsWith(query))) return 2;
@@ -393,7 +393,7 @@ function nameMatchRank(name: string, query: string): number {
 /** Global name-first ranking, independent of source/group order. Jini still owns filtering and
  * locked argument grammar. Single-item groups preserve each source label while allowing ranks
  * to interleave across sources instead of giving an entire early group priority. */
-export function rankComposerDiscoveryGroups(groups: readonly ComposerDiscoveryGroup[], draft: string): readonly ComposerDiscoveryGroup[] {
+export function rankComposerDiscoveryGroups({ groups, draft }: { groups: readonly ComposerDiscoveryGroup[]; draft: string }, _optional = {}): readonly ComposerDiscoveryGroup[] {
   const match = /^\/([^\s/]*)/.exec(draft);
   if (!match) return groups;
   const query = match[1].toLowerCase();
@@ -401,7 +401,7 @@ export function rankComposerDiscoveryGroups(groups: readonly ComposerDiscoveryGr
   // A related plugin/skill pair shares an identity; choose the best name tier for the family,
   // then list its installed skill first. Unrelated names keep the strict tier ordering.
   const familyRanks = new Map<string, number>();
-  for (const row of rows) familyRanks.set(row.name, Math.min(familyRanks.get(row.name) ?? 4, nameMatchRank(row.name, query), nameMatchRank(discoveryLabelName(row.item), query)));
+  for (const row of rows) familyRanks.set(row.name, Math.min(familyRanks.get(row.name) ?? 4, nameMatchRank({ name: row.name, query }), nameMatchRank({ name: discoveryLabelName(row.item), query })));
   const skillFamilies = new Set(rows.filter(row => row.item.kind === "skill").map(row => row.name));
   rows.sort((a, b) => {
     const rankA = familyRanks.get(a.name);

@@ -52,7 +52,7 @@ export async function resolveComposerDiscoveryOutcome(
   selection: ComposerDiscoverySelection,
   deps: ResolveComposerDiscoveryOutcomeDeps,
 ): Promise<ComposerDiscoveryOutcome | void> {
-  const route = resolveTovuComposerDiscoveryRoute(selection.item.id);
+  const route = resolveTovuComposerDiscoveryRoute({ itemId: selection.item.id });
   if (route) {
     deps.navigate(route);
     return undefined;
@@ -82,7 +82,7 @@ export async function resolveComposerDiscoveryOutcome(
 
   if (!capability?.resolve) return undefined;
 
-  return applyBinding({ selection, label: capability.item.label, binding: capability.resolve(selection.argument) }, deps);
+  return applyBinding({ selection, label: capability.item.label, binding: capability.resolve({ argument: selection.argument }) }, deps);
 }
 
 /** Applies one resolved {@link ComposerHostBinding}; every kind leaves a draft for the composer. */
@@ -108,7 +108,7 @@ async function selectInstalledSkill(
   deps: ResolveComposerDiscoveryOutcomeDeps,
 ): Promise<ComposerDiscoveryOutcome> {
   if (deps.skillsAvailable === false) throw new Error("This runtime has no tools. Choose a runtime with tools to use skills.");
-  const draft = draftAfterSkillSelection(deps.readDraft?.() ?? "", selection.source);
+  const draft = draftAfterSkillSelection({ draft: deps.readDraft?.() ?? "", source: selection.source });
   const guidance = await loadSkillDraft(toolId);
   const name = label.replace(/ · Skill$/, "");
   deps.addSkill?.({ toolId, name, guidance });

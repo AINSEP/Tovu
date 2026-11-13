@@ -49,7 +49,7 @@ const PLUGIN_ERROR_MESSAGES: ReadonlyMap<string, string> = new Map([
  * @complexity O(1).
  * @overallScore 100
  */
-export function describeApiError(e: unknown, fallback: string, optional: { translate?: Translate } = {}): string {
+export function describeApiError({ e, fallback }: { e: unknown; fallback: string }, optional: { translate?: Translate } = {}): string {
   if (e instanceof ApiError && e.code !== undefined) {
     const override = PLUGIN_ERROR_MESSAGES.get(e.code);
     if (override !== undefined) return optional.translate ? optional.translate(override) : override;
@@ -59,7 +59,7 @@ export function describeApiError(e: unknown, fallback: string, optional: { trans
 
 /** Replaces each `{name}` in `template` with its value, literally — a function replacer, so a `$&`
  *  or `$'` inside a plugin name or key is not read as a replacement pattern. */
-function fillTemplate(template: string, values: Readonly<Record<string, string>>): string {
+function fillTemplate({ template, values }: { template: string; values: Readonly<Record<string, string>> }, _optional = {}): string {
   return Object.entries(values).reduce((text, [name, value]) => text.replace(`{${name}}`, () => value), template);
 }
 
@@ -95,11 +95,11 @@ export function pluginConflictLines(plugin: { readonly conflicts?: readonly Admi
     const kindLabel = CONFLICT_KIND_LABELS.get(conflict.kind);
     const values = { kind: kindLabel === undefined ? conflict.kind : translate(kindLabel), key: conflict.key };
     if (conflict.heldBy !== CORE_CONFLICT_HOLDER) {
-      return fillTemplate(translate('{kind} "{key}" is already used by {plugin}.'), { ...values, plugin: conflict.heldByName });
+      return fillTemplate({ template: translate('{kind} "{key}" is already used by {plugin}.'), values: { ...values, plugin: conflict.heldByName } });
     }
     return conflict.heldKey === conflict.key
-      ? fillTemplate(translate('{kind} "{key}" is reserved by Tovu.'), values)
-      : fillTemplate(translate('{kind} "{key}" is reserved by Tovu ("{reserved}").'), { ...values, reserved: conflict.heldKey });
+      ? fillTemplate({ template: translate('{kind} "{key}" is reserved by Tovu.'), values })
+      : fillTemplate({ template: translate('{kind} "{key}" is reserved by Tovu ("{reserved}").'), values: { ...values, reserved: conflict.heldKey } });
   });
   return [...new Set(lines)];
 }
@@ -113,7 +113,7 @@ export function pluginConflictLines(plugin: { readonly conflicts?: readonly Admi
  */
 export function pluginQuarantineHeadline(quarantine: NonNullable<AdminPlugin["quarantine"]>, translate: Translate): string {
   if (quarantine.consecutiveFailures === 0) return translate("Turned off automatically");
-  return fillTemplate(translate("Quarantined after {count} consecutive failures"), { count: String(quarantine.consecutiveFailures) });
+  return fillTemplate({ template: translate("Quarantined after {count} consecutive failures"), values: { count: String(quarantine.consecutiveFailures) } });
 }
 
 /** What the row's detail panel shows — see {@link pluginRowDetailView}. */
@@ -238,7 +238,7 @@ export interface PluginToggleControl {
   label: string;
 }
 
-export function pluginToggleControl(plugin: AdminPlugin, rowSavingId: string | null, locale: string): PluginToggleControl {
+export function pluginToggleControl({ plugin, rowSavingId, locale }: { plugin: AdminPlugin; rowSavingId: string | null; locale: string }, _optional = {}): PluginToggleControl {
   if (!(plugin.enabled || plugin.status === "valid")) {
     return { visible: false, disabled: false, label: "" };
   }
@@ -267,7 +267,7 @@ export function pluginToggleControl(plugin: AdminPlugin, rowSavingId: string | n
  *
  * @complexity O(1).
  */
-export function pluginToggleAriaLabel(plugin: AdminPlugin, locale: string): string {
+export function pluginToggleAriaLabel({ plugin, locale }: { plugin: AdminPlugin; locale: string }, _optional = {}): string {
   return `${plugin.enabled ? t({ locale: locale, key: "Disable" }) : t({ locale: locale, key: "Enable" })} ${plugin.name}`;
 }
 
@@ -313,7 +313,7 @@ export function pluginRemoveBlocker(plugin: AdminPlugin): "built-in" | "enabled"
  *
  * @complexity O(1).
  */
-export function pluginRemoveAriaLabel(plugin: AdminPlugin, locale: string): string {
+export function pluginRemoveAriaLabel({ plugin, locale }: { plugin: AdminPlugin; locale: string }, _optional = {}): string {
   return pluginRemoveBlocker(plugin) === null
     ? `${t({ locale: locale, key: "Remove" })} ${plugin.name}`
     : `${t({ locale: locale, key: "Remove" })} ${plugin.name} — ${t({ locale: locale, key: "unavailable" })}`;
@@ -361,7 +361,7 @@ const AGENT_PLUGIN_ID_ACRONYMS = new Set([
   "ai", "api", "cli", "css", "html", "http", "id", "io", "json", "mcp", "rss", "sdk", "seo", "sql", "ui", "url", "ux", "yaml",
 ]);
 
-export function humanizeAgentPluginId(pluginId: string): string {
+export function humanizeAgentPluginId({ pluginId }: { pluginId: string }, _optional = {}): string {
   return pluginId
     .split("-")
     .filter((part) => part.length > 0)
@@ -381,7 +381,7 @@ export function humanizeAgentPluginId(pluginId: string): string {
  * @complexity O(n) in `pluginId`'s length.
  */
 export function agentPluginDisplayName(plugin: { pluginId: string; displayName?: string | null }): string {
-  return plugin.displayName?.trim() || humanizeAgentPluginId(plugin.pluginId);
+  return plugin.displayName?.trim() || humanizeAgentPluginId({ pluginId: plugin.pluginId });
 }
 
 /**
@@ -401,7 +401,7 @@ const AGENT_PLUGIN_GLYPH_VOCABULARY: ReadonlyArray<readonly [AgentPluginGlyphKin
 ];
 
 /** Lowercase whole-word tokens of one string. */
-function glyphTokens(value: string): string[] {
+function glyphTokens({ value }: { value: string }, _optional = {}): string[] {
   return value.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length > 0);
 }
 
@@ -440,9 +440,9 @@ export function agentPluginGlyphKind(plugin: {
   skills: ReadonlyArray<{ name: string }>;
 }): AgentPluginGlyphKind {
   const tiers: ReadonlyArray<readonly string[]> = [
-    glyphTokens(plugin.pluginId),
-    plugin.keywords.flatMap(glyphTokens),
-    plugin.skills.flatMap((skill) => glyphTokens(skill.name)),
+    glyphTokens({ value: plugin.pluginId }),
+    plugin.keywords.flatMap((value) => glyphTokens({ value })),
+    plugin.skills.flatMap((skill) => glyphTokens({ value: skill.name })),
   ];
 
   for (const tier of tiers) {
@@ -464,7 +464,7 @@ export function agentPluginGlyphKind(plugin: {
  *
  * @complexity O(1).
  */
-export function agentPluginToggleAriaLabel(plugin: { pluginId: string; enabled: boolean; displayName?: string | null }, locale: string): string {
+export function agentPluginToggleAriaLabel({ plugin, locale }: { plugin: { pluginId: string; enabled: boolean; displayName?: string | null }; locale: string }, _optional = {}): string {
   const verb = plugin.enabled ? t({ locale: locale, key: "Disable" }) : t({ locale: locale, key: "Enable" });
   return `${verb} ${agentPluginDisplayName(plugin)}`;
 }
@@ -534,11 +534,11 @@ function disableConfirmCopy(
 }
 
 /** Server lifecycle warning texts this screen knows, matched in order; anything else shows as sent. */
-const AGENT_PLUGIN_WARNING_PATTERNS: readonly { readonly pattern: RegExp; readonly render: (match: RegExpMatchArray, translate: Translate) => string }[] = [
-  { pattern: /^Needs (\S+)$/, render: (m, translate) => translate("Needs {capabilities}").replace("{capabilities}", () => m[1]) },
-  { pattern: /^(\S+) needs (\S+)$/, render: (m, translate) => translate("{plugin} needs {capability}").replace("{plugin}", () => m[1] ?? "").replace("{capability}", () => m[2]) },
-  { pattern: /^Unknown release version;/, render: (_m, translate) => translate("This package has no release version to compare.") },
-  { pattern: /^Same version with different bytes;/, render: (_m, translate) => translate("Same version number as the installed one, with different contents.") },
+const AGENT_PLUGIN_WARNING_PATTERNS: readonly { readonly pattern: RegExp; readonly render: (required: { match: RegExpMatchArray; translate: Translate }, optional?: Record<string, never>) => string }[] = [
+  { pattern: /^Needs (\S+)$/, render: ({ match: m, translate }, _optional = {}) => translate("Needs {capabilities}").replace("{capabilities}", () => m[1]) },
+  { pattern: /^(\S+) needs (\S+)$/, render: ({ match: m, translate }, _optional = {}) => translate("{plugin} needs {capability}").replace("{plugin}", () => m[1] ?? "").replace("{capability}", () => m[2]) },
+  { pattern: /^Unknown release version;/, render: ({ translate }, _optional = {}) => translate("This package has no release version to compare.") },
+  { pattern: /^Same version with different bytes;/, render: ({ translate }, _optional = {}) => translate("Same version number as the installed one, with different contents.") },
 ];
 
 /**
@@ -552,7 +552,7 @@ export function agentPluginWarningText(required: { warning: string; translate: T
   const { warning, translate } = required;
   for (const { pattern, render } of AGENT_PLUGIN_WARNING_PATTERNS) {
     const match = warning.match(pattern);
-    if (match) return render(match, translate);
+    if (match) return render({ match, translate });
   }
   return warning;
 }
@@ -613,7 +613,7 @@ export function providerSettingRequiredHere(required: { field: AdminPluginProvid
  *
  * @complexity O(1).
  */
-export function agentPluginRemoveOrEnableAriaLabel(plugin: { pluginId: string; enabled: boolean; displayName?: string | null }, locale: string): string {
+export function agentPluginRemoveOrEnableAriaLabel({ plugin, locale }: { plugin: { pluginId: string; enabled: boolean; displayName?: string | null }; locale: string }, _optional = {}): string {
   const verb = plugin.enabled ? t({ locale: locale, key: "Turn off" }) : t({ locale: locale, key: "Enable" });
   return `${verb} ${agentPluginDisplayName(plugin)}`;
 }
@@ -675,7 +675,7 @@ export function packageFilesStatus(
 
 /** Set only when `PLUGIN_FILES` reports its caps cut the listing short.
  *  @complexity O(1). */
-export function packageFilesListNotice(listing: Pick<AdminPluginFiles, "truncated"> | null, translate: Translate): string | null {
+export function packageFilesListNotice({ listing, translate }: { listing: Pick<AdminPluginFiles, "truncated"> | null; translate: Translate }, _optional = {}): string | null {
   return listing?.truncated ? translate("Some files are not listed: this package is larger than the viewer's limits.") : null;
 }
 
@@ -710,7 +710,7 @@ export interface PackageFilesViewState {
  * the same way rather than clearing the selection.
  * @complexity O(files log files) on the fallback, O(files) otherwise.
  */
-export function selectPackageFile(files: readonly PackageFileView[], selectedPath: string): PackageFileView | null {
+export function selectPackageFile({ files, selectedPath }: { files: readonly PackageFileView[]; selectedPath: string }, _optional = {}): PackageFileView | null {
   const selected = files.find((file) => file.relativePath === selectedPath);
   if (selected) return selected;
   const topPath = firstPackageFilePath(buildPackageFileTree(files.map((file) => file.relativePath)));
@@ -722,13 +722,13 @@ export function selectPackageFile(files: readonly PackageFileView[], selectedPat
  * the listing is still loading.
  * @complexity O(files) — capped server-side at 200.
  */
-export function packageFilesViewState(read: PackageFilesRead | null, selectedPath: string, translate: Translate): PackageFilesViewState {
+export function packageFilesViewState({ read, selectedPath, translate }: { read: PackageFilesRead | null; selectedPath: string; translate: Translate }, _optional = {}): PackageFilesViewState {
   const listing = read?.listing ?? null;
   const files = (listing?.files ?? []).map((file) => toPackageFileView(file, translate));
   return {
     files,
-    selectedFile: selectPackageFile(files, selectedPath),
+    selectedFile: selectPackageFile({ files, selectedPath }),
     status: packageFilesStatus({ loading: read === null, error: read?.error ?? null, fileCount: files.length }, translate),
-    listNotice: packageFilesListNotice(listing, translate),
+    listNotice: packageFilesListNotice({ listing, translate }),
   };
 }

@@ -49,7 +49,7 @@ function createFakePort(overrides: Partial<StandingDraftAutosavePort> = {}): Sta
   let discardAutosaveCalls = 0;
   return {
     getAutosave: vi.fn(async () => ({ autosave: null })),
-    putAutosave: vi.fn(async (_id: string, draft: StandingDraftAutosaveInput) => {
+    putAutosave: vi.fn(async ({ draft }: { id: string; draft: StandingDraftAutosaveInput }) => {
       putAutosaveCalls.push(draft);
       return { applied: true };
     }),
@@ -151,7 +151,7 @@ describe("useStandingDraftAutosave", () => {
     await act(async () => vi.advanceTimersByTimeAsync(0));
     expect(result.current.recoverableDraft).toEqual(fakeSnapshot());
     expect(port.getAutosave).toHaveBeenCalledTimes(1);
-    expect(port.getAutosave).toHaveBeenCalledWith("post-1");
+    expect(port.getAutosave).toHaveBeenCalledWith({ id: "post-1" });
     // Nothing calls putAutosave/discardAutosave just from a recoverable draft existing — recovery
     // is inert until the caller explicitly acts on it.
     expect(port.putAutosave).not.toHaveBeenCalled();
@@ -193,7 +193,7 @@ describe("useStandingDraftAutosave", () => {
     expect(port.putAutosave).not.toHaveBeenCalled();
     await act(async () => vi.advanceTimersByTimeAsync(1));
     expect(port.putAutosave).toHaveBeenCalledTimes(1);
-    expect(port.putAutosave).toHaveBeenCalledWith("post-1", { ...DOC_DRAFT, title: "Edit 7" }, { keepalive: false });
+    expect(port.putAutosave).toHaveBeenCalledWith({ id: "post-1", draft: { ...DOC_DRAFT, title: "Edit 7" } }, { keepalive: false });
   });
 
   it("clearStandingDraft cancels a still-pending (not yet fired) autosave — the timer never fires at all", async () => {
@@ -481,7 +481,7 @@ describe("useStandingDraftAutosave", () => {
     // Read off the mock, not `putAutosaveCalls` — this test supplies its OWN `putAutosave`, which
     // does not feed the fake's recorder.
     expect(port.putAutosave).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(port.putAutosave).mock.calls.map(([, draft]) => draft)).toEqual([DOC_DRAFT, fresh]);
+    expect(vi.mocked(port.putAutosave).mock.calls.map(([{ draft }]) => draft)).toEqual([DOC_DRAFT, fresh]);
   });
 
   it("keeps the refused text in a per-tab local backup, and offers it as a recoverable draft after a reload the server has nothing parked for", async () => {
@@ -576,7 +576,7 @@ describe("useStandingDraftAutosave", () => {
 
     act(() => result.current.scheduleAutosave(DOC_DRAFT));
     await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
-    expect(vi.mocked(port.putAutosave).mock.calls.map(([id]) => id)).toEqual(["post-1", "post-2"]);
+    expect(vi.mocked(port.putAutosave).mock.calls.map(([{ id }]) => id)).toEqual(["post-1", "post-2"]);
   });
 
   /**

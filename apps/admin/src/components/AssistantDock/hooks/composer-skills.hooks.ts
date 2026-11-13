@@ -48,7 +48,7 @@ export function useComposerDiscoveryDraft(catalog: readonly ComposerDiscoveryGro
     if (event.target instanceof HTMLTextAreaElement && event.target.closest(".jini-composer")) adoptDraft(event.target.value);
   }, [adoptDraft]);
   const readDraft = useCallback(() => rootRef.current?.querySelector<HTMLTextAreaElement>(".jini-composer textarea")?.value ?? "", []);
-  const groups = useMemo(() => rankComposerDiscoveryGroups(catalog, shape.slashQuery), [catalog, shape.slashQuery]);
+  const groups = useMemo(() => rankComposerDiscoveryGroups({ groups: catalog, draft: shape.slashQuery }), [catalog, shape.slashQuery]);
   const refreshDraft = useCallback(() => adoptDraft(readDraft()), [adoptDraft, readDraft]);
   return { rootRef, captureDraft, readDraft, groups, draftBlank: shape.blank, refreshDraft };
 }

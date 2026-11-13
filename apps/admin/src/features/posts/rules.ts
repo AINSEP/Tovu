@@ -40,7 +40,7 @@ export const POSTS_RESOURCE = "posts";
 /** The callbacks a row menu needs. Passed in rather than imported so this module stays free of
  *  state and navigation, and so a test can assert exactly which one a given row wires up. */
 export interface PostRowMenuHandlers {
-  onEdit: (post: AdminPost) => void;
+  onEdit: (required: { post: AdminPost }, optional?: Record<string, never>) => void;
   onTogglePublish: (post: AdminPost) => void;
   onDelete: (post: AdminPost) => void;
 }
@@ -70,7 +70,7 @@ export interface PostRowMenuHandlers {
  */
 export function postRowMenuItems(post: AdminPost, handlers: PostRowMenuHandlers, locale: string): RowMenuItem[] {
   const t = (key: string): string => translate({ locale: locale, key: key });
-  const items: RowMenuItem[] = [{ key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit(post) }];
+  const items: RowMenuItem[] = [{ key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit({ post }) }];
   items.push(
     post.status === "published"
       ? { key: "unpublish", label: t("Unpublish"), onSelect: () => handlers.onTogglePublish(post) }

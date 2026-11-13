@@ -173,9 +173,7 @@ export function usePosts(deps: PostsListDependencies, { locale = "en" }: { local
     setRowSavingId(post.id);
     setError(null);
     try {
-      const { post: updated } = await write.mutate({ input: () => port.updatePost(
-        { id: post.id },
-        { title: post.title, slug: post.slug, bodyJson: post.bodyJson, status: nextStatus, expectedVersion: post.version }
+      const { post: updated } = await write.mutate({ input: () => port.updatePost({ target: { id: post.id }, patch: { title: post.title, slug: post.slug, bodyJson: post.bodyJson, status: nextStatus, expectedVersion: post.version } }
       ) }) as Awaited<ReturnType<typeof port.updatePost>>;
       setPosts((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
     } catch (e) {
@@ -212,7 +210,7 @@ export function usePosts(deps: PostsListDependencies, { locale = "en" }: { local
     setRowSavingId(post.id);
     setError(null);
     try {
-      await write.mutate({ input: () => port.deletePost(post.id) });
+      await write.mutate({ input: () => port.deletePost({ id: post.id }) });
       setPosts((prev) => (prev ? prev.filter((p) => p.id !== post.id) : prev));
     } catch (e) {
       setError(e instanceof Error ? e.message : t("failed to delete post"));

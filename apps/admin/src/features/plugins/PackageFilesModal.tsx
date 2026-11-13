@@ -96,7 +96,7 @@ function PackageTreeIcon({ folder, expanded, name }: { folder: boolean; expanded
   </>;
   return <>
     <span className="agent-plugin-source-tree-twistie" aria-hidden />
-    <RemixIcon name={FILE_ICON_GLYPH[packageFileIconKind(name)]} className={`agent-plugin-source-tree-icon is-${packageFileIconKind(name)}`} />
+    <RemixIcon name={FILE_ICON_GLYPH[packageFileIconKind({ fileName: name })]} className={`agent-plugin-source-tree-icon is-${packageFileIconKind({ fileName: name })}`} />
   </>;
 }
 
@@ -131,7 +131,7 @@ function PackageFileTree({
       {tree.rows.map((row) => {
         const { node } = row;
         const folder = node.kind === "folder";
-        const expanded = folder && tree.isExpanded(node.path);
+        const expanded = folder && tree.isExpanded({ folderPath: node.path });
         const handle = folder
           ? agentHandle({ handle: `${folderHandleByPath.get(node.path)}-toggle` }, { role: "button", label: `Expand or collapse the "${node.path}" folder` })
           : agentHandle({ handle: `${fileHandleByPath.get(node.path)}-select` }, { role: "button", label: `Select the "${node.path}" file` });

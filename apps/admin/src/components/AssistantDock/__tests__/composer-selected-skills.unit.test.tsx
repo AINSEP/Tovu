@@ -27,7 +27,7 @@ it("pick adds a removable chip, preserves the user's draft, and only the run pay
     const onDiscoverySelect = useComposerDiscoverySelect({ composerCapabilities: capabilities, callAllowlistedTool: vi.fn(), addSkill: skills.addSkill, readDraft: () => composer.draft });
     return <div onChangeCapture={discovery.captureDraft}>
       <SelectedAgentPluginTray chips={skills.chips} onRemove={skills.removeSkill} />
-      <output data-testid="payload">{JSON.stringify({ prompt: promptWithSelectedSkills(composer.draft, { selectedSkills: skills.selectedSkills }) })}</output>
+      <output data-testid="payload">{JSON.stringify({ prompt: promptWithSelectedSkills({ prompt: composer.draft, context: { selectedSkills: skills.selectedSkills } }) })}</output>
       <Composer composer={composer} onSend={vi.fn()} slots={{ discoveryGroups: discovery.groups, onDiscoverySelect }} />
     </div>;
   }

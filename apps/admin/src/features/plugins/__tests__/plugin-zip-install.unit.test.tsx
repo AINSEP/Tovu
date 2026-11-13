@@ -15,7 +15,7 @@ it("reviews uploaded bytes and only installs them with reviewed consent", async 
   const inspect = vi.spyOn(port, "preview"); const install = vi.spyOn(port, "install");
   const file = new File(["archive"], "package.zip", { type: "application/zip" });
   const { result } = renderHook(() => usePluginInstall({ port, t: (key) => key, onInstalled: async () => {} }));
-  act(() => { result.current.setZipFile(file); });
+  act(() => { result.current.setZipFile({ file }); });
   await act(async () => { await result.current.install(); });
   expect(install).not.toHaveBeenCalled();
   await act(async () => { await result.current.review(); });
@@ -28,17 +28,17 @@ it("changing ZIP, choosing a folder, or replacement options invalidates review",
   const port = createFakePluginInstallPort({ preview });
   const { result } = renderHook(() => usePluginInstall({ port, t: (key) => key, onInstalled: async () => {} }));
   const file = new File(["archive"], "one.zip");
-  act(() => { result.current.setZipFile(file); });
+  act(() => { result.current.setZipFile({ file }); });
   await act(async () => { await result.current.review(); });
-  act(() => result.current.setZipFile(new File(["changed"], "two.zip")));
+  act(() => result.current.setZipFile({ file: new File(["changed"], "two.zip") }));
   expect(result.current.preview).toBeNull();
   await act(async () => { await result.current.review(); });
-  act(() => result.current.setReplace(true));
+  act(() => result.current.setReplace({ value: true }));
   expect(result.current.preview).toBeNull();
   await act(async () => { await result.current.review(); });
-  act(() => result.current.setFolder("/server/package"));
+  act(() => result.current.setFolder({ value: "/server/package" }));
   expect(result.current.zipFile).toBeNull(); expect(result.current.preview).toBeNull();
-  act(() => result.current.setZipFile(file));
+  act(() => result.current.setZipFile({ file }));
   expect(result.current.folder).toBe("");
 });
 
@@ -46,7 +46,7 @@ it("rejects oversized browser files before an upload", async () => {
   const port = createFakePluginInstallPort({ preview }); const read = vi.spyOn(port, "preview");
   const { result } = renderHook(() => usePluginInstall({ port, t: (key) => key, onInstalled: async () => {} }));
   const file = new File([], "huge.zip"); Object.defineProperty(file, "size", { value: 32 * 1024 * 1024 + 1 });
-  act(() => { result.current.setZipFile(file); });
+  act(() => { result.current.setZipFile({ file }); });
   await act(async () => { await result.current.review(); });
   expect(read).not.toHaveBeenCalled(); expect(result.current.reviewDisabled).toBe(true);
   expect(result.current.error).toBe("ZIP exceeds the upload or expanded package size limit.");

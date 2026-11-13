@@ -112,7 +112,7 @@ test("authenticated transport preserves explicit base, signal, headers, keepaliv
     method: "PUT", credentials: "same-origin", body: "null", signal, keepalive: true,
     headers: { "Content-Type": "application/json", "If-Match": '"version-1"' },
   });
-  expect(onOk).toHaveBeenCalledExactlyOnceWith(response);
+  expect(onOk).toHaveBeenCalledExactlyOnceWith({ response });
 });
 
 test("authenticated transport preserves binary adapter bodies and their content type", async () => {

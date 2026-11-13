@@ -89,7 +89,7 @@ function useProviderSettingsFocus({ card, fieldId }: { card: AdminPluginProvider
 }
 
 export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose, onSaved, useSettings = useWiredPluginProviderSettings }: PluginProviderSettingsDialogProps) {
-  const { card, values, setValue, save, useSavedKey, saving, error, t } = useSettings(plugin.id);
+  const { card, values, setValue, save, useSavedKey, saving, error, t } = useSettings({ pluginId: plugin.id });
   const fieldId = useId();
   const fields = card?.fields ?? [];
   // Presence only: a saved alternate secret satisfies the same manifest rule as an entered value.
@@ -108,7 +108,7 @@ export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose,
           </Button> : null}
           {fields.map((field) => (
             <ProviderSettingField key={field.name} field={{ ...field, required: providerSettingRequiredHere({ field, fields, entered: values, values: effectiveValues }) }} id={`${fieldId}-${field.name}`} value={values[field.name] ?? ""}
-              onChange={(value) => setValue(field.name, value)} handle={`${agentHandleBase}-setting-${handleWords(field.name)}`} pluginName={plugin.name} t={t} />
+              onChange={(value) => setValue({ name: field.name, value })} handle={`${agentHandleBase}-setting-${handleWords(field.name)}`} pluginName={plugin.name} t={t} />
           ))}
         </div>
         {error ? <p className="save-error" role="alert">{error}</p> : null}

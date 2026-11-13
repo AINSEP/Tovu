@@ -32,7 +32,7 @@ function refusalKey({ error, tooLarge }: { error: unknown; tooLarge: string }): 
  * @param required.onError - Receives a dictionary key for a refused folder.
  */
 export function useFolderUpload(
-  required: { maxBytes: number; tooLarge: string; isLocked: () => boolean; onZipped: (file: File) => void; onError: (key: string) => void },
+  required: { maxBytes: number; tooLarge: string; isLocked: () => boolean; onZipped: (file: File) => void; onError: (required: { key: string }, optional?: Record<string, never>) => void },
   _optional: Record<string, never> = {},
 ) {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -46,7 +46,7 @@ export function useFolderUpload(
     try {
       required.onZipped(await zipFolderFiles({ files, maxBytes: required.maxBytes }));
     } catch (error) {
-      required.onError(refusalKey({ error, tooLarge: required.tooLarge }));
+      required.onError({ key: refusalKey({ error, tooLarge: required.tooLarge }) });
     } finally {
       zippingRef.current = false;
       setZipping(false);

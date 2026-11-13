@@ -52,7 +52,7 @@ export interface PostsProps {
  * whole screen — matches Pages.tsx/Media.tsx and `@jini-ai/admin/comments/react`. Mirrors `Pages.tsx`'s identical
  * `pagesListNotice`.
  */
-export function postsListNotice(posts: AdminPost[] | null, error: string | null, t: (key: string) => string): ReactNode {
+export function postsListNotice({ posts, error, t }: { posts: AdminPost[] | null; error: string | null; t: (key: string) => string }, _optional = {}): ReactNode {
   if (error && !posts) return <div className="notice error">{error}</div>;
   if (!posts) return <div className="notice">{t("Loading posts…")}</div>;
   return null;
@@ -93,7 +93,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
   // that notice AND keeps TS's narrowing, so `rows={posts}` below type-checks as `AdminPost[]`
   // without an `as`/`!` assertion. (The earlier `if (notice) return notice; if (!posts) return null;`
   // pair restored that narrowing with a second `!posts` check that was unreachable in practice.)
-  if (!posts) return postsListNotice(posts, error, t);
+  if (!posts) return postsListNotice({ posts, error, t });
 
   return (
     <div className="page">
@@ -185,7 +185,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
                 items={postRowMenuItems(
                   post,
                   {
-                    onEdit: (p) => navigate(`/posts/${p.slug}`),
+                    onEdit: ({ post }, _optional = {}) => navigate(`/posts/${post.slug}`),
                     onTogglePublish: togglePostPublish,
                     onDelete: setPendingDelete,
                   },

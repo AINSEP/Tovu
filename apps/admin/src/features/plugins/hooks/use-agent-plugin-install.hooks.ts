@@ -105,7 +105,7 @@ export function useAgentPluginInstall(
   const inputRef = useRef<HTMLInputElement | null>(null);
   const locked = useRef(false);
 
-  function choose(next: File | null): void {
+  function choose({ next }: { next: File | null }, _optional = {}): void {
     setError(null);
     setWarnings([]);
     setInstalled(null);
@@ -139,9 +139,9 @@ export function useAgentPluginInstall(
 
   const drop = useZipDrop({
     isLocked: () => locked.current,
-    onDropFiles: (files) => {
+    onDropFiles: ({ files }, _optional = {}) => {
       const file = files[0];
-      if (files.length === 1 && file) choose(file);
+      if (files.length === 1 && file) choose({ next: file });
       else {
         setInstalled(null);
         setError(t(ONE_ZIP));
@@ -154,8 +154,8 @@ export function useAgentPluginInstall(
     maxBytes: AGENT_PLUGIN_ZIP_MAX_BYTES,
     tooLarge: TOO_LARGE,
     isLocked: () => locked.current,
-    onZipped: choose,
-    onError: (key) => {
+    onZipped: (next) => choose({ next }),
+    onError: ({ key }, _optional = {}) => {
       setInstalled(null);
       setFile(null);
       setError(t(key));
@@ -181,8 +181,8 @@ export function useAgentPluginInstall(
     inputRef,
     installDisabled: busy || folderUpload.zipping || !file,
     onChooseFile: () => inputRef.current?.click(),
-    onFileChange: (event: ChangeEvent<HTMLInputElement>) => choose(event.target.files?.[0] ?? null),
-    onClearFile: () => choose(null),
+    onFileChange: (event: ChangeEvent<HTMLInputElement>) => choose({ next: event.target.files?.[0] ?? null }),
+    onClearFile: () => choose({ next: null }),
     install: () => void install(),
   };
 }

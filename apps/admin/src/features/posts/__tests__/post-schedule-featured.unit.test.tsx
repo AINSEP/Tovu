@@ -196,7 +196,7 @@ describe("usePostFeaturedImage", () => {
 
   it("previews the resized rendition first, drops to the original when it fails, and fails only after both", () => {
     const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
-    const renditionUrl = (id: string) => `/m/${id}/og.v1/image.jpg`;
+    const renditionUrl = ({ id }: { id: string }) => `/m/${id}/og.v1/image.jpg`;
     const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage(value, vi.fn(), { port, renditionUrl }), {
       initialProps: { value: "m1" as string | null },
     });

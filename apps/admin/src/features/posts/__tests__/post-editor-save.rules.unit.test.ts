@@ -64,15 +64,15 @@ const WORKING: PostSaveWorkingCopy = {
 
 describe("scheduleFieldsPatch", () => {
   it("sends neither key when both match the baseline", () => {
-    expect(scheduleFieldsPatch(ORIGINAL, { publishAt: ORIGINAL.publishAt, featuredMediaId: "m1" })).toEqual({});
+    expect(scheduleFieldsPatch({ original: ORIGINAL, current: { publishAt: ORIGINAL.publishAt, featuredMediaId: "m1" } })).toEqual({});
   });
 
   it("sends an explicit null to clear a stored value", () => {
-    expect(scheduleFieldsPatch(ORIGINAL, { publishAt: null, featuredMediaId: null })).toEqual({ publishAt: null, featuredMediaId: null });
+    expect(scheduleFieldsPatch({ original: ORIGINAL, current: { publishAt: null, featuredMediaId: null } })).toEqual({ publishAt: null, featuredMediaId: null });
   });
 
   it("treats a missing baseline as nothing stored", () => {
-    expect(scheduleFieldsPatch(null, { publishAt: null, featuredMediaId: "m2" })).toEqual({ featuredMediaId: "m2" });
+    expect(scheduleFieldsPatch({ original: null, current: { publishAt: null, featuredMediaId: "m2" } })).toEqual({ featuredMediaId: "m2" });
   });
 });
 

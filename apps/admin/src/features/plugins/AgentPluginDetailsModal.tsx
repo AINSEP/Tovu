@@ -40,7 +40,7 @@ export interface AgentPluginDetailsModalProps {
 export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWiredAgentPluginDetailsModal, surfacesPort = defaultAgentPluginSurfacesPort }: AgentPluginDetailsModalProps) {
   const memory = useWiredAgentPluginMemory({ pluginId: plugin.id });
   const view = useAgentPluginDetailsView({ displayName: plugin.displayName, t, memoryT: memory.t });
-  const { files, selectedFile, selectFile, status = null, listNotice = null } = useDetails(plugin.id);
+  const { files, selectedFile, selectFile, status = null, listNotice = null } = useDetails({ pluginId: plugin.id });
   const listed = useAgentPluginSurfaces({ pluginId: plugin.id, port: surfacesPort });
   // Opened from "Manage": the row already listed the screens, so the first render has their tabs
   // (the shell picks its starting view once, at mount).
