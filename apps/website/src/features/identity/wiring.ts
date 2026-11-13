@@ -35,8 +35,8 @@ import { createTransactionalInMemoryIdentityRepos, NodeSessionTokens } from "@ji
 import { createIdentityTransactions } from "./repo.js";
 
 /**
- * @file Shared identity wiring for the composition roots (`server/app.ts` /
- * `server/deps.ts`).
+ * @file Shared identity wiring for the composition roots (`apps/website/src/server/runtime/composition/app.ts` /
+ * `apps/website/src/server/runtime/composition/deps.ts`).
  *
  * Purpose:
  * Both composition roots need the identical identity slice of `RouteDeps`
@@ -209,7 +209,7 @@ function buildIdentityRouteDeps(
       // add, and calling `.save()` against a genuinely read-only SQLite handle (`better-sqlite3`'s
       // `readonly: true`, as `openContentDbReadOnly` uses) throws `SqliteError: attempt to write a
       // readonly database` rather than no-op'ing. A caller building identity deps over such a
-      // connection — `development/scripts/backfill-reset-admin-password.ts`'s dry-run path is the
+      // connection — `admin-password backfill`'s dry-run path is the
       // one that exists today — must pass `reconcileGrantsOnBoot: false` so this whole step is
       // skipped outright, instead of depending on the workspace happening to have nothing left to
       // reconcile (true today only by chance, not by any guarantee).
@@ -284,7 +284,7 @@ function buildIdentityRouteDeps(
 
 /**
  * Build the in-memory identity repos, kick off first-boot seeding, and bind an `authorize()`
- * closure over those same repos. Used by `server/app.ts`'s hermetic test/dev composition, where
+ * closure over those same repos. Used by `apps/website/src/server/runtime/composition/app.ts`'s hermetic test/dev composition, where
  * per-test isolation (a fresh store per test) matters more than persistence.
  *
  * @complexity O(1) construction; `identityReady`'s underlying seed work is
@@ -322,7 +322,7 @@ export function createInMemoryIdentityRouteDeps(required: {
 /**
  * Build the SQLite-backed identity repos over the same `content.db` handle every other feature's
  * `repo.sqlite.ts` adapter uses, kick off first-boot seeding, and bind `authorize()` over those
- * repos. Used by `server/deps.ts`'s real composition root — this is what makes a login survive a
+ * repos. Used by `apps/website/src/server/runtime/composition/deps.ts`'s real composition root — this is what makes a login survive a
  * `tsx watch` restart: the owner principal/user/session rows persist in `content.db`, and
  * `seedIdentity`'s existing idempotency check (look up the owner username before minting a new
  * principal) means the SAME principal id is reused on every subsequent boot, so a persisted

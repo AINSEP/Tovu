@@ -9,7 +9,7 @@ import { CustomCredentialValidationError } from "./store.js";
  * BEFORE the credential is resolved or any network call is made, mirroring this domain's own
  * established ordering (`tool-registrations.ts`'s `rejectUnexpectedSetTokenFields`/
  * `requireUsernameOrClearSentinel` both run before `requireToolPermission`/any I/O) and
- * `features/agent-plugins/package-paths.ts`'s "cheap majority of attempts caught before any
+ * `Jini packages/agent-plugins/src/lifecycle/package-paths.ts`'s "cheap majority of attempts caught before any
  * filesystem call" split.
  *
  * Owner and repo are the one exception to "before the credential is resolved": their rules belong to
@@ -45,7 +45,7 @@ const MAX_COMMIT_MESSAGE_LENGTH = 500;
  * left unbounded (an operator-controlled write into a real repository must never be unbounded — same
  * reasoning `agent-plugins/install.ts`'s own `LIMITS` gives for its structurally identical problem):
  *
- * - `maxFiles`: the confirmation dialog this tool opens (`write-files-confirmation-ui.ts`) lists
+ * - `maxFiles`: the confirmation dialog this tool opens (`file-write confirmation`) lists
  *   every path by name so a human can actually read and approve each one before anything is written;
  *   past a few dozen rows that review stops being real. The one caller that exists today (a
  *   bundled hosting plugin's skill) writes exactly 2 files. 25 is generous headroom above that for any plausible

@@ -7,7 +7,7 @@ const BLOCK_NODE_REF = "#/$defs/blockNode" as const;
 
 /**
  * @file The Posts + Pages agent-tool catalog — this domain's instance of the per-domain
- * `agent-tools.ts` convention every other wired domain (`features/entries/agent-tools.ts`,
+ * `agent-tools.ts` convention every other wired domain (`Jini packages/cms/src/entries/agent-tools.ts`,
  * `widgets/agent-tools.ts`, `forms/agent-tools.ts`, ...) already uses.
  *
  * Purpose:
@@ -25,7 +25,7 @@ const BLOCK_NODE_REF = "#/$defs/blockNode" as const;
  * separate `page_*` one.
  *
  * Naming, disclosed to avoid the collision this project has hit before (ADR-049 Decision 4's own
- * `backup_create_restore_point` precedent, and `features/entries/agent-tools.ts`'s own naming
+ * `backup_create_restore_point` precedent, and `Jini packages/cms/src/entries/agent-tools.ts`'s own naming
  * disclosure): prefixed `content_post_*` — checked against every existing catalog's ids
  * (`grep -rn 'name: "[a-z_]*"' src/**\/agent-tools.ts`) before choosing it. It is deliberately NOT
  * `entry_*`/`post_*`/`page_*` (any of which could be misread as reaching `features/entries`, a
@@ -38,12 +38,12 @@ const BLOCK_NODE_REF = "#/$defs/blockNode" as const;
  * that `PostRepoPort` exposed exactly four methods (`findById`/`findBySlug`/`list`/`save`) with no
  * delete method anywhere in the domain to wrap. That is no longer true and the absence is no longer
  * deliberate: `post.ts` now exports `deletePost`, `PostRepoPort` now carries `softDelete`, both
- * adapters implement it, and `server/routes/admin/posts/delete.ts` + `.../pages/delete.ts` are the
+ * adapters implement it, and `apps/website/src/server/inbound/admin-http/routes/posts/delete.ts` + `.../pages/delete.ts` are the
  * human-facing routes `content_post_delete` mirrors. The note is kept rather than erased because a
  * reader who remembers the old claim needs to see that it was retired on purpose.
  *
  * Deliberate absences (the point of a catalog, not an oversight):
- * - There is NO separate publish/unpublish tool. Unlike `features/entries/write-service.ts`
+ * - There is NO separate publish/unpublish tool. Unlike `Jini packages/cms/src/entries/write-service.ts`
  *   (`publishEntry`/`unpublishEntry` as their own functions), `post.ts` has exactly one write path
  *   for status changes: `updatePost`'s `status` field, validated by `classifyStatusTransition`.
  *   `content_post_update` IS how an agent publishes or unpublishes a post/page — there is no second,
@@ -90,7 +90,7 @@ const BLOCK_NODE_REF = "#/$defs/blockNode" as const;
  * (ADR-021 §2), because no such self-enforcement exists here to duplicate.
  *
  * `bodyJson`'s published schema (see `TIPTAP_DOC_SCHEMA` below) describes the TipTap/ProseMirror
- * document vocabulary this codebase's own renderer (`server/http/site/render.ts`'s `renderDocNode`)
+ * document vocabulary this codebase's own renderer (`apps/website/src/server/inbound/public-http/http/site/render.ts`'s `renderDocNode`)
  * actually interprets: `doc`/`paragraph` (attrs.textAlign)/`heading` (attrs.level/textAlign)/`text`
  * (with `bold`/`italic`/`code`/`strike`/`underline`/`subscript`/`superscript`/`textStyle`/`highlight`/
  * `link` marks)/`bulletList`/`orderedList`/`listItem`/`taskList`/`taskItem`/`blockquote`/`codeBlock`
@@ -139,7 +139,7 @@ const BLOCK_NODE_REF = "#/$defs/blockNode" as const;
  */
 
 /**
- * This domain's copy of the shared union (see `assistant/tool-registration-kit.ts`'s own
+ * This domain's copy of the shared union (see `Jini packages/core/src/agent-tools.ts`'s own
  * `AgentToolSideEffect` for why `deletes-durable-state` is a distinct member and not a flavor of
  * `mutates-durable-state`).
  */
@@ -156,7 +156,7 @@ export interface AgentToolDefinition {
   authorization: { permission: string };
   /**
    * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
+   * (`Jini packages/core/src/registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
    * tool lacking one).
    */
   inputSchema?: Readonly<Record<string, unknown>>;
@@ -216,7 +216,7 @@ const TIPTAP_TEXT_BODY_EXAMPLE = '{"bodyJson":{"type":"doc","content":[{"type":"
 // ---------------------------------------------------------------------------
 // TipTap/ProseMirror `bodyJson` vocabulary — see this file's header for why this schema exists and
 // what it does (and does not) validate. Mirrors exactly the node/mark types
-// `server/http/site/render.ts`'s `renderDocNode`/`renderMarks` switch on (including
+// `apps/website/src/server/inbound/public-http/http/site/render.ts`'s `renderDocNode`/`renderMarks` switch on (including
 // `DOC_NODE_HANDLERS`'s full entry list); nothing here describes a node type the renderer would not
 // recognize.
 // ---------------------------------------------------------------------------
@@ -755,7 +755,7 @@ export const TIPTAP_DOC_SCHEMA = {
  * `assistant/duplicate-resource-registry.ts` rather than published as its own catalog entry here.
  *
  * Ordered read-first and destructive-last, matching `widgets/agent-tools.ts`'s/
- * `identity/agent-tools.ts`'s convention: a model needs a `postId` before it can update or delete
+ * `Jini packages/user-management/src/server/agent-tools.ts`'s convention: a model needs a `postId` before it can update or delete
  * one, and `content_post_search`/`content_post_list` (or `content_post_create`'s own result) is how
  * it learns one. `content_post_search` leads because it is the one a model should reach for first —
  * see its own entry for why.

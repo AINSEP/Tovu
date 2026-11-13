@@ -5,7 +5,7 @@
  *
  * Domain types only — no I/O, no sealer/keyring dependency. `../deployments/publish-credentials/store.ts`
  * is the one place a connection is validated, serialized, and sealed; `../deployments/publish-credentials/
- * repo.memory.ts` and `platform/db/repos/vendor-credential-repo.ts` are the two adapters (ADR-006
+ * repo.memory.ts` and `apps/website/src/features/vendor-credentials/vendor-credential-repo.ts` are the two adapters (ADR-006
  * rule-of-two), both over `vault-adapter.ts`.
  *
  * Open: a deploy plugin's host declares its own vendor (`DeployTargetCredentialSpec.vendorId`).

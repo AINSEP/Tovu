@@ -12,7 +12,7 @@ import type { FormDestinationDescriptor, FormDestinationModule, FormDestinationR
  * `{ id, label, module, receive?, hosts?, credentialLabel? }`. `module` is a plain-JS `.mjs` file
  * inside the plugin whose default export is a `FormDestinationModule` (`./types.ts`).
  *
- * TRUST RULE (fail closed), the shared gate in `features/agent-plugins/trusted-plugin-files.ts`: a
+ * TRUST RULE (fail closed), the shared gate in `Jini packages/agent-plugins/src/lifecycle/trusted-plugin-files.ts`: a
  * module runs in this process, so it loads only when the plugin is ACTIVE, its installed digest is
  * the one `bundled-digests.json` records (only plugins Tovu shipped), and the module path stays
  * inside the plugin root and ends in `.mjs`. An id two plugins declare, or a host two co-hosted

@@ -1,6 +1,6 @@
 /**
  * @file Deleting a term or a taxonomy = moving it to the Trash (T6, trash parallel plan §2, owner
- * decision 5). Same shape as `features/forms/delete-submission.ts`'s `deleteFormSubmission`: the
+ * decision 5). Same shape as `Jini packages/cms/src/forms/delete-submission.ts`'s `deleteFormSubmission`: the
  * Trash itself is injected as `remove` (bound to `"term"`/`"taxonomy"` at the composition root),
  * so this file never imports `features/trash` (binding rule 2 — domains never import from trash).
  *

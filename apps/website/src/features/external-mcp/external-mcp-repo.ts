@@ -16,7 +16,7 @@ import { toBool } from "../../platform/db/kernel/dialect.js";
 /**
  * @file THE `ExternalMcpServerRepoPort` adapter: one Kysely query body for every dialect (storage
  * plan §4, ADR-066) — the ADR-006 rule-of-two "second adapter" half;
- * `features/external-mcp/external-mcp-store.memory.ts` is the first. `sqlite/external-mcp-repo.sqlite.ts` is
+ * `features/external-mcp/external-mcp-store.memory.ts` is the first. `apps/website/src/features/external-mcp/external-mcp-repo.sqlite.ts` is
  * the thin subclass the composition root builds from the content db handle.
  *
  * Secret envelopes live in Jini's vault, with two pointers on the server. Reads hydrate both

@@ -6,8 +6,8 @@ import type { AgentPluginUninstallPreview } from "./lifecycle.js";
 /**
  * @file The dialog the Agent Plugin family's uninstall raises before it removes anything.
  *
- * Same held-open exchange as `plugin-runtime/set-enabled-confirmation-ui.ts` and `media_trash_asset`
- * (ADR-055 Decision 2; `post/delete-confirmation-ui.ts` has the full chain): the model's one call
+ * Same held-open exchange as `apps/website/src/features/plugin-runtime/enable-confirmation-ui.ts` and `media_trash_asset`
+ * (ADR-055 Decision 2; `apps/website/src/contracts/core/human-confirm.ts` has the full chain): the model's one call
  * parks, and only the browser POST to `mcp-ui-tool-calls-route.ts` can resolve it.
  *
  * (S4, 2026-09-24) This dialog's confirm/cancel `toolName` used to be the now-deleted

@@ -9,8 +9,8 @@
  * `tool-registrations.ts` (this same module) reuses it verbatim for the agent-tool response — a
  * feature reaching into its host's HTTP layer for its own domain's DTO, the same "domain importing
  * its host's transport module" misplacement `Jini/packages/cms/src/widgets/where-used.ts` was relocated for.
- * `server/http/admin/plugins.ts` re-exports this symbol so its own consumers
- * (`routes/admin/plugins/list.ts`/`set-enabled.ts`) keep their existing import site. The
+ * `apps/website/src/server/inbound/admin-http/http/plugins.ts` re-exports this symbol so its own consumers
+ * (`apps/website/src/server/inbound/admin-http/routes/plugins/list.ts`/`set-enabled.ts`) keep their existing import site. The
  * `providerSettings` flag drives the settings card served by `routes/plugins/provider-settings.ts`.
  * Verified against `server/inbound/admin-http/http/__tests__/unit/plugins-dto.unit.test.ts`.
  */

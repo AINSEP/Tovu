@@ -56,7 +56,7 @@ export interface MagicLinkRateLimiter {
 
 /**
  * The exact slice of the route-deps bag Members' tool handlers read. Declared structurally (rather
- * than importing `server/routes/types`'s `RouteDeps`, or `server/routes/admin/members/deps.ts`'s
+ * than importing `server/routes/types`'s `RouteDeps`, or `apps/website/src/server/inbound/admin-http/routes/members/deps.ts`'s
  * `MembersRouteDeps`, which itself extends `RouteDeps`) so this module carries no back-edge into the
  * composition root. `server/routes/*` satisfies this structurally by passing its existing
  * `MembersRouteDeps` object; nothing there changes.
@@ -88,7 +88,7 @@ export interface MembersToolDeps {
 
 /**
  * Assembles `write-service.ts`'s `MembersWriteServiceDeps` bundle from {@link MembersToolDeps} —
- * a local duplicate of `server/routes/admin/members/deps.ts`'s `toMembersWriteServiceDeps` rather
+ * a local duplicate of `apps/website/src/server/inbound/admin-http/routes/members/deps.ts`'s `toMembersWriteServiceDeps` rather
  * than an import of it, for the identical reason `features/settings/tool-registrations.ts`'s header
  * gives for duplicating `toWriteServiceDeps`: importing from the HTTP admin layer would invert this
  * codebase's ports/adapters direction. It is a field mapping, not logic, so the two copies carry no
@@ -134,7 +134,7 @@ export const membersDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
 
 /**
  * Projects a `MemberRecord` into the model-facing shape used by every Members tool — mirrors
- * `http/admin/members.ts`'s own `toAdminMemberResponse` field set (so a tool sees exactly what the
+ * `apps/website/src/server/inbound/admin-http/http/members.ts`'s own `toAdminMemberResponse` field set (so a tool sees exactly what the
  * admin UI already shows a human) MINUS `workspaceId` (the agent is already scoped to one
  * workspace it cannot change, the same reasoning content-types'/Forms' `to*View` apply) and MINUS
  * `note`/`fields` (the admin response itself already withholds the operator-only note and the raw
@@ -309,7 +309,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
 
 /**
  * Contributes Members' AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildMembersRegistrations`/
  * `membersDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 of the
  * rollout — no sibling domain still statically wired through `assistant` imports `members`, so this

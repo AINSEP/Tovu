@@ -249,7 +249,7 @@ export function buildMediaRegistrationsForTovu(
 
 /**
  * Contributes Media's AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildMediaRegistrations`/
  * `mediaDerivedRisk` by name (only `MediaToolDeps` as an erased `import type`); this is the seam that
  * replaced it — see this file's own header above for why the earlier attempt closed a cycle and why

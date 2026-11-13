@@ -24,11 +24,11 @@ import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from 
  * the reverse `features/settings -> assistant` edge below. Those 3 files now take those 5 functions
  * (plus the `SCOPE_BIT`/`INSTRUCTIONS_NAMESPACE` constants, injected for uniformity with the rest of
  * each file's deps surface) as injected deps fields instead of static imports — the same Option-B-style
- * technique `vendor-credentials/store.ts`'s `extractGitHubLogin`, `dual-read.ts`'s legacy-table
+ * technique `GitHub account lookup`'s `extractGitHubLogin`, `legacy settings dual-read`'s legacy-table
  * imports, and `assistant/site/*`'s `listPublishedPosts` already use elsewhere in this rollout —
  * wired to the real `features/settings` implementations at the composition root
  * (`RouteDeps.getEffective`/`.set`/`.instructionsNamespace` in `server/routes/types.ts`, populated
- * once in both `server/app.ts`/`server/deps.ts`; the boot-time `ensure*` registrars' own
+ * once in both `apps/website/src/server/runtime/composition/app.ts`/`apps/website/src/server/runtime/composition/deps.ts`; the boot-time `ensure*` registrars' own
  * `resolveDefinitionRaw`/`registerDefinitions`/`scopeBit`/`ensureSettingDefinitions` fields populated
  * at each of their 2+2 call sites in the same 2 files). `check:architecture` confirms 0 module cycles
  * / largest SCC 0 with `settings` wired this way.
@@ -136,9 +136,9 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
 
 /**
  * Contributes Settings' AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildSettingsRegistrations`/
- * `settingsDerivedRisk` by name, and `server/tool-catalog-manifest.ts` no longer inlines this
+ * `settingsDerivedRisk` by name, and `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts` no longer inlines this
  * `registerToolContributor` call itself — this is the seam that replaced both, the same shape every
  * other domain in this rollout uses (see this file's header for why `settings` needed the 3 side-door
  * files fixed first rather than converting directly).

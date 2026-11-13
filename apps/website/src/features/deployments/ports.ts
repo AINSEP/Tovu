@@ -7,7 +7,7 @@ import type { DeploymentProviderId, DeploymentRunStatus, DeploymentTargetRecord,
  * (`@jini-ai/agent-plugins/github/deployments/github.mjs`, and later others) implements once.
  *
  * Purpose:
- * Mirrors `features/plugins/lipay/ports.ts`'s `PaymentProvider` discipline, which this codebase
+ * Mirrors `Jini packages/commerce/src/payments/ports.ts`'s `PaymentProvider` discipline, which this codebase
  * already uses for a structurally similar problem (many third-party providers behind one typed,
  * never-throwing port, all outbound HTTP through the ADR-038 guarded seam): no method throws
  * (every failure is a typed `DeploymentError`), credentials are pre-resolved and injected as a flat
@@ -35,7 +35,7 @@ export type DeploymentErrorCode =
   | "PROVIDER_ERROR"
   | "PROVIDER_RESPONSE_INVALID";
 
-/** Mirrors `PaymentError`'s shape (`features/plugins/lipay/ports.ts`) — typed, never thrown, plus
+/** Mirrors `PaymentError`'s shape (`Jini packages/commerce/src/payments/ports.ts`) — typed, never thrown, plus
  * `retryable`. */
 export interface DeploymentError {
   readonly code: DeploymentErrorCode;
@@ -47,7 +47,7 @@ export interface DeploymentError {
 
 export interface DeploymentProviderContext {
   /** Already resolved by core from `DeploymentProviderPort.credentialKeys`, scoped to THIS
-   * provider — same deviation `ProviderContext.credentials` documents in `lipay/ports.ts`: a
+   * provider — same deviation `ProviderContext.credentials` documents in `Jini packages/commerce/src/payments/ports.ts`: a
    * provider cannot read a peer provider's credentials, and "not configured" is checked once,
    * uniformly, before any adapter code runs. */
   readonly credentials: Readonly<Record<string, string>>;

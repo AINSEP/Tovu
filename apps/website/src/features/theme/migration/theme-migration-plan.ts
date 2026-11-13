@@ -246,7 +246,7 @@ function planStaticRootScan(themeDir: string): { moves: MigrationFileMove[]; unr
  * {@link AssetPathRewriteRule} for any moved page's own hardcoded `/theme-assets/<id>/images/...`
  * reference — `tailark-*` ship no `images/` at all, so the rule is absent rather than a no-op empty
  * array). Verified directly against `fuel`'s real files before writing this planner; `basic`'s
- * `preview/` (generated output) and `build-preview.mjs` (its own regeneration script) are
+ * `preview/` (generated output) and `theme preview build script` (its own regeneration script) are
  * DELIBERATELY left unrecognized here — regenerating derived output is a different operation from
  * relocating source, out of scope for this planner (see `migrate-theme.ts`'s own header for that
  * theme's separate handling).

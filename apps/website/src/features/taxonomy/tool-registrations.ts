@@ -439,7 +439,7 @@ export function buildTaxonomyRegistrations(
 
 /**
  * Contributes Taxonomy's AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildTaxonomyRegistrations`/
  * `taxonomyDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 of the
  * rollout — no sibling domain still statically wired through `assistant` imports `taxonomy`, so this

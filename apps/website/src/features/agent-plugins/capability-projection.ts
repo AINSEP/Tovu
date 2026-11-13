@@ -19,7 +19,7 @@ import { assertContainedOnDisk } from "./lifecycle.js";
  * - `streamable-http`/`sse` declare a URL Tovu calls over the network. There is no local execution,
  *   and (per the Agent Plugins grammar) the spec allows no embedded secret Tovu would need to protect —
  *   an `oauth`-mode connection mints its own token through Tovu's own RFC 8414/7591 flow, and a
- *   `none`-mode connection carries no credential at all. Either way, `mcp-federation/trust.ts`'s R2
+ *   `none`-mode connection carries no credential at all. Either way, `Jini packages/mcp/src/federation/trust.ts`'s R2
  *   default-deny allowlist still gates every individual remote TOOL independently at connect time —
  *   auto-admitting the SERVER here grants nothing beyond "this connection may be attempted."
  *

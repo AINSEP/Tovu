@@ -63,7 +63,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  * (`tovu-credential-schemes.json`), loaded once per call at each entry point
  * ({@link verifyCustomCredential}, {@link makeCredentialedRequest}) through
  * `CredentialedRequestDeps.loadAuthSchemes` and passed down to {@link detectSelfDescribingAuthScheme}
- * (`./auth-schemes.ts`). See that file's header for the rule format, the trust gates, and why
+ * (`Jini packages/integrations/src/credentialed-http/auth-schemes.ts` / `apps/website/src/features/agent-plugins/auth-schemes.ts`). See that file's header for the rule format, the trust gates, and why
  * dispatch is try-each-in-turn (recognize by the token's own content) rather than keyed by the
  * credential's saved host. This module's job stays exactly "apply the loaded rules, then the fixed
  * three-way precedence below," never "know which vendors exist."
@@ -203,7 +203,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  *
  *  Deliberately NOT an `EgressPolicy` refusal (2026-09-10 — before this date it was: this class's
  *  own doc used to list "or an `EgressPolicy` refusal" as a third cause). `makeCredentialedRequest`'s
- *  catch block now rethrows `platform/http/errors.ts`'s `EgressRefusedError` UNCHANGED rather than
+ *  catch block now rethrows `Jini packages/platform/src/http/guarded/errors.ts`'s `EgressRefusedError` UNCHANGED rather than
  *  wrapping it here, so its `instanceof` identity survives to `tool-registrations.ts`'s
  *  `isCredentialedRequestShapeRejection` — the property that lets an egress refusal (an off-allowlist
  *  redirect target, an SSRF-denied address) reach the caller as a specific, actionable message
@@ -214,7 +214,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  *
  * Bounds one credentialed call — same order of magnitude as every other "an agent is waiting on
  *  this synchronously" bounded probe in this codebase (`static-publish/verify.ts`'s
- *  `VERIFY_TIMEOUT_MS`, `vendor-credentials/store.ts`'s `ACCOUNT_LABEL_PROBE_TIMEOUT_MS`). The
+ *  `VERIFY_TIMEOUT_MS`, `vendor credential account-label probe`'s `ACCOUNT_LABEL_PROBE_TIMEOUT_MS`). The
  *  composition root's own `EgressPolicy.connectTimeoutMs` is a CEILING on this value, never a
  *  replacement for it — see `platform/http/client.ts`'s `sendWithPolicy`.
  *
@@ -319,7 +319,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  * @complexity O(1) below the length floor; {@link redactSecretSubstrings}'s own O(n * m) above it, plus
  *   {@link redactTruncatedTail}'s own cost when `bodyTruncated`.
  *
- * Every HTTP method this tool will send — mirrors `platform/http/types.ts`'s `HttpRequest.method`
+ * Every HTTP method this tool will send — mirrors `Jini packages/core/src/primitives/http.ts`'s `HttpRequest.method`
  *  union exactly, so a value that passes this check always type-checks as one `httpClient.send()`
  *  itself accepts.
  *
@@ -353,7 +353,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  *  {@link resolveAuthorizationScheme}'s own doc for the precedence order this discriminates.
  *  `"self-describing"`'s `scheme` is a plain `string`, not a closed literal union: it is whatever
  *  scheme word the matching plugin-declared rule names, and that rule set is meant to grow without
- *  this file changing — see `./auth-schemes.ts`'s header.
+ *  this file changing — see `apps/website/src/features/agent-plugins/auth-schemes.ts`'s header.
  *
  * Resolves which of the three shapes {@link buildAuthorizationHeader} sends for one connection, in
  * the exact precedence this module applies: (1) a self-describing scheme when
@@ -379,7 +379,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  *  reused rather than re-derived so the scheme a future 401/403 there could report can never drift
  *  from the scheme this module actually sends.
  *
- *  `schemes` are the plugin-declared self-describing scheme rules (`./auth-schemes.ts`). This
+ *  `schemes` are the plugin-declared self-describing scheme rules (`apps/website/src/features/agent-plugins/auth-schemes.ts`). This
  *  module's own entry points always pass the loaded set; an external caller that omits it (the
  *  git-host callers, whose tokens never embed a scheme word) gets Basic/Bearer only.
  *
@@ -434,7 +434,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  *  source rules instead.
  *
  * The scheme rules one call applies, loaded once at the entry point and passed down.
- *  @complexity One registry read (see `./auth-schemes.ts`).
+ *  @complexity One registry read (see `apps/website/src/features/agent-plugins/auth-schemes.ts`).
  *
  * The non-decrypting half of credential resolution: finds the credential by label and computes its
  * allowed-origin set (`baseUrl` + `additionalHosts`, both plaintext), WITHOUT ever touching the

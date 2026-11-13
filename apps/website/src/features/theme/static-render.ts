@@ -17,7 +17,7 @@ import { themeTokenAliasDeclarations } from "./token-aliases.js";
 /**
  * @file Real (non-spike) request-time rendering for `static`-tier themes.
  *
- * Ports the logic each static theme's own `build-preview.mjs` (an authoring-time stand-in written
+ * Ports the logic each static theme's own `theme preview build script` (an authoring-time stand-in written
  * before this file existed) already proved out over 18+ screenshots this session: token injection,
  * asset-path rewriting, and `data-tovu-slot` resolution. That script still exists per-theme for
  * local preview/iteration; this module is the one real counterpart `render.ts` calls when actually
@@ -1039,7 +1039,7 @@ export function resolveTemplate(
 
 /**
  * Gates whether a `posts`-table record should even be routed into the template render branch
- * (`renderViaTemplate` in `server/routes/site/pages.ts`) — a decision distinct from, and prior to,
+ * (`renderViaTemplate` in `apps/website/src/server/inbound/public-http/routes/site/pages.ts`) — a decision distinct from, and prior to,
  * {@link resolveTemplate}'s own tri-state resolution of WHICH template to use once inside that
  * branch.
  *

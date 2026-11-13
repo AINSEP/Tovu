@@ -5,7 +5,7 @@ import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
  * Releases name existing artifacts for promotion; the provider does not build those artifacts.
  */
 
-/** Open string, not a closed union — see `features/plugins/lipay/ports.ts`'s `PaymentProviderId`
+/** Open string, not a closed union — see `Jini packages/commerce/src/payments/ports.ts`'s `PaymentProviderId`
  * for why (a closed union makes every new provider a core edit). `"github"` is the only value with
  * a real adapter this pass (`@jini-ai/agent-plugins/github/deployments/github.mjs`). */
 export type DeploymentProviderId = DeploymentTargetRecord["providerId"];

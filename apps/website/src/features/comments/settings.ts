@@ -21,15 +21,15 @@ export { CommentsSettingsValidationError };
  * wiring exists — NOT as a comment table"). Namespace is `site.comments` (not a bare `comments`)
  * — the ledger's namespace owner fence requires every `ownerKind: "site"` definition to start
  * with `site.` (see `COMMENTS_NAMESPACE`'s own comment below), mirroring `site.seo`. Mirrors
- * `src/seo/settings.ts`'s exact shape — same idempotent-definitions / getEffective-read /
+ * `apps/website/src/features/seo/settings.ts`'s exact shape — same idempotent-definitions / getEffective-read /
  * validate-then-set-write structure, applied to Comments' 6 scalar fields instead of SEO's 8.
  *
  * Every `CommentsSettings` field is a plain scalar (boolean/number/nullable-number) — none needs
  * the ledger's `{type:"json"}` escape hatch, which Code Review must keep to its one existing
- * `site.seo.robots_rules` use (see `features/settings/types.ts`'s own doc on that variant).
+ * `site.seo.robots_rules` use (see `Jini packages/core/src/settings/types.ts`'s own doc on that variant).
  */
 
-// ADR-028's namespace owner fence (`features/settings/settings.ts`'s `NAMESPACE_FENCE`) requires
+// ADR-028's namespace owner fence (`Jini packages/core/src/settings/settings.ts`'s `NAMESPACE_FENCE`) requires
 // `ownerKind: "site"` definitions to be namespaced under `site.` — mirrors `site.seo`'s identical
 // constraint (`seo/settings.ts`'s own `SEO_NAMESPACE`). A bare `"comments"` namespace fails REQ-02
 // validation at the write chokepoint (caught directly by this file's own test suite, not

@@ -53,7 +53,7 @@ export interface AgentToolDefinition {
   authorization: { permission: string };
   /**
    * JSON Schema for this tool's `input`, published via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
+   * (`Jini packages/core/src/registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
    * tool lacking one). Optional, matching `features/database/agent-tools.ts`'s convention for a
    * domain entry that IS deliberately excluded and so carries no schema at all — every entry in
    * this domain's own catalog is wired, so every entry here declares one.

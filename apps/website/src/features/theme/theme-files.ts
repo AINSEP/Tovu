@@ -88,12 +88,12 @@ export const MAX_WALK_DEPTH = 12;
 
 /**
  * Directories whose contents are GENERATED build output inside a theme-shaped folder — never real
- * source, and never worth copying or listing as editable. `preview/` is `build-preview.mjs`'s output:
+ * source, and never worth copying or listing as editable. `preview/` is `theme preview build script`'s output:
  * a full second copy of a theme's pages and scripts, once per color mode — on `novice` (since deleted)
  * that was 36 of 79 listed files, with `js/main.js`, `preview/dark/js/main.js`, and
  * `preview/light/js/main.js` all showing as "main.js" with nothing to distinguish them, burying the
  * ~30 real source files under three-way duplicates of themselves. Editing one is pointless-to-harmful
- * too: the next `build-preview.mjs` run overwrites it, so the change silently disappears.
+ * too: the next `theme preview build script` run overwrites it, so the change silently disappears.
  *
  * `screenshots/` is deliberately NOT in this list: those are real marketing assets an author may want
  * to look at or replace, not a copy of the theme's own source — excluding them from the Explore list
@@ -970,9 +970,9 @@ export type ThemeOriginalSource = {
  * `null` for.
  *
  * `packageThemesRoot` is deliberately `string | undefined`, not required: only the SQLite composition
- * root (`server/deps.ts`'s `createSiteRouteDeps`) and the CLI install-dir boot know the package's
+ * root (`apps/website/src/server/runtime/composition/deps.ts`'s `createSiteRouteDeps`) and the CLI install-dir boot know the package's
  * own themes root at all (`builtInThemesDir()`) — the hermetic in-memory composition root
- * (`server/app.ts`'s `createRouteDeps`) and every hand-built `RouteDeps`/`ContentRouteDeps`/
+ * (`apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps`) and every hand-built `RouteDeps`/`ContentRouteDeps`/
  * `ThemeToolDeps` test fixture predate this field and have no reason to set it. `undefined` is
  * therefore "no package fallback configured," answered the same as "the package has no original for
  * this theme id" (`null`), never thrown.

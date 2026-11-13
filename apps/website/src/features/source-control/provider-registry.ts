@@ -25,7 +25,7 @@ import type { SourceControlHostFacts, SourceControlProvider, SourceControlProvid
  * name (`SourceControlHostFacts`), so no tool text hard-codes a host; `module` is a plain-JS `.mjs` file inside the plugin whose default export is a
  * `SourceControlProviderModule` (`features/source-control/provider-module.ts`).
  *
- * TRUST RULE (fail closed), the shared gate in `features/agent-plugins/trusted-plugin-files.ts`: a
+ * TRUST RULE (fail closed), the shared gate in `Jini packages/agent-plugins/src/lifecycle/trusted-plugin-files.ts`: a
  * module runs in this process, so it loads only when the plugin is ACTIVE by the fail-closed reader, its installed digest is the one `bundled-digests.json` records (only plugins Tovu shipped),
  * and the module path stays inside the plugin root and ends in `.mjs`. A bad plugin drops only its
  * own providers and a bad module only itself; every drop is reported in `refusals`, never thrown.

@@ -21,7 +21,7 @@ import { Liquid, Hash, type TagToken } from "liquidjs";
  *   - `features/theme/theme.ts`'s `loadTheme()` — lint every `.liquid` file
  *     at discovery time, folding violations into the existing
  *     `errors`/`status: "invalid"` mechanism.
- *   - `server/http/site/liquid-worker.ts` — a second, redundant check
+ *   - `apps/website/src/server/inbound/public-http/http/site/liquid-render.ts` — a second, redundant check
  *     immediately before render, in case a template was hot-edited on disk
  *     after a theme was validated (belt-and-suspenders; loadTheme's result
  *     is not re-verified per request).
@@ -175,7 +175,7 @@ parser.registerTag("render_block", {
  * GC/limit callback gets a chance to intervene. Capping the literal span at
  * lint time closes the one instance of this class reachable through purely
  * allowlisted syntax; no shipped theme needs a bare numeric range this
- * large (`themes/dispatch` loops over real arrays, e.g. `for post in
+ * large (`dispatch theme` loops over real arrays, e.g. `for post in
  * posts`, never a synthetic range).
  */
 const MAX_FOR_RANGE_SPAN = 1_000_000;

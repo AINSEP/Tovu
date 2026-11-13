@@ -52,7 +52,7 @@ const CONTENT_TYPES_MODEL_FACING_RULES: readonly ModelFacingErrorRule[] = [forbi
 
 /**
  * Contributes Content-types' AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildContentTypesRegistrations`/
  * `contentTypesDerivedRisk` by name; this is the seam that replaced it.
  *

@@ -353,7 +353,7 @@ const EXECUTE_STATIC_PUBLISH_TOOL_ID = "deployment_execute_static_publish";
 
 /** The `ui://` URI for one publish-confirmation instance. Keyed by the exchange id (unique per raised
  *  dialog) rather than by an entity+version the way `deleteConfirmationUri`
- *  (`features/post/delete-confirmation-ui.ts`) keys its own — a publish has no existing row/version to
+ *  (`post deletion confirmation`) keys its own — a publish has no existing row/version to
  *  key against, so the exchange id is what keeps two dialogs raised for the same target from
  *  colliding on one URI. */
 function publishConfirmationUri(exchangeId: string): UIResourceUri {
@@ -363,7 +363,7 @@ function publishConfirmationUri(exchangeId: string): UIResourceUri {
 /**
  * Renders the RESULT of a confirmed publish — what a human sees replacing the confirmation dialog
  * they just answered, once `askThenReport`'s `handle` callback has actually run `publishStaticSite`
- * (or refused to, e.g. `already-running`). See `assistant/surface-exchanges.ts`'s `askThenReport` doc
+ * (or refused to, e.g. `already-running`). See `Jini packages/daemon/src/surface-exchanges.ts`'s `askThenReport` doc
  * for the mechanism this depends on: sent under the SAME `uri` the confirmation used
  * (`publishConfirmationUri(exchangeId)`, deliberately reused rather than a fresh one), which is what
  * makes `McpUiSurfaceCard` (`@jini-ai/chat`) replace the dialog in place instead of opening a second

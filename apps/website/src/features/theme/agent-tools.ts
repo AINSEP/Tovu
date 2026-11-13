@@ -101,7 +101,7 @@ export interface AgentToolDefinition {
   authorization: { permission: string };
   /**
    * JSON Schema for this tool's `input`, published via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
+   * (`Jini packages/core/src/registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
    * tool lacking one). Optional to match the shared structural type; every entry in THIS catalog
    * carries one, because every entry in this catalog is wired.
    */
@@ -111,7 +111,7 @@ export interface AgentToolDefinition {
 /**
  * The permission gating reads in this domain. Reused rather than invented: `theme.set` is what
  * already gates the presentation/theme surface a human operator reaches
- * (`patch-active-theme.ts`, `admin/themes/list.ts`), so anyone who can already see and switch the
+ * (`patch-active-theme.ts`, `apps/website/src/server/inbound/admin-http/routes/themes/list.ts`), so anyone who can already see and switch the
  * workspace's themes can read their files.
  */
 export const THEME_READ_PERMISSION = "theme.set";

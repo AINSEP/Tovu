@@ -17,7 +17,7 @@ import { type LoadPluginContributions, loadPluginContributionsFromSource, type P
  * and a credential saved with a proxied base URL still carries the same self-describing token.
  * Dispatch is try-each-in-turn, first match wins, so rules should keep their prefixes disjoint.
  *
- * TRUST GATES (`features/agent-plugins/trusted-plugin-files.ts`). The bundled-digest gate applies:
+ * TRUST GATES (`Jini packages/agent-plugins/src/lifecycle/trusted-plugin-files.ts`). The bundled-digest gate applies:
  * only a plugin package this build shipped may add a rule, since a rule decides how a saved secret is
  * sent. The activation gate deliberately does NOT apply: a rule is inert data (no code runs), and a
  * saved credential that already works must keep working unchanged when an operator switches the

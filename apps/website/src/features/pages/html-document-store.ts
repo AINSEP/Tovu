@@ -40,7 +40,7 @@ import type { PostKind, PostRepoPort, PostStatus } from "../post/contracts.js";
  * one, are two separate callers layered over the same row. `write()` is conditioned on the `version`
  * captured by the MATCHING `read()` (compare-and-set), never an unconditional overwrite — a stale
  * writer is rejected with {@link PageConcurrentEditError}, not silently applied on top of content it
- * never saw. See `pages-html-document-store.test.ts`'s interleaving test for the failure mode this
+ * never saw. See `apps/website/src/features/pages/__tests__/html-document-store.sqlite.test.ts`'s interleaving test for the failure mode this
  * prevents (a naive read-splice-write not only loses the first writer's edit, it can splice the
  * second writer's content into the WRONG byte offset if the first edit changed the document's length
  * anywhere before the second writer's target region).
@@ -101,9 +101,9 @@ export interface PagesHtmlDocumentStoreDeps {
    * already is for TipTap `widgetEmbed` nodes.
    *
    * Optional, not required, so every pre-existing construction site (this class's own certified
-   * `html-document-store.test.ts`, and any other caller built before this dependency existed) keeps
+   * `apps/website/src/features/pages/__tests__/html-document-store.sqlite.test.ts`, and any other caller built before this dependency existed) keeps
    * compiling and behaving unchanged — omitting it simply means this store never touches
-   * `entry_refs`, not a broken build. Real composition roots (`server/deps.ts`/`server/app.ts`)
+   * `entry_refs`, not a broken build. Real composition roots (`apps/website/src/server/runtime/composition/deps.ts`/`apps/website/src/server/runtime/composition/app.ts`)
    * supply the real/in-memory `entryRefsRepo` they already construct for widgets.
    *
    * Disclosed gap: this write and the `entry_refs` replace are two separate statements, not one
@@ -124,7 +124,7 @@ export interface PagesHtmlDocumentStoreDeps {
    *
    * Optional, not required, for the identical reason {@link entryRefsRepo} is: every pre-existing
    * construction site keeps compiling and behaving unchanged when this is omitted — the ledger
-   * append simply does not happen, not a broken build. Real composition roots (`server/deps.ts`)
+   * append simply does not happen, not a broken build. Real composition roots (`apps/website/src/server/runtime/composition/deps.ts`)
    * supply the same `postRepo` they already construct.
    *
    * A `Pick`, not the whole port: this store must never gain the ability to `save`/`softDelete`/etc.

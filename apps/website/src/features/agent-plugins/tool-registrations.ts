@@ -118,7 +118,7 @@ export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearch
 
 /**
  * Contributes `search_agent_plugin_local` to the assistant's STATIC tool catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, the ordinary seam every
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, the ordinary seam every
  * other domain's `contribute<Domain>Tools()` uses.
  */
 export function contributeAgentPluginSearchTools(): ToolContributor<AgentPluginSearchToolDeps, unknown> {
@@ -166,7 +166,7 @@ export const agentPluginConnectDomainCatalog = [...agentPluginConnectAgentToolCa
 const agentPluginConnectDomainRisk: DerivedRiskByToolId = new Map([...agentPluginConnectDerivedRisk, ...pluginNoteRisk]);
 
 /** Contributes plugin sign-in and notes to the assistant's static
- *  tool catalog — called once by `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`. */
+ *  tool catalog — called once by `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`. */
 export function contributeAgentPluginConnectTools(): ToolContributor<AgentPluginAccessTokenToolDeps & OperatorLocaleDeps, AssistantSurfaceDeps> {
   return { domain: "agent-plugin-connect", build: buildAgentPluginConnectRegistrations, risk: agentPluginConnectDomainRisk };
 }

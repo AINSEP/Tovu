@@ -139,7 +139,7 @@ export function isImportShapeRejection({ error }: { error: unknown }): boolean {
  * `.message` names the address the hostname resolved to. A model that can name any host and read
  * back its resolved address can map internal DNS one import at a time (`internal-db.corp` ->
  * `10.0.4.7`). That full message is logged server-side instead; it carries a hostname, an address,
- * and a class, never request content (`platform/http/errors.ts` documents it as the log-facing half).
+ * and a class, never request content (`Jini packages/platform/src/http/guarded/errors.ts` documents it as the log-facing half).
  *
  * Exported for `theme_import_file_from_url` (`features/theme/import-theme-file-tool.ts`), which
  * fetches through the same client and needs the identical narrowing; `toolId` names it in the log.

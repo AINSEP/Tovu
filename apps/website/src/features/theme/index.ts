@@ -127,12 +127,12 @@ export {
 } from "./active-theme.js";
 export { RENAMED_THEME_IDS, themeIdCandidates } from "./theme-id-aliases.js";
 
-// ADR-020 §3 (C6) Tier-2 guardrail: re-exported so `server/http/site/liquid-worker.ts`
+// ADR-020 §3 (C6) Tier-2 guardrail: re-exported so `apps/website/src/server/inbound/public-http/http/site/liquid-render.ts`
 // can run the same lint defensively at render time that `loadTheme()` runs at publish time.
 export { lintLiquidTemplate, ALLOWED_LIQUID_TAGS, ALLOWED_LIQUID_FILTERS } from "./liquid-allowlist.js";
 
 // Same ADR-020 §3 (C6) pairing for the Handlebars tier: re-exported so
-// `server/http/site/handlebars-worker.ts` can run the same lint defensively at render time that
+// `apps/website/src/server/inbound/public-http/http/site/handlebars-render.ts` can run the same lint defensively at render time that
 // `loadTheme()` runs at publish time.
 export {
   lintHandlebarsTemplate,
@@ -142,7 +142,7 @@ export {
   ALLOWED_HANDLEBARS_DATA_VARS,
 } from "./handlebars-allowlist.js";
 
-// The Explore screen's file read/write surface (`server/routes/admin/themes/explore.ts`) —
+// The Explore screen's file read/write surface (`apps/website/src/server/inbound/admin-http/routes/themes/explore.ts`) —
 // genuinely public, backing an admin route, no single-caller boot-sequence caveat like site-dir's.
 export {
   copyThemeFile,
@@ -166,7 +166,7 @@ export {
 } from "./theme-files.js";
 
 // 2026-08-19 architecture audit findings 1 & 2 — the one apiVersion-aware theme-layout resolver,
-// shared by `server/routes/admin/themes/explore.ts` and (via the `@tovu/theme-layout` alias,
+// shared by `apps/website/src/server/inbound/admin-http/routes/themes/explore.ts` and (via the `@tovu/theme-layout` alias,
 // `apps/admin/vite.config.ts`) the admin SPA. See `theme-layout.ts`'s own file header.
 export { resolveThemeLayout, isPageFilePath, isPartialFilePath, type ThemeLayout } from "./theme-layout.js";
 

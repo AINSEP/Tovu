@@ -1,14 +1,14 @@
 /**
  * @file SPEC-005 (ADR-005-ARCH) — the Plugins domain's agent-tool catalog, instantiating SPEC-016
  * REQ-22's naming/callability convention (the same shape `forms/agent-tools.ts`,
- * `identity/agent-tools.ts`, `features/content-types/agent-tools.ts`, `features/database/
+ * `Jini packages/user-management/src/server/agent-tools.ts`, `Jini packages/cms/src/content-types/agent-tools.ts`, `features/database/
  * agent-tools.ts`, and `features/recovery/agent-tools.ts` already use).
  *
  * Purpose:
  * A static, in-process catalog describing every agent-callable tool this domain exposes and the
  * permission each one carries. Every entry maps 1:1 onto a real, already-shipped admin surface:
- * `content_read.plugin` mirrors `routes/admin/plugins/list.ts` (`PLUGINS_LIST`) and `plugins_set_enabled`
- * mirrors `routes/admin/plugins/set-enabled.ts` (`PLUGIN_SET_ENABLED`) exactly — same permissions,
+ * `content_read.plugin` mirrors `apps/website/src/server/inbound/admin-http/routes/plugins/list.ts` (`PLUGINS_LIST`) and `plugins_set_enabled`
+ * mirrors `apps/website/src/server/inbound/admin-http/routes/plugins/set-enabled.ts` (`PLUGIN_SET_ENABLED`) exactly — same permissions,
  * same underlying `Jini/packages/plugins/src/host/activation.ts` functions.
  *
  * Deliberate absences (the point of a catalog, not an oversight):
@@ -40,7 +40,7 @@
  *   human-confirmation transport this tool could reuse without inventing one" — already false when
  *   written (ADR-055 Decision 2's held-open exchange had been serving `content_post_delete` since
  *   2026-08-04), and now visibly so: `plugins_set_enabled` below reuses exactly that transport for
- *   its own enable path (`set-enabled-confirmation-ui.ts`). Whether `plugins_uninstall` should too is
+ *   its own enable path (`apps/website/src/features/plugin-runtime/enable-confirmation-ui.ts`). Whether `plugins_uninstall` should too is
  *   a live question this file no longer answers with a false premise; it was simply not part of the
  *   pass that gated enabling.
  *   RESOLVED 2026-09-16: `plugins_uninstall` now DOES raise a confirmation dialog and parks on the
@@ -73,7 +73,7 @@
  *   different blast radii. (Uninstall WAS folded in per-family, above — its two families share one
  *   blast radius class, "deletes bytes", even though only one of them has a Trash behind it.)
  * - Enabling, in either family, raises a real human confirmation and PARKS on the answer
- *   (`set-enabled-confirmation-ui.ts`, ADR-055 Decision 2's held-open exchange). Disabling does not.
+ *   (`apps/website/src/features/plugin-runtime/enable-confirmation-ui.ts`, ADR-055 Decision 2's held-open exchange). Disabling does not.
  *   See that file's header for why the asymmetry is the point rather than an omission.
  * - `plugins_set_enabled` is included, but is NOT the low-risk "flip a flag" operation its own name
  *   suggests: enabling a plugin whose manifest declares a `dataModule` invokes ADR-023's
@@ -117,7 +117,7 @@ export interface AgentToolDefinition {
    * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
    * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Required, not
    * optional — both entries in this catalog are wired, so there is no unwired entry whose input
-   * shape is undesigned (mirrors `identity/agent-tools.ts`'s reasoning for the same choice).
+   * shape is undesigned (mirrors `Jini packages/user-management/src/server/agent-tools.ts`'s reasoning for the same choice).
    */
   inputSchema: Readonly<Record<string, unknown>>;
 }
@@ -197,7 +197,7 @@ const UNINSTALL_SCHEMA = {
  * The Plugins domain's fixed agent-tool catalog — the three operations `routes/admin/plugins/`
  * exposes (list, set-enabled, uninstall — see this file's header for install/upload's absence).
  *
- * Ordered read-tool-first, matching the house convention (`identity/agent-tools.ts`'s own
+ * Ordered read-tool-first, matching the house convention (`Jini packages/user-management/src/server/agent-tools.ts`'s own
  * rationale): a model cannot enable/disable/uninstall a plugin it does not know the id of, and
  * `content_read.plugin` is the only way to learn one.
  */
@@ -277,7 +277,7 @@ export const pluginAgentToolCatalog: AgentToolDefinition[] = [
  * ---------------------------------------------------------------------------
  * The mechanism is the held-open exchange, not a token
  * ---------------------------------------------------------------------------
- * Same shape as `features/post/delete-confirmation-ui.ts` (ADR-055 Decision 2), for the same
+ * Same shape as `apps/website/src/contracts/core/human-confirm.ts` (ADR-055 Decision 2), for the same
  * reasons — see that file's header for the full chain. The model's one call PARKS; the only way to
  * resolve it is a browser POST to `mcp-ui-tool-calls-route.ts`, a channel the model cannot reach.
  * The `exchangeId` interpolated below is a correlation handle, not a secret, and still belongs in

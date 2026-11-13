@@ -27,7 +27,7 @@ import {
  * aggregation, the frontend would need a second implementation — and this codebase has ALREADY
  * produced exactly that divergence once, in settings (`settings_get_effective` is implemented
  * independently in `@jini-ai/core/settings`'s tool registrations and in
- * `server/routes/admin/settings/get-effective.ts`, and the two drifted on principal handling).
+ * `apps/website/src/server/inbound/admin-http/routes/settings/get-effective.ts`, and the two drifted on principal handling).
  *
  * ---------------------------------------------------------------------------
  * Two properties this module is built to hold. Both are STRUCTURAL, not conventions.
@@ -50,7 +50,7 @@ import {
  * **2. Secrets are unrepresentable, not redacted.**
  * {@link SiteProfileDeps} names only read ports for pages, themes, presentation, settings,
  * content-types and plugin activation. It cannot reach `external-mcp-store.ts` (`sealedEnv`),
- * `connectors/connector-credential-store.ts` (`sealed`), `byok-credential.ts`,
+ * `apps/website/src/features/api-connections/vault-stores.ts` (`sealed`), `byok-credential.ts`,
  * `site-credential-store.ts`, `execution-credential-store.ts`, or `vendor-credentials` — those
  * modules are not imported here and there is no dep field that could carry one. Leaking a secret
  * from this file therefore requires ADDING A DEPENDENCY, which is a compile-time event a reviewer
@@ -58,14 +58,14 @@ import {
  * Every DTO below is likewise built by NAMING FIELDS — never by spreading a domain record — so a
  * new field appearing on `PostRecord`/`ThemeManifest`/`PluginDiscoveryRecord` upstream cannot
  * silently appear in this response. This mirrors
- * `server/routes/admin/system/deployment-overview.ts`'s `{ name, set }` precedent: report presence,
+ * `apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts`'s `{ name, set }` precedent: report presence,
  * never a value.
  *
  * ---------------------------------------------------------------------------
  * Deliberate non-features
  * ---------------------------------------------------------------------------
  * - **No cache.** The agent daemon is a separate OS process with its own SQLite handle over the
- *   same WAL file (`server/agent-daemon/agent-daemon-server.ts`), so a process-local memo would
+ *   same WAL file (`apps/website/src/server/inbound/assistant/agent-daemon-server.ts`), so a process-local memo would
  *   produce two caches that disagree — and the agent path is where staleness is most dangerous (an
  *   agent edits a page, re-reads a cached profile predating its own write, and concludes the edit
  *   failed). Under `TOVU_DB=memory` the two processes do not even share a database. The fan-out is
@@ -90,9 +90,9 @@ export type SiteProfileSectionName = (typeof SITE_PROFILE_SECTION_NAMES)[number]
  * - `pages` -> `content.read` (`features/pages/agent-tools.ts`)
  * - `theme` -> `theme.set` (`features/theme/agent-tools.ts`'s `THEME_READ_PERMISSION`)
  * - `plugins` -> `admin.plugins.read` (`features/plugin-runtime/agent-tools.ts`,
- *   `server/routes/admin/plugins/list.ts`)
+ *   `apps/website/src/server/inbound/admin-http/routes/plugins/list.ts`)
  * - `settings` -> `settings.read` (`@jini-ai/core/settings`'s `settings_get_effective`)
- * - `contentTypes` -> `admin.collections.read` (`server/routes/admin/content-types/list.ts`)
+ * - `contentTypes` -> `admin.collections.read` (`apps/website/src/server/inbound/admin-http/routes/content-types/list.ts`)
  *
  * A NEW aggregate permission was deliberately NOT minted: a caller who may not read settings must
  * not become able to read them by asking a different door, and a fresh `site.profile.read` grant
@@ -280,7 +280,7 @@ export type SiteProfileAuthorizeFn = InspectionAuthorizeFn;
 
 /**
  * Every dependency `buildSiteProfile` has. Each field is a narrow read port bound by an ADAPTER
- * (`site-profile-deps.ts`) from the composition root's deps bag — deliberately NOT the deps bag
+ * (`apps/website/src/features/site-inspection/deps.ts`) from the composition root's deps bag — deliberately NOT the deps bag
  * itself, so this signature enumerates exactly what the profile can reach and a reader can check
  * the secret-safety claim by reading this one interface.
  */

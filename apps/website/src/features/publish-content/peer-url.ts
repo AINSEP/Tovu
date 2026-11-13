@@ -47,7 +47,7 @@ export interface PeerBaseUrlAccepted {
 }
 
 /**
- * Lower-cases and strips a single trailing dot, matching `features/origin/origin.ts`'s own host
+ * Lower-cases and strips a single trailing dot, matching `Jini packages/http-kit/src/verified-origin/origin.ts`'s own host
  * normalization so "same host" can never mean two different things across this codebase.
  * @complexity O(n) in the host length.
  */

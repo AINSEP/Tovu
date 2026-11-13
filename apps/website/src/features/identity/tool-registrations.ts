@@ -258,7 +258,7 @@ export function buildGatedIdentityRegistrations(
 
 /**
  * Contributes Identity's AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildIdentityRegistrations`/
  * `identityDerivedRisk` by name; this is the seam that replaced it.
  */

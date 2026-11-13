@@ -246,7 +246,7 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
 
 /**
  * Contributes the Sites domain's AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. Same seam every other converted domain uses; this module never imports `server/` (see
  * `deps.ts`'s own header for the one field that would have required it, and how that is avoided).
  */

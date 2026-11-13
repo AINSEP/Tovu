@@ -182,7 +182,7 @@ export const siteInspectionAgentToolCatalog: readonly AgentToolDefinition[] = [
       "Throws PublishedPagePathError when the path is refused (fix the path and retry) and PublishedPageTimeoutError when the render exceeds its time budget (a real fault; do not retry the same path repeatedly).",
     ].join(" "),
     // The handler issues one ordinary GET against this site's own public surface — the same thing
-    // the static exporter (`export/site-exporter.ts`) does for every route, and the same thing any
+    // the static exporter (`apps/website/src/features/site-export/site-exporter.ts`) does for every route, and the same thing any
     // visitor does. It writes nothing itself. One disclosed caveat rather than a silent one: a path
     // that matches a live redirect rule records a redirect HIT through the ordinary redirect
     // middleware, exactly as a real visit to that path would. That is an analytics counter moving,

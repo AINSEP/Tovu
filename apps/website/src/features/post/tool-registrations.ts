@@ -1070,7 +1070,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         // sitemap-cache invalidation subscriber sees it without waiting for the serving process's
         // background drainer. On the BYOK path (serving process) this delivers at once; in the agent
         // daemon the outbox is enqueue-only, so this claims nothing and that drainer delivers instead
-        // (`server/runtime/composition/agent-daemon-deps.ts`).
+        // (`agent daemon outbox`).
         await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
         return { post: toPostWriteResultView(routeDeps, result.post), ...headerNavigationView({ kind }) };
@@ -1215,7 +1215,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         // updatePost's entry.published/entry.updated/entry.unpublished event (if any) to SEO's
         // sitemap-cache invalidation subscriber at once. In the agent daemon the outbox is
         // enqueue-only, so this claims nothing and the serving process's background drainer
-        // delivers instead (`server/runtime/composition/agent-daemon-deps.ts`).
+        // delivers instead (`agent daemon outbox`).
         await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
         return { post: toPostWriteResultView(routeDeps, result.post) };

@@ -69,7 +69,7 @@ import type { ManifestRoute, ManifestSkip, RouteManifest } from "./ports.js";
  * `resolveStorefrontProducts` is now NULLARY (`() => Promise<RouteManifestProduct[]>`), not
  * `(routeDeps: RouteDeps) => ...` — the matching 2026-08-20 field-contract change on `RouteDeps`
  * itself (see that field's own doc in `server/routes/types.ts`) that is what lets this file drop
- * `RouteDeps` entirely: the real implementation (`server/routes/site/products.ts`) is now bound to
+ * `RouteDeps` entirely: the real implementation (`apps/website/src/server/inbound/public-http/routes/site/products.ts`) is now bound to
  * its own `routeDeps` ONCE, at composition-root construction time, the same way
  * `RouteDeps.exportSiteBound` already binds `exportSite` itself. See {@link RouteManifestProduct}'s
  * own doc for why its return type is a local minimal shape rather than an import of the real
@@ -96,7 +96,7 @@ export interface RouteManifestDeps {
 
 /**
  * The exact 2 fields {@link buildRouteManifest} reads off each resolved storefront product — a
- * minimal structural slice of the real `SiteProduct` (`server/http/site/render.ts`), not an import
+ * minimal structural slice of the real `SiteProduct` (`apps/website/src/server/inbound/public-http/http/site/render-context.ts`), not an import
  * of it: importing `SiteProduct` here would relocate this file's `RouteDeps` back-edge rather than
  * remove it (`SiteProduct` itself lives under `src/server/**`, same as `RouteDeps`). Return-type
  * covariance means the real `resolveStorefrontProducts` (which returns full `SiteProduct[]`, a
@@ -286,7 +286,7 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
   const skipped: ManifestSkip[] = [
     // Also convention-addressed and also invisible to a crawl — but unlike robots.txt/sitemap.xml,
     // Tovu registers no `/favicon.ico` or web-app-manifest route at all today (grep-confirmed
-    // against `server/app.ts`/`server/routes/site/*`), so there is nothing here to enumerate, not a
+    // against `apps/website/src/server/runtime/composition/app.ts`/`server/routes/site/*`), so there is nothing here to enumerate, not a
     // route this manifest failed to find. Recorded so the export report names the gap rather than
     // looking complete — the fix, if wanted, is a product-level route, not an exporter change.
     {

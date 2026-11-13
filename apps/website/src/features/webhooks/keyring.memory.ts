@@ -10,7 +10,7 @@ import type { KeyringPort } from "./ports.js";
  * @file An in-memory `KeyringPort` test/dev double (ADR-PIPE-015 Phase 1 T017).
  *
  * Purpose:
- * Backs the hermetic `RouteDeps` composition (`server/app.ts`'s `createRouteDeps()`, used by
+ * Backs the hermetic `RouteDeps` composition (`apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`, used by
  * every route test) with the REAL `createKeyringBackedSigner`/HKDF derivation code path, without
  * touching the filesystem or an env var the way `EnvOrFileKeyring` does. A random site key is
  * generated once per instance and held only in memory.

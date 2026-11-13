@@ -24,7 +24,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * Authorization shape: nothing in `theme.ts`/`theme-files.ts` accepts an `authorize` dependency —
  * they are pure discovery/filesystem functions with no notion of a principal, exactly like
  * `redirects.ts`'s write chokepoint. The admin routes over this surface
- * (`server/routes/admin/presentation/patch-active-theme.ts`, `server/routes/admin/themes/list.ts`)
+ * (`apps/website/src/server/inbound/admin-http/routes/presentation/patch-active-theme.ts`, `apps/website/src/server/inbound/admin-http/routes/themes/list.ts`)
  * therefore call `authorize()` inline as their own first line, and every handler below does the same
  * via the kit's `requireToolPermission` — ADR-021 §2's single evaluator, located at the handler
  * rather than inside the domain function.

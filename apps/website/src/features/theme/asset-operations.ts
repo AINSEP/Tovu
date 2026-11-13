@@ -21,7 +21,7 @@ export {
 /**
  * The exact slice of the route-deps bag Themes' tool handlers read. Declared structurally (rather
  * than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge into the
- * composition root — the same reason `core/tools/registration-kit.ts`'s `requireToolPermission`
+ * composition root — the same reason `Jini packages/core/src/tool-permissions.ts`'s `requireToolPermission`
  * takes a bare `{ authorize, workspaceId }` shape instead of the whole deps bag. `server/routes/*`
  * satisfies this structurally by passing its existing `RouteDeps` object; nothing there changes.
  */

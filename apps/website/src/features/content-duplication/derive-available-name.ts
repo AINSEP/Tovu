@@ -17,7 +17,7 @@
  *
  * ## `deriveAvailableName` — the collision-search loop
  *
- * Generalizes `features/forms/duplicate-slug.ts`'s `deriveAvailableFormSlug` loop (bounded suffix
+ * Generalizes `Jini packages/cms/src/forms/duplicate-slug.ts`'s `deriveAvailableFormSlug` loop (bounded suffix
  * search, an injected `isTaken`, a BASE that shrinks to make room for the suffix rather than the
  * suffix itself) so the one loop is shared rather than reinvented for names: `deriveAvailableFormSlug`
  * now delegates here for its own hyphenated, length-capped slug search (see that file), and every
