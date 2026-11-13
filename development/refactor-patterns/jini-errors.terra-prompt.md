@@ -1,7 +1,7 @@
 # Terra prompt: Jini errors, raw log paths onto the safe shared pieces
 
-STATUS: NOT READY (rev 4, 2026-11-13). Waiting for: the coordinator's re-review, the `jini-errors.md` rev 4
-update, and the cloud-gate red/green records (P3). Self-contained. **Part A** = Jini monorepo (sections 0-6).
+STATUS: READY (rev 4, 2026-11-13): every row's file:line was re-read on `design-d5` 9a2bcb954. Execution still
+waits for precondition P3 (cloud-gate red/green records); without them, STOP at section 0. Self-contained. **Part A** = Jini monorepo (sections 0-6).
 **Part B** = Tovu (section 7), run only after Part A is reviewed, Jini is released and Tovu's `@jini-ai/*`
 versions are bumped. Paths and lines were read on Jini branch `design-d5` (head 9a2bcb954) and Tovu at
 9286dc3f5; if a line moved, find the quoted text in the same file. Neither repo needs `AI-Dev-Shop/`; that is
@@ -60,8 +60,11 @@ only; a host logger is the host's channel and policy). Why: a caught error's tex
 credential no redaction pattern knows; three reviews found such rows each time detail was printed by default.
 
 ## 3. Variants
-- **LOG-TEXT** (console or a one-string port): replace ONLY the error expression with
-  `describeErrorForLog({ err: x })`; keep the fixed text, labels and IDs. In a template string the words around
+- **LOG-TEXT** (console or a one-string port): replace the WHOLE expression that formats the caught value
+  (`redactSecrets({ input: inspect(x) }, ...)`, `formatErrorForLog({ error: x })`,
+  `x instanceof Error ? x.message : String(x)`, `redactSecrets({ input: x.message }, ...)`) with
+  `describeErrorForLog({ err: x })`, where `x` is the value it formatted (e.g. `scheduledRunFailureDetail(error)`
+  at `scheduler.ts:185`); keep the fixed text, labels and IDs. In a template string the words around
   it stay (`'...: ${describeErrorForLog({ err })} — skipped'`). Remove `inspect`/`redactSecrets`/`formatErrorForLog`
   imports only when nothing else in the file uses them.
 - **LOG-PORT** (a core `Logger`: `logger.warn({ message }, { meta, error })`): the message keeps only its fixed
@@ -125,12 +128,15 @@ Pinned tests to update with them (at least): daemon `src/__tests__/run-lifecycle
   `` `${WEBHOOK_DELIVERY_FAILED_LINE}: ${describeErrorForLog({ err: error })}` `` (drop the URL/word scan, the cap and
   the raw code; delete constants nothing else uses). The `:130` caller is unchanged. Update `worker.test.ts:109-113`.
 - `db/src/pglite/socket-server.ts:393`: `` `socket server error: ${describeErrorForLog({ err: error })}` ``.
-- `agent-plugins/src/admin-surfaces/connections/connections.ts:30-33` `codeOf`: return the approved code or
-  `"unknown"` (`typeof code === "string" && LOGGABLE_ERROR_CODES.has(code) ? code : "unknown"`). Callers `:38`, `:112`
-  unchanged. Test: a code of `SECRETSECRETSECRETSECRET` gives `unknown` in the `:112` warn and in the stored attempt.
-- `diagnostics/src/observability/otel.ts:16-22` `errorType`/`fallbackErrorLabel`: `errorType` returns the head label
-  of `describeErrorForLog({ err: error })` (the text before the first space, e.g. `Error(ECONNREFUSED)`), capped as
-  today; delete `fallbackErrorLabel` and the inline code regex; update the doc comment.
+- `agent-plugins/src/admin-surfaces/connections/connections.ts:112`: the warn's tail `${codeOf(error)}` becomes
+  `${describeErrorForLog({ err: error })}`. `codeOf` and `failedAttempt` (`:30-39`) do NOT change: the stored attempt
+  is the admin status answer (own lowercase codes, else `sign-in-failed`), not a log. Test: an error with code
+  `SECRETSECRETSECRETSECRET` -> the warn has no `SECRETSECRET`; the stored attempt code stays `sign-in-failed`.
+- `diagnostics/src/observability/otel.ts:15-22` `errorType`/`fallbackErrorLabel`: `errorType` returns
+  `describeErrorForLog({ err: error }).split(" cause=")[0]` (e.g. `TypeError(ECONNRESET)`), redacted and capped as
+  today; delete `fallbackErrorLabel` and the inline code regex; update the doc comment. Update the pinned tests in
+  `src/__tests__/observability-operations.test.ts`: `:164` label -> `"TypeError"` (the unapproved code is dropped),
+  `:177` -> `"TypeError(ECONNRESET)"`, `:181` -> `"Error"` (a custom `name` is never read); `:178`, `:182` unchanged.
 - `diagnostics/src/observability/delivery.ts:36` `describeTelemetryFailure`: read `name`, `statusCode`, `status`,
   `code` ONCE each into locals inside the existing `try`, then decide from the locals. Test: a `name` getter that
   returns an allowed class first and `SECRETSECRETSECRETSECRET` after gives the allowed class and is read once.
@@ -166,22 +172,22 @@ Each pack has its own default sink (full text) and most answer `"an internal err
   `logSource` (additive).
 - DELETE the local default sink and the local `randomUUID()` + sink call; keep a local wrapper only when it picks the
   message. `logSource` = the label the old default line printed. `message` = the row's words, never
-  `"an internal error occurred"`.
+  `"an internal error occurred"`. In the table's code, `logSource` and `message` stand for that row's values.
 
 | File | Sources -> message (all end with " Try again; if it keeps failing, copy the request ID and report this problem." unless written out) | logSource |
 |---|---|---|
 | `daemon/src/http/runs.ts:43,88` | keep its two existing messages | `source` |
 | `daemon/src/http/attachments.ts:1422,1430` | `attachment-upload` "The file could not be attached."; `attachment-cleanup` "The attachment could not be removed." | `source` |
-| `daemon/src/http/attachment-lookup-routes.ts:64` | add `onInternalError?: RouteInternalErrorSink` to the optional deps; unexpected failure (not `AttachmentRejectedError`): `attachment-lookup` "The attachment could not be looked up." | `attachment-lookup` |
+| `daemon/src/http/attachment-lookup-routes.ts:64` | add `onInternalError?: RouteInternalErrorSink` to the optional deps; `sendLookupFailure(res, error)` becomes `sendLookupFailure({ res, error }, { onInternalError } = {})`; unexpected failure (not `AttachmentRejectedError`): report `{ source: 'attachment-lookup', error }`, "The attachment could not be looked up." | `attachment-lookup` |
 | `daemon/src/http/media.ts:170,175` | `media-generate-dispatch` "The media could not be generated."; `media-task-store` "The media task could not be read or saved. Reload to check the task; if it keeps failing, copy the request ID and report this problem." | `source` |
 | `daemon/src/http/terminals.ts:58,92` | `terminal-create` "The terminal could not be opened." | `source` |
 | `daemon/src/http/db-ops.ts:197,239` | `db-inspect` "The database could not be inspected."; `db-verify` "The database check could not finish."; `db-vacuum` "The database could not be compacted." | `source` |
-| `daemon/src/http/connectors.ts:139,164` | `auth`/`storage`/`db`/`realtime` -> "The sign-in / file storage / database / realtime provider could not finish this request." | `` `connectors/${source}.${operation}` `` |
+| `daemon/src/http/connectors.ts:139,164` | report `{ source, operation, error }`; by `source`: `auth` "The sign-in provider could not finish this request."; `storage` "The file storage provider could not finish this request."; `db` "The database provider could not finish this request."; `realtime` "The realtime provider could not finish this request." | `` `connectors/${source}.${operation}` `` |
 | `daemon/src/http/remote-run-events.ts:59,235` | `tool-use` "The tool call could not be recorded for this run. Check the run status; copy the request ID and report this problem."; `tool-result` same with "tool result" | `` `remote-run-events/${source}` `` |
 | `daemon/src/http/research.ts:153,236` | "The web research request could not be completed." (report `{ error }`) | `research/search` |
-| `daemon/src/http/xai.ts:217` + every `resolved.onInternalError({...})` (340, 358, 460, 520, 571, 590, 785, 801) | `oauth-start` "xAI sign-in could not start."; `oauth-complete` "xAI sign-in could not be completed."; `oauth-disconnect` "xAI could not be disconnected."; `auth-status` "The xAI connection status could not be read."; `search` "The X search could not be completed." Keep every `redactError(error)` wrapper. Calls with no HTTP answer (340, 358) ignore the return value. Delete `INTERNAL_ERROR_MESSAGE`. | `` `xai/${source}` `` |
+| `daemon/src/http/xai.ts:217` + every `resolved.onInternalError({...})` (340, 358, 460, 520, 571, 590, 785, 801) | `oauth-start` "xAI sign-in could not start."; `oauth-complete` "xAI sign-in could not be completed."; `oauth-disconnect` "xAI could not be disconnected."; `auth-status` "The xAI connection status could not be read."; `search` "The X search could not be completed." Keep every `redactError(error)` wrapper. Each call becomes `` const apiError = reportRouteInternalError({ report: { source, error }, logSource: `xai/${source}`, message }, { onInternalError: resolved.onInternalError }); `` and the answer uses `apiError` in place of the `createApiError(... INTERNAL_ERROR_MESSAGE ...)`. Calls with no HTTP answer (340, 358) ignore the return value. `ResolvedXaiHttpDeps.onInternalError` (`:214`) becomes optional and `:249` passes `deps.onInternalError` with no default. Delete `INTERNAL_ERROR_MESSAGE`. | `` `xai/${source}` `` |
 | `daemon/src/http/delegated-tools.ts:157,182` | "The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem." Keep `describeSafely` precedence: `const apiError = reportRouteInternalError({ report, logSource: report.source, message }, { onInternalError: deps.onInternalError }); const described = describeSafely(deps, { ...report, correlationId: String(apiError.requestId) }); return described === undefined ? apiError : createApiError({ code: 'INTERNAL_ERROR', message: described }, { requestId: apiError.requestId });`. `describeSafely`'s own line (`:176`) is LOG-TEXT. | `source` |
-| `daemon/src/http/model-proxy.ts:156,452,579,645` | "The model request failed on the server." Report `{ provider, error }`. Registration passes `deps.onInternalError` through. The unrecognized-provider branch calls the owner WITHOUT a sink (keep its why-comment). Use the returned `requestId` where `correlationId` was used. | `` `model-proxy/${provider \|\| 'unknown'}` `` |
+| `daemon/src/http/model-proxy.ts:156,452,579,645` | KEEP its message: hoist the existing "The assistant response stopped. ..." text (`:382`, `:465`) into one module `const` and use it at both places and as `message`. Report `{ provider, error }`. `:645` passes `deps.onInternalError` with no default; the `InternalErrorSink` params at `:407`, `:603` become optional. `:451-452`: `const correlationId = String(reportRouteInternalError({ report: { provider, error }, logSource, message }, { onInternalError }).requestId);` (the rest is unchanged). `reportCatchAllError` becomes `({ providerParam, error }, { onInternalError } = {})`: `isRecognizedProvider(providerParam)` ? the owner with `{ onInternalError }` : the owner WITHOUT a sink (keep its why-comment); returns `String(apiError.requestId)`. `:638` calls it in the object form. | `` `model-proxy/${provider \|\| 'unknown'}` `` |
 | `daemon/src/http/frontend-sessions.ts:132,336-340` | stream: "The page connection could not be opened. Reload the page; if it keeps failing, copy the request ID and report this problem." Pre-header answer `res.status(500).json({ error: apiError })`. The local wrapper and its sink-failure catch go. **Facade:** `daemon/src/http/frontend-control.ts:78` adds `'onInternalError'` to the `session` Pick (the facade already spreads `options.session` into the route deps at `:172`). Test in `frontend-control.test.ts`: a `session.onInternalError` receives a failing stream's `{ source, error, correlationId, logSource }` and the answer carries the same `requestId`. | `` `frontend-sessions:${source}` `` |
 | `http-kit/src/adapter.ts:38,205` | keep its message; report `{ method: spec.method, path: spec.path, error: e }` | `` `${spec.method.toUpperCase()} ${spec.path}` `` |
 
