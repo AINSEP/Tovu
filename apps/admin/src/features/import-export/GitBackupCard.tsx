@@ -60,14 +60,14 @@ function GitBackupFormFields({ controller, connections, t }: GitBackupCardProps 
         {connections.length > 1 ? (
           <div className="field">
             <label className="field-label" htmlFor="git-backup-connection">{t("Connection")}</label>
-            <select id="git-backup-connection" value={form.connection} onChange={(event) => controller.setField("connection", event.target.value)} {...agentHandle({ handle: "import-export-git-backup-connection" }, { role: "field", label: "Git backup connection" })}>
+            <select id="git-backup-connection" value={form.connection} onChange={(event) => controller.setField({ field: "connection", value: event.target.value })} {...agentHandle({ handle: "import-export-git-backup-connection" }, { role: "field", label: "Git backup connection" })}>
               {connections.map((label) => <option key={label} value={label}>{label}</option>)}
             </select>
           </div>
         ) : null}
-        <TextField id="git-backup-owner" label={t("Owner")} value={form.owner} onChange={(value) => controller.setField("owner", value)} />
-        <TextField id="git-backup-repo" label={t("Repository")} value={form.repo} onChange={(value) => controller.setField("repo", value)} />
-        <TextField id="git-backup-branch" label={t("Branch")} placeholder={t("Default branch")} value={form.branch} onChange={(value) => controller.setField("branch", value)} />
+        <TextField id="git-backup-owner" label={t("Owner")} value={form.owner} onChange={(value) => controller.setField({ field: "owner", value: value })} />
+        <TextField id="git-backup-repo" label={t("Repository")} value={form.repo} onChange={(value) => controller.setField({ field: "repo", value: value })} />
+        <TextField id="git-backup-branch" label={t("Branch")} placeholder={t("Default branch")} value={form.branch} onChange={(value) => controller.setField({ field: "branch", value: value })} />
       </div>
       {connections.length === 1 ? <p className="field-hint">{interpolate({ template: t("Uses {connection}."), vars: { connection: connections[0] } })}</p> : null}
       <div>

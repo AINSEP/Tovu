@@ -44,25 +44,25 @@ export function pageItemsForSave(
 
 /** The scalar fallbacks are named for the same cyclomatic-complexity reason as MenuEditor's
  * orEmpty helper. Target reshaping belongs in rules, outside the editor's markup. */
-function orEmpty(value: string | undefined): string { return value ?? ""; }
+function orEmpty({ value }: { value: string | undefined }, _optional = {}): string { return value ?? ""; }
 
-const TARGET_FOR_KIND: Record<MenuTargetEditorKind, (prev: PageMenuTarget) => PageMenuTarget> = {
-  page: (prev) => {
+const TARGET_FOR_KIND: Record<MenuTargetEditorKind, (required: { prev: PageMenuTarget }, optional?: Record<string, never>) => PageMenuTarget> = {
+  page: ({ prev }, _optional = {}) => {
     const lastKnownHref = prev.lastKnownHref || prev.href;
-    return { kind: "entryRef", entryId: orEmpty(prev.entryId), entryType: "page",
+    return { kind: "entryRef", entryId: orEmpty({ value: prev.entryId }), entryType: "page",
       ...(lastKnownHref ? { lastKnownHref } : {}) };
   },
-  url: (prev) => ({ kind: "url", href: orEmpty(prev.href) }),
-  route: (prev) => ({ kind: "route", route: orEmpty(prev.route) }),
-  entryRef: (prev) => ({ kind: "entryRef", entryId: orEmpty(prev.entryId) }),
-  termRef: (prev) => ({ kind: "termRef", termId: orEmpty(prev.termId), taxonomy: orEmpty(prev.taxonomy) }),
+  url: ({ prev }, _optional = {}) => ({ kind: "url", href: orEmpty({ value: prev.href }) }),
+  route: ({ prev }, _optional = {}) => ({ kind: "route", route: orEmpty({ value: prev.route }) }),
+  entryRef: ({ prev }, _optional = {}) => ({ kind: "entryRef", entryId: orEmpty({ value: prev.entryId }) }),
+  termRef: ({ prev }, _optional = {}) => ({ kind: "termRef", termId: orEmpty({ value: prev.termId }), taxonomy: orEmpty({ value: prev.taxonomy }) }),
 };
 
 export function targetForKind(
   { kind, prev }: { kind: MenuTargetEditorKind; prev: PageMenuTarget },
   _optional = {},
 ): PageMenuTarget {
-  return TARGET_FOR_KIND[kind](prev);
+  return TARGET_FOR_KIND[kind]({ prev });
 }
 
 function isUnavailablePageSelection(

@@ -66,9 +66,8 @@ export interface MenusController {
  * @complexity Time/space: O(1) — one `instanceof` check plus two fixed comparisons.
  */
 function describeMenuTrashError(
-  e: unknown,
-  fallback: string,
-  translate: Translate,
+  { e, fallback, translate }: { e: unknown; fallback: string; translate: Translate },
+  _optional = {},
 ): { alreadyGone: boolean; message: string | null } {
   if (e instanceof ApiError) {
     if (e.status === 404) return { alreadyGone: true, message: null };
@@ -119,7 +118,7 @@ export function useMenus({ port, t }: MenusDependencies): MenusController {
     try {
       await trash.mutate({ input: menu.id });
     } catch (e) {
-      const { alreadyGone, message } = describeMenuTrashError(e, "delete failed", t);
+      const { alreadyGone, message } = describeMenuTrashError({ e: e, fallback: "delete failed", translate: t });
       if (alreadyGone) {
         load();
       } else {

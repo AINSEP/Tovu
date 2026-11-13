@@ -9,7 +9,7 @@ import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.ho
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s
  *  `redirectsHostPorts`. */
 export const defaultIntegrationDeliveriesPort: IntegrationDeliveriesPort = {
-  listIntegrationDeliveries: (subscriptionId) => api.listIntegrationDeliveries(subscriptionId),
+  listIntegrationDeliveries: ({ subscriptionId }, _optional = {}) => api.listIntegrationDeliveries(subscriptionId),
 };
 
 /** Seed state for {@link createFakeIntegrationDeliveriesPort}. */

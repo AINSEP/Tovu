@@ -140,7 +140,7 @@ function renderWithPort(
   overrides: Partial<IntegrationsController> = {},
 ) {
   function useHook(): IntegrationsController {
-    return { ...useIntegrations(port, (key) => key, "en"), ...overrides };
+    return { ...useIntegrations({ port: port, t: ({ key }) => key, locale: "en" }), ...overrides };
   }
   return renderScreen(<Integrations useIntegrationsHook={useHook} />);
 }

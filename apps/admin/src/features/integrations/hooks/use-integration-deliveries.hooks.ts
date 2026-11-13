@@ -17,16 +17,16 @@ import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.ho
  * `port` is injected — see `integration-deliveries-port.hooks.ts` — rather than importing
  * `lib/api` directly, so a test can describe a subscription's delivery log against
  * `createFakeIntegrationDeliveriesPort` instead of stubbing global `fetch`.
- * `useWiredIntegrationDeliveries` below is the zero-argument pair `IntegrationDeliveries.tsx`
- * actually mounts.
+ * `useWiredIntegrationDeliveries` below binds the port and translator for the subscription
+ * that `IntegrationDeliveries.tsx` mounts.
  *
  * `t` (2026-08-11, standing i18n rule — see `use-integrations.hooks.ts`'s own file header for the
- * full rationale): injected as this hook's third parameter. UNLIKE `useIntegrations`, no raw
- * `locale` is threaded — `IntegrationDeliveries.tsx` only ever calls `t(locale, key)` bound-style,
+ * full rationale): injected in the required arguments. UNLIKE `useIntegrations`, no raw
+ * `locale` is threaded — `IntegrationDeliveries.tsx` calls `t({ key })` bound-style,
  * it never passes `locale` to a helper that needs it directly.
  *
  * `@jini-ai/ui/fetch-query` migration (2026-08-12): the load is one `useFetchQuery` keyed on
- * `KEYS.deliveries(subscriptionId)` — a query cannot commit a response belonging to a prior key,
+ * `KEYS.deliveries({ subscriptionId })` — a query cannot commit a response belonging to a prior key,
  * which eliminates the load race an external audit flagged at this file's old line 46 (a plain
  * `.then()`/`.catch()` effect with no cancellation guard, so a `subscriptionId` change mid-flight
  * could commit a stale response) by construction.
@@ -38,17 +38,16 @@ export interface IntegrationDeliveriesController {
   /** Bound translator — `key` already resolved against the caller's locale, so
    *  `IntegrationDeliveries.tsx` never imports `useAdminLocale`/`integrations-i18n` itself. See
    *  this file's header. */
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 export function useIntegrationDeliveries(
-  subscriptionId: string,
-  port: IntegrationDeliveriesPort,
-  t: (key: string) => string
+  { subscriptionId, port, t }: { subscriptionId: string; port: IntegrationDeliveriesPort; t: (required: { key: string }, optional?: Record<string, never>) => string },
+  _optional = {},
 ): IntegrationDeliveriesController {
   const list = useFetchQuery({
-    key: KEYS.deliveries(subscriptionId),
-    fetch: () => port.listIntegrationDeliveries(subscriptionId),
+    key: KEYS.deliveries({ subscriptionId }),
+    fetch: () => port.listIntegrationDeliveries({ subscriptionId }),
   });
 
   const deliveries = list.data?.deliveries ?? null;
@@ -66,8 +65,8 @@ export function useIntegrationDeliveries(
  * `IntegrationDeliveries.tsx` composes this and a test composes {@link useIntegrationDeliveries}
  * with `createFakeIntegrationDeliveriesPort` and a fake `t`.
  */
-export function useWiredIntegrationDeliveries(subscriptionId: string): IntegrationDeliveriesController {
+export function useWiredIntegrationDeliveries({ subscriptionId }: { subscriptionId: string }, _optional = {}): IntegrationDeliveriesController {
   const locale = useAdminLocale();
-  const t = (key: string): string => defaultT({ locale: locale, key: key });
-  return useIntegrationDeliveries(subscriptionId, defaultIntegrationDeliveriesPort, t);
+  const t = ({ key }: { key: string }, _optional = {}): string => defaultT({ locale, key });
+  return useIntegrationDeliveries({ subscriptionId: subscriptionId, port: defaultIntegrationDeliveriesPort, t: t });
 }

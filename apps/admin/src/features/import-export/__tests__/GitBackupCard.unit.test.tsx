@@ -197,8 +197,8 @@ describe("useGitBackup guards", () => {
     expect(push).not.toHaveBeenCalled();
     await act(async () => { await controller.planBackup(); });
     expect(plan).not.toHaveBeenCalled();
-    act(() => { controller.setField("owner", "me"); });
-    act(() => { controller.setField("repo", "r"); });
+    act(() => { controller.setField({ field: "owner", value: "me" }); });
+    act(() => { controller.setField({ field: "repo", value: "r" }); });
     expect(controller.form).toEqual({ connection: "GitHub", owner: "me", repo: "r", branch: "" });
     let first!: Promise<void>;
     act(() => { first = controller.planBackup(); });
@@ -221,7 +221,7 @@ describe("useGitBackup guards", () => {
     function Probe() { controller = useGitBackup({ port, t }); return null; }
     unmount = render(<Probe />).unmount;
     await waitFor(() => expect(controller.connections).toEqual(["GitHub"]));
-    act(() => { controller.setField("owner", "me"); controller.setField("repo", "r"); });
+    act(() => { controller.setField({ field: "owner", value: "me" }); controller.setField({ field: "repo", value: "r" }); });
     await act(async () => { await controller.planBackup(); });
     await act(async () => { await controller.pushBackup(); });
     expect(pushes).toBe(2);
@@ -234,7 +234,7 @@ describe("useGitBackup guards", () => {
     function Probe() { controller = useGitBackup({ port, t }); return null; }
     const view = render(<Probe />);
     await waitFor(() => expect(controller.connections).toEqual(["GitHub"]));
-    act(() => { controller.setField("owner", "me"); controller.setField("repo", "r"); });
+    act(() => { controller.setField({ field: "owner", value: "me" }); controller.setField({ field: "repo", value: "r" }); });
     let pending!: Promise<void>;
     act(() => { pending = controller.planBackup(); });
     view.unmount();
@@ -291,7 +291,7 @@ describe("live Git backup port", () => {
     function Probe() { controller = useWiredGitBackup({ t }); return null; }
     render(<Probe />);
     await waitFor(() => expect(controller.connections).toEqual([]));
-    act(() => { controller.setField("owner", "me"); });
+    act(() => { controller.setField({ field: "owner", value: "me" }); });
     expect(controller.form.connection).toBe("");
   });
 });

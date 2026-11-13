@@ -45,12 +45,12 @@ export { targetForKind } from "./page-link-rules";
  * changing what either function produces — every call site still falls back to `""` for exactly the
  * same absent values it did before.
  */
-function orEmpty(value: string | undefined): string {
+function orEmpty({ value }: { value: string | undefined }, _optional = {}): string {
   return value ?? "";
 }
 
 /** Boolean counterpart to {@link orEmpty}, same rationale — see {@link attrsOrDefaults}. */
-function orFalse(value = false): boolean {
+function orFalse(_required: Record<string, never>, { value = false }: { value?: boolean } = {}): boolean {
   return value;
 }
 
@@ -61,14 +61,14 @@ function orFalse(value = false): boolean {
  * the defaulting removes that count from the component's own scope without changing what any
  * field renders; every caller still sees the same fallback for the same absent value.
  */
-function attrsOrDefaults(attrs: AdminMenuItemAttrs | undefined): Required<AdminMenuItemAttrs> {
+function attrsOrDefaults({ attrs }: { attrs: AdminMenuItemAttrs | undefined }, _optional = {}): Required<AdminMenuItemAttrs> {
   const a = attrs ?? {};
   return {
-    cssClass: orEmpty(a.cssClass),
-    icon: orEmpty(a.icon),
-    description: orEmpty(a.description),
-    rel: orEmpty(a.rel),
-    openInNewTab: orFalse(a.openInNewTab),
+    cssClass: orEmpty({ value: a.cssClass }),
+    icon: orEmpty({ value: a.icon }),
+    description: orEmpty({ value: a.description }),
+    rel: orEmpty({ value: a.rel }),
+    openInNewTab: orFalse({}, { value: a.openInNewTab }),
   };
 }
 
@@ -98,7 +98,7 @@ export function MenuItemTargetFields({
         <label className="a11y-label-wrap">
           <span className="visually-hidden">URL</span>
           <input
-            value={orEmpty(item.target.href)}
+            value={orEmpty({ value: item.target.href })}
             placeholder="https://…"
             onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, href: e.target.value } }))}
           />
@@ -109,7 +109,7 @@ export function MenuItemTargetFields({
         <label className="a11y-label-wrap">
           <span className="visually-hidden">{t("Route name")}</span>
           <input
-            value={orEmpty(item.target.route)}
+            value={orEmpty({ value: item.target.route })}
             placeholder={t("route name")}
             onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, route: e.target.value } }))}
           />
@@ -120,7 +120,7 @@ export function MenuItemTargetFields({
         <label className="a11y-label-wrap">
           <span className="visually-hidden">{t("Entry ID")}</span>
           <input
-            value={orEmpty(item.target.entryId)}
+            value={orEmpty({ value: item.target.entryId })}
             placeholder={t("entry id")}
             onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, entryId: e.target.value } }))}
           />
@@ -132,7 +132,7 @@ export function MenuItemTargetFields({
           <label className="a11y-label-wrap">
             <span className="visually-hidden">{t("Term ID")}</span>
             <input
-              value={orEmpty(item.target.termId)}
+              value={orEmpty({ value: item.target.termId })}
               placeholder={t("term id")}
               onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, termId: e.target.value } }))}
             />
@@ -140,7 +140,7 @@ export function MenuItemTargetFields({
           <label className="a11y-label-wrap">
             <span className="visually-hidden">{t("Taxonomy")}</span>
             <input
-              value={orEmpty(item.target.taxonomy)}
+              value={orEmpty({ value: item.target.taxonomy })}
               placeholder={t("taxonomy")}
               onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, taxonomy: e.target.value } }))}
             />
@@ -173,7 +173,7 @@ export function MenuItemAttrsFields({
   onChange: (path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) => void;
   t: Translate;
 }) {
-  const attrs = attrsOrDefaults(item.attrs);
+  const attrs = attrsOrDefaults({ attrs: item.attrs });
 
   return (
     <details className="menu-item-advanced">
@@ -235,7 +235,7 @@ function ItemRow(props: {
   t: Translate;
 }) {
   const { item, path, onChange, onRemove, onAddChild, onMove, t, pages } = props;
-  const { handleRemoveClick } = useMenuItemRemove(item, path, onRemove);
+  const { handleRemoveClick } = useMenuItemRemove({ item: item, path: path, onRemove: onRemove });
   const targetController = useMenuTargetEditor({ item, path, onChange, pages });
 
   return (
@@ -427,7 +427,7 @@ function MenuEditorHeader({ editor }: {
 }
 
 export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: MenuEditorProps) {
-  const editor = useMenuEditorHook(menuId);
+  const editor = useMenuEditorHook({ menuId });
   const {
     pageChoices,
     isNew,
@@ -471,7 +471,7 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
           <input
             className="editor-title"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => setTitle({ next: e.target.value })}
             placeholder={t("Menu title")}
           />
         </label>
@@ -479,7 +479,7 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
           /{" "}
           <label className="a11y-label-wrap">
             <span className="visually-hidden">{t("Menu slug")}</span>
-            <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="menu-slug" />
+            <input value={slug} onChange={(e) => setSlug({ next: e.target.value })} placeholder="menu-slug" />
           </label>
           {/* The internal id used to be surfaced here as a read-only field (2026-08-09). Removed
               2026-08-11 alongside PostEditor's, and this one had the stronger case for going: a menu's
@@ -510,10 +510,10 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
               key={item.id}
               item={item}
               path={[i]}
-              onChange={changeAt}
-              onRemove={removeAt}
-              onAddChild={addChildAt}
-              onMove={moveAt}
+              onChange={(path, fn) => changeAt({ path, fn })}
+              onRemove={(path) => removeAt({ path })}
+              onAddChild={(path) => addChildAt({ path })}
+              onMove={(path, direction) => moveAt({ path, direction })}
               t={t}
               pages={pageChoices}
             />

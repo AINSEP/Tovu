@@ -9,9 +9,9 @@ import type { MembersPort } from "./members-port.hooks";
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultMembersPort: MembersPort = {
   listMembers: () => api.listMembers(),
-  getMember: (id) => api.getMember(id),
-  disableMember: (id) => api.disableMember(id),
-  requestMemberMagicLink: (input) => api.requestMemberMagicLink(input),
+  getMember: ({ id }, _optional = {}) => api.getMember(id),
+  disableMember: ({ id }, _optional = {}) => api.disableMember(id),
+  requestMemberMagicLink: (input, _optional = {}) => api.requestMemberMagicLink(input),
 };
 
 /** Seed state for {@link createFakeMembersPort}. */
@@ -34,7 +34,7 @@ export function createFakeMembersPort(options: FakeMembersPortOptions = {}): Mem
   const members = [...(options.members ?? [])];
   const magicLinkRequests: string[] = [];
 
-  function findOrThrow(id: string): AdminMember {
+  function findOrThrow({ id }: { id: string }, _optional = {}): AdminMember {
     const member = members.find((m) => m.id === id);
     if (!member) throw new Error(`fake member not found: ${id}`);
     return member;
@@ -48,11 +48,11 @@ export function createFakeMembersPort(options: FakeMembersPortOptions = {}): Mem
       return { members: [...members] };
     },
 
-    async getMember(id) {
-      return { member: findOrThrow(id) };
+    async getMember({ id }, _optional = {}) {
+      return { member: findOrThrow({ id }) };
     },
 
-    async disableMember(id) {
+    async disableMember({ id }, _optional = {}) {
       const index = members.findIndex((m) => m.id === id);
       if (index < 0) throw new Error(`fake member not found: ${id}`);
       const updated: AdminMember = { ...members[index], status: "disabled" };
@@ -77,5 +77,5 @@ export const MEMBERS_RESOURCE = "members";
 
 /** Adapt the product HTTP client to Jini's object-argument contract. */
 export function toJiniMembersPort({ port }: { port: MembersPort }, _optional: Record<string, never> = {}): import("@jini-ai/user-management/react").MembersPort {
-  return { ...port, getMember: ({ id }) => port.getMember(id), disableMember: ({ id }) => port.disableMember(id) };
+  return { ...port, getMember: ({ id }) => port.getMember({ id }), disableMember: ({ id }) => port.disableMember({ id }) };
 }

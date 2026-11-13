@@ -34,7 +34,7 @@ export interface GitBackupController {
   connections: string[] | undefined;
   connectionsError: string | null;
   form: GitBackupForm;
-  setField: (field: keyof GitBackupForm, value: string) => void;
+  setField: (required: { field: keyof GitBackupForm; value: string }, optional?: Record<string, never>) => void;
   canPlan: boolean;
   phase: GitBackupPhase;
   plan: GitBackupPlan | null;
@@ -81,7 +81,7 @@ export function useGitBackup({ port, t }: { port: GitBackupPort; t: Translate },
   // The first usable connection is chosen for the owner; a select appears only when there are two.
   const effectiveForm = form.connection === "" && connections?.[0] ? { ...form, connection: connections[0] } : form;
 
-  function refuse(line: string) {
+  function refuse({ line }: { line: string }, _optional = {}) {
     setMessage(line);
     setPhase("refused");
   }
@@ -93,11 +93,11 @@ export function useGitBackup({ port, t }: { port: GitBackupPort; t: Translate },
     try {
       const result = await port.plan(gitBackupPlanInput(effectiveForm));
       if (!alive.current) return;
-      if (!isGitBackupPlan(result)) { refuse(gitBackupRefusalMessage(result, t)); return; }
+      if (!isGitBackupPlan(result)) { refuse({ line: gitBackupRefusalMessage(result, t) }); return; }
       setPlan(result);
       setPhase("planned");
     } catch (failure) {
-      if (alive.current) refuse(describeApiError(failure, t("Git backup failed.")));
+      if (alive.current) refuse({ line: describeApiError(failure, t("Git backup failed.")) });
     }
   }
 
@@ -109,9 +109,9 @@ export function useGitBackup({ port, t }: { port: GitBackupPort; t: Translate },
       const result = await pushUntilDone({ port, planId: plan.planId, alive: () => alive.current, onProgress: setProgress, maxPolls: maxPushPolls });
       if (!alive.current) return;
       if (isGitBackupPushed(result)) { setDone({ repository: result.repository, commitUrl: result.commitUrl }); setPhase("done"); return; }
-      refuse(isGitBackupInProgress(result) ? t("The backup is taking too long. Check the repository later.") : gitBackupRefusalMessage(result, t));
+      refuse({ line: isGitBackupInProgress(result) ? t("The backup is taking too long. Check the repository later.") : gitBackupRefusalMessage(result, t) });
     } catch (failure) {
-      if (alive.current) refuse(describeApiError(failure, t("Git backup failed.")));
+      if (alive.current) refuse({ line: describeApiError(failure, t("Git backup failed.")) });
     }
   }
 
@@ -120,7 +120,7 @@ export function useGitBackup({ port, t }: { port: GitBackupPort; t: Translate },
     connectionsError: list.error ? describeApiError(list.error, t("Couldn't load connections.")) : null,
     form: effectiveForm,
     // The shown connection is kept when another field is typed first, so it never silently changes.
-    setField: (field, value) => setForm((current) => ({ ...current, connection: current.connection || (connections?.[0] ?? ""), [field]: value })),
+    setField: ({ field, value }, _optional = {}) => setForm((current) => ({ ...current, connection: current.connection || (connections?.[0] ?? ""), [field]: value })),
     canPlan: gitBackupFormReady(effectiveForm) && phase !== "planning",
     phase,
     plan,

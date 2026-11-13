@@ -29,17 +29,16 @@ function countDescendants(item: AdminMenuItem): number {
  * `FormFieldsEditor`-sibling "Remove" convention for low-stakes removals; an item with
  * descendants asks for confirmation naming exactly how many nested items would go with it.
  *
- * @param item - The item the Remove button belongs to; only its own descendant count is read.
- * @param path - Forwarded to `onRemove` unchanged.
- * @param onRemove - Called with `path` once the removal is confirmed (or needed no confirmation).
+ * @param required.item - The item the Remove button belongs to; only its own descendant count is read.
+ * @param required.path - Forwarded to `onRemove` unchanged.
+ * @param required.onRemove - Called with `path` once the removal is confirmed (or needed no confirmation).
  * @returns `handleRemoveClick`, wired directly to the Remove button's `onClick`.
  * @complexity O(n) in the item's own subtree size, via `countDescendants` — same cost the
  *   original inline call already paid.
  */
 export function useMenuItemRemove(
-  item: AdminMenuItem,
-  path: number[],
-  onRemove: (path: number[]) => void
+  { item, path, onRemove }: { item: AdminMenuItem; path: number[]; onRemove: (path: number[]) => void },
+  _optional = {},
 ): { handleRemoveClick: () => void } {
   function handleRemoveClick(): void {
     const descendantCount = countDescendants(item);

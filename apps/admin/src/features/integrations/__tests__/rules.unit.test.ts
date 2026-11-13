@@ -60,7 +60,7 @@ describe("visibleIntegrationsError", () => {
 
 describe("parseTopics", () => {
   it("splits, trims, and drops blanks", () => {
-    expect(parseTopics("post.published, post.deleted ,  , comment.created")).toEqual([
+    expect(parseTopics({ raw: "post.published, post.deleted ,  , comment.created" })).toEqual([
       "post.published",
       "post.deleted",
       "comment.created",
@@ -68,12 +68,12 @@ describe("parseTopics", () => {
   });
 
   it("returns an empty list for an empty or whitespace-only string", () => {
-    expect(parseTopics("")).toEqual([]);
-    expect(parseTopics("   ")).toEqual([]);
+    expect(parseTopics({ raw: "" })).toEqual([]);
+    expect(parseTopics({ raw: "   " })).toEqual([]);
   });
 
   it("returns a single-element list for one topic with no commas", () => {
-    expect(parseTopics("post.published")).toEqual(["post.published"]);
+    expect(parseTopics({ raw: "post.published" })).toEqual(["post.published"]);
   });
 });
 
@@ -81,19 +81,19 @@ describe("integrationRowMenuItems", () => {
   const handlers = { onTogglePause: vi.fn(), onDelete: vi.fn() };
 
   it("an active subscription's pause item reads Pause", () => {
-    const items = integrationRowMenuItems(SUBSCRIPTION, handlers, "en");
+    const items = integrationRowMenuItems({ subscription: SUBSCRIPTION, handlers: handlers, locale: "en" });
     expect(items.find((i) => i.key === "pause")?.label).toBe("Pause");
   });
 
   it("a paused subscription's pause item reads Resume", () => {
-    const items = integrationRowMenuItems({ ...SUBSCRIPTION, status: "paused" }, handlers, "en");
+    const items = integrationRowMenuItems({ subscription: { ...SUBSCRIPTION, status: "paused" }, handlers: handlers, locale: "en" });
     expect(items.find((i) => i.key === "pause")?.label).toBe("Resume");
   });
 
   it("delete is marked destructive; both items wire through to their handlers", () => {
     handlers.onTogglePause.mockClear();
     handlers.onDelete.mockClear();
-    const items = integrationRowMenuItems(SUBSCRIPTION, handlers, "en");
+    const items = integrationRowMenuItems({ subscription: SUBSCRIPTION, handlers: handlers, locale: "en" });
     const del = items.find((i) => i.key === "delete")!;
     expect(del.destructive).toBe(true);
     items.find((i) => i.key === "pause")!.onSelect();
@@ -103,9 +103,9 @@ describe("integrationRowMenuItems", () => {
   });
 
   it("translates labels to Spanish when locale is es", () => {
-    const items = integrationRowMenuItems(SUBSCRIPTION, handlers, "es");
+    const items = integrationRowMenuItems({ subscription: SUBSCRIPTION, handlers: handlers, locale: "es" });
     expect(items.map((i) => i.label)).toEqual(["Pausar", "Eliminar"]);
-    const paused = integrationRowMenuItems({ ...SUBSCRIPTION, status: "paused" }, handlers, "es");
+    const paused = integrationRowMenuItems({ subscription: { ...SUBSCRIPTION, status: "paused" }, handlers: handlers, locale: "es" });
     expect(paused.find((i) => i.key === "pause")?.label).toBe("Reanudar");
   });
 });

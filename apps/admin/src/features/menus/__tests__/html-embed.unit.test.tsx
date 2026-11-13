@@ -18,7 +18,7 @@ describe("menu Copy HTML embed", () => {
     const clipboard = { writeText: vi.fn().mockResolvedValue(undefined) };
     const port = createFakeMenusPort({ menus: [menu] });
     const dependencies = { port, clipboard, navigate: vi.fn(), t: (key: string) => key };
-    render(<MenuEditor menuId="docs" useMenuEditorHook={(id) => useMenuEditor(id, dependencies)} />);
+    render(<MenuEditor menuId="docs" useMenuEditorHook={({ menuId: id }) => useMenuEditor({ menuId: id, dependencies: dependencies })} />);
     await user.click(await screen.findByRole("button", { name: "Copy HTML embed" }));
     expect(clipboard.writeText).toHaveBeenCalledWith(`<div data-embed-config='{"type":"menu","id":"docs","mode":"html"}'></div>`);
     expect(await screen.findByRole("status")).toHaveTextContent("Copied!");
@@ -33,13 +33,13 @@ describe("menu Copy HTML embed", () => {
     const port = createFakeMenusPort({ menus: [menu] });
     const clipboard = { writeText: vi.fn().mockRejectedValue(new Error("denied")) };
     const dependencies = { port, clipboard, navigate: vi.fn(), t: (key: string) => key };
-    const { result } = renderHook(() => useMenuEditor("docs", dependencies));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "docs", dependencies: dependencies }));
     await waitFor(() => expect(result.current.menu?.id).toBe(menu.id));
     await act(async () => { await result.current.copyHtmlEmbed(); });
     expect(result.current.copyFeedback).toBe("The menu HTML embed could not be copied. Check your browser's clipboard permissions and try again.");
     expect(adminFailureChannel.getSnapshot()).toMatchObject({ step: "Copy menu HTML embed" });
     expect(adminFailureChannel.getSnapshot()?.copyText).toContain("denied");
-    render(<MenuEditor menuId={null} useMenuEditorHook={(id) => useMenuEditor(id, dependencies)} />);
+    render(<MenuEditor menuId={null} useMenuEditorHook={({ menuId: id }) => useMenuEditor({ menuId: id, dependencies: dependencies })} />);
     expect(screen.queryByRole("button", { name: "Copy HTML embed" })).not.toBeInTheDocument();
   });
 

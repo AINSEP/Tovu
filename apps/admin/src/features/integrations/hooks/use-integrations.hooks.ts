@@ -22,11 +22,11 @@ import type { IntegrationsPort } from "./integrations-port.hooks";
  * `Integrations.tsx` actually mounts.
  *
  * `t`/`locale` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from
- * that hook, not its own `useAdminLocale()`/dictionary import): injected as this hook's second and
- * third parameters. Unlike `use-analytics.hooks.ts`'s `t`-only case, `locale` is ALSO threaded
+ * that hook, not its own `useAdminLocale()`/dictionary import): injected as required arguments.
+ * Unlike `use-analytics.hooks.ts`'s `t`-only case, `locale` is ALSO threaded
  * through here — `Integrations.tsx` passes raw `locale` (not just `t`) into `integrationRowMenuItems`
  * (`rules.ts`) and `actionsForWebhookLabel`/`deleteWebhookBody` (`integrations-i18n.tsx`), all three
- * of which take `(locale, ...)` directly rather than a bound translator, so the component still
+ * of which take `locale` directly rather than a bound translator, so the component still
  * needs the raw value — see `wired-hooks-convention.md`'s own "locale only where genuinely needed"
  * phrasing. `useIntegrations` itself never calls `t`/reads `locale` internally — both exist solely
  * to hand through to the component, same as the port.
@@ -73,14 +73,14 @@ export interface IntegrationsController {
   onDelete: () => Promise<void>;
   /** Bound translator — `key` already resolved against the caller's locale, so `Integrations.tsx`
    *  never imports `useAdminLocale`/`integrations-i18n` itself. See this file's header. */
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
   /** Raw resolved locale — needed alongside `t` because `rules.ts`/`integrations-i18n.tsx` expose
    *  a few helpers that take `(locale, ...)` directly rather than a bound translator. See this
    *  file's header. */
   locale: string;
 }
 
-export function useIntegrations(port: IntegrationsPort, t: (key: string) => string, locale: string): IntegrationsController {
+export function useIntegrations({ port, t, locale }: { port: IntegrationsPort; t: (required: { key: string }, optional?: Record<string, never>) => string; locale: string }, _optional = {}): IntegrationsController {
   const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listIntegrationSubscriptions() });
 
   // Stable identity (not an inline arrow) so `useContentRefreshSubscription`'s own effect does not
@@ -111,7 +111,7 @@ export function useIntegrations(port: IntegrationsPort, t: (key: string) => stri
     invalidates: [KEYS.list],
   });
   const deleteMutation = useFetchMutation({
-    run: ({ input: id }: { input: string }) => port.deleteIntegrationSubscription(id),
+    run: ({ input: id }: { input: string }) => port.deleteIntegrationSubscription({ id }),
   }, {
     invalidates: [KEYS.list],
   });
@@ -125,7 +125,7 @@ export function useIntegrations(port: IntegrationsPort, t: (key: string) => stri
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await createMutation.mutate({ input: { label, targetUrl, topics: parseTopics(topics) } });
+      await createMutation.mutate({ input: { label, targetUrl, topics: parseTopics({ raw: topics }) } });
       setLabel("");
       setTargetUrl("");
       setTopics("");
@@ -206,6 +206,6 @@ export function useIntegrations(port: IntegrationsPort, t: (key: string) => stri
  */
 export function useWiredIntegrations(): IntegrationsController {
   const locale = useAdminLocale();
-  const t = (key: string): string => defaultT({ locale: locale, key: key });
-  return useIntegrations(defaultIntegrationsPort, t, locale);
+  const t = ({ key }: { key: string }, _optional = {}): string => defaultT({ locale, key });
+  return useIntegrations({ port: defaultIntegrationsPort, t: t, locale: locale });
 }

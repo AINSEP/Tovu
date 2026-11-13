@@ -6,7 +6,7 @@ import type { AdminServerLogs, AdminServerLogsQuery } from "@/lib/api";
  * `ViewerClipboardPort`, so this port is passed straight to `useCopyToClipboard`.
  */
 export interface RecentServerErrorsPort {
-  getServerLogs(query: AdminServerLogsQuery): Promise<AdminServerLogs>;
+  getServerLogs(query: AdminServerLogsQuery, optional?: Record<string, never>): Promise<AdminServerLogs>;
   /** Puts `text` on the clipboard; resolves `false` when the browser refused. */
   copyText(text: string): Promise<boolean>;
 }

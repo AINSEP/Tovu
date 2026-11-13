@@ -42,11 +42,11 @@ export function DocumentsIcon({ size = 16 }: { size?: number }) {
 export const LIBRARY_TAB_IDS = ["upload", "documents"] as const;
 export type LibraryTabId = (typeof LIBRARY_TAB_IDS)[number];
 
-export function resolveLibraryTabId(tabId: string | null | undefined): LibraryTabId {
+export function resolveLibraryTabId({ tabId }: { tabId: string | null | undefined }, _optional = {}): LibraryTabId {
   return resolveActiveTabId({ tabId: tabId, validIds: LIBRARY_TAB_IDS, defaultId: "upload" });
 }
 
-export function resolveLibraryTabs(t: (key: string) => string, { documentCount }: { documentCount?: number } = {}): TabBarTab[] {
+export function resolveLibraryTabs({ t }: { t: (key: string) => string }, { documentCount }: { documentCount?: number } = {}): TabBarTab[] {
   return [
     {
       id: "upload",
@@ -66,7 +66,7 @@ export function resolveLibraryTabs(t: (key: string) => string, { documentCount }
   ];
 }
 
-export function goToLibraryTab(tabId: string) {
+export function goToLibraryTab({ tabId }: { tabId: string }, _optional = {}) {
   navigate(`/library?tab=${tabId}`, { replace: true });
 }
 
