@@ -13,6 +13,7 @@ import {
   SURFACE_TYPED_ANSWER_PARAM,
   type SurfaceExchangeStore,
 } from "@jini-ai/daemon/surface-exchanges";
+import { asyncRoute } from "#src/server/inbound/shared/async-route";
 
 /**
  * @file The daemon-side half of the MCP-UI callback endpoint — where a rendered surface's answer
@@ -316,7 +317,7 @@ async function executeMcpUiToolCall(
 }
 
 export function registerMcpUiToolCallsRoute(app: Express, deps: McpUiToolCallsRouteDeps): void {
-  app.post(MCP_UI_TOOL_CALLS_PATH, async (req: Request, res: Response) => {
+  app.post(MCP_UI_TOOL_CALLS_PATH, asyncRoute({ handler: async (req: Request, res: Response) => {
     const principalId = readPrincipalId(req);
     if (!principalId) {
       res.status(401).json({ error: `${RUN_PRINCIPAL_HEADER} is required`, code: "UNAUTHENTICATED" });
@@ -342,5 +343,5 @@ export function registerMcpUiToolCallsRoute(app: Express, deps: McpUiToolCallsRo
 
     // ---- Shape 2: legacy two-call redemption (ADR-053). ----
     await executeMcpUiToolCall(res, deps, { toolName: parsed.toolName, params: parsed.params, principalId });
-  });
+  } }));
 }

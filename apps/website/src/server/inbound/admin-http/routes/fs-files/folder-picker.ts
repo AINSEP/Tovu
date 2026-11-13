@@ -7,6 +7,7 @@ import { isLocalAdminRequest } from "#src/server/inbound/admin-http/local-admin-
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "#src/features/fs-files/custom-root-permission";
 import type { NativeFolderPicker } from "#src/features/fs-files/native-folder-picker";
 import type { RouteDeps } from "#src/server/routes/types";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 /**
  * @file Admin chat composer's folder button: `GET`/`POST` on
@@ -49,10 +50,10 @@ async function admitted({ req, res, deps }: { req: Request; res: Response; deps:
 
 export function registerAdminFsFilesFolderPickerRoutes({ app, deps }: { app: Express; deps: AdminFsFilesFolderPickerDeps }, _optional = {}): void {
   let picking = false;
-  app.get(BASE_PATH, async (req, res) => {
+  app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await admitted({ req, res, deps })) res.json({ available: true });
-  });
-  app.post(BASE_PATH, async (req, res) => {
+  } }));
+  app.post(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (!await admitted({ req, res, deps })) return;
     if (picking) { res.status(409).json({ reasonCode: "busy" }); return; }
     picking = true;
@@ -64,5 +65,5 @@ export function registerAdminFsFilesFolderPickerRoutes({ app, deps }: { app: Exp
     } finally {
       picking = false;
     }
-  });
+  } }));
 }

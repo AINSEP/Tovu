@@ -19,6 +19,7 @@ import {
 } from "#src/features/custom-credentials/index";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 /**
  * @file Admin Access Tokens page's "Add custom provider" CRUD backend.
@@ -155,7 +156,7 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
     return false;
   }
 
-  app.get(BASE_PATH, async (req, res) => {
+  app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     if (deps.projectKeys) {
       if (!rejectUnlessSessionCredential(res, { message: "Use the owner's session to view Shared Keys.", permission: PERMISSION })) return;
@@ -176,9 +177,9 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
     } catch (err) {
       sendStoreError(res, err);
     }
-  });
+  } }));
 
-  app.post(BASE_PATH, async (req, res) => {
+  app.post(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
@@ -196,9 +197,9 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
     } catch (err) {
       sendStoreError(res, err);
     }
-  });
+  } }));
 
-  app.put(`${BASE_PATH}/:id`, async (req, res) => {
+  app.put(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
@@ -211,9 +212,9 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
     } catch (err) {
       sendStoreError(res, err);
     }
-  });
+  } }));
 
-  app.delete(`${BASE_PATH}/:id`, async (req, res) => {
+  app.delete(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
       // Idempotent — `deleteCustomCredential`/`CustomCredentialSetRepoPort.delete` are both no-ops
@@ -226,5 +227,5 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
     } catch (err) {
       sendStoreError(res, err);
     }
-  });
+  } }));
 }

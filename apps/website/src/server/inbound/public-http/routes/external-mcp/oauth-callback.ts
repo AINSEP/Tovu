@@ -10,6 +10,7 @@ import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage, type OAuthCallbackFailureReason } from "../oauth/callback-page.js";
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH, externalMcpOAuthCallbackUrl } from "./oauth-callback-url.js";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });
 
@@ -128,7 +129,7 @@ function classifyCallbackFailure(error: unknown): OAuthCallbackFailureReason {
  * @complexity O(1) per request, plus one bounded token exchange.
  */
 export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: ExternalMcpOAuthCallbackRouteDeps): void {
-  app.get(`${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/:serverId`, async (req, res) => {
+  app.get(`${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/:serverId`, asyncRoute({ handler: async (req, res) => {
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
     // In front of everything: the route is anonymous and each hit
     // can cost an outbound token exchange.
@@ -173,5 +174,5 @@ export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: Extern
         renderOAuthCallbackPage({ ok: false, reason: classifyCallbackFailure(error), messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }),
       );
     }
-  });
+  } }));
 }

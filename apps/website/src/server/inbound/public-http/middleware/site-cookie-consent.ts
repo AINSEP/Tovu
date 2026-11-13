@@ -23,6 +23,7 @@ import { siteBannerMode, toSiteCookieConsent } from '#src/features/consent/cooki
 import type { RouteDeps } from '#src/server/routes/types';
 import { isStaticExportRequest } from '../routes/site/pages.js';
 import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE, readSiteConsentPolicy, resolveSiteConsentOrigin } from './site-consent.js';
+import { asyncRoute } from "../../shared/async-route.js";
 
 export type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '#src/contracts/headless/index';
 
@@ -409,12 +410,12 @@ function siteDocumentState({ deps, consent, client }: { deps: RouteDeps; consent
 /** Routes and a construction-time snapshot only; no page-response capture or cookie work. */
 export function applySiteCookieConsent({ app, deps, consent }: { app: Express; deps: RouteDeps; consent: SiteCookieConsentDeps }, { client: suppliedClient }: { client?: { body: Buffer; src: string } } = {}): void {
   const { client } = siteDocumentState({ deps, consent, client: () => suppliedClient ?? loadClient() });
-  app.use(async (req, res, next) => {
+  app.use(asyncRoute({ handler: async (req, res, next) => {
     // Resolve the cached publication before widget rendering; consent-off pages have no activation runtime.
     await documentPolicy({ consent });
     res.locals.siteConsentAssets = (required: { scripts: readonly DeclaredScript[]; static?: true }) => siteConsentDocumentAssets({ deps, request: req, ...required });
     next();
-  });
+  } }));
   if (client) app.get(client.src, (_req, res) => { res.type('text/javascript').set('Cache-Control', 'public, max-age=31536000, immutable').send(client.body); });
   const resolve = createRequire(import.meta.url).resolve;
   try {

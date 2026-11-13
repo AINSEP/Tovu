@@ -77,6 +77,7 @@ import {
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Express, Request, Response } from "express";
 import type { SettingsRouteDeps } from "./deps.js";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 type IntervalHandle = ReturnType<typeof setInterval>;
 
@@ -360,7 +361,7 @@ function runChangeFeed(required: Admission & {
 }
 
 export const registerAdminSettingsEventsRoute = (app: Express, deps: SettingsEventsDeps): void => {
-  app.get("/api/admin/v1/workspaces/:workspaceId/settings/events", async (req, res) => {
+  app.get("/api/admin/v1/workspaces/:workspaceId/settings/events", asyncRoute({ handler: async (req, res) => {
     // Resolved per request, not at registration: a test that swaps the global timers after the
     // route is registered must still be the one this stream schedules on.
     const timers = resolveFeedTimers(deps.feedTimers);
@@ -370,5 +371,5 @@ export const registerAdminSettingsEventsRoute = (app: Express, deps: SettingsEve
     res.writeHead(200, sseWriteHeadHeaders(req));
     const cursor = resumeCursor({ req, head: await deps.settingsRepo.maxRevisionSeq() });
     runChangeFeed({ ...admission, req, res, deps, timers, cursor });
-  });
+  } }));
 };

@@ -6,6 +6,7 @@ export type { ExternalMcpProbeSessionFactory } from "#src/server/runtime/service
 import { OUTBOUND_CALL_PER_IP, createRateLimiter, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { ExternalMcpRouteDeps } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 /**
  * @file `POST .../mcp-servers/:serverId/probe` (C-007) — connects to ONE configured server, once,
@@ -73,7 +74,7 @@ async function withinProbeRateLimit(limiter: RateLimiter, req: Request, res: Res
  * @complexity O(t) in the remote's advertised tool count, plus one round trip.
  */
 export function registerAdminExternalMcpProbeRoute(app: Express, deps: ExternalMcpProbeRouteDeps, limiter: RateLimiter): void {
-  app.post("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/probe", async (req, res) => {
+  app.post("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/probe", asyncRoute({ handler: async (req, res) => {
     if (!(await withinProbeRateLimit(limiter, req, res))) return;
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
@@ -84,5 +85,5 @@ export function registerAdminExternalMcpProbeRoute(app: Express, deps: ExternalM
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/external-mcp/probe", code: "INTERNAL_ERROR" });
     }
-  });
+  } }));
 }

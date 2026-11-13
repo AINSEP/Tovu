@@ -15,6 +15,7 @@ import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
 import type { MediaRenditionRouteDeps, MediaRenditionRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { SVG_CONTENT_SECURITY_POLICY, DISALLOWED_INLINE_CONTENT_TYPES, resolveMediaOriginalBlob, sendMediaOriginalResponse } from "#src/server/inbound/admin-http/routes/media/original";
 import { MEMBER_SESSION_COOKIE } from "../../http/members.js";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 const CACHE_CONTROL_HEADER = "Cache-Control";
 
@@ -657,7 +658,7 @@ function sendRenditionFailure(res: Response, err: unknown): void {
 }
 
 export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = (app, deps) => {
-  app.get("/m/:assetId/:transformSpec/:filename", async (req, res) => {
+  app.get("/m/:assetId/:transformSpec/:filename", asyncRoute({ handler: async (req, res) => {
     const { assetId, transformSpec } = readRenditionRouteParams(req);
     const parsed = resolveTransformSpec(assetId, transformSpec);
 
@@ -668,7 +669,7 @@ export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = (app, d
 
     const { transformName, version } = parsed;
     await sendMediaRenditionResult(deps, req, res, assetId, transformName, version);
-  });
+  } }));
 };
 
 /**

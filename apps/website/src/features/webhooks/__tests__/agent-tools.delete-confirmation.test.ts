@@ -339,3 +339,24 @@ test("a run aborted while the confirmed delete re-checks permission is abandoned
   const row = await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
   assert.equal(row?.status, "active", "an abandoned run must not delete");
 });
+
+// REGRESSION (Stop before write): Stop pressed while the confirmed delete re-read the subscription
+// used to let the delete go through, after the run had already been told the call was stopped.
+test("a confirmed delete leaves the subscription in place when Stop lands during the re-read", async () => {
+  const deps = makeDeps();
+  const subscription = await seedSubscription(deps);
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
+  const controller = new AbortController();
+  const { exchangeId, pending } = await raiseDialog(deleteTool, subscription.id, controller.signal);
+
+  const repo = deps.webhookSubscriptionRepo;
+  const read = repo.findById.bind(repo);
+  repo.findById = async (input) => { const row = await read(input); controller.abort(); return row; };
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { decision: "confirm" } }, { toolId: DELETE_TOOL_ID });
+  await pending.catch(() => undefined);
+  repo.findById = read;
+
+  const row = await repo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
+  assert.equal(row?.status, "active", "a stopped call must not have deleted the subscription");
+});

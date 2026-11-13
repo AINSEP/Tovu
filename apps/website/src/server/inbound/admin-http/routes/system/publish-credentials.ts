@@ -26,6 +26,7 @@ import {
 } from "#src/features/deployments/static-publish/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 /**
  * @file Admin Deployment panel → Static Site tab's credential CRUD backend.
@@ -264,7 +265,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     return false;
   }
 
-  app.get(BASE_PATH, async (req, res) => {
+  app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
       const credentials: PublishCredentialSummary[] = await listPublishCredentials(readDeps, { workspaceId: deps.workspaceId });
@@ -279,9 +280,9 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     } catch (err) {
       sendStoreError({ res, err });
     }
-  });
+  } }));
 
-  app.post(BASE_PATH, async (req, res) => {
+  app.post(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
@@ -306,9 +307,9 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     } catch (err) {
       sendStoreError({ res, err });
     }
-  });
+  } }));
 
-  app.put(`${BASE_PATH}/:id`, async (req, res) => {
+  app.put(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
@@ -328,9 +329,9 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     } catch (err) {
       sendStoreError({ res, err });
     }
-  });
+  } }));
 
-  app.post(`${BASE_PATH}/:id/verify`, async (req, res) => {
+  app.post(`${BASE_PATH}/:id/verify`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
       const existing = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
@@ -348,9 +349,9 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       // shape just below/above — this route was the one place that pattern was missing.
       sendStoreError({ res, err });
     }
-  });
+  } }));
 
-  app.delete(`${BASE_PATH}/:id`, async (req, res) => {
+  app.delete(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
       // Idempotent — `deletePublishCredential`/`VendorCredentialSetRepoPort.delete` are both no-ops
@@ -365,5 +366,5 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     } catch (err) {
       sendStoreError({ res, err });
     }
-  });
+  } }));
 }

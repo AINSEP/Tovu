@@ -18,6 +18,7 @@ import { resolveMarketingPageOrOverride } from "../pages.js";
 import { registerResolvePhase } from "#src/platform/routing/adapter";
 import type { PageHeadHook } from "../../../http/site/page-head.js";
 import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
+import { unwrapRouteHandle } from "#src/server/__tests__/helpers/unwrap-route-handle";
 
 /**
  * @file Regression coverage for the "brand-new workspace, no seeded content" 500 on the public
@@ -135,7 +136,7 @@ function extractSlugHandler(app: ReturnType<typeof createApp>): (req: unknown, r
   const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
   const layer = stack.find((l) => l.route?.path === "/:slug");
   if (!layer?.route) throw new Error(`route '/:slug' was not found in the router stack`);
-  return layer.route.stack[0].handle;
+  return unwrapRouteHandle(layer.route.stack[0].handle);
 }
 
 test("GET /:slug -- `req.params.slug ?? \"\"` fallback, forced via a direct handler call with slug omitted -- falls through to next(), not a crash", async () => {

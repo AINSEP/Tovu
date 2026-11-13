@@ -5,6 +5,7 @@ import { consumeConfirmationToken } from "#src/features/newsletter/confirmation"
 import { NewsletterConfirmTokenInvalidError } from "#src/features/newsletter/index";
 import { escapeHtml } from "#src/platform/html/escape";
 import { toPublicConfirmationDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
+import { asyncRoute } from "../../../shared/async-route.js";
 
 /**
  * @file `CONFIRM_SUBSCRIPTION` (api.spec.md §1a) — `GET /newsletter/confirm?token=...`. Public,
@@ -15,7 +16,7 @@ import { toPublicConfirmationDeps, type NewsletterPublicRouteDeps } from "./news
  * not JSON.
  */
 export function registerPublicNewsletterConfirmRoute(app: Express, deps: NewsletterPublicRouteDeps): void {
-  app.get("/newsletter/confirm", async (req, res) => {
+  app.get("/newsletter/confirm", asyncRoute({ handler: async (req, res) => {
     await deps.newsletterReady;
     const token = typeof req.query.token === "string" ? req.query.token : "";
 
@@ -38,7 +39,7 @@ export function registerPublicNewsletterConfirmRoute(app: Express, deps: Newslet
       }
       res.status(500).type("html").send(renderPage("Something went wrong", "Unexpected server error."));
     }
-  });
+  } }));
 }
 
 function renderPage(title: string, message: string): string {

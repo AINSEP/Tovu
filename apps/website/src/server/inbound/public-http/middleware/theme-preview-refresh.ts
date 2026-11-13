@@ -4,6 +4,7 @@ import { syncThemeRoster } from "#src/features/theme/theme-roster-sync";
 import { requireAdminSession, getAuthedPrincipal } from "../../admin-http/dev-auth.js";
 import { sendAdminFailure } from "../../admin-http/routes/system/site-share-errors.js";
 import type { RouteDeps } from "#src/server/routes/types";
+import { asyncRoute } from "../../shared/async-route.js";
 
 /** Unique asset directory also versions relative CSS imports, url() assets and JS module imports. */
 export function freshThemePreviewHtml(
@@ -87,7 +88,7 @@ export function registerThemePreviewRefresh(
   app.post(
     "/api/admin/v1/workspaces/:workspaceId/themes/preview-reload",
     requireAdminSession(deps),
-    async (req, res) => {
+    asyncRoute({ handler: async (req, res) => {
       if (String(req.params.workspaceId) !== deps.workspaceId) {
         res.status(404).json({ error: "workspace was not found" });
         return;
@@ -110,7 +111,7 @@ export function registerThemePreviewRefresh(
           message: "Theme previews could not be refreshed.",
           failure: { step: "Refresh theme previews", action: "Try refreshing the previews again. Copy details and report this problem if it still fails." } });
       }
-    },
+    } }),
   );
   return ({ revision }) => authenticatedRevisions.has(revision);
 }

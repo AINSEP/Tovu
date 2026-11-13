@@ -4,6 +4,7 @@ import test from 'node:test';
 import express from 'express';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { createCapturingResponse, type DirectInvokeCapture } from '#src/server/__tests__/helpers/http-test-server';
+import { unwrapRouteHandle } from '#src/server/__tests__/helpers/unwrap-route-handle';
 import { createRouteDeps } from '#src/server/runtime/composition/app';
 
 /** Shared admin-route failure fixture: authorization errors, denied grants and workspace isolation. */
@@ -96,6 +97,6 @@ export async function invokeRouteDirectly(
   // Some routes set response headers before their workspace check (e.g. media text's cache policy);
   // accept them so the guard under test, not a missing `res.set`, decides the response.
   Object.assign(res, { set: () => res });
-  await handler.handle(req, res);
+  await unwrapRouteHandle(handler.handle)(req, res);
   return capture;
 }
