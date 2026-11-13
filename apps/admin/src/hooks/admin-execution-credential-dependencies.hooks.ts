@@ -10,7 +10,7 @@ import type { AdminExecutionCredentialPort } from "./admin-execution-credential-
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultAdminExecutionCredentialPort: AdminExecutionCredentialPort = {
   loadAdminExecutionCredential: () => loadAdminExecutionCredential(),
-  saveAdminExecutionCredential: (patch) => saveAdminExecutionCredential(patch),
+  saveAdminExecutionCredential: ({ patch }, _options = {}) => saveAdminExecutionCredential(patch),
 };
 
 /** The "nothing stored yet" server view — matches `lib/api.ts`'s `AdminExecutionCredential` shape
@@ -68,7 +68,7 @@ export function createFakeAdminExecutionCredentialPort(
       return stored;
     },
 
-    async saveAdminExecutionCredential(patch) {
+    async saveAdminExecutionCredential({ patch }) {
       saveCalls.push(patch);
       const overridden = options.onSave?.(patch);
       if (overridden) {

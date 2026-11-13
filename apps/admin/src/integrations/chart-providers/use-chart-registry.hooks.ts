@@ -29,7 +29,7 @@ export function useAdminChartRegistry(
   const query = useFetchQuery({ key, fetch: fetchSnapshot }, { refetchOnWindowFocus: true });
   const invalidate = useInvalidate();
   const refresh = useCallback(() => { invalidate({ key }); }, [invalidate, key]);
-  useContentRefreshSubscription("plugins", refresh);
+  useContentRefreshSubscription({ resource: "plugins", onRefresh: refresh });
   useEffect(() => subscribeToSettingsRefresh((scope) => {
     if (scope === null || scope.includes("core.charts")) refresh();
   }), [refresh]);

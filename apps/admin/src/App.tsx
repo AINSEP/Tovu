@@ -637,7 +637,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
   const { setContentEl, contentEl, agentBridge } = useAgentBridge();
   // Phone card layout for every `.list-table` needs each cell's column name (mobile catalog P-4).
   const contentNode = contentEl ?? null;
-  useListTableCellLabels(contentNode);
+  useListTableCellLabels({ root: contentNode });
   // The `admin.capture_screenshot` consent announcement — see `useScreenshotAnnouncement`'s own doc
   // (`App.hooks.tsx`) and `agent-screenshot-bus.ts`'s module doc for the privacy decision behind it.
   const { announced: screenshotAnnounced, dismiss: dismissScreenshotAnnouncement } = useScreenshotAnnouncement();
@@ -689,7 +689,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
    *  strips wrap (see the hook's doc). */
   const interfacePreferences = useInterfacePreferences();
   const hideFabWhileOpen = interfacePreferences.hideChatFabWhileOpen;
-  const navGroups = translateAdminNavGroups(navLocale, rawNavGroups);
+  const navGroups = translateAdminNavGroups({ locale: navLocale, groups: rawNavGroups });
   const navSoonLabel = translateAdminNavLabel({ locale: navLocale, key: "Soon" });
 
   const { dockT, dashboardT } = createAdminShellTranslators({ locale: navLocale, translateDashboard });

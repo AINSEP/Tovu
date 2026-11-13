@@ -1656,7 +1656,7 @@ export function useMessagesChangeHandler(
       window.__tovuAssistantMessages = messages;
       // Persistence is selective, not per-delta — see `lib/assistant-chats.ts`'s
       // `persistableMessages` for why a streaming reply is written once rather than per token.
-      chats.onMessagesChange(messages);
+      chats.onMessagesChange({ messages });
 
       const { publish, nextSettledRunMessageId } = shouldPublishOnMessagesChange({
         messages,

@@ -14,7 +14,7 @@ describe("getVoiceInputPort", () => {
     };
     vi.stubGlobal("window", { tovuVoice: ambientPort });
     try {
-      expect(getVoiceInputPort({ tovuVoice: port } as Window)).toBe(port);
+      expect(getVoiceInputPort({ targetWindow: { tovuVoice: port } as Window })).toBe(port);
     } finally {
       vi.unstubAllGlobals();
     }
@@ -23,7 +23,7 @@ describe("getVoiceInputPort", () => {
   it("returns null in a runtime without a window", () => {
     vi.stubGlobal("window", undefined);
     try {
-      expect(getVoiceInputPort(undefined)).toBeNull();
+      expect(getVoiceInputPort({ targetWindow: undefined })).toBeNull();
     } finally {
       vi.unstubAllGlobals();
     }

@@ -7,5 +7,5 @@ export function useConversationRefreshSignal(
   { conversationId, port = defaultAssistantChatsPort }: { conversationId: string | null; port?: Pick<AssistantChatsPort, "loadMessages"> },
   { visibility = document, focus = window }: { visibility?: EventTarget & { readonly visibilityState: string }; focus?: EventTarget } = {},
 ) {
-  return useMemo(() => conversationId ? { loadMessages: () => port.loadMessages(conversationId), visibility, focus } : undefined, [conversationId, port, visibility, focus]);
+  return useMemo(() => conversationId ? { loadMessages: () => port.loadMessages({ conversationId }), visibility, focus } : undefined, [conversationId, port, visibility, focus]);
 }

@@ -88,29 +88,29 @@ describe("withDerivedTitle", () => {
 describe("fake chat persistence", () => {
   test("creation derives a title from a supplied first message", async () => {
     const port = createFakeAssistantChatsPort();
-    const created = await port.createConversation('Write a page called "Getting Started"');
+    const created = await port.createConversation({}, { firstMessage: 'Write a page called "Getting Started"' });
     expect(created.title).toBe("Page: Getting Started");
     expect((await port.listConversations()).find(row => row.id === created.id)).toEqual(created);
   });
 
   test("a nonempty first message with no meaningful title stays untitled", async () => {
     const port = createFakeAssistantChatsPort();
-    expect((await port.createConversation("   ")).title).toBeNull();
+    expect((await port.createConversation({}, { firstMessage: "   " })).title).toBeNull();
   });
 
   test("renaming a missing conversation does not change existing conversations", async () => {
     const existing = conversation();
     const port = createFakeAssistantChatsPort({ conversations: [existing] });
-    await port.renameConversation("missing", "New title");
+    await port.renameConversation({ id: "missing", title: "New title" });
     expect(await port.listConversations()).toEqual([existing]);
   });
 
   test("deleting an orphan transcript removes its messages without removing another conversation", async () => {
     const existing = conversation();
     const port = createFakeAssistantChatsPort({ conversations: [existing], messages: { orphan: [message("m1", "orphan")] } });
-    expect(await port.loadMessages("orphan")).toEqual([message("m1", "orphan")]);
-    await port.deleteConversation("orphan");
-    expect(await port.loadMessages("orphan")).toEqual([]);
+    expect(await port.loadMessages({ conversationId: "orphan" })).toEqual([message("m1", "orphan")]);
+    await port.deleteConversation({ id: "orphan" });
+    expect(await port.loadMessages({ conversationId: "orphan" })).toEqual([]);
     expect(await port.listConversations()).toEqual([existing]);
   });
 });
@@ -119,14 +119,14 @@ describe("fake chat persistence", () => {
 describe("fake chat persistence — L13 count and missing-row gaps", () => {
   test("re-saving the same message id replaces it in place and does not bump messageCount", async () => {
     const port = createFakeAssistantChatsPort();
-    const { id } = await port.createConversation();
-    await port.saveMessage(id, message("m1", "first"));
-    await port.saveMessage(id, message("m2", "second"));
-    await port.saveMessage(id, message("m1", "first, edited"));
+    const { id } = await port.createConversation({});
+    await port.saveMessage({ conversationId: id, message: message("m1", "first") });
+    await port.saveMessage({ conversationId: id, message: message("m2", "second") });
+    await port.saveMessage({ conversationId: id, message: message("m1", "first, edited") });
     const row = (await port.listConversations()).find(c => c.id === id)!;
     expect(row.messageCount).toBe(2);
     expect(row.updatedAt).toBe(row.createdAt + 3);
-    expect(await port.loadMessages(id)).toEqual([message("m1", "first, edited"), message("m2", "second")]);
+    expect(await port.loadMessages({ conversationId: id })).toEqual([message("m1", "first, edited"), message("m2", "second")]);
     expect(port.saved.get(id)).toEqual([message("m1", "first, edited"), message("m2", "second")]);
     expect(port.saveAttempts()).toBe(3);
     expect(port.attemptedIds()).toEqual(["m1", "m2", "m1"]);
@@ -135,33 +135,33 @@ describe("fake chat persistence — L13 count and missing-row gaps", () => {
   test("writing to a missing conversation is a 404 and records nothing durable", async () => {
     const seen: string[] = [];
     const port = createFakeAssistantChatsPort({ onSaveMessage: (cid) => seen.push(cid) });
-    await expect(port.saveMessage("gone", message("m1", "x"))).rejects.toMatchObject({ status: 404 });
+    await expect(port.saveMessage({ conversationId: "gone", message: message("m1", "x") })).rejects.toMatchObject({ status: 404 });
     expect(seen).toEqual([]);
     expect(port.saved.size).toBe(0);
-    expect(await port.loadMessages("gone")).toEqual([]);
+    expect(await port.loadMessages({ conversationId: "gone" })).toEqual([]);
     expect(port.saveAttempts()).toBe(1);
   });
 
   test("a throwing save hook leaves durable state untouched", async () => {
     const port = createFakeAssistantChatsPort({ onSaveMessage: (_cid, _m, attempt) => { if (attempt === 1) throw new Error("503"); } });
-    const { id } = await port.createConversation();
-    await expect(port.saveMessage(id, message("m1", "x"))).rejects.toThrow("503");
-    expect(await port.loadMessages(id)).toEqual([]);
+    const { id } = await port.createConversation({});
+    await expect(port.saveMessage({ conversationId: id, message: message("m1", "x") })).rejects.toThrow("503");
+    expect(await port.loadMessages({ conversationId: id })).toEqual([]);
     expect((await port.listConversations())[0]!.messageCount).toBe(0);
-    await port.saveMessage(id, message("m1", "x"));
+    await port.saveMessage({ conversationId: id, message: message("m1", "x") });
     expect((await port.listConversations())[0]!.messageCount).toBe(1);
   });
 
   test("rename marks the title manual on the right conversation only; ids follow creation order", async () => {
     const port = createFakeAssistantChatsPort();
-    const a = await port.createConversation();
-    const b = await port.createConversation();
+    const a = await port.createConversation({});
+    const b = await port.createConversation({});
     expect([a.id, b.id]).toEqual(["fake-1", "fake-2"]);
-    await port.renameConversation("fake-1", "Renamed");
+    await port.renameConversation({ id: "fake-1", title: "Renamed" });
     const rows = await port.listConversations();
     expect(rows.find(c => c.id === "fake-1")).toMatchObject({ title: "Renamed", titleSource: "manual" });
     expect(rows.find(c => c.id === "fake-2")).toMatchObject({ title: null, titleSource: "fallback" });
-    await port.deleteConversation("fake-1");
+    await port.deleteConversation({ id: "fake-1" });
     expect((await port.listConversations()).map(c => c.id)).toEqual(["fake-2"]);
   });
 });

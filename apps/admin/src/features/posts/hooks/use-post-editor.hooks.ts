@@ -975,7 +975,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
 
   // Tells the assistant which entry "this post" is (`lib/agent-screen-context.ts`) — the saved row,
   // same as `usePageEditor`.
-  useAgentScreenEntry(savedPost === null ? null : { kind: savedPost.kind, id: savedPost.id, title: savedPost.title, slug: savedPost.slug, status: savedPost.status });
+  useAgentScreenEntry({ entry: savedPost === null ? null : { kind: savedPost.kind, id: savedPost.id, title: savedPost.title, slug: savedPost.slug, status: savedPost.status } });
 
   const publishAt = localDateTimeInputToIso(publishAtInput);
   const { isDirty, confirmLeave } = useDirtyGuard<PostFormState>(
@@ -1006,7 +1006,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     supersedeStandingDraftBasis: autosave.supersedeBasis,
     onLoadLatestFailed: () => setError(t("could not re-read the current version — your changes are still here, try again")),
   });
-  useContentRefreshSubscription(POSTS_RESOURCE, externalRefresh.checkForExternalChange);
+  useContentRefreshSubscription({ resource: POSTS_RESOURCE, onRefresh: externalRefresh.checkForExternalChange });
   // A newer version waiting on the operator's Load latest / Keep my edits is the stored one now.
   const pendingExternalVersion = externalRefresh.pendingExternalVersion;
   useEffect(() => {

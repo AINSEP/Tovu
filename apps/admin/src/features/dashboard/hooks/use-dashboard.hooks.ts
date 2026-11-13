@@ -180,7 +180,7 @@ const THEME_KEY = ["themes", "presentation"] as const;
 function useActiveThemeRefresh(): void {
   const invalidate = useInvalidate();
   const refresh = useCallback(() => invalidate({ key: THEME_KEY }), [invalidate]);
-  useContentRefreshSubscription(ACTIVE_THEME_RESOURCE, refresh);
+  useContentRefreshSubscription({ resource: ACTIVE_THEME_RESOURCE, onRefresh: refresh });
 }
 
 /** One stat card's state: `count({ data })` once the read settles, `null` while pending or failed.

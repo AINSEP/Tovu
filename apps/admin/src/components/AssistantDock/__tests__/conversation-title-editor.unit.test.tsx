@@ -47,7 +47,7 @@ it.each(["Enter", "blur"])("clicking the dock title saves a trimmed rename once 
   await user.type(input, "  Renamed chat  ");
   if (finish === "Enter") await user.keyboard("{Enter}");
   else fireEvent.blur(input);
-  expect(rename).toHaveBeenCalledExactlyOnceWith("chat", "Renamed chat");
+  expect(rename).toHaveBeenCalledExactlyOnceWith({ id: "chat", title: "Renamed chat" });
   expect(within(heading).queryByRole("textbox")).not.toBeInTheDocument();
 });
 
@@ -75,7 +75,7 @@ it("caps the dock editor at 50 characters", async () => {
   await user.clear(input);
   await user.type(input, "x".repeat(51));
   await user.keyboard("{Enter}");
-  expect(rename).toHaveBeenCalledExactlyOnceWith("chat", "x".repeat(50));
+  expect(rename).toHaveBeenCalledExactlyOnceWith({ id: "chat", title: "x".repeat(50) });
 });
 
 it("seeds an untitled chat with an empty draft instead of the visible fallback", async () => {

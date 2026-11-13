@@ -28,7 +28,7 @@ describe("useThemeExplore — the address bar follows a rename or delete of the 
   it("renaming the open page moves ?page= to its new name", async () => {
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic&page=about");
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "about" }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { pageId: "about" }));
     await waitFor(() => expect(result.current.selected).toBe("pages/about.html"));
 
     act(() => result.current.startRename("pages/about.html"));
@@ -47,7 +47,7 @@ describe("useThemeExplore — the address bar follows a rename or delete of the 
   it("renaming a file that is not open leaves the address bar alone", async () => {
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic&page=about");
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "about" }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { pageId: "about" }));
     await waitFor(() => expect(result.current.selected).toBe("pages/about.html"));
 
     act(() => result.current.startRename("css/a.css"));
@@ -64,7 +64,7 @@ describe("useThemeExplore — the address bar follows a rename or delete of the 
   it("deleting the open page points the address bar at the file the editor falls back to", async () => {
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic&page=about");
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "about" }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { pageId: "about" }));
     await waitFor(() => expect(result.current.selected).toBe("pages/about.html"));
 
     act(() => result.current.openDeleteConfirm("pages/about.html"));
@@ -79,7 +79,7 @@ describe("useThemeExplore — the address bar follows a rename or delete of the 
   it("copying a file selects the copy and moves ?page= to it", async () => {
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic&page=about");
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "about" }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { pageId: "about" }));
     await waitFor(() => expect(result.current.selected).toBe("pages/about.html"));
 
     await act(async () => {
@@ -94,7 +94,7 @@ describe("useThemeExplore — the address bar follows a rename or delete of the 
   it("copying a stylesheet moves ?file= to the copy and drops ?page=", async () => {
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic&page=about");
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "about" }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { pageId: "about" }));
     await waitFor(() => expect(result.current.selected).toBe("pages/about.html"));
 
     await act(async () => {

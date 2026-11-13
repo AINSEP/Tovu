@@ -19,7 +19,7 @@ describe("admin conversation focus refresh", () => {
     expect(h.result.current?.focus).toBe(h.focus);
     expect(h.port.loadMessages).toHaveBeenCalledTimes(0);
     await h.result.current?.loadMessages();
-    expect(h.port.loadMessages).toHaveBeenCalledExactlyOnceWith("chat-a");
+    expect(h.port.loadMessages).toHaveBeenCalledExactlyOnceWith({ conversationId: "chat-a" });
   });
 
   it("keeps the signal stable across renders so typing cannot cancel a pending refresh", () => {
@@ -34,6 +34,6 @@ describe("admin conversation focus refresh", () => {
     expect(h.result.current).toBeUndefined();
     h.rerender({ id: "chat-b" });
     await h.result.current?.loadMessages();
-    expect(h.port.loadMessages).toHaveBeenCalledExactlyOnceWith("chat-b");
+    expect(h.port.loadMessages).toHaveBeenCalledExactlyOnceWith({ conversationId: "chat-b" });
   });
 });

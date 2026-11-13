@@ -39,12 +39,12 @@ export interface UsersPort {
     target: { principalId: string },
     options?: { email?: string; username?: string },
   ): Promise<{ user: AdminIdentityUser }>;
-  disableUser(principalId: string): Promise<{ user: AdminIdentityUser }>;
-  enableUser(principalId: string): Promise<{ user: AdminIdentityUser }>;
+  disableUser(required: { principalId: string }): Promise<{ user: AdminIdentityUser }>;
+  enableUser(required: { principalId: string }): Promise<{ user: AdminIdentityUser }>;
   resetUserPassword(input: { principalId: string; password: string }): Promise<void>;
   assignRole(input: { principalId: string; roleId: string }): Promise<{ assignment: unknown }>;
   attachPolicy(input: { principalId: string; policyId: string }): Promise<{ attachment: unknown }>;
   /** Delete-user plan v2 (2026-09-24), Slice 4: moves `principalId` to the Trash (204, no body) —
    *  see `api.ts`'s `deleteUser` for why this is the same endpoint the v1 plan already reserved. */
-  deleteUser(principalId: string): Promise<void>;
+  deleteUser(required: { principalId: string }): Promise<void>;
 }

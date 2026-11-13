@@ -34,10 +34,10 @@ import type { AssistantConversation } from "../lib/assistant-chats";
 export interface AssistantChatsPort {
   listConversations(): Promise<AssistantConversation[]>;
   /** `firstMessage` seeds the server-side title heuristic; omit it for an untitled empty chat. */
-  createConversation(firstMessage?: string): Promise<AssistantConversation>;
-  renameConversation(id: string, title: string): Promise<void>;
-  deleteConversation(id: string): Promise<void>;
-  loadMessages(conversationId: string): Promise<ChatMessage[]>;
+  createConversation(required: Record<string, never>, options?: { firstMessage?: string }): Promise<AssistantConversation>;
+  renameConversation(required: { id: string; title: string }): Promise<void>;
+  deleteConversation(required: { id: string }): Promise<void>;
+  loadMessages(required: { conversationId: string }): Promise<ChatMessage[]>;
   /**
    * Writes one message.
    *
@@ -45,5 +45,5 @@ export interface AssistantChatsPort {
    * transport failure — the hook retries the second kind, and the first only for 429/5xx. An
    * implementation that swallows failures into a resolved promise silently disables the retry.
    */
-  saveMessage(conversationId: string, message: ChatMessage): Promise<void>;
+  saveMessage(required: { conversationId: string; message: ChatMessage }): Promise<void>;
 }

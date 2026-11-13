@@ -708,7 +708,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       });
 
       expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy).toHaveBeenCalledWith(USER_A.principalId);
+      expect(spy).toHaveBeenCalledWith({ principalId: USER_A.principalId });
       expect(result.current.confirmingDelete).toBeNull();
       await waitFor(() => expect(result.current.users).toEqual([]));
     });
@@ -1011,7 +1011,7 @@ describe("users dependency port contracts", () => {
       requests.push({ url: String(url), init });
       return new Response(null, { status: 204 });
     });
-    await defaultUsersPort.deleteUser("u 2");
+    await defaultUsersPort.deleteUser({ principalId: "u 2" });
     expect(requests).toHaveLength(1);
     expect(requests[0].url).toBe("/api/admin/v1/workspaces/workspace-local/users/u%202");
     expect(requests[0].init?.method).toBe("DELETE");
@@ -1055,7 +1055,7 @@ describe("users dependency port contracts", () => {
   ] as const)("the fake preserves users when %s rejects %s", async (option, operation) => {
     const port = createFakeUsersPort({ users: [USER_A], [option]: new Error(`${operation} unavailable`) });
     const attempts = {
-      disable: () => port.disableUser("u1"), enable: () => port.enableUser("u1"),
+      disable: () => port.disableUser({ principalId: "u1" }), enable: () => port.enableUser({ principalId: "u1" }),
       reset: () => port.resetUserPassword({ principalId: "u1", password: "new-password" }),
       attach: () => port.attachPolicy({ principalId: "u1", policyId: "p1" }),
       update: () => port.updateUser({ principalId: "u1" }, { email: "changed@example.test" }),

@@ -33,7 +33,7 @@ export function useUsers({ port, openOwnPasswordReset, navigate }: UsersDependen
     openOwnPasswordReset,
     // A normal row-menu reset must not navigate; Jini calls this only for the deep-linked dialog.
     onOwnPasswordResetClosed: () => navigate?.("/users"),
-    passwordResetNotice: ({ username }) => passwordResetNotice(locale, username),
+    passwordResetNotice: ({ username }) => passwordResetNotice({ locale, username }),
   });
   return { ...controller, locale };
 }

@@ -130,7 +130,7 @@ export function usePosts(deps: PostsListDependencies, { locale = "en" }: { local
   // Query ownership replaces the latest-wins read guard described above; background
   // refreshes keep the table and cache replacements protect newer mutation responses.
   const load = useCallback(() => invalidate({ key: ["posts"] }), [invalidate]);
-  useContentRefreshSubscription(POSTS_RESOURCE, load);
+  useContentRefreshSubscription({ resource: POSTS_RESOURCE, onRefresh: load });
 
   const rowMenuHandleById = usePostRowMenuHandleMap(posts);
 

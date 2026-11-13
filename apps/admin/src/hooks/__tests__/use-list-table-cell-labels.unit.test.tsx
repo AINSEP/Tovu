@@ -81,7 +81,7 @@ describe("labelListTableCells", () => {
 describe("useListTableCellLabels", () => {
   function Harness({ rows }: { rows: readonly string[] }) {
     const [root, setRoot] = useState<HTMLElement | null>(null);
-    useListTableCellLabels(root);
+    useListTableCellLabels({ root });
     return (
       <main ref={setRoot}>
         <table className="list-table">

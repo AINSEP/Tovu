@@ -17,7 +17,7 @@ describe("admin navigation translation", () => {
       Object.freeze({ items: Object.freeze([]) }),
       Object.freeze({ label: "", items: Object.freeze([]) }),
     ]) satisfies readonly AdminNavGroup[];
-    const translated = translateAdminNavGroups("de", groups);
+    const translated = translateAdminNavGroups({ locale: "de", groups });
     expect(translated).toEqual([
       { label: "Inhalt", items: [
         { id: "pages", label: "Seiten", href: "/pages", soon: false },
@@ -34,12 +34,12 @@ describe("admin navigation translation", () => {
     // F4.5/F6.5: returning [] hides navigation; returning groups aliases the
     // caller's cached input. Verify independence through a later input edit.
     const input = [{ label: "Content", items: [{ id: "pages", label: "Pages", href: "/pages" }] }];
-    const translated = translateAdminNavGroups("xx", input);
+    const translated = translateAdminNavGroups({ locale: "xx", groups: input });
     expect(translated).toEqual([{ label: "Content", items: [{ id: "pages", label: "Pages", href: "/pages" }] }]);
     input[0]!.label = "Renamed group";
     input[0]!.items[0]!.label = "Renamed page";
     expect(translated).toEqual([{ label: "Content", items: [{ id: "pages", label: "Pages", href: "/pages" }] }]);
-    expect(translateAdminNavGroups("de", [])).toEqual([]);
+    expect(translateAdminNavGroups({ locale: "de", groups: [] })).toEqual([]);
     expect(translateAdminNavLabel({ locale: "de", key: "Settings" })).toBe("Einstellungen");
     expect(translateAdminNavLabel({ locale: "xx", key: "Settings" })).toBe("Settings");
     expect(translateAdminNavLabel({ locale: "de", key: "Atlas extension" })).toBe("Atlas extension");

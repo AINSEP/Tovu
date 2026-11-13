@@ -88,7 +88,7 @@ export function useIntegrations({ port, t, locale }: { port: IntegrationsPort; t
   // note.
   const invalidate = useInvalidate();
   const invalidateList = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
-  useContentRefreshSubscription(WEBHOOKS_RESOURCE, invalidateList);
+  useContentRefreshSubscription({ resource: WEBHOOKS_RESOURCE, onRefresh: invalidateList });
 
   const [formOpen, setFormOpen] = useState(false);
   const [label, setLabel] = useState("");

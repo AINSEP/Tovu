@@ -64,7 +64,7 @@ const mcpUiToolCaller = createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/
  */
 const assistantMcpUiSandboxProxyUrl = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin: globalThis.location.origin });
 /** The A2UI agent-action relay; see the `"a2ui"` registration below. Module scope like the two above. */
-const postA2uiAction = createA2uiActionPoster("", { path: "/api/admin/v1/a2ui/actions" });
+const postA2uiAction = createA2uiActionPoster({ baseUrl: "" }, { path: "/api/admin/v1/a2ui/actions" });
 
 /**
  * Registers the dock's cards on `registry` and returns one disposer for all of them. Each disposer

@@ -118,7 +118,7 @@ export function AdminByokKeyFooter({ controller, agentHandle: handle, t }: Admin
   const sharedT = createAdminByokKeyPanelTranslator({ locale });
   const { saveState, canSaveKey, stored, storedKeyIsForOtherEndpoint } = controller;
   const saving = saveState.status === "saving";
-  const statusLine = resolveByokFooterStatusLine(saveState.status, stored?.isSet ?? false, storedKeyIsForOtherEndpoint, t ?? ((key) => sharedT({ key })));
+  const statusLine = resolveByokFooterStatusLine({ status: saveState.status, isStored: stored?.isSet ?? false }, { storedKeyIsForOtherEndpoint, t: t ?? ((key) => sharedT({ key })) });
 
   return (
     <div className="assistant-key-footer">

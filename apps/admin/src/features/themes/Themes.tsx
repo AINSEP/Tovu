@@ -310,7 +310,7 @@ function ThemeActivateSwitch({
   handleBase: string;
   settings: PresentationSettings;
   busyTheme: string | null;
-  activate: (themeId: string) => Promise<void>;
+  activate: ThemesController["activate"];
   t: Translate;
 }) {
   const control = themeCardSwitch({ settings, themeId, busyTheme });
@@ -322,7 +322,7 @@ function ThemeActivateSwitch({
       aria-busy={control.busy}
       className="agent-plugin-switch theme-card-switch"
       disabled={control.disabled}
-      onClick={() => void activate(control.target)}
+      onClick={() => void activate({ themeId: control.target })}
       aria-label={actionButtonAriaLabel(t("Activate"), t(control.busyKey), control.busy, name)}
       title={t(control.titleKey)}
       {...agentHandle({ handle: `${handleBase}-activate` }, {
@@ -404,7 +404,7 @@ function ThemeGrid({
   themeBuiltIn: Record<string, boolean>;
   settings: PresentationSettings;
   busyTheme: string | null;
-  activate: (themeId: string) => Promise<void>;
+  activate: ThemesController["activate"];
   duplicatingTheme: string | null;
   duplicate: ThemesController["duplicate"];
   trash: ThemesController["trash"];
@@ -414,7 +414,7 @@ function ThemeGrid({
   // so the hook's `trash` is only ever called with `trash` defined.
   const deletion = useThemeDeleteRequest({ t, trash: (themeId) => {
     if (!trash) throw new Error("theme delete action is unavailable");
-    return trash(themeId);
+    return trash({ themeId });
   } });
   const onRequestDelete = trash ? (request: ThemeDeleteRequest) => void deletion.requestDelete(request) : undefined;
   if (visibleThemes.length === 0) {
@@ -436,9 +436,9 @@ function ThemeGrid({
     <>
       <div className="theme-grid" role="group" aria-label={t("Themes")}>
         {visibleThemes.map((themeId, index) => {
-          const active = isActiveTheme(settings, themeId);
+          const active = isActiveTheme({ settings, themeId });
           const handleBase = cardHandles[index];
-          const name = themeDisplayName(themeId, themeNames);
+          const name = themeDisplayName({ themeId, themeNames });
           return (
             <div key={themeId} className={`theme-card theme-${themeId}${active ? " active" : ""}`}>
               <ThemeCardPreview themeId={themeId} previewImageUrl={themePreviewImages[themeId]} agentHandleBase={handleBase} t={t} />
@@ -540,7 +540,7 @@ function ThemesToolbar({
             type="button"
             className="btn-secondary"
             disabled={busyTheme !== null}
-            onClick={() => void activate(NO_THEME_ID)}
+            onClick={() => void activate({ themeId: NO_THEME_ID })}
             {...agentHandle({ handle: "themes-disable" }, {
               role: "button",
               label: "Turn the theme off and render the site unstyled",
@@ -616,13 +616,13 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
   // `?? []` is a guard, not a live branch: `resolveThemesActiveTabId` only returns a real
   // `ThemeTabGroup` now that the theme Marketplace tab is gone (2026-10-04).
   // The theme active when the screen opened first, then A-Z by display name (`sortThemesForDisplay`).
-  const visibleThemes = sortThemesForDisplay(
+  const visibleThemes = sortThemesForDisplay({
     // `groupThemesByTabGroup` seeds every tab group (empty when it has no themes) and `activeTab` is
     // always a resolved, valid group, so this lookup always hits.
-    grouped[activeTab as ThemeTabGroup],
-    firstActiveThemeId ?? settings.activeThemeId,
+    themeIds: grouped[activeTab as ThemeTabGroup],
+    activeThemeId: firstActiveThemeId ?? settings.activeThemeId,
     themeNames,
-  );
+  });
 
   return (
     // `themes-page` scopes the greyed "Soon" tab labels (`styles.css`) to this screen's tab strip.

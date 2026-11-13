@@ -25,7 +25,7 @@ describe("useThemes — duplicate", () => {
     await waitFor(() => expect(result.current.themes).toEqual(["basic"]));
 
     await act(async () => {
-      await result.current.duplicate?.("basic");
+      await result.current.duplicate?.({ themeId: "basic" });
     });
 
     expect(portSpy).toHaveBeenCalledWith("basic", "Basic copy");
@@ -45,7 +45,7 @@ describe("useThemes — duplicate", () => {
     const { result } = renderHook(() => useThemes({ port, t: identity }));
     await waitFor(() => expect(result.current.themes).toEqual(["quartz"]));
     await act(async () => {
-      await result.current.duplicate?.("quartz");
+      await result.current.duplicate?.({ themeId: "quartz" });
     });
     expect(portSpy).toHaveBeenCalledWith("quartz", "quartz copy");
   });
@@ -58,7 +58,7 @@ describe("useThemes — duplicate", () => {
     const { result } = renderHook(() => useThemes({ port, t: identity }));
     await waitFor(() => expect(result.current.settings).not.toBeNull());
     await act(async () => {
-      await result.current.duplicate?.("basic");
+      await result.current.duplicate?.({ themeId: "basic" });
     });
     expect(result.current.error).toBe("theme id 'basic-copy' is already taken");
     expect(result.current.duplicatingTheme).toBeNull();
@@ -71,7 +71,7 @@ describe("useThemes — duplicate", () => {
     const { result } = renderHook(() => useThemes({ port, t: identity }));
     await waitFor(() => expect(result.current.settings).not.toBeNull());
     await act(async () => {
-      await result.current.duplicate?.("basic");
+      await result.current.duplicate?.({ themeId: "basic" });
     });
     expect(result.current.error).toBe("failed to duplicate theme");
   });
@@ -88,7 +88,7 @@ describe("Themes — Copy theme (card menu)", () => {
     render(<Themes useThemesHook={() => controller({ duplicate, duplicatingTheme: null })} />);
     await userEvent.click(screen.getByRole("button", { name: "More actions for column" }));
     await userEvent.click(screen.getByRole("menuitem", { name: "Copy theme" }));
-    expect(duplicate).toHaveBeenCalledWith("column");
+    expect(duplicate).toHaveBeenCalledWith({ themeId: "column" });
   });
 
   it("shows the busy label and does nothing while a copy is in flight", async () => {

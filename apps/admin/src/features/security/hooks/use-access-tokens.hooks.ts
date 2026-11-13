@@ -515,7 +515,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   const triggerReload = useCallback(() => {
     void reloadAllStores();
   }, [reloadAllStores]);
-  useContentRefreshSubscription(ACCESS_TOKENS_RESOURCE, triggerReload);
+  useContentRefreshSubscription({ resource: ACCESS_TOKENS_RESOURCE, onRefresh: triggerReload });
 
   // Once a reload has completed at least once, `reloadError` alone is authoritative — see
   // `hasReloadedOnce`'s own doc for why the initial-fetch errors below cannot be trusted past that

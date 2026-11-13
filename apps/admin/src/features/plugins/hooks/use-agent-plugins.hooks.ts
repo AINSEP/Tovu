@@ -163,7 +163,7 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
 
   // A completed assistant install/uninstall must update both tabs without a remount. The shared
   // generation guard prevents a slow earlier read resurrecting the just-removed package.
-  useContentRefreshSubscription(AGENT_PLUGINS_RESOURCE, () => { void reload(); });
+  useContentRefreshSubscription({ resource: AGENT_PLUGINS_RESOURCE, onRefresh: () => { void reload(); } });
 
   async function onToggleEnabled(plugin: AdminAgentPlugin): Promise<void> {
     // A second activation of this row's own switch while its request is outstanding is a no-op —

@@ -64,12 +64,12 @@ export function useWorkspace({ port }: WorkspaceDependencies): WorkspaceControll
   const key = useMemo(() => ["workspace", "current"] as const, []);
   const fetchWorkspace = useCallback(async () => {
     try { return (await port.getWorkspace()).workspace; }
-    catch (error) { throw new Error(describeApiError(error, t({ locale, key: "failed to load workspace" }), locale)); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: t({ locale, key: "failed to load workspace" }), locale })); }
   }, [port, locale]);
   const query = useFetchQuery({ key, fetch: fetchWorkspace }, { staleTime: 0 });
   const loader = useCachedLoader({ key, fetch: fetchWorkspace }, { staleTime: 0 });
   const error = query.error?.message ?? null;
-  const update = useFetchMutation({ run: ({ input }: { input: { name: string; slug: string } }) => port.updateWorkspace(input) }, { invalidates: [["workspace"]] });
+  const update = useFetchMutation({ run: ({ input }: { input: { name: string; slug: string } }) => port.updateWorkspace({ patch: input }) }, { invalidates: [["workspace"]] });
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -103,7 +103,7 @@ export function useWorkspace({ port }: WorkspaceDependencies): WorkspaceControll
       loader.replace({ value: updated });
       setSaved(true);
     } catch (e) {
-      setSaveError(describeApiError(e, t({ locale: locale, key: "failed to save workspace" }), locale));
+      setSaveError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to save workspace" }), locale }));
     } finally {
       setSaving(false);
     }

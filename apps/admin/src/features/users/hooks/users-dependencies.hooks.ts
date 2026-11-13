@@ -18,14 +18,14 @@ export const defaultUsersPort: UsersPort = {
   },
   listRoles: () => api.listRoles(),
   listPolicies: () => api.listPolicies(),
-  createUser: (input, options) => api.createUser(input, options),
-  updateUser: (target, options) => api.updateUser(target, options),
-  disableUser: (principalId) => api.disableUser(principalId),
-  enableUser: (principalId) => api.enableUser(principalId),
-  resetUserPassword: (input) => api.resetUserPassword(input),
-  assignRole: (input) => api.assignRole(input),
-  attachPolicy: (input) => api.attachPolicy(input),
-  deleteUser: (principalId) => api.deleteUser(principalId),
+  createUser: (input, options = {}) => api.createUser(input, options),
+  updateUser: (target, options = {}) => api.updateUser(target, options),
+  disableUser: ({ principalId }, _options = {}) => api.disableUser(principalId),
+  enableUser: ({ principalId }, _options = {}) => api.enableUser(principalId),
+  resetUserPassword: (input, _options = {}) => api.resetUserPassword(input),
+  assignRole: (input, _options = {}) => api.assignRole(input),
+  attachPolicy: (input, _options = {}) => api.attachPolicy(input),
+  deleteUser: ({ principalId }, _options = {}) => api.deleteUser(principalId),
 };
 
 const FAKE_WORKSPACE_ID = "fake-ws";
@@ -89,7 +89,7 @@ export function createFakeUsersPort(options: FakeUsersPortOptions = {}): UsersPo
   const roles = [...(options.roles ?? [])];
   const policies = [...(options.policies ?? [])];
 
-  function requireUser(principalId: string): AdminIdentityUser {
+  function requireUser({ principalId }: { principalId: string }, _options = {}): AdminIdentityUser {
     const found = users.find((u) => u.principalId === principalId);
     if (!found) throw new Error(`fake user not found: ${principalId}`);
     return found;
@@ -130,17 +130,17 @@ export function createFakeUsersPort(options: FakeUsersPortOptions = {}): UsersPo
     },
     async updateUser(target, opts) {
       if (options.updateUserError) throw options.updateUserError;
-      const current = requireUser(target.principalId);
+      const current = requireUser({ principalId: target.principalId });
       return { user: replaceUser({ ...current, ...opts }) };
     },
-    async disableUser(principalId) {
+    async disableUser({ principalId }) {
       if (options.toggleStatusError) throw options.toggleStatusError;
-      const current = requireUser(principalId);
+      const current = requireUser({ principalId });
       return { user: replaceUser({ ...current, status: "disabled" }) };
     },
-    async enableUser(principalId) {
+    async enableUser({ principalId }) {
       if (options.toggleStatusError) throw options.toggleStatusError;
-      const current = requireUser(principalId);
+      const current = requireUser({ principalId });
       return { user: replaceUser({ ...current, status: "active" }) };
     },
     async resetUserPassword() {
@@ -148,19 +148,19 @@ export function createFakeUsersPort(options: FakeUsersPortOptions = {}): UsersPo
     },
     async assignRole(input) {
       if (options.assignRoleError) throw options.assignRoleError;
-      const current = requireUser(input.principalId);
+      const current = requireUser({ principalId: input.principalId });
       replaceUser({ ...current, roleIds: [...current.roleIds, input.roleId] });
       return { assignment: {} };
     },
     async attachPolicy(input) {
       if (options.attachPolicyError) throw options.attachPolicyError;
-      const current = requireUser(input.principalId);
+      const current = requireUser({ principalId: input.principalId });
       replaceUser({ ...current, policyIds: [...current.policyIds, input.policyId] });
       return { attachment: {} };
     },
-    async deleteUser(principalId) {
+    async deleteUser({ principalId }) {
       if (options.deleteUserError) throw options.deleteUserError;
-      requireUser(principalId);
+      requireUser({ principalId });
       // Mirrors the real DELETE route's effect on `listUsers()`: a trashed user no longer lists
       // (`apps/website/src/server/inbound/admin-http/routes/users/list.ts`'s `isInTrash` filter) — removing it from
       // this fake's backing array reproduces that without modeling the Trash itself.
@@ -174,8 +174,8 @@ export function createFakeUsersPort(options: FakeUsersPortOptions = {}): UsersPo
 export function toJiniUsersPort({ port }: { port: UsersPort }, _optional: Record<string, never> = {}): import("@jini-ai/user-management/react").UsersPort {
   return {
     ...port,
-    disableUser: ({ principalId }) => port.disableUser(principalId),
-    enableUser: ({ principalId }) => port.enableUser(principalId),
-    deleteUser: ({ principalId }) => port.deleteUser(principalId),
+    disableUser: ({ principalId }) => port.disableUser({ principalId }),
+    enableUser: ({ principalId }) => port.enableUser({ principalId }),
+    deleteUser: ({ principalId }) => port.deleteUser({ principalId }),
   };
 }

@@ -40,7 +40,7 @@ it("defers boot settings, retains completed reads across remounts, and isolates 
   expect(screen.queryByText("fr")).not.toBeInTheDocument();
   await screen.findByText("de");
   expect(readB).toHaveBeenCalledTimes(1);
-  act(() => ownerB.publishLocaleChange("es"));
+  act(() => ownerB.publishLocaleChange({ next: "es" }));
   await screen.findByText("es");
   expect(readB).toHaveBeenCalledTimes(2);
 });

@@ -5,7 +5,7 @@ import type { useSkillInstall } from "./use-skill-install.hooks";
 /** Sibling dialog behavior: Escape, contained Tab navigation and focus return. */
 export function useSkillConfirmation(active: boolean, onCancel: () => void) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, active);
+  useFocusTrap({ containerRef: dialogRef }, { active });
   useEffect(() => {
     if (!active) return undefined;
     const previous = document.activeElement as HTMLElement | null;

@@ -27,13 +27,13 @@ export const ADMIN_DEV_SERVER_PORT: string = __TOVU_ADMIN_DEV_PORT__;
  * Pure, and takes the port rather than reading `window.location` itself, so callers' tests can drive
  * it without reconfiguring jsdom's `location` (which is not reliably possible).
  *
- * @param locationPort - `window.location.port`; `""` for a default-port origin.
- * @param adminDevPort - the dev server's port; defaults to {@link ADMIN_DEV_SERVER_PORT}.
+ * @param required.locationPort - `window.location.port`; `""` for a default-port origin.
+ * @param optional.adminDevPort - the dev server's port; defaults to {@link ADMIN_DEV_SERVER_PORT}.
  * @complexity O(1).
  */
 export function isAdminDevServerOrigin(
-  locationPort: string,
-  adminDevPort: string = ADMIN_DEV_SERVER_PORT
+  { locationPort }: { locationPort: string },
+  { adminDevPort = ADMIN_DEV_SERVER_PORT }: { adminDevPort?: string } = {},
 ): boolean {
   return locationPort === adminDevPort;
 }

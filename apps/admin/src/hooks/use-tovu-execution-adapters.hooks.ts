@@ -62,8 +62,8 @@ export function useTovuDockExecution(
     readExecutionConfigForSend,
     handleExecutionModeChange,
     runtimeAccess: (port: ChatPaneRuntimeAccess) => policy.allowed ? port : NO_LOCAL_RUNTIME,
-    agents: (agents: readonly ChatPaneAgent[] | undefined) => policy.allowed ? agents : NO_LOCAL_AGENTS,
-    selectionChange: (change: (selection: ChatPaneAgentSelection) => void) =>
+    agents: ({ agents }: { agents: readonly ChatPaneAgent[] | undefined }, _options = {}) => policy.allowed ? agents : NO_LOCAL_AGENTS,
+    selectionChange: ({ change }: { change: (selection: ChatPaneAgentSelection) => void }, _options = {}) =>
       (selection: ChatPaneAgentSelection) => { if (live.current.policy.allowed) change(selection); },
   };
 }

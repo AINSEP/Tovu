@@ -142,11 +142,11 @@ export interface CaptureAdminScreenshotOptions {
   readonly renderElementToCanvas: RenderElementToCanvas;
 }
 
-function buildTextBlock(text: string): ScreenshotContentBlock {
+function buildTextBlock({ text }: { text: string }, _options = {}): ScreenshotContentBlock {
   return { type: "text", text };
 }
 
-function buildImageBlock(mimeType: string, data: string): ScreenshotContentBlock {
+function buildImageBlock({ mimeType, data }: { mimeType: string; data: string }, _options = {}): ScreenshotContentBlock {
   return { type: "image", mimeType, data };
 }
 
@@ -157,8 +157,8 @@ function buildImageBlock(mimeType: string, data: string): ScreenshotContentBlock
  *
  * @complexity O(1).
  */
-export function buildScreenshotFailureResult(reason: string): ScreenshotToolResult {
-  return { content: [buildTextBlock(reason)] };
+export function buildScreenshotFailureResult({ reason }: { reason: string }, _options = {}): ScreenshotToolResult {
+  return { content: [buildTextBlock({ text: reason })] };
 }
 
 /**
@@ -169,7 +169,7 @@ export function buildScreenshotFailureResult(reason: string): ScreenshotToolResu
  * into a bogus image block would be worse than treating it as "nothing usable came back."
  * @complexity O(1) (a single bounded regex match; does not scan the base64 payload).
  */
-function parseDataUrl(dataUrl: string): { readonly mimeType: string; readonly data: string } | undefined {
+function parseDataUrl({ dataUrl }: { dataUrl: string }, _options = {}): { readonly mimeType: string; readonly data: string } | undefined {
   const match = /^data:([^;,]+);base64,(.+)$/s.exec(dataUrl);
   if (!match) return undefined;
   // Both capture groups use a `+` quantifier, so a successful match always carries a non-empty
@@ -184,7 +184,7 @@ function parseDataUrl(dataUrl: string): { readonly mimeType: string; readonly da
  *
  * @complexity O(1) — reads `.length` and up to 2 trailing characters, never the whole string content.
  */
-function estimateBase64ByteLength(base64: string): number {
+function estimateBase64ByteLength({ base64 }: { base64: string }, _options = {}): number {
   let padding = 0;
   if (base64.endsWith("=")) padding = base64.endsWith("==") ? 2 : 1;
   return Math.floor((base64.length * 3) / 4) - padding;
@@ -203,9 +203,9 @@ function estimateBase64ByteLength(base64: string): number {
 function encodeWithinBudget(canvas: CapturedCanvas): readonly ScreenshotContentBlock[] | undefined {
   for (const quality of JPEG_QUALITIES) {
     const dataUrl = canvas.toDataURL("image/jpeg", quality);
-    const parsed = parseDataUrl(dataUrl);
-    if (parsed && estimateBase64ByteLength(parsed.data) <= MAX_SCREENSHOT_BYTES) {
-      return [buildTextBlock(FIDELITY_NOTE), buildImageBlock(parsed.mimeType, parsed.data)];
+    const parsed = parseDataUrl({ dataUrl });
+    if (parsed && estimateBase64ByteLength({ base64: parsed.data }) <= MAX_SCREENSHOT_BYTES) {
+      return [buildTextBlock({ text: FIDELITY_NOTE }), buildImageBlock({ mimeType: parsed.mimeType, data: parsed.data })];
     }
   }
   return undefined;
@@ -224,8 +224,7 @@ function encodeWithinBudget(canvas: CapturedCanvas): readonly ScreenshotContentB
 export async function captureAdminScreenshotToolResult(options: CaptureAdminScreenshotOptions): Promise<ScreenshotToolResult> {
   const { element, renderElementToCanvas } = options;
   if (!element || !element.isConnected) {
-    return buildScreenshotFailureResult(
-      "no admin content area is currently attached to capture — the admin tab may have navigated away or the page bridge has not finished attaching yet",
+    return buildScreenshotFailureResult({ reason: "no admin content area is currently attached to capture — the admin tab may have navigated away or the page bridge has not finished attaching yet" }
     );
   }
 
@@ -234,13 +233,12 @@ export async function captureAdminScreenshotToolResult(options: CaptureAdminScre
     canvas = await renderElementToCanvas(element);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return buildScreenshotFailureResult(`screenshot capture failed: ${message}`);
+    return buildScreenshotFailureResult({ reason: `screenshot capture failed: ${message}` });
   }
 
   const content = encodeWithinBudget(canvas);
   if (!content) {
-    return buildScreenshotFailureResult(
-      "the rendered view was too large to encode within this tool's size budget even after quality reduction — try narrowing the visible area (e.g. collapsing a panel) first",
+    return buildScreenshotFailureResult({ reason: "the rendered view was too large to encode within this tool's size budget even after quality reduction — try narrowing the visible area (e.g. collapsing a panel) first" }
     );
   }
   return { content };

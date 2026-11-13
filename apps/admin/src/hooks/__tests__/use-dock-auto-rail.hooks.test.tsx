@@ -37,7 +37,7 @@ function fakeBand(initial: boolean) {
 function setup(options: { narrow: boolean; dockOpen: boolean }) {
   const band = fakeBand(options.narrow);
   const queries: string[] = [];
-  const matchMedia = (query: string) => {
+  const matchMedia = ({ query }: { query: string }) => {
     queries.push(query);
     return band;
   };

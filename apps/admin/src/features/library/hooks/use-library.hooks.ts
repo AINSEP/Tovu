@@ -221,7 +221,7 @@ export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryCon
   });
   const invalidate = useInvalidate();
   const invalidateList = useCallback(() => invalidate({ key: LIBRARY_KEYS.documents }), [invalidate]);
-  useContentRefreshSubscription("media", invalidateList);
+  useContentRefreshSubscription({ resource: "media", onRefresh: invalidateList });
 
   const granted = me.data?.effectivePermissions;
   const permissions: LibraryPermissions = {

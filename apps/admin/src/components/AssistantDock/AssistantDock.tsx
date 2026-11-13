@@ -80,7 +80,7 @@ import {
   useSelectedPluginChips,
   useFolderDropBridge,
 } from "./hooks/AssistantDock.hooks";
-import type { DragEvent } from "react";
+import { useCallback, type DragEvent } from "react";
 import { useAssistantPromptRequests } from "../../lib/assistant-prompt-bus";
 
 // `resolveComposerDiscoveryOutcome` lives in `AssistantDock.hooks.tsx` now (2026-08-18, alongside
@@ -367,6 +367,8 @@ export function AssistantDock({
   // driven by `onMessagesChange` starts too late for the run to carry the id. See
   // `CreateTovuAssistantTransportOptions.ensureConversationId` for the full mechanism.
   const chats = useChatsSeam({ override: useChats }, { principalId });
+  const persistUserTurn = useCallback((conversationId: string, message: ChatMessage) =>
+    chats.persistUserTurn({ conversationId, message }), [chats.persistUserTurn]);
   const { transport, daemonStarting } = useAssistantTransportSeam({
     agentBridge,
     executionConfigRef,
@@ -377,7 +379,7 @@ export function AssistantDock({
     // conversation. `startRun` awaits this before dispatching, so the user's turn is durable before
     // a run that may fail to deliver it exists at all — see `persistUserTurn`'s own doc in
     // `use-assistant-chats.hooks.ts`.
-    persistUserTurn: chats.persistUserTurn,
+    persistUserTurn: chats.persistUserTurn ? persistUserTurn : undefined,
   }, { useTransport: useAssistantTransportOverride });
   const uploadOrdinaryAttachments = useAttachmentUploaderSeam({ override: useAttachmentUploaderOverride });
   const skillInstall = useSkillInstall();
@@ -389,7 +391,7 @@ export function AssistantDock({
   const selectedAgentAuth = useSelectedAgentAuthWarning({ mode: executionConfig.mode, agentId: localCliSelection.agentId, locale, runtimeAccess: pickerRuntimeAccess });
   const runtimeAccess = executionPolicy.runtimeAccess(selectedAgentAuth.runtimeAccess);
   // The picker's instant list while `listAgents` is still in flight — see `useAgentsPlaceholder`.
-  const agentsPlaceholder = executionPolicy.agents(useAgentsPlaceholderSeam({ runtimeAccessOverride: useRuntimeAccessOverride }));
+  const agentsPlaceholder = executionPolicy.agents({ agents: useAgentsPlaceholderSeam({ runtimeAccessOverride: useRuntimeAccessOverride }) });
   const selectedAgent = selectedDockAgent({ mode: executionConfig.mode, agents: agentsPlaceholder, agentId: localCliSelection.agentId });
   const runtime = { ...runtimePreferences, visible: visibleAssistantRuntimePreferences({ agent: selectedAgent }) };
   /**
@@ -453,7 +455,7 @@ export function AssistantDock({
   // Shown on one ellipsized line, so the full name rides along as the hover tooltip.
   const activeTitle = resolveAssistantConversationTitle({ chats, fallback: t({ key: "Tovu assistant" }) });
   // One policy-gated selection handler for both the failure card and the picker.
-  const handleSelectionChange = executionPolicy.selectionChange(handleLocalCliSelectionChange);
+  const handleSelectionChange = executionPolicy.selectionChange({ change: handleLocalCliSelectionChange });
   const failureSurface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages: chats.initialMessages,
     onSelectionChange: handleSelectionChange, onExecutionModeChange: handleExecutionModeChange }, {});
   const emptyState = useAssistantEmptyState({ paneKey: chats.paneKey, initialMessages: failureSurface.initialMessages, onMessagesChange: handleMessagesChange });

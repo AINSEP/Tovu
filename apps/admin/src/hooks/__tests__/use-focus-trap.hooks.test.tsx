@@ -15,7 +15,7 @@ import { useFocusTrap } from "../use-focus-trap.hooks";
 
 function Dialog({ label, trapped = true }: { label: string; trapped?: boolean }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(ref, trapped);
+  useFocusTrap({ containerRef: ref }, { active: trapped });
   return (
     <div ref={ref} role="dialog" aria-modal="true" aria-label={label}>
       <button type="button">{label} first</button>
@@ -173,7 +173,7 @@ describe("useFocusTrap", () => {
 
 function BoundaryDialog({ edge }: { edge: ReactNode }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(ref);
+  useFocusTrap({ containerRef: ref });
   return <div ref={ref} role="dialog" aria-modal="true">
     {edge}
     <button>enabled first</button>

@@ -33,11 +33,11 @@ const COMPOSER_INPUT_SELECTOR = ".jini-composer-input";
 /**
  * Finds the composer textarea that owns `anchor`.
  *
- * @param anchor - Any element rendered inside the composer — in practice the mic button itself.
+ * @param required.anchor - Any element rendered inside the composer — in practice the mic button itself.
  * @returns The textarea, or `null` when the anchor is detached or the composer chrome changed.
  * @complexity Time/space: O(d) in DOM depth for the ancestor walk.
  */
-export function findComposerTextarea(anchor: HTMLElement | null): HTMLTextAreaElement | null {
+export function findComposerTextarea({ anchor }: { anchor: HTMLElement | null }, _options = {}): HTMLTextAreaElement | null {
   const root = anchor?.closest(COMPOSER_ROOT_SELECTOR) ?? null;
   return root?.querySelector<HTMLTextAreaElement>(COMPOSER_INPUT_SELECTOR) ?? null;
 }
@@ -70,7 +70,7 @@ export function useSpaceHoldToTalk(options: UseSpaceHoldToTalkOptions): void {
   callbacksRef.current = { onEngage, onRelease };
 
   useEffect(() => {
-    const found = findComposerTextarea(anchorRef.current);
+    const found = findComposerTextarea({ anchor: anchorRef.current });
     if (!found || !enabled) return undefined;
     // Rebound after the guard so the hoisted handlers below see a non-nullable type: TypeScript
     // cannot narrow `found` inside a function declaration, which is callable before the guard runs
@@ -113,7 +113,7 @@ export function useSpaceHoldToTalk(options: UseSpaceHoldToTalkOptions): void {
     }
 
     function handleKeyUp(event: KeyboardEvent) {
-      const action = resolveSpaceHoldKeyUp(event.key, phaseRef.current);
+      const action = resolveSpaceHoldKeyUp({ key: event.key, phase: phaseRef.current });
       if (action === "ignore") return;
       clearHoldTimer();
       phaseRef.current = "released";

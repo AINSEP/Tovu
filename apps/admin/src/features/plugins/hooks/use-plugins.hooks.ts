@@ -168,7 +168,7 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
   // Assistant tool results already publish through this bridge; re-read via our authorized port.
   // The query exposes the read error. No `.catch` here: `reload` already swallows its own load
   // failure, so the promise it returns never rejects (a second catch could never run).
-  useContentRefreshSubscription(PLUGINS_RESOURCE, () => { void reload(); });
+  useContentRefreshSubscription({ resource: PLUGINS_RESOURCE, onRefresh: () => { void reload(); } });
 
   async function onToggleEnabled(plugin: AdminPlugin) {
     // EC-11: a second activation of this row's own toggle while its request is outstanding is a

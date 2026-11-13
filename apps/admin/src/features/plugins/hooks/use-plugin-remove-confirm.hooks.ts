@@ -35,7 +35,7 @@ export interface PluginRemoveConfirmController {
 export function usePluginRemoveConfirm(props: { name: string; onCancel: () => void; t?: Translate }): PluginRemoveConfirmController {
   const { onCancel } = props;
   const dialogRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(dialogRef);
+  useFocusTrap({ containerRef: dialogRef });
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {

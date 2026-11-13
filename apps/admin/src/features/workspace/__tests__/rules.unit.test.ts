@@ -22,27 +22,27 @@ describe("describeApiError", () => {
     ["FORBIDDEN", "You do not have permission to do that."],
     ["RESOURCE_CONFLICT", "That slug is already in use."],
   ])("overrides code %s with a fixed message", (code, expected) => {
-    expect(describeApiError(new ApiError("raw", 400, code), "fallback", "en")).toBe(expected);
+    expect(describeApiError({ e: new ApiError("raw", 400, code), fallback: "fallback", locale: "en" })).toBe(expected);
   });
 
   it("VALIDATION_ERROR prefers the server's own message, falling back when blank", () => {
     expect(
-      describeApiError(new ApiError("slug must be lowercase", 400, "VALIDATION_ERROR"), "fallback", "en"),
+      describeApiError({ e: new ApiError("slug must be lowercase", 400, "VALIDATION_ERROR"), fallback: "fallback", locale: "en" }),
     ).toBe("slug must be lowercase");
-    expect(describeApiError(new ApiError("", 400, "VALIDATION_ERROR"), "fallback", "en")).toBe(
+    expect(describeApiError({ e: new ApiError("", 400, "VALIDATION_ERROR"), fallback: "fallback", locale: "en" })).toBe(
       "Please correct the highlighted fields.",
     );
   });
 
   it("an unrecognized code falls through to the shared default", () => {
-    expect(describeApiError(new ApiError("raw message", 500, "SOMETHING_ELSE"), "fallback", "en")).toBe(
+    expect(describeApiError({ e: new ApiError("raw message", 500, "SOMETHING_ELSE"), fallback: "fallback", locale: "en" })).toBe(
       "raw message",
     );
   });
 
   it("a non-ApiError value falls through to the shared default", () => {
-    expect(describeApiError(new Error("plain"), "fallback", "en")).toBe("plain");
-    expect(describeApiError("nope", "fallback", "en")).toBe("fallback");
+    expect(describeApiError({ e: new Error("plain"), fallback: "fallback", locale: "en" })).toBe("plain");
+    expect(describeApiError({ e: "nope", fallback: "fallback", locale: "en" })).toBe("fallback");
   });
 
   // C4 — table-driven translation of each static override into the operator's locale (es).
@@ -50,17 +50,17 @@ describe("describeApiError", () => {
     ["FORBIDDEN", "No tienes permiso para hacer eso."],
     ["RESOURCE_CONFLICT", "Ese slug ya está en uso."],
   ])("translates the %s override into the operator's locale (es)", (code, expected) => {
-    expect(describeApiError(new ApiError("raw", 400, code), "fallback", "es")).toBe(expected);
+    expect(describeApiError({ e: new ApiError("raw", 400, code), fallback: "fallback", locale: "es" })).toBe(expected);
   });
 
   it("translates the VALIDATION_ERROR fallback into the operator's locale (es)", () => {
-    expect(describeApiError(new ApiError("", 400, "VALIDATION_ERROR"), "fallback", "es")).toBe(
+    expect(describeApiError({ e: new ApiError("", 400, "VALIDATION_ERROR"), fallback: "fallback", locale: "es" })).toBe(
       "Corrige los campos resaltados.",
     );
   });
 
   it("falls back to English for an unrecognized locale", () => {
-    expect(describeApiError(new ApiError("raw", 400, "FORBIDDEN"), "fallback", "xx")).toBe(
+    expect(describeApiError({ e: new ApiError("raw", 400, "FORBIDDEN"), fallback: "fallback", locale: "xx" })).toBe(
       "You do not have permission to do that.",
     );
   });
@@ -91,18 +91,18 @@ describe("workspace-i18n — C4 keys", () => {
 
 describe("isWorkspaceDirty", () => {
   it("is false when the draft matches the persisted workspace exactly", () => {
-    expect(isWorkspaceDirty(WORKSPACE, "My Site", "my-site")).toBe(false);
+    expect(isWorkspaceDirty({ workspace: WORKSPACE, name: "My Site", slug: "my-site" })).toBe(false);
   });
 
   it("is true when the draft name differs", () => {
-    expect(isWorkspaceDirty(WORKSPACE, "New Name", "my-site")).toBe(true);
+    expect(isWorkspaceDirty({ workspace: WORKSPACE, name: "New Name", slug: "my-site" })).toBe(true);
   });
 
   it("is true when the draft slug differs", () => {
-    expect(isWorkspaceDirty(WORKSPACE, "My Site", "new-slug")).toBe(true);
+    expect(isWorkspaceDirty({ workspace: WORKSPACE, name: "My Site", slug: "new-slug" })).toBe(true);
   });
 
   it("is true when both differ", () => {
-    expect(isWorkspaceDirty(WORKSPACE, "New Name", "new-slug")).toBe(true);
+    expect(isWorkspaceDirty({ workspace: WORKSPACE, name: "New Name", slug: "new-slug" })).toBe(true);
   });
 });

@@ -24,12 +24,12 @@ import { useAdminBootScope } from "../lib/admin-boot-scope";
 
 export interface InterfacePreferencesPort {
   loadInterface(): Promise<InterfaceConfig>;
-  subscribeToSettingsRefresh(listener: () => void): () => void;
+  subscribeToSettingsRefresh(required: { listener: () => void }): () => void;
 }
 
 export const defaultInterfacePreferencesPort: InterfacePreferencesPort = {
   loadInterface,
-  subscribeToSettingsRefresh: (listener) =>
+  subscribeToSettingsRefresh: ({ listener }, _options = {}) =>
     subscribeToSettingsRefresh((scope) => {
       if (scope === null || scope.includes(INTERFACE_NAMESPACE)) listener();
     }),
@@ -46,7 +46,7 @@ export function useInterfacePreferences(port: InterfacePreferencesPort = default
   const queryFetch = useQueryFetchCallback(() => port.loadInterface(), [port]);
   const query = useFetchQuery({ key: ["settings", INTERFACE_NAMESPACE, queryScope], fetch: queryFetch }, { enabled: !checking, staleTime: Infinity });
   const invalidate = useInvalidate();
-  useEffect(() => port.subscribeToSettingsRefresh(() => invalidate({ key: ["settings", INTERFACE_NAMESPACE] })), [port, invalidate]);
+  useEffect(() => port.subscribeToSettingsRefresh({ listener: () => invalidate({ key: ["settings", INTERFACE_NAMESPACE] }) }), [port, invalidate]);
   return query.data ?? DEFAULT_INTERFACE;
 }
 

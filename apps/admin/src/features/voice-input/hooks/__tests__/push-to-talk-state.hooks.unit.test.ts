@@ -123,11 +123,11 @@ describe("describePushToTalkIndicator", () => {
 
 describe("describeCaptureError", () => {
   it("uses the real Error message when given one", () => {
-    expect(describeCaptureError(new Error("NotAllowedError"))).toBe("NotAllowedError");
+    expect(describeCaptureError({ error: new Error("NotAllowedError") })).toBe("NotAllowedError");
   });
 
   it("falls back to a fixed string for a non-Error rejection", () => {
-    expect(describeCaptureError("some string")).toBe("Unknown error");
-    expect(describeCaptureError(undefined)).toBe("Unknown error");
+    expect(describeCaptureError({ error: "some string" })).toBe("Unknown error");
+    expect(describeCaptureError({ error: undefined })).toBe("Unknown error");
   });
 });

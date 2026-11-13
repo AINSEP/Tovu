@@ -51,7 +51,7 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
         resettable: false, inherited: true }],
       contents: { "render/pages/future.html": "<h1>Bundled</h1>" },
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (key) => key }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (key) => key } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Bundled</h1>"));
     expect(result.current.files[0]).toMatchObject({ inherited: true, editable: false, resettable: false });
     expect(result.current.sourceLoaded).toBe(true);
@@ -64,7 +64,7 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
 
     await waitFor(() => expect(result.current.detail?.name).toBe("Basic"));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
@@ -78,7 +78,7 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
 
     act(() => result.current.setSource("<h1>Changed</h1>"));
@@ -102,7 +102,7 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
   it("stays with detail null while the injected port's detail call is still pending", () => {
     const port = createFakeThemeExplorePort();
     port.getThemeDetail = () => new Promise(() => {});
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     expect(result.current.detail).toBeNull();
     expect(result.current.files).toEqual([]);
   });
@@ -138,7 +138,7 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
         "templates/entry.liquid": "{% render_block component: \"tovu/site-header\" %}",
       },
     });
-    const { result } = renderHook(() => useThemeExplore("storefront", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "storefront", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(2));
 
     const liquidFile = result.current.files.find((f) => f.path === "templates/entry.liquid");
@@ -163,7 +163,7 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
       files: [{ path: "templates/entry.liquid", group: "other", readable: false, editable: false, resettable: true }],
       contents: { "templates/entry.liquid": "{% render_block component: \"tovu/site-header\" %}" },
     });
-    const { result } = renderHook(() => useThemeExplore("storefront", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "storefront", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(1));
 
     const liquidFile = result.current.files.find((f) => f.path === "templates/entry.liquid");
@@ -207,7 +207,7 @@ describe("useThemeExplore — ?page= preselection", () => {
 
   it("opens the page named by pageId, resolving the bare id against a v2 render/pages/ layout", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "404" }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { pageId: "404" }));
     await waitFor(() => expect(result.current.selected).not.toBeNull());
     expect(result.current.selected).toBe("render/pages/404.html");
     await waitFor(() => expect(result.current.source).toBe("<h1>Not found</h1>"));
@@ -222,7 +222,7 @@ describe("useThemeExplore — ?page= preselection", () => {
    */
   it("resolves a pageId that still carries its .html extension against the bare page label (owner-reported bug)", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "404.html" }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { pageId: "404.html" }));
     await waitFor(() => expect(result.current.selected).not.toBeNull());
     expect(result.current.selected).toBe("render/pages/404.html");
     expect(result.current.error).toBeNull();
@@ -237,7 +237,7 @@ describe("useThemeExplore — ?page= preselection", () => {
    */
   it("falls back to the default selection when pageId names a page this theme does not have, and surfaces the miss", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "nope" }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { pageId: "nope" }));
     await waitFor(() => expect(result.current.selected).not.toBeNull());
     expect(result.current.selected).toBe("render/pages/index.html");
     expect(result.current.error).toBe('"nope" isn\'t a page or file in this theme.');
@@ -245,7 +245,7 @@ describe("useThemeExplore — ?page= preselection", () => {
 
   it("never resolves a pageId onto a non-page file, so ?page=theme.css cannot open a stylesheet — and surfaces the miss, since a bare label cannot address it", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "theme.css" }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { pageId: "theme.css" }));
     await waitFor(() => expect(result.current.selected).not.toBeNull());
     expect(result.current.selected).toBe("render/pages/index.html");
     expect(result.current.error).toBe('"theme.css" isn\'t a page or file in this theme.');
@@ -253,14 +253,14 @@ describe("useThemeExplore — ?page= preselection", () => {
 
   it("keeps the pre-existing default selection when no pageId is supplied at all", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.selected).not.toBeNull());
     expect(result.current.selected).toBe("render/pages/index.html");
   });
 
   it("resolves pageId 'index' to the theme's own index page — the one id that is not its own site route", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "index" }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { pageId: "index" }));
     await waitFor(() => expect(result.current.selected).not.toBeNull());
     expect(result.current.selected).toBe("render/pages/index.html");
   });
@@ -296,7 +296,7 @@ describe("useThemeExplore — default selection resolves the v2 index page regar
       files: FILES,
       contents: CONTENTS,
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.selected).not.toBeNull());
     expect(result.current.selected).toBe("render/pages/index.html");
     expect(result.current.error).toBeNull();
@@ -325,7 +325,7 @@ describe("useThemeExplore — ?file= preselection", () => {
   it("opens the exact file named by fileId, extension and all", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
     const { result } = renderHook(() =>
-      useThemeExplore("basic", { port, t: (k) => k }, { fileId: "render/pages/404.html" })
+      useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { fileId: "render/pages/404.html" })
     );
     await waitFor(() => expect(result.current.selected).not.toBeNull());
     expect(result.current.selected).toBe("render/pages/404.html");
@@ -333,7 +333,7 @@ describe("useThemeExplore — ?file= preselection", () => {
 
   it("can address a non-page file — something ?page= structurally cannot do", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { fileId: "theme.json" }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { fileId: "theme.json" }));
     await waitFor(() => expect(result.current.selected).not.toBeNull());
     expect(result.current.selected).toBe("theme.json");
   });
@@ -341,7 +341,7 @@ describe("useThemeExplore — ?file= preselection", () => {
   it("takes priority over pageId when both are present", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
     const { result } = renderHook(() =>
-      useThemeExplore("basic", { port, t: (k) => k }, { pageId: "index", fileId: "render/pages/404.html" })
+      useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { pageId: "index", fileId: "render/pages/404.html" })
     );
     await waitFor(() => expect(result.current.selected).not.toBeNull());
     expect(result.current.selected).toBe("render/pages/404.html");
@@ -350,7 +350,7 @@ describe("useThemeExplore — ?file= preselection", () => {
   it("falls back through pageId, then the ordinary default, when fileId names nothing this theme has", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
     const { result } = renderHook(() =>
-      useThemeExplore("basic", { port, t: (k) => k }, { fileId: "does/not-exist.html", pageId: "404" })
+      useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { fileId: "does/not-exist.html", pageId: "404" })
     );
     await waitFor(() => expect(result.current.selected).not.toBeNull());
     expect(result.current.selected).toBe("render/pages/404.html");
@@ -385,7 +385,7 @@ describe("useThemeExplore — select writes the selection back to the address ba
   it("selecting a page writes the short ?page=<label> form — the owner's own ask", async () => {
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.selected).not.toBeNull());
 
     act(() => result.current.select("render/pages/about.html"));
@@ -400,7 +400,7 @@ describe("useThemeExplore — select writes the selection back to the address ba
   it("selecting a non-page file writes the full ?file=<path> form — a bare label cannot address it", async () => {
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.selected).not.toBeNull());
 
     act(() => result.current.select("css/theme.css"));
@@ -414,7 +414,7 @@ describe("useThemeExplore — select writes the selection back to the address ba
   it("clears a stale ?file= when selecting a page, so the two links in the URL can never disagree", async () => {
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic&file=render/pages/index.html");
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.selected).not.toBeNull());
 
     act(() => result.current.select("render/pages/about.html"));
@@ -427,7 +427,7 @@ describe("useThemeExplore — select writes the selection back to the address ba
   it("clears a stale ?page= when selecting a non-page file, so the two links in the URL can never disagree", async () => {
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic&page=index");
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.selected).not.toBeNull());
 
     act(() => result.current.select("css/theme.css"));
@@ -441,7 +441,7 @@ describe("useThemeExplore — select writes the selection back to the address ba
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
     const lengthBefore = window.history.length;
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.selected).not.toBeNull());
 
     act(() => result.current.select("render/pages/about.html"));
@@ -472,7 +472,7 @@ describe("useThemeExplore — select guards a dirty buffer before switching file
   it("prompts and stays on the dirty file when the operator declines", async () => {
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
 
     act(() => result.current.setSource("<h1>Changed</h1>"));
@@ -489,7 +489,7 @@ describe("useThemeExplore — select guards a dirty buffer before switching file
   it("switches files once the operator confirms leaving the dirty buffer", async () => {
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
 
     act(() => result.current.setSource("<h1>Changed</h1>"));
@@ -504,7 +504,7 @@ describe("useThemeExplore — select guards a dirty buffer before switching file
   it("never prompts when the buffer is clean", async () => {
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
 
     const confirmSpy = vi.spyOn(window, "confirm");
@@ -519,7 +519,7 @@ describe("useThemeExplore — select guards a dirty buffer before switching file
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
     const copySpy = vi.spyOn(port, "copyThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
 
     act(() => result.current.setSource("<h1>Changed</h1>"));
@@ -536,7 +536,7 @@ describe("useThemeExplore — select guards a dirty buffer before switching file
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
     const copySpy = vi.spyOn(port, "copyThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
 
     act(() => result.current.setSource("<h1>Changed</h1>"));
@@ -551,7 +551,7 @@ describe("useThemeExplore — select guards a dirty buffer before switching file
   it("copyFile never prompts when the buffer is clean", async () => {
     window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
 
     const confirmSpy = vi.spyOn(window, "confirm");
@@ -584,7 +584,7 @@ describe("useThemeExplore — setPagePublished", () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
     const setPagePublishedSpy = vi.spyOn(port, "setPagePublished");
     const { result } = renderHook(() =>
-      useThemeExplore("basic", { port, t: (k) => k }, { fileId: "render/pages/pricing.html" })
+      useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { fileId: "render/pages/pricing.html" })
     );
     await waitFor(() => expect(result.current.selected).toBe("render/pages/pricing.html"));
 
@@ -604,7 +604,7 @@ describe("useThemeExplore — setPagePublished", () => {
   it("is a no-op for a selected file with no publish state at all (not a candidate page)", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
     const setPagePublishedSpy = vi.spyOn(port, "setPagePublished");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { fileId: "css/theme.css" }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { fileId: "css/theme.css" }));
     await waitFor(() => expect(result.current.selected).toBe("css/theme.css"));
 
     await act(async () => {
@@ -618,7 +618,7 @@ describe("useThemeExplore — setPagePublished", () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
     port.setPagePublished = () => Promise.reject(new Error("theme is tier 'declarative'"));
     const { result } = renderHook(() =>
-      useThemeExplore("basic", { port, t: (k) => k }, { fileId: "render/pages/pricing.html" })
+      useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { fileId: "render/pages/pricing.html" })
     );
     await waitFor(() => expect(result.current.selected).toBe("render/pages/pricing.html"));
 
@@ -651,7 +651,7 @@ describe("useThemeExplore — collidingContent mapping", () => {
         },
       ],
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(1));
 
     expect(result.current.files[0].collidingContent).toEqual({
@@ -668,7 +668,7 @@ describe("useThemeExplore — collidingContent mapping", () => {
         { path: "pages/signin.html", group: "page" as const, readable: true, editable: true, resettable: true, published: true },
       ],
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(1));
 
     expect(result.current.files[0].collidingContent).toBeNull();
@@ -678,7 +678,7 @@ describe("useThemeExplore — collidingContent mapping", () => {
     const port = createFakeThemeExplorePort({
       files: [{ path: "css/theme.css", group: "style" as const, readable: true, editable: true, resettable: true }],
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(1));
 
     // Strict `toBeNull()`, not merely falsy — `mapDetailFiles`'s contract is `boolean | null`, never
@@ -696,7 +696,7 @@ describe("useThemeExplore — modified mapping", () => {
         { path: "css/theme.css", group: "style" as const, readable: true, editable: true, resettable: true, modified: false },
       ],
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(2));
 
     expect(result.current.files.map((f) => [f.path, f.modified])).toEqual([
@@ -709,7 +709,7 @@ describe("useThemeExplore — modified mapping", () => {
     const port = createFakeThemeExplorePort({
       files: [{ path: "pages/mine.html", group: "page" as const, readable: true, editable: true, resettable: false }],
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(1));
 
     expect(result.current.files[0].modified).toBeNull();
@@ -725,7 +725,7 @@ describe("useThemeExplore — startRename's client-side lock mirrors the server'
         { path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true },
       ],
     });
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(2));
 
     act(() => result.current.startRename("pages/index.html"));
@@ -758,7 +758,7 @@ describe("useThemeExplore — startRename's client-side lock mirrors the server'
         { path: "render/pages/about.html", group: "page", readable: true, editable: true, resettable: true },
       ],
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(2));
 
     act(() => result.current.startRename("render/pages/index.html"));
@@ -799,7 +799,7 @@ describe("useThemeExplore — rename race safety", () => {
       });
     });
 
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
     // Two renames started back to back, before the first settles: a.css -> a2.css first,
@@ -845,7 +845,7 @@ describe("useThemeExplore — rename race safety", () => {
       });
     });
 
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
     act(() => result.current.startRename("css/a.css"));
@@ -895,7 +895,7 @@ describe("useThemeExplore — rename race safety", () => {
       });
     });
 
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
     act(() => result.current.startRename("css/a.css"));
@@ -943,7 +943,7 @@ describe("useThemeExplore — copyFile same-tick double-fire safety", () => {
     const copyThemeFile = vi.fn(port.copyThemeFile.bind(port));
     port.copyThemeFile = copyThemeFile;
 
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(2));
 
     // Both calls fire synchronously in the SAME callback, before React re-renders with
@@ -979,7 +979,7 @@ describe("useThemeExplore — delete", () => {
 
   it("openDeleteConfirm sets deleteTarget for an eligible file, with no server call yet", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
     act(() => result.current.openDeleteConfirm("pages/about.html"));
@@ -989,7 +989,7 @@ describe("useThemeExplore — delete", () => {
 
   it("refuses inline (error set, deleteTarget stays null) for a REQUIRED file, same as startRename's own lock", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
     act(() => result.current.openDeleteConfirm("pages/index.html"));
@@ -999,7 +999,7 @@ describe("useThemeExplore — delete", () => {
 
   it("refuses inline for an IDENTITY_LOCKED_GROUPS member (script) even though its CONTENT is editable", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
     act(() => result.current.openDeleteConfirm("js/main.js"));
@@ -1010,7 +1010,7 @@ describe("useThemeExplore — delete", () => {
   it("closeDeleteConfirm clears the target without calling the port", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
     const deleteSpy = vi.spyOn(port, "deleteThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
     act(() => result.current.openDeleteConfirm("pages/about.html"));
@@ -1022,7 +1022,7 @@ describe("useThemeExplore — delete", () => {
   it("confirmDelete removes the file via the port and refetches the file list", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
     const deleteSpy = vi.spyOn(port, "deleteThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
     act(() => result.current.openDeleteConfirm("pages/about.html"));
@@ -1047,7 +1047,7 @@ describe("useThemeExplore — delete", () => {
       ],
       contents: { "pages/index.html": "<h1>Home</h1>", "pages/about.html": "<h1>About</h1>" },
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.selected).toBe("pages/index.html"));
 
     act(() => result.current.select("pages/about.html"));
@@ -1066,7 +1066,7 @@ describe("useThemeExplore — delete", () => {
   it("confirmDelete surfaces a port failure as error and leaves the dialog open with deleting reset", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
     port.deleteThemeFile = () => Promise.reject(new Error("boom"));
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
     act(() => result.current.openDeleteConfirm("pages/about.html"));
@@ -1085,7 +1085,7 @@ describe("useThemeExplore — initial load failure", () => {
   it("surfaces an Error rejection from getThemeDetail as error", async () => {
     const port = createFakeThemeExplorePort();
     port.getThemeDetail = () => Promise.reject(new Error("theme not found"));
-    const { result } = renderHook(() => useThemeExplore("ghost", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "ghost", dependencies: { port, t: (k) => k } }));
 
     await waitFor(() => expect(result.current.error).toBe("theme not found"));
     expect(result.current.detail).toBeNull();
@@ -1094,7 +1094,7 @@ describe("useThemeExplore — initial load failure", () => {
   it("falls back to a generic message when the rejection is not an Error instance", async () => {
     const port = createFakeThemeExplorePort();
     port.getThemeDetail = () => Promise.reject("nope");
-    const { result } = renderHook(() => useThemeExplore("ghost", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "ghost", dependencies: { port, t: (k) => k } }));
 
     await waitFor(() => expect(result.current.error).toBe("failed to load theme"));
   });
@@ -1105,7 +1105,7 @@ describe("useThemeExplore — initial load failure", () => {
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
     const { result } = renderHook(() =>
-      useThemeExplore("basic", { port, t: (k) => k }, { pageId: "does-not-exist" })
+      useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { pageId: "does-not-exist" })
     );
 
     await waitFor(() => expect(result.current.error).toBe('"does-not-exist" isn\'t a page or file in this theme.'));
@@ -1142,7 +1142,7 @@ describe("useThemeExplore — initial load effect cleanup (cancelled)", () => {
           resolveDetail = resolve;
         })
     );
-    const { result, unmount } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result, unmount } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(port.getThemeDetail).toHaveBeenCalledTimes(1));
 
     unmount();
@@ -1174,7 +1174,7 @@ describe("useThemeExplore — initial load effect cleanup (cancelled)", () => {
           rejectDetail = reject;
         })
     );
-    const { result, unmount } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result, unmount } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(port.getThemeDetail).toHaveBeenCalledTimes(1));
 
     unmount();
@@ -1191,12 +1191,12 @@ describe("useThemeExplore — initial load effect cleanup (cancelled)", () => {
       files: [],
     });
     const getDetail = port.getThemeDetail.bind(port);
-    vi.spyOn(port, "getThemeDetail").mockImplementation((id) => id === "a" ? stale : getDetail(id));
+    vi.spyOn(port, "getThemeDetail").mockImplementation(({ themeId: id }) => id === "a" ? stale : getDetail({ themeId: id }));
     const { result, rerender } = renderHook(
-      ({ themeId }) => useThemeExplore(themeId, { port, t: (k) => k }),
+      ({ themeId }) => useThemeExplore({ themeId, dependencies: { port, t: (k) => k } }),
       { initialProps: { themeId: "a" } }
     );
-    await waitFor(() => expect(port.getThemeDetail).toHaveBeenCalledWith("a"));
+    await waitFor(() => expect(port.getThemeDetail).toHaveBeenCalledWith({ themeId: "a" }));
     rerender({ themeId: "b" });
     await waitFor(() => expect(result.current.detail?.id).toBe("b"));
     await act(async () => {
@@ -1221,16 +1221,16 @@ describe("useThemeExplore — initial load effect cleanup (cancelled)", () => {
       files: [],
     });
     const realGetThemeDetail = port.getThemeDetail.bind(port);
-    port.getThemeDetail = vi.fn((themeId: string) => {
+    port.getThemeDetail = vi.fn(({ themeId }: { themeId: string }) => {
       if (themeId === "a") return new Promise<DeferredThemeDetail>((resolve) => (resolveStale = resolve));
-      return realGetThemeDetail(themeId);
+      return realGetThemeDetail({ themeId });
     });
 
     const { result, rerender } = renderHook(
-      ({ themeId }: { themeId: string }) => useThemeExplore(themeId, { port, t: (k) => k }),
+      ({ themeId }: { themeId: string }) => useThemeExplore({ themeId, dependencies: { port, t: (k) => k } }),
       { initialProps: { themeId: "a" } }
     );
-    await waitFor(() => expect(port.getThemeDetail).toHaveBeenCalledWith("a"));
+    await waitFor(() => expect(port.getThemeDetail).toHaveBeenCalledWith({ themeId: "a" }));
 
     // Navigate to a different theme before "a"'s load ever resolves — this runs the OLD effect's
     // cleanup (`cancelled = true`) and starts a fresh one for "b", which resolves normally.
@@ -1264,7 +1264,7 @@ describe("useThemeExplore — file-content effect failure", () => {
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
     port.getThemeFile = () => Promise.reject(new Error("read failed"));
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
 
     await waitFor(() => expect(result.current.error).toBe("read failed"));
   });
@@ -1275,7 +1275,7 @@ describe("useThemeExplore — file-content effect failure", () => {
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
     port.getThemeFile = () => Promise.reject("nope");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
 
     await waitFor(() => expect(result.current.error).toBe("failed to read file"));
   });
@@ -1290,12 +1290,12 @@ describe("useThemeExplore — file-content effect failure", () => {
       contents: { "pages/index.html": "<h1>Home</h1>", "pages/about.html": "<h1>About</h1>" },
     });
     port.getThemeFile = vi.fn(
-      (_themeId: string, path: string) =>
+      ({ themeId: _themeId, path }: { themeId: string; path: string }) =>
         new Promise<never>((_resolve, reject) => {
           deferred[path] = { reject };
         })
     );
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(port.getThemeFile).toHaveBeenCalledTimes(1));
 
     act(() => result.current.select("pages/about.html"));
@@ -1321,12 +1321,12 @@ describe("useThemeExplore — file-content effect failure", () => {
       contents: { "pages/index.html": "<h1>Home</h1>", "pages/about.html": "<h1>About</h1>" },
     });
     port.getThemeFile = vi.fn(
-      (_themeId: string, path: string) =>
+      ({ themeId: _themeId, path }: { themeId: string; path: string }) =>
         new Promise<{ content: string }>((resolve) => {
           deferred[path] = { resolve };
         })
     );
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(port.getThemeFile).toHaveBeenCalledTimes(1));
 
     // Navigate away before the first file's content ever arrives.
@@ -1353,7 +1353,7 @@ describe("useThemeExplore — save", () => {
   it("is a no-op when nothing is selected", async () => {
     const port = createFakeThemeExplorePort({ files: [] });
     const putSpy = vi.spyOn(port, "putThemeFile");
-    const { result } = renderHook(() => useThemeExplore("empty", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "empty", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.detail).not.toBeNull());
     expect(result.current.selected).toBeNull();
 
@@ -1371,7 +1371,7 @@ describe("useThemeExplore — save", () => {
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
     port.putThemeFile = () => Promise.reject(new Error("write failed"));
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     act(() => result.current.setSource("<h1>Changed</h1>"));
 
@@ -1391,7 +1391,7 @@ describe("useThemeExplore — save", () => {
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
     port.putThemeFile = () => Promise.reject("nope");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     act(() => result.current.setSource("<h1>Changed</h1>"));
 
@@ -1412,10 +1412,10 @@ describe("useThemeExplore — save", () => {
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
     const serverRead = port.getThemeFile;
-    port.getThemeFile = (themeId, path) =>
-      path === "pages/big.html" ? Promise.reject(new Error(bigTooLarge)) : serverRead(themeId, path);
+    port.getThemeFile = ({ themeId, path }) =>
+      path === "pages/big.html" ? Promise.reject(new Error(bigTooLarge)) : serverRead({ themeId, path });
     const putSpy = vi.spyOn(port, "putThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
 
     act(() => result.current.select("pages/big.html"));
@@ -1439,9 +1439,9 @@ describe("useThemeExplore — save", () => {
       contents: { "pages/index.html": "<h1>Home</h1>", "pages/about.html": "<h1>About</h1>" },
     });
     const serverRead = port.getThemeFile;
-    port.getThemeFile = (themeId, path) => (path === "pages/about.html" ? new Promise(() => {}) : serverRead(themeId, path));
+    port.getThemeFile = ({ themeId, path }) => (path === "pages/about.html" ? new Promise(() => {}) : serverRead({ themeId, path }));
     const putSpy = vi.spyOn(port, "putThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
 
     act(() => result.current.setSource("<h1>Home</h1><p>unsaved</p>"));
@@ -1466,10 +1466,10 @@ describe("useThemeExplore — save", () => {
       contents: { "pages/index.html": "<h1>Theme A</h1>" },
     });
     const serverRead = port.getThemeFile;
-    port.getThemeFile = (themeId, path) => (themeId === "b" ? new Promise(() => {}) : serverRead(themeId, path));
+    port.getThemeFile = ({ themeId, path }) => (themeId === "b" ? new Promise(() => {}) : serverRead({ themeId, path }));
     const putSpy = vi.spyOn(port, "putThemeFile");
     const { result, rerender } = renderHook(
-      ({ themeId }: { themeId: string }) => useThemeExplore(themeId, { port, t: (k) => k }),
+      ({ themeId }: { themeId: string }) => useThemeExplore({ themeId, dependencies: { port, t: (k) => k } }),
       { initialProps: { themeId: "a" } }
     );
     await waitFor(() => expect(result.current.source).toBe("<h1>Theme A</h1>"));
@@ -1511,14 +1511,14 @@ describe("useThemeExplore — save vs. a readable flip on the open file with no 
     // First call is the initial load (both files readable). Every call after that — triggered below
     // by deleting the OTHER file, which refetches the whole list — reports the OPEN file's `readable`
     // flipped to false, with `selected` never asked to change.
-    port.getThemeDetail = async (themeId) => {
+    port.getThemeDetail = async ({ themeId }) => {
       detailCalls += 1;
-      const r = await serverDetail(themeId);
+      const r = await serverDetail({ themeId });
       if (detailCalls === 1) return r;
       return { ...r, files: r.files.map((f) => (f.path === "pages/index.html" ? { ...f, readable: false } : f)) };
     };
     const putSpy = vi.spyOn(port, "putThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     expect(result.current.sourceLoaded).toBe(true);
 
@@ -1532,7 +1532,7 @@ describe("useThemeExplore — save vs. a readable flip on the open file with no 
     expect(result.current.files.find((f) => f.path === "pages/index.html")?.readable).toBe(false);
     expect(result.current.source).toBe("");
     expect(result.current.sourceLoaded).toBe(false);
-    expect(themeExploreHtmlMode(result.current.files.find((f) => f.path === "pages/index.html"), result.current.sourceLoaded)).toBe(
+    expect(themeExploreHtmlMode({ file: result.current.files.find((f) => f.path === "pages/index.html"), sourceLoaded: result.current.sourceLoaded })).toBe(
       "binary"
     );
 
@@ -1557,7 +1557,7 @@ describe("useThemeExplore — reset", () => {
   it("is a no-op when nothing is selected", async () => {
     const port = createFakeThemeExplorePort({ files: [] });
     const resetSpy = vi.spyOn(port, "resetThemeFile");
-    const { result } = renderHook(() => useThemeExplore("empty", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "empty", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.detail).not.toBeNull());
 
     await act(async () => {
@@ -1576,7 +1576,7 @@ describe("useThemeExplore — reset", () => {
     port.resetThemeFile = () => Promise.resolve({ content: "<h1>Original</h1>" });
     const resetSpy = vi.spyOn(port, "resetThemeFile");
     const getThemeFileSpy = vi.spyOn(port, "getThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
     act(() => result.current.setSource("<h1>Edited</h1>"));
     act(() => result.current.openResetConfirm());
@@ -1587,7 +1587,7 @@ describe("useThemeExplore — reset", () => {
     });
 
     expect(resetSpy).toHaveBeenCalledWith("basic", "pages/index.html");
-    expect(getThemeFileSpy).toHaveBeenCalledWith("basic", "pages/index.html");
+    expect(getThemeFileSpy).toHaveBeenCalledWith({ themeId: "basic", path: "pages/index.html" });
     expect(result.current.source).toBe("<h1>Original</h1>");
     expect(result.current.sourceLoaded).toBe(true);
     expect(result.current.dirty).toBe(false);
@@ -1621,7 +1621,7 @@ describe("useThemeExplore — reset", () => {
 
   it("after a content: null reset, re-reads the file and lands unloaded on GET /file's refusal", async () => {
     const { port, getThemeFileSpy } = oversizedResetPort();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
     act(() => result.current.setSource("<h1>Edited</h1>"));
     act(() => result.current.openResetConfirm());
@@ -1636,14 +1636,14 @@ describe("useThemeExplore — reset", () => {
     expect(result.current.sourceLoaded).toBe(false);
     expect(result.current.source).toBe("");
     expect(result.current.dirty).toBe(false);
-    expect(themeExploreHtmlMode(result.current.files[0], result.current.sourceLoaded)).toBe("unloaded");
+    expect(themeExploreHtmlMode({ file: result.current.files[0], sourceLoaded: result.current.sourceLoaded })).toBe("unloaded");
     expect(getThemeFileSpy).toHaveBeenCalledTimes(2);
   });
 
   it("Save after a content: null reset does not call putThemeFile, even with a changed buffer", async () => {
     const { port } = oversizedResetPort();
     const putSpy = vi.spyOn(port, "putThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
 
     await act(async () => {
@@ -1666,7 +1666,7 @@ describe("useThemeExplore — reset", () => {
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
     port.resetThemeFile = () => Promise.reject(new Error("reset failed"));
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     act(() => result.current.openResetConfirm());
 
@@ -1686,7 +1686,7 @@ describe("useThemeExplore — reset", () => {
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
     port.resetThemeFile = () => Promise.reject("nope");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
 
     await act(async () => {
@@ -1739,7 +1739,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
 
   it("saving an untouched file marks it modified and offers Reset", async () => {
     const port = trackingPort(ORIGINAL);
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     expect(openFile(result).modified).toBe(false);
 
@@ -1756,7 +1756,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
 
   it("resetting a modified file marks it unmodified and hides Reset", async () => {
     const port = trackingPort("<h1>Changed</h1>");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
     expect(openFile(result).modified).toBe(true);
 
@@ -1772,7 +1772,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
 
   it("saving a modified file's original content back marks it unmodified and hides Reset", async () => {
     const port = trackingPort("<h1>Changed</h1>");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
     expect(openFile(result).modified).toBe(true);
 
@@ -1790,13 +1790,13 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
   it("keeps edits typed while the post-save refresh is in flight, and never re-reads the open file", async () => {
     const port = trackingPort(ORIGINAL);
     const getThemeFileSpy = vi.spyOn(port, "getThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     const serverDetail = port.getThemeDetail;
     let releaseDetail: (() => void) | undefined;
-    port.getThemeDetail = (themeId) =>
+    port.getThemeDetail = ({ themeId }) =>
       new Promise((resolve) => {
-        releaseDetail = () => resolve(serverDetail(themeId));
+        releaseDetail = () => resolve(serverDetail({ themeId }));
       });
 
     act(() => result.current.setSource("<h1>Saved</h1>"));
@@ -1828,7 +1828,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
     const getThemeFileSpy = vi.fn(serverRead);
     getThemeFileSpy.mockImplementationOnce(serverRead).mockRejectedValue(new Error("file too large"));
     port.getThemeFile = getThemeFileSpy;
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
 
     await act(async () => {
@@ -1844,7 +1844,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
 
   it("reports a failed refresh as its own error, leaving the save itself done", async () => {
     const port = trackingPort(ORIGINAL);
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     port.getThemeDetail = () => Promise.reject(new Error("detail failed"));
 
@@ -1862,7 +1862,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
 
   it("falls back to a generic message when a post-reset refresh rejection is not an Error instance", async () => {
     const port = trackingPort("<h1>Changed</h1>");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
     port.getThemeDetail = () => Promise.reject("nope");
 
@@ -1886,9 +1886,9 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
   ) {
     const serverDetail = port.getThemeDetail;
     const pending: Array<{ resolve: () => void; reject: (reason: unknown) => void }> = [];
-    port.getThemeDetail = (themeId) =>
+    port.getThemeDetail = ({ themeId }) =>
       new Promise((resolve, reject) => {
-        const snapshot = serverDetail(themeId);
+        const snapshot = serverDetail({ themeId });
         pending.push({ resolve: () => resolve(snapshot), reject });
       });
     const saves: Array<Promise<void>> = [];
@@ -1907,7 +1907,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
 
   it("a stale post-save refresh settling after a newer one does not overwrite the newer modified state", async () => {
     const port = trackingPort(ORIGINAL);
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     const { pending, saves } = await saveTwiceWithReadsPending(result, port);
 
@@ -1927,7 +1927,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
 
   it("a stale post-save refresh failing after a newer one succeeded surfaces no error", async () => {
     const port = trackingPort(ORIGINAL);
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     const { pending, saves } = await saveTwiceWithReadsPending(result, port);
 
@@ -1948,7 +1948,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
     const port = trackingPort(ORIGINAL);
     const getThemeDetailSpy = vi.spyOn(port, "getThemeDetail");
     port.putThemeFile = () => Promise.reject(new Error("write failed"));
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
 
     act(() => result.current.setSource("<h1>Changed</h1>"));
@@ -1964,7 +1964,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
     const port = trackingPort("<h1>Changed</h1>");
     const getThemeDetailSpy = vi.spyOn(port, "getThemeDetail");
     port.resetThemeFile = () => Promise.reject(new Error("reset failed"));
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
 
     await act(async () => {
@@ -1993,8 +1993,8 @@ describe("useThemeExplore — modified state after Copy and Rename", () => {
 
   function withNoOriginalAt(port: ReturnType<typeof createFakeThemeExplorePort>, newPath: string) {
     const serverDetail = port.getThemeDetail;
-    port.getThemeDetail = async (themeId) => {
-      const detail = await serverDetail(themeId);
+    port.getThemeDetail = async ({ themeId }) => {
+      const detail = await serverDetail({ themeId });
       return {
         ...detail,
         files: detail.files.map((f) => (f.path === newPath ? { ...f, resettable: false, modified: null } : f)),
@@ -2005,7 +2005,7 @@ describe("useThemeExplore — modified state after Copy and Rename", () => {
   it("a copy of a modified file lists as not resettable, with modified null", async () => {
     const port = createFakeThemeExplorePort({ files: [MODIFIED_STYLE], contents: { "css/a.css": "body{}" } });
     withNoOriginalAt(port, "css/a-1.css");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(1));
 
     await act(async () => {
@@ -2022,7 +2022,7 @@ describe("useThemeExplore — modified state after Copy and Rename", () => {
   it("a renamed modified file lists as not resettable, with modified null", async () => {
     const port = createFakeThemeExplorePort({ files: [MODIFIED_STYLE], contents: { "css/a.css": "body{}" } });
     withNoOriginalAt(port, "css/b.css");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.selected).toBe("css/a.css"));
 
     act(() => result.current.startRename("css/a.css"));
@@ -2058,7 +2058,7 @@ describe("useThemeExplore — a failed re-read after a successful Delete, Copy o
   /** Loads normally, then every later detail read fails — the re-read after the mutation. */
   async function renderWithFailingReread() {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const hook = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const hook = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(hook.result.current.files.length).toBe(3));
     port.getThemeDetail = () => Promise.reject(new Error("detail read failed"));
     return { port, result: hook.result };
@@ -2138,7 +2138,7 @@ describe("useThemeExplore — performRename failure and the non-selected-file te
   it("reports a NAME_TAKEN ApiError with its own dedicated message", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
     port.renameThemeFile = () => Promise.reject(new ApiError("conflict", 409, "NAME_TAKEN"));
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(2));
 
     act(() => result.current.startRename("css/a.css"));
@@ -2154,7 +2154,7 @@ describe("useThemeExplore — performRename failure and the non-selected-file te
   it("reports a generic Error's own message when it isn't a NAME_TAKEN ApiError", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
     port.renameThemeFile = () => Promise.reject(new Error("server exploded"));
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(2));
 
     act(() => result.current.startRename("css/a.css"));
@@ -2169,7 +2169,7 @@ describe("useThemeExplore — performRename failure and the non-selected-file te
   it("falls back to a generic rename-failed message when the rejection is not an Error instance", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
     port.renameThemeFile = () => Promise.reject("nope");
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(2));
 
     act(() => result.current.startRename("css/a.css"));
@@ -2183,7 +2183,7 @@ describe("useThemeExplore — performRename failure and the non-selected-file te
 
   it("updates selection to the new path when the renamed file WAS the one open", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.selected).toBe("pages/index.html"));
 
     act(() => result.current.select("css/a.css"));
@@ -2201,7 +2201,7 @@ describe("useThemeExplore — performRename failure and the non-selected-file te
 
   it("keeps the existing selection unchanged when the renamed file was not the one open", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.selected).toBe("pages/index.html"));
 
     act(() => result.current.startRename("css/a.css"));
@@ -2225,7 +2225,7 @@ describe("useThemeExplore — startRename's generic read-only-group message name
         { path: "js/main.js", group: "script", readable: true, editable: true, resettable: true },
       ],
     });
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(2));
 
     act(() => result.current.startRename("js/main.js"));
@@ -2245,7 +2245,7 @@ describe("useThemeExplore — commitRename validation", () => {
   it("is a no-op when nothing is being renamed", async () => {
     const port = createFakeThemeExplorePort({ files: FILES });
     const renameSpy = vi.spyOn(port, "renameThemeFile");
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
     act(() => result.current.commitRename());
@@ -2256,7 +2256,7 @@ describe("useThemeExplore — commitRename validation", () => {
   it("refuses an empty (whitespace-only) name without calling the port", async () => {
     const port = createFakeThemeExplorePort({ files: FILES });
     const renameSpy = vi.spyOn(port, "renameThemeFile");
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
     act(() => result.current.startRename("css/a.css"));
@@ -2272,7 +2272,7 @@ describe("useThemeExplore — commitRename validation", () => {
   it("refuses a name containing a path separator without calling the port", async () => {
     const port = createFakeThemeExplorePort({ files: FILES });
     const renameSpy = vi.spyOn(port, "renameThemeFile");
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
     act(() => result.current.startRename("css/a.css"));
@@ -2286,7 +2286,7 @@ describe("useThemeExplore — commitRename validation", () => {
   it("refuses a backslash the same way as a forward slash", async () => {
     const port = createFakeThemeExplorePort({ files: FILES });
     const renameSpy = vi.spyOn(port, "renameThemeFile");
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
     act(() => result.current.startRename("css/a.css"));
@@ -2300,7 +2300,7 @@ describe("useThemeExplore — commitRename validation", () => {
   it("silently closes rename-edit mode on a same-name draft, with no port call", async () => {
     const port = createFakeThemeExplorePort({ files: FILES });
     const renameSpy = vi.spyOn(port, "renameThemeFile");
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
     act(() => result.current.startRename("css/a.css"));
@@ -2316,7 +2316,7 @@ describe("useThemeExplore — commitRename validation", () => {
   it("diverts a PAGE rename into pageRenameWarning instead of renaming immediately", async () => {
     const port = createFakeThemeExplorePort({ files: FILES });
     const renameSpy = vi.spyOn(port, "renameThemeFile");
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
     act(() => result.current.startRename("pages/about.html"));
@@ -2338,7 +2338,7 @@ describe("useThemeExplore — confirmPageRename / cancelPageRenameWarning", () =
   it("is a no-op when there is no pending page-rename warning", async () => {
     const port = createFakeThemeExplorePort({ files: FILES });
     const renameSpy = vi.spyOn(port, "renameThemeFile");
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(2));
 
     await act(async () => {
@@ -2350,7 +2350,7 @@ describe("useThemeExplore — confirmPageRename / cancelPageRenameWarning", () =
 
   it("performs the rename and clears the warning once confirmed", async () => {
     const port = createFakeThemeExplorePort({ files: FILES });
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(2));
 
     act(() => result.current.startRename("pages/about.html"));
@@ -2369,7 +2369,7 @@ describe("useThemeExplore — confirmPageRename / cancelPageRenameWarning", () =
   it("cancelPageRenameWarning discards the pending warning with no server call", async () => {
     const port = createFakeThemeExplorePort({ files: FILES });
     const renameSpy = vi.spyOn(port, "renameThemeFile");
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(2));
 
     act(() => result.current.startRename("pages/about.html"));
@@ -2389,7 +2389,7 @@ describe("useThemeExplore — copyFile failure", () => {
       files: [{ path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true }],
     });
     port.copyThemeFile = () => Promise.reject(new Error("copy failed"));
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(1));
 
     await act(async () => {
@@ -2405,7 +2405,7 @@ describe("useThemeExplore — copyFile failure", () => {
       files: [{ path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true }],
     });
     port.copyThemeFile = () => Promise.reject("nope");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(1));
 
     await act(async () => {
@@ -2422,7 +2422,7 @@ describe("useThemeExplore — confirmDelete no-target guard, and the empty-theme
       files: [{ path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true }],
     });
     const deleteSpy = vi.spyOn(port, "deleteThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(1));
 
     await act(async () => {
@@ -2437,7 +2437,7 @@ describe("useThemeExplore — confirmDelete no-target guard, and the empty-theme
       files: [{ path: "pages/only.html", group: "page", readable: true, editable: true, resettable: true }],
       contents: { "pages/only.html": "<h1>Only</h1>" },
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.selected).toBe("pages/only.html"));
 
     act(() => result.current.openDeleteConfirm("pages/only.html"));
@@ -2458,7 +2458,7 @@ describe("useThemeExplore — confirmDelete failure, non-Error rejection", () =>
       files: [{ path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true }],
     });
     port.deleteThemeFile = () => Promise.reject("nope");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(1));
 
     act(() => result.current.openDeleteConfirm("pages/about.html"));
@@ -2477,7 +2477,7 @@ describe("useThemeExplore — select on a path this theme doesn't have", () => {
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.selected).toBe("pages/index.html"));
     const searchBefore = window.location.search;
 
@@ -2494,7 +2494,7 @@ describe("useThemeExplore — setPagePublished, the remaining notice/error branc
       files: [{ path: "render/pages/pricing.html", group: "page", readable: true, editable: true, resettable: true, published: false }],
       contents: { "render/pages/pricing.html": "<h1>Pricing</h1>" },
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.selected).toBe("render/pages/pricing.html"));
 
     await act(async () => {
@@ -2510,7 +2510,7 @@ describe("useThemeExplore — setPagePublished, the remaining notice/error branc
       contents: { "render/pages/pricing.html": "<h1>Pricing</h1>" },
     });
     port.setPagePublished = () => Promise.reject("nope");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.selected).toBe("render/pages/pricing.html"));
 
     await act(async () => {
@@ -2538,7 +2538,7 @@ describe("useThemeExplore — onKeyDown save shortcut", () => {
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
     const putSpy = vi.spyOn(port, "putThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     act(() => result.current.setSource("<h1>Changed</h1>"));
 
@@ -2553,7 +2553,7 @@ describe("useThemeExplore — onKeyDown save shortcut", () => {
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
     const putSpy = vi.spyOn(port, "putThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     act(() => result.current.setSource("<h1>Changed</h1>"));
 
@@ -2568,7 +2568,7 @@ describe("useThemeExplore — onKeyDown save shortcut", () => {
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
     const putSpy = vi.spyOn(port, "putThemeFile");
-    renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
 
     const event = new KeyboardEvent("keydown", { key: "s", metaKey: true, bubbles: true, cancelable: true });
     const preventDefaultSpy = vi.spyOn(event, "preventDefault");
@@ -2587,7 +2587,7 @@ describe("useThemeExplore — onKeyDown save shortcut", () => {
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     act(() => result.current.setSource("<h1>Changed</h1>"));
 
@@ -2606,7 +2606,7 @@ describe("useThemeExplore — onKeyDown save shortcut", () => {
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     act(() => result.current.setSource("<h1>Changed</h1>"));
 
@@ -2625,7 +2625,7 @@ describe("useThemeExplore — onKeyDown save shortcut", () => {
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
     port.putThemeFile = vi.fn(() => new Promise<never>(() => {}));
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     act(() => result.current.setSource("<h1>Changed</h1>"));
 
@@ -2644,7 +2644,7 @@ describe("useThemeExplore — onKeyDown save shortcut", () => {
   it("does not save when nothing is selected", async () => {
     const port = createFakeThemeExplorePort({ files: [] });
     const putSpy = vi.spyOn(port, "putThemeFile");
-    const { result } = renderHook(() => useThemeExplore("empty", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "empty", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.detail).not.toBeNull());
     expect(result.current.selected).toBeNull();
 
@@ -2658,7 +2658,7 @@ describe("useThemeExplore — trivial dismiss/open/close closures", () => {
   it("dismissError clears a standing error", async () => {
     const port = createFakeThemeExplorePort();
     port.getThemeDetail = () => Promise.reject(new Error("boom"));
-    const { result } = renderHook(() => useThemeExplore("ghost", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "ghost", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.error).toBe("boom"));
 
     act(() => result.current.dismissError());
@@ -2670,7 +2670,7 @@ describe("useThemeExplore — trivial dismiss/open/close closures", () => {
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     await act(async () => {
       await result.current.save();
@@ -2686,7 +2686,7 @@ describe("useThemeExplore — trivial dismiss/open/close closures", () => {
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
     });
     const resetSpy = vi.spyOn(port, "resetThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(1));
 
     act(() => result.current.openResetConfirm());
@@ -2711,7 +2711,7 @@ describe("useThemeExplore — locked-identity message for a non-index required f
     const port = createFakeThemeExplorePort({
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
     });
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(1));
 
     act(() => result.current.startRename("theme.json"));
@@ -2726,7 +2726,7 @@ describe("useThemeExplore — locked-identity message for a non-index required f
     const port = createFakeThemeExplorePort({
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
     });
-    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "t", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.files.length).toBe(1));
 
     act(() => result.current.openDeleteConfirm("tokens.json"));
@@ -2757,7 +2757,7 @@ describe("useWiredThemeExplore", () => {
       files: [],
     } as never);
 
-    const { result } = renderHook(() => useWiredThemeExplore("basic"));
+    const { result } = renderHook(() => useWiredThemeExplore({ themeId: "basic" }));
 
     expect(result.current.t("Themes")).toBe("Themes");
     await waitFor(() => expect(result.current.t("Themes")).toBe("Temas"));
@@ -2830,7 +2830,7 @@ describe("withServerModifiedState", () => {
       file({ path: "css/a.css", label: "a.css", kind: "style", resettable: false, modified: null }),
     ];
 
-    expect(withServerModifiedState([index, style], server)).toEqual([
+    expect(withServerModifiedState({ files: [index, style], serverFiles: server })).toEqual([
       { ...index, resettable: true, modified: true },
       { ...style, resettable: false, modified: null },
     ]);
@@ -2840,7 +2840,7 @@ describe("withServerModifiedState", () => {
     const renamed = file({ path: "css/b.css", label: "b.css", kind: "style", resettable: false, modified: null });
     const server = [file({ path: "css/a.css", label: "a.css", kind: "style", resettable: true, modified: true })];
 
-    const next = withServerModifiedState([renamed], server);
+    const next = withServerModifiedState({ files: [renamed], serverFiles: server });
 
     expect(next).toHaveLength(1);
     expect(next[0]).toBe(renamed);
@@ -2855,15 +2855,15 @@ describe("readOnlyReason", () => {
 
 describe("lockedPublishReason", () => {
   it("reports index as the ON home fallback", () => {
-    expect(lockedPublishReason("index", t)).toEqual({ on: true, reason: "Home page fallback — shown at / until one of your pages is set as the home page" });
+    expect(lockedPublishReason({ pageLabel: "index", t })).toEqual({ on: true, reason: "Home page fallback — shown at / until one of your pages is set as the home page" });
   });
 
   it("reports 404 as always-on", () => {
-    expect(lockedPublishReason("404", t)).toEqual({ on: true, reason: "Always published — error page" });
+    expect(lockedPublishReason({ pageLabel: "404", t })).toEqual({ on: true, reason: "Always published — error page" });
   });
 
   it("reports any other page label as a locked-off template shell", () => {
-    expect(lockedPublishReason("blog-post", t)).toEqual({
+    expect(lockedPublishReason({ pageLabel: "blog-post", t })).toEqual({
       on: false,
       reason: "Not a standalone page — used as a content template",
     });
@@ -2872,20 +2872,20 @@ describe("lockedPublishReason", () => {
 
 describe("selectedFilePublishState", () => {
   it("returns null when no file is selected", () => {
-    expect(selectedFilePublishState(undefined, t)).toBeNull();
+    expect(selectedFilePublishState({ file: undefined, t })).toBeNull();
   });
 
   it("returns a toggle state for a real candidate page", () => {
-    expect(selectedFilePublishState(file({ published: true }), t)).toEqual({ kind: "toggle", published: true });
+    expect(selectedFilePublishState({ file: file({ published: true }), t })).toEqual({ kind: "toggle", published: true });
   });
 
   it("returns null for a non-page file with no publish state", () => {
-    expect(selectedFilePublishState(file({ kind: "style", published: null }), t)).toBeNull();
+    expect(selectedFilePublishState({ file: file({ kind: "style", published: null }), t })).toBeNull();
   });
 
   it("returns index locked OFF, naming the page, once a content Page is the home page", () => {
     const home = { id: "page-home", slug: "/", title: "Home", kind: "page" as const };
-    expect(selectedFilePublishState(file({ label: "index", published: null, collidingContent: home }), t)).toEqual({
+    expect(selectedFilePublishState({ file: file({ label: "index", published: null, collidingContent: home }), t })).toEqual({
       kind: "locked",
       on: false,
       reason: "Not shown — Home is your home page",
@@ -2893,7 +2893,7 @@ describe("selectedFilePublishState", () => {
   });
 
   it("returns a locked state for index/404/a declared template shell", () => {
-    expect(selectedFilePublishState(file({ label: "index", published: null }), t)).toEqual({
+    expect(selectedFilePublishState({ file: file({ label: "index", published: null }), t })).toEqual({
       kind: "locked",
       on: true,
       reason: "Home page fallback — shown at / until one of your pages is set as the home page",
@@ -2918,11 +2918,11 @@ describe("publishToggleTipLabel", () => {
 
 describe("selectedFileLabel", () => {
   it("returns the file's label", () => {
-    expect(selectedFileLabel(file({ label: "about" }))).toBe("about");
+    expect(selectedFileLabel({ file: file({ label: "about" }) })).toBe("about");
   });
 
   it("returns '' when no file is selected", () => {
-    expect(selectedFileLabel(undefined)).toBe("");
+    expect(selectedFileLabel({ file: undefined })).toBe("");
   });
 });
 
@@ -2943,25 +2943,25 @@ describe("themeExploreHtmlMode", () => {
   }
 
   it("is editable when no file is selected", () => {
-    expect(themeExploreHtmlMode(undefined, false)).toBe("editable");
+    expect(themeExploreHtmlMode({ file: undefined, sourceLoaded: false })).toBe("editable");
   });
 
   it("is binary for a file that is not readable, loaded or not", () => {
-    expect(themeExploreHtmlMode(file({ readable: false, editable: false }), false)).toBe("binary");
-    expect(themeExploreHtmlMode(file({ readable: false, editable: false }), true)).toBe("binary");
+    expect(themeExploreHtmlMode({ file: file({ readable: false, editable: false }), sourceLoaded: false })).toBe("binary");
+    expect(themeExploreHtmlMode({ file: file({ readable: false, editable: false }), sourceLoaded: true })).toBe("binary");
   });
 
   it("is unloaded for a readable file whose source is not loaded, editable or not", () => {
-    expect(themeExploreHtmlMode(file({}), false)).toBe("unloaded");
-    expect(themeExploreHtmlMode(file({ editable: false }), false)).toBe("unloaded");
+    expect(themeExploreHtmlMode({ file: file({}), sourceLoaded: false })).toBe("unloaded");
+    expect(themeExploreHtmlMode({ file: file({ editable: false }), sourceLoaded: false })).toBe("unloaded");
   });
 
   it("is readonly for a loaded file that is readable but not editable", () => {
-    expect(themeExploreHtmlMode(file({ editable: false }), true)).toBe("readonly");
+    expect(themeExploreHtmlMode({ file: file({ editable: false }), sourceLoaded: true })).toBe("readonly");
   });
 
   it("is editable for a loaded file that is readable and editable", () => {
-    expect(themeExploreHtmlMode(file({}), true)).toBe("editable");
+    expect(themeExploreHtmlMode({ file: file({}), sourceLoaded: true })).toBe("editable");
   });
 });
 
@@ -2987,18 +2987,16 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
     const gate = new Promise<void>((resolve) => {
       open = resolve;
     });
-    port.getThemeFile = async (themeId, requested) => {
+    port.getThemeFile = async ({ themeId, path: requested }) => {
       if (requested === path) await gate;
-      return serverRead(themeId, requested);
+      return serverRead({ themeId, path: requested });
     };
     return { release: () => open() };
   }
 
   /** The HTML tab's mode for the controller's open file. */
   function modeOf(controller: ThemeExploreController): string {
-    return themeExploreHtmlMode(
-      controller.files.find((f) => f.path === controller.selected),
-      controller.sourceLoaded
+    return themeExploreHtmlMode({ file: controller.files.find((f) => f.path === controller.selected), sourceLoaded: controller.sourceLoaded }
     );
   }
 
@@ -3007,7 +3005,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
     const about = holdReads(port, "pages/about.html");
     const modes: string[] = [];
     const { result } = renderHook(() => {
-      const controller = useThemeExplore("basic", { port, t: (k) => k });
+      const controller = useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } });
       modes.push(modeOf(controller));
       return controller;
     });
@@ -3027,7 +3025,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
   it("keeps the open file's text editable, and moves only the list highlight, while the next file's text is in flight", async () => {
     const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
     holdReads(port, "pages/about.html");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     act(() => result.current.setView("html"));
 
@@ -3043,7 +3041,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
     const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
     holdReads(port, "pages/about.html");
     const putSpy = vi.spyOn(port, "putThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     act(() => result.current.setView("html"));
     act(() => result.current.setSource("<h1>Home</h1><p>typed</p>"));
@@ -3064,10 +3062,10 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
     const serverRead = port.getThemeFile;
-    port.getThemeFile = (themeId, path) =>
-      path === "pages/big.html" ? Promise.reject(new Error(tooLarge)) : serverRead(themeId, path);
+    port.getThemeFile = ({ themeId, path }) =>
+      path === "pages/big.html" ? Promise.reject(new Error(tooLarge)) : serverRead({ themeId, path });
     const putSpy = vi.spyOn(port, "putThemeFile");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     act(() => result.current.setView("html"));
 
@@ -3087,7 +3085,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
   it("cancels a switch when the open file is clicked again mid-flight, without re-reading it over typed edits", async () => {
     const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
     const about = holdReads(port, "pages/about.html");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     act(() => result.current.setView("html"));
     act(() => result.current.setSource("<h1>Home</h1><p>typed</p>"));
@@ -3095,14 +3093,14 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
     vi.spyOn(window, "confirm").mockReturnValue(true);
 
     act(() => result.current.select("pages/about.html"));
-    await waitFor(() => expect(readSpy).toHaveBeenCalledWith("basic", "pages/about.html"));
+    await waitFor(() => expect(readSpy).toHaveBeenCalledWith({ themeId: "basic", path: "pages/about.html" }));
     const heldRead = readSpy.mock.results[0]!.value;
     act(() => result.current.select("pages/index.html"));
     await act(async () => { about.release(); await heldRead; });
 
     expect(result.current.highlightedPath).toBe("pages/index.html");
     expect(result.current.selected).toBe("pages/index.html");
-    expect(readSpy.mock.calls.filter(([, path]) => path === "pages/index.html")).toHaveLength(0);
+    expect(readSpy.mock.calls.filter(([{ path }]) => path === "pages/index.html")).toHaveLength(0);
     expect(result.current.source).toBe("<h1>Home</h1><p>typed</p>");
     expect(result.current.dirty).toBe(true);
   });
@@ -3110,7 +3108,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
   it("lets a copy that settles mid-switch own the selection, and ignores the late read", async () => {
     const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
     const about = holdReads(port, "pages/about.html");
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     act(() => result.current.setView("html"));
 
@@ -3131,7 +3129,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
     const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
     holdReads(port, "pages/about.html");
     const { result, rerender } = renderHook(
-      ({ themeId }: { themeId: string }) => useThemeExplore(themeId, { port, t: (k) => k }),
+      ({ themeId }: { themeId: string }) => useThemeExplore({ themeId, dependencies: { port, t: (k) => k } }),
       { initialProps: { themeId: "a" } }
     );
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
@@ -3142,7 +3140,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
     rerender({ themeId: "b" });
     await waitFor(() => expect(result.current.sourceLoaded).toBe(true));
 
-    expect(readSpy).not.toHaveBeenCalledWith("b", "pages/about.html");
+    expect(readSpy).not.toHaveBeenCalledWith({ themeId: "b", path: "pages/about.html" });
     expect(result.current.selected).toBe("pages/index.html");
     expect(result.current.highlightedPath).toBe("pages/index.html");
   });
@@ -3167,7 +3165,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
       const sources: string[] = [];
       const rendered = renderHook(
         ({ fileId, pageId }: { fileId?: string; pageId?: string }) => {
-          const c = useThemeExplore("basic", { port, t: (k) => k }, { fileId, pageId });
+          const c = useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { fileId, pageId });
           modes.push(modeOf(c));
           sources.push(c.source);
           return c;
@@ -3185,9 +3183,9 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
       const detailGate = new Promise<void>((resolve) => {
         releaseDetail = resolve;
       });
-      port.getThemeDetail = async (id) => {
+      port.getThemeDetail = async ({ themeId: id }) => {
         await detailGate;
-        return serverDetail(id);
+        return serverDetail({ themeId: id });
       };
       return { releaseDetail };
     }
@@ -3233,7 +3231,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
         contents: { "pages/index.html": "<h1>Home</h1>" },
       });
       const serverRead = port.getThemeFile;
-      port.getThemeFile = (themeId, path) => (path === "pages/big.html" ? Promise.reject(new Error(tooLarge)) : serverRead(themeId, path));
+      port.getThemeFile = ({ themeId, path }) => (path === "pages/big.html" ? Promise.reject(new Error(tooLarge)) : serverRead({ themeId, path }));
       const putSpy = vi.spyOn(port, "putThemeFile");
       const { result, rerender } = mountForNav(port);
       await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
@@ -3287,7 +3285,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
       await waitFor(() => expect(result.current.highlightedPath).toBe("pages/about.html"));
       // Held, not opened: the typed file is still the open one while about's text is out.
       expect(result.current.selected).toBe("pages/index.html");
-      await waitFor(() => expect(readSpy).toHaveBeenCalledWith("basic", "pages/about.html"));
+      await waitFor(() => expect(readSpy).toHaveBeenCalledWith({ themeId: "basic", path: "pages/about.html" }));
       const heldRead = readSpy.mock.results[0]!.value;
       rerender({ fileId: "pages/index.html" });
       await waitFor(() => expect(result.current.highlightedPath).toBe("pages/index.html"));
@@ -3296,7 +3294,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
       expect(modes).not.toContain("unloaded");
       expect(result.current.highlightedPath).toBe("pages/index.html");
       expect(result.current.selected).toBe("pages/index.html");
-      expect(readSpy.mock.calls.filter(([, path]) => path === "pages/index.html")).toHaveLength(0);
+      expect(readSpy.mock.calls.filter(([{ path }]) => path === "pages/index.html")).toHaveLength(0);
       expect(result.current.source).toBe("<h1>Home</h1><p>typed</p>");
       expect(result.current.dirty).toBe(true);
       expect(sources).not.toContain("<h1>About</h1>");
@@ -3321,13 +3319,13 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
       expect(result.current.selected).toBe("pages/contact.html");
       expect(result.current.highlightedPath).toBe("pages/contact.html");
       expect(result.current.source).toBe("<h1>Contact</h1>");
-      expect(readSpy.mock.calls.some(([, path]) => path === "pages/about.html")).toBe(false);
+      expect(readSpy.mock.calls.some(([{ path }]) => path === "pages/about.html")).toBe(false);
     });
 
     it("U7: a click on the old theme's list during a theme switch does not stop the new theme opening", async () => {
       const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
       const { result, rerender } = renderHook(
-        ({ themeId }: { themeId: string }) => useThemeExplore(themeId, { port, t: (k) => k }),
+        ({ themeId }: { themeId: string }) => useThemeExplore({ themeId, dependencies: { port, t: (k) => k } }),
         { initialProps: { themeId: "a" } }
       );
       await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
@@ -3378,7 +3376,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
       const port = createFakeThemeExplorePort({ files: STYLE_FILES, contents: STYLE_CONTENTS });
       const modes: string[] = [];
       const { result } = renderHook(() => {
-        const c = useThemeExplore("basic", { port, t: (k) => k }, { fileId: "css/a.css" });
+        const c = useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { fileId: "css/a.css" });
         modes.push(modeOf(c));
         return c;
       });
@@ -3400,7 +3398,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
     it("R2: keeps unsaved edits, still unsaved, across a rename of the open file, and saves them to the new path", async () => {
       const port = createFakeThemeExplorePort({ files: STYLE_FILES, contents: STYLE_CONTENTS });
       const putSpy = vi.spyOn(port, "putThemeFile");
-      const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { fileId: "css/a.css" }));
+      const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { fileId: "css/a.css" }));
       await waitFor(() => expect(result.current.source).toBe("body{}"));
       act(() => result.current.setView("html"));
       act(() => result.current.setSource("body{color:red}"));
@@ -3426,7 +3424,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
         });
       const modes: string[] = [];
       const { result } = renderHook(() => {
-        const c = useThemeExplore("basic", { port, t: (k) => k });
+        const c = useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } });
         modes.push(modeOf(c));
         return c;
       });
@@ -3455,10 +3453,10 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
     it("R4: renaming the open file whose read failed still lands unloaded with the read's error, and Save stays refused", async () => {
       const port = createFakeThemeExplorePort({ files: STYLE_FILES, contents: STYLE_CONTENTS });
       const serverRead = port.getThemeFile;
-      port.getThemeFile = (themeId, path) =>
-        path === "css/a.css" || path === "css/b.css" ? Promise.reject(new Error("too large")) : serverRead(themeId, path);
+      port.getThemeFile = ({ themeId, path }) =>
+        path === "css/a.css" || path === "css/b.css" ? Promise.reject(new Error("too large")) : serverRead({ themeId, path });
       const putSpy = vi.spyOn(port, "putThemeFile");
-      const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { fileId: "css/a.css" }));
+      const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { fileId: "css/a.css" }));
       await waitFor(() => expect(result.current.error).toBe("too large"));
       act(() => result.current.setView("html"));
 
@@ -3479,7 +3477,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
       const port = createFakeThemeExplorePort({ files: STYLE_FILES, contents: STYLE_CONTENTS });
       const modes: string[] = [];
       const { result } = renderHook(() => {
-        const c = useThemeExplore("basic", { port, t: (k) => k });
+        const c = useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } });
         modes.push(modeOf(c));
         return c;
       });
@@ -3617,7 +3615,7 @@ describe("loadedFileAfterRename", () => {
   const loaded = { themeId: "basic", path: "css/a.css" };
 
   it("moves the marker to the renamed path", () => {
-    expect(loadedFileAfterRename(loaded, { themeId: "basic", from: "css/a.css", to: "css/b.css", renamed })).toEqual({
+    expect(loadedFileAfterRename({ loaded, rename: { themeId: "basic", from: "css/a.css", to: "css/b.css", renamed } })).toEqual({
       themeId: "basic",
       path: "css/b.css",
     });
@@ -3635,7 +3633,7 @@ describe("loadedFileAfterRename", () => {
   ];
 
   it.each(keepsMarkerCases)("keeps the marker for %s", (_case, input, args) => {
-    expect(loadedFileAfterRename(input, args)).toBe(input);
+    expect(loadedFileAfterRename({ loaded: input, rename: args })).toBe(input);
   });
 });
 
@@ -3681,7 +3679,7 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
 
   it("marks the file modified and offers Reset once a refresh follows an agent write", async () => {
     const { port, state } = agentWritablePort();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     expect(canResetThemeFile(result.current.files[0])).toBe(false);
 
@@ -3694,7 +3692,7 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
 
   it("refreshes on a notification naming theme files, and ignores one naming only other resources", async () => {
     const { port, state } = agentWritablePort();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
 
     state.live = "body{color:red}";
@@ -3710,7 +3708,7 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
     const { port, state } = agentWritablePort();
     const sourceLoadedPerRender: boolean[] = [];
     const { result } = renderHook(() => {
-      const controller = useThemeExplore("basic", { port, t: (k) => k });
+      const controller = useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } });
       sourceLoadedPerRender.push(controller.sourceLoaded);
       return controller;
     });
@@ -3731,7 +3729,7 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
 
   it("keeps unsaved edits: a dirty buffer is never read over", async () => {
     const { port, state } = agentWritablePort();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     act(() => result.current.setSource("body{typed}"));
     const readSpy = vi.spyOn(port, "getThemeFile");
@@ -3748,7 +3746,7 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
 
   it("drops a refreshed read that a Save overtook while it was in flight", async () => {
     const { port, state } = agentWritablePort();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     let releaseRead: (() => void) | undefined;
     port.getThemeFile = () =>
@@ -3775,15 +3773,15 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
 
   it("a refresh for the previous theme settling after a theme switch leaves the new theme's files alone", async () => {
     const { port, state } = agentWritablePort();
-    const { result, rerender } = renderHook(({ id }) => useThemeExplore(id, { port, t: (k) => k }), {
+    const { result, rerender } = renderHook(({ id }) => useThemeExplore({ themeId: id, dependencies: { port, t: (k) => k } }), {
       initialProps: { id: "basic" },
     });
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     const serverDetail = port.getThemeDetail;
     let releaseOld: (() => void) | undefined;
-    port.getThemeDetail = (themeId) => {
-      if (themeId !== "basic") return serverDetail(themeId);
-      const answer = serverDetail(themeId);
+    port.getThemeDetail = ({ themeId }) => {
+      if (themeId !== "basic") return serverDetail({ themeId });
+      const answer = serverDetail({ themeId });
       return new Promise((resolve) => {
         releaseOld = () => resolve(answer);
       });
@@ -3806,10 +3804,10 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
 
   it("two overlapping refreshes of the open file adopt its new text once", async () => {
     const { port, state } = agentWritablePort();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     let releaseRead: (() => void) | undefined;
-    const reads = vi.fn((_themeId: string, _path: string) =>
+    const reads = vi.fn(({ themeId: _themeId, path: _path }: { themeId: string; path: string }) =>
       new Promise<{ content: string }>((resolve) => {
         releaseRead = () => resolve({ content: state.live });
       }));
@@ -3835,7 +3833,7 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
 
   it("reports a refresh read that fails while its file is still open, keeping the text on screen", async () => {
     const { port } = agentWritablePort();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     port.getThemeFile = () => Promise.reject(new Error("read timed out"));
 
@@ -3847,7 +3845,7 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
 
   it("reports the generic read failure when a refresh read rejects with a non-Error", async () => {
     const { port } = agentWritablePort();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     port.getThemeFile = () => Promise.reject("nope");
 
@@ -3858,7 +3856,7 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
 
   it("reports a failed read shared by two overlapping refreshes", async () => {
     const { port } = agentWritablePort();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     let failRead: (() => void) | undefined;
     port.getThemeFile = () =>
@@ -3883,14 +3881,14 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
 
   it("a failed refresh for the previous theme settling after a theme switch reports nothing", async () => {
     const { port } = agentWritablePort();
-    const { result, rerender } = renderHook(({ id }) => useThemeExplore(id, { port, t: (k) => k }), {
+    const { result, rerender } = renderHook(({ id }) => useThemeExplore({ themeId: id, dependencies: { port, t: (k) => k } }), {
       initialProps: { id: "basic" },
     });
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     const serverDetail = port.getThemeDetail;
     let failOld: (() => void) | undefined;
-    port.getThemeDetail = (themeId) => themeId !== "basic"
-      ? serverDetail(themeId)
+    port.getThemeDetail = ({ themeId }) => themeId !== "basic"
+      ? serverDetail({ themeId })
       : new Promise((_resolve, reject) => {
         failOld = () => reject(new Error("detail read failed"));
       });
@@ -3910,7 +3908,7 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
   it("stops refreshing once unmounted", async () => {
     const { port } = agentWritablePort();
     const detailSpy = vi.spyOn(port, "getThemeDetail");
-    const { result, unmount } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    const { result, unmount } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
 
     const callsWhileMounted = detailSpy.mock.calls.length;
@@ -3967,7 +3965,7 @@ describe("useThemeExplore — toasts go through t()", () => {
   }
 
   async function mount(port: ThemeExplorePort = toastPort()) {
-    const hook = renderHook(() => useThemeExplore("basic", { port, t: marked }));
+    const hook = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: marked } }));
     await waitFor(() => expect(hook.result.current.sourceLoaded).toBe(true));
     return hook;
   }
@@ -4103,7 +4101,7 @@ describe("useThemeExplore — toasts go through t()", () => {
 
   it("translates the not-found toast for a ?page= that names nothing", async () => {
     const port = toastPort();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: marked }, { pageId: "nope" }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: marked } }, { pageId: "nope" }));
     await waitFor(() => expect(result.current.error).toBe("«\"nope\" isn't a page or file in this theme.»"));
   });
 
@@ -4181,12 +4179,12 @@ describe("useThemeExplore — toasts go through t()", () => {
   it("translates the generic load and read failures", async () => {
     const loadPort = toastPort();
     loadPort.getThemeDetail = () => Promise.reject("nope");
-    const load = renderHook(() => useThemeExplore("basic", { port: loadPort, t: marked }));
+    const load = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port: loadPort, t: marked } }));
     await waitFor(() => expect(load.result.current.error).toBe("«failed to load theme»"));
 
     const readPort = toastPort();
     readPort.getThemeFile = () => Promise.reject("nope");
-    const read = renderHook(() => useThemeExplore("basic", { port: readPort, t: marked }));
+    const read = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port: readPort, t: marked } }));
     await waitFor(() => expect(read.result.current.error).toBe("«failed to read file»"));
   });
 });
@@ -4239,7 +4237,7 @@ describe("useThemeExplore — save as original (owner 2026-10-08)", () => {
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: false }],
     });
     const spy = vi.spyOn(port, "saveThemeOriginal");
-    const { result } = renderHook(() => useThemeExplore("rose", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "rose", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.detail?.hasOriginal).toBe(false));
 
     await act(async () => {
@@ -4262,7 +4260,7 @@ describe("useThemeExplore — save as original (owner 2026-10-08)", () => {
     port.saveThemeOriginal = async () => {
       throw new Error("theme 'rose' already has a stored original");
     };
-    const { result } = renderHook(() => useThemeExplore("rose", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "rose", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.detail).not.toBeNull());
 
     await act(async () => {
@@ -4279,7 +4277,7 @@ describe("useThemeExplore — save as original (owner 2026-10-08)", () => {
     port.saveThemeOriginal = async () => {
       throw "boom";
     };
-    const { result } = renderHook(() => useThemeExplore("rose", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "rose", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.detail).not.toBeNull());
     await act(async () => {
       await result.current.saveOriginal();
@@ -4289,7 +4287,7 @@ describe("useThemeExplore — save as original (owner 2026-10-08)", () => {
 
   it("reports a failed re-read without calling the save a failure", async () => {
     const port = createFakeThemeExplorePort({ detail: noOriginal });
-    const { result } = renderHook(() => useThemeExplore("rose", { port, t: (k) => k }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "rose", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.detail).not.toBeNull());
     port.getThemeDetail = async () => {
       throw new Error("network down");
@@ -4318,7 +4316,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
 
   it("adds and removes externally changed files without moving an existing selection", async () => {
     const port = fixture();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: key => key } }));
     await waitFor(() => expect(result.current.source).toBe("Home"));
     await port.copyThemeFile("basic", ABOUT);
     await port.deleteThemeFile("basic", STYLE);
@@ -4330,7 +4328,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
 
   it("uses the same refresh path for the existing durable theme feed", async () => {
     const port = fixture();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: key => key } }));
     await waitFor(() => expect(result.current.source).toBe("Home"));
     await port.copyThemeFile("basic", ABOUT);
     act(() => publishThemePreviewRefresh({ revision: "external-theme-file-change" }));
@@ -4339,7 +4337,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
 
   it("opens the default file when an external writer removes the clean open file", async () => {
     const port = fixture();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: key => key } }));
     await waitFor(() => expect(result.current.source).toBe("Home"));
     act(() => result.current.select(STYLE));
     await waitFor(() => expect(result.current.source).toBe("body{}"));
@@ -4349,12 +4347,12 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     await waitFor(() => expect(result.current.source).toBe("Home"));
     expect(result.current.selected).toBe(INDEX);
     expect(result.current.error).toBeNull();
-    expect(reads.mock.calls.every(([, path]) => path !== STYLE)).toBe(true);
+    expect(reads.mock.calls.every(([{ path }]) => path !== STYLE)).toBe(true);
   });
 
   it("keeps a removed file's unsaved buffer and refuses to recreate it through Save", async () => {
     const port = fixture();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: key => key } }));
     await waitFor(() => expect(result.current.source).toBe("Home"));
     act(() => result.current.select(STYLE));
     await waitFor(() => expect(result.current.source).toBe("body{}"));
@@ -4372,13 +4370,13 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
 
   it("does not let a stale notification undo a local copy", async () => {
     const port = fixture();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: key => key } }));
     await waitFor(() => expect(result.current.source).toBe("Home"));
     const read = port.getThemeDetail;
     let releaseOld: (() => void) | undefined;
     let held = false;
-    port.getThemeDetail = async id => {
-      const snapshot = await read(id);
+    port.getThemeDetail = async ({ themeId: id }) => {
+      const snapshot = await read({ themeId: id });
       if (held) return snapshot;
       held = true;
       return new Promise(resolve => { releaseOld = () => resolve(snapshot); });
@@ -4394,7 +4392,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
 
   it("clears the selection, without touching the address bar, when an external writer removes every file", async () => {
     const port = fixture();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: key => key } }));
     await waitFor(() => expect(result.current.source).toBe("Home"));
     for (const path of [INDEX, ABOUT, STYLE]) await port.deleteThemeFile("basic", path);
     const searchBefore = window.location.search;
@@ -4411,7 +4409,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
   it("does not re-read the open file's text on a refresh when its earlier read failed", async () => {
     const port = fixture();
     port.getThemeFile = () => Promise.reject(new Error("disk busy"));
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: key => key } }));
     await waitFor(() => expect(result.current.error).toBe("disk busy"));
     expect(result.current.sourceLoaded).toBe(false);
     const reads = vi.spyOn(port, "getThemeFile");
@@ -4427,13 +4425,13 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
 
   it("stays silent when a refresh read fails after the operator opened another file", async () => {
     const port = fixture();
-    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: key => key } }));
     await waitFor(() => expect(result.current.source).toBe("Home"));
     const serverRead = port.getThemeFile.bind(port);
     let failRead: (() => void) | undefined;
-    port.getThemeFile = (themeId, path) => path === INDEX
+    port.getThemeFile = ({ themeId, path }) => path === INDEX
       ? new Promise((_resolve, reject) => { failRead = () => reject(new Error("read timed out")); })
-      : serverRead(themeId, path);
+      : serverRead({ themeId, path });
 
     act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
     await waitFor(() => expect(failRead).toBeDefined());
@@ -4450,7 +4448,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
 
   it("unsubscribes from the theme feed on unmount", async () => {
     const port = fixture();
-    const { result, unmount } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    const { result, unmount } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: key => key } }));
     await waitFor(() => expect(result.current.source).toBe("Home"));
     const reads = vi.spyOn(port, "getThemeDetail");
     unmount();
@@ -4462,15 +4460,15 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
 describe("dispatchPublishToggle", () => {
   it("a live toggle asks for the opposite of its published state", () => {
     const setPagePublished = vi.fn(async () => {});
-    dispatchPublishToggle({ kind: "toggle", published: true }, setPagePublished);
-    dispatchPublishToggle({ kind: "toggle", published: false }, setPagePublished);
+    dispatchPublishToggle({ state: { kind: "toggle", published: true }, setPagePublished });
+    dispatchPublishToggle({ state: { kind: "toggle", published: false }, setPagePublished });
     expect(setPagePublished.mock.calls).toEqual([[false], [true]]);
   });
 
   it("a locked switch dispatches nothing, whatever position it shows", () => {
     const setPagePublished = vi.fn(async () => {});
-    dispatchPublishToggle({ kind: "locked", on: true, reason: "index is always live" }, setPagePublished);
-    dispatchPublishToggle({ kind: "locked", on: false, reason: "a template shell has no route" }, setPagePublished);
+    dispatchPublishToggle({ state: { kind: "locked", on: true, reason: "index is always live" }, setPagePublished });
+    dispatchPublishToggle({ state: { kind: "locked", on: false, reason: "a template shell has no route" }, setPagePublished });
     expect(setPagePublished).not.toHaveBeenCalled();
   });
 });

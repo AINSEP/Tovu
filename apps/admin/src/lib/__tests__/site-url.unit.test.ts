@@ -67,7 +67,7 @@ describe("siteUrl", () => {
 
     siteUrl("/hello-world");
 
-    expect(isAdminDevServerOrigin).toHaveBeenCalledWith(window.location.port);
+    expect(isAdminDevServerOrigin).toHaveBeenCalledWith({ locationPort: window.location.port });
   });
 
   it("does not consult the origin at all outside dev — a production bundle has no dev server to be on", () => {

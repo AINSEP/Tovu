@@ -12,20 +12,20 @@ import { ADMIN_DEV_SERVER_PORT, isAdminDevServerOrigin } from "../admin-dev-orig
 
 describe("isAdminDevServerOrigin", () => {
   it("is true when the page's port is the admin dev server's own — Vite is serving this document directly", () => {
-    expect(isAdminDevServerOrigin("5173", "5173")).toBe(true);
+    expect(isAdminDevServerOrigin({ locationPort: "5173" }, { adminDevPort: "5173" })).toBe(true);
   });
 
   it("is false on a desktop site window's dynamic port — the page is proxied through a Tovu server at /admin/*", () => {
-    expect(isAdminDevServerOrigin("53396", "5173")).toBe(false);
+    expect(isAdminDevServerOrigin({ locationPort: "53396" }, { adminDevPort: "5173" })).toBe(false);
   });
 
   it("is false for an empty port, which is what a default-port (:80/:443) origin reports", () => {
-    expect(isAdminDevServerOrigin("", "5173")).toBe(false);
+    expect(isAdminDevServerOrigin({ locationPort: "" }, { adminDevPort: "5173" })).toBe(false);
   });
 
   it("defaults its second argument to the port baked in at Vite start", () => {
-    expect(isAdminDevServerOrigin(ADMIN_DEV_SERVER_PORT)).toBe(true);
-    expect(isAdminDevServerOrigin(`${ADMIN_DEV_SERVER_PORT}0`)).toBe(false);
+    expect(isAdminDevServerOrigin({ locationPort: ADMIN_DEV_SERVER_PORT })).toBe(true);
+    expect(isAdminDevServerOrigin({ locationPort: `${ADMIN_DEV_SERVER_PORT}0` })).toBe(false);
   });
 });
 

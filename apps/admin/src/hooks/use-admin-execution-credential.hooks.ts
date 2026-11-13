@@ -33,17 +33,15 @@ export type AdminByokSaveState = ExecutionCredentialSaveState;
  * than the full `stored` record, so this function has no dependency on
  * `AdminExecutionCredentialController`'s shape beyond the one field it reads.
  *
- * @param storedKeyIsForOtherEndpoint - The controller's flag of the same name. While idle, the line
+ * @param optional.storedKeyIsForOtherEndpoint - The controller's flag of the same name. While idle, the line
  *   then asks for this provider's key instead of reporting a stored key this provider cannot use —
  *   the same ask, and the same dictionary key, as the visitor screen's key line.
- * @param t - The host screen's translator. Defaults to English passthrough.
+ * @param optional.t - The host screen's translator. Defaults to English passthrough.
  * @complexity O(1).
  */
 export function resolveByokFooterStatusLine(
-  status: AdminByokSaveState["status"],
-  isStored: boolean,
-  storedKeyIsForOtherEndpoint = false,
-  t: Translate = (key) => key,
+  { status, isStored }: { status: AdminByokSaveState["status"]; isStored: boolean },
+  { storedKeyIsForOtherEndpoint = false, t = (key) => key }: { storedKeyIsForOtherEndpoint?: boolean; t?: Translate } = {},
 ): string | null {
   if (status === "saving") return t("Saving…");
   if (status === "saved") return t("Saved to the server, encrypted.");
@@ -70,7 +68,7 @@ export function resolveByokFooterStatusLine(
  * @complexity Time/space: O(1).
  * @overallScore 100
  */
-function describeAdminExecutionCredentialError(e: unknown, fallback: string): string {
+function describeAdminExecutionCredentialError({ e, fallback }: { e: unknown; fallback: string }, _options = {}): string {
   if (e instanceof ApiError) {
     if (e.code === "EXECUTION_CREDENTIAL_VALIDATION_ERROR") return e.message || "That value was rejected.";
     // Same fail-closed translation `features/ai-assistant/rules.ts`'s `describeApiError` gives the
@@ -92,19 +90,19 @@ const executionCredentialEffects: ExecutionCredentialEffects<AdminExecutionCrede
   },
   readLegacyCredential: () => readLegacyLocalCredential(),
   clearLegacyCredential: () => clearLegacyLocalCredential(),
-  describeError: ({ error, fallback }) => describeAdminExecutionCredentialError(error, fallback),
+  describeError: ({ error, fallback }) => describeAdminExecutionCredentialError({ e: error, fallback }),
   hasTypedKey: ({ apiKey }) => hasTypedAdminKey(apiKey),
   storedKeyIsForOtherEndpoint: ({ stored, baseUrl }) => storedKeyIsForOtherEndpointRule(stored, baseUrl),
   hasUsableKey: ({ apiKey, stored, baseUrl }) => hasUsableKey(apiKey, stored, baseUrl),
   storedKeyBlocksProbe: ({ apiKey, stored, baseUrl }) => storedKeyBlocksProbe(apiKey, stored, baseUrl),
-  credentialHint: ({ stored, storedKeyIsForOtherEndpoint }, options) => storedCredentialHint({ stored, storedKeyIsForOtherEndpoint }, options),
+  credentialHint: ({ stored, storedKeyIsForOtherEndpoint }, options = {}) => storedCredentialHint({ stored, storedKeyIsForOtherEndpoint }, options),
 };
 /** Bind host policy and migration; the package owns save/refresh ordering and draft clearing. */
 export function useAdminExecutionCredential(input: UseAdminExecutionCredentialInput, port: AdminExecutionCredentialPort): AdminExecutionCredentialController {
   // Stable identity prevents a render from restarting the stored-view GET/subscription effect.
   const adapted = useMemo<ExecutionCredentialPort<AdminExecutionCredential>>(() => ({
     loadAdminExecutionCredential: () => port.loadAdminExecutionCredential(),
-    saveAdminExecutionCredential: ({ patch }) => port.saveAdminExecutionCredential(patch),
+    saveAdminExecutionCredential: ({ patch }) => port.saveAdminExecutionCredential({ patch }),
   }), [port]);
   return useExecutionCredential({ ...input, port: adapted, effects: executionCredentialEffects }, {});
 }

@@ -65,7 +65,7 @@ export interface ThemeExploreFileEntry {
 }
 
 export interface ThemeExplorePort {
-  getThemeDetail(themeId: string): Promise<{
+  getThemeDetail(required: { themeId: string }): Promise<{
     id: string;
     name: string;
     tier: string;
@@ -79,7 +79,7 @@ export interface ThemeExplorePort {
     hasOriginal: boolean;
     files: ThemeExploreFileEntry[];
   }>;
-  getThemeFile(themeId: string, path: string): Promise<{ content: string }>;
+  getThemeFile(required: { themeId: string; path: string }): Promise<{ content: string }>;
   putThemeFile(themeId: string, path: string, content: string): Promise<{ path: string; bytes: number }>;
   resetThemeFile(themeId: string, path: string): Promise<{ content: string | null }>;
   /** Save the theme's current files as its stored original (refused when it already has one). */

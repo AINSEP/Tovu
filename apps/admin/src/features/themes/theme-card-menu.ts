@@ -21,7 +21,7 @@ export type ThemeDeleteBlock = "active" | "built-in" | null;
  * @complexity O(1).
  */
 export function themeDeleteBlock(required: { settings: PresentationSettings; themeId: string; builtIn: boolean }): ThemeDeleteBlock {
-  if (isActiveTheme(required.settings, required.themeId)) return "active";
+  if (isActiveTheme({ settings: required.settings, themeId: required.themeId })) return "active";
   return required.builtIn ? "built-in" : null;
 }
 
@@ -57,7 +57,7 @@ export function buildThemeCardMenuItems(
     duplicatingTheme: string | null;
     t: Translate;
   },
-  optional: { duplicate?: (themeId: string) => Promise<void>; onRequestDelete?: (request: ThemeDeleteRequest) => void } = {}
+  optional: { duplicate?: (required: { themeId: string }) => Promise<void>; onRequestDelete?: (request: ThemeDeleteRequest) => void } = {}
 ): RowMenuItem[] {
   const { themeId, name, block, duplicatingTheme, t } = required;
   const { duplicate, onRequestDelete } = optional;
@@ -67,7 +67,7 @@ export function buildThemeCardMenuItems(
       key: "copy",
       label: duplicatingTheme === null ? t("Copy theme") : t("Duplicating…"),
       onSelect: () => {
-        if (duplicatingTheme === null) void duplicate(themeId);
+        if (duplicatingTheme === null) void duplicate({ themeId });
       },
     });
   }
