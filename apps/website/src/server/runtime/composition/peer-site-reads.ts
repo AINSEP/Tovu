@@ -344,7 +344,11 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
         if (entry.name !== siteName) return false;
         try { return fs.realpathSync(entry.path) === fs.realpathSync(currentSiteDir); } catch { return false; }
       });
-    } catch { throw new ToolInputError({ message: 'The local site registry cannot be read.' }); }
+    } catch (error) {
+      // A server fault, not bad tool input: the tool transport gives it an error ID, logs the
+      // redacted cause and shows Copy details. A ToolInputError told the model its call was wrong.
+      throw new Error('The local site registry could not be read.', { cause: error });
+    }
   };
   /** Close an evicted/idle entry exactly once. @complexity O(1), at most three handles. */
   const remove = async (key: string, entry: PeerBag) => {
