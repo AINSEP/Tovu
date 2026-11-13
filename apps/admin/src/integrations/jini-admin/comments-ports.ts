@@ -55,7 +55,7 @@ export function createCommentsTranslator({ locale }: { locale: string }, _option
     if (key === 'People' || key === 'Comments' || key === 'Settings') {
       template = translateAdminNavLabel({ locale, key });
     } else if (key === 'pending' || key === 'approved' || key === 'spam' || key === 'trash') {
-      template = serverLabel(key, locale);
+      template = serverLabel({ value: key, locale });
     } else {
       template = translateComments({ locale, key });
     }

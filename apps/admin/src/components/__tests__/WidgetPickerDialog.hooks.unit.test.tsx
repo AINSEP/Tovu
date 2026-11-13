@@ -63,7 +63,7 @@ function fakeFormEvent(): React.FormEvent {
 
 describe("useExistingInstances", () => {
   it("starts with instances/error both null and resolves to the fetched list", async () => {
-    const { result } = renderHook(() => useExistingInstances("text"));
+    const { result } = renderHook(() => useExistingInstances({ widgetType: "text" }));
     expect(result.current.instances).toBeNull();
     expect(result.current.error).toBeNull();
 
@@ -73,7 +73,7 @@ describe("useExistingInstances", () => {
 
   it("surfaces a describable error and leaves instances null when the fetch rejects", async () => {
     fetchMock.mockRejectedValue(new Error("network down"));
-    const { result } = renderHook(() => useExistingInstances("text"));
+    const { result } = renderHook(() => useExistingInstances({ widgetType: "text" }));
 
     await waitFor(() => expect(result.current.error).toBe("network down"));
     expect(result.current.instances).toBeNull();
@@ -177,7 +177,7 @@ describe("useWidgetAddControl", () => {
     const { result } = renderHook(() => useWidgetAddControl(props));
 
     await act(async () => {
-      await result.current.handleCreateNew("Hero", { body: "" });
+      await result.current.handleCreateNew({ title: "Hero", config: { body: "" } });
     });
 
     expect(fetchMock).not.toHaveBeenCalled();
@@ -188,10 +188,10 @@ describe("useWidgetAddControl", () => {
     fetchMock.mockResolvedValue(jsonResponse({ widget: EXISTING_WIDGET }));
     const props = controlProps();
     const { result } = renderHook(() => useWidgetAddControl(props));
-    act(() => result.current.setPickerType("menu"));
+    act(() => result.current.setPickerType({ next: "menu" }));
 
     await act(async () => {
-      await result.current.handleCreateNew("Primary navigation", { menuRef: "primary-menu" });
+      await result.current.handleCreateNew({ title: "Primary navigation", config: { menuRef: "primary-menu" } });
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -207,10 +207,10 @@ describe("useWidgetAddControl", () => {
     fetchMock.mockResolvedValue(new Response("boom", { status: 500 }));
     const props = controlProps();
     const { result } = renderHook(() => useWidgetAddControl(props));
-    act(() => result.current.setPickerType("text"));
+    act(() => result.current.setPickerType({ next: "text" }));
 
     await act(async () => {
-      await result.current.handleCreateNew("Hero", { body: "" });
+      await result.current.handleCreateNew({ title: "Hero", config: { body: "" } });
     });
 
     // The regression this pins: `setPickerType(null)` sits AFTER the `await` in the source, so a
@@ -232,14 +232,14 @@ describe("useWidgetAddControl", () => {
     fetchMock.mockResolvedValue(new Response("boom", { status: 500 }));
     const props = controlProps();
     const { result } = renderHook(() => useWidgetAddControl(props));
-    act(() => result.current.setPickerType("text"));
+    act(() => result.current.setPickerType({ next: "text" }));
 
     await act(async () => {
-      await result.current.handleCreateNew("Hero", { body: "" });
+      await result.current.handleCreateNew({ title: "Hero", config: { body: "" } });
     });
     expect(result.current.error).toBeTruthy();
 
-    act(() => result.current.setPickerType(null));
+    act(() => result.current.setPickerType({ next: null }));
 
     expect(result.current.error).toBeNull();
   });
@@ -247,10 +247,10 @@ describe("useWidgetAddControl", () => {
   it("handleUseExisting always closes the picker and resolves with the given id", async () => {
     const props = controlProps();
     const { result } = renderHook(() => useWidgetAddControl(props));
-    act(() => result.current.setPickerType("text"));
+    act(() => result.current.setPickerType({ next: "text" }));
 
     await act(async () => {
-      await result.current.handleUseExisting("w1");
+      await result.current.handleUseExisting({ widgetInstanceId: "w1" });
     });
 
     expect(result.current.pickerType).toBeNull();
@@ -288,7 +288,7 @@ describe("useExistingInstances / useWidgetPickerDialog / useWidgetAddControl —
         widget({ id: "w-menu", widgetType: "menu", slug: "menu-widget" }),
       ],
     });
-    const { result } = renderHook(() => useExistingInstances("text", port));
+    const { result } = renderHook(() => useExistingInstances({ widgetType: "text" }, { port }));
 
     await waitFor(() => expect(result.current.instances).toEqual([widget({ id: "w-text", widgetType: "text" })]));
     expect(fetchMock).not.toHaveBeenCalled();
@@ -311,10 +311,10 @@ describe("useExistingInstances / useWidgetPickerDialog / useWidgetAddControl —
     const port = createFakeWidgetPickerPort();
     const props = { triggerLabel: "+ Add widget", onResolved: vi.fn() };
     const { result } = renderHook(() => useWidgetAddControl(props, { port }));
-    act(() => result.current.setPickerType("text"));
+    act(() => result.current.setPickerType({ next: "text" }));
 
     await act(async () => {
-      await result.current.handleCreateNew("Hero", { body: "" });
+      await result.current.handleCreateNew({ title: "Hero", config: { body: "" } });
     });
 
     expect(port.widgets).toHaveLength(1);
@@ -328,10 +328,10 @@ describe("useExistingInstances / useWidgetPickerDialog / useWidgetAddControl —
     const port = createFakeWidgetPickerPort({ createError: new Error("quota exceeded") });
     const props = { triggerLabel: "+ Add widget", onResolved: vi.fn() };
     const { result } = renderHook(() => useWidgetAddControl(props, { port }));
-    act(() => result.current.setPickerType("text"));
+    act(() => result.current.setPickerType({ next: "text" }));
 
     await act(async () => {
-      await result.current.handleCreateNew("Hero", { body: "" });
+      await result.current.handleCreateNew({ title: "Hero", config: { body: "" } });
     });
 
     expect(result.current.error).toBe("quota exceeded");
@@ -343,10 +343,10 @@ describe("useExistingInstances / useWidgetPickerDialog / useWidgetAddControl —
     const port = createFakeWidgetPickerPort();
     const props = { triggerLabel: "+ Add widget", onResolved: vi.fn(async () => { throw new Error("region write failed"); }) };
     const { result } = renderHook(() => useWidgetAddControl(props, { port }));
-    act(() => result.current.setPickerType("text"));
+    act(() => result.current.setPickerType({ next: "text" }));
 
     await act(async () => {
-      await result.current.handleCreateNew("Hero", { body: "" });
+      await result.current.handleCreateNew({ title: "Hero", config: { body: "" } });
     });
 
     expect(port.widgets.map((w) => w.title)).toEqual(["Hero"]);
@@ -359,10 +359,10 @@ describe("useExistingInstances / useWidgetPickerDialog / useWidgetAddControl —
     const port = createFakeWidgetPickerPort();
     const props = { triggerLabel: "+ Add widget", onResolved: vi.fn(async () => { throw new Error("region write failed"); }) };
     const { result } = renderHook(() => useWidgetAddControl(props, { port }));
-    act(() => result.current.setPickerType("text"));
+    act(() => result.current.setPickerType({ next: "text" }));
 
     await act(async () => {
-      await expect(result.current.handleUseExisting("w1")).resolves.toBeUndefined();
+      await expect(result.current.handleUseExisting({ widgetInstanceId: "w1" })).resolves.toBeUndefined();
     });
 
     expect(props.onResolved).toHaveBeenCalledWith("w1");
@@ -378,14 +378,14 @@ describe("useExistingInstances / useWidgetPickerDialog / useWidgetAddControl —
     expect(result.current.pickerType).toBe("text");
     act(() => {
       result.current.setSelectedType("social-links");
-      result.current.setPickerType("social-links");
+      result.current.setPickerType({ next: "social-links" });
     });
-    await act(async () => { await result.current.handleCreateNew("Footer", { links: [] }); });
+    await act(async () => { await result.current.handleCreateNew({ title: "Footer", config: { links: [] } }); });
     expect(result.current.pickerType).toBeNull();
     expect(result.current.error).toBe(
       'Widget "Footer" was created but not placed (placement failed). Choose it under Use existing to try again.',
     );
-    await act(async () => { await result.current.handleCreateNew("Second footer", { links: [] }); });
+    await act(async () => { await result.current.handleCreateNew({ title: "Second footer", config: { links: [] } }); });
     expect(port.widgets.map(({ title, widgetType }) => ({ title, widgetType }))).toEqual([
       { title: "Footer", widgetType: "social-links" },
       { title: "Second footer", widgetType: "social-links" },

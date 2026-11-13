@@ -11,5 +11,5 @@ import type { PublicAssistantSettings } from "@/lib/api";
  */
 export interface AiAssistantPort {
   getAssistantSettings(): Promise<{ data: PublicAssistantSettings }>;
-  setAssistantSettings(patch: Partial<PublicAssistantSettings>): Promise<{ data: PublicAssistantSettings }>;
+  setAssistantSettings(patch: Partial<PublicAssistantSettings>, optional?: Record<string, never>): Promise<{ data: PublicAssistantSettings }>;
 }

@@ -18,6 +18,6 @@ import type { AdminWidget, AdminWidgetType } from "../../lib/api";
  * reasoning as `Jini redirects/SOURCE-RATIONALE.md`'s own exclusion of it.
  */
 export interface WidgetPickerPort {
-  listWidgets(options: { widgetType: AdminWidgetType }): Promise<{ widgets: AdminWidget[] }>;
-  createWidget(input: { widgetType: AdminWidgetType; title: string; config: Record<string, unknown> }): Promise<{ widget: AdminWidget }>;
+  listWidgets(options: { widgetType: AdminWidgetType }, optional?: Record<string, never>): Promise<{ widgets: AdminWidget[] }>;
+  createWidget(input: { widgetType: AdminWidgetType; title: string; config: Record<string, unknown> }, optional?: Record<string, never>): Promise<{ widget: AdminWidget }>;
 }

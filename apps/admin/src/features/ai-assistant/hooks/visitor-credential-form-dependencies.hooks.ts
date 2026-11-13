@@ -10,7 +10,7 @@ import type { VisitorCredentialFormPort } from "./visitor-credential-form-port.h
  *  .hooks.ts`'s `defaultAiAssistantPort`. */
 export const defaultVisitorCredentialFormPort: VisitorCredentialFormPort = {
   getAssistantSiteCredential: () => api.getAssistantSiteCredential(),
-  setAssistantSiteCredential: (patch) => api.setAssistantSiteCredential(patch),
+  setAssistantSiteCredential: (patch, _optional: Record<string, never> = {}) => api.setAssistantSiteCredential(patch),
 };
 
 /** Seed state for {@link createFakeVisitorCredentialFormPort}. */

@@ -36,7 +36,7 @@ export function createHostWidgetsModule(_required: Record<string, never>, { useA
   function Provider({ admin, children }: Parameters<typeof ScopeProvider>[0]) {
     const locale = useAdminLocaleHook();
     const options = useMemo<WidgetsReactOptions>(() => ({ ...widgetsHostDefaults, locale,
-      t: createWidgetsTranslator({ locale }), statusLabel: value => serverLabel(value, locale),
+      t: createWidgetsTranslator({ locale }), statusLabel: value => serverLabel({ value, locale }),
       slugRedirectPath, headerActions: createElement(PublishSectionButton, { section: 'widgets' }),
     }), [locale]);
     return createElement(ScopeProvider, { admin, options, children });

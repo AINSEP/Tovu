@@ -97,7 +97,7 @@ export function TemplateSourceModal({
   editAgentHandleId,
   useTemplateSourceHook = useWiredTemplateSource,
 }: TemplateSourceModalProps) {
-  const fetchState = useTemplateSourceHook(themeId, themeTier, themeApiVersion, templateFilename);
+  const fetchState = useTemplateSourceHook({ themeId, themeTier, themeApiVersion, templateFilename });
   // Wrap on by default, same toggle as the plugin files viewer (owner, 2026-10-10).
   const { wrap, toggleWrap } = useCodeWrap();
 
@@ -107,7 +107,7 @@ export function TemplateSourceModal({
   if (themeTier === null) {
     stageContent = (
       <p role="status">
-        {translateTemplate(t, "Could not determine the active theme's (\"{themeId}\") capability tier, so this cannot tell whether it has a plain-HTML template to show.", { themeId })}
+        {translateTemplate({ t, key: "Could not determine the active theme's (\"{themeId}\") capability tier, so this cannot tell whether it has a plain-HTML template to show.", values: { themeId } })}
       </p>
     );
   } else if (themeTier !== "static") {
@@ -115,7 +115,7 @@ export function TemplateSourceModal({
     // true (this theme's tier) rather than implying the template itself is missing.
     stageContent = (
       <p role="status">
-        {translateTemplate(t, "The active theme (\"{themeId}\") is a {themeTier} theme — its page templates are not plain HTML files under this admin, so there is nothing to show here.", { themeId, themeTier })}
+        {translateTemplate({ t, key: "The active theme (\"{themeId}\") is a {themeTier} theme — its page templates are not plain HTML files under this admin, so there is nothing to show here.", values: { themeId, themeTier } })}
       </p>
     );
   } else if (fetchState.status === "loading") {
@@ -123,7 +123,7 @@ export function TemplateSourceModal({
   } else if (fetchState.status === "error") {
     stageContent = (
       <p role="alert">
-        {translateTemplate(t, "Could not load \"{templateFilename}\" from the \"{themeId}\" theme: {message}", { templateFilename, themeId, message: fetchState.message })}
+        {translateTemplate({ t, key: "Could not load \"{templateFilename}\" from the \"{themeId}\" theme: {message}", values: { templateFilename, themeId, message: fetchState.message } })}
       </p>
     );
   } else {
@@ -160,6 +160,6 @@ export function TemplateSourceModal({
   );
 }
 
-function translateTemplate(t: Translate, key: string, values: Record<string, string>): string {
+function translateTemplate({ t, key, values }: { t: Translate; key: string; values: Record<string, string> }, _options: Record<string, never> = {}): string {
   return Object.entries(values).reduce((text, [name, value]) => text.replace(`{${name}}`, () => value), t(key));
 }

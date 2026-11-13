@@ -19,7 +19,7 @@ export interface VisitorAssistantPanelController {
   enableInfo: string;
   widget: "react" | "vanilla";
   /** The widget `<select>`'s change handler; any value but `"vanilla"` means the standard widget. */
-  chooseWidget: (value: string) => void;
+  chooseWidget: (required: { value: string }, optional?: Record<string, never>) => void;
 }
 
 /**
@@ -43,6 +43,6 @@ export function useVisitorAssistantPanel(
       ? "Visitors can chat with it on every public page."
       : "When off, your site loads no assistant code and has no chat endpoint.",
     widget: settings.widget ?? "react",
-    chooseWidget: (value) => void setWidget({ widget: value === "vanilla" ? "vanilla" : "react" }),
+    chooseWidget: ({ value }, _options: Record<string, never> = {}) => void setWidget({ widget: value === "vanilla" ? "vanilla" : "react" }),
   };
 }

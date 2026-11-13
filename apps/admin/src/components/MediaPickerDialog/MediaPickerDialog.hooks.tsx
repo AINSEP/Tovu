@@ -84,7 +84,7 @@ export interface MediaPickerDialogController {
    *  {@link MediaPickerPort} — see that port's own `mediaOriginalUrl` doc for why a pure URL
    *  template still crosses this seam rather than staying a direct `lib/api` import in the
    *  component. */
-  mediaOriginalUrl: (id: string) => string;
+  mediaOriginalUrl: (required: { id: string }, optional?: Record<string, never>) => string;
   /** Bound to `deps.locale` (or `DEFAULT_LOCALE`) via `shared-components-i18n.ts`'s `t` — see this
    *  file's header for why it's resolved here rather than at each call site. */
   t: Translate;

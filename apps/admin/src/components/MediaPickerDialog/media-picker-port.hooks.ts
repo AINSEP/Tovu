@@ -29,5 +29,5 @@ export interface MediaPickerPort {
    * injected port rather than `MediaPickerDialog.tsx` calling `api.mediaOriginalUrl` itself. See
    * `lib/api.ts`'s own `mediaOriginalUrl` for the exact URL shape this mirrors.
    */
-  mediaOriginalUrl(id: string): string;
+  mediaOriginalUrl(required: { id: string }, optional?: Record<string, never>): string;
 }

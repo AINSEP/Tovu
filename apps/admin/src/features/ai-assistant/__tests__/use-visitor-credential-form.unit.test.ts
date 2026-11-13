@@ -1112,11 +1112,11 @@ describe("visitor credential form with an injected probe transport", () => {
 
   it("selects a known preset by id and ignores an unknown id", async () => {
     const { result } = await mountProbe(createFakeExecutionPort());
-    act(() => result.current.selectPresetById("google-gemini"));
+    act(() => result.current.selectPresetById({ presetId: "google-gemini" }));
     expect(result.current.config.providerId).toBe("google-gemini");
     expect(result.current.config.baseUrl).toBe("https://generativelanguage.googleapis.com");
     const selected = result.current.config;
-    act(() => result.current.selectPresetById("missing-provider"));
+    act(() => result.current.selectPresetById({ presetId: "missing-provider" }));
     expect(result.current.config).toEqual(selected);
   });
 
@@ -1155,7 +1155,7 @@ describe("visitor credential form with an injected probe transport", () => {
     const executionPort = { ...createFakeExecutionPort(), listModels: () => new Promise<readonly string[]>((_resolve, reject) => { rejectModels = reject; }) };
     const { result } = await mountProbe(executionPort, credential({ isSet: true, provider: "anthropic", baseUrl: "https://api.anthropic.com" }));
     expect(result.current.discovery).toEqual({ status: "loading" });
-    act(() => result.current.selectPresetById("google-gemini"));
+    act(() => result.current.selectPresetById({ presetId: "google-gemini" }));
     await act(async () => { rejectModels(new Error("stale provider failed")); });
     expect(result.current.discovery).toEqual({ status: "idle" });
     expect(result.current.config.providerId).toBe("google-gemini");

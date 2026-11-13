@@ -17,8 +17,8 @@ import { createFakeTemplateSourcePort } from "../template-source-dependencies.ho
 
 describe("templateAssetUrl", () => {
   it("builds /theme-assets/{themeId}/pages/{templateFilename} for a v1 theme (apiVersion undefined), URL-encoding both segments", () => {
-    expect(templateAssetUrl("basic", "blog-post.html", undefined)).toBe("/theme-assets/basic/pages/blog-post.html");
-    expect(templateAssetUrl("my theme", "a b.html", undefined)).toBe("/theme-assets/my%20theme/pages/a%20b.html");
+    expect(templateAssetUrl({ themeId: "basic", templateFilename: "blog-post.html", apiVersion: undefined })).toBe("/theme-assets/basic/pages/blog-post.html");
+    expect(templateAssetUrl({ themeId: "my theme", templateFilename: "a b.html", apiVersion: undefined })).toBe("/theme-assets/my%20theme/pages/a%20b.html");
   });
 
   // 2026-08-19 architecture audit finding 1: every current static theme (`src/themes/static/basic`,
@@ -26,15 +26,15 @@ describe("templateAssetUrl", () => {
   // `pages/` — the unconditional v1 path this test used to be the ONLY coverage for. Regression for
   // "View Template" 404ing on every real built-in theme today.
   it("builds /theme-assets/{themeId}/render/pages/{templateFilename} for a v2 theme (apiVersion: 2)", () => {
-    expect(templateAssetUrl("basic", "blog-post.html", 2)).toBe("/theme-assets/basic/render/pages/blog-post.html");
-    expect(templateAssetUrl("my theme", "a b.html", 2)).toBe("/theme-assets/my%20theme/render/pages/a%20b.html");
+    expect(templateAssetUrl({ themeId: "basic", templateFilename: "blog-post.html", apiVersion: 2 })).toBe("/theme-assets/basic/render/pages/blog-post.html");
+    expect(templateAssetUrl({ themeId: "my theme", templateFilename: "a b.html", apiVersion: 2 })).toBe("/theme-assets/my%20theme/render/pages/a%20b.html");
   });
 });
 
 describe("useTemplateSource", () => {
   it("loads an empty template from an unseeded fake port", async () => {
     const port = createFakeTemplateSourcePort();
-    const { result } = renderHook(() => useTemplateSource("basic", "static", 2, "empty.html", port));
+    const { result } = renderHook(() => useTemplateSource({ themeId: "basic", themeTier: "static", themeApiVersion: 2, templateFilename: "empty.html", port }));
 
     await waitFor(() => expect(result.current).toEqual({ status: "loaded", html: "" }));
   });
@@ -42,7 +42,7 @@ describe("useTemplateSource", () => {
   it("never calls the port for a non-static theme tier", () => {
     const port = createFakeTemplateSourcePort({ html: "<p>x</p>" });
     const fetchSpy = vi.spyOn(port, "fetchTemplateSource");
-    const { result } = renderHook(() => useTemplateSource("t1", "handlebars", 2, "post.html", port));
+    const { result } = renderHook(() => useTemplateSource({ themeId: "t1", themeTier: "handlebars", themeApiVersion: 2, templateFilename: "post.html", port }));
 
     expect(result.current).toEqual({ status: "loading" });
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -51,14 +51,14 @@ describe("useTemplateSource", () => {
   it("never calls the port when the tier is null (undetermined)", () => {
     const port = createFakeTemplateSourcePort({ html: "<p>x</p>" });
     const fetchSpy = vi.spyOn(port, "fetchTemplateSource");
-    renderHook(() => useTemplateSource("t1", null, undefined, "post.html", port));
+    renderHook(() => useTemplateSource({ themeId: "t1", themeTier: null, themeApiVersion: undefined, templateFilename: "post.html", port }));
 
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("starts loading, then resolves to loaded with the fetched html for a static theme", async () => {
     const port = createFakeTemplateSourcePort({ html: "<h1>Hello template</h1>" });
-    const { result } = renderHook(() => useTemplateSource("basic", "static", 2, "blog-post.html", port));
+    const { result } = renderHook(() => useTemplateSource({ themeId: "basic", themeTier: "static", themeApiVersion: 2, templateFilename: "blog-post.html", port }));
 
     expect(result.current).toEqual({ status: "loading" });
 
@@ -67,7 +67,7 @@ describe("useTemplateSource", () => {
 
   it("resolves to error with the rejection's message on a port failure", async () => {
     const port = createFakeTemplateSourcePort({ fetchTemplateSourceError: new Error("network down") });
-    const { result } = renderHook(() => useTemplateSource("basic", "static", 2, "x.html", port));
+    const { result } = renderHook(() => useTemplateSource({ themeId: "basic", themeTier: "static", themeApiVersion: 2, templateFilename: "x.html", port }));
 
     await waitFor(() => expect(result.current).toEqual({ status: "error", message: "network down" }));
   });
@@ -80,12 +80,12 @@ describe("useTemplateSource", () => {
       .mockResolvedValueOnce("<h1>new template</h1>");
     const port = { fetchTemplateSource };
     const { result, rerender } = renderHook(
-      ({ filename }) => useTemplateSource("basic", "static", 2, filename, port),
+      ({ filename }) => useTemplateSource({ themeId: "basic", themeTier: "static", themeApiVersion: 2, templateFilename: filename, port }),
       { initialProps: { filename: "old.html" } },
     );
     rerender({ filename: "new.html" });
     await waitFor(() => expect(result.current).toEqual({ status: "loaded", html: "<h1>new template</h1>" }));
-    expect(fetchTemplateSource).toHaveBeenNthCalledWith(2, "/theme-assets/basic/render/pages/new.html");
+    expect(fetchTemplateSource).toHaveBeenNthCalledWith(2, { url: "/theme-assets/basic/render/pages/new.html" });
     await act(async () => {
       if (settlement === "resolve") resolveOld("<h1>old template</h1>");
       else rejectOld(new Error("old template failed"));
@@ -95,23 +95,23 @@ describe("useTemplateSource", () => {
 
   it("uses the fallback message for a non-Error rejection", async () => {
     const port = { fetchTemplateSource: vi.fn().mockRejectedValue("offline") };
-    const { result } = renderHook(() => useTemplateSource("basic", "static", 2, "x.html", port));
+    const { result } = renderHook(() => useTemplateSource({ themeId: "basic", themeTier: "static", themeApiVersion: 2, templateFilename: "x.html", port }));
     await waitFor(() => expect(result.current).toEqual({ status: "error", message: "failed to load the template" }));
   });
 
   it("fetches the v1 URL built by templateAssetUrl for a v1 (apiVersion undefined) theme", async () => {
     const port = createFakeTemplateSourcePort({ html: "ok" });
     const fetchSpy = vi.spyOn(port, "fetchTemplateSource");
-    renderHook(() => useTemplateSource("basic", "static", undefined, "blog-post.html", port));
+    renderHook(() => useTemplateSource({ themeId: "basic", themeTier: "static", themeApiVersion: undefined, templateFilename: "blog-post.html", port }));
 
-    await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith("/theme-assets/basic/pages/blog-post.html"));
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith({ url: "/theme-assets/basic/pages/blog-post.html" }));
   });
 
   it("fetches the v2 render/pages/ URL built by templateAssetUrl for an apiVersion: 2 theme", async () => {
     const port = createFakeTemplateSourcePort({ html: "ok" });
     const fetchSpy = vi.spyOn(port, "fetchTemplateSource");
-    renderHook(() => useTemplateSource("basic", "static", 2, "blog-post.html", port));
+    renderHook(() => useTemplateSource({ themeId: "basic", themeTier: "static", themeApiVersion: 2, templateFilename: "blog-post.html", port }));
 
-    await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith("/theme-assets/basic/render/pages/blog-post.html"));
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith({ url: "/theme-assets/basic/render/pages/blog-post.html" }));
   });
 });

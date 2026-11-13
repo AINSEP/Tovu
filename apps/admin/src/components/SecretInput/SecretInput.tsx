@@ -35,8 +35,8 @@ export type SecretInputProps = Omit<JiniSecretInputProps, "toggleLabels"> & {
  */
 export function secretToggleLabels(required: { label: string }, optional: { locale?: string } = {}): { show: string; hide: string } {
   const locale = optional.locale ?? (typeof document === "undefined" ? "en" : document.documentElement.lang || "en");
-  const name = (key: string) => interpolate({ template: t({ locale, key }), vars: { label: required.label } });
-  return { show: name("Show {label}"), hide: name("Hide {label}") };
+  const name = ({ key }: { key: string }, _options: Record<string, never> = {}) => interpolate({ template: t({ locale, key }), vars: { label: required.label } });
+  return { show: name({ key: "Show {label}" }), hide: name({ key: "Hide {label}" }) };
 }
 
 export const SecretInput = forwardRef<HTMLInputElement, SecretInputProps>(function SecretInput({ secret = true, locale, ...props }, ref) {

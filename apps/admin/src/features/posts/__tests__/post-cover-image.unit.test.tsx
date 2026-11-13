@@ -138,7 +138,7 @@ describe("PostCoverImage edits usePostEditor's featuredMediaId and hideCoverImag
     version: 3,
     featuredMediaId: "m1",
   };
-  const mediaPort = { mediaOriginalUrl: (id: string) => `/media/${id}` };
+  const mediaPort = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
   const useTestPicker = (value: string | null, onChange: (id: string | null) => void) => usePostFeaturedImage(value, onChange, { port: mediaPort });
 
   function Harness({ port, onController }: { port: FakePostEditorPort; onController: (c: PostEditorController) => void }) {

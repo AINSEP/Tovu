@@ -269,16 +269,18 @@ interface AdminExecutionModeProps {
  * `AdminExecutionMode` and `VisitorCredentialKeyFooter` below, since both use the identical
  * `(key: string) => key` fallback.
  */
-function resolveT(override: ((key: string) => string) | undefined): (key: string) => string {
+function resolveT({ override }: { override: ((key: string) => string) | undefined }, _options: Record<string, never> = {}): (key: string) => string {
   return override ?? ((key: string) => key);
 }
 function resolveAdminExecutionModeHook(
-  override: typeof useAdminExecutionMode | undefined
+  { override }: { override: typeof useAdminExecutionMode | undefined },
+  _options: Record<string, never> = {},
 ): typeof useAdminExecutionMode {
   return override ?? useAdminExecutionMode;
 }
 function resolveAdminExecutionCredentialHook(
-  override: typeof useWiredAdminExecutionCredential | undefined
+  { override }: { override: typeof useWiredAdminExecutionCredential | undefined },
+  _options: Record<string, never> = {},
 ): typeof useWiredAdminExecutionCredential {
   return override ?? useWiredAdminExecutionCredential;
 }
@@ -290,9 +292,9 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
   // as `App.tsx`'s own removal): every real call site is JSX, which always constructs an actual
   // props object — `{}` when no attributes are given, never `undefined` — and every field on
   // `AdminExecutionModeProps` is optional, so `{}` still satisfies the type.
-  const useAdminExecutionModeHook = resolveAdminExecutionModeHook(props.useAdminExecutionModeHook);
-  const useAdminExecutionCredentialHook = resolveAdminExecutionCredentialHook(props.useAdminExecutionCredentialHook);
-  const t = resolveT(props.t);
+  const useAdminExecutionModeHook = resolveAdminExecutionModeHook({ override: props.useAdminExecutionModeHook });
+  const useAdminExecutionCredentialHook = resolveAdminExecutionCredentialHook({ override: props.useAdminExecutionCredentialHook });
+  const t = resolveT({ override: props.t });
   const { port, execution } = useAdminExecutionModeHook();
   const locale = useAdminLocale();
   const executionPolicy = useTovuSettingsExecution({ config: execution.value, onChange: execution.onChange, locale }, { usePolicy: props.useExecutionPolicy });
@@ -302,7 +304,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
   // don't read `byok` until an explicit Save/migrate press, and the panel this feeds isn't rendered
   // until past the gate anyway.
   const adminCredential = useAdminExecutionCredentialHook({
-    byok: adminExecutionByok(execution.value),
+    byok: adminExecutionByok({ config: execution.value }),
     onByokChange: (byok) => execution.onChange({ ...(execution.value ?? DEFAULT_EXECUTION_CONFIG), byok }),
   });
 
@@ -394,7 +396,8 @@ interface AssistantDaemonRestartProps {
 }
 
 function resolveAssistantDaemonRestartHook(
-  override: (() => AssistantDaemonRestartController) | undefined
+  { override }: { override: (() => AssistantDaemonRestartController) | undefined },
+  _options: Record<string, never> = {},
 ): () => AssistantDaemonRestartController {
   return override ?? useWiredAssistantDaemonRestart;
 }
@@ -415,8 +418,8 @@ export function assistantDaemonStatusMessage(
 }
 
 export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
-  const useAssistantDaemonRestartHook = resolveAssistantDaemonRestartHook(props.useAssistantDaemonRestartHook);
-  const t = resolveT(props.t);
+  const useAssistantDaemonRestartHook = resolveAssistantDaemonRestartHook({ override: props.useAssistantDaemonRestartHook });
+  const t = resolveT({ override: props.t });
   const controller = useAssistantDaemonRestartHook();
   const { restarting, restartResult, restartError, checkingStatus, checkStatus, restart } = controller;
   const statusMessage = assistantDaemonStatusMessage(controller, t);
@@ -458,7 +461,7 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
       {restartError ? <div className="save-error">{restartError}</div> : null}
       {!restartError && restartResult ? (
         <p className="assistant-save-line" role="status">
-          {assistantRestartResultMessage(restartResult, t)}
+          {assistantRestartResultMessage({ result: restartResult, t })}
         </p>
       ) : null}
       {statusMessage ? <p className="muted-cell" role="status">{statusMessage}</p> : null}
@@ -584,7 +587,7 @@ export function VisitorCredentialKeyActions({
   storedKeyIsForOtherEndpoint,
   t: tProp,
 }: VisitorCredentialKeyActionsProps) {
-  const t = resolveT(tProp);
+  const t = resolveT({ override: tProp });
   // The two IDLE status lines are instructions, so each rides in an ⓘ beside the button it explains
   // (owner, 2026-10-09); results still print under the field (`VisitorCredentialKeyFooter`).
   const testInfo = visitorCredentialKeyIdleMessage(t);
@@ -646,7 +649,7 @@ export function VisitorCredentialKeyFooter({
   // `t`'s default is resolved through `resolveT` (see that function's own doc, next to
   // `AdminExecutionMode` above) rather than inline here — keeps this function's cyclomatic
   // complexity under the ceiling.
-  const t = resolveT(tProp);
+  const t = resolveT({ override: tProp });
   const lines = visitorKeyFooterLines({ discoveryStatus: discovery.status, saveStatus: saveState.status, storedKeyIsForOtherEndpoint });
   const keyStatus = lines.keyStatus ? visitorCredentialKeyStatusMessage(discovery, t) : null;
   return (
@@ -665,7 +668,7 @@ export function VisitorCredentialKeyFooter({
 
       {/* Save key's status line — see `visitorCredentialSaveStatusMessage`'s own doc comment for
           the mask/placeholder reasoning, and for why `dirty` is no longer read here. */}
-      {lines.saveLine ? <p className="assistant-save-line">{visitorCredentialSaveStatusMessage(saveState, stored, t, storedKeyIsForOtherEndpoint)}</p> : null}
+      {lines.saveLine ? <p className="assistant-save-line">{visitorCredentialSaveStatusMessage({ saveState, stored }, { t, storedKeyIsForOtherEndpoint })}</p> : null}
       {saveState.status === "error" ? <div className="save-error">{t(saveState.message)}</div> : null}
     </div>
   );
@@ -688,7 +691,7 @@ export function VisitorCredentialSettingsFooter({
   saveSettings,
   t: tProp,
 }: VisitorCredentialSettingsFooterProps) {
-  const t = resolveT(tProp);
+  const t = resolveT({ override: tProp });
   const statusLine = visitorCredentialSettingsStatusMessage(settingsSaveState, t);
 
   return (
@@ -773,7 +776,7 @@ export function VisitorCredentialForm({
         <div className="visitor-inline-field">
           <label htmlFor={providerSelectId}>{t("Provider")}</label>
           <select id={providerSelectId} className="jini-input visitor-compact-select" value={visitorPresetId(preset)}
-            onChange={(event) => selectPresetById(event.target.value)}
+            onChange={(event) => selectPresetById({ presetId: event.target.value })}
             {...agentHandle({ handle: "ai-assistant-visitor-provider" }, { role: "field", label: "Visitor assistant provider" })}>
             {preset ? null : <option value="" disabled>{t("Custom endpoint")}</option>}
             {providerGroups.map((group) => (
@@ -1060,7 +1063,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
 }
 
 /** A restart acknowledgement describes acceptance, never inferred process health. */
-function assistantRestartResultMessage(result: NonNullable<AssistantDaemonRestartController["restartResult"]>, t: (key: string) => string): string {
+function assistantRestartResultMessage({ result, t }: { result: NonNullable<AssistantDaemonRestartController["restartResult"]>; t: (key: string) => string }, _options: Record<string, never> = {}): string {
   return result.ok
     ? t("Restart accepted. This does not confirm the process is healthy yet — check the status below.")
     : t("Restart refused: {reason}").replace("{reason}", () => result.reason ?? "");
@@ -1072,6 +1075,6 @@ function visitorPresetId(preset: VisitorCredentialFormController["preset"]): str
 }
 
 /** Keep the credential fallback for both unloaded execution and incomplete legacy snapshots. */
-function adminExecutionByok(config: typeof DEFAULT_EXECUTION_CONFIG | null) {
+function adminExecutionByok({ config }: { config: typeof DEFAULT_EXECUTION_CONFIG | null }, _options: Record<string, never> = {}) {
   return config?.byok ?? DEFAULT_EXECUTION_CONFIG.byok;
 }

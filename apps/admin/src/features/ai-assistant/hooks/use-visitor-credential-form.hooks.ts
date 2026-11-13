@@ -120,7 +120,7 @@ export interface VisitorCredentialFormController {
   providerGroups: VisitorProviderGroup[];
   /** The `<select>`'s change handler: looks the preset up by id and runs {@link selectPreset}, so
    *  autosave and field population are identical to the chips it replaced. Unknown ids are ignored. */
-  selectPresetById: (presetId: string) => void;
+  selectPresetById: (required: { presetId: string }, optional?: Record<string, never>) => void;
   /** Writes the KEY only — see {@link saveVisitorKey}. */
   saveKey: () => Promise<void>;
   /** Writes provider/baseUrl/model only, never a key — see {@link saveVisitorSettings}. */
@@ -246,16 +246,14 @@ function seedDiscoveredModel(models: readonly string[]): (current: ByokConfig) =
  * field is blank and cannot distinguish "nothing was ever saved" from "a key is saved and working",
  * an ambiguity worse than four characters.
  *
- * @param t - Defaults to English passthrough for `VisitorCredentialForm.unit.test.tsx`'s direct,
+ * @param optional.t - Defaults to English passthrough for `VisitorCredentialForm.unit.test.tsx`'s direct,
  *   locale-unaware calls, which keep asserting the exact English strings they always have.
- * @param storedKeyIsForOtherEndpoint - The controller's flag of the same name. When set, the idle line
+ * @param optional.storedKeyIsForOtherEndpoint - The controller's flag of the same name. When set, the idle line
  *   asks for this provider's key instead of reporting a stored key this provider cannot use.
  */
 export function visitorCredentialSaveStatusMessage(
-  saveState: VisitorCredentialFormController["saveState"],
-  stored: VisitorCredentialFormController["stored"],
-  t: Translate = (key) => key,
-  storedKeyIsForOtherEndpoint = false,
+  { saveState, stored }: { saveState: VisitorCredentialFormController["saveState"]; stored: VisitorCredentialFormController["stored"] },
+  { t = (key) => key, storedKeyIsForOtherEndpoint = false }: { t?: Translate; storedKeyIsForOtherEndpoint?: boolean } = {},
 ): string | null {
   if (saveState.status === "saving") return t("Saving…");
   if (saveState.status === "saved") return t("Saved to the server, encrypted.");
@@ -355,7 +353,7 @@ async function refreshVisitorDiscoveryAfterTest(deps: {
  *  inline optional-chain/`||`/ternary cluster that put the parent at 10/5 — over the ceiling on
  *  cyclomatic alone once it tightened to ≤9/≤9 mid-pass. Same treatment as `AiAssistant.tsx`'s
  *  `visitorCredentialSaveStatusMessage` sibling. */
-function connectionTestStateFromResult(result: { ok: boolean; message?: string } | undefined): ConnectionTestState {
+function connectionTestStateFromResult({ result }: { result: { ok: boolean; message?: string } | undefined }, _options: Record<string, never> = {}): ConnectionTestState {
   if (!result) return { status: "error", message: "Connection test failed" };
   if (result.ok) return { status: "ok", message: result.message };
   return { status: "error", message: result.message || "Connection test failed" };
@@ -373,7 +371,7 @@ async function runVisitorTestConnection(deps: {
   setConnectionTest({ status: "testing" });
   try {
     const result = await port.testConnection?.(config);
-    setConnectionTest(connectionTestStateFromResult(result));
+    setConnectionTest(connectionTestStateFromResult({ result }));
     if (result?.ok) await refreshVisitorDiscoveryAfterTest({ port, config, setDiscovery });
   } catch (e) {
     setConnectionTest({ status: "error", message: describeProbeError(e, "Connection test failed") });
@@ -662,7 +660,7 @@ export function useVisitorCredentialForm({
     setDiscovery({ status: "idle" });
     setConnectionTest({ status: "idle" });
   };
-  const selectPresetById = (presetId: string) => {
+  const selectPresetById = ({ presetId }: { presetId: string }, _options: Record<string, never> = {}) => {
     const next = DEFAULT_PROVIDER_PRESETS.find((p) => p.id === presetId);
     if (next) selectPreset(next);
   };

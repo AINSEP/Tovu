@@ -32,13 +32,13 @@ export function HtmlAttributeRows({ value, onChange, t = (key) => key, agentHand
         <div key={index} className="html-attribute-rows__row">
           <input className="field-mono html-attribute-rows__name" value={row.name} placeholder="data-kui" spellCheck={false}
             aria-label={`${t("Attribute name")} ${index + 1}`} aria-invalid={vm.dropped[index] ? true : undefined}
-            onChange={(event) => vm.setRow(index, { name: event.target.value.trim() })} />
+            onChange={(event) => vm.setRow({ index, patch: { name: event.target.value.trim() } })} />
           <span aria-hidden="true">=</span>
           <input className="field-mono html-attribute-rows__value" value={row.value} spellCheck={false}
-            aria-label={`${t("Attribute value")} ${index + 1}`} onChange={(event) => vm.setRow(index, { value: event.target.value })} />
+            aria-label={`${t("Attribute value")} ${index + 1}`} onChange={(event) => vm.setRow({ index, patch: { value: event.target.value } })} />
           <DockHeaderTip label={t("Remove")}>
             <button type="button" className="btn-ghost media-content-editor__icon"
-              aria-label={`${t("Remove")} ${row.name || index + 1}`} onClick={() => vm.removeRow(index)}>
+              aria-label={`${t("Remove")} ${row.name || index + 1}`} onClick={() => vm.removeRow({ index })}>
               <Icon name="close" size={14} aria-hidden="true" />
             </button>
           </DockHeaderTip>

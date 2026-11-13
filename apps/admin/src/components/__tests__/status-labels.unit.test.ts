@@ -29,16 +29,16 @@ describe("serverLabel", () => {
   });
 
   it("localizes known server values and leaves future values readable", () => {
-    expect(serverLabel("published", "es")).toBe("publicado");
-    expect(serverLabel("unrecognized-state", "es")).toBe("unrecognized-state");
+    expect(serverLabel({ value: "published", locale: "es" })).toBe("publicado");
+    expect(serverLabel({ value: "unrecognized-state", locale: "es" })).toBe("unrecognized-state");
   });
 
   it("uses singular and plural recipient labels", () => {
-    expect(recipientLabel(1, "es")).toBe("destinatario");
-    expect(recipientLabel(2, "es")).toBe("destinatarios");
+    expect(recipientLabel({ count: 1, locale: "es" })).toBe("destinatario");
+    expect(recipientLabel({ count: 2, locale: "es" })).toBe("destinatarios");
   });
 
   it("localizes each plugin metadata tag without changing its value order", () => {
-    expect(pluginMetadataLabel(["built-in", "tier-3", "valid"], "es")).toBe("integrado · nivel 3 · válido");
+    expect(pluginMetadataLabel({ values: ["built-in", "tier-3", "valid"], locale: "es" })).toBe("integrado · nivel 3 · válido");
   });
 });

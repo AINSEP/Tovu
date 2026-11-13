@@ -54,7 +54,7 @@ export const redirectsHostPorts = createRedirectsHostPorts({ transport: mediaTra
  */
 export function createRedirectsTranslator({ locale }: { locale: string }, _optional: Record<string, never> = {}): RedirectsTranslate {
   return (key, vars = {}) => {
-    if (vars.serverLabel !== undefined) return serverLabel(String(vars.serverLabel), locale);
+    if (vars.serverLabel !== undefined) return serverLabel({ value: String(vars.serverLabel), locale });
     switch (key) {
       case '{created} created, {failed} failed.': return importResultSummary(locale, Number(vars.created), Number(vars.failed));
       case 'Created': return createdLabel(locale);

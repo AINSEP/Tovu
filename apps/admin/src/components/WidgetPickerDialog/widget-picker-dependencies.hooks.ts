@@ -8,8 +8,8 @@ import type { WidgetPickerPort } from "./widget-picker-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultWidgetPickerPort: WidgetPickerPort = {
-  listWidgets: (options) => api.listWidgets(options),
-  createWidget: (input) => api.createWidget(input),
+  listWidgets: (options, _optional: Record<string, never> = {}) => api.listWidgets(options),
+  createWidget: (input, _optional: Record<string, never> = {}) => api.createWidget(input),
 };
 
 /** Seed state for {@link createFakeWidgetPickerPort}. */

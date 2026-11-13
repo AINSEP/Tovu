@@ -30,7 +30,7 @@ export function schemeOptionAvailable({ theme, value }: { theme: AdminThemeManif
  *  `env`'s when one is given, otherwise the browser's. No `typeof window` guard: without `env` the
  *  picker already reads `document.documentElement` during this same render, so a window-less
  *  (non-browser) render never gets this far. */
-function previewMatchMedia(env: AdminThemeDocumentEnv | undefined) {
+function previewMatchMedia({ env }: { env: AdminThemeDocumentEnv | undefined }, _options: Record<string, never> = {}) {
   if (env) return env.matchMedia;
   return typeof window.matchMedia === "function" ? window.matchMedia.bind(window) : undefined;
 }
@@ -98,7 +98,7 @@ export function AdminThemes({ port, env, themes = ADMIN_THEMES }: { port?: Admin
   const locale = useAdminLocale();
   const picker = useAdminThemePicker({}, { port, env });
   const activeTheme = findAdminTheme({ id: picker.themeId ?? "" }, { themes });
-  const matchMedia = previewMatchMedia(env);
+  const matchMedia = previewMatchMedia({ env });
   return (
     <div className="page admin-themes-page">
       <div className="page-header">

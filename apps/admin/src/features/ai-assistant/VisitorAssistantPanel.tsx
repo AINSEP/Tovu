@@ -84,7 +84,7 @@ export function VisitorAssistantPanel({
               agentHandle="ai-assistant-visitor-widget-info"
             />
             <select id={widgetId} className="jini-input visitor-compact-select" value={panel.widget} disabled={saving}
-              onChange={(event) => panel.chooseWidget(event.target.value)}
+              onChange={(event) => panel.chooseWidget({ value: event.target.value })}
               {...agentHandle({ handle: "ai-assistant-visitor-widget" }, { role: "field", label: "Visitor chat widget" })}>
               {/* Labels name the build and its gzipped size; the stored values stay "react"/"vanilla".
                   "beta" was dropped: nothing in code marks the vanilla build as beta any more.
@@ -102,7 +102,7 @@ export function VisitorAssistantPanel({
           </div>
           <AssistantToggleRow t={t} variant="switch" label={t("Enable the AI assistant on the public site")}
             info={t(panel.enableInfo)} checked={settings.publicEnabled}
-            disabled={saving || !panel.canEnable} onChange={(checked) => void setPublicEnabled(checked)}
+            disabled={saving || !panel.canEnable} onChange={(checked) => void setPublicEnabled({ publicEnabled: checked })}
             describedBy={panel.enableBlockedReason ? reasonId : undefined}
             inputProps={agentHandle({ handle: "ai-assistant-visitor-enable" }, { role: "field", label: "Enable the AI assistant on the public site" })}
             infoHandle="ai-assistant-visitor-enable-info">

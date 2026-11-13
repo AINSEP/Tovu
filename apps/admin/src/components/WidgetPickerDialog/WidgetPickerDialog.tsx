@@ -53,14 +53,14 @@ import { useWidgetAddControl, useWiredWidgetAddControl, useWiredWidgetPickerDial
  *  spreads a conditional agent-handle six times, and each was its own branch in
  *  `WidgetPickerDialog`'s own cyclomatic count. `{}` (no markup) when `base` is unset, same as
  *  every inline occurrence it replaces. */
-function handleSpread(base: string | undefined, suffix: string, opts: { role: AgentElementRole; label: string }): Record<string, unknown> {
+function handleSpread({ base, suffix, opts }: { base: string | undefined; suffix: string; opts: { role: AgentElementRole; label: string } }, _options: Record<string, never> = {}): Record<string, unknown> {
   return base ? agentHandle({ handle: `${base}-${suffix}` }, opts) : {};
 }
 
 /** `base ? \`${base}-<suffix>\` : undefined` as a named helper — the sub-handle string handed to a
  *  composed component (`Select`/`WidgetConfigFields`) rather than spread as `data-agent-*`
  *  attributes directly. Same rationale as {@link handleSpread}. */
-function subHandle(base: string | undefined, suffix: string): string | undefined {
+function subHandle({ base, suffix }: { base: string | undefined; suffix: string }, _options: Record<string, never> = {}): string | undefined {
   return base ? `${base}-${suffix}` : undefined;
 }
 
@@ -136,11 +136,11 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
                   // renders once `instances` is a loaded, non-empty list; the old `?? []` here could not fire.
                   options={toExistingOptions(instances)}
                   placeholder={t("Choose a widget…")}
-                  agentHandle={subHandle(base, "existing-select")}
+                  agentHandle={subHandle({ base, suffix: "existing-select" })}
                   t={t}
                 />
               </div>
-              <button type="submit" {...handleSpread(base, "existing-submit", { role: "button", label: "Use this widget" })}>
+              <button type="submit" {...handleSpread({ base, suffix: "existing-submit", opts: { role: "button", label: "Use this widget" } })}>
                 {t("Use this widget")}
               </button>
             </form>
@@ -157,17 +157,17 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
                 ref={newTitleInputRef}
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                {...handleSpread(base, "new-title", { role: "field", label: "The new widget's title" })}
+                {...handleSpread({ base, suffix: "new-title", opts: { role: "field", label: "The new widget's title" } })}
               />
             </div>
             <WidgetConfigFields
               widgetType={props.widgetType}
               config={newConfig}
               onChange={setNewConfig}
-              agentHandle={subHandle(base, "new-config")}
+              agentHandle={subHandle({ base, suffix: "new-config" })}
               t={t}
             />
-            <button type="submit" {...handleSpread(base, "new-submit", { role: "button", label: "Create and place this widget" })}>
+            <button type="submit" {...handleSpread({ base, suffix: "new-submit", opts: { role: "button", label: "Create and place this widget" } })}>
               {t("Create and place")}
             </button>
           </form>
@@ -180,7 +180,7 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
               className="btn-secondary"
               data-jini-autofocus=""
               onClick={props.onCancel}
-              {...handleSpread(base, "cancel", { role: "button", label: "Close without placing a widget" })}
+              {...handleSpread({ base, suffix: "cancel", opts: { role: "button", label: "Close without placing a widget" } })}
             >
               {t("Cancel")}
             </button>
@@ -250,7 +250,7 @@ export function WidgetAddControl({ useAddControl = useWiredWidgetAddControl, age
       />
       <button
         type="button"
-        onClick={() => setPickerType(selectedType)}
+        onClick={() => setPickerType({ next: selectedType })}
         {...(base ? agentHandle({ handle: `${base}-open` }, { role: "button", label: props.triggerLabel }) : {})}
       >
         {props.triggerLabel}
@@ -263,9 +263,9 @@ export function WidgetAddControl({ useAddControl = useWiredWidgetAddControl, age
       {pickerType ? (
         <WidgetPickerDialog
           widgetType={pickerType}
-          onUseExisting={handleUseExisting}
-          onCreateNew={handleCreateNew}
-          onCancel={() => setPickerType(null)}
+          onUseExisting={(widgetInstanceId) => handleUseExisting({ widgetInstanceId })}
+          onCreateNew={(title, config) => handleCreateNew({ title, config })}
+          onCancel={() => setPickerType({ next: null })}
           agentHandle={base ? `${base}-picker` : undefined}
         />
       ) : null}
@@ -292,15 +292,15 @@ export function WidgetSelectionDialog({ useAddControl = useWiredWidgetAddControl
     <Dialog open title={vm.t("Insert widget")} onClose={() => onCancel()}
       className="settings-dialog jini-domain-dialog widget-picker-dialog">
       <Select value={vm.selectedType}
-        onChange={(value) => { vm.setSelectedType(value as AdminWidgetType); vm.setPickerType(value as AdminWidgetType); }}
+        onChange={(value) => { vm.setSelectedType(value as AdminWidgetType); vm.setPickerType({ next: value as AdminWidgetType }); }}
         options={widgetTypeOptions({ locale: vm.locale })} aria-label={vm.t("Widget type")}
-        agentHandle={subHandle(base, "type")} t={vm.t} />
+        agentHandle={subHandle({ base, suffix: "type" })} t={vm.t} />
       {vm.error ? <span className="save-error" role="alert">{vm.error}</span> : null}
       <WidgetPickerDialog key={`${vm.selectedType}:${vm.pickerType === null ? "settled" : "draft"}`}
         widgetType={vm.selectedType} presentation="inline"
-        onUseExisting={vm.handleUseExisting} onCreateNew={vm.handleCreateNew} onCancel={onCancel}
+        onUseExisting={(widgetInstanceId) => vm.handleUseExisting({ widgetInstanceId })} onCreateNew={(title, config) => vm.handleCreateNew({ title, config })} onCancel={onCancel}
         useDialog={props.useDialog}
-        agentHandle={subHandle(base, "picker")} />
+        agentHandle={subHandle({ base, suffix: "picker" })} />
     </Dialog>
   );
 }

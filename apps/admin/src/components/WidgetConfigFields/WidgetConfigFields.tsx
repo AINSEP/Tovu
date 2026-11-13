@@ -72,7 +72,7 @@ import { asciiSlug } from "../../lib/ascii-slug";
  * loudly at first render if invalid. Omit it and no `data-agent-*` markup is emitted at all.
  */
 
-function textValue(config: Record<string, unknown>, key: string): string {
+function textValue({ config, key }: { config: Record<string, unknown>; key: string }, _options: Record<string, never> = {}): string {
   const v = config[key];
   return typeof v === "string" ? v : "";
 }
@@ -90,7 +90,7 @@ function TextConfigFields(props: {
       <textarea
         id="widget-field-body"
         rows={6}
-        value={textValue(props.config, "body")}
+        value={textValue({ config: props.config, key: "body" })}
         onChange={(e) => props.onChange({ ...props.config, body: e.target.value })}
         {...(props.agentHandle ? agentHandle({ handle: `${props.agentHandle}-body` }, { role: "field", label: "Text" }) : {})}
       />
@@ -105,7 +105,7 @@ function SocialLinksConfigFields(props: {
   agentHandle?: string;
   t: Translate;
 }) {
-  const { links, updateLink, removeLink, addLink } = useSocialLinksConfig(props.config, props.onChange);
+  const { links, updateLink, removeLink, addLink } = useSocialLinksConfig({ config: props.config, onChange: props.onChange });
   const base = props.agentHandle;
   const { t } = props;
 
@@ -119,7 +119,7 @@ function SocialLinksConfigFields(props: {
           <input
             id={`widget-social-platform-${i}`}
             value={link.platform}
-            onChange={(e) => updateLink(i, { platform: e.target.value })}
+            onChange={(e) => updateLink({ index: i, patch: { platform: e.target.value } })}
             placeholder={t("e.g. a project link")}
             {...(base ? agentHandle({ handle: `${base}-link-${i}-platform` }, { role: "field", label: `Link ${i + 1} platform` }) : {})}
           />
@@ -127,13 +127,13 @@ function SocialLinksConfigFields(props: {
           <input
             id={`widget-social-url-${i}`}
             value={link.url}
-            onChange={(e) => updateLink(i, { url: e.target.value })}
+            onChange={(e) => updateLink({ index: i, patch: { url: e.target.value } })}
             placeholder={t("https://…")}
             {...(base ? agentHandle({ handle: `${base}-link-${i}-url` }, { role: "field", label: `Link ${i + 1} URL` }) : {})}
           />
           <button
             type="button"
-            onClick={() => removeLink(i)}
+            onClick={() => removeLink({ index: i })}
             {...(base ? agentHandle({ handle: `${base}-link-${i}-remove` }, { role: "button", label: `Remove link ${i + 1}` }) : {})}
           >
             {t("Remove")}
@@ -160,13 +160,13 @@ type DisplayableField = AdminContentType["fields"][number];
  *  own, on top of its four sub-components) doesn't count one branch per field for this — every
  *  other sub-component in this file still writes the ternary inline, since none of them repeats it
  *  often enough to threaten the complexity ceiling. */
-function maybeAgentHandle(base: string | undefined, suffix: string, opts: { role: "field" | "button"; label: string }) {
+function maybeAgentHandle({ base, suffix, opts }: { base: string | undefined; suffix: string; opts: { role: "field" | "button"; label: string } }, _options: Record<string, never> = {}) {
   return base ? agentHandle({ handle: `${base}-${suffix}` }, opts) : {};
 }
 
 /** `collections?.find((ct) => ct.key === key) ?? null`, pulled out for the same reason as
  *  {@link maybeAgentHandle} — one call site, not two branches, in `RecentEntriesConfigFields`. */
-function findContentType(collections: AdminContentType[] | null, key: string): AdminContentType | null {
+function findContentType({ collections, key }: { collections: AdminContentType[] | null; key: string }, _options: Record<string, never> = {}): AdminContentType | null {
   if (collections === null) return null;
   return collections.find((ct) => ct.key === key) ?? null;
 }
@@ -176,7 +176,7 @@ function findContentType(collections: AdminContentType[] | null, key: string): A
  *  names are operator-chosen and commonly snake_case — `docs_page`, the very field this file's own
  *  `tovu_feature` example collection carries — which `agentHandle` throws on verbatim. Used only
  *  for the handle text; the visible label still goes through {@link humanizeFieldName}. */
-function fieldHandleSegment(name: string): string {
+function fieldHandleSegment({ name }: { name: string }, _options: Record<string, never> = {}): string {
   return asciiSlug(name);
 }
 
@@ -231,12 +231,12 @@ function SortSelect(props: { value: string; fields: readonly DisplayableField[];
         <option value="title">{props.t("Title (A–Z)")}</option>
         {props.fields.map((f) => (
           <option key={f.name} value={f.name}>
-            {interpolate({ template: props.t("{field} (ascending)"), vars: { field: humanizeFieldName(f.name) } })}
+            {interpolate({ template: props.t("{field} (ascending)"), vars: { field: humanizeFieldName({ name: f.name }) } })}
           </option>
         ))}
         {props.fields.map((f) => (
           <option key={`-${f.name}`} value={`-${f.name}`}>
-            {interpolate({ template: props.t("{field} (descending)"), vars: { field: humanizeFieldName(f.name) } })}
+            {interpolate({ template: props.t("{field} (descending)"), vars: { field: humanizeFieldName({ name: f.name }) } })}
           </option>
         ))}
       </select>
@@ -263,9 +263,9 @@ function FieldsCheckboxes(props: {
             type="checkbox"
             checked={props.selected.includes(f.name)}
             onChange={(e) => props.onToggle(f.name, e.target.checked)}
-            {...(props.base ? agentHandle({ handle: `${props.base}-field-${fieldHandleSegment(f.name)}` }, { role: "field", label: `Show ${f.name}` }) : {})}
+            {...(props.base ? agentHandle({ handle: `${props.base}-field-${fieldHandleSegment({ name: f.name })}` }, { role: "field", label: `Show ${f.name}` }) : {})}
           />
-          {humanizeFieldName(f.name)}
+          {humanizeFieldName({ name: f.name })}
         </label>
       ))}
     </fieldset>
@@ -296,7 +296,7 @@ function FilterRow(props: {
         <option value="">{props.t("No filter")}</option>
         {props.fields.map((f) => (
           <option key={f.name} value={f.name}>
-            {humanizeFieldName(f.name)}
+            {humanizeFieldName({ name: f.name })}
           </option>
         ))}
       </select>
@@ -346,8 +346,8 @@ function RecentEntriesConfigFields({
     { fetchList: () => defaultWidgetConfigFieldsPort.listContentTypes().then((r) => r.items.filter((ct) => isUserCollection(ct.key))), key: ["collections", "options"] },
     { errorFallback: t("failed to load collections") },
   );
-  const c = useRecentEntriesConfig(props.config, props.onChange);
-  const selectedType = findContentType(collections, c.collection);
+  const c = useRecentEntriesConfig({ config: props.config, onChange: props.onChange });
+  const selectedType = findContentType({ collections, key: c.collection });
   const displayableFields = selectedType ? selectedType.fields.filter((f) => COLLECTION_DISPLAYABLE_FIELD_KINDS.has(f.kind)) : [];
   const showFieldsAndFilter = selectedType !== null && displayableFields.length > 0;
 
@@ -362,19 +362,19 @@ function RecentEntriesConfigFields({
         step={1}
         value={maxItems}
         onChange={(e) => props.onChange({ ...props.config, maxItems: e.target.value === "" ? undefined : Number(e.target.value) })}
-        {...maybeAgentHandle(base, "max-items", { role: "field", label: "Max items" })}
+        {...maybeAgentHandle({ base, suffix: "max-items", opts: { role: "field", label: "Max items" } })}
       />
 
-      <CollectionSelect collections={collections} error={collectionsError} value={c.collection} onChange={c.setCollection} base={base} t={t} />
+      <CollectionSelect collections={collections} error={collectionsError} value={c.collection} onChange={(value) => c.setCollection({ value })} base={base} t={t} />
 
-      <SortSelect value={c.sort} fields={displayableFields} onChange={c.setSort} base={base} t={t} />
+      <SortSelect value={c.sort} fields={displayableFields} onChange={(value) => c.setSort({ value })} base={base} t={t} />
 
       <label htmlFor="widget-field-layout">{t("Layout")}</label>
       <select
         id="widget-field-layout"
         value={c.layout}
-        onChange={(e) => c.setLayout(e.target.value)}
-        {...maybeAgentHandle(base, "layout", { role: "field", label: "Layout" })}
+        onChange={(e) => c.setLayout({ value: e.target.value })}
+        {...maybeAgentHandle({ base, suffix: "layout", opts: { role: "field", label: "Layout" } })}
       >
         <option value="">{t("Default (cards)")}</option>
         <option value="cards">{t("Cards")}</option>
@@ -391,25 +391,25 @@ function RecentEntriesConfigFields({
             max={6}
             step={1}
             value={c.columns}
-            onChange={(e) => c.setColumns(e.target.value)}
-            {...maybeAgentHandle(base, "columns", { role: "field", label: "Columns" })}
+            onChange={(e) => c.setColumns({ value: e.target.value })}
+            {...maybeAgentHandle({ base, suffix: "columns", opts: { role: "field", label: "Columns" } })}
           />
         </>
       )}
 
-      {showFieldsAndFilter && <FieldsCheckboxes fields={displayableFields} selected={c.fields} onToggle={c.toggleField} base={base} t={t} />}
+      {showFieldsAndFilter && <FieldsCheckboxes fields={displayableFields} selected={c.fields} onToggle={(name, checked) => c.toggleField({ name, checked })} base={base} t={t} />}
 
       {showFieldsAndFilter && (
-        <FilterRow fields={displayableFields} field={c.filterField} value={c.filterValue} onFieldChange={c.setFilterField} onValueChange={c.setFilterValue} base={base} t={t} />
+        <FilterRow fields={displayableFields} field={c.filterField} value={c.filterValue} onFieldChange={(name) => c.setFilterField({ name })} onValueChange={(raw, kind) => c.setFilterValue({ raw, kind })} base={base} t={t} />
       )}
 
       {/* REQ-32/EC-03: a documented soft reference — plain text input, no taxonomy-term picker exists yet in this admin app. */}
       <label htmlFor="widget-field-categoryTermId">{t("Category term id (optional)")}</label>
       <input
         id="widget-field-categoryTermId"
-        value={textValue(props.config, "categoryTermId")}
+        value={textValue({ config: props.config, key: "categoryTermId" })}
         onChange={(e) => props.onChange({ ...props.config, categoryTermId: e.target.value || undefined })}
-        {...maybeAgentHandle(base, "category-term-id", { role: "field", label: "Category term id" })}
+        {...maybeAgentHandle({ base, suffix: "category-term-id", opts: { role: "field", label: "Category term id" } })}
       />
     </div>
   );
@@ -447,7 +447,7 @@ function MenuConfigFields({
       <label htmlFor="widget-field-menuRef">{t("Menu")}</label>
       <select
         id="widget-field-menuRef"
-        value={textValue(props.config, "menuRef")}
+        value={textValue({ config: props.config, key: "menuRef" })}
         onChange={(e) => props.onChange({ ...props.config, menuRef: e.target.value })}
         {...(props.agentHandle
           ? agentHandle({ handle: `${props.agentHandle}-menu-ref` }, {
@@ -493,7 +493,7 @@ function ContactFormConfigFields({
       <label htmlFor="widget-field-formDefinitionId">{t("Form")}</label>
       <select
         id="widget-field-formDefinitionId"
-        value={textValue(props.config, "formDefinitionId")}
+        value={textValue({ config: props.config, key: "formDefinitionId" })}
         onChange={(e) => props.onChange({ ...props.config, formDefinitionId: e.target.value })}
         {...(props.agentHandle
           ? agentHandle({ handle: `${props.agentHandle}-form-definition-id` }, {
@@ -512,7 +512,7 @@ function ContactFormConfigFields({
       <label htmlFor="widget-field-successMessage">{t("Success message (optional)")}</label>
       <input
         id="widget-field-successMessage"
-        value={textValue(props.config, "successMessage")}
+        value={textValue({ config: props.config, key: "successMessage" })}
         onChange={(e) => props.onChange({ ...props.config, successMessage: e.target.value || undefined })}
         {...(props.agentHandle
           ? agentHandle({ handle: `${props.agentHandle}-success-message` }, { role: "field", label: "Success message" })

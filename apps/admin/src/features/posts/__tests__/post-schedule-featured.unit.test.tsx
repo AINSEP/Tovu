@@ -146,7 +146,7 @@ describe("usePostEditor — publishAt / featured image", () => {
 describe("usePostFeaturedImage", () => {
   it("closing the picker cancels without changing the current image", () => {
     const onChange = vi.fn();
-    const port = { mediaOriginalUrl: (id: string) => `/media/${id}` };
+    const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
     const { result } = renderHook(() => usePostFeaturedImage("m7", onChange, { port }));
 
     act(() => result.current.openPicker());
@@ -160,7 +160,7 @@ describe("usePostFeaturedImage", () => {
 
   it("selecting stores the asset id and closes; clear sends null; preview uses the media URL", () => {
     const onChange = vi.fn();
-    const port = { mediaOriginalUrl: (id: string) => `/media/${id}` };
+    const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
     const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage(value, onChange, { port }), {
       initialProps: { value: null as string | null },
     });
@@ -177,13 +177,13 @@ describe("usePostFeaturedImage", () => {
   });
 
   it("asks the picker for images only", () => {
-    const port = { mediaOriginalUrl: (id: string) => `/media/${id}` };
+    const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
     const { result } = renderHook(() => usePostFeaturedImage(null, vi.fn(), { port }));
     expect(result.current.accept).toEqual(["image/*"]);
   });
 
   it("a preview that fails to load is reported until the value changes", () => {
-    const port = { mediaOriginalUrl: (id: string) => `/media/${id}` };
+    const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
     const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage(value, vi.fn(), { port }), {
       initialProps: { value: "m-video" as string | null },
     });
@@ -195,7 +195,7 @@ describe("usePostFeaturedImage", () => {
   });
 
   it("previews the resized rendition first, drops to the original when it fails, and fails only after both", () => {
-    const port = { mediaOriginalUrl: (id: string) => `/media/${id}` };
+    const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
     const renditionUrl = (id: string) => `/m/${id}/og.v1/image.jpg`;
     const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage(value, vi.fn(), { port, renditionUrl }), {
       initialProps: { value: "m1" as string | null },

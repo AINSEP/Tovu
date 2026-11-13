@@ -32,7 +32,7 @@ export interface AiAssistantController {
   loadError: string | null;
   saveError: string | null;
   saving: boolean;
-  setPublicEnabled: (publicEnabled: boolean) => Promise<void>;
+  setPublicEnabled: (required: { publicEnabled: boolean }, optional?: Record<string, never>) => Promise<void>;
   setWidget: (input: { widget: "react" | "vanilla" }, options?: Record<string, never>) => Promise<void>;
 }
 
@@ -65,7 +65,7 @@ export function useAiAssistant({ port }: AiAssistantDependencies, _options: Reco
     }
   }
 
-  const setPublicEnabled = (publicEnabled: boolean) => saveSettings({ publicEnabled });
+  const setPublicEnabled = ({ publicEnabled }: { publicEnabled: boolean }, _options: Record<string, never> = {}) => saveSettings({ publicEnabled });
   const setWidget = (input: { widget: "react" | "vanilla" }, options = {}) => saveSettings(input, options);
   return { settings, loadError, saveError, saving, setPublicEnabled, setWidget };
 }
@@ -93,7 +93,7 @@ export const AI_ASSISTANT_TAB_IDS = ["visitor", "admin", "roadmap"] as const;
  * and either one must fall back to the shell's own default rather than being passed straight through
  * as `activeTabId`, whose controlled/uncontrolled switch is `!== undefined`, not truthiness.
  */
-export function resolveAiAssistantRequestedTabId(tabId: string | null | undefined): string | undefined {
+export function resolveAiAssistantRequestedTabId({ tabId }: { tabId: string | null | undefined }, _options: Record<string, never> = {}): string | undefined {
   return tabId && (AI_ASSISTANT_TAB_IDS as readonly string[]).includes(tabId) ? tabId : undefined;
 }
 
@@ -102,11 +102,11 @@ export function resolveAiAssistantRequestedTabId(tabId: string | null | undefine
  * @complexity Time/space: O(1), with a fixed three-tab set.
  */
 export function useAiAssistantTab({ tabId }: { tabId: string | null | undefined }, _options = {}) {
-  const [activeTabId, setActiveTabId] = useState(() => resolveAiAssistantRequestedTabId(tabId) ?? "visitor");
-  useEffect(() => { setActiveTabId(resolveAiAssistantRequestedTabId(tabId) ?? "visitor"); }, [tabId]);
+  const [activeTabId, setActiveTabId] = useState(() => resolveAiAssistantRequestedTabId({ tabId }) ?? "visitor");
+  useEffect(() => { setActiveTabId(resolveAiAssistantRequestedTabId({ tabId }) ?? "visitor"); }, [tabId]);
   const onTabChange = (nextTabId: string) => {
     setActiveTabId(nextTabId);
-    navigateToAiAssistantTab(nextTabId);
+    navigateToAiAssistantTab({ nextTabId });
   };
   return { activeTabId, onTabChange };
 }
@@ -124,6 +124,6 @@ export function resolveAiAssistantTabSubtitle({ tabs, activeTabId }: {
  * Keeps `?tab=` in sync as the operator switches tabs — same `replace`-not-push shape and same
  * "fires even before any `?tab=` is present" behaviour as `SettingsUi.tsx`'s own `handleTabChange`.
  */
-export function navigateToAiAssistantTab(nextTabId: string): void {
+export function navigateToAiAssistantTab({ nextTabId }: { nextTabId: string }, _options: Record<string, never> = {}): void {
   navigate(`/ai-assistant?tab=${nextTabId}`, { replace: true });
 }
