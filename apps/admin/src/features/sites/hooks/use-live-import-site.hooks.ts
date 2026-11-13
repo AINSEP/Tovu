@@ -47,17 +47,22 @@ export function liveImportAdminUrl({ adminUrl, address }: { adminUrl: string; ad
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** A site is ready for import only when it is running and has an admin address. @complexity O(1). */
+function hasRunningAdmin({ state }: { state: AdminLocalSiteState | undefined }, _optional = {}): boolean {
+  return Boolean(state?.status === "running" && state.adminUrl);
+}
+
 /**
  * Starts the made site and waits for its admin, re-reading the Sites list the way its cards do.
  * @returns the running site's admin address, or null when it crashed or never came up.
  * @complexity O(attempts) list reads.
  */
 async function startAndWait(
-  { port, name }: { port: SitesPort; name: string },
-  { wait, attempts }: { wait: (ms: number) => Promise<void>; attempts: number },
+  { port, name, wait, attempts }: { port: SitesPort; name: string; wait: (ms: number) => Promise<void>; attempts: number },
+  _optional = {},
 ): Promise<string | null> {
   let state = (await port.manageLocalSite?.({ name, action: "start", confirmed: true })) as AdminLocalSiteState | undefined;
-  for (let tries = 0; !(state?.status === "running" && state.adminUrl); tries += 1) {
+  for (let tries = 0; !hasRunningAdmin({ state }); tries += 1) {
     if (tries >= attempts || state?.status === "crashed") return null;
     await wait(1000);
     state = (await port.listSites()).localSites?.find((site) => site.name === name);
@@ -88,7 +93,7 @@ export function useLiveImportSite(
     try {
       const taken = (await port.listSites()).sites.map((site) => site.name);
       made = (await port.createSite({ name: liveImportSiteName({ address, taken }) })).site.name;
-      const adminUrl = await startAndWait({ port, name: made }, { wait, attempts });
+      const adminUrl = await startAndWait({ port, name: made, wait, attempts });
       if (adminUrl) port.openSite?.(liveImportAdminUrl({ adminUrl, address }));
       else setError(interpolate({ template: t(NOT_STARTED), vars: { name: made } }));
     } catch (failure) {
