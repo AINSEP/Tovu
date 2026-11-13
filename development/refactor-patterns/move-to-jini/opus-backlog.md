@@ -206,3 +206,8 @@ Everything from the old staged design that is NOT a drop-in repoint (Terra lane:
 - **website/server/runtime/composition**: 33 files / 9.4k lines (MIXED 24, MOVE 3, MOVE-AFTER 2, DELETE 2, DEDUPE-AFTER-HARDENING 1, DELETE-AFTER-PARITY 1) -> plugins, analytics, commerce. Judgment: function-level split; Tovu keeps product part + port binding; new Jini code: home subpath, object-arg API, no console, tests convert. Depends: MOVE-AFTER preconditions. Owner: D2 for 3 core row(s).
 - **website/server/runtime/lifecycle**: 9 files / 1.7k lines (MIXED 4, MOVE 3, DEDUPE 2) -> sidecar, server, core. Judgment: function-level split; Tovu keeps product part + port binding; new Jini code: home subpath, object-arg API, no console, tests convert. Depends: -. Owner: D2 for 1 core row(s).
 - **website/server/runtime/services**: 2 files / 0.2k lines (MOVE 2) -> mcp. Judgment: new Jini code: home subpath, object-arg API, no console, tests convert. Depends: -. Owner: -.
+
+
+## Moved out of the Terra lane after the Codex lane review (2026-11-13)
+- L07 `contracts/core/external-mcp-access.ts`, L08 `contracts/core/external-mcp-auth.ts`: each maps to two Jini subpaths and a test imports both with `import type * as` (h1a/hosted-mcp-type-pins.test.ts:14-15); namespace rewrite needs judgment.
+- L28 `features/recovery/recovery-orchestrator.ts`: restore-flow-ordering.integration.test.ts:69 imports the module namespace and enumerates its function exports (an export-surface test); repointing is behavior-equal today (the shim is one `export *`) but needs an explicit decision.

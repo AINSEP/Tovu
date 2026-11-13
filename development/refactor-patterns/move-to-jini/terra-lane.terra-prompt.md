@@ -5,7 +5,7 @@
 You work in ONE Tovu checkout: the current working directory (its root has `apps/` and `package.json`). All paths below are relative to that root.
 
 Inputs (read both in full before editing):
-- `development/refactor-patterns/move-to-jini/terra-lane.tsv`: one row per Tovu file to delete. Columns: `id`, `tovu_path`, `blob` (git blob hash of the file this table was made from), `jini_specifier`, `symbol_map`, `tovu_evidence`, `jini_evidence`, `importers` (count), `comment`, `comment_refs`.
+- `development/refactor-patterns/move-to-jini/terra-lane.tsv`: one row per Tovu file (37 rows) to delete. Columns: `id`, `tovu_path`, `blob` (git blob hash of the file this table was made from), `jini_specifier`, `symbol_map`, `tovu_evidence`, `jini_evidence`, `importers` (count), `comment`, `comment_refs`.
 - `development/refactor-patterns/move-to-jini/terra-lane.importers.tsv`: every file that references a row's `tovu_path`. Columns: `id`, `tovu_path`, `importer`, `line`, `kind` (`import`, `re-export`, `dynamic-import`, `type-import()`, `comment`), `specifier_as_written`.
 
 What every row is: `tovu_path` only re-exports names from a published `@jini-ai/*` subpath (L40 is a byte-identical copy of `@jini-ai/cms/core`'s keyset cursor). The names, their Jini specifier and the evidence on both sides were checked. Your job per row: point every importer at the Jini specifier, then delete `tovu_path`. Nothing else.
@@ -16,7 +16,7 @@ What every row is: `tovu_path` only re-exports names from a published `@jini-ai/
 - Do not commit, push, stash, checkout, reset or `git add`. Delete files with plain `rm`. The coordinator commits.
 - Do not change any name, argument, statement order or behaviour. Do not add `as any`, `@ts-ignore`, `eslint-disable`, `biome-ignore` or a non-null `!`.
 - SKIP a row (write the reason, change nothing for that row, or undo your edits for that row if you already started) whenever a step below says SKIP or anything does not match this prompt exactly. Never improvise a fix. A skipped row is a good outcome.
-- Rows are independent. Do them in `id` order; one row's skip never affects another.
+- Rows are independent. Do them in `id` order, except L35, which goes last; one row's skip never affects another.
 
 ## Per row
 
@@ -24,10 +24,10 @@ What every row is: `tovu_path` only re-exports names from a published `@jini-ai/
 
 2. Importer census. Let `B` = the file name of `tovu_path` without extension (for L24 `.../plugins/index.ts`, run the command twice: once with B = `index`, once with B = `plugins`, because a folder import `../plugins` also resolves to it). Run:
    `rg -n --no-heading -e "[\"'\`][^\"'\`]*/B(\.js|\.ts|\.tsx)?[\"'\`]" apps content development --glob '!**/node_modules/**'`
-   (replace `B`). Keep only hits whose quoted string, resolved from the hit file's folder, names `tovu_path` (with or without `.js`/`.ts`/`.tsx`). Resolution: `./` and `../` are relative to the hit file's folder; `#src/x` means `apps/website/src/x`; `@/x` means `apps/admin/src/x` (admin files only). Compare the set of hit FILES with this row's `importer` files in `terra-lane.importers.tsv` (all kinds; a backticked `./x.ts` inside a comment is a hit and is listed there as `kind` = `comment`). Any hit file not in the table, or any table file with no hit: SKIP ("importers drifted"). Any hit inside `vi.mock(`, `mock.module(`, `jest.mock(`, `require(`, `readFileSync(`, `new URL(` or `import * as`: SKIP ("module-identity use").
+   (replace `B`). Keep only hits whose quoted string, resolved from the hit file's folder, names `tovu_path` (with or without `.js`/`.ts`/`.tsx`). Resolution: `./` and `../` are relative to the hit file's folder; `#src/x` means `apps/website/src/x`; `@/x` means `apps/admin/src/x` (admin files only). Compare the set of hit FILES with this row's `importer` files in `terra-lane.importers.tsv` (all kinds; a backticked `./x.ts` inside a comment is a hit and is listed there as `kind` = `comment`). Any hit file not in the table, or any table file with no hit: SKIP ("importers drifted"). Any hit inside `vi.mock(`, `mock.module(`, `jest.mock(`, `require(`, `readFileSync(`, `new URL(`, `import * as` or `import type * as`: SKIP ("module-identity use").
 
-3. Repoint each importer (rows of this `id` with `kind` other than `comment`). The statement to edit is the one whose specifier string is on the listed `line` (a multi-line `import {...} from "..."` ends on that line).
-   - `import`, `re-export`: replace the specifier string with the Jini specifier from `symbol_map` for the names the statement uses. Keep `import type` / `export type` / inline `type` markers and every `X as Y` alias exactly. If `symbol_map` gives the statement's names more than one specifier, split it into one statement per specifier, in the order the specifiers appear in `symbol_map`, each keeping the same kind (`import`/`import type`/`export`/`export type`). If `symbol_map` says `* -> <spec>` or `type * -> <spec>`, every name goes to that one specifier. If the same file already has a statement of the same kind (`import` vs `import type`, `export` vs `export type`) from that exact Jini specifier, add the names to that existing statement instead of creating a second one. A name the statement uses that `symbol_map` does not list: SKIP.
+3. Repoint each importer (rows of this `id` with `kind` other than `comment`). The statement to edit is the one whose specifier string is on the listed `line` (a multi-line `import {...} from "..."` ends on that line). The recorded `line` is where it was BEFORE any edit: if an earlier edit in the same file (this row or an earlier row) shifted lines, find the statement by its specifier string plus the names it imports; if that does not identify exactly one statement: SKIP.
+   - `import`, `re-export`: replace the specifier string with the Jini specifier from `symbol_map` for the names the statement uses. Keep `import type` / `export type` / inline `type` markers and every `X as Y` alias exactly. If `symbol_map` gives the statement's names more than one specifier, split it into one statement per specifier, in the order the specifiers appear in `symbol_map`, each keeping the same kind (`import`/`import type`/`export`/`export type`). If `symbol_map` says `* -> <spec>` or `type * -> <spec>`, every name goes to that one specifier. If the same file already has a NAMED statement (`{ ... }`) of the same kind (`import` vs `import type`, `export` vs `export type`) from that exact Jini specifier, add the names to that existing statement instead of creating a second one. Never add names to a namespace statement (`import * as x` / `import type * as x`) or a default import: keep that statement exactly as it is and write a separate named statement next to it. A name the statement uses that `symbol_map` does not list: SKIP.
    - `dynamic-import` (`await import("...")`) and `type-import()` (`import("...").Name` in a type position): replace only the string with the Jini specifier. If the row's `symbol_map` names more than one specifier: SKIP.
    - Never touch other statements in the file.
 
@@ -46,6 +46,8 @@ What every row is: `tovu_path` only re-exports names from a published `@jini-ai/
 - L34-L36 (`platform/db/kernel/*.ts`): `@jini-ai/db/kernel` is one specifier for all three; an importer that imports from two of these files may end up with two statements from `@jini-ai/db/kernel`; merge them per step 3 (same kind only).
 - L35 has 142 importers. Do it last; same rules.
 - L40 (`platform/db/keyset-cursor.ts`): not a shim but an identical copy. Its Jini twin takes an extra trailing optional argument; every Tovu call passes one argument, so calls stay unchanged.
+
+- Do NOT edit `.dependency-cruiser.mjs` or any `*.sql` file even if it names a deleted path (e.g. `.dependency-cruiser.mjs:183`, `drizzle/0023_ai_chat_history.sql:10`): applied migrations are immutable and the coordinator updates the dependency-cruiser rule after this job. List any such hit in report item 3.
 
 ## Report (your final message)
 1. A table: `id | DONE or SKIPPED | reason (skips) | importers edited | comment refs edited`.

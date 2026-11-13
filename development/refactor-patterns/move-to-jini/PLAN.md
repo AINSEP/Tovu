@@ -4,15 +4,15 @@ Status: DESIGN ONLY (2026-11-13). Nothing executed. Tovu branch `design-d1` (clo
 
 Why this shape (owner decision 2026-11-13): the previous 15-stage design (1,336 rows) failed two Codex reviews with the same class of problem: rows labelled mechanical that needed judgment, and growing bookkeeping (retry loop, ledger, successor map, disposition checks, split template) to manage them. That design is deleted; git history is its record (last commit before this one: `726600b66`). Now:
 
-1. **Terra lane**: only rows where Jini already publishes a drop-in and the Tovu change is "repoint imports, delete the Tovu file". 40 rows.
+1. **Terra lane**: only rows where Jini already publishes a drop-in and the Tovu change is "repoint imports, delete the Tovu file". 37 rows (L07, L08, L28 moved to the backlog after the Codex lane review, 2026-11-13).
 2. **Opus backlog**: everything else, one line per feature, no stage machinery. 1,296 files.
 
 ## Files in this folder
 
 | File | What it is |
 |---|---|
-| `terra-lane.tsv` | The 40 lane rows: Tovu path, git blob hash, Jini specifier(s), symbol map, evidence on both sides, importer count, comment handling, comment lines that name the file. |
-| `terra-lane.importers.tsv` | 465 references to those 40 files (importer, line, kind, specifier as written). |
+| `terra-lane.tsv` | The 37 lane rows: Tovu path, git blob hash, Jini specifier(s), symbol map, evidence on both sides, importer count, comment handling, comment lines that name the file. |
+| `terra-lane.importers.tsv` | 434 references to those 37 files (importer, line, kind, specifier as written). |
 | `terra-lane.terra-prompt.md` | The one Terra job prompt. Literal per-row procedure; skip, never improvise. |
 | `opus-backlog.md` | Owner rules, 10 cross-feature items, 18 excluded shims with reasons, 170 per-feature lines. |
 | `opus-backlog.files.tsv` | The 1,296 backlog files: `path loc feature action pkg subpath was_stage survey_note`. |
@@ -24,8 +24,8 @@ Deleted (history only): `stage-01..16` prompts and file lists, `stage-lists.mjs`
 ## 1. Terra lane: what qualifies
 
 A row is in the lane only if ALL hold, checked on both sides:
-- Jini publishes the same names (same name, or one explicit `as` rename; none of the 40 needs a rename) from a subpath listed in that package's `package.json` `exports` (line cited per row).
-- Same argument shape, return shape and behaviour. For 39 rows this holds by construction: the Tovu file is a pure re-export (`export {...} from "@jini-ai/..."`, `export * from`, `export type *`), so importers already run Jini's code. Row L40 (`platform/db/keyset-cursor.ts`) is a real copy: body and comments are identical to `packages/cms/src/core/keyset-cursor.ts`; Jini adds a trailing optional argument no caller passes.
+- Jini publishes the same names (same name, or one explicit `as` rename; none of the lane rows needs a rename) from a subpath listed in that package's `package.json` `exports` (line cited per row).
+- Same argument shape, return shape and behaviour. For 36 rows this holds by construction: the Tovu file is a pure re-export (`export {...} from "@jini-ai/..."`, `export * from`, `export type *`), so importers already run Jini's code. Row L40 (`platform/db/keyset-cursor.ts`) is a real copy: body and comments are identical to `packages/cms/src/core/keyset-cursor.ts`; Jini adds a trailing optional argument no caller passes.
 - Every reference to the file is a plain specifier string (static import/re-export, dynamic `await import("...")` destructuring, or `import("...").Type`) whose rewrite needs no other change: no namespace import, no module mock, no test that reads the file or checks its export surface, no baseline file that lists it.
 - Its why-comment is either a pointer ("lives in Jini"), or the Jini file already carries the rationale (phrase-checked, file cited), or (L32 only) a one-line Tovu note pasted above the import in a named file.
 
@@ -34,7 +34,7 @@ Rows by origin: 39 of the old stage-01 shim rows (survey `T0:JINI-SHIM` or `DELE
 How rows were found (read-only, reproducible): every manifest file whose non-comment content is only `export ... from "@jini-ai/..."` statements (57 files); importers by resolving every quoted `./`, `../`, `#src/` (= `apps/website/src/`), `@/` (= `apps/admin/src/`) string in the repo (minus `node_modules`, `ADS-memory`, `AI-Dev-Shop`) against the file (extension-less, `.js`, `.ts`, `.tsx`, folder `index.ts`); Jini names resolved from the export entry through re-exports to the declaring file. 18 of the 57 failed one of the checks above and went to the backlog with the reason (`opus-backlog.md`, "Excluded shims").
 
 Execution:
-- One Terra run with `terra-lane.terra-prompt.md`, in the Tovu checkout the coordinator names. It edits importers and comment lines, deletes the 40 files with `rm`, runs no tests/tsc/builds/installs, never commits, and reports DONE/SKIPPED per row plus every changed path.
+- One Terra run with `terra-lane.terra-prompt.md`, in the Tovu checkout the coordinator names. It edits importers and comment lines, deletes the 37 files with `rm`, runs no tests/tsc/builds/installs, never commits, and reports DONE/SKIPPED per row plus every changed path.
 - Drift guard: step 1 compares `git hash-object` with the `blob` column; step 2 recomputes the importer set and skips the row if it differs from `terra-lane.importers.tsv`.
 - After the run the coordinator commits the listed paths; targeted checks for the touched files go in the batched cloud run (typecheck of `apps/website` and `apps/admin`; tests of the edited test files). No Jini change, no release, no version bump.
 - Expected gate effects: `check-architecture` only loses cross-feature edges (it fails on additions only); no lane file is listed in the write-path or coverage-integrity baselines.
