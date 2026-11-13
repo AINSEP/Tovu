@@ -89,13 +89,13 @@ export function compareSchemaVersion(required: CompareSchemaVersionRequired): "m
 
   if (schemaVersion > runtime.index) {
     throw new SiteNewerThanRuntimeError(
-      `site schema (v${schemaVersion}) is newer than this runtime supports (v${runtime.index}) — upgrade tovu`
+      { message: `site schema (v${schemaVersion}) is newer than this runtime supports (v${runtime.index}) — upgrade tovu` }
     );
   }
   if (schemaVersion === runtime.index) {
     if (schemaTag !== runtime.tag) {
       throw new SiteNewerThanRuntimeError(
-        `site schema index (v${schemaVersion}) matches this runtime, but its schemaTag ("${schemaTag}") diverges from the runtime's ("${runtime.tag}") — divergent lineage, refusing rather than guessing`
+        { message: `site schema index (v${schemaVersion}) matches this runtime, but its schemaTag ("${schemaTag}") diverges from the runtime's ("${runtime.tag}") — divergent lineage, refusing rather than guessing` }
       );
     }
     return "compatible";

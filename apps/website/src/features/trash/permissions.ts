@@ -141,7 +141,7 @@ export async function filterVisibleTrashItems(
  *
  * @complexity O(1).
  */
-export function trashDaysRemaining(now: string, until: string): number {
+export function trashDaysRemaining({ now, until }: { now: string; until: string }, _optional = {}): number {
   const ms = new Date(until).getTime() - new Date(now).getTime();
   return ms <= 0 ? 0 : Math.ceil(ms / (24 * 60 * 60 * 1000));
 }

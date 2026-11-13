@@ -25,7 +25,7 @@ type ConsoleMethod = "debug" | "log" | "info" | "warn" | "error";
  * @example child.stderr.pipe(createRedactedOutputSink({ sink: process.stderr, redact }));
  */
 export function createRedactedOutputSink(
-  { sink, redact }: { sink: Pick<Writable, "write">; redact: (text: string) => string },
+  { sink, redact }: { sink: Pick<Writable, "write">; redact: (required: { text: string }) => string },
   { maxLineLength = 65_536, maxLength = 2_000 }: { maxLineLength?: number; maxLength?: number } = {},
 ): Writable {
   const decoder = new StringDecoder("utf8");
@@ -33,7 +33,7 @@ export function createRedactedOutputSink(
   let oversized = false;
   const emit = () => {
     let safe = "[output redaction failed]";
-    try { safe = oversized ? "[oversized output line omitted]" : redact(pending); }
+    try { safe = oversized ? "[oversized output line omitted]" : redact({ text: pending }); }
     catch { /* Raw child bytes must never be the fallback. */ }
     if (safe) sink.write(`${safe.slice(0, maxLength)}\n`);
     pending = "";

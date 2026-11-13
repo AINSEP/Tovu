@@ -38,7 +38,7 @@ async function purgeAiChat(kernel: StorageKernel<unknown>): Promise<void> {
 }
 
 /** Copies the source data dir to `targetDataDir` through the right door (see this file's header). */
-async function copySource(sourceDataDir: string, targetDataDir: string): Promise<void> {
+async function copySource({ sourceDataDir, targetDataDir }: { sourceDataDir: string; targetDataDir: string }, _optional = {}): Promise<void> {
   const owner = runningPgliteOwner(sourceDataDir);
   if (owner !== undefined) {
     await copyServedPgliteTo(owner, targetDataDir);
@@ -49,7 +49,7 @@ async function copySource(sourceDataDir: string, targetDataDir: string): Promise
     release = acquireOwnerLock(sourceDataDir);
   } catch (err) {
     if (err instanceof PgliteOwnerLockedError) {
-      throw new ValidationError(`the site being duplicated is running (process ${err.pid ?? "unknown"}); stop it, or duplicate it from inside that site, then retry`);
+      throw new ValidationError({ message: `the site being duplicated is running (process ${err.pid ?? "unknown"}); stop it, or duplicate it from inside that site, then retry` });
     }
     throw err;
   }
@@ -78,10 +78,10 @@ async function copySource(sourceDataDir: string, targetDataDir: string): Promise
 export async function duplicatePgliteStore(required: { sourceDataDir: string; targetDataDir: string }): Promise<void> {
   const { sourceDataDir, targetDataDir } = required;
   try {
-    await copySource(sourceDataDir, targetDataDir);
+    await copySource({ sourceDataDir, targetDataDir });
   } catch (err) {
     if (err instanceof ValidationError) throw err;
-    throw new InternalError(`duplicatePgliteStore: copying to ${targetDataDir} failed: ${(err as Error).message}`);
+    throw new InternalError({ message: `duplicatePgliteStore: copying to ${targetDataDir} failed: ${(err as Error).message}` });
   }
   const target = openPgliteKernel<unknown>({ dataDir: targetDataDir });
   try {
@@ -89,7 +89,7 @@ export async function duplicatePgliteStore(required: { sourceDataDir: string; ta
     await resetLegacySiteTitlePin({ db: target as ContentKernel });
     await storageOps(target).compactAndVerify();
   } catch (err) {
-    if (err instanceof StorageOpError) throw new InternalError(`duplicatePgliteStore: ${err.message}`);
+    if (err instanceof StorageOpError) throw new InternalError({ message: `duplicatePgliteStore: ${err.message}` });
     throw err;
   } finally {
     await target.close();

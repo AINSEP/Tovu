@@ -12,14 +12,14 @@ export function warmSiteServerForAgent(_required = {}, { env = process.env }: { 
   const token = env.TOVU_DEV_WARM_CONTROL_TOKEN;
   const origin = env.TOVU_DEV_WARM_HOST_URL;
   if (env.TOVU_DEV_WARM_SITES !== '1' || !token || !origin) return undefined;
-  const tls = resolveDevTls(resolveDevTlsCertPaths(resolveCheckoutRoot()), { env });
+  const tls = resolveDevTls(resolveDevTlsCertPaths(resolveCheckoutRoot({})), { env });
   return async ({ name }: { name: string }): Promise<string> => {
     const reply = await requestLoopbackHttp({ url: `${origin}/internal/dev-warm-site`, method: 'POST',
       headers: { 'x-tovu-warm-control': token, 'content-type': 'application/json' }, body: JSON.stringify({ name }) },
     { certificate: tls.credentials?.cert, timeoutMs: 50_000 });
     const result = JSON.parse(reply.body.toString('utf8')) as { url?: unknown; code?: unknown };
     if (reply.status !== 200 || typeof result.url !== 'string') {
-      throw new LocalSiteError(typeof result.code === 'string' ? result.code : 'SITE_START_FAILED');
+      throw new LocalSiteError({ code: typeof result.code === 'string' ? result.code : 'SITE_START_FAILED' });
     }
     return result.url;
   };

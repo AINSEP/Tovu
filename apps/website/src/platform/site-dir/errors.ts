@@ -15,7 +15,7 @@
 
 /** `SITE_CORRUPT` (exit 5) — workspace-row-count violation or an unreadable/locked `content.db` (state.spec.md §5, EC-05). */
 export class SiteCorruptError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "SiteCorruptError";
   }
@@ -23,7 +23,7 @@ export class SiteCorruptError extends Error {
 
 /** `SITE_DIR_INVALID` (exit 3) — missing/corrupt/oversized `config.json` or `.site-meta.json` (state.spec.md §5, EC-03). */
 export class SiteDirInvalidError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "SiteDirInvalidError";
   }
@@ -31,7 +31,7 @@ export class SiteDirInvalidError extends Error {
 
 /** `SITE_NEWER_THAN_RUNTIME` (exit 4) — site `schemaVersion`/`schemaTag` is newer than, or diverges from, the runtime's (REQ-05, RT-005). */
 export class SiteNewerThanRuntimeError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "SiteNewerThanRuntimeError";
   }
@@ -39,7 +39,7 @@ export class SiteNewerThanRuntimeError extends Error {
 
 /** `INIT_DIR_NOT_EMPTY` (exit 3) — the init target exists and is neither absent nor an empty directory (AC-04, EC-01, EC-02). */
 export class InitDirNotEmptyError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "InitDirNotEmptyError";
   }
@@ -47,7 +47,7 @@ export class InitDirNotEmptyError extends Error {
 
 /** `VALIDATION` (exit 2) — bad/missing arguments (empty `--name`, out-of-range `--port`, etc.). */
 export class ValidationError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "ValidationError";
   }
@@ -55,7 +55,7 @@ export class ValidationError extends Error {
 
 /** `INTERNAL` (exit 1) — unexpected failure; `initSite` performs best-effort cleanup first (INV-02). */
 export class InternalError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "InternalError";
   }

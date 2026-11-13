@@ -478,8 +478,8 @@ export async function cascadeTranscript(mods: ParityModules, ctx: ParityContext)
   const t: Transcript = {};
   const purge = new mods.userPurge.SqlUserPurge(mods.current ? { kernel: ctx.kernel, eventValues: outboxEventValues } : ctx.kernel);
   t["purge.1.user-p2"] = await outcome(() => purge.purgeUser({ workspaceId: "ws", principalId: "p2",
-    buildEvent: (removed: unknown) => ({ id: "purge-event", name: "identity.user.deleted", occurredAt: stamp, aggregateId: "p2",
-      workspaceId: "ws", actorId: "parity", payload: { principalId: "p2", removed } }) }));
+    buildEvent: (input: unknown) => ({ id: "purge-event", name: "identity.user.deleted", occurredAt: stamp, aggregateId: "p2",
+      workspaceId: "ws", actorId: "parity", payload: { principalId: "p2", removed: mods.current ? (input as { removed: unknown }).removed : input } }) }));
   t["purge.2.p2-key"] = await outcome(() => mods.exec.resolveExecutionCredential(d.exec, { workspaceId: "ws", principalId: "p2" }));
   t["purge.3.p-key-kept"] = await outcome(() => mods.exec.resolveExecutionCredential(d.exec, { workspaceId: "ws", principalId: "p" }));
   t["principal.1.delete-p"] = await rawOutcome(() => ctx.kernel.execute(sql`DELETE FROM principals WHERE id = 'p'`));

@@ -42,29 +42,29 @@ function assertInvalid(fn: () => unknown, message: RegExp): void {
 }
 
 test(":memory: is always sqlite", () => {
-  assert.deepEqual(resolveSiteStorage(":memory:"), { kind: "sqlite" });
+  assert.deepEqual(resolveSiteStorage({ siteDir: ":memory:" }), { kind: "sqlite" });
 });
 
 test("a site folder with no .site-meta.json is sqlite", () => {
-  withSiteDir(undefined, (dir) => assert.deepEqual(resolveSiteStorage(dir), { kind: "sqlite" }));
+  withSiteDir(undefined, (dir) => assert.deepEqual(resolveSiteStorage({ siteDir: dir }), { kind: "sqlite" }));
 });
 
 test("a non-ENOENT metadata read failure propagates instead of defaulting to sqlite", () => {
   withSiteDir(undefined, (dir) => {
     fs.mkdirSync(path.join(dir, ".site-meta.json"));
-    assert.throws(() => resolveSiteStorage(dir), { code: "EISDIR" });
+    assert.throws(() => resolveSiteStorage({ siteDir: dir }), { code: "EISDIR" });
   });
 });
 
 test("the dev site's partial meta file (only the site-key fields) is sqlite", () => {
   // Exactly the shape of sites/tovu-dev/.site-meta.json on 2026-09-28.
   const devSiteMeta = JSON.stringify({ siteKeyId: "fe23a0eb-817d-4188-b8b7-afd9c52767e8", siteKeyFingerprint: "03b2912a352b" }, null, 2);
-  withSiteDir(devSiteMeta, (dir) => assert.deepEqual(resolveSiteStorage(dir), { kind: "sqlite" }));
+  withSiteDir(devSiteMeta, (dir) => assert.deepEqual(resolveSiteStorage({ siteDir: dir }), { kind: "sqlite" }));
 });
 
 test("a full meta file without storage is sqlite", () => {
   const meta = JSON.stringify({ siteId: "s", templateId: "starter", templateVersion: "1.0.0", schemaVersion: 1, schemaTag: "t", createdAt: "x" });
-  withSiteDir(meta, (dir) => assert.deepEqual(resolveSiteStorage(dir), { kind: "sqlite" }));
+  withSiteDir(meta, (dir) => assert.deepEqual(resolveSiteStorage({ siteDir: dir }), { kind: "sqlite" }));
 });
 
 test("each valid kind is returned as written", () => {
@@ -74,30 +74,30 @@ test("each valid kind is returned as written", () => {
     { kind: "postgres", secretRef: "site" },
     { kind: "postgres", secretRef: { env: "TOVU_PG_URL" } },
   ]) {
-    withSiteDir(JSON.stringify({ siteKeyId: "k", storage }), (dir) => assert.deepEqual(resolveSiteStorage(dir), storage));
+    withSiteDir(JSON.stringify({ siteKeyId: "k", storage }), (dir) => assert.deepEqual(resolveSiteStorage({ siteDir: dir }), storage));
   }
 });
 
 test("an unknown kind or a non-object storage is refused", () => {
-  withSiteDir(JSON.stringify({ storage: { kind: "mysql" } }), (dir) => assertInvalid(() => resolveSiteStorage(dir), /kind "mysql" is not one of/));
-  assertInvalid(() => parseSiteStorage("sqlite"), /must be an object with a kind/);
-  assertInvalid(() => parseSiteStorage(null), /must be an object with a kind/);
-  assertInvalid(() => parseSiteStorage({}), /kind undefined is not one of/);
+  withSiteDir(JSON.stringify({ storage: { kind: "mysql" } }), (dir) => assertInvalid(() => resolveSiteStorage({ siteDir: dir }), /kind "mysql" is not one of/));
+  assertInvalid(() => parseSiteStorage({ value: "sqlite" }), /must be an object with a kind/);
+  assertInvalid(() => parseSiteStorage({ value: null }), /must be an object with a kind/);
+  assertInvalid(() => parseSiteStorage({ value: {} }), /kind undefined is not one of/);
 });
 
 test("postgres needs a secretRef of \"site\" or { env } with a variable name", () => {
-  assertInvalid(() => parseSiteStorage({ kind: "postgres" }), /secretRef must be/);
-  assertInvalid(() => parseSiteStorage({ kind: "postgres", secretRef: "file" }), /secretRef must be/);
-  assertInvalid(() => parseSiteStorage({ kind: "postgres", secretRef: { env: "" } }), /secretRef must be/);
-  assertInvalid(() => parseSiteStorage({ kind: "postgres", secretRef: { env: "1BAD NAME" } }), /secretRef must be/);
+  assertInvalid(() => parseSiteStorage({ value: { kind: "postgres" } }), /secretRef must be/);
+  assertInvalid(() => parseSiteStorage({ value: { kind: "postgres", secretRef: "file" } }), /secretRef must be/);
+  assertInvalid(() => parseSiteStorage({ value: { kind: "postgres", secretRef: { env: "" } } }), /secretRef must be/);
+  assertInvalid(() => parseSiteStorage({ value: { kind: "postgres", secretRef: { env: "1BAD NAME" } } }), /secretRef must be/);
 });
 
 test("a connection string in the meta file is refused, whatever the kind (O3)", () => {
-  assertInvalid(() => parseSiteStorage({ kind: "postgres", secretRef: "site", connectionString: "postgres://u:p@h/db" }), /must not hold "connectionString"/);
-  assertInvalid(() => parseSiteStorage({ kind: "postgres", url: "postgres://h/db" }), /must not hold "url"/);
-  assertInvalid(() => parseSiteStorage({ kind: "sqlite", password: "x" }), /must not hold "password"/);
+  assertInvalid(() => parseSiteStorage({ value: { kind: "postgres", secretRef: "site", connectionString: "postgres://u:p@h/db" } }), /must not hold "connectionString"/);
+  assertInvalid(() => parseSiteStorage({ value: { kind: "postgres", url: "postgres://h/db" } }), /must not hold "url"/);
+  assertInvalid(() => parseSiteStorage({ value: { kind: "sqlite", password: "x" } }), /must not hold "password"/);
 });
 
 test("a meta file that is not JSON is refused, naming the file", () => {
-  withSiteDir("{ torn", (dir) => assertInvalid(() => resolveSiteStorage(dir), /\.site-meta\.json is not valid JSON/));
+  withSiteDir("{ torn", (dir) => assertInvalid(() => resolveSiteStorage({ siteDir: dir }), /\.site-meta\.json is not valid JSON/));
 });

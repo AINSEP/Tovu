@@ -138,7 +138,7 @@ export function createLocalSiteProcessPort(
     env?: NodeJS.ProcessEnv; processOptions?: NodeDaemonProcessOptions; probeHttp?: typeof probeLoopbackHttp;
   } = {},
 ): LocalSiteProcessPort {
-  const repoRoot = resolveCheckoutRoot();
+  const repoRoot = resolveCheckoutRoot({});
   const tls = resolveDevTls(resolveDevTlsCertPaths(repoRoot), { env });
   const scheme = tls.active ? "https" : "http";
   let buildRoot: string | undefined;
@@ -169,7 +169,7 @@ export function createLocalSiteProcessPort(
     async launch({ name, port, daemonPort }): Promise<LocalSiteProcess> {
       assertLocalSiteName({ name });
       const site = listSites({ cwd: switcherBase, env }).find((entry) => entry.name === name);
-      if (!site) throw new LocalSiteError("SITE_NOT_FOUND");
+      if (!site) throw new LocalSiteError({ code: "SITE_NOT_FOUND" });
       const siteDir = site.dir;
       // Realpath containment is checked by the directory owner before either boot or Trash.
       // The validated registry owns arbitrary adopted paths; Trash separately requires containment.
@@ -190,7 +190,7 @@ export function createLocalSiteProcessPort(
         args, cwd: repoRoot, env: childEnv, registry }, { ...processOptions, stderr: diagnostics.stderr });
       const child = adapter.spawnDaemonProcess();
       diagnostics.observe({ child });
-      if (child.pid === undefined) throw new LocalSiteError("SITE_START_FAILED");
+      if (child.pid === undefined) throw new LocalSiteError({ code: "SITE_START_FAILED" });
       let exited = false;
       const listeners = new Set<() => void>();
       child.on({ event: "exit", listener: () => { exited = true; for (const listener of listeners) listener(); } });

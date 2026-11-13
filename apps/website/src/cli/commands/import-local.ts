@@ -78,7 +78,7 @@ export async function runImportLocalCommand(
  * The desktop stops this process through stdin instead, see {@link readRequestLine}.
  */
 function terminationSignal({ stop }: { stop: AbortController }): AbortSignal {
-  process.once("SIGTERM", () => stop.abort(new ValidationError(STOPPED)));
+  process.once("SIGTERM", () => stop.abort(new ValidationError({ message: STOPPED })));
   return stop.signal;
 }
 
@@ -98,7 +98,7 @@ export function readRequestLine({ input, stop }: { input: RequestStream; stop: A
       const newline = received.indexOf(10);
       if ((newline === -1 ? received.length : newline) > MAX_REQUEST_BYTES) {
         finishedReading = true;
-        reject(new ValidationError("import-local: the request on stdin is too large."));
+        reject(new ValidationError({ message: "import-local: the request on stdin is too large." }));
       } else if (newline !== -1) {
         finishedReading = lineSeen = true;
         input.unref?.();
@@ -106,7 +106,7 @@ export function readRequestLine({ input, stop }: { input: RequestStream; stop: A
       }
     });
     const ended = () => {
-      if (lineSeen) stop.abort(new ValidationError(STOPPED));
+      if (lineSeen) stop.abort(new ValidationError({ message: STOPPED }));
       else resolve(received.toString("utf8"));
     };
     input.once("end", ended);
@@ -130,12 +130,12 @@ function parseRequest({ text }: { text: string }): ImportLocalRequest {
   try {
     raw = JSON.parse(text) as typeof raw;
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("shape");
-  } catch { throw new ValidationError("import-local: stdin must contain one JSON request object."); }
+  } catch { throw new ValidationError({ message: "import-local: stdin must contain one JSON request object." }); }
   if (raw.tidy === true && Object.keys(raw).length === 1) return { tidy: true };
   if (Object.keys(raw).some(key => !["file", "url"].includes(key)) || (raw.file === undefined) === (raw.url === undefined)) {
-    throw new ValidationError("import-local: provide exactly one of file or url.");
+    throw new ValidationError({ message: "import-local: provide exactly one of file or url." });
   }
-  if (raw.file !== undefined && (typeof raw.file !== "string" || !path.isAbsolute(raw.file))) throw new ValidationError("import-local: file must be an absolute path.");
+  if (raw.file !== undefined && (typeof raw.file !== "string" || !path.isAbsolute(raw.file))) throw new ValidationError({ message: "import-local: file must be an absolute path." });
   return raw;
 }
 
@@ -149,10 +149,10 @@ async function resolveSource({ request, backend }: { request: ImportLocalRequest
 async function readBoundedArchive({ file }: { file: string }): Promise<Buffer> {
   let handle: fsp.FileHandle;
   try { handle = await fsp.open(file, "r"); }
-  catch (error) { throw new ValidationError(`That file could not be opened (${(error as NodeJS.ErrnoException).code ?? "unknown error"}). No website was created.`); }
+  catch (error) { throw new ValidationError({ message: `That file could not be opened (${(error as NodeJS.ErrnoException).code ?? "unknown error"}). No website was created.` }); }
   try {
     const { size } = await handle.stat();
-    if (size > SHARE_LIMITS.maxArchiveBytes) throw new ValidationError("That file is over the 300 MiB import limit. No website was created.");
+    if (size > SHARE_LIMITS.maxArchiveBytes) throw new ValidationError({ message: "That file is over the 300 MiB import limit. No website was created." });
     const archive = Buffer.allocUnsafe(size);
     const { bytesRead } = await handle.read(archive, 0, size, 0);
     return archive.subarray(0, bytesRead);
@@ -163,11 +163,11 @@ async function readBoundedArchive({ file }: { file: string }): Promise<Buffer> {
 async function inPlainWords<T>(run: () => Promise<T>): Promise<T> {
   try { return await run(); }
   catch (error) {
-    if (error instanceof SiteShareRefusal) throw new ValidationError(error.message);
+    if (error instanceof SiteShareRefusal) throw new ValidationError({ message: error.message });
     // A second app window importing at the same time waits on the first one's lock, then gives up.
-    if (error instanceof FileLockTimeoutError) throw new ValidationError(IMPORT_BUSY);
+    if (error instanceof FileLockTimeoutError) throw new ValidationError({ message: IMPORT_BUSY });
     // The zip reader's own sentence for a file that is not a zip; the person gets words they can act on.
-    if (error instanceof Error && /end of central directory|not a zip file/i.test(error.message)) throw new ValidationError(NOT_A_ZIP);
+    if (error instanceof Error && /end of central directory|not a zip file/i.test(error.message)) throw new ValidationError({ message: NOT_A_ZIP });
     throw error;
   }
 }

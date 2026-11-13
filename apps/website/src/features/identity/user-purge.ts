@@ -47,7 +47,7 @@ export class SqlUserPurge implements UserPurgePort {
   async purgeUser(required: {
     workspaceId: UUID;
     principalId: UUID;
-    buildEvent: (removed: PurgeCounts, reason?: UserPurgeReason) => DomainEvent;
+    buildEvent: (required: { removed: PurgeCounts }, optional?: { reason?: UserPurgeReason }) => DomainEvent;
     reason?: UserPurgeReason;
   }): Promise<PurgeCounts> {
     const { workspaceId, principalId, buildEvent, reason } = required;
@@ -83,7 +83,7 @@ export class SqlUserPurge implements UserPurgePort {
       });
 
       const removed: PurgeCounts = { roles, policies, sessions: sessionCount, apiKeys: apiKeyCount, userSettings };
-      const event = buildEvent(removed, reason);
+      const event = buildEvent({ removed }, { reason });
       await this.kernel.run((db) => db.insertInto("outbox_events").values(this.eventValues(event)).execute());
 
       return removed;

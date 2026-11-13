@@ -119,7 +119,7 @@ export async function runExportCommand(input: RunExportCommandInput, optional: R
   // boot step and with no `await` ahead of it, mirroring `index.ts`'s and `serve.ts`'s own ordering.
   (optional.registerPluginSdkResolver ?? registerPluginSdkResolver)();
 
-  const target = resolveInstallDirTarget(input.dir);
+  const target = resolveInstallDirTarget({ dirArg: input.dir });
   const bootResult = await (optional.bootSiteDir ?? bootSiteDir)({ dir: target }, { workspaceId: input.workspaceId });
   // The composition's store (`onStoreOpened`): closing it stops its guest-chat sweep, then the store.
   let composedStore: SiteStore | undefined;

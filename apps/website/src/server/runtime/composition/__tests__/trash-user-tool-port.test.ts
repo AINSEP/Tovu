@@ -57,14 +57,14 @@ async function harness(overrides: Partial<UsersRouteDeps> = {}) {
   await wiring.identityReady;
   const ownerId = await wiring.ownerPrincipalId;
 
-  const trashRepo = new SqliteTrashRepo(db.$client);
+  const trashRepo = new SqliteTrashRepo({ store: db.$client });
   const nextTrashId = counter("trash-id");
   const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel(db), purge: new SqliteUserPurge({ kernel: contentKernel(db), eventValues: outboxEventValues }), idGen: { next: nextTrashId }, clock });
   const trash: TrashPort = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),
     idGen: { newId: nextTrashId },
-    transaction: ({ work }) => createContentDbTransactionRunner(db.$client)(work),
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: db.$client })(work),
     entityPolicy: ({ entityType }) => entityType === USER_ENTITY_TYPE,
   });
 

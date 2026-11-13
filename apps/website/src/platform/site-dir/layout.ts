@@ -138,13 +138,13 @@ export const UPLOADS_ENTRY_NAME = "uploads";
 /**
  * True for a top-level site-directory entry a duplicate is allowed to carry verbatim.
  *
- * @param entryName - one `fs.Dirent.name` from the source site directory's own top-level listing.
+ * @param required.entryName - one `fs.Dirent.name` from the source site directory's own top-level listing.
  * @returns `true` only for a name on {@link PORTABLE_ENTRY_NAMES}; `false` for everything else,
  *   including every artifact this file has never heard of — see this file's own header for why
  *   that default is the point rather than a gap.
  * @complexity O(1) — one `Set` lookup.
  * @overallScore 100
  */
-export function isPortableSiteEntry(entryName: string): boolean {
+export function isPortableSiteEntry({ entryName }: { entryName: string }, _optional = {}): boolean {
   return PORTABLE_ENTRY_NAMES.has(entryName);
 }

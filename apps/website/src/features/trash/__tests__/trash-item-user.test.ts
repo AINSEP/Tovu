@@ -123,7 +123,7 @@ test("delegate indexing skips absent tools, preserves delegate precedence and fo
   const events: unknown[] = [];
   const delegates = new Map<string, TrashItemDelegate>([
     ["form", { entityType: "form", toolId: "l128-delete", permission: "l128.delete",
-      toDelegateInput: async (_deps, id) => ({ resolved: id }) }],
+      toDelegateInput: async ({ entityId: id }) => ({ resolved: id }) }],
     ["missing", { entityType: "missing", toolId: "not-registered", permission: "missing.delete",
       toDelegateInput: async () => { throw new Error("unregistered delegate must not resolve"); } }],
   ]);

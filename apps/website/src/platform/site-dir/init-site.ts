@@ -98,11 +98,11 @@ export type InitSitePort = (required: Omit<InitSiteRequired, "deps">, optional?:
  * validation rule is exactly the kind of drift risk this codebase's own `RAW_SQL_MANAGED_TABLES`/
  * `declaredShape()` precedents (`db/migration/manifest.ts`) exist to avoid.
  */
-export function resolveSiteName(target: string, name: string | undefined): string {
+export function resolveSiteName({ target, name }: { target: string; name: string | undefined }, _optional = {}): string {
   if (name === undefined) return path.basename(target);
   const trimmed = name.trim();
   if (trimmed.length === 0 || trimmed.length > MAX_NAME_LENGTH) {
-    throw new ValidationError(`initSite: --name must be 1..${MAX_NAME_LENGTH} chars after trim`);
+    throw new ValidationError({ message: `initSite: --name must be 1..${MAX_NAME_LENGTH} chars after trim` });
   }
   return trimmed;
 }
@@ -113,7 +113,7 @@ export function resolveSiteName(target: string, name: string | undefined): strin
  * `initSite`'s own doc for the full cleanup-on-failure contract this implements (U-003-B1/B2/B3,
  * EC-10, RT-003).
  */
-export function cleanupAndRethrow(err: unknown, target: string, wroteAnything: boolean): never {
+export function cleanupAndRethrow({ err, target, wroteAnything }: { err: unknown; target: string; wroteAnything: boolean }, _optional = {}): never {
   if (wroteAnything) {
     try {
       fs.rmSync(target, { recursive: true, force: false });
@@ -123,14 +123,14 @@ export function cleanupAndRethrow(err: unknown, target: string, wroteAnything: b
       // still refuses this dir (INV-02 holds), but an operator needs to know manual removal is
       // required.
       throw new InternalError(
-        `initSite: cleanup failed after a mid-flight error — manual removal required at ${target}: ${(cleanupErr as Error).message}`
+        { message: `initSite: cleanup failed after a mid-flight error — manual removal required at ${target}: ${(cleanupErr as Error).message}` }
       );
     }
   }
   if (err instanceof ValidationError || err instanceof InitDirNotEmptyError || err instanceof InternalError) {
     throw err;
   }
-  throw new InternalError(`initSite: failed while creating ${target}: ${(err as Error).message}`);
+  throw new InternalError({ message: `initSite: failed while creating ${target}: ${(err as Error).message}` });
 }
 
 /**
@@ -142,7 +142,7 @@ export function cleanupAndRethrow(err: unknown, target: string, wroteAnything: b
  * `duplicateSite` explicitly named `InitDirNotEmptyError` as established precedent to reuse, not
  * reinvent).
  */
-export function validateInitTarget(target: string): void {
+export function validateInitTarget({ target }: { target: string }, _optional = {}): void {
   let stat: fs.Stats | undefined;
   try {
     stat = fs.statSync(target);
@@ -156,16 +156,16 @@ export function validateInitTarget(target: string): void {
       // `mkdir -p` of arbitrary ancestors (a typo guard), enforced in the same error class as an
       // occupied target.
       throw new InitDirNotEmptyError(
-        `initSite: the parent directory of ${target} does not exist (no recursive creation of arbitrary ancestors)`
+        { message: `initSite: the parent directory of ${target} does not exist (no recursive creation of arbitrary ancestors)` }
       );
     }
     return; // absent, parent exists — a valid init target (EC-01 "absent" branch).
   }
   if (!stat.isDirectory()) {
-    throw new InitDirNotEmptyError(`initSite: ${target} exists and is not a directory (EC-02)`);
+    throw new InitDirNotEmptyError({ message: `initSite: ${target} exists and is not a directory (EC-02)` });
   }
   if (fs.readdirSync(target).length > 0) {
-    throw new InitDirNotEmptyError(`initSite: ${target} exists and is not an empty directory (AC-04)`);
+    throw new InitDirNotEmptyError({ message: `initSite: ${target} exists and is not an empty directory (AC-04)` });
   }
 }
 
@@ -201,12 +201,12 @@ export async function initSite(required: InitSiteRequired, options: InitSiteOpti
   const { dir, name, deps } = required;
   assertVerifiedImportInput(required, options);
   const adminPassword = resolveNewSiteAdminPassword(required);
-  const target = resolveInstallDirTarget(dir);
+  const target = resolveInstallDirTarget({ dirArg: dir });
 
-  const resolvedName = resolveSiteName(target, name); // step 1 (VALIDATION) — before any target/fs check.
+  const resolvedName = resolveSiteName({ target, name }); // step 1 (VALIDATION) — before any target/fs check.
   const storage = required.storage ?? { kind: "sqlite" };
-  const postgres = validateStorageInput(storage, required.connectionString); // step 1 too.
-  validateInitTarget(target); // step 2 (INIT_DIR_NOT_EMPTY).
+  const postgres = validateStorageInput({ storage, connectionString: required.connectionString }); // step 1 too.
+  validateInitTarget({ target }); // step 2 (INIT_DIR_NOT_EMPTY).
   const { template, seed } = readTemplate({ templateId: "starter" }, options); // step 3 (INTERNAL) — nothing created yet.
 
   const siteId = randomUUID();
@@ -217,11 +217,11 @@ export async function initSite(required: InitSiteRequired, options: InitSiteOpti
   const progress: InitProgress = { wroteAnything: false, createdExternalDbDir: false };
 
   try {
-    await createSiteContents(site, options, progress);
+    await createSiteContents({ site, options, progress });
     return { siteId, dir: target };
   } catch (err) {
     if (externalDbDir && progress.createdExternalDbDir) fs.rmSync(externalDbDir, { recursive: true, force: true });
-    return cleanupAndRethrow(err, target, progress.wroteAnything);
+    return cleanupAndRethrow({ err, target, wroteAnything: progress.wroteAnything });
   }
 }
 
@@ -263,7 +263,7 @@ interface InitProgress {
  */
 function assertVerifiedImportInput(required: InitSiteRequired, { verifiedRestore }: Pick<InitSiteOptions, "verifiedRestore">): void {
   if (!verifiedRestore) return;
-  if (required.adminPassword === undefined || (required.storage && required.storage.kind !== "sqlite")) throw new ValidationError("Verified import requires an explicit owner password and SQLite storage.");
+  if (required.adminPassword === undefined || (required.storage && required.storage.kind !== "sqlite")) throw new ValidationError({ message: "Verified import requires an explicit owner password and SQLite storage." });
 }
 
 /**
@@ -271,12 +271,12 @@ function assertVerifiedImportInput(required: InitSiteRequired, { verifiedRestore
  * the caller's cleanup removes only what this call created.
  * @complexity Bounded per fs/db operation count plus one stock-themes copy (see `initSite`).
  */
-async function createSiteContents(site: NewSite, options: InitSiteOptions, progress: InitProgress): Promise<void> {
+async function createSiteContents({ site, options, progress }: { site: NewSite; options: InitSiteOptions; progress: InitProgress }, _optional = {}): Promise<void> {
   const { target, siteId, externalDbDir } = site;
   // Step 3b: a Postgres database must be empty, checked before anything is created or sealed.
-  await assertPostgresTargetEmpty(site.postgres);
+  await assertPostgresTargetEmpty({ postgres: site.postgres });
 
-  if (externalDbDir && fs.existsSync(externalDbDir)) throw new InternalError(`initSite: database target already exists at ${externalDbDir}`);
+  if (externalDbDir && fs.existsSync(externalDbDir)) throw new InternalError({ message: `initSite: database target already exists at ${externalDbDir}` });
 
   // Journal the minted identity and BOTH storage locations before any site bytes exist.
   // Recovery must not guess an app-data path from settings that may change after a crash.
@@ -298,7 +298,7 @@ async function createSiteContents(site: NewSite, options: InitSiteOptions, progr
   // empty file has nothing to copy, so no backup path. chat.db is created by the first boot's
   // chat runner (`openSiteChatDb`), which takes no copy either.
   // PGlite/Postgres: the store is created (runner to head, content + ai_chat) and seeded instead.
-  if (site.storage.kind === "sqlite") await createSqliteSiteStore(site, options, progress);
+  if (site.storage.kind === "sqlite") await createSqliteSiteStore({ site, options, progress });
   else await createPgSiteStore({ deps: site.deps, target, storage: site.storage, seed: site.seed, siteKeyId: siteId, postgres: site.postgres, adminPassword: site.adminPassword });
 
   // Step 8: .site-meta.json write — the commit marker, and the physically LAST write on
@@ -327,7 +327,12 @@ function createSiteFolders({ target, resolvedName }: Pick<NewSite, "target" | "r
 }
 
 /** Steps 6-7 for SQLite: create (or, for a verified import, restore) content.db, migrate it, repair and seed its owner. */
-async function createSqliteSiteStore({ deps, target, siteId, seed, adminPassword, dbPath, externalDbDir }: NewSite, { verifiedRestore }: Pick<InitSiteOptions, "verifiedRestore">, progress: InitProgress): Promise<void> {
+async function createSqliteSiteStore(
+  { site, options, progress }: { site: NewSite; options: Pick<InitSiteOptions, "verifiedRestore">; progress: InitProgress },
+  _optional = {},
+): Promise<void> {
+  const { deps, target, siteId, seed, adminPassword, dbPath, externalDbDir } = site;
+  const { verifiedRestore } = options;
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   progress.createdExternalDbDir = Boolean(externalDbDir);
   await verifiedRestore?.restore({ dir: target, dbPath, siteId });
@@ -381,29 +386,29 @@ interface PostgresTarget {
  * @returns The validated Postgres target, or undefined for SQLite/PGlite storage.
  * @throws {ValidationError} naming the missing or extra input (never the connection string).
  */
-function validateStorageInput(storage: SiteStorage, connectionString: string | undefined): PostgresTarget | undefined {
+function validateStorageInput({ storage, connectionString }: { storage: SiteStorage; connectionString: string | undefined }, _optional = {}): PostgresTarget | undefined {
   if (storage.kind !== "postgres") {
-    assertNoConnectionString(storage, connectionString);
+    assertNoConnectionString({ storage, connectionString });
     return undefined;
   }
   if (storage.secretRef === "site") {
-    if (connectionString === undefined || connectionString.trim() === "") throw new ValidationError("initSite: a postgres site sealed in its folder needs its connection string");
+    if (connectionString === undefined || connectionString.trim() === "") throw new ValidationError({ message: "initSite: a postgres site sealed in its folder needs its connection string" });
     return { url: connectionString, sealed: true };
   }
-  assertNoConnectionString(storage, connectionString);
+  assertNoConnectionString({ storage, connectionString });
   return { url: requiredEnvConnectionString(storage.secretRef), sealed: false };
 }
 
 /** @throws {ValidationError} when a storage that keeps no sealed secret is handed a connection string. */
-function assertNoConnectionString(storage: SiteStorage, connectionString: string | undefined): void {
-  if (connectionString !== undefined) throw new ValidationError(`initSite: a ${storage.kind} site takes no connection string here`);
+function assertNoConnectionString({ storage, connectionString }: { storage: SiteStorage; connectionString: string | undefined }, _optional = {}): void {
+  if (connectionString !== undefined) throw new ValidationError({ message: `initSite: a ${storage.kind} site takes no connection string here` });
 }
 
 /** @throws {ValidationError} when the named variable is unset or blank (never echoing a value). */
 function requiredEnvConnectionString({ env }: { env: string }): string {
   const value = process.env[env];
   if (value === undefined || value.trim() === "") {
-    throw new ValidationError(`initSite: the environment variable ${env} (the site's Postgres connection string) is not set`);
+    throw new ValidationError({ message: `initSite: the environment variable ${env} (the site's Postgres connection string) is not set` });
   }
   return value;
 }
@@ -418,7 +423,7 @@ function requiredEnvConnectionString({ env }: { env: string }): string {
  *
  * @throws {ValidationError} naming up to five occupied tables (never the connection string).
  */
-async function assertPostgresTargetEmpty(postgres: PostgresTarget | undefined): Promise<void> {
+async function assertPostgresTargetEmpty({ postgres }: { postgres: PostgresTarget | undefined }, _optional = {}): Promise<void> {
   if (!postgres) return;
   const kernel = openPostgresKernel<unknown>({ connectionString: postgres.url.trim(), max: 1 });
   try {
@@ -426,8 +431,8 @@ async function assertPostgresTargetEmpty(postgres: PostgresTarget | undefined): 
     if (occupied.length === 0) return;
     const named = occupied.slice(0, 5).join(", ") + (occupied.length > 5 ? `, and ${occupied.length - 5} more` : "");
     throw new ValidationError(
-      `initSite: the Postgres database already holds data (${named}); a new site needs an empty database. ` +
-        "Adopting an existing Tovu database into a new site folder is a separate step that is not available yet."
+      { message: `initSite: the Postgres database already holds data (${named}); a new site needs an empty database. ` +
+        "Adopting an existing Tovu database into a new site folder is a separate step that is not available yet." }
     );
   } finally {
     await kernel.close();

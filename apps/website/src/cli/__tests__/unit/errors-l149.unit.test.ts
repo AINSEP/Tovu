@@ -20,12 +20,12 @@ for (const code of ["commander.missingArgument", "commander.invalidArgument", "c
 }
 for (const [error, code, exitCode] of [
   [new PluginInstallError("PLUGIN_REFUSED", "detail"), "PLUGIN_REFUSED", 2],
-  [new ValidationError("detail"), "VALIDATION", 2], [new InitDirNotEmptyError("detail"), "INIT_DIR_NOT_EMPTY", 3],
-  [new SiteDirInvalidError("detail"), "SITE_DIR_INVALID", 3], [new SiteNewerThanRuntimeError("detail"), "SITE_NEWER_THAN_RUNTIME", 4],
-  [new SiteCorruptError("detail"), "SITE_CORRUPT", 5], [new PortInUseError("detail", 3000), "PORT_IN_USE", 1],
+  [new ValidationError({ message: "detail" }), "VALIDATION", 2], [new InitDirNotEmptyError({ message: "detail" }), "INIT_DIR_NOT_EMPTY", 3],
+  [new SiteDirInvalidError({ message: "detail" }), "SITE_DIR_INVALID", 3], [new SiteNewerThanRuntimeError({ message: "detail" }), "SITE_NEWER_THAN_RUNTIME", 4],
+  [new SiteCorruptError({ message: "detail" }), "SITE_CORRUPT", 5], [new PortInUseError("detail", 3000), "PORT_IN_USE", 1],
   [new ExportOutputNotEmptyError("detail"), "EXPORT_OUTPUT_NOT_EMPTY", 3],
   [new ExportIncompleteError("detail"), "EXPORT_INCOMPLETE", 6], [new ExportBlockedPendingRecoveryError("detail"), "EXPORT_BLOCKED_PENDING_RECOVERY", 7],
-  [new InternalError("detail"), "INTERNAL", 1], [new Error("detail"), "INTERNAL", 1], ["detail", "INTERNAL", 1],
+  [new InternalError({ message: "detail" }), "INTERNAL", 1], [new Error("detail"), "INTERNAL", 1], ["detail", "INTERNAL", 1],
 ] as const) {
   test(`maps ${code}/${String(error)} by class`, () => {
     assert.deepEqual(mapErrorToCliOutcome(error), { exitCode, stderrLine: `tovu: ${code}: detail` });
@@ -34,7 +34,7 @@ for (const [error, code, exitCode] of [
 for (const reason of ["NOT_A_DIRECTORY", "MARKER_ALREADY_EXISTS", "CONTENT_DB_MISSING", "CONTENT_DB_UNMIGRATED", "CONTENT_DB_DIVERGED"] as const) {
   test(`repair refusal ${reason} uses its typed reason`, () => {
     const diverged = reason === "CONTENT_DB_DIVERGED";
-    assert.deepEqual(mapErrorToCliOutcome(new SiteRepairRefusedError("detail", reason)), {
+    assert.deepEqual(mapErrorToCliOutcome(new SiteRepairRefusedError({ message: "detail", reason })), {
       exitCode: diverged ? 4 : 3, stderrLine: `tovu: ${diverged ? "SITE_NEWER_THAN_RUNTIME" : "SITE_DIR_INVALID"}: detail`,
     });
   });

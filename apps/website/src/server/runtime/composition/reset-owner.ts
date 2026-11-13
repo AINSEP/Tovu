@@ -21,9 +21,9 @@ export async function resetSelfHostedOwner(
   { dir, password, username }: { dir: string; password: string; username?: string },
   _options: Record<string, never> = {},
 ): Promise<string> {
-  const targetDir = resolveInstallDirTarget(dir);
+  const targetDir = resolveInstallDirTarget({ dirArg: dir });
   if (!existsSync(targetDir)) throw new Error('The site directory does not exist');
-  const storage = resolveSiteStorage(targetDir);
+  const storage = resolveSiteStorage({ siteDir: targetDir });
   const paths = resolveSiteDatabasePaths({ dir: targetDir }, { reserveIdentity: false });
   const client = await openSiteDbClient({ storage, dbPath: paths.contentDbPath, chatDbPath: paths.chatDbPath, resolvePostgresConnectionString });
   try {

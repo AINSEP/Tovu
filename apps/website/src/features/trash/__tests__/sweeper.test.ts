@@ -194,7 +194,7 @@ test("the sweeper purges a real, overdue menu through the real table adapter —
   const trashDb = contentKernel(db);
   const menuAdapter = createTableTrashAdapter({ entry: registry.get("menu")!, db: trashDb });
   const adapters = new Map<string, TrashAdapter>([["menu", menuAdapter]]);
-  const repo = new SqliteTrashRepo(client);
+  const repo = new SqliteTrashRepo({ store: client });
   await repo.insert({ row: {
     id: "trash-overdue-1",
     workspaceId: REAL_WS,
@@ -213,7 +213,7 @@ test("the sweeper purges a real, overdue menu through the real table adapter —
   const sweep = createTrashSweep({
     repo,
     adapters,
-    transaction: ({ work }) => (createContentDbTransactionRunner(client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   });
   const report = await sweep({ now: REAL_DUE, leaseOwner: "sweeper-1", leaseUntil: "2026-10-01T00:05:00.000Z", limit: 10 });
@@ -254,8 +254,8 @@ test("a thrown adapter error rolls back its purge, leaves the batch leased, and 
       return result;
     },
   }]]);
-  const repo = new SqliteTrashRepo(client);
-  const transaction = createContentDbTransactionRunner(client);
+  const repo = new SqliteTrashRepo({ store: client });
+  const transaction = createContentDbTransactionRunner({ store: client });
   let seq = 0;
   const trash = createTrashService({
     repo,

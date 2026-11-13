@@ -27,15 +27,15 @@ const SECRET_BEARING_KEYS = ["connectionString", "url", "password"] as const;
 /** An environment variable name: letters, digits and `_`, not starting with a digit. */
 const ENV_NAME = /^[A-Za-z_]\w*$/;
 
-function invalid(reason: string): never {
-  throw new SiteDirInvalidError(`${SITE_META_FILENAME} storage ${reason}`);
+function invalid({ reason }: { reason: string }, _optional = {}): never {
+  throw new SiteDirInvalidError({ message: `${SITE_META_FILENAME} storage ${reason}` });
 }
 
-function parseSecretRef(value: unknown): "site" | { env: string } {
+function parseSecretRef({ value }: { value: unknown }, _optional = {}): "site" | { env: string } {
   if (value === "site") return "site";
   const env = (value as { env?: unknown } | null)?.env;
   if (typeof value === "object" && value !== null && typeof env === "string" && ENV_NAME.test(env)) return { env };
-  return invalid(`secretRef must be "site" or { "env": "<VARIABLE_NAME>" }`);
+  return invalid({ reason: `secretRef must be "site" or { "env": "<VARIABLE_NAME>" }` });
 }
 
 /**
@@ -44,12 +44,12 @@ function parseSecretRef(value: unknown): "site" | { env: string } {
  * @throws {SiteDirInvalidError} for an unknown `kind`, a malformed `secretRef`, or a connection
  *   secret written into the meta file.
  */
-export function parseSiteStorage(value: unknown): SiteStorage {
+export function parseSiteStorage({ value }: { value: unknown }, _optional = {}): SiteStorage {
   if (value === undefined) return DEFAULT_SITE_STORAGE;
-  if (typeof value !== "object" || value === null) return invalid("must be an object with a kind");
+  if (typeof value !== "object" || value === null) return invalid({ reason: "must be an object with a kind" });
   const candidate = value as Record<string, unknown>;
   for (const key of SECRET_BEARING_KEYS) {
-    if (key in candidate) invalid(`must not hold "${key}": the connection string is sealed with the site key or read from the environment`);
+    if (key in candidate) invalid({ reason: `must not hold "${key}": the connection string is sealed with the site key or read from the environment` });
   }
   switch (candidate.kind) {
     case "sqlite":
@@ -57,21 +57,21 @@ export function parseSiteStorage(value: unknown): SiteStorage {
     case "pglite":
       return { kind: "pglite" };
     case "postgres":
-      return { kind: "postgres", secretRef: parseSecretRef(candidate.secretRef) };
+      return { kind: "postgres", secretRef: parseSecretRef({ value: candidate.secretRef }) };
     default:
-      return invalid(`kind ${JSON.stringify(candidate.kind)} is not one of "sqlite", "pglite", "postgres"`);
+      return invalid({ reason: `kind ${JSON.stringify(candidate.kind)} is not one of "sqlite", "pglite", "postgres"` });
   }
 }
 
 /**
  * The storage for the site in `siteDir`, read from its `.site-meta.json`.
  *
- * @param siteDir - the site folder, or `":memory:"` (always SQLite).
+ * @param required.siteDir - the site folder, or `":memory:"` (always SQLite).
  * @returns SQLite when the meta file or its `storage` field is absent.
  * @throws {SiteDirInvalidError} when the meta file is not JSON or its `storage` is invalid.
  * @complexity O(1) — one small file read.
  */
-export function resolveSiteStorage(siteDir: string): SiteStorage {
+export function resolveSiteStorage({ siteDir }: { siteDir: string }, _optional = {}): SiteStorage {
   if (siteDir === ":memory:") return DEFAULT_SITE_STORAGE;
   let raw: string;
   try {
@@ -84,7 +84,7 @@ export function resolveSiteStorage(siteDir: string): SiteStorage {
   try {
     parsed = JSON.parse(raw);
   } catch (err) {
-    throw new SiteDirInvalidError(`${SITE_META_FILENAME} is not valid JSON: ${(err as Error).message}`);
+    throw new SiteDirInvalidError({ message: `${SITE_META_FILENAME} is not valid JSON: ${(err as Error).message}` });
   }
-  return parseSiteStorage((parsed as { storage?: unknown } | null)?.storage);
+  return parseSiteStorage({ value: (parsed as { storage?: unknown } | null)?.storage });
 }

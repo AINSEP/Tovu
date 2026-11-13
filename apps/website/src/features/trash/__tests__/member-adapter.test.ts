@@ -47,9 +47,9 @@ function harness() {
   });
   const adapters = new Map([["member", adapter]]);
   let seq = 0;
-  const trash = createTrashService({ repo: new SqliteTrashRepo(client), adapters,
+  const trash = createTrashService({ repo: new SqliteTrashRepo({ store: client }), adapters,
     idGen: { newId: () => `member-trash-${++seq}` },
-    transaction: ({ work }) => createContentDbTransactionRunner(client)(work),
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: client })(work),
     entityPolicy: ({ entityType }) => adapters.has(entityType),
   }, { retentionDays: TRASH_RETENTION_DAYS });
   const granted = new Set(["member.manage", "content.read"]);

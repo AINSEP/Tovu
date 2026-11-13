@@ -15,11 +15,11 @@ export async function runImportSiteCommand(required: { server: string; workspace
   post?: typeof postJsonToDaemon;
 } = {}): Promise<unknown> {
   const server = parseImportServer({ value: required.server });
-  if (!required.workspaceId) throw new ValidationError("import: --workspace is required.");
+  if (!required.workspaceId) throw new ValidationError({ message: "import: --workspace is required." });
   const text = await readPromptFromFlags({ flags: { "prompt-file": "-" } }, { maxBytes: 16 * 1024, readStdin: optional.readRequest });
   const raw = parseImportRequest({ text });
   const { authorization, ...input } = raw;
-  if (typeof authorization !== "string" || !/^Bearer [^\r\n]{1,4096}$/.test(authorization)) throw new ValidationError("import: provide a Bearer API-key authorization in stdin JSON. Never provide an owner password.");
+  if (typeof authorization !== "string" || !/^Bearer [^\r\n]{1,4096}$/.test(authorization)) throw new ValidationError({ message: "import: provide a Bearer API-key authorization in stdin JSON. Never provide an owner password." });
   const parsed = parseSiteImportInput({ input });
   const body = { ...parsed.source, displayName: parsed.displayName, requestId: parsed.requestId };
   const result = await (optional.post ?? postJsonToDaemon)({ base: server.origin, route: "/api/admin/v1/workspaces/" + encodeURIComponent(required.workspaceId) + "/site-imports", body }, { headers: { authorization }, timeoutMs: 5 * 60_000, maxResponseBytes: 64 * 1024 });
@@ -29,10 +29,10 @@ export async function runImportSiteCommand(required: { server: string; workspace
 
 function parseImportServer({ value }: { value: string }, _options: Record<string, never> = {}): URL {
   let server: URL;
-  try { server = new URL(value); } catch { throw new ValidationError("import: --server must be an admin server origin."); }
+  try { server = new URL(value); } catch { throw new ValidationError({ message: "import: --server must be an admin server origin." }); }
   const hasCredentials = server.username || server.password;
   const hasPath = server.pathname !== "/" || server.search || server.hash;
-  if (hasCredentials || hasPath || !isImportProtocolAllowed({ server })) throw new ValidationError("import: use an HTTPS server origin, or HTTP loopback for local development.");
+  if (hasCredentials || hasPath || !isImportProtocolAllowed({ server })) throw new ValidationError({ message: "import: use an HTTPS server origin, or HTTP loopback for local development." });
   return server;
 }
 
@@ -48,6 +48,6 @@ function parseImportRequest({ text }: { text: string | null }, _options: Record<
     // would stringify to non-JSON or `null` and fail the shape check below, never parse as a request.
     raw = JSON.parse(String(text)) as Record<string, unknown>;
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("shape");
-  } catch { throw new ValidationError("import: stdin must contain one JSON request object."); }
+  } catch { throw new ValidationError({ message: "import: stdin must contain one JSON request object." }); }
   return raw;
 }

@@ -18,7 +18,7 @@ test('site key generation supplies the shared writer a live scan of this site', 
   writeFileSync(join(dir, '.site-meta.json'), JSON.stringify({ siteKeyId: '11111111-1111-4111-8111-111111111111' }));
   const scanned: unknown[] = [];
   const writer = portFake<SiteKeyKeyWriter>({ ensureSiteKeyForSite: async ({ siteDir, findSiteKeyDependentData }) => {
-    scanned.push([siteDir, await findSiteKeyDependentData(siteDir)]);
+    scanned.push([siteDir, await findSiteKeyDependentData({ siteDir })]);
     return { action: 'mint', fingerprint: 'public-fingerprint', perSiteFilePath: '/fixture/site-key.hex' };
   } });
   const app = express();

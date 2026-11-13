@@ -61,7 +61,7 @@ export interface UserPurgePort {
   purgeUser(required: {
     workspaceId: UUID;
     principalId: UUID;
-    buildEvent: (removed: PurgeCounts, reason?: UserPurgeReason) => DomainEvent;
+    buildEvent: (required: { removed: PurgeCounts }, optional?: { reason?: UserPurgeReason }) => DomainEvent;
     reason?: UserPurgeReason;
   }): Promise<PurgeCounts>;
 }

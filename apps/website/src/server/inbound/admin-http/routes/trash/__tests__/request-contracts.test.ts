@@ -112,11 +112,11 @@ test("purge returns 200 for referenced media and continues purging later selecte
     if (entityId === "media-used") throw new MediaStillReferencedError({ message: "still used by a post", referencing: ["post-8:bodyHtml"] });
     client.prepare("DELETE FROM media WHERE workspace_id = ? AND id = ?").run("ws-7", entityId);
   } });
-  const repo = new SqliteTrashRepo(client);
+  const repo = new SqliteTrashRepo({ store: client });
   let id = 0;
   const trash = createTrashService({ repo, adapters: new Map([["media", adapter]]),
     idGen: { newId: () => `row-${++id}` }, entityPolicy: () => true,
-    transaction: ({ work }) => createContentDbTransactionRunner(client)(work),
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: client })(work),
   });
   for (const entityId of ["media-used", "media-free"]) {
     await trash.trash({ workspaceId: "ws-7", entityType: "media", entityId, actor: { principalId: "principal-7" },

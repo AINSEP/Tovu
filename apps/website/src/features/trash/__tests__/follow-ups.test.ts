@@ -73,13 +73,13 @@ function harness(hooks: TrashFollowUpHooks, entry: TrashEntry = buildEntry()): H
   const baseAdapter = createTableTrashAdapter({ entry, db: trashDb });
   const wrapped = withFollowUps({ adapter: baseAdapter }, hooks);
   const adapters = new Map<string, TrashAdapter>([[ENTITY_TYPE, wrapped]]);
-  const repo = new SqliteTrashRepo(client);
+  const repo = new SqliteTrashRepo({ store: client });
   let seq = 0;
   const trash = createTrashService({
     repo,
     adapters,
     idGen: { newId: () => `trash-${(seq += 1)}` },
-    transaction: ({ work }) => (createContentDbTransactionRunner(client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 

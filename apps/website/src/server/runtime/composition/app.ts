@@ -909,10 +909,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error)
   });
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removePlugin: RemovePluginFn = unhideIfRemoveThrows(pluginTrashAdapter, bindRemoveEntity({
+  const removePlugin: RemovePluginFn = unhideIfRemoveThrows({ adapter: pluginTrashAdapter, remove: bindRemoveEntity({
     trash: trash,
     entityType: PLUGIN_ENTITY_TYPE
-  }));
+  }) });
 
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
@@ -1042,7 +1042,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // (`resolveCheckoutRoot`, a walk-up that is right from both the tsx and the compiled tree) — this
   // hermetic root backs the same live HTTP server as `deps.ts`'s in `TOVU_DB=memory` mode, so its
   // fallback origin must be derived the same way rather than silently differing.
-  const REPO_ROOT_FOR_ORIGIN = resolveCheckoutRoot();
+  const REPO_ROOT_FOR_ORIGIN = resolveCheckoutRoot({});
   const derivedPublicOrigin = process.env.TOVU_SITE_LISTENER_ORIGIN ?? `${deriveDevScheme(resolveDevTls(resolveDevTlsCertPaths(REPO_ROOT_FOR_ORIGIN)).active)}://localhost:${Number(process.env.PORT ?? 3000)}`;
 
   // Extracted (not inlined into the return object below), same reasoning as `restorePointsRepo`
@@ -1078,7 +1078,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const themeTrashAdapter = createThemeTrashAdapter({ themes: siteThemes, themesDir: builtInThemesDir() });
   trashAdapters.set(THEME_ENTITY_TYPE, themeTrashAdapter);
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removeTheme = unhideIfRemoveThrows(themeTrashAdapter, bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }));
+  const removeTheme = unhideIfRemoveThrows({ adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
   const publishContentApplyPort = createPublishContentApplyPort({
     workspaceId: seededWorkspace.id,
     bundleRepo: publishContentBundleRepo,
@@ -2001,7 +2001,7 @@ function registerAdminSpa({ app, routeDeps }: { app: Express; routeDeps: RouteDe
   // `../` count: the source and compiled (`dist/src/...`) trees sit at different depths.
   applyAdminBrowserAnalytics({ app, deps: routeDeps });
   registerAdminStatic(app, {
-    distDir: process.env.TOVU_ADMIN_DIST ?? resolveAppDistDir("admin"),
+    distDir: process.env.TOVU_ADMIN_DIST ?? resolveAppDistDir({ app: "admin" }),
   });
 }
 
@@ -2009,7 +2009,7 @@ function registerAdminSpa({ app, routeDeps }: { app: Express; routeDeps: RouteDe
  * @complexity O(1) route registration. */
 function registerSiteChatBundle({ app }: { app: Express }, _optional = {}): void {
   registerSiteChatStatic(app, {
-    distDir: process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir("site-chat"),
+    distDir: process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir({ app: "site-chat" }),
   });
 }
 
@@ -2446,7 +2446,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // `/admin/*`-scoped static serving above. Served from Tovu's own root here (in both dev, via
   // `apps/admin/vite.config.ts`'s matching proxy entry, and prod) rather than duplicated inside
   // `apps/admin/dist` (which would only ever resolve under `/admin/`).
-  app.use("/agent-icons", express.static(path.join(resolveProductRoot(), "content", "public", "agent-icons")));
+  app.use("/agent-icons", express.static(path.join(resolveProductRoot({}), "content", "public", "agent-icons")));
 
   // MCP-UI sandbox proxy — `@mcp-ui/client`'s `AppFrame` points an iframe's `src` at this exact
   // root-relative path (see `mcp-ui-sandbox-proxy-route.ts`'s own module doc) and never falls back

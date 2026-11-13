@@ -19,12 +19,12 @@ const MODULE_URL = pathToFileURL(path.resolve(import.meta.dirname, "../../produc
 
 type WorkerOutcome = { root: string } | { error: string };
 
-/** Runs `resolveProductRoot(fromDir)` inside a real worker thread given `workerData`. */
+/** Runs `resolveProductRoot` inside a real worker thread given `workerData` and optional `fromDir`. */
 function resolveInWorker({ workerData, fromDir }: { workerData: unknown; fromDir?: string }): Promise<WorkerOutcome> {
   const source = `
     const { parentPort } = require("node:worker_threads");
     import(${JSON.stringify(MODULE_URL)}).then((m) => {
-      try { parentPort.postMessage({ root: m.resolveProductRoot(${fromDir === undefined ? "" : JSON.stringify(fromDir)}) }); }
+      try { parentPort.postMessage({ root: m.resolveProductRoot({}, ${JSON.stringify({ fromDir })}) }); }
       catch (error) { parentPort.postMessage({ error: error.message }); }
     });`;
   return new Promise((resolve, reject) => {
@@ -61,9 +61,9 @@ test("a worker given an explicit fromDir ignores workerData.productRoot and walk
 });
 
 test("a worker whose workerData.productRoot is not a string falls back to walking up from the module", async () => {
-  assert.deepEqual(await resolveInWorker({ workerData: { productRoot: 42 } }), { root: resolveProductRoot() });
+  assert.deepEqual(await resolveInWorker({ workerData: { productRoot: 42 } }), { root: resolveProductRoot({}) });
 });
 
 test("a worker started without workerData falls back to walking up from the module", async () => {
-  assert.deepEqual(await resolveInWorker({ workerData: undefined }), { root: resolveProductRoot() });
+  assert.deepEqual(await resolveInWorker({ workerData: undefined }), { root: resolveProductRoot({}) });
 });

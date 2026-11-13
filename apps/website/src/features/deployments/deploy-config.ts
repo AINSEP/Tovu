@@ -112,7 +112,7 @@ export function appendHostDeployNotes(
 export function createDeployConfigKit(): DeployConfigKit {
   return {
     assertNoConfigInjection,
-    validationError: (message) => new ValidationError(message),
+    validationError: (message) => new ValidationError({ message }),
     migrationsNote: MIGRATIONS_NOTE,
   };
 }
@@ -288,16 +288,16 @@ function hasLeadingHyphenOrSurroundingWhitespace(value: string): boolean {
 
 export function assertNoConfigInjection(fieldLabel: string, value: string): void {
   if (containsAnyOf(value, QUOTE_OR_NEWLINE_CHARS)) {
-    throw new ValidationError(`${fieldLabel} (${JSON.stringify(value)}) contains a quote or newline character, which would corrupt the generated config file`);
+    throw new ValidationError({ message: `${fieldLabel} (${JSON.stringify(value)}) contains a quote or newline character, which would corrupt the generated config file` });
   }
   if (containsAnyOf(value, YAML_SIGNIFICANT_CHARS)) {
     throw new ValidationError(
-      `${fieldLabel} (${JSON.stringify(value)}) contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file`
+      { message: `${fieldLabel} (${JSON.stringify(value)}) contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file` }
     );
   }
   if (hasLeadingHyphenOrSurroundingWhitespace(value)) {
     throw new ValidationError(
-      `${fieldLabel} (${JSON.stringify(value)}) starts with "-" or has leading/trailing whitespace, which would corrupt an unquoted YAML scalar in the generated config file`
+      { message: `${fieldLabel} (${JSON.stringify(value)}) starts with "-" or has leading/trailing whitespace, which would corrupt an unquoted YAML scalar in the generated config file` }
     );
   }
 }

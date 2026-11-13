@@ -63,7 +63,7 @@ export interface KeyOnlySiteMeta {
  *
  * @complexity O(k) in the object's own key count.
  */
-export function parseKeyOnlySiteMeta(parsed: unknown): KeyOnlySiteMeta | undefined {
+export function parseKeyOnlySiteMeta({ parsed }: { parsed: unknown }, _optional = {}): KeyOnlySiteMeta | undefined {
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return undefined;
   const candidate = parsed as Record<string, unknown>;
   if (!Object.keys(candidate).every((key) => KEY_ONLY_FIELDS.has(key))) return undefined;
@@ -73,7 +73,7 @@ export function parseKeyOnlySiteMeta(parsed: unknown): KeyOnlySiteMeta | undefin
 }
 
 /** `dir`'s `.site-meta.json` raw text, or `undefined` when it is absent or unreadable. */
-function readMetaText(dir: string): string | undefined {
+function readMetaText({ dir }: { dir: string }, _optional = {}): string | undefined {
   try {
     return fs.readFileSync(path.join(dir, SITE_META_FILENAME), "utf8");
   } catch {
@@ -82,10 +82,10 @@ function readMetaText(dir: string): string | undefined {
 }
 
 /** `text` parsed as a key-only meta, or `undefined` for any other content. */
-function keyOnlyFromText(text: string | undefined): KeyOnlySiteMeta | undefined {
+function keyOnlyFromText({ text }: { text: string | undefined }, _optional = {}): KeyOnlySiteMeta | undefined {
   if (text === undefined) return undefined;
   try {
-    return parseKeyOnlySiteMeta(JSON.parse(text));
+    return parseKeyOnlySiteMeta({ parsed: JSON.parse(text) });
   } catch {
     return undefined;
   }
@@ -97,8 +97,8 @@ function keyOnlyFromText(text: string | undefined): KeyOnlySiteMeta | undefined 
  *
  * @complexity O(1) — one small file read.
  */
-export function readKeyOnlySiteMeta(dir: string): KeyOnlySiteMeta | undefined {
-  return keyOnlyFromText(readMetaText(dir));
+export function readKeyOnlySiteMeta({ dir }: { dir: string }, _optional = {}): KeyOnlySiteMeta | undefined {
+  return keyOnlyFromText({ text: readMetaText({ dir }) });
 }
 
 /** The identity part every completion of `keyOnly` carries: `siteId` = `siteKeyId`, and the key
@@ -115,7 +115,7 @@ export function carriedKeyFields(keyOnly: KeyOnlySiteMeta): Pick<SiteMetaJson, "
 /** `dir`'s birth time (its modification time where the filesystem reports none), as ISO text —
  *  the same date the admin Sites screen showed for this folder before it carried a full meta
  *  (`site-registry.ts`'s `describeUnregisteredServingSite`). */
-function dirCreatedAt(dir: string): string {
+function dirCreatedAt({ dir }: { dir: string }, _optional = {}): string {
   return createdAtFromStat(fs.statSync(dir));
 }
 
@@ -126,8 +126,8 @@ export function createdAtFromStat(stat: Pick<fs.Stats, "birthtimeMs" | "birthtim
 }
 
 /** Why a key-only meta could not be completed, as the `SiteDirInvalidError` `bootSiteDir` raises. */
-function cannotComplete(dir: string, reason: string): SiteDirInvalidError {
-  return new SiteDirInvalidError(`.site-meta.json at ${dir} holds only site-key fields and cannot be completed: ${reason}`);
+function cannotComplete({ dir, reason }: { dir: string; reason: string }, _optional = {}): SiteDirInvalidError {
+  return new SiteDirInvalidError({ message: `.site-meta.json at ${dir} holds only site-key fields and cannot be completed: ${reason}` });
 }
 
 /**
@@ -137,16 +137,16 @@ function cannotComplete(dir: string, reason: string): SiteDirInvalidError {
  * @throws {SiteDirInvalidError} SQLite with no `content.db`, a never-migrated one, or one whose
  *   lineage this runtime does not recognise — nothing to stamp that would not be a guess.
  */
-async function deriveSchemaStamp(dir: string, storage: SiteStorage): Promise<{ schemaVersion: number; schemaTag: string }> {
+async function deriveSchemaStamp({ dir, storage }: { dir: string; storage: SiteStorage }, _optional = {}): Promise<{ schemaVersion: number; schemaTag: string }> {
   if (storage.kind !== "sqlite") {
     const runtime = runtimeSchemaVersion();
     return { schemaVersion: runtime.index, schemaTag: runtime.tag };
   }
   const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
-  if (!fs.existsSync(dbPath)) throw cannotComplete(dir, `no content.db at ${dbPath} to derive its schema stamp from`);
-  const identity = await readAppliedSchemaIdentityOfFile(dbPath);
-  if (identity === "none") throw cannotComplete(dir, `${dbPath} has never had a migration applied`);
-  if (identity === "diverged") throw cannotComplete(dir, `${dbPath}'s latest applied migration matches no entry in this runtime's bundled journal`);
+  if (!fs.existsSync(dbPath)) throw cannotComplete({ dir, reason: `no content.db at ${dbPath} to derive its schema stamp from` });
+  const identity = await readAppliedSchemaIdentityOfFile({ dbPath });
+  if (identity === "none") throw cannotComplete({ dir, reason: `${dbPath} has never had a migration applied` });
+  if (identity === "diverged") throw cannotComplete({ dir, reason: `${dbPath}'s latest applied migration matches no entry in this runtime's bundled journal` });
   return { schemaVersion: identity.idx, schemaTag: identity.tag };
 }
 
@@ -159,23 +159,23 @@ async function deriveSchemaStamp(dir: string, storage: SiteStorage): Promise<{ s
  * @complexity O(m) in the bundled journal's entry count (one read-only db open), else O(1).
  */
 export async function planKeyOnlySiteMetaCompletion(required: { dir: string }): Promise<SiteMetaJson | undefined> {
-  const keyOnly = readKeyOnlySiteMeta(required.dir);
-  return keyOnly === undefined ? undefined : buildCompletedMeta(required.dir, keyOnly);
+  const keyOnly = readKeyOnlySiteMeta({ dir: required.dir });
+  return keyOnly === undefined ? undefined : buildCompletedMeta({ dir: required.dir, keyOnly });
 }
 
-async function buildCompletedMeta(dir: string, keyOnly: KeyOnlySiteMeta): Promise<SiteMetaJson> {
-  return assembleMeta(dir, keyOnly, await deriveSchemaStamp(dir, parseSiteStorage(keyOnly.storage)));
+async function buildCompletedMeta({ dir, keyOnly }: { dir: string; keyOnly: KeyOnlySiteMeta }, _optional = {}): Promise<SiteMetaJson> {
+  return assembleMeta({ dir, keyOnly, stamp: await deriveSchemaStamp({ dir, storage: parseSiteStorage({ value: keyOnly.storage }) }) });
 }
 
 /** The full meta for `keyOnly`'s key fields and `stamp` — the one shape every writer here produces. */
-function assembleMeta(dir: string, keyOnly: KeyOnlySiteMeta, stamp: { schemaVersion: number; schemaTag: string }): SiteMetaJson {
+function assembleMeta({ dir, keyOnly, stamp }: { dir: string; keyOnly: KeyOnlySiteMeta; stamp: { schemaVersion: number; schemaTag: string } }, _optional = {}): SiteMetaJson {
   const { siteId, ...keyFields } = carriedKeyFields(keyOnly);
   return {
     siteId,
     templateId: UNKNOWN_TEMPLATE_ID,
     templateVersion: UNKNOWN_TEMPLATE_VERSION,
     ...stamp,
-    createdAt: dirCreatedAt(dir),
+    createdAt: dirCreatedAt({ dir }),
     ...keyFields,
   };
 }
@@ -195,12 +195,12 @@ export async function buildSiteMetaForNewKey(required: { dir: string; siteKeyId:
   if (!fs.existsSync(dbPath)) return undefined;
   let identity: Awaited<ReturnType<typeof readAppliedSchemaIdentityOfFile>>;
   try {
-    identity = await readAppliedSchemaIdentityOfFile(dbPath);
+    identity = await readAppliedSchemaIdentityOfFile({ dbPath });
   } catch {
     return undefined;
   }
   if (typeof identity === "string") return undefined;
-  return assembleMeta(required.dir, { siteKeyId: required.siteKeyId }, { schemaVersion: identity.idx, schemaTag: identity.tag });
+  return assembleMeta({ dir: required.dir, keyOnly: { siteKeyId: required.siteKeyId }, stamp: { schemaVersion: identity.idx, schemaTag: identity.tag } });
 }
 
 /** How many times {@link completeKeyOnlySiteMeta} re-derives when the file changes under it. */
@@ -224,15 +224,15 @@ const COMPLETION_ATTEMPTS = 3;
  */
 export async function completeKeyOnlySiteMeta(
   required: { dir: string },
-  { readText = readMetaText }: { readText?: (dir: string) => string | undefined } = {},
+  { readText = readMetaText }: { readText?: (required: { dir: string }) => string | undefined } = {},
 ): Promise<SiteMetaJson | undefined> {
   const { dir } = required;
   for (let attempt = 0; attempt < COMPLETION_ATTEMPTS; attempt++) {
-    const before = readText(dir);
-    const keyOnly = keyOnlyFromText(before);
+    const before = readText({ dir });
+    const keyOnly = keyOnlyFromText({ text: before });
     if (keyOnly === undefined) return undefined;
-    const completed = await buildCompletedMeta(dir, keyOnly);
-    if (readText(dir) !== before) continue;
+    const completed = await buildCompletedMeta({ dir, keyOnly });
+    if (readText({ dir }) !== before) continue;
     writeJsonFileAtomic({ filePath: path.join(dir, SITE_META_FILENAME), data: completed }, {});
     return completed;
   }

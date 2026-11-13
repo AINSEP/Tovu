@@ -60,7 +60,7 @@ function harness(): Harness {
     [POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel(client))],
     [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(contentKernel(client))],
   ]);
-  const repo = new SqliteTrashRepo(client);
+  const repo = new SqliteTrashRepo({ store: client });
   let seq = 0;
   const ids = { next: () => `trash-${(seq += 1)}` };
 
@@ -73,7 +73,7 @@ function harness(): Harness {
       repo,
       adapters,
       idGen: { newId: () => (ids).next() },
-      transaction: ({ work }) => (createContentDbTransactionRunner(client))(work),
+      transaction: ({ work }) => (createContentDbTransactionRunner({ store: client }))(work),
       entityPolicy: ({ entityType }) => (adapters).has(entityType)
     }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) }),
   };
@@ -210,7 +210,7 @@ test("if the index insert fails, the marker flip rolls back — never hidden-but
     }),
     adapters: h.adapters,
     idGen: { newId: () => (h.ids).next() },
-    transaction: ({ work }) => (createContentDbTransactionRunner(h.client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: h.client }))(work),
     entityPolicy: ({ entityType }) => (h.adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 

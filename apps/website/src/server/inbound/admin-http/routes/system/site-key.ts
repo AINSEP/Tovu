@@ -205,7 +205,7 @@ export function siteKeyState(input: SiteKeyStateInput): SiteKeyState {
 async function siteHasKeyDependentData(deps: AdminSiteKeyDeps): Promise<boolean> {
   const siteDir = deps.siteBinding.dir;
   if (existsSync(join(siteDir, STORAGE_SECRET_FILENAME))) return true;
-  if (deps.contentKernel === undefined) return findSiteKeyDependentData(siteDir);
+  if (deps.contentKernel === undefined) return findSiteKeyDependentData({ siteDir });
   try {
     return await hasKeyDependentData(deps.contentKernel);
   } catch {
@@ -370,7 +370,7 @@ export type SiteKeyInstallOutcome =
 export interface SiteKeyKeyWriter {
   readonly ensureSiteKeyForSite: (input: {
     siteDir: string;
-    findSiteKeyDependentData: (siteDir: string) => Promise<boolean>;
+    findSiteKeyDependentData: (required: { siteDir: string }) => Promise<boolean>;
   }) => Promise<SiteKeyEnsureOutcome | undefined>;
   readonly checkKey: (input: SiteKeyStoreInput) => Promise<SiteKeyKeyCheck>;
   readonly discardNotOpening: (input: SiteKeyStoreInput) => Promise<{ discarded: number; kept: number }>;

@@ -43,7 +43,7 @@ test("a backup and a share export never collect a share catalog, in any scope", 
 });
 
 test("Duplicate never copies the folders that hold a share catalog", () => {
-  for (const entry of ["ops", "data.nosync"]) assert.equal(isPortableSiteEntry(entry), false, entry);
+  for (const entry of ["ops", "data.nosync"]) assert.equal(isPortableSiteEntry({ entryName: entry }), false, entry);
 });
 
 test("the publish backstop refuses a share catalog file at any depth", () => {

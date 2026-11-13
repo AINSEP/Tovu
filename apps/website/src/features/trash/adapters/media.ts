@@ -36,7 +36,7 @@ export function createMediaTrashAdapter(deps: MediaTrashAdapterDeps): TrashAdapt
   const kernel = lazyKernel(deps.db);
 
   /** Reads just the version column — never the asset. @complexity O(1). */
-  async function currentVersion(workspaceId: string, entityId: string): Promise<number | null> {
+  async function currentVersion({ workspaceId, entityId }: { workspaceId: string; entityId: string }, _optional = {}): Promise<number | null> {
     const row = await kernel().run((db) =>
       db.selectFrom("media").select("version").where("workspace_id", "=", workspaceId).where("id", "=", entityId).executeTakeFirst()
     );
@@ -80,7 +80,7 @@ export function createMediaTrashAdapter(deps: MediaTrashAdapterDeps): TrashAdapt
      * @complexity O(1) plus `purgeAsset`.
      */
     async purge(required): Promise<TrashPurgeOutcome> {
-      const version = await currentVersion(required.workspaceId, required.entityId);
+      const version = await currentVersion({ workspaceId: required.workspaceId, entityId: required.entityId });
       if (version === null) return "already-gone";
       if (required.expectedVersion !== null && version !== required.expectedVersion) return "version-changed";
       try {
@@ -89,7 +89,7 @@ export function createMediaTrashAdapter(deps: MediaTrashAdapterDeps): TrashAdapt
         if (error instanceof MediaStillReferencedError) return "still-referenced";
         throw error;
       }
-      return (await currentVersion(required.workspaceId, required.entityId)) === null ? "purged" : "version-changed";
+      return (await currentVersion({ workspaceId: required.workspaceId, entityId: required.entityId })) === null ? "purged" : "version-changed";
     },
   };
 }

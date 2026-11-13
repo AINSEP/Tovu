@@ -188,7 +188,7 @@ export interface EnsureSiteKeyInput {
 /** `platform/db/key-dependent-data.ts`'s `findSiteKeyDependentData`: whether the site in `siteDir`
  *  holds data only the current key can open, on whichever storage it runs (SQLite, PGlite,
  *  Postgres, or a sealed `.storage-secret.json`), failing closed. Injected by the boot callers. */
-export type KeyDependentDataScan = (siteDir: string) => Promise<boolean>;
+export type KeyDependentDataScan = (required: { siteDir: string }) => Promise<boolean>;
 
 export interface EnsureSiteKeyResult {
   readonly action: SiteKeyEnsureAction;
@@ -285,7 +285,7 @@ async function settleSiteKey(required: {
   const { siteDir, perSiteFilePath, perSite, other } = required;
   let hasKeyDataMemo: boolean | undefined;
   const siteHasKeyData = async (): Promise<boolean> => {
-    hasKeyDataMemo ??= await required.findSiteKeyDependentData(siteDir);
+    hasKeyDataMemo ??= await required.findSiteKeyDependentData({ siteDir });
     return hasKeyDataMemo;
   };
   const needsDataCheck = perSite.kind === "absent" && other.kind === "absent";

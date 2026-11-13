@@ -101,7 +101,7 @@ async function loadUsernamesByPrincipalId(deps: TrashToolDeps): Promise<Readonly
 /** Model-facing row. Drops `workspaceId` because every call is already scoped to one.
  *  Exposes the row's id as `trashItemId` for `trash_purge_item`; `trash_restore_item` still takes
  *  the entity's id as `entityId`. */
-function toTrashToolView(item: TrashItem, now: string, usernameByPrincipalId: ReadonlyMap<string, string>) {
+function toTrashToolView({ item, now, usernameByPrincipalId }: { item: TrashItem; now: string; usernameByPrincipalId: ReadonlyMap<string, string> }, _optional = {}) {
   return {
     trashItemId: item.id,
     entityType: item.entityType,
@@ -111,7 +111,7 @@ function toTrashToolView(item: TrashItem, now: string, usernameByPrincipalId: Re
     deletedAt: item.trashedAt,
     deletedBy: resolveActorDisplay(item, usernameByPrincipalId),
     permanentlyRemovedAfter: item.purgeAfter,
-    daysRemaining: trashDaysRemaining(now, item.purgeAfter),
+    daysRemaining: trashDaysRemaining({ now, until: item.purgeAfter }),
   };
 }
 
@@ -168,7 +168,7 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
       const usernameByPrincipalId =
         visible.length > 0 ? await loadUsernamesByPrincipalId(routeDeps) : new Map<string, string>();
       return {
-        items: visible.map((item) => toTrashToolView(item, now, usernameByPrincipalId)),
+        items: visible.map((item) => toTrashToolView({ item, now, usernameByPrincipalId })),
         nextCursor: page.nextCursor,
       };
     },

@@ -26,8 +26,8 @@ delete env.TOVU_SITE_KEY;
 delete env.TOVU_RUNTIME_MODE;
 
 const result = await ensureSiteKey({ siteDir, siteKeyId, mode: "local", env, home,
-  findSiteKeyDependentData: async (dir) => {
-    const hasData = await findSiteKeyDependentData(dir);
+  findSiteKeyDependentData: async ({ siteDir: dir }) => {
+    const hasData = await findSiteKeyDependentData({ siteDir: dir });
     writeFileSync(`${outputFilePath}.ready`, "ready");
     const deadline = Date.now() + 20_000;
     while (!existsSync(releaseFilePath)) {

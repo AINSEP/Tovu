@@ -165,7 +165,7 @@ export async function duplicateContentDb(required: DuplicateContentDbRequired): 
   try {
     await storageOps(source).copyTo(targetDbPath);
   } catch (err) {
-    throw new InternalError(`duplicateContentDb: copying to ${targetDbPath} failed: ${(err as Error).message}`);
+    throw new InternalError({ message: `duplicateContentDb: copying to ${targetDbPath} failed: ${(err as Error).message}` });
   } finally {
     await source.close();
   }
@@ -182,7 +182,7 @@ export async function duplicateContentDb(required: DuplicateContentDbRequired): 
     // `checkpointAndVerify` discipline), and verified intact as the final gate.
     await storageOps(target).compactAndVerify();
   } catch (err) {
-    if (err instanceof StorageOpError) throw new InternalError(`duplicateContentDb: ${err.message}`);
+    if (err instanceof StorageOpError) throw new InternalError({ message: `duplicateContentDb: ${err.message}` });
     throw err;
   } finally {
     await target.close();

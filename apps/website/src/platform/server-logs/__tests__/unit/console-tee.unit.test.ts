@@ -129,7 +129,7 @@ test("child output frames split credentials and UTF-8, flushes fatal stderr, and
   const sink = new PassThrough();
   let output = "";
   sink.on("data", bytes => { output += bytes.toString(); });
-  const stream = createRedactedOutputSink({ sink, redact: text => redactText({ text }, { username: "diagnostic-user" }) });
+  const stream = createRedactedOutputSink({ sink, redact: ({ text }) => redactText({ text }, { username: "diagnostic-user" }) });
   stream.write(Buffer.from("native fatal: café ").subarray(0, 18));
   stream.write(Buffer.from("native fatal: café ").subarray(18));
   stream.write(secret.slice(0, 5));
@@ -144,7 +144,7 @@ test("child output omits an oversized credential whole and bounds safe diagnosti
   const secret = ["sk", "-", "a".repeat(100_000)].join("");
   const output: string[] = [];
   const stream = createRedactedOutputSink({ sink: { write: text => { output.push(String(text)); return true; } },
-    redact: text => redactText({ text }) }, { maxLength: 100 });
+    redact: ({ text }) => redactText({ text }) }, { maxLength: 100 });
   stream.write("first safe line\n" + secret.slice(0, 50_000));
   stream.write(secret.slice(50_000) + "\n" + "safe ".repeat(100));
   stream.end();
@@ -168,7 +168,7 @@ test("child framing accepts the exact line limit across chunks and preserves emp
   const redacted: string[] = [];
   const stream = createRedactedOutputSink({
     sink: { write: text => { output.push(String(text)); return true; } },
-    redact: text => { redacted.push(text); return `<${text}>`; },
+    redact: ({ text }) => { redacted.push(text); return `<${text}>`; },
   }, { maxLineLength: 4 });
   stream.write(Buffer.alloc(0));
   stream.write("ab");
@@ -184,7 +184,7 @@ test("child framing discards oversized continuations until newline and at final 
   const redacted: string[] = [];
   const stream = createRedactedOutputSink({
     sink: { write: text => { output.push(String(text)); return true; } },
-    redact: text => { redacted.push(text); return text; },
+    redact: ({ text }) => { redacted.push(text); return text; },
   }, { maxLineLength: 4 });
   stream.write("abcd");
   stream.write("e");
@@ -205,7 +205,7 @@ test("child framing resets a suppressed line and does not emit an extra final em
   const redacted: string[] = [];
   const stream = createRedactedOutputSink({
     sink: { write: text => { output.push(String(text)); return true; } },
-    redact: text => { redacted.push(text); return text.replace("drop", ""); },
+    redact: ({ text }) => { redacted.push(text); return text.replace("drop", ""); },
   });
   stream.end("drop\nkeep\n");
   await once(stream, "finish");
@@ -218,7 +218,7 @@ test("child framing leaves an empty stream silent without invoking redaction", a
   const redacted: string[] = [];
   const stream = createRedactedOutputSink({
     sink: { write: text => { output.push(String(text)); return true; } },
-    redact: text => { redacted.push(text); return text; },
+    redact: ({ text }) => { redacted.push(text); return text; },
   });
   stream.end();
   await once(stream, "finish");
@@ -233,7 +233,7 @@ test("an unterminated final line still flushes when the child stream is piped wi
   const child = new PassThrough();
   const stream = createRedactedOutputSink({
     sink: { write: text => { output.push(String(text)); return true; } },
-    redact: text => text.replace("secret", "[REDACTED]"),
+    redact: ({ text }) => text.replace("secret", "[REDACTED]"),
   });
   child.pipe(stream, { end: false });
   child.write("FATAL ERROR: native load secret");

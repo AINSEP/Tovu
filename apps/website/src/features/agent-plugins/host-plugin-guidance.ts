@@ -56,7 +56,7 @@ export interface HostPluginGuidance {
  * @complexity O(depth) — the product-root walk-up.
  */
 export function agentPluginOverlaysDir(_required: Record<string, never> = {}, optional: { env?: NodeJS.ProcessEnv } = {}): string {
-  return (optional.env ?? process.env).TOVU_AGENT_PLUGIN_OVERLAYS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugin-overlays");
+  return (optional.env ?? process.env).TOVU_AGENT_PLUGIN_OVERLAYS_DIR ?? path.join(resolveProductRoot({}), "content", "agent-plugin-overlays");
 }
 
 /** True when a plugin tool `file` value names an overlay file rather than a plugin file. */

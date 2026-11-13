@@ -38,12 +38,12 @@ interface DesktopCatalog { projects: unknown[]; dismissed?: string[]; [field: st
 function desktopCatalog({ value }: { value: unknown }): DesktopCatalog {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Desktop projects catalog is invalid.");
   const state = value as { projects?: unknown; dismissed?: unknown };
-  if (!Array.isArray(state.projects) || !validDismissals(state.dismissed)) throw new Error("Desktop projects catalog is invalid.");
+  if (!Array.isArray(state.projects) || !validDismissals({ dismissed: state.dismissed })) throw new Error("Desktop projects catalog is invalid.");
   return state as DesktopCatalog;
 }
 
 /** Dismissal tombstones are optional, but when present every entry is a folder path. */
-function validDismissals(dismissed: unknown): boolean {
+function validDismissals({ dismissed }: { dismissed: unknown }, _optional = {}): boolean {
   return dismissed === undefined || (Array.isArray(dismissed) && dismissed.every((dir) => typeof dir === "string"));
 }
 

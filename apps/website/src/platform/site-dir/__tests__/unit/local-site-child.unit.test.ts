@@ -27,7 +27,7 @@ function fakeTimers() {
   const state = { tick: undefined as (() => void) | undefined, ms: 0, cleared: [] as WatchdogHandle[] };
   const timers: WatchdogTimers = {
     setInterval(run, ms) { state.tick = run; state.ms = ms; return handle; },
-    clearInterval(cleared) { state.cleared.push(cleared); },
+    clearInterval({ handle: cleared }) { state.cleared.push(cleared); },
   };
   return { timers, handle, state };
 }
@@ -47,7 +47,7 @@ test("T47/site-dir-1#3: owner loss during a pending bundle build prevents the la
   const boot = runLocalSiteChild({}, { proc, timers,
     buildAdminBundle: () => bundle,
     reapOwnTree: async () => { reaped++; },
-    importEntry: async (specifier) => { imported.push(specifier); },
+    importEntry: async ({ specifier }) => { imported.push(specifier); },
   });
 
   // A tree-stop request can settle before the OS has finished terminating the process.
@@ -146,7 +146,7 @@ test("a live owner builds the shared admin bundle when none is supplied, then bo
       assert.equal(optional?.env, env);
       return "/runtime/admin-build/dist";
     },
-    importEntry: async (specifier) => { calls.push(`import ${specifier} ${env.TOVU_ADMIN_DIST}`); } });
+    importEntry: async ({ specifier }) => { calls.push(`import ${specifier} ${env.TOVU_ADMIN_DIST}`); } });
   assert.deepEqual(calls, ["build /runtime /repo", "import ../../index.js /runtime/admin-build/dist"]);
   assert.equal(state.ms, 1000);
 });
@@ -159,7 +159,7 @@ test("a supplied admin bundle is reused without building; the watchdog reaps onc
   const imported: string[] = [];
   await runLocalSiteChild({}, { proc, timers, reapOwnTree: async () => { reaped++; },
     buildAdminBundle: async () => assert.fail("a supplied bundle is never rebuilt"),
-    siteEntry: "entry.js", importEntry: async (specifier) => { imported.push(specifier); } });
+    siteEntry: "entry.js", importEntry: async ({ specifier }) => { imported.push(specifier); } });
   assert.deepEqual(imported, ["entry.js"]);
   assert.equal(env.TOVU_ADMIN_DIST, "/shared/dist");
   state.tick!();

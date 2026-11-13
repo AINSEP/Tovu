@@ -39,7 +39,7 @@ export async function runIntrospectCommand(
 ): Promise<void> {
   const format = input.format ?? "commander";
   if (!VALID_FORMATS.has(format)) {
-    throw new ValidationError(`--format must be one of: commander, mcp (got "${format}")`);
+    throw new ValidationError({ message: `--format must be one of: commander, mcp (got "${format}")` });
   }
 
   const output = format === "mcp" ? toMcpTools(input.manifest) : input.manifest;

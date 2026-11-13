@@ -113,9 +113,9 @@ test("createSiteForOwner: creates under the switcher base and reports no tokens"
 });
 
 test("createSiteForOwner: a taken name and a bad name become refusals, not throws", async () => {
-  const taken = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta" }, { bundledSourceRoot: bundledAgentPluginsDir(), createSite: async () => { throw new InitDirNotEmptyError("/repo/sites/beta"); } });
+  const taken = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta" }, { bundledSourceRoot: bundledAgentPluginsDir(), createSite: async () => { throw new InitDirNotEmptyError({ message: "/repo/sites/beta" }); } });
   assert.equal(taken.ok === false && taken.code, "SITE_ALREADY_EXISTS");
-  const bad = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "B" }, { bundledSourceRoot: bundledAgentPluginsDir(), createSite: async () => { throw new ValidationError("bad name"); } });
+  const bad = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "B" }, { bundledSourceRoot: bundledAgentPluginsDir(), createSite: async () => { throw new ValidationError({ message: "bad name" }); } });
   assert.deepEqual(bad, { ok: false, code: "VALIDATION_ERROR", error: "bad name" });
 });
 

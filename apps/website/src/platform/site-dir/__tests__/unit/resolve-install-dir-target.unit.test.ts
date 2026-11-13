@@ -13,10 +13,10 @@ test("ordinary existing and missing targets collapse dot segments without resolv
     fs.mkdirSync(path.join(root, "real"));
     fs.mkdirSync(path.join(root, "real", "existing"));
     fs.symlinkSync("real", path.join(root, "alias"), "dir");
-    assert.equal(resolveInstallDirTarget(path.join(root, "alias", "existing")), path.join(root, "alias", "existing"));
-    assert.equal(resolveInstallDirTarget(`${root}/alias/../missing`), path.join(root, "missing"));
+    assert.equal(resolveInstallDirTarget({ dirArg: path.join(root, "alias", "existing") }), path.join(root, "alias", "existing"));
+    assert.equal(resolveInstallDirTarget({ dirArg: `${root}/alias/../missing` }), path.join(root, "missing"));
     fs.writeFileSync(path.join(root, "file"), "fixture");
-    assert.equal(resolveInstallDirTarget(path.join(root, "file")), path.join(root, "file"));
+    assert.equal(resolveInstallDirTarget({ dirArg: path.join(root, "file") }), path.join(root, "file"));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -28,12 +28,12 @@ test("existing target links resolve nested links, while dangling links resolve r
     fs.mkdirSync(path.join(root, "real"));
     fs.symlinkSync("real", path.join(root, "inner"), "dir");
     fs.symlinkSync("inner", path.join(root, "outer"), "dir");
-    assert.equal(resolveInstallDirTarget(path.join(root, "outer")), fs.realpathSync(root) + "/real");
+    assert.equal(resolveInstallDirTarget({ dirArg: path.join(root, "outer") }), fs.realpathSync(root) + "/real");
     fs.mkdirSync(path.join(root, "links"));
     fs.symlinkSync("../future", path.join(root, "links", "relative"), "dir");
     fs.symlinkSync(path.join(root, "absolute-future"), path.join(root, "links", "absolute"), "dir");
-    assert.equal(resolveInstallDirTarget(path.join(root, "links", "relative")), path.join(root, "future"));
-    assert.equal(resolveInstallDirTarget(path.join(root, "links", "absolute")), path.join(root, "absolute-future"));
+    assert.equal(resolveInstallDirTarget({ dirArg: path.join(root, "links", "relative") }), path.join(root, "future"));
+    assert.equal(resolveInstallDirTarget({ dirArg: path.join(root, "links", "absolute") }), path.join(root, "absolute-future"));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

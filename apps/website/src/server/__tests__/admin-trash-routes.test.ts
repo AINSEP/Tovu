@@ -200,10 +200,10 @@ function buildTrashHarness(): TrashHarness {
   ]);
   let seq = 0;
   const trash = createTrashService({
-    repo: new SqliteTrashRepo(client),
+    repo: new SqliteTrashRepo({ store: client }),
     adapters,
     idGen: { newId: () => `trash-${(seq += 1)}` },
-    transaction: ({ work }) => createContentDbTransactionRunner(client)(work),
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: client })(work),
     entityPolicy: ({ entityType }) => adapters.has(entityType),
   });
 

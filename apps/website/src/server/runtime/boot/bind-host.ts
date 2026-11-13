@@ -74,7 +74,7 @@ export function resolveBindHost(raw: string | undefined, fallback: string | unde
   if (trimmed === "::") return undefined;
 
   if (net.isIP(trimmed) === 0) {
-    throw new ValidationError(`--host/TOVU_HOST must be an IP address such as 127.0.0.1 or 0.0.0.0 (got "${trimmed}")`);
+    throw new ValidationError({ message: `--host/TOVU_HOST must be an IP address such as 127.0.0.1 or 0.0.0.0 (got "${trimmed}")` });
   }
 
   return trimmed;

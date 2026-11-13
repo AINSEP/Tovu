@@ -119,7 +119,7 @@ export async function closeSiteDirBoot(boot: BootSiteDirResult, composed?: Pick<
  */
 export async function bootSiteDir(required: BootSiteDirRequired, options: BootSiteDirOptions = {}): Promise<BootSiteDirResult> {
   const { dir, deps } = required;
-  const target = resolveInstallDirTarget(dir);
+  const target = resolveInstallDirTarget({ dirArg: dir });
 
   // A dev site's `.site-meta.json` may hold only its site-key fields (`npm run dev` mints that
   // shape); complete it from the db first, or `readSiteDir` refuses a site that serves fine in dev.
@@ -128,12 +128,12 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
 
   // BR-05 steps 1-2: dir/config/meta validation (SiteDirInvalidError).
   const { config, meta } = readSiteDir({ dir: target });
-  const storage = parseSiteStorage(meta.storage);
+  const storage = parseSiteStorage({ value: meta.storage });
   if (storage.kind !== "sqlite") return bootStoreSiteDir({ deps, target, storage, config, meta }, options);
 
   const dbPath = resolveSiteDatabasePaths({ dir: target, siteId: meta.siteId }, { workspace: options.workspace }).contentDbPath;
   if (!fs.existsSync(dbPath)) {
-    throw new SiteDirInvalidError(`bootSiteDir: content.db is missing at ${dbPath}`);
+    throw new SiteDirInvalidError({ message: `bootSiteDir: content.db is missing at ${dbPath}` });
   }
 
   // BR-05 step 4: schema guard, BEFORE the db is ever opened — a newer-or-divergent site's
@@ -146,7 +146,7 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
   try {
     db = openSqliteContentConnection(dbPath);
   } catch (err) {
-    throw new SiteCorruptError(`bootSiteDir: content.db at ${dbPath} could not be opened: ${(err as Error).message}`);
+    throw new SiteCorruptError({ message: `bootSiteDir: content.db at ${dbPath} could not be opened: ${(err as Error).message}` });
   }
 
   try {

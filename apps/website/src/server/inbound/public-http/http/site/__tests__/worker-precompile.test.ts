@@ -22,7 +22,7 @@ test("cold concurrent source renders compile both theme workers once and start p
     import { resolveProductRoot } from ${JSON.stringify(new URL("../../../../../../platform/site-dir/product-root.ts", import.meta.url).href)};
     delete process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
     assert.equal(resolveDefaultTimeoutMs(), 5000);
-    const productRoot = resolveProductRoot();
+    const productRoot = resolveProductRoot({});
     const entries = [];
     const threads = new Set();
     const exits = [];

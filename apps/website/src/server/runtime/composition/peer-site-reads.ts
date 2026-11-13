@@ -225,7 +225,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
   // Reuse the SQLite adapter's capability answer without granting its backup/restore effects.
   const dbOps = new SqliteDbOpsAdapter({ connection: { backup: unavailable({ field: 'dbOps.captureRestorePoint' }) },
     filePath: contentDbPath, readWatermark: unavailable({ field: 'dbOps.readWatermark' }) });
-  const trashRepo = new SqliteTrashRepo(kernel);
+  const trashRepo = new SqliteTrashRepo({ store: kernel });
   const formDeliveryRepo = new SqlFormDeliveryRepo({ kernel });
   const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
   const bag = {
@@ -424,7 +424,7 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
         const matches = registeredSources({ workspace: catalog(), targetSiteId: active.siteId, targetSiteDir: currentSiteDir, targetFile: active.contentDbPath }).filter(source => source.name === required.siteName);
         if (matches.length !== 1) throw new ToolInputError({ message: 'No readable local site has that name. Use sites_list to find a site.' });
         const source = matches[0]!;
-        if (resolveSiteStorage(source.dir).kind !== 'sqlite') throw new ToolInputError({ message: 'Only local SQLite sites can be read.' });
+        if (resolveSiteStorage({ siteDir: source.dir }).kind !== 'sqlite') throw new ToolInputError({ message: 'Only local SQLite sites can be read.' });
         const paths = resolveSiteDatabasePaths({ dir: source.dir }, { workspace: catalog(), reserveIdentity: false });
         const key = `${source.siteId}:${paths.contentDbPath}`;
         let entry = await cachedOrMakeRoom({ key });

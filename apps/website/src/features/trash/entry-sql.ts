@@ -25,7 +25,7 @@ export function loose(db: Kysely<ContentDatabase>): Kysely<LooseTables> {
 
 /** `table.column` — a bare column name of `table`, qualified so it stays unambiguous next to a join.
  *  @complexity O(1). */
-export function qualified(table: string, column: string): string {
+export function qualified({ table, column }: { table: string; column: string }, _optional = {}): string {
   return `${table}.${column}`;
 }
 
@@ -55,7 +55,7 @@ export async function readLiveSnapshot(
       .select((eb) => {
         const columns: AliasedExpression<unknown, string>[] = [eb.ref(entry.display.title).as("title")];
         if (entry.display.subtitle) columns.push(eb.ref(entry.display.subtitle).as("subtitle"));
-        if (entry.versionColumn) columns.push(eb.ref(qualified(entry.table, entry.versionColumn)).as("version"));
+        if (entry.versionColumn) columns.push(eb.ref(qualified({ table: entry.table, column: entry.versionColumn })).as("version"));
         return columns;
       })
       .where((eb) => entryWhere(eb, { entry, workspaceId: required.workspaceId, entityId: required.entityId }))
@@ -75,9 +75,9 @@ export async function readLiveSnapshot(
 export function entryWhere(eb: LooseExpressionBuilder, required: { entry: TrashEntry; workspaceId: string; entityId: string }) {
   const { entry } = required;
   const conditions = [
-    eb(qualified(entry.table, entry.workspaceColumn), "=", required.workspaceId),
-    eb(qualified(entry.table, entry.idColumn), "=", required.entityId),
+    eb(qualified({ table: entry.table, column: entry.workspaceColumn }), "=", required.workspaceId),
+    eb(qualified({ table: entry.table, column: entry.idColumn }), "=", required.entityId),
   ];
-  if (entry.scope) conditions.push(eb(qualified(entry.table, entry.scope.column), "=", entry.scope.equals));
+  if (entry.scope) conditions.push(eb(qualified({ table: entry.table, column: entry.scope.column }), "=", entry.scope.equals));
   return eb.and(conditions);
 }

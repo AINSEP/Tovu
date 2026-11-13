@@ -449,9 +449,9 @@ export function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optiona
       registry,
     }, { ...optional, startupSecrets: launch.secrets,
       stdout: createRedactedOutputSink({ sink: optional.stdout ?? process.stdout,
-        redact: text => redactLocalText({ text }) }),
+        redact: redactLocalText }),
       stderr: createRedactedOutputSink({ sink: optional.stderr ?? process.stderr,
-        redact: text => redactLocalText({ text }) }),
+        redact: redactLocalText }),
       platform: process.platform,
     });
   }

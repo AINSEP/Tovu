@@ -86,7 +86,7 @@ export function mediaUploadsDir(optional: SitePathResolverOptional & { siteDir?:
  * means.
  */
 export function builtInThemesDir(): string {
-  return process.env.TOVU_STOCK_THEMES_DIR ?? join(resolveProductRoot(), "content", "themes");
+  return process.env.TOVU_STOCK_THEMES_DIR ?? join(resolveProductRoot({}), "content", "themes");
 }
 
 /**
