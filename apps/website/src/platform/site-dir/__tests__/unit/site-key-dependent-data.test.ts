@@ -49,10 +49,10 @@ async function seedPgliteRow(dataDir: string): Promise<void> {
 
 test("findSiteKeyDependentData: SQLite site — content.db with sealed rows is data; no content.db is not", async (t) => {
   const empty = siteWithMeta(t);
-  assert.equal(await findSiteKeyDependentData(empty), false);
+  assert.equal(await findSiteKeyDependentData({ siteDir: empty }), false);
   const withData = siteWithMeta(t, { storage: { kind: "sqlite" } });
   buildSealedCiphertextDb(join(withData, "content.db"));
-  assert.equal(await findSiteKeyDependentData(withData), true);
+  assert.equal(await findSiteKeyDependentData({ siteDir: withData }), true);
 });
 
 test("findSiteKeyDependentData: SQLite site — an existing database with no sealed values is clean", async (t) => {
@@ -60,11 +60,11 @@ test("findSiteKeyDependentData: SQLite site — an existing database with no sea
   const db = new Database(join(dir, "content.db"));
   try {
     db.exec("CREATE TABLE external_mcp_servers (id INTEGER PRIMARY KEY, oauth_sealed_ciphertext TEXT)");
-    assert.equal(await findSiteKeyDependentData(dir), false, "an empty sealed table must not block fresh-key creation");
+    assert.equal(await findSiteKeyDependentData({ siteDir: dir }), false, "an empty sealed table must not block fresh-key creation");
     db.exec("INSERT INTO external_mcp_servers (oauth_sealed_ciphertext) VALUES (NULL)");
-    assert.equal(await findSiteKeyDependentData(dir), false);
+    assert.equal(await findSiteKeyDependentData({ siteDir: dir }), false);
     db.exec("INSERT INTO external_mcp_servers (oauth_sealed_ciphertext) VALUES ('oauth-cipher-bytes')");
-    assert.equal(await findSiteKeyDependentData(dir), true, "prefixed sealed columns count without any webhook rows");
+    assert.equal(await findSiteKeyDependentData({ siteDir: dir }), true, "prefixed sealed columns count without any webhook rows");
   } finally {
     db.close();
   }
@@ -73,36 +73,36 @@ test("findSiteKeyDependentData: SQLite site — an existing database with no sea
 test("findSiteKeyDependentData: SQLite site — corrupt content.db fails closed", async (t) => {
   const dir = siteWithMeta(t, { storage: { kind: "sqlite" } });
   writeFileSync(join(dir, "content.db"), "this is not a SQLite database");
-  assert.equal(await findSiteKeyDependentData(dir), true);
+  assert.equal(await findSiteKeyDependentData({ siteDir: dir }), true);
 });
 
 test("findSiteKeyDependentData: a .storage-secret.json is key-dependent data on its own", async (t) => {
   const dir = siteWithMeta(t, { storage: { kind: "postgres", secretRef: "site" } });
   writeFileSync(join(dir, ".storage-secret.json"), "{}");
-  assert.equal(await findSiteKeyDependentData(dir), true);
+  assert.equal(await findSiteKeyDependentData({ siteDir: dir }), true);
 });
 
 test("findSiteKeyDependentData: an unparseable .site-meta.json fails closed", async (t) => {
-  assert.equal(await findSiteKeyDependentData(siteWithMeta(t, "{not json")), true);
+  assert.equal(await findSiteKeyDependentData({ siteDir: siteWithMeta(t, "{not json") }), true);
 });
 
 test("findSiteKeyDependentData: PGlite site — no data dir yet is no data, and nothing is created", async (t) => {
   const dir = siteWithMeta(t, { storage: { kind: "pglite" } });
-  assert.equal(await findSiteKeyDependentData(dir), false);
+  assert.equal(await findSiteKeyDependentData({ siteDir: dir }), false);
   assert.equal(existsSync(join(dir, "pglite")), false);
 });
 
 test("findSiteKeyDependentData: PGlite site — sealed rows in pglite/ count; an empty database does not; the owner lock is released", async (t) => {
   const withData = siteWithMeta(t, { storage: { kind: "pglite" } });
   await seedPgliteRow(join(withData, "pglite"));
-  assert.equal(await findSiteKeyDependentData(withData), true);
+  assert.equal(await findSiteKeyDependentData({ siteDir: withData }), true);
   assert.equal(existsSync(join(withData, "pglite", OWNER_LOCK_FILE)), false, "the scan releases the owner lock");
 
   const clean = siteWithMeta(t, { storage: { kind: "pglite" } });
   const kernel = openPgliteKernel<unknown>({ dataDir: join(clean, "pglite") });
   await kernel.execute(sql`CREATE TABLE webhook_subscriptions (id serial PRIMARY KEY)`);
   await kernel.close();
-  assert.equal(await findSiteKeyDependentData(clean), false);
+  assert.equal(await findSiteKeyDependentData({ siteDir: clean }), false);
 });
 
 test("findSiteKeyDependentData: PGlite site — oauth_sealed_ciphertext alone requires the original key", async (t) => {
@@ -115,7 +115,7 @@ test("findSiteKeyDependentData: PGlite site — oauth_sealed_ciphertext alone re
   } finally {
     await kernel.close();
   }
-  assert.equal(await findSiteKeyDependentData(dir), true);
+  assert.equal(await findSiteKeyDependentData({ siteDir: dir }), true);
   assert.equal(existsSync(join(dataDir, OWNER_LOCK_FILE)), false);
 });
 
@@ -127,13 +127,13 @@ test("findSiteKeyDependentData: PGlite site owned by another live process fails 
   await kernel.close();
   // A live owner: this test process's own pid in the lock file.
   writeFileSync(join(dataDir, OWNER_LOCK_FILE), String(process.pid));
-  assert.equal(await findSiteKeyDependentData(dir), true);
+  assert.equal(await findSiteKeyDependentData({ siteDir: dir }), true);
   assert.equal(readFileSync(join(dataDir, OWNER_LOCK_FILE), "utf8"), String(process.pid), "another owner's lock is left alone");
 });
 
 test("findSiteKeyDependentData: Postgres site — sealed secretRef without its file, or an unset env variable, fails closed", async (t) => {
-  assert.equal(await findSiteKeyDependentData(siteWithMeta(t, { storage: { kind: "postgres", secretRef: "site" } })), true);
+  assert.equal(await findSiteKeyDependentData({ siteDir: siteWithMeta(t, { storage: { kind: "postgres", secretRef: "site" } }) }), true);
   const dir = siteWithMeta(t, { storage: { kind: "postgres", secretRef: { env: "TOVU_TEST_UNSET_PG_URL" } } });
-  assert.equal(await findSiteKeyDependentData(dir, { env: {} }), true);
-  assert.equal(await findSiteKeyDependentData(dir, { env: { TOVU_TEST_UNSET_PG_URL: "   " } }), true, "a blank connection string has nothing to connect with");
+  assert.equal(await findSiteKeyDependentData({ siteDir: dir }, { env: {} }), true);
+  assert.equal(await findSiteKeyDependentData({ siteDir: dir }, { env: { TOVU_TEST_UNSET_PG_URL: "   " } }), true, "a blank connection string has nothing to connect with");
 });

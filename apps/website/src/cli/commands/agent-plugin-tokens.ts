@@ -48,10 +48,10 @@ export async function readNewSiteAgentPluginTokensFromStdin(read: () => Promise<
   try {
     raw = JSON.parse(await read());
   } catch {
-    throw new ValidationError("init: --agent-plugin-tokens-stdin expects a JSON object on stdin");
+    throw new ValidationError({ message: "init: --agent-plugin-tokens-stdin expects a JSON object on stdin" });
   }
   const parsed = parseNewSiteAgentPluginTokens({ raw });
-  if (!parsed.ok) throw new ValidationError(`init: ${parsed.error}`);
+  if (!parsed.ok) throw new ValidationError({ message: `init: ${parsed.error}` });
   return parsed.tokens;
 }
 
@@ -71,7 +71,7 @@ export function defaultNewSiteAgentPluginTokenCheck(sourceRoot: string = bundled
  */
 export async function assertNewSiteAgentPluginTokensAccepted(tokens: Readonly<Record<string, string>>, check: NewSiteAgentPluginTokenCheck): Promise<void> {
   const refusal = await firstNewSiteAgentPluginTokenRefusal({ check, tokens });
-  if (refusal) throw new ValidationError(refusal.error);
+  if (refusal) throw new ValidationError({ message: refusal.error });
 }
 
 /** Seals the tokens into the just-created site, applied at its first boot. */

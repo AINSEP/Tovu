@@ -283,7 +283,7 @@ for (const ErrorClass of [ValidationError, InitDirNotEmptyError, SiteDirInvalidE
   test(`sites_duplicate_site: ${ErrorClass.name} is returned as a schema-decorated input error`, async () => {
     const { routeDeps } = fakeDeps();
     const message = `${ErrorClass.name}: cannot copy this source to this target`;
-    routeDeps.duplicateSite = async () => { throw new ErrorClass(message); };
+    routeDeps.duplicateSite = async () => { throw new ErrorClass({ message: message }); };
     await assert.rejects(registrationFor(buildSitesRegistrations(routeDeps), "sites_duplicate_site").handler(
       ctxFor({ sourceName: "source-site", targetName: "new-client" })), (error: unknown) => {
       assert.ok(error instanceof Error);

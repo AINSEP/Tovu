@@ -19,8 +19,8 @@ export function resolveNewSiteAdminPassword(
   _options: Record<string, never> = {},
 ): string {
   if (adminPassword === undefined) return DEFAULT_OWNER_PASSWORD;
-  if (typeof adminPassword !== "string") throw new ValidationError("Admin password must be a string.");
+  if (typeof adminPassword !== "string") throw new ValidationError({ message: "Admin password must be a string." });
   const error = validatePasswordPolicy({ password: adminPassword });
-  if (error !== null) throw new ValidationError(error);
+  if (error !== null) throw new ValidationError({ message: error });
   return adminPassword;
 }

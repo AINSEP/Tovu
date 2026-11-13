@@ -54,7 +54,7 @@ export async function runThemeNormalizeBuildCommand(
   // Default ports are wired here, at the command edge; tests inject their own.
   const { normalize = normalizeBuildOutputDirectory, output = writeStdout } = optional;
   if (!input.primaryStylesheet) {
-    throw new ValidationError("--primary-stylesheet is required (the build's global CSS entry point, e.g. \"styles.css\")");
+    throw new ValidationError({ message: "--primary-stylesheet is required (the build's global CSS entry point, e.g. \"styles.css\")" });
   }
 
   const pageFileNames = (input.pages ?? "index.html")
@@ -62,7 +62,7 @@ export async function runThemeNormalizeBuildCommand(
     .map((name) => name.trim())
     .filter((name) => name.length > 0);
   if (pageFileNames.length === 0) {
-    throw new ValidationError('--pages must name at least one HTML file (got an empty list)');
+    throw new ValidationError({ message: '--pages must name at least one HTML file (got an empty list)' });
   }
 
   const outputDir = path.resolve(input.dir);

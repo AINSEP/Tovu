@@ -229,10 +229,10 @@ test("directory adapter works through trash, list, restore, re-trash, and purge"
 test("unhideIfRemoveThrows moves the folder back when the Trash row write throws after hide", async (t) => {
   const { adapter, liveDir, parkedDir } = await harness(t);
   await makeLive(liveDir);
-  const remove = unhideIfRemoveThrows(adapter, async (required: { workspaceId: string; id: string; at: string; }) => {
+  const remove = unhideIfRemoveThrows({ adapter, remove: async (required: { workspaceId: string; id: string; at: string; }) => {
     assert.deepEqual(await adapter.hide({ workspaceId: required.workspaceId, entityId: required.id, at: required.at, expectedVersion: null }), { ok: true, version: null });
     throw new Error("trash row insert failed");
-  });
+  } });
 
   await assert.rejects(remove({ workspaceId: WS, id: ID, at: AT }), /trash row insert failed/);
   assert.equal(await readFile(join(liveDir, "plugin.json"), "utf8"), "plugin-a");

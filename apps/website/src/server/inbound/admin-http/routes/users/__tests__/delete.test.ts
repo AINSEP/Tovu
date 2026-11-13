@@ -90,13 +90,13 @@ async function buildApp(
   const ownerId = await wiring.ownerPrincipalId;
   const callerId = principalId ?? ownerId;
 
-  const trashRepo = new SqliteTrashRepo(db.$client);
+  const trashRepo = new SqliteTrashRepo({ store: db.$client });
   const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel(db), purge: new SqliteUserPurge({ kernel: contentKernel(db), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
   const trash = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),
     idGen: { newId: counterTrashIdGen().next },
-    transaction: ({ work }) => createContentDbTransactionRunner(db.$client)(work),
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: db.$client })(work),
     entityPolicy: ({ entityType }) => entityType === USER_ENTITY_TYPE,
   });
 

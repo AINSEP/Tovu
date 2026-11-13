@@ -142,7 +142,7 @@ export async function renderInWorkerSandbox(
   options: SandboxOptions = {},
 ): Promise<string> {
   const isTsSource = import.meta.filename.endsWith(".ts");
-  const productRoot = options.productRoot ?? resolveProductRoot();
+  const productRoot = options.productRoot ?? resolveProductRoot({});
   const isThemeWorker = workerBasename === "handlebars-worker" || workerBasename === "liquid-worker";
   let workerDir = import.meta.dirname;
   if (isTsSource && isThemeWorker) {

@@ -95,7 +95,7 @@ import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
  * `layout.ts`'s {@link CHAT_ATTACHMENTS_ENTRY_NAME} for why the conversation bytes must not follow
  * a duplicate when the conversations themselves already do not.
  *
- * @param onBeforeFirstWrite - invoked once, immediately before the FIRST entry is copied, and not
+ * @param required.onBeforeFirstWrite - invoked once, immediately before the FIRST entry is copied, and not
  *   at all when the source has no portable entries. `fs.cpSync` is not atomic: it creates the
  *   destination directory and copies into it incrementally, so from that call onward `target` may
  *   hold a partial tree even if the copy then throws. The caller flips its `wroteAnything` flag
@@ -111,17 +111,17 @@ import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
  *   request's input; this is a filesystem operation over an operator's existing site, the same
  *   profile `initSite`'s own `seedSiteThemes()` call already has.
  */
-function copyPortableEntries(source: string, target: string, onBeforeFirstWrite: () => void): void {
+function copyPortableEntries({ source, target, onBeforeFirstWrite }: { source: string; target: string; onBeforeFirstWrite: () => void }, _optional = {}): void {
   let entries: fs.Dirent[];
   try {
     entries = fs.readdirSync(source, { withFileTypes: true });
   } catch (err) {
-    throw new InternalError(`duplicateSite: failed to read source directory ${source}: ${(err as Error).message}`);
+    throw new InternalError({ message: `duplicateSite: failed to read source directory ${source}: ${(err as Error).message}` });
   }
 
   let announced = false;
   for (const entry of entries) {
-    if (!isPortableSiteEntry(entry.name)) continue;
+    if (!isPortableSiteEntry({ entryName: entry.name })) continue;
     if (!announced) {
       onBeforeFirstWrite();
       announced = true;
@@ -193,11 +193,11 @@ export interface DuplicateSiteResult {
  */
 export async function duplicateSite(required: DuplicateSiteRequired, { workspace = createSitesWorkspace({}) }: { workspace?: SitesWorkspace } = {}): Promise<DuplicateSiteResult> {
   const { sourceDir, targetDir, name } = required;
-  const source = resolveInstallDirTarget(sourceDir);
-  const target = resolveInstallDirTarget(targetDir);
+  const source = resolveInstallDirTarget({ dirArg: sourceDir });
+  const target = resolveInstallDirTarget({ dirArg: targetDir });
 
-  const resolvedName = resolveSiteName(target, name); // pre-write VALIDATION, mirrors initSite step 1.
-  validateInitTarget(target); // pre-write INIT_DIR_NOT_EMPTY, mirrors initSite step 2.
+  const resolvedName = resolveSiteName({ target, name }); // pre-write VALIDATION, mirrors initSite step 1.
+  validateInitTarget({ target }); // pre-write INIT_DIR_NOT_EMPTY, mirrors initSite step 2.
   const { meta: sourceMeta, config: sourceConfig } = readSiteDir({ dir: source }); // pre-write SITE_DIR_INVALID — nothing created yet.
   const storage = duplicableStorage(sourceMeta.storage);
 
@@ -219,7 +219,7 @@ export async function duplicateSite(required: DuplicateSiteRequired, { workspace
     return { siteId, dir: target };
   } catch (err) {
     if (externalDbDir && progress.createdExternalDbDir) fs.rmSync(externalDbDir, { recursive: true, force: true });
-    return cleanupAndRethrow(err, target, progress.wroteAnything);
+    return cleanupAndRethrow({ err, target, wroteAnything: progress.wroteAnything });
   }
 }
 
@@ -237,10 +237,10 @@ function duplicableStorage(stored: SiteMetaJson["storage"]): DuplicableStorage {
   // through the storage ops port). Postgres is refused, which is also the secret rule: a postgres
   // source's `.storage-secret.json` (or its env var) names the SOURCE's database, so a duplicate
   // must never inherit it, and the allowlist copy never carries the file.
-  const storage = parseSiteStorage(stored);
+  const storage = parseSiteStorage({ value: stored });
   if (storage.kind === "postgres") {
     throw new ValidationError(
-      "a site stored on postgres cannot be duplicated here: its data lives on the Postgres server; copy that database with your provider, then create the new site on it"
+      { message: "a site stored on postgres cannot be duplicated here: its data lives on the Postgres server; copy that database with your provider, then create the new site on it" }
     );
   }
   return storage;
@@ -259,9 +259,9 @@ function writeDuplicateFolder({ source, target, resolvedName, sourceConfig, prog
   // Only the portable entries the source actually has (see this file's own header). The flag is
   // raised from inside, before the first `fs.cpSync` — a copy that throws halfway has already
   // written into `target`, and that partial tree is exactly what cleanup must remove.
-  copyPortableEntries(source, target, () => {
+  copyPortableEntries({ source, target, onBeforeFirstWrite: () => {
     progress.wroteAnything = true;
-  });
+  } });
 
   // From here on `target` is written to unconditionally — `config.json`, `content.db`, and the
   // marker — so the flag is raised here rather than by any of them individually. It was not, and
@@ -303,7 +303,7 @@ async function copySiteDatabase(
     });
     return;
   }
-  if (externalDbDir && fs.existsSync(externalDbDir)) throw new InternalError(`duplicateSite: database target already exists at ${externalDbDir}`);
+  if (externalDbDir && fs.existsSync(externalDbDir)) throw new InternalError({ message: `duplicateSite: database target already exists at ${externalDbDir}` });
   fs.mkdirSync(path.dirname(contentDbPath), { recursive: true });
   progress.createdExternalDbDir = Boolean(externalDbDir);
   await duplicateContentDb({

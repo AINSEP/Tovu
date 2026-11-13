@@ -100,7 +100,7 @@ test("--storage-env moves the site and leaves the connection string in that vari
     `moved site at ${site.dir} to postgres: ${result.tables.length} tables, ${rows} rows`,
     `the PGlite data dir is kept at ${path.join(site.dir, "pglite")}; remove it yourself once the site checks out`,
   ]);
-  const storage = resolveSiteStorage(site.dir);
+  const storage = resolveSiteStorage({ siteDir: site.dir });
   const target = await openSiteStore({
     storage, dbPath: path.join(site.dir, "content.db"), chatDbPath: path.join(site.dir, "chat.db"), role: "owner",
   }, { env: { TOVU_MOVE_URL: url } });

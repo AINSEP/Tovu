@@ -76,7 +76,7 @@ export async function runThemeValidateCommand(
   const { validate = validateThemePackage, output = writeStdout, setExitCode = setProcessExitCode } = optional;
   const profile = input.profile ?? "author";
   if (!VALID_PROFILES.has(profile)) {
-    throw new ValidationError(`--profile must be one of: author, publish, install (got "${profile}")`);
+    throw new ValidationError({ message: `--profile must be one of: author, publish, install (got "${profile}")` });
   }
 
   const dir = path.resolve(input.dir);

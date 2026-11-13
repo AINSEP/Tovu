@@ -71,9 +71,9 @@ export interface RunAdoptCommandInput {
  */
 function partiallyAdoptedError(target: string, markers: SiteMarkerClassification): SiteDirInvalidError {
   return new SiteDirInvalidError(
-    `adopt: refusing — ${target} is partially adopted: ${markers.present.join(" and ")} is present but ${markers.missing.join(" and ")} is missing. ` +
+    { message: `adopt: refusing — ${target} is partially adopted: ${markers.present.join(" and ")} is present but ${markers.missing.join(" and ")} is missing. ` +
       `Adopt never completes or overwrites a partial marker set — the present marker may carry a schema stamp this command cannot verify. ` +
-      `Restore the missing file from backup, or remove the present one and re-run 'tovu adopt'.`
+      `Restore the missing file from backup, or remove the present one and re-run 'tovu adopt'.` }
   );
 }
 
@@ -107,7 +107,7 @@ async function asAdoptRefusal<T>(target: string, run: () => Promise<T>): Promise
     if (!(err instanceof SiteRepairRefusedError)) throw err;
     const relabelled = err.message.replace(/^repairSite: /, "adopt: ");
     const suffix = err.reason === "CONTENT_DB_MISSING" ? describeDatabaseCandidates(target) : "";
-    throw new SiteRepairRefusedError(`${relabelled}${suffix}`, err.reason);
+    throw new SiteRepairRefusedError({ message: `${relabelled}${suffix}`, reason: err.reason });
   }
 }
 
@@ -168,8 +168,8 @@ async function adoptKeyOnlyMeta(target: string, dryRun: boolean): Promise<void> 
  * @complexity O(1) beyond `repairSite`/`planRepairSite`'s own bounded cost.
  */
 export async function runAdoptCommand(input: RunAdoptCommandInput): Promise<void> {
-  const target = resolveInstallDirTarget(input.dir);
-  const markers = classifySiteMarkers(target);
+  const target = resolveInstallDirTarget({ dirArg: input.dir });
+  const markers = classifySiteMarkers({ target });
 
   if (markers.state === "complete") {
     process.stdout.write(`already adopted: ${target} already has ${markers.present.join(" and ")} — nothing to do\n`);

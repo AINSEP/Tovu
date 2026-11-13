@@ -32,10 +32,10 @@ export interface ThreadContext {
  *   levels or before the filesystem root.
  * @complexity O(depth) `matches` calls, capped at {@link MAX_WALK_UP} + 1.
  */
-function findAncestor({ fromDir, matches }: { fromDir: string; matches: (dir: string) => boolean }): string | undefined {
+function findAncestor({ fromDir, matches }: { fromDir: string; matches: (required: { dir: string }) => boolean }): string | undefined {
   let dir = path.resolve(fromDir);
   for (let i = 0; i <= MAX_WALK_UP; i++) {
-    if (matches(dir)) return dir;
+    if (matches({ dir })) return dir;
     const parent = path.dirname(dir);
     if (parent === dir) return undefined; // reached the filesystem root
     dir = parent;
@@ -76,20 +76,21 @@ export function workerProductRoot(
  * Relocated theme workers use the trusted parent-supplied workerData.productRoot for default
  * resolution; explicit fromDir overrides still exercise ancestor discovery.
  *
- * @param fromDir - Override for testing; production callers should omit this and get the real
+ * @param optional.fromDir - Override for testing; production callers should omit this and get the real
  *   caller-relative default.
  * @param optional.thread - Override for testing; defaults to this thread's real context.
  * @throws If no such ancestor is found within {@link MAX_WALK_UP} levels — a silent wrong guess
  *   is worse than a loud failure here — or the parent supplies a relative worker root.
  * @complexity O(depth) filesystem probes, capped at {@link MAX_WALK_UP}; O(1) for an injected root.
  */
-export function resolveProductRoot(fromDir?: string, optional: { thread?: ThreadContext } = {}): string {
+export function resolveProductRoot(_required: Record<string, never>, optional: { fromDir?: string; thread?: ThreadContext } = {}): string {
+  const { fromDir } = optional;
   const injected = workerProductRoot({ fromDir }, optional);
   if (injected !== undefined) return injected;
   const origin = fromDir ?? import.meta.dirname;
   const found = findAncestor({
     fromDir: origin,
-    matches: (dir) => existsSync(path.join(dir, "package.json")) && existsSync(path.join(dir, "content")),
+    matches: ({ dir }, _optional = {}) => existsSync(path.join(dir, "package.json")) && existsSync(path.join(dir, "content")),
   });
   if (found !== undefined) return found;
   throw new Error(
@@ -109,15 +110,15 @@ export function resolveProductRoot(fromDir?: string, optional: { thread?: Thread
  * still resolves to its real (missing) `dist` path, and the static mount can answer with its
  * "not built" page instead of looking somewhere else.
  *
- * @param app - The folder name under `apps/` (`"admin"`, `"site-chat"`).
- * @param fromDir - Override for testing; production callers omit it.
+ * @param required.app - The folder name under `apps/` (`"admin"`, `"site-chat"`).
+ * @param optional.fromDir - Override for testing; production callers omit it.
  * @returns The `dist` path. Never throws: with no matching ancestor it returns
  *   `<fromDir>/apps/<app>/dist`, which does not exist, so boot still succeeds and the mount 503s —
  *   allowing boot to succeed while the missing bundle is disclosed.
  * @complexity O(depth) `existsSync` calls, capped at {@link MAX_WALK_UP}.
  */
-export function resolveAppDistDir(app: string, fromDir: string = import.meta.dirname): string {
-  const checkout = findAncestor({ fromDir, matches: (dir) => existsSync(path.join(dir, "apps", app)) });
+export function resolveAppDistDir({ app }: { app: string }, { fromDir = import.meta.dirname }: { fromDir?: string } = {}): string {
+  const checkout = findAncestor({ fromDir, matches: ({ dir }, _optional = {}) => existsSync(path.join(dir, "apps", app)) });
   return path.resolve(checkout ?? fromDir, "apps", app, "dist");
 }
 
@@ -127,14 +128,14 @@ export function resolveAppDistDir(app: string, fromDir: string = import.meta.dir
  * tsx source tree (`apps/website/src/...`) and the compiled tree (`dist/src/...`, two levels
  * shallower), which a fixed `../` count cannot be (see this file's header).
  *
- * @param fromDir - Override for testing; production callers omit it.
+ * @param optional.fromDir - Override for testing; production callers omit it.
  * @returns The checkout root. Never throws: with no matching ancestor (a desktop payload or any
  *   install that ships `dist/` without `apps/website/`) it returns `fromDir` itself, where no
  *   `.certs/` exists, so dev TLS stays off — the fail-open-to-HTTP outcome `dev-tls.ts` documents.
  * @complexity O(depth) `existsSync` calls, capped at {@link MAX_WALK_UP}.
  */
-export function resolveCheckoutRoot(fromDir: string = import.meta.dirname): string {
-  return findAncestor({ fromDir, matches: (dir) => existsSync(path.join(dir, "apps", "website")) }) ?? path.resolve(fromDir);
+export function resolveCheckoutRoot(_required: Record<string, never>, { fromDir = import.meta.dirname }: { fromDir?: string } = {}): string {
+  return findAncestor({ fromDir, matches: ({ dir }, _optional = {}) => existsSync(path.join(dir, "apps", "website")) }) ?? path.resolve(fromDir);
 }
 
 /**
@@ -144,7 +145,7 @@ export function resolveCheckoutRoot(fromDir: string = import.meta.dirname): stri
  * @complexity O(depth) filesystem checks via {@link resolveProductRoot}.
  */
 export function stockThemesDir(): string {
-  return process.env.TOVU_STOCK_THEMES_DIR ?? path.join(resolveProductRoot(), "content", "themes");
+  return process.env.TOVU_STOCK_THEMES_DIR ?? path.join(resolveProductRoot({}), "content", "themes");
 }
 
 /**
@@ -170,5 +171,5 @@ export function stockThemesDir(): string {
  * @complexity O(depth) filesystem checks via {@link resolveProductRoot}; O(1) when the env names it.
  */
 export function bundledAgentPluginsDir(_required: Record<string, never> = {}, optional: { env?: NodeJS.ProcessEnv } = {}): string {
-  return (optional.env ?? process.env).TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
+  return (optional.env ?? process.env).TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot({}), "content", "agent-plugins");
 }

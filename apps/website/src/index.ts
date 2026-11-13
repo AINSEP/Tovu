@@ -68,7 +68,7 @@ const bindHost = resolveBindHost(process.env.TOVU_HOST, undefined);
 // trap already documented elsewhere in this codebase: a boot launched from a different working
 // directory must still find the same cert pair. A fixed `../` count was right for tsx only; the
 // compiled `dist/src/index.js` sits two levels shallower, so `npm start` silently served plain HTTP.
-const devTls = resolveDevTls(resolveDevTlsCertPaths(resolveCheckoutRoot()));
+const devTls = resolveDevTls(resolveDevTlsCertPaths(resolveCheckoutRoot({})));
 const devScheme = deriveDevScheme(devTls.active);
 
 // Armed as early as possible, before any of the slower boot work in `main()` below — so a parent

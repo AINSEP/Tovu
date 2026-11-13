@@ -51,12 +51,12 @@ interface MarkerRow {
  *
  * @complexity O(1).
  */
-function isMarkerValueLive(marker: TrashMarkerSpec, value: unknown): boolean {
+function isMarkerValueLive({ marker, value }: { marker: TrashMarkerSpec; value: unknown }, _optional = {}): boolean {
   return marker.kind === "timestamp" ? value === null : value !== marker.trashed;
 }
 
 /** A row count off a write result: Kysely reports `bigint` on some drivers. @complexity O(1). */
-function affected(value: bigint | number | undefined): number {
+function affected({ value }: { value: bigint | number | undefined }, _optional = {}): number {
   return Number(value ?? 0);
 }
 
@@ -79,10 +79,10 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
   // should not open until a Trash call actually needs it.
   let resolved: TrashDb | undefined;
   const kernel = (): TrashDb => (resolved ??= required.db);
-  const run = <T>(fn: (db: Kysely<ContentDatabase>) => Promise<T>): Promise<T> => kernel().run(fn);
+  const run = <T>({ fn }: { fn: (db: Kysely<ContentDatabase>) => Promise<T> }, _optional = {}): Promise<T> => kernel().run(fn);
 
   /** Serializes read-then-write sequences on one row (Postgres advisory lock; SQLite no-op). */
-  const lockRow = (workspaceId: string, entityId: string) => kernel().lockKey(`trash:${entry.entityType}:${workspaceId}:${entityId}`);
+  const lockRow = ({ workspaceId, entityId }: { workspaceId: string; entityId: string }, _optional = {}) => kernel().lockKey(`trash:${entry.entityType}:${workspaceId}:${entityId}`);
 
   /**
    * Deletes the `trashed_items` rows of `childIds` for `childType` — the phantom-row cleanup
@@ -90,21 +90,21 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
    *
    * @complexity O(1): one indexed `DELETE ... WHERE entity_type = ? AND entity_id IN (...)`.
    */
-  async function cleanUpTrashedItemsRows(workspaceId: string, childType: TrashEntityType, childIds: readonly unknown[]): Promise<void> {
+  async function cleanUpTrashedItemsRows({ workspaceId, childType, childIds }: { workspaceId: string; childType: TrashEntityType; childIds: readonly unknown[] }, _optional = {}): Promise<void> {
     if (childIds.length === 0) return;
-    await run((db) =>
+    await run({ fn: (db) =>
       db
         .deleteFrom("trashed_items")
         .where("workspace_id", "=", workspaceId)
         .where("entity_type", "=", childType)
         .where("entity_id", "in", childIds as string[])
-        .execute()
+        .execute() }
     );
   }
 
   /** All values of `column` in `table` where `parentColumn = parentId`. @complexity O(k) matches. */
-  async function selectIds(table: string, column: string, parentColumn: string, parentId: string): Promise<unknown[]> {
-    const rows = await run((db) => loose(db).selectFrom(table).select(column).where(parentColumn, "=", parentId).execute());
+  async function selectIds({ table, column, parentColumn, parentId }: { table: string; column: string; parentColumn: string; parentId: string }, _optional = {}): Promise<unknown[]> {
+    const rows = await run({ fn: (db) => loose(db).selectFrom(table).select(column).where(parentColumn, "=", parentId).execute() });
     return rows.map((row) => row[column]);
   }
 
@@ -116,38 +116,38 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
    *
    * @complexity O(1) reads plus O(1) deletes — every step is one indexed statement.
    */
-  async function runCascade(workspaceId: string, entityId: string, cascade: TrashCascadeSpec): Promise<void> {
+  async function runCascade({ workspaceId, entityId, cascade }: { workspaceId: string; entityId: string; cascade: TrashCascadeSpec }, _optional = {}): Promise<void> {
     if (cascade.via) {
       const via = cascade.via;
-      const throughIds = await selectIds(via.throughTable, via.throughIdColumn, via.throughParentIdColumn, entityId);
+      const throughIds = await selectIds({ table: via.throughTable, column: via.throughIdColumn, parentColumn: via.throughParentIdColumn, parentId: entityId });
       if (throughIds.length === 0) return; // nothing on the other side of the join to cascade to
-      if (cascade.entityType) await cleanUpTrashedItemsRows(workspaceId, cascade.entityType, throughIds);
-      await run((db) => loose(db).deleteFrom(cascade.table).where(via.matchColumn, "in", throughIds).execute());
+      if (cascade.entityType) await cleanUpTrashedItemsRows({ workspaceId, childType: cascade.entityType, childIds: throughIds });
+      await run({ fn: (db) => loose(db).deleteFrom(cascade.table).where(via.matchColumn, "in", throughIds).execute() });
       return;
     }
 
     // Direct case: `cascade.parentIdColumn` is always set when `via` is not (registration contract).
     const parentIdColumn = cascade.parentIdColumn!;
     if (cascade.entityType) {
-      const childIds = await selectIds(cascade.table, cascade.idColumn!, parentIdColumn, entityId);
-      await cleanUpTrashedItemsRows(workspaceId, cascade.entityType, childIds);
+      const childIds = await selectIds({ table: cascade.table, column: cascade.idColumn!, parentColumn: parentIdColumn, parentId: entityId });
+      await cleanUpTrashedItemsRows({ workspaceId, childType: cascade.entityType, childIds });
     }
-    await run((db) => loose(db).deleteFrom(cascade.table).where(parentIdColumn, "=", entityId).execute());
+    await run({ fn: (db) => loose(db).deleteFrom(cascade.table).where(parentIdColumn, "=", entityId).execute() });
   }
 
   /** @complexity O(1) plus whatever index the entry's `where` matches. */
-  async function readMarkerRow(workspaceId: string, entityId: string): Promise<MarkerRow | null> {
-    const row = await run((db) =>
+  async function readMarkerRow({ workspaceId, entityId }: { workspaceId: string; entityId: string }, _optional = {}): Promise<MarkerRow | null> {
+    const row = await run({ fn: (db) =>
       loose(db)
         .selectFrom(entry.table)
         .select((eb) => {
-          const columns: AliasedExpression<unknown, string>[] = [eb.ref(qualified(entry.table, entry.marker.column)).as("marker")];
-          if (entry.versionColumn) columns.push(eb.ref(qualified(entry.table, entry.versionColumn)).as("version"));
+          const columns: AliasedExpression<unknown, string>[] = [eb.ref(qualified({ table: entry.table, column: entry.marker.column })).as("marker")];
+          if (entry.versionColumn) columns.push(eb.ref(qualified({ table: entry.table, column: entry.versionColumn })).as("version"));
           return columns;
         })
         .where((eb) => entryWhere(eb, { entry, workspaceId, entityId }))
         .limit(1)
-        .executeTakeFirst()
+        .executeTakeFirst() }
     );
     return (row as MarkerRow | undefined) ?? null;
   }
@@ -155,9 +155,9 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
   /** Re-reads the version after a write — never chained off the write itself (no `RETURNING`, see
    *  `db-port.ts`'s file header). `null` for an entry with no version column.
    *  @complexity O(1) plus whatever index the entry's `where` matches. */
-  async function readVersion(workspaceId: string, entityId: string): Promise<number | null> {
+  async function readVersion({ workspaceId, entityId }: { workspaceId: string; entityId: string }, _optional = {}): Promise<number | null> {
     if (!entry.versionColumn) return null;
-    const row = await readMarkerRow(workspaceId, entityId);
+    const row = await readMarkerRow({ workspaceId, entityId });
     return row?.version ?? null;
   }
 
@@ -170,41 +170,41 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
    * @returns whether the row was written; `false` means it changed since `before` was read.
    * @complexity O(1) plus whatever index the entry's `where` matches.
    */
-  async function writeMarker(workspaceId: string, entityId: string, markerValue: unknown, at: string, before: MarkerRow): Promise<boolean> {
+  async function writeMarker({ workspaceId, entityId, markerValue, at, before }: { workspaceId: string; entityId: string; markerValue: unknown; at: string; before: MarkerRow }, _optional = {}): Promise<boolean> {
     const set: Record<string, unknown> = { [entry.marker.column]: markerValue };
     if (entry.touchColumn) set[entry.touchColumn] = at;
     if (entry.versionColumn) set[entry.versionColumn] = sql`${sql.ref(entry.versionColumn)} + 1`;
     const versionColumn = entry.versionColumn;
-    const result = await run((db) =>
+    const result = await run({ fn: (db) =>
       loose(db)
         .updateTable(entry.table)
         .set(set)
         .where((eb) => {
-          const markerRef = qualified(entry.table, entry.marker.column);
+          const markerRef = qualified({ table: entry.table, column: entry.marker.column });
           const guards = [
             entryWhere(eb, { entry, workspaceId, entityId }),
             before.marker === null || before.marker === undefined ? eb(markerRef, "is", null) : eb(markerRef, "=", before.marker),
           ];
           if (versionColumn && before.version !== null && before.version !== undefined) {
-            guards.push(eb(qualified(entry.table, versionColumn), "=", before.version));
+            guards.push(eb(qualified({ table: entry.table, column: versionColumn }), "=", before.version));
           }
           return eb.and(guards);
         })
-        .executeTakeFirst()
+        .executeTakeFirst() }
     );
-    return affected(result.numUpdatedRows) > 0;
+    return affected({ value: result.numUpdatedRows }) > 0;
   }
 
   /** Counts the entry's declared blockers only when a real hide transition is needed. */
   async function checkBlocker(required: { entityId: string }, _options: Record<string, never> = {}): Promise<Extract<TrashMarkerResult, { reason: "blocked" }> | null> {
     if (!entry.blocker) return null;
     const blocker = entry.blocker;
-    const counted = await run((db) =>
+    const counted = await run({ fn: (db) =>
       loose(db)
         .selectFrom(blocker.table)
         .select((eb) => eb.fn.countAll().as("n"))
         .where(blocker.parentIdColumn, "=", required.entityId)
-        .executeTakeFirst()
+        .executeTakeFirst() }
     );
     const count = Number(counted?.n ?? 0);
     return count > 0 ? { ok: false, reason: "blocked", code: blocker.code, count } : null;
@@ -226,13 +226,13 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
     async hide(hideRequired): Promise<TrashMarkerResult> {
       return kernel().transaction(async () => {
         const { workspaceId, entityId, at, expectedVersion } = hideRequired;
-        await lockRow(workspaceId, entityId);
-        const before = await readMarkerRow(workspaceId, entityId);
+        await lockRow({ workspaceId, entityId });
+        const before = await readMarkerRow({ workspaceId, entityId });
         if (!before) return { ok: false, reason: "not-found" };
         if (hasVersionChanged({ entry, row: before, expectedVersion })) {
           return { ok: false, reason: VERSION_CHANGED };
         }
-        if (!isMarkerValueLive(entry.marker, before.marker)) {
+        if (!isMarkerValueLive({ marker: entry.marker, value: before.marker })) {
           // Already trashed -- idempotent success, no write (mirrors `flipMarker`'s fallback branch).
           // `noop: true` (@jini-ai/cms/trash) tells `withFollowUps` nothing actually changed here.
           return { ok: true, version: entry.versionColumn ? (before.version ?? null) : null, noop: true };
@@ -240,10 +240,10 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
         const blocked = await checkBlocker({ entityId });
         if (blocked) return blocked;
 
-        const written = await writeMarker(workspaceId, entityId, entry.marker.kind === "timestamp" ? at : entry.marker.trashed, at, before);
+        const written = await writeMarker({ workspaceId, entityId, markerValue: entry.marker.kind === "timestamp" ? at : entry.marker.trashed, at, before });
         if (!written) return { ok: false, reason: VERSION_CHANGED };
 
-        const version = await readVersion(workspaceId, entityId);
+        const version = await readVersion({ workspaceId, entityId });
         // `priorMarker` is additive (migration 0072) and only meaningful for a status marker's
         // real transition — a timestamp marker has no "previous value" to remember, and the
         // idempotent branch above never reaches here. Omitting the key (not setting it to
@@ -267,28 +267,28 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
       return kernel().transaction(async () => {
         const { workspaceId, entityId, at, expectedVersion } = unhideRequired;
         const { priorMarker } = optional;
-        await lockRow(workspaceId, entityId);
-        const before = await readMarkerRow(workspaceId, entityId);
+        await lockRow({ workspaceId, entityId });
+        const before = await readMarkerRow({ workspaceId, entityId });
         if (!before) return { ok: false, reason: "not-found" };
         if (hasVersionChanged({ entry, row: before, expectedVersion })) {
           return { ok: false, reason: VERSION_CHANGED };
         }
-        if (isMarkerValueLive(entry.marker, before.marker)) {
+        if (isMarkerValueLive({ marker: entry.marker, value: before.marker })) {
           // Already live -- idempotent success, no write. `noop: true`, same as `hide`'s mirror
           // branch above.
           return { ok: true, version: entry.versionColumn ? (before.version ?? null) : null, noop: true };
         }
 
         const written = await writeMarker(
-          workspaceId,
+          { workspaceId,
           entityId,
-          entry.marker.kind === "timestamp" ? null : (priorMarker ?? entry.marker.restoreFallback),
+          markerValue: entry.marker.kind === "timestamp" ? null : (priorMarker ?? entry.marker.restoreFallback),
           at,
-          before
+          before }
         );
         if (!written) return { ok: false, reason: VERSION_CHANGED };
 
-        return { ok: true, version: await readVersion(workspaceId, entityId) };
+        return { ok: true, version: await readVersion({ workspaceId, entityId }) };
       });
     },
 
@@ -305,10 +305,10 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
     async purge(purgeRequired): Promise<TrashPurgeOutcome> {
       return kernel().transaction(async () => {
         const { workspaceId, entityId, expectedVersion } = purgeRequired;
-        await lockRow(workspaceId, entityId);
-        const row = await readMarkerRow(workspaceId, entityId);
+        await lockRow({ workspaceId, entityId });
+        const row = await readMarkerRow({ workspaceId, entityId });
         if (!row) return "already-gone";
-        if (isMarkerValueLive(entry.marker, row.marker)) return VERSION_CHANGED; // never purge a live row
+        if (isMarkerValueLive({ marker: entry.marker, value: row.marker })) return VERSION_CHANGED; // never purge a live row
         if (hasVersionChanged({ entry, row, expectedVersion })) return VERSION_CHANGED;
 
         // A domain writer does not take Trash's advisory lock. Claim the exact pre-image with a
@@ -317,43 +317,43 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
         const claimWhere = (eb: LooseExpressionBuilder) => {
           const guards = [
             entryWhere(eb, { entry, workspaceId, entityId }),
-            eb(qualified(entry.table, entry.marker.column), "=", row.marker),
+            eb(qualified({ table: entry.table, column: entry.marker.column }), "=", row.marker),
           ];
           if (entry.versionColumn && row.version !== null && row.version !== undefined) {
-            guards.push(eb(qualified(entry.table, entry.versionColumn), "=", row.version));
+            guards.push(eb(qualified({ table: entry.table, column: entry.versionColumn }), "=", row.version));
           }
           return eb.and(guards);
         };
-        const claimed = await run((db) =>
-          loose(db).updateTable(entry.table).set({ [entry.marker.column]: row.marker }).where(claimWhere).executeTakeFirst()
+        const claimed = await run({ fn: (db) =>
+          loose(db).updateTable(entry.table).set({ [entry.marker.column]: row.marker }).where(claimWhere).executeTakeFirst() }
         );
-        if (affected(claimed.numUpdatedRows) === 0) {
-          return (await readMarkerRow(workspaceId, entityId)) ? VERSION_CHANGED : "already-gone";
+        if (affected({ value: claimed.numUpdatedRows }) === 0) {
+          return (await readMarkerRow({ workspaceId, entityId })) ? VERSION_CHANGED : "already-gone";
         }
 
         for (const cascade of entry.purgeFirst ?? []) {
-          await runCascade(workspaceId, entityId, cascade);
+          await runCascade({ workspaceId, entityId, cascade });
         }
 
         const versionColumn = entry.versionColumn;
         const deleteWhere = (eb: LooseExpressionBuilder) => {
           const base = entryWhere(eb, { entry, workspaceId, entityId });
           return versionColumn && expectedVersion !== null
-            ? eb.and([base, eb(qualified(entry.table, versionColumn), "=", expectedVersion)])
+            ? eb.and([base, eb(qualified({ table: entry.table, column: versionColumn }), "=", expectedVersion)])
             : base;
         };
-        const result = await run((db) =>
+        const result = await run({ fn: (db) =>
           loose(db)
             .deleteFrom(entry.table)
             .where(deleteWhere)
-            .executeTakeFirst()
+            .executeTakeFirst() }
         );
-        if (affected(result.numDeletedRows) > 0) return "purged";
+        if (affected({ value: result.numDeletedRows }) > 0) return "purged";
 
         // Raced between the read above and this delete (the row lock above makes this unreachable
         // in practice, but the classification stays correct if that ever changes): distinguish
         // "gone" from "moved" the same way `compareAndDelete` does.
-        return (await readMarkerRow(workspaceId, entityId)) ? VERSION_CHANGED : "already-gone";
+        return (await readMarkerRow({ workspaceId, entityId })) ? VERSION_CHANGED : "already-gone";
       });
     },
   };

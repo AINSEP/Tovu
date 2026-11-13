@@ -126,7 +126,7 @@ export function toAdminTrashResponse(item: TrashItem, now: string, usernameByPri
     subtitle: item.displaySubtitle,
     trashedAt: item.trashedAt,
     purgeAfter: item.purgeAfter,
-    daysRemaining: trashDaysRemaining(now, item.purgeAfter),
+    daysRemaining: trashDaysRemaining({ now, until: item.purgeAfter }),
     actorPrincipalId: item.actorPrincipalId,
     actorPluginId: item.actorPluginId,
     actorUsername: usernameByPrincipalId.get(item.actorPrincipalId) ?? null,

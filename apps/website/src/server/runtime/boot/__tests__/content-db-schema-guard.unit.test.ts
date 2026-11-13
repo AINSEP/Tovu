@@ -121,7 +121,7 @@ test("checkContentDbSchema(): a site newer than this runtime becomes a 'refuse' 
   openContentDb(dbPath).$client.close();
   const seen: Array<{ schemaVersion: number; schemaTag: string }> = [];
   const result = await checkContentDbSchema(dbPath, {
-    compare: (required) => { seen.push(required); throw new SiteNewerThanRuntimeError("site schema (v99) is newer — upgrade tovu"); },
+    compare: (required) => { seen.push(required); throw new SiteNewerThanRuntimeError({ message: "site schema (v99) is newer — upgrade tovu" }); },
   });
   assert.deepEqual(result, { status: "refuse", message: "site schema (v99) is newer — upgrade tovu" });
   assert.equal(seen.length, 1);

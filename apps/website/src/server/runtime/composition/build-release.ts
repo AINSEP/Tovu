@@ -33,7 +33,7 @@ export function readBuildRelease({ productRoot }: { productRoot: string }, { rea
 let release: string | undefined;
 /** Resolve once per process so live config changes cannot rewrite build identity. */
 export function processBuildRelease(_required: Record<string, never>, _optional: Record<string, never> = {}): string {
-  release ??= readBuildRelease({ productRoot: resolveProductRoot() });
+  release ??= readBuildRelease({ productRoot: resolveProductRoot({}) });
   return release;
 }
 

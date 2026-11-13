@@ -67,9 +67,9 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
     withFollowUps({ adapter: adapters.get("widget")! }, { afterUnhide: widgetRestoreFollowUp })
   );
   let seq = 0;
-  const transaction = createContentDbTransactionRunner(db.$client);
+  const transaction = createContentDbTransactionRunner({ store: db.$client });
   const trash = createTrashService({
-    repo: new SqliteTrashRepo(db.$client),
+    repo: new SqliteTrashRepo({ store: db.$client }),
     adapters,
     idGen: { newId: () => `trash-${(seq += 1)}` },
     transaction: ({ work }) => (transaction)(work),

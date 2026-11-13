@@ -233,7 +233,7 @@ runSuite("SqliteTrashRepo", () => {
   const db = openContentDb(":memory:");
   const client = (db as unknown as { $client: Database.Database }).$client;
   seedWorkspaces(client);
-  return new SqliteTrashRepo(client);
+  return new SqliteTrashRepo({ store: client });
 });
 
 /** `kernel` with the two workspaces seeded before its first call. */

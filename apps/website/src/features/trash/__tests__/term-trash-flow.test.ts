@@ -73,7 +73,7 @@ function harness(): Harness {
   const entryTermRepo = new SqliteEntryTermRepo({ db, workspaceId: WS });
   const revisions = new SqliteTaxonomyRevisionRepo({ db, workspaceId: WS });
   const outbox = recordingOutbox();
-  const trashRepo = new SqliteTrashRepo(db.$client);
+  const trashRepo = new SqliteTrashRepo({ store: db.$client });
   const clock = { nowMs: () => Date.parse(AT), nowIso: () => AT };
 
   // Same wiring `deps.ts` performs for `term`/`taxonomy` (T6 item 5): the generic table adapter is
@@ -119,7 +119,7 @@ function harness(): Harness {
     repo: trashRepo,
     adapters,
     idGen: { newId: () => `trash-${(seq += 1)}` },
-    transaction: ({ work }) => (createContentDbTransactionRunner(db.$client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: db.$client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 

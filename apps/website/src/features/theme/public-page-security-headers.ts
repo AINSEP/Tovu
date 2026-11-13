@@ -27,7 +27,7 @@ const providerHeaders = new WeakMap<FormCollectionRegistry, { signature: string;
  * at use rather than import and are not cached. @complexity O(b) file bytes once, then O(1). */
 export function publicThemeResources(_required: Record<string, never>, _optional: Record<string, never> = {}): PublicThemeResources {
   resources ??= readPublicThemeResources({
-    resourceFile: path.join(resolveProductRoot(), "content", "themes", "public-resources.json"),
+    resourceFile: path.join(resolveProductRoot({}), "content", "themes", "public-resources.json"),
   });
   return resources;
 }

@@ -59,13 +59,13 @@ export async function resolveWorkspace(
 
   const [only] = rows;
   if (only === undefined) {
-    throw new SiteCorruptError("resolveWorkspace: the content.db has zero workspace rows (expected at least one)");
+    throw new SiteCorruptError({ message: "resolveWorkspace: the content.db has zero workspace rows (expected at least one)" });
   }
 
   if (options.workspaceId !== undefined) {
     const match = rows.find((row) => row.id === options.workspaceId);
     if (!match) {
-      throw new ValidationError(`resolveWorkspace: no workspace with id "${options.workspaceId}" exists in this content.db`);
+      throw new ValidationError({ message: `resolveWorkspace: no workspace with id "${options.workspaceId}" exists in this content.db` });
     }
     return match;
   }

@@ -57,7 +57,7 @@ export interface MarkerFlipSpec {
 }
 
 /** The row's current version, or `undefined` when there is no such row. @complexity O(1). */
-async function readVersion(db: Kysely<ContentDatabase>, table: string, workspaceId: string, entityId: string): Promise<number | undefined> {
+async function readVersion({ db, table, workspaceId, entityId }: { db: Kysely<ContentDatabase>; table: string; workspaceId: string; entityId: string }, _optional = {}): Promise<number | undefined> {
   const row = await loose(db).selectFrom(table).select("version").where("workspace_id", "=", workspaceId).where("id", "=", entityId).executeTakeFirst();
   return row ? Number(row.version) : undefined;
 }
@@ -90,7 +90,7 @@ export async function flipMarker(spec: MarkerFlipSpec): Promise<TrashMarkerResul
       if (spec.expectedVersion !== null) query = query.where("version", "=", spec.expectedVersion);
       return query.executeTakeFirst();
     });
-    const current = await spec.kernel.run((db) => readVersion(db, spec.table, spec.workspaceId, spec.entityId));
+    const current = await spec.kernel.run((db) => readVersion({ db, table: spec.table, workspaceId: spec.workspaceId, entityId: spec.entityId }));
 
     // Checked first: a row the UPDATE above just matched is still there for this read in the same
     // transaction (the UPDATE holds its row lock; SQLite has one writer), so a missing row only ever
@@ -141,7 +141,7 @@ export async function compareAndDelete(spec: CompareAndDeleteSpec): Promise<Tras
       return "purged";
     }
 
-    const stillThere = await spec.kernel.run((db) => readVersion(db, spec.table, spec.workspaceId, spec.entityId));
+    const stillThere = await spec.kernel.run((db) => readVersion({ db, table: spec.table, workspaceId: spec.workspaceId, entityId: spec.entityId }));
     return stillThere !== undefined ? "version-changed" : "already-gone";
   });
 }

@@ -22,7 +22,7 @@ export interface LocalSiteChildProcess {
 /** A repeating timer whose handle can be unref'd so the watchdog never keeps the process alive. */
 export interface WatchdogTimers {
   setInterval(run: () => void, ms: number): WatchdogHandle;
-  clearInterval(handle: WatchdogHandle): void;
+  clearInterval(required: { handle: WatchdogHandle }): void;
 }
 export interface WatchdogHandle { unref(): unknown }
 
@@ -33,13 +33,13 @@ export interface LocalSiteChildOptional {
   buildAdminBundle?: typeof journeyAdminBundle;
   /** Module specifier of the ordinary site entrypoint, resolved relative to this module. */
   siteEntry?: string;
-  importEntry?: (specifier: string) => Promise<unknown>;
+  importEntry?: (required: { specifier: string }) => Promise<unknown>;
   timers?: WatchdogTimers;
 }
 
 const SITE_ENTRY = "../../index.js";
 const WATCHDOG_MS = 1000;
-const NODE_TIMERS: WatchdogTimers = { setInterval, clearInterval: (handle) => clearInterval(handle as NodeJS.Timeout) };
+const NODE_TIMERS: WatchdogTimers = { setInterval, clearInterval: ({ handle }, _optional = {}) => clearInterval(handle as NodeJS.Timeout) };
 
 /** The owner pid the launcher passed, required before any other work.
  * @throws When the variable is absent, non-integer or below 1.
@@ -96,7 +96,7 @@ export function createOwnTreeReaper(
   return () => reaper.terminateProcess({ child: selfAsDaemonProcess({ proc }) }).catch(() => proc.exit(1));
 }
 
-async function importModule(specifier: string): Promise<unknown> { return import(specifier); }
+async function importModule({ specifier }: { specifier: string }, _optional = {}): Promise<unknown> { return import(specifier); }
 
 /** Boots one local site as the owner's child: a watchdog reaps this tree once the owner is gone
  * (checked first, then every second), then the shared admin bundle is built when none was supplied,
@@ -117,17 +117,17 @@ export async function runLocalSiteChild(
   const watchdog = timers.setInterval(() => {
     if (!parentGone({ proc, ownerPid })) return;
     ownerLost = true;
-    timers.clearInterval(watchdog); void reap();
+    timers.clearInterval({ handle: watchdog }); void reap();
   }, WATCHDOG_MS);
   watchdog.unref();
-  if (parentGone({ proc, ownerPid })) { timers.clearInterval(watchdog); await reap(); return; }
+  if (parentGone({ proc, ownerPid })) { timers.clearInterval({ handle: watchdog }); await reap(); return; }
   if (!proc.env.TOVU_ADMIN_DIST) {
     proc.env.TOVU_ADMIN_DIST = await buildAdminBundle({
       runtimeDir: proc.env.TOVU_LOCAL_ADMIN_BUILD_ROOT!, repoRoot: proc.env.TOVU_REPO_ROOT!,
     }, { env: proc.env });
   }
   if (ownerLost) return;
-  await importEntry(siteEntry);
+  await importEntry({ specifier: siteEntry });
 }
 
 function localSiteReaper(

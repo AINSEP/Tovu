@@ -35,7 +35,7 @@ test("sqlite: current identity reports the content head; the file wrapper retain
   } finally {
     closeSqliteConnection(db);
   }
-  assert.deepEqual(await readAppliedSchemaIdentityOfFile(dbPath), { idx: runtime.index, tag: runtime.tag });
+  assert.deepEqual(await readAppliedSchemaIdentityOfFile({ dbPath }), { idx: runtime.index, tag: runtime.tag });
 });
 
 test("sqlite: no ledger is 'none'; a latest created_at the journal lacks is 'diverged'", async () => {
@@ -61,7 +61,7 @@ test("sqlite: an existing empty ledger is none through both kernel and file read
     db.$client.exec("DROP TABLE tovu_migrations");
     db.$client.exec("DELETE FROM __drizzle_migrations");
     assert.equal(await readAppliedSchemaIdentity(sqliteKernel(db)), "none");
-    assert.equal(await readAppliedSchemaIdentityOfFile(dbPath), "none");
+    assert.equal(await readAppliedSchemaIdentityOfFile({ dbPath }), "none");
   } finally {
     closeSqliteConnection(db);
     fs.rmSync(dir, { recursive: true, force: true });

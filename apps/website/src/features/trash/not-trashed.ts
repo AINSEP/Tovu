@@ -33,7 +33,7 @@ function requireEntry(entityType: TrashEntityType, registry: TrashRegistry): Tra
 }
 
 /** True for a row whose marker (on `table`) says LIVE. @complexity O(1) to build. */
-function markerLive(eb: LooseExpressionBuilder, table: string, marker: TrashMarkerSpec): Expression<SqlBool> {
+function markerLive({ eb, table, marker }: { eb: LooseExpressionBuilder; table: string; marker: TrashMarkerSpec }, _optional = {}): Expression<SqlBool> {
   const column = `${table}.${marker.column}`;
   return marker.kind === "timestamp" ? eb(column, "is", null) : eb(column, "<>", marker.trashed);
 }
@@ -46,7 +46,7 @@ function markerLive(eb: LooseExpressionBuilder, table: string, marker: TrashMark
  * @complexity O(1) to build; the `NOT EXISTS` costs whatever index the parent table's own primary
  *             key already provides.
  */
-function parentNotTrashed(eb: LooseExpressionBuilder, table: string, spec: TrashHiddenWithParentSpec): Expression<SqlBool> {
+function parentNotTrashed({ eb, table, spec }: { eb: LooseExpressionBuilder; table: string; spec: TrashHiddenWithParentSpec }, _optional = {}): Expression<SqlBool> {
   const parentColumn = `${spec.parentTable}.${spec.parentMarker.column}`;
   return eb.not(
     eb.exists(
@@ -72,8 +72,8 @@ function parentNotTrashed(eb: LooseExpressionBuilder, table: string, spec: Trash
 export function notTrashed(required: { entityType: TrashEntityType }, options: { registry: TrashRegistry }): TrashCondition {
   const entry = requireEntry(required.entityType, options.registry);
   return (eb) => {
-    const own = markerLive(eb, entry.table, entry.marker);
-    return entry.hiddenWithParent ? eb.and([own, parentNotTrashed(eb, entry.table, entry.hiddenWithParent)]) : own;
+    const own = markerLive({ eb, table: entry.table, marker: entry.marker });
+    return entry.hiddenWithParent ? eb.and([own, parentNotTrashed({ eb, table: entry.table, spec: entry.hiddenWithParent })]) : own;
   };
 }
 
@@ -85,7 +85,7 @@ export function notTrashed(required: { entityType: TrashEntityType }, options: {
  *
  * @complexity O(n) in the column name's length.
  */
-function sqlNameToJsProperty(sqlName: string): string {
+function sqlNameToJsProperty({ sqlName }: { sqlName: string }, _optional = {}): string {
   return sqlName.replace(/_([a-z0-9])/g, (_match, letter: string) => letter.toUpperCase());
 }
 
@@ -111,7 +111,7 @@ export function isTrashedRecord(
   options: { registry: TrashRegistry }
 ): boolean {
   const entry = requireEntry(required.entityType, options.registry);
-  const property = sqlNameToJsProperty(entry.marker.column);
+  const property = sqlNameToJsProperty({ sqlName: entry.marker.column });
   const value = required.record[property];
   return entry.marker.kind === "timestamp" ? value !== null && value !== undefined : value === entry.marker.trashed;
 }

@@ -37,7 +37,7 @@ import path from "node:path";
  *   constant number of `path` operations; not a function of any caller-controlled collection.
  * @overallScore 100
  */
-export function resolveInstallDirTarget(dirArg: string): string {
+export function resolveInstallDirTarget({ dirArg }: { dirArg: string }, _optional = {}): string {
   const lexicallyResolved = path.resolve(dirArg);
 
   let lst: fs.Stats;

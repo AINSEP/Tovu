@@ -39,7 +39,7 @@ function validIntent(value: unknown): value is LocalSiteIntent {
 /** Missing or corrupt intent means no requested starts; filesystem access failures propagate.
  * @complexity O(s) time/space for s persisted sites.
  */
-function readIntent(file: string): LocalSiteIntent | undefined {
+function readIntent({ file }: { file: string }, _optional = {}): LocalSiteIntent | undefined {
   try {
     const value: unknown = JSON.parse(readFileSync(file, "utf8"));
     return validIntent(value) ? value : undefined;
@@ -58,7 +58,7 @@ export function createLocalSiteIntentStore({ servingSiteDir }: { servingSiteDir:
   const file = join(dir, "local-sites-intent.json");
   const fs = createNodeAtomicFilesystem({});
   return {
-    read: () => readIntent(file),
+    read: () => readIntent({ file }),
     write({ intent }) {
       mkdirSync(dir, { recursive: true });
       writeJsonFileAtomic({ filePath: file, data: intent, fs }, { mode: 0o600 });

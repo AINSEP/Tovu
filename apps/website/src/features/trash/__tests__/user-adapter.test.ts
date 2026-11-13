@@ -77,10 +77,10 @@ async function setup(workspaceId: string, idGen: { next(): string } = counterIdG
   const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel(db), purge: new SqliteUserPurge({ kernel: contentKernel(db), eventValues: outboxEventValues }), idGen, clock });
   const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]);
   const trash = createTrashService({
-    repo: new SqliteTrashRepo(db.$client),
+    repo: new SqliteTrashRepo({ store: db.$client }),
     adapters,
     idGen: { newId: () => (idGen).next() },
-    transaction: ({ work }) => (createContentDbTransactionRunner(db.$client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: db.$client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
@@ -293,9 +293,9 @@ test("sweeper: purges a user past its retention window and records identity.user
   const sweepIdGen = { next: () => `sweep-id-${++sweepSeq}` };
   const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel(f.db), purge: new SqliteUserPurge({ kernel: contentKernel(f.db), eventValues: outboxEventValues }), idGen: sweepIdGen, clock: createFakeClock({ startIso: purgeAfter }) })]]);
   const sweep = createTrashSweep({
-    repo: new SqliteTrashRepo(f.db.$client),
+    repo: new SqliteTrashRepo({ store: f.db.$client }),
     adapters,
-    transaction: ({ work }) => (createContentDbTransactionRunner(f.db.$client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: f.db.$client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   });
   const report = await sweep({ now: purgeAfter, leaseOwner: "sweeper-1", leaseUntil: purgeAfter, limit: 10 });
@@ -314,7 +314,7 @@ test("purge: an active principal (a forged/stale index row) is refused as versio
   const targetId = await createBareUser(f, "still-active");
   // Forge a trashed_items row for a principal that was never actually hidden — the index and the
   // domain row have drifted apart, which purge must detect rather than trust.
-  const repo = new SqliteTrashRepo(f.db.$client);
+  const repo = new SqliteTrashRepo({ store: f.db.$client });
   await repo.insert({ row: {
     id: "forged-row",
     workspaceId: WS,

@@ -134,7 +134,7 @@ export interface TrashItemDelegate {
    * Builds the delegate's own input from the entity id, reading that kind's OWN table where the
    * delegate needs a field the model does not hold. `null` = no such row of this kind.
    */
-  toDelegateInput(deps: TrashItemToolDeps, entityId: string): Promise<Record<string, unknown> | null>;
+  toDelegateInput(required: { deps: TrashItemToolDeps; entityId: string }): Promise<Record<string, unknown> | null>;
 }
 
 /**
@@ -160,7 +160,7 @@ export const TRASH_ITEM_DELEGATES: ReadonlyMap<TrashEntityType, TrashItemDelegat
       toolId: "content_post_delete",
       permission: "content.write",
       // The row's own `kind`, so a page is deleted as a page and the delegate's kind guard applies.
-      async toDelegateInput(deps, entityId) {
+      async toDelegateInput({ deps, entityId }) {
         const row = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: entityId });
         // Templates use the Post storage/trash owner; never hand an unsupported editor kind to its tool.
         return row ? { id: entityId, kind: row.kind === "email-template" ? "post" : row.kind } : null;
@@ -175,7 +175,7 @@ export const TRASH_ITEM_DELEGATES: ReadonlyMap<TrashEntityType, TrashItemDelegat
       permission: "comments.delete",
       // The delegate requires `expectedVersion`. The version read here is the one the dialog is shown
       // against; if the comment moves before the human confirms, `applyModeration` refuses.
-      async toDelegateInput(deps, entityId) {
+      async toDelegateInput({ deps, entityId }) {
         await deps.commentsReady;
         const row = await deps.commentRepo.findById({ workspaceId: deps.workspaceId, id: entityId });
         return row ? { commentId: entityId, expectedVersion: row.version } : null;
@@ -190,7 +190,7 @@ export const TRASH_ITEM_DELEGATES: ReadonlyMap<TrashEntityType, TrashItemDelegat
       permission: "media.delete",
       // The delegate reads the row itself (after its own permission check), so there is nothing to
       // resolve here.
-      async toDelegateInput(_deps, entityId) {
+      async toDelegateInput({ deps: _deps, entityId }) {
         return { mediaId: entityId };
       },
     },
@@ -201,7 +201,7 @@ export const TRASH_ITEM_DELEGATES: ReadonlyMap<TrashEntityType, TrashItemDelegat
       entityType: REDIRECT_ENTITY_TYPE,
       toolId: "redirects_tombstone",
       permission: "admin.redirects.manage",
-      async toDelegateInput(_deps, entityId) {
+      async toDelegateInput({ deps: _deps, entityId }) {
         return { id: entityId };
       },
     },
@@ -214,7 +214,7 @@ export const TRASH_ITEM_DELEGATES: ReadonlyMap<TrashEntityType, TrashItemDelegat
       permission: "widgets.delete",
       // No resolve needed, same as media/redirect above — `widgets_trash_instance`'s own read
       // (a raw `entryRepo.findById`, no payload parse) resolves not-found itself.
-      async toDelegateInput(_deps, entityId) {
+      async toDelegateInput({ deps: _deps, entityId }) {
         return { widgetInstanceId: entityId };
       },
     },
@@ -227,7 +227,7 @@ export const TRASH_ITEM_DELEGATES: ReadonlyMap<TrashEntityType, TrashItemDelegat
       permission: "theme.edit",
       // The theme id IS the entity id; `theme_trash` resolves it against the live registry and owns
       // the active-theme refusal, so nothing is read here.
-      async toDelegateInput(_deps, entityId) {
+      async toDelegateInput({ deps: _deps, entityId }) {
         return { themeId: entityId };
       },
     },
@@ -312,7 +312,7 @@ export const trashItemDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
  *
  * @complexity O(1).
  */
-export function moveToTrashOutcomeToError(entityType: TrashEntityType, entityId: string, outcome: Extract<MoveToTrashOutcome, { ok: false }>): ToolInputError {
+export function moveToTrashOutcomeToError({ entityType, entityId, outcome }: { entityType: TrashEntityType; entityId: string; outcome: Extract<MoveToTrashOutcome, { ok: false }> }, _optional = {}): ToolInputError {
   switch (outcome.reason) {
     case "not-found":
       return new ToolInputError({ message: `trash_item: ${entityType} '${entityId}' was not found. Nothing was changed.` });
@@ -367,7 +367,7 @@ function buildGenericTrashHandler(spec: { entityType: TrashEntityType; entry: Tr
       { workspaceId: routeDeps.workspaceId, entityType, entityId, actor, expectedVersion: snapshot.version ?? undefined },
       { registry: routeDeps.registry, trash: routeDeps.trash, db: routeDeps.db, authorize: routeDeps.authorize, clock: routeDeps.clock }
     );
-    if (!moved.ok) throw moveToTrashOutcomeToError(entityType, entityId, moved);
+    if (!moved.ok) throw moveToTrashOutcomeToError({ entityType, entityId, outcome: moved });
     return { entityType, entityId, via: "moveToTrash", outcome: { trashed: true, cancelled: false, version: moved.version } };
 
   };
@@ -388,7 +388,7 @@ function buildDelegateTrashHandler(spec: { delegate: TrashItemDelegate; delegate
     const entityId = requireString({ input: input, key: "entityId" });
     await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: delegate.permission }, { entityType, entityId });
 
-    const delegateInput = await delegate.toDelegateInput(routeDeps, entityId);
+    const delegateInput = await delegate.toDelegateInput({ deps: routeDeps, entityId });
     if (!delegateInput) {
       throw new ToolInputError({ message: `trash_item: ${entityType} '${entityId}' was not found. Nothing was changed.` });
     }

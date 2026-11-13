@@ -35,12 +35,12 @@ async function setup() {
   await identity.identityReady;
   const ownerId = await identity.ownerPrincipalId;
   const service = identityServiceDepsFrom({ ...identity, clock, idGen });
-  const trashRepo = new SqliteTrashRepo(db.$client);
+  const trashRepo = new SqliteTrashRepo({ store: db.$client });
   const adapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel(db), purge: new SqliteUserPurge({ kernel: contentKernel(db), eventValues: outboxEventValues }), idGen: { next: idGen.newId }, clock,
     assertAccountAction: (required, optional) => identity.transactions.run({ workspaceId, execute: () => assertUserAccountAction({ ...required, deps: service }, { ...optional, seededOwnerPrincipalId: ownerId }) }),
   });
   const trash = createTrashService({ repo: trashRepo, adapters: new Map([["user", adapter]]), idGen,
-    transaction: ({ work }) => createContentDbTransactionRunner(db.$client)(work), entityPolicy: ({ entityType }) => entityType === "user" });
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: db.$client })(work), entityPolicy: ({ entityType }) => entityType === "user" });
   const authorize = withUserTrashAdminOverride({ base: async () => ({ allowed: true, reason: "grant" }), identity: service, workspaceId, seededOwnerPrincipalId: ownerId });
   const routeDeps = { ...identity, workspaceId, clock, idGen, trash, registry: new Map(), db: contentKernel(db), authorize };
   const permanent = buildPermanentDeleteDeps(routeDeps as unknown as Parameters<typeof buildPermanentDeleteDeps>[0]);

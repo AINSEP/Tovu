@@ -253,7 +253,7 @@ test("init refuses a target whose parent folder does not exist, creating no ance
 
 test("cleanupAndRethrow names the partial folder when its own removal fails", () => {
   const missing = path.join(isolatedCatalogHome, "never-created-site");
-  assert.throws(() => cleanupAndRethrow(new Error("disk full"), missing, true), (err: unknown) => {
+  assert.throws(() => cleanupAndRethrow({ err: new Error("disk full"), target: missing, wroteAnything: true }), (err: unknown) => {
     assert.ok(err instanceof InternalError);
     assert.match(err.message, new RegExp(`^initSite: cleanup failed after a mid-flight error — manual removal required at ${missing.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}: ENOENT`));
     return true;
@@ -264,17 +264,17 @@ test("cleanupAndRethrow removes a written partial folder and wraps an unexpected
   const f = fixture();
   try {
     fs.mkdirSync(f.target); fs.writeFileSync(path.join(f.target, "config.json"), "{}");
-    assert.throws(() => cleanupAndRethrow(new Error("disk full"), f.target, true), { name: "InternalError", message: `initSite: failed while creating ${f.target}: disk full` });
+    assert.throws(() => cleanupAndRethrow({ err: new Error("disk full"), target: f.target, wroteAnything: true }), { name: "InternalError", message: `initSite: failed while creating ${f.target}: disk full` });
     assert.equal(fs.existsSync(f.target), false);
   } finally { f.cleanup(); }
 });
 
-for (const err of [new ValidationError("bad name"), new InitDirNotEmptyError("occupied"), new InternalError("corrupt template")]) {
+for (const err of [new ValidationError({ message: "bad name" }), new InitDirNotEmptyError({ message: "occupied" }), new InternalError({ message: "corrupt template" })]) {
   test(`cleanupAndRethrow rethrows ${err.name} unchanged and leaves an unwritten target alone`, () => {
     const f = fixture();
     try {
       fs.mkdirSync(f.target);
-      assert.throws(() => cleanupAndRethrow(err, f.target, false), (thrown: unknown) => thrown === err);
+      assert.throws(() => cleanupAndRethrow({ err, target: f.target, wroteAnything: false }), (thrown: unknown) => thrown === err);
       assert.equal(fs.existsSync(f.target), true);
     } finally { f.cleanup(); }
   });

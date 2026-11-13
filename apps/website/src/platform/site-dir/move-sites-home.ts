@@ -274,11 +274,11 @@ export async function renameSiteFolder(
   assertLocalSiteName({ name: oldName });
   assertLocalSiteName({ name: newName });
   // Windows device names are invalid directories even when the command runs on another OS.
-  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(newName)) throw new ValidationError("Site folder name is reserved on Windows.");
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(newName)) throw new ValidationError({ message: "Site folder name is reserved on Windows." });
   const workspace = suppliedWorkspace ?? createSitesWorkspace({});
   const home = filesystem.realpathSync(workspace.home({}));
   const from = path.join(home, oldName), to = path.join(home, newName);
-  if (!filesystem.lstatSync(from).isDirectory()) throw new ValidationError("The source site must be a real directory, not a symlink.");
+  if (!filesystem.lstatSync(from).isDirectory()) throw new ValidationError({ message: "The source site must be a real directory, not a symlink." });
   const plan = planMove({ from, to, workspace });
   if (plan.running) throw new Error(`Site is running in ${plan.running.app}: ${from}. Stop it before renaming it.`);
   await moveSite({ plan, workspace }, { relocateDirectory: moveDirectoryVerified, verifyDatabase: inspectStoppedDatabase });

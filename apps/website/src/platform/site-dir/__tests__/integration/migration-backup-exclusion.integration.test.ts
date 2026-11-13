@@ -55,7 +55,7 @@ function copyTraces(dir: string): string[] {
 }
 
 test("ops/ (where the copy lives) is not a portable site entry", () => {
-  assert.equal(isPortableSiteEntry("ops"), false);
+  assert.equal(isPortableSiteEntry({ entryName: "ops" }), false);
 });
 
 test("duplicateSite never carries the source's pre-migrations copy", async (t) => {

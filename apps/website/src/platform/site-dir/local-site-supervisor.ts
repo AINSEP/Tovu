@@ -15,7 +15,7 @@ export class LocalSiteError extends Error {
   // Desktop loads this module through Node's strip-only TypeScript support.
   readonly code: string;
 
-  constructor(code: string) {
+  constructor({ code }: { code: string }) {
     super(code);
     this.code = code;
     this.name = "LocalSiteError";
@@ -55,7 +55,7 @@ interface Entry { state: LocalSiteState; child?: LocalSiteProcess; cancel?: () =
 
 /** Validate before a name reaches a path or command. @complexity O(n), bounded to 100 chars. */
 export function assertLocalSiteName({ name }: { name: string }, _optional = {}): void {
-  if (name.length < 1 || name.length > 100 || !SITE_NAME_PATTERN.test(name)) throw new LocalSiteError("VALIDATION_ERROR");
+  if (name.length < 1 || name.length > 100 || !SITE_NAME_PATTERN.test(name)) throw new LocalSiteError({ code: "VALIDATION_ERROR" });
 }
 
 /** Create a host-owned lifecycle with a bounded scan and DI effects. @complexity O(s) per list/cap. */
@@ -64,7 +64,7 @@ export function createLocalSiteSupervisor(
   { maxConcurrent = 3, excludedPorts = [], readyAttempts = 240, devSession, evictIdle = false, intentPort = { read: () => undefined, write: () => {} } }:
   { maxConcurrent?: number; excludedPorts?: readonly number[]; readyAttempts?: number; devSession?: string; evictIdle?: boolean; intentPort?: LocalSiteIntentPort } = {},
 ): LocalSiteSupervisorPort {
-  if (!Number.isInteger(maxConcurrent) || maxConcurrent < 1 || maxConcurrent > 20) throw new LocalSiteError("INVALID_SITE_LIMIT");
+  if (!Number.isInteger(maxConcurrent) || maxConcurrent < 1 || maxConcurrent > 20) throw new LocalSiteError({ code: "INVALID_SITE_LIMIT" });
   const entries = new Map<string, Entry>();
   const reserved = new Set([3000, 5173, 4319, ...excludedPorts]);
   const stored = devSession && evictIdle ? intentPort.read() : undefined;
@@ -75,18 +75,18 @@ export function createLocalSiteSupervisor(
   let resumed = false;
   let opened = 0;
   let lane: Promise<unknown> = Promise.resolve();
-  function serial<T>(task: () => Promise<T>): Promise<T> {
+  function serial<T>({ task }: { task: () => Promise<T> }, _optional = {}): Promise<T> {
     const next = lane.then(task);
     // The caller receives next; only the scheduling lane must recover for later work.
     lane = next.catch(() => {});
     return next;
   }
-  function checkName(name: string) {
+  function checkName({ name }: { name: string }, _optional = {}) {
     assertLocalSiteName({ name });
-    if (name === servingName) throw new LocalSiteError("SITE_SERVING");
-    if (closed) throw new LocalSiteError("SITE_HOST_STOPPING");
+    if (name === servingName) throw new LocalSiteError({ code: "SITE_SERVING" });
+    if (closed) throw new LocalSiteError({ code: "SITE_HOST_STOPPING" });
   }
-  async function allocate(preferred?: number): Promise<number> {
+  async function allocate(_required: Record<string, never>, { preferred }: { preferred?: number } = {}): Promise<number> {
     if (preferred !== undefined && !reserved.has(preferred) && await processPort.isPortFree({ port: preferred })) {
       reserved.add(preferred);
       return preferred;
@@ -96,12 +96,12 @@ export function createLocalSiteSupervisor(
       reserved.add(port);
       return port;
     }
-    throw new LocalSiteError("SITE_PORTS_EXHAUSTED");
+    throw new LocalSiteError({ code: "SITE_PORTS_EXHAUSTED" });
   }
-  async function reap(entry: Entry, status: "stopped" | "crashed") {
+  async function reap({ entry, status }: { entry: Entry; status: "stopped" | "crashed" }, _optional = {}) {
     entry.cancel?.();
     try { await entry.child?.terminate(); }
-    catch { throw new LocalSiteError("SITE_STOP_FAILED"); }
+    catch { throw new LocalSiteError({ code: "SITE_STOP_FAILED" }); }
     // Reservations survive a failed stop: a still-live child cannot share a replacement's port.
     if (entry.state.port !== null && !evictIdle) reserved.delete(entry.state.port);
     if (entry.state.daemonPort !== null) reserved.delete(entry.state.daemonPort);
@@ -115,7 +115,7 @@ export function createLocalSiteSupervisor(
     entry.cancel?.();
     const child = entry.child;
     // A Stop queued ahead of this reaper may already have reaped this child: its "stopped" stands.
-    void serial(async () => { if (entry.child === child) await reap(entry, "crashed"); }).catch((error: unknown) => console.error("[local-sites] Could not reap a crashed site", describeErrorForLog({ err: error })));
+    void serial({ task: async () => { if (entry.child === child) await reap({ entry, status: "crashed" }); } }).catch((error: unknown) => console.error("[local-sites] Could not reap a crashed site", describeErrorForLog({ err: error })));
   }
   function canProbe(entry: Entry) {
     return !closed && (entry.state.status === "starting" || entry.state.status === "running");
@@ -137,7 +137,7 @@ export function createLocalSiteSupervisor(
   async function reapRetiredSite({ entry }: { entry: Entry }, _options = {}): Promise<void> {
     const previous = entry.state.status;
     entry.state.status = "stopped";
-    try { await reap(entry, "stopped"); }
+    try { await reap({ entry, status: "stopped" }); }
     catch (error) {
       try { await entry.child?.cancelRetirement?.(); }
       finally {
@@ -164,11 +164,11 @@ export function createLocalSiteSupervisor(
         return;
       }
     }
-    throw new LocalSiteError("SITE_LIMIT");
+    throw new LocalSiteError({ code: "SITE_LIMIT" });
   }
-  async function start(name: string, preferred?: number): Promise<LocalSiteState> {
-    checkName(name);
-    const current = currentState(name);
+  async function start({ name }: { name: string }, { preferred }: { preferred?: number } = {}): Promise<LocalSiteState> {
+    checkName({ name });
+    const current = currentState({ name });
     if (current) { const entry = entries.get(name); if (entry) entry.opened = ++opened; return current; }
     try { await makeRoom(); } catch (error) {
       // Admission failures also withdraw a pending request, before there is an Entry to reap.
@@ -178,24 +178,24 @@ export function createLocalSiteSupervisor(
     const entry: Entry = { state: { name, status: "starting", pid: null, port: null, daemonPort: null, adminUrl: null }, probes: 0, misses: 0, opened: ++opened };
     entries.set(name, entry);
     try {
-      return await launch(entry, preferred);
+      return await launch({ entry }, { preferred: preferred });
     } catch (error) {
       // A watch restart is host teardown, not a failed user start: retain even mid-spawn intent.
       if (!closed) updateIntent({ name });
-      await reap(entry, "crashed");
+      await reap({ entry, status: "crashed" });
       const foreign = processPort.existing?.({ name });
       if (foreign) return foreign;
       if (error instanceof LocalSiteError) throw error;
-      throw new LocalSiteError("SITE_START_FAILED");
+      throw new LocalSiteError({ code: "SITE_START_FAILED" });
     }
   }
   /** A site another app runs, or this host's own live child, answers Start without a new launch. */
-  function currentState(name: string): LocalSiteState | undefined {
+  function currentState({ name }: { name: string }, _optional = {}): LocalSiteState | undefined {
     const foreign = processPort.existing?.({ name });
     const previous = entries.get(name);
     if (foreign && !previous?.child) return foreign;
     if (!previous?.child) return undefined;
-    if (previous.state.status === "crashed") throw new LocalSiteError("SITE_STOP_FAILED");
+    if (previous.state.status === "crashed") throw new LocalSiteError({ code: "SITE_STOP_FAILED" });
     return { ...previous.state };
   }
   /** A session's public URLs are identities, not reusable pool slots. An occupied old port
@@ -205,27 +205,27 @@ export function createLocalSiteSupervisor(
   async function allocateSitePort({ name, preferred }: { name: string; preferred?: number }): Promise<number> {
     const remembered = apiPorts.get(name);
     if (remembered !== undefined) {
-      if (!await processPort.isPortFree({ port: remembered })) throw new LocalSiteError("SITE_PORT_BUSY");
+      if (!await processPort.isPortFree({ port: remembered })) throw new LocalSiteError({ code: "SITE_PORT_BUSY" });
       return remembered;
     }
-    const port = await allocate(preferred);
+    const port = await allocate( {}, { preferred: preferred });
     if (evictIdle) apiPorts.set(name, port);
     return port;
   }
-  async function launch(entry: Entry, preferred?: number): Promise<LocalSiteState> {
+  async function launch({ entry }: { entry: Entry }, { preferred }: { preferred?: number } = {}): Promise<LocalSiteState> {
     const { name } = entry.state;
     const port = await allocateSitePort({ name, preferred });
     entry.state.port = port;
     updateIntent({ name, port });
-    const daemonPort = await allocate();
+    const daemonPort = await allocate({});
     entry.state.daemonPort = daemonPort;
-    if (closed) throw new LocalSiteError("SITE_HOST_STOPPING");
+    if (closed) throw new LocalSiteError({ code: "SITE_HOST_STOPPING" });
     const child = await processPort.launch({ name, port, daemonPort });
     entry.child = child;
     entry.state.pid = child.pid;
     entry.state.adminUrl = `${scheme}://localhost:${port}/admin/`;
     child.onExit({ listener: () => { if (entries.get(name) === entry && entry.child && entry.state.status !== "stopped") crash(entry); } });
-    if (closed) { await reap(entry, "stopped"); throw new LocalSiteError("SITE_HOST_STOPPING"); }
+    if (closed) { await reap({ entry, status: "stopped" }); throw new LocalSiteError({ code: "SITE_HOST_STOPPING" }); }
     scheduleProbe(entry);
     return { ...entry.state };
   }
@@ -245,7 +245,7 @@ export function createLocalSiteSupervisor(
   /** Give the old tree/lease five seconds to disappear before trying a different free port.
    * @complexity O(1): at most 11 probes and ten 500 ms waits.
    */
-  async function preferredPort(name: string, port: number): Promise<number | undefined> {
+  async function preferredPort({ name, port }: { name: string; port: number }, _optional = {}): Promise<number | undefined> {
     for (let attempt = 0; attempt <= 10; attempt++) {
       if (closed || (reserved.has(port) && apiPorts.get(name) !== port)) return undefined;
       if (!processPort.existing?.({ name }) && await processPort.isPortFree({ port })) return port;
@@ -256,53 +256,53 @@ export function createLocalSiteSupervisor(
   /** Recheck intent inside the lane so an explicit Stop wins over a queued recovery.
    * @complexity O(s + p), persisted snapshot plus the existing bounded port scan.
    */
-  async function resumeSite(name: string) {
+  async function resumeSite({ name }: { name: string }, _optional = {}) {
     if (closed || entries.get(name)?.child) return;
     const stored = intentPort.read();
     const site = stored && stored.session === devSession ? stored.sites[name] : undefined;
     if (!site) return;
-    try { await start(name, await preferredPort(name, site.port)); }
+    try { await start({ name }, { preferred: await preferredPort({ name, port: site.port }) }); }
     catch { if (!closed) updateIntent({ name }); } // Failed recovery is withdrawn, never retried on the next save.
   }
   const supervisor: LocalSiteSupervisorPort = {
-    start: ({ name }) => serial(() => start(name)),
-    stop: ({ name }) => serial(async () => {
-      checkName(name);
+    start: ({ name }) => serial({ task: () => start({ name }) }),
+    stop: ({ name }) => serial({ task: async () => {
+      checkName({ name });
       const entry = entries.get(name);
       // Withdraw the request even if the old host still owns the tree and cannot be signalled here.
       updateIntent({ name });
-      if (!entry?.child && processPort.existing?.({ name })) throw new LocalSiteError("SITE_RUNNING_ELSEWHERE");
+      if (!entry?.child && processPort.existing?.({ name })) throw new LocalSiteError({ code: "SITE_RUNNING_ELSEWHERE" });
       if (!entry) return { name, status: "stopped", pid: null, port: null, daemonPort: null, adminUrl: null };
       // Withdraw exit observation before signalling, so a deliberate stop never becomes a crash.
       entry.state.status = "stopped";
-      try { await reap(entry, "stopped"); } catch (error) { entry.state.status = "crashed"; throw error; }
+      try { await reap({ entry, status: "stopped" }); } catch (error) { entry.state.status = "crashed"; throw error; }
       return { ...entry.state };
-    }),
+    } }),
     list: () => {
       const known = new Map([...entries.values()].map((entry) => [entry.state.name, { ...entry.state }]));
       for (const state of processPort.listExisting?.() ?? []) if (!entries.get(state.name)?.child) known.set(state.name, state);
       return [...known.values()];
     },
-    withStoppedSite: ({ name, task }) => serial(async () => {
-      checkName(name);
+    withStoppedSite: ({ name, task }) => serial({ task: async () => {
+      checkName({ name });
       const entry = entries.get(name);
-      if (processPort.existing?.({ name }) || entry?.child || entry?.state.status === "starting") throw new LocalSiteError("SITE_RUNNING");
+      if (processPort.existing?.({ name }) || entry?.child || entry?.state.status === "starting") throw new LocalSiteError({ code: "SITE_RUNNING" });
       return task();
-    }),
+    } }),
     killNow() { closed = true; for (const entry of entries.values()) { entry.cancel?.(); entry.state.status = "stopped"; entry.child?.killNow(); } },
     async resume() {
       if (resumed || closed || !devSession) return;
       resumed = true;
       const stored = intentPort.read();
       if (stored?.session !== devSession) return;
-      for (const name of Object.keys(stored.sites)) await serial(() => resumeSite(name));
+      for (const name of Object.keys(stored.sites)) await serial({ task: () => resumeSite({ name }) });
     },
     shutdown() {
       supervisor.killNow();
-      return serial(async () => {
-        await Promise.all([...entries.values()].map((entry) => reap(entry, "stopped")));
+      return serial({ task: async () => {
+        await Promise.all([...entries.values()].map((entry) => reap({ entry, status: "stopped" })));
         await processPort.dispose?.();
-      });
+      } });
     },
   };
   return supervisor;

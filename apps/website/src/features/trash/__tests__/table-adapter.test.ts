@@ -359,14 +359,14 @@ test("through createTrashService: trash lists the form snapshot, and restore lea
   seedSubmission(h.client, "sub-1", "form-1");
   seedSubmission(h.client, "sub-2", "form-1");
 
-  const repo = new SqliteTrashRepo(h.client);
+  const repo = new SqliteTrashRepo({ store: h.client });
   const adapters = new Map<string, TrashAdapter>([["form", h.formAdapter]]);
   let seq = 0;
   const trash: TrashPort = createTrashService({
     repo,
     adapters,
     idGen: { newId: () => `trash-${(seq += 1)}` },
-    transaction: ({ work }) => (createContentDbTransactionRunner(h.client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: h.client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
@@ -443,14 +443,14 @@ test("status marker: through createTrashService, trash records priorMarker and r
   const h = harness();
   seedMenu(h.client, "menu-1", { status: "published", version: 1 });
 
-  const repo = new SqliteTrashRepo(h.client);
+  const repo = new SqliteTrashRepo({ store: h.client });
   const adapters = new Map<string, TrashAdapter>([["test-menu", h.menuAdapter]]);
   let seq = 0;
   const trash: TrashPort = createTrashService({
     repo,
     adapters,
     idGen: { newId: () => `trash-${(seq += 1)}` },
-    transaction: ({ work }) => (createContentDbTransactionRunner(h.client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: h.client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
@@ -642,7 +642,7 @@ test("taxonomy: purge removes its terms' entry_terms then the terms then the tax
 
   // `term-a` was trashed on its own before its taxonomy — give it a Trash row, same as
   // `form-trash-flow.test.ts`'s phantom-row case, so the taxonomy purge's cleanup is provable.
-  const repo = new SqliteTrashRepo(h.client);
+  const repo = new SqliteTrashRepo({ store: h.client });
   await repo.insert({ row: {
     id: "trash-term-a",
     workspaceId: WS,

@@ -76,7 +76,7 @@ export async function checkContentDbSchema(
 ): Promise<ContentDbSchemaGuardResult> {
   if (!fs.existsSync(dbPath)) return { status: "no-file" };
 
-  const applied = await readAppliedSchemaIdentityOfFile(dbPath);
+  const applied = await readAppliedSchemaIdentityOfFile({ dbPath });
   if (applied === "none") return { status: "unmigrated" };
   if (applied === "diverged") {
     return {

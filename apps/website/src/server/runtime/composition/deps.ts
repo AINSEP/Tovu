@@ -446,7 +446,7 @@ export function siteThemesDir(optional: SitePathResolverOptional & { siteDir?: s
  * one for any composition that does not pin `TOVU_SITE_DIR` (see {@link resolveExportOutputRootDir}).
  */
 export function builtInContentSeedDbPath(siteName: string): string {
-  const stockRoot = process.env.TOVU_STOCK_CONTENT_SEED_DIR ?? join(resolveProductRoot(), "content", "seed-sites");
+  const stockRoot = process.env.TOVU_STOCK_CONTENT_SEED_DIR ?? join(resolveProductRoot({}), "content", "seed-sites");
   return join(stockRoot, siteName, "content.seed.db");
 }
 
@@ -462,7 +462,7 @@ export function builtInContentSeedDbPath(siteName: string): string {
  * directory wholesale the way {@link builtInThemesDir}/`seedSiteThemes()` copy `themes/`.
  */
 export function builtInSeedUploadsDir(siteName: string): string {
-  const stockRoot = process.env.TOVU_STOCK_CONTENT_SEED_DIR ?? join(resolveProductRoot(), "content", "seed-sites");
+  const stockRoot = process.env.TOVU_STOCK_CONTENT_SEED_DIR ?? join(resolveProductRoot({}), "content", "seed-sites");
   return join(stockRoot, siteName, "uploads");
 }
 
@@ -726,7 +726,7 @@ function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; 
  *  unreadable file costs only the stamp, never the boot. */
 function readTovuVersion(): string {
   try {
-    const parsed = JSON.parse(readFileSync(join(resolveProductRoot(), "package.json"), "utf8")) as { version?: unknown };
+    const parsed = JSON.parse(readFileSync(join(resolveProductRoot({}), "package.json"), "utf8")) as { version?: unknown };
     return typeof parsed.version === "string" ? parsed.version : "unknown";
   } catch {
     return "unknown";
@@ -783,7 +783,7 @@ function prepareCompositionStorage({ dbPath, overrides }: {
   dbPath: string; overrides: Partial<CreateSiteRouteDepsOverrides>;
 }, _options = {}) {
   const anchor = isInMemoryDbPath(dbPath) ? ":memory:" : resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir });
-  const storage = resolveSiteStorage(anchor);
+  const storage = resolveSiteStorage({ siteDir: anchor });
   if (!isInMemoryDbPath(dbPath) && storage.kind === "sqlite" && !overrides.db) mkdirSync(dirname(dbPath), { recursive: true });
   return storage;
 }
@@ -1417,7 +1417,7 @@ async function composeSiteRouteDeps(
   // NOTE: `devCapabilityScheme` stays at this scope, NOT inside the dev-seed branch below — the
   // `derivedPublicOrigin` field near the end of this function is a second consumer (see its own
   // comment). Narrowing it to the branch compiles nowhere and was caught by `tsc`.
-  const REPO_ROOT = resolveCheckoutRoot();
+  const REPO_ROOT = resolveCheckoutRoot({});
   const devCapabilityScheme = deriveDevScheme(resolveDevTls(resolveDevTlsCertPaths(REPO_ROOT)).active);
   const originBoot = planOriginBoot({ now: clock.nowIso() });
   const originReady = registerBootOrigin({}, {});
@@ -1473,7 +1473,7 @@ async function composeSiteRouteDeps(
   // Hoisted above `trashFollowUpHooks` (needs `findByEntity` for the term/taxonomy purge
   // follow-ups below) — the constructor takes only `db`, no dependency on
   // `trashAdapters`/`trash` itself, so this is safe to build early (T6, step 3).
-  const trashRepo = new SqliteTrashRepo(kernel);
+  const trashRepo = new SqliteTrashRepo({ store: kernel });
   // Purge-only audit trail for `term`/`taxonomy` (plan §6 Q2): one `taxonomy_revisions` row plus a
   // domain event, matching `deleteTerm`/`deleteTaxonomy`'s own writes — see
   // `taxonomy-trash-follow-ups.ts`'s file header. A second, cheap `SqliteTermRepo`/
@@ -1613,7 +1613,7 @@ async function composeSiteRouteDeps(
   // Reentrant: `deletePost` and `tombstoneRedirect` already open their own transaction around
   // "marker + revision append", and `remove` is called from inside it (a nested one joins). Named (not inlined) because
   // the comments moderation service needs the SAME runner to wrap its own two writes.
-  const trashTransaction = createContentDbTransactionRunner(kernel);
+  const trashTransaction = createContentDbTransactionRunner({ store: kernel });
   const trash = createTrashService({
     repo: trashRepo,
     adapters: trashAdapters,
@@ -1628,10 +1628,10 @@ async function composeSiteRouteDeps(
     onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error)
   });
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removePlugin: RemovePluginFn = unhideIfRemoveThrows(pluginTrashAdapter, bindRemoveEntity({
+  const removePlugin: RemovePluginFn = unhideIfRemoveThrows({ adapter: pluginTrashAdapter, remove: bindRemoveEntity({
     trash: trash,
     entityType: PLUGIN_ENTITY_TYPE
-  }));
+  }) });
   // Delete-user plan v2 Slice 2 — `identity`'s `removeUser`/`isInTrash` overrides (see
   // `wiring.ts`'s `IdentityRouteDepsSlice.removeUser` doc for why identity itself cannot build
   // these: it wires before `trash`/`trashRepo` exist).
@@ -2103,7 +2103,7 @@ async function composeSiteRouteDeps(
   const themeTrashAdapter = createThemeTrashAdapter({ themes: siteThemes, themesDir: resolvedThemesDir });
   trashAdapters.set(THEME_ENTITY_TYPE, themeTrashAdapter);
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removeTheme = unhideIfRemoveThrows(themeTrashAdapter, bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }));
+  const removeTheme = unhideIfRemoveThrows({ adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
   const publishContentApplyPort = createPublishContentApplyPort({
     workspaceId,
     bundleRepo: publishContentBundleRepo,
@@ -3099,7 +3099,7 @@ export async function createSiteRouteDepsForWorkspace(
   if (workspaceIdOverride === undefined) return await createSiteRouteDeps(dbPath, { onStoreOpened, storeRole });
   // Postgres/PGlite: no SQLite handle to pair the id with; the composition validates it against the
   // store it opens.
-  if (!isInMemoryDbPath(dbPath) && resolveSiteStorage(resolveSiteDirForDatabase({ dbPath })).kind !== "sqlite") {
+  if (!isInMemoryDbPath(dbPath) && resolveSiteStorage({ siteDir: resolveSiteDirForDatabase({ dbPath }) }).kind !== "sqlite") {
     return await createSiteRouteDeps(dbPath, { onStoreOpened, requestedWorkspaceId: workspaceIdOverride, storeRole });
   }
 

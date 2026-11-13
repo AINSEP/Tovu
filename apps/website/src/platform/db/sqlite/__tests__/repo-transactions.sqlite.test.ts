@@ -152,7 +152,7 @@ test("user purge: the deletes and the audit event survive another caller's rollb
     purge.purgeUser({
       workspaceId: WORKSPACE,
       principalId: "principal-1",
-      buildEvent: (removed) => ({ id: "evt-purge", name: "identity.user.purged", occurredAt: NOW, workspaceId: WORKSPACE, payload: { removed } }),
+      buildEvent: ({ removed }) => ({ id: "evt-purge", name: "identity.user.purged", occurredAt: NOW, workspaceId: WORKSPACE, payload: { removed } }),
     })
   );
   assert.deepEqual(removed, { roles: 0, policies: 0, sessions: 1, apiKeys: 0, userSettings: 0 });

@@ -85,7 +85,7 @@ function harness(t: test.TestContext, options: { deny?: readonly string[]; renam
     presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [
       { workspaceId: WORKSPACE_ID, activeThemeId: "basic", updatedAt: AT },
     ] }),
-    removeTheme: unhideIfRemoveThrows(adapter, bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE })),
+    removeTheme: unhideIfRemoveThrows({ adapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) }),
   };
   const registrations = buildTrashThemeRegistrations(deps);
   const registration = registrations.find((r) => r.descriptor.id === "theme_trash");

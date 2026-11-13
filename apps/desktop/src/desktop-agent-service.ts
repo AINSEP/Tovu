@@ -35,7 +35,7 @@ function daemonOutputSink({ sink, redact }: {
   sink: Pick<Writable, "write">; redact: (text: string) => string;
 }, _options = {}): Writable {
   const privateKeys = createPrivateKeyLineRedactor({}, {});
-  const output = createRedactedOutputSink({ sink, redact: text => redact(privateKeys.redact({ text }, {})) });
+  const output = createRedactedOutputSink({ sink, redact: ({ text }, _optional = {}) => redact(privateKeys.redact({ text }, {})) });
   output.on("unpipe", () => privateKeys.reset({}, {}));
   return output;
 }

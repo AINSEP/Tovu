@@ -57,7 +57,7 @@ function secretTraces(dir: string): string[] {
 
 test("the secret file is not a portable site entry", () => {
   assert.equal(STORAGE_SECRET_FILENAME, ".storage-secret.json");
-  assert.equal(isPortableSiteEntry(STORAGE_SECRET_FILENAME), false);
+  assert.equal(isPortableSiteEntry({ entryName: STORAGE_SECRET_FILENAME }), false);
 });
 
 test("duplicateSite of a SQLite site never carries a .storage-secret.json from the source's root", async (t) => {

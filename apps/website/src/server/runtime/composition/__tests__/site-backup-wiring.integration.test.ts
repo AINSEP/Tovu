@@ -97,7 +97,7 @@ test("createSiteRouteDeps gives site backup the directories the site is served f
   assert.equal(sources.agentPlugins.root, resolveAgentPluginLayout({ siteDir: siteBinding.dir }).root);
   assert.equal(sources.skillsDir, resolveSkillLayout({ siteDir: siteBinding.dir }).root);
   // The product root, not cwd: package.json sits at the repo root since the apps/ restructure.
-  const productVersion = (JSON.parse(fs.readFileSync(path.join(resolveProductRoot(), "package.json"), "utf8")) as { version: string }).version;
+  const productVersion = (JSON.parse(fs.readFileSync(path.join(resolveProductRoot({}), "package.json"), "utf8")) as { version: string }).version;
   assert.equal(sources.tovuVersion, productVersion);
 
   assert.ok(deps.siteBackupHttpClient, "the backup gets its own long-timeout client");

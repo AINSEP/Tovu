@@ -35,9 +35,9 @@ function harness(_required = {}, _options = {}) {
   const registry = buildTrashRegistry();
   const trashDb = contentKernel(db);
   const adapters = new Map<string, TrashAdapter>([...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })]));
-  const transaction = createContentDbTransactionRunner(kernel);
+  const transaction = createContentDbTransactionRunner({ store: kernel });
   const trash = createTrashService({
-    repo: new SqliteTrashRepo(kernel), adapters, idGen: { newId: () => `trash-${++sequence}` },
+    repo: new SqliteTrashRepo({ store: kernel }), adapters, idGen: { newId: () => `trash-${++sequence}` },
     transaction: ({ work }) => transaction(work), entityPolicy: ({ entityType }) => adapters.has(entityType),
   });
   const granted = new Set(["pages.edit_html"]);

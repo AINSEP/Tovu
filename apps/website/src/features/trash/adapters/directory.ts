@@ -17,18 +17,18 @@ export interface DirectoryTrashAdapterDeps {
   forget?(required: { workspaceId: string; entityId: string }): Promise<void>;
 }
 
-function errorCode(error: unknown): string | undefined {
+function errorCode({ error }: { error: unknown }, _optional = {}): string | undefined {
   return typeof error === "object" && error !== null && "code" in error
     ? String((error as { code?: unknown }).code)
     : undefined;
 }
 
-async function exists(path: string): Promise<boolean> {
+async function exists({ path }: { path: string }, _optional = {}): Promise<boolean> {
   try {
     await lstat(path);
     return true;
   } catch (error) {
-    if (errorCode(error) === "ENOENT") return false;
+    if (errorCode({ error }) === "ENOENT") return false;
     throw error;
   }
 }
@@ -47,7 +47,7 @@ function validateLocation(location: DirectoryTrashLocation): void {
   }
 }
 
-async function assertSameFilesystem(liveParent: string, parkedDir: string): Promise<void> {
+async function assertSameFilesystem({ liveParent, parkedDir }: { liveParent: string; parkedDir: string }, _optional = {}): Promise<void> {
   await mkdir(dirname(parkedDir), { recursive: true });
   const [live, parked] = await Promise.all([stat(liveParent), stat(dirname(parkedDir))]);
   if (live.dev !== parked.dev) {
@@ -79,7 +79,7 @@ async function moveDir(required: { from: string; to: string }, optional: { reado
     await renameDirectory(from, to);
     current = to;
   } catch (error) {
-    if (errorCode(error) === "EXDEV") {
+    if (errorCode({ error }) === "EXDEV") {
       throw new Error(`directory Trash cannot move '${from}' across filesystems`);
     }
     throw error;
@@ -88,15 +88,15 @@ async function moveDir(required: { from: string; to: string }, optional: { reado
   }
 }
 
-async function removeEmptyDir(path: string): Promise<void> {
+async function removeEmptyDir({ path }: { path: string }, _optional = {}): Promise<void> {
   try {
     await rmdir(path);
   } catch (error) {
-    if (!new Set(["ENOENT", "ENOTEMPTY"]).has(errorCode(error) ?? "")) throw error;
+    if (!new Set(["ENOENT", "ENOTEMPTY"]).has(errorCode({ error }) ?? "")) throw error;
   }
 }
 
-async function makeTreeWritable(path: string): Promise<void> {
+async function makeTreeWritable({ path }: { path: string }, _optional = {}): Promise<void> {
   const entry = await lstat(path);
   if (entry.isSymbolicLink()) return;
   if (!entry.isDirectory()) {
@@ -105,11 +105,11 @@ async function makeTreeWritable(path: string): Promise<void> {
   }
   await chmod(path, entry.mode | 0o700);
   for (const child of await readdir(path)) {
-    await makeTreeWritable(join(path, child));
+    await makeTreeWritable({ path: join(path, child) });
   }
 }
 
-async function parkedCount(parkedDir: string): Promise<number> {
+async function parkedCount({ parkedDir }: { parkedDir: string }, _optional = {}): Promise<number> {
   return Math.max(1, (await readdir(parkedDir)).length);
 }
 
@@ -119,8 +119,8 @@ async function reservePark(required: { parkedDir: string }, _options: Record<str
     await mkdir(required.parkedDir);
     return null;
   } catch (error) {
-    if (errorCode(error) === "EEXIST") {
-      return { ok: false, reason: "blocked", code: "ALREADY_IN_TRASH", count: await parkedCount(required.parkedDir) };
+    if (errorCode({ error }) === "EEXIST") {
+      return { ok: false, reason: "blocked", code: "ALREADY_IN_TRASH", count: await parkedCount({ parkedDir: required.parkedDir }) };
     }
     throw error;
   }
@@ -130,7 +130,7 @@ async function reservePark(required: { parkedDir: string }, _options: Record<str
  * @complexity O(n) time and space in staged roots; filesystem errors propagate. */
 async function rollbackMoves(required: { moved: readonly { from: string; to: string }[] }, optional: { readonly rename?: typeof rename } = {}): Promise<void> {
   for (const move of [...required.moved].reverse()) {
-    if (await exists(move.from)) await moveDir(move, optional);
+    if (await exists({ path: move.from })) await moveDir(move, optional);
   }
 }
 
@@ -147,7 +147,7 @@ async function stageMoves(
       await moveDir({ from, to }, optional);
       required.moved.push({ from: to, to: from });
     } catch (error) {
-      if ((await exists(to)) && !(await exists(from))) required.moved.push({ from: to, to: from });
+      if ((await exists({ path: to })) && !(await exists({ path: from }))) required.moved.push({ from: to, to: from });
       throw error;
     }
   }
@@ -159,8 +159,7 @@ async function stageMoves(
  * revert hook for filesystem adapters, so each composition root binds removal through this.
  */
 export function unhideIfRemoveThrows<R extends { workspaceId: string; id: string; at: string }, T>(
-  adapter: TrashAdapter,
-  remove: (required: R) => Promise<T>,
+  { adapter, remove }: { adapter: TrashAdapter; remove: (required: R) => Promise<T> }, _optional = {},
 ): (required: R) => Promise<T> {
   return async (required) => {
     try {
@@ -189,15 +188,15 @@ export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps, opt
 
     async hide(required): Promise<TrashMarkerResult> {
       const location = await locate(required);
-      if (await exists(location.parkedDir)) {
-        return { ok: false, reason: "blocked", code: "ALREADY_IN_TRASH", count: await parkedCount(location.parkedDir) };
+      if (await exists({ path: location.parkedDir })) {
+        return { ok: false, reason: "blocked", code: "ALREADY_IN_TRASH", count: await parkedCount({ parkedDir: location.parkedDir }) };
       }
       if (location.liveNames.length === 0) return { ok: false, reason: "not-found" };
       for (const name of location.liveNames) {
-        if (!(await exists(join(location.liveParent, name)))) return { ok: false, reason: "not-found" };
+        if (!(await exists({ path: join(location.liveParent, name) }))) return { ok: false, reason: "not-found" };
       }
 
-      await assertSameFilesystem(location.liveParent, location.parkedDir);
+      await assertSameFilesystem({ liveParent: location.liveParent, parkedDir: location.parkedDir });
       const reservation = await reservePark({ parkedDir: location.parkedDir });
       if (reservation) return reservation;
 
@@ -206,8 +205,8 @@ export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps, opt
         await stageMoves({ names: location.liveNames, fromParent: location.liveParent, toParent: location.parkedDir, moved }, optional);
       } catch (error) {
         await rollbackMoves({ moved }, optional);
-        await removeEmptyDir(location.parkedDir);
-        if (errorCode(error) === "ENOENT") return { ok: false, reason: "not-found" };
+        await removeEmptyDir({ path: location.parkedDir });
+        if (errorCode({ error }) === "ENOENT") return { ok: false, reason: "not-found" };
         throw error;
       }
       return { ok: true, version: null };
@@ -215,15 +214,15 @@ export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps, opt
 
     async unhide(required): Promise<TrashMarkerResult> {
       const location = await locate(required);
-      if (!(await exists(location.parkedDir))) return { ok: false, reason: "not-found" };
+      if (!(await exists({ path: location.parkedDir }))) return { ok: false, reason: "not-found" };
       const parkedNames = await readdir(location.parkedDir);
       if (parkedNames.length === 0) return { ok: false, reason: "not-found" };
       if (location.liveNames.length > 0) return { ok: false, reason: "version-changed" };
       for (const name of parkedNames) {
-        if (await exists(join(location.liveParent, name))) return { ok: false, reason: "version-changed" };
+        if (await exists({ path: join(location.liveParent, name) })) return { ok: false, reason: "version-changed" };
       }
 
-      await assertSameFilesystem(location.liveParent, location.parkedDir);
+      await assertSameFilesystem({ liveParent: location.liveParent, parkedDir: location.parkedDir });
       const moved: { from: string; to: string }[] = [];
       try {
         await stageMoves({ names: parkedNames, fromParent: location.parkedDir, toParent: location.liveParent, moved }, optional);
@@ -231,13 +230,13 @@ export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps, opt
         await rollbackMoves({ moved }, optional);
         throw error;
       }
-      await removeEmptyDir(location.parkedDir);
+      await removeEmptyDir({ path: location.parkedDir });
       return { ok: true, version: null };
     },
 
     async purge(required): Promise<TrashPurgeOutcome> {
       const location = await locate(required);
-      if (!(await exists(location.parkedDir))) return "already-gone";
+      if (!(await exists({ path: location.parkedDir }))) return "already-gone";
       const purgingDir = `${location.parkedDir}.purging-${randomUUID()}`;
       await rename(location.parkedDir, purgingDir);
       try {
@@ -246,7 +245,7 @@ export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps, opt
         await rename(purgingDir, location.parkedDir);
         throw error;
       }
-      await makeTreeWritable(purgingDir);
+      await makeTreeWritable({ path: purgingDir });
       await rm(purgingDir, { recursive: true, force: true });
       return "purged";
     },

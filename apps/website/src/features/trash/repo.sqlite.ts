@@ -8,8 +8,8 @@ import type { SqliteConnectionSource } from "../../platform/db/kernel/index.js";
 import { SqlTrashRepo } from "./repo.js";
 
 export class SqliteTrashRepo extends SqlTrashRepo {
-  /** @param store the content db handle, its better-sqlite3 client, or the kernel itself. */
-  constructor(store: ContentKernel | SqliteConnectionSource) {
+  /** @param required.store the content db handle, its better-sqlite3 client, or the kernel itself. */
+  constructor({ store }: { store: ContentKernel | SqliteConnectionSource }) {
     super(contentKernel(store));
   }
 }
@@ -23,10 +23,10 @@ export class SqliteTrashRepo extends SqlTrashRepo {
  * back both. A concurrent caller (another async context) waits for its own transaction instead of
  * joining someone else's.
  *
- * @param store the content db handle, its better-sqlite3 client, or the kernel itself.
+ * @param required.store the content db handle, its better-sqlite3 client, or the kernel itself.
  * @complexity O(1) beyond `fn`.
  */
-export function createContentDbTransactionRunner(store: ContentKernel | SqliteConnectionSource) {
+export function createContentDbTransactionRunner({ store }: { store: ContentKernel | SqliteConnectionSource }, _optional = {}) {
   const kernel = contentKernel(store);
   return function runInTransaction<T>(fn: () => Promise<T>): Promise<T> {
     return kernel.transaction(fn);

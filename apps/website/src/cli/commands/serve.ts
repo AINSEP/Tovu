@@ -97,11 +97,11 @@ const DEFAULT_PORT = 3000;
 function parsePort(raw: string | number): number {
   const str = String(raw).trim();
   if (!/^\d+$/.test(str)) {
-    throw new ValidationError(`--port must be an integer between 1 and 65535 (got "${raw}")`);
+    throw new ValidationError({ message: `--port must be an integer between 1 and 65535 (got "${raw}")` });
   }
   const value = Number(str);
   if (value < 1 || value > 65535) {
-    throw new ValidationError(`--port must be between 1 and 65535 (got ${value})`);
+    throw new ValidationError({ message: `--port must be between 1 and 65535 (got ${value})` });
   }
   return value;
 }
@@ -211,7 +211,7 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
 
   warnIfLegacyEnvVarsIgnored();
 
-  const target = resolveInstallDirTarget(input.dir);
+  const target = resolveInstallDirTarget({ dirArg: input.dir });
   // Must precede EVERY `siteDir()`-derived read below (and the daemon spawn much further down) —
   // see {@link pinServedSiteDirIntoEnv} for the divergence this closes.
   pinServedSiteDirIntoEnv(target);

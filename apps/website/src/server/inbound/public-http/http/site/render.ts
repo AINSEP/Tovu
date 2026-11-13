@@ -3179,7 +3179,7 @@ const siteChatAssetsReady = createSiteChatAssetReadiness({
 function siteAssistantMarkup(enabled: SiteChatSelection): { head: string; body: string } {
   if (!enabled) return { head: "", body: "" };
   const variant = enabled === "vanilla" ? "vanilla" : "react";
-  const distDir = process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir("site-chat");
+  const distDir = process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir({ app: "site-chat" });
   const assetsReady = !process.env.TOVU_SITE_CHAT_DEV_PROXY_URL &&
     siteChatAssetsReady({ directory: distDir, variant });
   return renderLazySiteChatMarkup({ enabled: true, variant, assetsReady, mountId: SITE_ASSISTANT_MOUNT_ID })

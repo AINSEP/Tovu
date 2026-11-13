@@ -61,7 +61,7 @@ function resolveEnvFilePath(optional: ActiveSiteEnvOptional): string {
  * @complexity O(n) in the source text's own line count — bounded by how large a developer's own
  *   `.env` file is, never by caller-controlled request input.
  */
-export function upsertEnvLine(source: string, key: string, value: string): string {
+export function upsertEnvLine({ source, key, value }: { source: string; key: string; value: string }, _optional = {}): string {
   const lines = source.length === 0 ? [] : source.split("\n");
   // A trailing blank line is `split("\n")`'s own artifact of the source's final "\n" (e.g.
   // `"A\n".split("\n")` -> `["A", ""]`), not real content — drop it up front so both branches
@@ -115,7 +115,7 @@ export function persistActiveSite(required: PersistActiveSiteRequired, optional:
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
     existing = "";
   }
-  writeFileAtomic({ filePath: envFilePath, content: upsertEnvLine(existing, "TOVU_SITE", required.name) }, {});
+  writeFileAtomic({ filePath: envFilePath, content: upsertEnvLine({ source: existing, key: "TOVU_SITE", value: required.name }) }, {});
 }
 
 /**
@@ -136,7 +136,7 @@ export function persistActiveSite(required: PersistActiveSiteRequired, optional:
  * @complexity O(n) in the source text's own line count — bounded by the developer's own `.env`
  *   size, never by caller-controlled request input.
  */
-export function readEnvLine(source: string, key: string): string | null {
+export function readEnvLine({ source, key }: { source: string; key: string }, _optional = {}): string | null {
   const prefix = `${key}=`;
   const match = source.split("\n").find((line) => line.startsWith(prefix));
   return match === undefined ? null : match.slice(prefix.length).trim();
@@ -174,6 +174,6 @@ export function readPersistedActiveSite(optional: ActiveSiteEnvOptional = {}): s
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
     return null;
   }
-  const value = readEnvLine(existing, "TOVU_SITE");
+  const value = readEnvLine({ source: existing, key: "TOVU_SITE" });
   return value === null || value.length === 0 ? null : value;
 }

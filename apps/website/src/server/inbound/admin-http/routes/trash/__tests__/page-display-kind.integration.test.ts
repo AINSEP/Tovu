@@ -28,13 +28,13 @@ function harness(t: { after(fn: () => Promise<void>): void }) {
   const kernel = contentKernel(db);
   t.after(() => kernel.close());
   const postRepo = new SqlitePostRepo({ store: db });
-  const trashRepo = new SqliteTrashRepo(db);
+  const trashRepo = new SqliteTrashRepo({ store: db });
   let seq = 0;
   const trash = createTrashService({
     repo: trashRepo,
     adapters: new Map([["post", createPostTrashAdapter(kernel)]]),
     idGen: { newId: () => `trash-${++seq}` },
-    transaction: ({ work }) => createContentDbTransactionRunner(db)(work),
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: db })(work),
     entityPolicy: ({ entityType }) => entityType === "post",
   });
   const remove = removeEntityWithoutBlocker({ remove: bindRemoveEntity({ trash, entityType: "post" }) });

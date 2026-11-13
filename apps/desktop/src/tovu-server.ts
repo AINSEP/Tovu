@@ -1064,7 +1064,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
         // Amortize tail copies across small log lines; diagnostics expose only the latest 16 KiB.
         if (outputTail.length > 32_768) outputTail = outputTail.slice(-16_384);
         return mirror.write(safe);
-      } }, redact: redactOutput }, { maxLength: MAX_ECHOED_OUTPUT_CHARS });
+      } }, redact: ({ text }, _optional = {}) => redactOutput(text) }, { maxLength: MAX_ECHOED_OUTPUT_CHARS });
       stream.once("end", () => safeMirror.end());
       stream.on("data", (chunk) => {
         safeMirror.write(chunk);

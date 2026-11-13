@@ -49,7 +49,7 @@ export function registerLocalSitesRoutes({ app, deps }: { app: Express; deps: Lo
   app.post(`${PREFIX}/:name/start`, lifecycleHandler(deps, (req, _base, supervisor) => supervisor.start({ name: String(req.params.name ?? "") })));
   app.post(`${PREFIX}/:name/stop`, lifecycleHandler(deps, (req, _base, supervisor) => supervisor.stop({ name: String(req.params.name ?? "") })));
   app.post(`${PREFIX}/:name/trash`, lifecycleHandler(deps, async (req, base, supervisor) => {
-    if (req.body?.confirmed !== true) throw new LocalSiteError("SITE_CONFIRM_REQUIRED");
+    if (req.body?.confirmed !== true) throw new LocalSiteError({ code: "SITE_CONFIRM_REQUIRED" });
     const name = String(req.params.name ?? "");
     return supervisor.withStoppedSite({ name, task: async () => {
       const site = trash.trash({ base, name });
@@ -62,7 +62,7 @@ export function registerLocalSitesRoutes({ app, deps }: { app: Express; deps: Lo
     return supervisor.withStoppedSite({ name: siteTrashName({ id }), task: async () => { trash.restore({ base, id }); } });
   }));
   app.post(`${PREFIX}/trash/:id/delete`, lifecycleHandler(deps, async (req, base, supervisor) => {
-    if (req.body?.checked !== true || req.body?.confirmed !== true) throw new LocalSiteError("SITE_CONFIRM_REQUIRED");
+    if (req.body?.checked !== true || req.body?.confirmed !== true) throw new LocalSiteError({ code: "SITE_CONFIRM_REQUIRED" });
     const id = String(req.params.id ?? "");
     return supervisor.withStoppedSite({ name: siteTrashName({ id }), task: async () => {
       trash.remove({ base, id, checked: req.body?.checked === true, confirmed: req.body?.confirmed === true });

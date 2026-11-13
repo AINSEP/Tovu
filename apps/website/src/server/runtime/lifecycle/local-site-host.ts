@@ -27,7 +27,7 @@ export function warmSiteServerForHost({ binding, workspaceId }: { binding: SiteB
   if (process.env.TOVU_DEV_WARM_SITES !== "1" || process.env.TOVU_DEV_WARM_CONTROL_URL) return undefined;
   const supervisor = localSiteSupervisorForHost({ binding, workspaceId });
   if (!supervisor) return undefined;
-  const tls = resolveDevTls(resolveDevTlsCertPaths(resolveCheckoutRoot()));
+  const tls = resolveDevTls(resolveDevTlsCertPaths(resolveCheckoutRoot({})));
   return async ({ name }: { name: string }): Promise<string> => {
     if (name === binding.name) return `${tls.active ? "https" : "http"}://localhost:${process.env.PORT ?? 3000}/admin/`;
     const state = await startLocalSiteWhenRunning({ supervisor, name });
@@ -35,7 +35,7 @@ export function warmSiteServerForHost({ binding, workspaceId }: { binding: SiteB
     // Never hand out a still-booting URL. Stop this failed request before the restart fallback
     // tries to claim the same site's boot lease.
     if (!state.external) await supervisor.stop({ name });
-    throw new LocalSiteError("SITE_START_FAILED");
+    throw new LocalSiteError({ code: "SITE_START_FAILED" });
   };
 }
 
@@ -47,7 +47,7 @@ export function localSiteSupervisorForHost({ binding, workspaceId }: { binding: 
   if (base === null) return undefined;
   const existing = hosts.get(binding.dir);
   if (existing) return existing.supervisor;
-  const tls = resolveDevTls(resolveDevTlsCertPaths(resolveCheckoutRoot()));
+  const tls = resolveDevTls(resolveDevTlsCertPaths(resolveCheckoutRoot({})));
   const excludedPorts = [process.env.PORT, process.env.JINI_AGENT_DAEMON_PORT,
     process.env.JINI_AGENT_DAEMON_URL ? new URL(process.env.JINI_AGENT_DAEMON_URL).port : undefined]
     .filter((value) => value !== undefined).map(Number);

@@ -57,19 +57,19 @@ function readMeta(siteDir: string): Record<string, unknown> {
   try {
     return JSON.parse(fs.readFileSync(metaPath, "utf8")) as Record<string, unknown>;
   } catch (err) {
-    throw new ValidationError(`storage move: ${metaPath} cannot be read: ${(err as Error).message}`);
+    throw new ValidationError({ message: `storage move: ${metaPath} cannot be read: ${(err as Error).message}` });
   }
 }
 
 /** Refuse unsupported storage and missing data before acquiring any handles. O(1). */
 function requirePgliteDataDir({ siteDir, meta }: { siteDir: string; meta: Record<string, unknown> }, _options = {}): string {
-  const from = parseSiteStorage(meta.storage);
+  const from = parseSiteStorage({ value: meta.storage });
   if (from.kind !== "pglite") {
     const hint = from.kind === "sqlite" ? "; a SQLite site moves with the database transfer tools" : "";
-    throw new ValidationError(`storage move: this site is stored on ${from.kind}, not pglite${hint}`);
+    throw new ValidationError({ message: `storage move: this site is stored on ${from.kind}, not pglite${hint}` });
   }
   const dataDir = path.join(siteDir, PGLITE_DATA_DIR_NAME);
-  if (!fs.existsSync(dataDir)) throw new ValidationError(`storage move: the site's PGlite data dir ${dataDir} does not exist`);
+  if (!fs.existsSync(dataDir)) throw new ValidationError({ message: `storage move: the site's PGlite data dir ${dataDir} does not exist` });
 
   return dataDir;
 }
@@ -80,7 +80,7 @@ function lockStoppedSite({ dataDir }: { dataDir: string }, _options = {}): () =>
     return acquireOwnerLock(dataDir);
   } catch (err) {
     if (err instanceof PgliteOwnerLockedError) {
-      throw new ValidationError(`storage move: the site is running (process ${err.pid ?? "unknown"}); stop it, then move it`);
+      throw new ValidationError({ message: `storage move: the site is running (process ${err.pid ?? "unknown"}); stop it, then move it` });
     }
     throw err;
   }
@@ -109,7 +109,7 @@ export async function moveSiteStorage(required: MoveSiteStorageRequired, optiona
     const occupied = await nonEmptyTables(target);
     if (occupied.length > 0) {
       const named = occupied.slice(0, 5).join(", ") + (occupied.length > 5 ? `, and ${occupied.length - 5} more` : "");
-      throw new ValidationError(`storage move: the target database already holds data (${named}); move into an empty database`);
+      throw new ValidationError({ message: `storage move: the target database already holds data (${named}); move into an empty database` });
     }
     for (const kernel of [source, target]) {
       await migrateContentDatabase(kernel);

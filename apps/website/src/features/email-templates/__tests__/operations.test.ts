@@ -238,7 +238,7 @@ test("generic Trash classifies an email template through the existing Post lifec
   const { TRASH_ITEM_DELEGATES } = await import("../../trash/trash-item-tool.js");
   const { deps, repo } = harness(); const template = await createEmailTemplate({ deps, input: { name: "Trash me", html: HTML }, actorId: "u" });
   const delegate = TRASH_ITEM_DELEGATES.get("post")!;
-  assert.deepEqual(await delegate.toDelegateInput({ workspaceId: WS, postRepo: repo } as never, template.id), { id: template.id, kind: "post" });
+  assert.deepEqual(await delegate.toDelegateInput({ deps: { workspaceId: WS, postRepo: repo } as never, entityId: template.id }), { id: template.id, kind: "post" });
 });
 
 

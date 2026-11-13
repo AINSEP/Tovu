@@ -115,7 +115,7 @@ export async function readAppliedSchemaIdentity<DB>(
  *   `dbPath` does not exist at all — a caller that needs a distinct "no file" outcome checks
  *   `fs.existsSync(dbPath)` itself first.
  */
-export async function readAppliedSchemaIdentityOfFile(dbPath: string): Promise<AppliedSchemaIdentity> {
+export async function readAppliedSchemaIdentityOfFile({ dbPath }: { dbPath: string }, _optional = {}): Promise<AppliedSchemaIdentity> {
   const kernel = openSqliteFileKernel(dbPath, { readOnly: true });
   try {
     return await readAppliedSchemaIdentity(kernel, { identity: "legacy-stamp" });

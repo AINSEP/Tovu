@@ -152,7 +152,7 @@ function validateSiteName({ name }: { name: string }, _optional = {}): string {
   assertPortableSiteName({ name });
   const trimmed = name.trim();
   if (trimmed.length === 0 || trimmed.length > MAX_SITE_NAME_LENGTH || !SITE_NAME_PATTERN.test(trimmed)) {
-    throw new ValidationError(`createSite: name must be 1..${MAX_SITE_NAME_LENGTH} lowercase letters, digits, and dashes`);
+    throw new ValidationError({ message: `createSite: name must be 1..${MAX_SITE_NAME_LENGTH} lowercase letters, digits, and dashes` });
   }
   return trimmed;
 }
@@ -163,7 +163,7 @@ function validateSiteName({ name }: { name: string }, _optional = {}): string {
  */
 export function assertPortableSiteName({ name }: { name: string }, _optional = {}): void {
   if (/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(name.trimStart()) || /[. ]$/.test(name)) {
-    throw new ValidationError("Site names must not use Windows device names or end with a dot or space.");
+    throw new ValidationError({ message: "Site names must not use Windows device names or end with a dot or space." });
   }
 }
 
@@ -201,13 +201,13 @@ export async function createSite(required: CreateSiteRequired & { deps: { initSi
   const name = validateSiteName({ name: required.name });
   const workspace = optional.workspace ?? createSitesWorkspace({}, optional);
   const home = workspace.home({});
-  if (!workspace.homeAvailable({})) throw new ValidationError(`Sites home volume is unavailable: ${home}. Mount it or choose a local folder in Sites settings.`);
+  if (!workspace.homeAvailable({})) throw new ValidationError({ message: `Sites home volume is unavailable: ${home}. Mount it or choose a local folder in Sites settings.` });
   fs.mkdirSync(home, { recursive: true });
-  const create = async (picked: string): Promise<CreateSiteResult> => {
+  const create = async ({ picked }: { picked: string }, _optional = {}): Promise<CreateSiteResult> => {
     const dir = path.join(home, picked);
     return withFileLock({ lockPath: `${dir}.creation.lock`, run: async () => {
-      if (optional.collisionSafe && fs.existsSync(dir)) throw new InitDirNotEmptyError("Import target was occupied while waiting for its creation lock.");
-      const result = await (optional.initSite ?? required.deps.initSite)({ dir, name: required.displayName ?? picked, adminPassword: required.adminPassword }, { workspace, onAllocated: allocation => optional.onAllocated?.({ ...allocation, name: picked }), ...(optional.verifiedRestore ? { verifiedRestore: optional.verifiedRestore } : {}) });
+      if (optional.collisionSafe && fs.existsSync(dir)) throw new InitDirNotEmptyError({ message: "Import target was occupied while waiting for its creation lock." });
+      const result = await (optional.initSite ?? required.deps.initSite)({ dir, name: required.displayName ?? picked, adminPassword: required.adminPassword }, { workspace, onAllocated: (allocation, _optional = {}) => optional.onAllocated?.({ ...allocation, name: picked }), ...(optional.verifiedRestore ? { verifiedRestore: optional.verifiedRestore } : {}) });
       try {
         optional.beforeRegister?.({ ...result, name: picked });
         workspace.registry({}).merge({ entries: [{ id: result.siteId, name: picked, path: result.dir, createdBy: "Web", lastOpened: null }] });
@@ -223,7 +223,7 @@ export async function createSite(required: CreateSiteRequired & { deps: { initSi
       return { ...result, name: picked };
     } }, { staleMs: Infinity });
   };
-  if (!optional.collisionSafe) return create(name);
+  if (!optional.collisionSafe) return create({ picked: name });
   // Name selection and import creation share a home-level lane; ordinary creators retain their
   // per-name lock, so an intervening ordinary create is retried with the next suffix.
   return withFileLock({ lockPath: path.join(home, ".import-creation.lock"), run: async () => {
@@ -231,12 +231,12 @@ export async function createSite(required: CreateSiteRequired & { deps: { initSi
     for (let suffix = 1; suffix <= 10_000; suffix++) {
       const candidate = suffix === 1 ? name : name.slice(0, 90) + "-" + suffix;
       if (fs.existsSync(path.join(home, candidate)) || occupied.has(candidate)) continue;
-      try { return await create(candidate); }
+      try { return await create({ picked: candidate }); }
       catch (error) {
         if ((error as Error).name !== "InitDirNotEmptyError") throw error;
       }
     }
-    throw new ValidationError("No collision-free import site name is available.");
+    throw new ValidationError({ message: "No collision-free import site name is available." });
   } }, { staleMs: Infinity });
 }
 
@@ -261,10 +261,10 @@ export async function reconcileSiteCreation(required: { allocation: SiteCreation
       const entries = workspace.registry({}).list({});
       const owner = entries.find(entry => entry.path === allocation.dir || entry.id === allocation.siteId);
       if (owner) {
-        if (owner.path !== allocation.dir || owner.id !== allocation.siteId || readSiteDir({ dir: allocation.dir }).meta.siteId !== allocation.siteId) throw new ValidationError("Interrupted import has conflicting site ownership; manual recovery required.");
+        if (owner.path !== allocation.dir || owner.id !== allocation.siteId || readSiteDir({ dir: allocation.dir }).meta.siteId !== allocation.siteId) throw new ValidationError({ message: "Interrupted import has conflicting site ownership; manual recovery required." });
         return "ready" as const;
       }
-      if (fs.existsSync(path.join(allocation.dir, ".site-meta.json")) && readSiteDir({ dir: allocation.dir }).meta.siteId !== allocation.siteId) throw new ValidationError("Interrupted import directory belongs to another site; manual recovery required.");
+      if (fs.existsSync(path.join(allocation.dir, ".site-meta.json")) && readSiteDir({ dir: allocation.dir }).meta.siteId !== allocation.siteId) throw new ValidationError({ message: "Interrupted import directory belongs to another site; manual recovery required." });
       removeUncommittedSite({ dir: allocation.dir, contentDbPath: () => allocation.dbPath });
       return "failed" as const;
     } }, { staleMs: Infinity })
@@ -310,7 +310,7 @@ export interface IncludeServingSiteRequired {
  *  never describe two different states of the filesystem.
  *
  *  @complexity O(1) — a single stat. */
-function readServingDirStat(dir: string, { stat: statDir }: { stat: (dir: string) => fs.Stats }): fs.Stats | null {
+function readServingDirStat({ dir, stat: statDir }: { dir: string; stat: (dir: string) => fs.Stats }, _optional = {}): fs.Stats | null {
   try {
     const stat = statDir(dir);
     return stat.isDirectory() ? stat : null;
@@ -378,7 +378,7 @@ export function includeServingSite(required: IncludeServingSiteRequired, { stat 
   const { binding } = required;
   const registered: ServingSiteListEntry[] = required.sites.map((site) => ({ ...site, registration: "registered" }));
   if (registered.some((site) => site.dir === binding.dir)) return registered;
-  const served = readServingDirStat(binding.dir, { stat });
+  const served = readServingDirStat({ dir: binding.dir, stat });
   if (served === null) return registered;
   return [...registered, describeUnregisteredServingSite(binding, served)];
 }
@@ -458,7 +458,7 @@ export const SITE_BINDING_NOT_SWITCHABLE_ENV = "TOVU_SITE_BINDING_NOT_SWITCHABLE
 
 /** Whether `dir` is a direct child of the `<cwd>/sites` root the Sites-switcher's own write paths
  *  resolve — the condition that makes a binding safe to switch/duplicate against. @complexity O(1). */
-function isUnderSwitcherSitesRoot(dir: string, optional: ListSitesOptional): boolean {
+function isUnderSwitcherSitesRoot({ dir, optional }: { dir: string; optional: ListSitesOptional }, _optional = {}): boolean {
   const cwd = optional.cwd ?? process.cwd();
   return path.dirname(dir) === path.resolve(cwd, "sites") || isInSitesWorkspace({ dir, workspace: createSitesWorkspace({}, optional) });
 }
@@ -471,9 +471,9 @@ export function isInSitesWorkspace({ dir, workspace }: { dir: string; workspace:
   registry(required: Record<string, never>): { list(required: Record<string, never>): readonly Pick<DirectoryRecord, "path">[] };
 } }, { platform = process.platform }: { platform?: NodeJS.Platform } = {}): boolean {
   const paths = platform === "win32" ? path.win32 : path.posix;
-  const canonical = (value: string) => platform === "win32" ? paths.resolve(value).toLowerCase() : paths.resolve(value);
-  return canonical(paths.dirname(paths.resolve(dir))) === canonical(workspace.home({})) ||
-    workspace.registry({}).list({}).some((entry) => canonical(entry.path) === canonical(dir));
+  const canonical = ({ value }: { value: string }, _optional = {}) => platform === "win32" ? paths.resolve(value).toLowerCase() : paths.resolve(value);
+  return canonical({ value: paths.dirname(paths.resolve(dir)) }) === canonical({ value: workspace.home({}) }) ||
+    workspace.registry({}).list({}).some((entry) => canonical({ value: entry.path }) === canonical({ value: dir }));
 }
 
 export function describeSiteBinding(optional: ListSitesOptional = {}): SiteBinding {
@@ -485,7 +485,7 @@ export function describeSiteBinding(optional: ListSitesOptional = {}): SiteBindi
     dirOverridden: env.TOVU_SITE_DIR !== undefined && env[SITE_SELECTION_PINNED_ENV] !== "1",
     switcherBase: optional.cwd ?? process.cwd(),
     switcherCompatible:
-      env[SITE_BINDING_NOT_SWITCHABLE_ENV] === undefined && isUnderSwitcherSitesRoot(dir, optional),
+      env[SITE_BINDING_NOT_SWITCHABLE_ENV] === undefined && isUnderSwitcherSitesRoot({ dir, optional }),
   };
 }
 

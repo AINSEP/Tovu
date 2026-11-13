@@ -113,7 +113,7 @@ async function openRetainedClient({ env, snapshot }: { env: NodeJS.ProcessEnv; s
   if (env.TOVU_DB === "memory") return undefined;
   const dbPath = optional.dbPath ?? snapshot.siteStoragePaths.contentDbPath;
   return (optional.openClient ?? openSiteDbClient)({
-    storage: optional.storage ?? resolveSiteStorage(snapshot.siteBinding.dir), dbPath, chatDbPath: path.join(path.dirname(dbPath), "chat.db"),
+    storage: optional.storage ?? resolveSiteStorage({ siteDir: snapshot.siteBinding.dir }), dbPath, chatDbPath: path.join(path.dirname(dbPath), "chat.db"),
     resolvePostgresConnectionString: optional.resolvePostgresConnectionString ?? ((storage, required) => resolvePostgresConnectionString(storage, required, { env })),
   }, { env, importDriver: optional.importDriver });
 }

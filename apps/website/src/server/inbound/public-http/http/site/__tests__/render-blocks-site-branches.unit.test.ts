@@ -190,7 +190,7 @@ test("injectSiteAssistantIntoStaticPage: a page without </head> or </body> is re
 test("injectSiteAssistantIntoStaticPage: without TOVU_SITE_CHAT_DIST, readiness is checked against the product's own site-chat dist", (t) => {
   useSiteChatBuild({ test: t, ready: false });
   const page = "<html><head></head><body></body></html>";
-  process.env.TOVU_SITE_CHAT_DIST = resolveAppDistDir("site-chat", new URL("..", import.meta.url).pathname);
+  process.env.TOVU_SITE_CHAT_DIST = resolveAppDistDir({ app: "site-chat" }, { fromDir: new URL("..", import.meta.url).pathname });
   const withExplicitDist = injectSiteAssistantIntoStaticPage(page, "vanilla");
   delete process.env.TOVU_SITE_CHAT_DIST;
   assert.equal(injectSiteAssistantIntoStaticPage(page, "vanilla"), withExplicitDist);

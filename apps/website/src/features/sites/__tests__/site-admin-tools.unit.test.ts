@@ -89,7 +89,7 @@ test("sites_create_site: an occupied name comes back with the schema attached (a
   const env = fake();
   env.deps.createSite = async () => {
     const { InitDirNotEmptyError } = await import("#src/platform/site-dir/index");
-    throw new InitDirNotEmptyError("sites/beta already exists");
+    throw new InitDirNotEmptyError({ message: "sites/beta already exists" });
   };
   await assert.rejects(
     () => handlerFor(env.deps, "sites_create_site")(ctxFor({ name: "beta" })),

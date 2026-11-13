@@ -31,7 +31,7 @@ function lstatIfPresent({ file }: { file: string }): fs.Stats | undefined {
 
 /** Refuses anything but a real (non-symlinked) directory at `dir`. @complexity O(1) filesystem checks. */
 function assertRealDirectory({ dir }: { dir: string }): void {
-  if (fs.realpathSync(dir) !== dir || !fs.lstatSync(dir).isDirectory()) throw new LocalSiteError("SITE_PATH_UNSAFE");
+  if (fs.realpathSync(dir) !== dir || !fs.lstatSync(dir).isDirectory()) throw new LocalSiteError({ code: "SITE_PATH_UNSAFE" });
 }
 
 /**
@@ -48,7 +48,7 @@ function trashRoot({ base }: { base: string }, { create = false, ...optional }: 
   sitesWorkspace({ base }, optional).home({});
   const root = path.join(fs.realpathSync(base), "site-trash");
   if (create) fs.mkdirSync(root, { recursive: true });
-  if (fs.realpathSync(root) !== root) throw new LocalSiteError("SITE_PATH_UNSAFE");
+  if (fs.realpathSync(root) !== root) throw new LocalSiteError({ code: "SITE_PATH_UNSAFE" });
   return root;
 }
 
@@ -69,13 +69,13 @@ export function assertManagedSiteDirectory(
   assertLocalSiteName({ name });
   const managedParents = [sitesWorkspace({ base }, optional).home({}), path.resolve(base, "sites")];
   for (const parent of managedParents) {
-    if (lstatIfPresent({ file: path.join(parent, name) })?.isSymbolicLink()) throw new LocalSiteError("SITE_PATH_UNSAFE");
+    if (lstatIfPresent({ file: path.join(parent, name) })?.isSymbolicLink()) throw new LocalSiteError({ code: "SITE_PATH_UNSAFE" });
   }
   const site = list({ ...optional, cwd: base }).find((entry) => entry.name === name);
-  if (!site) throw new LocalSiteError("SITE_NOT_FOUND");
+  if (!site) throw new LocalSiteError({ code: "SITE_NOT_FOUND" });
   // Starting an adopted external folder is allowed. Moving it is a separate operator decision;
   // web Trash therefore only manages direct children of the home or the legacy checkout root.
-  if (!managedParents.includes(path.dirname(site.dir))) throw new LocalSiteError("SITE_PATH_UNSAFE");
+  if (!managedParents.includes(path.dirname(site.dir))) throw new LocalSiteError({ code: "SITE_PATH_UNSAFE" });
   assertRealDirectory({ dir: site.dir });
   return site.dir;
 }
@@ -83,14 +83,14 @@ export function assertManagedSiteDirectory(
 /** Validate the opaque Trash identifier before deriving a mutation lock's name. */
 export function siteTrashName({ id }: { id: string }): string {
   const match = TRASH_ID.exec(id);
-  if (!match?.[1]) throw new LocalSiteError("VALIDATION_ERROR");
+  if (!match?.[1]) throw new LocalSiteError({ code: "VALIDATION_ERROR" });
   return match[1];
 }
 
 /** The folder of Trash entry `id` inside an already-checked Trash `root`. @complexity O(1) filesystem checks. */
 function trashDir({ root, id }: { root: string; id: string }): string {
   const dir = path.join(root, id);
-  if (!fs.existsSync(dir)) throw new LocalSiteError("SITE_NOT_FOUND");
+  if (!fs.existsSync(dir)) throw new LocalSiteError({ code: "SITE_NOT_FOUND" });
   assertRealDirectory({ dir });
   return dir;
 }
@@ -133,7 +133,7 @@ export function restoreSite({ base, id }: { base: string; id: string }, optional
   readSiteDir({ dir });
   const target = path.join(restoreRoot({ base }, optional), name);
   // lstat catches a dangling symlink too; existsSync alone would allow rename over it.
-  if (lstatIfPresent({ file: target })) throw new LocalSiteError("SITE_ALREADY_EXISTS");
+  if (lstatIfPresent({ file: target })) throw new LocalSiteError({ code: "SITE_ALREADY_EXISTS" });
   fs.renameSync(dir, target);
   const { config, meta } = readSiteDir({ dir: target });
   sitesWorkspace({ base }, optional).registry({}).merge({ entries: [{ id: meta.siteId, name: config.name, path: target, createdBy: "restored", lastOpened: null }] });
@@ -143,7 +143,7 @@ export function restoreSite({ base, id }: { base: string; id: string }, optional
 export function permanentlyDeleteTrashedSite(
   { base, id, checked, confirmed }: { base: string; id: string; checked: boolean; confirmed: boolean }, optional: SiteTrashOptions = {},
 ): void {
-  if (!checked || !confirmed) throw new LocalSiteError("SITE_CONFIRM_REQUIRED");
+  if (!checked || !confirmed) throw new LocalSiteError({ code: "SITE_CONFIRM_REQUIRED" });
   const { dir } = trashEntry({ base, id }, optional);
   readSiteDir({ dir });
   fs.rmSync(dir, { recursive: true });

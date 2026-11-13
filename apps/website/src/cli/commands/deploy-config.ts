@@ -152,7 +152,7 @@ export async function runDeployConfigCommand(input: RunDeployConfigCommandInput,
   const generator = generators.get(targetRaw);
   if (generator === undefined) {
     const ids = generators.list().map((loaded) => loaded.descriptor.id);
-    throw new ValidationError(`--target must be one of: ${ids.join(", ")} (got "${targetRaw}")`);
+    throw new ValidationError({ message: `--target must be one of: ${ids.join(", ")} (got "${targetRaw}")` });
   }
 
   const descriptor = buildDeploymentDescriptor();
@@ -161,7 +161,7 @@ export async function runDeployConfigCommand(input: RunDeployConfigCommandInput,
   const rendered = appendHostDeployNotes(
     { pluginId: generator.pluginId, targetId: targetRaw, rendered: generator.module.render(descriptor, options, createDeployConfigKit()) },
     // Host overlays ship with the product; the caller's deployment directory need not contain them.
-    { overlaysDir: path.join(resolveProductRoot(), "content", "agent-plugin-overlays") },
+    { overlaysDir: path.join(resolveProductRoot({}), "content", "agent-plugin-overlays") },
   );
 
   if (input.out !== undefined) {

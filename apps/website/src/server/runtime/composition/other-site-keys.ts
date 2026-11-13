@@ -88,7 +88,7 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
 
   /** Open one source read-only, read its metadata, and always close it. */
   async function readSource<T>({ source, read }: { source: Source; read: (input: { kernel: ContentKernel; workspaceId: string; rows: MetaRow[]; keyStatus: boolean; keyring: EnvOrFileKeyring }) => Promise<T> }): Promise<T> {
-    if (resolveSiteStorage(source.dir).kind !== "sqlite") throw refused(couldNotRead(source.name));
+    if (resolveSiteStorage({ siteDir: source.dir }).kind !== "sqlite") throw refused(couldNotRead(source.name));
     const resolved = resolveSiteDatabasePaths({ dir: source.dir }, { workspace, reserveIdentity: false });
     const kernel = openSource<SecretsVaultDatabase>(resolved.contentDbPath, { readOnly: true });
     try {

@@ -31,27 +31,27 @@ export interface ReadSiteDirResult {
 }
 
 /** Read and JSON-parse `fileName` under `dir`, enforcing the 64 KiB corruption-guard size limit. */
-function readJsonFile(dir: string, fileName: string): unknown {
+function readJsonFile({ dir, fileName }: { dir: string; fileName: string }, _optional = {}): unknown {
   const filePath = path.join(dir, fileName);
 
   let stat: fs.Stats;
   try {
     stat = fs.statSync(filePath);
   } catch {
-    throw new SiteDirInvalidError(`${fileName} is missing at ${dir}`);
+    throw new SiteDirInvalidError({ message: `${fileName} is missing at ${dir}` });
   }
   if (!stat.isFile()) {
-    throw new SiteDirInvalidError(`${fileName} at ${dir} is not a regular file`);
+    throw new SiteDirInvalidError({ message: `${fileName} at ${dir} is not a regular file` });
   }
   if (stat.size > MAX_FILE_SIZE_BYTES) {
-    throw new SiteDirInvalidError(`${fileName} exceeds the 64 KiB size limit (corruption guard)`);
+    throw new SiteDirInvalidError({ message: `${fileName} exceeds the 64 KiB size limit (corruption guard)` });
   }
 
   const raw = fs.readFileSync(filePath, "utf8");
   try {
     return JSON.parse(raw);
   } catch (err) {
-    throw new SiteDirInvalidError(`${fileName} is not valid JSON: ${(err as Error).message}`);
+    throw new SiteDirInvalidError({ message: `${fileName} is not valid JSON: ${(err as Error).message}` });
   }
 }
 
@@ -59,12 +59,12 @@ function readJsonFile(dir: string, fileName: string): unknown {
 function validatedConfigName({ candidate }: { candidate: Partial<ConfigJson> | null }, _optional = {}): string {
   const name = typeof candidate?.name === "string" ? candidate.name.trim() : "";
   if (name.length === 0 || name.length > 200) {
-    throw new SiteDirInvalidError("config.json.name must be 1..200 chars after trim");
+    throw new SiteDirInvalidError({ message: "config.json.name must be 1..200 chars after trim" });
   }
   return name;
 }
 
-function validateConfig(parsed: unknown): ConfigJson {
+function validateConfig({ parsed }: { parsed: unknown }, _optional = {}): ConfigJson {
   const candidate = parsed as Partial<ConfigJson> | null;
   const name = validatedConfigName({ candidate });
   return {
@@ -84,7 +84,7 @@ function validateConfig(parsed: unknown): ConfigJson {
  * @complexity O(1) — one small, bounded-size file read.
  */
 export function readSiteConfig(required: ReadSiteDirRequired): ConfigJson {
-  return validateConfig(readJsonFile(required.dir, "config.json"));
+  return validateConfig({ parsed: readJsonFile({ dir: required.dir, fileName: "config.json" }) });
 }
 
 /**
@@ -101,24 +101,24 @@ export function readSiteConfig(required: ReadSiteDirRequired): ConfigJson {
 export function readSiteDir(required: ReadSiteDirRequired): ReadSiteDirResult {
   const { dir } = required;
   const config = readSiteConfig({ dir });
-  const meta = validateMeta(readJsonFile(dir, ".site-meta.json"));
-  parseSiteStorage(meta.storage);
+  const meta = validateMeta({ parsed: readJsonFile({ dir, fileName: ".site-meta.json" }) });
+  parseSiteStorage({ value: meta.storage });
   return { config, meta };
 }
 
 /** The commit marker must carry a usable identity and migration stamp, not merely valid JSON. */
-function validateMeta(parsed: unknown): SiteMetaJson {
+function validateMeta({ parsed }: { parsed: unknown }, _optional = {}): SiteMetaJson {
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new SiteDirInvalidError(".site-meta.json must be an object");
+    throw new SiteDirInvalidError({ message: ".site-meta.json must be an object" });
   }
   const meta = parsed as Record<string, unknown>;
   for (const field of ["siteId", "templateId", "templateVersion", "schemaTag", "createdAt"] as const) {
     if (typeof meta[field] !== "string" || meta[field].trim() === "") {
-      throw new SiteDirInvalidError(`.site-meta.json.${field} must be a non-empty string`);
+      throw new SiteDirInvalidError({ message: `.site-meta.json.${field} must be a non-empty string` });
     }
   }
   if (typeof meta.schemaVersion !== "number" || !Number.isSafeInteger(meta.schemaVersion) || meta.schemaVersion < 0) {
-    throw new SiteDirInvalidError(".site-meta.json.schemaVersion must be a non-negative integer");
+    throw new SiteDirInvalidError({ message: ".site-meta.json.schemaVersion must be a non-negative integer" });
   }
   return parsed as SiteMetaJson;
 }
@@ -147,10 +147,10 @@ export interface LiveSiteDisplayName {
  * @complexity O(1) per read — one small, bounded-size file read.
  */
 export function createLiveSiteDisplayName(required: ReadSiteDirRequired): LiveSiteDisplayName {
-  let lastValidName = readValidName(required, undefined);
+  let lastValidName = readValidName({ required, fallback: undefined });
   return {
     read() {
-      lastValidName = readValidName(required, lastValidName);
+      lastValidName = readValidName({ required, fallback: lastValidName });
       return lastValidName;
     },
   };
@@ -175,7 +175,7 @@ export function createSiteCreationTimeZone(required: ReadSiteDirRequired): { rea
 }
 
 /** `config.json`'s current valid name, else `fallback`. Never throws. */
-function readValidName(required: ReadSiteDirRequired, fallback: string | undefined): string | undefined {
+function readValidName({ required, fallback }: { required: ReadSiteDirRequired; fallback: string | undefined }, _optional = {}): string | undefined {
   try {
     return readSiteConfig(required).name;
   } catch {

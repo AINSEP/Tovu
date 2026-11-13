@@ -106,7 +106,7 @@ async function seedFullUser(kernel: ContentKernel, principalId: string, workspac
 /** The `buildEvent` callback `purgeUser` calls with the counts it actually removed — mirrors
  *  `delete-user-service.ts`'s real event shape closely enough to exercise the port contract. */
 function makeBuildEvent(principalId: string, eventId = "event-1") {
-  return (removed: PurgeCounts): DomainEvent => ({
+  return ({ removed }: { removed: PurgeCounts }): DomainEvent => ({
     id: eventId,
     name: "identity.user.deleted",
     occurredAt: NOW,
