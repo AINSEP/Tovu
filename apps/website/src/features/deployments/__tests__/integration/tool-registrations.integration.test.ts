@@ -153,7 +153,7 @@ test("deployment_set_dockerfile refuses a stale ifMatch with a message the assis
   // a real change to the same real file in between. Reproduced with a real second `writeFileSync`
   // (via the domain function the HTTP route itself calls), not a hand-crafted mismatched string.
   const concurrentContents = `# concurrent human edit ${Date.now()}\nFROM node:22\n`;
-  writeDockerfileSource(concurrentContents);
+  writeDockerfileSource({ contents: concurrentContents });
 
   // The assistant now tries to save its own edit, still carrying the etag from before the
   // concurrent write.

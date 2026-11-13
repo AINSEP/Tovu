@@ -231,7 +231,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
   async function triggerAccountLabelHeal(credentials: readonly PublishCredentialSummary[]): Promise<void> {
     try {
       const registry = await deps.loadDeployTargets(deps.workspaceId);
-      accountLabelHealScheduler.triggerFor(idsNeedingAccountLabelHeal(credentials, (providerId) => canYieldAccountLabel(registry, providerId)));
+      accountLabelHealScheduler.triggerFor(idsNeedingAccountLabelHeal({ credentials, canYieldAccountLabel: (providerId) => canYieldAccountLabel(registry, providerId) }));
     } catch (err) {
       console.error("[publish-credentials] account-label heal skipped: deploy targets could not be loaded", err);
     }

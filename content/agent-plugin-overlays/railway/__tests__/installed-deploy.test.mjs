@@ -54,12 +54,12 @@ test("installed Railway contributes deploy and observes its returned run through
     assert.equal(typeof registry.get("railway")?.module.deploy, "function");
     const { deps, calls } = await credentialDeps({ registry });
     const input = { platform: "railway", target: TARGET, credentialLabel: "Railway API" };
-    assert.equal((await runDeployOps(deps, { ...input, org: OTHER }, "listTargets")).targets[0].id, TARGET);
+    assert.equal((await runDeployOps({ deps, input: { ...input, org: OTHER }, operation: "listTargets" })).targets[0].id, TARGET);
     const result = await runDeploy({ deps, input });
     assert.equal(result.started, true);
     assert.equal(result.runId, RUN);
-    assert.equal((await runDeployOps(deps, { ...input, runId: result.runId }, "status")).state, "healthy");
-    assert.deepEqual((await runDeployOps(deps, { ...input, runId: result.runId, limit: 1 }, "logs")).lines, [{ message: "ready" }]);
+    assert.equal((await runDeployOps({ deps, input: { ...input, runId: result.runId }, operation: "status" })).state, "healthy");
+    assert.deepEqual((await runDeployOps({ deps, input: { ...input, runId: result.runId, limit: 1 }, operation: "logs" })).lines, [{ message: "ready" }]);
     assert.deepEqual(JSON.parse(calls[1].body), request({ operation: "deploy", variables: { serviceId: TARGET.split(":")[2], environmentId: TARGET.split(":")[1] } }).body);
     assert.equal(JSON.stringify(result).includes("saved-private-token"), false);
   } finally {

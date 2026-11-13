@@ -12,5 +12,5 @@ test("the github package's ops manifest loads its contained module with its decl
   const registry = await loadDeployOpsRegistryFromSource({ pluginId: "github", packageRoot: PLUGIN_ROOT });
   assert.deepEqual(registry.list().map(p => ({ id: p.descriptor.id, hosts: p.descriptor.hosts })), [{ id: "github-actions", hosts: ["api.github.com"] }]);
   assert.deepEqual(registry.refusals, []);
-  assert.throws(() => requirePlatform(registry, "missing"), { message: "Unknown deployment ops platform 'missing'. Choose: github-actions." });
+  assert.throws(() => requirePlatform({ registry, id: "missing" }), { message: "Unknown deployment ops platform 'missing'. Choose: github-actions." });
 });

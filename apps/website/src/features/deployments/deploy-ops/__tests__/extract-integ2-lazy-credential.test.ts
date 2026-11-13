@@ -8,10 +8,10 @@ test('an explicit deployment credential ignores malformed origins on unrelated s
   const repo = f.deps.customCredentialSetRepo;
   const saved = await repo.listByWorkspace({ workspaceId: 'ws' });
   repo.listByWorkspace = async () => [...saved, { ...saved[0]!, id: 'legacy', label: 'legacy', baseUrl: 'not an absolute URL' }];
-  const result = await runDeployOps(f.deps, { platform: 'example-host', target: 'shop', credentialLabel: 'ops' }, 'status');
+  const result = await runDeployOps({ deps: f.deps, input: { platform: 'example-host', target: 'shop', credentialLabel: 'ops' }, operation: 'status' });
   assert.equal(result.platform, 'example-host');
   assert.equal(f.calls.length, 1);
   assert.equal(f.calls[0].url, 'https://api.example-host.dev/v1/targets/shop/instances');
-  await assert.rejects(runDeployOps(f.deps, { platform: 'example-host', target: 'shop' }, 'status'), TypeError);
+  await assert.rejects(runDeployOps({ deps: f.deps, input: { platform: 'example-host', target: 'shop' }, operation: 'status' }), TypeError);
   assert.equal(f.calls.length, 1);
 });

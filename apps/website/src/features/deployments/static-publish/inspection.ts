@@ -42,7 +42,7 @@ export async function inspectStaticPublish({ deps, input }: { deps: StaticPublis
   const forms = await previewFormDestination({ deps, input, kit });
   try {
     const hostInspection = await plan.target.module.preview({ credential, config: input.config, projectName: input.projectName, kit, ...forms.hostInput });
-    return { inspection: forms.addFormLine(hostInspection), credentialId: resolved.credentialId,
+    return { inspection: forms.addFormLine({ inspection: hostInspection }), credentialId: resolved.credentialId,
       credentialBinding: createHash('sha256').update(JSON.stringify(credential)).digest('hex') };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Provider inspection failed. Check the connection and preview again.';
@@ -56,14 +56,14 @@ export async function inspectStaticPublish({ deps, input }: { deps: StaticPublis
  * @complexity One forms read when the port is wired, plus a registry load and setting read with forms. */
 async function previewFormDestination({ deps, input, kit }: { deps: StaticPublishDeps; input: StaticPublishInspectionInput; kit: NonNullable<StaticPublishDeps['hostKit']> }, _options = {}): Promise<{
   hostInput: { formDestination?: { readonly forms: readonly FormDestinationForm[] } };
-  addFormLine: (inspection: DeployTargetInspection) => DeployTargetInspection;
+  addFormLine: (required: { inspection: DeployTargetInspection }, options?: object) => DeployTargetInspection;
 }> {
   const forms = deps.formDestination
     ? await deps.formDestination.previewInput({ workspaceId: input.workspaceId, hostingTargetId: input.config.target, projectName: input.projectName, kit })
     : {};
   const { hosting, formSubmissions } = forms;
   return { hostInput: hosting ? { formDestination: hosting } : {},
-    addFormLine: (inspection) => (formSubmissions ? { ...inspection, formSubmissions } : inspection) };
+    addFormLine: ({ inspection }, _options = {}) => (formSubmissions ? { ...inspection, formSubmissions } : inspection) };
 }
 
 async function resolveInspectionCredential({ deps, input }: { deps: StaticPublishDeps; input: StaticPublishInspectionInput }, _options = {}) {

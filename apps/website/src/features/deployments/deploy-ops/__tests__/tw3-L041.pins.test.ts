@@ -19,9 +19,9 @@ test("L041 manifest guards preserve refusal order and contained-path rules", () 
     ...[undefined, 42, "a.js", "/a.mjs", "a\\b.mjs", "../a.mjs", "./a.mjs", "a//b.mjs"].map(module => [JSON.stringify({ schemaVersion: 1, platforms: [{ ...entry, module }] }), "platforms[0].module must be a contained relative .mjs path"]),
     ...[null, [], Array(9).fill("api.example.test"), ["https://api.example.test"], [1], ["x".repeat(254)]].map(hosts => [JSON.stringify({ schemaVersion: 1, platforms: [{ ...entry, hosts }] }), "platforms[0].hosts must be a non-empty array of HTTPS hostnames"]),
     [JSON.stringify({ schemaVersion: 1, platforms: [entry, { ...entry, label: "" }] }), "platforms[1].id 'example' is declared twice"],
-  ]) assert.deepEqual(parseDeployOpsFile(raw!), { ok: false, reason });
-  assert.deepEqual(parseDeployOpsFile(JSON.stringify({ schemaVersion: 1, platforms: [entry] })), { ok: true, descriptors: [entry] });
-  assert.deepEqual(parseDeployOpsFile('{"schemaVersion":1,"platforms":[]}'), { ok: true, descriptors: [] });
+  ]) assert.deepEqual(parseDeployOpsFile({ raw: raw! }), { ok: false, reason });
+  assert.deepEqual(parseDeployOpsFile({ raw: JSON.stringify({ schemaVersion: 1, platforms: [entry] }) }), { ok: true, descriptors: [entry] });
+  assert.deepEqual(parseDeployOpsFile({ raw: '{"schemaVersion":1,"platforms":[]}' }), { ok: true, descriptors: [] });
 });
 
 async function fakePlatform({ module }: { module: Partial<DeployOpsModule> }, _options = {}) {
@@ -35,7 +35,7 @@ const value = ["private", "fixture", "value"].join(":");
 
 test("L041 bound facade retains URL gates, JSON parsing and transport clipping", async () => {
   const f = await fakePlatform({ module: {} });
-  const ctx = await boundContext(f.deps, f.platform, undefined);
+  const ctx = await boundContext({ deps: f.deps, platform: f.platform, explicit: undefined });
   for (const url of ["bad url", "http://api.example-host.dev/", "https://user@api.example-host.dev/", "https://user:pass@api.example-host.dev/", "https://api.example-host.dev:444/", "https://other.test/"]) {
     await assert.rejects(ctx.get(url), { name: "ToolInputError" });
   }

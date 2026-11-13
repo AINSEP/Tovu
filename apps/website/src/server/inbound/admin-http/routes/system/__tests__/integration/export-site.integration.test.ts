@@ -186,7 +186,7 @@ test("export-site: a gated real export starts running and refuses a second trigg
   let release!: () => void;
   const barrier = new Promise<void>((resolve) => { release = resolve; });
   let engineCalls = 0;
-  deps.runExportSite = async (options) => {
+  deps.runExportSite = async (options, _optional = {}) => {
     engineCalls++;
     await barrier;
     return realExport(options);

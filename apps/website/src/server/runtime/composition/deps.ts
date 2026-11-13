@@ -2714,7 +2714,7 @@ async function composeSiteRouteDeps(
     // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
     // `runExportSite` doc for why that indirection exists (a real circular-load crash it began as a
     // fix for, now history; it stays to keep `features/deployments` off the export engine's graph).
-    runExportSite: (options) => exportSite(options),
+    runExportSite: (options, _optional = {}) => exportSite(options),
     // Read ONCE here rather than deep in `export-run.ts`/`cli/commands/export.ts` — see
     // `resolveExportOutputRootDir`'s own doc immediately above and `routes/types.ts`'s
     // `exportOutputRootDir` doc.

@@ -37,7 +37,7 @@ export const DEPLOY_FETCH_TIMEOUTS: DeployFetchTimeouts = Object.freeze({ QUICK:
  * `fetch` rejected with (the caller's abort reason, a network error).
  * @complexity One request.
  */
-async function fetchWithTimeout(fetchFn: typeof fetch, url: string, init: RequestInit, options: { readonly timeoutMs: number }): Promise<Response> {
+async function fetchWithTimeout({ fetchFn, url, init, options }: { fetchFn: typeof fetch; url: string; init: RequestInit; options: { readonly timeoutMs: number } }, _options = {}): Promise<Response> {
   const timeoutSignal = AbortSignal.timeout(options.timeoutMs);
   const signal = init.signal ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal;
   try {
@@ -120,7 +120,7 @@ export function createDeployHostKit(options: { readonly fetchFn?: typeof fetch; 
   const fetchFn: typeof fetch = traced(options.fetchFn ?? ((input, init) => fetch(input, init)), options);
   // Each probe operation owns its dispatcher; polling shares it until the operation settles.
   // Per-publish kits have no shutdown hook, so release connections on success and refusal alike.
-  async function withReachability<T>(run: (ports: ReturnType<typeof createNodeReachabilityPorts>) => Promise<T>): Promise<T> {
+  async function withReachability<T>({ run }: { run: (ports: ReturnType<typeof createNodeReachabilityPorts>) => Promise<T> }, _options = {}): Promise<T> {
     const reachability = createNodeReachabilityPorts({}, { fetch: fetchFn, lookupImpl: options.lookupImpl });
     try { return await run(reachability); }
     finally { await reachability.close(); }
@@ -129,17 +129,17 @@ export function createDeployHostKit(options: { readonly fetchFn?: typeof fetch; 
     now: () => Date.now(),
     // The paired Jini transport enforces policy at connection time, including every redirect.
     // A 200 alone cannot distinguish a previous site from the content just deployed.
-    probeContent: ({ url, expected }) => withReachability(ports => probeDeploymentContent({ ports, url, expected })),
-    fetch: (url, init, fetchOptions) => fetchWithTimeout(fetchFn, url, init, fetchOptions),
+    probeContent: ({ url, expected }) => withReachability({ run: ports => probeDeploymentContent({ ports, url, expected }) }),
+    fetch: (url, init, fetchOptions) => fetchWithTimeout({ fetchFn, url, init, options: fetchOptions }),
     timeouts: options.timeouts ?? DEPLOY_FETCH_TIMEOUTS,
     sleep: (ms) => sleep(ms),
     // Standalone installed plugins keep their ABI. Every shared helper receives
     // object args and explicit host ports, including native fetch and polling time.
-    checkDeploymentUrl: (url, options) => withReachability(reachability => checkDeploymentUrl({ url, ...reachability }, reachabilityOptions(options))),
-    waitForReachableDeploymentUrl: (urls, options) => withReachability(reachability => waitForReachableDeploymentUrl({
+    checkDeploymentUrl: (url, options) => withReachability({ run: reachability => checkDeploymentUrl({ url, ...reachability }, reachabilityOptions(options)) }),
+    waitForReachableDeploymentUrl: (urls, options) => withReachability({ run: reachability => waitForReachableDeploymentUrl({
       urls, ...reachability, now: () => Date.now(),
       sleep: ({ ms }) => sleep(ms),
-    }, reachabilityOptions(options))),
+    }, reachabilityOptions(options)) }),
     normalizeDeploymentUrl: (url) => normalizeDeploymentUrl({ url }),
     safeDnsLabel: (raw) => safeDnsLabel({ raw }),
     safeProjectLabel: (raw, maxLength) => safeProjectLabel({ raw, maxLength }),

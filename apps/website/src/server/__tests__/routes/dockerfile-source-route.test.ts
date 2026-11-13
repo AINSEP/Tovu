@@ -239,7 +239,7 @@ test("dockerfile-source: PUT — a stale If-Match is refused 412 with the CURREN
   // the actual race from the bug report, reproduced with a real second disk write, not a
   // hand-crafted mismatched header standing in for one.
   const concurrentContents = `# writer-B ${Date.now()}\nFROM node:22\n`;
-  writeDockerfileSource(concurrentContents);
+  writeDockerfileSource({ contents: concurrentContents });
 
   // Writer A now tries to save ITS edit, still carrying the etag from before Writer B's write.
   const staleAttemptContents = `# writer-A (should be rejected) ${Date.now()}\nFROM node:18\n`;

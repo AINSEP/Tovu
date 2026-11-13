@@ -193,8 +193,8 @@ test("tools: unset holds the call on a card for the named human and re-checks pe
 });
 
 test("fingerprints: site-key-shaped values match the Security page; others are a short sha256", () => {
-  assert.deepEqual(secretFingerprint(SITE_KEY), { fingerprint: fingerprintSiteKeyHex(SITE_KEY), fingerprintKind: "site-key" });
-  assert.deepEqual(secretFingerprint("hunter2"), { fingerprint: "f52fbd32b2b3", fingerprintKind: "sha256" });
+  assert.deepEqual(secretFingerprint({ value: SITE_KEY }), { fingerprint: fingerprintSiteKeyHex(SITE_KEY), fingerprintKind: "site-key" });
+  assert.deepEqual(secretFingerprint({ value: "hunter2" }), { fingerprint: "f52fbd32b2b3", fingerprintKind: "sha256" });
 });
 
 test("registry refuses a half secrets adapter and missing capabilities", async () => {

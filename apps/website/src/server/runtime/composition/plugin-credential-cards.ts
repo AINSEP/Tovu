@@ -70,12 +70,12 @@ async function readOwnedIdentities({ plugin, readFile }: { plugin: TrustedPlugin
   const identities = new Set([plugin.pluginId]);
   const sources = [
     { filename: 'tovu-deploy-targets.json', parse: parseDeployTargetsFile },
-    { filename: 'tovu-source-control.json', parse: parseSourceControlProvidersFile },
-    { filename: 'tovu-mail-adapters.json', parse: parseMailAdaptersFile },
+    { filename: 'tovu-source-control.json', parse: ({ raw }: { raw: string }, _options = {}) => parseSourceControlProvidersFile(raw) },
+    { filename: 'tovu-mail-adapters.json', parse: ({ raw }: { raw: string }, _options = {}) => parseMailAdaptersFile(raw) },
   ];
   for (const source of sources) {
     let parsed: ReturnType<typeof source.parse> | undefined;
-    try { parsed = source.parse(await readFile({ plugin, filename: source.filename })); }
+    try { parsed = source.parse({ raw: await readFile({ plugin, filename: source.filename }) }); }
     catch { /* Missing or broken descriptors grant no ownership. */ }
     if (!parsed?.ok) continue;
     for (const entry of parsed.descriptors) {

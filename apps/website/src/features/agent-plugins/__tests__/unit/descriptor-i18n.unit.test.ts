@@ -47,11 +47,11 @@ test("the caps on locales and strings per locale hold", () => {
 
 test("a deploy target carries its i18n block; a bad one refuses the file with the target's path", () => {
   const base = { id: "fixture-host", label: "Fixture", module: "targets/fixture.mjs" };
-  const ok = parseDeployTargetsFile(JSON.stringify({ schemaVersion: 1, targets: [{ ...base, i18n: { es: { Fixture: "Accesorio" } } }] }));
+  const ok = parseDeployTargetsFile({ raw: JSON.stringify({ schemaVersion: 1, targets: [{ ...base, i18n: { es: { Fixture: "Accesorio" } } }] }) });
   assert.equal(ok.ok, true);
   assert.deepEqual(ok.ok && ok.descriptors[0]?.i18n, { es: { Fixture: "Accesorio" } });
 
-  const bad = parseDeployTargetsFile(JSON.stringify({ schemaVersion: 1, targets: [{ ...base, i18n: { es: { Fixture: "" } } }] }));
+  const bad = parseDeployTargetsFile({ raw: JSON.stringify({ schemaVersion: 1, targets: [{ ...base, i18n: { es: { Fixture: "" } } }] }) });
   assert.deepEqual(bad, { ok: false, reason: "targets[0].i18n.es translations must be non-empty strings of at most 2000 characters" });
 });
 
@@ -111,7 +111,7 @@ for (const [{ file, absolute }, listKey] of [
 
 test("every bundled descriptor file still parses with its i18n blocks", () => {
   assert.ok(DEPLOY_TARGET_FILES.length > 0);
-  for (const { file, absolute } of DEPLOY_TARGET_FILES) assert.equal(parseDeployTargetsFile(readFileSync(absolute, "utf8")).ok, true, file);
+  for (const { file, absolute } of DEPLOY_TARGET_FILES) assert.equal(parseDeployTargetsFile({ raw: readFileSync(absolute, "utf8") }).ok, true, file);
   assert.equal(parseSourceControlProvidersFile(readFileSync(SOURCE_CONTROL_FILE.absolute, "utf8")).ok, true);
 });
 

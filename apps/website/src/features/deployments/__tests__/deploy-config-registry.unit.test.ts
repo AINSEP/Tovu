@@ -104,7 +104,7 @@ test("parseDeployConfigsFile: rejects each malformed shape with its exact reason
     [manifest([{ id: "b", label: "B", module: "/abs/b.mjs" }]), "generators[0].module must be a relative path ending in .mjs"],
     [manifest([{ id: "b", label: "B", module: "b.mjs" }, { id: "b", label: "B2", module: "c.mjs" }]), "generators[1].id 'b' is declared twice"],
   ];
-  for (const [raw, reason] of cases) assert.deepEqual(parseDeployConfigsFile(raw), { ok: false, reason }, raw);
+  for (const [raw, reason] of cases) assert.deepEqual(parseDeployConfigsFile({ raw }), { ok: false, reason }, raw);
 });
 
 test("readBundledDeployConfigTargetIds: all bundled ids in plugin-id order, without importing modules", () => {
@@ -145,25 +145,25 @@ test("bundled config discovery skips missing categories, non-packages and retire
 test("L210 descriptor validation preserves boundaries, error precedence and original strings", () => {
   const base = { id: "host", label: " Host ", module: "./host.mjs" };
   for (const label of [null, 42, "", " ", "x".repeat(101)]) {
-    assert.deepEqual(parseDeployConfigsFile(manifest([{ ...base, label }])), {
+    assert.deepEqual(parseDeployConfigsFile({ raw: manifest([{ ...base, label }]) }), {
       ok: false, reason: "generators[0].label must be a non-empty string",
     });
   }
   const boundary = { ...base, label: "x".repeat(100) };
-  assert.deepEqual(parseDeployConfigsFile(manifest([boundary])), { ok: true, descriptors: [boundary] });
+  assert.deepEqual(parseDeployConfigsFile({ raw: manifest([boundary]) }), { ok: true, descriptors: [boundary] });
   for (const module of [null, 42, "host.js", "/host.mjs"]) {
-    assert.deepEqual(parseDeployConfigsFile(manifest([{ ...base, module }])), {
+    assert.deepEqual(parseDeployConfigsFile({ raw: manifest([{ ...base, module }]) }), {
       ok: false, reason: "generators[0].module must be a relative path ending in .mjs",
     });
   }
   for (const module of ["./host.mjs", "../host.mjs", "host.mjs"]) {
     const descriptor = { ...base, module };
-    assert.deepEqual(parseDeployConfigsFile(manifest([descriptor])), { ok: true, descriptors: [descriptor] });
+    assert.deepEqual(parseDeployConfigsFile({ raw: manifest([descriptor]) }), { ok: true, descriptors: [descriptor] });
   }
-  assert.deepEqual(parseDeployConfigsFile(manifest([{ ...base, id: "BAD", label: "", module: null }])), {
+  assert.deepEqual(parseDeployConfigsFile({ raw: manifest([{ ...base, id: "BAD", label: "", module: null }]) }), {
     ok: false, reason: "generators[0].id must be a lowercase hyphenated id",
   });
-  assert.deepEqual(parseDeployConfigsFile(manifest([{ ...base, label: "", module: null }])), {
+  assert.deepEqual(parseDeployConfigsFile({ raw: manifest([{ ...base, label: "", module: null }]) }), {
     ok: false, reason: "generators[0].label must be a non-empty string",
   });
 });
