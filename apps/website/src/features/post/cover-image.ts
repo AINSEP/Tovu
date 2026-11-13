@@ -51,7 +51,10 @@ function isMediaNode(node: Record<string, unknown>): node is Record<string, unkn
 
 /** Pushes children last-to-first so popping the stack visits them in document order. */
 function pushReversed<T, U>({ stack, items, wrap }: { stack: U[]; items: readonly T[]; wrap: (item: T) => U }, _optional: Record<string, never> = {}): void {
-  for (let i = items.length - 1; i >= 0; i--) stack.push(wrap(items[i]!));
+  for (let i = items.length - 1; i >= 0; i--) {
+    if (!(i in items)) throw new Error("Cover image traversal has a missing item");
+    stack.push(wrap(items[i]));
+  }
 }
 
 /** A public rendition src can point back to a library id/slug; originals are never covers. */
@@ -123,7 +126,8 @@ function* htmlCandidates({ html }: { html: string }, _optional: Record<string, n
   const markers = new Map(scanEmbedMarkers({ html }).markers.map((marker) => [marker.index, marker]));
   const stack: HtmlNode[] = [...parseFragment(html, { sourceCodeLocationInfo: true }).childNodes].reverse();
   while (stack.length) {
-    const node = stack.pop()!;
+    const node = stack.pop();
+    if (node === undefined) throw new Error("Cover image scan has no HTML node to inspect");
     if (!("tagName" in node) || INERT_ELEMENTS.has(node.tagName)) continue;
     yield* htmlElementCandidates({ node, markers, stack });
   }
@@ -241,7 +245,11 @@ function withoutOccurrence({ body, selected }: { body: Record<string, unknown>; 
   const output: unknown[] = [];
   const stack: BodyCopyFrame[] = [{ source: body, target: output }];
   let occurrence = 0;
-  while (stack.length) occurrence = copyBodyFrame({ ...stack.pop()!, stack, selected, occurrence });
+  while (stack.length) {
+    const frame = stack.pop();
+    if (frame === undefined) throw new Error("Cover image copy has no body frame");
+    occurrence = copyBodyFrame({ ...frame, stack, selected, occurrence });
+  }
   return output[0];
 }
 

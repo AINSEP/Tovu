@@ -29,13 +29,14 @@ export function createBundledExportFilePolicy(_required: Record<string, never>, 
       try { roots.set(pluginId, path.dirname(resolve(`${specifier}/plugin.json`))); }
       catch { roots.set(pluginId, null); }
     }
-    const root = roots.get(pluginId)!;
+    const root = roots.get(pluginId);
+    if (root === undefined) throw new Error(`Bundled plugin ${pluginId} has no resolved root`);
     if (root === null) return null;
     return read(path.join(root, relativePath));
   };
   return async ({ path: archivePath, bytes }) => {
     const match = /^agent-plugins\/([^/]+)\/package\/(.+)$/.exec(archivePath);
     if (!match) return 'scan';
-    return classifyBundledPluginFile({ pluginId: match[1]!, relativePath: match[2]!, bytes, readFile: readBundledFile });
+    return classifyBundledPluginFile({ pluginId: match[1], relativePath: match[2], bytes, readFile: readBundledFile });
   };
 }

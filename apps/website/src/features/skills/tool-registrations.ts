@@ -419,5 +419,6 @@ export async function registerInstalledSkillTools(
       return pending;
     };
   }
-  await registry.refreshInstalledSkills!();
+  if (!registry.refreshInstalledSkills) throw new Error("Skill registry has no refresh operation");
+  await registry.refreshInstalledSkills();
 }

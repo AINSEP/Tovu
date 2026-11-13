@@ -19,7 +19,9 @@ const excluded = (node: Element) => ['script', 'style', 'template', 'noscript'].
 function* annotated({ html }: { html: string }, _options = {}): Generator<Element> {
   const stack: { node: Node; scoped: boolean }[] = parse(html, { sourceCodeLocationInfo: true }).childNodes.map(node => ({ node, scoped: false }));
   while (stack.length) {
-    const { node, scoped } = stack.pop()!;
+    const item = stack.pop();
+    if (item === undefined) throw new Error('Visitor publication has no pending node');
+    const { node, scoped } = item;
     if (!('tagName' in node) || excluded(node)) continue;
     const inside = scoped || attr(node, 'data-visitor-scope') !== undefined;
     if (inside && attr(node, 'data-toolname')) yield node;
@@ -45,22 +47,25 @@ function declaration({ node, pagePath }: { node: Element; pagePath?: string }, _
  * O(n + p log p) server parse/projection over HTML bytes and <=256 reviewed annotations. */
 export function publishVisitorPage({ html, path, workspaceId }: { html: string; path?: string; workspaceId?: string }, _options = {}): string {
   if (!html.includes('tovu-site-assistant-root') || html.includes('id="tovu-visitor-publication"')) return html;
-  const declared = Array.from(annotated({ html })).map(node => ({ node, entry: declaration({ node, pagePath: path }) })).filter(item => item.entry !== null);
+  const declared = Array.from(annotated({ html })).map(node => ({ node, entry: declaration({ node, pagePath: path }) })).filter((item): item is { node: Element; entry: PublishedPageElement } => item.entry !== null);
   const counts = new Map<string, number>();
-  for (const { entry } of declared) counts.set(entry!.handle, (counts.get(entry!.handle) ?? 0) + 1);
-  const unique = declared.filter(({ entry }) => counts.get(entry!.handle) === 1).slice(0, 256);
+  for (const { entry } of declared) counts.set(entry.handle, (counts.get(entry.handle) ?? 0) + 1);
+  const unique = declared.filter(({ entry }) => counts.get(entry.handle) === 1).slice(0, 256);
   const derived = unique.filter(({ node }) => inMainMenu(node)).flatMap(({ entry }) => [
-    { ...entry!, handle: `${entry!.handle}-mobile` },
-    { handle: `${entry!.handle}-submenu`, label: `${entry!.label} submenu`, action: 'menu' as const },
+    { ...entry, handle: `${entry.handle}-mobile` },
+    { handle: `${entry.handle}-submenu`, label: `${entry.label} submenu`, action: 'menu' as const },
   ]);
-  const elements = withoutHandleCollisions([...unique.map(({ entry }) => entry!), ...derived]).sort((a, b) => a.handle.localeCompare(b.handle));
+  const elements = withoutHandleCollisions([...unique.map(({ entry }) => entry), ...derived]).sort((a, b) => a.handle.localeCompare(b.handle));
   // Each document keeps its own binding. A concurrent member/anonymous render of the same
   // path must not revoke a still-live document; revision plus TTL bounds its lifetime.
   const revision = createHash('sha256').update(JSON.stringify({ documentId: randomUUID(), elements, path, workspaceId })).digest('hex');
   const publication = { revision, elements, ...(path ? { path } : {}), ...(workspaceId ? { workspaceId } : {}) };
   rememberPublication({ publication });
-  const edits = unique.map(({ node, entry }) => ({ at: node.sourceCodeLocation!.startTag!.endOffset - 1,
-    text: projectedAttributes({ node, entry: entry! }) }));
+  const edits = unique.map(({ node, entry }) => {
+    const startTag = node.sourceCodeLocation?.startTag;
+    if (!startTag) throw new Error('Visitor publication element has no start tag location');
+    return { at: startTag.endOffset - 1, text: projectedAttributes({ node, entry }) };
+  });
   for (const edit of edits.sort((a, b) => b.at - a.at)) html = html.slice(0, edit.at) + edit.text + html.slice(edit.at);
   const data = JSON.stringify(publication).replace(/</g, '\\u003c');
   html = html.replace(/<body\b/i, () => `<body data-visitor-page-root data-agent-publication="${revision}"`);
@@ -106,8 +111,9 @@ function rememberPublication({ publication }: { publication: Publication }): voi
   snapshots.delete(publication.revision);
   snapshots.set(publication.revision, { publication, expires: Date.now() + 30 * 60_000 });
   while (snapshots.size > 512) {
-    const oldest = snapshots.keys().next().value!;
-    snapshots.delete(oldest);
+    const oldest = snapshots.keys().next();
+    if (oldest.done) throw new Error('Visitor publication cache has no oldest entry');
+    snapshots.delete(oldest.value);
   }
 }
 
@@ -115,7 +121,8 @@ function projectedAttributes({ node, entry }: { node: Element; entry: PublishedP
   const mobile = inMainMenu(node) ? ` data-visitor-mobile-handle="${entry.handle}-mobile" data-visitor-submenu-handle="${entry.handle}-submenu"` : '';
   const roles: Readonly<Record<string, string>> = { read: 'region', navigate: 'link', fill: 'field', select: 'field' };
   const role = roles[entry.action] ?? 'button';
-  return `${mobile} data-agent-element="${entry.handle}" data-agent-label="${escapeHtml(entry.label!)}" data-agent-role="${role}"`;
+  if (entry.label === undefined) throw new Error('Visitor publication element has no label');
+  return `${mobile} data-agent-element="${entry.handle}" data-agent-label="${escapeHtml(entry.label)}" data-agent-role="${role}"`;
 }
 
 /** Bind the published submitter to its reviewed same-site form action and method. */

@@ -49,7 +49,11 @@ export async function captureProjectedDatabase(required: { dbOps: DbOpsPort; san
 /** Collects the share profile's files (never the media folder); any skipped file refuses by name. */
 export async function collectShareFiles(required: { sources: SiteBackupSources; include: SiteBackupInclude }): Promise<CollectedSiteBackupFiles> {
   const collected = await collectSiteBackupFiles({ sources: required.sources, include: { ...required.include, media: false } }, { profile: "share" });
-  if (collected.skipped.length) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Cannot share '${collected.skipped[0]!.path}': ${collected.skipped[0]!.reason}. Remove it or replace it with a regular file.` });
+  if (collected.skipped.length) {
+    const skipped = collected.skipped[0];
+    if (skipped === undefined) throw new Error("Share export has no skipped-file details");
+    throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Cannot share '${skipped.path}': ${skipped.reason}. Remove it or replace it with a regular file.` });
+  }
   return collected;
 }
 

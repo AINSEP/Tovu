@@ -282,17 +282,20 @@ export function includeReferencedEntities(
     const seen = new Set<string>();
     const pending = [...referencesOf(root)];
     while (pending.length > 0) {
-      const ref = pending.pop()!;
+      const ref = pending.pop();
+      if (ref === undefined) throw new Error("Publish export has no pending reference");
       const target = carriable.get(entityKey(ref.entityType, ref.key));
       if (!target) continue;
       const key = entityKey(target.entityType, target.id);
       if (!seen.has(key)) {
         seen.add(key);
-        if (!rootsByKey.has(key)) {
-          rootsByKey.set(key, new Set());
+        let roots = rootsByKey.get(key);
+        if (!roots) {
+          roots = new Set();
+          rootsByKey.set(key, roots);
           added.push(target);
         }
-        rootsByKey.get(key)!.add(rootEntityKey);
+        roots.add(rootEntityKey);
         pending.push(...referencesOf(target));
       }
     }

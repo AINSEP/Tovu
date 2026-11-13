@@ -40,11 +40,12 @@ export function attachedOnlyVault({ vault, siteId, attachments }: {
   const refuse = async (): Promise<never> => {
     throw new ToolInputError({ message: 'Change this saved key in Shared Keys. To stop using it here, revoke its grant on this site.' });
   };
+  const keyForLabel = attachments.keyForLabel?.bind(attachments);
   return {
     find, list,
-    ...(attachments.keyForLabel ? { findByLabel: async (input: { workspaceId: string; label: string }) => {
+    ...(keyForLabel ? { findByLabel: async (input: { workspaceId: string; label: string }) => {
       try {
-        const id = await attachments.keyForLabel!({ siteId, label: input.label });
+        const id = await keyForLabel({ siteId, label: input.label });
         return id ? await find({ workspaceId: input.workspaceId, id }) : null;
       } catch (err) {
         let errorDiagnostic = "[diagnostic unavailable]";
@@ -58,7 +59,11 @@ export function attachedOnlyVault({ vault, siteId, attachments }: {
       && (input.principalId === undefined || row.principalId === input.principalId)) ?? null,
     findDefault: async input => {
       const rows = await list(input);
-      return rows.find(row => row.isDefault) ?? (rows.length === 1 ? rows[0]! : null);
+      const selected = rows.find(row => row.isDefault);
+      if (selected || rows.length !== 1) return selected ?? null;
+      const only = rows[0];
+      if (only === undefined) throw new Error("Shared key inventory has no sole row");
+      return only;
     },
     put: refuse, patchMeta: refuse, delete: refuse, applyBatch: refuse,
   };

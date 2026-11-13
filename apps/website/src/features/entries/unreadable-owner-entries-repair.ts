@@ -147,7 +147,9 @@ export async function removeUnreadableOwnerEntries(
     const at = now();
     const removed: RemovedOwnerEntry[] = [];
     for (const row of rows) {
-      if (!isMismatchedOwnerEnvelope({ fieldsJson: parseFields(row.fields_json), owner: DECLARED_CONTENT_TYPE_OWNERS[row.type]! })) continue;
+      const owner = DECLARED_CONTENT_TYPE_OWNERS[row.type];
+      if (owner === undefined) throw new Error(`Owner entry repair has no owner for type ${row.type}`);
+      if (!isMismatchedOwnerEnvelope({ fieldsJson: parseFields(row.fields_json), owner })) continue;
       const { adapter, via } = removalFor(row.type);
       const where = { workspaceId: row.workspace_id, entityId: row.id };
       const hidden = await adapter.hide({ ...where, at, expectedVersion: Number(row.version) });

@@ -98,7 +98,8 @@ async function prepareExternal(
   const { deps, input, forms, destination, secret } = required;
   try {
     const credential = await destinationCredential({ deps, workspaceId: input.workspaceId, destination });
-    const prepared = await destination.module.prepare!({ kit: input.kit, forms, secret, site: { projectName: input.projectName }, ...(credential ? { credential } : {}) });
+    if (!destination.module.prepare) throw new Error("destination has no receiver preparation method");
+    const prepared = await destination.module.prepare({ kit: input.kit, forms, secret, site: { projectName: input.projectName }, ...(credential ? { credential } : {}) });
     return assertSubmitUrl({ submitUrl: prepared.submitUrl });
   } catch (error) {
     throw new Error(`form destination '${destination.descriptor.id}' could not prepare its receiver: ${(error instanceof Error ? error.message : String(error)).replaceAll(secret, "[redacted]")}`);

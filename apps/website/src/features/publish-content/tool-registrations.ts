@@ -246,9 +246,9 @@ export function buildPublishContentRegistrations(
         description: `Copy content from ${peerLabel} into this local site.`,
         details: [
           { label: "Live site", value: peerLabel },
-          ...Object.entries(pullCounts(report)).map(([key, count]) => ({ label: key[0]!.toUpperCase() + key.slice(1), value: String(count) })),
+          ...Object.entries(pullCounts(report)).map(([key, count]) => ({ label: key.charAt(0).toUpperCase() + key.slice(1), value: String(count) })),
           ...report.rows.filter(row => row.outcome === "applied" || row.outcome === "forced").map(row => ({ label: "Overwrite local item", value: pullTitle(row) })),
-          ...report.rows.filter(row => row.retires !== null && row.writes).map(row => ({ label: "Move to Trash", value: row.retires!.entityLabel ?? row.retires!.entityId })),
+          ...report.rows.flatMap(row => row.retires !== null && row.writes ? [{ label: "Move to Trash", value: row.retires.entityLabel ?? row.retires.entityId }] : []),
         ],
         warning: "The listed local items will be overwritten. A restore point is captured before applying changes.",
         danger: true, confirmLabel: "Apply pull",
@@ -413,7 +413,11 @@ async function selectPullPeer(deps: PublishContentToolDeps, supplied: unknown): 
   if (connectedRows.length <= 1) {
     const connected = selectConnectedDestination(rows);
     if (connected) return connected.id;
-    if (rows.length === 1) return rows[0]!.id;
+    if (rows.length === 1) {
+      const only = rows[0];
+      if (only === undefined) throw new Error("Pull destination inventory has no sole row");
+      return only.id;
+    }
   }
   const choices = rows.map(row => `${row.id} (${row.label})`).join(", ");
   throw new ToolInputError({ message: `Several destinations are saved. Choose a peerId: ${choices}.` });

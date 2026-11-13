@@ -66,7 +66,11 @@ export function createRawRowSqlitePort({ kernel, tableInfo, checkedTransaction }
       const assignments = nonPk.map((name) => sql`${sql.raw(identifier(name))} = excluded.${sql.raw(identifier(name))}`);
       const updates = nonPk.length > 0 ? sql`DO UPDATE SET ${sql.join(assignments)}` : sql`DO NOTHING`;
       await kernel.execute(sql`INSERT INTO ${sql.raw(identifier(table))} (${sql.join(names.map((name) => sql.raw(identifier(name))))})
-        VALUES (${sql.join(names.map((name) => sql`${decode(values[name]!)}`))})
+        VALUES (${sql.join(names.map((name) => {
+          const value = values[name];
+          if (value === undefined) throw new Error(`Raw row has no value for column ${name}`);
+          return sql`${decode(value)}`;
+        }))})
         ON CONFLICT (${sql.join(Object.keys(pk).map((name) => sql.raw(identifier(name))))}) ${updates}`);
     },
     removeCreated: async ({ table, pk }) => {

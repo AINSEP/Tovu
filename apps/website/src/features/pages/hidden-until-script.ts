@@ -42,7 +42,7 @@ function readAttributes(raw: string): Map<string, string> {
     ATTRIBUTE_VALUE.lastIndex = ATTRIBUTE_NAME.lastIndex;
     const value = ATTRIBUTE_VALUE.exec(raw);
     if (value) ATTRIBUTE_NAME.lastIndex = ATTRIBUTE_VALUE.lastIndex;
-    attributes.set(name[1]!.toLowerCase(), value?.[1] ?? value?.[2] ?? value?.[3] ?? "");
+    attributes.set(name[1].toLowerCase(), value?.[1] ?? value?.[2] ?? value?.[3] ?? "");
   }
   return attributes;
 }
@@ -69,12 +69,12 @@ function elementReason(attributes: Map<string, string>): string | undefined {
 function elementFindings(html: string): string[] {
   const findings: string[] = [];
   for (const match of maskNonRenderableRegions({ html }).matchAll(START_TAG)) {
-    const attributes = readAttributes(match[2]!);
+    const attributes = readAttributes(match[2]);
     const reason = elementReason(attributes);
     if (reason === undefined) continue;
     const className = attributes.get("class");
     const classAttribute = className ? ` class="${className}"` : "";
-    findings.push(`<${match[1]!.toLowerCase()}${classAttribute}> has ${reason}`);
+    findings.push(`<${match[1].toLowerCase()}${classAttribute}> has ${reason}`);
   }
   return findings;
 }
@@ -84,8 +84,8 @@ function cssRuleFindings({ css }: { css: string }, _optional: Record<string, nev
   const parts = css.split(/([{}])/);
   for (let i = 1; i + 2 < parts.length; i += 2) {
     if (parts[i] !== "{" || parts[i + 2] !== "}" || parts[i - 1] === "") continue;
-    const selector = parts[i - 1]!.trim().replace(/\s+/g, " ");
-    const hidden = hidingDeclaration(parts[i + 1]!);
+    const selector = parts[i - 1].trim().replace(/\s+/g, " ");
+    const hidden = hidingDeclaration(parts[i + 1]);
     if (hidden !== undefined && !selector.startsWith("@") && REVEAL_SELECTOR.test(selector)) findings.push(`<style> rule "${selector}" sets ${hidden}`);
   }
   return findings;
@@ -94,7 +94,7 @@ function cssRuleFindings({ css }: { css: string }, _optional: Record<string, nev
 function styleRuleFindings(html: string): string[] {
   const findings: string[] = [];
   for (const block of html.replace(HTML_COMMENT, "").matchAll(STYLE_BLOCK)) {
-    const css = block[1]!.replace(CSS_COMMENT, "").replace(KEYFRAMES_BLOCK, "");
+    const css = block[1].replace(CSS_COMMENT, "").replace(KEYFRAMES_BLOCK, "");
     findings.push(...cssRuleFindings({ css }));
   }
   return findings;

@@ -69,5 +69,9 @@ export function allocateStaticExportThemes({ themeIds, siteSlug }: { themeIds: r
     names.set(themeId, name);
     claimed.add(sharePathAlias({ path: name }));
   }
-  return themeIds.map(themeId => ({ themeId, name: names.get(themeId)! }));
+  return themeIds.map(themeId => {
+    const name = names.get(themeId);
+    if (name === undefined) throw new Error(`Static export has no allocated folder for theme ${themeId}`);
+    return { themeId, name };
+  });
 }

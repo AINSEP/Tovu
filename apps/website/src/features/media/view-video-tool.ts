@@ -62,7 +62,8 @@ function isFiniteNumber(value: unknown): value is number {
 /** Exactly one owned source id, never anything path-shaped. */
 function readSource({ record }: { record: Record<string, unknown> }, _optional: Record<string, never> = {}) {
   const refs = ['mediaId', 'attachmentRef'].filter(key => record[key] !== undefined);
-  const key = refs.length === 1 ? refs[0]! : '';
+  const key = refs.length === 1 ? refs[0] : '';
+  if (key === undefined) throw refusal({ message: 'the video source reference is missing.' });
   const value = record[key];
   if (!key || typeof value !== 'string' || !value) {
     throw refusal({ message: 'pass exactly one mediaId or attachmentRef (attachment:<uuid>); filesystem paths are refused.' });
@@ -187,8 +188,16 @@ async function previewEnvelope({ result, sheetMode }: { result: ExtractedVideo; 
   const refs = images.map((_, index) => String(index));
   const prepared = await prepareMessageAttachments({ refs, read: async ({ ref }) => {
     const index = Number(ref);
-    const image = images[index]!;
-    return { name: sheets ? `Video contact sheet ${index + 1}` : `Video frame at ${result.frames[index]!.at}s`, mimeType: image.mimeType, bytes: image.bytes };
+    const image = images[index];
+    if (image === undefined) throw new Error('Video preview has no image for its attachment');
+    let name: string;
+    if (sheets) name = `Video contact sheet ${index + 1}`;
+    else {
+      const frame = result.frames[index];
+      if (frame === undefined) throw new Error('Video preview has no frame for its attachment');
+      name = `Video frame at ${frame.at}s`;
+    }
+    return { name, mimeType: image.mimeType, bytes: image.bytes };
   } }, {});
   return { content: [
     { type: 'text', text: videoSummaryText({ result, sheets }) },

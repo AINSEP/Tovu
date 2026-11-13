@@ -134,7 +134,7 @@ function opensFrontmatter({ lines, index }: { lines: readonly string[]; index: n
   const previous = lines[index - 1];
   if (previous !== undefined && previous.trim() !== "" && !previous.startsWith("<<AGENT_PLUGIN")) return false;
   let end = index + 1;
-  while (end < lines.length && lines[end]!.trimEnd() !== "---") end++;
+  while (end < lines.length && lines[end].trimEnd() !== "---") end++;
   if (end === lines.length) return false;
   try { return isNonArrayRecord({ value: load(lines.slice(index + 1, end).join("\n"), { schema: FAILSAFE_SCHEMA }) }); }
   catch { return false; }
@@ -160,8 +160,9 @@ export function removeChatRefusedToolPermissions({ text }: { text: string }, _op
   return lines.filter((line, index) => {
     const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
     if (state === "body" && marker) {
-      if (fence === undefined) fence = marker[1]!;
-      else if (marker[1]![0] === fence[0] && marker[1]!.length >= fence.length && marker[2]!.trim() === "") fence = undefined;
+      const [, markerFence, markerSuffix] = marker;
+      if (fence === undefined) fence = markerFence;
+      else if (markerFence[0] === fence[0] && markerFence.length >= fence.length && markerSuffix.trim() === "") fence = undefined;
       return true;
     }
     if (fence !== undefined) return true;

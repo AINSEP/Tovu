@@ -164,7 +164,8 @@ function toItem({ record, access }: { record: MailActivityRecord; access: MailAc
 /** The next page's opaque cursor: the page's last timestamp, skipping every row already shown at it.
  *  Shared with the suppression list, whose rows page the same way. */
 export function nextMailCursor({ page }: { page: readonly { createdAt: string; cursorKey?: string; revision?: string }[] }, _options = {}): string {
-  const last = page.at(-1)!;
+  const last = page.at(-1);
+  if (last === undefined) throw new Error('Mail activity page has no last row for its cursor');
   return encode({ c: last.createdAt, k: last.cursorKey ?? last.revision });
 }
 

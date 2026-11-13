@@ -104,7 +104,10 @@ function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: R
     let row: RawRowSnapshot | null = null;
     let readReason: string | null = null;
     if (!early) {
-      try { row = await port!.read(selected); } catch (error) {
+      try {
+        if (!port) throw new Error("Send by hand has no row reader");
+        row = await port.read(selected);
+      } catch (error) {
         if (!(error instanceof BackstopRefusal)) throw error;
         readReason = error.message;
       }

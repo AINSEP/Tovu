@@ -15,8 +15,13 @@ export function bindPluginInstallTools(deps: PluginsInstallToolDeps): PluginInst
     workspaceId: deps.workspaceId, get authorize() { return deps.authorize; }, toolId: PLUGINS_INSTALL_TOOL_ID, permission: 'admin.plugins.enable', entityType: 'plugin',
     parseRequest: readPluginInstallRequest, installer: deps.pluginInstaller, riskSentence: pluginInstallRiskSentence, messages: pluginInstallMessages,
     localInstallEnabled: () => deps.pluginSourcePolicy?.localInstallEnabled({}, {}) ?? sitePluginLocalInstallEnabled({ env: deps.env ?? process.env, hostSignals: deps.hostSignals }),
-    installInput: async ({ request, ownerId, runId }) => request.kind === 'folder' ? { sourceDir: request.path!, replace: request.replace }
-      : { archive: await readPluginInstallArchive({ request, ownerId, runId, maxBytes: MAX_PLUGIN_ARCHIVE_BYTES }, { readAttachment: deps.readInstallAttachment }), replace: request.replace },
+    installInput: async ({ request, ownerId, runId }) => {
+      if (request.kind === 'folder') {
+        if (request.path === undefined) throw new Error('Plugin folder source has no path');
+        return { sourceDir: request.path, replace: request.replace };
+      }
+      return { archive: await readPluginInstallArchive({ request, ownerId, runId, maxBytes: MAX_PLUGIN_ARCHIVE_BYTES }, { readAttachment: deps.readInstallAttachment }), replace: request.replace };
+    },
     telemetry: { installed: ({ principalId, pluginId }) => deps.tracker?.capture({ name: 'plugin_installed', userId: principalId }, { properties: { pluginId, pluginKind: 'cms', source: 'assistant' } }),
       installFailed: ({ principalId, reasonClass }) => deps.tracker?.capture({ name: 'operation_failed', userId: principalId }, { properties: { operationKind: 'plugin_install', reasonClass, surface: 'assistant', retryable: false } }) },
   };

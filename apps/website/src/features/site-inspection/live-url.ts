@@ -74,7 +74,9 @@ function selectOrigin(known: readonly string[], requested: string | undefined): 
     return normalized;
   }
   if (origins.length > 1) throw new ToolInputError({ message: `fetch_live_url: several live origins are known. Pass origin as one of: ${origins.join(", ")}.` });
-  return origins[0]!;
+  const origin = origins[0];
+  if (origin === undefined) throw new ToolInputError({ message: NO_LIVE_ADDRESS });
+  return origin;
 }
 
 /** Reuses the local path boundary while retaining actionable errors at the assistant boundary. */
@@ -93,7 +95,7 @@ function redirectTarget(location: string, current: string, origin: string): stri
   catch { throw new ToolInputError({ message: "fetch_live_url: the live site returned an invalid redirect address. Check the hosting service before retrying." }); }
   if (next.origin !== origin) return null;
   if (next.username || next.password) throw new ToolInputError({ message: "fetch_live_url: redirects with embedded credentials are refused." });
-  const rawPath = location.replace(/^(?:[a-z][a-z0-9+.-]*:)?\/\/[^/?#]*/i, "").split("#")[0]!;
+  const rawPath = location.replace(/^(?:[a-z][a-z0-9+.-]*:)?\/\/[^/?#]*/i, "").split("#")[0];
   resolveLivePath(rawPath.startsWith("/") ? rawPath : "/" + rawPath, origin);
   resolveLivePath(next.pathname + next.search, origin);
   next.hash = "";

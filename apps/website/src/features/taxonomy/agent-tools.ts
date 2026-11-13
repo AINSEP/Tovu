@@ -14,6 +14,11 @@
 import { type AgentToolDefinition as TaxonomyAgentToolDefinition } from "@jini-ai/core";
 import { taxonomyAgentToolCatalog as sharedCatalog } from "@jini-ai/cms/taxonomy";
 
+const assignmentProperties = sharedCatalog.find(tool => tool.name === "taxonomy_assign_terms")?.inputSchema?.properties;
+if (!assignmentProperties || typeof assignmentProperties !== "object" || !("contentType" in assignmentProperties)) {
+  throw new Error("Taxonomy assignment catalog has no content type schema");
+}
+
 /** Extends the shared write catalog locally; no new contributor replaces the taxonomy domain. */
 export const taxonomyAgentToolCatalog: TaxonomyAgentToolDefinition[] = [...sharedCatalog, {
   name: "taxonomy_get_term",
@@ -26,7 +31,7 @@ export const taxonomyAgentToolCatalog: TaxonomyAgentToolDefinition[] = [...share
   sideEffects: "none",
   authorization: { permission: "admin.taxonomy.manage" },
   inputSchema: { type: "object", additionalProperties: false, required: ["contentType", "contentId"], properties: {
-    contentType: ((sharedCatalog.find(tool => tool.name === "taxonomy_assign_terms")!.inputSchema!.properties) as Record<string, unknown>).contentType,
+    contentType: assignmentProperties.contentType,
     contentId: { type: "string", minLength: 1 },
   } },
 }];

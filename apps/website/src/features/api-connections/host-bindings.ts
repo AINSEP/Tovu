@@ -68,7 +68,10 @@ export function bindApiConnectionHost({ required, optional }: { required: ApiCon
       pluginHttp: required.pluginHttp, runtime: required.runtime, env: required.env, publicOrigin: required.publicOrigin,
       apiConnectionStorage: { records, tokensFor: ({ owner }: Parameters<ApiConnectionHostPorts['apiConnectionStorage']['tokensFor']>[0]) => createApiConnectionVaultTokenStore({ vault, records, clock: required.clock, owner }) },
       loadDeclaredConnections: ({ workspaceId }: { workspaceId: string }) => loadDeclaredApiConnections({ workspaceId, loadContributions: required.loadContributions }),
-      createSharedConnections: (input: ApiConnectionSharedFactoryInput) => createSharedApiConnections({ ...optional.shared!, ...input }),
+      createSharedConnections: (input: ApiConnectionSharedFactoryInput) => {
+        if (optional.shared === undefined) throw new Error('Shared API connections have no host configuration');
+        return createSharedApiConnections({ ...optional.shared, ...input });
+      },
       appIdentity: { clientDisplayName: 'Tovu', softwareId: 'tovu' },
       byoCredentials: createByoCredentials({ credentials: { repo: required.customCredentialRepo, keyring: required.keyring, sealer: required.sealer } }),
       createLimiter,

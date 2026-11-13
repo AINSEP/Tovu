@@ -80,5 +80,7 @@ export async function ensureCoreMediaTransform(
     definitions.set(transform.name, definition);
   }
   // The fixed list above always resolves public; preserve this function's existing return contract.
-  return { definition: definitions.get(CORE_PUBLIC_TRANSFORM_NAME)! };
+  const definition = definitions.get(CORE_PUBLIC_TRANSFORM_NAME);
+  if (definition === undefined) throw new Error('Media bootstrap has no public transform definition');
+  return { definition };
 }

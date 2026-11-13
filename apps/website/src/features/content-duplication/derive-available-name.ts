@@ -100,9 +100,10 @@ export function deriveAvailableName(required: { base: string }, options: {
   withSuffix?: (base: string, suffix: number) => string;
   onExhausted?: () => never;
 }): Promise<string> {
+  const onExhausted = options.onExhausted;
   return findAvailableName({ ...required, ...namingPolicy(options) }, {
     maxAttempts: MAX_SUFFIX_ATTEMPTS,
-    ...(options.onExhausted ? { onExhausted: () => options.onExhausted!() } : {}),
+    ...(onExhausted ? { onExhausted: () => onExhausted() } : {}),
   });
 }
 

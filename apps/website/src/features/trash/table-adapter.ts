@@ -127,9 +127,11 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
     }
 
     // Direct case: `cascade.parentIdColumn` is always set when `via` is not (registration contract).
-    const parentIdColumn = cascade.parentIdColumn!;
+    const parentIdColumn = cascade.parentIdColumn;
+    if (parentIdColumn === undefined) throw new Error(`Trash cascade for ${cascade.table} has no parent ID column`);
     if (cascade.entityType) {
-      const childIds = await selectIds({ table: cascade.table, column: cascade.idColumn!, parentColumn: parentIdColumn, parentId: entityId });
+      if (cascade.idColumn === undefined) throw new Error(`Trash cascade for ${cascade.table} has no child ID column`);
+      const childIds = await selectIds({ table: cascade.table, column: cascade.idColumn, parentColumn: parentIdColumn, parentId: entityId });
       await cleanUpTrashedItemsRows({ workspaceId, childType: cascade.entityType, childIds });
     }
     await run({ fn: (db) => loose(db).deleteFrom(cascade.table).where(parentIdColumn, "=", entityId).execute() });

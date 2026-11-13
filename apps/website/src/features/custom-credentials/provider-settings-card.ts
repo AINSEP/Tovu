@@ -146,9 +146,10 @@ function savedMessage({ result }: { result: Extract<ProviderSettingsSaveResult, 
 }
 
 function outcomeOf({ result, title }: { result: ProviderSettingsSaveResult; title: string }): SurfaceOutcomeSpec | undefined {
-  if (!result.saved && result.message === undefined) return undefined;
+  const message = result.saved ? savedMessage({ result }) : result.message;
+  if (message === undefined) return undefined;
   return { title, state: result.saved && result.appliesAt !== "failed" ? "success" : "failure", app: { appName: "tovu-provider-settings-outcome", appVersion: "1" },
-    message: result.saved ? savedMessage({ result }) : result.message! };
+    message };
 }
 
 /** Thrown with fixed refusal text from the shared rule (names fields, never values). */

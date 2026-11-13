@@ -63,7 +63,7 @@ function rewriteCss({ body, rewrite }: { body: string; rewrite: RewriteUrl }, _o
   let cursor = 0;
   for (const { start, end } of exportUrlLocations({ body, contentType: "text/css" })) {
     const inner = body.slice(start + 4, end - 1).trim();
-    const quote = /^["']/.test(inner) ? inner[0]! : "";
+    const quote = /^["']/.test(inner) ? inner[0] : "";
     const value = quote ? inner.slice(1, -1) : inner;
     parts.push(body.slice(cursor, start), `url(${quote}${rewrite({ value })}${quote})`);
     cursor = end;
@@ -164,7 +164,9 @@ function allocateDownloadPath({ target, claimed }: { target: string; claimed: Se
 
 /** Flatten public media independently of theme images, using the same portable filename allocator. */
 function mediaPath({ file, claimed }: { file: string; claimed: Set<string> }, _options = {}): string {
-  return allocateDownloadPath({ target: `media/${file.split("/")[1]!}${path.posix.extname(file)}`, claimed });
+  const name = file.split("/")[1];
+  if (name === undefined) throw new Error(`Static download media path has no filename: ${file}`);
+  return allocateDownloadPath({ target: `media/${name}${path.posix.extname(file)}`, claimed });
 }
 
 /** Repeated public URLs across themes use the first allocated media destination. */
@@ -283,7 +285,8 @@ function downloadPlans({ copies, themes, siteSlug }: { copies: readonly Copy[]; 
   const folders = new Map((themes ?? allocateStaticExportThemes({ themeIds: copies.map(item => item.themeId ?? item.metadata?.theme ?? "site"), siteSlug })).map(theme => [theme.themeId, theme.name]));
   const media = new Map<string, string>(), claimed = new Set<string>();
   return copies.map(item => {
-    const theme = folders.get(item.themeId ?? item.metadata?.theme ?? "site")!;
+    const theme = folders.get(item.themeId ?? item.metadata?.theme ?? "site");
+    if (theme === undefined) throw new Error("Static download has no allocated theme folder");
     return { copy: item, theme, paths: downloadPaths({ copy: item, theme, reached: referencedFiles({ copy: item }), media, claimed }) };
   });
 }

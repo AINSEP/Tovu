@@ -501,7 +501,9 @@ async function sitePluginPackageFiles(required: { sink: WalkSink; installDir: st
   if (staged.files.length !== listed.files.length) return null;
   const pinned: PlannedDiskFile[] = [];
   for (const [index, planned] of staged.files.entries()) {
-    const expected = listed.files[index]!.sha256;
+    const listedFile = listed.files[index];
+    if (listedFile === undefined) throw new Error(`Backup source inventory has no file at index ${index}`);
+    const expected = listedFile.sha256;
     const read = await readDiskFile(planned, { unlinkedPath: true });
     const sha256 = read.ok ? sha256Hex({ bytes: read.bytes }) : null;
     if (sha256 === null || (expected !== null && sha256 !== expected)) return null;

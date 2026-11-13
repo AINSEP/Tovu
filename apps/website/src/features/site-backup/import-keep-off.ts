@@ -32,8 +32,8 @@ export function unrecognisedThemes(required: { root: string; dir: string; files:
   const unrecognised = new Set<string>();
   for (const file of required.files) {
     const match = LIVE_THEME_FILE.exec(file);
-    if (!match || !required.liveThemes.has(match[1]!) || unrecognised.has(match[2]!)) continue;
-    if (!sameBytes({ left: path.join(required.root, file), right: path.join(required.dir, file) })) unrecognised.add(match[2]!);
+    if (!match || !required.liveThemes.has(match[1]) || unrecognised.has(match[2])) continue;
+    if (!sameBytes({ left: path.join(required.root, file), right: path.join(required.dir, file) })) unrecognised.add(match[2]);
   }
   return unrecognised;
 }
@@ -60,7 +60,9 @@ function formBodyMayRunScript(required: { html: string }, _optional = {}): boole
   const tags = new Set(["fieldset", "legend", "optgroup"]);
   const attrs = new Set(["maxlength", "pattern", "accept", "inputmode", "spellcheck", "autocapitalize", "readonly", "label"]);
   while (pending.length) {
-    const { node, depth } = pending.pop()!;
+    const next = pending.pop();
+    if (next === undefined) throw new Error("Imported markup scan has no pending node");
+    const { node, depth } = next;
     if (!("tagName" in node)) continue;
     if (depth >= 128) return true;
     if (node.namespaceURI === "http://www.w3.org/1999/xhtml") {
@@ -77,7 +79,8 @@ function attributeHoldsMarkup(root: DefaultTreeAdapterMap["documentFragment"]): 
   // Depth is bounded by the sanitizer above: anything deeper than its limit counts as a drop.
   const pending: DefaultTreeAdapterMap["childNode"][] = [...root.childNodes];
   while (pending.length) {
-    const node = pending.pop()!;
+    const node = pending.pop();
+    if (node === undefined) throw new Error("Imported attribute scan has no pending node");
     if (!("tagName" in node)) continue;
     if (node.attrs.some(attr => /[<>\\]/.test(attr.value))) return true;
     pending.push(...node.childNodes, ...("content" in node ? node.content.childNodes : []));
@@ -127,7 +130,12 @@ async function keepPagesOff(required: { db: Kernel }): Promise<string[]> {
 export async function keepImportedCodeOff(required: { dbPath: string; fallback: string; liveThemes: ReadonlySet<string>; unrecognised: ReadonlySet<string>; setAside: boolean; openContent: (required: { filePath: string }) => Kernel }): Promise<string[]> {
   const db = required.openContent({ filePath: required.dbPath });
   try {
-    const liveThemeIds = new Set([...required.liveThemes].flatMap(id => id.startsWith("__") ? [] : [id.split("/").at(-1)!]));
+    const liveThemeIds = new Set([...required.liveThemes].flatMap(id => {
+      if (id.startsWith("__")) return [];
+      const name = id.split("/").at(-1);
+      if (name === undefined) throw new Error("Imported live theme has no ID");
+      return [name];
+    }));
     const setAside = required.setAside ? [`The imported file's copy of '${required.fallback}' differs from this site's own, so the site kept its own and the imported copy was set aside.`] : [];
     const notices = [...setAside, ...await keepThemesOff({ db, fallback: required.fallback, liveThemeIds, unrecognised: required.unrecognised }), ...await keepPagesOff({ db })];
     const menuNotices: string[] = [];

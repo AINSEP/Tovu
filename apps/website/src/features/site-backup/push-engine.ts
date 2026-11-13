@@ -162,7 +162,8 @@ export async function uploadPlannedContent(input: UploadPlannedContentInput): Pr
   const entries: BackupTreeEntry[] = [];
   entries.length = files.length;
   const failure = await runBounded({ count: files.length, concurrency: input.concurrency ?? SITE_BACKUP_UPLOAD_CONCURRENCY, signal: input.signal, work: async (index) => {
-    const file = files[index]!;
+    const file = files[index];
+    if (file === undefined) throw new Error(`Backup upload has no file at index ${index}`);
     const loaded = await file.load();
     if (!loaded.ok) return loaded;
     const entry = await builder.entryFor({ path: file.path, content: loaded.bytes });

@@ -27,8 +27,8 @@ export const TOKEN_PASTE_AGAIN_MESSAGE = "The token has a space, line break or s
 export function cleanCardToken({ token }: { token: string }, _optional = {}): string {
   let start = 0;
   let end = token.length;
-  while (start < end && EDGE_JUNK.test(token[start]!)) start++;
-  while (end > start && EDGE_JUNK.test(token[end - 1]!)) end--;
+  while (start < end && EDGE_JUNK.test(token[start])) start++;
+  while (end > start && EDGE_JUNK.test(token[end - 1])) end--;
   const cleaned = token.slice(start, end);
   if (/[^\x21-\x7e]/.test(cleaned)) throw new CustomCredentialValidationError(TOKEN_PASTE_AGAIN_MESSAGE);
   return cleaned;

@@ -45,7 +45,9 @@ export async function verifySiteImport(required: { archive: Buffer; reader: Agen
   files.delete(SAVED_KEYS_PATH);
   const plugins = manifest.plugins;
   const trustedPlugins = plugins.filter(plugin => bundledIdentical({ plugin, files, packageFiles, modified }));
-  const projection = await required.sanitize({ snapshot: files.get(SITE_BACKUP_DATABASE_PATH)! }, { signal: optional.signal });
+  const snapshot = files.get(SITE_BACKUP_DATABASE_PATH);
+  if (snapshot === undefined) refuseArchive({ message: "Import archive has no content database." });
+  const projection = await required.sanitize({ snapshot }, { signal: optional.signal });
   for (const warning of projection.credentialWarnings ?? []) addCredentialWarning({ ...warning, credentialWarnings });
   await applyShareProjection({ files, projection, manifest }, optional);
   files.delete(SITE_BACKUP_DATABASE_PATH);

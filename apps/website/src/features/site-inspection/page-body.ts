@@ -32,7 +32,9 @@ function visibleText(body: string): string {
   const pending: Array<DefaultTreeAdapterMap["node"] | string> = [parse(body)];
   const text: string[] = [];
   while (pending.length) {
-    appendVisibleNode({ node: pending.pop()!, pending, text });
+    const node = pending.pop();
+    if (node === undefined) throw new Error("Page inspection has no pending node");
+    appendVisibleNode({ node, pending, text });
   }
   return text.join("").replace(/\s+/g, " ").trim();
 }
@@ -58,7 +60,11 @@ function scheduleVisibleChildren({ node, pending, text }: {
   if (!("childNodes" in node)) return;
   const block = "tagName" in node && BLOCK_ELEMENTS.has(node.tagName);
   if (block) { text.push(" "); pending.push(" "); }
-  for (let i = node.childNodes.length - 1; i >= 0; i--) pending.push(node.childNodes[i]!);
+  for (let i = node.childNodes.length - 1; i >= 0; i--) {
+    const child = node.childNodes[i];
+    if (child === undefined) throw new Error("Page inspection has no child node at its recorded position");
+    pending.push(child);
+  }
 }
 
 /** Cuts at a UTF-8 boundary so shaping does not expand a clipped byte into a replacement character. */
@@ -66,7 +72,7 @@ function capText(body: string, maxBytes: number): string {
   const bytes = Buffer.from(body);
   if (bytes.length <= maxBytes) return body;
   let end = maxBytes;
-  while (end > 0 && (bytes[end]! & 0xc0) === 0x80) end--;
+  while (end > 0 && (bytes[end] & 0xc0) === 0x80) end--;
   return bytes.subarray(0, end).toString("utf8");
 }
 

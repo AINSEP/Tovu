@@ -332,6 +332,7 @@ function siteActivationRestartResult(required: ActivateSiteRequired, ports: Pick
   if (!required.restartNow) return { ...base, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS };
   const decision = restartDecision(required, ports.devRestart);
   if (!decision.restart) return { ...base, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS + (decision.note ?? ""), restarting: false };
-  ports.devRestart!.requestRestart({ reason: `switch site to '${name}'` });
+  if (!ports.devRestart) throw new Error("Site activation has no restart service");
+  ports.devRestart.requestRestart({ reason: `switch site to '${name}'` });
   return { ...base, restartInstructions: SITE_SWITCH_RESTARTING_NOTICE, restarting: true };
 }

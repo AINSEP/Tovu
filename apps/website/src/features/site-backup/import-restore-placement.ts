@@ -41,7 +41,7 @@ export function inspectThemeManifests(required: { root: string; files: readonly 
     const match = THEME_MANIFEST.exec(file);
     if (!match) continue;
     const id = match[1] + "/" + match[2];
-    const verdict = inspectThemeManifest({ root: required.root, file, tier: match[1]!, name: match[2]! });
+    const verdict = inspectThemeManifest({ root: required.root, file, tier: match[1], name: match[2] });
     if (verdict.kind === "quarantine") quarantinedThemes.add(id);
     if (verdict.kind === "compiled") compiledSources.set(id, verdict.sourcePrefix);
   }
@@ -85,7 +85,7 @@ export function liveThemeTrees(required: { files: readonly string[]; findings: T
     live.add(id);
     // Browser JS is an ordinary static asset, unlike TS/JS modules in a code theme. The whole
     // tree is quarantined if it includes build source or declares a different executable tier.
-    if (!isCompiledSource({ file, theme: id, compiledSources: required.findings.compiledSources }) && !STATIC_ASSETS.some(pattern => pattern.test(match[3]!))) quarantined.add(id);
+    if (!isCompiledSource({ file, theme: id, compiledSources: required.findings.compiledSources }) && !STATIC_ASSETS.some(pattern => pattern.test(match[3]))) quarantined.add(id);
   }
   for (const id of quarantined) live.delete(id);
   return live;

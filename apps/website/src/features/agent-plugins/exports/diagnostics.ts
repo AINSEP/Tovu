@@ -22,12 +22,13 @@ export class PluginEmbedValidationError extends ToolInputError {
 export function selectPluginExport(required: { packages: readonly PluginExportPackage[]; config: Readonly<Record<string, unknown>> }, _options = {}): PluginExportSelection {
   const { packages, config } = required;
   const owners = packages.filter(item => item.id === config.plugin || item.renamedFrom?.includes(config.plugin as string));
-  if (owners.length !== 1) return { diagnostic: { code: "PLUGIN_UNAVAILABLE", message: owners.length > 1 ? "Plugin identity is ambiguous; visitors see your fallback." : "Plugin is unknown or unavailable; visitors see your fallback." } };
-  const owner = owners[0]!;
+  const owner = owners[0];
+  if (owners.length !== 1 || owner === undefined) return { diagnostic: { code: "PLUGIN_UNAVAILABLE", message: owners.length > 1 ? "Plugin identity is ambiguous; visitors see your fallback." : "Plugin is unknown or unavailable; visitors see your fallback." } };
   if (!owner.enabled) return { diagnostic: { code: "PLUGIN_DISABLED", message: "Plugin is off; visitors see your fallback." } };
   const entries = Object.entries(owner.exports).filter(([name, entry]) => name === config.component || entry.aliases?.includes(config.component as string));
-  if (entries.length !== 1) return { diagnostic: { code: "COMPONENT_UNAVAILABLE", message: "Plugin component is unknown or ambiguous; visitors see your fallback." } };
-  const [component, definition] = entries[0]!;
+  const entry = entries[0];
+  if (entries.length !== 1 || entry === undefined) return { diagnostic: { code: "COMPONENT_UNAVAILABLE", message: "Plugin component is unknown or ambiguous; visitors see your fallback." } };
+  const [component, definition] = entry;
   return { selected: { owner, component, definition } };
 }
 

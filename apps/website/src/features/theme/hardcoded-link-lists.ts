@@ -72,7 +72,7 @@ function anchorHref({ html, start }: { html: string; start: number }, _options =
   const value = new RegExp(HREF_VALUE);
   let offset = start;
   while (offset < html.length) {
-    const char = html[offset]!;
+    const char = html[offset];
     if (char === ">") return undefined;
     const captured = anchorHrefAt({ html, offset, prefix, value });
     if (captured) return captured;

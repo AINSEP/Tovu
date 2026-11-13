@@ -107,7 +107,8 @@ function isBackstopBody({ body }: { body: unknown }, _optional: Record<string, n
 }
 
 function hasRepeatedBackstopItems({ rows, files }: BackstopSelection, _optional: Record<string, never> = {}): boolean {
-  return new Set(files).size !== files!.length || new Set(rows!.map((row) => `${row.table}:${JSON.stringify(Object.fromEntries(Object.entries(row.pk).sort(([a], [b]) => a.localeCompare(b))))}`)).size !== rows!.length;
+  if (!rows || !files) throw new Error("Send by hand selection has no rows or files");
+  return new Set(files).size !== files.length || new Set(rows.map((row) => `${row.table}:${JSON.stringify(Object.fromEntries(Object.entries(row.pk).sort(([a], [b]) => a.localeCompare(b))))}`)).size !== rows.length;
 }
 
 function checkBackstopDestination({ destinationHost }: { destinationHost: string }, _optional: Record<string, never> = {}): void {

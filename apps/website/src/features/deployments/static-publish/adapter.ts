@@ -647,9 +647,10 @@ async function resolvePublishPlan(deps: StaticPublishDeps, input: StaticPublishI
  * @complexity O(1); each call forwards once.
  */
 export function adaptInstalledTarget(installedTarget: HostDeployTarget): DeployTarget {
+  const resolvePublicUrl = installedTarget.resolvePublicUrl?.bind(installedTarget);
   return {
     id: installedTarget.id,
-    ...(installedTarget.resolvePublicUrl ? { resolvePublicUrl: (required: { projectName: string }) => installedTarget.resolvePublicUrl!(required, {}) } : {}),
+    ...(resolvePublicUrl ? { resolvePublicUrl: (required: { projectName: string }) => resolvePublicUrl(required, {}) } : {}),
     publish: (required, optional) => installedTarget.publish({ ...required, ...optional }),
     checkReachability: ({ url }) => installedTarget.checkReachability(url),
   };

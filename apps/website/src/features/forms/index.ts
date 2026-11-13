@@ -174,7 +174,10 @@ export function submitForm(
     outbox: { enqueue: (event) => deps.outbox.enqueue({ ...event, payload: {
       ...event.payload, deliveryMode: "live", ...(analyticsProvenance ? { analyticsProvenance } : {}),
     } }) },
-    transaction: (work) => deps.submissionRepo.transaction!(work), dispatcher: { dispatch }, logger,
+    transaction: (work) => {
+      if (!deps.submissionRepo.transaction) throw new Error("Form submission repository has no transaction");
+      return deps.submissionRepo.transaction(work);
+    }, dispatcher: { dispatch }, logger,
   }, input }, {
     definitionView: (view) => capSubmissionFieldLengths({ definition: htmlSubmissionDefinition(view), body: view.body }),
     validateEmails: true, dispatch, attempts,

@@ -23,7 +23,9 @@ export function createFormFileStorage(
     async store({ workspaceId, submissionId, fieldId, file }) {
       // Server-generated names avoid collisions between visitors; original filename is only an
       // escaped display value in the submission, never a storage path or executable extension.
-      const filename = `${submissionId}-${fieldId}.${file.filename.split(".").at(-1)!.toLowerCase()}`;
+      const extension = file.filename.split(".").at(-1);
+      if (extension === undefined) throw new Error("Form file has no filename extension");
+      const filename = `${submissionId}-${fieldId}.${extension.toLowerCase()}`;
       const createdByPrincipal = await resolveCreatedByPrincipal({ workspaceId }, {});
       const { media: asset } = await uploadMedia({ deps: media, input: { workspaceId, access: "private", bytes: file.bytes, filename, contentType: file.contentType, createdByPrincipal } }, { maxUploadBytes: 10 * 1024 * 1024, allowedMimeTypes: new Set([file.contentType]) });
       try { await contentTypes.set({ workspaceId, sha256: asset.source.sha256, contentType: file.contentType }); }

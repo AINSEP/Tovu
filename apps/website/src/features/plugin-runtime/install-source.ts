@@ -34,7 +34,8 @@ export async function readPluginInstallArchive(
     requireArchiveSize({ size: result.bytes.byteLength, maxBytes });
     return result.bytes;
   }
-  const sourcePath = request.path!;
+  const sourcePath = request.path;
+  if (sourcePath === undefined) throw new ToolInputError({ message: "Plugin ZIP source has no path." });
   const files = optional.files ?? nodeArchiveFiles;
   let size: number;
   try { size = (await files.stat({ path: sourcePath })).size; } catch { throw new ToolInputError({ message: `No readable ZIP at ${sourcePath}.` }); }

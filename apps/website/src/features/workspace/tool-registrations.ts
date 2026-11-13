@@ -51,8 +51,10 @@ export function buildWorkspaceRegistrations(
       throw error;
     }
   };
+  const getCatalogEntry = getWorkspaceAgentToolCatalog().find(tool => tool.name === "workspace_get");
+  if (!getCatalogEntry) throw new Error("workspace read owner has no catalog entry");
   const getWithId: ToolRegistration = { ...get, descriptor: { ...get.descriptor,
-    inputSchema: getWorkspaceAgentToolCatalog().find(tool => tool.name === "workspace_get")!.inputSchema,
+    inputSchema: getCatalogEntry.inputSchema,
   }, handler: async ctx => {
     if (ctx.input === undefined) return readCurrent(ctx);
     const input = requireInputRecord({ input: ctx.input });

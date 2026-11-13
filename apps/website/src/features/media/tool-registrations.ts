@@ -124,7 +124,8 @@ function buildRecordUploadContentType(
     }
     const family = contentType.split("/")[0];
     // Jini calls this hook only for a fresh row stamped from this invocation's ctx.principal.id.
-    captureMediaUploaded({ tracker: routeDeps.tracker, actorId: media.createdBy!, byteLength: bytes.length,
+    if (media.createdBy == null) throw new Error("Uploaded media has no creating principal");
+    captureMediaUploaded({ tracker: routeDeps.tracker, actorId: media.createdBy, byteLength: bytes.length,
       kind: family === "image" || family === "audio" || family === "video" ? family : "other", source: "assistant" });
   };
 }

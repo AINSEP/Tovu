@@ -314,7 +314,11 @@ function filterBlobShas(typeCheckOut: string, pathBySha: ReadonlyMap<string, str
   for (const line of typeCheckOut.split("\n")) {
     if (!line) continue;
     const [sha, type] = line.split(" ");
-    if (type === "blob" && sha !== undefined) blobs.push({ sha, path: pathBySha.get(sha)! });
+    if (type === "blob" && sha !== undefined) {
+      const path = pathBySha.get(sha);
+      if (path === undefined) throw new Error(`Historical blob ${sha} has no source path`);
+      blobs.push({ sha, path });
+    }
   }
   return blobs;
 }

@@ -13,7 +13,8 @@ function elements({ html }: { html: string }, _options = {}): Element[] {
   const pending: DefaultTreeAdapterMap["node"][] = [parse(html, { sourceCodeLocationInfo: true })];
   const found: Element[] = [];
   while (pending.length) {
-    const node = pending.pop()!;
+    const node = pending.pop();
+    if (node === undefined) throw new Error("Static export HTML scan has no pending node");
     if ("childNodes" in node) pending.push(...node.childNodes);
     if ("tagName" in node) found.push(node);
     if ("content" in node) pending.push(node.content);
@@ -128,13 +129,16 @@ function serverAction({ action, publicOrigin, page }: { action: string; publicOr
 function emailAlternative({ nodes }: { nodes: Element[] }, _options = {}): string {
   const link = nodes.find(node => node.tagName === "a" && /^mailto:/i.test(attribute({ node, name: "href" }) ?? ""));
   if (!link) return "";
-  const href = attribute({ node: link, name: "href" })!;
-  const address = href.slice(7).split("?")[0]!;
+  const href = attribute({ node: link, name: "href" });
+  if (href === undefined) throw new Error("Static export email link has no address");
+  const address = href.slice(7).split("?")[0];
   return ` Email us at <a href="${escapeHtml(href)}">${escapeHtml(address)}</a> instead.`;
 }
 
 /** Disable one backend-dependent form and disclose the missing server immediately after it. */
 function formEdits({ node, alternative }: { node: Element; alternative: string }, _options = {}): Edit[] {
+  const location = node.sourceCodeLocation;
+  if (!location) throw new Error("Static export form has no source location");
   const attrs = node.sourceCodeLocation?.attrs ?? {};
   const edits: Edit[] = [];
   if (attrs.action) edits.push({ ...attrs.action, text: "" });
@@ -142,10 +146,11 @@ function formEdits({ node, alternative }: { node: Element; alternative: string }
   // dialog method performs no network submission while preserving theme form selectors.
   if (attrs.method) edits.push({ ...attrs.method, text: 'method="dialog"' });
   else {
-    const start = node.sourceCodeLocation!.startTag!.endOffset - 1;
+    if (!location.startTag) throw new Error("Static export form has no start tag location");
+    const start = location.startTag.endOffset - 1;
     edits.push({ startOffset: start, endOffset: start, text: ' method="dialog"' });
   }
-  const end = node.sourceCodeLocation!.endOffset;
+  const end = location.endOffset;
   edits.push({ startOffset: end, endOffset: end, text: `<p>This form needs a server to send messages.${alternative}</p>` });
   return edits;
 }
@@ -238,7 +243,7 @@ function refreshEdit({ node, rewrite }: { node: Element; rewrite: (url: string) 
 function refreshContent({ content, rewrite }: { content: string; rewrite: (url: string) => string }, _options = {}): string | undefined {
   const match = /^([^;]*;[^=]*=)([\s\S]*)$/.exec(content);
   if (!match) return undefined;
-  if (!/;\s*url\s*=$/i.test(match[1]!)) return undefined;
-  const url = match[2]!.trim().replace(/^["']|["']$/g, "");
-  return match[1]! + rewrite(url);
+  if (!/;\s*url\s*=$/i.test(match[1])) return undefined;
+  const url = match[2].trim().replace(/^["']|["']$/g, "");
+  return match[1] + rewrite(url);
 }

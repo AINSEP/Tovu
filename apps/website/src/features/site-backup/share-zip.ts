@@ -41,7 +41,9 @@ function addEntry(required: { entry: ShareZipEntry; collected: CollectedShareEnt
   if (!structured && !optional.skipCredentialScan) requireShareSecretFree({ path: archiveSecretScanPath({ path: entry.path, plugins: collected.plugins }), bytes: entry.content }, { shownPath: entry.path, credentialWarnings: collected.credentialWarnings });
   // Node File accepts Buffer directly; the DOM type omits potentially shared-backed views.
   // This assertion preserves the bytes without allocating a second Uint8Array.
-  const picked = new File([entry.content as ConstructorParameters<typeof File>[0][number]], entry.path.split("/").at(-1)!);
+  const name = entry.path.split("/").at(-1);
+  if (name === undefined) throw new Error("Share ZIP entry has no filename");
+  const picked = new File([entry.content as ConstructorParameters<typeof File>[0][number]], name);
   // Jini's picker encoder strips the selected folder's name. Supply that same picker contract
   // explicitly so archive paths keep their first scope segment (media/, themes/, plugins/).
   Object.defineProperty(picked, "webkitRelativePath", { value: `share/${entry.path}` });

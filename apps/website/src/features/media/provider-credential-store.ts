@@ -199,7 +199,8 @@ async function sealNewProviderKeys(
     if (submitted === undefined || submitted === "") continue;
     const apiKey = rethrowAsValidation({ run: () => normalizeCredentialToken({ value: submitted, field: "apiKey" }) });
     const scope = mediaVaultScope({ workspaceId: input.workspaceId, providerId });
-    const existing = (await deps.repo.vault!.list(scope))[0];
+    if (!deps.repo.vault) throw new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+    const existing = (await deps.repo.vault.list(scope))[0];
     fresh.set(providerId, await vault.prepare({ ...scope,
       id: existing?.id ?? mediaVaultId({ providerId }), expectedRevision: existing?.revision ?? null,
       provider: providerId, label: providerId, meta: { ...existing?.meta, baseUrl: trimmedOrNull({ value: entry.baseUrl }), model: trimmedOrNull({ value: entry.model }) },
@@ -331,7 +332,8 @@ export async function resolveMediaProviderCredential(
   deps: MediaProviderCredentialResolveDeps,
   input: { workspaceId: UUID; providerId: string }
 ): Promise<ResolvedMediaProviderCredential | null> {
-  const vault = createTovuStoreVault({ ...deps, repo: { vault: mediaProviderVault({ vault: deps.repo.vault!, providerId: input.providerId }) }, kind: "media-provider",
+  if (!deps.repo.vault) throw new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+  const vault = createTovuStoreVault({ ...deps, repo: { vault: mediaProviderVault({ vault: deps.repo.vault, providerId: input.providerId }) }, kind: "media-provider",
     storageError: () => new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
   const resolved = await vault.findOne(mediaVaultScope(input));
   if (!resolved?.payload) return null;

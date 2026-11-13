@@ -97,7 +97,8 @@ async function findSetting({ ports, workspaceId, id }: { ports: Ports; workspace
   if (!definition) return null;
   const row = await ports.settings.getWorkspaceValue({ workspaceId, settingId: definition.settingId });
   if (!row) return null;
-  const label = PUBLISHABLE_SETTINGS[id]!;
+  const label = PUBLISHABLE_SETTINGS[id];
+  if (label === undefined) throw new Error(`Publishable setting ${id} has no label`);
   return row.state === "cleared" ? { key: id, label, value: null, cleared: true, version: row.seq } : { key: id, label, value: row.valueJson, version: row.seq };
 }
 

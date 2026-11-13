@@ -120,7 +120,8 @@ export function buildGatedIdentityRegistrations(
         await assertCallerHasAnyPermission({ deps: identity, workspaceId: routeDeps.workspaceId,
           // Jini owns both role and policy deletion under role.manage.
           callerPrincipalId: ctx.principal.id, permissions: ["role.manage"] });
-        const id = input[`${kind}Id`]!;
+        const id = input[`${kind}Id`];
+        if (id === undefined) throw new ToolInputError({ message: `${registration.descriptor.id}: ${kind} ID is missing. Nothing was deleted.` });
         const repo = kind === "role" ? routeDeps.roleRepo : routeDeps.policyRepo;
         const existing = await repo.findById({ workspaceId: routeDeps.workspaceId, id });
         if (!existing) throw new ToolInputError({ message: `${registration.descriptor.id}: ${kind} was not found. Nothing was deleted.` });
@@ -150,7 +151,8 @@ export function buildGatedIdentityRegistrations(
           "user's first password into the form this tool shows. Nothing was created." });
     }
     const input = validated(USER_CREATE_TOOL_ID, publishedSchema, ctx.input);
-    const username = input["username"]!;
+    const username = input["username"];
+    if (username === undefined) throw new ToolInputError({ message: `${USER_CREATE_TOOL_ID}: username is missing. Nothing was created.` });
     const emailSuffix = input["email"] ? ` (${input["email"]})` : "";
     let failureMessage: string | undefined;
     const card = defineSecretCardTool<Readonly<Record<string, string>>, Record<string, unknown>, Record<string, unknown> | undefined>({
@@ -219,9 +221,11 @@ export function buildGatedIdentityRegistrations(
       case "identity_user_disable":
         return { ...registration, handler: async (ctx, options = {}) => {
           const input = validated(registration.descriptor.id, registration.descriptor.inputSchema, ctx.input);
+          const principalId = input["principalId"];
+          if (principalId === undefined) throw new ToolInputError({ message: `${registration.descriptor.id}: principal ID is missing. Nothing was changed.` });
           try {
             return await routeDeps.transactions.run({ workspaceId: routeDeps.workspaceId, execute: async () => {
-              await assertUserAccountAction({ deps: identity, workspaceId: routeDeps.workspaceId, principalId: input["principalId"]!, action: "disable" },
+              await assertUserAccountAction({ deps: identity, workspaceId: routeDeps.workspaceId, principalId, action: "disable" },
                 { callerPrincipalId: ctx.principal.id, seededOwnerPrincipalId: await routeDeps.ownerPrincipalId });
               return registration.handler(ctx, options);
             } });

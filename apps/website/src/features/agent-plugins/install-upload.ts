@@ -120,7 +120,8 @@ async function readBounded(stream: AsyncIterable<Uint8Array>): Promise<Buffer> {
 async function locatePackage(reader: AgentPluginArchiveReaderPort, archive: Uint8Array): Promise<{ prefix: string; pluginId: string }> {
   const { manifests, topLevel } = await scanPackageManifests({ reader, archive });
   const folders = [...topLevel].filter((name) => name.endsWith("/"));
-  const enclosingFolder = topLevel.size === 1 && folders.length === 1 ? folders[0]! : null;
+  const enclosingFolder = topLevel.size === 1 && folders.length === 1 ? folders[0] : null;
+  if (enclosingFolder === undefined) throw new AgentPluginInstallError({ code: "MANIFEST_MISSING", message: "the archive has no enclosing plugin folder" });
   const prefix = manifests.has(MANIFEST) ? "" : enclosingFolder;
   const raw = prefix === null ? undefined : manifests.get(prefix + MANIFEST);
   if (prefix === null || raw === undefined) {

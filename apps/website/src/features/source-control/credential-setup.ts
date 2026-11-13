@@ -70,30 +70,38 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
   }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>({
     toolId: CREDENTIAL_SAVE_TOOL_ID,
     prepare: async () => ({ descriptor: ctx.signal.aborted ? undefined : descriptor, provider, label, locale }),
-    form: ({ prep }) => applyPluginCredentialCard({ card: pluginCard, form: {
-      title: `Connect ${prep.descriptor!.label}`,
-      description: `${prep.descriptor!.credential!.help ?? 'Type the secret here. The assistant never sees it.'} ${BACKUP_REPOSITORY_RULES}`,
-      submitLabel: 'Save credential',
-      fields: [{ kind: 'string', name: 'label', label: 'Label', required: true, value: prep.label },
-        ...prep.descriptor!.credential!.fields.map((field): SecretCardField => {
-          const base = { kind: 'string' as const, name: field.name, label: field.label, required: field.required };
-          return field.secret || field.name === prep.descriptor!.credential!.tokenField
-            ? { ...base, secret: true, allowBlank: !field.required } : base;
-        })],
-    } }),
+    form: ({ prep }) => {
+      const descriptor = prep.descriptor;
+      if (!descriptor?.credential) throw new ToolInputError({ message: 'Source control credential form has no provider configuration.' });
+      const credential = descriptor.credential;
+      return applyPluginCredentialCard({ card: pluginCard, form: {
+        title: `Connect ${descriptor.label}`,
+        description: `${credential.help ?? 'Type the secret here. The assistant never sees it.'} ${BACKUP_REPOSITORY_RULES}`,
+        submitLabel: 'Save credential',
+        fields: [{ kind: 'string', name: 'label', label: 'Label', required: true, value: prep.label },
+          ...credential.fields.map((field): SecretCardField => {
+            const base = { kind: 'string' as const, name: field.name, label: field.label, required: field.required };
+            return field.secret || field.name === credential.tokenField
+              ? { ...base, secret: true, allowBlank: !field.required } : base;
+          })],
+      } });
+    },
     // Saves only provider-declared fields through the admin POST's existing store function.
     // Returns an explicit safe projection; errors may quote secrets and are never forwarded.
     save: ({ values, prep, signal }) => {
-      const connection = connectionFromForm({ descriptor: prep.descriptor!, values });
+      if (!prep.descriptor) throw new ToolInputError({ message: 'Source control credential save has no provider configuration.' });
+      const connection = connectionFromForm({ descriptor: prep.descriptor, values });
       const store = deps.sourceControlCredentialSetRepo;
       // The async seal can outlive the run; the existing store must not insert after abandonment.
       // Saves write through `vault`, so it must be forwarded (omitting it fails every save) with the same guard.
       const vault = store.vault;
+      const canonical = store.canonical;
+      const updateAccountLabel = store.updateAccountLabel?.bind(store);
       const repo: SourceControlCredentialSetupDeps['sourceControlCredentialSetRepo'] = {
-        ...(store.canonical ? { canonical: { ...store.canonical, create: async (input) => {
+        ...(canonical ? { canonical: { ...canonical, create: async (input) => {
           signal.throwIfAborted();
-          if (!store.canonical!.create) throw new ToolInputError({ message: 'Open the provider API key card to save this key.' });
-          return store.canonical!.create(input, { signal });
+          if (!canonical.create) throw new ToolInputError({ message: 'Open the provider API key card to save this key.' });
+          return canonical.create(input, { signal });
         } } } : {}),
         ...(vault ? { vault: sourceControlSaveVault({ vault, signal }) } : {}),
         insert: record => { signal.throwIfAborted(); return store.insert(record); },
@@ -103,7 +111,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
         listByProvider: input => store.listByProvider(input),
         listByWorkspace: input => store.listByWorkspace(input),
         delete: input => store.delete(input),
-        ...(store.updateAccountLabel ? { updateAccountLabel: (input: Parameters<NonNullable<typeof store.updateAccountLabel>>[0]) => store.updateAccountLabel!(input) } : {}),
+        ...(updateAccountLabel ? { updateAccountLabel: (input: Parameters<NonNullable<typeof store.updateAccountLabel>>[0]) => updateAccountLabel(input) } : {}),
         // The project half writes too (project-first saves): guarded alike.
         ...(store.project ? { project: { ...store.project, repo: abortGuardedCredentialRepo({ store: store.project.repo, signal }), ...(store.project.createRepo ? { createRepo: abortGuardedCredentialRepo({ store: store.project.createRepo, signal }) } : {}) } } : {}),
       };
@@ -154,15 +162,18 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
 
 /** Preserve this adapter's vault ABI and its write guards, including optional batch writes. */
 function sourceControlSaveVault({ vault, signal }: { vault: NonNullable<SourceControlCredentialSetupDeps['sourceControlCredentialSetRepo']['vault']>; signal: AbortSignal }, _options = {}): typeof vault {
+  const findDefault = vault.findDefault?.bind(vault);
+  const findOne = vault.findOne?.bind(vault);
+  const applyBatch = vault.applyBatch?.bind(vault);
   return {
     find: (input, options) => vault.find(input, options),
     list: (input, options) => vault.list(input, options),
     put: (input, options) => { signal.throwIfAborted(); return vault.put(input, options); },
     patchMeta: (input, options) => vault.patchMeta(input, options),
     delete: (input, options) => vault.delete(input, options),
-    ...(vault.findDefault ? { findDefault: (input: Parameters<NonNullable<typeof vault.findDefault>>[0], options?: Parameters<NonNullable<typeof vault.findDefault>>[1]) => vault.findDefault!(input, options) } : {}),
-    ...(vault.findOne ? { findOne: (input: Parameters<NonNullable<typeof vault.findOne>>[0], options?: Parameters<NonNullable<typeof vault.findOne>>[1]) => vault.findOne!(input, options) } : {}),
-    ...(vault.applyBatch ? { applyBatch: (input: Parameters<NonNullable<typeof vault.applyBatch>>[0], options?: Parameters<NonNullable<typeof vault.applyBatch>>[1]) => { signal.throwIfAborted(); return vault.applyBatch!(input, options); } } : {}),
+    ...(findDefault ? { findDefault } : {}),
+    ...(findOne ? { findOne } : {}),
+    ...(applyBatch ? { applyBatch: (input: Parameters<NonNullable<typeof vault.applyBatch>>[0], options?: Parameters<NonNullable<typeof vault.applyBatch>>[1]) => { signal.throwIfAborted(); return applyBatch(input, options); } } : {}),
   };
 }
 
@@ -172,8 +183,10 @@ function connectionFromForm({ descriptor, values }: {
   descriptor: SourceControlProviderDescriptor; values: Readonly<Record<string, unknown>>;
 }, _options = {}): Record<string, unknown> {
   const connection: Record<string, unknown> = { providerId: descriptor.id };
-  for (const field of descriptor.credential!.fields) {
-    const name = field.name === descriptor.credential!.tokenField ? 'token' : field.name;
+  const credential = descriptor.credential;
+  if (!credential) throw new ToolInputError({ message: 'Source control provider has no credential fields.' });
+  for (const field of credential.fields) {
+    const name = field.name === credential.tokenField ? 'token' : field.name;
     connection[name] = values[field.name];
   }
   return connection;

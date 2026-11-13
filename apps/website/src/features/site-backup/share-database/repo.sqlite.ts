@@ -399,7 +399,9 @@ export async function rewriteArchiveMedia(required: { bytes: Buffer; copies: rea
     await writeFile(file, required.bytes, { mode: 0o600, flag: "wx" });
     target = openSqliteFileKernel<Tables>(file);
     await rewriteMediaRows({ target, copies: required.copies }, optional);
-    const bytes = sqliteConnectionOf(target)!.serialize();
+    const connection = sqliteConnectionOf(target);
+    if (!connection) throw new Error("Share database has no SQLite connection");
+    const bytes = connection.serialize();
     return bytes;
   } finally { await target?.close(); await rm(staging, { recursive: true, force: true }); }
 }

@@ -240,7 +240,7 @@ function withRefusedItem(error: unknown, itemKey: string | null): unknown {
  * @complexity O(1).
  */
 function capitalize(value: string): string {
-  return value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1);
+  return value.length === 0 ? value : value[0].toUpperCase() + value.slice(1);
 }
 
 type ApplyRowResult = { row: PublishContentOutcomeRow; changeSetId: string | null; retiredChangeSetId: string | null };
@@ -351,7 +351,8 @@ async function applyOneRow(
     let retireResult: { changeSetId: string; undo(): Promise<void> } | undefined;
     let changeSetId: string;
     try {
-      retireResult = await handler.retire!({
+      if (!handler.retire) throw new Error("Publish content handler has no retire operation");
+      retireResult = await handler.retire({
         target: row.retires,
         principalId: ctx.principalId,
         // Scoped to this run: `undo()` restores forward and leaves the retire's change set (and its
@@ -584,12 +585,13 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         ...(authorize === undefined ? {} : { authorize }), ...(backstop === undefined ? {} : { backstop })
       };
       const { handlerByType } = buildPublishContentCatalog(handlerDeps);
+      const backstopAudit = handlerDeps.backstop?.audit;
       const metadata = readBackstopMetadata({ entities });
       let auditRecord: BackstopAuditRecord | undefined;
       await prepareAudit({});
       async function prepareAudit(_required: Record<string, never>, _optional: Record<string, never> = {}) {
         if (metadata) {
-          if (!(await handlerDeps.backstop?.audit?.ready())) throw new Error("Send by hand needs its audit storage installed before it can send anything.");
+          if (!backstopAudit || !(await backstopAudit.ready())) throw new Error("Send by hand needs its audit storage installed before it can send anything.");
           report = { ...report, backstop: metadata };
           auditRecord = {
             id: runId, workspaceId: input.workspaceId, direction: "destination", actorId: metadata.sourceActor,
@@ -600,7 +602,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
             }))),
             result: "pending", runId, details: {}, inverses: []
           };
-          await handlerDeps.backstop!.audit!.save({ record: auditRecord });
+          await backstopAudit.save({ record: auditRecord });
         }
       }
 
@@ -633,8 +635,11 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         }
       }
 
-      const itemStates = (): PublishContentRunItemState[] =>
-        report.rows.map((row) => itemByKey.get(entityKey(row.entityType, row.entityId))!).filter(Boolean);
+      const itemStates = (): PublishContentRunItemState[] => report.rows.map((row) => {
+        const item = itemByKey.get(entityKey(row.entityType, row.entityId));
+        if (item === undefined) throw new Error(`Publish content run has no state for ${row.entityType} ${row.entityId}`);
+        return item;
+      });
       const currentChangeSetIds = (): string[] =>
         Array.from(
           new Set(itemStates().flatMap((item) => (item.changeSetId === null ? [] : [item.changeSetId])))
@@ -800,7 +805,8 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
           activeItemKey = null;
         }
         if (auditRecord) {
-          await handlerDeps.backstop!.audit!.save({
+          if (!backstopAudit) throw new Error("Send by hand has no audit storage");
+          await backstopAudit.save({
             record: {
               ...auditRecord, result: "success",
               inverses: handlerDeps.backstop?.inverses ?? [], details: { report: currentReport() },
@@ -857,13 +863,16 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         // gets repointed; see `runRepointPass`'s own doc above for why this is safe to call here too.
         await runRepointPass();
         await saveSnapshot("failed", clockNowIso({ clock: input.clock }));
-        if (auditRecord) await handlerDeps.backstop!.audit!.save({
+        if (auditRecord) {
+          if (!backstopAudit) throw new Error("Send by hand has no audit storage");
+          await backstopAudit.save({
           record: {
             ...auditRecord, result: "failure",
             inverses: rollbackErrors.length > 0 ? (handlerDeps.backstop?.inverses ?? []).filter((i) => i.kind === "raw-file") : [],
             details: { error: error instanceof Error ? error.message : "This send was rolled back.", rollbackErrors }
           }
-        });
+          });
+        }
         throw transactional ? error : withRefusedItem(error, activeItemKey);
       }
       // Only a raw-row/raw-file run is all-or-nothing; every other run writes row by row, so an
@@ -981,7 +990,8 @@ async function verifyPublishedEntities(
   _optional: Record<string, never> = {},
 ): Promise<readonly string[]> {
   try {
-    return await handler.verifyApplied!({ entities });
+    if (!handler.verifyApplied) throw new Error("Publish content handler has no verification operation");
+    return await handler.verifyApplied({ entities });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return [`${capitalize(handler.entityType)} could not be checked after publishing: ${message}`];

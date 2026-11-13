@@ -109,7 +109,9 @@ export async function saveMediaCredential(required: { ctx: ToolExecutionContext;
   if (reason !== undefined && reason.length > 1000) throw new ToolInputError({ message: 'Credential setup reason must be at most 1000 characters.' });
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'admin.integrations.manage' }, { entityType: 'media' });
   const { providers } = await listProviders(deps);
-  const configured = providers.find(candidate => candidate.id === providerId)!.configured;
+  const listedProvider = providers.find(candidate => candidate.id === providerId);
+  if (listedProvider === undefined) throw new Error('Media provider list has no selected provider');
+  const configured = listedProvider.configured;
   const locale = await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id });
   const saveFailure = 'Nothing was saved. Check the key and the server credential store, then try again.';
   // Strict non-secret validation and authorization retain their precedence over channel errors.

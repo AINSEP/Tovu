@@ -248,7 +248,11 @@ async function buildCaptureResult(
   const height = tiles.reduce((sum, tile) => sum + tile.height, 0);
   const capturedAtMs = ports.nowMs();
   const relPaths = captureRelativePaths({ capturedAtMs, input, count: tiles.length });
-  const saved = saveCaptureFiles ? await saveCaptures(saveCaptureFiles, tiles.map((tile, index) => ({ relPath: relPaths[index]!, bytes: tile.bytes }))) : {};
+  const saved = saveCaptureFiles ? await saveCaptures(saveCaptureFiles, tiles.map((tile, index) => {
+    const relPath = relPaths[index];
+    if (relPath === undefined) throw new Error(`Screenshot capture has no path for tile ${index}`);
+    return { relPath, bytes: tile.bytes };
+  })) : {};
   const facts = {
     ...(site === null ? { requestedUrl: url, finalUrl: shot.finalUrl } : { sitePath: (input.target as { path: string }).path, finalPath: toSitePath(shot.finalUrl, site.origin) }),
     ...(input.themeId === undefined ? {} : { themeId: input.themeId }),

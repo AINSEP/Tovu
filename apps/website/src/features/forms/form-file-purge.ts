@@ -22,7 +22,8 @@ export function createFormFilePurgeHooks(
     return rows.map(row => ({ id: row.id, dataJson: row.data_json }));
   }) });
   return { beforePurge: hooks.beforePurge, afterPurge: async required => {
-    await hooks.afterPurge!(required);
+    if (!hooks.afterPurge) throw new Error('Form attachment purge has no after-purge hook');
+    await hooks.afterPurge(required);
     await scrub(required);
   } };
 }

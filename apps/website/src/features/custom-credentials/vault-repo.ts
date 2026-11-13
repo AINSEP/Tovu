@@ -31,7 +31,8 @@ export class CustomCredentialVaultRepo extends CredentialSetVaultRepo<CustomCred
   /** @param optional.project The project store this site's rows fall back to (`types.ts`). */
   constructor({ vault }: { vault: VaultRepoPort }, optional: { project?: CustomCredentialProjectScope } = {}) {
     const reader = vault as SiteGrantedVault;
+    const findByLabel = reader.findByLabel?.bind(reader);
     super({ vault, policy }, { ...(optional.project ? { project: optional.project } : {}),
-      ...(reader.findByLabel ? { findRowByLabel: input => reader.findByLabel!(input) } : {}) });
+      ...(findByLabel ? { findRowByLabel: input => findByLabel(input) } : {}) });
   }
 }

@@ -96,12 +96,16 @@ export class TovuCredentialSetVaultAdapter<R extends Record> {
    * patch increments revision, so a rotation racing the probe cannot be overwritten. */
   async updateAccountLabel(input: { workspaceId: string; id: string; accountLabel: string; expectedSealed?: SealedSecret }, _options = {}): Promise<void> {
     const row = await this.vault.find(input);
-    if (!row || !this.record(row)) return;
-    if (input.expectedSealed && ["keyId", "ciphertext", "nonce", "alg"].some(key =>
-      row.sealed![key as keyof SealedSecret] !== input.expectedSealed![key as keyof SealedSecret])) return;
+    if (!row) return;
+    const record = this.record(row);
+    if (!record) return;
+    const expectedSealed = input.expectedSealed;
+    if (expectedSealed && ["keyId", "ciphertext", "nonce", "alg"].some(key =>
+      record.sealed[key as keyof SealedSecret] !== expectedSealed[key as keyof SealedSecret])) return;
     const meta = registry.metaParsers[this.kind]({ meta: { ...row.meta, accountLabel: input.accountLabel }, provider: row.provider });
     try {
-      await this.vault.patchMeta({ ...input, expectedRevision: row.revision, patch: { accountLabel: meta.accountLabel! }, updatedAt: row.updatedAt });
+      if (meta.accountLabel == null) throw new VaultError({ code: "invalid-meta" });
+      await this.vault.patchMeta({ ...input, expectedRevision: row.revision, patch: { accountLabel: meta.accountLabel }, updatedAt: row.updatedAt });
     } catch (error) {
       if (!(error instanceof VaultError && error.code === "conflict")) throw error;
       // A deleted/rotated row is a completed stale probe, never an instruction to recreate it.
@@ -110,8 +114,9 @@ export class TovuCredentialSetVaultAdapter<R extends Record> {
 }
 
 /** Host-bound service: feature routes own permission checks; this policy limits their vault
- * access to Tovu's credential kinds, including unmigrated custom rows. Encryption failures retain each store's typed error. */
-export function credentialVault(required: { repo: { vault?: VaultRepoPort }; sealer: SecretSealerPort;
+ * access to Tovu's credential kinds, including unmigrated custom rows. Metadata reads need no sealer;
+ * encryption failures retain each store's typed error. */
+export function credentialVault(required: { repo: { vault?: VaultRepoPort }; sealer?: SecretSealerPort;
   keyring?: KeyringPort; clock?: Clock; idGen?: { newId(): string }; storageError: () => Error }, _options = {}): SecretsVaultService {
   if (!required.repo.vault) throw new VaultError({ code: "invalid-record" });
   const protect = async <T>(operation: () => Promise<T>): Promise<T> => {
@@ -125,7 +130,13 @@ export function credentialVault(required: { repo: { vault?: VaultRepoPort }; sea
       if (!required.keyring) throw required.storageError();
       return required.keyring.activeKey();
     }) } as KeyringPort,
-    sealer: { seal: input => protect(() => required.sealer.seal({ plaintext: input.plaintext, key: input.key, aad: input.aad })), open: (input, options) => protect(() => required.sealer.open(input, options)) },
+    sealer: { seal: input => protect(() => {
+      if (!required.sealer) throw required.storageError();
+      return required.sealer.seal({ plaintext: input.plaintext, key: input.key, aad: input.aad });
+    }), open: (input, options) => protect(() => {
+      if (!required.sealer) throw required.storageError();
+      return required.sealer.open(input, options);
+    }) },
     now: () => new Date(required.clock?.nowMs() ?? 0).toISOString(),
     newId: () => { if (!required.idGen) { throw new VaultError({ code: "invalid-record" }); } return required.idGen.newId(); },
   });

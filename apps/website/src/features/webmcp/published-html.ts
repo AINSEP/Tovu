@@ -25,7 +25,8 @@ function nativeFormToolRanges({ html }: { html: string }, _options = {}): { star
   const stack: Node[] = [...document.childNodes];
   const ranges: { startOffset: number; endOffset: number }[] = [];
   while (stack.length) {
-    const node = stack.pop()!;
+    const node = stack.pop();
+    if (node === undefined) throw new Error('Published WebMCP scan has no pending node');
     if (!('tagName' in node)) continue;
     if (node.tagName === 'script' && node.attrs.some(attr => attr.name === SCRIPT_MARKER) && node.sourceCodeLocation) {
       ranges.push(node.sourceCodeLocation);

@@ -150,8 +150,9 @@ export async function importSubscriptions(required: {
   const failed: { index: number; code: string; message: string }[] = [];
 
   for (let index = 0; index < input.subscribers.length; index += 1) {
-    const row = input.subscribers[index]!;
+    const row = input.subscribers[index];
     try {
+      if (row === undefined) throw new Error(`Newsletter import has no subscriber at index ${index}`);
       const { subscription } = await saveSubscription({
         deps,
         input: { workspaceId: input.workspaceId, listId: input.listId, subscriberId: row.subscriberId, source: row.source },

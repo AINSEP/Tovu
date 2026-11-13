@@ -115,8 +115,10 @@ function createIndexState(kernel: StorageKernel<SearchIndexDatabase>): SearchInd
     async listByStatus({ target, statuses, limit }, { failedBelowAttempts } = {}) {
       // `IN ()` is not valid SQL; asking for no status matches no row.
       if (statuses.length === 0) return [];
-      const retryable = (eb: ExpressionBuilder<SearchIndexDatabase, "search_index_state">) =>
-        eb.or([eb("status", "!=", "failed"), eb("attempts", "<", failedBelowAttempts!)]);
+      const retryable = (eb: ExpressionBuilder<SearchIndexDatabase, "search_index_state">) => {
+        if (failedBelowAttempts === undefined) throw new Error("Search retry filter has no attempt limit");
+        return eb.or([eb("status", "!=", "failed"), eb("attempts", "<", failedBelowAttempts)]);
+      };
       const rows = await kernel.run(db => db.selectFrom("search_index_state").selectAll()
         .where("site_id", "=", target.siteId).where("provider_id", "=", target.providerId)
         .where("generation", "=", target.generation).where("status", "in", [...statuses])
