@@ -186,7 +186,7 @@ describe("defaultMenusPort", () => {
     }));
     vi.stubGlobal("fetch", fetchMock);
 
-    expect(await defaultMenusPort.createMenu({ title: MENU.title, slug: MENU.slug }, { items })).toEqual({ menu: created });
+    expect(await defaultMenusPort.createMenu({ input: { title: MENU.title, slug: MENU.slug }, options: { items } })).toEqual({ menu: created });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(String(url)).toMatch(/\/workspaces\/[^/]+\/menus$/);
@@ -198,13 +198,13 @@ describe("defaultMenusPort", () => {
 describe("createFakeMenusPort contracts", () => {
   it("resolves a menu by slug", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
-    expect(await port.getMenu(MENU.slug)).toEqual({ menu: MENU });
+    expect(await port.getMenu({ id: MENU.slug })).toEqual({ menu: MENU });
   });
 
   it.each(["read", "update", "trash"])("rejects a missing %s target without changing the store", async (operation) => {
     const port = createFakeMenusPort({ menus: [MENU] });
-    const pending = operation === "read" ? port.getMenu("missing")
-      : operation === "update" ? port.updateMenuTree({ id: "missing", expectedVersion: 1, items: [] }, {})
+    const pending = operation === "read" ? port.getMenu({ id: "missing" })
+      : operation === "update" ? port.updateMenuTree({ target: { id: "missing", expectedVersion: 1, items: [] }, options: {} })
         : port.trash({ id: "missing" });
     await expect(pending).rejects.toThrow("fake menu not found: missing");
     expect((await port.listMenus()).menus).toEqual([MENU]);
@@ -212,21 +212,21 @@ describe("createFakeMenusPort contracts", () => {
 
   it("defaults omitted items and preserves HTML authoring on an items-only update", async () => {
     const port = createFakeMenusPort({});
-    const { menu } = await port.createMenu({ title: "Footer", slug: "footer" }, { mode: "html", html: "<a>Footer</a>" });
+    const { menu } = await port.createMenu({ input: { title: "Footer", slug: "footer" }, options: { mode: "html", html: "<a>Footer</a>" } });
     expect(menu.items).toEqual([]);
     const items: AdminMenu["items"] = [{ id: "contact", label: "Contact", target: { kind: "url", href: "/contact" } }];
     const expected = { ...menu, items, version: 2 };
-    expect(await port.updateMenuTree({ id: menu.id, expectedVersion: 1, items }, {})).toEqual({ menu: expected });
-    expect(await port.getMenu(menu.id)).toEqual({ menu: expected });
+    expect(await port.updateMenuTree({ target: { id: menu.id, expectedVersion: 1, items }, options: {} })).toEqual({ menu: expected });
+    expect(await port.getMenu({ id: menu.id })).toEqual({ menu: expected });
   });
 
   it("applies explicit title and slug updates while accepting an empty HTML document", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     const expected = { ...MENU, title: "Footer", slug: "footer", mode: "html", html: "", version: 2 };
-    expect(await port.updateMenuTree({ id: MENU.id, expectedVersion: 1, items: [] }, {
+    expect(await port.updateMenuTree({ target: { id: MENU.id, expectedVersion: 1, items: [] }, options: {
       title: "Footer", slug: "footer", mode: "html", html: "",
-    })).toEqual({ menu: expected });
-    expect(await port.getMenu("footer")).toEqual({ menu: expected });
+    } })).toEqual({ menu: expected });
+    expect(await port.getMenu({ id: "footer" })).toEqual({ menu: expected });
   });
 });
 

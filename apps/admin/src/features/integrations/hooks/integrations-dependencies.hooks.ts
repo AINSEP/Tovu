@@ -10,9 +10,9 @@ import type { IntegrationsPort } from "./integrations-port.hooks";
  *  `redirectsHostPorts`. */
 export const defaultIntegrationsPort: IntegrationsPort = {
   listIntegrationSubscriptions: () => api.listIntegrationSubscriptions(),
-  createIntegrationSubscription: (input) => api.createIntegrationSubscription(input),
+  createIntegrationSubscription: (input, _optional = {}) => api.createIntegrationSubscription(input),
   pauseIntegrationSubscription: ({ id, paused }) => api.pauseIntegrationSubscription({ id, paused }),
-  deleteIntegrationSubscription: (id) => api.deleteIntegrationSubscription(id),
+  deleteIntegrationSubscription: ({ id }, _optional = {}) => api.deleteIntegrationSubscription(id),
 };
 
 /** Seed state for {@link createFakeIntegrationsPort}. */
@@ -39,7 +39,7 @@ export function createFakeIntegrationsPort(options: FakeIntegrationsPortOptions 
       return { subscriptions: [...subscriptions] };
     },
 
-    async createIntegrationSubscription(input) {
+    async createIntegrationSubscription(input, _optional = {}) {
       const created: AdminWebhookSubscription = {
         id: `fake-${subscriptions.length + 1}`,
         label: input.label,
@@ -65,7 +65,7 @@ export function createFakeIntegrationsPort(options: FakeIntegrationsPortOptions 
       return { subscription: updated };
     },
 
-    async deleteIntegrationSubscription(id) {
+    async deleteIntegrationSubscription({ id }, _optional = {}) {
       const index = subscriptions.findIndex((s) => s.id === id);
       if (index < 0) throw new Error(`fake integrations port: unknown subscription ${id}`);
       const [removed] = subscriptions.splice(index, 1);

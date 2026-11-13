@@ -23,12 +23,12 @@ import {
 
 describe("libraryExtension", () => {
   it("returns the lower-cased text after the last dot", () => {
-    expect(libraryExtension("Report.Final.PDF")).toBe("pdf");
+    expect(libraryExtension({ filename: "Report.Final.PDF" })).toBe("pdf");
   });
 
   it("treats a leading-dot name and a dotless name as having no extension", () => {
-    expect(libraryExtension(".env")).toBe("");
-    expect(libraryExtension("README")).toBe("");
+    expect(libraryExtension({ filename: ".env" })).toBe("");
+    expect(libraryExtension({ filename: "README" })).toBe("");
   });
 });
 
@@ -62,27 +62,27 @@ describe("libraryFileProblem", () => {
 
 describe("formatLibraryBytes", () => {
   it("renders a dash for missing, non-finite and negative sizes", () => {
-    expect(formatLibraryBytes(null)).toBe("—");
-    expect(formatLibraryBytes(undefined)).toBe("—");
-    expect(formatLibraryBytes(Number.NaN)).toBe("—");
-    expect(formatLibraryBytes(Number.POSITIVE_INFINITY)).toBe("—");
-    expect(formatLibraryBytes(-1)).toBe("—");
+    expect(formatLibraryBytes({ bytes: null })).toBe("—");
+    expect(formatLibraryBytes({ bytes: undefined })).toBe("—");
+    expect(formatLibraryBytes({ bytes: Number.NaN })).toBe("—");
+    expect(formatLibraryBytes({ bytes: Number.POSITIVE_INFINITY })).toBe("—");
+    expect(formatLibraryBytes({ bytes: -1 })).toBe("—");
   });
 
   it("renders bytes below 1 KiB as whole bytes", () => {
-    expect(formatLibraryBytes(0)).toBe("0 B");
-    expect(formatLibraryBytes(1023)).toBe("1023 B");
+    expect(formatLibraryBytes({ bytes: 0 })).toBe("0 B");
+    expect(formatLibraryBytes({ bytes: 1023 })).toBe("1023 B");
   });
 
   it("uses one decimal below 10 units and whole numbers at or above", () => {
-    expect(formatLibraryBytes(1536)).toBe("1.5 KB");
-    expect(formatLibraryBytes(20 * 1024)).toBe("20 KB");
-    expect(formatLibraryBytes(1.2 * 1024 * 1024)).toBe("1.2 MB");
+    expect(formatLibraryBytes({ bytes: 1536 })).toBe("1.5 KB");
+    expect(formatLibraryBytes({ bytes: 20 * 1024 })).toBe("20 KB");
+    expect(formatLibraryBytes({ bytes: 1.2 * 1024 * 1024 })).toBe("1.2 MB");
   });
 
   it("stops at GB rather than inventing a larger unit", () => {
-    expect(formatLibraryBytes(3 * 1024 ** 3)).toBe("3.0 GB");
-    expect(formatLibraryBytes(2048 * 1024 ** 3)).toBe("2048 GB");
+    expect(formatLibraryBytes({ bytes: 3 * 1024 ** 3 })).toBe("3.0 GB");
+    expect(formatLibraryBytes({ bytes: 2048 * 1024 ** 3 })).toBe("2048 GB");
   });
 });
 
@@ -141,17 +141,17 @@ describe("documentPreviewKind", () => {
 
 describe("validDocumentStem", () => {
   it("returns the trimmed stem when the server would accept it", () => {
-    expect(validDocumentStem("  Quarterly plan  ")).toBe("Quarterly plan");
-    expect(validDocumentStem("x".repeat(240))).toBe("x".repeat(240));
+    expect(validDocumentStem({ draft: "  Quarterly plan  " })).toBe("Quarterly plan");
+    expect(validDocumentStem({ draft: "x".repeat(240) })).toBe("x".repeat(240));
   });
 
   it("refuses blank, over-long, slashed and control-character stems", () => {
-    expect(validDocumentStem("   ")).toBeNull();
-    expect(validDocumentStem("x".repeat(241))).toBeNull();
-    expect(validDocumentStem("a/b")).toBeNull();
-    expect(validDocumentStem("a\\b")).toBeNull();
-    expect(validDocumentStem(`a${String.fromCharCode(7)}b`)).toBeNull();
-    expect(validDocumentStem(`a${String.fromCharCode(127)}b`)).toBeNull();
+    expect(validDocumentStem({ draft: "   " })).toBeNull();
+    expect(validDocumentStem({ draft: "x".repeat(241) })).toBeNull();
+    expect(validDocumentStem({ draft: "a/b" })).toBeNull();
+    expect(validDocumentStem({ draft: "a\\b" })).toBeNull();
+    expect(validDocumentStem({ draft: `a${String.fromCharCode(7)}b` })).toBeNull();
+    expect(validDocumentStem({ draft: `a${String.fromCharCode(127)}b` })).toBeNull();
   });
 });
 

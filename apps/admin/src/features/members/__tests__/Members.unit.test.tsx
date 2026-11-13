@@ -106,7 +106,7 @@ describe("Disable — via RowMenu, confirm-gated", () => {
     // a two-response queue leaves that read undefined and replaces the table with a load error.
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
       if (url === "/api/admin/v1/workspaces/workspace-local/members/m1/disable" && init?.method === "POST") {
-        return jsonResponse(await port.disableMember("m1"));
+        return jsonResponse(await port.disableMember({ id: "m1" }));
       }
       if (url === "/api/admin/v1/workspaces/workspace-local/members" && (init?.method ?? "GET") === "GET") {
         return jsonResponse(await port.listMembers());

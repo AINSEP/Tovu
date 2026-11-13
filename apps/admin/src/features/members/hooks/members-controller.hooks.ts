@@ -15,7 +15,7 @@ const refresh: IdentityRefreshPort = {
 };
 export type MembersController = Omit<JiniController, "stateFor"> & {
   locale: string;
-  stateFor: (id: string) => ReturnType<JiniController["stateFor"]>;
+  stateFor: (required: { id: string }, optional?: Record<string, never>) => ReturnType<JiniController["stateFor"]>;
 };
 export interface MembersDependencies { port: MembersPort }
 
@@ -25,7 +25,7 @@ export function useMembers({ port }: MembersDependencies, _optional: Record<stri
   const translate = useCallback((key: string) => t({ locale: locale, key: key }), [locale]);
   const jiniPort = useMemo(() => toJiniMembersPort({ port }), [port]);
   const controller = useJiniMembers({ port: jiniPort, translate, queryScope: WORKSPACE_ID }, { refresh });
-  return { ...controller, locale, stateFor: id => controller.stateFor({ id }) };
+  return { ...controller, locale, stateFor: ({ id }, _optional = {}) => controller.stateFor({ id }) };
 }
 
 /**

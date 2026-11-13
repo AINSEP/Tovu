@@ -15,7 +15,7 @@ export type ImportExportTabId = (typeof IMPORT_EXPORT_TAB_IDS)[number];
 
 /** Falls back to Export for an absent or unrecognized `?tab=`, through the shared guard Sites and
  *  Deployment use — a stale bookmark or a typo must open a tab, never a blank panel. */
-export function resolveImportExportTabId(tabId: string | null | undefined): ImportExportTabId {
+export function resolveImportExportTabId({ tabId }: { tabId: string | null | undefined }, _optional = {}): ImportExportTabId {
   return resolveActiveTabId({ tabId: tabId, validIds: IMPORT_EXPORT_TAB_IDS, defaultId: "export" });
 }
 

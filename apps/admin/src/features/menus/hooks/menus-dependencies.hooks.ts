@@ -15,9 +15,9 @@ import { pagePublicPath } from "../../pages/rules";
 export const defaultMenusPort: MenusPort = {
   listPages: async (_required, _optional = {}) => ({ pages: (await api.listPages()).posts.map(({ post }) => ({ id: post.id, title: post.title, status: post.status, publicPath: pagePublicPath(post.slug) })) }),
   listMenus: () => api.listMenus(),
-  getMenu: (id) => api.getMenu(id),
-  createMenu: (input, options) => api.createMenu(input, options),
-  updateMenuTree: (target, options) => api.updateMenuTree(target, options),
+  getMenu: ({ id }, _optional = {}) => api.getMenu(id),
+  createMenu: ({ input, options }, _optional = {}) => api.createMenu(input, options),
+  updateMenuTree: ({ target, options }, _optional = {}) => api.updateMenuTree(target, options),
   trash: ({ id }) => api.trash({ type: "menu", id }),
 };
 
@@ -44,7 +44,7 @@ export function createFakeMenusPort(options: FakeMenusPortOptions = {}): MenusPo
       return { menus: [...menus] };
     },
 
-    async getMenu(id) {
+    async getMenu({ id }, _optional = {}) {
       // Id or slug, same fallback as the real server route (readable-slugs S6b) — a test that loads
       // by slug shouldn't need to fake out a whole HTTP layer to see that behavior.
       const menu = menus.find((m) => m.id === id || m.slug === id);
@@ -52,7 +52,7 @@ export function createFakeMenusPort(options: FakeMenusPortOptions = {}): MenusPo
       return { menu };
     },
 
-    async createMenu(input, createOptions) {
+    async createMenu({ input, options: createOptions }, _optional = {}) {
       const created: AdminMenu = {
         id: `fake-${menus.length + 1}`,
         workspaceId: "fake-ws",
@@ -70,7 +70,7 @@ export function createFakeMenusPort(options: FakeMenusPortOptions = {}): MenusPo
       return { menu: created };
     },
 
-    async updateMenuTree({ id, items }, updateOptions) {
+    async updateMenuTree({ target: { id, items }, options: updateOptions }, _optional = {}) {
       const index = menus.findIndex((m) => m.id === id);
       if (index < 0) throw new Error(`fake menu not found: ${id}`);
       const updated: AdminMenu = {

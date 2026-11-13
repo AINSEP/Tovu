@@ -218,7 +218,7 @@ function PageEditorHeader({
  * remains as the reason not to merge them).
  */
 /** "Save", marked with a bullet while there are unsaved changes. */
-function saveLabel(dirty: boolean, t: Translate): string {
+function saveLabel({ dirty, t }: { dirty: boolean; t: Translate }, _optional = {}): string {
   return dirty ? `${t("Save")} •` : t("Save");
 }
 
@@ -294,7 +294,7 @@ function PageEditorActions({
           disabled={saving}
           {...agentHandle({ handle: "page-save" }, { role: "button", label: "Save this page's title, slug, status and body" })}
         >
-          {saving ? t("Saving…") : saveLabel(dirty, t)}
+          {saving ? t("Saving…") : saveLabel({ dirty: dirty, t: t })}
         </button>
         <button
           type="button"

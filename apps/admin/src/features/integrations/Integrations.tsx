@@ -121,7 +121,7 @@ function IntegrationDeleteDialog(props: {
       open={props.pendingDelete !== null}
       agentHandle="integrations-delete-webhook"
       title={t({ locale: locale, key: "Delete webhook?" })}
-      body={props.pendingDelete ? deleteWebhookBody(locale, props.pendingDelete.label) : null}
+      body={props.pendingDelete ? deleteWebhookBody({ locale: locale, label: props.pendingDelete.label }) : null}
       confirmLabel={t({ locale: locale, key: "Delete" })}
       destructive
       pending={props.deleting}
@@ -156,7 +156,7 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
   } = useIntegrationsHook();
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!subscriptions) return <div className="notice">{t("Loading integrations…")}</div>;
+  if (!subscriptions) return <div className="notice">{t({ key: "Loading integrations…" })}</div>;
 
   // Subscription ids are stable and unique, so they disambiguate one row's menu from another's —
   // same reasoning as every other list on this workstream.
@@ -190,7 +190,7 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
           and the empty-state `card` below already use it. */}
       <div className="integrations-tab-intro form-measure">
         <p className="page-description">
-          {t("Send webhook notifications to external services when content on this site changes.")}
+          {t({ key: "Send webhook notifications to external services when content on this site changes." })}
         </p>
         {formOpen ? null : (
           <div className="page-actions">
@@ -198,7 +198,7 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
               onClick={() => setFormOpen(true)}
               {...agentHandle({ handle: "integrations-toggle-create-form" }, { role: "button", label: "Open the add-webhook form" })}
             >
-              {t("Add webhook")}
+              {t({ key: "Add webhook" })}
             </button>
           </div>
         )}
@@ -238,15 +238,15 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
           // other `.empty-state` on this admin gets for free by only ever having ONE line.
           <div className="card form-measure">
             <div className="empty-state">
-              <p className="empty-state-title">{t("No webhooks yet.")}</p>
-              <p className="empty-state-hint">{t("Add one above to start sending event notifications.")}</p>
+              <p className="empty-state-title">{t({ key: "No webhooks yet." })}</p>
+              <p className="empty-state-hint">{t({ key: "Add one above to start sending event notifications." })}</p>
             </div>
           </div>
         }
         columns={[
           {
             key: "label",
-            header: t("Label"),
+            header: t({ key: "Label" }),
             cell: (subscription, index) => (
               <a
                 href={`/admin/addons/integrations/${subscription.id}`}
@@ -256,29 +256,29 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
               </a>
             ),
           },
-          { key: "target-url", header: t("Target URL"), cell: (subscription) => subscription.targetUrl },
+          { key: "target-url", header: t({ key: "Target URL" }), cell: (subscription) => subscription.targetUrl },
           {
             key: "status",
-            header: t("Status"),
+            header: t({ key: "Status" }),
             cell: (subscription) => (
               <span className={`status status-sub-${subscription.status}`}><ServerLabel value={subscription.status} /></span>
             ),
           },
           {
             key: "last-delivery",
-            header: t("Last delivery"),
+            header: t({ key: "Last delivery" }),
             cell: (subscription) =>
               subscription.lastDelivery ? (
                 <span className={`status status-delivery-${subscription.lastDelivery.status}`}>
                   <ServerLabel value={subscription.lastDelivery.status} />
                 </span>
               ) : (
-                <span className="muted-cell">{t("never")}</span>
+                <span className="muted-cell">{t({ key: "never" })}</span>
               ),
           },
           {
             key: "actions",
-            headerLabel: t("Actions"),
+            headerLabel: t({ key: "Actions" }),
             cell: (subscription, index) =>
               subscription.status === "disabled" ? (
                 // `disabled` on both old inline buttons for a `status === "disabled"` row — a
@@ -288,15 +288,15 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
                 <span className="muted-cell">—</span>
               ) : (
                 <RowMenu
-                  triggerLabel={actionsForWebhookLabel(locale, subscription.label)}
+                  triggerLabel={actionsForWebhookLabel({ locale: locale, label: subscription.label })}
                   agentHandle={`${rowMenuHandles[index]}-menu`}
                   items={integrationRowMenuItems(
-                    subscription,
-                    {
+                    { subscription: subscription,
+                    handlers: {
                       onTogglePause,
                       onDelete: setPendingDelete,
                     },
-                    locale,
+                    locale: locale },
                   )}
                 />
               ),

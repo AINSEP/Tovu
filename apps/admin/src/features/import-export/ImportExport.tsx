@@ -95,7 +95,7 @@ export function ImportExport({
   tabId,
 }: ImportExportProps = {}) {
   const t = useTranslate();
-  const tab: ImportExportTabId = resolveImportExportTabId(tabId);
+  const tab: ImportExportTabId = resolveImportExportTabId({ tabId: tabId });
   return (
     // No "Operations" kicker above the title (owner, 2026-10-25); the other Operations pages keep theirs.
     <div className="page import-export-page">

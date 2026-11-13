@@ -64,12 +64,12 @@ describe("Import & Export tabs (owner, 2026-10-25, option A)", () => {
   });
 
   it("falls back to Export for an unknown or absent ?tab=", () => {
-    expect(resolveImportExportTabId("other")).toBe("other");
-    expect(resolveImportExportTabId("import")).toBe("import");
-    expect(resolveImportExportTabId("Import")).toBe("export");
-    expect(resolveImportExportTabId("static")).toBe("export");
-    expect(resolveImportExportTabId(null)).toBe("export");
-    expect(resolveImportExportTabId(undefined)).toBe("export");
+    expect(resolveImportExportTabId({ tabId: "other" })).toBe("other");
+    expect(resolveImportExportTabId({ tabId: "import" })).toBe("import");
+    expect(resolveImportExportTabId({ tabId: "Import" })).toBe("export");
+    expect(resolveImportExportTabId({ tabId: "static" })).toBe("export");
+    expect(resolveImportExportTabId({ tabId: null })).toBe("export");
+    expect(resolveImportExportTabId({ tabId: undefined })).toBe("export");
     renderPanel("nope");
     expect(screen.getByRole("tab", { name: /Export/ }).getAttribute("aria-selected")).toBe("true");
   });

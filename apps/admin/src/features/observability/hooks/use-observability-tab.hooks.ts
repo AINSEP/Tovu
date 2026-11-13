@@ -20,7 +20,7 @@ export function useObservabilityTab({ tabs, tabId }: {
   return {
     activeTabId: activeTabId ?? undefined,
     subtitle: findActiveTab(tabs, activeTabId)?.subtitle,
-    onTabChange: (nextTabId: string) => {
+    onTabChange: ({ nextTabId }: { nextTabId: string }, _optional = {}) => {
       controller.setActiveTabId(nextTabId);
       navigate(`/observability?tab=${encodeURIComponent(nextTabId)}`, { replace: true });
     },

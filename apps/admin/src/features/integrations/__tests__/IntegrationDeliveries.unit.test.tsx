@@ -29,7 +29,7 @@ const DELIVERY: AdminWebhookDelivery = {
 };
 
 function baseController(overrides: Partial<IntegrationDeliveriesController> = {}): IntegrationDeliveriesController {
-  return { deliveries: [DELIVERY], error: null, t: (key: string) => key, ...overrides };
+  return { deliveries: [DELIVERY], error: null, t: ({ key }) => key, ...overrides };
 }
 
 describe("loading and error states", () => {

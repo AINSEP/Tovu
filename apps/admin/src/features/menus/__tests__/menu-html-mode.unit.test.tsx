@@ -84,14 +84,14 @@ describe("menuAuthoringForSave", () => {
 
 describe("useMenuEditor — HTML mode", () => {
   it("opens an html-mode menu on the HTML tab with its stored markup", async () => {
-    const { result } = renderHook(() => useMenuEditor("m1", deps(createFakeMenusPort({ menus: [{ ...MENU, mode: "html", html: "<b>hi</b>" }] }))));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: deps(createFakeMenusPort({ menus: [{ ...MENU, mode: "html", html: "<b>hi</b>" }] })) }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.mode).toBe("html");
     expect(result.current.html).toBe("<b>hi</b>");
   });
 
   it("seeds the starter on first switch to HTML and keeps both modes' data across switches", async () => {
-    const { result } = renderHook(() => useMenuEditor("m1", deps()));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: deps() }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.mode).toBe("items");
     act(() => result.current.changeMode("html"));
@@ -107,7 +107,7 @@ describe("useMenuEditor — HTML mode", () => {
     const pageItem: AdminMenuItem = { id: "svc", label: "Services", target: { kind: "entryRef", entryId: "p9" } };
     const port = createFakeMenusPort({ menus: [{ ...MENU, items: [pageItem] }] });
     port.listPages = vi.fn().mockResolvedValue({ pages: [{ id: "p9", title: "Services", status: "published", publicPath: "/services" }] });
-    const { result } = renderHook(() => useMenuEditor("m1", deps(port)));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: deps(port) }));
     await waitFor(() => expect(result.current.pageChoices).toBeDefined());
     act(() => result.current.changeMode("html"));
     expect(result.current.html).toBe(`<a href="/services">Services</a>`);
@@ -117,7 +117,7 @@ describe("useMenuEditor — HTML mode", () => {
     const pageItem: AdminMenuItem = { id: "svc", label: "Services", target: { kind: "entryRef", entryId: "p9" } };
     const port = createFakeMenusPort({ menus: [{ ...MENU, items: [pageItem] }] });
     port.listPages = vi.fn().mockResolvedValue({ pages: [{ id: "p9", title: "Services", status: "published", publicPath: "/services" }] });
-    const { result } = renderHook(() => useMenuEditor("m1", deps(port)));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: deps(port) }));
     await waitFor(() => expect(result.current.pageChoices).toBeDefined());
     act(() => result.current.changeMode("html"));
     expect(result.current.html).toBe(`<a href="/services">Services</a>`);
@@ -126,15 +126,15 @@ describe("useMenuEditor — HTML mode", () => {
   it("saves the HTML mode and re-baselines on the server's normalized markup", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     const update = vi.spyOn(port, "updateMenuTree");
-    const { result } = renderHook(() => useMenuEditor("m1", deps(port)));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: deps(port) }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     act(() => result.current.changeMode("html"));
     act(() => result.current.setHtml("<a href=\"/x\">X</a>"));
     await act(async () => { await result.current.save(); });
-    expect(update).toHaveBeenCalledWith(
-      { id: "m1", expectedVersion: 3, items: ITEMS },
-      { title: "Header", slug: "header-main", mode: "html", html: "<a href=\"/x\">X</a>" }
-    );
+    expect(update).toHaveBeenCalledWith({
+      target: { id: "m1", expectedVersion: 3, items: ITEMS },
+      options: { title: "Header", slug: "header-main", mode: "html", html: "<a href=\"/x\">X</a>" },
+    });
     expect(port.menus[0]).toMatchObject({ mode: "html", html: "<a href=\"/x\">X</a>" });
     expect(result.current.message).toBe("Saved · version 4");
   });
@@ -142,27 +142,27 @@ describe("useMenuEditor — HTML mode", () => {
   it("switching an html menu back to Options saves an explicit items mode", async () => {
     const port = createFakeMenusPort({ menus: [{ ...MENU, mode: "html", html: "<b>hi</b>" }] });
     const update = vi.spyOn(port, "updateMenuTree");
-    const { result } = renderHook(() => useMenuEditor("m1", deps(port)));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: deps(port) }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     act(() => result.current.changeMode("items"));
     await act(async () => { await result.current.save(); });
-    expect(update.mock.calls[0]?.[1]).toEqual({ title: "Header", slug: "header-main", mode: "items" });
+    expect(update.mock.calls[0]?.[0].options).toEqual({ title: "Header", slug: "header-main", mode: "items" });
     expect(port.menus[0]).toMatchObject({ mode: "items", html: "<b>hi</b>" });
   });
 
   it("creates a new menu in HTML mode", async () => {
     const port = createFakeMenusPort();
     const create = vi.spyOn(port, "createMenu");
-    const { result } = renderHook(() => useMenuEditor(null, deps(port)));
-    act(() => { result.current.setTitle("Footer"); result.current.setSlug("footer"); });
+    const { result } = renderHook(() => useMenuEditor({ menuId: null, dependencies: deps(port) }));
+    act(() => { result.current.setTitle({ next: "Footer" }); result.current.setSlug({ next: "footer" }); });
     act(() => result.current.changeMode("html"));
     await act(async () => { await result.current.save(); });
-    expect(create).toHaveBeenCalledWith({ title: "Footer", slug: "footer" }, { items: [], mode: "html", html: menuHtmlStarter({ items: [] }) });
+    expect(create).toHaveBeenCalledWith({ input: { title: "Footer", slug: "footer" }, options: { items: [], mode: "html", html: menuHtmlStarter({ items: [] }) } });
   });
 
   it("treats an HTML edit as unsaved work", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    const { result } = renderHook(() => useMenuEditor("m1", deps()));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: deps() }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.confirmLeave()).toBe(true);
     act(() => result.current.changeMode("html"));
@@ -173,7 +173,7 @@ describe("useMenuEditor — HTML mode", () => {
   it("shows the server's refusal (permission, size, unbalanced HTML) and keeps the edit", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     port.updateMenuTree = vi.fn().mockRejectedValue(new Error("pages.edit_html permission required"));
-    const { result } = renderHook(() => useMenuEditor("m1", deps(port)));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: deps(port) }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     act(() => result.current.changeMode("html"));
     act(() => result.current.setHtml("<b>"));
@@ -187,7 +187,7 @@ describe("MenuEditor — tabs and title row", () => {
   it("puts the slug on the title's row and switches Options/HTML tabs by click and arrow key", async () => {
     const user = userEvent.setup();
     const d = deps();
-    const { container } = render(<MenuEditor menuId="m1" useMenuEditorHook={(id) => useMenuEditor(id, d)} />);
+    const { container } = render(<MenuEditor menuId="m1" useMenuEditorHook={({ menuId: id }) => useMenuEditor({ menuId: id, dependencies: d })} />);
     const title = await screen.findByRole("textbox", { name: "Menu title" });
     const row = title.closest(".editor-title-row");
     expect(row).not.toBeNull();
@@ -213,7 +213,7 @@ describe("MenuEditor — tabs and title row", () => {
     const port = createFakeMenusPort({ menus: [{ ...MENU, mode: "html", html: "<b>hi</b>" }] });
     port.updateMenuTree = vi.fn().mockRejectedValue(new Error("Menu HTML is too large"));
     const d = deps(port);
-    render(<MenuEditor menuId="m1" useMenuEditorHook={(id) => useMenuEditor(id, d)} />);
+    render(<MenuEditor menuId="m1" useMenuEditorHook={({ menuId: id }) => useMenuEditor({ menuId: id, dependencies: d })} />);
     expect(await screen.findByRole("tab", { name: "HTML" })).toHaveAttribute("aria-selected", "true");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Menu HTML is too large");

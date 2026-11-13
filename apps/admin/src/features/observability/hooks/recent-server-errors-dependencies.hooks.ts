@@ -8,7 +8,7 @@ import type { RecentServerErrorsPort } from "./recent-server-errors-port.hooks";
 const browserClipboard = createBrowserViewerClipboard();
 
 export const defaultRecentServerErrorsPort: RecentServerErrorsPort = {
-  getServerLogs: (query) => api.getServerLogs(query),
+  getServerLogs: (query, _optional = {}) => api.getServerLogs(query),
   copyText: (text) => browserClipboard.copyText(text),
 };
 
@@ -26,7 +26,7 @@ export function createFakeRecentServerErrorsPort(options: FakeRecentServerErrors
   return {
     queries,
     copied,
-    async getServerLogs(query) {
+    async getServerLogs(query, _optional = {}) {
       queries.push(query);
       if (options.failWith !== undefined) throw options.failWith;
       return options.logs ?? { entries: [], matched: 0, buffered: 0, truncated: false, capturing: true };

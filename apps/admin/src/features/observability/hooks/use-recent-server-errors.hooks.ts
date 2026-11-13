@@ -82,11 +82,11 @@ export function useRecentServerErrors({ port, locale, t }: RecentServerErrorsDep
   const error = query.error?.message ?? null;
   const refresh = query.refetch;
 
-  const rows = useMemo(() => (logs ? toRows(logs.entries, locale) : []), [logs, locale]);
+  const rows = useMemo(() => (logs ? toRows({ entries: logs.entries, locale: locale }) : []), [logs, locale]);
   return { rows, logs, loading, error, refresh, clipboard: port, t };
 }
 
-function formatWhen(at: string, locale: string): string {
+function formatWhen({ at, locale }: { at: string; locale: string }, _optional = {}): string {
   try {
     return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "medium" }).format(new Date(at));
   } catch {
@@ -96,18 +96,18 @@ function formatWhen(at: string, locale: string): string {
 
 /** Newest first, repeats of the same error grouped. Memoized by the caller: segmenting 50 stack traces
  *  on every render would redo the same regex work for nothing. */
-function toRows(entries: AdminServerLogEntry[], locale: string): RecentServerErrorRow[] {
-  return groupErrorEntries({ entries }).map((group) => toRow(group, locale));
+function toRows({ entries, locale }: { entries: AdminServerLogEntry[]; locale: string }, _optional = {}): RecentServerErrorRow[] {
+  return groupErrorEntries({ entries }).map((group) => toRow({ group: group, locale: locale }));
 }
 
-function toRow(group: RecentErrorGroup, locale: string): RecentServerErrorRow {
+function toRow({ group, locale }: { group: RecentErrorGroup; locale: string }, _optional = {}): RecentServerErrorRow {
   const { latest, earliest, count } = group;
   const { scope, summary } = summarizeErrorMessage({ message: latest.message });
   return {
     key: group.key,
-    when: formatWhen(latest.at, locale),
+    when: formatWhen({ at: latest.at, locale: locale }),
     at: latest.at,
-    firstWhen: count > 1 ? formatWhen(earliest.at, locale) : null,
+    firstWhen: count > 1 ? formatWhen({ at: earliest.at, locale: locale }) : null,
     firstAt: count > 1 ? earliest.at : null,
     source: latest.source,
     scope,

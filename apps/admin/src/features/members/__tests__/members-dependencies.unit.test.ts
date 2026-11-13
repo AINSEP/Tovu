@@ -48,14 +48,14 @@ describe("defaultMembersPort", () => {
   it("getMember forwards id to api.getMember", async () => {
     const result = { member: member() };
     getMember.mockResolvedValue(result);
-    await expect(defaultMembersPort.getMember("m1")).resolves.toEqual(result);
+    await expect(defaultMembersPort.getMember({ id: "m1" })).resolves.toEqual(result);
     expect(getMember).toHaveBeenCalledWith("m1");
   });
 
   it("disableMember forwards id to api.disableMember", async () => {
     const result = { member: member({ status: "disabled" }) };
     disableMember.mockResolvedValue(result);
-    await expect(defaultMembersPort.disableMember("m1")).resolves.toEqual(result);
+    await expect(defaultMembersPort.disableMember({ id: "m1" })).resolves.toEqual(result);
     expect(disableMember).toHaveBeenCalledWith("m1");
   });
 
@@ -80,24 +80,24 @@ describe("createFakeMembersPort — stateful in-memory fake", () => {
 
   it("getMember finds an existing member by id", async () => {
     const port = createFakeMembersPort({ members: [member({ id: "m1" })] });
-    await expect(port.getMember("m1")).resolves.toEqual({ member: member({ id: "m1" }) });
+    await expect(port.getMember({ id: "m1" })).resolves.toEqual({ member: member({ id: "m1" }) });
   });
 
   it("getMember throws a named error for an id that does not exist (the findOrThrow branch)", async () => {
     const port = createFakeMembersPort({ members: [member({ id: "m1" })] });
-    await expect(port.getMember("missing")).rejects.toThrow("fake member not found: missing");
+    await expect(port.getMember({ id: "missing" })).rejects.toThrow("fake member not found: missing");
   });
 
   it("disableMember flips status to 'disabled' and persists it in the store", async () => {
     const port = createFakeMembersPort({ members: [member({ id: "m1", status: "active" })] });
-    const result = await port.disableMember("m1");
+    const result = await port.disableMember({ id: "m1" });
     expect(result.member.status).toBe("disabled");
-    await expect(port.getMember("m1")).resolves.toEqual({ member: member({ id: "m1", status: "disabled" }) });
+    await expect(port.getMember({ id: "m1" })).resolves.toEqual({ member: member({ id: "m1", status: "disabled" }) });
   });
 
   it("disableMember throws a named error for an id that does not exist (its OWN not-found branch, separate from findOrThrow)", async () => {
     const port = createFakeMembersPort({ members: [member({ id: "m1" })] });
-    await expect(port.disableMember("missing")).rejects.toThrow("fake member not found: missing");
+    await expect(port.disableMember({ id: "missing" })).rejects.toThrow("fake member not found: missing");
   });
 
   it("requestMemberMagicLink records the requested email and resolves delivered:true", async () => {

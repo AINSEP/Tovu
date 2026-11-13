@@ -15,7 +15,7 @@ it.each([false, true])("uses the unnamed-item fallback and singular count when c
   };
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(confirmed);
   const onRemove = vi.fn();
-  const { result } = renderHook(() => useMenuItemRemove(item, [2, 1], onRemove));
+  const { result } = renderHook(() => useMenuItemRemove({ item: item, path: [2, 1], onRemove: onRemove }));
 
   act(() => result.current.handleRemoveClick());
 
@@ -34,7 +34,7 @@ it("uses the latest item, path and callback after a row changes", () => {
   };
   const leaf: AdminMenuItem = { id: "leaf", label: "Leaf", target: { kind: "url", href: "/leaf" } };
   const { result, rerender } = renderHook(
-    ({ item, path, remove }) => useMenuItemRemove(item, path, remove),
+    ({ item, path, remove }) => useMenuItemRemove({ item: item, path: path, onRemove: remove }),
     { initialProps: { item: first, path: [0], remove: oldRemove } },
   );
   act(() => result.current.handleRemoveClick());

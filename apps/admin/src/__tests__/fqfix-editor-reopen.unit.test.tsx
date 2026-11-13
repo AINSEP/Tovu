@@ -58,7 +58,7 @@ describe.each(['tanstack', 'builtin'] as const)('fresh form hydration with %s', 
     const port = createFakeMenusPort({ menus: [menu] });
     const deps = { port, navigate: () => {}, t };
     let current!: ReturnType<typeof useMenuEditor>;
-    function Probe() { current = useMenuEditor('main', deps); return null; }
+    function Probe() { current = useMenuEditor({ menuId: 'main', dependencies: deps }); return null; }
     const view = render(<Scope><Probe /></Scope>);
     await waitFor(() => expect(current.title).toBe('Cached menu'));
     view.rerender(<Scope />);
@@ -71,7 +71,7 @@ describe.each(['tanstack', 'builtin'] as const)('fresh form hydration with %s', 
     await waitFor(() => expect(current.title).toBe('Fresh menu'));
     expect(current.menu?.version).toBe(4);
     let savedBasis: number | undefined;
-    port.updateMenuTree = async input => { savedBasis = input.expectedVersion; return { menu: { ...menu, version: 5 } }; };
+    port.updateMenuTree = async ({ target }) => { savedBasis = target.expectedVersion; return { menu: { ...menu, version: 5 } }; };
     await act(async () => { await current.save(); });
     expect(savedBasis).toBe(4);
   });

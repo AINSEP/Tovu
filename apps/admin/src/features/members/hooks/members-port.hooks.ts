@@ -12,7 +12,7 @@ import type { AdminMember } from "@/lib/api";
  */
 export interface MembersPort {
   listMembers(): Promise<{ members: AdminMember[] }>;
-  getMember(id: string): Promise<{ member: AdminMember }>;
-  disableMember(id: string): Promise<{ member: AdminMember }>;
-  requestMemberMagicLink(input: { email: string }): Promise<{ delivered: true }>;
+  getMember(required: { id: string }, optional?: Record<string, never>): Promise<{ member: AdminMember }>;
+  disableMember(required: { id: string }, optional?: Record<string, never>): Promise<{ member: AdminMember }>;
+  requestMemberMagicLink(input: { email: string }, optional?: Record<string, never>): Promise<{ delivered: true }>;
 }

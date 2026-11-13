@@ -276,7 +276,7 @@ export function Observability({ tabId, useObservabilityStatusHook = useWiredObse
           <SettingsDialogShell
             tabs={tabs}
             activeTabId={activeTabId}
-            onActiveTabIdChange={onTabChange}
+            onActiveTabIdChange={(nextTabId) => onTabChange({ nextTabId })}
             presentation="inline"
             className="jini-tabbed-dialog--inline"
             fullscreenEnabled={false}

@@ -806,7 +806,7 @@ const DELETE_WEBHOOK_FRAGMENTS: Record<string, { before: string; after: string }
   bn: { before: 'ওয়েবহুক "', after: '" মুছবেন? এটি পূর্বাবস্থায় ফেরানো যাবে না।' },
 };
 
-export function deleteWebhookBody(locale: string, label: string): ReactNode {
+export function deleteWebhookBody({ locale, label }: { locale: string; label: string }, _optional = {}): ReactNode {
   const f = localeEntry({ table: DELETE_WEBHOOK_FRAGMENTS, locale });
   return (
     <p>
@@ -843,6 +843,6 @@ const ACTIONS_FOR_WEBHOOK_TEMPLATE: Record<string, string> = {
   bn: 'ওয়েবহুক "{label}" এর জন্য কার্যক্রম',
 };
 
-export function actionsForWebhookLabel(locale: string, label: string): string {
+export function actionsForWebhookLabel({ locale, label }: { locale: string; label: string }, _optional = {}): string {
   return interpolate({ template: localeEntry({ table: ACTIONS_FOR_WEBHOOK_TEMPLATE, locale }), vars: { label } });
 }

@@ -44,7 +44,7 @@ export interface LibraryProps {
 export function Library({ tabId, useLibraryHook = useWiredLibrary }: LibraryProps = {}) {
   const controller = useLibraryHook();
   const { t, documents, rowError, notice } = controller;
-  const activeTabId = resolveLibraryTabId(tabId);
+  const activeTabId = resolveLibraryTabId({ tabId: tabId });
   return (
     <div className="page library-page">
       <div className="page-header">
@@ -57,9 +57,9 @@ export function Library({ tabId, useLibraryHook = useWiredLibrary }: LibraryProp
       {rowError ? <div className="notice error" role="alert">{rowError}</div> : null}
       <TabBar
         ariaLabel={t("Library")}
-        tabs={resolveLibraryTabs(t, { documentCount: documents?.length })}
+        tabs={resolveLibraryTabs({ t }, { documentCount: documents?.length })}
         activeId={activeTabId}
-        onChange={goToLibraryTab}
+        onChange={(tabId) => goToLibraryTab({ tabId })}
         containerHandle="library-tab-bar"
       />
       {activeTabId === "upload" ? <UploadTab controller={controller} /> : <DocumentsTab controller={controller} />}
@@ -81,7 +81,7 @@ export function Library({ tabId, useLibraryHook = useWiredLibrary }: LibraryProp
   );
 }
 
-function uploadStatusLabel(row: LibraryUploadRow, t: (key: string) => string): string {
+function uploadStatusLabel({ row, t }: { row: LibraryUploadRow; t: (key: string) => string }, _optional = {}): string {
   switch (row.status) {
     case "waiting":
       return t("Waiting…");
@@ -137,10 +137,10 @@ export function UploadTab({ controller }: { controller: LibraryController }) {
           {uploads.map((row) => (
             <li key={row.key} className={`library-upload-row is-${row.status}`}>
               <span className="library-upload-name">{row.name}</span>
-              <span className="library-upload-size">{formatLibraryBytes(row.size)}</span>
+              <span className="library-upload-size">{formatLibraryBytes({ bytes: row.size })}</span>
               <span className="library-upload-status" role={row.status === "failed" ? "alert" : undefined}>
                 {row.status === "uploading" ? <span className="library-spinner" aria-hidden="true" /> : null}
-                {uploadStatusLabel(row, t)}
+                {uploadStatusLabel({ row: row, t: t })}
               </span>
             </li>
           ))}
@@ -151,7 +151,7 @@ export function UploadTab({ controller }: { controller: LibraryController }) {
           {uploadedCount > 0 ? (
             <button
               type="button"
-              onClick={() => goToLibraryTab("documents")}
+              onClick={() => goToLibraryTab({ tabId: "documents" })}
               {...agentHandle({ handle: "library-view-documents" }, { role: "button", label: "Open the Documents tab to see the uploaded documents" })}
             >
               {t("View in Documents")}
@@ -166,7 +166,7 @@ export function UploadTab({ controller }: { controller: LibraryController }) {
   );
 }
 
-function downloadDocument(url: string) {
+function downloadDocument({ url }: { url: string }, _optional = {}) {
   // The original route answers `Content-Disposition: attachment`, so this saves the file and the
   // admin page stays where it is.
   const anchor = document.createElement("a");
@@ -184,7 +184,7 @@ export function documentMenuItems(item: AdminMedia, controller: LibraryControlle
   const items: RowMenuItem[] = documentPreviewKind(item) === "download"
     ? []
     : [{ key: "preview", label: t("Preview"), onSelect: () => controller.openPreview(item) }];
-  items.push({ key: "download", label: t("Download"), onSelect: () => downloadDocument(controller.downloadUrl(item)) });
+  items.push({ key: "download", label: t("Download"), onSelect: () => downloadDocument({ url: controller.downloadUrl({ item }) }) });
   if (permissions.canRename) items.push({ key: "rename", label: t("Rename"), onSelect: () => controller.rename.start(item) });
   if (permissions.canTrash) items.push({ key: "trash", label: t("Move to Trash"), tone: "warning", onSelect: () => void controller.trash(item) });
   return items;
@@ -249,7 +249,7 @@ export function DocumentsTab({ controller }: { controller: LibraryController }) 
               ),
           },
           { key: "type", header: t("Type"), cell: (item) => <span className="library-type">{documentTypeLabel(item)}</span> },
-          { key: "size", header: t("Size"), cellClassName: "library-num", cell: (item) => formatLibraryBytes(item.byteSize) },
+          { key: "size", header: t("Size"), cellClassName: "library-num", cell: (item) => formatLibraryBytes({ bytes: item.byteSize }) },
           { key: "uploaded", header: t("Upload date"), cellClassName: "library-num", cell: (item) => formatTimestamp({ iso: item.createdAt }, { timeZone: "local" }) },
           {
             key: "by",
@@ -278,7 +278,7 @@ export function DocumentsTab({ controller }: { controller: LibraryController }) 
 
 /** Builds the scriptless, network-blocked document a Markdown preview renders in. Colours come
  *  from the admin theme around the frame so light and dark both read. */
-export function markdownFrameDocument(html: string, colors: { text: string; link: string; border: string }): string {
+export function markdownFrameDocument({ html, colors }: { html: string; colors: { text: string; link: string; border: string } }, _optional = {}): string {
   const style = `:root{color-scheme:light dark}body{margin:0;padding:16px 20px;font:14px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;color:${colors.text};background:transparent;overflow-wrap:anywhere}a{color:${colors.link}}pre,code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}pre{padding:10px 12px;border:1px solid ${colors.border};border-radius:6px;overflow:auto}table{border-collapse:collapse}th,td{border:1px solid ${colors.border};padding:4px 8px}img{max-width:100%}h1,h2,h3{line-height:1.25}blockquote{margin:0;padding-left:12px;border-left:3px solid ${colors.border}}`;
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><style>${style}</style></head><body>${html}</body></html>`;
 }
@@ -301,7 +301,7 @@ function MarkdownFrame({ html, title }: { html: string; title: string }) {
   return (
     <div ref={hostRef} className="library-preview-frame-host">
       {colors ? (
-        <iframe className="library-preview-frame" title={title} sandbox="" referrerPolicy="no-referrer" srcDoc={markdownFrameDocument(html, colors)} />
+        <iframe className="library-preview-frame" title={title} sandbox="" referrerPolicy="no-referrer" srcDoc={markdownFrameDocument({ html: html, colors: colors })} />
       ) : null}
     </div>
   );
@@ -347,10 +347,10 @@ function PreviewDialog({ controller, preview }: { controller: LibraryController;
           <div className="library-preview-heading">
             <h2 id={titleId}>{name}</h2>
             <p className="library-preview-meta">
-              {documentTypeLabel(preview.item)} · {formatLibraryBytes(preview.item.byteSize)}
+              {documentTypeLabel(preview.item)} · {formatLibraryBytes({ bytes: preview.item.byteSize })}
             </p>
           </div>
-          <a className="btn-secondary library-preview-download" href={controller.downloadUrl(preview.item)} download>
+          <a className="btn-secondary library-preview-download" href={controller.downloadUrl({ item: preview.item })} download>
             {t("Download")}
           </a>
           <button type="button" className="btn-ghost library-preview-close" aria-label={t("Close")} onClick={closePreview} autoFocus>
