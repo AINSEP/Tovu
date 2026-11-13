@@ -1,4 +1,4 @@
-# Worked example — `registerAdminSiteShareRoutes` (109 → 82 counted lines)
+# Worked example — `registerAdminSiteShareRoutes` (109 → 82 counted lines; second pass to ≤ 50 planned)
 
 File: `apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts` (Tovu). Done and test-backed on
 2026-11-13 in the design clone; the commit is the reference diff (`git log -1 -- <file>`).
@@ -19,8 +19,16 @@ also held the whole "find row → refuse revoked/unacknowledged → stream ZIP �
 The `gate` closure stayed as a one-line adapter, so none of the nine call sites changed — the smallest diff that
 gives each job its own named function. The "why" comment on the session-kind check moved with it, word for word.
 
+## Under the 50-line limit (2026-11-13)
+The first pass predates the 50-line limit: the register function is still 82. It is NOT done; its fragment now
+carries the second pass (job `size-t-*`, see BATCHES.md): the route table splits by job into
+`registerShareManagementRoutes` (list/create/static/password/acknowledge/download/revoke) and
+`registerShareArtifactRoutes` (raw ZIP upload + delete), each `({ app, deps, root, gate, fail }, _options = {})`,
+called in the old order so registration order is byte-identical. That is the route-registrar recipe in
+CONVENTIONS ("groups of routes with one job"), not a line-count cut.
+
 ## Patterns this shows (apply them everywhere)
-- `register…Routes` over 100: lift shared closures (auth gate, error mapper) and the longest handler bodies to
+- `register…Routes` over 50: lift shared closures (auth gate, error mapper) and the longest handler bodies to
   module-level helpers taking `{ req, res, deps, … }`; route paths and registration ORDER stay in the register
   function, byte for byte.
 - Keep call sites stable with a one-line adapter when a closure has many callers.

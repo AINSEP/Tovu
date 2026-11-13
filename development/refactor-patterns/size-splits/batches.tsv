@@ -1,311 +1,823 @@
-batch	phase	repo	file	file_lines	fns_over_100	max_score	survey_label	weight
-size-01	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts		registerAdminSourceControlCredentialsRoutes=103	1854	?	103
-size-01	now	tovu	apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts		registerAdminTaxonomyMergeTermRoutes=117	468	?	117
-size-01	now	tovu	apps/website/src/server/inbound/admin-http/routes/themes/explore.ts	635		13335	STAY-PRODUCT	635
-size-01	now	tovu	apps/website/src/server/routes/types.ts	519		91863	?	519
-size-01	now	tovu	apps/website/src/server/runtime/composition/modules/assistant-byok.ts		createAssistantByokModule=231	13860	?	231
-size-01	now	tovu	apps/website/src/server/runtime/composition/modules/assistant-chats.ts		createAssistantChatsModule=152 registerRoutes=139	3800	?	291
-size-02	now	tovu	apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts		usePublishCredentials=151	2718	STAY-PRODUCT	151
-size-02	now	tovu	apps/admin/src/features/integrations/Integrations.tsx		Integrations=156	2028	?	156
-size-02	now	tovu	apps/admin/src/features/media/Media.tsx	1151	EditMediaPanel=197 MediaLibraryPanel=126	64456	?	1474
-size-02	now	tovu	apps/admin/src/features/media/hooks/use-edit-media-panel.hooks.ts		useEditMediaPanel=130	1170	?	130
-size-02	now	tovu	apps/admin/src/features/media/hooks/use-media.hooks.ts		useMedia=156	1872	?	156
-size-02	now	tovu	apps/admin/src/features/menus/MenuEditor.tsx		MenuEditor=102	1632	STAY-PRODUCT	102
-size-02	now	tovu	apps/admin/src/features/menus/hooks/use-menu-editor.hooks.ts		useMenuEditor=190	3610	STAY-PRODUCT	190
-size-02	now	tovu	apps/admin/src/features/pages/Pages.tsx		Pages=169	3887	STAY-PRODUCT	169
-size-03	now	tovu	apps/website/src/assistant/demo-a2ui-tool.ts		buildDemoA2uiRegistrations=102	510	STAY-PRODUCT	102
-size-03	now	tovu	apps/website/src/cli/program.ts		createProgram=196	6076	STAY-PRODUCT	196
-size-03	now	tovu	apps/website/src/features/agent-plugins/lifecycle.ts		createTovuAgentPluginLifecycle=111	2664	STAY-WIRING (DELETE its positi	111
-size-03	now	tovu	apps/website/src/features/database/tool-registrations.ts		buildDatabaseRegistrations=106	848	STAY-WIRING	106
-size-03	now	tovu	apps/website/src/features/post/post.ts	1107		63099	STAY-PRODUCT	1107
-size-04	now	tovu	apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts	911	useThemeExplore=520	34618	?	1431
-size-04	now	tovu	apps/admin/src/features/themes/hooks/use-themes.hooks.ts		useThemes=122	2196	?	122
-size-04	now	tovu	apps/admin/src/panels.tsx	726		47916	STAY-PRODUCT (+DELETE re-expor	726
-size-04	now	tovu	apps/desktop/src/desktop-agent-service.ts		createDesktopAgentService=170	1360	STAY-WIRING	170
-size-05	now	tovu	apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts	675	usePageEditor=382	35775	STAY-PRODUCT	1057
-size-05	now	tovu	apps/admin/src/features/posts/Posts.tsx		Posts=132	2640	STAY-PRODUCT	132
-size-05	now	tovu	apps/admin/src/features/providers/Providers.tsx		Providers=129	2451	STAY-PRODUCT**. TabIcon is a D	129
-size-05	now	tovu	apps/admin/src/features/publish-content/PublishContentDialog.tsx		PublishContentDialog=115	3795	STAY-PRODUCT	115
-size-06	now	tovu	apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts	849	usePublishContentConfirm=461	29715	STAY-PRODUCT (rules already in	1310
-size-06	now	tovu	apps/admin/src/features/settings/SettingsUi.tsx		SettingsUi=300	12600	STAY-WIRING (one part MOVE: `T	300
-size-06	now	tovu	apps/admin/src/features/sites/hooks/use-site-transfer.hooks.ts		useSiteImport=118	2006	STAY-PRODUCT	118
-size-06	now	tovu	apps/admin/src/features/sites/hooks/use-sites.hooks.ts		useSites=118	2006	STAY-PRODUCT	118
-size-06	now	tovu	apps/admin/src/features/skills/use-skills.hooks.ts		useSkills=102	510	STAY-PRODUCT	102
-size-06	now	tovu	apps/admin/src/features/taxonomy/hooks/use-taxonomy.hooks.ts		useTaxonomy=102	714	?	102
-size-06	now	tovu	apps/admin/src/features/taxonomy/hooks/use-term-picker.hooks.ts		useTermPicker=164	984	?	164
-size-07	now	jini	packages/daemon/src/agent-executor/events.ts	934	wireChildLifecycle=335	26152	JINI	1269
-size-07	now	jini	packages/daemon/src/event-log.ts		createInMemoryEventLog=104	208	JINI	104
-size-07	now	jini	packages/daemon/src/frontend-session-registry.ts		createFrontendSessionRegistry=131	393	JINI	131
-size-07	now	jini	packages/daemon/src/http/attachments.ts	871	createDiskAttachmentStore=189	12194	JINI	1060
-size-08	now	tovu	apps/website/src/features/publish-content/apply-loop.ts	720	createPublishContentApplyPort=346 applyReport=314 applyOneRow=195	23040	?	1575
-size-08	now	tovu	apps/website/src/features/publish-content/gated-hooks.ts		buildPublishContentImportHooks=104	1352	STAY-PRODUCT	104
-size-08	now	tovu	apps/website/src/features/publish-content/peer-transport.ts	541		12443	?	541
-size-08	now	tovu	apps/website/src/features/publish-content/raw-file-contributor.ts		contributeRawFilePublish=152 build=150	912	STAY-PRODUCT	302
-size-09	now	tovu	apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts	584	createAssistantRunFinalizer=329 createHttpRunDaemonClient=101	16936	?	1014
-size-09	now	tovu	apps/website/src/server/runtime/composition/other-site-keys.ts		createOtherSiteKeys=116	464	?	116
-size-09	now	tovu	apps/website/src/server/runtime/composition/provider-plugins.ts		bootProviderPlugins=147	6615	?	147
-size-09	now	tovu	apps/website/src/server/runtime/composition/tool-catalog-manifest.ts		installFirstPartyToolContributors=252	22176	STAY-WIRING	252
-size-09	now	tovu	apps/website/src/server/runtime/lifecycle/local-site-process.ts		createLocalSiteProcessPort=121	2178	?	121
-size-10	now	tovu	apps/desktop/src/main/index.ts	665		18620	STAY-WIRING	665
-size-10	now	tovu	apps/desktop/src/renderer/App.tsx		App=182	12558	STAY-WIRING	182
-size-10	now	tovu	apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx		CreateWebsiteOnboarding=136	1632	STAY-PRODUCT	136
-size-10	now	tovu	apps/desktop/src/renderer/SiteGrid.tsx	505		17170	STAY-PRODUCT	505
-size-10	now	tovu	apps/desktop/src/renderer/app/SiteWorkspace.tsx		SiteWorkspace=121	484	STAY-WIRING	121
-size-10	now	tovu	apps/desktop/src/renderer/use-find-in-page.hooks.ts		useFindInPage=171	1539	?	171
-size-11	now	jini	packages/chat/src/core/assistant-client/transport.ts		createAssistantTransportClient=400	5200	JINI	400
-size-11	now	jini	packages/chat/src/embed-widget/browser/frontend-session-bridge.ts		createFrontendSessionBridge=219	1314	JINI	219
-size-11	now	jini	packages/chat/src/embed-widget/vanilla/index.ts		mountVanillaChat=256	1280	JINI	256
-size-11	now	jini	packages/chat/src/react/components/A2uiSurfaceCard.tsx		A2uiSurfaceCard=130	390	JINI	130
-size-11	now	jini	packages/chat/src/react/components/Composer.tsx	564	Composer=267	13536	JINI	831
-size-11	now	jini	packages/chat/src/react/components/ConversationList.tsx		ConversationList=209	1881	JINI	209
-size-11	now	jini	packages/chat/src/react/components/MessageRow.tsx		AssistantMessageRow=159	5565	JINI	159
-size-12	now	jini	packages/chat/src/react/components/ToolCard.tsx	516		12900	JINI	516
-size-12	now	jini	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	516		10320	JINI	516
-size-12	now	jini	packages/chat/src/react/features/chat-pane/hooks/useAgentRuntimePicker.hooks.ts		useAgentRuntimePicker=103	515	JINI	103
-size-12	now	jini	packages/chat/src/react/features/chat-pane/hooks/useChatPaneRuntimeInventory.hooks.ts		useChatPaneRuntimeInventory=134	938	JINI	134
-size-12	now	jini	packages/chat/src/react/features/chat-pane/hooks/useChatPaneWorkingDirectory.hooks.ts		useChatPaneWorkingDirectory=160	320	JINI	160
-size-12	now	jini	packages/chat/src/react/hooks/assistant-chats.ts		createAssistantChatsClient=382 useAssistantChats=279	1146	JINI	661
-size-12	now	jini	packages/chat/src/react/hooks/fab-position.ts		useFabPosition=115	345	JINI	115
-size-12	now	jini	packages/chat/src/react/hooks/useComposer.ts		useComposer=208	2912	JINI	208
-size-13	now	jini	packages/core/src/redact.ts	601		12621	JINI	601
-size-13	now	jini	packages/core/src/settings/express/http.ts		registerSettingsRoutes=112	336	JINI	112
-size-13	now	jini	packages/core/src/settings/tool-registrations.ts		buildSettingsRegistrations=116	928	JINI	116
-size-13	now	jini	packages/core/src/settings/write-service.ts	777		3885	JINI	777
-size-14	now	tovu	apps/website/src/features/publish-content/raw-row-contributor.ts		buildRawRowHandler=134	804	STAY-PRODUCT	134
-size-14	now	tovu	apps/website/src/features/site-backup/import-backend.ts		createSiteImportBackend=141	2397	STAY-PRODUCT	141
-size-14	now	tovu	apps/website/src/features/theme/theme.ts	624		12480	STAY-PRODUCT (theme package fo	624
-size-14	now	tovu	apps/website/src/features/trash/adapters/user.ts		createUserTrashAdapter=103	721	STAY-PRODUCT	103
-size-14	now	tovu	apps/website/src/platform/db/sqlite/fresh-content-db.ts		bootstrapFreshContentDb=187	6732	STAY-PRODUCT	187
-size-14	now	tovu	apps/website/src/platform/site-dir/local-site-supervisor.ts		createLocalSiteSupervisor=218	2834	STAY-PRODUCT — blocked on site	218
-size-14	now	tovu	apps/website/src/server/inbound/admin-http/routes/database/migrate-forward.ts		registerAdminDatabaseMigrateForwardRoutes=115	575	STAY-WIRING	115
-size-14	now	tovu	apps/website/src/server/inbound/admin-http/routes/posts/update.ts		registerAdminPostUpdateRoute=109 <arg of app.put>=103	2616	STAY-WIRING	212
-size-15	now	tovu	apps/admin/src/components/AssistantDock/AssistantDock.tsx		AssistantDock=154	11704	STAY-WIRING (re-export at line	154
-size-15	now	tovu	apps/admin/src/components/WidgetConfigFields/MediaContentEditor.hooks.ts		useMediaContentEditor=110	110	STAY-PRODUCT	110
-size-15	now	tovu	apps/admin/src/features/ai-assistant/hooks/use-visitor-credential-form.hooks.ts		useVisitorCredentialForm=145	2755	?	145
-size-15	now	tovu	apps/admin/src/features/collections/CollectionEntryEditor.tsx		CollectionEntryEditor=103	1339	?	103
-size-15	now	tovu	apps/admin/src/features/collections/Collections.tsx	556	Collections=156	10008	?	712
-size-15	now	tovu	apps/admin/src/features/collections/hooks/use-collection-entry-editor.hooks.ts		useCollectionEntryEditor=199	1990	?	199
-size-15	now	tovu	apps/admin/src/features/dashboard/Dashboard.tsx		Dashboard=106	2332	STAY-PRODUCT	106
-size-15	now	tovu	apps/admin/src/features/deployment/DockerfileTab.tsx		DockerfileEditorCard=132	924	?	132
-size-16	now	jini	packages/agent-runtime/src/agent-protocol/acp/models.ts		detectAcpModels=108	648	JINI	108
-size-16	now	jini	packages/agent-runtime/src/agent-protocol/acp/session.ts	1236	attachAcpSession=482	9888	JINI	1718
-size-16	now	jini	packages/agent-runtime/src/agent-protocol/pi-rpc/session.ts		attachPiRpcSession=119	595	JINI	119
-size-16	now	jini	packages/agent-runtime/src/ai-trace/recorder.ts		createAiTraceRecorder=191	764	JINI	191
-size-17	now	jini	packages/daemon/src/http/xai.ts	510		3060	JINI	510
-size-17	now	jini	packages/daemon/src/run-lifecycle.ts	690	createRunLifecycle=393	9660	JINI	1083
-size-17	now	jini	packages/daemon/src/store/event-log/sqlite.ts		bindSqliteEventLog=106	424	JINI	106
-size-17	now	jini	packages/daemon/src/surface-exchanges.ts		createSurfaceExchangeStore=119	714	JINI	119
-size-17	now	jini	packages/daemon/src/terminal-session.ts		createTerminalSessionManager=101	505	JINI	101
-size-17	now	jini	packages/daemon/src/tool-executor.ts		createToolExecutor=344	6536	JINI	344
-size-18	now	jini	packages/user-management/src/admin/controllers/users.controller.ts		createUsersController=165	660	JINI	165
-size-18	now	jini	packages/user-management/src/react/members/hooks/use-members.hooks.ts		useMembers=109	654	JINI	109
-size-18	now	jini	packages/user-management/src/react/testing.ts		createFakeRolesPort=107	428	JINI	107
-size-18	now	jini	packages/user-management/src/react/users/Users.tsx	748	Users=127	8228	JINI	875
-size-18	now	jini	packages/user-management/src/react/users/hooks/use-users.hooks.ts		useUsers=296	1776	JINI	296
-size-18	now	jini	packages/user-management/src/server/agent-tool-registrations.ts		buildIdentityRegistrations=186	1116	JINI	186
-size-19	now	jini	packages/cms/src/media/tool-registrations.ts		buildMediaRegistrations=143	1859	JINI	143
-size-19	now	jini	packages/cms/src/redirects/redirects.ts	518		2072	JINI	518
-size-19	now	jini	packages/cms/src/routing/routing.ts		createRouting=188	564	JINI	188
-size-19	now	jini	packages/cms/src/taxonomy/write-service.ts	712		7832	JINI	712
-size-19	now	jini	packages/cms/src/trash/write-service.ts		createTrashService=132	660	JINI	132
-size-19	now	jini	packages/cms/src/widgets/resolver-service.ts	701		7711	JINI	701
-size-20	now	jini	packages/agent-runtime/src/claude-stream.ts	685	createClaudeStreamHandler=373	7535	JINI	1058
-size-20	now	jini	packages/agent-runtime/src/providers/oauth-callback-server.ts		startOAuthCallbackListener=111	333	JINI	111
-size-20	now	jini	packages/agent-runtime/src/providers/openai-chat.ts	528		2640	JINI	528
-size-20	now	jini	packages/agent-runtime/src/skills/web-clone/scripts/recon-site.mjs		collectSignals=260 <arg of page.evaluate>=258	780	JINI	518
-size-21	now	jini	packages/admin/src/redirects/react/pages/RedirectsPage.tsx		RedirectsPage=111	333	JINI	111
-size-21	now	jini	packages/admin/src/seo/react/pages/SeoPage.tsx	608	SeoDefaultsTab=136	7296	JINI	744
-size-21	now	jini	packages/admin/src/widgets/react/pages/WidgetInstanceEditor.tsx		WidgetInstanceEditor=108	324	JINI	108
-size-21	now	jini	packages/admin/src/widgets/react/pages/WidgetRegionEditor.tsx		WidgetRegionEditor=117	351	JINI	117
-size-21	now	jini	packages/admin/src/widgets/react/pages/WidgetRegions.tsx		WidgetRegions=107	107	JINI	107
-size-21	now	jini	packages/admin/src/widgets/react/pages/WidgetsLibrary.tsx		WidgetsLibrary=130	390	JINI	130
-size-22	now	jini	packages/commerce/src/browser/checkout.ts		installCommerceCheckout=117 <arg of required.document.querySelectorAll<HTMLF>=115	585	JINI	232
-size-22	now	jini	packages/commerce/src/payments/ledger/rows.ts	726		7260	JINI	726
-size-22	now	jini	packages/commerce/src/react/Payments.tsx		Payments=103	206	JINI	103
-size-22	now	jini	packages/cookie-consent/src/client/runtime.ts		createCookieConsent=133	798	JINI	133
-size-23	now	jini	packages/sandbox/src/e2b/wrap-e2b-sandbox.ts		wrapE2bSandbox=197	1379	JINI	197
-size-23	now	jini	packages/search/src/indexer.ts		createSearchIndexer=239	1434	JINI	239
-size-23	now	jini	packages/server/src/builtin-features.ts	566	createBuiltInFeatures=426	6226	JINI	992
-size-23	now	jini	packages/server/src/create-local-node-daemon.ts		createLocalNodeDaemon=113	1130	JINI	113
-size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/publish-content/destination.ts		registerPublishContentDestinationRoutes=135	810	?	135
-size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/publish-content/import.ts		registerPublishContentImportRoutes=170	3060	?	170
-size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/recovery/restore.ts		registerAdminRecoveryRestoreRoutes=162	1296	?	162
-size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts		registerAdminPublishCredentialsRoutes=134	3484	STAY-WIRING	134
-size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts		registerAdminPublishSiteRoutes=182	5642	STAY-PRODUCT	182
-size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/site-imports.ts		registerAdminSiteImportRoutes=112	1568	STAY-PRODUCT	112
-size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts		registerAdminSiteShareRoutes=109	1308	STAY-PRODUCT	109
-size-24	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/sites.ts		registerAdminSitesRoutes=128	3968	?	128
-size-25	now	jini	packages/mcp/src/federation/hosted/store.ts	988		4940	JINI	988
-size-25	now	jini	packages/mcp/src/server/http-tool-server.adapter.ts		startMcpHttpToolServer=104	104	JINI	104
-size-25	now	jini	packages/mcp/src/server/tool-server.ts		createMcpToolServer=103	1339	JINI	103
-size-25	now	jini	packages/memory/src/extraction-log.ts		createExtractionLog=118	236	JINI	118
-size-26	now	jini	packages/memory/src/note-store.ts	522	createNoteStore=367	1566	JINI	889
-size-26	now	jini	packages/oauth/src/refresh.ts		createTokenRefresher=130	910	JINI	130
-size-26	now	jini	packages/platform/src/asset-cache.ts		createAssetCache=123	1107	JINI	123
-size-26	now	jini	packages/platform/src/download.ts	981		3924	JINI	981
-size-27	now	jini	packages/agent-plugins/src/admin-surfaces/surface-client.ts		createAdminSurfaceClient=101	606	JINI	101
-size-27	now	jini	packages/agent-plugins/src/connect/credential-save-tool.ts		createCredentialSaveTools=119	476	JINI	119
-size-27	now	jini	packages/agent-plugins/src/connect/plugin-host/index.ts		createPluginHost=107	428	JINI	107
-size-27	now	jini	packages/agent-plugins/src/lifecycle/activation.ts		buildModule=314	2512	JINI	314
-size-27	now	jini	packages/agent-plugins/src/lifecycle/automatic-use.ts		createAutomaticAgentPluginUse=143	3432	JINI	143
-size-27	now	jini	packages/agent-plugins/src/lifecycle/bundled-digests.ts		buildModule=126	630	JINI	126
-size-27	now	jini	packages/agent-plugins/src/lifecycle/bundled-source-archive.ts		buildModule=224	1344	JINI	224
-size-27	now	jini	packages/agent-plugins/src/lifecycle/install.ts		buildModule=303	3636	JINI	303
-size-28	now	jini	packages/chat/src/react/hooks/useConversation.ts		useConversation=145	2610	JINI	145
-size-28	now	jini	packages/chat/src/react/hooks/useRunStream.ts		useRunStream=117	702	JINI	117
-size-28	now	jini	packages/chat/src/server/durable-runs/recover.ts		createDurableRecovery=122	1708	JINI	122
-size-28	now	jini	packages/chat/src/server/run-finalizer/entry.ts		createAssistantRunFinalizer=132	528	JINI	132
-size-28	now	jini	packages/chat/src/store/runtime/durable-run-store.ts		createDurableRunStore=280	2240	JINI	280
-size-28	now	jini	packages/chat/src/store/runtime/run-ledger.ts		createChatRunLedger=186	1488	JINI	186
-size-28	now	jini	packages/chat/src/store/sql/store.ts		createSqlChatStore=317	2853	JINI	317
-size-29	now	jini	packages/integrations/src/api-connections/hosted-mcp/shared-sign-in.ts		createSharedExternalMcpOAuth=257	514	JINI	257
-size-29	now	jini	packages/integrations/src/api-connections/hosted-mcp/sign-in.ts	602	createHostedMcpSignInService=216	2408	JINI	818
-size-29	now	jini	packages/integrations/src/api-connections/token-store/vault-token-store.ts		createVaultOAuthTokenStore=147	882	JINI	147
-size-29	now	jini	packages/integrations/src/credentialed-http/tools/tool-registrations.ts		createCredentialToolRegistrations=107	1070	JINI	107
-size-29	now	jini	packages/integrations/src/media-providers/dispatch/async-operation-store.ts		createInMemoryAsyncOperationStore=106	1166	JINI	106
-size-29	now	jini	packages/integrations/src/media-providers/dispatch/sqlite-async-operation-store.ts		createSqliteAsyncOperationStore=145	725	JINI	145
-size-29	now	jini	packages/integrations/src/media-providers/sqlite-task-store.ts		createSqliteMediaTaskStore=140	700	JINI	140
-size-30	now	jini	packages/platform/src/fs/directory-user-config.ts		createDirectoryUserConfig=146	876	JINI	146
-size-30	now	jini	packages/platform/src/fs/directory-workspace.ts		createNodeDirectoryWorkspace=172	860	JINI	172
-size-30	now	jini	packages/platform/src/fs/guarded-reader.ts		createGuardedFileReader=329	2303	JINI	329
-size-30	now	jini	packages/platform/src/terminal.ts		createTerminalService=239	478	JINI	239
-size-31	now	jini	packages/agent-plugins/src/lifecycle/resolve-agent-plugin-refs.ts		buildModule=154	2156	JINI	154
-size-31	now	jini	packages/agent-plugins/src/lifecycle/seed-bundled.ts		buildModule=118	826	JINI	118
-size-31	now	jini	packages/agent-plugins/src/lifecycle/uninstall.ts		buildModule=180	1620	JINI	180
-size-31	now	jini	packages/agent-plugins/src/lifecycle/update.ts		createUpdateModule=204	816	JINI	204
-size-32	now	jini	packages/agentic/src/core/a2ui/interpreter.ts		createA2uiInterpreter=192	960	JINI	192
-size-32	now	jini	packages/agentic/src/core/dom/dom-page-driver.ts		createDomPageDriver=171	2052	JINI	171
-size-32	now	jini	packages/chat/src/core/assistant-client/ag-ui-transport.ts		createAgUiRunClient=113	565	JINI	113
-size-32	now	jini	packages/chat/src/core/assistant-client/durable-run-subscription.ts		followDurableRun=103	618	JINI	103
-size-33	now	jini	packages/ui/src/renderers/annotation-canvas/react/hooks/useAnnotationCanvas.ts	880	useAnnotationCanvas=739	1760	JINI	1619
-size-33	now	jini	packages/ui/src/renderers/preview-modal-shell/react/hooks/usePreviewModalShell.ts		usePreviewModalShell=141	141	JINI	141
-size-33	now	jini	packages/user-management/src/admin/controllers/members.controller.ts		createMembersController=120	360	JINI	120
-size-33	now	jini	packages/user-management/src/admin/controllers/roles.controller.ts		createRolesController=327	1308	JINI	327
-size-34	now	jini	packages/plugins/src/host/capability-tools.ts		createPluginCapabilityTools=186	1116	JINI	186
-size-34	now	jini	packages/plugins/src/host/declarative-content-types.ts		createDeclarativeContentTypes=131	262	JINI	131
-size-34	now	jini	packages/plugins/src/host/node/runtime-core.ts	564	createPluginRuntimeCore=397	1692	JINI	961
-size-34	now	jini	packages/plugins/src/host/node/source-drafts.ts		createPluginSourceService=180	1440	JINI	180
-size-34	now	jini	packages/plugins/src/host/provider-host.ts		createPluginProviderHost=134	804	JINI	134
-size-35	now	jini	packages/ui/src/features/memory/dependencies.ts		createMemoryHttpPorts=105	420	JINI	105
-size-35	now	jini	packages/ui/src/features/memory/react/components/MemoryAdvancedModal.tsx		MemoryAdvancedModal=172	172	JINI	172
-size-35	now	jini	packages/ui/src/features/memory/react/components/MemoryConnectedPanel.tsx	520	MemoryConnectedPanel=153	1560	JINI	673
-size-35	now	jini	packages/ui/src/features/memory/react/components/MemoryManualEditor.tsx		MemoryManualEditor=200	200	JINI	200
-size-35	now	jini	packages/ui/src/features/memory/react/hooks/useMemoryConfig.hooks.ts		useMemoryConfig=130	260	JINI	130
-size-35	now	jini	packages/ui/src/features/memory/react/hooks/useMemoryConnectors.hooks.ts		useMemoryConnectors=327	654	JINI	327
-size-35	now	jini	packages/ui/src/features/memory/react/hooks/useMemoryEntries.hooks.ts		useMemoryEntries=254	762	JINI	254
-size-35	now	jini	packages/ui/src/features/memory/react/hooks/useMemoryExtractions.hooks.ts		useMemoryExtractions=114	114	JINI	114
-size-36	now	jini	packages/sidecar/src/json-ipc.ts		createJsonIpcServer=157 <arg of createNetServer>=132 requestJsonIpc=129 <anonymous>=124	628	JINI	542
-size-36	now	jini	packages/sidecar/src/supervision/supervisor.ts		createDaemonSupervisor=201	201	JINI	201
-size-36	now	jini	packages/ui/src/features/asset-grid/react/components/AssetGrid.tsx		AssetGrid=210	1260	JINI	210
-size-36	now	jini	packages/ui/src/features/asset-tree-browser/react/components/AssetTreeFileRow.tsx		AssetTreeFileRow=140	140	JINI	140
-size-37	now	jini	packages/ui/src/features/connectors/ConnectorsBrowser.tsx		ConnectorsBrowser=126	630	JINI	126
-size-37	now	jini	packages/ui/src/features/connectors/hooks/useConnectorAuthorization.ts		useConnectorAuthorization=149	596	JINI	149
-size-37	now	jini	packages/ui/src/features/execution/react/hooks/use-execution-credential.hooks.ts		useExecutionCredential=130	260	JINI	130
-size-37	now	jini	packages/ui/src/features/execution/react/hooks/useExecutionTab.ts		useExecutionTab=155	465	JINI	155
-size-37	now	jini	packages/ui/src/features/html-editor/css.ts		prettifyCss=110	220	JINI	110
-size-37	now	jini	packages/ui/src/features/html-editor/react/hooks/useInteractiveHtmlEditor.ts		useInteractiveHtmlEditor=121 <arg of useEffect>=105	1210	JINI	226
-size-37	now	jini	packages/ui/src/features/lexical-rich-text-editor/react/components/RichTextInput.tsx		EditorSurface=136	272	JINI	136
-size-37	now	jini	packages/ui/src/features/media-providers/react/hooks/useMediaProvidersTab.ts		useMediaProvidersTab=168	672	JINI	168
-size-38	now	jini	packages/admin/src/comments/controllers/comment-queue.controller.ts		createCommentQueueController=146	730	JINI	146
-size-38	now	jini	packages/admin/src/comments/react/components/SettingsSection.tsx		SettingsSection=114	114	JINI	114
-size-38	now	jini	packages/admin/src/forms/react/components/FieldAttributesDialog.tsx		FieldAttributesDialog=149	447	JINI	149
-size-38	now	jini	packages/admin/src/forms/react/components/FormFieldsEditor.tsx		FormFieldsEditor=204 <arg of rows.map>=110	612	JINI	314
-size-38	now	jini	packages/admin/src/forms/react/hooks/use-form-editor.hooks.ts		useFormEditor=151	1208	JINI	151
-size-38	now	jini	packages/admin/src/forms/react/pages/FormEditor.tsx		FormEditor=101	404	JINI	101
-size-38	now	jini	packages/admin/src/forms/react/pages/FormsList.tsx		FormsList=107	214	JINI	107
-size-38	now	jini	packages/admin/src/media/controllers/library.controller.ts		createLibraryController=169	676	JINI	169
-size-39	now	jini	packages/desktop-host/src/electron/updates/auto-update-controller.ts		createAutoUpdateController=116	232	JINI	116
-size-39	now	jini	packages/devops/src/checks/hardwiring.ts		createHardwiringInspector=276	1104	JINI	276
-size-39	now	jini	packages/diagnostics/src/web-evidence/page-structure-script.ts		collectPageStructure=275	550	JINI	275
-size-39	now	jini	packages/integrations/src/api-connections/host.ts		createApiConnectionHost=163	652	JINI	163
-size-40	now	jini	packages/ui/src/features/viewer-shell/react/hooks/useMarkdownScrollSync.ts		useMarkdownScrollSync=126	252	JINI	126
-size-40	now	jini	packages/ui/src/react/components/CustomSelect.tsx		CustomSelect=101	1010	JINI	101
-size-40	now	jini	packages/ui/src/react/components/Icon.tsx	675		675	JINI	675
-size-40	now	jini	packages/ui/src/react/components/OnboardingDropdown.tsx		useOnboardingDropdown=102	306	JINI	102
-size-40	now	jini	packages/ui/src/react/components/TooltipLayer.tsx		useTooltipLayer=208	624	JINI	208
-size-40	now	jini	packages/ui/src/react/hooks/useResizableSplitPane.ts		useResizableSplitPane=209	418	JINI	209
-size-40	now	jini	packages/ui/src/react/mcp-ui/useMcpUiHost.ts		useMcpUiHost=116	116	JINI	116
-size-41	now	jini	packages/vibecoding/src/core/session.ts		createVibecodingSession=126	126	JINI	126
-size-41	now	jini	packages/vibecoding/src/node/project.ts		assembleProject=181	543	JINI	181
-size-41	now	jini	packages/vibecoding/src/node/store.ts		createProjectStore=246	738	JINI	246
-size-42	now	tovu	content/themes/__original-themes__/static/tovu-starter/scripts/docs-toc.js		<anonymous>=125	125	?	125
-size-42	now	tovu	content/themes/__original-themes__/static/tovu-starter/scripts/main.js		<anonymous>=193	386	?	193
-size-42	now	tovu	content/themes/__original-themes__/static/tovu-theme/scripts/docs-toc.js		<anonymous>=125	125	?	125
-size-42	now	tovu	content/themes/__original-themes__/static/tovu-theme/scripts/main.js		<anonymous>=193	579	?	193
-size-43	now	tovu	content/themes/static/tovu-starter/scripts/docs-toc.js		<anonymous>=125	125	?	125
-size-43	now	tovu	content/themes/static/tovu-starter/scripts/main.js		<anonymous>=193	386	?	193
-size-43	now	tovu	content/themes/static/tovu-theme/scripts/docs-toc.js		<anonymous>=125	125	?	125
-size-43	now	tovu	content/themes/static/tovu-theme/scripts/main.js		<anonymous>=193	579	?	193
-size-44	now	jini	packages/ui/src/features/memory/react/hooks/useMemoryExtractions.store.ts		createExtractionHistoryStore=144	288	JINI	144
-size-44	now	jini	packages/ui/src/features/notifications/react/components/NotificationsTab.tsx		NotificationsTab=134	402	JINI	134
-size-44	now	jini	packages/ui/src/features/panel-kit/hooks/use-settings-slice.hooks.ts		useSettingsSlice=125	375	JINI	125
-size-44	now	jini	packages/ui/src/features/panel-kit/hooks/use-standing-draft-autosave.hooks.ts		useStandingDraftAutosave=175	350	JINI	175
-size-44	now	jini	packages/ui/src/features/project-locations/react/components/ProjectLocationsTab.tsx		ProjectLocationsTab=103	206	JINI	103
-size-44	now	jini	packages/ui/src/features/project-locations/react/hooks/useProjectLocationsTab.ts		useProjectLocationsTab=119	238	JINI	119
-size-44	now	jini	packages/ui/src/features/resource-dashboard/react/hooks/useResourceBoard.ts		useResourceBoard=176	528	JINI	176
-size-44	now	jini	packages/ui/src/features/sketch-editor/react/components/SketchEditor.tsx		SketchEditor=109	218	JINI	109
-size-45	now	jini	packages/ui/src/features/skills/react/components/SkillRow.tsx		SkillRow=112	448	JINI	112
-size-45	now	jini	packages/ui/src/features/skills/react/hooks/useSkillsTab.ts		useSkillsTab=260	0	JINI	260
-size-45	now	jini	packages/ui/src/features/source-config-list/react/hooks/useSourceConfigList.ts		useSourceConfigList=119	0	JINI	119
-size-45	now	jini	packages/ui/src/features/tab-launcher-menu/react/hooks/useTabLauncherMenu.ts		useTabLauncherMenu=108	216	JINI	108
-size-45	now	jini	packages/ui/src/features/tab-strip/react/hooks/useTabStripDragReorder.ts		useTabStripDragReorder=125	0	JINI	125
-size-45	now	jini	packages/ui/src/features/version-manager/react/components/VersionManagerModal.tsx		VersionManagerModal=137	274	JINI	137
-size-45	now	jini	packages/ui/src/features/version-manager/react/hooks/useVersionManager.ts		useVersionManager=236	472	JINI	236
-size-45	now	jini	packages/ui/src/features/viewer-shell/react/components/CommentSidePanel.tsx		CommentSidePanel=104	312	JINI	104
-size-46	after-move	tovu	apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx	1033	useExecutionConfig=134	72310	MIXED	1167
-size-46	after-move	tovu	apps/admin/src/features/ai-assistant/AiAssistant.tsx	655	AiAssistant=118 VisitorCredentialForm=108	22925	MIXED. **STAY-PRODUCT**: `AiAs	881
-size-47	after-move	tovu	apps/admin/src/features/deployment/StaticSiteTab.tsx	935		44880	MIXED	935
-size-47	after-move	tovu	apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts		useStaticPublish=150	2700	MIXED	150
-size-47	after-move	tovu	apps/admin/src/features/pages/PageEditor.tsx	1017	PageEditor=220 PageEditorPane=125	55935	MIXED	1362
-size-47	after-move	tovu	apps/admin/src/features/plugins/AgentPluginRow.tsx		AgentPluginRow=138	3036	DELETE-AFTER-PARITY	138
-size-48	after-move	tovu	apps/website/src/features/deployments/publish-agent-tools.ts	763	buildStaticPublishRegistrations=155	50358	MIXED: catalog copy, capabilit	918
-size-48	after-move	tovu	apps/website/src/features/forms/tool-registrations.ts		buildFormsRegistrations=163	4401	MIXED;MOVE-AFTER(write-service.ts, t;STA	163
-size-48	after-move	tovu	apps/website/src/features/identity/repo.ts	616		2464	MOVE-AFTER(content schema type;MOVE-AFTE	616
-size-48	after-move	tovu	apps/website/src/features/identity/tool-registrations.ts		buildGatedIdentityRegistrations=154	2464	MOVE-AFTER(write-service.ts, t;STAY-WIRI	154
-size-48	after-move	tovu	apps/website/src/features/media-import/tool-registrations.ts		buildMediaImportRegistrations=118	2832	MIXED;MOVE-AFTER(write-service.ts, t;STA	118
-size-48	after-move	tovu	apps/website/src/features/newsletter/repo.ts	548		6576	MOVE-AFTER(content schema type;MOVE-AFTE	548
-size-49	after-move	tovu	apps/admin/src/features/trash/hooks/use-trash.hooks.ts		useTrash=143	715	MOVE-AFTER(trash module; needs	143
-size-49	after-move	tovu	apps/admin/src/lib/browser-stream.ts		startBrowserStream=104	312	MOVE-AFTER(stream-activity, vi	104
-size-49	after-move	tovu	apps/desktop/src/project-ipc.ts	1082	registerSiteIpcHandlers=229	47608	MIXED	1311
-size-49	after-move	tovu	apps/desktop/src/renderer/workspace-chat-transport.ts		createWorkspaceChatTransport=101	1313	MIXED	101
-size-50	after-move	tovu	apps/website/src/features/newsletter/tool-registrations.ts		buildNewsletterRegistrations=177	2124	MOVE-AFTER(write-service.ts, t;STAY-WIRI	177
-size-50	after-move	tovu	apps/website/src/features/pages/tool-registrations.ts		buildPagesRegistrations=154	4312	MIXED;MOVE-AFTER(write-service.ts, t;STA	154
-size-50	after-move	tovu	apps/website/src/features/post/agent-tools.ts	704		24640	MIXED;MIXED: `AgentToolSideEffect`, ;MIX	704
-size-50	after-move	tovu	apps/website/src/features/post/tool-registrations.ts	796	buildPostRegistrations=278	40596	MOVE-AFTER(write-service.ts, t;STAY-WIRI	1074
-size-50	after-move	tovu	apps/website/src/features/publish-content/publish-backstop-file.ts		createRawFileSitePort=102	204	MIXED	102
-size-50	after-move	tovu	apps/website/src/features/publish-content/repo-handler.ts		createRepoPublishHandler=176 build=142	3696	MOVE-AFTER(type-registry gener	318
-size-51	after-move	tovu	apps/admin/src/features/security/AccessTokensTab.tsx	847	AddCustomCredentialDialog=119 TokenInputFields=114	38115	DELETE-AFTER-PARITY	1080
-size-51	after-move	tovu	apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts	584	useAccessTokens=336	15184	DELETE-AFTER-PARITY · CORE-CON	920
-size-51	after-move	tovu	apps/admin/src/features/security/rules.ts	516		20124	MIXED — credential-row and for	516
-size-52	after-move	tovu	apps/admin/src/features/taxonomy/Taxonomy.tsx	690	namespaceList=146 <arg of taxonomies.map>=111	15870	MOVE-AFTER(host ports + `Publi	947
-size-52	after-move	tovu	apps/admin/src/features/taxonomy/TaxonomyRowMenu.hooks.ts		useTaxonomyRowMenu=102	408	DELETE-AFTER-PARITY (legacy tw	102
-size-52	after-move	tovu	apps/admin/src/features/taxonomy/TermPicker.tsx		TermPicker=132	1188	MOVE-AFTER(taxonomy module)	132
-size-52	after-move	tovu	apps/admin/src/features/themes/ThemeExplore.tsx	1020	ThemeExploreContent=287	37740	MIXED. STAY-PRODUCT: everythin	1307
-size-53	after-move	tovu	apps/admin/src/App.hooks.ts	556		17236	MIXED	556
-size-53	after-move	tovu	apps/admin/src/App.tsx	553	AdminShell=199 AssistantChrome=137	33733	MIXED, NEEDS-TIER-2	889
-size-54	after-move	tovu	apps/admin/src/features/plugins/AgentPlugins.tsx		AgentPlugins=110	2860	DELETE-AFTER-PARITY	110
-size-54	after-move	tovu	apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts	635	usePostEditor=400	29845	MIXED**. DEDUPE: `uploadDroppe	1035
-size-54	after-move	tovu	apps/admin/src/features/roles/Roles.tsx	679		8148	DELETE-AFTER-PARITY	679
-size-54	after-move	tovu	apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts		createFakeRolesPort=106	318	MIXED — `defaultRolesPort`: DE	106
-size-54	after-move	tovu	apps/admin/src/features/roles/hooks/use-roles.hooks.ts		useRoles=278	3336	DELETE-AFTER-PARITY	278
-size-55	after-move	tovu	apps/website/src/features/theme/theme-files.ts	597		19104	MIXED — DEDUPE: `isWithin`, `a	597
-size-55	after-move	tovu	apps/website/src/features/theme/tool-registrations.ts	627	buildThemesRegistrations=297	27588	MIXED — STAY-PRODUCT: the 13 t;MOVE-AFTE	924
-size-55	after-move	tovu	apps/website/src/features/trash/table-adapter.ts		createTableTrashAdapter=191	2865	MOVE-AFTER(registry.ts, entry-	191
-size-55	after-move	tovu	apps/website/src/features/webhooks/tool-registrations.ts		buildWebhooksRegistrations=126	1890	MOVE-AFTER(write-service.ts, t;STAY-WIRI	126
-size-55	after-move	tovu	apps/website/src/features/widgets/tool-registrations.ts		buildWidgetsRegistrations=213	4473	MOVE-AFTER(features/widgets/ag;MOVE-AFTE	213
-size-55	after-move	tovu	apps/website/src/server/inbound/admin-http/dev-auth.ts		registerAuthRoutes=185	5550	MIXED — **STAY-WIRING**: `requ	185
-size-55	after-move	tovu	apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts		createDaemonSiteTools=111	666	MIXED	111
-size-55	after-move	tovu	apps/website/src/server/runtime/boot/bootstrap.ts		buildBootModules=105	3045	MOVE	105
-size-56	after-move	tovu	apps/desktop/src/tovu-server.ts	503	startTovuServer=118	24144	MIXED — DEDUPE-AFTER-HARDENING	621
-size-56	after-move	tovu	apps/website/src/assistant/byok-tool-surface.ts		createByokToolSurface=130	5720	MIXED	130
-size-56	after-move	tovu	apps/website/src/features/agent-plugins/automatic-agent-plugins.ts		createAutomaticPluginRuns=142	2272	MIXED: MOVE-AFTER(ports) {`cre	142
-size-56	after-move	tovu	apps/website/src/features/comments/tool-registrations.ts		buildCommentsRegistrations=127	2540	MOVE-AFTER(settings feature, c;MOVE-AFTE	127
-size-57	after-move	tovu	apps/website/src/features/publish-content/tool-registrations.ts		buildPublishContentRegistrations=166	4316	MOVE-AFTER(write-service.ts, t;STAY-WIRI	166
-size-57	after-move	tovu	apps/website/src/features/recovery/tool-registrations.ts		buildRecoveryRegistrations=178	1602	MOVE-AFTER(agent-tools.ts, `co	178
-size-57	after-move	tovu	apps/website/src/features/site-backup/backup-service.ts	535		4280	MIXED	535
-size-57	after-move	tovu	apps/website/src/features/taxonomy/tool-registrations.ts		buildTaxonomyRegistrations=223	3122	MOVE-AFTER(`contracts/core/hum;MOVE-AFTE	223
-size-57	after-move	tovu	apps/website/src/features/theme/publish-content.ts	515	buildHandler=154	8240	MIXED: MOVE-AFTER(publish-cont;MIXED: ST	669
-size-57	after-move	tovu	apps/website/src/features/theme/static-render.ts	514		22616	MIXED: menu renderers (~L184–3	514
-size-58	after-move	tovu	apps/website/src/server/runtime/composition/commerce.ts		composeCommerce=280	3920	MIXED: MOVE(sharedDeps/alerts ;STAY-PROD	280
-size-58	after-move	tovu	apps/website/src/server/runtime/composition/modules/site-assistant.ts		createSiteAssistantModule=185 registerRoutes=147 handleChat=105	4995	MIXED: DEDUPE-AFTER-HARDENING(	437
-size-58	after-move	tovu	apps/website/src/server/runtime/composition/peer-site-reads.ts		createPeerSiteReads=129	3354	MIXED: STAY-PRODUCT(`CROSS_SIT	129
+batch	lane	phase	repo	file	work	fns_over_50	file_lines	max_score	fragment
+size-t-01	terra	now	tovu	apps/admin/src/features/media/Media.tsx	1151	EditMediaPanel=197; MediaLibraryPanel=126; MediaEditRenderOverrideFields=87; MediaToolbar=84; MediaGridOrEmpty=59; MediaPageShell=51	1151	64456	yes
+size-t-01	terra	now	tovu	apps/admin/src/features/menus/hooks/menus-dependencies.hooks.ts	55	createFakeMenusPort=55		605	no
+size-t-01	terra	now	tovu	apps/admin/src/features/menus/hooks/use-menu-editor.hooks.ts	196	useMenuEditor=196		4508	yes
+size-t-01	terra	now	tovu	apps/admin/src/features/menus/hooks/use-menus.hooks.ts	51	useMenus=51		510	no
+size-t-01	terra	now	tovu	apps/admin/src/features/menus/MenuEditor.tsx	369	MenuEditor=102; ItemRow=82; MenuItemTargetFields=70; MenuItemAttrsFields=60; MenuEditorHeader=55		1734	yes
+size-t-01	terra	now	tovu	apps/admin/src/features/menus/Menus.tsx	54	Menus=54		540	no
+size-t-01	terra	now	tovu	apps/admin/src/features/observability/Observability.tsx	78	Observability=78		1170	no
+size-t-01	terra	now	tovu	apps/admin/src/features/pages/Pages.tsx	169	Pages=169		4056	yes
+size-t-01	terra	now	tovu	apps/admin/src/features/pages/ThemePagesTab.tsx	90	ThemePagesTab=90		990	no
+size-t-01	terra	now	tovu	apps/admin/src/features/plugins/AddPluginPanel.tsx	64	AddPluginPanel=64		320	no
+size-t-01	terra	now	tovu	apps/admin/src/features/plugins/hooks/use-plugin-provider-settings.hooks.ts	52	usePluginProviderSettings=52		364	no
+size-t-01	terra	now	tovu	apps/admin/src/features/plugins/PluginRow.tsx	66	PluginRow=66		594	no
+size-t-01	terra	now	tovu	apps/admin/src/features/posts/hooks/use-post-url-dialog.hooks.ts	55	usePostUrlDialog=55		165	no
+size-t-01	terra	now	tovu	apps/admin/src/features/posts/Posts.tsx	132	Posts=132		2904	yes
+size-t-01	terra	now	tovu	apps/admin/src/features/providers/Providers.tsx	129	Providers=129		2580	yes
+size-t-01	terra	now	tovu	apps/admin/src/features/publish-content/PublishContentDialog.hooks.tsx	64	PublishContentReportRow=64		128	no
+size-t-01	terra	now	tovu	apps/admin/src/features/publish-content/PublishContentDialog.tsx	215	PublishContentDialog=115; PublishContentReport=100		3910	yes
+size-t-01	terra	now	tovu	apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts	61	useRecovery=61		793	no
+size-t-01	terra	now	tovu	apps/admin/src/features/security/OtherCredentialsSection.tsx	55	OtherCredentialReplaceableRow=55		1045	no
+size-t-01	terra	now	tovu	apps/admin/src/features/security/Security.tsx	58	Security=58		1334	no
+size-t-01	terra	now	tovu	apps/admin/src/features/settings/ExternalMcpToolPicker.tsx	123	ToolPickerRowItem=66; ToolPickerToolbar=57		594	no
+size-t-01	terra	now	tovu	apps/admin/src/features/settings/hooks/use-external-mcp-oauth-connect.hooks.ts	80	useExternalMcpOAuthConnect=80		400	no
+size-t-01	terra	now	tovu	apps/admin/src/features/settings/hooks/use-external-mcp-tool-picker.hooks.ts	56	useExternalMcpToolPicker=56		336	no
+size-t-01	terra	now	tovu	apps/admin/src/features/settings/hooks/use-settings-ui.hooks.ts	64	useSettingsUi=64		832	no
+size-t-02	terra	now	tovu	apps/admin/src/features/settings/SettingsUi.tsx	300	SettingsUi=300		12900	yes
+size-t-02	terra	now	tovu	apps/admin/src/features/sites/AllSitesTab.tsx	52	SiteCard=52		1040	no
+size-t-02	terra	now	tovu	apps/admin/src/features/sites/CreateSiteOnboarding.tsx	51	CreateSiteOnboarding=51		816	no
+size-t-02	terra	now	tovu	apps/admin/src/features/sites/hooks/use-local-sites.hooks.ts	57	useLocalSites=57		570	no
+size-t-02	terra	now	tovu	apps/admin/src/features/sites/hooks/use-share-credential-gate.hooks.ts	59	useShareCredentialGate=59		118	no
+size-t-02	terra	now	tovu	apps/admin/src/features/sites/hooks/use-site-transfer.hooks.ts	213	useSiteImport=118; useSiteExport=95		2124	yes
+size-t-02	terra	now	tovu	apps/admin/src/features/sites/hooks/use-sites.hooks.ts	118	useSites=118		2006	yes
+size-t-02	terra	now	tovu	apps/admin/src/features/sites/SiteImportTab.tsx	119	ArchiveSource=63; LiveWebsiteSource=56		882	no
+size-t-02	terra	now	tovu	apps/admin/src/features/skills/use-skills.hooks.ts	102	useSkills=102		510	yes
+size-t-02	terra	now	tovu	apps/admin/src/features/themes/hooks/theme-explore-dependencies.hooks.ts	61	createFakeThemeExplorePort=61		427	no
+size-t-02	terra	now	tovu	apps/admin/src/features/themes/hooks/use-themes.hooks.ts	122	useThemes=122		2318	yes
+size-t-02	terra	now	tovu	apps/admin/src/features/themes/Themes.tsx	227	ThemeGrid=93; Themes=75; ThemesToolbar=59		2511	no
+size-t-02	terra	now	tovu	apps/admin/src/features/webmcp/admin-page-tools.ts	51	registerAdminPageWebMcpTools=51		408	no
+size-t-02	terra	now	tovu	apps/admin/src/panels.tsx	726		726	48642	yes
+size-t-02	terra	now	tovu	apps/desktop/src/desktop-agent.ts	100	createDesktopAgentRuntime=100		1700	no
+size-t-02	terra	now	tovu	apps/desktop/src/desktop-capture.ts	58	desktopCaptureWindowFactory=58; <anonymous>=56		232	no
+size-t-02	terra	now	tovu	apps/desktop/src/desktop-mcp-http.ts	51	createDesktopMcpHttpRuntime=51		153	no
+size-t-02	terra	now	tovu	apps/desktop/src/main/boot/site-backend.ts	85	createSiteBackend=85		680	no
+size-t-02	terra	now	tovu	apps/desktop/src/main/boot/site-preview-guests.ts	58	createLivePreviewGuests=58		174	no
+size-t-02	terra	now	tovu	apps/desktop/src/main/windows/last-window-quit.ts	57	createLastWindowQuitPrompt=57		228	no
+size-t-02	terra	now	tovu	apps/desktop/src/renderer/App.tsx	182	App=182		12558	yes
+size-t-02	terra	now	tovu	apps/desktop/src/renderer/app/FindBar.tsx	58	FindBar=58		58	no
+size-t-02	terra	now	tovu	apps/desktop/src/renderer/app/MainArea.tsx	79	MainArea=79		158	no
+size-t-02	terra	now	tovu	apps/desktop/src/renderer/app/MainContent.tsx	70	MainContent=70		140	no
+size-t-02	terra	now	tovu	apps/desktop/src/renderer/app/MainHeader.tsx	57	MainHeader=57		114	no
+size-t-02	terra	now	tovu	apps/desktop/src/renderer/app/SettingsControl.tsx	74	SettingsControl=74		222	no
+size-t-02	terra	now	tovu	apps/desktop/src/renderer/app/SiteWorkspace.tsx	121	SiteWorkspace=121		484	yes
+size-t-02	terra	now	tovu	apps/desktop/src/renderer/app/TabStrip.tsx	61	TabStrip=61		183	no
+size-t-02	terra	now	tovu	apps/desktop/src/renderer/app/TopNav.tsx	51	TopNav=51		51	no
+size-t-03	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts	182	registerAdminPublishSiteRoutes=182; <arg of app.post>=55		5642	yes
+size-t-03	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/site-imports.ts	112	registerAdminSiteImportRoutes=112		1568	yes
+size-t-03	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts	109	registerAdminSiteShareRoutes=109		1308	yes
+size-t-03	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/sites.ts	128	registerAdminSitesRoutes=128		3968	yes
+size-t-03	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/themes/explore.ts	635		635	13335	yes
+size-t-03	terra	now	tovu	apps/website/src/server/inbound/assistant/assistant-system-overlay.ts	92	buildBaseSystemOverlay=92		3312	no
+size-t-03	terra	now	tovu	apps/website/src/server/inbound/public-http/middleware/theme-page-preview.ts	69	registerThemePagePreview=69		552	no
+size-t-03	terra	now	tovu	apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts	96	registerPublishTrustHandshakeRoutes=96		960	no
+size-t-03	terra	now	tovu	apps/website/src/server/inbound/public-http/routes/site/products.ts	51	registerProductRoutes=51		1224	no
+size-t-03	terra	now	tovu	apps/website/src/server/runtime/composition/agent-plugin-connections.ts	62	composeAgentPluginConnections=62		1178	no
+size-t-03	terra	now	tovu	apps/website/src/server/runtime/composition/modules/assistant-byok.ts	227	createAssistantByokModule=227; handleTurn=85		14074	yes
+size-t-03	terra	now	tovu	apps/website/src/server/runtime/composition/modules/assistant-chats.ts	152	createAssistantChatsModule=152; registerRoutes=139		3800	yes
+size-t-03	terra	now	tovu	apps/website/src/server/runtime/composition/modules/assistant.ts	62	createAssistantModule=62		2232	no
+size-t-03	terra	now	tovu	apps/website/src/server/runtime/composition/other-site-keys.ts	116	createOtherSiteKeys=116		464	yes
+size-t-03	terra	now	tovu	apps/website/src/server/runtime/composition/plugin-host.ts	52	createTovuPluginHost=52		936	no
+size-t-03	terra	now	tovu	apps/website/src/server/runtime/composition/tool-catalog-manifest.ts	252	installFirstPartyToolContributors=252		22176	yes
+size-t-03	terra	now	tovu	content/themes/__original-themes__/static/tovu-starter/scripts/docs-sidebar.js	60	<anonymous>=60		60	no
+size-t-03	terra	now	tovu	content/themes/__original-themes__/static/tovu-theme/scripts/docs-sidebar.js	60	<anonymous>=60		60	no
+size-t-03	terra	now	tovu	content/themes/static/tovu-starter/scripts/docs-sidebar.js	60	<anonymous>=60		60	no
+size-t-03	terra	now	tovu	content/themes/static/tovu-theme/scripts/docs-sidebar.js	60	<anonymous>=60		60	no
+size-t-04	terra	now	tovu	apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx	231	CreateWebsiteOnboarding=136; DatabasePicker=95		1632	yes
+size-t-04	terra	now	tovu	apps/desktop/src/renderer/ImportWebsite.tsx	73	ImportPage=73		292	no
+size-t-04	terra	now	tovu	apps/desktop/src/renderer/SiteGrid.tsx	505	SiteCard=100; SiteCardMenu=78; CardActions=71; SiteGrid=69	505	17170	yes
+size-t-04	terra	now	tovu	apps/desktop/src/renderer/SitesFolders.tsx	80	SitesFoldersDialog=80		560	no
+size-t-04	terra	now	tovu	apps/desktop/src/renderer/tool-icons.tsx	52	toolPath=52		104	no
+size-t-04	terra	now	tovu	apps/desktop/src/renderer/use-create-website-form.hooks.ts	69	useCreateWebsiteForm=69		138	no
+size-t-04	terra	now	tovu	apps/desktop/src/renderer/use-import-website.hooks.ts	80	useImportWebsite=80		480	no
+size-t-04	terra	now	tovu	apps/desktop/src/renderer/use-resources.hooks.ts	54	useResources=54		378	no
+size-t-04	terra	now	tovu	apps/desktop/src/renderer/use-site-folders.hooks.ts	58	useSiteFolders=58		174	no
+size-t-04	terra	now	tovu	apps/desktop/src/renderer/use-site-power.hooks.ts	67	useSitePower=67		938	no
+size-t-04	terra	now	tovu	apps/desktop/src/renderer/use-site-rename.hooks.ts	55	useSiteRename=55		440	no
+size-t-04	terra	now	tovu	apps/desktop/src/renderer/use-sites-inventory.hooks.ts	52	useSitesPolling=52		156	no
+size-t-04	terra	now	tovu	apps/desktop/src/renderer/use-tab-close-ask.hooks.ts	56	useTabCloseAsk=56		112	no
+size-t-04	terra	now	tovu	apps/desktop/src/workspace-chat-ipc.ts	76	registerWorkspaceChatIpc=76		380	no
+size-t-04	terra	now	tovu	apps/website/src/assistant/demo-a2ui-tool.ts	102	buildDemoA2uiRegistrations=102; [DEMO_A2UI_TOOL_ID]=88		510	yes
+size-t-04	terra	now	tovu	apps/website/src/assistant/render-ui-tool.ts	57	buildRenderUiRegistrations=57		285	no
+size-t-04	terra	now	tovu	apps/website/src/assistant/site/visitor-confirmations.ts	53	createVisitorConfirmations=53		106	no
+size-t-04	terra	now	tovu	apps/website/src/assistant/site/visitor-executor.ts	51	createVisitorExecutor=51		357	no
+size-t-04	terra	now	tovu	apps/website/src/assistant/site/visitor-frontend-control.ts	55	createVisitorFrontendControl=55		110	no
+size-t-04	terra	now	tovu	apps/website/src/assistant/tool-registrations.ts	76	buildAssistantToolRegistrations=76		4788	no
+size-t-04	terra	now	tovu	apps/website/src/cli/commands/serve.ts	100	serveBootedSite=100; <anonymous>=54		6400	no
+size-t-04	terra	now	tovu	apps/website/src/cli/program.ts	196	createProgram=196		6076	yes
+size-t-04	terra	now	tovu	apps/website/src/features/agent-plugins/admin-surfaces/delivery-bindings.ts	64	createSurfaceDeliveryBindings=64		512	no
+size-t-04	terra	now	tovu	apps/website/src/features/agent-plugins/lifecycle.ts	111	createTovuAgentPluginLifecycle=111		2664	yes
+size-t-04	terra	now	tovu	apps/website/src/features/database/tool-registrations.ts	106	buildDatabaseRegistrations=106		848	yes
+size-t-04	terra	now	tovu	apps/website/src/features/deployments/tool-registrations.ts	51	buildDeploymentsRegistrations=51		612	no
+size-t-04	terra	now	tovu	apps/website/src/features/entries/publish-content.ts	100	contributeCollectionEntryPublish=100		1200	no
+size-t-04	terra	now	tovu	apps/website/src/features/entries/unreadable-owner-entries-repair.ts	57	removeUnreadableOwnerEntries=57		228	no
+size-t-04	terra	now	tovu	apps/website/src/features/fs-files/tool-registrations.ts	59	buildFsFilesRegistrations=59		767	no
+size-t-04	terra	now	tovu	apps/website/src/features/identity/repo.ts	616		616	2464	yes
+size-t-05	terra	now	tovu	apps/website/src/features/identity/tool-registrations.ts	154	buildGatedIdentityRegistrations=154; createUserWithHumanPassword=56; <anonymous>=56		2464	yes
+size-t-05	terra	now	tovu	apps/website/src/features/media-generation/providers-tools.ts	74	saveMediaCredential=74		666	no
+size-t-05	terra	now	tovu	apps/website/src/features/members/tool-registrations.ts	88	buildMembersRegistrations=88		1672	no
+size-t-05	terra	now	tovu	apps/website/src/features/navigation/publish-content.ts	149	menuReferenceMethods=98; contributeMenusPublish=51		1176	no
+size-t-05	terra	now	tovu	apps/website/src/features/newsletter/campaign-write-service.ts	81	saveCampaign=81; fn=59		486	no
+size-t-05	terra	now	tovu	apps/website/src/features/newsletter/delivery/tool-registrations.ts	91	buildNewsletterDeliveryRegistrations=91		819	no
+size-t-05	terra	now	tovu	apps/website/src/features/newsletter/repo.ts	551		551	7163	yes
+size-t-05	terra	now	tovu	apps/website/src/features/newsletter/tool-registrations.ts	182	buildNewsletterRegistrations=182		2730	yes
+size-t-05	terra	now	tovu	apps/website/src/features/publish-content/gated-hooks.ts	104	buildPublishContentImportHooks=104		1352	yes
+size-t-05	terra	now	tovu	apps/website/src/features/publish-content/peer-transport.ts	539	pushBundleToPeer=54	539	13475	yes
+size-t-05	terra	now	tovu	apps/website/src/features/publish-content/publish-backstop-row.sqlite.ts	56	createRawRowSqlitePort=56		168	no
+size-t-05	terra	now	tovu	apps/website/src/features/publish-content/publish-tool.ts	97	publishContentFromTool=97		582	no
+size-t-05	terra	now	tovu	apps/website/src/features/publish-content/raw-file-contributor.ts	152	contributeRawFilePublish=152; build=150		912	yes
+size-t-05	terra	now	tovu	apps/website/src/features/publish-content/raw-row-contributor.ts	134	buildRawRowHandler=134		804	yes
+size-t-05	terra	now	tovu	apps/website/src/features/publish-content/tool-registrations.ts	166	buildPublishContentRegistrations=166; [PUBLISH_CONTENT_CONNECT_TOOL_ID]=67		4316	yes
+size-t-05	terra	now	tovu	apps/website/src/features/publish-trust/provisioning.ts	53	createFileProvisioning=53		424	no
+size-t-05	terra	now	tovu	apps/website/src/features/site-backup/import-backend.ts	141	createSiteImportBackend=141		2397	yes
+size-t-05	terra	now	tovu	apps/website/src/features/site-backup/share-backend.ts	100	createSiteShareBackend=100		1700	no
+size-t-05	terra	now	tovu	apps/website/src/features/sites/tool-registrations.ts	62	buildSitesRegistrations=62		1240	no
+size-t-05	terra	now	tovu	apps/website/src/features/theme/build-conformance.ts	59	checkOneArtifactHashEntry=59		295	no
+size-t-05	terra	now	tovu	apps/website/src/features/theme/theme-trash.ts	75	createThemeTrashAdapter=75		225	no
+size-t-06	terra	now	tovu	apps/website/src/features/theme/theme.ts	624	loadTheme=51	624	12480	yes
+size-t-06	terra	now	tovu	apps/website/src/features/trash/adapters/user.ts	103	createUserTrashAdapter=103		721	yes
+size-t-06	terra	now	tovu	apps/website/src/features/webhooks/tool-registrations.ts	127	buildWebhooksRegistrations=127		2032	yes
+size-t-06	terra	now	tovu	apps/website/src/index.ts	72	main=72		4752	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/publish-trust-auth.ts	91	requirePublishTrust=91; requirePublishTrustMiddleware=83		1183	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/assistant/list-models.ts	52	registerAdminAssistantListModelsRoute=52		468	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/assistant/put-execution-credential.ts	55	registerAdminAssistantPutExecutionCredentialRoute=55; <arg of app.put>=53		330	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/content-types/lifecycle.ts	58	registerAdminContentTypeLifecycleRoute=58; <arg of app.post>=56		464	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/content-types/register.ts	60	registerAdminContentTypeRegisterRoute=60; <arg of app.post>=58		480	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/content-types/update-fields.ts	60	registerAdminContentTypeUpdateFieldsRoute=60; <arg of app.put>=58		600	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/database/migrate-forward.ts	115	registerAdminDatabaseMigrateForwardRoutes=115; <arg of app.post>=58		575	yes
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/database/restore-points.ts	51	registerAdminDatabaseRestorePointsCreateRoute=51		306	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/entries/lifecycle.ts	57	registerAdminEntryLifecycleRoute=57; <arg of app.post>=55		570	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/entries/update.ts	54	registerAdminEntryUpdateRoute=54; <arg of app.put>=52		540	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/media/upload.ts	56	registerAdminMediaUploadRoute=56; <arg of app.post>=54		896	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/pages/delete.ts	88	registerAdminPageDeleteRoute=88; <arg of app.delete>=86		1056	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/plugins/preview.ts	75	registerPluginPreviewRoute=75		450	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts	63	registerAdminPostAutosaveRoute=63		756	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/posts/create.ts	67	registerAdminPostCreateRoute=67; <arg of app.post>=61		938	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/posts/delete.ts	75	registerAdminPostDeleteRoute=75; <arg of app.delete>=73		675	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/posts/update.ts	109	registerAdminPostUpdateRoute=109; <arg of app.put>=103		2616	yes
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/presentation/get.ts	59	registerAdminPresentationGetRoute=59; <arg of app.get>=56		590	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/presentation/patch-active-theme.ts	56	registerAdminPresentationPatchRoute=56; <arg of app.patch>=54		616	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/publish-content/import.ts	170	registerPublishContentImportRoutes=170; <arg of app.post>=56		3060	yes
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/publish-content/peer-transport.ts	86	registerPublishContentPeerTransportRoutes=86		2494	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/publish-content/peers.ts	57	registerPublishContentPeerRoutes=57		285	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/custom-credentials.ts	99	registerAdminCustomCredentialsRoutes=99		1683	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts	81	registerAdminDockerfileSourceRoute=81; <arg of app.put>=51		243	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/export-site.ts	65	registerAdminExportSiteRoutes=65		520	no
+size-t-06	terra	now	tovu	apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts	134	registerAdminPublishCredentialsRoutes=134		3484	yes
+size-t-07	terra	now	tovu	apps/admin/src/components/AssistantDock/AssistantDock.tsx	155	AssistantDock=155		12090	yes
+size-t-07	terra	now	tovu	apps/admin/src/components/AssistantDock/dock-header-rules.ts	61	dockSettingsMenuSections=61		549	no
+size-t-07	terra	now	tovu	apps/admin/src/components/AssistantDock/DockHeader.tsx	66	DockHeader=66		330	no
+size-t-07	terra	now	tovu	apps/admin/src/components/EmbedInsertControl/EmbedInsertControl.tsx	144	EmbedInsertControl=85; EmbedMenu=59		1020	no
+size-t-07	terra	now	tovu	apps/admin/src/components/MediaEditDialog/MediaEditDialog.tsx	51	MediaEditDialog=51		510	no
+size-t-07	terra	now	tovu	apps/admin/src/components/TemplateSource/TemplateSourceModal.tsx	67	TemplateSourceModal=67		603	no
+size-t-07	terra	now	tovu	apps/admin/src/components/WidgetConfigFields/MediaContentEditor.hooks.ts	110	useMediaContentEditor=110		330	yes
+size-t-07	terra	now	tovu	apps/admin/src/components/WidgetConfigFields/WidgetConfigFields.tsx	179	RecentEntriesConfigFields=76; WidgetConfigFields=52; SocialLinksConfigFields=51		1064	no
+size-t-07	terra	now	tovu	apps/admin/src/features/ai-assistant/VisitorAssistantPanel.tsx	76	VisitorAssistantPanel=76		456	no
+size-t-07	terra	now	tovu	apps/admin/src/features/analytics/Analytics.tsx	51	Analytics=51		306	no
+size-t-07	terra	now	tovu	apps/admin/src/features/authentication/Authentication.tsx	66	Authentication=66		594	no
+size-t-07	terra	now	tovu	apps/admin/src/features/collections/hooks/use-edit-fields-dialog.hooks.ts	55	useEditFieldsDialog=55		330	no
+size-t-07	terra	now	tovu	apps/admin/src/features/collections/hooks/use-new-content-type-dialog.hooks.ts	57	useNewContentTypeDialog=57		342	no
+size-t-07	terra	now	tovu	apps/admin/src/features/content-analysis/ContentAnalysisCard.tsx	85	ContentAnalysisCard=85		85	no
+size-t-07	terra	now	tovu	apps/admin/src/features/dashboard/Dashboard.tsx	106	Dashboard=106		2438	yes
+size-t-07	terra	now	tovu	apps/admin/src/features/database/Database.tsx	71	TimelineFilterForm=71		1136	no
+size-t-07	terra	now	tovu	apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts	60	useMigrateForwardSection=60		360	no
+size-t-07	terra	now	tovu	apps/admin/src/features/deployment/Deployment.tsx	61	Deployment=61		549	no
+size-t-07	terra	now	tovu	apps/admin/src/features/deployment/DockerfileTab.tsx	193	DockerfileEditorCard=132; DockerfileTab=61		924	yes
+size-t-07	terra	now	tovu	apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	87	useDockerfileSource=87		696	no
+size-t-07	terra	now	tovu	apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	159	usePublishCredentials=159		3180	yes
+size-t-07	terra	now	tovu	apps/admin/src/features/deployment/OverviewTab.tsx	112	OverviewSnapshotBody=59; OverviewPathCard=53		531	no
+size-t-07	terra	now	tovu	apps/admin/src/features/library/hooks/use-library.hooks.ts	100	useLibrary=100		700	no
+size-t-07	terra	now	tovu	apps/admin/src/features/media/hooks/media-dependencies.hooks.ts	67	createFakeMediaPort=67		737	no
+size-t-07	terra	now	tovu	apps/admin/src/features/media/hooks/use-edit-media-panel.hooks.ts	130	useEditMediaPanel=130		1170	yes
+size-t-07	terra	now	tovu	apps/admin/src/features/media/hooks/use-media.hooks.ts	156	useMedia=156		2028	yes
+size-tm-01	terra	after-move	tovu	apps/admin/src/admin-themes/use-admin-theme.hooks.ts	60	useAdminThemePicker=60		420	no
+size-tm-01	terra	after-move	tovu	apps/admin/src/components/AssistantDock/agent-failure.ts	56	withAgentFailureSurface=56		392	no
+size-tm-01	terra	after-move	tovu	apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx	1019	useExecutionConfig=135; useByokRuntime=59; useComposerCapabilities=55; useLocalCliSelection=52; useAssistantTransport=52	1019	76425	yes
+size-tm-01	terra	after-move	tovu	apps/admin/src/components/InstallTabCard/InstallTabCard.tsx	62	ZipDropZone=62		186	no
+size-tm-01	terra	after-move	tovu	apps/admin/src/components/WidgetConfigFields/WidgetConfigFields.hooks.tsx	90	useRecentEntriesConfig=90		630	no
+size-tm-01	terra	after-move	tovu	apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.hooks.tsx	58	useWidgetPickerDialog=58		580	no
+size-tm-01	terra	after-move	tovu	apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.tsx	101	WidgetPickerDialog=101		1515	no
+size-tm-01	terra	after-move	tovu	apps/admin/src/features/ai-assistant/AiAssistant.tsx	658	AiAssistant=118; VisitorCredentialForm=108; AdminExecutionMode=54; VisitorCredentialKeyActions=54	658	23688	yes
+size-tm-01	terra	after-move	tovu	apps/admin/src/features/ai-assistant/hooks/use-visitor-credential-form.hooks.ts	145	useVisitorCredentialForm=145		3045	yes
+size-tm-01	terra	after-move	tovu	apps/admin/src/features/collections/CollectionEntries.tsx	86	CollectionEntries=86		946	no
+size-tm-01	terra	after-move	tovu	apps/admin/src/features/collections/CollectionEntryEditor.tsx	162	CollectionEntryEditor=103; EntryLifecycleButtons=59		1442	yes
+size-tm-01	terra	after-move	tovu	apps/admin/src/features/collections/Collections.tsx	554	Collections=154; NewContentTypeDialog=98; ContentTypeFieldFieldset=79; EditFieldsDialog=79	554	10526	yes
+size-tm-01	terra	after-move	tovu	apps/admin/src/features/collections/hooks/use-collection-entry-editor.hooks.ts	199	useCollectionEntryEditor=199		2189	yes
+size-tm-01	terra	after-move	tovu	apps/admin/src/features/collections/hooks/use-collections.hooks.ts	61	useCollections=61		427	no
+size-tm-01	terra	after-move	tovu	apps/admin/src/features/consent/use-consent-page.hooks.ts	87	useConsentPage=87		783	no
+size-tm-01	terra	after-move	tovu	apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	86	useTimelineSection=86		430	no
+size-tm-02	terra	after-move	tovu	apps/desktop/src/tovu-server.ts	514	startTovuServer=127; <anonymous>=72	514	25186	yes
+size-tm-02	terra	after-move	tovu	apps/desktop/src/update-check-now.ts	51	createUpdateCheckNow=51		153	no
+size-tm-02	terra	after-move	tovu	apps/desktop/src/workspace-conversation-store.ts	61	createConversationStore=61		244	no
+size-tm-02	terra	after-move	tovu	apps/site-chat/src/vanilla-tool-confirmation.ts	62	createVanillaToolConfirmation=62; <anonymous>=59		248	no
+size-tm-02	terra	after-move	tovu	apps/website/src/assistant/ask-choice-tool.ts	53	buildAskChoiceRegistrations=53		1272	no
+size-tm-02	terra	after-move	tovu	apps/website/src/assistant/byok-tool-surface.ts	130	createByokToolSurface=130		5720	yes
+size-tm-02	terra	after-move	tovu	apps/website/src/assistant/run-start-context.ts	63	parseRunStartContextRef=63		819	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/agent-plugins/automatic-agent-plugins.ts	138	createAutomaticPluginRuns=138		2484	yes
+size-tm-02	terra	after-move	tovu	apps/website/src/features/api-connections/shared-api.ts	99	createSharedApiConnections=99		297	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/api-connections/vault-stores.ts	54	createApiConnectionVaultRecordStore=54		648	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/change-sets/tool-registrations.ts	63	buildChangeSetsRegistrations=63		252	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/comments/tool-registrations.ts	127	buildCommentsRegistrations=127		2540	yes
+size-tm-02	terra	after-move	tovu	apps/website/src/features/consent/service.ts	98	createSiteConsentService=98		2058	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/custom-credentials/custom-credential-create-ui.ts	55	buildCreateForm=55		605	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/custom-credentials/tool-registrations.ts	95	bindTovuCredentialToolOperations=95		6460	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/deployments/publish-agent-tools.ts	763	buildStaticPublishRegistrations=155; deployment_execute_static_publish=72; mapPublishOutcomeToToolResult=51	763	50358	yes
+size-tm-02	terra	after-move	tovu	apps/website/src/features/deployments/static-publish/credentials.ts	56	createEnvPublishCredentialSource=56		952	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/external-mcp/tool-registrations.ts	123	buildExternalMcpRegistrations=72; externalMcpSaveHandler=51		1800	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/forms/tool-registrations.ts	164	buildFormsRegistrations=164		4592	yes
+size-tm-02	terra	after-move	tovu	apps/website/src/features/identity/api-key-service.ts	70	issueApiKey=70; execute=62		350	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/identity/delete-user-service.ts	57	trashUser=57		513	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/identity/wiring.ts	76	buildIdentityRouteDeps=76		1216	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/mail-status/tool-registrations.ts	51	buildMailStatusRegistrations=51		561	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/media-import/tool-registrations.ts	118	buildMediaImportRegistrations=118		2832	yes
+size-tm-02	terra	after-move	tovu	apps/website/src/features/media/duplicate-asset.ts	57	duplicateMediaAsset=57		684	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/media/publish-content.ts	76	contributeMediaPublish=76		1292	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/members/consent-service.ts	55	requestConsent=55		110	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/newsletter/confirmation.ts	51	issueConfirmationToken=51		357	no
+size-tm-02	terra	after-move	tovu	apps/website/src/features/newsletter/send-pipeline.ts	65	freezeAudience=65		1235	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts	81	useStaticExport=81		891	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	150	useStaticPublish=150		2850	yes
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/deployment/StaticSiteTab.tsx	941	GettingItOnlineCard=74; StaticPublishForm=70; StaticSiteTab=57; ExportTriggerAction=53	941	46109	yes
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/email/EmailTemplatesTab.tsx	91	EmailTemplatesTab=91		637	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/email/hooks/use-email-activity.hooks.ts	78	useEmailActivity=78		234	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/email/hooks/use-email-provider.hooks.ts	56	useEmailProvider=56		448	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/email/hooks/use-email-sender.hooks.ts	51	useEmailSender=51		204	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/email/hooks/use-email-template-editor.hooks.ts	84	useEmailTemplateEditor=84		504	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/email/hooks/use-email-templates.hooks.ts	66	useEmailTemplates=66		198	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/fs-files/hooks/use-folder-drop.hooks.ts	79	useFolderDrop=79		1264	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/import-export/hooks/use-git-backup.hooks.ts	62	useGitBackup=62		124	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/integrations/hooks/use-integrations.hooks.ts	90	useIntegrations=90		630	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/integrations/IntegrationDeliveries.tsx	52	IntegrationDeliveries=52		208	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/integrations/Integrations.tsx	221	Integrations=156; IntegrationCreateForm=65		2184	yes
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/library/Library.tsx	126	UploadTab=70; DocumentsTab=56		910	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/pages/hooks/use-editor-html-jump.hooks.ts	59	useEditorHtmlJump=59		118	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/pages/hooks/use-pages.hooks.ts	81	usePages=81		1215	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/pages/hooks/use-theme-canvas-styling.hooks.ts	70	useThemeCanvasStyling=70; <arg of useEffect>=63		1260	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/plugins/AddAgentPluginPanel.tsx	62	AddAgentPluginPanel=62		620	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/plugins/AgentPluginDisableConfirmDialog.tsx	58	AgentPluginDisableConfirmDialog=58		754	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/plugins/AgentPluginRow.tsx	213	AgentPluginRow=138; AgentPluginRowStateArea=75		3174	yes
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/plugins/AgentPlugins.tsx	175	AgentPlugins=110; AgentPluginListPanel=65		3190	yes
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/plugins/hooks/plugins-dependencies.hooks.ts	92	createFakePluginsPort=92		1840	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/plugins/hooks/use-admin-surface-frame.hooks.ts	64	useAdminSurfaceFrame=64		384	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/plugins/hooks/use-agent-plugin-install.hooks.ts	87	useAgentPluginInstall=87		1044	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/plugins/hooks/use-agent-plugin-memory.hooks.ts	58	useAgentPluginMemory=58		638	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/plugins/hooks/use-agent-plugins.hooks.ts	55	useAgentPlugins=55		1045	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/plugins/hooks/use-plugin-install.hooks.ts	81	usePluginInstall=81		972	no
+size-tm-03	terra	after-move	tovu	apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts	87	usePlugins=87		1653	no
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/plugins/PackageFilesModal.tsx	126	PackageFilesModal=71; PackageFileTree=55		1420	no
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/plugins/PluginRemoveConfirmDialog.tsx	52	PluginRemoveConfirmDialog=52		416	no
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/plugins/Plugins.tsx	120	LoadedPlugins=61; DownloadedPluginRows=59		1586	no
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/posts/hooks/post-editor-dependencies.hooks.ts	100	createFakePostEditorPort=100		1500	no
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/posts/hooks/use-posts.hooks.ts	70	usePosts=70		1120	no
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/providers/AlwaysAllowPanel.tsx	60	AlwaysAllowPanel=60		180	no
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/publish-content/hooks/publish-content-dependencies.hooks.ts	77	createFakePublishContentPort=77		616	no
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	92	useRestoreFlow=92		368	no
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/recovery/Recovery.tsx	70	RestoreFlow=70		1330	no
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts	106	createFakeRolesPort=106		530	yes
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/roles/hooks/use-roles.hooks.ts	278	useRoles=278		3614	yes
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/roles/Roles.tsx	682	RolesSection=98; Roles=78; PoliciesSection=71	682	10230	yes
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/security/AccessTokensTab.tsx	847	AddCustomCredentialDialog=119; TokenInputFields=114; ExistingTokenFields=60; TokenRow=51	847	40656	yes
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/security/hooks/use-other-credentials.hooks.ts	74	useOtherCredentials=74		1480	no
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/security/hooks/use-site-key-recovery.hooks.ts	72	useSiteKeyRecovery=72		360	no
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/security/hooks/use-site-key.hooks.ts	55	useSiteKey=55		385	no
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/security/rules.ts	563		563	23646	yes
+size-tm-04	terra	after-move	tovu	apps/admin/src/features/settings/ExternalMcpRemoveConfirmDialog.tsx	55	ExternalMcpRemoveConfirmDialog=55		330	no
+size-tm-05	terra	after-move	tovu	apps/website/src/features/pages/tool-registrations.ts	154	buildPagesRegistrations=154		4312	yes
+size-tm-05	terra	after-move	tovu	apps/website/src/features/post/agent-tools.ts	704		704	24640	yes
+size-tm-05	terra	after-move	tovu	apps/website/src/features/post/publish-content.ts	161	postRetireMethods=90; contributePostKind=71; retire=69		3060	no
+size-tm-05	terra	after-move	tovu	apps/website/src/features/post/tool-registrations.ts	796	buildPostRegistrations=278; duplicatePostOrPage=83; content_post_create=62(hold); content_post_delete=59	796	40596	yes
+size-tm-05	terra	after-move	tovu	apps/website/src/features/project-keys/attached-vault.ts	54	attachedOnlyVault=54		324	no
+size-tm-05	terra	after-move	tovu	apps/website/src/features/project-keys/service.ts	85	createProjectKeys=85		1190	no
+size-tm-05	terra	after-move	tovu	apps/website/src/features/publish-content/publish-backstop-file.ts	102	createRawFileSitePort=102		204	yes
+size-tm-05	terra	after-move	tovu	apps/website/src/features/publish-content/push-plan.ts	63	planPublishToPeer=63		189	no
+size-tm-05	terra	after-move	tovu	apps/website/src/features/publish-content/repo-handler.ts	176	createRepoPublishHandler=176; build=142; apply=78		3696	yes
+size-tm-05	terra	after-move	tovu	apps/website/src/features/recovery/tool-registrations.ts	178	buildRecoveryRegistrations=178; run=51		1602	yes
+size-tm-05	terra	after-move	tovu	apps/website/src/features/seo/tool-registrations.ts	88	buildSeoRegistrations=88		1232	no
+size-tm-05	terra	after-move	tovu	apps/website/src/features/site-backup/backup-service.ts	535		535	4280	yes
+size-tm-05	terra	after-move	tovu	apps/website/src/features/site-search/index-state-store.ts	75	createIndexState=75		525	no
+size-tm-05	terra	after-move	tovu	apps/website/src/features/sites/site-preview/site-preview-service.ts	70	createSitePreviewService=70		140	no
+size-tm-05	terra	after-move	tovu	apps/website/src/features/source-control/credential-setup.ts	97	proposeSourceControlCredential=97		1746	no
+size-tm-05	terra	after-move	tovu	apps/website/src/features/source-control/tool-registrations.ts	97	buildSourceControlRegistrations=97; source_control_execute_commit=58		2813	no
+size-tm-06	terra	after-move	tovu	apps/website/src/features/taxonomy/tool-registrations.ts	223	buildTaxonomyRegistrations=223		3122	yes
+size-tm-06	terra	after-move	tovu	apps/website/src/features/theme/publish-content.ts	515	buildHandler=154; apply=98	515	8240	yes
+size-tm-06	terra	after-move	tovu	apps/website/src/features/theme/static-render.ts	514		514	22616	yes
+size-tm-06	terra	after-move	tovu	apps/website/src/features/theme/theme-files.ts	597		597	19104	yes
+size-tm-06	terra	after-move	tovu	apps/website/src/features/theme/tool-registrations.ts	627	buildThemesRegistrations=297	627	27588	yes
+size-tm-06	terra	after-move	tovu	apps/website/src/features/trash/adapters/directory.ts	68	createDirectoryTrashAdapter=68		408	no
+size-tm-06	terra	after-move	tovu	apps/website/src/features/trash/table-adapter.ts	191	createTableTrashAdapter=191		2865	yes
+size-tm-06	terra	after-move	tovu	apps/website/src/features/trash/tool-registrations.ts	53	buildTrashRegistrations=53		848	no
+size-tm-06	terra	after-move	tovu	apps/website/src/features/web-screenshot/playwright-page-capture.ts	81	createPlaywrightPageCapture=81		405	no
+size-tm-06	terra	after-move	tovu	apps/website/src/features/widgets/publish-content.ts	71	contributeWidgetPublish=71		923	no
+size-tm-06	terra	after-move	tovu	apps/website/src/features/widgets/tool-registrations.ts	213	buildWidgetsRegistrations=213		4473	yes
+size-tm-06	terra	after-move	tovu	apps/website/src/platform/db/repos/oauth-pending-store.ts	56	createSqlDeviceAuthorizationStore=56		448	no
+size-tm-06	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/dev-auth.ts	185	registerAuthRoutes=185		5550	yes
+size-tm-06	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/assistant/test-connection.ts	53	registerAdminAssistantTestConnectionRoute=53; <arg of app.post>=51		477	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx	211	ExternalMcpSettingsPanel=88; ExternalMcpSourceRow=72; ExternalMcpConnectionCard=51		2376	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/settings/ExternalMcpToolsModal.tsx	62	ExternalMcpToolsModal=62		434	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/settings/hooks/use-external-mcp.hooks.ts	94	useExternalMcp=94; <arg of useMemo>=80		1786	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/settings/rules.ts	116	buildExternalMcpFieldSpecs=61; buildOAuthFieldSpecs=55		1281	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/source-control/hooks/use-source-control-credentials.hooks.ts	77	useSourceControlCredentials=77		693	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/source-control/ProvidersTab.tsx	80	SourceControlCredentialFields=80		1680	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/taxonomy/hooks/use-merge-term-section.hooks.ts	92	useMergeTermSection=92		460	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/taxonomy/hooks/use-taxonomy.hooks.ts	102	useTaxonomy=102		714	yes
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/taxonomy/hooks/use-term-picker.hooks.ts	164	useTermPicker=164		984	yes
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/taxonomy/Taxonomy.tsx	690	namespaceList=146; <arg of taxonomies.map>=111; Taxonomy=83; NewTermForm=80; <arg of group.terms.map>=67	690	16560	yes
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/taxonomy/TaxonomyRowMenu.hooks.ts	102	useTaxonomyRowMenu=102		408	yes
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/taxonomy/TermPicker.tsx	199	TermPicker=136; <arg of taxonomies.map>=80; TermChecklist=63		1360	yes
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/trash/hooks/use-trash.hooks.ts	146	useTrash=146		1022	yes
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/trash/Trash.tsx	72	trashColumns=72		864	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/users/hooks/users-dependencies.hooks.ts	80	createFakeUsersPort=80		640	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/voice-input/hooks/use-push-to-talk.hooks.ts	83	usePushToTalk=83		747	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/voice-input/hooks/use-space-hold-to-talk.hooks.ts	61	useSpaceHoldToTalk=61; <arg of useEffect>=54		244	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/features/workspace/Workspace.tsx	95	Workspace=95		760	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/hooks/assistant-chats-dependencies.hooks.ts	67	createFakeAssistantChatsPort=67		536	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/hooks/use-external-entry-refresh.hooks.ts	85	useExternalEntryRefresh=85		595	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/lib/settings-events.ts	58	subscribeToSettingsChanges=58		290	no
+size-tm-07	terra	after-move	tovu	apps/admin/src/lib/tab-event-source.ts	51	openTabEventSource=51		255	no
+size-tm-07	terra	after-move	tovu	apps/desktop/src/main/updates/desktop-updater.ts	83	createDesktopUpdater=83		249	no
+size-tm-07	terra	after-move	tovu	apps/desktop/src/renderer/workspace-chat-transport.ts	101	createWorkspaceChatTransport=101		1313	yes
+size-tm-07	terra	after-move	tovu	apps/desktop/src/renderer/WorkspaceChatPane.tsx	94	WorkspaceChatPane=94		188	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/comments/moderate.ts	83	registerAdminCommentsModerateRoutes=83		581	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/forms/delete-submission.ts	61	registerAdminFormsDeleteSubmissionRoute=61; <arg of app.delete>=56		549	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/pages/create.ts	59	registerAdminPageCreateRoute=59; <arg of app.post>=53		708	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/pages/update.ts	94	registerAdminPageUpdateRoute=94; <arg of app.put>=88		1974	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/plugins/set-enabled.ts	70	registerPluginSetEnabledRoute=70; <arg of app.patch>=68		1260	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/publish-content/destination.ts	135	registerPublishContentDestinationRoutes=135; <arg of app.post>=53		810	yes
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/recovery/restore.ts	162	registerAdminRecoveryRestoreRoutes=162; <arg of app.post>=67		1296	yes
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/system/assistant-owner-grant.ts	56	registerAssistantOwnerGrantRoutes=56		392	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/system/assistant-subagents.ts	54	registerAdminAssistantSubagentsRoutes=54		486	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/system/site-key.ts	51	registerAdminSiteKeyRoutes=51		561	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts	103	registerAdminSourceControlCredentialsRoutes=103		1854	yes
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts	117	registerAdminTaxonomyMergeTermRoutes=117		468	yes
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/trash/restore.ts	57	registerAdminTrashRestoreRoute=57; <arg of app.post>=55		342	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/users/list.ts	61	registerAdminUserListRoute=61; <arg of app.get>=59		427	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts	111	createDaemonSiteTools=111		666	yes
+size-tm-08	terra	after-move	tovu	apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts	54	sendMediaRenditionResult=54		1728	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/runtime/boot/bootstrap.ts	105	buildBootModules=105		3045	yes
+size-tm-08	terra	after-move	tovu	apps/website/src/server/runtime/composition/import-database/repo.sqlite.ts	60	run=60		480	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/runtime/composition/modules/site-assistant.ts	185	createSiteAssistantModule=185; registerRoutes=147; handleChat=105		4995	yes
+size-tm-08	terra	after-move	tovu	apps/website/src/server/runtime/composition/modules/site-search.ts	61	createSearchContextResolver=61		244	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/runtime/composition/peer-site-reads.ts	131	createPeerSiteReads=131		3537	yes
+size-tm-08	terra	after-move	tovu	apps/website/src/server/runtime/composition/permanent-delete-deps.ts	68	buildPermanentDeleteDeps=68; <anonymous>=63		1088	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/runtime/lifecycle/close-store-on-shutdown.ts	54	closeStoreOnShutdown=54		486	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts	107	registerDelegatedDaemon=54; bindDaemonSupervisor=53		1998	no
+size-tm-08	terra	after-move	tovu	apps/website/src/server/runtime/lifecycle/local-site-process.ts	122	createLocalSiteProcessPort=122; launch=87		2318	yes
+size-j-01	terra	now	jini	packages/core/src/settings/write-service.ts	777	renameDefinition=86; set=76; clear=72; retypeDefinition=66; registerDefinitions=62; <arg of deps.repo.transaction>=55	777	3885	yes
+size-j-01	terra	now	jini	packages/daemon/src/agent-executor/live-session-state.ts	100	createLiveSessionState=100		200	no
+size-j-01	terra	now	jini	packages/daemon/src/agent-executor/mcp-bridge-probe.ts	51	probeMcpBridge=51		153	no
+size-j-01	terra	now	jini	packages/daemon/src/ai-trace-lifecycle.ts	67	withAiTracing=67		402	no
+size-j-01	terra	now	jini	packages/daemon/src/event-log.ts	104	createInMemoryEventLog=104		208	yes
+size-j-01	terra	now	jini	packages/daemon/src/frontend-session-registry.ts	131	createFrontendSessionRegistry=131		393	yes
+size-j-01	terra	now	jini	packages/daemon/src/http/attachments.ts	869	createDiskAttachmentStore=189; register=59	869	13035	yes
+size-j-01	terra	now	jini	packages/daemon/src/http/frontend-control.ts	55	createFrontendControl=55		275	no
+size-j-01	terra	now	jini	packages/daemon/src/http/model-proxy.ts	70	buildProxyProviderRegistry=70		420	no
+size-j-01	terra	now	jini	packages/daemon/src/http/xai.ts	511		511	3577	yes
+size-j-01	terra	now	jini	packages/daemon/src/idle-monitor.ts	51	createIdleMonitor=51		102	no
+size-j-01	terra	now	jini	packages/daemon/src/routines/routine-store.ts	80	createInMemoryRoutineStore=80		80	no
+size-j-01	terra	now	jini	packages/daemon/src/routines/scheduler.ts	58	start_=58		174	no
+size-j-01	terra	now	jini	packages/daemon/src/store/event-log/sqlite.ts	106	bindSqliteEventLog=106		424	yes
+size-j-01	terra	now	jini	packages/daemon/src/terminal-session.ts	101	createTerminalSessionManager=101		505	yes
+size-j-01	terra	now	jini	packages/db/src/data-modules/data-module.ts	63	declareDataModule=63		315	no
+size-j-01	terra	now	jini	packages/db/src/kernel/kernel-core.ts	80	buildKernel=80		560	no
+size-j-01	terra	now	jini	packages/db/src/kernel/store-copy.ts	53	copyPgStoreInternal=53		318	no
+size-j-01	terra	now	jini	packages/db/src/pglite/owner.ts	67	startPgliteOwner=67		402	no
+size-j-01	terra	now	jini	packages/db/src/tools/read-tools.ts	76	createDatabaseReadTools=76		532	no
+size-j-02	terra	now	jini	packages/chat/src/react/components/ConversationList.hooks.ts	111	useConversationListView=111		222	no
+size-j-02	terra	now	jini	packages/chat/src/react/components/ConversationList.tsx	109	ConversationList=109		1090	yes
+size-j-02	terra	now	jini	packages/chat/src/react/components/McpUiSurfaceCard.tsx	57	SurfaceCardContent=57		1254	no
+size-j-02	terra	now	jini	packages/chat/src/react/components/MessageList.hooks.ts	51	useMessageListAutoScroll=51		408	no
+size-j-02	terra	now	jini	packages/chat/src/react/components/MessageRow.hooks.tsx	123	useAssistantMessageRenderers=123		123	no
+size-j-02	terra	now	jini	packages/chat/src/react/components/MessageRow.tsx	55	AssistantMessageRow=55		1980	yes
+size-j-02	terra	now	jini	packages/chat/src/react/components/TodoCard.tsx	51	TodoCard=51		102	no
+size-j-02	terra	now	jini	packages/chat/src/react/components/ToolCard.tsx	516		516	12900	yes
+size-j-02	terra	now	jini	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	516	RuntimePopover=67	516	10320	yes
+size-j-02	terra	now	jini	packages/chat/src/react/features/chat-pane/components/RuntimeDropUp.tsx	52	RuntimeDropUp=52		312	no
+size-j-02	terra	now	jini	packages/chat/src/react/features/chat-pane/create-daemon-attachment-uploader.ts	96	createDaemonAttachmentUploader=96		480	no
+size-j-02	terra	now	jini	packages/chat/src/react/features/chat-pane/hooks/useAgentRuntimePicker.hooks.ts	103	useAgentRuntimePicker=103		515	yes
+size-j-02	terra	now	jini	packages/chat/src/react/features/chat-pane/hooks/useChatPaneRuntimeInventory.hooks.ts	197	useChatPaneRuntimeInventory=134; useInventoryRetry=63; <arg of useState>=52		938	yes
+size-j-02	terra	now	jini	packages/chat/src/react/features/chat-pane/hooks/useChatPaneWorkingDirectory.hooks.ts	160	useChatPaneWorkingDirectory=160		320	yes
+size-j-02	terra	now	jini	packages/chat/src/react/features/chat-pane/hooks/useRuntimeDropUp.hooks.ts	98	useRuntimeDropUp=98		490	no
+size-j-02	terra	now	jini	packages/chat/src/react/hooks/fab-position.ts	118	useFabPosition=118		472	yes
+size-j-02	terra	now	jini	packages/chat/src/react/hooks/useChatFabDrag.ts	56	useChatFabDrag=56		56	no
+size-j-02	terra	now	jini	packages/chat/src/react/hooks/useComposer.ts	260	useComposer=208; useDeferredDraftWrite=52		2912	yes
+size-j-02	terra	now	jini	packages/chat/src/react/hooks/useComposerHistory.hooks.ts	90	useComposerHistory=90		180	no
+size-j-02	terra	now	jini	packages/chat/src/react/hooks/useConversation.ts	145	useConversation=145		2610	yes
+size-j-02	terra	now	jini	packages/chat/src/react/hooks/useRunStream.ts	117	useRunStream=117		702	yes
+size-j-02	terra	now	jini	packages/chat/src/server/durable-runs/recover.ts	122	createDurableRecovery=122		1708	yes
+size-j-02	terra	now	jini	packages/chat/src/server/run-finalizer/entry.ts	132	createAssistantRunFinalizer=132		528	yes
+size-j-03	terra	now	jini	packages/cms/src/widgets/resolver-service.ts	701		701	7711	yes
+size-j-03	terra	now	jini	packages/commerce/src/catalog/plugin-server.ts	62	createCommerceServer=62		248	no
+size-j-03	terra	now	jini	packages/commerce/src/payments/ledger/rows.ts	726		726	7260	yes
+size-j-03	terra	now	jini	packages/commerce/src/payments/testkit/lipay-fake.ts	72	createLipayFake=72		144	no
+size-j-03	terra	now	jini	packages/commerce/src/react/Payments.tsx	103	Payments=103		309	yes
+size-j-03	terra	now	jini	packages/cookie-consent/src/node/index.ts	87	createNodeConsentFiles=87		348	no
+size-j-03	terra	now	jini	packages/core/src/approval.ts	171	createApprovalProposalStore=68; createApprovalHandler=52; createBatchApprovalHandler=51		680	no
+size-j-03	terra	now	jini	packages/core/src/batch-tool-inputs.ts	57	withBatchInput=57		798	no
+size-j-03	terra	now	jini	packages/core/src/fetch/cache.ts	56	load=56		280	no
+size-j-03	terra	now	jini	packages/core/src/provider-registry.ts	62	createProviderRegistry=62		310	no
+size-j-03	terra	now	jini	packages/core/src/redact.ts	601		601	12621	yes
+size-j-03	terra	now	jini	packages/core/src/settings/express/cms-adapter.ts	61	createCmsSettingsService=61		122	no
+size-j-03	terra	now	jini	packages/core/src/settings/express/http.ts	112	registerSettingsRoutes=112		336	yes
+size-j-03	terra	now	jini	packages/core/src/settings/purge-service.ts	100	purgeTenantSettings=100; <arg of deps.repo.transaction>=81		100	no
+size-j-03	terra	now	jini	packages/core/src/settings/tool-registrations.ts	116	buildSettingsRegistrations=116		928	yes
+size-j-04	terra	now	jini	packages/ui/src/react/hooks/useEdgeAutoScroll.ts	63	useEdgeAutoScroll=63		63	no
+size-j-04	terra	now	jini	packages/ui/src/react/hooks/useResizableSplitPane.ts	209	useResizableSplitPane=209; <arg of useCallback>=63		418	yes
+size-j-04	terra	now	jini	packages/ui/src/react/mcp-ui/useMcpUiHost.ts	116	useMcpUiHost=116		232	yes
+size-j-04	terra	now	jini	packages/ui/src/renderers/annotation-canvas/react/components/AnnotationCanvas.tsx	211	AnnotationDock=83; TextMarkItem=77; SubmitPicker=51		249	no
+size-j-04	terra	now	jini	packages/ui/src/renderers/annotation-canvas/rules.ts	68	computeDockPlacement=68		136	no
+size-j-04	terra	now	jini	packages/ui/src/renderers/preview-modal-shell/react/components/PreviewModalShell.tsx	126	PreviewModalShell=73; ShellStage=53		73	no
+size-j-04	terra	now	jini	packages/ui/src/utils/zip.ts	79	buildZip=79		79	no
+size-j-04	terra	now	jini	packages/user-management/src/admin/adapters/memory.ts	186	createMemoryRolesApi=99; createMemoryUsersApi=87		495	no
+size-j-04	terra	now	jini	packages/user-management/src/admin/conformance/index.ts	62	runRolesApiConformance=62		248	no
+size-j-04	terra	now	jini	packages/user-management/src/react/members/hooks/use-members.hooks.ts	109	useMembers=109		654	yes
+size-j-04	terra	now	jini	packages/user-management/src/react/members/Members.tsx	163	Members=96; MemberRow=67		384	no
+size-j-04	terra	now	jini	packages/user-management/src/react/testing.ts	187	createFakeRolesPort=107; createFakeUsersPort=80		428	yes
+size-j-04	terra	now	jini	packages/user-management/src/react/users/Users.tsx	745	Users=127; UserResetPasswordDialog=73; UsersTable=65; NewUserForm=62; UserManagePanel=55	745	8940	yes
+size-j-04	terra	now	jini	packages/user-management/src/server/admin-crud-service.ts	54	resetUserPassword=54		432	no
+size-j-04	terra	now	jini	packages/user-management/src/server/agent-tool-registrations.ts	186	buildIdentityRegistrations=186		1302	yes
+size-j-04	terra	now	jini	packages/user-management/src/server/grant-service.ts	111	assignRole=58; attachPolicy=53		116	no
+size-j-04	terra	now	jini	packages/user-management/src/server/repo.memory-transactions.ts	65	createTransactionalInMemoryIdentityRepos=65		195	no
+size-j-04	terra	now	jini	packages/vibecoding/src/core/history.ts	94	createEditHistory=94		188	no
+size-j-04	terra	now	jini	packages/vibecoding/src/core/session.ts	126	createVibecodingSession=126		126	yes
+size-j-04	terra	now	jini	packages/vibecoding/src/html/regions.ts	86	createHtmlRegionTarget=86		258	no
+size-j-04	terra	now	jini	packages/vibecoding/src/react/components/VibecodingWorkbench.tsx	55	VibecodingWorkbench=55		110	no
+size-j-04	terra	now	jini	packages/vibecoding/src/tools.ts	69	buildVibecodingToolDefinitions=69		69	no
+size-j-05	terra	now	jini	packages/chat/src/store/runtime/durable-run-store.ts	280	createDurableRunStore=280		2240	yes
+size-j-05	terra	now	jini	packages/chat/src/store/runtime/run-ledger.ts	186	createChatRunLedger=186		1488	yes
+size-j-05	terra	now	jini	packages/cms/src/comments/write-service.ts	53	createCommentWriteService=53		106	no
+size-j-05	terra	now	jini	packages/cms/src/content-types/tool-registrations.ts	94	buildContentTypesRegistrations=94		470	no
+size-j-05	terra	now	jini	packages/cms/src/content-types/write-service.ts	52	registerContentType=52		572	no
+size-j-05	terra	now	jini	packages/cms/src/core/commands/command.ts	56	buildAppliedChangeSet=56		280	no
+size-j-05	terra	now	jini	packages/cms/src/core/commands/revert.ts	59	revertChangeSet=59		177	no
+size-j-05	terra	now	jini	packages/cms/src/entries/tool-registrations.ts	84	buildEntriesRegistrations=84		84	no
+size-j-05	terra	now	jini	packages/cms/src/forms/email-sender.ts	68	createFormsEmailSender=68		68	no
+size-j-05	terra	now	jini	packages/cms/src/forms/submission-attempts.ts	70	createSubmissionAttempts=70		490	no
+size-j-05	terra	now	jini	packages/cms/src/forms/write-service.ts	124	updateFormDefinition=65; createFormDefinition=59		520	no
+size-j-05	terra	now	jini	packages/cms/src/media/media-service.ts	51	uploadMedia=51		1275	no
+size-j-05	terra	now	jini	packages/cms/src/media/rendition-service.ts	64	resolveMediaRendition=64		576	no
+size-j-05	terra	now	jini	packages/cms/src/media/tool-registrations.ts	143	buildMediaRegistrations=143		1859	yes
+size-j-05	terra	now	jini	packages/cms/src/navigation/menu-service.ts	64	assignLocation=64		1024	no
+size-j-05	terra	now	jini	packages/cms/src/navigation/tool-registrations.ts	88	buildMenusRegistrations=88		616	no
+size-j-05	terra	now	jini	packages/cms/src/redirects/redirects.ts	518		518	2072	yes
+size-j-05	terra	now	jini	packages/cms/src/routing/routing.ts	188	createRouting=188		564	yes
+size-j-05	terra	now	jini	packages/cms/src/seo/sitemap.ts	81	createSitemapService=81		405	no
+size-j-05	terra	now	jini	packages/cms/src/taxonomy/write-service.ts	712		712	7832	yes
+size-j-05	terra	now	jini	packages/cms/src/trash/write-service.ts	132	createTrashService=132		660	yes
+size-j-05	terra	now	jini	packages/cms/src/widgets/embed-service.ts	98	writePostHostBody=98		588	no
+size-j-06	terra	now	jini	packages/admin/src/redirects/react/components/ImportRedirectsForm.tsx	60	ImportRedirectsForm=60		60	no
+size-j-06	terra	now	jini	packages/admin/src/redirects/react/pages/RedirectsPage.tsx	111	RedirectsPage=111		333	yes
+size-j-06	terra	now	jini	packages/admin/src/security/controllers/access-tokens.controller.ts	58	createAccessTokensController=58		174	no
+size-j-06	terra	now	jini	packages/admin/src/seo/react/components/SitemapModal.tsx	53	SitemapModalTable=53		212	no
+size-j-06	terra	now	jini	packages/admin/src/seo/react/pages/SeoPage.tsx	608	SeoDefaultsTab=136; Seo=75; SeoEntrySearchFields=60	608	7296	yes
+size-j-06	terra	now	jini	packages/admin/src/widgets/adapters/memory.ts	77	createMemoryWidgetsApi=77		154	no
+size-j-06	terra	now	jini	packages/admin/src/widgets/react/pages/WidgetInstanceEditor.tsx	108	WidgetInstanceEditor=108		324	yes
+size-j-06	terra	now	jini	packages/admin/src/widgets/react/pages/WidgetRegionEditor.tsx	117	WidgetRegionEditor=117; <arg of placements.map>=55		351	yes
+size-j-06	terra	now	jini	packages/admin/src/widgets/react/pages/WidgetRegions.tsx	107	WidgetRegions=107		107	yes
+size-j-06	terra	now	jini	packages/admin/src/widgets/react/pages/WidgetsLibrary.tsx	130	WidgetsLibrary=130		390	yes
+size-j-06	terra	now	jini	packages/agent-plugins/src/admin-surfaces/connections/connections.ts	87	createAdminSurfaceConnections=87		87	no
+size-j-06	terra	now	jini	packages/agent-plugins/src/admin-surfaces/plugin-state.ts	57	createAgentPluginStateStore=57		57	no
+size-j-06	terra	now	jini	packages/agent-plugins/src/admin-surfaces/surface-handlers.ts	64	createAdminSurfaceHandlerHost=64		640	no
+size-j-06	terra	now	jini	packages/agent-plugins/src/connect/credential-save-tool.ts	119	createCredentialSaveTools=119		476	yes
+size-j-06	terra	now	jini	packages/agent-plugins/src/connect/plugin-host/index.ts	107	createPluginHost=107		428	yes
+size-j-06	terra	now	jini	packages/agent-plugins/src/lifecycle/activation.ts	314	buildModule=314		2512	yes
+size-j-06	terra	now	jini	packages/agent-plugins/src/lifecycle/bundled-digests.ts	126	buildModule=126		630	yes
+size-j-06	terra	now	jini	packages/agent-plugins/src/lifecycle/bundled-source-archive.ts	224	buildModule=224		1344	yes
+size-j-06	terra	now	jini	packages/agent-plugins/src/lifecycle/capability-projection.ts	56	buildModule=56		168	no
+size-j-06	terra	now	jini	packages/agent-plugins/src/lifecycle/index.ts	81	createAgentPluginLifecycle=81		1134	no
+size-j-06	terra	now	jini	packages/agent-plugins/src/lifecycle/install.ts	303	buildModule=303; installAgentPlugin=61		3636	yes
+size-j-06	terra	now	jini	packages/agent-plugins/src/lifecycle/installed-package-index.ts	89	createInstalledPackageIndex=89		623	no
+size-j-06	terra	now	jini	packages/agent-plugins/src/lifecycle/mail/catalog.ts	62	createMailCatalog=62		62	no
+size-j-06	terra	now	jini	packages/agent-plugins/src/lifecycle/mail/contribution.ts	60	createMailContributions=60		180	no
+size-j-06	terra	now	jini	packages/agent-plugins/src/lifecycle/mail/selection.ts	57	createMailSelection=57		57	no
+size-j-06	terra	now	jini	packages/agent-plugins/src/lifecycle/package-paths.ts	52	buildModule=52		208	no
+size-j-06	terra	now	jini	packages/agent-plugins/src/lifecycle/resolve-agent-plugin-refs.ts	154	buildModule=154		2156	yes
+size-j-07	terra	now	jini	packages/platform/src/fs/directory-user-config.ts	146	createDirectoryUserConfig=146		876	yes
+size-j-07	terra	now	jini	packages/platform/src/fs/directory-workspace.ts	172	createNodeDirectoryWorkspace=172		860	yes
+size-j-07	terra	now	jini	packages/platform/src/fs/durable-json.ts	59	createDurableJsonFile=59		354	no
+size-j-07	terra	now	jini	packages/platform/src/fs/guarded-reader.ts	329	createGuardedFileReader=329		2303	yes
+size-j-07	terra	now	jini	packages/platform/src/http/guarded/transport.fetch.ts	67	requestPinned=67; <anonymous>=51		268	no
+size-j-07	terra	now	jini	packages/platform/src/terminal.ts	239	createTerminalService=239; create=52		478	yes
+size-j-07	terra	now	jini	packages/plugins/src/host/capability-sdk.ts	56	buildCapabilityScopedSdk=56		224	no
+size-j-07	terra	now	jini	packages/plugins/src/host/capability-tools.ts	186	createPluginCapabilityTools=186		1116	yes
+size-j-07	terra	now	jini	packages/plugins/src/host/contributions.ts	52	createPluginContributionCapture=52		416	no
+size-j-07	terra	now	jini	packages/plugins/src/host/declarative-content-types.ts	131	createDeclarativeContentTypes=131		262	yes
+size-j-07	terra	now	jini	packages/plugins/src/host/hook-registry.ts	99	createHookRegistry=99		396	no
+size-j-07	terra	now	jini	packages/plugins/src/host/node/source-drafts.ts	180	createPluginSourceService=180		1440	yes
+size-j-07	terra	now	jini	packages/plugins/src/host/provider-host.ts	134	createPluginProviderHost=134		804	yes
+size-j-07	terra	now	jini	packages/plugins/src/host/tools/management.ts	120	buildPluginManagementRegistrations=62; applySiteRuntimeDecision=58		682	no
+size-j-07	terra	now	jini	packages/provider-plugins/src/analytics-posthog/posthog.ts	56	createPostHogProductAnalyticsAdapter=56		952	no
+size-j-07	terra	now	jini	packages/provider-plugins/src/observability-sentry/sentry.ts	72	createSentryObservabilityAdapter=72		936	no
+size-j-07	terra	now	jini	packages/sandbox/src/e2b/wrap-e2b-sandbox.ts	197	wrapE2bSandbox=197		1379	yes
+size-j-07	terra	now	jini	packages/search/src/indexer.ts	239	createSearchIndexer=239		1434	yes
+size-j-07	terra	now	jini	packages/search/src/service.ts	62	createSearchService=62		124	no
+size-j-07	terra	now	jini	packages/search/src/testkit/conformance.ts	63	createSession=63		252	no
+size-j-07	terra	now	jini	packages/search/src/testkit/memory-provider.ts	100	createInMemorySearchProvider=100		400	no
+size-j-07	terra	now	jini	packages/search/src/tools.ts	75	buildSearchToolRegistrations=75		225	no
+size-j-07	terra	now	jini	packages/server/src/builtin-features.ts	566	createBuiltInFeatures=426	566	6226	yes
+size-j-07	terra	now	jini	packages/server/src/compose-jini-kernel.ts	64	composeJiniKernel=64		256	no
+size-j-08	terra	now	jini	packages/mcp/src/federation/hosted/store.ts	988	saveExternalMcpServer=66	988	4940	yes
+size-j-08	terra	now	jini	packages/mcp/src/federation/registrations.ts	58	buildFederatedMcpRegistrations=58		464	no
+size-j-08	terra	now	jini	packages/mcp/src/federation/reload.ts	57	createFederationReloadCoordinator=57		228	no
+size-j-08	terra	now	jini	packages/mcp/src/server/tool-result-pages.ts	54	createToolResultPages=54		108	no
+size-j-08	terra	now	jini	packages/mcp/src/server/tool-server.ts	103	createMcpToolServer=103; connectHost=61		1339	yes
+size-j-08	terra	now	jini	packages/mcp/src/server/tools/delegated-tool.ts	61	createDelegatedGateway=61		976	no
+size-j-08	terra	now	jini	packages/memory/src/extraction-log.ts	118	createExtractionLog=118		236	yes
+size-j-08	terra	now	jini	packages/memory/src/note-store.ts	522	createNoteStore=367	522	1566	yes
+size-j-08	terra	now	jini	packages/oauth/src/pending-authorizations.ts	65	createPendingAuthorizationStore=65		390	no
+size-j-08	terra	now	jini	packages/oauth/src/refresh.ts	130	createTokenRefresher=130		910	yes
+size-j-08	terra	now	jini	packages/oauth/src/registration-cache.ts	57	createOAuthClientRegistrar=57		57	no
+size-j-08	terra	now	jini	packages/platform/src/asset-cache.ts	123	createAssetCache=123		1107	yes
+size-j-08	terra	now	jini	packages/platform/src/download.ts	981		981	3924	yes
+size-j-08	terra	now	jini	packages/platform/src/fs/directory-registry.ts	67	createDirectoryRegistry=67		335	no
+size-j-08	terra	now	jini	packages/platform/src/fs/directory-running-lock.ts	56	createDirectoryRunningLock=56		336	no
+size-j-09	terra	now	jini	packages/agent-plugins/src/lifecycle/retire-bundled.ts	89	buildModule=89		445	no
+size-j-09	terra	now	jini	packages/agent-plugins/src/lifecycle/seed-bundled.ts	118	buildModule=118		826	yes
+size-j-09	terra	now	jini	packages/agent-plugins/src/lifecycle/set-enabled.ts	53	buildModule=53		636	no
+size-j-09	terra	now	jini	packages/agent-plugins/src/lifecycle/skill-file-reader.ts	78	createSkillFileReader=78		312	no
+size-j-09	terra	now	jini	packages/agent-plugins/src/lifecycle/trusted-plugin-files.ts	59	buildModule=59		236	no
+size-j-09	terra	now	jini	packages/agent-plugins/src/lifecycle/uninstall.ts	180	buildModule=180		1620	yes
+size-j-09	terra	now	jini	packages/agent-plugins/src/lifecycle/update-store.ts	67	createAgentPluginUpdateStore=67		268	no
+size-j-09	terra	now	jini	packages/agent-plugins/src/lifecycle/update.ts	204	createUpdateModule=204		816	yes
+size-j-09	terra	now	jini	packages/agent-runtime/src/model-discovery.ts	87	createAgentModelDiscovery=87		870	no
+size-j-09	terra	now	jini	packages/agent-runtime/src/providers/connection-guard.ts	79	pinnedFetch=79; <anonymous>=69		474	no
+size-j-09	terra	now	jini	packages/agent-runtime/src/providers/connection-test.ts	76	buildProviderCall=76		380	no
+size-j-09	terra	now	jini	packages/agent-runtime/src/providers/openai-chat.ts	528		528	2640	yes
+size-j-09	terra	now	jini	packages/agent-runtime/src/qoder-stream.ts	78	createQoderStreamHandler=78		390	no
+size-j-09	terra	now	jini	packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/components/BubbleScene.tsx	141	BubbleScene=76; Bubble=65		76	no
+size-j-09	terra	now	jini	packages/agent-runtime/src/skills/web-clone/scripts/interaction-probe.mjs	67	candidates=67; <arg of page.evaluate>=65		201	no
+size-j-09	terra	now	jini	packages/agent-runtime/src/skills/web-clone/scripts/visual-diff.mjs	79	compareInBrowser=79; <arg of page.evaluate>=77		237	no
+size-j-09	terra	now	jini	packages/agentic/src/core/a2ui/interpreter.ts	192	createA2uiInterpreter=192		960	yes
+size-j-09	terra	now	jini	packages/agentic/src/core/dom/dom-page-driver.ts	171	createDomPageDriver=171		2052	yes
+size-j-09	terra	now	jini	packages/agentic/src/core/gen-ui/encoder.ts	59	createGenUiEncoder=59		236	no
+size-j-09	terra	now	jini	packages/agentic/src/skills/install/install-service.ts	86	createSkillInstaller=86		344	no
+size-j-09	terra	now	jini	packages/analytics/src/product/index.ts	64	withProductAnalyticsGuards=64		768	no
+size-j-09	terra	now	jini	packages/capability-providers/src/unsafe-reference/auth.ts	53	createInMemoryAuthProvider=53		106	no
+size-j-09	terra	now	jini	packages/capability-providers/src/visitor-auth/lifecycle.ts	55	planVisitorAuthAuthorization=55		110	no
+size-j-09	terra	now	jini	packages/chat/src/core/assistant-client/ag-ui-transport.ts	113	createAgUiRunClient=113; startAgUiRun=68		565	yes
+size-j-09	terra	now	jini	packages/chat/src/core/util/parser.ts	83	createArtifactParser=83		249	no
+size-j-09	terra	now	jini	packages/chat/src/react/components/A2uiSurfaceCard.hooks.ts	98	useA2uiSurfaceCard=98		98	no
+size-j-09	terra	now	jini	packages/chat/src/react/components/A2uiSurfaceCard.tsx	78	RenderComponent=78		312	yes
+size-j-09	terra	now	jini	packages/chat/src/react/components/AttachmentPreviewModal.hooks.ts	75	useAttachmentPreviewModal=75		675	no
+size-j-09	terra	now	jini	packages/chat/src/react/components/Composer.hooks.ts	171	useComposerView=171		171	no
+size-j-09	terra	now	jini	packages/chat/src/react/components/ComposerDiscovery.tsx	148	ComposerDiscoveryMenu=97; ComposerSlashMenu=51		388	no
+size-j-10	terra	now	jini	packages/desktop-host/src/electron/electron-url-capture.ts	67	captureElectronUrl=67		469	no
+size-j-10	terra	now	jini	packages/desktop-host/src/sidecar.ts	51	waitUntilReady=51		153	no
+size-j-10	terra	now	jini	packages/devops/src/dns/node/resolver.ts	64	createNodeAuthoritativeDnsResolver=64		64	no
+size-j-10	terra	now	jini	packages/devops/src/packaging/electron/typescript.ts	89	runtimeImportReferences=89		356	no
+size-j-10	terra	now	jini	packages/diagnostics/src/observability/otel.ts	96	createOtelObservabilityPort=96		1152	no
+size-j-10	terra	now	jini	packages/diagnostics/src/web-evidence/page-performance-script.ts	56	collectPagePerformance=56		168	no
+size-j-10	terra	now	jini	packages/diagnostics/src/web-evidence/playwright-browser.ts	60	observe=60		240	no
+size-j-10	terra	now	jini	packages/diagnostics/src/web-evidence/request-guard.ts	56	createRequestRouter=56		224	no
+size-j-10	terra	now	jini	packages/http-kit/src/rate-limit.ts	51	createRateLimiter=51		204	no
+size-j-10	terra	now	jini	packages/http-kit/src/raw-sse.ts	54	createSseResponse=54		162	no
+size-j-10	terra	now	jini	packages/integrations/src/api-connections/host.ts	163	createApiConnectionHost=163		652	yes
+size-j-10	terra	now	jini	packages/integrations/src/api-connections/hosted-mcp/shared-sign-in.ts	257	createSharedExternalMcpOAuth=257		514	yes
+size-j-10	terra	now	jini	packages/integrations/src/api-connections/hosted-mcp/sign-in.ts	602	createHostedMcpSignInService=216; beginConnect=52	602	2408	yes
+size-j-10	terra	now	jini	packages/integrations/src/api-connections/token-store/vault-token-store.ts	147	createVaultOAuthTokenStore=147		882	yes
+size-j-10	terra	now	jini	packages/integrations/src/credentialed-http/tools/tool-registrations.ts	181	createCredentialToolRegistrations=107; createCredentialSaveHandlers=74		1070	yes
+size-j-10	terra	now	jini	packages/integrations/src/media-providers/dispatch/async-operation-store.ts	106	createInMemoryAsyncOperationStore=106		1166	yes
+size-j-10	terra	now	jini	packages/integrations/src/media-providers/dispatch/providers/imagerouter-video-async.ts	53	createImageRouterVideoPollingAdapter=53		212	no
+size-j-10	terra	now	jini	packages/integrations/src/media-providers/dispatch/sqlite-async-operation-store.ts	145	createSqliteAsyncOperationStore=145		725	yes
+size-j-10	terra	now	jini	packages/integrations/src/media-providers/sqlite-task-store.ts	140	createSqliteMediaTaskStore=140		700	yes
+size-j-10	terra	now	jini	packages/integrations/src/media-providers/task-store.ts	58	createInMemoryMediaTaskStore=58		174	no
+size-j-10	terra	now	jini	packages/integrations/src/webhooks/delivery.ts	65	attemptOneDelivery=65		260	no
+size-j-10	terra	now	jini	packages/mcp/src/client/client.ts	52	createMcpIdleExitController=52		156	no
+size-j-11	terra	now	jini	packages/ui/src/features/connectors/hooks/useConnectorDetail.ts	75	useConnectorDetail=75		75	no
+size-j-11	terra	now	jini	packages/ui/src/features/execution/http-adapter.ts	59	createExecutionHttpAdapter=59		177	no
+size-j-11	terra	now	jini	packages/ui/src/features/execution/react/components/ByokProviderForm.tsx	227	ByokApiKeyField=61; ByokProviderForm=59; ByokConnectionFields=54; ByokModelRow=53		854	no
+size-j-11	terra	now	jini	packages/ui/src/features/execution/react/components/ExecutionTab.tsx	122	ByokPane=62; ExecutionTab=60		620	no
+size-j-11	terra	now	jini	packages/ui/src/features/execution/react/components/LocalCliAgentCard.tsx	117	LocalCliAgentCard=64; LocalCliAgentSummary=53		576	no
+size-j-11	terra	now	jini	packages/ui/src/features/execution/react/components/LocalCliAgentList.tsx	56	LocalCliAgentList=56		336	no
+size-j-11	terra	now	jini	packages/ui/src/features/execution/react/components/LocalCliAgentSettings.tsx	136	LocalCliAgentModelControls=82; LocalCliAgentFeedback=54		410	no
+size-j-11	terra	now	jini	packages/ui/src/features/execution/react/components/SearchableModelSelect.tsx	54	SearchableModelSelect=54		270	no
+size-j-11	terra	now	jini	packages/ui/src/features/execution/react/hooks/use-execution-credential.hooks.ts	130	useExecutionCredential=130		390	yes
+size-j-11	terra	now	jini	packages/ui/src/features/execution/react/hooks/useExecutionTab.ts	155	useExecutionTab=155		465	yes
+size-j-11	terra	now	jini	packages/ui/src/features/execution/react/hooks/useLocalCliAgentCard.ts	64	useLocalCliAgentCard=64		192	no
+size-j-11	terra	now	jini	packages/ui/src/features/execution/react/hooks/useReasoningControl.ts	74	useReasoningControl=74		370	no
+size-j-11	terra	now	jini	packages/ui/src/features/external-mcp/react/components/ExternalMcpTab.tsx	72	ExternalMcpTab=72		288	no
+size-j-11	terra	now	jini	packages/ui/src/features/file-dropzone/react/components/FileDropzone.tsx	64	FileDropzone=64		192	no
+size-j-11	terra	now	jini	packages/ui/src/features/file-dropzone/react/hooks/useFileDialogTracking.ts	66	useFileDialogTracking=66		66	no
+size-j-11	terra	now	jini	packages/ui/src/features/file-dropzone/react/hooks/useFileDropzone.ts	95	useFileDropzone=95		285	no
+size-j-11	terra	now	jini	packages/ui/src/features/file-dropzone/react/hooks/useFileDropzonePreviews.ts	80	useFileDropzonePreviews=80		0	no
+size-j-11	terra	now	jini	packages/ui/src/features/html-editor/protected-elements.ts	65	registerProtectedElementType=65		260	no
+size-j-11	terra	now	jini	packages/ui/src/features/iframe-pool/react/components/IframeKeepAliveProvider.hooks.ts	64	useIframeKeepAliveProvider=64		64	no
+size-j-11	terra	now	jini	packages/ui/src/features/integrations/react/components/ClientPicker.tsx	56	ClientPicker=56		112	no
+size-j-11	terra	now	jini	packages/ui/src/features/integrations/rules.ts	69	snippetForClient=69		69	no
+size-j-11	terra	now	jini	packages/ui/src/features/interactive-ui/providers/shadcn/data-table.tsx	67	DataTable=67		201	no
+size-j-11	terra	now	jini	packages/ui/src/features/lexical-rich-text-editor/react/components/RichTextInput.tsx	136	EditorSurface=136; <arg of useImperativeHandle>=76		272	yes
+size-j-11	terra	now	jini	packages/ui/src/features/lexical-rich-text-editor/react/hooks/useMentionAtomicNavigation.ts	59	useMentionAtomicNavigation=59; <arg of useEffect>=56		0	no
+size-j-11	terra	now	jini	packages/ui/src/features/list-detail-panel/react/components/ListDetailPanel.tsx	85	ListDetailPanel=85		85	no
+size-j-11	terra	now	jini	packages/ui/src/features/media-providers/react/components/MediaProvidersTab.tsx	60	MediaProvidersTab=60		480	no
+size-j-11	terra	now	jini	packages/ui/src/features/media-providers/react/hooks/useMediaProvidersTab.ts	168	useMediaProvidersTab=168		672	yes
+size-j-11	terra	now	jini	packages/ui/src/features/memory/dependencies.ts	105	createMemoryHttpPorts=105		420	yes
+size-j-11	terra	now	jini	packages/ui/src/features/memory/react/components/MemoryAdvancedModal.tsx	172	MemoryAdvancedModal=172; <arg of treeFolders.map>=51		172	yes
+size-j-11	terra	now	jini	packages/ui/src/features/memory/react/components/MemoryConnectedPanel.tsx	520	MemoryConnectedPanel=153; MemorySuggestionPanel=58	520	1560	yes
+size-j-12	terra	now	jini	packages/admin/src/agent-plugins/controllers/agent-plugins.controller.ts	62	createAgentPluginsController=62		186	no
+size-j-12	terra	now	jini	packages/admin/src/comments/react/components/SettingsSection.tsx	114	SettingsSection=114		114	yes
+size-j-12	terra	now	jini	packages/admin/src/core/module/create-admin.ts	52	createAdmin=52		156	no
+size-j-12	terra	now	jini	packages/admin/src/forms/adapters/memory.ts	66	createMemoryFormsApi=66		462	no
+size-j-12	terra	now	jini	packages/admin/src/forms/react/components/FieldAttributesDialog.tsx	149	FieldAttributesDialog=149		447	yes
+size-j-12	terra	now	jini	packages/admin/src/forms/react/components/FormFieldsEditor.tsx	204	FormFieldsEditor=204; <arg of rows.map>=110		612	yes
+size-j-12	terra	now	jini	packages/admin/src/forms/react/components/FormSubmissionDetail.tsx	78	FormSubmissionDetail=78		468	no
+size-j-12	terra	now	jini	packages/admin/src/forms/react/hooks/use-form-editor.hooks.ts	151	useFormEditor=151		1208	yes
+size-j-12	terra	now	jini	packages/admin/src/forms/react/hooks/use-form-submission-detail.hooks.ts	62	useFormSubmissionDetail=62		248	no
+size-j-12	terra	now	jini	packages/admin/src/forms/react/hooks/use-form-submissions.hooks.ts	66	useFormSubmissions=66		198	no
+size-j-12	terra	now	jini	packages/admin/src/forms/react/hooks/use-forms-list.hooks.ts	66	useFormsList=66		198	no
+size-j-12	terra	now	jini	packages/admin/src/forms/react/pages/FormEditor.tsx	101	FormEditor=101		404	yes
+size-j-12	terra	now	jini	packages/admin/src/forms/react/pages/FormsList.tsx	107	FormsList=107		214	yes
+size-j-12	terra	now	jini	packages/admin/src/media/adapters/http.ts	59	createHttpMediaApi=59		59	no
+size-j-12	terra	now	jini	packages/admin/src/media/adapters/memory.ts	98	createMemoryMediaApi=98		294	no
+size-j-12	terra	now	jini	packages/admin/src/media/conformance/media-api.conformance.ts	84	runMediaApiConformance=84		84	no
+size-j-12	terra	now	jini	packages/admin/src/media/controllers/edit-media.controller.ts	56	createEditMediaController=56		112	no
+size-j-12	terra	now	jini	packages/admin/src/media/controllers/providers.controller.ts	74	createProvidersController=74		222	no
+size-j-12	terra	now	jini	packages/admin/src/media/react/hooks/EditMediaPanel.hooks.ts	84	useEditMediaPanel=84		336	no
+size-j-12	terra	now	jini	packages/admin/src/media/react/hooks/LibraryTab.hooks.ts	88	useLibraryTab=88		528	no
+size-j-12	terra	now	jini	packages/admin/src/media/react/hooks/ProvidersTab.hooks.ts	56	useProvidersTab=56		336	no
+size-j-12	terra	now	jini	packages/admin/src/media/react/hooks/UploadButton.hooks.ts	66	useUploadButton=66		198	no
+size-j-12	terra	now	jini	packages/admin/src/media/react/index.ts	78	media=78		390	no
+size-j-12	terra	now	jini	packages/admin/src/react/components/ConfirmDialog/ConfirmDialog.tsx	57	ConfirmDialog=57		456	no
+size-j-12	terra	now	jini	packages/admin/src/react/components/DataTable.tsx	71	DataTable=71		213	no
+size-j-12	terra	now	jini	packages/admin/src/react/components/RowMenu/RowMenu.hooks.tsx	138	useRowMenu=87; trackOpenMenu=51		522	no
+size-j-12	terra	now	jini	packages/admin/src/react/components/RowMenu/RowMenu.tsx	81	RowMenu=81		243	no
+size-j-12	terra	now	jini	packages/admin/src/react/components/Sidebar.tsx	51	SidebarRoot=51		204	no
+size-j-12	terra	now	jini	packages/admin/src/react/entities/use-entity-edit.ts	59	useEntityEdit=59		118	no
+size-j-12	terra	now	jini	packages/admin/src/redirects/adapters/memory.ts	78	createMemoryRedirectsApi=78		234	no
+size-j-13	terra	now	jini	packages/ui/src/features/sketch-editor/react/hooks/useSketchScene.ts	73	useSketchScene=73		0	no
+size-j-13	terra	now	jini	packages/ui/src/features/skills/dependencies.ts	55	createFakeSkillsPort=55		55	no
+size-j-13	terra	now	jini	packages/ui/src/features/skills/react/components/SkillDraftForm.tsx	65	SkillDraftForm=65		260	no
+size-j-13	terra	now	jini	packages/ui/src/features/skills/react/components/SkillRow.tsx	112	SkillRow=112		448	yes
+size-j-13	terra	now	jini	packages/ui/src/features/skills/react/components/SkillsTab.tsx	128	SkillsTabToolbar=69; SkillsTabRows=59		276	no
+size-j-13	terra	now	jini	packages/ui/src/features/skills/react/hooks/useSkillsTab.ts	260	useSkillsTab=260		0	yes
+size-j-13	terra	now	jini	packages/ui/src/features/source-config-list/react/components/SourceConfigList.tsx	56	SourceConfigList=56		112	no
+size-j-13	terra	now	jini	packages/ui/src/features/source-config-list/react/hooks/useSourceConfigList.ts	119	useSourceConfigList=119		119	yes
+size-j-13	terra	now	jini	packages/ui/src/features/tab-launcher-menu/react/components/TabLauncherMenu.tsx	92	TabLauncherMenu=92		184	no
+size-j-13	terra	now	jini	packages/ui/src/features/tab-launcher-menu/react/hooks/useTabLauncherMenu.ts	109	useTabLauncherMenu=109		327	yes
+size-j-13	terra	now	jini	packages/ui/src/features/tab-strip/react/components/TabStrip.tsx	55	TabStrip=55		165	no
+size-j-13	terra	now	jini	packages/ui/src/features/tab-strip/react/hooks/useTabStripDragReorder.ts	125	useTabStripDragReorder=125		0	yes
+size-j-13	terra	now	jini	packages/ui/src/features/tabbed-dialog/react/components/TabbedDialog.tsx	71	TabbedDialog=71		213	no
+size-j-13	terra	now	jini	packages/ui/src/features/version-manager/react/components/VersionManagerModal.tsx	127	VersionManagerModal=127		381	yes
+size-j-13	terra	now	jini	packages/ui/src/features/version-manager/react/components/VersionPreviewFrame.tsx	51	VersionPreviewFrame=51		51	no
+size-j-13	terra	now	jini	packages/ui/src/features/version-manager/react/components/VersionSidebar.tsx	96	VersionSidebar=96		96	no
+size-j-13	terra	now	jini	packages/ui/src/features/version-manager/react/hooks/useVersionManager.ts	236	useVersionManager=236		472	yes
+size-j-13	terra	now	jini	packages/ui/src/features/viewer-shell/react/components/CommentSidePanel.tsx	257	CommentSidePanel=104; CommentSideItem=93; CommentSideCreateForm=60		416	yes
+size-j-13	terra	now	jini	packages/ui/src/features/viewer-shell/react/components/MarkdownSplitPane.tsx	83	MarkdownSplitPane=83		332	no
+size-j-13	terra	now	jini	packages/ui/src/features/viewer-shell/react/components/ViewportSwitcher.tsx	54	ViewportSwitcher=54		108	no
+size-j-13	terra	now	jini	packages/ui/src/features/viewer-shell/react/hooks/useMarkdownScrollSync.ts	126	useMarkdownScrollSync=126		378	yes
+size-j-13	terra	now	jini	packages/ui/src/react/components/ComponentKitPreview.tsx	79	ComponentKitPreview=79		158	no
+size-j-13	terra	now	jini	packages/ui/src/react/components/CustomSelect.tsx	189	CustomSelect=101; useCustomSelect=88		1111	yes
+size-j-13	terra	now	jini	packages/ui/src/react/components/HeaderActionsMenu.tsx	58	HeaderActionsMenu=58		0	no
+size-j-13	terra	now	jini	packages/ui/src/react/components/LanguageMenu.tsx	60	LanguageMenu=60		0	no
+size-j-13	terra	now	jini	packages/ui/src/react/components/OnboardingDropdown.tsx	161	useOnboardingDropdown=102; OnboardingDropdown=59		306	yes
+size-j-13	terra	now	jini	packages/ui/src/react/components/PaletteTweaks.tsx	64	PaletteTweaks=64		192	no
+size-j-13	terra	now	jini	packages/ui/src/react/components/TooltipLayer.tsx	208	useTooltipLayer=208; <arg of useEffect>=87		624	yes
+size-j-13	terra	now	jini	packages/ui/src/react/components/WorkingDirPicker.tsx	119	WorkingDirPanel=68; WorkingDirPicker=51		272	no
+size-j-13	terra	now	jini	packages/ui/src/react/hooks/useBrandFonts.ts	65	useBrandFonts=65		195	no
+size-j-14	terra	now	jini	packages/server/src/host-bootstrap.ts	52	installGracefulShutdown=52		208	no
+size-j-14	terra	now	jini	packages/server/src/kernel-base.ts	73	createJiniKernelBase=73		511	no
+size-j-14	terra	now	jini	packages/sidecar/src/supervision/supervisor-node.ts	63	createNodeIpcChannel=63		63	no
+size-j-14	terra	now	jini	packages/ui/src/browser/useFileDropTarget.ts	56	useFileDropTarget=56		112	no
+size-j-14	terra	now	jini	packages/ui/src/features/a2ui/renderer.tsx	61	RenderNode=61		183	no
+size-j-14	terra	now	jini	packages/ui/src/features/admin-widgets/components/InfoTip.hooks.tsx	91	useInfoTip=91		546	no
+size-j-14	terra	now	jini	packages/ui/src/features/admin-widgets/components/Lightbox/Lightbox.hooks.ts	63	useLightbox=63		252	no
+size-j-14	terra	now	jini	packages/ui/src/features/admin-widgets/components/Select/Select.hooks.tsx	79	useSelectDropdown=79		553	no
+size-j-14	terra	now	jini	packages/ui/src/features/admin-widgets/components/Select/Select.tsx	175	SelectPanel=92; Select=83		920	no
+size-j-14	terra	now	jini	packages/ui/src/features/admin-widgets/components/SuggestInput/SuggestInput.tsx	60	SuggestInput=60		300	no
+size-j-14	terra	now	jini	packages/ui/src/features/appearance/react/components/AppearanceTab.tsx	81	AppearanceTab=81		243	no
+size-j-14	terra	now	jini	packages/ui/src/features/asset-grid/react/components/AssetCard.tsx	78	AssetCard=78		156	no
+size-j-14	terra	now	jini	packages/ui/src/features/asset-grid/react/components/AssetGrid.hooks.tsx	142	useAssetGridView=142		142	no
+size-j-14	terra	now	jini	packages/ui/src/features/asset-grid/react/components/AssetGrid.tsx	80	AssetGrid=80		560	yes
+size-j-14	terra	now	jini	packages/ui/src/features/asset-grid/react/components/AssetGridToolbar.tsx	96	AssetGridToolbar=96		0	no
+size-j-14	terra	now	jini	packages/ui/src/features/asset-grid/react/hooks/useRubberBandDrag.ts	86	useRubberBandDrag=86; <arg of useEffect>=57		86	no
+size-j-14	terra	now	jini	packages/ui/src/features/asset-tree-browser/react/components/AssetTreeBrowser.tsx	66	AssetTreeBrowser=66		132	no
+size-j-14	terra	now	jini	packages/ui/src/features/asset-tree-browser/react/components/AssetTreeFileRow.tsx	124	AssetTreeFileRow=124		248	yes
+size-j-14	terra	now	jini	packages/ui/src/features/asset-tree-browser/react/components/FilePreviewPane.tsx	70	FilePreviewPane=70		70	no
+size-j-14	terra	now	jini	packages/ui/src/features/asset-tree-browser/react/components/useAssetTreeBrowserController.ts	63	useAssetTreeBrowserController=63		63	no
+size-j-14	terra	now	jini	packages/ui/src/features/browser-chrome/react/components/BrowserViewportControls.tsx	59	BrowserViewportControls=59		118	no
+size-j-14	terra	now	jini	packages/ui/src/features/browser-chrome/react/hooks/useBrowserNavigationStack.ts	56	useBrowserNavigationStack=56		0	no
+size-j-14	terra	now	jini	packages/ui/src/features/command-palette/react/components/CommandPalette.tsx	52	CommandPalette=52		104	no
+size-j-14	terra	now	jini	packages/ui/src/features/connectors/components/ConnectorCard.tsx	70	ConnectorCard=70		420	no
+size-j-14	terra	now	jini	packages/ui/src/features/connectors/components/ConnectorDetailDrawer.tsx	151	ConnectorDetailDrawer=99; ConnectorDrawerHead=52		495	no
+size-j-14	terra	now	jini	packages/ui/src/features/connectors/components/ConnectorGrid.tsx	60	ConnectorGrid=60		180	no
+size-j-14	terra	now	jini	packages/ui/src/features/connectors/components/ConnectorSearchBar.tsx	51	ConnectorSearchBar=51		153	no
+size-j-14	terra	now	jini	packages/ui/src/features/connectors/ConnectorsBrowser.hooks.ts	54	useConnectorsBrowserView=54		54	no
+size-j-14	terra	now	jini	packages/ui/src/features/connectors/ConnectorsBrowser.tsx	76	ConnectorsBrowser=76		456	yes
+size-j-14	terra	now	jini	packages/ui/src/features/connectors/hooks/useConnectorCatalog.ts	52	useConnectorCatalog=52		156	no
+size-j-15	terra	now	jini	packages/ui/src/features/memory/react/components/MemoryEntryCard.tsx	65	MemoryEntryCard=65		260	no
+size-j-15	terra	now	jini	packages/ui/src/features/memory/react/components/MemoryExtractionCard.tsx	63	MemoryExtractionCard=63		126	no
+size-j-15	terra	now	jini	packages/ui/src/features/memory/react/components/MemoryHooksPanel.tsx	54	MemoryHooksPanel=54		162	no
+size-j-15	terra	now	jini	packages/ui/src/features/memory/react/components/MemoryList.tsx	143	MemoryList=91; MemoryListRows=52		273	no
+size-j-15	terra	now	jini	packages/ui/src/features/memory/react/components/MemoryManualEditor.tsx	200	MemoryManualEditor=200		200	yes
+size-j-15	terra	now	jini	packages/ui/src/features/memory/react/components/MemorySettingsPanel.tsx	94	MemorySettingsPanel=94		282	no
+size-j-15	terra	now	jini	packages/ui/src/features/memory/react/hooks/useMemoryConfig.hooks.ts	130	useMemoryConfig=130		260	yes
+size-j-15	terra	now	jini	packages/ui/src/features/memory/react/hooks/useMemoryEntries.hooks.ts	254	useMemoryEntries=254		762	yes
+size-j-15	terra	now	jini	packages/ui/src/features/memory/react/hooks/useMemoryExtractions.hooks.ts	114	useMemoryExtractions=114		114	yes
+size-j-15	terra	now	jini	packages/ui/src/features/mention-autocomplete/react/components/MentionAutocomplete.tsx	72	MentionAutocomplete=72		0	no
+size-j-15	terra	now	jini	packages/ui/src/features/mention-autocomplete/react/hooks/useMentionAutocomplete.ts	100	useMentionAutocomplete=100		100	no
+size-j-15	terra	now	jini	packages/ui/src/features/notifications/react/components/NotificationsTab.tsx	95	NotificationsTab=95		380	yes
+size-j-15	terra	now	jini	packages/ui/src/features/panel-kit/hooks/use-settings-slice.hooks.ts	126	useSettingsSlice=126		504	yes
+size-j-15	terra	now	jini	packages/ui/src/features/panel-kit/hooks/use-standing-draft-autosave.hooks.ts	175	useStandingDraftAutosave=175		525	yes
+size-j-15	terra	now	jini	packages/ui/src/features/privacy/react/components/PrivacyTab.tsx	72	PrivacyTab=72		360	no
+size-j-15	terra	now	jini	packages/ui/src/features/project-locations/react/components/ProjectLocationsTab.tsx	101	ProjectLocationsTab=101		303	yes
+size-j-15	terra	now	jini	packages/ui/src/features/project-locations/react/hooks/useProjectLocationsTab.ts	119	useProjectLocationsTab=119		238	yes
+size-j-15	terra	now	jini	packages/ui/src/features/resource-dashboard/react/components/ResourceBoard.tsx	83	ResourceBoard=83		166	no
+size-j-15	terra	now	jini	packages/ui/src/features/resource-dashboard/react/components/ResourceBoardToolbar.tsx	92	ResourceBoardToolbar=92		184	no
+size-j-15	terra	now	jini	packages/ui/src/features/resource-dashboard/react/components/ResourceCard.tsx	52	ResourceCard=52		104	no
+size-j-15	terra	now	jini	packages/ui/src/features/resource-dashboard/react/components/ResourceKanbanBoard.tsx	65	ResourceKanbanBoard=65; <arg of columns.map>=51		0	no
+size-j-15	terra	now	jini	packages/ui/src/features/resource-dashboard/react/components/ResourceRowList.tsx	55	ResourceRowList=55		165	no
+size-j-15	terra	now	jini	packages/ui/src/features/resource-dashboard/react/components/ResourceRowListViewParts.tsx	62	ResourceRowListRows=62		62	no
+size-j-15	terra	now	jini	packages/ui/src/features/resource-dashboard/react/components/ResourceRunHistoryList.tsx	61	ResourceRunHistoryList=61		61	no
+size-j-15	terra	now	jini	packages/ui/src/features/resource-dashboard/react/hooks/useResourceBoard.ts	176	useResourceBoard=176		704	yes
+size-j-15	terra	now	jini	packages/ui/src/features/resource-dashboard/react/hooks/useResourceRowList.ts	91	useResourceRowList=91		91	no
+size-j-15	terra	now	jini	packages/ui/src/features/sketch-editor/react/components/SketchEditor.tsx	109	SketchEditor=109		218	yes
+size-j-15	terra	now	jini	packages/ui/src/features/sketch-editor/react/components/SketchMainMenu.tsx	55	SketchMainMenu=55		55	no
+size-j-15	terra	now	jini	packages/ui/src/features/sketch-editor/react/hooks/useSketchDomEnhancements.ts	65	useSketchDomEnhancements=65		195	no
+size-j-15	terra	now	jini	packages/ui/src/features/sketch-editor/react/hooks/useSketchSaveWorkflow.ts	85	useSketchSaveWorkflow=85		85	no
+hard-01	hard	now	tovu	apps/website/src/server/runtime/composition/deps.ts	1930	composeSiteRouteDeps=1202; configureSiteSharing=68	1930	631110	no
+hard-02	hard	now	tovu	apps/admin/src/lib/api.ts	2530		2530	488290	no
+hard-03	hard	now	tovu	apps/website/src/server/runtime/composition/app.ts	1707	createRouteDeps=882; createApp=247; subscribeSiteEventHandlersOnce=55	1707	447234	no
+hard-04	hard	now	tovu	apps/website/src/server/inbound/public-http/routes/site/pages.ts	1489	registerSiteRoutes=88; renderViaTemplate=70; finishStaticTierDocument=61	1489	148900	no
+hard-05	hard	now	tovu	apps/website/src/server/inbound/public-http/http/site/render.ts	1664		1664	143104	no
+hard-06	hard	now	tovu	apps/admin/src/features/posts/PostEditor.tsx	1590	Toolbar=345; PostEditor=271; PostEditorActions=116; PostEditorHeader=112; PostPreview=83; PostPreviewFrame=76; PostEditorTemplatePicker=70; PostEditorBody=58; PostEditorNotices=53	1590	106530	no
+hard-07	hard	now	tovu	apps/website/src/server/routes/types.ts	519		519	91863	yes
+hard-08	hard	now	jini	packages/daemon/src/agent-executor/launch.ts	1048	createAgentExecutor=429; run=115	1048	46112	no
+hard-09	hard	now	tovu	apps/admin/src/features/pages/hooks/page-editor-dependencies.hooks.ts	99	createFakePageEditorPort=99		1584	no
+hard-09	hard	now	tovu	apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts	680	usePageEditor=380	680	38080	yes
+hard-10	hard	now	jini	packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts	946	useChatPane=618	946	37840	no
+hard-11	hard	now	tovu	apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts	635	usePostEditor=400	635	32385	no
+hard-12	hard	now	tovu	apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts	847	usePublishContentConfirm=461	847	31339	yes
+hard-13	hard	now	jini	packages/chat/src/react/features/chat-pane/components/ChatPane.tsx	766	ChatPane=176; ChatPaneComposerArea=57	766	29108	no
+hard-14	hard	now	jini	packages/chat/src/react/hooks/assistant-chats.ts	382	createAssistantChatsClient=382; useAssistantChats=279		1146	yes
+hard-14	hard	now	jini	packages/chat/src/store/sql/store.ts	328	createSqlChatStore=328; writeMessage=51		3280	yes
+hard-14	hard	now	jini	packages/commerce/src/payments/ingest/settlement-worker.ts	74	createSettlementWorker=74		74	no
+hard-14	hard	now	jini	packages/cookie-consent/src/client/runtime.ts	133	createCookieConsent=133		798	yes
+hard-14	hard	now	jini	packages/core/src/settings/express/stream.ts	77	openSettingsChangeStream=77		231	no
+hard-14	hard	now	jini	packages/daemon/src/agent-executor/events.ts	931	wireChildLifecycle=335; wireAcpLifecycle=79; wirePiRpcLifecycle=70	931	26999	yes
+hard-15	hard	now	tovu	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts	945	createSiteScope=828; onStarted=440; <arg of customInstructionsCache     .refresh()  >=84; launchAgentRun=59	945	24570	no
+hard-16	hard	now	tovu	apps/desktop/src/desktop-agent-service.ts	170	createDesktopAgentService=170		1360	yes
+hard-16	hard	now	tovu	apps/desktop/src/main/index.ts	665	buildProjectDeps=63	665	18620	yes
+hard-16	hard	now	tovu	apps/desktop/src/renderer/use-find-in-page.hooks.ts	171	useFindInPage=171		1539	yes
+hard-16	hard	now	tovu	apps/desktop/src/renderer/use-site-workspace.hooks.ts	58	useSiteWorkspace=58		812	no
+hard-16	hard	now	tovu	apps/desktop/src/smoke-bridge.ts	72	smokeBridge=72		648	no
+hard-16	hard	now	tovu	apps/website/src/features/publish-content/apply-loop.ts	720	createPublishContentApplyPort=346; applyReport=314; applyOneRow=195	720	23040	yes
+hard-16	hard	now	tovu	apps/website/src/platform/site-dir/local-site-supervisor.ts	218	createLocalSiteSupervisor=218		2834	yes
+hard-17	hard	now	tovu	apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts	580	createAssistantRunFinalizer=325; createHttpRunDaemonClient=101	580	17980	yes
+hard-17	hard	now	jini	packages/admin/src/comments/controllers/comment-queue.controller.ts	146	createCommentQueueController=146		730	yes
+hard-17	hard	now	jini	packages/admin/src/comments/controllers/comment-settings.controller.ts	57	createCommentSettingsController=57		57	no
+hard-17	hard	now	jini	packages/admin/src/media/controllers/library.controller.ts	169	createLibraryController=169		676	yes
+hard-17	hard	now	jini	packages/admin/src/widgets/controllers/instance-editor.controller.ts	76	createWidgetInstanceEditorController=76		228	no
+hard-17	hard	now	jini	packages/agent-plugins/src/admin-surfaces/surface-client.ts	101	createAdminSurfaceClient=101		606	yes
+hard-17	hard	now	jini	packages/agent-plugins/src/connect/executable/register.ts	73	registerAgentPluginExecutableTools=73		146	no
+hard-17	hard	now	jini	packages/agent-plugins/src/lifecycle/automatic-use.ts	143	createAutomaticAgentPluginUse=143		3432	yes
+hard-17	hard	now	jini	packages/agent-plugins/src/lifecycle/tools/projection.ts	87	createAgentPluginToolProjection=87		1392	no
+hard-17	hard	now	jini	packages/agent-runtime/src/agent-protocol/acp/models.ts	108	detectAcpModels=108; <anonymous>=92		648	yes
+hard-17	hard	now	jini	packages/agent-runtime/src/agent-protocol/acp/session.ts	1236	attachAcpSession=482; replyPermission=56; applyDsmlArtifactSuppression=54	1236	9888	yes
+hard-17	hard	now	jini	packages/agent-runtime/src/agent-protocol/acp/text-suppression.ts	75	createTaggedTextSuppressor=75		225	no
+hard-17	hard	now	jini	packages/agent-runtime/src/agent-protocol/pi-rpc/session.ts	119	attachPiRpcSession=119		595	yes
+hard-17	hard	now	jini	packages/agent-runtime/src/ai-trace/recorder.ts	191	createAiTraceRecorder=191		764	yes
+hard-18	hard	now	jini	packages/daemon/src/core/tool-gaps.ts	79	createToolGapCollector=79		237	no
+hard-18	hard	now	jini	packages/daemon/src/run-lifecycle.ts	691	createRunLifecycle=393	691	10365	yes
+hard-18	hard	now	jini	packages/daemon/src/surface-exchanges.ts	119	createSurfaceExchangeStore=119; open=84		714	yes
+hard-18	hard	now	jini	packages/daemon/src/tool-executor.ts	344	createToolExecutor=344		6536	yes
+hard-18	hard	now	jini	packages/desktop-host/src/electron/testing.ts	79	createFakeBrowserWindowFactory=79; factory=72		79	no
+hard-18	hard	now	jini	packages/desktop-host/src/electron/updates/auto-update-controller.ts	116	createAutoUpdateController=116		232	yes
+hard-18	hard	now	jini	packages/devops/src/checks/hardwiring.ts	276	createHardwiringInspector=276		1104	yes
+hard-18	hard	now	jini	packages/http-kit/src/sse.ts	87	createSseChannel=87		261	no
+hard-18	hard	now	jini	packages/mcp/src/federation/stdio/adapter.stdio.ts	71	spawnMcpStdioChannel=71		284	no
+hard-18	hard	now	jini	packages/mcp/src/server/http-tool-server.adapter.ts	172	startMcpHttpToolServer=104; createMcpHttpToolServerRuntime=68		104	yes
+hard-18	hard	now	jini	packages/mcp/src/server/stdio-hosting.ts	97	createStdioHosting=97		291	no
+hard-18	hard	now	jini	packages/oauth/src/loopback-receiver.ts	61	startLoopbackAuthorizationReceiver=61		183	no
+hard-18	hard	now	jini	packages/plugins/src/host/node/runtime-core.ts	562	createPluginRuntimeCore=395	562	2248	yes
+hard-18	hard	now	jini	packages/server/src/create-local-node-daemon.ts	113	createLocalNodeDaemon=113		1243	yes
+hard-18	hard	now	jini	packages/sidecar/src/json-ipc.ts	286	createJsonIpcServer=157; <arg of createNetServer>=132; requestJsonIpc=129; <anonymous>=124; <arg of socket.on>=92		785	yes
+hard-18	hard	now	jini	packages/sidecar/src/supervision/supervisor.ts	208	createDaemonSupervisor=208		416	yes
+hard-18	hard	now	jini	packages/ui/src/features/asset-grid/react/hooks/useAssetGridLiveUpdates.ts	99	useAssetGridLiveUpdates=99; <arg of useEffect>=81		594	no
+hard-19	hard	now	jini	packages/agent-runtime/src/claude-stream.ts	685	createClaudeStreamHandler=373	685	7535	yes
+hard-19	hard	now	jini	packages/agent-runtime/src/providers/oauth-callback-server.ts	111	startOAuthCallbackListener=111		333	yes
+hard-19	hard	now	jini	packages/agent-runtime/src/role-marker-guard.ts	55	createRoleMarkerGuard=55		165	no
+hard-19	hard	now	jini	packages/artifacts/src/text-suppression.ts	75	createTaggedTextSuppressor=75		75	no
+hard-19	hard	now	jini	packages/chat/src/core/assistant-client/durable-run-subscription.ts	103	followDurableRun=103		618	yes
+hard-19	hard	now	jini	packages/chat/src/core/assistant-client/transport.ts	400	createAssistantTransportClient=400; createAssistantTransport=58		5200	yes
+hard-19	hard	now	jini	packages/chat/src/embed-widget/browser/frontend-session-bridge.ts	219	createFrontendSessionBridge=219		1314	yes
+hard-19	hard	now	jini	packages/chat/src/embed-widget/browser/lazy-loader.ts	68	installLazyChatLoader=68		204	no
+hard-19	hard	now	jini	packages/chat/src/embed-widget/vanilla/index.ts	256	mountVanillaChat=256		1280	yes
+hard-19	hard	now	jini	packages/chat/src/embed-widget/vanilla/state.ts	72	createVanillaChatController=72		216	no
+hard-19	hard	now	jini	packages/chat/src/react/components/Composer.tsx	187	Composer=108; ComposerWorkdirControl=79		2700	yes
+hard-20	hard	now	jini	packages/ui/src/features/charts/browser.ts	96	mountChart=96		480	no
+hard-20	hard	now	jini	packages/ui/src/features/connectors/hooks/useConnectorAuthorization.ts	149	useConnectorAuthorization=149		745	yes
+hard-20	hard	now	jini	packages/ui/src/features/html-editor/css.ts	110	prettifyCss=110		220	yes
+hard-20	hard	now	jini	packages/ui/src/features/html-editor/react/hooks/useInteractiveHtmlEditor.ts	121	useInteractiveHtmlEditor=121; <arg of useEffect>=105		1210	yes
+hard-20	hard	now	jini	packages/ui/src/features/memory/react/hooks/useMemoryConnectors.hooks.ts	327	useMemoryConnectors=327		654	yes
+hard-20	hard	now	jini	packages/ui/src/features/memory/react/hooks/useMemoryExtractions.store.ts	144	createExtractionHistoryStore=144		288	yes
+hard-20	hard	now	jini	packages/ui/src/renderers/annotation-canvas/react/hooks/useAnnotationCanvas.ts	880	useAnnotationCanvas=739; send=57	880	1760	yes
+hard-20	hard	now	jini	packages/ui/src/renderers/preview-modal-shell/react/hooks/usePreviewModalShell.ts	141	usePreviewModalShell=141		282	yes
+hard-20	hard	now	jini	packages/user-management/src/admin/controllers/members.controller.ts	120	createMembersController=120		480	yes
+hard-20	hard	now	jini	packages/user-management/src/admin/controllers/roles.controller.ts	327	createRolesController=327		1308	yes
+hard-20	hard	now	jini	packages/user-management/src/admin/controllers/users.controller.ts	165	createUsersController=165		660	yes
+hard-20	hard	now	jini	packages/user-management/src/react/users/hooks/use-users.hooks.ts	296	useUsers=296		1776	yes
+hard-20	hard	now	jini	packages/vibecoding/src/node/project.ts	181	assembleProject=181		543	yes
+hard-20	hard	now	jini	packages/vibecoding/src/node/store.ts	246	createProjectStore=246		738	yes
+hard-m-01	hard	after-move	tovu	apps/website/src/features/post/post.ts	1107	createPost=57; retirePostForReplacement=54	1107	63099	yes
+hard-m-01	hard	after-move	tovu	apps/website/src/server/inbound/admin-http/routes/settings/events.ts	81	runChangeFeed=81		891	no
+hard-m-01	hard	after-move	tovu	apps/website/src/server/inbound/assistant/agent-daemon-core-client.ts	87	createDaemonCoreClient=87		435	no
+hard-m-01	hard	after-move	tovu	apps/website/src/server/runtime/composition/commerce.ts	266	composeCommerce=266		4256	yes
+hard-m-01	hard	after-move	tovu	apps/website/src/server/runtime/composition/provider-plugins.ts	147	bootProviderPlugins=147		6615	yes
+hard-m-02	hard	after-move	tovu	apps/admin/src/App.hooks.ts	562	useAdminSession=96; useChatDockLayout=78; useAgentPageBridge=56	562	19108	yes
+hard-m-02	hard	after-move	tovu	apps/admin/src/App.tsx	553	AdminShell=199; AssistantChrome=137	553	35392	yes
+hard-m-02	hard	after-move	tovu	apps/admin/src/features/pages/PageEditor.tsx	1017	PageEditor=220; PageEditorPane=125; PageEditorActions=94; PageEditorHeader=85; PageEditorToolbarEnd=69; PagePreviewFrame=62; PagePreview=61	1017	57969	yes
+hard-m-02	hard	after-move	tovu	apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts	617	useAccessTokens=339	617	18510	yes
+hard-m-03	hard	after-move	tovu	apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts	905	useThemeExplore=522	905	37105	yes
+hard-m-03	hard	after-move	tovu	apps/admin/src/features/themes/ThemeExplore.tsx	1022	ThemeExploreContent=287; ThemeExploreFileRow=94; ThemeExploreFileList=70; ThemeExploreHtmlPane=58; ThemeExploreToolbarButtons=52	1022	39858	yes
+hard-m-03	hard	after-move	tovu	apps/admin/src/lib/browser-stream.ts	105	startBrowserStream=105		420	yes
+hard-m-03	hard	after-move	tovu	apps/desktop/src/project-ipc.ts	1095	registerSiteIpcHandlers=229	1095	51465	yes
+hard-m-03	hard	after-move	tovu	apps/site-chat/src/site-assistant-transport.ts	98	createSiteAssistantTransport=98; startRun=83		980	no
+hard-m-03	hard	after-move	tovu	apps/site-chat/src/visitor-page-control.ts	88	createVisitorPageControl=88; attach=52		264	no
+hard-m-03	hard	after-move	tovu	apps/website/src/assistant/external-mcp-federation-runtime.ts	86	createFederationRuntime=86		1032	no

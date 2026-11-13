@@ -1,92 +1,90 @@
 #!/usr/bin/env node
-// Builds the size-NN.terra-prompt.md files and the generated tail of PLAN.md from
-// batches.tsv (file -> batch), parts/<repo>/<path>.md (one design fragment per file) and CONVENTIONS.md.
-// Why generated: one fragment per file is the single source; prompts and PLAN must never drift from it.
-// Lanes: owner-exception-candidates.txt (held until the owner rules), hard-files.txt (detailed plans in hard/) and fragments that say "Fable" go to the Fable/Opus lane;
-// a fragment marked "DONE as the worked example" is skipped. Re-run after editing any fragment.
+// Builds the job prompts (size-*.terra-prompt.md for the Terra lane, hard-*.opus-prompt.md for the Opus/Fable lane)
+// and BATCHES.md from batches.tsv + index.tsv (written by plan50.mjs), the per-file fragments in parts/, the
+// detailed plans in hard/ and CONVENTIONS.md.
+// Why generated: fragments, hard plans and CONVENTIONS are the single source; prompts must never drift from them.
+// Lanes come from plan50.mjs (case-insensitive Fable/Opus detection there). Stale prompts are deleted.
 // Usage: node development/refactor-patterns/size-splits/assemble.mjs   (writes only inside size-splits/)
 import fs from "node:fs";
 import path from "node:path";
 
 const DIR = import.meta.dirname;
-const tsv = (f) => { const [h, ...rows] = fs.readFileSync(path.join(DIR, f), "utf8").trim().split("\n").map((l) => l.split("\t")); return rows.map((r) => Object.fromEntries(h.map((k, i) => [k, r[i] ?? ""]))); };
-const batches = tsv("batches.tsv");
-const index = tsv("index.tsv");
-const listOf = (f) => new Set(fs.readFileSync(path.join(DIR, f), "utf8").split("\n").filter(Boolean));
-const hard = listOf("hard-files.txt");
-// Held for the owner: fragments whose only answer is an exception (no responsibility split, or vendored/serialized code).
-const ownerHeld = listOf("owner-exception-candidates.txt");
-const fragPath = (repo, file) => path.join(DIR, "parts", repo, `${file.replaceAll("/", "__")}.md`);
-const frag = (repo, file) => (fs.existsSync(fragPath(repo, file)) ? fs.readFileSync(fragPath(repo, file), "utf8").trim() : "");
-const lane = (repo, file) => {
-  if (hard.has(file)) return "hard";
-  const f = frag(repo, file);
-  if (!f) return "missing";
-  if (/DONE as the worked example/.test(f)) return "done";
-  if (/Fable/.test(f)) return "fable";
-  if (ownerHeld.has(file)) return "owner-exception";
-  return "terra";
+const tsv = (f) => {
+  const [h, ...rows] = fs.readFileSync(path.join(DIR, f), "utf8").trim().split("\n").map((l) => l.split("\t"));
+  return rows.map((r) => Object.fromEntries(h.map((k, i) => [k, r[i] ?? ""])));
 };
-const conventions = fs.readFileSync(path.join(DIR, "CONVENTIONS.md"), "utf8").replace(/^# .*\n/, "");
-const byBatch = new Map();
-for (const r of batches) { if (!byBatch.has(r.batch)) byBatch.set(r.batch, []); byBatch.get(r.batch).push(r); }
-const summary = [];
-for (const [batch, rows] of byBatch) {
-  const repo = rows[0].repo, phase = rows[0].phase;
-  const terra = rows.filter((r) => lane(r.repo, r.file) === "terra");
-  const other = rows.filter((r) => lane(r.repo, r.file) !== "terra").map((r) => `${r.file} (${lane(r.repo, r.file)})`);
-  summary.push({ batch, repo, phase, terra: terra.map((r) => r.file), other });
-  const out = path.join(DIR, `${batch}.terra-prompt.md`);
-  if (!terra.length) { if (fs.existsSync(out)) fs.rmSync(out); continue; }
+const fragPath = (repo, file) => path.join(DIR, "parts", repo, `${file.replaceAll("/", "__")}.md`);
+// The 100-line batch numbers in fragments are stale (jobs were regenerated for 50): drop them.
+const frag = (repo, file) => (fs.existsSync(fragPath(repo, file))
+  ? fs.readFileSync(fragPath(repo, file), "utf8").trim().replace(/\s*·?\s*\*\*Batch:\*\*\s*size-\d+/g, "") : "");
+// hard/<plan>.md is named after the file's stem; the PostEditor plan also covers its hooks file.
+const hardPlanName = (file) => (/use-post-editor\.hooks\.ts$/.test(file) ? "PostEditor" : path.basename(file).replace(/(\.hooks)?\.(tsx?|mjs)$/, ""));
+const hardPlan = (file) => {
+  const p = path.join(DIR, "hard", `${hardPlanName(file)}.md`);
+  return fs.existsSync(p) ? fs.readFileSync(p, "utf8").trim().replace(/^#/gm, "####") : ""; // nested under the file heading
+};
+const conventions = fs.readFileSync(path.join(DIR, "CONVENTIONS.md"), "utf8").replace(/^# .*\n/, "").trim();
+
+const overList = (r) => [r.file_lines ? `file ${r.file_lines}` : "", ...r.fns_over_50.split("; ").filter(Boolean).map((f) => `\`${f.replace(/=/, "\` ")}`)].filter(Boolean).join(" · ");
+
+function fileEntry(r) {
+  if (r.why === "detailed plan in hard/") return `### ${r.repo}:${r.file}\n- **Over:** ${overList(r)}\n- **Plan:** the detailed plan below (\`hard/${hardPlanName(r.file)}.md\`). Where it still says 100, the limit is now 50: after its steps, split every function still over 50 per the Rules.\n\n${hardPlan(r.file)}\n`;
+  const held = /\(hold\)/.test(r.fns_over_50) ? "\n- **Leave as is (owner exception candidates, listed in exception-candidates.md):** the items marked `(hold)`." : "";
+  const hard = r.lane === "hard" && r.why ? `\n- **Why this is in the Opus/Fable lane:** ${r.why}` : "";
+  const f = frag(r.repo, r.file);
+  if (f) return `${f}\n- **50-line update:** this fragment was designed for the old 100-line limit. Do its steps first; then split every function still over 50 (now: ${overList(r)}) per the Rules, by responsibility.${held}${hard}\n`;
+  return [`### ${r.repo}:${r.file}`, `- **Over:** ${overList(r)}`, `- **Phase:** ${r.phase}`,
+    "- **No fragment — design it yourself, then execute:** run the outline; write the responsibility map (unit → job → where it goes) BEFORE editing; pick the cut per \"How to split each kind\"; check every helper's inputs against the outline's `uses:` (and later-declared hoisted callees, which `uses:` omits)." + held + hard, ""].join("\n");
+}
+
+function prompt(batch, rows) {
+  const { repo, phase, lane } = rows[0];
+  const who = lane === "hard" ? "Opus/Fable job (judgment lane)" : "Terra job";
   const repoLine = repo === "tovu"
     ? "Repo: the Tovu clone you are given (Tovu only). `TOVU` below = that clone's root."
-    : "Repo: the Jini clone you are given (Jini only; never edit Tovu). `TOVU` below = the Tovu clone path the coordinator gives you (only for the read-only `outline.mjs` tool). Run `pnpm install --frozen-lockfile` once if `node_modules` is missing.";
+    : "Repo: the Jini clone you are given (Jini only; never edit Tovu). `TOVU` = the Tovu clone path the coordinator gives you (only for the read-only `outline.mjs` tool). Run `pnpm install --frozen-lockfile` once if `node_modules` is missing.";
   const phaseLine = phase === "after-move"
-    ? "AFTER-MOVE: run this job only after the Tovu→Jini move work for these files has landed. If a file is gone, or `outline.mjs` no longer shows the declarations a fragment names, STOP that file and report it — the plan is stale for it."
-    : "READY: these files are not reshaped by the Tovu→Jini move.";
-  const body = [
-    `# Terra job ${batch}: split ${terra.length} ${repo === "tovu" ? "Tovu" : "Jini"} file(s) by responsibility (size limits)`,
-    "",
-    `Generated 2026-11-13 by \`development/refactor-patterns/size-splits/assemble.mjs\` from the per-file design fragments. Self-contained: the rules, the per-file plans and the checks are all below.`,
-    "",
-    repoLine, "", phaseLine, "",
-    "## Rules", conventions.trim(), "",
+    ? "AFTER-MOVE: run only after the Tovu→Jini move work for these files has landed. If a file is gone or no longer over the limits, skip it; if a fragment's named declarations are gone, design the split yourself from the outline."
+    : "READY: these files are not reshaped by the Tovu→Jini move (or their plan splits around it).";
+  return [`# ${who} ${batch}: split ${rows.length} ${repo === "tovu" ? "Tovu" : "Jini"} file(s) to the 50 / 500 line limits`, "",
+    "Generated by `development/refactor-patterns/size-splits/assemble.mjs` (2026-11-13). Self-contained: rules, per-file plans and checks are below.", "",
+    repoLine, "", phaseLine, "", "## Rules", conventions, "",
     "## For each file, in the order listed",
-    "1. `node $TOVU/development/refactor-patterns/size-splits/outline.mjs --root <repo with node_modules> <file>` — confirm every declaration / statement anchor the plan names exists. A missing anchor = STOP this file.",
-    "2. Complete the test list: `rg -l \"<file stem>\" <app or package dir> --glob '*.test.*'` (colocated tests are easy to miss); add any hit that exercises the file.",
-    "3. Run those tests once BEFORE editing (baseline). A test already failing is noted and compared after; it is not yours to fix.",
-    "4. Do the plan's steps in order. After the file: tests again (same pass count), `npx eslint <changed files>`, `outline.mjs --check <original> <new files>`, Jini: the package typecheck. Then commit that file.",
-    "5. Worked example of the expected style: `development/refactor-patterns/size-splits/EXAMPLE.md` in the Tovu clone (optional reading).",
-    "",
-    "## Files",
-    ...terra.map((r) => frag(r.repo, r.file) + "\n"),
-    "## Done check",
-    `\`node $TOVU/development/refactor-patterns/size-splits/outline.mjs --check ${terra.map((r) => r.file).join(" ")} <every new file>\` prints only OK lines (or the over items a plan explicitly leaves for the owner). Report per file: OK / STOPPED (reason), new files, before → after counted lines, tests run with pass counts.`,
-    "",
-  ].join("\n");
-  fs.writeFileSync(out, body);
+    "1. `node $TOVU/development/refactor-patterns/size-splits/outline.mjs --root <repo with node_modules> <file>` — confirm every declaration / anchor the plan names (a missing anchor in a fragment = design that part yourself from the outline; in a hard plan = STOP the file).",
+    "2. Complete the test list: `rg -l \"<file stem>\" <app or package dir> --glob '*.test.*'`.",
+    "3. Baseline: those tests once, and the gate command on the file (save its output).",
+    "4. Split. Then: tests again (same pass count), the gate command (zero errors on new/changed functions), `outline.mjs --check`, Jini: the package typecheck. Commit that file.",
+    "5. Worked example of the expected style: `development/refactor-patterns/size-splits/EXAMPLE.md` in the Tovu clone (optional).", "",
+    "## Files", ...rows.map(fileEntry), "## Done check",
+    `\`node $TOVU/development/refactor-patterns/size-splits/outline.mjs --check ${rows.map((r) => r.file).join(" ")} <every new file>\` prints only OK lines or items marked \`(hold)\`. Report per file: OK / STOPPED / HARD / EXCEPTION-CANDIDATE (reason), new files, before → after counted lines, tests with pass counts, gate result.`, ""].join("\n");
 }
-// generated PLAN.md sections (everything after the marker line; the hand-written head is kept)
-const scoreOf = new Map(index.map((r) => [`${r.repo}:${r.file}`, Number(r.max_score)]));
-const batchOf = new Map(batches.map((r) => [`${r.repo}:${r.file}`, r.batch]));
-const lanes = {};
-for (const r of index) (lanes[lane(r.repo, r.file)] ??= []).push(r);
-const sec = [];
-sec.push("## Batches (generated)", "", "| batch | repo | phase | Terra files | not in this prompt (lane) |", "|---|---|---|---|---|");
-for (const s of summary) sec.push(`| ${s.terra.length ? `[${s.batch}](${s.batch}.terra-prompt.md)` : s.batch} | ${s.repo} | ${s.phase} | ${s.terra.length} | ${s.other.map((o) => `\`${o}\``).join(", ")} |`);
-sec.push("", "## Fable/Opus lane (generated: fragments that recommend a strong executor)", "", "| file | batch | why (from the fragment) |", "|---|---|---|");
-for (const r of (lanes.fable ?? []).sort((a, b) => b.max_score - a.max_score)) sec.push(`| \`${r.repo}:${r.file}\` | ${batchOf.get(`${r.repo}:${r.file}`)} | ${(frag(r.repo, r.file).match(/[^\n]*Fable[^\n]*/)?.[0] ?? "").replace(/\|/g, "/").replace(/^[-* ]+/, "").slice(0, 160)} |`);
-sec.push("", "## Per-file index, highest score first (generated; the plan for each file is its fragment in parts/)", "", "| # | file | over (file / functions) | phase | lane | batch | plan | after (from the plan) |", "|---|---|---|---|---|---|---|---|");
-let n = 0;
-for (const r of [...index].sort((a, b) => b.max_score - a.max_score)) {
-  const l = lane(r.repo, r.file);
-  const link = l === "hard" ? "[hard/](hard/)" : `[fragment](parts/${r.repo}/${r.file.replaceAll("/", "__")}.md)`;
-  const after = l === "hard" ? "see hard plan" : (frag(r.repo, r.file).match(/\*\*After:\*\*([^\n]*)/)?.[1] ?? "").replace(/\|/g, "/").trim().slice(0, 90);
-  sec.push(`| ${++n} | \`${r.repo}:${r.file}\` | ${r.file_lines || "-"} / ${r.fns_over_100.replace(/\|/g, "/") || "-"} | ${r.phase} | ${l} | ${batchOf.get(`${r.repo}:${r.file}`) ?? "-"} | ${link} | ${after} |`);
+
+function main() {
+  const batches = tsv("batches.tsv"), index = tsv("index.tsv");
+  const meta = new Map(index.map((r) => [`${r.repo}:${r.file}`, r]));
+  const byBatch = Map.groupBy(batches.map((b) => ({ ...meta.get(`${b.repo}:${b.file}`), batch: b.batch })), (r) => r.batch);
+  const written = new Set();
+  for (const [batch, rows] of byBatch) {
+    const name = `${batch}.${rows[0].lane === "hard" ? "opus" : "terra"}-prompt.md`;
+    fs.writeFileSync(path.join(DIR, name), prompt(batch, rows));
+    written.add(name);
+  }
+  for (const f of fs.readdirSync(DIR)) if (/\.(terra|opus)-prompt\.md$/.test(f) && !written.has(f)) fs.rmSync(path.join(DIR, f));
+  writeBatchesMd(byBatch, index);
+  console.log(JSON.stringify({ prompts: written.size }));
 }
-const MARK = "<!-- GENERATED BELOW by assemble.mjs; edit fragments, not this part -->";
-const planPath = path.join(DIR, "PLAN.md");
-const head = fs.existsSync(planPath) ? fs.readFileSync(planPath, "utf8").split(MARK)[0] : "# Size splits plan\n\n";
-fs.writeFileSync(planPath, `${head}${MARK}\n\n${sec.join("\n")}\n`);
-const count = Object.fromEntries(Object.entries(lanes).map(([k, v]) => [k, v.length]));
-console.log(JSON.stringify({ lanes: count, prompts: summary.filter((s) => s.terra.length).length }));
+
+function writeBatchesMd(byBatch, index) {
+  const out = ["# Size-split jobs (generated by assemble.mjs from batches.tsv / index.tsv — do not edit)", "",
+    "| job | lane | repo | phase | files | counted lines (work) |", "|---|---|---|---|---|---|"];
+  for (const [batch, rows] of byBatch) {
+    const kind = rows[0].lane === "hard" ? "opus" : "terra";
+    out.push(`| [${batch}](${batch}.${kind}-prompt.md) | ${rows[0].lane} | ${rows[0].repo} | ${rows[0].phase} | ${rows.length} | ${rows.reduce((s, r) => s + Number(r.work), 0)} |`);
+  }
+  out.push("", "## Opus/Fable lane — why each file is there", "", "| file | job | why |", "|---|---|---|");
+  for (const r of index.filter((x) => x.lane === "hard")) out.push(`| \`${r.repo}:${r.file}\` | ${r.batch} | ${r.why.replace(/\|/g, "/")} |`);
+  out.push("", "## Held for the owner (no job)", "", ...index.filter((x) => x.lane === "owner-exception").map((r) => `- \`${r.repo}:${r.file}\` — ${overList(r)}`), "");
+  fs.writeFileSync(path.join(DIR, "BATCHES.md"), out.join("\n"));
+}
+
+main();

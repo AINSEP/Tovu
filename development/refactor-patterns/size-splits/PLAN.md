@@ -1,533 +1,100 @@
-# Size splits plan — files > 500 lines, functions > 100 lines (Tovu + Jini)
+# Size splits plan — functions ≤ 50 lines, files ≤ 500 lines (Tovu + Jini)
 
-Owner-approved design task, 2026-11-13. Design only; execution is by Codex Terra (batches below), Fable/Opus
-(hard files and the Fable lane), after a Codex review of this design.
+Owner decision 2026-11-13 (final): functions ≤ 50, files ≤ 500 (ESLint counting: blank + comment lines skipped),
+CI error in Tovu and Jini with a shrink-only debt list; React components and hooks get the same 50. Every new
+function also stays cyclomatic + cognitive ≤ 10 (Tovu admin 9/9). This replaces the 100-line design. Design only;
+execution = Codex Terra (Terra lane) and Opus/Fable (hard lane), after a Codex review of this re-scope.
 
 ## Inputs (re-runnable)
-- Ranking: `node development/scripts/size-hotspots.mjs --repo tovu=<tovu clone> --repo jini=<jini clone> --out <dir>`
-  run on Tovu `design-d4` @ 60f52fea1 (refactor/terra merge) and Jini `design-d4` @ 48e6159a4. Lines are ESLint-style
-  (blank + comment lines skipped). Exempt = `development/scripts/size-exceptions.json` (i18n, generated, migrations,
-  listed entries). `composition/deps.ts` and `composition/app.ts` are NOT exempt (owner).
-- `index.tsv` — every over-limit file (functions grouped under their file): score = lines × 90-day churn, survey label
-  (Tovu, from the 11-11 extraction survey reports), phase. `batches.tsv` — file → batch.
-- Phase "after-move" = survey label MOVE*, MIXED, DEDUPE*, DELETE* (the Tovu→Jini move reshapes the file). Jini files
-  and Tovu STAY-* / unlabelled files are "now".
-
-## Counts
-| | Tovu | Jini | total |
-|---|---|---|---|
-| files > 500 (non-exempt) | 47 | 30 | 77 |
-| functions > 100 (non-exempt) | 144 | 171 | 315 |
-| distinct files to change | 145 | 175 | 320 |
-| planned (fragment or hard plan) | 145 | 175 | 320 |
-| phase after-move | 61 | 0 | 61 |
-| hard files (detailed plan, Fable/Opus) | 9 | 3 | 12 |
-| Fable/Opus lane (fragment recommends a strong executor) | 9 | 17 | 26 |
-| Terra lane | 117 | 151 | 268 |
-| held for the owner (exception candidates, no split) | 9 | 4 | 13 |
-| done (worked example) | 1 | 0 | 1 |
-
-Terra prompts: 56 (`size-01` … `size-58`; size numbers whose files all went to other lanes have no prompt).
-`size-01`–`size-45` are phase **now**; `size-46`–`size-58` are **after-move**.
+1. `node development/scripts/size-hotspots.mjs --repo tovu=<clone> --repo jini=<clone> --out <dir>` → hotspot TSVs
+   (today's run: Tovu 548 + Jini 521 functions over 50 after the accepted exceptions; 47 + 29 files over 500).
+2. `node plan50.mjs --tovu <clone> --jini <clone> --hotspots <dir> --move <move-to-jini design dir>` → `index.tsv`
+   (every over-limit file: items, work, phase, lane + why, fragment, job), `batches.tsv`, `exception-candidates.md`.
+   It parses each file (TypeScript from the Tovu clone) for nesting and judgment signals.
+3. `node assemble.mjs` → the job prompts and `BATCHES.md`. Never hand-edit a prompt: edit a fragment, a hard plan
+   or CONVENTIONS and re-run.
 
 ## Files in this folder
-- `CONVENTIONS.md` — the binding rules (owner rules made concrete: responsibility splits, same-file helpers,
-  sibling modules `<stem>-<job>`, `(required, optional = {})`, props-only components + `.hooks.ts`, comments move,
-  no re-export barrels except package entries, banned casts/disables, test-edit limits, checks, commits). Inlined
-  into every prompt.
-- `outline.mjs` — read-only structure tool: declarations with ranges, counted lines, same-file uses; for each long
-  function its statements with `decl:`/`uses:` data flow. `--check` is the per-file done gate (exit 1 if over).
-- `parts/<repo>/<path>.md` — the per-file plan (one fragment per file: responsibility map, new modules/helpers with
-  signatures, importers, tests, After sizes, risks). Plans name declarations and statement anchors, not line numbers,
-  so they survive line drift. `parts/TEMPLATE.md` is the format.
-- `hard/*.md` — detailed plans for the hardest files (below).
-- `size-NN.terra-prompt.md` — self-contained Terra jobs (~3–8 files each), generated.
-- `assemble.mjs` — regenerates the prompts and the generated tail of this file from the fragments. Edit a fragment,
-  re-run it; never hand-edit a prompt.
-- `EXAMPLE.md` — the worked, test-backed example split.
+- `CONVENTIONS.md` — binding rules, inlined in every prompt: responsibility splits (no mechanical chunks or
+  pass-through helpers), per-kind recipes (functions, route registrars, React components → subcomponents with own
+  props, hooks → composed sub-hooks with identical effect semantics, factories → per-feature builders with settled
+  inputs, classes), what NOT to split (exception candidates) and what to escalate (HARD), `(required, optional = {})`
+  always, banned casts/suppressions, test-edit limits, the gate command, commits, report format.
+- `outline.mjs` — read-only structure tool (defaults now 50 / 500); `--check` is the per-file done gate.
+- `parts/<repo>/<path>.md` — 309 per-file fragments from the 100-line design (responsibility map, helpers with
+  signatures, importers, tests). Still valid as first steps; each prompt adds "then continue to 50".
+- `hard/*.md` — detailed plans for the 12 hardest files (one job each).
+- `BATCHES.md` (generated) — every job, the hard-lane reasons, the held files.
+- `exception-candidates.md` (generated) — the owner's list, one line each with a reason.
+- `EXAMPLE.md` — the worked example (first pass committed; its 50-line second pass is a Terra row).
+
+## Counts (2026-11-13)
+| | Tovu | Jini | total |
+|---|---|---|---|
+| files with an item over a limit | 403 | 443 | 846 |
+| functions over 50 / files over 500 | 548 / 47 | 521 / 29 | 1069 / 76 |
+| Terra lane: files (functions) | 352 (463) | 370 (426) | 722 (889) |
+| Opus/Fable lane: files (functions) | 36 (68) | 64 (85) | 100 (153) |
+| held for the owner: files (functions) | 15 (17) | 9 (10) | 24 (27) |
+| phase after-move (Tovu files the move backlog relocates) | 192 | 0 | 192 |
+| files with a 100-line fragment / without | 137 / 266 | 172 / 271 | 309 / 537 |
+
+Jobs: **30 Terra** (`size-t-01…07` Tovu now, `size-tm-01…08` Tovu after-move, `size-j-01…15` Jini), each one
+folder-ordered run of whole files, ≤ ~3.5k counted lines and ≤ 30 files (one job owns a file). **23 Opus/Fable**
+(`hard-01…20` now, `hard-m-01…03` after-move): the 12 hard-plan files are one job each; the rest are packed the
+same way. Work = counted lines of the over-limit file / outermost over-limit functions (Terra ~95k, hard ~41k).
+
+## Lanes (plan50.mjs decides; reasons are in BATCHES.md)
+- **Held** — every over-limit item is an exception candidate (embedded browser scripts, data tables, agent-tool
+  catalogs / tool-registration lists like the owner's 11-11 precedent), or the file was held in the 100-line design.
+- **Opus/Fable** — a `hard/` plan; a fragment that recommends a strong executor (matched case-insensitively —
+  review finding 6: `project-ipc.ts` is now here, not in a Terra job); or a parse signal: a function sharing ≥ 5
+  mutable `let`s with nested functions (≥ 3 when it is ≥ 70 lines), a hook/component with ≥ 6 effects, or a file
+  over 500 with ≥ 3 top-level side effects (init order).
+- **Terra** — everything else. A Terra executor that meets a judgment cut reports `HARD` and reverts that file; the
+  coordinator moves it to an Opus job. Executors also report `EXCEPTION-CANDIDATE` lines (indivisible JSX tree /
+  effect); the coordinator appends them to `exception-candidates.md`. Neither is ever decided by the executor.
+
+## Phase
+Tovu files listed in the move-to-Jini backlog (`opus-backlog.files.tsv` + `terra-lane.tsv` of the move design) are
+**after-move** (`size-tm-*`, `hard-m-*`): they wait, and the prompt skips a file that is gone or already under the
+limits. Hard-plan files are **now** (each plan splits around the move; see its header). Jini files are **now**.
 
 ## Execution order
-1. **Review** (Codex): check fragments/hard plans against the code (every name cited exists; helper inputs match the
-   `uses:` data flow; importer and test lists complete; no rule broken). Fix fragments, re-run `assemble.mjs`.
-2. **Owner decisions** (below) — the 13 held files stay untouched until then.
-3. **Terra wave, phase now**: `size-01`…`size-45` by number (highest score first). Tovu and Jini jobs touch different
-   repos and can run in parallel; within a repo, run batches whose folders differ in parallel, otherwise in order.
-4. **Fable/Opus**: hard plans in this order — `types` → `deps` → `app` (shared feature map; app.md relocates
-   `startSettingsRegistration`/`siteAppBootWorkByDeps` that deps.ts imports), `render` (its step 1 must land before
-   `pages`), `pages`, `api`, `PostEditor` (+ `use-post-editor.hooks.ts`), `launch`, `useChatPane` → `ChatPane`;
-   `agent-daemon-scope` partially now (see below). Then the 26 Fable-lane files from their fragments.
-5. **After the move lands**: `size-46`…`size-58` (prompts STOP per file if the declarations they name are gone).
+1. Codex review of this re-scope (CONVENTIONS, plan50 lanes, the five hard plans changed below, 5+ prompts).
+2. Owner rules on `exception-candidates.md` (held items stay untouched until then).
+3. Gate: the size + complexity ESLint rules land as errors with the shrink-only debt list (separate job), so a
+   split cannot regress.
+4. Terra `size-t-*` and `size-j-*` by number (highest score first). Tovu and Jini jobs run in parallel; within a
+   repo, jobs touch different folders by construction, but importer rewrites can cross — run same-repo jobs in
+   order unless their importer sets are disjoint.
+5. Opus/Fable: hard plans in this order — `types` → `deps` → `app` → `render` → `pages` → `api` → `PostEditor`
+   (+ `use-post-editor.hooks.ts`) → `launch` → `useChatPane` → `ChatPane` → `agent-daemon-scope` (partial now);
+   then the packed `hard-*` jobs.
+6. After the move lands: `size-tm-*`, `hard-m-*`.
 
-## Hardest files — Fable/Opus executes, not Terra
-| file | over | plan | result (plan's estimate) | phase |
-|---|---|---|---|---|
-| `apps/website/src/server/runtime/composition/deps.ts` | 1930; `composeSiteRouteDeps` 1202 | [hard/deps.md](hard/deps.md) | per-feature composers in `composition/deps/<feature>.ts` (every module < 300); deps.ts ~470; orchestrator ~91 | now (survey: STAY-WIRING; nothing moves) |
-| `apps/website/src/server/runtime/composition/app.ts` | 1707; `createRouteDeps` 882, `createApp` 247 | [hard/app.md](hard/app.md) | `composition/memory-deps/<feature>.ts`, `trash-adapters`, ordered mount helpers; app.ts ~250, `createRouteDeps` ~55 | now |
-| `apps/website/src/server/routes/types.ts` | 519 | [hard/types.md](hard/types.md) | group interfaces → `server/routes/route-deps/<feature>.ts`; types.ts ~140 (`RouteDeps`, `RouteRegistrar` stay) | now |
-| `apps/admin/src/lib/api.ts` | 2530 | [hard/api.md](hard/api.md) | `api-request` core + ~15 `api-<domain>.ts`; `api` object stays composed in api.ts (~30); non-`api` importers rewritten by codemod | now (before the move) |
-| `apps/admin/src/features/posts/PostEditor.tsx` (+ `hooks/use-post-editor.hooks.ts`) | 1590; `Toolbar` 345, `PostEditor` 271 …; hooks 635, `usePostEditor` 400 | [hard/PostEditor.md](hard/PostEditor.md) | PostEditor.tsx ~300, `PostEditorToolbar.tsx` ~440, probes; hooks split into -state / -tiptap / -save | see doc |
-| `apps/website/src/server/inbound/public-http/routes/site/pages.ts` | 1489 | [hard/pages.md](hard/pages.md) | ~11 siblings by concern; pages.ts ~300; route registration order unchanged | now |
-| `apps/website/src/server/inbound/public-http/http/site/render.ts` | 1664 | [hard/render.md](hard/render.md) | 7 siblings (site, doc-tree, media, widgets, post-body, safe-values, doc-page-html); render.ts ~342 | now |
-| `apps/website/src/server/inbound/assistant/agent-daemon-scope.ts` | 945; `createSiteScope` 828, `onStarted` 440 | [hard/agent-daemon-scope.md](hard/agent-daemon-scope.md) | run-start sibling; `onStarted` ~85; file ~570 and `createSiteScope` ~470 stay over until the move (owner candidate) | partly now, rest after move |
-| `packages/daemon/src/agent-executor/launch.ts` (Jini) | 1048; `createAgentExecutor` 429 | [hard/launch.md](hard/launch.md) | 6 `launch-*` siblings; launch.ts ~80 | now |
-| `packages/chat/.../chat-pane/hooks/useChatPane.hooks.ts` (Jini) | 946; `useChatPane` 618 | [hard/useChatPane.md](hard/useChatPane.md) | 5 sub-hook modules by concern; hook ~75; effect order preserved | now |
-| `packages/chat/.../chat-pane/components/ChatPane.tsx` (Jini) | 766; `ChatPane` 176 | [hard/ChatPane.md](hard/ChatPane.md) | 4 sub-components + `useChatPaneView.hooks.ts`; ChatPane ~88 | now |
-
-Partial-plan notes: `deps.md` lists 3 REMAINING checks (exact composer input field lists, machine check that every
-routeDeps key lands in one part, ctor side-effect spot check) — the executor does them as step 0. `launch.md`,
-`pages.md`, `render.md` sizes are estimates; the executor gates each step with `outline.mjs --check`.
-
-## Owner decisions needed (listed, not decided)
-**Exception candidates — held, no split planned:**
-- 8 theme runtime scripts `content/themes/{static,__original-themes__/static}/{tovu-starter,tovu-theme}/scripts/{main,docs-toc}.js`
-  — the same script duplicated per theme (4 copies each); not kUInetic, but a split must change every copy in
-  lockstep and the originals' bytes.
-- Jini `packages/agent-runtime/src/skills/web-clone/scripts/recon-site.mjs` (`collectSignals`), `packages/commerce/src/browser/checkout.ts`,
-  `packages/diagnostics/src/web-evidence/page-structure-script.ts` — functions serialized into a browser page
-  (`fn.toString()` / `page.evaluate`), no outer scope allowed.
-- Jini `packages/ui/src/react/components/Icon.tsx` — `ICON_RENDERERS`, one flat artwork table (645 lines, one entry per icon).
-- Tovu `apps/website/src/platform/db/sqlite/fresh-content-db.ts` — `freshContentOperations`, one table keyed by migration id mirroring `CONTENT_MIGRATIONS`.
-
-**Exception candidates with a split planned anyway (owner picks):** `apps/admin/src/panels.tsx` (`PANELS` table vs
-split by sidebar group), `apps/website/src/features/identity/repo.ts` (ten sibling repo classes; split by table family
-planned), `apps/admin/src/lib/browser-stream.ts` (one closure state machine; split planned, exception as fallback),
-`agent-daemon-scope.ts` `createSiteScope` (~470 after the planned part, until the move; ~30 tests read its statements by name).
-
-**Documented deviations from CONVENTIONS in hard plans:** `hard/api.md` D4 — two admin tests
-(`lib/__tests__/ledger-slice.test.ts`, `lib/__tests__/execution-settings.test.ts`) need their `vi.mock` factory split
-across `../api` and `../api-request` (beyond an import-path edit); `hard/PostEditor.md` — region sub-components take the
-editor `controller` object (rule 9 exception, argued in the doc).
-
-## Bugs noticed while designing
-Reported to the coordinator for `development/open-bugs.md` (local only); not recorded here because this repo is
-public. One is new (Jini chat run-stream hook), five were already in the 11-11 survey. No split fixes them.
+## Review-d4 findings (Codex review of the 100-line design) — status
+1. guarded-reader dependency crossings — fixed in its fragment: settled graph (deny, path resolver, stat, descriptor
+   opener built first; lister/sync/stream reads take them), `readBoundedStream` stays with `createBoundedStream`.
+2. activation preflight lock — fixed: lock factory built first and passed to the queries factory; strict read stays
+   inside the lock; seven ≤ 50-line factories in a settled order.
+3. launch cycle — fixed: compatibility trio → leaf `launch-compatibility.ts`; settled import graph in hard/launch.md.
+4. app composition `routeDepsOf` — fixed in hard/app.md (`memoryPluginRouteDeps` takes it; every `routeDeps`
+   self-reference in `createRouteDeps` checked against a builder that receives the thunk). deps.md contracts: see
+   that plan's REMAINING status.
+5. `api.mediaContentType` — stays in `api.ts`, still reading `api.mediaOriginalUrl` (hard/api.md).
+6. lane detection case-insensitive — in plan50.mjs; `project-ipc.ts` is in the hard lane.
+7. two-object boundary — CONVENTIONS rule 8 now requires it everywhere (incl. empty inputs) and forbids deleting an
+   existing options object; the three fragments that dropped one were fixed (peer-site-reads, identity
+   tool-registrations, agent-plugins automatic-use).
+8. complexity ceiling — the gate command runs `complexity` + `sonarjs/cognitive-complexity` as errors at 10 (admin
+   9) plus both size rules on the changed files, against a saved baseline.
 
 ## Limits of this design (read before trusting a number)
-- "After" sizes are estimates from outline counts; every step is gated by `outline.mjs --check`, not by the estimate.
-- Fragment test lists come from `rg`; the example showed one fragment missed two colocated tests, so every prompt makes
-  the executor complete the list with `rg -l "<stem>" … --glob '*.test.*'` and run a baseline first.
-- Jini designs were made on a clone without `node_modules` (reading only); each Jini prompt runs the package typecheck.
-- After-move plans assume today's code; prompts stop per file when the named declarations are gone.
-- Fragments were written by 13 design agents from the same brief; style varies slightly. The Codex review should
-  spot-check helper input lists against `outline.mjs` `uses:` output.
-
-<!-- GENERATED BELOW by assemble.mjs; edit fragments, not this part -->
-
-## Batches (generated)
-
-| batch | repo | phase | Terra files | not in this prompt (lane) |
-|---|---|---|---|---|
-| [size-01](size-01.terra-prompt.md) | tovu | now | 5 | `apps/website/src/server/routes/types.ts (hard)` |
-| [size-02](size-02.terra-prompt.md) | tovu | now | 8 |  |
-| [size-03](size-03.terra-prompt.md) | tovu | now | 4 | `apps/website/src/features/post/post.ts (fable)` |
-| [size-04](size-04.terra-prompt.md) | tovu | now | 3 | `apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts (fable)` |
-| [size-05](size-05.terra-prompt.md) | tovu | now | 3 | `apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts (fable)` |
-| [size-06](size-06.terra-prompt.md) | tovu | now | 6 | `apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts (fable)` |
-| [size-07](size-07.terra-prompt.md) | jini | now | 3 | `packages/daemon/src/agent-executor/events.ts (fable)` |
-| [size-08](size-08.terra-prompt.md) | tovu | now | 3 | `apps/website/src/features/publish-content/apply-loop.ts (fable)` |
-| [size-09](size-09.terra-prompt.md) | tovu | now | 4 | `apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts (fable)` |
-| [size-10](size-10.terra-prompt.md) | tovu | now | 5 | `apps/desktop/src/main/index.ts (fable)` |
-| [size-11](size-11.terra-prompt.md) | jini | now | 5 | `packages/chat/src/core/assistant-client/transport.ts (fable)`, `packages/chat/src/react/components/Composer.tsx (fable)` |
-| [size-12](size-12.terra-prompt.md) | jini | now | 7 | `packages/chat/src/react/hooks/assistant-chats.ts (fable)` |
-| [size-13](size-13.terra-prompt.md) | jini | now | 4 |  |
-| [size-14](size-14.terra-prompt.md) | tovu | now | 6 | `apps/website/src/platform/db/sqlite/fresh-content-db.ts (owner-exception)`, `apps/website/src/platform/site-dir/local-site-supervisor.ts (fable)` |
-| [size-15](size-15.terra-prompt.md) | tovu | now | 8 |  |
-| [size-16](size-16.terra-prompt.md) | jini | now | 3 | `packages/agent-runtime/src/agent-protocol/acp/session.ts (fable)` |
-| [size-17](size-17.terra-prompt.md) | jini | now | 4 | `packages/daemon/src/run-lifecycle.ts (fable)`, `packages/daemon/src/tool-executor.ts (fable)` |
-| [size-18](size-18.terra-prompt.md) | jini | now | 6 |  |
-| [size-19](size-19.terra-prompt.md) | jini | now | 6 |  |
-| [size-20](size-20.terra-prompt.md) | jini | now | 2 | `packages/agent-runtime/src/claude-stream.ts (fable)`, `packages/agent-runtime/src/skills/web-clone/scripts/recon-site.mjs (owner-exception)` |
-| [size-21](size-21.terra-prompt.md) | jini | now | 6 |  |
-| [size-22](size-22.terra-prompt.md) | jini | now | 3 | `packages/commerce/src/browser/checkout.ts (owner-exception)` |
-| [size-23](size-23.terra-prompt.md) | jini | now | 4 |  |
-| [size-24](size-24.terra-prompt.md) | tovu | now | 7 | `apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts (done)` |
-| [size-25](size-25.terra-prompt.md) | jini | now | 4 |  |
-| [size-26](size-26.terra-prompt.md) | jini | now | 4 |  |
-| [size-27](size-27.terra-prompt.md) | jini | now | 8 |  |
-| [size-28](size-28.terra-prompt.md) | jini | now | 6 | `packages/chat/src/store/sql/store.ts (fable)` |
-| [size-29](size-29.terra-prompt.md) | jini | now | 7 |  |
-| [size-30](size-30.terra-prompt.md) | jini | now | 4 |  |
-| [size-31](size-31.terra-prompt.md) | jini | now | 4 |  |
-| [size-32](size-32.terra-prompt.md) | jini | now | 4 |  |
-| [size-33](size-33.terra-prompt.md) | jini | now | 2 | `packages/ui/src/renderers/annotation-canvas/react/hooks/useAnnotationCanvas.ts (fable)`, `packages/user-management/src/admin/controllers/roles.controller.ts (fable)` |
-| [size-34](size-34.terra-prompt.md) | jini | now | 4 | `packages/plugins/src/host/node/runtime-core.ts (fable)` |
-| [size-35](size-35.terra-prompt.md) | jini | now | 7 | `packages/ui/src/features/memory/react/hooks/useMemoryConnectors.hooks.ts (fable)` |
-| [size-36](size-36.terra-prompt.md) | jini | now | 3 | `packages/sidecar/src/supervision/supervisor.ts (fable)` |
-| [size-37](size-37.terra-prompt.md) | jini | now | 7 | `packages/ui/src/features/html-editor/react/hooks/useInteractiveHtmlEditor.ts (fable)` |
-| [size-38](size-38.terra-prompt.md) | jini | now | 8 |  |
-| [size-39](size-39.terra-prompt.md) | jini | now | 2 | `packages/devops/src/checks/hardwiring.ts (fable)`, `packages/diagnostics/src/web-evidence/page-structure-script.ts (owner-exception)` |
-| [size-40](size-40.terra-prompt.md) | jini | now | 6 | `packages/ui/src/react/components/Icon.tsx (owner-exception)` |
-| [size-41](size-41.terra-prompt.md) | jini | now | 2 | `packages/vibecoding/src/node/project.ts (fable)` |
-| size-42 | tovu | now | 0 | `content/themes/__original-themes__/static/tovu-starter/scripts/docs-toc.js (owner-exception)`, `content/themes/__original-themes__/static/tovu-starter/scripts/main.js (owner-exception)`, `content/themes/__original-themes__/static/tovu-theme/scripts/docs-toc.js (owner-exception)`, `content/themes/__original-themes__/static/tovu-theme/scripts/main.js (owner-exception)` |
-| size-43 | tovu | now | 0 | `content/themes/static/tovu-starter/scripts/docs-toc.js (owner-exception)`, `content/themes/static/tovu-starter/scripts/main.js (owner-exception)`, `content/themes/static/tovu-theme/scripts/docs-toc.js (owner-exception)`, `content/themes/static/tovu-theme/scripts/main.js (owner-exception)` |
-| [size-44](size-44.terra-prompt.md) | jini | now | 8 |  |
-| [size-45](size-45.terra-prompt.md) | jini | now | 8 |  |
-| [size-46](size-46.terra-prompt.md) | tovu | after-move | 2 |  |
-| [size-47](size-47.terra-prompt.md) | tovu | after-move | 4 |  |
-| [size-48](size-48.terra-prompt.md) | tovu | after-move | 6 |  |
-| [size-49](size-49.terra-prompt.md) | tovu | after-move | 4 |  |
-| [size-50](size-50.terra-prompt.md) | tovu | after-move | 6 |  |
-| [size-51](size-51.terra-prompt.md) | tovu | after-move | 3 |  |
-| [size-52](size-52.terra-prompt.md) | tovu | after-move | 4 |  |
-| [size-53](size-53.terra-prompt.md) | tovu | after-move | 2 |  |
-| [size-54](size-54.terra-prompt.md) | tovu | after-move | 4 | `apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts (hard)` |
-| [size-55](size-55.terra-prompt.md) | tovu | after-move | 8 |  |
-| [size-56](size-56.terra-prompt.md) | tovu | after-move | 4 |  |
-| [size-57](size-57.terra-prompt.md) | tovu | after-move | 6 |  |
-| [size-58](size-58.terra-prompt.md) | tovu | after-move | 2 | `apps/website/src/server/runtime/composition/commerce.ts (fable)` |
-
-## Fable/Opus lane (generated: fragments that recommend a strong executor)
-
-| file | batch | why (from the fragment) |
-|---|---|---|
-| `tovu:apps/website/src/features/post/post.ts` | size-03 | Risks / notes:** the importer rewrite (~96 files, many multi-name imports) is the bulk of the work and mechanical but large — recommend Opus/Fable execute, or l |
-| `tovu:apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts` | size-05 | Risks / notes:** Fable/Opus should execute (many crossings, stale-closure-sensitive `runSave`). Hook call order changes only by grouping; effect order must stay |
-| `tovu:apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts` | size-04 | Risks / notes:** stale-settlement generations, `openFileRef`, `tRef` and `savingOriginalRef`/`copyingRef` are refs — pass the ref objects, never `.current`. Spr |
-| `tovu:apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts` | size-06 | Risks / notes:** Fable/Opus should execute — the refs (`overwriteKeysRef`, `overwriteReplanPendingRef`, `basePlanStaleRef`, `planPeerRef`) are read synchronousl |
-| `jini:packages/daemon/src/agent-executor/events.ts` | size-07 | Phase:** now · **Batch:** size-07 · **Executor:** Fable/Opus (one closure with ~15 mutable locals shared by event callbacks; see Risks) |
-| `tovu:apps/website/src/features/publish-content/apply-loop.ts` | size-08 | Risks / notes:** `failRun` now receives `activeItemKey` by value at the `catch`; safe because `applyRows` has already thrown and nothing else writes it — keep t |
-| `tovu:apps/desktop/src/main/index.ts` | size-10 | Risks / notes:** ES module evaluation order: everything moved into a static import runs BEFORE this file's top-level `await initializeStartupSecrets({}, {})`. O |
-| `tovu:apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts` | size-09 | Risks / notes:** closure semantics: every factory must receive the SAME `now`, `scheduler`-backed `delay`/`withinDeadline`, and the same `recovery` instance; `c |
-| `jini:packages/chat/src/react/components/Composer.tsx` | size-11 | Risks / notes:** hook order inside `useComposerView` must equal today's: `useAgentHandle`, `useT`, refs, `draftRef` assignment, all `useState`s in original orde |
-| `jini:packages/agent-runtime/src/agent-protocol/acp/session.ts` | size-16 | Risks / notes:** closure-heavy: `finished`/`fatal`/`aborted` are mutated from 8+ places (fail, failWithPayload, finishCleanPrompt, abort, parser guard, stderr g |
-| `jini:packages/daemon/src/run-lifecycle.ts` | size-17 | Phase:** now · **Batch:** size-17 · **Executor:** Fable/Opus (core state machine; timers + subscriber ordering) |
-| `jini:packages/agent-runtime/src/claude-stream.ts` | size-20 | Risks / notes:** every former `let` (`currentMessageId`, `currentMessageStreamedText/Thinking`, `turnEndSignature`, `anonymousMessageEpoch`, 7 artifact lets) is |
-| `jini:packages/daemon/src/tool-executor.ts` | size-17 | Phase:** now · **Batch:** size-17 · **Executor:** Fable/Opus (audit/confirmation ordering across ~25 closures) |
-| `jini:packages/chat/src/core/assistant-client/transport.ts` | size-11 | Risks / notes:** `startByokRun` must still register the abort controller before the `fetch`. `capturePluginUsage` is used by `subscribeToRun` (local-cli imports |
-| `tovu:apps/website/src/server/runtime/composition/commerce.ts` | size-58 | Risks / notes:** Step 4 turns closures over `let`s into a shared mutable record — every read must stay a live read at call time (never destructure `state` field |
-| `jini:packages/chat/src/store/sql/store.ts` | size-28 | Risks / notes:** `midRunCount` is an immutable `sql` fragment built from a constant, so making it module-level doesn't change the SQL. Spreading the three opera |
-| `tovu:apps/website/src/platform/site-dir/local-site-supervisor.ts` | size-14 | Risks / notes:** state that was a closed-over `let` is now a shared record — every write must go through `state.` (grep the moved bodies for bare `closed`/`resu |
-| `jini:packages/ui/src/renderers/annotation-canvas/react/hooks/useAnnotationCanvas.ts` | size-33 | Risks / notes:** HIGH. Effect order matters (resize effect before shortcuts; deactivate-reset effect before text focus/autosize effects; dock layout effects las |
-| `jini:packages/plugins/src/host/node/runtime-core.ts` | size-34 | Risks / notes:** inner functions today are hoisted and reference each other freely; after the split each factory gets the others' functions as inputs, so a fact |
-| `jini:packages/user-management/src/admin/controllers/roles.controller.ts` | size-33 | Risks / notes:** HIGH: ~60 read sites of `state`/`disposed`/generations change spelling; the `dispose` method still does `++listGeneration; ++permissionGenerati |
-| `jini:packages/ui/src/features/html-editor/react/hooks/useInteractiveHtmlEditor.ts` | size-37 | Risks / notes:** RISKY — recommend Fable/Opus, not Terra: closures over `let` bindings become reads of `state.*`; any missed rename (e.g. `structuralChange` ins |
-| `jini:packages/chat/src/react/hooks/assistant-chats.ts` | size-12 | Phase:** now · **Batch:** size-12 · **Executor:** Fable/Opus suggested (hook order + ~15 refs shared across callbacks) |
-| `jini:packages/devops/src/checks/hardwiring.ts` | size-39 | Risks / notes:** this design came from the outline plus the source of units G and I only. The executor should check each unit's cross-calls against the outline' |
-| `jini:packages/ui/src/features/memory/react/hooks/useMemoryConnectors.hooks.ts` | size-35 | Risks / notes:** Fable/Opus-grade: many setters cross boundaries; deps arrays must be copied exactly (setters/refs are stable, so wrapping in helpers does not c |
-| `jini:packages/vibecoding/src/node/project.ts` | size-41 | Risks / notes:** HIGH — concurrency core (queue, lock, `closed` checks inside `serial`). Every read of `current`/`closed` in units B/E must become `core.getCurr |
-| `jini:packages/sidecar/src/supervision/supervisor.ts` | size-36 | Risks / notes:** HIGH — 11 mutable lets shared across every function; the `let` → `state.x` rewrite must catch every occurrence (a missed one silently forks sta |
-
-## Per-file index, highest score first (generated; the plan for each file is its fragment in parts/)
-
-| # | file | over (file / functions) | phase | lane | batch | plan | after (from the plan) |
-|---|---|---|---|---|---|---|---|
-| 1 | `tovu:apps/website/src/server/runtime/composition/deps.ts` | 1930 / composeSiteRouteDeps=1202 | after-move | hard | - | [hard/](hard/) | see hard plan |
-| 2 | `tovu:apps/admin/src/lib/api.ts` | 2530 / - | after-move | hard | - | [hard/](hard/) | see hard plan |
-| 3 | `tovu:apps/website/src/server/runtime/composition/app.ts` | 1707 / createRouteDeps=882 createApp=247 | now | hard | - | [hard/](hard/) | see hard plan |
-| 4 | `tovu:apps/website/src/server/inbound/public-http/routes/site/pages.ts` | 1489 / - | now | hard | - | [hard/](hard/) | see hard plan |
-| 5 | `tovu:apps/website/src/server/inbound/public-http/http/site/render.ts` | 1664 / - | now | hard | - | [hard/](hard/) | see hard plan |
-| 6 | `tovu:apps/admin/src/features/posts/PostEditor.tsx` | 1590 / Toolbar=345 PostEditor=271 PostEditorActions=116 PostEditorHeader=112 | after-move | hard | - | [hard/](hard/) | see hard plan |
-| 7 | `tovu:apps/website/src/server/routes/types.ts` | 519 / - | now | hard | size-01 | [hard/](hard/) | see hard plan |
-| 8 | `tovu:apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx` | 1033 / useExecutionConfig=134 | after-move | terra | size-46 | [fragment](parts/tovu/apps__admin__src__components__AssistantDock__hooks__AssistantDock.hooks.tsx.md) | original ~415; `useExecutionConfig` ~50; new files ~140 / ~120 / ~40 / ~70 / ~75 / ~25 / ~ |
-| 9 | `tovu:apps/admin/src/features/media/Media.tsx` | 1151 / EditMediaPanel=197 MediaLibraryPanel=126 | now | terra | size-02 | [fragment](parts/tovu/apps__admin__src__features__media__Media.tsx.md) | `Media.tsx` ~150; `Media-icons.tsx` ~40; `Media-card.tsx` ~210; `Media-edit.tsx` ~370 (`Ed |
-| 10 | `tovu:apps/website/src/features/post/post.ts` | 1107 / - | now | fable | size-03 | [fragment](parts/tovu/apps__website__src__features__post__post.ts.md) | `post.ts` ~420; `post-model.ts` ~140; `post-field-rules.ts` ~90; `post-write-steps.ts` ~15 |
-| 11 | `tovu:apps/admin/src/features/pages/PageEditor.tsx` | 1017 / PageEditor=220 PageEditorPane=125 | after-move | terra | size-47 | [fragment](parts/tovu/apps__admin__src__features__pages__PageEditor.tsx.md) | `PageEditor.tsx` ~330; `PageEditor` ~90; `PageEditorPane` ~65; new files ~190 / ~185 / ~28 |
-| 12 | `tovu:apps/website/src/features/deployments/publish-agent-tools.ts` | 763 / buildStaticPublishRegistrations=155 | after-move | terra | size-48 | [fragment](parts/tovu/apps__website__src__features__deployments__publish-agent-tools.ts.md) | original ~400; `buildStaticPublishRegistrations` ~20; `executeStaticPublishHandler` ~80; n |
-| 13 | `tovu:apps/admin/src/panels.tsx` | 726 / - | now | terra | size-04 | [fragment](parts/tovu/apps__admin__src__panels.tsx.md) | `panels.tsx` ~140; group files ~35–150 each (Content ~150, Operations ~115, Add-Ons ~110). |
-| 14 | `tovu:apps/desktop/src/project-ipc.ts` | 1082 / registerSiteIpcHandlers=229 | after-move | terra | size-49 | [fragment](parts/tovu/apps__desktop__src__project-ipc.ts.md) | `project-ipc.ts` ~470; `registerSiteIpcHandlers` ~75; `project-ipc-types.ts` ~190; `-site- |
-| 15 | `jini:packages/daemon/src/agent-executor/launch.ts` | 1048 / createAgentExecutor=429 run=115 | now | hard | - | [hard/](hard/) | see hard plan |
-| 16 | `tovu:apps/admin/src/features/deployment/StaticSiteTab.tsx` | 935 / - | after-move | terra | size-47 | [fragment](parts/tovu/apps__admin__src__features__deployment__StaticSiteTab.tsx.md) | `StaticSiteTab.tsx` ~180; new files ~210 / ~350 / ~210. |
-| 17 | `tovu:apps/website/src/features/post/tool-registrations.ts` | 796 / buildPostRegistrations=278 | after-move | terra | size-50 | [fragment](parts/tovu/apps__website__src__features__post__tool-registrations.ts.md) | original ~435; `buildPostRegistrations` ~15; `createPostUpdateHandler` ~85, other factorie |
-| 18 | `tovu:apps/admin/src/features/security/AccessTokensTab.tsx` | 847 / AddCustomCredentialDialog=119 TokenInputFields=114 | after-move | terra | size-51 | [fragment](parts/tovu/apps__admin__src__features__security__AccessTokensTab.tsx.md) | `AccessTokensTab.tsx` ~395; `TokenInputFields` ~65; `AddCustomCredentialDialog` ~50; new f |
-| 19 | `jini:packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts` | 946 / useChatPane=618 | now | hard | - | [hard/](hard/) | see hard plan |
-| 20 | `tovu:apps/admin/src/features/themes/ThemeExplore.tsx` | 1020 / ThemeExploreContent=287 | after-move | terra | size-52 | [fragment](parts/tovu/apps__admin__src__features__themes__ThemeExplore.tsx.md) | `ThemeExplore.tsx` ~300; `ThemeExploreContent` ~70; new files ~235 / ~120 / ~170 / ~200. |
-| 21 | `tovu:apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts` | 675 / usePageEditor=382 | now | fable | size-05 | [fragment](parts/tovu/apps__admin__src__features__pages__hooks__use-page-editor.hooks.ts.md) | original ~470; `usePageEditor` ~85; largest sub-hook `usePageEditorData` ~40; `use-page-ed |
-| 22 | `tovu:apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts` | 911 / useThemeExplore=520 | now | fable | size-04 | [fragment](parts/tovu/apps__admin__src__features__themes__hooks__use-theme-explore.hooks.ts.md) | hooks file ~130 (`useThemeExplore` ~100); model ~390; listing ~90; file-text ~55; refresh  |
-| 23 | `tovu:apps/admin/src/App.tsx` | 553 / AdminShell=199 AssistantChrome=137 | after-move | terra | size-53 | [fragment](parts/tovu/apps__admin__src__App.tsx.md) | `App.tsx` ~370; `AdminShell` ~85; `AssistantChrome` ~55; `App-assistant-chrome.tsx` ~150;  |
-| 24 | `tovu:apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts` | 635 / usePostEditor=400 | after-move | hard | size-54 | [hard/](hard/) | see hard plan |
-| 25 | `tovu:apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts` | 849 / usePublishContentConfirm=461 | now | fable | size-06 | [fragment](parts/tovu/apps__admin__src__features__publish-content__hooks__use-publish-content-confirm.hooks.ts.md) | original ~300; `usePublishContentConfirm` ~95; `-view.ts` ~370; `-plan.hooks.ts` ~210 (`us |
-| 26 | `jini:packages/chat/src/react/features/chat-pane/components/ChatPane.tsx` | 766 / ChatPane=176 | now | hard | - | [hard/](hard/) | see hard plan |
-| 27 | `tovu:apps/website/src/features/theme/tool-registrations.ts` | 627 / buildThemesRegistrations=297 | after-move | terra | size-55 | [fragment](parts/tovu/apps__website__src__features__theme__tool-registrations.ts.md) | original ~420; `buildThemesRegistrations` ~22; read handlers ~85; each write factory ≤ 55; |
-| 28 | `jini:packages/daemon/src/agent-executor/events.ts` | 934 / wireChildLifecycle=335 | now | fable | size-07 | [fragment](parts/jini/packages__daemon__src__agent-executor__events.ts.md) | events.ts ~430; `wireChildLifecycle` ~90; events-child-guards ~100; events-acp ~185; event |
-| 29 | `tovu:apps/website/src/features/post/agent-tools.ts` | 704 / - | after-move | terra | size-50 | [fragment](parts/tovu/apps__website__src__features__post__agent-tools.ts.md) | `agent-tools.ts` ~285; `agent-tools-tiptap-schema.ts` ~425. |
-| 30 | `tovu:apps/desktop/src/tovu-server.ts` | 503 / startTovuServer=118 | after-move | terra | size-56 | [fragment](parts/tovu/apps__desktop__src__tovu-server.ts.md) | `tovu-server.ts` ~405; `startTovuServer` ~80; `tovu-server-child.ts` ~110. |
-| 31 | `tovu:apps/website/src/features/publish-content/apply-loop.ts` | 720 / createPublishContentApplyPort=346 applyReport=314 applyOneRow=195 | now | fable | size-08 | [fragment](parts/tovu/apps__website__src__features__publish-content__apply-loop.ts.md) | `apply-loop.ts` ~400; `createPublishContentApplyPort` ~25; `applyReport` ~80; `apply-loop- |
-| 32 | `tovu:apps/admin/src/features/ai-assistant/AiAssistant.tsx` | 655 / AiAssistant=118 VisitorCredentialForm=108 | after-move | terra | size-46 | [fragment](parts/tovu/apps__admin__src__features__ai-assistant__AiAssistant.tsx.md) | `AiAssistant.tsx` ~400; `AiAssistant` ~62; `VisitorCredentialForm` ~85; new file ~260. |
-| 33 | `tovu:apps/website/src/features/theme/static-render.ts` | 514 / - | after-move | terra | size-57 | [fragment](parts/tovu/apps__website__src__features__theme__static-render.ts.md) | `static-render.ts` ~395; `static-render-menus.ts` ~125. |
-| 34 | `tovu:apps/website/src/server/runtime/composition/tool-catalog-manifest.ts` | - / installFirstPartyToolContributors=252 | now | terra | size-09 | [fragment](parts/tovu/apps__website__src__server__runtime__composition__tool-catalog-manifest.ts.md) | file ~415; `installFirstPartyToolContributors` ~85; largest helper (F) ~58. |
-| 35 | `tovu:apps/website/src/server/inbound/assistant/agent-daemon-scope.ts` | 945 / createSiteScope=828 onStarted=440 | after-move | hard | - | [hard/](hard/) | see hard plan |
-| 36 | `tovu:apps/admin/src/features/security/rules.ts` | 516 / - | after-move | terra | size-51 | [fragment](parts/tovu/apps__admin__src__features__security__rules.ts.md) | `rules.ts` ~445; new files ~70 / ~10. |
-| 37 | `tovu:apps/website/src/features/theme/theme-files.ts` | 597 / - | after-move | terra | size-55 | [fragment](parts/tovu/apps__website__src__features__theme__theme-files.ts.md) | `theme-files.ts` ~478; `-generated.ts` ~52; `-compare.ts` ~38; `-originals.ts` ~36. |
-| 38 | `tovu:apps/desktop/src/main/index.ts` | 665 / - | now | fable | size-10 | [fragment](parts/tovu/apps__desktop__src__main__index.ts.md) | `index.ts` ~470; `main-paths.ts` ~60; `main-quit.ts` ~50; `main-project-deps.ts` ~80. |
-| 39 | `tovu:apps/admin/src/App.hooks.ts` | 556 / - | after-move | terra | size-53 | [fragment](parts/tovu/apps__admin__src__App.hooks.ts.md) | `App.hooks.ts` ~414 (+~55 if the App.tsx fragment's `useAdminShellState` lands here → ~470 |
-| 40 | `tovu:apps/desktop/src/renderer/SiteGrid.tsx` | 505 / - | now | terra | size-10 | [fragment](parts/tovu/apps__desktop__src__renderer__SiteGrid.tsx.md) | `SiteGrid.tsx` ~380; `SiteGrid-card-overlays.tsx` ~140; largest function `SiteCard` 100 (u |
-| 41 | `tovu:apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts` | 584 / createAssistantRunFinalizer=329 createHttpRunDaemonClient=101 | now | fable | size-09 | [fragment](parts/tovu/apps__website__src__server__runtime__composition__modules__assistant-run-finalizer.ts.md) | original ~470; `createAssistantRunFinalizer` ~85; `createRunStreamFollower` ~75; `createWa |
-| 42 | `tovu:apps/admin/src/features/taxonomy/Taxonomy.tsx` | 690 / namespaceList=146 <arg of taxonomies.map>=111 | after-move | terra | size-52 | [fragment](parts/tovu/apps__admin__src__features__taxonomy__Taxonomy.tsx.md) | `Taxonomy.tsx` ~265; `namespaceList` ~45; map callback ~45; new files ~135 / ~190 / ~175. |
-| 43 | `tovu:apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts` | 584 / useAccessTokens=336 | after-move | terra | size-51 | [fragment](parts/tovu/apps__admin__src__features__security__hooks__use-access-tokens.hooks.ts.md) | original ~430; `useAccessTokens` ~65; sub-hooks ~85 / ~70 / ~60 / ~45 / ~40; model ~190. |
-| 44 | `tovu:apps/website/src/server/runtime/composition/modules/assistant-byok.ts` | - / createAssistantByokModule=231 | now | terra | size-01 | [fragment](parts/tovu/apps__website__src__server__runtime__composition__modules__assistant-byok.ts.md) | `assistant-byok.ts` ~485; `createAssistantByokModule` ~95; `handleByokTurn` ~88; `assistan |
-| 45 | `jini:packages/chat/src/react/components/Composer.tsx` | 564 / Composer=267 | now | fable | size-11 | [fragment](parts/jini/packages__chat__src__react__components__Composer.tsx.md) | `Composer.tsx` ~350; `Composer` ~55; `ComposerFooter` ~60; `Composer.hooks.ts` ~230 (`useC |
-| 46 | `tovu:apps/website/src/server/inbound/admin-http/routes/themes/explore.ts` | 635 / - | now | terra | size-01 | [fragment](parts/tovu/apps__website__src__server__inbound__admin-http__routes__themes__explore.ts.md) | `explore.ts` ~455; `explore-route-shared.ts` ~75; `explore-file-description.ts` ~120. |
-| 47 | `jini:packages/chat/src/react/components/ToolCard.tsx` | 516 / - | now | terra | size-12 | [fragment](parts/jini/packages__chat__src__react__components__ToolCard.tsx.md) | ToolCard.tsx ~115; ToolCard-parts ~165; ToolCard-family-cards ~255. |
-| 48 | `jini:packages/core/src/redact.ts` | 601 / - | now | terra | size-13 | [fragment](parts/jini/packages__core__src__redact.ts.md) | redact.ts ~355; redact-shapes ~75; redact-spans ~75; redact-text-scan ~100. |
-| 49 | `tovu:apps/admin/src/features/settings/SettingsUi.tsx` | - / SettingsUi=300 | now | terra | size-06 | [fragment](parts/tovu/apps__admin__src__features__settings__SettingsUi.tsx.md) | file ~430; `SettingsUi` ~80; largest helper `memorySettingsTab` ~72. |
-| 50 | `tovu:apps/desktop/src/renderer/App.tsx` | - / App=182 | now | terra | size-10 | [fragment](parts/tovu/apps__desktop__src__renderer__App.tsx.md) | `App` ~95; `App.tsx` ~245; `use-app-import-flow.hooks.ts` ~35; `use-app-view.hooks.ts` ~45 |
-| 51 | `tovu:apps/website/src/features/theme/theme.ts` | 624 / - | now | terra | size-14 | [fragment](parts/tovu/apps__website__src__features__theme__theme.ts.md) | `theme.ts` ~370; `theme-manifest.ts` ~150; `theme-templates.ts` ~115. |
-| 52 | `tovu:apps/website/src/features/publish-content/peer-transport.ts` | 541 / - | now | terra | size-08 | [fragment](parts/tovu/apps__website__src__features__publish-content__peer-transport.ts.md) | `peer-transport.ts` ~230; `peer-call.ts` ~175; `peer-transport-pull.ts` ~120. |
-| 53 | `jini:packages/daemon/src/http/attachments.ts` | 871 / createDiskAttachmentStore=189 | now | terra | size-07 | [fragment](parts/jini/packages__daemon__src__http__attachments.ts.md) | attachments.ts ~220; `createDiskAttachmentStore` ~85; model ~115; signature ~65; claim ~80 |
-| 54 | `tovu:apps/admin/src/components/AssistantDock/AssistantDock.tsx` | - / AssistantDock=154 | now | terra | size-15 | [fragment](parts/tovu/apps__admin__src__components__AssistantDock__AssistantDock.tsx.md) | file ~215; `AssistantDock` ~95; `use-dock-execution.hooks.ts` ~45; `use-dock-composer.hook |
-| 55 | `jini:packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx` | 516 / - | now | terra | size-12 | [fragment](parts/jini/packages__chat__src__react__features__chat-pane__components__AgentRuntimePicker.tsx.md) | AgentRuntimePicker.tsx ~165; -agents ~120; -popover ~235. |
-| 56 | `tovu:apps/admin/src/features/collections/Collections.tsx` | 556 / Collections=156 | now | terra | size-15 | [fragment](parts/tovu/apps__admin__src__features__collections__Collections.tsx.md) | `Collections.tsx` ~200 (`Collections` ~75); `Collections-dialogs.tsx` ~330; `ContentTypesT |
-| 57 | `jini:packages/agent-runtime/src/agent-protocol/acp/session.ts` | 1236 / attachAcpSession=482 | now | fable | size-16 | [fragment](parts/jini/packages__agent-runtime__src__agent-protocol__acp__session.ts.md) | `session.ts` ~400; `attachAcpSession` ~95; `session-state.ts` ~80; `session-permissions.ts |
-| 58 | `jini:packages/daemon/src/run-lifecycle.ts` | 690 / createRunLifecycle=393 | now | fable | size-17 | [fragment](parts/jini/packages__daemon__src__run-lifecycle.ts.md) | run-lifecycle.ts ~120, `createRunLifecycle` ~92; types ~75; records ~175; helpers ~80; met |
-| 59 | `tovu:apps/website/src/features/theme/publish-content.ts` | 515 / buildHandler=154 | after-move | terra | size-57 | [fragment](parts/tovu/apps__website__src__features__theme__publish-content.ts.md) | `publish-content.ts` ~345; `buildHandler` ~50; `createThemeFilesApply` ~62; `stageThemeFil |
-| 60 | `jini:packages/user-management/src/react/users/Users.tsx` | 748 / Users=127 | now | terra | size-18 | [fragment](parts/jini/packages__user-management__src__react__users__Users.tsx.md) | Users.tsx ~330; `Users` ~95; Users-table.tsx ~265; Users-dialogs.tsx ~185 (+ Users-types.t |
-| 61 | `tovu:apps/admin/src/features/roles/Roles.tsx` | 679 / - | after-move | terra | size-54 | [fragment](parts/tovu/apps__admin__src__features__roles__Roles.tsx.md) | `Roles.tsx` ~290; new files ~285 / ~110. |
-| 62 | `jini:packages/cms/src/taxonomy/write-service.ts` | 712 / - | now | terra | size-19 | [fragment](parts/jini/packages__cms__src__taxonomy__write-service.ts.md) | write-service.ts ~285; types ~100; guards ~30; import ~165; delete ~150. No function over  |
-| 63 | `jini:packages/cms/src/widgets/resolver-service.ts` | 701 / - | now | terra | size-19 | [fragment](parts/jini/packages__cms__src__widgets__resolver-service.ts.md) | resolver-service.ts ~200; instances ~150; media ~205; content ~165. No function over 100. |
-| 64 | `jini:packages/agent-runtime/src/claude-stream.ts` | 685 / createClaudeStreamHandler=373 | now | fable | size-20 | [fragment](parts/jini/packages__agent-runtime__src__claude-stream.ts.md) | `claude-stream.ts` ~150; `createClaudeStreamHandler` ~40; types ~70; tasks ~115; artifacts |
-| 65 | `jini:packages/admin/src/seo/react/pages/SeoPage.tsx` | 608 / SeoDefaultsTab=136 | now | terra | size-21 | [fragment](parts/jini/packages__admin__src__seo__react__pages__SeoPage.tsx.md) | SeoPage ~290; `SeoDefaultsTab` ~30; SeoPage-entry ~320; SeoPage-section ~20. |
-| 66 | `jini:packages/commerce/src/payments/ledger/rows.ts` | 726 / - | now | terra | size-22 | [fragment](parts/jini/packages__commerce__src__payments__ledger__rows.ts.md) | rows.ts ~265; rows-integers.ts ~35; rows-tables.ts ~205; rows-records.ts ~245; no function |
-| 67 | `tovu:apps/website/src/platform/db/sqlite/fresh-content-db.ts` | - / bootstrapFreshContentDb=187 | now | owner-exception | size-14 | [fragment](parts/tovu/apps__website__src__platform__db__sqlite__fresh-content-db.ts.md) | `bootstrapFreshContentDb` ~25; `freshContentOperations` ~165 (stays over); file ~222. |
-| 68 | `tovu:apps/website/src/server/runtime/composition/provider-plugins.ts` | - / bootProviderPlugins=147 | now | terra | size-09 | [fragment](parts/tovu/apps__website__src__server__runtime__composition__provider-plugins.ts.md) | `bootProviderPlugins` ~92; `replaceProviderSlot` ~33; file ~390. |
-| 69 | `tovu:apps/website/src/features/newsletter/repo.ts` | 548 / - | after-move | terra | size-48 | [fragment](parts/tovu/apps__website__src__features__newsletter__repo.ts.md) | `repo.ts` ~365; `repo-dispatch.ts` ~185. |
-| 70 | `jini:packages/daemon/src/tool-executor.ts` | - / createToolExecutor=344 | now | fable | size-17 | [fragment](parts/jini/packages__daemon__src__tool-executor.ts.md) | tool-executor.ts ~370, `createToolExecutor` ~85; tool-executor-types ~100; factories ~45 / |
-| 71 | `jini:packages/server/src/builtin-features.ts` | 566 / createBuiltInFeatures=426 | now | terra | size-23 | [fragment](parts/jini/packages__server__src__builtin-features.ts.md) | `builtin-features.ts` ~50; `createBuiltInFeatures` ~45; `builtin-features-support.ts` ~145 |
-| 72 | `tovu:apps/website/src/cli/program.ts` | - / createProgram=196 | now | terra | size-03 | [fragment](parts/tovu/apps__website__src__cli__program.ts.md) | file ~240; `createProgram` ~25; `registerSiteFolderCommands` ~80; others ≤ 50. |
-| 73 | `tovu:apps/website/src/assistant/byok-tool-surface.ts` | - / createByokToolSurface=130 | after-move | terra | size-56 | [fragment](parts/tovu/apps__website__src__assistant__byok-tool-surface.ts.md) | `byok-tool-surface.ts` ~345; `createByokToolSurface` ~92; `byok-tool-surface-meta-tools.ts |
-| 74 | `tovu:apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts` | - / registerAdminPublishSiteRoutes=182 | now | terra | size-24 | [fragment](parts/tovu/apps__website__src__server__inbound__admin-http__routes__system__publish-site.ts.md) | `registerAdminPublishSiteRoutes` ~35; largest helper ~55; file ~320. |
-| 75 | `jini:packages/chat/src/react/components/MessageRow.tsx` | - / AssistantMessageRow=159 | now | terra | size-11 | [fragment](parts/jini/packages__chat__src__react__components__MessageRow.tsx.md) | `AssistantMessageRow` ~80; `useAssistantMessageView` ~30; file ~330; hooks file ~95. |
-| 76 | `tovu:apps/website/src/server/inbound/admin-http/dev-auth.ts` | - / registerAuthRoutes=185 | after-move | terra | size-55 | [fragment](parts/tovu/apps__website__src__server__inbound__admin-http__dev-auth.ts.md) | `dev-auth.ts` ~488; `registerAuthRoutes` ~22; helpers ~68 / ~52 / ~52; `dev-auth-cookies.t |
-| 77 | `jini:packages/chat/src/core/assistant-client/transport.ts` | - / createAssistantTransportClient=400 | now | fable | size-11 | [fragment](parts/jini/packages__chat__src__core__assistant-client__transport.ts.md) | `transport.ts` ~120 (incl. remaining module doc); `createAssistantTransportClient` ~75; `c |
-| 78 | `tovu:apps/website/src/server/runtime/composition/modules/site-assistant.ts` | - / createSiteAssistantModule=185 registerRoutes=147 handleChat=105 | after-move | terra | size-58 | [fragment](parts/tovu/apps__website__src__server__runtime__composition__modules__site-assistant.ts.md) | file ~470; `createSiteAssistantModule` ~82; `registerRoutes` ~44; `handleSiteAssistantChat |
-| 79 | `jini:packages/mcp/src/federation/hosted/store.ts` | 988 / - | now | terra | size-25 | [fragment](parts/jini/packages__mcp__src__federation__hosted__store.ts.md) | `store.ts` ~350; `store-config-resolution.ts` ~295; `store-oauth-fields.ts` ~190; `store-i |
-| 80 | `tovu:apps/website/src/features/widgets/tool-registrations.ts` | - / buildWidgetsRegistrations=213 | after-move | terra | size-55 | [fragment](parts/tovu/apps__website__src__features__widgets__tool-registrations.ts.md) | file ~350; builder ~28; helpers ~50 / ~75 / ~40 / ~55. |
-| 81 | `tovu:apps/website/src/features/forms/tool-registrations.ts` | - / buildFormsRegistrations=163 | after-move | terra | size-48 | [fragment](parts/tovu/apps__website__src__features__forms__tool-registrations.ts.md) | `buildFormsRegistrations` ~15; helpers ~85 / ~70; file ~405. |
-| 82 | `tovu:apps/website/src/features/publish-content/tool-registrations.ts` | - / buildPublishContentRegistrations=166 | after-move | terra | size-57 | [fragment](parts/tovu/apps__website__src__features__publish-content__tool-registrations.ts.md) | file ~370; `buildPublishContentRegistrations` ~16; helpers ~16 / ~66 / ~78. |
-| 83 | `tovu:apps/website/src/features/pages/tool-registrations.ts` | - / buildPagesRegistrations=154 | after-move | terra | size-50 | [fragment](parts/tovu/apps__website__src__features__pages__tool-registrations.ts.md) | file ~435; `buildPagesRegistrations` ~17; factories ~26 / ~50 / ~76 / ~46. |
-| 84 | `tovu:apps/website/src/features/site-backup/backup-service.ts` | 535 / - | after-move | terra | size-57 | [fragment](parts/tovu/apps__website__src__features__site-backup__backup-service.ts.md) | `backup-service.ts` ~477; `backup-service-plan-input.ts` ~65. |
-| 85 | `tovu:apps/website/src/server/inbound/admin-http/routes/system/sites.ts` | - / registerAdminSitesRoutes=128 | now | terra | size-24 | [fragment](parts/tovu/apps__website__src__server__inbound__admin-http__routes__system__sites.ts.md) | `registerAdminSitesRoutes` ~65; helpers ~36 each; file ~335. |
-| 86 | `jini:packages/platform/src/download.ts` | 981 / - | now | terra | size-26 | [fragment](parts/jini/packages__platform__src__download.ts.md) | `download.ts` ~345; `download-store.ts` ~190; `download-transfer.ts` ~190; `download-contr |
-| 87 | `tovu:apps/website/src/server/runtime/composition/commerce.ts` | - / composeCommerce=280 | after-move | fable | size-58 | [fragment](parts/tovu/apps__website__src__server__runtime__composition__commerce.ts.md) | file ~360; `composeCommerce` ~95; `resolveCommerceBinding` ~52; `buildCommerceRuntime` ~68 |
-| 88 | `tovu:apps/admin/src/features/pages/Pages.tsx` | - / Pages=169 | now | terra | size-02 | [fragment](parts/tovu/apps__admin__src__features__pages__Pages.tsx.md) | file ~225; `Pages` ~85; `MyPagesTable` ~95. |
-| 89 | `jini:packages/core/src/settings/write-service.ts` | 777 / - | now | terra | size-13 | [fragment](parts/jini/packages__core__src__settings__write-service.ts.md) | write-service.ts ~330; write-service-auth ~50; write-service-definitions ~430. |
-| 90 | `tovu:apps/website/src/server/runtime/composition/modules/assistant-chats.ts` | - / createAssistantChatsModule=152 registerRoutes=139 | now | terra | size-01 | [fragment](parts/tovu/apps__website__src__server__runtime__composition__modules__assistant-chats.ts.md) | `registerRoutes` ~65; `createAssistantChatsModule` ~78; file ~210. |
-| 91 | `tovu:apps/admin/src/features/publish-content/PublishContentDialog.tsx` | - / PublishContentDialog=115 | now | terra | size-05 | [fragment](parts/tovu/apps__admin__src__features__publish-content__PublishContentDialog.tsx.md) | file ~297; `PublishContentDialog` ~28; `PublishContentPeerPicker` ~32; `PublishContentActi |
-| 92 | `tovu:apps/website/src/features/publish-content/repo-handler.ts` | - / createRepoPublishHandler=176 build=142 | after-move | terra | size-50 | [fragment](parts/tovu/apps__website__src__features__publish-content__repo-handler.ts.md) | file ~265; `createRepoPublishHandler` ~8; `buildRepoPublishHandler` ~62; `createRepoApply` |
-| 93 | `jini:packages/agent-plugins/src/lifecycle/install.ts` | - / buildModule=303 | now | terra | size-27 | [fragment](parts/jini/packages__agent-plugins__src__lifecycle__install.ts.md) | `buildModule` ~85; sub-factories ≤95; file ~370. |
-| 94 | `tovu:apps/admin/src/features/menus/hooks/use-menu-editor.hooks.ts` | - / useMenuEditor=190 | now | terra | size-02 | [fragment](parts/tovu/apps__admin__src__features__menus__hooks__use-menu-editor.hooks.ts.md) | file ~345; `useMenuEditor` ~80; `useMenuRouteLoad` ~55; `useMenuSave` ~45. |
-| 95 | `tovu:apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts` | - / registerAdminPublishCredentialsRoutes=134 | now | terra | size-24 | [fragment](parts/tovu/apps__website__src__server__inbound__admin-http__routes__system__publish-credentials.ts.md) | register fn ~80; file ~225. |
-| 96 | `jini:packages/agent-plugins/src/lifecycle/automatic-use.ts` | - / createAutomaticAgentPluginUse=143 | now | terra | size-27 | [fragment](parts/jini/packages__agent-plugins__src__lifecycle__automatic-use.ts.md) | factory ~95; resolver ~48; file ~225. |
-| 97 | `tovu:apps/website/src/server/runtime/composition/peer-site-reads.ts` | - / createPeerSiteReads=129 | after-move | terra | size-58 | [fragment](parts/tovu/apps__website__src__server__runtime__composition__peer-site-reads.ts.md) | file ~392; `createPeerSiteReads` ~94; `openPeerBag` ~36. |
-| 98 | `tovu:apps/admin/src/features/roles/hooks/use-roles.hooks.ts` | - / useRoles=278 | after-move | terra | size-54 | [fragment](parts/tovu/apps__admin__src__features__roles__hooks__use-roles.hooks.ts.md) | `useRoles` ~85; sub-hooks ~45 / ~85 / ~70 / ~35; file ~400. |
-| 99 | `tovu:apps/website/src/features/taxonomy/tool-registrations.ts` | - / buildTaxonomyRegistrations=223 | after-move | terra | size-57 | [fragment](parts/tovu/apps__website__src__features__taxonomy__tool-registrations.ts.md) | file ~340; `buildTaxonomyRegistrations` ~14; helpers ~58 / ~50 / ~38 / ~82. |
-| 100 | `tovu:apps/website/src/server/inbound/admin-http/routes/publish-content/import.ts` | - / registerPublishContentImportRoutes=170 | now | terra | size-24 | [fragment](parts/tovu/apps__website__src__server__inbound__admin-http__routes__publish-content__import.ts.md) | register fn ~78; file ~240. |
-| 101 | `jini:packages/daemon/src/http/xai.ts` | 510 / - | now | terra | size-17 | [fragment](parts/jini/packages__daemon__src__http__xai.ts.md) | xai.ts ~365; xai-search-payload ~150. |
-| 102 | `tovu:apps/website/src/server/runtime/boot/bootstrap.ts` | - / buildBootModules=105 | after-move | terra | size-55 | [fragment](parts/tovu/apps__website__src__server__runtime__boot__bootstrap.ts.md) | file ~262; `buildBootModules` ~32; helpers ~32 / ~22 / ~55. |
-| 103 | `tovu:apps/admin/src/features/plugins/AgentPluginRow.tsx` | - / AgentPluginRow=138 | after-move | terra | size-47 | [fragment](parts/tovu/apps__admin__src__features__plugins__AgentPluginRow.tsx.md) | `AgentPluginRow` ~40; sub-components ~65 / ~55; file ~275. |
-| 104 | `jini:packages/chat/src/react/hooks/useComposer.ts` | - / useComposer=208 | now | terra | size-12 | [fragment](parts/jini/packages__chat__src__react__hooks__useComposer.ts.md) | `useComposer` ~92; sub-hooks ~20 / ~42 / ~30 / ~32; file ~370. |
-| 105 | `tovu:apps/website/src/features/trash/table-adapter.ts` | - / createTableTrashAdapter=191 | after-move | terra | size-55 | [fragment](parts/tovu/apps__website__src__features__trash__table-adapter.ts.md) | file ~222; `createTableTrashAdapter` ~65; `createTableTrashRowAccess` ~95; `createTableTra |
-| 106 | `tovu:apps/admin/src/features/plugins/AgentPlugins.tsx` | - / AgentPlugins=110 | after-move | terra | size-54 | [fragment](parts/tovu/apps__admin__src__features__plugins__AgentPlugins.tsx.md) | `AgentPlugins` ~58; file ~370. |
-| 107 | `jini:packages/chat/src/store/sql/store.ts` | - / createSqlChatStore=317 | now | fable | size-28 | [fragment](parts/jini/packages__chat__src__store__sql__store.ts.md) | `createSqlChatStore` about 30 lines. `createConversationOperations` about 80, `createPagin |
-| 108 | `tovu:apps/website/src/platform/site-dir/local-site-supervisor.ts` | - / createLocalSiteSupervisor=218 | now | fable | size-14 | [fragment](parts/tovu/apps__website__src__platform__site-dir__local-site-supervisor.ts.md) | `createLocalSiteSupervisor` ~60; largest helper `start` ~23; file ~330. |
-| 109 | `tovu:apps/website/src/features/media-import/tool-registrations.ts` | - / buildMediaImportRegistrations=118 | after-move | terra | size-48 | [fragment](parts/tovu/apps__website__src__features__media-import__tool-registrations.ts.md) | `buildMediaImportRegistrations` ~15; factories ~35 / ~40 / ~38; file ~270. |
-| 110 | `tovu:apps/admin/src/features/ai-assistant/hooks/use-visitor-credential-form.hooks.ts` | - / useVisitorCredentialForm=145 | now | terra | size-15 | [fragment](parts/tovu/apps__admin__src__features__ai-assistant__hooks__use-visitor-credential-form.hooks.ts.md) | file ~375; `useVisitorCredentialForm` ~70; discovery sub-hook ~50. |
-| 111 | `tovu:apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts` | - / usePublishCredentials=151 | now | terra | size-02 | [fragment](parts/tovu/apps__admin__src__features__deployment__hooks__use-publish-credentials.hooks.ts.md) | file ~265; `usePublishCredentials` ~70; each sub-hook < 40. |
-| 112 | `tovu:apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts` | - / useStaticPublish=150 | after-move | terra | size-47 | [fragment](parts/tovu/apps__admin__src__features__deployment__hooks__use-static-publish.hooks.ts.md) | `useStaticPublish` ~32; `usePublishTargetForm` ~50; `usePublishRun` ~75; file ~250. |
-| 113 | `tovu:apps/website/src/features/agent-plugins/lifecycle.ts` | - / createTovuAgentPluginLifecycle=111 | now | terra | size-03 | [fragment](parts/tovu/apps__website__src__features__agent-plugins__lifecycle.ts.md) | file ~250; `createTovuAgentPluginLifecycle` ~70; helpers ≤ 25. |
-| 114 | `tovu:apps/admin/src/features/posts/Posts.tsx` | - / Posts=132 | now | terra | size-05 | [fragment](parts/tovu/apps__admin__src__features__posts__Posts.tsx.md) | file ~170; `Posts` ~65; `postsTableColumns` ~72. |
-| 115 | `jini:packages/agent-runtime/src/providers/openai-chat.ts` | 528 / - | now | terra | size-20 | [fragment](parts/jini/packages__agent-runtime__src__providers__openai-chat.ts.md) | `openai-chat.ts` ~455; `openai-chat-types.ts` ~78. |
-| 116 | `tovu:apps/website/src/server/inbound/admin-http/routes/posts/update.ts` | - / registerAdminPostUpdateRoute=109 <arg of app.put>=103 | now | terra | size-14 | [fragment](parts/tovu/apps__website__src__server__inbound__admin-http__routes__posts__update.ts.md) | `registerAdminPostUpdateRoute` ~8; `handlePostUpdate` ~92; file ~195. |
-| 117 | `jini:packages/chat/src/react/hooks/useConversation.ts` | - / useConversation=145 | now | terra | size-28 | [fragment](parts/jini/packages__chat__src__react__hooks__useConversation.ts.md) | `useConversation` ~88; sub-hooks ~20 / ~12 / ~32; file ~250 counted. |
-| 118 | `tovu:apps/website/src/features/comments/tool-registrations.ts` | - / buildCommentsRegistrations=127 | after-move | terra | size-56 | [fragment](parts/tovu/apps__website__src__features__comments__tool-registrations.ts.md) | `buildCommentsRegistrations` ~20; helpers ~40 / ~45 / ~45; file ~275. |
-| 119 | `jini:packages/agent-plugins/src/lifecycle/activation.ts` | - / buildModule=314 | now | terra | size-27 | [fragment](parts/jini/packages__agent-plugins__src__lifecycle__activation.ts.md) | `buildModule` ~25; sub-factories ≤100 each; file ~430 (wrappers add ~15). |
-| 120 | `tovu:apps/website/src/features/identity/repo.ts` | 616 / - | after-move | terra | size-48 | [fragment](parts/tovu/apps__website__src__features__identity__repo.ts.md) | `repo.ts` ~290; `repo-rbac.ts` ~320; `repo-transactions.ts` ~15. |
-| 121 | `tovu:apps/website/src/features/identity/tool-registrations.ts` | - / buildGatedIdentityRegistrations=154 | after-move | terra | size-48 | [fragment](parts/tovu/apps__website__src__features__identity__tool-registrations.ts.md) | `buildGatedIdentityRegistrations` ~55; helpers ~12 / ~33 / ~58; file ~225. |
-| 122 | `tovu:apps/admin/src/features/providers/Providers.tsx` | - / Providers=129 | now | terra | size-05 | [fragment](parts/tovu/apps__admin__src__features__providers__Providers.tsx.md) | file ~170; `Providers` ~78; `providersTabs` ~55. |
-| 123 | `jini:packages/integrations/src/api-connections/hosted-mcp/sign-in.ts` | 602 / createHostedMcpSignInService=216 | now | terra | size-29 | [fragment](parts/jini/packages__integrations__src__api-connections__hosted-mcp__sign-in.ts.md) | `sign-in.ts` ~430; `createHostedMcpSignInService` ~75; `createRowTokenRefresher` ~45; `beg |
-| 124 | `tovu:apps/website/src/features/site-backup/import-backend.ts` | - / createSiteImportBackend=141 | now | terra | size-14 | [fragment](parts/tovu/apps__website__src__features__site-backup__import-backend.ts.md) | `createSiteImportBackend` ~92; file ~190. |
-| 125 | `tovu:apps/admin/src/features/dashboard/Dashboard.tsx` | - / Dashboard=106 | now | terra | size-15 | [fragment](parts/tovu/apps__admin__src__features__dashboard__Dashboard.tsx.md) | file ~290; `Dashboard` ~75; `DashboardHeader` ~40. |
-| 126 | `jini:packages/platform/src/fs/guarded-reader.ts` | - / createGuardedFileReader=329 | now | terra | size-30 | [fragment](parts/jini/packages__platform__src__fs__guarded-reader.ts.md) | file ~470; `createGuardedFileReader` ~40; `createGuardedPathPolicy` ~75; `createGuardedLis |
-| 127 | `tovu:apps/website/src/features/agent-plugins/automatic-agent-plugins.ts` | - / createAutomaticPluginRuns=142 | after-move | terra | size-56 | [fragment](parts/tovu/apps__website__src__features__agent-plugins__automatic-agent-plugins.ts.md) | `createAutomaticPluginRuns` ~74; `createAutomaticPluginEntry` ~50; `loadAgentPluginGuidanc |
-| 128 | `jini:packages/chat/src/store/runtime/durable-run-store.ts` | - / createDurableRunStore=280 | now | terra | size-28 | [fragment](parts/jini/packages__chat__src__store__runtime__durable-run-store.ts.md) | `createDurableRunStore` about 87 lines, `createDurableRunReads` about 72, `createAttemptWr |
-| 129 | `tovu:apps/admin/src/features/themes/hooks/use-themes.hooks.ts` | - / useThemes=122 | now | terra | size-04 | [fragment](parts/tovu/apps__admin__src__features__themes__hooks__use-themes.hooks.ts.md) | file ~210; `useThemes` ~75; sub-hooks ~22 each. |
-| 130 | `tovu:apps/website/src/server/runtime/lifecycle/local-site-process.ts` | - / createLocalSiteProcessPort=121 | now | terra | size-09 | [fragment](parts/tovu/apps__website__src__server__runtime__lifecycle__local-site-process.ts.md) | `createLocalSiteProcessPort` ~45; `spawnLocalSiteChild` ~78; file ~240. |
-| 131 | `jini:packages/agent-plugins/src/lifecycle/resolve-agent-plugin-refs.ts` | - / buildModule=154 | now | terra | size-31 | [fragment](parts/jini/packages__agent-plugins__src__lifecycle__resolve-agent-plugin-refs.ts.md) | `buildModule` ~60; sub-factories ~50 / ~57. |
-| 132 | `tovu:apps/website/src/features/newsletter/tool-registrations.ts` | - / buildNewsletterRegistrations=177 | after-move | terra | size-50 | [fragment](parts/tovu/apps__website__src__features__newsletter__tool-registrations.ts.md) | file ~425; `buildNewsletterRegistrations` ~14; helpers ~48 / ~72 / ~68. |
-| 133 | `jini:packages/cms/src/redirects/redirects.ts` | 518 / - | now | terra | size-19 | [fragment](parts/jini/packages__cms__src__redirects__redirects.ts.md) | redirects.ts ~290; redirects-validation ~240. |
-| 134 | `jini:packages/agentic/src/core/dom/dom-page-driver.ts` | - / createDomPageDriver=171 | now | terra | size-32 | [fragment](parts/jini/packages__agentic__src__core__dom__dom-page-driver.ts.md) | `createDomPageDriver` ~95; file ~465. |
-| 135 | `tovu:apps/admin/src/features/integrations/Integrations.tsx` | - / Integrations=156 | now | terra | size-02 | [fragment](parts/tovu/apps__admin__src__features__integrations__Integrations.tsx.md) | file ~265; `Integrations` ~68; `IntegrationsTable` ~72; `IntegrationsIntro` ~18. |
-| 136 | `tovu:apps/admin/src/features/sites/hooks/use-site-transfer.hooks.ts` | - / useSiteImport=118 | now | terra | size-06 | [fragment](parts/tovu/apps__admin__src__features__sites__hooks__use-site-transfer.hooks.ts.md) | file ~420; `useSiteImport` ~78; `useImportOwnerSetup` ~30; `useImportSource` ~22. |
-| 137 | `tovu:apps/admin/src/features/sites/hooks/use-sites.hooks.ts` | - / useSites=118 | now | terra | size-06 | [fragment](parts/tovu/apps__admin__src__features__sites__hooks__use-sites.hooks.ts.md) | file ~215; `useSites` ~45; `useCreateSiteForm` ~60; `useSiteActivation` ~33. |
-| 138 | `tovu:apps/admin/src/features/collections/hooks/use-collection-entry-editor.hooks.ts` | - / useCollectionEntryEditor=199 | now | terra | size-15 | [fragment](parts/tovu/apps__admin__src__features__collections__hooks__use-collection-entry-editor.hooks.ts.md) | file ~275; `useCollectionEntryEditor` ~65; sub-hooks ≤ 55. |
-| 139 | `tovu:apps/website/src/features/webhooks/tool-registrations.ts` | - / buildWebhooksRegistrations=126 | after-move | terra | size-55 | [fragment](parts/tovu/apps__website__src__features__webhooks__tool-registrations.ts.md) | file ~236; builder ~14; helpers ~32 / ~58 / ~42. |
-| 140 | `jini:packages/chat/src/react/components/ConversationList.tsx` | - / ConversationList=209 | now | terra | size-11 | [fragment](parts/jini/packages__chat__src__react__components__ConversationList.tsx.md) | `ConversationList` ~55; `ConversationMenu` ~50; `ConversationRow` ~40; hooks ~45/~40/~30;  |
-| 141 | `tovu:apps/admin/src/features/media/hooks/use-media.hooks.ts` | - / useMedia=156 | now | terra | size-02 | [fragment](parts/tovu/apps__admin__src__features__media__hooks__use-media.hooks.ts.md) | file ~225; `useMedia` ~70; `useMediaUpload` ~55; others ≤ 45. |
-| 142 | `jini:packages/cms/src/media/tool-registrations.ts` | - / buildMediaRegistrations=143 | now | terra | size-19 | [fragment](parts/jini/packages__cms__src__media__tool-registrations.ts.md) | `buildMediaRegistrations` ~32; read ~45; write ~75; file ~235. |
-| 143 | `tovu:apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts` | - / registerAdminSourceControlCredentialsRoutes=103 | now | terra | size-01 | [fragment](parts/tovu/apps__website__src__server__inbound__admin-http__routes__system__source-control-credentials.ts.md) | register fn ~83; file ~152. |
-| 144 | `jini:packages/user-management/src/react/users/hooks/use-users.hooks.ts` | - / useUsers=296 | now | terra | size-18 | [fragment](parts/jini/packages__user-management__src__react__users__hooks__use-users.hooks.ts.md) | `useUsers` ~98; use-users.hooks.ts ~400; new file ~95. |
-| 145 | `jini:packages/ui/src/renderers/annotation-canvas/react/hooks/useAnnotationCanvas.ts` | 880 / useAnnotationCanvas=739 | now | fable | size-33 | [fragment](parts/jini/packages__ui__src__renderers__annotation-canvas__react__hooks__useAnnotationCanvas.ts.md) | `useAnnotationCanvas` ~160 counted IF the 60-line return stays one key per line → still ov |
-| 146 | `jini:packages/chat/src/server/durable-runs/recover.ts` | - / createDurableRecovery=122 | now | terra | size-28 | [fragment](parts/jini/packages__chat__src__server__durable-runs__recover.ts.md) | `createDurableRecovery` ~86; helpers 10/5/19/4; file ~225 counted. |
-| 147 | `jini:packages/plugins/src/host/node/runtime-core.ts` | 564 / createPluginRuntimeCore=397 | now | fable | size-34 | [fragment](parts/jini/packages__plugins__src__host__node__runtime-core.ts.md) | `runtime-core.ts` ~445; `createPluginRuntimeCore` ~90; `createPluginAttacher` ~85; `create |
-| 148 | `tovu:apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx` | - / CreateWebsiteOnboarding=136 | now | terra | size-10 | [fragment](parts/tovu/apps__desktop__src__renderer__CreateWebsiteOnboarding.tsx.md) | `CreateWebsiteOnboarding` ~97; file ~330; new sub-components ≤ 25 each. |
-| 149 | `tovu:apps/admin/src/features/menus/MenuEditor.tsx` | - / MenuEditor=102 | now | terra | size-02 | [fragment](parts/tovu/apps__admin__src__features__menus__MenuEditor.tsx.md) | file ~435; `MenuEditor` ~82; `MenuItemTree` ~28. |
-| 150 | `jini:packages/agent-plugins/src/lifecycle/uninstall.ts` | - / buildModule=180 | now | terra | size-31 | [fragment](parts/jini/packages__agent-plugins__src__lifecycle__uninstall.ts.md) | `buildModule` ~75; sub-factories ~57 / ~35. |
-| 151 | `tovu:apps/website/src/features/recovery/tool-registrations.ts` | - / buildRecoveryRegistrations=178 | after-move | terra | size-57 | [fragment](parts/tovu/apps__website__src__features__recovery__tool-registrations.ts.md) | file ~280; `buildRecoveryRegistrations` ~10; helpers ~14 / ~32 / ~80 / ~76. |
-| 152 | `tovu:apps/website/src/server/inbound/admin-http/routes/system/site-imports.ts` | - / registerAdminSiteImportRoutes=112 | now | terra | size-24 | [fragment](parts/tovu/apps__website__src__server__inbound__admin-http__routes__system__site-imports.ts.md) | register fn ~92; file ~133. |
-| 153 | `jini:packages/memory/src/note-store.ts` | 522 / createNoteStore=367 | now | terra | size-26 | [fragment](parts/jini/packages__memory__src__note-store.ts.md) | `note-store.ts` ~450; `createNoteStore` ~85; `createNoteEntryOps` ~92; `createNoteIndexOps |
-| 154 | `jini:packages/ui/src/features/memory/react/components/MemoryConnectedPanel.tsx` | 520 / MemoryConnectedPanel=153 | now | terra | size-35 | [fragment](parts/jini/packages__ui__src__features__memory__react__components__MemoryConnectedPanel.tsx.md) | original ~345; `MemoryConnectedPanel` ~85; new file ~200 (`MemoryConnectorWorkbench` ~45). |
-| 155 | `tovu:apps/desktop/src/renderer/use-find-in-page.hooks.ts` | - / useFindInPage=171 | now | terra | size-10 | [fragment](parts/tovu/apps__desktop__src__renderer__use-find-in-page.hooks.ts.md) | `useFindInPage` ~85; `useFindFocusReclaim` ~80; `useCloseOnGuestChange` ~12; file ~360. |
-| 156 | `jini:packages/chat/src/store/runtime/run-ledger.ts` | - / createChatRunLedger=186 | now | terra | size-28 | [fragment](parts/jini/packages__chat__src__store__runtime__run-ledger.ts.md) | `createChatRunLedger` ~55; `createCheckpointWrites` ~58; `settleRun` ~34; `reconcileInterr |
-| 157 | `jini:packages/plugins/src/host/node/source-drafts.ts` | - / createPluginSourceService=180 | now | terra | size-34 | [fragment](parts/jini/packages__plugins__src__host__node__source-drafts.ts.md) | file ~312; `createPluginSourceService` ~75; helpers ≤ 60. |
-| 158 | `jini:packages/search/src/indexer.ts` | - / createSearchIndexer=239 | now | terra | size-23 | [fragment](parts/jini/packages__search__src__indexer.ts.md) | file ~315; `createSearchIndexer` ~70; `createTargetReconciler` ~82; `createTargetWriter` ~ |
-| 159 | `jini:packages/sandbox/src/e2b/wrap-e2b-sandbox.ts` | - / wrapE2bSandbox=197 | now | terra | size-23 | [fragment](parts/jini/packages__sandbox__src__e2b__wrap-e2b-sandbox.ts.md) | file ~300; `wrapE2bSandbox` ~80; helpers ≤ 40. |
-| 160 | `tovu:apps/desktop/src/desktop-agent-service.ts` | - / createDesktopAgentService=170 | now | terra | size-04 | [fragment](parts/tovu/apps__desktop__src__desktop-agent-service.ts.md) | file ~250; `createDesktopAgentService` ~95; `bindSiteServer` ~45. |
-| 161 | `tovu:apps/website/src/features/publish-content/gated-hooks.ts` | - / buildPublishContentImportHooks=104 | now | terra | size-08 | [fragment](parts/tovu/apps__website__src__features__publish-content__gated-hooks.ts.md) | `buildPublishContentImportHooks` ~73; file ~175. |
-| 162 | `jini:packages/agent-plugins/src/lifecycle/bundled-source-archive.ts` | - / buildModule=224 | now | terra | size-27 | [fragment](parts/jini/packages__agent-plugins__src__lifecycle__bundled-source-archive.ts.md) | `buildModule` ~95; sub-factories ~40 / ~26; file ~280. |
-| 163 | `tovu:apps/admin/src/features/collections/CollectionEntryEditor.tsx` | - / CollectionEntryEditor=103 | now | terra | size-15 | [fragment](parts/tovu/apps__admin__src__features__collections__CollectionEntryEditor.tsx.md) | file ~410; `CollectionEntryEditor` ~94; `EntryTitleField` ~12. |
-| 164 | `jini:packages/mcp/src/server/tool-server.ts` | - / createMcpToolServer=103 | now | terra | size-25 | [fragment](parts/jini/packages__mcp__src__server__tool-server.ts.md) | file ~300; `createMcpToolServer` ~48; `connectToolHost` ~63. |
-| 165 | `jini:packages/chat/src/embed-widget/browser/frontend-session-bridge.ts` | - / createFrontendSessionBridge=219 | now | terra | size-11 | [fragment](parts/jini/packages__chat__src__embed-widget__browser__frontend-session-bridge.ts.md) | `createFrontendSessionBridge` ~95; `createInvocationRunner` ~32; file ~420. |
-| 166 | `tovu:apps/desktop/src/renderer/workspace-chat-transport.ts` | - / createWorkspaceChatTransport=101 | after-move | terra | size-49 | [fragment](parts/tovu/apps__desktop__src__renderer__workspace-chat-transport.ts.md) | `createWorkspaceChatTransport` ~84; `routeChatEventMessage` ~20; file ~306. |
-| 167 | `tovu:apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts` | - / registerAdminSiteShareRoutes=109 | now | done | size-24 | [fragment](parts/tovu/apps__website__src__server__inbound__admin-http__routes__system__site-shares.ts.md) | register fn 82; file 151. |
-| 168 | `jini:packages/user-management/src/admin/controllers/roles.controller.ts` | - / createRolesController=327 | now | fable | size-33 | [fragment](parts/jini/packages__user-management__src__admin__controllers__roles.controller.ts.md) | `createRolesController` ~95; largest factory `createRowEdits` ~85; file ~390. |
-| 169 | `tovu:apps/website/src/server/inbound/admin-http/routes/recovery/restore.ts` | - / registerAdminRecoveryRestoreRoutes=162 | now | terra | size-24 | [fragment](parts/tovu/apps__website__src__server__inbound__admin-http__routes__recovery__restore.ts.md) | register fn ~5; helpers 43-67; file ~205. |
-| 170 | `jini:packages/chat/src/embed-widget/vanilla/index.ts` | - / mountVanillaChat=256 | now | terra | size-11 | [fragment](parts/jini/packages__chat__src__embed-widget__vanilla__index.ts.md) | `mountVanillaChat` ~75; `buildVanillaChatDom` ~75; `wireVanillaChatEvents` ~55; `createVan |
-| 171 | `jini:packages/ui/src/features/asset-grid/react/components/AssetGrid.tsx` | - / AssetGrid=210 | now | terra | size-36 | [fragment](parts/jini/packages__ui__src__features__asset-grid__react__components__AssetGrid.tsx.md) | `AssetGrid` about 62 lines, `useAssetGrid` about 60, `useAssetGridDelete` about 50, `useAs |
-| 172 | `jini:packages/ui/src/features/html-editor/react/hooks/useInteractiveHtmlEditor.ts` | - / useInteractiveHtmlEditor=121 <arg of useEffect>=105 | now | fable | size-37 | [fragment](parts/jini/packages__ui__src__features__html-editor__react__hooks__useInteractiveHtmlEditor.ts.md) | file ~290; `useInteractiveHtmlEditor` ~28; effect callback ~14; largest helper `bindEditor |
-| 173 | `jini:packages/admin/src/forms/react/hooks/use-form-editor.hooks.ts` | - / useFormEditor=151 | now | terra | size-38 | [fragment](parts/jini/packages__admin__src__forms__react__hooks__use-form-editor.hooks.ts.md) | `useFormEditor` ~60; sub-hooks ~15 / ~55 / ~18 / ~14; file ~240. |
-| 174 | `tovu:apps/admin/src/features/taxonomy/TermPicker.tsx` | - / TermPicker=132 | after-move | terra | size-52 | [fragment](parts/tovu/apps__admin__src__features__taxonomy__TermPicker.tsx.md) | `TermPicker` ~45; `TermPickerGroups` ~85; file ~230. |
-| 175 | `tovu:apps/admin/src/features/media/hooks/use-edit-media-panel.hooks.ts` | - / useEditMediaPanel=130 | now | terra | size-02 | [fragment](parts/tovu/apps__admin__src__features__media__hooks__use-edit-media-panel.hooks.ts.md) | file ~200; `useEditMediaPanel` ~55; sub-hooks ≤ 40. |
-| 176 | `jini:packages/integrations/src/media-providers/dispatch/async-operation-store.ts` | - / createInMemoryAsyncOperationStore=106 | now | terra | size-29 | [fragment](parts/jini/packages__integrations__src__media-providers__dispatch__async-operation-store.ts.md) | file ~320; `createInMemoryAsyncOperationStore` ~55; helpers ~30 each. |
-| 177 | `jini:packages/chat/src/react/hooks/assistant-chats.ts` | - / createAssistantChatsClient=382 useAssistantChats=279 | now | fable | size-12 | [fragment](parts/jini/packages__chat__src__react__hooks__assistant-chats.ts.md) | `createAssistantChatsClient` ~25; `useAssistantChatsState` ~95; `createSaveRetry` ~75; sub |
-| 178 | `jini:packages/server/src/create-local-node-daemon.ts` | - / createLocalNodeDaemon=113 | now | terra | size-23 | [fragment](parts/jini/packages__server__src__create-local-node-daemon.ts.md) | file ~290; `createLocalNodeDaemon` ~88; helpers ~20 / ~14. |
-| 179 | `jini:packages/plugins/src/host/capability-tools.ts` | - / createPluginCapabilityTools=186 | now | terra | size-34 | [fragment](parts/jini/packages__plugins__src__host__capability-tools.ts.md) | file ~305; `createPluginCapabilityTools` ~75; `createCapabilitySourceLoader` ~45; `createC |
-| 180 | `jini:packages/user-management/src/server/agent-tool-registrations.ts` | - / buildIdentityRegistrations=186 | now | terra | size-18 | [fragment](parts/jini/packages__user-management__src__server__agent-tool-registrations.ts.md) | `buildIdentityRegistrations` ~15; largest helper ~60; file ~380. |
-| 181 | `jini:packages/platform/src/asset-cache.ts` | - / createAssetCache=123 | now | terra | size-26 | [fragment](parts/jini/packages__platform__src__asset-cache.ts.md) | file ~255; `createAssetCache` ~58; helpers ≤ 40. |
-| 182 | `jini:packages/devops/src/checks/hardwiring.ts` | - / createHardwiringInspector=276 | now | fable | size-39 | [fragment](parts/jini/packages__devops__src__checks__hardwiring.ts.md) | factory about 55 lines, `createRulePredicates` about 95 (if it comes out over 100, split t |
-| 183 | `jini:packages/integrations/src/credentialed-http/tools/tool-registrations.ts` | - / createCredentialToolRegistrations=107 | now | terra | size-29 | [fragment](parts/jini/packages__integrations__src__credentialed-http__tools__tool-registrations.ts.md) | file ~465; `createCredentialToolRegistrations` ~40; `createMakeRequestHandler` ~55; `creat |
-| 184 | `jini:packages/ui/src/react/components/CustomSelect.tsx` | - / CustomSelect=101 | now | terra | size-40 | [fragment](parts/jini/packages__ui__src__react__components__CustomSelect.tsx.md) | CustomSelect.tsx ~455; `CustomSelect` ~75; new file ~50. |
-| 185 | `tovu:apps/admin/src/features/taxonomy/hooks/use-term-picker.hooks.ts` | - / useTermPicker=164 | now | terra | size-06 | [fragment](parts/tovu/apps__admin__src__features__taxonomy__hooks__use-term-picker.hooks.ts.md) | file ~250; `useTermPicker` ~72; `useNewTermEntry` ~70; `useNewTermFields` ~25. |
-| 186 | `jini:packages/agentic/src/core/a2ui/interpreter.ts` | - / createA2uiInterpreter=192 | now | terra | size-32 | [fragment](parts/jini/packages__agentic__src__core__a2ui__interpreter.ts.md) | `createA2uiInterpreter` ~55; largest helper ~27; file ~300. |
-| 187 | `jini:packages/chat/src/react/features/chat-pane/hooks/useChatPaneRuntimeInventory.hooks.ts` | - / useChatPaneRuntimeInventory=134 | now | terra | size-12 | [fragment](parts/jini/packages__chat__src__react__features__chat-pane__hooks__useChatPaneRuntimeInventory.hooks.ts.md) | `useChatPaneRuntimeInventory` ~78; `useInventoryPolling` ~62; file ~245. |
-| 188 | `jini:packages/core/src/settings/tool-registrations.ts` | - / buildSettingsRegistrations=116 | now | terra | size-13 | [fragment](parts/jini/packages__core__src__settings__tool-registrations.ts.md) | `buildSettingsRegistrations` ~22; `buildSettingsReadHandlers` ~68; `buildUiPreferenceHandl |
-| 189 | `tovu:apps/admin/src/features/deployment/DockerfileTab.tsx` | - / DockerfileEditorCard=132 | now | terra | size-15 | [fragment](parts/tovu/apps__admin__src__features__deployment__DockerfileTab.tsx.md) | file ~345; `DockerfileEditorCard` ~70; `DockerfileCardHead` ~72. |
-| 190 | `tovu:apps/website/src/features/publish-content/raw-file-contributor.ts` | - / contributeRawFilePublish=152 build=150 | now | terra | size-08 | [fragment](parts/tovu/apps__website__src__features__publish-content__raw-file-contributor.ts.md) | `contributeRawFilePublish` ~3; `buildRawFileHandler` ~78; file ~215. |
-| 191 | `jini:packages/oauth/src/refresh.ts` | - / createTokenRefresher=130 | now | terra | size-26 | [fragment](parts/jini/packages__oauth__src__refresh.ts.md) | file ~185; `createTokenRefresher` ~65; helpers ~45 / ~30. |
-| 192 | `jini:packages/integrations/src/api-connections/token-store/vault-token-store.ts` | - / createVaultOAuthTokenStore=147 | now | terra | size-29 | [fragment](parts/jini/packages__integrations__src__api-connections__token-store__vault-token-store.ts.md) | file ~190; `createVaultOAuthTokenStore` ~88; helpers ≤ 32 each. |
-| 193 | `jini:packages/platform/src/fs/directory-user-config.ts` | - / createDirectoryUserConfig=146 | now | terra | size-30 | [fragment](parts/jini/packages__platform__src__fs__directory-user-config.ts.md) | file ~198; `createDirectoryUserConfig` ~70; `createUserConfigWriter` ~42; `createDatabaseL |
-| 194 | `jini:packages/platform/src/fs/directory-workspace.ts` | - / createNodeDirectoryWorkspace=172 | now | terra | size-30 | [fragment](parts/jini/packages__platform__src__fs__directory-workspace.ts.md) | file ~205; `createNodeDirectoryWorkspace` ~90; helpers ≤ 40. |
-| 195 | `tovu:apps/website/src/features/database/tool-registrations.ts` | - / buildDatabaseRegistrations=106 | now | terra | size-03 | [fragment](parts/tovu/apps__website__src__features__database__tool-registrations.ts.md) | file ~180; `buildDatabaseRegistrations` ~50; `buildMigrateForwardToolHandler` ~58. |
-| 196 | `jini:packages/agent-plugins/src/lifecycle/seed-bundled.ts` | - / buildModule=118 | now | terra | size-31 | [fragment](parts/jini/packages__agent-plugins__src__lifecycle__seed-bundled.ts.md) | `buildModule` ~78; sub-factory ~47. |
-| 197 | `jini:packages/agent-plugins/src/lifecycle/update.ts` | - / createUpdateModule=204 | now | terra | size-31 | [fragment](parts/jini/packages__agent-plugins__src__lifecycle__update.ts.md) | `createUpdateModule` ~60; sub-factories ~78 / ~60; file ~265. |
-| 198 | `tovu:apps/website/src/server/inbound/admin-http/routes/publish-content/destination.ts` | - / registerPublishContentDestinationRoutes=135 | now | terra | size-24 | [fragment](parts/tovu/apps__website__src__server__inbound__admin-http__routes__publish-content__destination.ts.md) | register fn ~70; file ~210. |
-| 199 | `tovu:apps/website/src/features/publish-content/raw-row-contributor.ts` | - / buildRawRowHandler=134 | now | terra | size-14 | [fragment](parts/tovu/apps__website__src__features__publish-content__raw-row-contributor.ts.md) | `buildRawRowHandler` ~72; file ~230. |
-| 200 | `jini:packages/plugins/src/host/provider-host.ts` | - / createPluginProviderHost=134 | now | terra | size-34 | [fragment](parts/jini/packages__plugins__src__host__provider-host.ts.md) | file ~228; `createPluginProviderHost` ~80; helpers ≤ 40. |
-| 201 | `jini:packages/cookie-consent/src/client/runtime.ts` | - / createCookieConsent=133 | now | terra | size-22 | [fragment](parts/jini/packages__cookie-consent__src__client__runtime.ts.md) | `createCookieConsent` ~80; `createAdapterSlots` ~58; file ~275 lines (counted ~225). |
-| 202 | `jini:packages/agent-runtime/src/skills/web-clone/scripts/recon-site.mjs` | - / collectSignals=260 <arg of page.evaluate>=258 | now | owner-exception | size-20 | [fragment](parts/jini/packages__agent-runtime__src__skills__web-clone__scripts__recon-site.mjs.md) | unchanged (file 426; function 260). |
-| 203 | `jini:packages/agent-runtime/src/ai-trace/recorder.ts` | - / createAiTraceRecorder=191 | now | terra | size-16 | [fragment](parts/jini/packages__agent-runtime__src__ai-trace__recorder.ts.md) | `createAiTraceRecorder` ~62; `createTraceTurnAccounting` ~78; `createTraceEventHandlers` ~ |
-| 204 | `jini:packages/ui/src/features/memory/react/hooks/useMemoryEntries.hooks.ts` | - / useMemoryEntries=254 | now | terra | size-35 | [fragment](parts/jini/packages__ui__src__features__memory__react__hooks__useMemoryEntries.hooks.ts.md) | file ~385; `useMemoryEntries` ~80; `useMemoryEntryEditor` ~90; `useMemoryEntryList` ~60; o |
-| 205 | `jini:packages/vibecoding/src/node/store.ts` | - / createProjectStore=246 | now | terra | size-41 | [fragment](parts/jini/packages__vibecoding__src__node__store.ts.md) | `createProjectStore` ~70; store.ts ~230; store-fs ~90; store-scan ~55; store-materialize ~ |
-| 206 | `jini:packages/admin/src/comments/controllers/comment-queue.controller.ts` | - / createCommentQueueController=146 | now | terra | size-38 | [fragment](parts/jini/packages__admin__src__comments__controllers__comment-queue.controller.ts.md) | file ~160; `createCommentQueueController` ~65; `createQueuePaging` ~85. |
-| 207 | `jini:packages/integrations/src/media-providers/dispatch/sqlite-async-operation-store.ts` | - / createSqliteAsyncOperationStore=145 | now | terra | size-29 | [fragment](parts/jini/packages__integrations__src__media-providers__dispatch__sqlite-async-operation-store.ts.md) | file ~225; `createSqliteAsyncOperationStore` ~75; `prepareAsyncOperationStatements` ~47. |
-| 208 | `tovu:apps/website/src/features/trash/adapters/user.ts` | - / createUserTrashAdapter=103 | now | terra | size-14 | [fragment](parts/tovu/apps__website__src__features__trash__adapters__user.ts.md) | `createUserTrashAdapter` ~72; file ~160. |
-| 209 | `tovu:apps/admin/src/features/trash/hooks/use-trash.hooks.ts` | - / useTrash=143 | after-move | terra | size-49 | [fragment](parts/tovu/apps__admin__src__features__trash__hooks__use-trash.hooks.ts.md) | `useTrash` ~50; sub-hooks ~65 / ~15 / ~48; file ~205. |
-| 210 | `tovu:apps/admin/src/features/taxonomy/hooks/use-taxonomy.hooks.ts` | - / useTaxonomy=102 | now | terra | size-06 | [fragment](parts/tovu/apps__admin__src__features__taxonomy__hooks__use-taxonomy.hooks.ts.md) | file ~190; `useTaxonomy` ~55; each sub-hook ~30. |
-| 211 | `jini:packages/daemon/src/surface-exchanges.ts` | - / createSurfaceExchangeStore=119 | now | terra | size-17 | [fragment](parts/jini/packages__daemon__src__surface-exchanges.ts.md) | `createSurfaceExchangeStore` ~35; `openSurfaceExchange` ~86; file ~200. |
-| 212 | `jini:packages/chat/src/react/hooks/useRunStream.ts` | - / useRunStream=117 | now | terra | size-28 | [fragment](parts/jini/packages__chat__src__react__hooks__useRunStream.ts.md) | `useRunStream` ~85; `runHandlersFor` ~32; file ~165 counted. |
-| 213 | `jini:packages/integrations/src/media-providers/sqlite-task-store.ts` | - / createSqliteMediaTaskStore=140 | now | terra | size-29 | [fragment](parts/jini/packages__integrations__src__media-providers__sqlite-task-store.ts.md) | file ~195; `createSqliteMediaTaskStore` ~75; helpers ≤ 30. |
-| 214 | `jini:packages/admin/src/media/controllers/library.controller.ts` | - / createLibraryController=169 | now | terra | size-38 | [fragment](parts/jini/packages__admin__src__media__controllers__library.controller.ts.md) | controller ~95; `createSerialWriter` ~35; `createLibraryMutations` ~45; file ~210. |
-| 215 | `jini:packages/ui/src/react/components/Icon.tsx` | 675 / - | now | owner-exception | size-40 | [fragment](parts/jini/packages__ui__src__react__components__Icon.tsx.md) | unchanged. |
-| 216 | `jini:packages/ui/src/features/media-providers/react/hooks/useMediaProvidersTab.ts` | - / useMediaProvidersTab=168 | now | terra | size-37 | [fragment](parts/jini/packages__ui__src__features__media-providers__react__hooks__useMediaProvidersTab.ts.md) | file ~265; `useMediaProvidersTab` ~78; `useProviderPersistence` ~62; `useProviderLoad` ~40 |
-| 217 | `tovu:apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts` | - / createDaemonSiteTools=111 | after-move | terra | size-55 | [fragment](parts/tovu/apps__website__src__server__inbound__assistant__agent-daemon-site-tools.ts.md) | file ~136; `createDaemonSiteTools` ~97; `readSiteRpc` ~15. |
-| 218 | `jini:packages/user-management/src/admin/controllers/users.controller.ts` | - / createUsersController=165 | now | terra | size-18 | [fragment](parts/jini/packages__user-management__src__admin__controllers__users.controller.ts.md) | `createUsersController` ~95; file ~205. |
-| 219 | `jini:packages/cms/src/trash/write-service.ts` | - / createTrashService=132 | now | terra | size-19 | [fragment](parts/jini/packages__cms__src__trash__write-service.ts.md) | `createTrashService` ~88; `purgeSelectedTrash` ~48; file ~215. |
-| 220 | `jini:packages/ui/src/features/memory/react/hooks/useMemoryConnectors.hooks.ts` | - / useMemoryConnectors=327 | now | fable | size-35 | [fragment](parts/jini/packages__ui__src__features__memory__react__hooks__useMemoryConnectors.hooks.ts.md) | original ~415 (`useMemoryConnectors` ~55, `useConnectorCatalogueAuth` ~85, `useConnectorSe |
-| 221 | `jini:packages/user-management/src/react/members/hooks/use-members.hooks.ts` | - / useMembers=109 | now | terra | size-18 | [fragment](parts/jini/packages__user-management__src__react__members__hooks__use-members.hooks.ts.md) | `useMembers` ~70; file ~160. |
-| 222 | `jini:packages/integrations/src/api-connections/host.ts` | - / createApiConnectionHost=163 | now | terra | size-39 | [fragment](parts/jini/packages__integrations__src__api-connections__host.ts.md) | `createApiConnectionHost` ~75; factories ~45 / ~30 / ~40; file ~240. |
-| 223 | `jini:packages/agent-runtime/src/agent-protocol/acp/models.ts` | - / detectAcpModels=108 | now | terra | size-16 | [fragment](parts/jini/packages__agent-runtime__src__agent-protocol__acp__models.ts.md) | `detectAcpModels` ~90; helper ~25; file ~330. |
-| 224 | `jini:packages/agent-plugins/src/lifecycle/bundled-digests.ts` | - / buildModule=126 | now | terra | size-27 | [fragment](parts/jini/packages__agent-plugins__src__lifecycle__bundled-digests.ts.md) | `buildModule` ~85; file ~145. |
-| 225 | `jini:packages/ui/src/features/connectors/ConnectorsBrowser.tsx` | - / ConnectorsBrowser=126 | now | terra | size-37 | [fragment](parts/jini/packages__ui__src__features__connectors__ConnectorsBrowser.tsx.md) | file ~165; `ConnectorsBrowser` ~70; `ConnectorsBrowserToolbar` ~30; hooks file ~95 (`useCo |
-| 226 | `jini:packages/sidecar/src/json-ipc.ts` | - / createJsonIpcServer=157 <arg of createNetServer>=132 requestJsonIpc=129 <anonymous>=124 | now | terra | size-36 | [fragment](parts/jini/packages__sidecar__src__json-ipc.ts.md) | file ~395; `createJsonIpcServer` ~80; connection callback ~55; `requestJsonIpc` ~85; execu |
-| 227 | `jini:packages/ui/src/react/components/TooltipLayer.tsx` | - / useTooltipLayer=208 | now | terra | size-40 | [fragment](parts/jini/packages__ui__src__react__components__TooltipLayer.tsx.md) | `useTooltipLayer` ~62; `useTooltipTriggers` ~90; file ~335. |
-| 228 | `jini:packages/chat/src/core/assistant-client/durable-run-subscription.ts` | - / followDurableRun=103 | now | terra | size-32 | [fragment](parts/jini/packages__chat__src__core__assistant-client__durable-run-subscription.ts.md) | `followDurableRun` ~97; file ~120. |
-| 229 | `jini:packages/admin/src/forms/react/components/FormFieldsEditor.tsx` | - / FormFieldsEditor=204 <arg of rows.map>=110 | now | terra | size-38 | [fragment](parts/jini/packages__admin__src__forms__react__components__FormFieldsEditor.tsx.md) | `FormFieldsEditor` ~95; `FormFieldRow` ~15; cells ~45 / ~65; file ~230. |
-| 230 | `jini:packages/agent-plugins/src/admin-surfaces/surface-client.ts` | - / createAdminSurfaceClient=101 | now | terra | size-27 | [fragment](parts/jini/packages__agent-plugins__src__admin-surfaces__surface-client.ts.md) | `createAdminSurfaceClient` ~93-96; file ~212. |
-| 231 | `jini:packages/ui/src/features/connectors/hooks/useConnectorAuthorization.ts` | - / useConnectorAuthorization=149 | now | terra | size-37 | [fragment](parts/jini/packages__ui__src__features__connectors__hooks__useConnectorAuthorization.ts.md) | file ~320; `useConnectorAuthorization` ~80; `cancelStaleAuthorization` ~25; `cancelAuthori |
-| 232 | `jini:packages/agent-runtime/src/agent-protocol/pi-rpc/session.ts` | - / attachPiRpcSession=119 | now | terra | size-16 | [fragment](parts/jini/packages__agent-runtime__src__agent-protocol__pi-rpc__session.ts.md) | `attachPiRpcSession` ~95; file ~320. |
-| 233 | `jini:packages/commerce/src/browser/checkout.ts` | - / installCommerceCheckout=117 <arg of required.document.querySelectorAll<HTMLF>=115 | now | owner-exception | size-22 | [fragment](parts/jini/packages__commerce__src__browser__checkout.ts.md) | unchanged (117 / 115). |
-| 234 | `tovu:content/themes/__original-themes__/static/tovu-theme/scripts/main.js` | - / <anonymous>=193 | now | owner-exception | size-42 | [fragment](parts/tovu/content__themes____original-themes____static__tovu-theme__scripts__main.js.md) | unchanged. |
-| 235 | `tovu:content/themes/static/tovu-theme/scripts/main.js` | - / <anonymous>=193 | now | owner-exception | size-43 | [fragment](parts/tovu/content__themes__static__tovu-theme__scripts__main.js.md) | unchanged. |
-| 236 | `tovu:apps/website/src/server/inbound/admin-http/routes/database/migrate-forward.ts` | - / registerAdminDatabaseMigrateForwardRoutes=115 | now | terra | size-14 | [fragment](parts/tovu/apps__website__src__server__inbound__admin-http__routes__database__migrate-forward.ts.md) | register fn ~58; file ~142. |
-| 237 | `jini:packages/chat/src/core/assistant-client/ag-ui-transport.ts` | - / createAgUiRunClient=113 | now | terra | size-32 | [fragment](parts/jini/packages__chat__src__core__assistant-client__ag-ui-transport.ts.md) | `createAgUiRunClient` ~42; `startAgUiRun` ~25; file ~160. |
-| 238 | `jini:packages/cms/src/routing/routing.ts` | - / createRouting=188 | now | terra | size-19 | [fragment](parts/jini/packages__cms__src__routing__routing.ts.md) | `createRouting` ~80; `createResolvePhases` ~65; file ~260. |
-| 239 | `jini:packages/diagnostics/src/web-evidence/page-structure-script.ts` | - / collectPageStructure=275 | now | owner-exception | size-39 | [fragment](parts/jini/packages__diagnostics__src__web-evidence__page-structure-script.ts.md) | unchanged (275). |
-| 240 | `jini:packages/vibecoding/src/node/project.ts` | - / assembleProject=181 | now | fable | size-41 | [fragment](parts/jini/packages__vibecoding__src__node__project.ts.md) | `assembleProject` ~90; `createRevisionCore` ~75; file ~340. |
-| 241 | `jini:packages/ui/src/features/resource-dashboard/react/hooks/useResourceBoard.ts` | - / useResourceBoard=176 | now | terra | size-44 | [fragment](parts/jini/packages__ui__src__features__resource-dashboard__react__hooks__useResourceBoard.ts.md) | `useResourceBoard` ~85; file ~270. |
-| 242 | `jini:packages/chat/src/server/run-finalizer/entry.ts` | - / createAssistantRunFinalizer=132 | now | terra | size-28 | [fragment](parts/jini/packages__chat__src__server__run-finalizer__entry.ts.md) | `createAssistantRunFinalizer` ~78; `createWatchCheckpointer` ~36; helpers 6 / 16; file ~18 |
-| 243 | `jini:packages/chat/src/react/features/chat-pane/hooks/useAgentRuntimePicker.hooks.ts` | - / useAgentRuntimePicker=103 | now | terra | size-12 | [fragment](parts/jini/packages__chat__src__react__features__chat-pane__hooks__useAgentRuntimePicker.hooks.ts.md) | `useAgentRuntimePicker` ~82; `usePopoverPlacement` ~26; file ~225. |
-| 244 | `jini:packages/integrations/src/api-connections/hosted-mcp/shared-sign-in.ts` | - / createSharedExternalMcpOAuth=257 | now | terra | size-29 | [fragment](parts/jini/packages__integrations__src__api-connections__hosted-mcp__shared-sign-in.ts.md) | file ~325; `createSharedExternalMcpOAuth` ~85; `createSharedSignInSteps` ~88; `createShare |
-| 245 | `tovu:apps/admin/src/features/skills/use-skills.hooks.ts` | - / useSkills=102 | now | terra | size-06 | [fragment](parts/tovu/apps__admin__src__features__skills__use-skills.hooks.ts.md) | file ~152; `useSkills` ~91; `skillRowViews` ~16. |
-| 246 | `tovu:apps/website/src/assistant/demo-a2ui-tool.ts` | - / buildDemoA2uiRegistrations=102 | now | terra | size-03 | [fragment](parts/tovu/apps__website__src__assistant__demo-a2ui-tool.ts.md) | file ~180; `buildDemoA2uiRegistrations` ~50; helpers ≤ 25. |
-| 247 | `jini:packages/daemon/src/terminal-session.ts` | - / createTerminalSessionManager=101 | now | terra | size-17 | [fragment](parts/jini/packages__daemon__src__terminal-session.ts.md) | `createTerminalSessionManager` ~86; helper ~18; file ~250. |
-| 248 | `tovu:apps/desktop/src/renderer/app/SiteWorkspace.tsx` | - / SiteWorkspace=121 | now | terra | size-10 | [fragment](parts/tovu/apps__desktop__src__renderer__app__SiteWorkspace.tsx.md) | `SiteWorkspace` ~83; file ~280; new sub-components ~33 and ~15. |
-| 249 | `jini:packages/platform/src/terminal.ts` | - / createTerminalService=239 | now | terra | size-30 | [fragment](parts/jini/packages__platform__src__terminal.ts.md) | file ~420; `createTerminalService` ~50; `createTerminalSession` ~55; `createSessionControl |
-| 250 | `jini:packages/agent-plugins/src/connect/credential-save-tool.ts` | - / createCredentialSaveTools=119 | now | terra | size-27 | [fragment](parts/jini/packages__agent-plugins__src__connect__credential-save-tool.ts.md) | `createCredentialSaveTools` ~75; file ~140. |
-| 251 | `jini:packages/ui/src/features/version-manager/react/hooks/useVersionManager.ts` | - / useVersionManager=236 | now | terra | size-45 | [fragment](parts/jini/packages__ui__src__features__version-manager__react__hooks__useVersionManager.ts.md) | `useVersionManager` ~85; file ~370. |
-| 252 | `tovu:apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts` | - / registerAdminTaxonomyMergeTermRoutes=117 | now | terra | size-01 | [fragment](parts/tovu/apps__website__src__server__inbound__admin-http__routes__taxonomy__merge-term.ts.md) | register fn ~80; file ~138. |
-| 253 | `jini:packages/ui/src/features/execution/react/hooks/useExecutionTab.ts` | - / useExecutionTab=155 | now | terra | size-37 | [fragment](parts/jini/packages__ui__src__features__execution__react__hooks__useExecutionTab.ts.md) | file ~215; `useExecutionTab` ~40; `useAgentDetection` ~45; others 22–35. |
-| 254 | `tovu:apps/website/src/server/runtime/composition/other-site-keys.ts` | - / createOtherSiteKeys=116 | now | terra | size-09 | [fragment](parts/tovu/apps__website__src__server__runtime__composition__other-site-keys.ts.md) | `createOtherSiteKeys` ~86; file ~180. |
-| 255 | `jini:packages/ui/src/features/skills/react/components/SkillRow.tsx` | - / SkillRow=112 | now | terra | size-45 | [fragment](parts/jini/packages__ui__src__features__skills__react__components__SkillRow.tsx.md) | `SkillRow` ~68; file ~365. |
-| 256 | `jini:packages/admin/src/forms/react/components/FieldAttributesDialog.tsx` | - / FieldAttributesDialog=149 | now | terra | size-38 | [fragment](parts/jini/packages__admin__src__forms__react__components__FieldAttributesDialog.tsx.md) | `FieldAttributesDialog` ~60; `FieldAttributeRows` ~70; file ~180. |
-| 257 | `jini:packages/agent-plugins/src/connect/plugin-host/index.ts` | - / createPluginHost=107 | now | terra | size-27 | [fragment](parts/jini/packages__agent-plugins__src__connect__plugin-host__index.ts.md) | `createPluginHost` ~80; helper ~33. |
-| 258 | `jini:packages/user-management/src/react/testing.ts` | - / createFakeRolesPort=107 | now | terra | size-18 | [fragment](parts/jini/packages__user-management__src__react__testing.ts.md) | `createFakeRolesPort` ~15; file ~310. |
-| 259 | `jini:packages/daemon/src/store/event-log/sqlite.ts` | - / bindSqliteEventLog=106 | now | terra | size-17 | [fragment](parts/jini/packages__daemon__src__store__event-log__sqlite.ts.md) | `bindSqliteEventLog` ~64; helper ~44; file ~200. |
-| 260 | `jini:packages/ui/src/features/memory/dependencies.ts` | - / createMemoryHttpPorts=105 | now | terra | size-35 | [fragment](parts/jini/packages__ui__src__features__memory__dependencies.ts.md) | file ~230; `createMemoryHttpPorts` ~10; `createMemoryEntriesHttpPort` ~62; config ~12; ext |
-| 261 | `jini:packages/ui/src/react/hooks/useResizableSplitPane.ts` | - / useResizableSplitPane=209 | now | terra | size-40 | [fragment](parts/jini/packages__ui__src__react__hooks__useResizableSplitPane.ts.md) | `useResizableSplitPane` ~85; `useHandlePointerDown` ~70; file ~320. |
-| 262 | `tovu:apps/admin/src/features/taxonomy/TaxonomyRowMenu.hooks.ts` | - / useTaxonomyRowMenu=102 | after-move | terra | size-52 | [fragment](parts/tovu/apps__admin__src__features__taxonomy__TaxonomyRowMenu.hooks.ts.md) | `useTaxonomyRowMenu` ~78; file ~110. |
-| 263 | `jini:packages/admin/src/forms/react/pages/FormEditor.tsx` | - / FormEditor=101 | now | terra | size-38 | [fragment](parts/jini/packages__admin__src__forms__react__pages__FormEditor.tsx.md) | `FormEditor` ~75; `FormEditorTabs` ~33. |
-| 264 | `jini:packages/ui/src/features/notifications/react/components/NotificationsTab.tsx` | - / NotificationsTab=134 | now | terra | size-44 | [fragment](parts/jini/packages__ui__src__features__notifications__react__components__NotificationsTab.tsx.md) | `NotificationsTab` ~25; file ~250; hooks file ~45. |
-| 265 | `jini:packages/daemon/src/frontend-session-registry.ts` | - / createFrontendSessionRegistry=131 | now | terra | size-07 | [fragment](parts/jini/packages__daemon__src__frontend-session-registry.ts.md) | file ~215; `createFrontendSessionRegistry` ~70; `createInvocationChannel` ~55. |
-| 266 | `jini:packages/admin/src/widgets/react/pages/WidgetsLibrary.tsx` | - / WidgetsLibrary=130 | now | terra | size-21 | [fragment](parts/jini/packages__admin__src__widgets__react__pages__WidgetsLibrary.tsx.md) | `WidgetsLibrary` ~45; header ~40; table ~60. |
-| 267 | `jini:packages/chat/src/react/components/A2uiSurfaceCard.tsx` | - / A2uiSurfaceCard=130 | now | terra | size-11 | [fragment](parts/jini/packages__chat__src__react__components__A2uiSurfaceCard.tsx.md) | `A2uiSurfaceCard` ~42; `useA2uiActionHandler` ~42; `useA2uiSurfaceEvents` ~30; `useA2uiInt |
-| 268 | `tovu:content/themes/__original-themes__/static/tovu-starter/scripts/main.js` | - / <anonymous>=193 | now | owner-exception | size-42 | [fragment](parts/tovu/content__themes____original-themes____static__tovu-starter__scripts__main.js.md) | unchanged. |
-| 269 | `tovu:content/themes/static/tovu-starter/scripts/main.js` | - / <anonymous>=193 | now | owner-exception | size-43 | [fragment](parts/tovu/content__themes__static__tovu-starter__scripts__main.js.md) | unchanged. |
-| 270 | `jini:packages/ui/src/features/panel-kit/hooks/use-settings-slice.hooks.ts` | - / useSettingsSlice=125 | now | terra | size-44 | [fragment](parts/jini/packages__ui__src__features__panel-kit__hooks__use-settings-slice.hooks.ts.md) | `useSettingsSlice` ~65; file ~205. |
-| 271 | `jini:packages/user-management/src/admin/controllers/members.controller.ts` | - / createMembersController=120 | now | terra | size-33 | [fragment](parts/jini/packages__user-management__src__admin__controllers__members.controller.ts.md) | `createMembersController` ~85; file ~140. |
-| 272 | `jini:packages/admin/src/widgets/react/pages/WidgetRegionEditor.tsx` | - / WidgetRegionEditor=117 | now | terra | size-21 | [fragment](parts/jini/packages__admin__src__widgets__react__pages__WidgetRegionEditor.tsx.md) | `WidgetRegionEditor` ~48; `RegionPlacementList` ~72. |
-| 273 | `jini:packages/ui/src/features/panel-kit/hooks/use-standing-draft-autosave.hooks.ts` | - / useStandingDraftAutosave=175 | now | terra | size-44 | [fragment](parts/jini/packages__ui__src__features__panel-kit__hooks__use-standing-draft-autosave.hooks.ts.md) | `useStandingDraftAutosave` ~92; file ~250. |
-| 274 | `jini:packages/chat/src/react/hooks/fab-position.ts` | - / useFabPosition=115 | now | terra | size-12 | [fragment](parts/jini/packages__chat__src__react__hooks__fab-position.ts.md) | `useFabPosition` ~88; `fabPositionStyle` ~32; file ~195. |
-| 275 | `jini:packages/core/src/settings/express/http.ts` | - / registerSettingsRoutes=112 | now | terra | size-13 | [fragment](parts/jini/packages__core__src__settings__express__http.ts.md) | `registerSettingsRoutes` ~70; helpers ~38 / ~17; file ~175. |
-| 276 | `jini:packages/admin/src/redirects/react/pages/RedirectsPage.tsx` | - / RedirectsPage=111 | now | terra | size-21 | [fragment](parts/jini/packages__admin__src__redirects__react__pages__RedirectsPage.tsx.md) | `RedirectsPage` ~52; `RedirectCreateForm` ~65. |
-| 277 | `jini:packages/agent-runtime/src/providers/oauth-callback-server.ts` | - / startOAuthCallbackListener=111 | now | terra | size-20 | [fragment](parts/jini/packages__agent-runtime__src__providers__oauth-callback-server.ts.md) | `startOAuthCallbackListener` ~55; `handleOAuthCallbackRequest` ~42; `listenOnce` ~19; file |
-| 278 | `jini:packages/admin/src/widgets/react/pages/WidgetInstanceEditor.tsx` | - / WidgetInstanceEditor=108 | now | terra | size-21 | [fragment](parts/jini/packages__admin__src__widgets__react__pages__WidgetInstanceEditor.tsx.md) | `WidgetInstanceEditor` ~68; header ~45. |
-| 279 | `jini:packages/chat/src/react/features/chat-pane/hooks/useChatPaneWorkingDirectory.hooks.ts` | - / useChatPaneWorkingDirectory=160 | now | terra | size-12 | [fragment](parts/jini/packages__chat__src__react__features__chat-pane__hooks__useChatPaneWorkingDirectory.hooks.ts.md) | `useChatPaneWorkingDirectory` ~45; `useWorkingDirectorySync` ~58; `useWorkingDirectoryActi |
-| 280 | `tovu:apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts` | - / createFakeRolesPort=106 | after-move | terra | size-54 | [fragment](parts/tovu/apps__admin__src__features__roles__hooks__roles-dependencies.hooks.ts.md) | `createFakeRolesPort` ~70; helper ~38; file ~160. |
-| 281 | `tovu:apps/admin/src/lib/browser-stream.ts` | - / startBrowserStream=104 | after-move | terra | size-49 | [fragment](parts/tovu/apps__admin__src__lib__browser-stream.ts.md) | `startBrowserStream` ~96; file ~158. |
-| 282 | `jini:packages/ui/src/features/viewer-shell/react/components/CommentSidePanel.tsx` | - / CommentSidePanel=104 | now | terra | size-45 | [fragment](parts/jini/packages__ui__src__features__viewer-shell__react__components__CommentSidePanel.tsx.md) | `CommentSidePanel` ~88; file ~440; hooks file ~70. |
-| 283 | `jini:packages/ui/src/react/components/OnboardingDropdown.tsx` | - / useOnboardingDropdown=102 | now | terra | size-40 | [fragment](parts/jini/packages__ui__src__react__components__OnboardingDropdown.tsx.md) | `useOnboardingDropdown` ~68; file ~430. |
-| 284 | `jini:packages/ui/src/features/memory/react/hooks/useMemoryExtractions.store.ts` | - / createExtractionHistoryStore=144 | now | terra | size-44 | [fragment](parts/jini/packages__ui__src__features__memory__react__hooks__useMemoryExtractions.store.ts.md) | `createExtractionHistoryStore` ~92; file ~195. |
-| 285 | `jini:packages/ui/src/features/version-manager/react/components/VersionManagerModal.tsx` | - / VersionManagerModal=137 | now | terra | size-45 | [fragment](parts/jini/packages__ui__src__features__version-manager__react__components__VersionManagerModal.tsx.md) | `VersionManagerModal` ~88; file ~165; hooks file ~70. |
-| 286 | `jini:packages/ui/src/features/lexical-rich-text-editor/react/components/RichTextInput.tsx` | - / EditorSurface=136 | now | terra | size-37 | [fragment](parts/jini/packages__ui__src__features__lexical-rich-text-editor__react__components__RichTextInput.tsx.md) | file ~125; `EditorSurface` ~50; hooks file ~115 (`createRichTextInputHandle` ~80, `useRich |
-| 287 | `jini:packages/plugins/src/host/declarative-content-types.ts` | - / createDeclarativeContentTypes=131 | now | terra | size-34 | [fragment](parts/jini/packages__plugins__src__host__declarative-content-types.ts.md) | file ~285; `createDeclarativeContentTypes` ~65; helpers ~45 / ~28. |
-| 288 | `jini:packages/ui/src/features/execution/react/hooks/use-execution-credential.hooks.ts` | - / useExecutionCredential=130 | now | terra | size-37 | [fragment](parts/jini/packages__ui__src__features__execution__react__hooks__use-execution-credential.hooks.ts.md) | file ~195; `useExecutionCredential` ~72; `useStoredExecutionCredential` ~30; `useLegacyCre |
-| 289 | `jini:packages/ui/src/features/memory/react/hooks/useMemoryConfig.hooks.ts` | - / useMemoryConfig=130 | now | terra | size-35 | [fragment](parts/jini/packages__ui__src__features__memory__react__hooks__useMemoryConfig.hooks.ts.md) | file ~210; `useMemoryConfig` ~62; `useMemoryHookFlagToggles` ~72. |
-| 290 | `jini:packages/ui/src/features/viewer-shell/react/hooks/useMarkdownScrollSync.ts` | - / useMarkdownScrollSync=126 | now | terra | size-40 | [fragment](parts/jini/packages__ui__src__features__viewer-shell__react__hooks__useMarkdownScrollSync.ts.md) | `useMarkdownScrollSync` ~62; file ~165. |
-| 291 | `jini:packages/ui/src/features/project-locations/react/hooks/useProjectLocationsTab.ts` | - / useProjectLocationsTab=119 | now | terra | size-44 | [fragment](parts/jini/packages__ui__src__features__project-locations__react__hooks__useProjectLocationsTab.ts.md) | `useProjectLocationsTab` ~80; file ~180. |
-| 292 | `jini:packages/memory/src/extraction-log.ts` | - / createExtractionLog=118 | now | terra | size-25 | [fragment](parts/jini/packages__memory__src__extraction-log.ts.md) | file ~178; `createExtractionLog` ~45; helpers ~48 / ~33. |
-| 293 | `jini:packages/desktop-host/src/electron/updates/auto-update-controller.ts` | - / createAutoUpdateController=116 | now | terra | size-39 | [fragment](parts/jini/packages__desktop-host__src__electron__updates__auto-update-controller.ts.md) | `createAutoUpdateController` about 92 lines. `createInstallHandoff` about 22, `registerUpd |
-| 294 | `jini:packages/ui/src/features/html-editor/css.ts` | - / prettifyCss=110 | now | terra | size-37 | [fragment](parts/jini/packages__ui__src__features__html-editor__css.ts.md) | file ~125; `prettifyCss` ~18; largest helper `consumeValue` ~30. |
-| 295 | `jini:packages/ui/src/features/sketch-editor/react/components/SketchEditor.tsx` | - / SketchEditor=109 | now | terra | size-44 | [fragment](parts/jini/packages__ui__src__features__sketch-editor__react__components__SketchEditor.tsx.md) | `SketchEditor` ~65; SketchEditor.tsx ~120; hooks file ~75. |
-| 296 | `jini:packages/ui/src/features/tab-launcher-menu/react/hooks/useTabLauncherMenu.ts` | - / useTabLauncherMenu=108 | now | terra | size-45 | [fragment](parts/jini/packages__ui__src__features__tab-launcher-menu__react__hooks__useTabLauncherMenu.ts.md) | `useTabLauncherMenu` ~88; file ~170. |
-| 297 | `jini:packages/admin/src/forms/react/pages/FormsList.tsx` | - / FormsList=107 | now | terra | size-38 | [fragment](parts/jini/packages__admin__src__forms__react__pages__FormsList.tsx.md) | `FormsList` ~52; `FormsTable` ~60. |
-| 298 | `jini:packages/daemon/src/event-log.ts` | - / createInMemoryEventLog=104 | now | terra | size-07 | [fragment](parts/jini/packages__daemon__src__event-log.ts.md) | file ~140; `createInMemoryEventLog` ~80; `createRunRetention` ~27. |
-| 299 | `jini:packages/commerce/src/react/Payments.tsx` | - / Payments=103 | now | terra | size-22 | [fragment](parts/jini/packages__commerce__src__react__Payments.tsx.md) | `Payments` ~55; `PaymentsPanel` ~15; file ~85. |
-| 300 | `jini:packages/ui/src/features/project-locations/react/components/ProjectLocationsTab.tsx` | - / ProjectLocationsTab=103 | now | terra | size-44 | [fragment](parts/jini/packages__ui__src__features__project-locations__react__components__ProjectLocationsTab.tsx.md) | `ProjectLocationsTab` ~84; file ~165. |
-| 301 | `tovu:apps/website/src/features/publish-content/publish-backstop-file.ts` | - / createRawFileSitePort=102 | after-move | terra | size-50 | [fragment](parts/tovu/apps__website__src__features__publish-content__publish-backstop-file.ts.md) | file ~138; `createRawFileSitePort` ~78; helpers ~9 each. |
-| 302 | `jini:packages/sidecar/src/supervision/supervisor.ts` | - / createDaemonSupervisor=201 | now | fable | size-36 | [fragment](parts/jini/packages__sidecar__src__supervision__supervisor.ts.md) | file ~290; `createDaemonSupervisor` ~85; `createChildLifecycle` ~88; `createReadiness` ~52 |
-| 303 | `jini:packages/ui/src/features/memory/react/components/MemoryManualEditor.tsx` | - / MemoryManualEditor=200 | now | terra | size-35 | [fragment](parts/jini/packages__ui__src__features__memory__react__components__MemoryManualEditor.tsx.md) | file ~215; `MemoryManualEditor` ~65; `MemoryStarterPicker` ~45; `MemoryDraftFields` ~70; ` |
-| 304 | `jini:packages/ui/src/features/memory/react/components/MemoryAdvancedModal.tsx` | - / MemoryAdvancedModal=172 | now | terra | size-35 | [fragment](parts/jini/packages__ui__src__features__memory__react__components__MemoryAdvancedModal.tsx.md) | file ~185; `MemoryAdvancedModal` ~45; `MemoryIndexEditorDetails` ~55; `MemoryTreeDetails`  |
-| 305 | `jini:packages/ui/src/renderers/preview-modal-shell/react/hooks/usePreviewModalShell.ts` | - / usePreviewModalShell=141 | now | terra | size-33 | [fragment](parts/jini/packages__ui__src__renderers__preview-modal-shell__react__hooks__usePreviewModalShell.ts.md) | `usePreviewModalShell` ~60; file ~195. |
-| 306 | `jini:packages/ui/src/features/asset-tree-browser/react/components/AssetTreeFileRow.tsx` | - / AssetTreeFileRow=140 | now | terra | size-36 | [fragment](parts/jini/packages__ui__src__features__asset-tree-browser__react__components__AssetTreeFileRow.tsx.md) | file ~175; `AssetTreeFileRow` ~60; `AssetTreeFileRowName` ~45; `AssetTreeRowCheckbox` ~25; |
-| 307 | `jini:packages/vibecoding/src/core/session.ts` | - / createVibecodingSession=126 | now | terra | size-41 | [fragment](parts/jini/packages__vibecoding__src__core__session.ts.md) | `createVibecodingSession` ~80; file ~195. |
-| 308 | `tovu:content/themes/__original-themes__/static/tovu-starter/scripts/docs-toc.js` | - / <anonymous>=125 | now | owner-exception | size-42 | [fragment](parts/tovu/content__themes____original-themes____static__tovu-starter__scripts__docs-toc.js.md) | unchanged. |
-| 309 | `tovu:content/themes/__original-themes__/static/tovu-theme/scripts/docs-toc.js` | - / <anonymous>=125 | now | owner-exception | size-42 | [fragment](parts/tovu/content__themes____original-themes____static__tovu-theme__scripts__docs-toc.js.md) | unchanged. |
-| 310 | `tovu:content/themes/static/tovu-starter/scripts/docs-toc.js` | - / <anonymous>=125 | now | owner-exception | size-43 | [fragment](parts/tovu/content__themes__static__tovu-starter__scripts__docs-toc.js.md) | unchanged. |
-| 311 | `tovu:content/themes/static/tovu-theme/scripts/docs-toc.js` | - / <anonymous>=125 | now | owner-exception | size-43 | [fragment](parts/tovu/content__themes__static__tovu-theme__scripts__docs-toc.js.md) | unchanged. |
-| 312 | `jini:packages/ui/src/react/mcp-ui/useMcpUiHost.ts` | - / useMcpUiHost=116 | now | terra | size-40 | [fragment](parts/jini/packages__ui__src__react__mcp-ui__useMcpUiHost.ts.md) | `useMcpUiHost` ~80; file ~165. |
-| 313 | `jini:packages/admin/src/comments/react/components/SettingsSection.tsx` | - / SettingsSection=114 | now | terra | size-38 | [fragment](parts/jini/packages__admin__src__comments__react__components__SettingsSection.tsx.md) | `SettingsSection` ~35; sub-components ~30 / ~68; file ~135. |
-| 314 | `jini:packages/ui/src/features/memory/react/hooks/useMemoryExtractions.hooks.ts` | - / useMemoryExtractions=114 | now | terra | size-35 | [fragment](parts/jini/packages__ui__src__features__memory__react__hooks__useMemoryExtractions.hooks.ts.md) | file ~145; `useMemoryExtractions` ~75; `useExtractionHistoryReload` ~38. |
-| 315 | `tovu:apps/admin/src/components/WidgetConfigFields/MediaContentEditor.hooks.ts` | - / useMediaContentEditor=110 | now | terra | size-15 | [fragment](parts/tovu/apps__admin__src__components__WidgetConfigFields__MediaContentEditor.hooks.ts.md) | file ~215; `useMediaContentEditor` ~85. |
-| 316 | `jini:packages/admin/src/widgets/react/pages/WidgetRegions.tsx` | - / WidgetRegions=107 | now | terra | size-21 | [fragment](parts/jini/packages__admin__src__widgets__react__pages__WidgetRegions.tsx.md) | `WidgetRegions` ~58; header ~53. |
-| 317 | `jini:packages/mcp/src/server/http-tool-server.adapter.ts` | - / startMcpHttpToolServer=104 | now | terra | size-25 | [fragment](parts/jini/packages__mcp__src__server__http-tool-server.adapter.ts.md) | file ~218; `startMcpHttpToolServer` ~90. |
-| 318 | `jini:packages/ui/src/features/skills/react/hooks/useSkillsTab.ts` | - / useSkillsTab=260 | now | terra | size-45 | [fragment](parts/jini/packages__ui__src__features__skills__react__hooks__useSkillsTab.ts.md) | `useSkillsTab` ~95; file ~370. |
-| 319 | `jini:packages/ui/src/features/tab-strip/react/hooks/useTabStripDragReorder.ts` | - / useTabStripDragReorder=125 | now | terra | size-45 | [fragment](parts/jini/packages__ui__src__features__tab-strip__react__hooks__useTabStripDragReorder.ts.md) | `useTabStripDragReorder` ~66; file ~180. |
-| 320 | `jini:packages/ui/src/features/source-config-list/react/hooks/useSourceConfigList.ts` | - / useSourceConfigList=119 | now | terra | size-45 | [fragment](parts/jini/packages__ui__src__features__source-config-list__react__hooks__useSourceConfigList.ts.md) | `useSourceConfigList` ~50; file ~185. |
+- 537 files have no fragment: their executor designs the split from the outline under CONVENTIONS (the prompt
+  says so). The 309 fragments were made for 100; they are first steps, not the full split to 50.
+- Lane signals are heuristics; a Terra job can still hit a judgment cut (it escalates, never improvises).
+- Work sizes come from counted lines, not effort; a 30-file Terra job of small functions may still be long.
+- Six Jini hooks files in the hotspot TSV do not exist in `jini-terra-d4` (newer than this clone); they are planned
+  from the TSV numbers only.
+- Bugs noticed while designing go to the coordinator (local `open-bugs.md`), not here: this repo is public.

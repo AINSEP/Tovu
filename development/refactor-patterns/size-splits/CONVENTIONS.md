@@ -1,88 +1,117 @@
 # Size splits — rules every split follows
 
-Owner-approved 2026-11-13. These rules are binding for every `size-NN` job and every hard-file plan.
-They are inlined into each Terra prompt, so a job needs nothing else.
+Owner decision 2026-11-13 (final; replaces the 100-line limit). Binding for every `size-NN` job and every
+hard-file plan. Inlined into each Terra prompt, so a job needs nothing else.
 
 ## Limits and how lines are counted
-- A file is over when it has more than **500** counted lines; a function (incl. a React component, hook,
-  method, arrow) when it has more than **100**. Counted = non-blank after comments are removed (ESLint
-  `max-lines` / `max-lines-per-function` with `skipBlankLines` + `skipComments`). Nested functions count
-  on their own, and they also count inside their parent.
-- Measure and check with the outline tool (read-only, TypeScript from `<root>/node_modules`):
+- Function (incl. React component, hook, method, arrow): at most **50** counted lines. File: at most **500**.
+  Counted = non-blank after comments are removed (ESLint `max-lines-per-function` / `max-lines` with
+  `skipBlankLines` + `skipComments`). A nested function counts on its own AND inside its parent.
+- Every function you create or change also stays at **cyclomatic ≤ 10 and cognitive ≤ 10**
+  (`apps/admin/**` in Tovu: **9 / 9**). A split that leaves a helper at 11 is not done.
+- Outline tool (read-only; TypeScript from `<root>/node_modules`):
   `node <TOVU>/development/refactor-patterns/size-splits/outline.mjs --root <repo with node_modules> <file>` prints
-  every top-level declaration (range, counted lines, same-file names it uses) and, for each function over
-  100, its body statements with `decl:` (locals it creates) and `uses:` (earlier locals/params it reads).
-  `--check <files...>` prints only what is still over and exits 1 if anything is.
-- Exempt (never split): `development/scripts/size-exceptions.json` (locale `*-i18n.ts(x)`, `i18n-common.ts`,
-  `*.generated.*`, `migration(s)/`, plus listed entries). `composition/deps.ts` and `composition/app.ts`
-  are NOT exempt.
+  each top-level declaration (range, counted lines, same-file names it uses) and, for each function over 50,
+  its statements with `decl:` (locals created) and `uses:` (earlier locals/params read). `--check <files…>`
+  prints only what is still over and exits 1 if anything is. Default limits are 50 / 500.
+- Exempt (never split): everything in `development/scripts/size-exceptions.json` (locale `*-i18n.ts(x)`,
+  `i18n-common.ts`, `*.generated.*`, `migration(s)/`, listed entries). `composition/deps.ts` and
+  `composition/app.ts` are NOT exempt.
 
 ## What a split is
-1. **Split by responsibility, never by line number.** Each new module does one job you can name in a few
-   words (its file name says it). Each helper does one step you can name. If a piece has no nameable job,
-   it stays where it is.
-2. **A long function becomes helper functions in the SAME file.** Helpers go at module level directly
-   above the function they came from, in the order they run. A step that needs many of the function's
-   locals becomes a helper that takes them as one object; for a React hook, a group of state + effects
-   becomes a sub-hook `useXxx` in the same file. Only when the file itself is then over 500 do helpers
-   move to a sibling file (as the plan says).
-3. **A long file splits into sibling modules** in the same folder, named `<original-stem>-<job>.ts(x)`
-   (or the name the plan gives). The original file keeps its own name and its main job, and imports
-   what moved. No new folder unless the plan says so.
-4. **Imports follow the move.** Every importer of a moved export imports it from its new module
-   (find them with `rg -n "from ['\"].*<old-stem>(\.js)?['\"]"` across the repo, tests included). The old
-   file does NOT re-export moved names — except when the old file is a package entry (a target in a
-   `package.json` `exports` map, or an `index.ts` that is one): then it keeps `export { x } from "./new.js"`
-   so the public API is unchanged.
-5. **No import cycles.** A new module never imports the file it was cut out of. Types both sides need move
-   into the new module (or a `<stem>-types.ts` sibling when the plan says so).
-6. **Behaviour does not change.** Same statements, same order, same awaits, same error text, same exports
-   from the package. Only what crosses a new boundary changes: locals become parameters / return values.
-   Do not "improve" code you move.
-7. **"Why" comments move with their code** — word for word, including the comment above a moved
-   statement and the file header paragraph that explains a moved part (copy that paragraph into the new
-   file's header; keep the original header's other paragraphs).
-8. **Arguments: `(required, optional = {})`.** A new helper takes ONE destructured object of required
-   inputs and, only if it has optional inputs, a second object defaulting to `{}`:
-   `function applyRow({ row, store }: ApplyRowInput, { signal }: ApplyRowOptions = {}): Promise<void>`.
-   No new positional primitive parameters. Name the input type `<Helper>Input` (and `<Helper>Options`)
-   unless the plan names it. Sub-hooks follow the same rule.
-9. **React components take props only.** State, effects, refs, callbacks and data loading live in
-   `<Component>.hooks.ts` (or the existing hooks file the plan names). A component split into
-   sub-components passes plain props; a sub-component never receives the whole hook result object unless
-   the plan says so.
-10. **Banned:** `eslint-disable` (any form), `as any`, `as unknown as`, non-null `!`, `@ts-ignore`,
-    `@ts-expect-error`. If a type does not line up after a move, export the existing type from where it
-    lives — never loosen it. A pre-existing `eslint-disable-next-line` / `biome-ignore` on a moved line moves
-    with that line unchanged (the diff shows it moved, not added); never add a new one.
-11. **Tests are not edited**, except an import path of a moved symbol. Before moving an export, run
-    `rg -n "vi\.mock\(|mock\.module\(|jest\.mock\(" <test dirs of the file>`: if a test mocks the OLD module
-    path and the code under test now gets the moved symbol from the NEW module, the mock stops applying —
-    move the mock path in that test to the new module (the only other allowed test edit) and say so in the
-    report.
+1. **By responsibility, never by line count.** Each new function/module does one job you can name in a few
+   words, and its name says it. Banned: mechanical chunks (`part1`/`rest`/`step2`, "first half"), pass-through
+   helpers whose body only forwards their inputs to one call, and helpers that take a grab-bag of 7+ unrelated
+   inputs (a sign the cut is in the wrong place). If a piece has no nameable job, it stays.
+2. **Long function → helpers in the SAME file**, at module level directly above the function, in run order.
+   Only when the file then passes 500 do helpers move to a sibling module (as the plan says).
+3. **Long file → sibling modules** in the same folder named `<original-stem>-<job>.ts(x)` (or the plan's name).
+   The original keeps its name and main job and imports what moved. No new folder unless the plan says so.
+4. **Imports follow the move.** Every importer of a moved export imports it from its new module (find them:
+   `rg -n "from ['\"].*<old-stem>(\.js)?['\"]"`, tests included). No re-export from the old file — except a
+   package entry (a `package.json` `exports` target, or the `index.ts` that is one): it keeps
+   `export { x } from "./new.js"` so the public API is unchanged.
+5. **No import cycles.** A new module never imports the file it came from; shared types move into the new
+   module (or a `<stem>-types.ts` sibling when the plan says so).
+6. **Behaviour does not change.** Same statements, order, awaits, error text, exports. Only what crosses a new
+   boundary changes (locals become inputs / return values). Do not "improve" moved code.
+7. **"Why" comments move with their code**, word for word (incl. the file-header paragraph explaining a moved
+   part; copy it into the new file's header).
+8. **Arguments: always `(required, optional = {})`** for every new function, helper, factory, builder and
+   sub-hook — even when there are no optional inputs (`_options: Record<string, never> = {}`) and even when
+   there are no required inputs (`_required: Record<string, never>` first). Name types `<Name>Input` /
+   `<Name>Options` unless the plan names them. No positional primitive parameters. Never delete or narrow an
+   existing options object. Plans often show only the first object in a signature — add the second anyway.
+   React components keep their single `props` object.
+9. **Banned:** `eslint-disable` (any form), `as any`, `as unknown as`, non-null `!`, `@ts-ignore`,
+   `@ts-expect-error`. Export the existing type instead of loosening one. A pre-existing suppression on a
+   moved line moves with it unchanged; never add one.
+10. **Tests are not edited**, except (a) an import path of a moved symbol, (b) a `vi.mock` / `mock.module` path
+    that must follow a moved symbol (check `rg -n "vi\.mock\(|mock\.module\(|jest\.mock\(" <test dirs>` before
+    moving an export). Say so in the report. A test that reads source text by name (anchors, `functionBody(…)`)
+    pins that name in its file: keep it there.
 
-## Running checks (no suites, nothing left running)
-- Run ONLY the test files the plan lists for each file, one at a time, after that file is done:
+## How to split each kind
+- **Plain functions / services:** extract named steps (validate, load, decide, write, map errors). Decision
+  logic and effects split apart (a pure helper returns a decision; the caller performs the effect).
+- **Route registrars (`register…Routes`):** shared closures (auth gate, error mapper) and long handler bodies
+  become module-level helpers taking `{ req, res, deps, … }`; groups of routes with one job become
+  `register<Group>Routes({ app, deps, … }, {})`. Paths and registration ORDER stay byte for byte (call the
+  group registrars in the old order).
+- **React components:** the component renders; regions become **subcomponents with their own props type**
+  (same file, or `<Component>-<region>.tsx` when the file passes 500). Never define a component inside
+  another; a subcomponent receives plain values + callbacks, never the whole hook result; state stays where it
+  is (a subcomponent may not take over state the parent owned — that changes remount behaviour); keys, element
+  order and conditional rendering stay identical. Data/state/effects live in `<Component>.hooks.ts` (or the
+  hooks file the plan names). Plain render helpers (no hooks) are fine for small repeated fragments.
+- **Hooks:** compose smaller hooks `useXxx(required, optional = {})` that each own one concern (its state +
+  effects), called in the SAME position so the overall hook call order is unchanged; or move pure logic into
+  module-level helpers. Effect dependency semantics stay identical: copy deps arrays exactly; never put a
+  freshly built object/array returned by a sub-hook into a deps array (destructure it; pass the same values);
+  `useCallback`/`useMemo` keep the same deps; refs are passed as ref objects, never `.current`.
+- **Factories / composition roots:** per-feature builders `build<Feature>({ settled inputs }, {})` whose inputs
+  are values already constructed in the root; construction and side-effect order unchanged; late-bound values
+  reach a builder as a thunk created in the root (`routeDeps: () => routeDeps`). A builder never reads or writes
+  the root's mutable `let`s directly — if the split needs that, it is HARD (below).
+- **Classes:** a long method becomes module-level helpers (explicit inputs, no `this`) or private methods;
+  `this` binding and public surface unchanged.
+
+## Not yours to split — report instead
+- **Exception candidates** (the owner decides; you never grant one, never edit `size-exceptions.json`): literal
+  data tables / maps, registration lists (one entry per line), scripts serialized into a browser
+  (`fn.toString()`, `page.evaluate`, template-string scripts), a component/hook whose only remaining over-50
+  part is one indivisible JSX tree or one effect. Leave it, and report
+  `EXCEPTION-CANDIDATE <file> <function> <lines> — <one-line reason>`.
+- **HARD** (needs judgment; goes to the Opus/Fable lane): the cut must share ≥2 mutable `let`s written by
+  nested functions, reorder effects or module init (top-level side effects, ES import evaluation order), or
+  the only cut creates an import cycle. Revert that file (`git restore -- <its paths>`, delete its new files)
+  and report `HARD <file> <function> — <reason>`. Never improvise around it.
+
+## Checks (no suites, nothing left running)
+- **Baseline first**, per file, before editing: its tests (below) and the gate command on the file; save the
+  gate output.
+- **Gate command** (repo root; Tovu `apps/admin/**`: 9 for both complexity rules):
+  `npx eslint --no-warn-ignored --rule 'complexity: [error, 10]' --rule 'sonarjs/cognitive-complexity: [error, 10]' --rule 'max-lines-per-function: [error, {max: 50, skipBlankLines: true, skipComments: true}]' --rule 'max-lines: [error, {max: 500, skipBlankLines: true, skipComments: true}]' <original file> <new files>`
+  After the split: **zero errors** on every function you created or changed and on the planned items. An error
+  left on a function you did not touch must already be in the baseline output — list it as existing debt in
+  the report (no suppression). Also `outline.mjs --check <original> <new files>` → OK.
+- Tests: ONLY the file's tests (the plan's list, completed with
+  `rg -l "<file stem>" <app or package dir> --glob '*.test.*'`), one at a time, same pass count as baseline:
   - Tovu `apps/website`, `packages/*`, `content/*`, `apps/site-chat`:
     `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-concurrency=1 --experimental-test-module-mocks <test file>`
   - Tovu `apps/admin`: `cd apps/admin && npx vitest run <path relative to apps/admin> --maxWorkers=2`
   - Tovu `apps/desktop` main (`src/` outside `renderer/`, `contracts/`):
     `cd apps/desktop && node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test --test-concurrency=1 <file>`
   - Tovu `apps/desktop` renderer/contracts: `cd apps/desktop && node --import ./scripts/one-react.ts --import tsx --test --test-concurrency=1 <file>`
-  - Jini: `pnpm --filter <package name> exec vitest run <path relative to the package> --maxWorkers=2`, then
-    `pnpm --filter <package name> run typecheck` once per touched package (Jini packages are small enough).
-- Tovu: no full `tsc` (admin tsc needs 2+ GB). Run `npx eslint <changed files>` (no new errors, no
-  `max-lines`/`max-lines-per-function` warnings left on the planned items).
-- Done check per file: `outline.mjs --check <original file> <new files>` → every planned item `OK`
-  (an item the plan says stays over, e.g. an owner exception candidate, is listed in the report).
-- No watch modes, no dev servers, no suites; kill nothing you did not start; leave nothing running.
+  - Jini: `pnpm --filter <package> exec vitest run <path relative to the package> --maxWorkers=2`, then
+    `pnpm --filter <package> run typecheck` once per touched package.
+- Tovu: no full `tsc`. No watch modes, dev servers or suites; kill nothing you did not start.
 
 ## Commit and report
-- One commit per file (or per tightly coupled pair the plan names), by explicit paths only:
-  `git add -- <paths> && git commit -F msg -- <paths>`; message `refactor(<area>): split <file> by responsibility (size)`.
-  Never push, never `git add -A`, never stash or checkout other files.
-- If a plan step cannot be done as written (an anchor is missing, a cycle appears, a test fails and
-  the cause is the split), stop that file, revert only that file's uncommitted changes
-  (`git restore -- <its paths>`, delete its new files), and report it — never improvise a different split.
-- Report: per file `OK` / `STOPPED (reason)`, new files, before → after counted lines, tests run with
-  pass/fail counts, and any test-mock path you moved.
+- One commit per file (or per coupled pair the plan names), explicit paths only:
+  `git add -- <paths> && git commit -F msg -- <paths>`; subject `refactor(<area>): split <file> by responsibility (size)`;
+  body = the file's responsibility map (unit → job → where it went). Never push, `git add -A`, stash or checkout.
+- A step that cannot be done as written (missing anchor, cycle, test fails because of the split): stop that
+  file, revert only its uncommitted changes, report it.
+- Report per file: `OK` / `STOPPED (reason)` / `HARD (reason)` / `EXCEPTION-CANDIDATE (reason)`, new files,
+  before → after counted lines, tests with pass counts, gate result (+ existing-debt lines), moved mock paths.

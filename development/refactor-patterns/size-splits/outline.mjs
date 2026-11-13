@@ -6,7 +6,7 @@
 // numbers, so a plan stays valid while other edits shift lines; this re-derives the ranges.
 // Each long-function statement also lists the local names it declares ("decl") and the earlier
 // locals/params it reads ("uses"), so a plan can group statements into helpers by data flow.
-// Usage: node outline.mjs [--fn-limit 100] [--file-limit 500] [--root <repo dir>] [--check] <file> [<file> ...]
+// Usage: node outline.mjs [--fn-limit 50] [--file-limit 500] [--root <repo dir>] [--check] <file> [<file> ...]
 // --check: print only what is still over a limit and exit 1 if anything is (the per-file done check).
 // Read-only. Files resolve from cwd; TypeScript is loaded from <root>/node_modules (default: cwd).
 import fs from "node:fs";
@@ -15,7 +15,7 @@ import { createRequire } from "node:module";
 
 const argv = process.argv.slice(2);
 const opt = (n, d) => { const i = argv.indexOf(n); if (i < 0) return d; const v = argv[i + 1]; argv.splice(i, 2); return v; };
-const FN_LIMIT = Number(opt("--fn-limit", 100));
+const FN_LIMIT = Number(opt("--fn-limit", 50));
 const FILE_LIMIT = Number(opt("--file-limit", 500));
 const CHECK = argv.includes("--check") ? (argv.splice(argv.indexOf("--check"), 1), true) : false;
 let over = 0;
