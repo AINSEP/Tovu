@@ -2,6 +2,7 @@ import { readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import react from "@vitejs/plugin-react";
+import { readJiniCoreVersion } from "./jini-core-version";
 import { defineConfig } from "vitest/config";
 import { parseCLI } from "vitest/node";
 
@@ -48,6 +49,7 @@ const adminDevPort = Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173);
 export default defineConfig({
   define: {
     __TOVU_ADMIN_VERSION__: JSON.stringify(adminPackageVersion),
+    __JINI_CORE_VERSION__: JSON.stringify(readJiniCoreVersion({ adminDir: __dirname })),
     __TOVU_ADMIN_DEV_PORT__: JSON.stringify(String(adminDevPort)),
   },
   plugins: [react()],

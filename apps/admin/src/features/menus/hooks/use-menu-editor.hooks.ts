@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type AdminMenu, type AdminMenuItem, type AdminMenuMode } from "@/lib/api";
 import { isVersionConflict, VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { navigate as realNavigate } from "@/lib/router";
+import { adminFailureChannel, isClipboardRefusal, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
 import { useDirtyGuard, type Translate } from "@jini-ai/ui/panel-kit";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -346,11 +347,20 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   async function copyHtmlEmbed() {
     if (!menu) return;
     const copyingForMenuId = menuId;
+    const failureGeneration = adminFailureChannel.getGeneration();
     try {
       await (clipboard ?? navigator.clipboard).writeText(menuHtmlEmbed({ slug: menu.slug }));
       if (activeMenuIdRef.current === copyingForMenuId) setCopyFeedback(t("Copied!"));
-    } catch {
-      if (activeMenuIdRef.current === copyingForMenuId) setCopyFeedback(t("Could not copy embed"));
+    } catch (error) {
+      if (activeMenuIdRef.current !== copyingForMenuId) return;
+      setCopyFeedback(t("Could not copy embed"));
+      if (isClipboardRefusal(error)) return;
+      publishLocalAdminFailure({
+        message: "The menu embed code could not be copied.",
+        action: "Try Copy HTML embed again. If it keeps failing, copy details and report this problem.",
+        step: "Copy menu embed code",
+        cause: error,
+      }, { generation: failureGeneration });
     }
   }
 
