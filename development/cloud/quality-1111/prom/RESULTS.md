@@ -1,6 +1,6 @@
 # PROM — floating / misused promises in Tovu `apps/website` (report only)
 
-Run 2026-11-13, 01:03–~01:12 UTC (well inside the 90-minute cap). Branch base: `cloud/quality-1111`. No source changed.
+Run 2026-11-13, 01:03–01:08 UTC (well inside the 90-minute cap). Branch base: `cloud/quality-1111`. No source changed.
 
 ## Bottom line
 

@@ -19,7 +19,7 @@ for n in range(9):
 L = []
 w = L.append
 w('# PROM — floating / misused promises in Tovu `apps/website` (report only)\n')
-w('Run 2026-11-13, 01:03–~01:12 UTC (well inside the 90-minute cap). Branch base: `cloud/quality-1111`. No source changed.\n')
+w('Run 2026-11-13, 01:03–01:08 UTC (well inside the 90-minute cap). Branch base: `cloud/quality-1111`. No source changed.\n')
 w('## Bottom line\n')
 w(f'- **{len(hits)} hits** in **{len({h[2] for h in hits})} files** out of **2,165 linted files**: '
   f'`no-misused-promises` **{sum(h[4]=="no-misused-promises" for h in hits)}**, `no-floating-promises` **{sum(h[4]=="no-floating-promises" for h in hits)}**.')
