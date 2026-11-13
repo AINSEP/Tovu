@@ -135,13 +135,18 @@ export async function acknowledgeSiteShare(required: { registry: SiteShareRegist
   if (!row.needsAcknowledgement) return row;
   const acknowledged = { ...row, needsAcknowledgement: false };
   const delivery = optional.delivery;
-  if (row.storage && (!delivery || delivery.provider !== row.storage.provider || delivery.binding !== row.storage.binding)) {
-    throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Acknowledgement delivery failed: reconnect this export's original storage and retry." });
-  }
+  assertOriginalDelivery({ row }, { delivery });
   // Runtime delivery verifies through findToken too. Persist consent before asking the same
   // delivery owner to publish/verify; otherwise its own acknowledgement gate hides the artifact.
   await required.registry.put({ record: acknowledged });
   if (!row.storage || !delivery) return acknowledged;
   const archive = await required.registry.readArtifact(required);
   return deliverShare({ registry: required.registry, row: acknowledged, delivery, key: row.storage.key, file: row.file, archive }, { signal: AbortSignal.timeout(10 * 60 * 1000) });
+}
+
+/** A stored export publishes only through the provider and binding that first stored it. */
+function assertOriginalDelivery({ row }: { row: SiteShareRecord }, { delivery }: { delivery?: ShareDelivery } = {}): void {
+  if (row.storage && (!delivery || delivery.provider !== row.storage.provider || delivery.binding !== row.storage.binding)) {
+    throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Acknowledgement delivery failed: reconnect this export's original storage and retry." });
+  }
 }
