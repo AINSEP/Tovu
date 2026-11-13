@@ -829,14 +829,14 @@ describe("PublishContentDialog — a plan belongs to the site it was made for (t
     const port = createFakePublishContentPort({ peers: TWO_PEERS, report: MIXED_REPORT });
     const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
     await waitFor(() => expect(result.current.peers).toHaveLength(2));
-    act(() => result.current.onSelectPeer("peer-prod"));
+    act(() => result.current.onSelectPeer({ peerId: "peer-prod" }));
 
     // One snapshot, two handlers: the picker's guard still sees the pre-click phase, so only the
     // plan's own peer check stands between production's answer and a staging-labelled report.
     const view = result.current;
     await act(async () => {
       view.onPrimary();
-      view.onSelectPeer("peer-staging");
+      view.onSelectPeer({ peerId: "peer-staging" });
     });
 
     expect(port.calls.planPublish).toEqual([{ peerId: "peer-prod" }]);
@@ -849,12 +849,12 @@ describe("PublishContentDialog — a plan belongs to the site it was made for (t
     const port = createFakePublishContentPort({ peers: TWO_PEERS, planError: new Error("production is down") });
     const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
     await waitFor(() => expect(result.current.peers).toHaveLength(2));
-    act(() => result.current.onSelectPeer("peer-prod"));
+    act(() => result.current.onSelectPeer({ peerId: "peer-prod" }));
 
     const view = result.current;
     await act(async () => {
       view.onPrimary();
-      view.onSelectPeer("peer-staging");
+      view.onSelectPeer({ peerId: "peer-staging" });
     });
 
     expect(result.current.phase).toEqual({ kind: "idle" });
@@ -901,7 +901,7 @@ describe("PublishContentDialog — the blank 'Choose a site…' option is not a 
     const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
     await waitFor(() => expect(result.current.peers).toHaveLength(2));
 
-    act(() => result.current.onSelectPeer(""));
+    act(() => result.current.onSelectPeer({ peerId: "" }));
 
     expect(result.current.selectedPeerId).toBeNull();
     expect(result.current.primaryDisabled).toBe(true);
@@ -2060,7 +2060,7 @@ describe("PublishContentDialog — narrowed confirmation and stale work", () => 
     await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
     await act(async () => result.current.onPrimary());
     await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
-    act(() => result.current.onToggleRow(`post:${ABOUT_US}`));
+    act(() => result.current.onToggleRow({ key: `post:${ABOUT_US}` }));
     await act(async () => result.current.onPrimary());
     await waitFor(() => expect(result.current.refusalReason).toBe("Live requires an upgrade"));
     expect(result.current.phase.kind).toBe("planned");
@@ -2079,7 +2079,7 @@ describe("PublishContentDialog — narrowed confirmation and stale work", () => 
     await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
     await act(async () => result.current.onPrimary());
     await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
-    act(() => result.current.onToggleRow(`post:${ABOUT_US}`));
+    act(() => result.current.onToggleRow({ key: `post:${ABOUT_US}` }));
     await act(async () => result.current.onPrimary());
     expect(result.current.errorMessage).toBe("Narrowed bundle unavailable");
     expect(result.current.phase.kind).toBe("failed");
@@ -2184,7 +2184,7 @@ it("a narrowed plan answering after unmount cannot start confirmation", async ()
   await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
   await act(async () => result.current.onPrimary());
   await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
-  act(() => result.current.onToggleRow(`post:${ABOUT_US}`));
+  act(() => result.current.onToggleRow({ key: `post:${ABOUT_US}` }));
   act(() => result.current.onPrimary());
   expect(result.current.phase.kind).toBe("confirming");
   unmount();
@@ -2202,9 +2202,9 @@ it("selecting the already chosen peer keeps the reviewed plan and selection", as
   await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
   await act(async () => result.current.onPrimary());
   await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
-  act(() => result.current.onToggleRow(`post:${ABOUT_US}`));
+  act(() => result.current.onToggleRow({ key: `post:${ABOUT_US}` }));
   const reviewed = result.current.phase;
-  act(() => result.current.onSelectPeer("peer-prod"));
+  act(() => result.current.onSelectPeer({ peerId: "peer-prod" }));
   expect(result.current.phase).toBe(reviewed);
   expect(result.current.selectedKeys.has(`post:${ABOUT_US}`)).toBe(false);
   expect(port.calls.planPublish).toEqual([{ peerId: "peer-prod" }]);
@@ -2218,7 +2218,7 @@ it("peer selection handlers cannot change the target while planning", async () =
   await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
   act(() => result.current.onPrimary());
   expect(result.current.phase.kind).toBe("planning");
-  act(() => result.current.onSelectPeer("peer-staging"));
+  act(() => result.current.onSelectPeer({ peerId: "peer-staging" }));
   expect(result.current.selectedPeerId).toBe("peer-prod");
   await act(async () => {
     pending.resolve(await base.planPublish({ peerId: "peer-prod" }));

@@ -28,7 +28,7 @@ describe('Jini media host integration', () => {
     expect(window.history.length).toBe(historyLength);
   }, 20000);
   it('places the host publish control in the page header and hides it when media access is denied', async () => {
-    setPublishToLiveAvailable(true);
+    setPublishToLiveAvailable({ next: true });
     vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ media: [item] })))));
     const { rerender } = render(<Fixture />);
     const publish = await screen.findByRole('button', { name: 'Publish media' }, { timeout: 10000 });

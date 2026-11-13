@@ -82,7 +82,7 @@ export type RolesTabId = (typeof ROLES_TAB_IDS)[number];
 /** Falls back to the Roles list for an absent or unrecognized `?tab=` value, through the same
  *  shared guard `Deployment.tsx`/`Sites.tsx`/`Database.tsx`/`Themes.tsx` use — a stale bookmark or
  *  a typo must open a real tab, never a blank panel. */
-export function resolveRolesTabId(tabId: string | null | undefined): RolesTabId {
+export function resolveRolesTabId({ tabId }: { tabId: string | null | undefined }, _options: Record<string, never> = {}): RolesTabId {
   return resolveActiveTabId({ tabId: tabId, validIds: ROLES_TAB_IDS, defaultId: "roles" });
 }
 
@@ -123,6 +123,6 @@ export function resolveRolesTabs(t: Translate): TabBarTab[] {
 /** `replace: true` so moving between the two tabs does not grow the back stack one entry per click
  *  — the same call `Deployment.tsx`/`Sites.tsx`/`Themes.tsx` make for their own `?tab=`. A
  *  module-level function, not an inline arrow, so `TabBar`'s `onChange` takes it directly. */
-export function goToRolesTab(tabId: string) {
+export function goToRolesTab({ tabId }: { tabId: string }, _options: Record<string, never> = {}) {
   navigate(`/roles?tab=${tabId}`, { replace: true });
 }

@@ -99,7 +99,7 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
   const [actionError, setError] = useState<string | null>(null);
   const error = actionError ?? query.error?.message ?? null;
   const invalidate = useInvalidate();
-  const create = useFetchMutation({ run: () => port.createRestorePoint({ trigger: "manual", costAck: true }) }, { invalidates: [["recovery"]] });
+  const create = useFetchMutation({ run: () => port.createRestorePoint({}, { trigger: "manual", costAck: true }) }, { invalidates: [["recovery"]] });
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<AdminRestorePoint | null>(null);
   // Read ordering and background data retention now belong to the shared query cache.
@@ -135,7 +135,7 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
     const raw = sessionStorage.getItem("recovery-deep-link-envelope");
     if (!raw) return;
     sessionStorage.removeItem("recovery-deep-link-envelope");
-    const parsed = parseDeepLinkEnvelope(raw);
+    const parsed = parseDeepLinkEnvelope({ raw: raw });
     if (!parsed.ok) return;
     port
       .resolveRecoveryDeepLink(parsed.envelope)

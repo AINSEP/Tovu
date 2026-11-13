@@ -9,7 +9,7 @@ import type { AlwaysAllowPort } from "./always-allow-port.hooks";
 export const defaultAlwaysAllowPort: AlwaysAllowPort = {
   listExternalMcpToolApprovals: () => api.listExternalMcpToolApprovals(),
   listExternalMcpServers: () => api.listExternalMcpServers(),
-  revokeExternalMcpToolApproval: (serverId, toolName) => api.revokeExternalMcpToolApproval(serverId, toolName),
+  revokeExternalMcpToolApproval: ({ serverId, toolName }, _options = {}) => api.revokeExternalMcpToolApproval(serverId, toolName),
 };
 
 /** Seed state for {@link createFakeAlwaysAllowPort}. */
@@ -32,7 +32,7 @@ export function createFakeAlwaysAllowPort(options: FakeAlwaysAllowPortOptions = 
     async listExternalMcpServers() {
       return { servers };
     },
-    async revokeExternalMcpToolApproval(serverId, toolName) {
+    async revokeExternalMcpToolApproval({ serverId, toolName }) {
       if (options.revokeError) throw options.revokeError;
       const before = approvals.length;
       approvals = approvals.filter((row) => !(row.serverId === serverId && row.toolName === toolName));

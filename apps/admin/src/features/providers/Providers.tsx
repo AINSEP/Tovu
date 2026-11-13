@@ -98,7 +98,7 @@ type ProvidersTabId = (typeof PROVIDERS_TAB_IDS)[number];
  *  must open on a real tab, never a blank panel. The retired `/admin/integrations` page's own
  *  redirect (`panels.tsx`'s `integrations` panel) points at `?tab=webhooks` explicitly, so that
  *  URL's pre-merge default screen is preserved regardless of what this function's own default is. */
-function resolveProvidersTabId(tabId: string | null | undefined): ProvidersTabId {
+function resolveProvidersTabId({ tabId }: { tabId: string | null | undefined }, _options: Record<string, never> = {}): ProvidersTabId {
   return resolveActiveTabId({ tabId: tabId, validIds: PROVIDERS_TAB_IDS, defaultId: "external-mcp" });
 }
 
@@ -128,16 +128,16 @@ export interface ProvidersProps {
  *  — same complexity-ceiling idiom `SettingsUi.tsx`'s own resolver group uses: ESLint counts a
  *  default inside a function's OWN body as one of that function's branches, a call out to a
  *  separately-scoped resolver does not. */
-function resolveProvidersHook(override: typeof useProviders | undefined): typeof useProviders {
+function resolveProvidersHook({ override }: { override: typeof useProviders | undefined }, _options: Record<string, never> = {}): typeof useProviders {
   return override ?? useProviders;
 }
 
 export function Providers(props: ProvidersProps) {
   const themeBoundary = useAdminThemeBoundary({}, {});
   const locale = useAdminLocale();
-  const useProvidersHook = resolveProvidersHook(props.useProvidersHook);
+  const useProvidersHook = resolveProvidersHook({ override: props.useProvidersHook });
   const p = useProvidersHook();
-  const activeTabId = resolveProvidersTabId(props.tabId);
+  const activeTabId = resolveProvidersTabId({ tabId: props.tabId });
 
   const tabs: TabBarTab[] = [
     {

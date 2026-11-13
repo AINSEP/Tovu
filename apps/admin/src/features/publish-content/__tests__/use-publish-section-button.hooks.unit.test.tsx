@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { PublishSectionButton } from "../PublishSectionButton";
 import { setPublishToLiveAvailable } from "../hooks/publish-availability.store";
 
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); setPublishToLiveAvailable(true); });
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); setPublishToLiveAvailable({ next: true }); });
 
 it("uses the loaded locale for its section label and reacts to live-site availability changes", async () => {
   // Author Checklist F2.4/F3.6/F4.3/F6.2/F7.5: real consumer and locale port,
@@ -14,12 +14,12 @@ it("uses the loaded locale for its section label and reacts to live-site availab
     return Response.json({ data: [{ key: "locale", value: "es" }] });
   });
   vi.stubGlobal("fetch", fetch);
-  setPublishToLiveAvailable(true);
+  setPublishToLiveAvailable({ next: true });
   render(<PublishSectionButton section="collections" />);
   await screen.findByRole("button", { name: "Publicar colecciones" });
   expect(fetch).toHaveBeenCalledTimes(1);
-  act(() => setPublishToLiveAvailable(false));
+  act(() => setPublishToLiveAvailable({ next: false }));
   expect(screen.queryByRole("button", { name: "Publicar colecciones" })).not.toBeInTheDocument();
-  act(() => setPublishToLiveAvailable(true));
+  act(() => setPublishToLiveAvailable({ next: true }));
   expect(screen.getByRole("button", { name: "Publicar colecciones" })).toBeInTheDocument();
 });

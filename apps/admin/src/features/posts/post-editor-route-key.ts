@@ -19,7 +19,7 @@ const renamedRouteKeys = new Map<string, string>();
 let draftCount = 1;
 
 /** The `key` `panels.tsx` gives `<PostEditor>` for this URL segment. */
-export function postEditorRouteKey(segment: string): string {
+export function postEditorRouteKey({ segment }: { segment: string }, _options: Record<string, never> = {}): string {
   if (segment === "") return `new-post-draft:${draftCount}`;
   return renamedRouteKeys.get(segment) ?? segment;
 }
@@ -28,6 +28,6 @@ export function postEditorRouteKey(segment: string): string {
  *  first Save (`from` empty) hands the draft key to the saved slug and starts a fresh one. */
 export function rememberPostEditorRouteRename({ from, to }: { from: string; to: string }): void {
   if (from === to) return;
-  renamedRouteKeys.set(to, postEditorRouteKey(from));
+  renamedRouteKeys.set(to, postEditorRouteKey({ segment: from }));
   if (from === "") draftCount += 1;
 }

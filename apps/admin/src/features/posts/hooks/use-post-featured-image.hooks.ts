@@ -18,7 +18,7 @@ export interface PostFeaturedImageController {
   openPicker: () => void;
   closePicker: () => void;
   /** `MediaPickerDialog`'s `onSelect` — stores the picked asset's id and closes the dialog. */
-  handleSelect: (item: AdminMedia) => void;
+  handleSelect: (input: { item: AdminMedia }, options?: Record<string, never>) => void;
   clear: () => void;
   /** Thumbnail `<img src>` for the current id, or `null` when none is chosen. */
   previewUrl: string | null;
@@ -36,19 +36,19 @@ export interface PostFeaturedImageController {
 const FEATURED_IMAGE_ACCEPT: readonly string[] = ["image/*"];
 
 /** The preview for a chosen image: its rendition when one is offered, else the original. */
-function featuredPreviewUrl(value: string, rendition: ((id: string) => string) | undefined, port: Pick<MediaPickerPort, "mediaOriginalUrl">): string {
+function featuredPreviewUrl(
+  { value, rendition, port }: { value: string; rendition: ((id: string) => string) | undefined; port: Pick<MediaPickerPort, "mediaOriginalUrl"> },
+  _options: Record<string, never> = {},
+): string {
   return rendition ? rendition(value) : port.mediaOriginalUrl({ id: value });
 }
 
-export function usePostFeaturedImage(
-  value: string | null,
-  onChange: (id: string | null) => void,
-  deps: {
+export function usePostFeaturedImage({ value, onChange, deps }: { value: string | null; onChange: (id: string | null) => void; deps: {
     port: Pick<MediaPickerPort, "mediaOriginalUrl">;
     /** A resized rendition's URL, tried before the original (2026-10-10: the cover slot downloaded a
      *  2.7 MB, 3749 × 5623 original to fill ~751 × 220px). Omitted, the preview is the original. */
     renditionUrl?: (id: string) => string;
-  },
+  } }, _options: Record<string, never> = {}
 ): PostFeaturedImageController {
   const [pickerOpen, setPickerOpen] = useState(false);
   // Keyed by the id that failed rather than a boolean, so choosing another image clears it without
@@ -61,12 +61,12 @@ export function usePostFeaturedImage(
     pickerOpen,
     openPicker: () => setPickerOpen(true),
     closePicker: () => setPickerOpen(false),
-    handleSelect: (item) => {
+    handleSelect: ({ item }, _options = {}) => {
       onChange(item.id);
       setPickerOpen(false);
     },
     clear: () => onChange(null),
-    previewUrl: value ? featuredPreviewUrl(value, rendition, deps.port) : null,
+    previewUrl: value ? featuredPreviewUrl({ value: value, rendition: rendition, port: deps.port }) : null,
     accept: FEATURED_IMAGE_ACCEPT,
     previewFailed: value !== null && failedId === value,
     onPreviewError: () => (rendition ? setRenditionFailedId(value) : setFailedId(value)),
@@ -74,6 +74,6 @@ export function usePostFeaturedImage(
 }
 
 /** Binds the real media client — the zero-dependency half of the `useX(deps)` / `useWiredX()` pair. */
-export function useWiredPostFeaturedImage(value: string | null, onChange: (id: string | null) => void): PostFeaturedImageController {
-  return usePostFeaturedImage(value, onChange, { port: defaultMediaPickerPort, renditionUrl: defaultFeaturedImageRenditionUrl });
+export function useWiredPostFeaturedImage({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }, _options: Record<string, never> = {}): PostFeaturedImageController {
+  return usePostFeaturedImage({ value: value, onChange: onChange, deps: { port: defaultMediaPickerPort, renditionUrl: defaultFeaturedImageRenditionUrl } });
 }

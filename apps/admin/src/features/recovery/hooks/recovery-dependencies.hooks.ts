@@ -17,8 +17,8 @@ import type { RecoveryPort } from "./recovery-port.hooks";
 export const defaultRecoveryPort: RecoveryPort = {
   getRecoveryStatus: () => api.getRecoveryStatus(),
   listRecoveryRestorePoints: () => api.listRecoveryRestorePoints(),
-  createRestorePoint: (options) => api.createRecoveryRestorePoint(options),
-  resolveRecoveryDeepLink: (envelope) => api.resolveRecoveryDeepLink(envelope),
+  createRestorePoint: (_input, options = {}) => api.createRecoveryRestorePoint(options),
+  resolveRecoveryDeepLink: (envelope, _options = {}) => api.resolveRecoveryDeepLink(envelope),
 };
 
 /** Every caller names the point's `id` (it is derived from the store size), so it is required. */
@@ -76,7 +76,7 @@ export function createFakeRecoveryPort(options: FakeRecoveryPortOptions = {}): R
       if (options.loadError) throw options.loadError;
       return { items: points };
     },
-    async createRestorePoint(reqOptions) {
+    async createRestorePoint(_input, reqOptions = {}) {
       if (options.createError) throw options.createError;
       const created = fakeRestorePointSummary({ id: `fake-rp-${points.length + 1}` });
       points.push({

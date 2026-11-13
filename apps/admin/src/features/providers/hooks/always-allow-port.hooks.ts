@@ -8,5 +8,5 @@ export interface AlwaysAllowPort {
   listExternalMcpToolApprovals(): Promise<{ approvals: AdminExternalMcpToolApproval[] }>;
   /** For each server's label. */
   listExternalMcpServers(): Promise<{ servers: Pick<AdminExternalMcpServer, "serverId" | "label">[] }>;
-  revokeExternalMcpToolApproval(serverId: string, toolName: string): Promise<{ removed: boolean }>;
+  revokeExternalMcpToolApproval(input: { serverId: string; toolName: string }): Promise<{ removed: boolean }>;
 }

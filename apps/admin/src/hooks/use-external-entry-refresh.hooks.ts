@@ -22,7 +22,7 @@ export interface ExternalEntryRefreshInput<Row extends ExternalEntryRevision> {
   /** The row the editor treats as its saved basis; `null` before load. */
   loaded: Row | null;
   /** Re-reads the row by id through the editor's own injected port. */
-  fetchLatest: (id: string) => Promise<Row>;
+  fetchLatest: (input: { id: string }, options?: Record<string, never>) => Promise<Row>;
   /** Called when the fetch SETTLES — must reflect the working copy at that instant, not at the
    *  moment the fetch started. */
   isDirty: () => boolean;
@@ -97,7 +97,7 @@ export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
     }
     const generation = generations.next();
     latestRef.current
-      .fetchLatest(loaded.id)
+      .fetchLatest({ id: loaded.id })
       .then((fresh) => {
         if (!generations.isCurrent({ generation })) return;
         const current = latestRef.current;
@@ -143,7 +143,7 @@ export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
     if (loaded === null || latestRef.current.isSaving()) return;
     const generation = generations.next();
     loadInFlightRef.current = true;
-    const fresh = await latestRef.current.fetchLatest(loaded.id).then(
+    const fresh = await latestRef.current.fetchLatest({ id: loaded.id }).then(
       (row) => row,
       () => null
     );

@@ -31,7 +31,7 @@ const SERVERS = [
 ];
 
 function renderPanel(port: AlwaysAllowPort) {
-  const hook = () => useAlwaysAllow(port, fakeT, "en");
+  const hook = () => useAlwaysAllow({ port: port, t: fakeT, locale: "en" });
   return render(
     <FetchQueryProvider>
       <AlwaysAllowPanel useAlwaysAllowHook={hook} />
@@ -69,8 +69,8 @@ describe("groupAlwaysAllow", () => {
 
 describe("formatGrantedAt", () => {
   it("formats a date in the given locale and passes an unparseable value through", () => {
-    expect(formatGrantedAt("2026-09-28T10:00:00.000Z", "en")).toBe("Sep 28, 2026");
-    expect(formatGrantedAt("not a date", "en")).toBe("not a date");
+    expect(formatGrantedAt({ grantedAt: "2026-09-28T10:00:00.000Z", locale: "en" })).toBe("Sep 28, 2026");
+    expect(formatGrantedAt({ grantedAt: "not a date", locale: "en" })).toBe("not a date");
   });
 });
 
@@ -98,7 +98,7 @@ describe("AlwaysAllowPanel", () => {
 
     await expect(defaultAlwaysAllowPort.listExternalMcpToolApprovals()).resolves.toEqual({ approvals: [saved] });
     await expect(defaultAlwaysAllowPort.listExternalMcpServers()).resolves.toEqual({ servers: [{ serverId: "server/one", label: "One" }] });
-    await expect(defaultAlwaysAllowPort.revokeExternalMcpToolApproval("server/one", "read file?")).resolves.toEqual({ removed: true });
+    await expect(defaultAlwaysAllowPort.revokeExternalMcpToolApproval({ serverId: "server/one", toolName: "read file?" })).resolves.toEqual({ removed: true });
     await expect(defaultAlwaysAllowPort.listExternalMcpToolApprovals()).resolves.toEqual({ approvals: [] });
   });
 
@@ -128,7 +128,7 @@ describe("AlwaysAllowPanel", () => {
     const section = (await screen.findByRole("heading", { name: "GitHub" })).closest("section") as HTMLElement;
     await userEvent.click(within(section).getByRole("button", { name: "Revoke" }));
 
-    expect(revokeSpy).toHaveBeenCalledWith("github", "get_file");
+    expect(revokeSpy).toHaveBeenCalledWith({ serverId: "github", toolName: "get_file" });
     await waitFor(() => expect(screen.queryByRole("heading", { name: "GitHub" })).not.toBeInTheDocument());
     expect(screen.getByRole("heading", { name: "Linear" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -138,9 +138,9 @@ describe("AlwaysAllowPanel", () => {
   it("treats a 404 revoke (already gone) as done, not as an error", async () => {
     const port = createFakeAlwaysAllowPort({ approvals: [approval("github", "get_file")], servers: SERVERS });
     const removeApproval = port.revokeExternalMcpToolApproval;
-    port.revokeExternalMcpToolApproval = async (serverId, toolName) => {
+    port.revokeExternalMcpToolApproval = async ({ serverId, toolName }) => {
       // A 404 means another window already removed it; the next list must agree.
-      await removeApproval(serverId, toolName);
+      await removeApproval({ serverId, toolName });
       throw new ApiError("no Always allow is saved for that tool", 404, "NOT_FOUND");
     };
     renderPanel(port);

@@ -729,7 +729,7 @@ const IMPORT_RULES_LABEL_COPY: Record<string, { hint: string; fields: string; op
 
 /** The bulk-import label: a one-line hint plus an ⓘ naming the rule fields. The package's
  *  `shapeCode` element is no longer rendered — the field names are the same literal keys here. */
-export function importRulesLabel(locale: string, _shapeCode?: ReactNode): ReactNode {
+export function importRulesLabel({ locale }: { locale: string }, { _shapeCode }: { _shapeCode?: ReactNode } = {}): ReactNode {
   const c = localeEntry({ table: IMPORT_RULES_LABEL_COPY, locale });
   return (
     <>
@@ -772,7 +772,7 @@ const IMPORT_RESULT_SUMMARY_TEMPLATE: Record<string, string> = {
 };
 
 /** The import result summary — "{created} created, {failed} failed." */
-export function importResultSummary(locale: string, created: number, failed: number): string {
+export function importResultSummary({ locale, created, failed }: { locale: string; created: number; failed: number }, _options: Record<string, never> = {}): string {
   return interpolate({ template: localeEntry({ table: IMPORT_RESULT_SUMMARY_TEMPLATE, locale }), vars: {
     created,
     failed,
@@ -806,7 +806,7 @@ const CREATED_LABEL: Record<string, string> = {
 
 /** One created-item line: "Created {fromPattern} → {toTarget}" — "Created" is a status word, not
  *  full-sentence copy, so translated as a short label preceding the arrow. */
-export function createdLabel(locale: string): string {
+export function createdLabel({ locale }: { locale: string }, _options: Record<string, never> = {}): string {
   return localeEntry({ table: CREATED_LABEL, locale });
 }
 
@@ -836,7 +836,7 @@ const FAILED_ITEM_LABEL_TEMPLATE: Record<string, string> = {
 };
 
 /** One failed-item line: "Item {index} ({code})". */
-export function failedItemLabel(locale: string, index: number, code: string): string {
+export function failedItemLabel({ locale, index, code }: { locale: string; index: number; code: string }, _options: Record<string, never> = {}): string {
   return interpolate({ template: localeEntry({ table: FAILED_ITEM_LABEL_TEMPLATE, locale }), vars: { index, code } });
 }
 
@@ -866,7 +866,7 @@ const DELETE_REDIRECT_BODY_FRAGMENTS: Record<string, { before: string; after: st
 };
 
 /** The delete-confirm body embeds the rule's own `fromPattern` mid-sentence. */
-export function deleteRedirectBody(locale: string, fromPattern: string): ReactNode {
+export function deleteRedirectBody({ locale, fromPattern }: { locale: string; fromPattern: string }, _options: Record<string, never> = {}): ReactNode {
   const f = localeEntry({ table: DELETE_REDIRECT_BODY_FRAGMENTS, locale });
   return (
     <p>
@@ -903,6 +903,6 @@ const ACTIONS_FOR_REDIRECT_TEMPLATE: Record<string, string> = {
 };
 
 /** The row-menu trigger's accessible name embeds the rule's own `fromPattern`. */
-export function actionsForRedirectLabel(locale: string, fromPattern: string): string {
+export function actionsForRedirectLabel({ locale, fromPattern }: { locale: string; fromPattern: string }, _options: Record<string, never> = {}): string {
   return interpolate({ template: localeEntry({ table: ACTIONS_FOR_REDIRECT_TEMPLATE, locale }), vars: { fromPattern } });
 }

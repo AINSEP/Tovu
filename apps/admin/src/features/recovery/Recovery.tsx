@@ -153,7 +153,7 @@ function RestorePointsList(props: {
         {
           key: "cost-class",
           header: t({ locale: locale, key: "Cost class" }),
-          cell: (p) => <span className={`status status-${p.costClass}`}>{costClassLabel(p.costClass, locale)}</span>,
+          cell: (p) => <span className={`status status-${p.costClass}`}>{costClassLabel({ costClass: p.costClass, locale: locale })}</span>,
         },
         {
           key: "restore",
@@ -168,7 +168,7 @@ function RestorePointsList(props: {
                 // `rules.ts`'s `restoreButtonAccessibleName` doc comment for why that is ambiguous
                 // to anything resolving elements by accessible name rather than table position, and
                 // why this is the one screen where that ambiguity matters most.
-                aria-label={restoreButtonAccessibleName(locale, p)}
+                aria-label={restoreButtonAccessibleName({ locale: locale, point: p })}
                 {...agentHandle({ handle: `${rowHandleById.get(p.id)}-restore` }, { role: "button", label: "Begin the restore ceremony for this restore point" })}
               >
                 {t({ locale: locale, key: "Restore…" })}
@@ -231,10 +231,10 @@ function DisclosurePanel(props: {
   return (
     <div className="recovery-disclosure-panel">
       <div className="recovery-loss-manifest">
-        <p className="recovery-loss-lede">{sinceDiscardMessage(locale, props.point.createdAt)}</p>
+        <p className="recovery-loss-lede">{sinceDiscardMessage({ locale: locale, createdAt: props.point.createdAt })}</p>
         <ul className="recovery-loss-list">
           {categories.map(([category, count]) => (
-            <li key={category}>{discardCountLine(locale, count, categoryLabel(category, locale))}</li>
+            <li key={category}>{discardCountLine({ locale: locale, count: count, categoryLabelText: categoryLabel({ category: category, locale: locale }) })}</li>
           ))}
         </ul>
         <p className="recovery-loss-caveat">{t({ locale: locale, key: "This covers watermark-stamped write paths only (posts/pages and plugin-table writes today) and is NOT a complete count of everything written since this restore point — change-sets, taxonomy writes, Collections entries, and sessions are not yet counted here." })}</p>
@@ -252,7 +252,7 @@ function DisclosurePanel(props: {
           ledger would need 19 rewrites, not a reflow. */}
       {!props.disclosure.watermarkBaselineAvailable ? (
         <p className="save-error recovery-baseline-alarm" role="alert">
-          {baselineUnavailableMessage(locale)}
+          {baselineUnavailableMessage({ locale: locale })}
         </p>
       ) : null}
       <label id="recovery-ack-label" className="recovery-ack-gate">
@@ -320,7 +320,7 @@ function RestorePlannedStep(props: { locale: string; planId: string; busy: boole
   const { locale, planId, busy, onConfirm } = props;
   return (
     <div className="recovery-ceremony-step">
-      <p>{restorePlanReadyMessage(locale, planId)}</p>
+      <p>{restorePlanReadyMessage({ locale: locale, planId: planId })}</p>
       <button
         type="button"
         className="btn-secondary"
@@ -362,7 +362,7 @@ function RestoreDoneStep(props: { locale: string; restoreRunId: string; state: s
   return (
     <div className="recovery-ceremony-step">
       <p role="status">
-        {restoreDoneMessage(locale, restoreRunId, <span className={`status status-${state}`}><ServerLabel value={state} /></span>)}
+        {restoreDoneMessage({ locale: locale, restoreRunId: restoreRunId, stateNode: <span className={`status status-${state}`}><ServerLabel value={state} /></span> })}
       </p>
       {restartRequired ? (
         <p className="save-error" role="alert">
@@ -453,7 +453,7 @@ function RestoreFlow({
               {t("Restore to")} {formatTimestamp({ iso: point.createdAt }, { timeZone: "local" })}
             </h2>
             <span className="visually-hidden">{t("Cost class")}</span>
-            <span className={`status status-${point.costClass}`}>{costClassLabel(point.costClass, locale)}</span>
+            <span className={`status status-${point.costClass}`}>{costClassLabel({ costClass: point.costClass, locale: locale })}</span>
           </div>
           <p className="recovery-restore-meta">
             <span>

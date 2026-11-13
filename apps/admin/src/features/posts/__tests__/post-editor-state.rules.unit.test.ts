@@ -110,7 +110,7 @@ describe("loadedPostForm", () => {
 
     expect(loadedPostForm({ post: stored, activeThemeTemplates: [] })).toMatchObject({
       overridesThemePage: true,
-      publishAt: localDateTimeInputToIso(isoToLocalDateTimeInput("2026-11-01T10:15:42.000Z")),
+      publishAt: localDateTimeInputToIso({ value: isoToLocalDateTimeInput({ iso: "2026-11-01T10:15:42.000Z" }) }),
       featuredMediaId: "m1",
       author: "Ada",
       showAuthor: true,

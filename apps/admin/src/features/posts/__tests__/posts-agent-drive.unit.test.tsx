@@ -56,7 +56,7 @@ function controller(overrides: Partial<PostsController> = {}): PostsController {
     // `Posts.tsx` now destructures this from the hook (moved there in 45537ee2) instead of
     // computing it itself — this fixture fell out of sync with that move. Mirrors
     // `Posts.unit.test.tsx`'s identical fixture fix from the same commit.
-    rowMenuHandleById: buildPostRowMenuHandleMap(posts),
+    rowMenuHandleById: buildPostRowMenuHandleMap({ posts: posts }),
     ...overrides,
   };
 }

@@ -86,7 +86,7 @@ export function loadedPostForm(required: { post: AdminPost; activeThemeTemplates
     overridesThemePage: post.overridesThemePage ?? null,
     // Through the same input round-trip the field itself uses, so the minute-precision
     // `datetime-local` value never reads as a change against a seconds-precision stored time.
-    publishAt: localDateTimeInputToIso(isoToLocalDateTimeInput(post.publishAt)),
+    publishAt: localDateTimeInputToIso({ value: isoToLocalDateTimeInput({ iso: post.publishAt }) }),
     featuredMediaId: post.featuredMediaId ?? null,
     author: post.author ?? "",
     showAuthor: post.showAuthor ?? false,
@@ -167,7 +167,7 @@ export function loadedPostHandles(required: { post: AdminPost | null; postId: st
   return {
     entryId: post.id,
     loadedId: post.id,
-    scheduled: isScheduledPost({ status: post.status, publishAt: post.publishAt ?? null }, nowMs),
+    scheduled: isScheduledPost({ input: { status: post.status, publishAt: post.publishAt ?? null }, nowMs: nowMs }),
     previewFormTarget: `post-preview-pending-${post.id}`,
   };
 }

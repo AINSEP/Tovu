@@ -121,7 +121,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
   const initialReadPending = useRef(true);
 
   function acceptSession(r: Awaited<ReturnType<typeof api.me>>) {
-    setPublishToLiveAvailable(readPublishToLiveAvailability(r));
+    setPublishToLiveAvailable({ next: readPublishToLiveAvailability(r) });
     if (getAdminDraftIdentity() !== r.user.id) adminFailureChannel.reset();
     setAdminDraftIdentity({ id: r.user.id });
     setUser(r.user);
@@ -234,7 +234,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
       .me()
       .then((r) => {
         if (sessionEpoch.current !== readEpoch) return;
-        setPublishToLiveAvailable(readPublishToLiveAvailability(r));
+        setPublishToLiveAvailable({ next: readPublishToLiveAvailability(r) });
         setEffectivePermissions(r.effectivePermissions);
       })
       .catch((error: unknown) => console.error("[admin] Could not refresh the signed-in session", describeErrorForLog({ err: error })));

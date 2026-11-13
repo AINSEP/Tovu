@@ -11,7 +11,7 @@ import { unchangedSaveHandlers } from "@/lib/unchanged-save-warning";
  * building an inline arrow function in JSX.
  *
  * This is explicitly NOT a complexity-ceiling fix on its own — the inline arrows it replaces
- * (`() => save("published")`, `() => setConfirmingDelete(true)`, …) were already their own
+ * (`() => save({}, { statusOverride: "published" })`, `() => setConfirmingDelete(true)`, …) were already their own
  * separately-scored functions at near-zero complexity, not contributors to `PostEditor`'s own
  * cyc/cog score. `PostEditor`'s actual complexity comes entirely from JSX conditional rendering
  * directly in its own function body (ternaries/`&&` chains), which top-level render-function
@@ -28,7 +28,7 @@ import { unchangedSaveHandlers } from "@/lib/unchanged-save-warning";
  * require the test fixture to re-derive the exact same wiring a second time for no behavioral gain.
  */
 export interface PostEditorUiDependencies {
-  save: (statusOverride?: "draft" | "published") => Promise<void>;
+  save: (input: Record<string, never>, options?: { statusOverride?: "draft" | "published" }) => Promise<void>;
   setConfirmingDelete: (open: boolean) => void;
   setShowTemplateModal: (open: boolean) => void;
   /** Whether the editor thinks anything changed since the last load/save. */
@@ -67,12 +67,12 @@ export interface PostEditorUiController {
 export function usePostEditorUi(deps: PostEditorUiDependencies): PostEditorUiController {
   const { save, setConfirmingDelete, setShowTemplateModal, dirty, setConfirmingUnchangedSave } = deps;
   return {
-    // `() => save("published")`/`() => save()` — same unawaited-Promise shape `PostEditor.tsx`'s
+    // The publish and save actions keep the same unawaited-Promise shape `PostEditor.tsx`'s
     // inline arrows already had (`save`'s own errors are caught and surfaced via `setError` inside
     // `usePostEditor`, so nothing here needs to observe the returned promise).
-    onPublish: () => save("published"),
+    onPublish: () => save({}, { statusOverride: "published" }),
     // Save / "Nothing changed. Save anyway?" — shared with the Pages editor.
-    ...unchangedSaveHandlers({ dirty, save: () => save(), setConfirmingUnchangedSave }),
+    ...unchangedSaveHandlers({ dirty, save: () => save({}), setConfirmingUnchangedSave }),
     onDeleteClick: () => setConfirmingDelete(true),
     onDeleteCancel: () => setConfirmingDelete(false),
     onViewTemplateClick: () => setShowTemplateModal(true),
@@ -119,7 +119,7 @@ export interface ToolbarOverflowController {
   /** Callback ref for the `.editor-toolbar` element the fit is measured against. */
   toolbarRef: (element: HTMLElement | null) => void;
   /** Spread onto the control of the given rank (0 = most important). */
-  slot: (rank: number) => ToolbarSlotProps;
+  slot: (input: { rank: number }, options?: Record<string, never>) => ToolbarSlotProps;
 }
 
 /**
@@ -149,7 +149,7 @@ const FIT_SLACK_PX = 1;
  * control hidden in the overflow (display:none reports 0). `null` when "More" is hidden, i.e. the
  * pane is wider than the phone breakpoint and every control already shows.
  */
-function measurePrimaryFit(toolbar: HTMLElement, widthCache: number[]): number | null {
+function measurePrimaryFit({ toolbar, widthCache }: { toolbar: HTMLElement; widthCache: number[] }, _options: Record<string, never> = {}): number | null {
   const more = toolbar.querySelector<HTMLElement>(".tb-more");
   if (!more || more.offsetWidth === 0) return null;
   toolbar.querySelectorAll<HTMLElement>("[data-tb-rank]").forEach((control) => {
@@ -179,7 +179,7 @@ export function useToolbarOverflow(): ToolbarOverflowController {
 
   const remeasure = useCallback(() => {
     if (!toolbar) return;
-    setShown(measurePrimaryFit(toolbar, widthCache.current) ?? TOOLBAR_PRIMARY_RANKS);
+    setShown(measurePrimaryFit({ toolbar: toolbar, widthCache: widthCache.current }) ?? TOOLBAR_PRIMARY_RANKS);
   }, [toolbar]);
 
   useEffect(() => {
@@ -197,7 +197,7 @@ export function useToolbarOverflow(): ToolbarOverflowController {
     open,
     toggle: () => setOpen((current) => !current),
     toolbarRef: setToolbar,
-    slot: (rank) => ({ "data-tb-rank": rank, "data-tb": rank < shown ? "primary" : undefined }),
+    slot: ({ rank }, _options = {}) => ({ "data-tb-rank": rank, "data-tb": rank < shown ? "primary" : undefined }),
   };
 }
 
@@ -205,7 +205,7 @@ export function useToolbarOverflow(): ToolbarOverflowController {
  * Escape in an iframe stays in its own document. Rebind after each preview navigation.
  * @complexity O(1) — listeners belong to a single preview frame.
  */
-export function usePostPreviewIframeEscape(expanded: boolean, onCollapse: () => void): (node: HTMLIFrameElement | null) => void {
+export function usePostPreviewIframeEscape({ expanded, onCollapse }: { expanded: boolean; onCollapse: () => void }, _options: Record<string, never> = {}): (node: HTMLIFrameElement | null) => void {
   const [iframe, setIframe] = useState<HTMLIFrameElement | null>(null);
   useEffect(() => {
     if (!iframe || !expanded) return undefined;

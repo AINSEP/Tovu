@@ -1123,7 +1123,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // `isDirty` is wider than `dirty` on the Interactive tab — see `pageRefreshMayHaveUnsavedEdits`.
   const externalRefresh = useExternalEntryRefresh<AdminPost>({
     loaded: page,
-    fetchLatest: (id) => readPage(id).then(({ post }) => post),
+    fetchLatest: ({ id }, _options = {}) => readPage(id).then(({ post }) => post),
     isDirty: () => pageRefreshMayHaveUnsavedEdits({ dirty, view }),
     isSaving: () => saving,
     applyLatest: applyExternalPage,

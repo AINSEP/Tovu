@@ -59,8 +59,8 @@ function controller(overrides: Partial<PostEditorController> = {}): PostEditorCo
   const setConfirmingDelete = vi.fn();
   const setShowTemplateModal = vi.fn();
   return {
-    onPublish: () => save("published"),
-    onSave: () => save(),
+    onPublish: () => save({}, { statusOverride: "published" }),
+    onSave: () => save({}),
     onDeleteClick: () => setConfirmingDelete(true),
     onDeleteCancel: () => setConfirmingDelete(false),
     confirmingUnchangedSave: false,

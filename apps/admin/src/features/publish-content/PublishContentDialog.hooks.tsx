@@ -18,7 +18,7 @@ export function PublishContentReportRow({ row, view, t }: { row: PublishReportRo
             type="checkbox"
             checked={view.selectedKeys.has(row.key)}
             disabled={!view.selectionEnabled}
-            onChange={() => view.onToggleRow(row.key)}
+            onChange={() => view.onToggleRow({ key: row.key })}
             // No `agentHandle` here: a handle must be lowercase words joined by
             // hyphens, and a row key is an entity id. The row's own
             // `data-entity-id` is the stable address instead — an agent (or a test)

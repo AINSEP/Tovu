@@ -60,33 +60,33 @@ describe("postRowMenuItems", () => {
   const handlers = { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() };
 
   it("always includes Edit and Delete", () => {
-    const items = postRowMenuItems(post({ status: "draft" }), handlers, "en");
+    const items = postRowMenuItems({ post: post({ status: "draft" }), handlers: handlers, locale: "en" });
     const keys = items.map((i) => i.key);
     expect(keys).toContain("edit");
     expect(keys).toContain("delete");
   });
 
   it("offers Unpublish for a published post", () => {
-    const items = postRowMenuItems(post({ status: "published" }), handlers, "en");
+    const items = postRowMenuItems({ post: post({ status: "published" }), handlers: handlers, locale: "en" });
     expect(items.map((i) => i.key)).toContain("unpublish");
   });
 
   it("offers Publish for a draft post — the toggle flips rather than being omitted", () => {
-    const items = postRowMenuItems(post({ status: "draft" }), handlers, "en");
+    const items = postRowMenuItems({ post: post({ status: "draft" }), handlers: handlers, locale: "en" });
     const keys = items.map((i) => i.key);
     expect(keys).toContain("publish");
     expect(keys).not.toContain("unpublish");
   });
 
   it("Delete is marked destructive; Edit/Unpublish are not", () => {
-    const items = postRowMenuItems(post({ status: "published" }), handlers, "en");
+    const items = postRowMenuItems({ post: post({ status: "published" }), handlers: handlers, locale: "en" });
     expect(items.find((i) => i.key === "delete")?.destructive).toBe(true);
     expect(items.find((i) => i.key === "edit")?.destructive).toBeFalsy();
     expect(items.find((i) => i.key === "unpublish")?.destructive).toBeFalsy();
   });
 
   it("preserves order: edit, [unpublish|publish], delete", () => {
-    const items = postRowMenuItems(post({ status: "published" }), handlers, "en");
+    const items = postRowMenuItems({ post: post({ status: "published" }), handlers: handlers, locale: "en" });
     expect(items.map((i) => i.key)).toEqual(["edit", "unpublish", "delete"]);
   });
 
@@ -95,7 +95,7 @@ describe("postRowMenuItems", () => {
     const onTogglePublish = vi.fn();
     const onDelete = vi.fn();
     const p = post({ status: "published" });
-    const items = postRowMenuItems(p, { onEdit, onTogglePublish, onDelete }, "en");
+    const items = postRowMenuItems({ post: p, handlers: { onEdit, onTogglePublish, onDelete }, locale: "en" });
     items.find((i) => i.key === "edit")!.onSelect();
     items.find((i) => i.key === "unpublish")!.onSelect();
     items.find((i) => i.key === "delete")!.onSelect();
@@ -105,24 +105,24 @@ describe("postRowMenuItems", () => {
   });
 
   it("translates labels to Spanish when locale is es", () => {
-    const items = postRowMenuItems(post({ status: "published" }), handlers, "es");
+    const items = postRowMenuItems({ post: post({ status: "published" }), handlers: handlers, locale: "es" });
     expect(items.map((i) => i.label)).toEqual(["Editar", "Anular publicación", "Eliminar"]);
   });
 });
 
 describe("buildPostRowMenuHandleMap", () => {
   it("returns an empty map for null (not-yet-loaded) posts", () => {
-    expect(buildPostRowMenuHandleMap(null).size).toBe(0);
+    expect(buildPostRowMenuHandleMap({ posts: null }).size).toBe(0);
   });
 
   it("returns an empty map for an empty list", () => {
-    expect(buildPostRowMenuHandleMap([]).size).toBe(0);
+    expect(buildPostRowMenuHandleMap({ posts: [] }).size).toBe(0);
   });
 
   it("keys the handle by post id, not by array position", () => {
     const a = post({ id: "a" });
     const b = post({ id: "b" });
-    const map = buildPostRowMenuHandleMap([a, b]);
+    const map = buildPostRowMenuHandleMap({ posts: [a, b] });
     expect(map.get("a")).toBe("posts-row-a");
     expect(map.get("b")).toBe("posts-row-b");
   });
@@ -130,8 +130,8 @@ describe("buildPostRowMenuHandleMap", () => {
   it("keeps each post's handle stable when the list is reordered", () => {
     const a = post({ id: "a" });
     const b = post({ id: "b" });
-    const forward = buildPostRowMenuHandleMap([a, b]);
-    const reordered = buildPostRowMenuHandleMap([b, a]);
+    const forward = buildPostRowMenuHandleMap({ posts: [a, b] });
+    const reordered = buildPostRowMenuHandleMap({ posts: [b, a] });
     expect(reordered.get("a")).toBe(forward.get("a"));
     expect(reordered.get("b")).toBe(forward.get("b"));
   });
@@ -194,11 +194,11 @@ describe("readFileAsDataUrl", () => {
 
 describe("toolbarBtnClass", () => {
   it("appends ' on' when active", () => {
-    expect(toolbarBtnClass(true)).toBe("tb-btn on");
+    expect(toolbarBtnClass({ active: true })).toBe("tb-btn on");
   });
 
   it("stays plain when inactive", () => {
-    expect(toolbarBtnClass(false)).toBe("tb-btn");
+    expect(toolbarBtnClass({ active: false })).toBe("tb-btn");
   });
 });
 
@@ -228,25 +228,25 @@ describe("comparePostsByUpdated", () => {
 
 describe("updatedColumnSortLabel", () => {
   it("states 'not sorted by updated date' and offers newest-first when direction is null (a different column is active)", () => {
-    const label = updatedColumnSortLabel(identityT, null);
+    const label = updatedColumnSortLabel({ t: identityT, direction: null });
     expect(label).toMatch(/not sorted by updated date/i);
     expect(label).toMatch(/newest first/i);
   });
 
   it("states 'newest first' and offers oldest-first as the next action when direction is 'desc'", () => {
-    const label = updatedColumnSortLabel(identityT, "desc");
+    const label = updatedColumnSortLabel({ t: identityT, direction: "desc" });
     expect(label).toMatch(/newest first/i);
     expect(label).toMatch(/oldest first/i);
   });
 
   it("states 'oldest first' and offers newest-first as the next action when direction is 'asc'", () => {
-    const label = updatedColumnSortLabel(identityT, "asc");
+    const label = updatedColumnSortLabel({ t: identityT, direction: "asc" });
     expect(label).toMatch(/oldest first/i);
     expect(label).toMatch(/newest first/i);
   });
 
   it("all three states produce different labels", () => {
-    expect(new Set([updatedColumnSortLabel(identityT, null), updatedColumnSortLabel(identityT, "asc"), updatedColumnSortLabel(identityT, "desc")]).size).toBe(3);
+    expect(new Set([updatedColumnSortLabel({ t: identityT, direction: null }), updatedColumnSortLabel({ t: identityT, direction: "asc" }), updatedColumnSortLabel({ t: identityT, direction: "desc" })]).size).toBe(3);
   });
 });
 
@@ -301,25 +301,25 @@ describe("DEFAULT_POST_SORT", () => {
 
 describe("postColumnSortLabel", () => {
   it("states 'not sorted' and names the ascending action when direction is null (the column isn't active)", () => {
-    const label = postColumnSortLabel(identityT, "Title", null);
+    const label = postColumnSortLabel({ t: identityT, columnName: "Title", direction: null });
     expect(label).toMatch(/not sorted by title/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("states 'ascending' and offers descending as the next action when direction is 'asc'", () => {
-    const label = postColumnSortLabel(identityT, "Title", "asc");
+    const label = postColumnSortLabel({ t: identityT, columnName: "Title", direction: "asc" });
     expect(label).toMatch(/sorted by title, ascending/i);
     expect(label).toMatch(/activate to sort descending/i);
   });
 
   it("states 'descending' and offers ascending as the next action when direction is 'desc'", () => {
-    const label = postColumnSortLabel(identityT, "Title", "desc");
+    const label = postColumnSortLabel({ t: identityT, columnName: "Title", direction: "desc" });
     expect(label).toMatch(/sorted by title, descending/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("all three states produce different labels", () => {
-    expect(new Set([postColumnSortLabel(identityT, "Title", null), postColumnSortLabel(identityT, "Title", "asc"), postColumnSortLabel(identityT, "Title", "desc")]).size).toBe(3);
+    expect(new Set([postColumnSortLabel({ t: identityT, columnName: "Title", direction: null }), postColumnSortLabel({ t: identityT, columnName: "Title", direction: "asc" }), postColumnSortLabel({ t: identityT, columnName: "Title", direction: "desc" })]).size).toBe(3);
   });
 });
 
@@ -335,35 +335,35 @@ describe("droppedUri", () => {
   }
 
   it("returns the text/uri-list value when present", () => {
-    expect(droppedUri(dataTransfer({ uriList: "https://example.com/pic.png" }))).toBe(
+    expect(droppedUri({ dataTransfer: dataTransfer({ uriList: "https://example.com/pic.png" }) })).toBe(
       "https://example.com/pic.png"
     );
   });
 
   it("falls back to text/plain when text/uri-list is empty", () => {
-    expect(droppedUri(dataTransfer({ plainText: "http://example.com/img.jpg" }))).toBe(
+    expect(droppedUri({ dataTransfer: dataTransfer({ plainText: "http://example.com/img.jpg" }) })).toBe(
       "http://example.com/img.jpg"
     );
   });
 
   it("prefers text/uri-list over text/plain when both are present", () => {
     expect(
-      droppedUri(dataTransfer({ uriList: "https://a.example/1.png", plainText: "https://b.example/2.png" }))
+      droppedUri({ dataTransfer: dataTransfer({ uriList: "https://a.example/1.png", plainText: "https://b.example/2.png" }) })
     ).toBe("https://a.example/1.png");
   });
 
   it("trims surrounding whitespace", () => {
-    expect(droppedUri(dataTransfer({ uriList: "  https://example.com/pic.png  " }))).toBe(
+    expect(droppedUri({ dataTransfer: dataTransfer({ uriList: "  https://example.com/pic.png  " }) })).toBe(
       "https://example.com/pic.png"
     );
   });
 
   it("returns '' for a null dataTransfer", () => {
-    expect(droppedUri(null)).toBe("");
+    expect(droppedUri({ dataTransfer: null })).toBe("");
   });
 
   it("returns '' when neither format has data", () => {
-    expect(droppedUri(dataTransfer({}))).toBe("");
+    expect(droppedUri({ dataTransfer: dataTransfer({}) })).toBe("");
   });
 });
 
@@ -439,7 +439,7 @@ describe("handleImageDrop", () => {
   it("returns false immediately (no-op) when moved=true — an internal content reorder, not an external drop", () => {
     const { view } = fakeView();
     const event = fakeDragEvent({});
-    const result = handleImageDrop(view as never, event, true);
+    const result = handleImageDrop({ view: view as never, event: event, moved: true });
     expect(result).toBe(false);
     expect(view.dispatch).not.toHaveBeenCalled();
   });
@@ -454,7 +454,7 @@ describe("handleImageDrop", () => {
     const file = new File(["img-bytes"], "photo.png", { type: "image/png" });
     const event = fakeDragEvent({ files: [file] });
 
-    const result = handleImageDrop(view as never, event, false);
+    const result = handleImageDrop({ view: view as never, event: event, moved: false });
 
     expect(result).toBe(false);
     expect(event.preventDefault).not.toHaveBeenCalled();
@@ -465,7 +465,7 @@ describe("handleImageDrop", () => {
     const { view, tr } = fakeView({ posAtCoordsResult: null, selectionTo: 42 });
     const event = fakeDragEvent({ uriListData: "https://example.com/pic.png" });
 
-    const result = handleImageDrop(view as never, event, false);
+    const result = handleImageDrop({ view: view as never, event: event, moved: false });
 
     expect(result).toBe(true);
     expect(tr.insert).toHaveBeenCalledWith(42, expect.anything());
@@ -475,7 +475,7 @@ describe("handleImageDrop", () => {
     const { view, tr, imageCreate } = fakeView({ posAtCoordsResult: { pos: 3 } });
     const event = fakeDragEvent({ uriListData: "https://example.com/pic.png" });
 
-    const result = handleImageDrop(view as never, event, false);
+    const result = handleImageDrop({ view: view as never, event: event, moved: false });
 
     expect(result).toBe(true);
     expect(event.preventDefault).toHaveBeenCalledTimes(1);
@@ -489,7 +489,7 @@ describe("handleImageDrop", () => {
     const { view: view2, imageCreate, tr, insertedNodes } = fakeView({ posAtCoordsResult: { pos: 0 } });
     const event = fakeDragEvent({ plainTextData: "http://example.com/img.jpg" });
 
-    const result = handleImageDrop(view2 as never, event, false);
+    const result = handleImageDrop({ view: view2 as never, event: event, moved: false });
     expect(result).toBe(true);
     expect(event.preventDefault).toHaveBeenCalledTimes(1);
     expect(imageCreate).toHaveBeenCalledWith({ src: "http://example.com/img.jpg" });
@@ -502,7 +502,7 @@ describe("handleImageDrop", () => {
     const { view, imageCreate } = fakeView({ posAtCoordsResult: { pos: 0 } });
     const event = fakeDragEvent({ uriListData: "https://a.example/1.png", plainTextData: "https://b.example/2.png" });
 
-    handleImageDrop(view as never, event, false);
+    handleImageDrop({ view: view as never, event: event, moved: false });
     expect(imageCreate).toHaveBeenCalledWith({ src: "https://a.example/1.png" });
   });
 
@@ -510,7 +510,7 @@ describe("handleImageDrop", () => {
     const { view } = fakeView();
     const event = fakeDragEvent({ uriListData: "javascript:alert(1)" });
 
-    const result = handleImageDrop(view as never, event, false);
+    const result = handleImageDrop({ view: view as never, event: event, moved: false });
 
     expect(result).toBe(false);
     expect(event.preventDefault).not.toHaveBeenCalled();
@@ -521,7 +521,7 @@ describe("handleImageDrop", () => {
     const { view, imageCreate } = fakeView({ posAtCoordsResult: { pos: 0 } });
     const event = fakeDragEvent({ uriListData: "  https://example.com/pic.png  " });
 
-    const result = handleImageDrop(view as never, event, false);
+    const result = handleImageDrop({ view: view as never, event: event, moved: false });
 
     expect(result).toBe(true);
     expect(imageCreate).toHaveBeenCalledWith({ src: "https://example.com/pic.png" });
@@ -531,7 +531,7 @@ describe("handleImageDrop", () => {
     const { view } = fakeView();
     const event = fakeDragEvent({});
 
-    const result = handleImageDrop(view as never, event, false);
+    const result = handleImageDrop({ view: view as never, event: event, moved: false });
 
     expect(result).toBe(false);
     expect(view.dispatch).not.toHaveBeenCalled();
@@ -541,7 +541,7 @@ describe("handleImageDrop", () => {
     const { view } = fakeView();
     const event = { clientX: 0, clientY: 0, dataTransfer: null, preventDefault: vi.fn() } as unknown as DragEvent;
 
-    const result = handleImageDrop(view as never, event, false);
+    const result = handleImageDrop({ view: view as never, event: event, moved: false });
 
     expect(result).toBe(false);
   });
@@ -551,7 +551,7 @@ describe("withTitleNode", () => {
   it("prepends a title node synthesized from `title`, appending nothing extra, when the doc already has block content", () => {
     const bodyJson = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Body." }] }] };
 
-    const result = withTitleNode(bodyJson, "My Post");
+    const result = withTitleNode({ bodyJson: bodyJson, title: "My Post" });
 
     expect(result).toEqual({
       type: "doc",
@@ -563,7 +563,7 @@ describe("withTitleNode", () => {
   });
 
   it("appends one empty paragraph when the source has no block content at all — the schema requires at least one block", () => {
-    const result = withTitleNode({ type: "doc", content: [] }, "My Post");
+    const result = withTitleNode({ bodyJson: { type: "doc", content: [] }, title: "My Post" });
 
     expect(result).toEqual({
       type: "doc",
@@ -580,7 +580,7 @@ describe("withTitleNode", () => {
       ],
     };
 
-    const result = withTitleNode(bodyJson, "Existing");
+    const result = withTitleNode({ bodyJson: bodyJson, title: "Existing" });
 
     expect(result).toBe(bodyJson); // same reference — no copy made when nothing needs changing
   });
@@ -596,7 +596,7 @@ describe("withTitleNode", () => {
       ],
     };
 
-    expect(withTitleNode(bodyJson, "New title")).toEqual({
+    expect(withTitleNode({ bodyJson: bodyJson, title: "New title" })).toEqual({
       type: "doc",
       content: [
         { type: "title", attrs: { textAlign: "center" }, content: [{ type: "text", text: "New title" }] },
@@ -606,24 +606,24 @@ describe("withTitleNode", () => {
   });
 
   it("treats null/undefined bodyJson (a brand-new post) the same as an empty doc", () => {
-    expect(withTitleNode(null, "New Post")).toEqual({
+    expect(withTitleNode({ bodyJson: null, title: "New Post" })).toEqual({
       type: "doc",
       content: [{ type: "title", content: [{ type: "text", text: "New Post" }] }, { type: "paragraph" }],
     });
-    expect(withTitleNode(undefined, "New Post")).toEqual({
+    expect(withTitleNode({ bodyJson: undefined, title: "New Post" })).toEqual({
       type: "doc",
       content: [{ type: "title", content: [{ type: "text", text: "New Post" }] }, { type: "paragraph" }],
     });
   });
 
   it("synthesizes a title node with empty content (not a text node with an empty string) when `title` is empty", () => {
-    const result = withTitleNode({ type: "doc", content: [{ type: "paragraph" }] }, "");
+    const result = withTitleNode({ bodyJson: { type: "doc", content: [{ type: "paragraph" }] }, title: "" });
 
     expect(result).toEqual({ type: "doc", content: [{ type: "title", content: [] }, { type: "paragraph" }] });
   });
 
   it("treats a non-object bodyJson (malformed/corrupt) the same as an empty doc, never throwing", () => {
-    expect(withTitleNode("not a doc", "T")).toEqual({
+    expect(withTitleNode({ bodyJson: "not a doc", title: "T" })).toEqual({
       type: "doc",
       content: [{ type: "title", content: [{ type: "text", text: "T" }] }, { type: "paragraph" }],
     });
@@ -635,7 +635,7 @@ describe("withTitleNode", () => {
       content: [{ type: "heading", attrs: { level: 2 } }, { type: "paragraph" }, { type: "bulletList" }],
     };
 
-    const result = withTitleNode(bodyJson, "T");
+    const result = withTitleNode({ bodyJson: bodyJson, title: "T" });
 
     expect((result.content as unknown[]).map((n) => (n as { type: string }).type)).toEqual([
       "title",
@@ -656,37 +656,37 @@ describe("titleNodeText", () => {
       ],
     };
 
-    expect(titleNodeText(bodyJson)).toBe("Fresh Title");
+    expect(titleNodeText({ bodyJson: bodyJson })).toBe("Fresh Title");
   });
 
   it("returns '' for an empty title node (not undefined, not a crash)", () => {
-    expect(titleNodeText({ type: "doc", content: [{ type: "title", content: [] }] })).toBe("");
+    expect(titleNodeText({ bodyJson: { type: "doc", content: [{ type: "title", content: [] }] } })).toBe("");
   });
 
   it("returns '' when an empty title node omits its content array", () => {
-    expect(titleNodeText({ type: "doc", content: [{ type: "title" }] })).toBe("");
+    expect(titleNodeText({ bodyJson: { type: "doc", content: [{ type: "title" }] } })).toBe("");
   });
 
   it("returns '' when the doc has no title node at all (pre-migration shape, before withTitleNode has run)", () => {
-    expect(titleNodeText({ type: "doc", content: [{ type: "paragraph" }] })).toBe("");
+    expect(titleNodeText({ bodyJson: { type: "doc", content: [{ type: "paragraph" }] } })).toBe("");
   });
 
   it("returns '' for null/undefined/malformed input, never throwing", () => {
-    expect(titleNodeText(null)).toBe("");
-    expect(titleNodeText(undefined)).toBe("");
-    expect(titleNodeText("not a doc")).toBe("");
-    expect(titleNodeText({ type: "doc" })).toBe("");
+    expect(titleNodeText({ bodyJson: null })).toBe("");
+    expect(titleNodeText({ bodyJson: undefined })).toBe("");
+    expect(titleNodeText({ bodyJson: "not a doc" })).toBe("");
+    expect(titleNodeText({ bodyJson: { type: "doc" } })).toBe("");
   });
 
   it("ignores a non-text inline child (e.g. a future inline node type) rather than throwing", () => {
     const bodyJson = { type: "doc", content: [{ type: "title", content: [{ type: "text", text: "A" }, { type: "hardBreak" }] }] };
 
-    expect(titleNodeText(bodyJson)).toBe("A");
+    expect(titleNodeText({ bodyJson: bodyJson })).toBe("A");
   });
 
   it("round-trips through withTitleNode: extracting the text back out of a freshly synthesized doc returns the original title", () => {
-    const synthesized = withTitleNode({ type: "doc", content: [] }, "Round Trip");
-    expect(titleNodeText(synthesized)).toBe("Round Trip");
+    const synthesized = withTitleNode({ bodyJson: { type: "doc", content: [] }, title: "Round Trip" });
+    expect(titleNodeText({ bodyJson: synthesized })).toBe("Round Trip");
   });
 });
 
@@ -747,11 +747,11 @@ describe("buildPostAutosaveDraft", () => {
 
 describe("isAutosaveDraftStale", () => {
   it("is false when the draft's baseVersion still matches the row's current version", () => {
-    expect(isAutosaveDraftStale(3, 3)).toBe(false);
+    expect(isAutosaveDraftStale({ draftBaseVersion: 3, currentVersion: 3 })).toBe(false);
   });
 
   it("is true once a real save has moved the row's version past the draft's basis", () => {
-    expect(isAutosaveDraftStale(3, 4)).toBe(true);
+    expect(isAutosaveDraftStale({ draftBaseVersion: 3, currentVersion: 4 })).toBe(true);
   });
 });
 
@@ -759,13 +759,13 @@ describe("postAutosaveBannerMessage", () => {
   const NOW = new Date("2026-09-06T00:10:00.000Z").getTime();
 
   it("a fresh draft reads 'Unsaved changes from N minutes ago'", () => {
-    expect(postAutosaveBannerMessage("2026-09-06T00:05:00.000Z", NOW, false)).toBe(
+    expect(postAutosaveBannerMessage({ savedAt: "2026-09-06T00:05:00.000Z", nowMs: NOW, stale: false })).toBe(
       "Unsaved changes from 5 minutes ago"
     );
   });
 
   it("a stale draft names the newer save explicitly instead of implying it is current", () => {
-    expect(postAutosaveBannerMessage("2026-09-06T00:05:00.000Z", NOW, true)).toBe(
+    expect(postAutosaveBannerMessage({ savedAt: "2026-09-06T00:05:00.000Z", nowMs: NOW, stale: true })).toBe(
       "Unsaved changes from before a newer save (captured 5 minutes ago)"
     );
   });
@@ -781,14 +781,14 @@ describe("readPostVersionConflict / postVersionConflictMessage", () => {
    */
   it("does NOT classify a slug-uniqueness 409 (same status, no code) as a version conflict", () => {
     const slugConflict = new ApiError("slug 'taken' already exists", 409);
-    expect(readPostVersionConflict(slugConflict, undefined)).toBeNull();
+    expect(readPostVersionConflict({ e: slugConflict, attemptedStatus: undefined })).toBeNull();
   });
 
   it("classifies a 409 VERSION_CONFLICT, carrying both versions and the attempted status", () => {
     const err = new ApiError("post 'p1' was modified by another save (expected version 3, current version 4)", 409, "VERSION_CONFLICT", {
       details: { expectedVersion: 3, currentVersion: 4 },
     });
-    expect(readPostVersionConflict(err, "published")).toEqual({
+    expect(readPostVersionConflict({ e: err, attemptedStatus: "published" })).toEqual({
       expectedVersion: 3,
       currentVersion: 4,
       attemptedStatus: "published",
@@ -797,7 +797,7 @@ describe("readPostVersionConflict / postVersionConflictMessage", () => {
 
   it("still reports a conflict when the server sent the code but no details bag", () => {
     const err = new ApiError("stale", 409, "VERSION_CONFLICT");
-    expect(readPostVersionConflict(err, undefined)).toEqual({
+    expect(readPostVersionConflict({ e: err, attemptedStatus: undefined })).toEqual({
       expectedVersion: null,
       currentVersion: null,
       attemptedStatus: undefined,
@@ -805,9 +805,9 @@ describe("readPostVersionConflict / postVersionConflictMessage", () => {
   });
 
   it("ignores the code on a non-409 status, and any non-ApiError", () => {
-    expect(readPostVersionConflict(new ApiError("nope", 500, "VERSION_CONFLICT"), undefined)).toBeNull();
-    expect(readPostVersionConflict(new Error("network down"), undefined)).toBeNull();
-    expect(readPostVersionConflict("not an error at all", undefined)).toBeNull();
+    expect(readPostVersionConflict({ e: new ApiError("nope", 500, "VERSION_CONFLICT"), attemptedStatus: undefined })).toBeNull();
+    expect(readPostVersionConflict({ e: new Error("network down"), attemptedStatus: undefined })).toBeNull();
+    expect(readPostVersionConflict({ e: "not an error at all", attemptedStatus: undefined })).toBeNull();
   });
 
   it("says the work is unsaved AND still present, naming both versions", () => {

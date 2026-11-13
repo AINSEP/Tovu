@@ -235,7 +235,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     anyOfPermissions: ["content.read"],
     render: (ctx) => {
       // Query mode avoids reserving a real post slug such as "new".
-      if (ctx.query.get("create") === "1" && !ctx.params.postId) return <PostEditor key={postEditorRouteKey("")} postId="" />;
+      if (ctx.query.get("create") === "1" && !ctx.params.postId) return <PostEditor key={postEditorRouteKey({ segment: "" })} postId="" />;
       if (ctx.view === "post-editor") {
         // Guaranteed present: this view only fires when `/:postId` matched.
         // `key` (2026-08-12 audit, blocker TM-TOVU-2026-08-12-A/F1): without it React reuses one
@@ -247,7 +247,7 @@ const PANELS: readonly TovuAdminPanel[] = [
         // (`<SeoEntryPanel key={entryId} …>`) and is why that panel was never vulnerable.
         // `postEditorRouteKey`: the editor's own save can rename the slug in the URL; that is the same
         // record, so it keeps its key instead of remounting (see `post-editor-route-key.ts`).
-        return <PostEditor key={postEditorRouteKey(ctx.params.postId)} postId={ctx.params.postId} />;
+        return <PostEditor key={postEditorRouteKey({ segment: ctx.params.postId })} postId={ctx.params.postId} />;
       }
       return <Posts />;
     },

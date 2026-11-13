@@ -42,11 +42,11 @@ describe("liveGapLinesFor", () => {
   it("writes one plain line per held-back type, plural name and count, A–Z by type name", () => {
     expect(
       liveGapLinesFor(
-        [
+        { entries: [
           { entityType: "form", count: 7 },
           { entityType: "collection-entry", count: 1 },
         ],
-        t
+        t: t }
       )
     ).toEqual([
       "Entries (1) can't publish yet: the live site needs an update first.",
@@ -55,14 +55,14 @@ describe("liveGapLinesFor", () => {
   });
 
   it("says nothing for an absent or empty list, or a zero count", () => {
-    expect(liveGapLinesFor(undefined, t)).toEqual([]);
-    expect(liveGapLinesFor([], t)).toEqual([]);
-    expect(liveGapLinesFor([{ entityType: "form", count: 0 }], t)).toEqual([]);
+    expect(liveGapLinesFor({ entries: undefined, t: t })).toEqual([]);
+    expect(liveGapLinesFor({ entries: [], t: t })).toEqual([]);
+    expect(liveGapLinesFor({ entries: [{ entityType: "form", count: 0 }], t: t })).toEqual([]);
   });
 
   it("falls back to the raw type id for a type no section names, and translates both parts", () => {
     const upper = (key: string): string => key.toUpperCase();
-    expect(liveGapLinesFor([{ entityType: "something-new", count: 3 }], upper)).toEqual([
+    expect(liveGapLinesFor({ entries: [{ entityType: "something-new", count: 3 }], t: upper })).toEqual([
       "SOMETHING-NEW (3) CAN'T PUBLISH YET: THE LIVE SITE NEEDS AN UPDATE FIRST.",
     ]);
   });

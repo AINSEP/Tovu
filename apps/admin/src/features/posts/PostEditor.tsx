@@ -230,14 +230,14 @@ function Toolbar({
   return (
     <div ref={overflow.toolbarRef} className="editor-toolbar" role="toolbar" aria-label={t("Formatting")} data-more-open={overflow.open}>
       <div className="grp">
-        <button className={toolbarBtnClass(s.bold)} {...overflow.slot(0)} title={t("Bold (⌘B)")} aria-pressed={s.bold} onClick={() => chain().toggleBold().run()}><b>B</b></button>
-        <button className={toolbarBtnClass(s.italic)} {...overflow.slot(1)} title={t("Italic (⌘I)")} aria-pressed={s.italic} onClick={() => chain().toggleItalic().run()}><i>I</i></button>
-        <button className={toolbarBtnClass(s.strike)} title={t("Strikethrough")} aria-pressed={s.strike} onClick={() => chain().toggleStrike().run()}><s>S</s></button>
-        <button className={toolbarBtnClass(s.underline)} {...overflow.slot(2)} title={t("Underline (⌘U)")} aria-pressed={s.underline} onClick={() => chain().toggleUnderline().run()}><u>U</u></button>
-        <button className={toolbarBtnClass(s.highlight)} title={t("Highlight")} aria-pressed={s.highlight} onClick={() => chain().toggleHighlight().run()}><mark>H</mark></button>
-        <button className={toolbarBtnClass(s.subscript)} title={t("Subscript")} aria-pressed={s.subscript} onClick={() => chain().toggleSubscript().run()}>X₂</button>
-        <button className={toolbarBtnClass(s.superscript)} title={t("Superscript")} aria-pressed={s.superscript} onClick={() => chain().toggleSuperscript().run()}>X²</button>
-        <button className={toolbarBtnClass(s.code)} title={t("Inline code")} aria-pressed={s.code} onClick={() => chain().toggleCode().run()}>&lt;/&gt;</button>
+        <button className={toolbarBtnClass({ active: s.bold })} {...overflow.slot({ rank: 0 })} title={t("Bold (⌘B)")} aria-pressed={s.bold} onClick={() => chain().toggleBold().run()}><b>B</b></button>
+        <button className={toolbarBtnClass({ active: s.italic })} {...overflow.slot({ rank: 1 })} title={t("Italic (⌘I)")} aria-pressed={s.italic} onClick={() => chain().toggleItalic().run()}><i>I</i></button>
+        <button className={toolbarBtnClass({ active: s.strike })} title={t("Strikethrough")} aria-pressed={s.strike} onClick={() => chain().toggleStrike().run()}><s>S</s></button>
+        <button className={toolbarBtnClass({ active: s.underline })} {...overflow.slot({ rank: 2 })} title={t("Underline (⌘U)")} aria-pressed={s.underline} onClick={() => chain().toggleUnderline().run()}><u>U</u></button>
+        <button className={toolbarBtnClass({ active: s.highlight })} title={t("Highlight")} aria-pressed={s.highlight} onClick={() => chain().toggleHighlight().run()}><mark>H</mark></button>
+        <button className={toolbarBtnClass({ active: s.subscript })} title={t("Subscript")} aria-pressed={s.subscript} onClick={() => chain().toggleSubscript().run()}>X₂</button>
+        <button className={toolbarBtnClass({ active: s.superscript })} title={t("Superscript")} aria-pressed={s.superscript} onClick={() => chain().toggleSuperscript().run()}>X²</button>
+        <button className={toolbarBtnClass({ active: s.code })} title={t("Inline code")} aria-pressed={s.code} onClick={() => chain().toggleCode().run()}>&lt;/&gt;</button>
         {/* Link (2026-08-11) — a click while the selection already sits inside a link removes it;
             otherwise the shared URL dialog applies a URL to the current selection.
             The toggle and commands live in the dialog hook (2026-10-11). `extendMarkRange("link")`
@@ -246,8 +246,8 @@ function Toolbar({
             other toggle buttons on this row already read the mark/node at the cursor rather than
             requiring an exact selection. */}
         <button
-          className={toolbarBtnClass(s.link)}
-          {...overflow.slot(3)}
+          className={toolbarBtnClass({ active: s.link })}
+          {...overflow.slot({ rank: 3 })}
           title={t("Link")}
           aria-pressed={s.link}
           onClick={urlDialog.openLink}
@@ -256,16 +256,16 @@ function Toolbar({
         </button>
       </div>
       <div className="grp">
-        <button className={toolbarBtnClass(s.h1)} title={t("Heading 1")} aria-pressed={s.h1} onClick={() => chain().toggleHeading({ level: 1 }).run()}>H1</button>
-        <button className={toolbarBtnClass(s.h2)} {...overflow.slot(4)} title={t("Heading 2")} aria-pressed={s.h2} onClick={() => chain().toggleHeading({ level: 2 }).run()}>H2</button>
-        <button className={toolbarBtnClass(s.h3)} title={t("Heading 3")} aria-pressed={s.h3} onClick={() => chain().toggleHeading({ level: 3 }).run()}>H3</button>
+        <button className={toolbarBtnClass({ active: s.h1 })} title={t("Heading 1")} aria-pressed={s.h1} onClick={() => chain().toggleHeading({ level: 1 }).run()}>H1</button>
+        <button className={toolbarBtnClass({ active: s.h2 })} {...overflow.slot({ rank: 4 })} title={t("Heading 2")} aria-pressed={s.h2} onClick={() => chain().toggleHeading({ level: 2 }).run()}>H2</button>
+        <button className={toolbarBtnClass({ active: s.h3 })} title={t("Heading 3")} aria-pressed={s.h3} onClick={() => chain().toggleHeading({ level: 3 }).run()}>H3</button>
       </div>
       <div className="grp">
-        <button className={toolbarBtnClass(s.bullet)} {...overflow.slot(5)} title={t("Bullet list")} aria-pressed={s.bullet} onClick={() => chain().toggleBulletList().run()}>• {t("List")}</button>
-        <button className={toolbarBtnClass(s.ordered)} title={t("Numbered list")} aria-pressed={s.ordered} onClick={() => chain().toggleOrderedList().run()}>1. {t("List")}</button>
-        <button className={toolbarBtnClass(s.taskList)} title={t("Task list")} aria-pressed={s.taskList} onClick={() => chain().toggleTaskList().run()}>☐ {t("List")}</button>
-        <button className={toolbarBtnClass(s.quote)} title={t("Quote")} aria-pressed={s.quote} onClick={() => chain().toggleBlockquote().run()}>&ldquo; {t("Quote")}</button>
-        <button className={toolbarBtnClass(s.codeBlock)} title={t("Code block")} aria-pressed={s.codeBlock} onClick={() => chain().toggleCodeBlock().run()}>{"{ }"}</button>
+        <button className={toolbarBtnClass({ active: s.bullet })} {...overflow.slot({ rank: 5 })} title={t("Bullet list")} aria-pressed={s.bullet} onClick={() => chain().toggleBulletList().run()}>• {t("List")}</button>
+        <button className={toolbarBtnClass({ active: s.ordered })} title={t("Numbered list")} aria-pressed={s.ordered} onClick={() => chain().toggleOrderedList().run()}>1. {t("List")}</button>
+        <button className={toolbarBtnClass({ active: s.taskList })} title={t("Task list")} aria-pressed={s.taskList} onClick={() => chain().toggleTaskList().run()}>☐ {t("List")}</button>
+        <button className={toolbarBtnClass({ active: s.quote })} title={t("Quote")} aria-pressed={s.quote} onClick={() => chain().toggleBlockquote().run()}>&ldquo; {t("Quote")}</button>
+        <button className={toolbarBtnClass({ active: s.codeBlock })} title={t("Code block")} aria-pressed={s.codeBlock} onClick={() => chain().toggleCodeBlock().run()}>{"{ }"}</button>
         {/* Code block language (coordinator MSG #1, 2026-08-11) — every option is one of lowlight's
             own registered `common` grammar keys (`rules.ts`'s `CODE_LANGUAGE_OPTIONS`), so picking
             one always produces real in-editor highlighting. `setCodeBlock` both converts the
@@ -309,7 +309,7 @@ function Toolbar({
           for the hover tooltip sighted users still get. */}
       <div className="grp">
         <button
-          className={toolbarBtnClass(s.alignLeft)}
+          className={toolbarBtnClass({ active: s.alignLeft })}
           title={t("Align left")}
           aria-label={t("Align left")}
           aria-pressed={s.alignLeft}
@@ -320,7 +320,7 @@ function Toolbar({
           </svg>
         </button>
         <button
-          className={toolbarBtnClass(s.alignCenter)}
+          className={toolbarBtnClass({ active: s.alignCenter })}
           title={t("Align center")}
           aria-label={t("Align center")}
           aria-pressed={s.alignCenter}
@@ -331,7 +331,7 @@ function Toolbar({
           </svg>
         </button>
         <button
-          className={toolbarBtnClass(s.alignRight)}
+          className={toolbarBtnClass({ active: s.alignRight })}
           title={t("Align right")}
           aria-label={t("Align right")}
           aria-pressed={s.alignRight}
@@ -342,7 +342,7 @@ function Toolbar({
           </svg>
         </button>
         <button
-          className={toolbarBtnClass(s.alignJustify)}
+          className={toolbarBtnClass({ active: s.alignJustify })}
           title={t("Justify")}
           aria-label={t("Justify")}
           aria-pressed={s.alignJustify}
@@ -381,7 +381,7 @@ function Toolbar({
           <input
             type="color"
             aria-label={t("Text color")}
-            value={hexOrDefault(s.color, "#000000")}
+            value={hexOrDefault({ value: s.color, fallback: "#000000" })}
             onChange={(e) => chain().setColor(e.target.value).run()}
           />
         </label>
@@ -392,7 +392,7 @@ function Toolbar({
           <input
             type="color"
             aria-label={t("Background color")}
-            value={hexOrDefault(s.backgroundColor, "#ffffff")}
+            value={hexOrDefault({ value: s.backgroundColor, fallback: "#ffffff" })}
             onChange={(e) => chain().setBackgroundColor(e.target.value).run()}
           />
         </label>
@@ -619,12 +619,12 @@ function BubbleFormattingMenu({ editor, urlDialog, t }: { editor: Editor; urlDia
 
   return (
     <BubbleMenu editor={editor} className="bubble-formatting-menu">
-      <button className={toolbarBtnClass(s.bold)} title={t("Bold")} aria-pressed={s.bold} onClick={() => chain().toggleBold().run()}><b>B</b></button>
-      <button className={toolbarBtnClass(s.italic)} title={t("Italic")} aria-pressed={s.italic} onClick={() => chain().toggleItalic().run()}><i>I</i></button>
-      <button className={toolbarBtnClass(s.underline)} title={t("Underline")} aria-pressed={s.underline} onClick={() => chain().toggleUnderline().run()}><u>U</u></button>
-      <button className={toolbarBtnClass(s.highlight)} title={t("Highlight")} aria-pressed={s.highlight} onClick={() => chain().toggleHighlight().run()}><mark>H</mark></button>
+      <button className={toolbarBtnClass({ active: s.bold })} title={t("Bold")} aria-pressed={s.bold} onClick={() => chain().toggleBold().run()}><b>B</b></button>
+      <button className={toolbarBtnClass({ active: s.italic })} title={t("Italic")} aria-pressed={s.italic} onClick={() => chain().toggleItalic().run()}><i>I</i></button>
+      <button className={toolbarBtnClass({ active: s.underline })} title={t("Underline")} aria-pressed={s.underline} onClick={() => chain().toggleUnderline().run()}><u>U</u></button>
+      <button className={toolbarBtnClass({ active: s.highlight })} title={t("Highlight")} aria-pressed={s.highlight} onClick={() => chain().toggleHighlight().run()}><mark>H</mark></button>
       <button
-        className={toolbarBtnClass(s.link)}
+        className={toolbarBtnClass({ active: s.link })}
         title={t("Link")}
         aria-pressed={s.link}
         onClick={urlDialog.openLink}
@@ -660,9 +660,9 @@ function PostEditorHeader({
   kindLabel: "post" | "page";
   confirmLeave: () => boolean;
   title: string;
-  setTitle: (value: string) => void;
+  setTitle: (input: { next: string }) => void;
   slug: string;
-  setSlug: (value: string) => void;
+  setSlug: (input: { value: string }) => void;
   /** The saved identity — a local working copy has no live URL before first Save. */
   post: Pick<AdminPost, "id" | "slug">;
   t: Translate;
@@ -728,7 +728,7 @@ function PostEditorHeader({
           className="editor-title content-editor-title"
           rows={1}
           value={title}
-          onChange={(e) => setTitle(e.target.value.replace(/[\r\n]+/g, " "))}
+          onChange={(e) => setTitle({ next: e.target.value.replace(/[\r\n]+/g, " ") })}
           onKeyDown={(e) => {
             if (e.key === "Enter") e.preventDefault();
           }}
@@ -742,7 +742,7 @@ function PostEditorHeader({
           <span className="visually-hidden">{t("URL slug")}</span>
           <input
             value={slug}
-            onChange={(e) => setSlug(e.target.value)}
+            onChange={(e) => setSlug({ value: e.target.value })}
             {...agentHandle({ handle: "post-slug" }, { role: "field", label: "URL slug this post is published at" })}
           />
         </label>
@@ -1238,11 +1238,11 @@ function PostEditorSlugCollisionWarning({
         {t("Which page wins at this URL")}
         {" "}
         <select
-          value={overridesThemePageSelectValue(overridesThemePage)}
+          value={overridesThemePageSelectValue({ overridesThemePage: overridesThemePage })}
           // Only "default" maps to `null`; both other options are an explicit, permanent choice
           // (`true`/`false`) that keeps winning even if the default policy changes later — see this
           // control's own file-header doc for the tri-state contract.
-          onChange={(e) => setOverridesThemePage(overridesThemePageFromSelectValue(e.target.value))}
+          onChange={(e) => setOverridesThemePage(overridesThemePageFromSelectValue({ value: e.target.value }))}
           {...agentHandle({ handle: "post-override-theme-page" }, {
             role: "field",
             label:
@@ -1578,7 +1578,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     pendingExternalVersion,
     loadExternalChange,
     dismissExternalChange,
-  } = usePostEditorHook(postId);
+  } = usePostEditorHook({ postId });
   // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
   // lint even though this one holds no state of its own.
   const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as PostEditorView) });
@@ -2049,7 +2049,7 @@ function PostPreviewFrame({
   onCollapse: () => void;
   t: Translate;
 }) {
-  const iframeRef = usePostPreviewIframeEscape(expanded, onCollapse);
+  const iframeRef = usePostPreviewIframeEscape({ expanded: expanded, onCollapse: onCollapse });
   const fresh = useThemePreviewFrame({
     // Reuse the authenticated route's consent exclusion; keep the sandbox opaque.
     liveUrl: templatePreviewUrl,

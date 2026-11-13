@@ -28,8 +28,8 @@ export function createHostRedirectsModule(_required: Record<string, never>, { us
       t: createRedirectsTranslator({ locale }),
       headerActions: createElement(PublishSectionButton, { section: 'redirects' }),
       slots: { renderMessage: ({ key, vars, shapeCode }) => key === 'importRulesLabel'
-        ? importRulesLabel(locale, shapeCode)
-        : deleteRedirectBody(locale, String(vars?.fromPattern)) },
+        ? importRulesLabel({ locale: locale }, { _shapeCode: shapeCode })
+        : deleteRedirectBody({ locale: locale, fromPattern: String(vars?.fromPattern) }) },
     }), [locale]);
     return createElement(ScopeProvider, { admin, options, children });
   }

@@ -36,7 +36,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  setPublishToLiveAvailable(true);
+  setPublishToLiveAvailable({ next: true });
   vi.unstubAllGlobals();
   window.history.replaceState(null, "", "/admin/");
 });
@@ -167,7 +167,7 @@ it.each([
   [{ canPublishToLive: true }, true],
   [{}, true],
 ] as const)("boot auth/me publishes availability %j into the real store", async (flag, expected) => {
-  setPublishToLiveAvailable(!expected);
+  setPublishToLiveAvailable({ next: !expected });
   vi.stubGlobal("fetch", vi.fn(async (url: string) => {
     if (String(url) !== "/api/admin/v1/auth/me") throw new Error(`unexpected session URL ${url}`);
     return new Response(JSON.stringify({ user: { id: "owner-1", username: "admin" }, ...flag }), {

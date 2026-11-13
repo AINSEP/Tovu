@@ -56,7 +56,7 @@ export function groupAlwaysAllow(
 }
 
 /** The date a tool was set to "Always allow", in the viewer's locale; the raw value if unparseable. */
-export function formatGrantedAt(grantedAt: string, locale: string): string {
+export function formatGrantedAt({ grantedAt, locale }: { grantedAt: string; locale: string }, _options: Record<string, never> = {}): string {
   const date = new Date(grantedAt);
   return Number.isNaN(date.getTime()) ? grantedAt : date.toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" });
 }

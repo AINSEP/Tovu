@@ -32,8 +32,8 @@ export interface PostCoverImageProps {
 }
 
 export function PostCoverImage({ bodyFormat, featuredMediaId, setFeaturedMediaId, kind, hideCoverImageInBody, setHideCoverImageInBody, t, useFeaturedImage = useWiredPostFeaturedImage }: PostCoverImageProps) {
-  const picker = useFeaturedImage(featuredMediaId, setFeaturedMediaId);
-  if (!showsCoverImageSlot(bodyFormat)) return null;
+  const picker = useFeaturedImage({ value: featuredMediaId, onChange: setFeaturedMediaId });
+  if (!showsCoverImageSlot({ bodyFormat: bodyFormat })) return null;
   return (
     <div className={picker.previewUrl ? "post-cover post-cover-set" : "post-cover"}>
       {picker.previewUrl ? <PostCoverPreview picker={picker} src={picker.previewUrl} t={t} /> : (
@@ -47,9 +47,9 @@ export function PostCoverImage({ bodyFormat, featuredMediaId, setFeaturedMediaId
           {t("Add cover image")}
         </button>
       )}
-      {showsHideCoverInBodyToggle(kind) ? <PostCoverBodyToggle checked={hideCoverImageInBody} onChange={setHideCoverImageInBody} t={t} /> : null}
+      {showsHideCoverInBodyToggle({ kind: kind }) ? <PostCoverBodyToggle checked={hideCoverImageInBody} onChange={setHideCoverImageInBody} t={t} /> : null}
       {picker.pickerOpen ? (
-        <MediaPickerDialog onSelect={picker.handleSelect} onCancel={picker.closePicker} accept={picker.accept} agentHandle="post-cover-dialog" />
+        <MediaPickerDialog onSelect={(item) => picker.handleSelect({ item })} onCancel={picker.closePicker} accept={picker.accept} agentHandle="post-cover-dialog" />
       ) : null}
     </div>
   );

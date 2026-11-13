@@ -153,7 +153,7 @@ for (const copy of LOCALIZED) {
       language.locale = copy.locale;
       const port = createFakePostEditorPort();
       function useEditor(id: string) {
-        return usePostEditor(id, { port, navigate: vi.fn(), t: translate });
+        return usePostEditor({ postId: id, deps: { port, navigate: vi.fn(), t: translate } });
       }
       render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
       await screen.findByTitle(copy.drag);
@@ -170,7 +170,7 @@ for (const copy of LOCALIZED) {
       const port = createFakePostEditorPort();
       let controller!: PostEditorController;
       function useEditor(id: string) {
-        controller = usePostEditor(id, { port, navigate: vi.fn(), t: translate });
+        controller = usePostEditor({ postId: id, deps: { port, navigate: vi.fn(), t: translate } });
         return controller;
       }
       render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
@@ -189,7 +189,7 @@ for (const copy of LOCALIZED) {
       const create = vi.spyOn(port, "createPost").mockRejectedValue(null);
       let controller!: PostEditorController;
       function useEditor(id: string) {
-        controller = usePostEditor(id, { port, navigate: vi.fn(), t: translate });
+        controller = usePostEditor({ postId: id, deps: { port, navigate: vi.fn(), t: translate } });
         return controller;
       }
       // New Post now opens an unsaved local editor; creation happens on its first Save.
@@ -234,7 +234,7 @@ for (const copy of LOCALIZED) {
       vi.spyOn(port, "deletePost").mockRejectedValue(null);
       let controller!: PostEditorController;
       function useEditor(id: string) {
-        controller = usePostEditor(id, { port, navigate: vi.fn(), t: translate });
+        controller = usePostEditor({ postId: id, deps: { port, navigate: vi.fn(), t: translate } });
         return controller;
       }
       render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
@@ -248,7 +248,7 @@ for (const copy of LOCALIZED) {
         }
         else {
           port.simulateConcurrentSave();
-          await act(() => controller.save());
+          await act(() => controller.save({}));
           expect(controller.saveConflict).not.toBeNull();
           vi.spyOn(port, "getPost").mockRejectedValue(null);
           await act(() => controller.saveOverwritingConflict());

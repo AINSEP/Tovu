@@ -102,7 +102,7 @@ export interface PublishContentConfirmView {
   readonly selectedPeerId: string | null;
   /** Choosing a different site discards any plan on screen — a plan belongs to the site that made
    *  it — and is ignored while {@link peerSelectionEnabled} is `false`. */
-  readonly onSelectPeer: (peerId: string) => void;
+  readonly onSelectPeer: (input: { peerId: string }, options?: Record<string, never>) => void;
   /** `false` while a plan is being worked out and from the moment the operator commits: there the
    *  site is part of what is already in flight, and changing it could only misdescribe it. */
   readonly peerSelectionEnabled: boolean;
@@ -132,7 +132,7 @@ export interface PublishContentConfirmView {
    *  that currently publish, because a page/post that uses them is still ticked. Their checkbox is
    *  shown ticked (and never clickable) exactly when the row is in here. */
   readonly carriedAlongKeys: ReadonlySet<string>;
-  readonly onToggleRow: (key: string) => void;
+  readonly onToggleRow: (input: { key: string }, options?: Record<string, never>) => void;
   /** Checks every selectable row, or unchecks every one of them when any is currently checked. */
   readonly onToggleAll: () => void;
   /** `false` once the operator has committed (confirming/executing/done) — the report stays on
@@ -229,9 +229,7 @@ export type PublishPrimaryKind = "start" | "confirm";
 export const CONFIRM_ARM_DELAY_MS = 400;
 
 /** `start` until a plan is on screen (or the run is done), `confirm` from then on. @complexity O(1). */
-function primaryKindFor(
-  phase: PublishContentPhase,
-  connectOffer: PublishContentConnectOffer | null
+function primaryKindFor({ phase, connectOffer }: { phase: PublishContentPhase; connectOffer: PublishContentConnectOffer | null }, _options: Record<string, never> = {}
 ): PublishPrimaryKind {
   if (connectOffer || canRequestPlan(phase) || phase.kind === "planning") return "start";
   return "confirm";
@@ -249,13 +247,16 @@ function primaryKindFor(
  * @complexity O(1).
  */
 function primaryLabelFor(
-  phase: PublishContentPhase,
-  selectedPublishing: number,
-  connectOffer: PublishContentConnectOffer | null,
-  connecting: boolean,
-  t: Translate,
-  scope: PublishScope | undefined,
-  onlyLiveGaps: boolean
+  { phase, selectedPublishing, connectOffer, connecting, t, scope, onlyLiveGaps }: {
+    phase: PublishContentPhase;
+    selectedPublishing: number;
+    connectOffer: PublishContentConnectOffer | null;
+    connecting: boolean;
+    t: Translate;
+    scope: PublishScope | undefined;
+    onlyLiveGaps: boolean;
+  },
+  _options: Record<string, never> = {},
 ): string {
   if (connectOffer) return connecting ? t("Connecting…") : t("Connect");
   if (phase.kind === "planning") return t("Planning…");
@@ -263,7 +264,7 @@ function primaryLabelFor(
   if (phase.kind === "done") return t("Published");
   // plan-publish-sections-2026-09-25.md §2 S2 — before a plan lands, the idle button promises what
   // this dialog is scoped to, same label as its own title (`publishScopeTitleKey`).
-  if (phase.kind !== "planned") return t(publishScopeTitleKey(scope));
+  if (phase.kind !== "planned") return t(publishScopeTitleKey({ scope: scope }));
   return plannedPrimaryLabel({ selectedPublishing, onlyLiveGaps, t });
 }
 
@@ -289,10 +290,7 @@ function plannedPrimaryLabel(
  *
  * @complexity O(n log n) in `entries.length`.
  */
-export function liveGapLinesFor(
-  entries: readonly PublishContentNotSupportedByLive[] | undefined,
-  t: Translate,
-  locale?: string
+export function liveGapLinesFor({ entries, t }: { entries: readonly PublishContentNotSupportedByLive[] | undefined; t: Translate }, { locale }: { locale?: string } = {}
 ): readonly string[] {
   return (entries ?? [])
     .filter((entry) => entry.count > 0)
@@ -419,7 +417,7 @@ function publishInFlight(phase: PublishContentPhase): boolean {
 
 /**
  * Whether `peerId` is an actually-chosen site, as opposed to the picker's blank placeholder
- * (`PublishContentDialog.tsx`'s `<option value="">`, which fires `onSelectPeer("")`) or nothing
+ * (`PublishContentDialog.tsx`'s `<option value="">`, which fires `onSelectPeer({ peerId: "" })`) or nothing
  * chosen at all. Every guard downstream of a peer id — the start gate, the confirm gate, and the
  * execute effect's gate — reads this rather than a bare `!== null`, so an empty string can never slip
  * through one of them into a `planPublish`/`confirmPublish`/`executePublish` call with an empty
@@ -446,10 +444,7 @@ function isChosenPeerId(peerId: string | null): peerId is string {
  *
  * @complexity O(rows).
  */
-function buildCriteriaPublishResult(
-  rows: readonly PublishReportRow[],
-  selection: CriteriaSelection,
-  siteLabel: string | null
+function buildCriteriaPublishResult({ rows, selection, siteLabel }: { rows: readonly PublishReportRow[]; selection: CriteriaSelection; siteLabel: string | null }, _options: Record<string, never> = {}
 ): PublishRequestResult {
   const willPublish: string[] = [];
   const willOverwrite: string[] = [];
@@ -506,7 +501,7 @@ function buildCriteriaPublishResult(
  * space: O(n) for the shaped rows. Native dialog dismissal is owned by Jini.
  */
 /** A replan's scope: just the peer, plus the ticked overwrite keys when there are any. */
-function planScope(peerId: string, overwriteKeys: ReadonlySet<string>): { peerId: string; overwriteEntityKeys?: string[] } {
+function planScope({ peerId, overwriteKeys }: { peerId: string; overwriteKeys: ReadonlySet<string> }, _options: Record<string, never> = {}): { peerId: string; overwriteEntityKeys?: string[] } {
   return overwriteKeys.size === 0 ? { peerId } : { peerId, overwriteEntityKeys: Array.from(overwriteKeys) };
 }
 
@@ -746,7 +741,7 @@ export function usePublishContentConfirm(props: {
         try {
           const replanned = useBase
             ? base
-            : await planInScope(planScope(peerId, nextOverwriteKeys));
+            : await planInScope(planScope({ peerId: peerId, overwriteKeys: nextOverwriteKeys }));
           if (!isCurrentReplan({})) return;
           setReplanPending(false);
           if (
@@ -798,7 +793,7 @@ export function usePublishContentConfirm(props: {
     setConnecting(true);
     setDestinationError(null);
     try {
-      const view = await port.connectDestination();
+      const view = await port.connectDestination({});
       if (!live.current) return;
       if (view.site === null) {
         // Contract violation, not a user-facing failure mode: `destination.ts`'s `/connect` always
@@ -894,7 +889,7 @@ export function usePublishContentConfirm(props: {
       const confirmed = await preparePublishConfirmation({
         plan,
         deselectedKeys,
-        planPublish: (input) => planInScope({ peerId, ...input }),
+        planPublish: (input, _options = {}) => planInScope({ peerId, ...input }),
       });
       await confirmPreparedPlan({ peerId, confirmed });
     } catch (error) {
@@ -1021,7 +1016,7 @@ export function usePublishContentConfirm(props: {
     }
     criteriaSelectionRef.current = null;
     const siteLabel = peers.find((peer) => peer.id === selectedPeerId)?.label ?? null;
-    onPlanned(buildCriteriaPublishResult(rows, sel, siteLabel));
+    onPlanned(buildCriteriaPublishResult({ rows: rows, selection: sel, siteLabel: siteLabel }));
   }, [phase, rows]);
 
   const { overwriteWarning, overwriteUnavailable } = publishOverwriteNotices({
@@ -1036,7 +1031,7 @@ export function usePublishContentConfirm(props: {
   // only phase where changing the selection could still change what gets published.
   const selectionEnabled = phase.kind === "planned";
 
-  const onToggleRow = (key: string): void => {
+  const onToggleRow = ({ key }: { key: string }, _options: Record<string, never> = {}): void => {
     setDeselectedKeys((current) => {
       const next = new Set(current);
       if (next.has(key)) next.delete(key);
@@ -1052,7 +1047,7 @@ export function usePublishContentConfirm(props: {
   };
 
   const peerSelectionEnabled = peerSelectionOpen(phase);
-  const onSelectPeer = (peerId: string): void => {
+  const onSelectPeer = ({ peerId }: { peerId: string }, _options: Record<string, never> = {}): void => {
     // The picker's blank "Choose a site…" option fires this with `""` (its `value`) — normalized to
     // `null` here so `selectedPeerId` can never hold it, the same "nothing chosen" state a fresh
     // dialog starts in. This is the fix, not just a defense: every downstream guard reads
@@ -1079,7 +1074,7 @@ export function usePublishContentConfirm(props: {
     return isChosenPeerId(selectedPeerId) ? requestPlan(selectedPeerId) : Promise.resolve();
   }, [confirmPlan, connectOffer, onConnect, phase, requestPlan, selectedPeerId]);
 
-  const primaryKind = primaryKindFor(phase, connectOffer);
+  const primaryKind = primaryKindFor({ phase: phase, connectOffer: connectOffer });
   const primaryDisabled = publishPrimaryDisabled({
     phase,
     selectedPeerId,
@@ -1146,16 +1141,16 @@ export function usePublishContentConfirm(props: {
     overwriteWarning,
     overwriteMismatch,
     overwriteUnavailable,
-    title: publishScopeTitleKey(props.scope),
-    description: publishScopeDescriptionKey(props.scope),
+    title: publishScopeTitleKey({ scope: props.scope }),
+    description: publishScopeDescriptionKey({ scope: props.scope }),
     primaryLabel: primaryLabelFor(
-      phase,
-      selectedPublishing,
-      connectOffer,
-      connecting,
-      t,
-      props.scope,
-      rows.length === 0 && liveGapNotices.length > 0
+      { phase: phase,
+      selectedPublishing: selectedPublishing,
+      connectOffer: connectOffer,
+      connecting: connecting,
+      t: t,
+      scope: props.scope,
+      onlyLiveGaps: rows.length === 0 && liveGapNotices.length > 0 }
     ),
     primaryKind,
     primaryDisabled,
@@ -1190,7 +1185,7 @@ function publishReportSelection(
   // so splitting them off keeps both halves in the shared order.
   const listedRows = rows.filter((row) => row.disposition !== "unchanged");
   const upToDateRows = rows.filter((row) => row.disposition === "unchanged");
-  const liveGapNotices = liveGapLinesFor(visiblePlan?.notSupportedByLive, t, locale);
+  const liveGapNotices = liveGapLinesFor({ entries: visiblePlan?.notSupportedByLive, t: t }, { locale: locale });
 
   // Derived every render rather than stored: `deselectedKeys` is the only state, so these can never
   // disagree with it or with the rows currently on screen.

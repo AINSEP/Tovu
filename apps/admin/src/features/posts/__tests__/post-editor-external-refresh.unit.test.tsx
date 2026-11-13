@@ -30,7 +30,7 @@ describe("usePostEditor — assistant edits while the editor is open", () => {
   it("a clean editor picks up the assistant's write and moves the address bar to the new slug", async () => {
     const port = createFakePostEditorPort({ post: POST });
     const navigate = vi.fn<(path: string, options?: { replace?: boolean }) => void>();
-    const { result } = renderHook(() => usePostEditor("hello-world", { port, navigate, t: (k: string) => k }));
+    const { result } = renderHook(() => usePostEditor({ postId: "hello-world", deps: { port, navigate, t: (k: string) => k } }));
     await waitFor(() => expect(result.current.post?.version).toBe(3));
 
     // The assistant's content_post_update lands server-side: new title, new body, new slug.
@@ -47,14 +47,14 @@ describe("usePostEditor — assistant edits while the editor is open", () => {
     expect(result.current.dirty).toBe(false);
     expect(navigate).toHaveBeenCalledWith("/posts/assistant-title", { replace: true });
     // Same record: the panel keeps its key, so the editor is not remounted by the URL change.
-    expect(postEditorRouteKey("assistant-title")).toBe("hello-world");
+    expect(postEditorRouteKey({ segment: "assistant-title" })).toBe("hello-world");
   });
 
   it("a dirty editor keeps the operator's unsaved text", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor("hello-world", { port, navigate: vi.fn(), t: (k: string) => k }));
+    const { result } = renderHook(() => usePostEditor({ postId: "hello-world", deps: { port, navigate: vi.fn(), t: (k: string) => k } }));
     await waitFor(() => expect(result.current.post?.version).toBe(3));
-    act(() => result.current.setTitle("My unsaved title"));
+    act(() => result.current.setTitle({ next: "My unsaved title" }));
 
     port.simulateConcurrentSave("Assistant Title");
     act(() => publishContentRefresh());
@@ -71,10 +71,10 @@ describe("usePostEditor — assistant edits while the editor is open", () => {
    *  versions 3 and 4 — the editor's own last save, read as the post's current state. */
   it("the save status follows the assistant's write instead of naming the editor's last save", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor("hello-world", { port, navigate: vi.fn(), t: (k: string) => k }));
+    const { result } = renderHook(() => usePostEditor({ postId: "hello-world", deps: { port, navigate: vi.fn(), t: (k: string) => k } }));
     await waitFor(() => expect(result.current.post?.version).toBe(3));
-    act(() => result.current.setTitle("Operator title"));
-    await act(async () => { await result.current.save(); });
+    act(() => result.current.setTitle({ next: "Operator title" }));
+    await act(async () => { await result.current.save({}); });
     expect(result.current.message).toBe("Saved · version 4");
 
     port.simulateConcurrentSave("Assistant Title");
@@ -86,11 +86,11 @@ describe("usePostEditor — assistant edits while the editor is open", () => {
 
   it("while an outside version waits on the operator's choice, the status names that version", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor("hello-world", { port, navigate: vi.fn(), t: (k: string) => k }));
+    const { result } = renderHook(() => usePostEditor({ postId: "hello-world", deps: { port, navigate: vi.fn(), t: (k: string) => k } }));
     await waitFor(() => expect(result.current.post?.version).toBe(3));
-    act(() => result.current.setTitle("Operator title"));
-    await act(async () => { await result.current.save(); });
-    act(() => result.current.setTitle("More unsaved typing"));
+    act(() => result.current.setTitle({ next: "Operator title" }));
+    await act(async () => { await result.current.save({}); });
+    act(() => result.current.setTitle({ next: "More unsaved typing" }));
 
     port.simulateConcurrentSave("Assistant Title");
     act(() => publishContentRefresh());
@@ -100,9 +100,9 @@ describe("usePostEditor — assistant edits while the editor is open", () => {
 
   it("Load latest replaces unsaved text with the newest saved post", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor("hello-world", { port, navigate: vi.fn(), t: (k: string) => k }));
+    const { result } = renderHook(() => usePostEditor({ postId: "hello-world", deps: { port, navigate: vi.fn(), t: (k: string) => k } }));
     await waitFor(() => expect(result.current.post?.version).toBe(3));
-    act(() => result.current.setTitle("My unsaved title"));
+    act(() => result.current.setTitle({ next: "My unsaved title" }));
     port.simulateConcurrentSave("Assistant Title");
     act(() => publishContentRefresh());
     await waitFor(() => expect(result.current.pendingExternalVersion).toBe(4));

@@ -47,7 +47,7 @@ function controller(overrides: Partial<PostsController> = {}): PostsController {
     createPost: vi.fn(async () => {}),
     togglePostPublish: vi.fn(async () => {}),
     removePost: vi.fn(async () => {}),
-    rowMenuHandleById: buildPostRowMenuHandleMap(posts),
+    rowMenuHandleById: buildPostRowMenuHandleMap({ posts: posts }),
     ...overrides,
   };
 }

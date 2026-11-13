@@ -196,8 +196,8 @@ afterEach(() => {
 // Capture the real controller so formatting assertions inspect the document, not only toolbar state.
 async function renderRealPostEditor() {
   let ctrl!: PostEditorController;
-  function useHook(postId: string) {
-    ctrl = useWiredPostEditor(postId);
+  function useHook({ postId }: { postId: string }) {
+    ctrl = useWiredPostEditor({ postId: postId });
     return ctrl;
   }
   render(<PostEditor postId="p1" usePostEditorHook={useHook} />);
@@ -964,8 +964,8 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
   const setConfirmingDelete = overrides.setConfirmingDelete ?? vi.fn();
   const setShowTemplateModal = overrides.setShowTemplateModal ?? vi.fn();
   return {
-    onPublish: () => save("published"),
-    onSave: () => save(),
+    onPublish: () => save({}, { statusOverride: "published" }),
+    onSave: () => save({}),
     onDeleteClick: () => setConfirmingDelete(true),
     onDeleteCancel: () => setConfirmingDelete(false),
     confirmingUnchangedSave: false,
@@ -1697,7 +1697,7 @@ describe("Title and slug fields — typing calls setTitle/setSlug", () => {
 
     await user.type(screen.getByLabelText("Post title"), "!");
 
-    expect(ctrl.setTitle).toHaveBeenCalledWith("Hello world!");
+    expect(ctrl.setTitle).toHaveBeenCalledWith({ next: "Hello world!" });
   });
 
   it("typing in the slug field calls setSlug with the field's new value", async () => {
@@ -1706,7 +1706,7 @@ describe("Title and slug fields — typing calls setTitle/setSlug", () => {
 
     await user.type(screen.getByLabelText("URL slug"), "x");
 
-    expect(ctrl.setSlug).toHaveBeenCalledWith("hello-worldx");
+    expect(ctrl.setSlug).toHaveBeenCalledWith({ value: "hello-worldx" });
   });
 });
 
@@ -1862,7 +1862,7 @@ it("typing in a new post then clicking Save creates the edited document once", a
   const create = vi.spyOn(port, "createPost");
   const update = vi.spyOn(port, "updatePost");
   const navigate = vi.fn();
-  function useLocalEditor(segment: string) { return usePostEditor(segment, { port, navigate, t: key => key }); }
+  function useLocalEditor({ postId }: { postId: string }) { return usePostEditor({ postId, deps: { port, navigate, t: key => key } }); }
   render(<PostEditor postId="" usePostEditorHook={useLocalEditor} />);
   const title = await screen.findByLabelText("Post title");
   expect(create).not.toHaveBeenCalled();

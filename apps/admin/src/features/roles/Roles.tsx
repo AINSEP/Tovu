@@ -772,7 +772,10 @@ function PoliciesTab({ controller, policies }: { controller: RolesController; po
  *  complexity. Same split `Deployment.tsx`'s `deploymentTabPanel` and `Sites.tsx`'s `sitesTabPanel`
  *  make for the identical gate.
  *  @complexity O(1) — two mutually exclusive branches, no iteration. */
-function rolesTabPanel(activeTabId: RolesTabId, controller: RolesController, lists: { roles: AdminRole[]; policies: AdminPolicy[] }) {
+function rolesTabPanel(
+  { activeTabId, controller, lists }: { activeTabId: RolesTabId; controller: RolesController; lists: { roles: AdminRole[]; policies: AdminPolicy[] } },
+  _options: Record<string, never> = {},
+) {
   if (activeTabId === "policies") return <PoliciesTab controller={controller} policies={lists.policies} />;
   return <RolesTab controller={controller} roles={lists.roles} />;
 }
@@ -809,7 +812,7 @@ export function Roles({ tabId, useRolesHook = useWiredRoles }: RolesProps = {}) 
   if (error) return <div className="notice error">{error}</div>;
   if (!roles || !policies) return <div className="notice">{t("Loading roles & permissions…")}</div>;
 
-  const activeTabId = resolveRolesTabId(tabId);
+  const activeTabId = resolveRolesTabId({ tabId: tabId });
 
   return (
     <div className="page">
@@ -833,10 +836,10 @@ export function Roles({ tabId, useRolesHook = useWiredRoles }: RolesProps = {}) 
         ariaLabel={t("Roles & Permissions")}
         tabs={resolveRolesTabs(t)}
         activeId={activeTabId}
-        onChange={goToRolesTab}
+        onChange={(tabId) => goToRolesTab({ tabId })}
         containerHandle="roles-tab-bar"
       />
-      {rolesTabPanel(activeTabId, controller, { roles, policies })}
+      {rolesTabPanel({ activeTabId: activeTabId, controller: controller, lists: { roles, policies } })}
 
       <RoleDeleteDialog
         pendingRoleDelete={pendingRoleDelete}
