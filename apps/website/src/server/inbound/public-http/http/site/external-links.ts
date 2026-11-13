@@ -91,10 +91,10 @@ function mergeRelTokens(existingRel: string | undefined, add: readonly string[])
 function withAttr(tag: string, name: string, value: string, options: { replaceIfPresent: boolean }): string {
   const escaped = escapeHtml(value);
   if (options.replaceIfPresent && readAttrValue(tag, name) !== undefined) {
-    return tag.replace(new RegExp(`([\\s"'])(${name})\\s*=\\s*("[^"]*"|'[^']*')`, "i"), `$1$2="${escaped}"`);
+    return tag.replace(new RegExp(`([\\s"'])(${name})\\s*=\\s*("[^"]*"|'[^']*')`, "i"), (_match, leading: string, attribute: string) => `${leading}${attribute}="${escaped}"`);
   }
   const insertion = ` ${name}="${escaped}"`;
-  return /\/>\s*$/.test(tag) ? tag.replace(/\/>\s*$/, `${insertion} />`) : tag.replace(/>\s*$/, `${insertion}>`);
+  return /\/>\s*$/.test(tag) ? tag.replace(/\/>\s*$/, () => `${insertion} />`) : tag.replace(/>\s*$/, `${insertion}>`);
 }
 
 /**

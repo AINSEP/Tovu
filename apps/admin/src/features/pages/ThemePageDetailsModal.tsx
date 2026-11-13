@@ -216,7 +216,7 @@ function ThemePageDetailsCollisionWarning({
         }}
         {...agentHandle({ handle: "theme-page-details-collision-open" }, { role: "link", label: "Open the colliding content record" })}
       >
-        {t("Open {title}").replace("{title}", collision.title)}
+        {t("Open {title}").replace("{title}", () => collision.title)}
       </a>
     </div>
   );

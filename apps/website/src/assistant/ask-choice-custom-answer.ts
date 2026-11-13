@@ -69,7 +69,7 @@ export function addCustomAnswerFields({ fields }: { fields: readonly SurfaceFiel
 export function withCustomAnswerReveal<T>({ ui }: { ui: T }, _options = {}): T {
   const resource = (ui as { resource?: { text?: unknown } }).resource;
   if (typeof resource?.text !== "string" || !resource.text.includes("</style>")) return ui;
-  return { ...ui, resource: { ...resource, text: resource.text.replace("</style>", `${REVEAL_CSS}\n</style>`) } };
+  return { ...ui, resource: { ...resource, text: resource.text.replace("</style>", () => `${REVEAL_CSS}\n</style>`) } };
 }
 
 /** What one delivered answer said under "Something else", kept for {@link mergeCustomAnswer}. */

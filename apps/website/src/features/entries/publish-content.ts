@@ -47,7 +47,7 @@ type EntryRow = TrashableEntryRecord & { termIds?: string[] };
 
 const withTerms = async (p: EntryPublishPorts, row: TrashableEntryRecord): Promise<EntryRow> => ({
   ...row,
-  termIds: await readTermIds(p.terms, row.type, row.id),
+  termIds: await readTermIds({ ports: p.terms, contentType: row.type, contentId: row.id }),
 });
 
 export const contributeCollectionEntryPublish = (): PublishContentContributor =>

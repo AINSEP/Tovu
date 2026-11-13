@@ -670,7 +670,10 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   // Every CLI run is busy, including headless/Aider runs with no conversationId. Terminal waits
   // release malformed starts too; preparation and cleanup below retain their own work holds.
   const releaseRun = idlePark.hold({}, {});
-  void runLifecycle.waitForTerminal({ runId: run.id }).catch(() => undefined).finally(releaseRun);
+  void runLifecycle.waitForTerminal({ runId: run.id }).catch((error: unknown) => {
+    console.error(`[agent-daemon] run ${run.id}: could not wait for completion before releasing activity:`,
+      redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text);
+  }).finally(releaseRun);
   function noteFullRunInput({ runId, input }: { runId: string; input: string }, _optional = {}): void {
     if (routeDeps.aiTraceSink?.capture === "full") tracing.noteRunInput({ runId, input });
   }
@@ -743,7 +746,10 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   // nothing to key concurrency by for a daemon client other than the admin chat pane.
   if (conversationId !== undefined) liveRunTracker.register({ conversationId: conversationId, runId: run.id }, {});
   if (pageContext !== undefined) runActiveContexts.record(run.id, pageContext);
-  void runLifecycle.waitForTerminal({ runId: run.id }).catch(() => undefined).finally(() => {
+  void runLifecycle.waitForTerminal({ runId: run.id }).catch((error: unknown) => {
+    console.error(`[agent-daemon] run ${run.id}: could not wait for completion before cleaning up:`,
+      redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text);
+  }).finally(() => {
     const releaseCleanup = idlePark.hold({}, {});
     pluginAbort.abort();
     unsubscribePluginCancel();
@@ -1644,8 +1650,14 @@ void probeMcpBridge({ entry: bridgePreflightEntry({ injection: bridgeInjection }
   };
 } catch (error) {
   disposeAiTracing();
-  await assistantInventory.dispose({}).catch(() => {});
-  await daemonStore?.close().catch(() => {});
+  await assistantInventory.dispose({}).catch((cleanupError: unknown) => {
+    console.error("[agent-daemon] Could not dispose the agent inventory after startup failed:",
+      redactSecretShapes({ text: String((cleanupError as { message?: unknown } | null)?.message ?? cleanupError) }).text);
+  });
+  await daemonStore?.close().catch((cleanupError: unknown) => {
+    console.error("[agent-daemon] Could not close the daemon store after startup failed:",
+      redactSecretShapes({ text: String((cleanupError as { message?: unknown } | null)?.message ?? cleanupError) }).text);
+  });
   throw error;
 }
 }

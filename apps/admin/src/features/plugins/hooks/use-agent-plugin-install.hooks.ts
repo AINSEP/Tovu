@@ -161,7 +161,7 @@ export function useAgentPluginInstall(
     },
   });
 
-  const installedMessage = installed ? t(installedMessageKey({ alreadyInstalled: installed.alreadyInstalled, updating: options.update !== undefined })).replace("{name}", installed.name) : null;
+  const installedMessage = installed ? t(installedMessageKey({ alreadyInstalled: installed.alreadyInstalled, updating: options.update !== undefined })).replace("{name}", () => installed.name) : null;
 
   return {
     updating: options.update !== undefined,

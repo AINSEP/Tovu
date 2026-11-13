@@ -4,12 +4,12 @@ import type { Taxonomy, Term } from "@jini-ai/cms/taxonomy";
 /** Publish-content's taxonomy read: the full row, trashed ones included, so a precheck refuses a
  *  trashed destination instead of colliding. */
 export interface TaxonomyPublishReadPort {
-  findAnyById(id: string): Promise<Taxonomy | null>;
+  findAnyById(required: { id: string }): Promise<Taxonomy | null>;
 }
 
 /** Publish-content's term read — see {@link TaxonomyPublishReadPort}. */
 export interface TermPublishReadPort {
-  findAnyById(id: string): Promise<Term | null>;
+  findAnyById(required: { id: string }): Promise<Term | null>;
 }
 
 /**

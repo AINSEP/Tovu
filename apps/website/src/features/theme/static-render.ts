@@ -726,7 +726,7 @@ export function postAuthorForContentHeader(
  */
 function injectColorMode(html: string, defaultMode: string | undefined): string {
   if (defaultMode === undefined) return html;
-  return html.replace(/<html(?![^>]*\sdata-theme=)([^>]*)>/i, `<html$1 data-theme="${escapeHtml(defaultMode)}">`);
+  return html.replace(/<html(?![^>]*\sdata-theme=)([^>]*)>/i, (_match, attributes: string) => `<html${attributes} data-theme="${escapeHtml(defaultMode)}">`);
 }
 
 /**
@@ -1388,5 +1388,5 @@ export function resolveTemplateBranchChoice(
 /** Theme publication adorns the existing Jini disclosure; it owns all menu state/keyboard behavior. */
 function renderVisitorMenuToggle(required: { controlsId: string; label: string }, optional: { asLabel?: boolean } = {}): string {
   const attrs = ` data-toolname="${escapeHtml(required.controlsId)}" data-tooldescription="${escapeHtml(required.label)} submenu" data-tool-action="menu"`;
-  return renderMenuToggle(required, optional).replace('<button', `<button${attrs}`);
+  return renderMenuToggle(required, optional).replace('<button', () => `<button${attrs}`);
 }

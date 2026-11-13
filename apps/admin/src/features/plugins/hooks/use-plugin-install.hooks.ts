@@ -101,7 +101,7 @@ export function usePluginInstall(required: { port: PluginInstallPort; t: Transla
     zipSizeLabel: zipFile ? installArchiveSize({ bytes: zipFile.size }) : "",
     reviewDisabled: busy || folderUpload.zipping || !hasSource(),
     previewDisplay: preview ? pluginInstallPreviewDisplay(preview, required.t) : null,
-    installedMessage: installedName ? required.t("{name} is installed and switched off. Turn it on in Downloaded.").replace("{name}", installedName) : null,
+    installedMessage: installedName ? required.t("{name} is installed and switched off. Turn it on in Downloaded.").replace("{name}", () => installedName) : null,
     setFolder: chooseFolder,
     onFolderChange: (event: ChangeEvent<HTMLInputElement>) => chooseFolder(event.target.value),
     onSubmitFolder: (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); void perform(false); },

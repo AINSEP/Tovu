@@ -1088,5 +1088,5 @@ export function accessTokensCountText(totalCount: number, matchCount: number, qu
   return t(totalCount === 1 ? "{matched} of {count} token matching “{query}”" : "{matched} of {count} tokens matching “{query}”")
     .replace("{matched}", String(matchCount))
     .replace("{count}", String(totalCount))
-    .replace("{query}", query);
+    .replace("{query}", () => query);
 }

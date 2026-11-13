@@ -56,7 +56,7 @@ export function EmailTemplatesTab(props: { controller: EmailTemplatesController;
                 header: t({ locale, key: "More" }),
                 cell: (template) => (
                   <RowMenu
-                    triggerLabel={t({ locale, key: "Actions for \"{name}\"" }).replace("{name}", template.name)}
+                    triggerLabel={t({ locale, key: "Actions for \"{name}\"" }).replace("{name}", () => template.name)}
                     agentHandle={`email-template-${template.id}-menu`}
                     items={[
                       { key: "edit", label: t({ locale, key: "Edit" }), onSelect: () => navigate(templateEditorPath(template.id)) },
@@ -92,7 +92,7 @@ export function EmailTemplatesTab(props: { controller: EmailTemplatesController;
         open={controller.pendingTrash !== null}
         agentHandle="email-template-trash"
         title={t({ locale, key: "Move to trash?" })}
-        body={<p>{t({ locale, key: "\"{name}\" moves to Trash. You can restore it from there." }).replace("{name}", controller.pendingTrash?.name ?? "")}</p>}
+        body={<p>{t({ locale, key: "\"{name}\" moves to Trash. You can restore it from there." }).replace("{name}", () => controller.pendingTrash?.name ?? "")}</p>}
         confirmLabel={t({ locale, key: "Move to trash" })}
         destructive
         pending={controller.trashing}

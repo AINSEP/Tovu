@@ -51,7 +51,7 @@ export function useSkillFilesModal(skill: InstalledSkill | null, onClose: () => 
   const files = useSkillFiles({ toolId: skill?.toolId ?? null, read: listSkillFiles, t });
   if (!skill) return null;
   return {
-    title: t("{name} skill files").replace("{name}", skill.name),
+    title: t("{name} skill files").replace("{name}", () => skill.name),
     subtitle: t("Read-only view of this skill's files; nothing runs from this screen."),
     headerExtras: files.failure ? createElement(ErrorNotice, { failure: files.failure, t }) : undefined,
     files: files.files, selectedFile: files.selectedFile, onSelectFile: files.selectFile,

@@ -361,7 +361,7 @@ function ThemeExploreFileRow({
           onChange={(e) => setRenameDraft(e.target.value)}
           onKeyDown={(e) => handleFileRowRenameKeyDown(e, { commitRename, cancelRename })}
           onBlur={cancelRename}
-          aria-label={t("New name for {file}").replace("{file}", file.label)}
+          aria-label={t("New name for {file}").replace("{file}", () => file.label)}
         />
       ) : (
         <button
@@ -389,7 +389,7 @@ function ThemeExploreFileRow({
           own delete `ConfirmDialog` for why that pause, unlike Rename's, is unconditional whenever
           the file IS eligible: deleting is the one operation here with no undo at all. */}
       {!file.inherited && <RowMenu
-        triggerLabel={t("More actions for {file}").replace("{file}", file.label)}
+        triggerLabel={t("More actions for {file}").replace("{file}", () => file.label)}
         agentHandle={`${agentBase}-menu`}
         items={[
           {

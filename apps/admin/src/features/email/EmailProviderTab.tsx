@@ -111,7 +111,7 @@ function ProviderKeyForm({ provider, controller, locale }: CardProps) {
   const updatedAt = provider.credential.saved ? provider.credential.updatedAt : undefined;
   return (
     <form className="email-provider-form" onSubmit={(event) => { event.preventDefault(); void controller.saveKey(provider); }}>
-      {updatedAt ? <span className="jini-field-hint">{t({ locale, key: "Key updated {when}" }).replace("{when}", when(updatedAt, locale))}</span> : null}
+      {updatedAt ? <span className="jini-field-hint">{t({ locale, key: "Key updated {when}" }).replace("{when}", () => when(updatedAt, locale))}</span> : null}
       {fields.map((field) => <KeyField key={field.key} provider={provider} field={field} controller={controller} locale={locale} />)}
       <div className="email-row">
         <button type="submit" className="btn-secondary" disabled={controller.busyId === provider.id}
@@ -258,7 +258,7 @@ export function EmailProviderTab(props: { controller: EmailProviderController; s
         open={pending !== null}
         agentHandle="email-provider-switch"
         title={t({ locale, key: "Switch email provider?" })}
-        body={<p>{t({ locale, key: "All email — sign-in links, confirmations, notifications and newsletters — will send with {provider}." }).replace("{provider}", pending?.label ?? "")}</p>}
+        body={<p>{t({ locale, key: "All email — sign-in links, confirmations, notifications and newsletters — will send with {provider}." }).replace("{provider}", () => pending?.label ?? "")}</p>}
         confirmLabel={t({ locale, key: "Switch" })}
         pending={pending !== null && controller.busyId === pending.id}
         onConfirm={() => void controller.confirmSwitch()}

@@ -63,7 +63,7 @@ export function publishVisitorPage({ html, path, workspaceId }: { html: string; 
     text: projectedAttributes({ node, entry: entry! }) }));
   for (const edit of edits.sort((a, b) => b.at - a.at)) html = html.slice(0, edit.at) + edit.text + html.slice(edit.at);
   const data = JSON.stringify(publication).replace(/</g, '\\u003c');
-  html = html.replace(/<body\b/i, `<body data-visitor-page-root data-agent-publication="${revision}"`);
+  html = html.replace(/<body\b/i, () => `<body data-visitor-page-root data-agent-publication="${revision}"`);
   const script = `<script type="application/json" id="tovu-visitor-publication">${data}</script>`;
   const bodyEnd = html.toLowerCase().lastIndexOf('</body>');
   return bodyEnd < 0 ? html + script : html.slice(0, bodyEnd) + script + html.slice(bodyEnd);

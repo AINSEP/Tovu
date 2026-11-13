@@ -614,7 +614,7 @@ export function VisitorCredentialKeyActions({
       >
         {discovery.status === "loading" ? t("Testing…") : t("Test key")}
       </button>
-      <InfoTip label={testInfo} triggerLabel={t("More info: {name}").replace("{name}", t("Test key"))} agentHandle="ai-assistant-visitor-test-key-info" />
+      <InfoTip label={testInfo} triggerLabel={t("More info: {name}").replace("{name}", () => t("Test key"))} agentHandle="ai-assistant-visitor-test-key-info" />
       {/* The ONLY control that writes the KEY on this screen (its sibling
           `VisitorCredentialSettingsFooter` writes the other fields, and never a key).
 
@@ -630,7 +630,7 @@ export function VisitorCredentialKeyActions({
       >
         {saveState.status === "saving" ? t("Saving…") : t("Save key")}
       </button>
-      <InfoTip label={saveInfo} triggerLabel={t("More info: {name}").replace("{name}", t("Save key"))} agentHandle="ai-assistant-visitor-save-key-info" />
+      <InfoTip label={saveInfo} triggerLabel={t("More info: {name}").replace("{name}", () => t("Save key"))} agentHandle="ai-assistant-visitor-save-key-info" />
     </>
   );
 }
@@ -780,7 +780,7 @@ export function VisitorCredentialForm({
               <optgroup key={group.label} label={t(group.label)}>
                 {group.options.map(({ preset: option, configured }) => (
                   <option key={option.id} value={option.id}>
-                    {configured ? t("{name} (configured)").replace("{name}", option.title) : option.title}
+                    {configured ? t("{name} (configured)").replace("{name}", () => option.title) : option.title}
                   </option>
                 ))}
               </optgroup>
@@ -1063,7 +1063,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
 function assistantRestartResultMessage(result: NonNullable<AssistantDaemonRestartController["restartResult"]>, t: (key: string) => string): string {
   return result.ok
     ? t("Restart accepted. This does not confirm the process is healthy yet — check the status below.")
-    : t("Restart refused: {reason}").replace("{reason}", result.reason ?? "");
+    : t("Restart refused: {reason}").replace("{reason}", () => result.reason ?? "");
 }
 
 /** An unrecognized saved endpoint keeps the select on its custom-endpoint placeholder. */

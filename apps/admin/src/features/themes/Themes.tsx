@@ -361,7 +361,7 @@ function ThemesBanners({
         <div className="notice warning">
           {t(
             "The site's active theme (\"{id}\") is no longer available, so the public site cannot render until you activate a different one. No content was lost.",
-          ).replace("{id}", settings.activeThemeId)}
+          ).replace("{id}", () => settings.activeThemeId)}
         </div>
       ) : null}
       {/* Deliberately a plain `.notice`, NOT `.notice warning` — the operator chose this, and

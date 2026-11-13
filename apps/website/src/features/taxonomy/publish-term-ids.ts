@@ -17,14 +17,20 @@ export const TERM_SYNC_PERMISSION = "admin.taxonomy.manage";
 
 /** The live terms assigned to one piece of content, sorted, or `undefined` when there are none (or
  *  the bag has no taxonomy ports, so terms are not part of it). @complexity one indexed query. */
-export async function readTermIds(ports: TaxonomyPublishPorts | undefined, contentType: string, contentId: string): Promise<string[] | undefined> {
+export async function readTermIds(
+  { ports, contentType, contentId }: { ports: TaxonomyPublishPorts | undefined; contentType: string; contentId: string },
+  _optional = {},
+): Promise<string[] | undefined> {
   if (!ports) return undefined;
   const ids = (await ports.entryTerms.listForContent({ contentType, contentId })).map((row) => row.termId).sort();
   return ids.length > 0 ? ids : undefined;
 }
 
 /** `state` plus `termIds` when there are any. */
-export function withTermIds<T extends Record<string, unknown>>(state: T, termIds: readonly string[] | undefined): T {
+export function withTermIds<T extends Record<string, unknown>>(
+  { state, termIds }: { state: T; termIds: readonly string[] | undefined },
+  _optional = {},
+): T {
   return termIds ? { ...state, termIds: [...termIds] } : state;
 }
 
@@ -61,7 +67,7 @@ export async function prepareTermSync(input: {
     if (wanted.length === 0) return noop;
     throw new Error(`publish-content: ${entityType} '${entityId}' carries term assignments, but this deps bag wires no taxonomy ports — wire ports.term.`);
   }
-  const current = (await readTermIds(ports, contentType, entityId)) ?? [];
+  const current = (await readTermIds({ ports, contentType, contentId: entityId })) ?? [];
   const add = wanted.filter((id) => !current.includes(id));
   const remove = current.filter((id) => !wanted.includes(id));
   if (add.length === 0 && remove.length === 0) return noop;
@@ -105,7 +111,7 @@ async function validateAddedTerms(
   _options: Record<string, never> = {}
 ): Promise<void> {
   for (const termId of termIds) {
-    const term = await ports.terms.findAnyById(termId);
+    const term = await ports.terms.findAnyById({ id: termId });
     if (!term || term.status === "trash") {
       throw new PublishContentApplyRowError(
         "blocked",

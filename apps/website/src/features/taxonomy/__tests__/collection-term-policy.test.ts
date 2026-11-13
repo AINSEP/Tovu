@@ -31,11 +31,11 @@ test("content target lookup routes posts and entries to their workspace-scoped r
 });
 
 test("editing permissions distinguish post/page from collections and a denial carries the exact permission", async () => {
-  assert.equal(contentEditPermission("post"), "content.write");
-  assert.equal(contentEditPermission("page"), "content.write");
-  assert.equal(contentEditPermission("recipe"), "admin.collections.manage");
+  assert.equal(contentEditPermission({ contentType: "post" }), "content.write");
+  assert.equal(contentEditPermission({ contentType: "page" }), "content.write");
+  assert.equal(contentEditPermission({ contentType: "recipe" }), "admin.collections.manage");
   const seen: unknown[] = [];
-  await assert.rejects(authorizeContentEdit({ workspaceId: "ws-policy", authorize: async (p) => { seen.push(p); return { allowed: false, reason: "no-grant" }; } }, "writer", "recipe"), (error) => {
+  await assert.rejects(authorizeContentEdit({ deps: { workspaceId: "ws-policy", authorize: async (p) => { seen.push(p); return { allowed: false, reason: "no-grant" }; } }, principalId: "writer", contentType: "recipe" }), (error) => {
     assert(error instanceof ForbiddenError);
     assert.equal(error.message, "principal 'writer' is not authorized for 'admin.collections.manage' (no-grant)");
     assert.equal(error.permission, "admin.collections.manage");
@@ -43,7 +43,7 @@ test("editing permissions distinguish post/page from collections and a denial ca
     return true;
   });
   assert.deepEqual(seen, [{ principalId: "writer", permission: "admin.collections.manage", workspaceId: "ws-policy" }]);
-  await authorizeContentEdit({ workspaceId: "ws-policy", authorize: async () => ({ allowed: true, reason: "matched" }) }, "writer", "page");
+  await authorizeContentEdit({ deps: { workspaceId: "ws-policy", authorize: async () => ({ allowed: true, reason: "matched" }) }, principalId: "writer", contentType: "page" });
 });
 
 // F6.2/F3.6: a transient lookup fault must not be rewritten as a policy denial or cached.

@@ -14,8 +14,8 @@ export function appendProductCheckout(
 
 /** Both checkout controls and the deployed-shop link occupy the same theme-owned main layout. */
 function appendMarkup({ html, markup }: { html: string; markup: string }): string {
-  if (html.includes("</main>")) return html.replace("</main>", `${markup}</main>`);
-  if (html.includes("</body>")) return html.replace("</body>", `${markup}</body>`);
+  if (html.includes("</main>")) return html.replace("</main>", () => `${markup}</main>`);
+  if (html.includes("</body>")) return html.replace("</body>", () => `${markup}</body>`);
   return html + markup;
 }
 

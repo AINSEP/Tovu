@@ -273,7 +273,7 @@ export function DocumentsTab({ controller }: { controller: LibraryController }) 
                 <span className="muted-cell">{t("Moving…")}</span>
               ) : (
                 <RowMenu
-                  triggerLabel={t('Actions for "{title}"').replace("{title}", documentName(item))}
+                  triggerLabel={t('Actions for "{title}"').replace("{title}", () => documentName(item))}
                   agentHandle={`library-doc-${index + 1}-menu`}
                   items={documentMenuItems(item, controller)}
                 />

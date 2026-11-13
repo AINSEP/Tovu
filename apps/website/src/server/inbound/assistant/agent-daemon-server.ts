@@ -42,6 +42,7 @@ async function exitDaemon(exitCode: number): Promise<void> {
     await stopDaemonServing();
     // Before the store closes, which flushes and disposes the provider plugins' sinks.
     await Promise.allSettled([...scopes.values()].map(scope => scope.then(value => value.dispose({}, {}))));
+    // Startup reports a failed publication; removal must still run because its record may exist.
     await registryPublication.catch(() => undefined);
     try {
       await daemonRegistry?.removeIfCurrent({ pid: process.pid });

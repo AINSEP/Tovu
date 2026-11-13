@@ -499,7 +499,7 @@ export function pageVersionConflictMessage(t: Translate, conflict: PageSaveConfl
     "Someone else saved this while you were editing — you were working from {basis}, and {current} is now stored. Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
   )
     .replace("{basis}", basis)
-    .replace("{current}", current);
+    .replace("{current}", () => current);
 }
 
 /** The save-success message — the one piece of copy in `save` that depends on `canSaveHtml`, split
@@ -719,10 +719,10 @@ export function comparePagesByUpdated(a: AdminPost, b: AdminPost): number {
  * @complexity Time/space: O(1).
  */
 export function pageColumnSortLabel(t: Translate, columnName: string, direction: DataTableSortDirection | null): string {
-  if (direction === null) return t("Not sorted by {columnName}. Activate to sort ascending.").replace("{columnName}", columnName);
+  if (direction === null) return t("Not sorted by {columnName}. Activate to sort ascending.").replace("{columnName}", () => columnName);
   return direction === "asc"
-    ? t("Sorted by {columnName}, ascending. Activate to sort descending.").replace("{columnName}", columnName)
-    : t("Sorted by {columnName}, descending. Activate to sort ascending.").replace("{columnName}", columnName);
+    ? t("Sorted by {columnName}, ascending. Activate to sort descending.").replace("{columnName}", () => columnName)
+    : t("Sorted by {columnName}, descending. Activate to sort ascending.").replace("{columnName}", () => columnName);
 }
 
 /** Same contract as {@link pageColumnSortLabel}, phrased in the Updated column's own "newest"/

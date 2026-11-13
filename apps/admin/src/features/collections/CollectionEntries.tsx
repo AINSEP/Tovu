@@ -34,7 +34,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
   // `CollectionEntryEditor.tsx:266` one route deeper already gets this right — matching its exact
   // copy here rather than inventing a second wording for the same situation).
   if (contentType === null) {
-    return <div className="notice error">{t('Unknown content type "{contentTypeKey}".').replace("{contentTypeKey}", contentTypeKey)}</div>;
+    return <div className="notice error">{t('Unknown content type "{contentTypeKey}".').replace("{contentTypeKey}", () => contentTypeKey)}</div>;
   }
 
   const label = contentType.label;
@@ -65,7 +65,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
           <p className="page-kicker">{t("Content")}</p>
           <h1 className="page-title">{label}</h1>
           <p className="page-description">
-            {t('All "{label}" entries in this collection.').replace("{label}", label)}
+            {t('All "{label}" entries in this collection.').replace("{label}", () => label)}
           </p>
         </div>
         <div className="page-actions">
@@ -95,7 +95,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>{t("No entries yet in {label}.").replace("{label}", label)}</p>
+              <p>{t("No entries yet in {label}.").replace("{label}", () => label)}</p>
             </div>
           </div>
         }

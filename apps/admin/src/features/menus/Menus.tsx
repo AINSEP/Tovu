@@ -66,7 +66,7 @@ export function Menus({ useMenusHook = useWiredMenus }: MenusProps = {}) {
       <ConfirmDialog
         open={pendingTrash !== null}
         title={t("Move to trash?")}
-        body={pendingTrash ? <p>{t('Move "{title}" to trash?').replace("{title}", pendingTrash.title)}</p> : null}
+        body={pendingTrash ? <p>{t('Move "{title}" to trash?').replace("{title}", () => pendingTrash.title)}</p> : null}
         confirmLabel={t("Move to trash")}
         destructive
         pending={trashing}

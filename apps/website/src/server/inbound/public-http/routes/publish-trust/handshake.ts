@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from "express";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 import { createRateLimiter, resolveClientIp, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
 import {
@@ -125,6 +126,11 @@ function asChallengeResponse(body: unknown): PublishChallengeResponse | null {
  * @complexity O(1) per request — see each handler.
  */
 export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishTrustHandshakeDeps): void {
+  const targetInstallationId = deps.targetInstallationId.catch((error: unknown) => {
+    console.error("[publish-trust] Could not derive the site's publishing identity for the handshake:",
+      redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text);
+    return null;
+  });
   const limiter = createRateLimiter({
     profile: PUBLISH_TRUST_HANDSHAKE_PER_IP,
     clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
@@ -145,7 +151,7 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
 
   /** This install's id, or `null` after sending the 503 when the site key is missing. */
   async function installationIdOrRefuse(res: Response): Promise<string | null> {
-    const id = await deps.targetInstallationId.catch(() => null);
+    const id = await targetInstallationId;
     if (id === null) res.status(503).json(NO_SITE_KEY);
     return id;
   }

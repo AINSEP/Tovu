@@ -21,24 +21,24 @@ interface SqliteTaxonomyDeps {
 
 export class SqliteTaxonomyRepo extends SqlTaxonomyRepo {
   constructor(deps: SqliteTaxonomyDeps) {
-    super(contentKernel(deps.db), deps.workspaceId);
+    super({ kernel: contentKernel(deps.db), workspaceId: deps.workspaceId });
   }
 }
 
 export class SqliteTermRepo extends SqlTermRepo {
   constructor(deps: SqliteTaxonomyDeps) {
-    super(contentKernel(deps.db), deps.workspaceId);
+    super({ kernel: contentKernel(deps.db), workspaceId: deps.workspaceId });
   }
 }
 
 export class SqliteEntryTermRepo extends SqlEntryTermRepo {
   constructor(deps: SqliteTaxonomyDeps) {
-    super(contentKernel(deps.db), deps.workspaceId);
+    super({ kernel: contentKernel(deps.db), workspaceId: deps.workspaceId });
   }
 }
 
 export class SqliteTaxonomyRevisionRepo extends SqlTaxonomyRevisionRepo {
   constructor(deps: SqliteTaxonomyDeps) {
-    super(contentKernel(deps.db), deps.workspaceId);
+    super({ kernel: contentKernel(deps.db), workspaceId: deps.workspaceId });
   }
 }

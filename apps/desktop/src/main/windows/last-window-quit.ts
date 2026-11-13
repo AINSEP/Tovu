@@ -87,8 +87,8 @@ function lastWindowQuitDialog({ locale, stops, keeps }: { locale: string; stops:
   return {
     type: "question",
     title: "Tovu",
-    message: (stops === 1 ? copy.quitOne : copy.quitMany).replace("{count}", String(stops)),
-    ...(keeps > 0 ? { detail: (keeps === 1 ? copy.keepsOne : copy.keepsMany).replace("{count}", String(keeps)) } : {}),
+    message: (stops === 1 ? copy.quitOne : copy.quitMany).replace("{count}", () => String(stops)),
+    ...(keeps > 0 ? { detail: (keeps === 1 ? copy.keepsOne : copy.keepsMany).replace("{count}", () => String(keeps)) } : {}),
     buttons: [copy.quit, copy.keepInBackground, copy.cancel],
     defaultId: QUIT_BUTTON,
     cancelId: CANCEL_BUTTON,

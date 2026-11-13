@@ -264,10 +264,10 @@ test("a trashed term drops out of findById/listByTaxonomy/findForTrash, a live s
 
     const taxonomyRepo = deps.taxonomies as SqliteTaxonomyRepo;
     const termRepo = deps.terms as SqliteTermRepo;
-    assert.equal(await termRepo.findForTrash(trashed.id), null);
-    const display = await termRepo.findForTrash(live.id);
+    assert.equal(await termRepo.findForTrash({ id: trashed.id }), null);
+    const display = await termRepo.findForTrash({ id: live.id });
     assert.deepEqual(display, { id: live.id, name: "Live", taxonomyId: taxonomy.id, taxonomyName: "Category", version: 1 });
-    const taxDisplay = await taxonomyRepo.findForTrash(taxonomy.id);
+    const taxDisplay = await taxonomyRepo.findForTrash({ id: taxonomy.id });
     assert.deepEqual(taxDisplay, { id: taxonomy.id, name: "Category", version: 1 });
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -337,22 +337,22 @@ test("findForPurgeAudit/listIdsForPurgeAudit read regardless of trash status —
     const termRepo = deps.terms as SqliteTermRepo;
 
     // Sanity: both reads work before anything is trashed.
-    assert.deepEqual(await termRepo.findForPurgeAudit(termA.id), { id: termA.id, name: "A", taxonomyId: taxonomy.id });
-    assert.deepEqual((await termRepo.listIdsForPurgeAudit(taxonomy.id)).sort(), [termA.id, termB.id].sort());
+    assert.deepEqual(await termRepo.findForPurgeAudit({ id: termA.id }), { id: termA.id, name: "A", taxonomyId: taxonomy.id });
+    assert.deepEqual((await termRepo.listIdsForPurgeAudit({ taxonomyId: taxonomy.id })).sort(), [termA.id, termB.id].sort());
 
     // A purge only ever runs on an already-trashed row — `findForTrash` would already return null
     // here, which is exactly the case `findForPurgeAudit` exists to still serve.
     db.$client.prepare("UPDATE terms SET status = 'trash' WHERE id = ?").run(termA.id);
-    assert.equal(await termRepo.findForTrash(termA.id), null, "sanity: the live-filtered read is blind to a trashed term");
-    assert.deepEqual(await termRepo.findForPurgeAudit(termA.id), { id: termA.id, name: "A", taxonomyId: taxonomy.id });
+    assert.equal(await termRepo.findForTrash({ id: termA.id }), null, "sanity: the live-filtered read is blind to a trashed term");
+    assert.deepEqual(await termRepo.findForPurgeAudit({ id: termA.id }), { id: termA.id, name: "A", taxonomyId: taxonomy.id });
 
     // `listIdsForPurgeAudit` must also see a member term whose PARENT taxonomy is trashed
     // (hiddenWithParent) — the taxonomy purge cascade deletes it too, regardless of its own marker.
     db.$client.prepare("UPDATE taxonomies SET status = 'trash' WHERE id = ?").run(taxonomy.id);
     assert.deepEqual(await termRepo.listByTaxonomy({ taxonomyId: taxonomy.id }), [], "sanity: the live-filtered read is now blind to both");
-    assert.deepEqual((await termRepo.listIdsForPurgeAudit(taxonomy.id)).sort(), [termA.id, termB.id].sort());
+    assert.deepEqual((await termRepo.listIdsForPurgeAudit({ taxonomyId: taxonomy.id })).sort(), [termA.id, termB.id].sort());
 
-    assert.equal(await termRepo.findForPurgeAudit("does-not-exist"), null);
+    assert.equal(await termRepo.findForPurgeAudit({ id: "does-not-exist" }), null);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

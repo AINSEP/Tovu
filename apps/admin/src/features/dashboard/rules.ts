@@ -61,14 +61,14 @@ export function activeThemeName(presentation: {
 
 /** The Posts stat card's meta line — blank while `published` is still pending (`null`). */
 export function postsStatMeta(published: number | null, t: Translate): string {
-  return published === null ? "" : t("{count} published").replace("{count}", String(published));
+  return published === null ? "" : t("{count} published").replace("{count}", () => String(published));
 }
 
 /** The Pages stat card's meta line — blank while `drafts` is still pending, singular/plural
  *  otherwise. */
 export function pagesStatMeta(drafts: number | null, t: Translate): string {
   if (drafts === null) return "";
-  return t(drafts === 1 ? "{count} draft" : "{count} drafts").replace("{count}", String(drafts));
+  return t(drafts === 1 ? "{count} draft" : "{count} drafts").replace("{count}", () => String(drafts));
 }
 
 /** The Comments stat card's meta line. Note this reads `StatState.value` directly rather than a

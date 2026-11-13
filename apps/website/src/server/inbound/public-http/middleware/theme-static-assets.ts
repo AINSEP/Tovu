@@ -175,5 +175,5 @@ function isRewritableCssPath(relativePath: string): boolean {
 function previewCss(required: { css: string; revision: string }): string {
   // Match root-relative references, preserving external hosts and existing query/fragment tails.
   return required.css.replace(/((?:url\(\s*["']?|@import\s+["']))\/theme-assets\//gi,
-    `$1/theme-preview-assets/${encodeURIComponent(required.revision)}/`);
+    (_match, prefix: string) => `${prefix}/theme-preview-assets/${encodeURIComponent(required.revision)}/`);
 }

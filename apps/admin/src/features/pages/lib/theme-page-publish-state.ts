@@ -101,7 +101,7 @@ export function homeFallbackPublishReason(
   homePage: ThemePageSlugCollision | null,
   t: Translate
 ): { on: boolean; reason: string } {
-  if (homePage) return { on: false, reason: t("Not shown — {title} is your home page").replace("{title}", homePage.title) };
+  if (homePage) return { on: false, reason: t("Not shown — {title} is your home page").replace("{title}", () => homePage.title) };
   return { on: true, reason: t("Home page fallback — shown at / until one of your pages is set as the home page") };
 }
 
@@ -123,7 +123,7 @@ export function themePageCollisionMessage(collision: ThemePageSlugCollision, t: 
       : t(
           "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone."
         );
-  return message.replace("{title}", collision.title);
+  return message.replace("{title}", () => collision.title);
 }
 
 /**

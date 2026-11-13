@@ -2,6 +2,7 @@ import type { DocumentAssets } from '@jini-ai/cms/presentation';
 import type { DeclaredScript } from '@jini-ai/cookie-consent';
 import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
 import type { ConsentConfig } from '@jini-ai/cookie-consent';
+import { redactSecretShapes } from '@tovu/contracts/secret-redaction';
 /** Public declared-script assets, published context, receipts and plugin admission.
  * Documents receive asset contributions during construction; public responses are never scanned. */
 import { createHash, randomBytes } from 'node:crypto';
@@ -229,7 +230,10 @@ async function documentDeclarations({ consent }: { consent?: SiteCookieConsentDe
 async function documentPolicy({ consent }: { consent?: SiteCookieConsentDeps }): Promise<ConsentConfig | null> {
   const state = consent && documentStates.get(consent);
   if (!state) return null;
-  if (state.now() >= state.nextReadAt) void state.refresh?.().catch(() => undefined);
+  if (state.now() >= state.nextReadAt) {
+    // The refresh logs its own failure; visitors keep the last good policy.
+    void state.refresh?.().catch(() => undefined);
+  }
   if (state.policy) return state.policy;
   await briefPendingRead({ state });
   return state.policy ?? null;
@@ -238,6 +242,7 @@ async function documentPolicy({ consent }: { consent?: SiteCookieConsentDeps }):
 /** Wait at most 250 ms for a read in flight; with none, resolve at once. A late success still lands. */
 async function briefPendingRead({ state }: { state: DocumentState }): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // The refresh logs its own failure; a failed or slow read leaves the last good policy in use.
   try { await Promise.race([state.pending?.catch(() => undefined), new Promise(resolve => { timer = setTimeout(resolve, 250); })]); }
   finally { clearTimeout(timer); }
 }
@@ -350,7 +355,8 @@ function refreshDocumentState({ state, deps, consent }: { state: DocumentState; 
   if (state.pending) return state.pending;
   state.nextReadAt = state.now() + 60_000;
   const policy = readSiteConsentPolicy({ deps }).then(config => { state.policy = config; }, error => {
-    console.warn('[consent] Cookie preferences could not refresh. The last loaded preferences remain in use; a later request will try again.');
+    console.warn('[consent] Cookie preferences could not refresh. The last loaded preferences remain in use; a later request will try again:',
+      redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text);
     throw error;
   });
   const lastGoodScripts = state.scripts;
@@ -378,10 +384,12 @@ function siteDocumentState({ deps, consent, client }: { deps: RouteDeps; consent
   // Answered for one export run, before it renders. A good policy is never cleared, so no later page
   // can lose its banner when this finds one; a run starts from a fresh read, as it always has.
   consent.exportWarning = async () => {
+    // The refresh logs its own failure; the export uses the last good policy or its warning.
     void refresh().catch(() => undefined);
     await briefPendingRead({ state });
     return state.policy ? undefined : 'Cookie preferences could not be loaded. This published copy has no cookie banner.';
   };
+  // The refresh logs its own failure; startup continues without an unavailable policy.
   void refresh().catch(() => undefined);
   return state;
 }

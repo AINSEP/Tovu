@@ -27,7 +27,7 @@ import {
 const TRASH = "trash";
 
 /** The Jini write-service deps for one apply. */
-function writeDeps(ctx: RepoWriteContext<unknown, TaxonomyPublishPorts>, entityType: string) {
+function writeDeps({ ctx, entityType }: { ctx: RepoWriteContext<unknown, TaxonomyPublishPorts>; entityType: string }, _optional = {}) {
   const { deps, workspaceId, ports } = ctx;
   const gateway = gatewayDeps(deps, entityType);
   return {
@@ -52,14 +52,14 @@ export const contributeTaxonomyPublish = (): PublishContentContributor =>
     permission: "admin.taxonomy.manage",
     ports: (deps) => deps.ports.taxonomy,
     list: (p) => p.taxonomies.list(),
-    find: (p, _workspaceId, id) => p.taxonomies.findAnyById(id),
+    find: (p, _workspaceId, id) => p.taxonomies.findAnyById({ id }),
     isTrashed: (row) => row.status === TRASH,
     fields: { name: "transferred", hierarchical: "transferred", id: "local", status: "local", updatedAt: "local", version: "local" },
     // Not unique in the schema; two same-named groups would read as one on screen.
     address: { field: "name", holder: async (p, _workspaceId, name) => (await p.taxonomies.list()).find((t) => t.name === name) ?? null },
     write: async (ctx) => {
       const { id, state, expectedVersion, principalId } = ctx;
-      const deps = writeDeps(ctx, "taxonomy");
+      const deps = writeDeps({ ctx, entityType: "taxonomy" });
       const saved = await importTaxonomy({ deps, principalId, id, name: state.name as string, hierarchical: state.hierarchical as boolean, expectedVersion });
       return { version: saved.version };
     },
@@ -90,7 +90,7 @@ export const contributeTermPublish = (): PublishContentContributor =>
     dependsOn: ["taxonomy"],
     ports: (deps) => deps.ports.term,
     list: async (p) => (await Promise.all((await p.taxonomies.list()).map((t) => p.terms.listByTaxonomy({ taxonomyId: t.id })))).flat(),
-    find: (p, _workspaceId, id) => p.terms.findAnyById(id),
+    find: (p, _workspaceId, id) => p.terms.findAnyById({ id }),
     isTrashed: (row) => row.status === TRASH,
     packOrder: parentFirst,
     fields: { taxonomyId: "transferred", parentId: "transferred", name: "transferred", id: "local", status: "local", updatedAt: "local", version: "local" },
@@ -107,7 +107,7 @@ export const contributeTermPublish = (): PublishContentContributor =>
     },
     write: async (ctx) => {
       const { id, state, expectedVersion, principalId } = ctx;
-      const deps = writeDeps(ctx, "term");
+      const deps = writeDeps({ ctx, entityType: "term" });
       const parentId = (state.parentId ?? null) as string | null;
       const saved = await importTerm({ deps, principalId, id, taxonomyId: state.taxonomyId as string, name: state.name as string, expectedVersion }, { parentId });
       return { version: saved.version };

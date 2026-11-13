@@ -379,20 +379,20 @@ export function describeMediaHtmlAttributeError(error: MediaHtmlAttributeError, 
   const t = (key: string): string => translate({ locale: locale, key: key });
   const ATTRIBUTE_PLACEHOLDER = "{attribute}";
   if (error.reason === "event-handler") {
-    return t("Event handler attributes like '{attribute}' are not allowed.").replace(ATTRIBUTE_PLACEHOLDER, error.attribute);
+    return t("Event handler attributes like '{attribute}' are not allowed.").replace(ATTRIBUTE_PLACEHOLDER, () => error.attribute);
   }
   if (error.reason === "unsafe-url") {
     // Message text unchanged across the 2026-09-23 `javascript-url` -> `unsafe-url` rename (plan
     // §2) — every locale already carries this key.
-    return t("'{attribute}' cannot use a javascript: value.").replace(ATTRIBUTE_PLACEHOLDER, error.attribute);
+    return t("'{attribute}' cannot use a javascript: value.").replace(ATTRIBUTE_PLACEHOLDER, () => error.attribute);
   }
   if (error.reason === "unsafe-style") {
-    return t("'{attribute}' cannot use an unsafe style value.").replace(ATTRIBUTE_PLACEHOLDER, error.attribute);
+    return t("'{attribute}' cannot use an unsafe style value.").replace(ATTRIBUTE_PLACEHOLDER, () => error.attribute);
   }
   if (error.reason === "malformed") {
-    return t("Could not parse HTML attributes near '{fragment}'.").replace("{fragment}", error.attribute);
+    return t("Could not parse HTML attributes near '{fragment}'.").replace("{fragment}", () => error.attribute);
   }
-  return t("'{attribute}' is not an allowed HTML attribute.").replace(ATTRIBUTE_PLACEHOLDER, error.attribute);
+  return t("'{attribute}' is not an allowed HTML attribute.").replace(ATTRIBUTE_PLACEHOLDER, () => error.attribute);
 }
 
 /** The slice of the browser's `FileReader` {@link readFileAsBase64} drives, so tests can hand it a

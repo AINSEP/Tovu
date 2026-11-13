@@ -68,7 +68,7 @@ function recoveryErrorMessage(err: unknown, t: Translate): string {
 
 function unlockedMessage(resealed: number, t: Translate): string {
   const base = t("Unlocked. Your saved credentials work again.");
-  return resealed > 0 ? `${base} ${t("{count} saved since were moved over.").replace("{count}", String(resealed))}` : base;
+  return resealed > 0 ? `${base} ${t("{count} saved since were moved over.").replace("{count}", () => String(resealed))}` : base;
 }
 
 function startedFreshMessage(affectedWebhooks: readonly AdminSiteKeyAffectedWebhook[], t: Translate): string {

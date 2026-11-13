@@ -26,7 +26,7 @@ export function toTaxonomy(row: TaxonomyRowSelect): Taxonomy {
 }
 
 /** The `taxonomies` row one insert writes for `workspaceId`. */
-export function toTaxonomyRow(workspaceId: string, row: Taxonomy): Insertable<ContentDatabase["taxonomies"]> {
+export function toTaxonomyRow({ workspaceId, row }: { workspaceId: string; row: Taxonomy }, _optional = {}): Insertable<ContentDatabase["taxonomies"]> {
   return {
     id: row.id,
     workspace_id: workspaceId,
@@ -52,7 +52,7 @@ export function toTerm(row: TermRowSelect): Term {
 }
 
 /** The `terms` row one insert writes for `workspaceId`. */
-export function toTermRow(workspaceId: string, row: Term): Insertable<ContentDatabase["terms"]> {
+export function toTermRow({ workspaceId, row }: { workspaceId: string; row: Term }, _optional = {}): Insertable<ContentDatabase["terms"]> {
   return {
     id: row.id,
     workspace_id: workspaceId,
@@ -67,8 +67,8 @@ export function toTermRow(workspaceId: string, row: Term): Insertable<ContentDat
 
 /** The `taxonomy_revisions` row an append writes (compact JSON state; `seq` is database-assigned). */
 export function toTaxonomyRevisionRow(
-  workspaceId: string,
-  row: TaxonomyRevisionRow
+  { workspaceId, row }: { workspaceId: string; row: TaxonomyRevisionRow },
+  _optional = {},
 ): Insertable<ContentDatabase["taxonomy_revisions"]> {
   return {
     workspace_id: workspaceId,

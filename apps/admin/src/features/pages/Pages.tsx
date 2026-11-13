@@ -260,7 +260,7 @@ export function Pages(props: PagesProps) {
                 header: t("More"),
                 cell: (page) => (
                   <RowMenu
-                    triggerLabel={t('Actions for "{title}"').replace("{title}", page.title)}
+                    triggerLabel={t('Actions for "{title}"').replace("{title}", () => page.title)}
                     agentHandle={`${rowMenuHandleById.get(page.id)}-menu`}
                     items={pageRowMenuItems(
                       page,

@@ -1,4 +1,5 @@
 import { captureVisitorEvent } from "../../visitor-analytics.js";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 import { urlencoded, type Express, type RequestHandler } from "express";
 import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
@@ -97,7 +98,10 @@ export function registerCommentsSubmitRoute(app: Express, deps: CommentsSubmitDe
     ? commentFormReturnTo({ value: request.body?.returnTo }) : undefined }));
   // Observed here so a construction failure is not an unhandled rejection at boot; each request
   // below re-awaits the same promise and hands that failure to Express's error path instead.
-  handler.catch(() => undefined);
+  handler.catch((error: unknown) => {
+    console.error("[comments] Could not prepare the comment submission handler:",
+      redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text);
+  });
   const submit: RequestHandler = async (request, response, next) => {
     if (!isSameOriginCommentPost({ request })) {
       response.status(403).json({ error: 'A same-origin comment submission is required' });

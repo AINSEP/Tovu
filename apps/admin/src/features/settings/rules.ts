@@ -444,7 +444,7 @@ export function buildExternalMcpRemoveConfirmCopy(
   t: Translate = identityTranslate,
 ): RemoveConfirmCopy {
   return {
-    title: t('Remove "{name}"?').replace("{name}", params.name),
+    title: t('Remove "{name}"?').replace("{name}", () => params.name),
     body: params.isOAuth
       ? t("This connection will stop working immediately. Its OAuth credential is sealed and cannot be recovered — reconnecting will require signing in again.")
       : t("This connection will stop working immediately. You'll need to re-enter its configuration to use it again."),

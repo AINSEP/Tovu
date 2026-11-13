@@ -282,7 +282,7 @@ type PostPorts = PublishContentPorts["post"] & { readonly term?: TaxonomyPublish
  * @complexity One indexed term read plus O(t log t) time/O(t) space for t assigned terms.
  */
 async function withTerms(termPorts: TaxonomyPublishPorts | undefined, row: PostRecord): Promise<PostRow> {
-  const termIds = await readTermIds(termPorts, row.kind, row.id);
+  const termIds = await readTermIds({ ports: termPorts, contentType: row.kind, contentId: row.id });
   // The gateway captures this row as its inverse: preserve the stored byline defaults too.
   const publishRow = { ...row };
   return termIds ? Object.defineProperty(publishRow, "termIds", { value: termIds, enumerable: false }) : publishRow;
@@ -290,7 +290,7 @@ async function withTerms(termPorts: TaxonomyPublishPorts | undefined, row: PostR
 
 /** The packed state of `row` (what `pack` ships and hashes), for `planRetire`/`retire`'s hashes. */
 async function packedStateOf(termPorts: TaxonomyPublishPorts | undefined, row: PostRecord): Promise<Record<string, unknown>> {
-  return withTermIds(toPublishableState(row), await readTermIds(termPorts, row.kind, row.id));
+  return withTermIds({ state: toPublishableState(row), termIds: await readTermIds({ ports: termPorts, contentType: row.kind, contentId: row.id }) });
 }
 
 /** The apply-time ports, or the error that names what is missing. */
@@ -359,7 +359,7 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     fields: { ...POST_FIELD_DISPOSITIONS, termIds: "transferred" },
     omitWhenAbsent: ["termIds", ...OMIT_WHEN_ABSENT],
     // Hash the established transport projection while find() retains the full compensation row.
-    legacyHashState: (row) => withTermIds(toPublishableState(row), row.termIds),
+    legacyHashState: (row) => withTermIds({ state: toPublishableState(row), termIds: row.termIds }),
     references: (entity) => postReferences(entity.state),
     // Not the factory's `address`: a slug held by a trashed row keeps this sentence, and the slug
     // checks run before the kind check on an unfiltered read, as before the migration.

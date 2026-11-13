@@ -87,7 +87,7 @@ export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: Taxono
       const principal = getAuthedPrincipal(res);
       const body = readAssignmentBody(req, res);
       if (!body) return;
-      await authorizeContentEdit(deps, principal.id, body.contentType);
+      await authorizeContentEdit({ deps, principalId: principal.id, contentType: body.contentType });
       await assignTerms({ deps: writeDeps(deps), principalId: principal.id, ...body });
       res.status(204).send();
     } catch (err) {
@@ -107,7 +107,7 @@ export function registerAdminTaxonomyUnassignTermsRoute(app: Express, deps: Taxo
       const principal = getAuthedPrincipal(res);
       const body = readAssignmentBody(req, res);
       if (!body) return;
-      await authorizeContentEdit(deps, principal.id, body.contentType);
+      await authorizeContentEdit({ deps, principalId: principal.id, contentType: body.contentType });
       await unassignTerms({ deps: writeDeps(deps), principalId: principal.id, ...body });
       res.status(204).send();
     } catch (err) {
@@ -133,7 +133,7 @@ export function registerAdminTaxonomyAssignedTermsRoute(app: Express, deps: Taxo
       if (!allowed.allowed) {
         throw new ForbiddenError({ message: `principal '${principal.id}' is not authorized for '${TAXONOMY_PERMISSION}' (${allowed.reason})`, permission: TAXONOMY_PERMISSION, reason: allowed.reason });
       }
-      await authorizeContentEdit(deps, principal.id, contentType);
+      await authorizeContentEdit({ deps, principalId: principal.id, contentType });
       const rows = await deps.entryTermRepo.listForContent({ contentType, contentId });
       res.json({ termIds: rows.map((row) => row.termId).sort() });
     } catch (err) {

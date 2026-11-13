@@ -65,29 +65,29 @@ export class SqlTaxonomyRepo
 {
   protected readonly kernel: ContentKernel;
   protected readonly workspaceId: string;
-  constructor(kernel: ContentKernel, workspaceId: string) {
+  constructor({ kernel, workspaceId }: { kernel: ContentKernel; workspaceId: string }) {
     this.kernel = kernel;
     this.workspaceId = workspaceId;
   }
 
   async insert(row: Taxonomy): Promise<unknown> {
-    await this.kernel.run((db) => db.insertInto("taxonomies").values(toTaxonomyRow(this.workspaceId, row)).execute());
+    await this.kernel.run((db) => db.insertInto("taxonomies").values(toTaxonomyRow({ workspaceId: this.workspaceId, row })).execute());
     return row;
   }
 
   async findById({ id }: { id: string }): Promise<{ id: string; hierarchical: boolean; allowList?: string[] } | null> {
-    const row = await this.findLive(id);
+    const row = await this.findLive({ id });
     return row ? { id: row.id, hierarchical: row.hierarchical } : null;
   }
 
   /** `ImportableTaxonomyRepoPort` (`importTaxonomy`'s CAS read) — the full live row. */
   async findByIdFull({ id }: { id: string }): Promise<Taxonomy | null> {
-    return this.findLive(id);
+    return this.findLive({ id });
   }
 
   /** Publish-content's read: the full row even when trashed (`status` = `"trash"`), so a precheck can
    *  refuse it instead of planning a create that would collide. */
-  async findAnyById(id: string): Promise<Taxonomy | null> {
+  async findAnyById({ id }: { id: string }): Promise<Taxonomy | null> {
     const row = await this.kernel.run((db) =>
       db
         .selectFrom("taxonomies")
@@ -135,8 +135,8 @@ export class SqlTaxonomyRepo
   /** Trash display read for `trashTaxonomy` (`trash-term.ts`) — additive, not part of the certified
    *  `TaxonomyRepoPort`. Excludes an already-trashed taxonomy, like every other read here.
    *  @complexity O(1) plus whatever index the workspace/id match uses. */
-  async findForTrash(id: string): Promise<{ id: string; name: string; version: number } | null> {
-    const row = await this.findLive(id);
+  async findForTrash({ id }: { id: string }): Promise<{ id: string; name: string; version: number } | null> {
+    const row = await this.findLive({ id });
     return row ? { id: row.id, name: row.name, version: row.version } : null;
   }
 
@@ -165,7 +165,7 @@ export class SqlTaxonomyRepo
     });
   }
 
-  private async findLive(id: string): Promise<Taxonomy | null> {
+  private async findLive({ id }: { id: string }): Promise<Taxonomy | null> {
     const row = await this.kernel.run((db) =>
       db
         .selectFrom("taxonomies")
@@ -183,13 +183,13 @@ export class SqlTaxonomyRepo
 export class SqlTermRepo implements TermRepoPort, TermListPort, ImportableTermRepoPort, TermPublishReadPort {
   protected readonly kernel: ContentKernel;
   protected readonly workspaceId: string;
-  constructor(kernel: ContentKernel, workspaceId: string) {
+  constructor({ kernel, workspaceId }: { kernel: ContentKernel; workspaceId: string }) {
     this.kernel = kernel;
     this.workspaceId = workspaceId;
   }
 
   async insert(row: Term): Promise<unknown> {
-    await this.kernel.run((db) => db.insertInto("terms").values(toTermRow(this.workspaceId, row)).execute());
+    await this.kernel.run((db) => db.insertInto("terms").values(toTermRow({ workspaceId: this.workspaceId, row })).execute());
     return row;
   }
 
@@ -219,17 +219,17 @@ export class SqlTermRepo implements TermRepoPort, TermListPort, ImportableTermRe
   }
 
   async findById({ id }: { id: string }): Promise<{ id: string; taxonomyId: string; name?: string } | null> {
-    const row = await this.findLive(id);
+    const row = await this.findLive({ id });
     return row ? { id: row.id, taxonomyId: row.taxonomyId, name: row.name } : null;
   }
 
   /** `ImportableTermRepoPort` (`importTerm`'s CAS read) — the full live row. */
   async findByIdFull({ id }: { id: string }): Promise<Term | null> {
-    return this.findLive(id);
+    return this.findLive({ id });
   }
 
   /** Publish-content's read: the full row even when trashed (see `SqlTaxonomyRepo.findAnyById`). */
-  async findAnyById(id: string): Promise<Term | null> {
+  async findAnyById({ id }: { id: string }): Promise<Term | null> {
     const row = await this.kernel.run((db) =>
       db
         .selectFrom("terms")
@@ -259,7 +259,7 @@ export class SqlTermRepo implements TermRepoPort, TermListPort, ImportableTermRe
    *  name, the same join `registry.ts`'s `term` entry uses for the generic Trash's display. Excludes
    *  an already-trashed term (own marker or taxonomy trashed). @complexity O(1) plus the join's index. */
   async findForTrash(
-    id: string
+    { id }: { id: string }
   ): Promise<{ id: string; name: string; taxonomyId: string; taxonomyName: string; version: number } | null> {
     const row = await this.kernel.run((db) =>
       db
@@ -285,8 +285,8 @@ export class SqlTermRepo implements TermRepoPort, TermListPort, ImportableTermRe
    *  trash-BLIND, unlike every other read on this class: a purge only ever runs on a row that is
    *  already hidden, so a live filter would return `null` exactly when the follow-up needs the term's
    *  name/taxonomy for the revision it is about to write. @complexity O(1). */
-  async findForPurgeAudit(id: string): Promise<{ id: string; name: string; taxonomyId: string } | null> {
-    const row = await this.findAnyById(id);
+  async findForPurgeAudit({ id }: { id: string }): Promise<{ id: string; name: string; taxonomyId: string } | null> {
+    const row = await this.findAnyById({ id });
     return row ? { id: row.id, name: row.name, taxonomyId: row.taxonomyId } : null;
   }
 
@@ -294,7 +294,7 @@ export class SqlTermRepo implements TermRepoPort, TermListPort, ImportableTermRe
    *  of status, because the taxonomy `purgeFirst` cascade physically deletes all of them, whether or
    *  not each carries its own trash marker. `listByTaxonomy` cannot serve this: it excludes rows under
    *  an already-trashed taxonomy, which is always true by the time a purge runs. */
-  async listIdsForPurgeAudit(taxonomyId: string): Promise<string[]> {
+  async listIdsForPurgeAudit({ taxonomyId }: { taxonomyId: string }): Promise<string[]> {
     const rows = await this.kernel.run((db) =>
       db
         .selectFrom("terms")
@@ -309,8 +309,8 @@ export class SqlTermRepo implements TermRepoPort, TermListPort, ImportableTermRe
   /** Ancestor-chain lookup for `validation-chain.ts`'s `wouldCreateCycle` — mirrors
    *  `InMemoryTermRepo.getParentId`'s optional, not-yet-wired-by-any-route seam. Async since a query
    *  can no longer be a synchronous terminal; nothing calls it today. Trash-blind, like the original. */
-  async getParentId(termId: string): Promise<string | null> {
-    const row = await this.findAnyById(termId);
+  async getParentId({ termId }: { termId: string }): Promise<string | null> {
+    const row = await this.findAnyById({ id: termId });
     return row?.parentId ?? null;
   }
 
@@ -334,7 +334,7 @@ export class SqlTermRepo implements TermRepoPort, TermListPort, ImportableTermRe
     return Number(row?.n ?? 0);
   }
 
-  private async findLive(id: string): Promise<Term | null> {
+  private async findLive({ id }: { id: string }): Promise<Term | null> {
     const row = await this.kernel.run((db) =>
       db
         .selectFrom("terms")
@@ -352,7 +352,7 @@ export class SqlTermRepo implements TermRepoPort, TermListPort, ImportableTermRe
 export class SqlEntryTermRepo implements EntryTermRepoPort, EntryTermReadPort, UnassignableEntryTermRepoPort {
   protected readonly kernel: ContentKernel;
   protected readonly workspaceId: string;
-  constructor(kernel: ContentKernel, workspaceId: string) {
+  constructor({ kernel, workspaceId }: { kernel: ContentKernel; workspaceId: string }) {
     this.kernel = kernel;
     this.workspaceId = workspaceId;
   }
@@ -399,8 +399,8 @@ export class SqlEntryTermRepo implements EntryTermRepoPort, EntryTermReadPort, U
    * @complexity O(f + i) where f/i are the row counts for each term.
    */
   async countOverlap(params: { fromTermId: string; intoTermId: string }): Promise<number> {
-    const fromRows = await this.contentOfTerm(params.fromTermId);
-    const intoRows = await this.contentOfTerm(params.intoTermId);
+    const fromRows = await this.contentOfTerm({ termId: params.fromTermId });
+    const intoRows = await this.contentOfTerm({ termId: params.intoTermId });
     const intoKeys = new Set(intoRows.map((r) => `${r.content_type}::${r.content_id}`));
     return fromRows.filter((r) => intoKeys.has(`${r.content_type}::${r.content_id}`)).length;
   }
@@ -488,7 +488,7 @@ export class SqlEntryTermRepo implements EntryTermRepoPort, EntryTermReadPort, U
   }
 
   /** Every `(content_type, content_id)` assigned to one term in this workspace. */
-  private contentOfTerm(termId: string) {
+  private contentOfTerm({ termId }: { termId: string }) {
     return this.kernel.run((db) =>
       db
         .selectFrom("entry_terms")
@@ -521,20 +521,20 @@ export class SqlEntryTermRepo implements EntryTermRepoPort, EntryTermReadPort, U
 export class SqlTaxonomyRevisionRepo implements TaxonomyRevisionRepoPort {
   protected readonly kernel: ContentKernel;
   protected readonly workspaceId: string;
-  constructor(kernel: ContentKernel, workspaceId: string) {
+  constructor({ kernel, workspaceId }: { kernel: ContentKernel; workspaceId: string }) {
     this.kernel = kernel;
     this.workspaceId = workspaceId;
   }
 
   async insert(row: TaxonomyRevisionRow): Promise<unknown> {
     await this.kernel.run((db) =>
-      db.insertInto("taxonomy_revisions").values(toTaxonomyRevisionRow(this.workspaceId, row)).execute()
+      db.insertInto("taxonomy_revisions").values(toTaxonomyRevisionRow({ workspaceId: this.workspaceId, row })).execute()
     );
     return row;
   }
 
   /** Test-only helper: the append-only revision ledger for one taxonomy, in seq order. */
-  async listForTests(taxonomyId: string): Promise<TaxonomyRevisionRow[]> {
+  async listForTests({ taxonomyId }: { taxonomyId: string }): Promise<TaxonomyRevisionRow[]> {
     const rows = await this.kernel.run((db) =>
       db
         .selectFrom("taxonomy_revisions")

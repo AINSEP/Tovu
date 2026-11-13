@@ -111,7 +111,7 @@ function tokensToRootCss(theme: DiscoveredTheme): string {
  * no `defaultMode`, or when the raw page already carries its own `data-theme`. */
 function injectDefaultColorMode(html: string, defaultMode: string | undefined): string {
   if (defaultMode === undefined) return html;
-  return html.replace(/<html(?![^>]*\sdata-theme=)([^>]*)>/i, `<html$1 data-theme="${defaultMode}">`);
+  return html.replace(/<html(?![^>]*\sdata-theme=)([^>]*)>/i, (_match, attributes: string) => `<html${attributes} data-theme="${defaultMode}">`);
 }
 
 /** Inlines {@link tokensToRootCss}'s `<style>` block immediately before the (already root-relative)

@@ -201,7 +201,7 @@ function ExternalMcpConnectionCard(props: {
     // Same head-row shape as `SourceConfigItemCard` (toggle, name, then a small badge and ⓘ), minus
     // Remove and the expandable fields: a built-in connection is the host's, not the operator's.
     const label = sourceDisplayLabel(source, fieldSpecs);
-    const enableLabel = tBuiltIn("Enable {name}").replace("{name}", label);
+    const enableLabel = tBuiltIn("Enable {name}").replace("{name}", () => label);
     return (
       <div className="source-config-item-card external-mcp-builtin-card" role="region" aria-label={label} {...agentHandle({ handle: cardHandle }, { role: "region", label })}>
         <div className="source-config-item-card-head">
@@ -213,7 +213,7 @@ function ExternalMcpConnectionCard(props: {
             <span className="external-mcp-builtin-badge">{tBuiltIn("Built-in")}</span>
             <InfoTip
               label={tBuiltIn("Lets this site's assistant list your other Tovu sites, add a site pointer, and reveal a site folder.")}
-              triggerLabel={tBuiltIn("About {name}").replace("{name}", label)}
+              triggerLabel={tBuiltIn("About {name}").replace("{name}", () => label)}
               agentHandle={`${cardHandle}-info`}
             />
           </span>
@@ -247,7 +247,7 @@ function ExternalMcpConnectionCard(props: {
  *  the row says what it is waiting on. */
 function ExternalMcpConnectButton(props: { cardHandle: string; rowLabel: string; busy: boolean; tDrift: Translate; onConnect: () => void }) {
   const { cardHandle, rowLabel, busy, tDrift, onConnect } = props;
-  const label = tDrift("Sign in to {name}").replace("{name}", rowLabel);
+  const label = tDrift("Sign in to {name}").replace("{name}", () => rowLabel);
   return (
     <button
       type="button"

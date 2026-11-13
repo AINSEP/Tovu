@@ -289,7 +289,7 @@ export function credentialStepSubtitle(executionMode: AdminPublishExecutionMode,
   if (executionMode === "hosted-api-only") {
     return translate("This workspace can't use your computer's terminal — connecting here is the only way to publish.");
   }
-  return translate("Save your {credential} so Tovu can publish on your behalf.").replace("{credential}", credentialNoun(credential));
+  return translate("Save your {credential} so Tovu can publish on your behalf.").replace("{credential}", () => credentialNoun(credential));
 }
 
 /** The help a config field, credential field or credential form shows: the descriptor's

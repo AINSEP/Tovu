@@ -123,7 +123,7 @@ function NewTermForm({ taxonomy, onCreated, agentBase: base, t }: NewTermFormPro
   return (
     <form className="notice taxonomy-new-term-form" onSubmit={submit}>
       <label htmlFor={`new-term-name-${taxonomy.taxonomy.id}`}>
-        {t("New term in {name}").replace("{name}", taxonomy.taxonomy.name)}
+        {t("New term in {name}").replace("{name}", () => taxonomy.taxonomy.name)}
       </label>
       <span className="editor-actions">
         <input
@@ -517,7 +517,7 @@ function TermDeleteDialog({ pendingDeleteTerm, deleteTermBusy, confirmDeleteTerm
       title={t("Move to trash?")}
       body={
         pendingDeleteTerm ? (
-          <p>{t('Move "{name}" to trash?').replace("{name}", pendingDeleteTerm.name)}</p>
+          <p>{t('Move "{name}" to trash?').replace("{name}", () => pendingDeleteTerm.name)}</p>
         ) : null
       }
       confirmLabel={t("Move to trash")}
@@ -555,7 +555,7 @@ function TaxonomyDeleteDialog({
           <p>
             {t('Move "{name}" and its terms to trash?').replace(
               "{name}",
-              pendingDeleteTaxonomy.name,
+              () => pendingDeleteTaxonomy.name,
             )}
           </p>
         ) : null
@@ -758,7 +758,7 @@ function namespaceList({
               <button type="button" className="btn-secondary" onClick={() => deleteState.copyHtmlEmbed({ taxonomy: group.taxonomy })}>{t("Copy HTML embed")}</button>
               <TaxonomyRowMenu
                 portalContainer={menuPortalContainer}
-                triggerLabel={t('Actions for taxonomy "{name}"').replace("{name}", group.taxonomy.name)}
+                triggerLabel={t('Actions for taxonomy "{name}"').replace("{name}", () => group.taxonomy.name)}
                 agentHandle={taxonomyMenuHandles[groupIndex]}
                 items={[
                   {
@@ -868,7 +868,7 @@ function namespaceList({
                       <span onClick={(e) => e.stopPropagation()}>
                         <TaxonomyRowMenu
                           portalContainer={menuPortalContainer}
-                          triggerLabel={t('Actions for term "{name}"').replace("{name}", term.name)}
+                          triggerLabel={t('Actions for term "{name}"').replace("{name}", () => term.name)}
                           agentHandle={`${termHandle}-menu`}
                           items={[
                             {

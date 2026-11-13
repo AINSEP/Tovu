@@ -423,7 +423,7 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
 
   if (loadError) return <div className="notice error">{loadError}</div>;
   if (!loaded || contentType === undefined) return <div className="notice">{t("Loading entry…")}</div>;
-  if (!contentType) return <div className="notice error">{t('Unknown content type "{contentTypeKey}".').replace("{contentTypeKey}", props.contentTypeKey)}</div>;
+  if (!contentType) return <div className="notice error">{t('Unknown content type "{contentTypeKey}".').replace("{contentTypeKey}", () => props.contentTypeKey)}</div>;
   if (props.entryId && !entry) return <div className="notice error">{t("Entry not found.")}</div>;
 
   return (
@@ -438,7 +438,7 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>
           <h1 className="page-title">
-            {t(entry ? "Edit {label} entry" : "New {label} entry").replace("{label}", contentType.label)}
+            {t(entry ? "Edit {label} entry" : "New {label} entry").replace("{label}", () => contentType.label)}
           </h1>
           <p className="page-description">{t("Update this entry's title, fields, and body.")}</p>
         </div>

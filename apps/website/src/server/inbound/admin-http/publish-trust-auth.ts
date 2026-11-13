@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 import {
   grantAllowsCapability,
@@ -222,6 +223,11 @@ function acceptedKeyFor(
  *   reach the HKDF; only those carrying a VERIFIED publishing token reach the two store reads.
  */
 export function requirePublishTrust(deps: PublishTrustAuthDeps) {
+  const targetInstallationId = deps.targetInstallationId.catch((error: unknown) => {
+    console.error("[publish-trust] Could not derive the site's publishing identity:",
+      redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text);
+    return null;
+  });
   return async function requirePublishTrustMiddleware(
     req: Request,
     res: Response,
@@ -235,8 +241,8 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
 
     // No site key means no installation id, so no token can be verified here: pass it on like any
     // other unverifiable token. Express 4 would otherwise leave the request hanging on the rejection.
-    const targetInstallationId = await deps.targetInstallationId.catch(() => null);
-    if (targetInstallationId === null) {
+    const installationId = await targetInstallationId;
+    if (installationId === null) {
       next();
       return;
     }
@@ -244,8 +250,12 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
     // "cannot verify" answer as above, never a rejected middleware.
     const verified = await verifyPublishSession(
       { keyring: deps.keyring, workspaceId: deps.workspaceId, clock: deps.clock },
-      { token, expectedAudience: targetInstallationId }
-    ).catch(() => null);
+      { token, expectedAudience: installationId }
+    ).catch((error: unknown) => {
+      console.error("[publish-trust] Could not verify the publishing session:",
+        redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text);
+      return null;
+    });
     if (verified === null || !verified.ok) {
       next();
       return;

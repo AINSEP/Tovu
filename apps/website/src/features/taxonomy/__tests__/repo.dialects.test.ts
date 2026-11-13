@@ -41,10 +41,10 @@ interface Bundle {
 function bundleFor(kernel: ContentKernel): Bundle {
   return {
     kernel,
-    taxonomies: new SqlTaxonomyRepo(kernel, WS),
-    terms: new SqlTermRepo(kernel, WS),
-    entryTerms: new SqlEntryTermRepo(kernel, WS),
-    revisions: new SqlTaxonomyRevisionRepo(kernel, WS),
+    taxonomies: new SqlTaxonomyRepo({ kernel, workspaceId: WS }),
+    terms: new SqlTermRepo({ kernel, workspaceId: WS }),
+    entryTerms: new SqlEntryTermRepo({ kernel, workspaceId: WS }),
+    revisions: new SqlTaxonomyRevisionRepo({ kernel, workspaceId: WS }),
   };
 }
 
@@ -71,17 +71,17 @@ describeEachDialect<Bundle>(
     test("finds miss an unknown id and another workspace's row", async () => {
       const repo = makeRepo();
       await repo.insert(taxonomy("t1"));
-      const other = new SqlTaxonomyRepo(ctx.kernel, OTHER);
+      const other = new SqlTaxonomyRepo({ kernel: ctx.kernel, workspaceId: OTHER });
       for (const target of [repo, other]) {
         assert.equal(await target.findById({ id: "nope" }), null);
         assert.equal(await target.findByIdFull({ id: "nope" }), null);
-        assert.equal(await target.findAnyById("nope"), null);
-        assert.equal(await target.findForTrash("nope"), null);
+        assert.equal(await target.findAnyById({ id: "nope" }), null);
+        assert.equal(await target.findForTrash({ id: "nope" }), null);
       }
       assert.equal(await other.findById({ id: "t1" }), null);
       assert.equal(await other.findByIdFull({ id: "t1" }), null);
-      assert.equal(await other.findAnyById("t1"), null);
-      assert.equal(await other.findForTrash("t1"), null);
+      assert.equal(await other.findAnyById({ id: "t1" }), null);
+      assert.equal(await other.findForTrash({ id: "t1" }), null);
       assert.deepEqual(await other.list(), []);
     });
 
@@ -91,10 +91,10 @@ describeEachDialect<Bundle>(
       await repo.insert(taxonomy("live"));
       assert.equal(await repo.findById({ id: "gone" }), null);
       assert.equal(await repo.findByIdFull({ id: "gone" }), null);
-      assert.equal(await repo.findForTrash("gone"), null);
-      assert.equal((await repo.findAnyById("gone"))?.status, "trash");
+      assert.equal(await repo.findForTrash({ id: "gone" }), null);
+      assert.equal((await repo.findAnyById({ id: "gone" }))?.status, "trash");
       assert.deepEqual((await repo.list()).map((r) => r.id), ["live"]);
-      assert.deepEqual(await repo.findForTrash("live"), { id: "live", name: "Tax live", version: 1 });
+      assert.deepEqual(await repo.findForTrash({ id: "live" }), { id: "live", name: "Tax live", version: 1 });
     });
 
     test("update rewrites a live row and no-ops on a trashed or other-workspace row", async () => {
@@ -105,24 +105,24 @@ describeEachDialect<Bundle>(
       await repo.update(changed);
       assert.deepEqual(await repo.findByIdFull({ id: "t1" }), changed);
       await repo.update(taxonomy("dead", { name: "revived", status: "active" }));
-      const dead = await repo.findAnyById("dead");
+      const dead = await repo.findAnyById({ id: "dead" });
       assert.equal(dead?.status, "trash");
       assert.equal(dead?.name, "kept");
-      await (new SqlTaxonomyRepo(ctx.kernel, OTHER)).update(taxonomy("t1", { name: "hijacked" }));
+      await (new SqlTaxonomyRepo({ kernel: ctx.kernel, workspaceId: OTHER })).update(taxonomy("t1", { name: "hijacked" }));
       assert.equal((await repo.findByIdFull({ id: "t1" }))?.name, "Renamed");
     });
 
     test("delete removes only this workspace's row", async () => {
       const repo = makeRepo();
-      const other = new SqlTaxonomyRepo(ctx.kernel, OTHER);
+      const other = new SqlTaxonomyRepo({ kernel: ctx.kernel, workspaceId: OTHER });
       await repo.insert(taxonomy("t1"));
       await other.insert(taxonomy("o1"));
       await other.delete({ id: "t1" });
-      assert.equal((await repo.findAnyById("t1"))?.id, "t1");
+      assert.equal((await repo.findAnyById({ id: "t1" }))?.id, "t1");
       await repo.delete({ id: "o1" });
-      assert.equal((await other.findAnyById("o1"))?.id, "o1");
+      assert.equal((await other.findAnyById({ id: "o1" }))?.id, "o1");
       await repo.delete({ id: "t1" });
-      assert.equal(await repo.findAnyById("t1"), null);
+      assert.equal(await repo.findAnyById({ id: "t1" }), null);
       await repo.delete({ id: "absent" });
     });
 
@@ -145,8 +145,8 @@ describeEachDialect<Bundle>(
         } }),
         /boom/
       );
-      assert.equal(await repo.findAnyById("c"), null);
-      assert.equal(await repo.findAnyById("inner"), null);
+      assert.equal(await repo.findAnyById({ id: "c" }), null);
+      assert.equal(await repo.findAnyById({ id: "inner" }), null);
       assert.equal((await repo.list()).length, 2);
     });
   }
@@ -159,7 +159,7 @@ describeEachDialect<Bundle>(
     let ctx!: Bundle;
     const makeRepo = () => ((ctx = make()), ctx.terms);
     async function seedTaxonomy(id: string, status = "active", workspaceId = WS): Promise<void> {
-      await (new SqlTaxonomyRepo(ctx.kernel, workspaceId)).insert(taxonomy(id, { status }));
+      await (new SqlTaxonomyRepo({ kernel: ctx.kernel, workspaceId })).insert(taxonomy(id, { status }));
     }
 
     test("insert round-trips every field incl. a parent", async () => {
@@ -169,33 +169,33 @@ describeEachDialect<Bundle>(
       assert.deepEqual(await repo.insert(child), child);
       assert.deepEqual(await repo.findByIdFull({ id: "child" }), child);
       assert.deepEqual(await repo.findById({ id: "child" }), { id: "child", taxonomyId: "tx", name: "Term child" });
-      assert.deepEqual(await repo.findAnyById("child"), child);
-      assert.equal(await repo.getParentId("child"), "root");
+      assert.deepEqual(await repo.findAnyById({ id: "child" }), child);
+      assert.equal(await repo.getParentId({ termId: "child" }), "root");
     });
 
     test("reads miss an unknown id and another workspace's row", async () => {
       const repo = makeRepo();
       await seedTaxonomy("tx");
       await repo.insert(term("a", "tx"));
-      const other = new SqlTermRepo(ctx.kernel, OTHER);
+      const other = new SqlTermRepo({ kernel: ctx.kernel, workspaceId: OTHER });
       assert.equal(await repo.findById({ id: "nope" }), null);
       assert.equal(await repo.findByIdFull({ id: "nope" }), null);
-      assert.equal(await repo.findAnyById("nope"), null);
-      assert.equal(await repo.findForTrash("nope"), null);
-      assert.equal(await repo.findForPurgeAudit("nope"), null);
-      assert.equal(await repo.getParentId("nope"), null);
-      assert.equal(await repo.getParentId("a"), null);
+      assert.equal(await repo.findAnyById({ id: "nope" }), null);
+      assert.equal(await repo.findForTrash({ id: "nope" }), null);
+      assert.equal(await repo.findForPurgeAudit({ id: "nope" }), null);
+      assert.equal(await repo.getParentId({ termId: "nope" }), null);
+      assert.equal(await repo.getParentId({ termId: "a" }), null);
       for (const read of [
         other.findById({ id: "a" }),
         other.findByIdFull({ id: "a" }),
-        other.findAnyById("a"),
-        other.findForTrash("a"),
-        other.findForPurgeAudit("a"),
+        other.findAnyById({ id: "a" }),
+        other.findForTrash({ id: "a" }),
+        other.findForPurgeAudit({ id: "a" }),
       ]) {
         assert.equal(await read, null);
       }
       assert.deepEqual(await other.listByTaxonomy({ taxonomyId: "tx" }), []);
-      assert.deepEqual(await other.listIdsForPurgeAudit("tx"), []);
+      assert.deepEqual(await other.listIdsForPurgeAudit({ taxonomyId: "tx" }), []);
       assert.equal(await other.countChildren({ parentId: "a" }), 0);
     });
 
@@ -211,26 +211,26 @@ describeEachDialect<Bundle>(
       for (const id of ["own-trash", "under-trash"]) {
         assert.equal(await repo.findById({ id: id }), null);
         assert.equal(await repo.findByIdFull({ id: id }), null);
-        assert.equal(await repo.findForTrash(id), null);
-        assert.ok(await repo.findAnyById(id));
-        assert.ok(await repo.findForPurgeAudit(id));
+        assert.equal(await repo.findForTrash({ id }), null);
+        assert.ok(await repo.findAnyById({ id }));
+        assert.ok(await repo.findForPurgeAudit({ id }));
       }
-      assert.deepEqual((await repo.listIdsForPurgeAudit("live-tx")).sort(), ["ok", "own-trash"]);
-      assert.deepEqual(await repo.listIdsForPurgeAudit("dead-tx"), ["under-trash"]);
+      assert.deepEqual((await repo.listIdsForPurgeAudit({ taxonomyId: "live-tx" })).sort(), ["ok", "own-trash"]);
+      assert.deepEqual(await repo.listIdsForPurgeAudit({ taxonomyId: "dead-tx" }), ["under-trash"]);
     });
 
     test("findForTrash joins the taxonomy name; findForPurgeAudit returns the audit shape", async () => {
       const repo = makeRepo();
       await seedTaxonomy("tx");
       await repo.insert(term("a", "tx", { version: 7 }));
-      assert.deepEqual(await repo.findForTrash("a"), {
+      assert.deepEqual(await repo.findForTrash({ id: "a" }), {
         id: "a",
         name: "Term a",
         taxonomyId: "tx",
         taxonomyName: "Tax tx",
         version: 7,
       });
-      assert.deepEqual(await repo.findForPurgeAudit("a"), { id: "a", name: "Term a", taxonomyId: "tx" });
+      assert.deepEqual(await repo.findForPurgeAudit({ id: "a" }), { id: "a", name: "Term a", taxonomyId: "tx" });
     });
 
     test("update rewrites a live term and no-ops on a trashed, orphaned-by-trash or other-workspace one", async () => {
@@ -245,10 +245,10 @@ describeEachDialect<Bundle>(
       assert.deepEqual(await repo.findByIdFull({ id: "a" }), changed);
       await repo.update(term("own", "tx", { name: "revived", status: "active" }));
       await repo.update(term("under", "dead-tx", { name: "revived" }));
-      assert.equal((await repo.findAnyById("own"))?.name, "kept");
-      assert.equal((await repo.findAnyById("own"))?.status, "trash");
-      assert.equal((await repo.findAnyById("under"))?.name, "kept");
-      await (new SqlTermRepo(ctx.kernel, OTHER)).update(term("a", "tx", { name: "hijacked" }));
+      assert.equal((await repo.findAnyById({ id: "own" }))?.name, "kept");
+      assert.equal((await repo.findAnyById({ id: "own" }))?.status, "trash");
+      assert.equal((await repo.findAnyById({ id: "under" }))?.name, "kept");
+      await (new SqlTermRepo({ kernel: ctx.kernel, workspaceId: OTHER })).update(term("a", "tx", { name: "hijacked" }));
       assert.equal((await repo.findByIdFull({ id: "a" }))?.name, "Renamed");
     });
 
@@ -266,23 +266,23 @@ describeEachDialect<Bundle>(
 
     test("delete removes only this workspace's term", async () => {
       const repo = makeRepo();
-      const other = new SqlTermRepo(ctx.kernel, OTHER);
+      const other = new SqlTermRepo({ kernel: ctx.kernel, workspaceId: OTHER });
       await seedTaxonomy("tx");
       await seedTaxonomy("otx", "active", OTHER);
       await repo.insert(term("a", "tx"));
       await other.insert(term("o", "otx"));
       await other.delete({ id: "a" });
-      assert.ok(await repo.findAnyById("a"));
+      assert.ok(await repo.findAnyById({ id: "a" }));
       await repo.delete({ id: "o" });
-      assert.ok(await other.findAnyById("o"));
+      assert.ok(await other.findAnyById({ id: "o" }));
       await repo.delete({ id: "a" });
-      assert.equal(await repo.findAnyById("a"), null);
+      assert.equal(await repo.findAnyById({ id: "a" }), null);
       await repo.delete({ id: "absent" });
     });
 
     test("a failed insert inside a taxonomy transaction rolls the earlier insert back", async () => {
       const repo = makeRepo();
-      const taxonomies = new SqlTaxonomyRepo(ctx.kernel, WS);
+      const taxonomies = new SqlTaxonomyRepo({ kernel: ctx.kernel, workspaceId: WS });
       await seedTaxonomy("tx");
       await repo.insert(term("dup", "tx"));
       await assert.rejects(
@@ -291,8 +291,8 @@ describeEachDialect<Bundle>(
           await repo.insert(term("dup", "tx"));
         } })
       );
-      assert.equal(await repo.findAnyById("fresh"), null);
-      assert.ok(await repo.findAnyById("dup"));
+      assert.equal(await repo.findAnyById({ id: "fresh" }), null);
+      assert.ok(await repo.findAnyById({ id: "dup" }));
     });
   }
 );
@@ -304,8 +304,8 @@ describeEachDialect<Bundle>(
     let ctx!: Bundle;
     const makeRepo = () => ((ctx = make()), ctx.entryTerms);
     async function seedTerms(): Promise<void> {
-      const taxonomies = new SqlTaxonomyRepo(ctx.kernel, WS);
-      const terms = new SqlTermRepo(ctx.kernel, WS);
+      const taxonomies = new SqlTaxonomyRepo({ kernel: ctx.kernel, workspaceId: WS });
+      const terms = new SqlTermRepo({ kernel: ctx.kernel, workspaceId: WS });
       await taxonomies.insert(taxonomy("tx"));
       await taxonomies.insert(taxonomy("dead-tx", { status: "trash" }));
       for (const id of ["a", "b"]) await terms.insert(term(id, "tx"));
@@ -331,7 +331,7 @@ describeEachDialect<Bundle>(
 
     test("remove and deleteByContent return the removed count, scoped to the workspace", async () => {
       const repo = makeRepo();
-      const other = new SqlEntryTermRepo(ctx.kernel, OTHER);
+      const other = new SqlEntryTermRepo({ kernel: ctx.kernel, workspaceId: OTHER });
       await seedTerms();
       await repo.upsert(assign("p1", "a"));
       await repo.upsert(assign("p1", "b"));
@@ -352,15 +352,15 @@ describeEachDialect<Bundle>(
       await repo.upsert(assign("p1", "a"));
       await repo.upsert(assign("p2", "a"));
       await repo.upsert(assign("p2", "b"));
-      await (new SqlEntryTermRepo(ctx.kernel, OTHER)).upsert(assign("p1", "b"));
+      await (new SqlEntryTermRepo({ kernel: ctx.kernel, workspaceId: OTHER })).upsert(assign("p1", "b"));
       assert.equal(await repo.countOverlap({ fromTermId: "a", intoTermId: "b" }), 1);
       assert.equal(await repo.countOverlap({ fromTermId: "a", intoTermId: "absent" }), 0);
-      assert.equal(await (new SqlEntryTermRepo(ctx.kernel, OTHER)).countOverlap({ fromTermId: "a", intoTermId: "b" }), 0);
+      assert.equal(await (new SqlEntryTermRepo({ kernel: ctx.kernel, workspaceId: OTHER })).countOverlap({ fromTermId: "a", intoTermId: "b" }), 0);
     });
 
     test("repointTerm moves assignments, collapsing duplicates; other workspaces are untouched", async () => {
       const repo = makeRepo();
-      const other = new SqlEntryTermRepo(ctx.kernel, OTHER);
+      const other = new SqlEntryTermRepo({ kernel: ctx.kernel, workspaceId: OTHER });
       await seedTerms();
       await repo.upsert(assign("p1", "a", "2026-09-28T01:00:00.000Z"));
       await repo.upsert(assign("p2", "a", "2026-09-28T02:00:00.000Z"));
@@ -393,7 +393,7 @@ describeEachDialect<Bundle>(
       const flaky = Object.create(ctx.kernel) as ContentKernel;
       let calls = 0;
       flaky.run = (fn) => (++calls === 3 ? Promise.reject(new Error("boom")) : ctx.kernel.run(fn));
-      await assert.rejects((new SqlEntryTermRepo(flaky, WS)).repointTerm({ fromTermId: "a", intoTermId: "b" }), /boom/);
+      await assert.rejects((new SqlEntryTermRepo({ kernel: flaky, workspaceId: WS })).repointTerm({ fromTermId: "a", intoTermId: "b" }), /boom/);
       assert.equal(await repo.countByTerm({ termId: "a" }), 2);
       assert.equal(await repo.countByTerm({ termId: "b" }), 0);
     });
@@ -406,13 +406,13 @@ describeEachDialect<Bundle>(
       await repo.upsert(assign("p1", "gone", "2026-09-28T03:00:00.000Z"));
       await repo.upsert(assign("p1", "under", "2026-09-28T04:00:00.000Z"));
       await repo.upsert(assign("p2", "a"));
-      await (new SqlEntryTermRepo(ctx.kernel, OTHER)).upsert(assign("p1", "b"));
+      await (new SqlEntryTermRepo({ kernel: ctx.kernel, workspaceId: OTHER })).upsert(assign("p1", "b"));
       assert.deepEqual(await repo.listForContent({ contentType: "post", contentId: "p1" }), [
         { termId: "a", termName: "Term a", taxonomyName: "Tax tx" },
         { termId: "b", termName: "Term b", taxonomyName: "Tax tx" },
       ]);
       assert.deepEqual(await repo.listForContent({ contentType: "post", contentId: "none" }), []);
-      assert.deepEqual(await (new SqlEntryTermRepo(ctx.kernel, "third")).listForContent({ contentType: "post", contentId: "p1" }), []);
+      assert.deepEqual(await (new SqlEntryTermRepo({ kernel: ctx.kernel, workspaceId: "third" })).listForContent({ contentType: "post", contentId: "p1" }), []);
     });
   }
 );
@@ -437,26 +437,26 @@ describeEachDialect<Bundle>(
       const second = revision("t1", "rename", { name: "Old", nested: { a: [1, 2] } });
       assert.deepEqual(await repo.insert(first), first);
       await repo.insert(second);
-      assert.deepEqual(await repo.listForTests("t1"), [first, second]);
+      assert.deepEqual(await repo.listForTests({ taxonomyId: "t1" }), [first, second]);
     });
 
     test("listForTests misses an unknown taxonomy and another workspace's ledger", async () => {
       const repo = makeRepo();
       await repo.insert(revision("t1", "create", null));
-      assert.deepEqual(await repo.listForTests("nope"), []);
-      assert.deepEqual(await (new SqlTaxonomyRevisionRepo(ctx.kernel, OTHER)).listForTests("t1"), []);
+      assert.deepEqual(await repo.listForTests({ taxonomyId: "nope" }), []);
+      assert.deepEqual(await (new SqlTaxonomyRevisionRepo({ kernel: ctx.kernel, workspaceId: OTHER })).listForTests({ taxonomyId: "t1" }), []);
     });
 
     test("an insert inside a rolled-back transaction leaves no revision", async () => {
       const repo = makeRepo();
       await assert.rejects(
-        (new SqlTaxonomyRepo(ctx.kernel, WS)).transaction({ fn: async () => {
+        (new SqlTaxonomyRepo({ kernel: ctx.kernel, workspaceId: WS })).transaction({ fn: async () => {
           await repo.insert(revision("t1", "create", null));
           throw new Error("boom");
         } }),
         /boom/
       );
-      assert.deepEqual(await repo.listForTests("t1"), []);
+      assert.deepEqual(await repo.listForTests({ taxonomyId: "t1" }), []);
     });
   }
 );

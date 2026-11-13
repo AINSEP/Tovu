@@ -9,5 +9,5 @@ export function siteKeyStatusBadgeLabel(
   const { status, t } = input;
   if (!status.active) return t("None");
   if (status.source !== "env") return t("Active — key file");
-  return t("Active: environment variable {name}").replace("{name}", status.envVarName ?? "TOVU_SITE_KEY");
+  return t("Active: environment variable {name}").replace("{name}", () => status.envVarName ?? "TOVU_SITE_KEY");
 }

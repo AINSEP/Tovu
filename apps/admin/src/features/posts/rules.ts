@@ -469,10 +469,10 @@ export function comparePostsByUpdated(a: AdminPost, b: AdminPost): number {
  * @complexity Time/space: O(1).
  */
 export function postColumnSortLabel(t: Translate, columnName: string, direction: DataTableSortDirection | null): string {
-  if (direction === null) return t("Not sorted by {columnName}. Activate to sort ascending.").replace("{columnName}", columnName);
+  if (direction === null) return t("Not sorted by {columnName}. Activate to sort ascending.").replace("{columnName}", () => columnName);
   return direction === "asc"
-    ? t("Sorted by {columnName}, ascending. Activate to sort descending.").replace("{columnName}", columnName)
-    : t("Sorted by {columnName}, descending. Activate to sort ascending.").replace("{columnName}", columnName);
+    ? t("Sorted by {columnName}, ascending. Activate to sort descending.").replace("{columnName}", () => columnName)
+    : t("Sorted by {columnName}, descending. Activate to sort ascending.").replace("{columnName}", () => columnName);
 }
 
 /** Same contract as {@link postColumnSortLabel}, phrased in the Updated column's own "newest"/

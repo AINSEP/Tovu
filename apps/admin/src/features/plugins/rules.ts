@@ -535,8 +535,8 @@ function disableConfirmCopy(
 
 /** Server lifecycle warning texts this screen knows, matched in order; anything else shows as sent. */
 const AGENT_PLUGIN_WARNING_PATTERNS: readonly { readonly pattern: RegExp; readonly render: (match: RegExpMatchArray, translate: Translate) => string }[] = [
-  { pattern: /^Needs (\S+)$/, render: (m, translate) => translate("Needs {capabilities}").replace("{capabilities}", m[1]!) },
-  { pattern: /^(\S+) needs (\S+)$/, render: (m, translate) => translate("{plugin} needs {capability}").replace("{plugin}", m[1]!).replace("{capability}", m[2]!) },
+  { pattern: /^Needs (\S+)$/, render: (m, translate) => translate("Needs {capabilities}").replace("{capabilities}", () => m[1]!) },
+  { pattern: /^(\S+) needs (\S+)$/, render: (m, translate) => translate("{plugin} needs {capability}").replace("{plugin}", m[1]!).replace("{capability}", () => m[2]!) },
   { pattern: /^Unknown release version;/, render: (_m, translate) => translate("This package has no release version to compare.") },
   { pattern: /^Same version with different bytes;/, render: (_m, translate) => translate("Same version number as the installed one, with different contents.") },
 ];
@@ -567,7 +567,7 @@ export function agentPluginCompatibilityLines(required: { plugin: Pick<AdminAgen
   const { plugin, translate } = required;
   const lines: string[] = [];
   if (plugin.hostOk === false) lines.push(translate("Not for this Tovu version"));
-  if (plugin.missingRequires?.length) lines.push(translate("Needs {capabilities}").replace("{capabilities}", plugin.missingRequires.join(", ")));
+  if (plugin.missingRequires?.length) lines.push(translate("Needs {capabilities}").replace("{capabilities}", () => plugin.missingRequires!.join(", ")));
   return lines;
 }
 

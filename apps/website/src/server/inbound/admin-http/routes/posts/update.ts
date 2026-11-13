@@ -146,10 +146,20 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
       // key off the same real id even when the URL's own slug is one of the fields being changed in
       // this very request. Falls back to the raw param on no match, which reaches the exact same
       // "not found" 404 path this route already had (captureInverse's own findById returns null).
-      const postId = (await getAdminPostByIdOrSlug({
-        deps: { repo: deps.postRepo },
-        input: { workspaceId: deps.workspaceId, idOrSlug: rawParam },
-      }).catch(() => null))?.post.id ?? rawParam;
+      let postId: string;
+      try {
+        postId = (await getAdminPostByIdOrSlug({
+          deps: { repo: deps.postRepo },
+          input: { workspaceId: deps.workspaceId, idOrSlug: rawParam },
+        })).post.id;
+      } catch (error) {
+        if (!(error instanceof PostNotFoundError)) {
+          sendPostUpdateError(res, error);
+          return;
+        }
+        // A missing post keeps the existing raw-id lookup and not-found response.
+        postId = rawParam;
+      }
       const idempotencyKey = req.get("Idempotency-Key") || undefined;
 
       // Full pre-edit record, captured in captureInverse and reused verbatim by

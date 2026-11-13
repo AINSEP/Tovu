@@ -77,10 +77,20 @@ export const registerAdminPostDeleteRoute: ContentRouteRegistrar = (app, deps) =
     const rawParam = String(req.params.postId ?? "");
     // Admin URLs use the slug when one resolves (2026-08-10) — same resolve-up-front rationale as
     // `posts/update.ts`.
-    const postId = (await getAdminPostByIdOrSlug({
-      deps: { repo: deps.postRepo },
-      input: { workspaceId: deps.workspaceId, idOrSlug: rawParam },
-    }).catch(() => null))?.post.id ?? rawParam;
+    let postId: string;
+    try {
+      postId = (await getAdminPostByIdOrSlug({
+        deps: { repo: deps.postRepo },
+        input: { workspaceId: deps.workspaceId, idOrSlug: rawParam },
+      })).post.id;
+    } catch (error) {
+      if (!(error instanceof PostNotFoundError)) {
+        sendPostDeleteError(res, error);
+        return;
+      }
+      // A missing post keeps the existing raw-id lookup and not-found response.
+      postId = rawParam;
+    }
     const idempotencyKey = req.get("Idempotency-Key") || undefined;
 
     // Full pre-trash record, captured in captureInverse and reused verbatim by rollback so the

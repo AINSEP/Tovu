@@ -180,7 +180,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             header: t("More"),
             cell: (post) => (
               <RowMenu
-                triggerLabel={t('Actions for "{title}"').replace("{title}", post.title)}
+                triggerLabel={t('Actions for "{title}"').replace("{title}", () => post.title)}
                 agentHandle={`${rowMenuHandleById.get(post.id)}-menu`}
                 items={postRowMenuItems(
                   post,

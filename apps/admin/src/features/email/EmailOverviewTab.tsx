@@ -55,7 +55,7 @@ function UseRow(props: { row: MailUseRow; locale: string }) {
       ) : null}
       <span className="jini-field-hint">
         {row.evidence
-          ? t({ locale, key: "Last send: {outcome}, {when}" }).replace("{outcome}", row.evidence.outcome).replace("{when}", when(row.evidence.at, locale))
+          ? t({ locale, key: "Last send: {outcome}, {when}" }).replace("{outcome}", row.evidence.outcome).replace("{when}", () => when(row.evidence!.at, locale))
           : t({ locale, key: "No sends yet" })}
       </span>
     </li>
@@ -66,11 +66,11 @@ function UseRow(props: { row: MailUseRow; locale: string }) {
 export function testResultLine(result: MailTestSendResult, locale: string): { tone: Tone; text: string } {
   switch (result.outcome) {
     case "accepted":
-      return { tone: "ok", text: t({ locale, key: "Accepted by the provider for {to}." }).replace("{to}", result.to) };
+      return { tone: "ok", text: t({ locale, key: "Accepted by the provider for {to}." }).replace("{to}", () => result.to) };
     case "captured":
       return { tone: "neutral", text: t({ locale, key: "Kept on this machine — nothing was sent." }) };
     case "redirected":
-      return { tone: "neutral", text: t({ locale, key: "Test mode sent it to {to} instead." }).replace("{to}", result.redirectedTo) };
+      return { tone: "neutral", text: t({ locale, key: "Test mode sent it to {to} instead." }).replace("{to}", () => result.redirectedTo) };
     default:
       return { tone: "error", text: `${t({ locale, key: "Not sent." })} ${result.message}` };
   }

@@ -248,7 +248,7 @@ function replaceThemeFileText(
   }
   return edit.replaceAll
     ? currentContent.split(edit.oldString).join(edit.newString)
-    : currentContent.replace(edit.oldString, edit.newString);
+    : currentContent.replace(edit.oldString, () => edit.newString);
 }
 
 /** `name` is a bare filename, not a path — mirrors `explore.ts`'s `validateRenameTargetName` (the

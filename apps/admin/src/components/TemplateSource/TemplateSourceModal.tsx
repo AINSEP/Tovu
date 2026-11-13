@@ -168,5 +168,5 @@ export function TemplateSourceModal({
 }
 
 function translateTemplate(t: Translate, key: string, values: Record<string, string>): string {
-  return Object.entries(values).reduce((text, [name, value]) => text.replace(`{${name}}`, value), t(key));
+  return Object.entries(values).reduce((text, [name, value]) => text.replace(`{${name}}`, () => value), t(key));
 }

@@ -379,7 +379,7 @@ export function ThemePagesTab({
             header: t("More"),
             cell: (row, index) => (
               <RowMenu
-                triggerLabel={t('Actions for "{title}"').replace("{title}", row.pageId)}
+                triggerLabel={t('Actions for "{title}"').replace("{title}", () => row.pageId)}
                 agentHandle={`${rowHandles[index]}-menu`}
                 items={themePageRowMenuItems(
                   row,

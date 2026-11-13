@@ -331,7 +331,7 @@ test("purging a trashed term writes exactly one taxonomy_revisions row and one t
   });
   assert.equal(purged.purged, 1);
   assert.equal(taxonomyRevisionCount(h, "tax-5"), 1);
-  assert.deepEqual(await new SqliteTaxonomyRevisionRepo({ db: h.db, workspaceId: WS }).listForTests("tax-5"), [
+  assert.deepEqual(await new SqliteTaxonomyRevisionRepo({ db: h.db, workspaceId: WS }).listForTests({ taxonomyId: "tax-5" }), [
     { taxonomyId: "tax-5", op: "delete", previousState: { termId: "t1", name: "Red" }, actorId: ACTOR.principalId, recordedAt: AT },
   ]);
   assert.equal(h.outbox.events.length, 1);
@@ -358,7 +358,7 @@ test("purging a trashed taxonomy writes exactly one taxonomy_revisions row and o
   });
   assert.equal(purged.purged, 1);
   assert.equal(taxonomyRevisionCount(h, "tax-6"), 1);
-  assert.deepEqual(await new SqliteTaxonomyRevisionRepo({ db: h.db, workspaceId: WS }).listForTests("tax-6"), [
+  assert.deepEqual(await new SqliteTaxonomyRevisionRepo({ db: h.db, workspaceId: WS }).listForTests({ taxonomyId: "tax-6" }), [
     { taxonomyId: "tax-6", op: "delete", previousState: { deletedTermIds: ["c1"] }, actorId: ACTOR.principalId, recordedAt: AT },
   ]);
   assert.equal(h.outbox.events.length, 1);

@@ -1066,7 +1066,7 @@ function MediaCard({ item, handle, onExpand, menu, t }: {
             >{t("Restore")}</button>
           ) : null}
           <RowMenu
-            triggerLabel={t('Actions for "{title}"').replace("{title}", item.title)}
+            triggerLabel={t('Actions for "{title}"').replace("{title}", () => item.title)}
             agentHandle={`${handle}-menu`}
             items={mediaRowMenuItems(item, menu.editingId, { onToggleEdit: menu.onToggleEdit, onTrash: menu.onTrash, onRequestPurge: menu.onRequestPurge }, menu.locale)}
           />

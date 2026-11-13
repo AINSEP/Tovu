@@ -156,7 +156,10 @@ const MERGE_TOOL_ID = "taxonomy_execute_merge_term";
  * @throws {ToolInputError} For widget, unknown or tombstoned collection types.
  * @complexity O(1), at most one indexed content-type read.
  */
-async function requireTaggableContentType(deps: TaxonomyToolDeps, contentType: string): Promise<void> {
+async function requireTaggableContentType(
+  { deps, contentType }: { deps: TaxonomyToolDeps; contentType: string },
+  _optional = {},
+): Promise<void> {
   if (isContentTypeOnAllowList({ contentType })) return;
   if (await createLiveCollectionTermPolicy(deps).taxonomiesFor({ contentType }) !== null) return;
   throw new ToolInputError({ message: `content type '${contentType}' does not support taxonomy assignments. Use post, page, or a live collection key.` });
@@ -184,7 +187,10 @@ export function buildTaxonomyRegistrations(
   routeDeps: TaxonomyToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
-  const mergeHooks = (ctx: { principal: { id: string } }, fromTermId: string, intoTermId: string) =>
+  const mergeHooks = (
+    { ctx, fromTermId, intoTermId }: { ctx: { principal: { id: string } }; fromTermId: string; intoTermId: string },
+    _optional = {},
+  ) =>
     buildMergeTermHooks({
       workspaceId: routeDeps.workspaceId,
       fromTermId,
@@ -195,7 +201,7 @@ export function buildTaxonomyRegistrations(
       entryTermRepo: routeDeps.entryTermRepo,
       taxonomyRevisionRepo: routeDeps.taxonomyRevisionRepo,
     });
-  const termName = async (id: string) => (await routeDeps.termRepo.findById({ id }))?.name ?? `${id} (not found)`;
+  const termName = async ({ id }: { id: string }, _optional = {}) => (await routeDeps.termRepo.findById({ id }))?.name ?? `${id} (not found)`;
 
   const handlers: Record<string, ToolHandler> = {
     /** Uses the live, workspace-bound repository, including its parent-taxonomy Trash filter. */
@@ -217,8 +223,8 @@ export function buildTaxonomyRegistrations(
         const contentType = requireString({ input: input, key: "contentType" });
         const contentId = requireString({ input: input, key: "contentId" });
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.taxonomy.manage" }, { entityType: "taxonomy" });
-        await authorizeContentEdit(routeDeps, ctx.principal.id, contentType);
-        await requireTaggableContentType(routeDeps, contentType);
+        await authorizeContentEdit({ deps: routeDeps, principalId: ctx.principal.id, contentType });
+        await requireTaggableContentType({ deps: routeDeps, contentType });
         const assignments = await routeDeps.entryTermRepo.listForContent({ contentType, contentId });
         if (!assignments.length) return { contentType, contentId, terms: [] };
         const assigned = new Set(assignments.map(row => row.termId));
@@ -277,14 +283,14 @@ export function buildTaxonomyRegistrations(
 
       // The content's own edit permission first, as the admin route does; assignTerms then checks
       // admin.taxonomy.manage itself.
-      await authorizeContentEdit(routeDeps, ctx.principal.id, contentType);
+      await authorizeContentEdit({ deps: routeDeps, principalId: ctx.principal.id, contentType });
       const deps = taxonomyDeps(routeDeps);
       await assignTerms({
         deps: { ...deps, authorize: async params => {
           const result = await deps.authorize(params);
           // The service owns the taxonomy permission check. Validate the shared content-type
           // contract only after that grant, including empty assignment requests, before writes.
-          if (result.allowed) await requireTaggableContentType(routeDeps, contentType);
+          if (result.allowed) await requireTaggableContentType({ deps: routeDeps, contentType });
           return result;
         } },
         principalId: ctx.principal.id, contentType, contentId, termIds,
@@ -301,7 +307,7 @@ export function buildTaxonomyRegistrations(
       }
       const termIds = input.termIds as string[];
 
-      await authorizeContentEdit(routeDeps, ctx.principal.id, contentType);
+      await authorizeContentEdit({ deps: routeDeps, principalId: ctx.principal.id, contentType });
       // `taxonomyDeps(routeDeps)` is typed as the base `WriteServiceDeps` (its `entryTerms` narrowed
       // to plain `EntryTermRepoPort`), but `unassignTerms` needs the `UnassignableEntryTermRepoPort`
       // capability too — override `entryTerms` back to `routeDeps.entryTermRepo`'s own wider type
@@ -361,7 +367,7 @@ export function buildTaxonomyRegistrations(
         refuseUnexpectedKeys(input, ["fromTermId", "intoTermId"]);
         const fromTermId = requireString({ input: input, key: "fromTermId" });
         const intoTermId = requireString({ input: input, key: "intoTermId" });
-        const hooks = mergeHooks(ctx, fromTermId, intoTermId);
+        const hooks = mergeHooks({ ctx, fromTermId, intoTermId });
         const plan = await planMergeTerm({
           principalId: ctx.principal.id,
           principalKind: AGENT_TOOL_PRINCIPAL_KIND,
@@ -371,7 +377,7 @@ export function buildTaxonomyRegistrations(
           gatewayPlan: async () =>
             gatewayPlan({ deps: routeDeps.gatedMutations.gatewayDeps, principalId: ctx.principal.id, principalKind: AGENT_TOOL_PRINCIPAL_KIND, hooks }),
         });
-        return { hooks, plan, fromName: await termName(fromTermId), intoName: await termName(intoTermId) };
+        return { hooks, plan, fromName: await termName({ id: fromTermId }), intoName: await termName({ id: intoTermId }) };
       },
       dialog: ({ plan, fromName, intoName }) => ({
         toolId: MERGE_TOOL_ID,
