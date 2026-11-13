@@ -22,7 +22,7 @@ import { storedCredentialHint } from "../../lib/credential-copy";
  * @complexity Time/space: O(1) — a fixed number of code checks, no iteration.
  * @overallScore 100
  */
-export function describeApiError(e: unknown, fallback: string): string {
+export function describeApiError({ e, fallback }: { e: unknown; fallback: string }, _optional = {}): string {
   if (e instanceof ApiError) {
     if (e.code === "FORBIDDEN") return "You do not have permission to change the AI assistant's settings.";
     if (e.code === "ASSISTANT_SETTINGS_VALIDATION_ERROR") return e.message || "That value was rejected.";
@@ -48,7 +48,7 @@ export function describeApiError(e: unknown, fallback: string): string {
  * @complexity Time/space: O(1).
  * @overallScore 100
  */
-export function hasStoredCredential(stored: SiteAssistantCredential | null): boolean {
+export function hasStoredCredential({ stored }: { stored: SiteAssistantCredential | null }, _optional = {}): boolean {
   return stored?.isSet === true;
 }
 
@@ -81,7 +81,7 @@ export function hasStoredCredential(stored: SiteAssistantCredential | null): boo
  * @complexity Time: O(p) in the number of provider presets (a small, fixed constant); space: O(1).
  * @overallScore 100
  */
-export function isPresetSuppliedEndpoint(baseUrl: string): boolean {
+export function isPresetSuppliedEndpoint({ baseUrl }: { baseUrl: string }, _optional = {}): boolean {
   const trimmed = baseUrl.trim();
   // Azure OpenAI's preset ships `baseUrl: ''` as a placeholder, so without this guard a cleared
   // field "matches" it and authorizes key-bearing discovery with no destination at all (F4.4/F6.2).
@@ -121,7 +121,7 @@ export function hydrateVisitorCredentialConfig(current: ByokConfig, stored: Site
   if (!hasSavedVisitorCredential(stored)) return current;
   const baseUrl = stored.baseUrl ?? current.baseUrl;
   const model = stored.model ?? current.model;
-  const protocol = knownProtocol(stored.provider);
+  const protocol = knownProtocol({ provider: stored.provider });
   if (protocol === null) return { ...current, baseUrl, model };
   const presets = DEFAULT_PROVIDER_PRESETS.filter((p) => !p.custom && p.protocol === protocol);
   const preset = presets.find((p) => p.baseUrl === baseUrl) ?? presets.find((p) => p.baseUrl === "");
@@ -130,7 +130,7 @@ export function hydrateVisitorCredentialConfig(current: ByokConfig, stored: Site
 
 /** `provider` as an {@link ApiProtocol} when some preset speaks it, else `null`.
  *  @complexity Time: O(p) in the number of provider presets; space: O(1). */
-function knownProtocol(provider: string): ApiProtocol | null {
+function knownProtocol({ provider }: { provider: string }, _optional = {}): ApiProtocol | null {
   return DEFAULT_PROVIDER_PRESETS.find((p) => p.protocol === provider)?.protocol ?? null;
 }
 
@@ -147,8 +147,8 @@ function knownProtocol(provider: string): ApiProtocol | null {
  *  Also `undefined` when the stored key belongs to another endpoint: after a provider switch the mask
  *  would read as a key saved for the provider now selected. */
 export function visitorCredentialApiKeyPlaceholder(
-  stored: SiteAssistantCredential | null,
-  storedKeyIsForOtherEndpoint = false,
+  { stored }: { stored: SiteAssistantCredential | null },
+  { storedKeyIsForOtherEndpoint = false }: { storedKeyIsForOtherEndpoint?: boolean } = {},
 ): string | undefined {
   return storedCredentialHint({ stored, storedKeyIsForOtherEndpoint });
 }

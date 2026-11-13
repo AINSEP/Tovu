@@ -28,34 +28,34 @@ function stored(overrides: Partial<SiteAssistantCredential> = {}): SiteAssistant
 describe("assistant error copy", () => {
   // Removing any code-specific override must fail its literal assertion (F1.2/F4.4).
   it("names the assistant setting on forbidden writes", () => {
-    expect(describeApiError(new ApiError("raw denial", 403, "FORBIDDEN"), "fallback"))
+    expect(describeApiError({ e: new ApiError("raw denial", 403, "FORBIDDEN"), fallback: "fallback" }))
       .toBe("You do not have permission to change the AI assistant's settings.");
   });
 
   it.each(["ASSISTANT_SETTINGS_VALIDATION_ERROR", "SITE_CREDENTIAL_VALIDATION_ERROR"])("preserves %s details and supplies its empty-message fallback", (code) => {
-    expect(describeApiError(new ApiError("Model is unavailable", 400, code), "generic fallback")).toBe("Model is unavailable");
-    expect(describeApiError(new ApiError("", 400, code), "generic fallback")).toBe("That value was rejected.");
+    expect(describeApiError({ e: new ApiError("Model is unavailable", 400, code), fallback: "generic fallback" })).toBe("Model is unavailable");
+    expect(describeApiError({ e: new ApiError("", 400, code), fallback: "generic fallback" })).toBe("That value was rejected.");
   });
 
   it("explains an unconfigured secret store without blaming the pasted key", () => {
-    expect(describeApiError(new ApiError("operator-only detail", 503, "SECRET_STORE_UNCONFIGURED"), "fallback"))
+    expect(describeApiError({ e: new ApiError("operator-only detail", 503, "SECRET_STORE_UNCONFIGURED"), fallback: "fallback" }))
       .toBe("The server can't store keys yet: it has no site key. Set TOVU_SITE_KEY (hex) and restart. Your key was not saved.");
   });
 
   it("delegates unrelated API, ordinary Error and non-Error failures", () => {
-    expect(describeApiError(new ApiError("Conflict detail", 409, "CONFLICT"), "fallback")).toBe("Conflict detail");
-    expect(describeApiError(new ApiError("", 500, "OTHER"), "fallback")).toBe("fallback");
-    expect(describeApiError(new Error("offline"), "fallback")).toBe("offline");
-    expect(describeApiError({ code: "FORBIDDEN" }, "fallback")).toBe("fallback");
-    expect(describeApiError(null, "fallback")).toBe("fallback");
+    expect(describeApiError({ e: new ApiError("Conflict detail", 409, "CONFLICT"), fallback: "fallback" })).toBe("Conflict detail");
+    expect(describeApiError({ e: new ApiError("", 500, "OTHER"), fallback: "fallback" })).toBe("fallback");
+    expect(describeApiError({ e: new Error("offline"), fallback: "fallback" })).toBe("offline");
+    expect(describeApiError({ e: { code: "FORBIDDEN" }, fallback: "fallback" })).toBe("fallback");
+    expect(describeApiError({ e: null, fallback: "fallback" })).toBe("fallback");
   });
 });
 
 describe("stored credential presence", () => {
   it("requires the server's isSet flag, even when other metadata is present", () => {
-    expect(hasStoredCredential(null)).toBe(false);
-    expect(hasStoredCredential(stored({ isSet: false }))).toBe(false);
-    expect(hasStoredCredential(stored())).toBe(true);
+    expect(hasStoredCredential({ stored: null })).toBe(false);
+    expect(hasStoredCredential({ stored: stored({ isSet: false }) })).toBe(false);
+    expect(hasStoredCredential({ stored: stored() })).toBe(true);
   });
 });
 
@@ -63,7 +63,7 @@ describe("automatic discovery destination gate", () => {
   // BUG, F4.4/F6.2: Azure's empty URL placeholder is not a preset-supplied destination.
   // Clearing an endpoint must not authorize automatic credential-bearing discovery.
   it.each(["", " \t\n"])("rejects a missing destination %j", (url) => {
-    expect(isPresetSuppliedEndpoint(url)).toBe(false);
+    expect(isPresetSuppliedEndpoint({ baseUrl: url })).toBe(false);
   });
 
   // A startsWith comparison would transmit a key to a suffix host or changed path (F4.4).
@@ -72,8 +72,8 @@ describe("automatic discovery destination gate", () => {
     "https://generativelanguage.googleapis.com", "https://openrouter.ai/api/v1",
     "http://localhost:11434/v1",
   ])("accepts the exact preset endpoint %s, including surrounding whitespace", (url) => {
-    expect(isPresetSuppliedEndpoint(url)).toBe(true);
-    expect(isPresetSuppliedEndpoint(` \t${url}\n`)).toBe(true);
+    expect(isPresetSuppliedEndpoint({ baseUrl: url })).toBe(true);
+    expect(isPresetSuppliedEndpoint({ baseUrl: ` \t${url}\n` })).toBe(true);
   });
 
   it.each([
@@ -81,7 +81,7 @@ describe("automatic discovery destination gate", () => {
     "https://api.openai.com/v1/", "http://localhost:11435/v1",
     "https://api.openai.co", "https://custom.example/v1",
   ])("rejects an operator endpoint or incomplete hostname: %s", (url) => {
-    expect(isPresetSuppliedEndpoint(url)).toBe(false);
+    expect(isPresetSuppliedEndpoint({ baseUrl: url })).toBe(false);
   });
 });
 

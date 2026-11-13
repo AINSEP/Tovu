@@ -22,7 +22,7 @@ export function useLifecycleConfirmDialog(props: {
 }): LifecycleConfirmDialogController {
   const locale = useAdminLocale();
   return {
-    copy: lifecycleCopy(props.op, locale),
+    copy: lifecycleCopy({ op: props.op }, { locale }),
     autoFocusCancel: autoFocusCancelForLifecycleOp(props.op),
   };
 }

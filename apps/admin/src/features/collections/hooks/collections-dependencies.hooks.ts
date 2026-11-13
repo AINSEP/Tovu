@@ -9,7 +9,7 @@ import type { CollectionsPort } from "./collections-port.hooks";
 /** The live implementation, as a module-level singleton. */
 export const defaultCollectionsPort: CollectionsPort = {
   listContentTypes: () => api.listContentTypes(),
-  contentTypeLifecycle: (input) => api.contentTypeLifecycle(input),
+  contentTypeLifecycle: (input, _optional = {}) => api.contentTypeLifecycle(input),
 };
 
 /** Seed state for {@link createFakeCollectionsPort}. */
@@ -41,7 +41,7 @@ export function createFakeCollectionsPort(options: FakeCollectionsPortOptions = 
     async listContentTypes() {
       return { items: [...types] };
     },
-    async contentTypeLifecycle({ key, op, expectedVersion }) {
+    async contentTypeLifecycle({ key, op, expectedVersion }, _optional = {}) {
       if (options.lifecycleError) throw options.lifecycleError;
       const index = types.findIndex((t) => t.key === key);
       if (index < 0) throw new Error(`fake content type not found: ${key}`);

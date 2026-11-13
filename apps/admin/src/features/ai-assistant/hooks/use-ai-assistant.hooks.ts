@@ -40,7 +40,7 @@ export function useAiAssistant({ port }: AiAssistantDependencies, _options: Reco
   const key = useMemo(() => ["ai-assistant", "settings"] as const, []);
   const fetchSettings = useCallback(async () => {
     try { return (await port.getAssistantSettings()).data; }
-    catch (error) { throw new Error(describeApiError(error, "failed to load AI assistant settings")); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: "failed to load AI assistant settings" })); }
   }, [port]);
   const query = useFetchQuery({ key, fetch: fetchSettings }, { staleTime: 0 });
   const loader = useCachedLoader({ key, fetch: fetchSettings }, { staleTime: 0 });
@@ -59,7 +59,7 @@ export function useAiAssistant({ port }: AiAssistantDependencies, _options: Reco
       const { data } = await update.mutate({ input });
       loader.replace({ value: data });
     } catch (e) {
-      setSaveError(describeApiError(e, "failed to save AI assistant settings"));
+      setSaveError(describeApiError({ e, fallback: "failed to save AI assistant settings" }));
     } finally {
       setSaving(false);
     }

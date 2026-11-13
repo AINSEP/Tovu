@@ -9,7 +9,7 @@ import type { AnalyticsPort } from "./analytics-port.hooks";
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s
  *  `redirectsHostPorts`. */
 export const defaultAnalyticsPort: AnalyticsPort = {
-  listRecentAnalyticsHits: (options) => api.listRecentAnalyticsHits(options),
+  listRecentAnalyticsHits: (_required = {}, options = {}) => api.listRecentAnalyticsHits(options),
 };
 
 /** Seed state for {@link createFakeAnalyticsPort}. */

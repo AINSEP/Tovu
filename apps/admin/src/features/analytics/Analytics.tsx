@@ -31,23 +31,23 @@ export function Analytics({ useAnalyticsHook = useWiredAnalytics }: AnalyticsPro
   const { hits, error, t } = useAnalyticsHook();
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!hits) return <div className="notice">{t("Loading recent hits…")}</div>;
+  if (!hits) return <div className="notice">{t({ key: "Loading recent hits…" })}</div>;
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t("Marketing")}</p>
-          <h1 className="page-title">{t("Analytics")}</h1>
-          <p className="page-description">{t("The most recent pageviews and events captured on this site.")}</p>
+          <p className="page-kicker">{t({ key: "Marketing" })}</p>
+          <h1 className="page-title">{t({ key: "Analytics" })}</h1>
+          <p className="page-description">{t({ key: "The most recent pageviews and events captured on this site." })}</p>
         </div>
         {/* Which visitors may be tracked is set in Cookie Consent, so link it from here. */}
         <div className="page-actions">
-          <a className="btn-secondary" href={adminHref("/consent")}>{t("Cookie Consent")}</a>
+          <a className="btn-secondary" href={adminHref("/consent")}>{t({ key: "Cookie Consent" })}</a>
         </div>
       </div>
       <div className="notice">
-        {t("Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.")}
+        {t({ key: "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet." })}
       </div>
 
       <DataTable
@@ -56,17 +56,17 @@ export function Analytics({ useAnalyticsHook = useWiredAnalytics }: AnalyticsPro
         empty={
           <div className="card">
             <div className="empty-state">
-              <p className="empty-state-title">{t("No hits recorded yet.")}</p>
-              <p className="empty-state-hint">{t("Once the site beacon starts sending traffic, recent hits will appear here.")}</p>
+              <p className="empty-state-title">{t({ key: "No hits recorded yet." })}</p>
+              <p className="empty-state-hint">{t({ key: "Once the site beacon starts sending traffic, recent hits will appear here." })}</p>
             </div>
           </div>
         }
         columns={[
-          { key: "path", header: t("Path"), cell: (hit) => hit.path },
-          { key: "referrer", header: t("Referrer"), cell: (hit) => hit.referrerHost ?? t("(direct)") },
+          { key: "path", header: t({ key: "Path" }), cell: (hit) => hit.path },
+          { key: "referrer", header: t({ key: "Referrer" }), cell: (hit) => hit.referrerHost ?? t({ key: "(direct)" }) },
           {
             key: "device",
-            header: t("Device / Browser"),
+            header: t({ key: "Device / Browser" }),
             cell: (hit) => (
               <>
                 {hit.deviceClass}
@@ -74,8 +74,8 @@ export function Analytics({ useAnalyticsHook = useWiredAnalytics }: AnalyticsPro
               </>
             ),
           },
-          { key: "kind", header: t("Kind"), cell: (hit) => (hit.eventName ? `${t("event:")} ${hit.eventName}` : hit.kind) },
-          { key: "time", header: t("Time"), cell: (hit) => formatTimestamp({ iso: hit.occurredAt }, { timeZone: "local" }) },
+          { key: "kind", header: t({ key: "Kind" }), cell: (hit) => (hit.eventName ? `${t({ key: "event:" })} ${hit.eventName}` : hit.kind) },
+          { key: "time", header: t({ key: "Time" }), cell: (hit) => formatTimestamp({ iso: hit.occurredAt }, { timeZone: "local" }) },
         ]}
       />
     </div>

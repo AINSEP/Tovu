@@ -30,7 +30,7 @@ const EXT_SITE_PATH = ["ext", "site"] as const;
 
 /** Reads `fieldsJson.ext.site.{name}` defensively — the JSON shape is server-validated, not
  * client-typed, so this never assumes a key is present. */
-function readExtSiteField(fieldsJson: unknown, name: string): unknown {
+function readExtSiteField({ fieldsJson, name }: { fieldsJson: unknown; name: string }, _optional = {}): unknown {
   if (typeof fieldsJson !== "object" || fieldsJson === null) return undefined;
   const ext = (fieldsJson as Record<string, unknown>)[EXT_SITE_PATH[0]];
   if (typeof ext !== "object" || ext === null) return undefined;
@@ -131,7 +131,7 @@ function JsonFieldControl({ inputId, value, onChange, agentHandleProps, fieldNam
       id={inputId}
       value={text}
       aria-invalid={parseError}
-      onChange={(e) => handleTextChange(e.target.value)}
+      onChange={(e) => handleTextChange({ nextText: e.target.value })}
       {...agentHandleProps}
     />
   );
@@ -205,9 +205,9 @@ function EntryLifecycleButtons(props: {
    *  Publish now runs a save leg before its lifecycle leg and either one being in flight must
    *  block a second click. `saving` alone stays the Save button's own LABEL source (unchanged). */
   busy: boolean;
-  onToggleLifecycle: (op: "publish" | "unpublish") => void;
+  onToggleLifecycle: (required: { op: "publish" | "unpublish" }, optional?: Record<string, never>) => void;
   onSave: () => void;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }) {
   const { entry, saving, busy, onToggleLifecycle, onSave, t } = props;
   const isPublished = entry?.status === "published";
@@ -217,14 +217,14 @@ function EntryLifecycleButtons(props: {
       {entry && !isPublished ? (
         <button
           type="button"
-          onClick={() => onToggleLifecycle("publish")}
+          onClick={() => onToggleLifecycle({ op: "publish" })}
           disabled={busy}
           {...agentHandle({ handle: "entry-publish" }, {
             role: "button",
             label: "Publish this entry immediately, saving its current title, fields and body",
           })}
         >
-          {t("Publish")}
+          {t({ key: "Publish" })}
         </button>
       ) : null}
       {/* Reversible-but-access-affecting (drops the entry off the site; still editable here,
@@ -235,14 +235,14 @@ function EntryLifecycleButtons(props: {
         <button
           type="button"
           className="btn-warning"
-          onClick={() => onToggleLifecycle("unpublish")}
+          onClick={() => onToggleLifecycle({ op: "unpublish" })}
           disabled={busy}
           {...agentHandle({ handle: "entry-unpublish" }, {
             role: "button",
             label: "Unpublish this entry — removes it from the live site without deleting it",
           })}
         >
-          {t("Unpublish")}
+          {t({ key: "Unpublish" })}
         </button>
       ) : null}
       {/* Secondary while Publish is also showing (draft entries) so the two don't compete for
@@ -256,7 +256,7 @@ function EntryLifecycleButtons(props: {
         disabled={busy}
         {...agentHandle({ handle: "entry-save" }, { role: "button", label: "Save this entry's title, slug, fields and body" })}
       >
-        {saving ? t("Saving…") : t("Save")}
+        {saving ? t({ key: "Saving…" }) : t({ key: "Save" })}
       </button>
     </>
   );
@@ -270,9 +270,9 @@ function EntryPageActions(props: {
   error: string | null;
   saving: boolean;
   busy: boolean;
-  onToggleLifecycle: (op: "publish" | "unpublish") => void;
+  onToggleLifecycle: (required: { op: "publish" | "unpublish" }, optional?: Record<string, never>) => void;
   onSave: () => void;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }) {
   const { contentTypeKey, contentTypeLabel, entry, message, error, saving, busy, onToggleLifecycle, onSave, t } = props;
 
@@ -311,7 +311,7 @@ function EntrySlugField(props: {
   entry: { slug: string } | null | undefined;
   slug: string;
   onSlugChange: (value: string) => void;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }) {
   const { entry, slug, onSlugChange, t } = props;
   return (
@@ -321,7 +321,7 @@ function EntrySlugField(props: {
         <span>{entry.slug}</span>
       ) : (
         <label className="a11y-label-wrap">
-          <span className="visually-hidden">{t("Entry slug")}</span>
+          <span className="visually-hidden">{t({ key: "Entry slug" })}</span>
           <input
             value={slug}
             onChange={(e) => onSlugChange(e.target.value)}
@@ -346,7 +346,7 @@ function EntryFieldsSection(props: {
   onFieldChange: (name: string, value: unknown) => void;
   /** M2: forwarded to each `DynamicField`. */
   setFieldValidity: (fieldName: string, valid: boolean) => void;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }) {
   const { fields, entry, extFields, onFieldChange, setFieldValidity, t } = props;
   if (fields.length === 0) return null;
@@ -360,12 +360,12 @@ function EntryFieldsSection(props: {
 
   return (
     <div className="collections-dynamic-fields">
-      <h3>{t("Fields")}</h3>
+      <h3>{t({ key: "Fields" })}</h3>
       {fields.map((field, index) => (
         <DynamicField
           key={field.name}
           field={field}
-          value={extFields[field.name] ?? readExtSiteField(entry?.fieldsJson, field.name)}
+          value={extFields[field.name] ?? readExtSiteField({ fieldsJson: entry?.fieldsJson, name: field.name })}
           onChange={(value) => onFieldChange(field.name, value)}
           agentBase={fieldHandles[index]}
           setFieldValidity={setFieldValidity}
@@ -392,13 +392,14 @@ export interface CollectionEntryEditorProps {
  * that function's own branches — a call out to a separately-scoped resolver does not.
  */
 function resolveCollectionEntryEditorHook(
-  override: typeof useWiredCollectionEntryEditor | undefined
+  { override }: { override: typeof useWiredCollectionEntryEditor | undefined },
+  _optional = {},
 ): typeof useWiredCollectionEntryEditor {
   return override ?? useWiredCollectionEntryEditor;
 }
 
 export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
-  const useCollectionEntryEditorHook = resolveCollectionEntryEditorHook(props.useCollectionEntryEditorHook);
+  const useCollectionEntryEditorHook = resolveCollectionEntryEditorHook({ override: props.useCollectionEntryEditorHook });
   const {
     contentType,
     entry,
@@ -422,9 +423,9 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
   } = useCollectionEntryEditorHook({ contentTypeKey: props.contentTypeKey, entryId: props.entryId });
 
   if (loadError) return <div className="notice error">{loadError}</div>;
-  if (!loaded || contentType === undefined) return <div className="notice">{t("Loading entry…")}</div>;
-  if (!contentType) return <div className="notice error">{t('Unknown content type "{contentTypeKey}".').replace("{contentTypeKey}", () => props.contentTypeKey)}</div>;
-  if (props.entryId && !entry) return <div className="notice error">{t("Entry not found.")}</div>;
+  if (!loaded || contentType === undefined) return <div className="notice">{t({ key: "Loading entry…" })}</div>;
+  if (!contentType) return <div className="notice error">{t({ key: 'Unknown content type "{contentTypeKey}".' }).replace("{contentTypeKey}", () => props.contentTypeKey)}</div>;
+  if (props.entryId && !entry) return <div className="notice error">{t({ key: "Entry not found." })}</div>;
 
   return (
     <div className="page">
@@ -436,11 +437,11 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
         })}
       >
         <div className="page-header-text">
-          <p className="page-kicker">{t("Content")}</p>
+          <p className="page-kicker">{t({ key: "Content" })}</p>
           <h1 className="page-title">
-            {t(entry ? "Edit {label} entry" : "New {label} entry").replace("{label}", () => contentType.label)}
+            {t({ key: entry ? "Edit {label} entry" : "New {label} entry" }).replace("{label}", () => contentType.label)}
           </h1>
-          <p className="page-description">{t("Update this entry's title, fields, and body.")}</p>
+          <p className="page-description">{t({ key: "Update this entry's title, fields, and body." })}</p>
         </div>
         <EntryPageActions
           contentTypeKey={props.contentTypeKey}
@@ -460,12 +461,12 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
           (see `styles/editor.css`'s `.a11y-label-wrap` comment). The slug field's label is only
           rendered in the `!entry` (create) branch, matching that branch's own `<input>`. */}
       <label className="a11y-label-wrap">
-        <span className="visually-hidden">{t("Entry title")}</span>
+        <span className="visually-hidden">{t({ key: "Entry title" })}</span>
         <input
           className="editor-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder={t("Entry title")}
+          placeholder={t({ key: "Entry title" })}
           {...agentHandle({ handle: "entry-title" }, { role: "field", label: "This entry's title" })}
         />
       </label>
@@ -475,7 +476,7 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
         className="editor-shell"
         {...agentHandle({ handle: "entry-editor-shell" }, { role: "region", label: "Formatting toolbar and the entry body editor" })}
       >
-        <div className="editor-toolbar" role="toolbar" aria-label={t("Formatting")}>
+        <div className="editor-toolbar" role="toolbar" aria-label={t({ key: "Formatting" })}>
           <div className="grp">
             <WidgetEmbedInsertControl editor={editor} agentHandle="entry-insert-widget" />
           </div>

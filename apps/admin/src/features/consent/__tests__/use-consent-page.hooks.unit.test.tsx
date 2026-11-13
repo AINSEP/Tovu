@@ -13,7 +13,7 @@ const t = (key: string) => key;
 /** Autosave timers the test fires by hand. */
 function manualTimers() {
   let next: (() => void) | null = null;
-  const timers: ConsentTimers = { setTimeout: callback => { next = callback; return callback; }, clearTimeout: handle => { if (handle === next) next = null; } };
+  const timers: ConsentTimers = { setTimeout: ({ callback }, _optional = {}) => { next = callback; return callback; }, clearTimeout: ({ handle }, _optional = {}) => { if (handle === next) next = null; } };
   return { timers, fire: () => { const callback = next; next = null; callback?.(); } };
 }
 

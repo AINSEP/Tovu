@@ -11,5 +11,5 @@ export interface CollectionsPort {
     key: string;
     op: ContentTypeLifecycleOp;
     expectedVersion: number;
-  }): Promise<{ contentType: AdminContentType }>;
+  }, optional?: Record<string, never>): Promise<{ contentType: AdminContentType }>;
 }

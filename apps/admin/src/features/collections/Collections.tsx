@@ -55,11 +55,11 @@ interface ContentTypeFieldFieldsetProps {
   idPrefix: string;
   /** This row's own agentHandle base, from the caller's `buildAgentListHandles` list. */
   agentHandleBase: string;
-  onUpdateField: (rowId: number, patch: Partial<DraftField>) => void;
-  onRemoveField: (rowId: number) => void;
+  onUpdateField: (required: { rowId: number; patch: Partial<DraftField> }, optional?: Record<string, never>) => void;
+  onRemoveField: (required: { rowId: number }, optional?: Record<string, never>) => void;
   showRemoveButton: boolean;
   removeButtonLabel: string;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 function ContentTypeFieldFieldset({
@@ -75,23 +75,23 @@ function ContentTypeFieldFieldset({
 }: ContentTypeFieldFieldsetProps) {
   return (
     <fieldset className="collections-field-row">
-      <legend>{t("Field")} {index + 1}</legend>
+      <legend>{t({ key: "Field" })} {index + 1}</legend>
       <div className="field">
-        <label className="field-label" htmlFor={`${idPrefix}-name-${f._rowId}`}>{t("Name")}</label>
+        <label className="field-label" htmlFor={`${idPrefix}-name-${f._rowId}`}>{t({ key: "Name" })}</label>
         <input
           id={`${idPrefix}-name-${f._rowId}`}
           value={f.name}
-          onChange={(e) => onUpdateField(f._rowId, { name: e.target.value })}
+          onChange={(e) => onUpdateField({ rowId: f._rowId, patch: { name: e.target.value } })}
           placeholder="e.g. prep_time"
           {...agentHandle({ handle: `${base}-name` }, { role: "field", label: "This field's name" })}
         />
       </div>
       <div className="field">
-        <label className="field-label" htmlFor={`${idPrefix}-kind-${f._rowId}`}>{t("Kind")}</label>
+        <label className="field-label" htmlFor={`${idPrefix}-kind-${f._rowId}`}>{t({ key: "Kind" })}</label>
         <select
           id={`${idPrefix}-kind-${f._rowId}`}
           value={f.kind}
-          onChange={(e) => onUpdateField(f._rowId, { kind: e.target.value as ContentTypeFieldKind })}
+          onChange={(e) => onUpdateField({ rowId: f._rowId, patch: { kind: e.target.value as ContentTypeFieldKind } })}
           {...agentHandle({ handle: `${base}-kind` }, {
             role: "field",
             label: "This field's data type — set with page.select_option, not click",
@@ -108,34 +108,34 @@ function ContentTypeFieldFieldset({
         <input
           type="checkbox"
           checked={f.required}
-          onChange={(e) => onUpdateField(f._rowId, { required: e.target.checked })}
+          onChange={(e) => onUpdateField({ rowId: f._rowId, patch: { required: e.target.checked } })}
           {...agentHandle({ handle: `${base}-required` }, {
             role: "checkbox",
             label: "Whether every entry of this content type must set this field",
           })}
         />
-        {t("Required")}
+        {t({ key: "Required" })}
       </label>
-      <label className="form-checkbox-field" title={t("Choose only the fields you need to filter or sort by.")}>
+      <label className="form-checkbox-field" title={t({ key: "Choose only the fields you need to filter or sort by." })}>
         <input
           type="checkbox"
           checked={f.queryable}
-          onChange={(e) => onUpdateField(f._rowId, { queryable: e.target.checked })}
+          onChange={(e) => onUpdateField({ rowId: f._rowId, patch: { queryable: e.target.checked } })}
           {...agentHandle({ handle: `${base}-queryable` }, {
             role: "checkbox",
             label: "Whether this field gets a database index so entries can be filtered/sorted by it",
           })}
         />
-        {t("Use for filtering and sorting")}
+        {t({ key: "Use for filtering and sorting" })}
       </label>
       {showRemoveButton ? (
         <button
           type="button"
           className="btn-secondary"
-          onClick={() => onRemoveField(f._rowId)}
+          onClick={() => onRemoveField({ rowId: f._rowId })}
           {...agentHandle({ handle: `${base}-remove` }, { role: "button", label: removeButtonLabel })}
         >
-          {t("Remove field")}
+          {t({ key: "Remove field" })}
         </button>
       ) : null}
     </fieldset>
@@ -152,7 +152,7 @@ export interface NewContentTypeDialogProps {
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useNewContentTypeDialogHook?: typeof useWiredNewContentTypeDialog;
   /** Translator closure — see `Collections()`'s own `t`. */
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 export function NewContentTypeDialog({
@@ -167,7 +167,7 @@ export function NewContentTypeDialog({
   );
 
   return (
-    <Dialog open title={t("New content type")} onClose={() => cancel()} pending={saving}
+    <Dialog open title={t({ key: "New content type" })} onClose={() => cancel()} pending={saving}
       className="settings-dialog jini-domain-dialog collections-type-dialog">
       <form
         onSubmit={submit}
@@ -178,19 +178,19 @@ export function NewContentTypeDialog({
       >
         <div className="jini-dialog-body">
         <div className="field">
-          <label className="field-label" htmlFor="ct-label">{t("Label")}</label>
+          <label className="field-label" htmlFor="ct-label">{t({ key: "Label" })}</label>
           <input
             id="ct-label"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder={t("e.g. Recipe")}
+            placeholder={t({ key: "e.g. Recipe" })}
             data-jini-autofocus=""
             {...agentHandle({ handle: "new-content-type-label" }, { role: "field", label: "This content type's display name" })}
           />
         </div>
 
         <div className="field">
-          <label className="field-label" htmlFor="ct-key">{t("Key")}</label>
+          <label className="field-label" htmlFor="ct-key">{t({ key: "Key" })}</label>
           <input
             id="ct-key"
             value={key}
@@ -204,7 +204,7 @@ export function NewContentTypeDialog({
         </div>
 
         <div>
-          <h3 className="jini-dialog-section-title">{t("Fields")}</h3>
+          <h3 className="jini-dialog-section-title">{t({ key: "Fields" })}</h3>
           {fields.map((f, index) => (
             <ContentTypeFieldFieldset
               key={f._rowId}
@@ -215,7 +215,7 @@ export function NewContentTypeDialog({
               onUpdateField={updateField}
               onRemoveField={removeField}
               showRemoveButton={fields.length > 1}
-              removeButtonLabel={t("Remove this field from the new content type")}
+              removeButtonLabel={t({ key: "Remove this field from the new content type" })}
               t={t}
             />
           ))}
@@ -225,7 +225,7 @@ export function NewContentTypeDialog({
             onClick={addField}
             {...agentHandle({ handle: "new-content-type-add-field" }, { role: "button", label: "Add another field to this content type" })}
           >
-            {t("Add field")}
+            {t({ key: "Add field" })}
           </button>
         </div>
 
@@ -244,14 +244,14 @@ export function NewContentTypeDialog({
             disabled={saving}
             {...agentHandle({ handle: "new-content-type-cancel" }, { role: "button", label: "Close this dialog without creating a content type" })}
           >
-            {t("Cancel")}
+            {t({ key: "Cancel" })}
           </button>
           <button
             type="submit"
             disabled={saving}
             {...agentHandle({ handle: "new-content-type-submit" }, { role: "button", label: "Create this content type" })}
           >
-            {saving ? t("Saving…") : t("Create content type")}
+            {saving ? t({ key: "Saving…" }) : t({ key: "Create content type" })}
           </button>
         </div>
       </form>
@@ -270,7 +270,7 @@ export interface EditFieldsDialogProps {
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useEditFieldsDialogHook?: typeof useWiredEditFieldsDialog;
   /** Translator closure — see `Collections()`'s own `t`. */
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 export function EditFieldsDialog({
@@ -289,7 +289,7 @@ export function EditFieldsDialog({
   );
 
   return (
-    <Dialog open title={`${t("Edit fields —")} ${contentType.label}`} onClose={() => cancel()} pending={saving}
+    <Dialog open title={`${t({ key: "Edit fields —" })} ${contentType.label}`} onClose={() => cancel()} pending={saving}
       className="settings-dialog jini-domain-dialog collections-type-dialog">
       <form
         onSubmit={submit}
@@ -300,7 +300,7 @@ export function EditFieldsDialog({
       >
         <div className="jini-dialog-body">
         <div>
-          <h3 className="jini-dialog-section-title">{t("Fields")}</h3>
+          <h3 className="jini-dialog-section-title">{t({ key: "Fields" })}</h3>
           {fields.map((f, index) => (
             <ContentTypeFieldFieldset
               key={f._rowId}
@@ -311,7 +311,7 @@ export function EditFieldsDialog({
               onUpdateField={updateField}
               onRemoveField={removeField}
               showRemoveButton={true}
-              removeButtonLabel={t("Remove this field from this content type")}
+              removeButtonLabel={t({ key: "Remove this field from this content type" })}
               t={t}
             />
           ))}
@@ -321,7 +321,7 @@ export function EditFieldsDialog({
             onClick={addField}
             {...agentHandle({ handle: "edit-fields-add-field" }, { role: "button", label: "Add another field to this content type" })}
           >
-            {t("Add field")}
+            {t({ key: "Add field" })}
           </button>
         </div>
 
@@ -341,14 +341,14 @@ export function EditFieldsDialog({
             data-jini-autofocus=""
             {...agentHandle({ handle: "edit-fields-cancel" }, { role: "button", label: "Close this dialog without saving field changes" })}
           >
-            {t("Cancel")}
+            {t({ key: "Cancel" })}
           </button>
           <button
             type="submit"
             disabled={saving}
             {...agentHandle({ handle: "edit-fields-submit" }, { role: "button", label: "Save this content type's field schema" })}
           >
-            {saving ? t("Saving…") : t("Save fields")}
+            {saving ? t({ key: "Saving…" }) : t({ key: "Save fields" })}
           </button>
         </div>
       </form>
@@ -368,7 +368,7 @@ export interface LifecycleConfirmDialogProps {
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useLifecycleConfirmDialogHook?: typeof useLifecycleConfirmDialog;
   /** Translator closure — see `Collections()`'s own `t`. */
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 export function LifecycleConfirmDialog({
@@ -402,7 +402,7 @@ export function LifecycleConfirmDialog({
                 "Confirm this content type's lifecycle change — Deprecate is reversible, Tombstone is not from this screen",
             })}
           >
-            {op === "deprecate" ? t("Deprecate") : t("Delete")}
+            {op === "deprecate" ? t({ key: "Deprecate" }) : t({ key: "Delete" })}
           </button>
           <button
             type="button"
@@ -411,7 +411,7 @@ export function LifecycleConfirmDialog({
             onClick={onCancel}
             {...agentHandle({ handle: "lifecycle-cancel" }, { role: "button", label: "Close this dialog without changing the lifecycle" })}
           >
-            {t("Cancel")}
+            {t({ key: "Cancel" })}
           </button>
         </span>
     </Dialog>
@@ -452,7 +452,7 @@ function CollectionsDialogs(props: {
   editingFieldsFor: AdminContentType | null;
   onFieldsSaved: () => void;
   onFieldsCancel: () => void;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }) {
   const {
     showNewDialog,
@@ -510,7 +510,7 @@ export function Collections({ useCollectionsHook = useWiredCollections, dialogHo
   } = useCollectionsHook();
 
   if (error && !types) return <div className="notice error">{error}</div>;
-  if (!types) return <div className="notice">{t("Loading content types…")}</div>;
+  if (!types) return <div className="notice">{t({ key: "Loading content types…" })}</div>;
 
   // Content type keys are stable and unique (the server's own primary key for this resource), so
   // they disambiguate one row's entries link from another's — same reasoning as every other list
@@ -532,9 +532,9 @@ export function Collections({ useCollectionsHook = useWiredCollections, dialogHo
         })}
       >
         <div className="page-header-text">
-          <p className="page-kicker">{t("Content")}</p>
-          <h1 className="page-title">{t("Collections")}</h1>
-          <p className="page-description">{t("Content types you define, each with its own set of entries.")}</p>
+          <p className="page-kicker">{t({ key: "Content" })}</p>
+          <h1 className="page-title">{t({ key: "Collections" })}</h1>
+          <p className="page-description">{t({ key: "Content types you define, each with its own set of entries." })}</p>
         </div>
         <div className="page-actions">
           <PublishSectionButton section="collections" />
@@ -542,7 +542,7 @@ export function Collections({ useCollectionsHook = useWiredCollections, dialogHo
             onClick={() => setShowNewDialog(true)}
             {...agentHandle({ handle: "collections-new" }, { role: "button", label: "Define a new content type" })}
           >
-            {t("New content type")}
+            {t({ key: "New content type" })}
           </button>
         </div>
       </div>
@@ -556,8 +556,8 @@ export function Collections({ useCollectionsHook = useWiredCollections, dialogHo
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>{t("No Collections yet.")}</p>
-              <p className="page-description">{t("Create your first content type to start adding entries.")}</p>
+              <p>{t({ key: "No Collections yet." })}</p>
+              <p className="page-description">{t({ key: "Create your first content type to start adding entries." })}</p>
             </div>
           </div>
         }
@@ -565,22 +565,22 @@ export function Collections({ useCollectionsHook = useWiredCollections, dialogHo
           // The label opens the entries too (mobile catalog CO-1, 2026-10-06): "Manage entries" sits
           // in the seventh column, off-screen in a phone's sideways scroller, so the row's own name
           // is the obvious way in.
-          { key: "label", header: t("Label"), cell: (ct) => <a href={`/admin/collections/${ct.key}`}>{ct.label}</a> },
-          { key: "key", header: t("Key"), cell: (ct) => <code>{ct.key}</code> },
-          { key: "fields", header: t("Fields"), cell: (ct) => ct.fields.length },
+          { key: "label", header: t({ key: "Label" }), cell: (ct) => <a href={`/admin/collections/${ct.key}`}>{ct.label}</a> },
+          { key: "key", header: t({ key: "Key" }), cell: (ct) => <code>{ct.key}</code> },
+          { key: "fields", header: t({ key: "Fields" }), cell: (ct) => ct.fields.length },
           {
             key: "queryable-fields",
-            header: t("Queryable fields"),
+            header: t({ key: "Queryable fields" }),
             cell: (ct) => ct.fields.filter((f) => f.queryable).length,
           },
           {
             key: "status",
-            header: t("Status"),
+            header: t({ key: "Status" }),
             cell: (ct) => <span className={`status status-${ct.status}`}><ServerLabel value={ct.status} /></span>,
           },
           {
             key: "entries",
-            header: t("Entries"),
+            header: t({ key: "Entries" }),
             cell: (ct, index) => (
               <a
                 href={`/admin/collections/${ct.key}`}
@@ -589,13 +589,13 @@ export function Collections({ useCollectionsHook = useWiredCollections, dialogHo
                   label: "Open this content type's list of entries",
                 })}
               >
-                {t("Manage entries")}
+                {t({ key: "Manage entries" })}
               </a>
             ),
           },
           {
             key: "embed",
-            header: t("Embed"),
+            header: t({ key: "Embed" }),
             cell: (ct, index) => (
               <>
                 <button
@@ -607,7 +607,7 @@ export function Collections({ useCollectionsHook = useWiredCollections, dialogHo
                   })}
                 >
                   {/* aria-live so the swap to "Copied" is announced, as StaticSiteTab's copy button does. */}
-                  <span aria-live="polite">{copiedKey === ct.key ? t("Copied") : t("Copy embed code")}</span>
+                  <span aria-live="polite">{copiedKey === ct.key ? t({ key: "Copied" }) : t({ key: "Copy embed code" })}</span>
                 </button>
                 {copyFallback?.key === ct.key && <code translate="no">{copyFallback.snippet}</code>}
               </>
@@ -615,20 +615,18 @@ export function Collections({ useCollectionsHook = useWiredCollections, dialogHo
           },
           {
             key: "actions",
-            header: t("More"),
+            header: t({ key: "More" }),
             cell: (ct, index) => (
               <RowMenu
-                triggerLabel={t('Actions for content type "{label}"').replace("{label}", () => ct.label)}
+                triggerLabel={t({ key: 'Actions for content type "{label}"' }).replace("{label}", () => ct.label)}
                 agentHandle={`${rowHandles[index]}-menu`}
                 items={contentTypeMenuItems(
-                  ct,
-                  {
+                  { contentType: ct, handlers: {
                     onEditFields: setEditingFieldsFor,
-                    onDeprecate: (contentType) => setPendingLifecycle({ op: "deprecate", contentType }),
-                    onReactivate: (contentType) => void runLifecycle(contentType, "reactivate"),
-                    onTombstone: (contentType) => setPendingLifecycle({ op: "tombstone", contentType }),
-                  },
-                  locale,
+                    onDeprecate: ({ contentType }, _optional = {}) => setPendingLifecycle({ op: "deprecate", contentType }),
+                    onReactivate: ({ contentType }, _optional = {}) => void runLifecycle(contentType, "reactivate"),
+                    onTombstone: ({ contentType }, _optional = {}) => setPendingLifecycle({ op: "tombstone", contentType }),
+                  }, locale },
                 )}
               />
             ),

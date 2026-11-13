@@ -39,11 +39,11 @@ export interface ConsentPageController {
 
 interface Heads { draftId: string | null; publishedId: string | null }
 
-function withDraftId(draftId: string): (current: Heads) => Heads {
+function withDraftId({ draftId }: { draftId: string }, _optional = {}): (current: Heads) => Heads {
   return (current) => ({ ...current, draftId });
 }
 
-function withPreviewError(error: string): (current: ConsentPreviewState) => ConsentPreviewState {
+function withPreviewError({ error }: { error: string }, _optional = {}): (current: ConsentPreviewState) => ConsentPreviewState {
   return (current) => ({ ...current, error });
 }
 
@@ -86,7 +86,7 @@ export function useConsentPage({ port, t }: { port: ConsentRevisionsPort; t: Tra
       autosave.current = createConsentAutosave({ port, draftId, events: {
         onSaving: () => setSaveState('saving'),
         onSaved: ({ result, settled: done }) => {
-          setHeads(withDraftId(result.revision.id));
+          setHeads(withDraftId({ draftId: result.revision.id }));
           setProblems(result.blockingProblems);
           if (done) { setSaveState('saved'); setSettled(true); }
         },
@@ -167,7 +167,7 @@ export function useConsentPreview({ port, config, t }: { port: ConsentRevisionsP
     const timer = setTimeout(() => {
       port.preview({ config }).then(
         result => { if (ticket === sequence.current) setState({ html: result.html, problems: result.blockingProblems, warnings: result.warnings ?? [], error: null }); },
-        error => { if (ticket === sequence.current) setState(withPreviewError(describeApiError(error, t("Couldn't render the preview.")))); },
+        error => { if (ticket === sequence.current) setState(withPreviewError({ error: describeApiError(error, t("Couldn't render the preview.")) })); },
       );
     }, delayMs);
     return () => clearTimeout(timer);

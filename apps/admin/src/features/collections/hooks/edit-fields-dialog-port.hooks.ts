@@ -14,5 +14,5 @@ export interface EditFieldsDialogPort {
     key: string;
     fields: ContentTypeFieldDef[];
     expectedVersion: number;
-  }): Promise<{ contentType: AdminContentType }>;
+  }, optional?: Record<string, never>): Promise<{ contentType: AdminContentType }>;
 }

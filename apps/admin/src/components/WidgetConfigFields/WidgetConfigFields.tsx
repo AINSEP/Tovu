@@ -343,7 +343,7 @@ function RecentEntriesConfigFields({
   const maxItems = typeof props.config.maxItems === "number" ? props.config.maxItems : 5;
   const base = props.agentHandle;
   const { items: collections, error: collectionsError } = useOptions<AdminContentType>(
-    { fetchList: () => defaultWidgetConfigFieldsPort.listContentTypes().then((r) => r.items.filter((ct) => isUserCollection(ct.key))), key: ["collections", "options"] },
+    { fetchList: () => defaultWidgetConfigFieldsPort.listContentTypes().then((r) => r.items.filter((ct) => isUserCollection({ key: ct.key }))), key: ["collections", "options"] },
     { errorFallback: t("failed to load collections") },
   );
   const c = useRecentEntriesConfig(props.config, props.onChange);

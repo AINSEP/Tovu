@@ -7,18 +7,18 @@ import type { AdminContentType, AdminEntry } from "@/lib/api";
  */
 export interface CollectionEntryEditorPort {
   listContentTypes(): Promise<{ items: AdminContentType[] }>;
-  listEntries(options: { type?: string }): Promise<{ items: AdminEntry[] }>;
+  listEntries(options: { type?: string }, optional?: Record<string, never>): Promise<{ items: AdminEntry[] }>;
   updateEntry(
-    target: { id: string; expectedVersion: number },
-    patch: { title?: string; fieldsJson?: unknown; bodyJson?: unknown }
+    required: { target: { id: string; expectedVersion: number }; patch: { title?: string; fieldsJson?: unknown; bodyJson?: unknown } },
+    optional?: Record<string, never>
   ): Promise<{ entry: AdminEntry }>;
   createEntry(
-    input: { type: string; slug: string; title: string },
-    options: { fieldsJson?: unknown; bodyJson?: unknown }
+    required: { input: { type: string; slug: string; title: string }; options: { fieldsJson?: unknown; bodyJson?: unknown } },
+    optional?: Record<string, never>
   ): Promise<{ entry: AdminEntry }>;
   entryLifecycle(input: {
     id: string;
     op: "publish" | "unpublish";
     expectedVersion: number;
-  }): Promise<{ entry: AdminEntry }>;
+  }, optional?: Record<string, never>): Promise<{ entry: AdminEntry }>;
 }
