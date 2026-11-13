@@ -81,7 +81,7 @@ export function useAssistantDaemonRestart({
       const readyz = await port.getReadyz();
       setKnownFailed(readyz.assistantDaemonKnownFailed === true);
     } catch (e) {
-      setStatusError(describeApiError(e, "failed to check the assistant daemon's status"));
+      setStatusError(describeApiError({ e, fallback: "failed to check the assistant daemon's status" }));
     } finally {
       setCheckingStatus(false);
     }
@@ -99,7 +99,7 @@ export function useAssistantDaemonRestart({
       const result = await port.restart();
       setRestartResult(result);
     } catch (e) {
-      setRestartError(describeApiError(e, "failed to restart the assistant"));
+      setRestartError(describeApiError({ e, fallback: "failed to restart the assistant" }));
     } finally {
       setRestarting(false);
     }

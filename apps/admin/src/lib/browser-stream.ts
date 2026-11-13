@@ -43,12 +43,12 @@ const HIDDEN_GRACE_MS = 30_000;
  * Active chat retains tab streams. Pagehide/disposal always releases locks and connections.
  * @returns Idempotent disposer. Transport construction errors propagate in per-tab mode.
  * @complexity O(1) ownership state per subscriber; channel delivery is O(number of tabs).
- * @example startBrowserStream({ key: "feed", connect: ({ emit }) => openFeed(emit) });
+ * @example startBrowserStream({ key: "feed", connect: ({ emit }) => openFeed((frame) => emit({ frame })) });
  */
 export function startBrowserStream<Frame>(
   { key, connect, receive = () => {} }: {
     key: string;
-    connect: (required: { emit: (frame: Frame) => void }) => () => void;
+    connect: (required: { emit: (required: { frame: Frame }, optional?: Record<string, never>) => void }) => () => void;
     receive?: (required: { frame: Frame }) => void;
   },
   { ports = browserStreamPorts(), scope = "origin", activity }: {
@@ -81,7 +81,7 @@ export function startBrowserStream<Frame>(
   function open(): void {
     if (stopConnection) return;
     let connected = true;
-    const close = connect({ emit: (frame) => {
+    const close = connect({ emit: ({ frame }, _optional = {}) => {
       if (!connected || disposed || away) return;
       receive({ frame });
       channel?.postMessage(frame);

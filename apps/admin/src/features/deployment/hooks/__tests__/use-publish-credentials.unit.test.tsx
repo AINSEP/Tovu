@@ -842,7 +842,7 @@ describe("usePublishCredentials — save, error handling", () => {
   });
 
   it("a DUPLICATE_LABEL rejection (a write race — this row should already exist) surfaces its own reload-and-retry message", async () => {
-    const port = createFakePublishCredentialsPort({ createCredential: () => Promise.reject(new ApiError("DUPLICATE_LABEL", 409)) });
+    const port = createFakePublishCredentialsPort({ createCredential: () => Promise.reject(new ApiError({ message: "DUPLICATE_LABEL", status: 409 })) });
     const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
@@ -857,7 +857,7 @@ describe("usePublishCredentials — save, error handling", () => {
 
   it("a VALIDATION rejection surfaces the server's own detail through the save-error template", async () => {
     const port = createFakePublishCredentialsPort({
-      createCredential: () => Promise.reject(new ApiError("VALIDATION", 400, undefined, { detail: "owner is required" })),
+      createCredential: () => Promise.reject(new ApiError({ message: "VALIDATION", status: 400 }, { code: undefined, body: { detail: "owner is required" } })),
     });
     const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());

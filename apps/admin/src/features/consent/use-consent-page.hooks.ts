@@ -91,9 +91,9 @@ export function useConsentPage({ port, t }: { port: ConsentRevisionsPort; t: Tra
           if (done) { setSaveState('saved'); setSettled(true); }
         },
         onConflict: () => setSaveState('conflict'),
-        onError: ({ error }) => { setSaveState('error'); setSaveError(describeApiError(error, t("Couldn't save."))); },
+        onError: ({ error }) => { setSaveState('error'); setSaveError(describeApiError({ e: error, fallback: t("Couldn't save.") })); },
       } }, consentAutosaveOptions({ delayMs, timers }));
-    }, error => { if (alive && currentLoadNonce.current === loadNonce) setLoadError(describeApiError(error, t("Couldn't load cookie consent."))); });
+    }, error => { if (alive && currentLoadNonce.current === loadNonce) setLoadError(describeApiError({ e: error, fallback: t("Couldn't load cookie consent.") })); });
     return () => { alive = false; autosave.current?.stop(); };
   }, [port, loadNonce]); // Reload restarts the load; t/delay/timers must not reset a draft.
 
@@ -131,7 +131,7 @@ export function useConsentPage({ port, t }: { port: ConsentRevisionsPort; t: Tra
       setPublishedCount(count => count + 1);
     } catch (error) {
       if (isConsentConflict({ error })) { saver.stop(); setSaveState('conflict'); }
-      else setPublishError(describeApiError(error, t("Couldn't publish.")));
+      else setPublishError(describeApiError({ e: error, fallback: t("Couldn't publish.") }));
     } finally {
       setPublishing(false);
     }
@@ -167,7 +167,7 @@ export function useConsentPreview({ port, config, t }: { port: ConsentRevisionsP
     const timer = setTimeout(() => {
       port.preview({ config }).then(
         result => { if (ticket === sequence.current) setState({ html: result.html, problems: result.blockingProblems, warnings: result.warnings ?? [], error: null }); },
-        error => { if (ticket === sequence.current) setState(withPreviewError({ error: describeApiError(error, t("Couldn't render the preview.")) })); },
+        error => { if (ticket === sequence.current) setState(withPreviewError({ error: describeApiError({ e: error, fallback: t("Couldn't render the preview.") }) })); },
       );
     }, delayMs);
     return () => clearTimeout(timer);
@@ -204,7 +204,7 @@ export function useConsentReadiness({ port, refresh, t }: { port: ConsentRevisio
     let alive = true;
     port.readiness({}).then(
       readiness => { if (alive && currentRefresh.current === refresh) setState({ readiness, error: null }); },
-      error => { if (alive && currentRefresh.current === refresh) setState({ readiness: null, error: describeApiError(error, t("Couldn't check readiness.")) }); },
+      error => { if (alive && currentRefresh.current === refresh) setState({ readiness: null, error: describeApiError({ e: error, fallback: t("Couldn't check readiness.") }) }); },
     );
     return () => { alive = false; };
   }, [port, refresh]); // Refresh triggers the read; translation changes must not restart it.

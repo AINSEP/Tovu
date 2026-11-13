@@ -114,7 +114,7 @@ describe('createConsentAutosave', () => {
     const autosave = createConsentAutosave({ port, draftId: 'd0', events: handlers }, { timers, delayMs: 5 });
     autosave.change({ config: CONSENT_CONFIG });
     fire();
-    calls[0]!.settle.reject(new ApiError('Cookie consent settings are unavailable.', 503));
+    calls[0]!.settle.reject(new ApiError({ message: 'Cookie consent settings are unavailable.', status: 503 }));
     await tick();
     autosave.change({ config: CONSENT_CONFIG });
     fire();

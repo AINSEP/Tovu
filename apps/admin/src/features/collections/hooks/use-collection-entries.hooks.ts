@@ -72,7 +72,7 @@ export function useCollectionEntries(
 
   const contentType: AdminContentType | null | undefined = list.data?.contentType;
   const entries: AdminEntry[] | null = list.data?.entries ?? null;
-  const error = list.error ? describeApiError(list.error, translate({ locale: locale, key: "failed to load entries" })) : null;
+  const error = list.error ? describeApiError({ e: list.error, fallback: translate({ locale: locale, key: "failed to load entries" }) }) : null;
 
   return { contentType, entries, error, t };
 }

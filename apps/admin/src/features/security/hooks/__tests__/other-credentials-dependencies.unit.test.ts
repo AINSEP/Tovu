@@ -180,7 +180,7 @@ describe("defaultOtherCredentialsPort — external MCP servers", () => {
   it("deleteExternalMcpServer forwards the server id to api.deleteExternalMcpServer", async () => {
     deleteExternalMcpServer.mockResolvedValue({ removed: true, restartRequired: true });
     await expect(defaultOtherCredentialsPort.deleteExternalMcpServer({ serverId: "local-fs" })).resolves.toEqual({ removed: true, restartRequired: true });
-    expect(deleteExternalMcpServer).toHaveBeenCalledWith("local-fs");
+    expect(deleteExternalMcpServer).toHaveBeenCalledWith({ serverId: "local-fs" });
   });
 });
 

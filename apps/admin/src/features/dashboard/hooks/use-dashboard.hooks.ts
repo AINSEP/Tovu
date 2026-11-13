@@ -141,7 +141,7 @@ export interface DashboardDependencies {
  *  @complexity Time/space: O(1) beyond the read itself. */
 async function readOrDescribe<T>({ read, locale, key }: { read: () => Promise<T>; locale: string; key: string }): Promise<T> {
   try { return await read(); }
-  catch (error) { throw new Error(describeApiError(error, translate({ locale, key }))); }
+  catch (error) { throw new Error(describeApiError({ e: error, fallback: translate({ locale, key }) })); }
 }
 
 /** The five stat reads, each owning its own query and error slot (see this file's header).

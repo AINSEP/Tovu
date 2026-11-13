@@ -29,7 +29,7 @@ it('recovers using the code and new password without keeping either after succes
 
 
 it('retains a rate-limit explanation and redacted copy details instead of suggesting another code', async () => {
-  const recover = vi.fn(async () => { throw new ApiError('Too many recovery attempts. Wait a minute and try again.', 429, 'LIMITED'); });
+  const recover = vi.fn(async () => { throw new ApiError({ message: 'Too many recovery attempts. Wait a minute and try again.', status: 429 }, { code: 'LIMITED' }); });
   render(<OwnerRecoverySignIn recover={recover} />);
   fireEvent.click(screen.getByText('Lost your owner password?'));
   fireEvent.change(screen.getByLabelText('Recovery code'), { target: { value: 'a'.repeat(64) } });

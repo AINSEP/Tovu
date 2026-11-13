@@ -53,7 +53,7 @@ describe("folder install hook", () => {
 
   it("digest rejection keeps the chosen folder and requires a new preview", async () => {
     const port = createFakePluginInstallPort({ preview });
-    vi.spyOn(port, "install").mockRejectedValue(new ApiError("changed", 409, "PLUGIN_CHANGED_SINCE_PREVIEW"));
+    vi.spyOn(port, "install").mockRejectedValue(new ApiError({ message: "changed", status: 409 }, { code: "PLUGIN_CHANGED_SINCE_PREVIEW" }));
     const { result } = renderHook(() => usePluginInstall({ port, t: (key) => `translated:${key}`, onInstalled: async () => {} }));
     act(() => { result.current.setFolder({ value: "/one" }); });
     await act(async () => { await result.current.review(); });
@@ -72,9 +72,9 @@ describe("folder install hook — refusal copy, late results and input plumbing"
 
   it.each([
     ["a non-API failure", new Error("socket hang up"), "Failed to preview plugin."],
-    ["an unknown code with a known status", new ApiError("bad", 400, "SOMETHING_NEW"), "Invalid plugin package. Check its manifest, integrity and folder."],
-    ["a known status without a code", new ApiError("conflict", 409), "Installation conflicts with an existing plugin. Check its version and replacement option."],
-    ["an unknown code and status", new ApiError("boom", 500, "SOMETHING_NEW"), "Failed to preview plugin."],
+    ["an unknown code with a known status", new ApiError({ message: "bad", status: 400 }, { code: "SOMETHING_NEW" }), "Invalid plugin package. Check its manifest, integrity and folder."],
+    ["a known status without a code", new ApiError({ message: "conflict", status: 409 }), "Installation conflicts with an existing plugin. Check its version and replacement option."],
+    ["an unknown code and status", new ApiError({ message: "boom", status: 500 }, { code: "SOMETHING_NEW" }), "Failed to preview plugin."],
   ])("maps %s on preview to operator copy", async (_name, failure, expected) => {
     const { port, result } = setup();
     vi.spyOn(port, "preview").mockRejectedValue(failure);

@@ -121,7 +121,7 @@ export function useMergeTermSection(
       setStep("planned");
     } catch (e) {
       if (activeTermIdRef.current !== forTermId) return;
-      setError(describeApiError(e, t({ locale: locale, key: "Failed to plan the merge" })));
+      setError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to plan the merge" }) }));
     } finally {
       if (activeTermIdRef.current === forTermId) setBusy(false);
     }
@@ -139,7 +139,7 @@ export function useMergeTermSection(
       setStep("confirmed");
     } catch (e) {
       if (activeTermIdRef.current !== forTermId) return;
-      setError(describeApiError(e, t({ locale: locale, key: "Failed to confirm the merge" })));
+      setError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to confirm the merge" }) }));
     } finally {
       if (activeTermIdRef.current === forTermId) setBusy(false);
     }
@@ -161,7 +161,7 @@ export function useMergeTermSection(
       onMerged();
     } catch (e) {
       if (activeTermIdRef.current !== forTermId) return;
-      setError(describeApiError(e, t({ locale: locale, key: "Failed to execute the merge" })));
+      setError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to execute the merge" }) }));
     } finally {
       if (activeTermIdRef.current === forTermId) setBusy(false);
     }

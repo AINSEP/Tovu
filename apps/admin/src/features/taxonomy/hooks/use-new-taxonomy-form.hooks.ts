@@ -72,7 +72,7 @@ export function useNewTaxonomyForm(
   }
 
   const saving = createMutation.status === "pending";
-  const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t({ locale: locale, key: "Failed to create taxonomy" })) : null);
+  const error = validationError ?? (createMutation.error ? describeApiError({ e: createMutation.error, fallback: t({ locale: locale, key: "Failed to create taxonomy" }) }) : null);
 
   return { name, setName, hierarchical, setHierarchical, error, saving, submit };
 }

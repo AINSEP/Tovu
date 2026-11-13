@@ -67,13 +67,13 @@ describe("defaultSourceControlCredentialsPort", () => {
     const c = credential({ label: "Renamed" });
     updateSourceControlCredential.mockResolvedValue({ credential: c });
     await expect(defaultSourceControlCredentialsPort.updateCredential("sc-1", { label: "Renamed" })).resolves.toEqual(c);
-    expect(updateSourceControlCredential).toHaveBeenCalledWith("sc-1", { label: "Renamed" });
+    expect(updateSourceControlCredential).toHaveBeenCalledWith({ id: "sc-1", input: { label: "Renamed" } });
   });
 
   it("deleteCredential forwards id to api.deleteSourceControlCredential", async () => {
     deleteSourceControlCredential.mockResolvedValue(undefined);
     await expect(defaultSourceControlCredentialsPort.deleteCredential("sc-1")).resolves.toBeUndefined();
-    expect(deleteSourceControlCredential).toHaveBeenCalledWith("sc-1");
+    expect(deleteSourceControlCredential).toHaveBeenCalledWith({ id: "sc-1" });
   });
 });
 

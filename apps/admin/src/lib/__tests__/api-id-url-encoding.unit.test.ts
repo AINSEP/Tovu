@@ -62,15 +62,15 @@ type Case = [name: string, run: () => unknown, expectedUrl: string];
 // the URL-building line; unrelated fields (`expectedVersion`, `baseVersion`, required companion
 // ids) get innocuous fixed values since only the URL is asserted.
 const singleIdCases: Case[] = [
-  ["getPost", () => api.getPost(SLASH_ID), `${BASE_WORKSPACE}/posts/${ENC}`],
+  ["getPost", () => api.getPost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
   ["updatePost", () => api.updatePost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
-  ["deletePost", () => api.deletePost(SLASH_ID), `${BASE_WORKSPACE}/posts/${ENC}`],
-  ["getPage", () => api.getPage(SLASH_ID), `${BASE_WORKSPACE}/pages/${ENC}`],
-  ["updatePageHtml", () => api.updatePageHtml(SLASH_ID, "<p>x</p>"), `${BASE_WORKSPACE}/pages/${ENC}/html`],
-  ["deletePage", () => api.deletePage(SLASH_ID), `${BASE_WORKSPACE}/pages/${ENC}`],
-  ["getMember", () => api.getMember(SLASH_ID), `${BASE_WORKSPACE}/members/${ENC}`],
-  ["disableMember", () => api.disableMember(SLASH_ID), `${BASE_WORKSPACE}/members/${ENC}/disable`],
-  ["getMenu", () => api.getMenu(SLASH_ID), `${BASE_WORKSPACE}/menus/${ENC}`],
+  ["deletePost", () => api.deletePost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
+  ["getPage", () => api.getPage({ id: SLASH_ID }), `${BASE_WORKSPACE}/pages/${ENC}`],
+  ["updatePageHtml", () => api.updatePageHtml({ id: SLASH_ID, html: "<p>x</p>" }), `${BASE_WORKSPACE}/pages/${ENC}/html`],
+  ["deletePage", () => api.deletePage({ id: SLASH_ID }), `${BASE_WORKSPACE}/pages/${ENC}`],
+  ["getMember", () => api.getMember({ id: SLASH_ID }), `${BASE_WORKSPACE}/members/${ENC}`],
+  ["disableMember", () => api.disableMember({ id: SLASH_ID }), `${BASE_WORKSPACE}/members/${ENC}/disable`],
+  ["getMenu", () => api.getMenu({ id: SLASH_ID }), `${BASE_WORKSPACE}/menus/${ENC}`],
   [
     "updateMenuTree",
     () => api.updateMenuTree({ id: SLASH_ID, expectedVersion: 1, items: [] }),
@@ -83,20 +83,20 @@ const singleIdCases: Case[] = [
   ],
   [
     "deleteIntegrationSubscription",
-    () => api.deleteIntegrationSubscription(SLASH_ID),
+    () => api.deleteIntegrationSubscription({ id: SLASH_ID }),
     `${BASE_WORKSPACE}/integrations/subscriptions/${ENC}`,
   ],
   [
     "listIntegrationDeliveries",
-    () => api.listIntegrationDeliveries(SLASH_ID),
+    () => api.listIntegrationDeliveries({ subscriptionId: SLASH_ID }),
     `${BASE_WORKSPACE}/integrations/subscriptions/${ENC}/deliveries`,
   ],
   ["updateMedia", () => api.updateMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}`],
-  ["trashMedia", () => api.trashMedia(SLASH_ID), `${BASE_WORKSPACE}/media/${ENC}/trash`],
-  ["deleteMedia", () => api.deleteMedia(SLASH_ID), `${BASE_WORKSPACE}/media/${ENC}`],
+  ["trashMedia", () => api.trashMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}/trash`],
+  ["deleteMedia", () => api.deleteMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}`],
   ["updateUser", () => api.updateUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}`],
-  ["disableUser", () => api.disableUser(SLASH_ID), `${BASE_WORKSPACE}/users/${ENC}/disable`],
-  ["enableUser", () => api.enableUser(SLASH_ID), `${BASE_WORKSPACE}/users/${ENC}/enable`],
+  ["disableUser", () => api.disableUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}/disable`],
+  ["enableUser", () => api.enableUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}/enable`],
   [
     "resetUserPassword",
     () => api.resetUserPassword({ principalId: SLASH_ID, password: "x" }),
@@ -113,9 +113,9 @@ const singleIdCases: Case[] = [
     `${BASE_WORKSPACE}/users/${ENC}/policies`,
   ],
   ["updateRole", () => api.updateRole({ roleId: SLASH_ID, name: "x" }), `${BASE_WORKSPACE}/roles/${ENC}`],
-  ["deleteRole", () => api.deleteRole(SLASH_ID), `${BASE_WORKSPACE}/roles/${ENC}`],
+  ["deleteRole", () => api.deleteRole({ roleId: SLASH_ID }), `${BASE_WORKSPACE}/roles/${ENC}`],
   ["updatePolicy", () => api.updatePolicy({ policyId: SLASH_ID }), `${BASE_WORKSPACE}/policies/${ENC}`],
-  ["deletePolicy", () => api.deletePolicy(SLASH_ID), `${BASE_WORKSPACE}/policies/${ENC}`],
+  ["deletePolicy", () => api.deletePolicy({ policyId: SLASH_ID }), `${BASE_WORKSPACE}/policies/${ENC}`],
   [
     "writePolicyPermission",
     () => api.writePolicyPermission({ policyId: SLASH_ID, permission: "read" }),
@@ -123,7 +123,7 @@ const singleIdCases: Case[] = [
   ],
   [
     "listPolicyPermissions",
-    () => api.listPolicyPermissions(SLASH_ID),
+    () => api.listPolicyPermissions({ policyId: SLASH_ID }),
     `${BASE_WORKSPACE}/policies/${ENC}/permissions`,
   ],
 
@@ -169,46 +169,46 @@ const singleIdCases: Case[] = [
     `${BASE_API}/taxonomy/terms/${ENC}/merge/execute`,
   ],
 
-  ["getWidget", () => api.getWidget(SLASH_ID), `${BASE_WORKSPACE}/widgets/${ENC}`],
+  ["getWidget", () => api.getWidget({ id: SLASH_ID }), `${BASE_WORKSPACE}/widgets/${ENC}`],
 
   [
     "setPluginEnabled",
-    () => api.setPluginEnabled(SLASH_ID, { enabled: true }),
+    () => api.setPluginEnabled({ pluginId: SLASH_ID, enabled: true }),
     `${BASE_WORKSPACE}/plugins/${ENC}`,
   ],
   [
     "updatePublishCredential",
-    () => api.updatePublishCredential(SLASH_ID, {}),
+    () => api.updatePublishCredential({ id: SLASH_ID, input: {} }),
     `${BASE_WORKSPACE}/system/publish/credentials/${ENC}`,
   ],
   [
     "deletePublishCredential",
-    () => api.deletePublishCredential(SLASH_ID),
+    () => api.deletePublishCredential({ id: SLASH_ID }),
     `${BASE_WORKSPACE}/system/publish/credentials/${ENC}`,
   ],
   [
     "verifyPublishCredential",
-    () => api.verifyPublishCredential(SLASH_ID),
+    () => api.verifyPublishCredential({ id: SLASH_ID }),
     `${BASE_WORKSPACE}/system/publish/credentials/${ENC}/verify`,
   ],
   [
     "updateSourceControlCredential",
-    () => api.updateSourceControlCredential(SLASH_ID, {}),
+    () => api.updateSourceControlCredential({ id: SLASH_ID, input: {} }),
     `${BASE_WORKSPACE}/system/source-control/credentials/${ENC}`,
   ],
   [
     "deleteSourceControlCredential",
-    () => api.deleteSourceControlCredential(SLASH_ID),
+    () => api.deleteSourceControlCredential({ id: SLASH_ID }),
     `${BASE_WORKSPACE}/system/source-control/credentials/${ENC}`,
   ],
   [
     "updateCustomCredential",
-    () => api.updateCustomCredential(SLASH_ID, {}),
+    () => api.updateCustomCredential({ id: SLASH_ID, input: {} }),
     `${BASE_WORKSPACE}/system/custom/credentials/${ENC}`,
   ],
   [
     "deleteCustomCredential",
-    () => api.deleteCustomCredential(SLASH_ID),
+    () => api.deleteCustomCredential({ id: SLASH_ID }),
     `${BASE_WORKSPACE}/system/custom/credentials/${ENC}`,
   ],
 ];
@@ -223,13 +223,13 @@ test.each(singleIdCases)("%s encodes an id containing '/' in the request URL", a
 // to a DOM element's `src` (same shape as `templatePreviewUrl`, which already encodes). No stub
 // needed.
 test("mediaOriginalUrl encodes an id containing '/' in the URL string it builds", () => {
-  expect(api.mediaOriginalUrl(SLASH_ID)).toBe(`${BASE_API}/workspaces/workspace-local/media/${ENC}/original`);
+  expect(api.mediaOriginalUrl({ id: SLASH_ID })).toBe(`${BASE_API}/workspaces/workspace-local/media/${ENC}/original`);
 });
 
 // The Edit post cover slot shows the same `public` rendition the published post's cover uses, not the
 // cropped `og` share card (owner 2026-10-11: the slot must match the published page).
 test("mediaPreviewRenditionUrl builds the published cover's public.v1 URL with the id encoded", () => {
-  expect(api.mediaPreviewRenditionUrl(SLASH_ID)).toMatch(new RegExp(`/m/${ENC}/public\\.v1/image\\.jpg$`));
+  expect(api.mediaPreviewRenditionUrl({ id: SLASH_ID })).toMatch(new RegExp(`/m/${ENC}/public\\.v1/image\\.jpg$`));
 });
 
 // --- Two-id call sites: each segment asserted independently ----------------

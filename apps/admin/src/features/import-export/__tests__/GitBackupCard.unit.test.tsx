@@ -62,7 +62,7 @@ describe("GitBackupCard", () => {
   });
 
   it("shows a connections load failure", async () => {
-    render(<Harness port={createFakeGitBackupPort({ listConnections: () => Promise.reject(new ApiError("Boom", 500)) })} />);
+    render(<Harness port={createFakeGitBackupPort({ listConnections: () => Promise.reject(new ApiError({ message: "Boom", status: 500 })) })} />);
     expect((await screen.findByRole("alert")).textContent).toBe("Boom");
   });
 
@@ -133,7 +133,7 @@ describe("GitBackupCard", () => {
     const results: Array<() => Promise<GitBackupPlan | { planned: false; code: string; message: string }>> = [
       async () => PLAN,
       async () => ({ planned: false, code: "REPOSITORY_NOT_PRIVATE", message: "me/site-backups is public." }),
-      () => Promise.reject(new ApiError("You do not have permission to back up this site.", 403)),
+      () => Promise.reject(new ApiError({ message: "You do not have permission to back up this site.", status: 403 })),
     ];
     const port = createFakeGitBackupPort({
       listConnections: async () => [connection(), connection({ id: "c2", providerId: "gitlab" as AdminSourceControlCredentialSummary["providerId"], label: "GitLab" })],

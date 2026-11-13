@@ -91,7 +91,7 @@ describe("posts", () => {
 
   test("getPost GETs the post by id, encodeURIComponent-applied like templatePreviewUrl", async () => {
     const { calls } = stubFetchCapturing(() => jsonResponse({ post: { id: "a/b" } }));
-    await api.getPost("a/b");
+    await api.getPost({ id: "a/b" });
     // Was pinned as raw/unencoded (`.../posts/a/b`) — fixed 2026-09-05 (`fix-apienc` dispatch) for
     // consistency with templatePreviewUrl and the rest of this sweep; see
     // `api-id-url-encoding.unit.test.ts` for the full id-encoding coverage this fix added.
@@ -101,7 +101,7 @@ describe("posts", () => {
 
   test("getPost propagates a thrown ApiError with the server's exact message", async () => {
     stubFetchCapturing(() => jsonResponse({ error: "post not found", code: "NOT_FOUND" }, 404));
-    const error = await api.getPost("missing").catch((e: unknown) => e);
+    const error = await api.getPost({ id: "missing" }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).message).toBe("post not found");
     expect((error as ApiError).code).toBe("NOT_FOUND");
@@ -109,7 +109,7 @@ describe("posts", () => {
 
   test("updatePost PUTs the given partial fields as the body", async () => {
     const { body, method, calls } = stubFetchCapturing(() => jsonResponse({ post: { id: "p1", title: "New" } }));
-    await api.updatePost({ id: "p1" }, { title: "New", status: "published" });
+    await api.updatePost({ id: "p1" }, { options: { title: "New", status: "published" } });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/posts/p1`);
     expect(method()).toBe("PUT");
     expect(body()).toEqual({ title: "New", status: "published" });
@@ -123,7 +123,7 @@ describe("posts", () => {
 
   test("deletePost DELETEs the post by id and resolves the (soft-deleted) post", async () => {
     const { calls, method } = stubFetchCapturing(() => jsonResponse({ post: { id: "p1", status: "draft" } }));
-    await expect(api.deletePost("p1")).resolves.toEqual({ post: { id: "p1", status: "draft" } });
+    await expect(api.deletePost({ id: "p1" })).resolves.toEqual({ post: { id: "p1", status: "draft" } });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/posts/p1`);
     expect(method()).toBe("DELETE");
   });
@@ -134,7 +134,7 @@ describe("posts", () => {
 
     test("outside dev, builds a bare relative BASE-prefixed URL with the id encoded", async () => {
       vi.stubEnv("DEV", false);
-      expect(api.templatePreviewUrl("a/b", null)).toBe(
+      expect(api.templatePreviewUrl({ id: "a/b", templateChoice: null })).toBe(
         `${BASE_WORKSPACE}/posts/${encodeURIComponent("a/b")}/template-preview`
       );
     });
@@ -142,7 +142,7 @@ describe("posts", () => {
     test("in dev, prefixes with the site origin (VITE_TOVU_SITE_URL when set)", async () => {
       vi.stubEnv("DEV", true);
       vi.stubEnv("VITE_TOVU_SITE_URL", "https://staging.example.com");
-      expect(api.templatePreviewUrl("p1", null)).toBe(
+      expect(api.templatePreviewUrl({ id: "p1", templateChoice: null })).toBe(
         `https://staging.example.com${BASE_WORKSPACE}/posts/p1/template-preview`
       );
     });
@@ -153,22 +153,22 @@ describe("posts", () => {
       // a bare `npm run desktop` has nothing listening on.
       vi.stubEnv("DEV", true);
       vi.mocked(isAdminDevServerOrigin).mockReturnValue(false);
-      expect(api.templatePreviewUrl("p1", null)).toBe(`${BASE_WORKSPACE}/posts/p1/template-preview`);
+      expect(api.templatePreviewUrl({ id: "p1", templateChoice: null })).toBe(`${BASE_WORKSPACE}/posts/p1/template-preview`);
     });
 
     test("templateChoice: null omits the query param entirely", async () => {
       vi.stubEnv("DEV", false);
-      expect(api.templatePreviewUrl("p1", null)).not.toContain("templateChoice");
+      expect(api.templatePreviewUrl({ id: "p1", templateChoice: null })).not.toContain("templateChoice");
     });
 
     test("templateChoice: empty string sends the explicit opt-out `?templateChoice=`", async () => {
       vi.stubEnv("DEV", false);
-      expect(api.templatePreviewUrl("p1", "")).toBe(`${BASE_WORKSPACE}/posts/p1/template-preview?templateChoice=`);
+      expect(api.templatePreviewUrl({ id: "p1", templateChoice: "" })).toBe(`${BASE_WORKSPACE}/posts/p1/template-preview?templateChoice=`);
     });
 
     test("templateChoice: a real filename is sent, encoded", async () => {
       vi.stubEnv("DEV", false);
-      expect(api.templatePreviewUrl("p1", "page one.html")).toBe(
+      expect(api.templatePreviewUrl({ id: "p1", templateChoice: "page one.html" })).toBe(
         `${BASE_WORKSPACE}/posts/p1/template-preview?templateChoice=${encodeURIComponent("page one.html")}`
       );
     });
@@ -204,7 +204,7 @@ describe("policies", () => {
 
   test("deletePolicy DELETEs the policy by id", async () => {
     const { calls, method } = stubFetchCapturing(() => jsonResponse(null));
-    await api.deletePolicy("pol1");
+    await api.deletePolicy({ policyId: "pol1" });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/pol1`);
     expect(method()).toBe("DELETE");
   });
@@ -224,7 +224,7 @@ describe("policies", () => {
     const { calls } = stubFetchCapturing(() =>
       jsonResponse({ policyPermissions: [{ id: "pp1", policyId: "pol1", permission: "read" }] })
     );
-    await expect(api.listPolicyPermissions("pol1")).resolves.toEqual({
+    await expect(api.listPolicyPermissions({ policyId: "pol1" })).resolves.toEqual({
       policyPermissions: [{ id: "pp1", policyId: "pol1", permission: "read" }],
     });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/pol1/permissions`);
@@ -240,7 +240,7 @@ describe("policies", () => {
 
   test("a policy-scoped call propagates a thrown ApiError with the server's exact message", async () => {
     stubFetchCapturing(() => jsonResponse({ error: "cannot delete a builtin policy", code: "FORBIDDEN" }, 403));
-    const error = await api.deletePolicy("builtin-1").catch((e: unknown) => e);
+    const error = await api.deletePolicy({ policyId: "builtin-1" }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).message).toBe("cannot delete a builtin policy");
     expect((error as ApiError).status).toBe(403);

@@ -136,7 +136,7 @@ test("custom error contracts retain the upstream-refused proof needed to safely 
     method: "POST",
     send: () => requestOnce({ path: "/rescan", init: { method: "POST" } }, {
       basePath: "/api/agents",
-      errorFactory: ({ error }) => new ApiError("POST /api/agents/rescan answered 503", error.status, error.code, error.body),
+      errorFactory: ({ error }) => new ApiError({ message: "POST /api/agents/rescan answered 503", status: error.status }, { code: error.code, body: error.body }),
     }),
   }, { reconnect })).resolves.toEqual({ ok: true });
   expect(waitUntilReachable).toHaveBeenCalledTimes(1);
@@ -153,7 +153,7 @@ test("custom error contracts do not replay a write that may already have reached
     method: "POST",
     send: () => requestOnce({ path: "/rescan", init: { method: "POST" } }, {
       basePath: "/api/agents",
-      errorFactory: ({ error }) => new ApiError("POST /api/agents/rescan answered 503", error.status, error.code, error.body),
+      errorFactory: ({ error }) => new ApiError({ message: "POST /api/agents/rescan answered 503", status: error.status }, { code: error.code, body: error.body }),
     }),
   }, { reconnect })).rejects.toThrow("POST /api/agents/rescan answered 503");
   expect(waitUntilReachable).not.toHaveBeenCalled();

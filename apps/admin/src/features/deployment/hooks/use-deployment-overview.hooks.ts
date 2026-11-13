@@ -37,7 +37,7 @@ export function useDeploymentOverview(
   });
 
   const error = query.error
-    ? deploymentOverviewLoadErrorMessage({ locale, error: describeApiError(query.error, "unknown error") })
+    ? deploymentOverviewLoadErrorMessage({ locale, error: describeApiError({ e: query.error, fallback: "unknown error" }) })
     : null;
 
   return { snapshot: query.data, error, t };

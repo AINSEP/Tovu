@@ -28,13 +28,13 @@ describe("assistant prompt bus", () => {
     subscribeToAssistantDockRequests((open) => opens.push(open));
     const insertText = vi.fn();
     renderHook(() => useAssistantPromptRequests(handleRef({ insertText })));
-    requestAssistantPrompt("Import https://example.com");
+    requestAssistantPrompt({ text: "Import https://example.com" });
     expect(opens).toEqual([true]);
     expect(insertText).toHaveBeenCalledExactlyOnceWith("Import https://example.com");
   });
 
   it("delivers a request queued before the dock mounted", () => {
-    requestAssistantPrompt("queued");
+    requestAssistantPrompt({ text: "queued" });
     const insertText = vi.fn();
     renderHook(() => useAssistantPromptRequests(handleRef({ insertText })));
     expect(insertText).toHaveBeenCalledExactlyOnceWith("queued");
@@ -43,7 +43,7 @@ describe("assistant prompt bus", () => {
   it("waits for the composer handle while the pane mounts", () => {
     const ref = handleRef(null);
     renderHook(() => useAssistantPromptRequests(ref));
-    requestAssistantPrompt("later");
+    requestAssistantPrompt({ text: "later" });
     const insertText = vi.fn();
     vi.advanceTimersByTime(250);
     ref.current = { insertText } as unknown as ChatPaneComposerHandle;
@@ -53,8 +53,8 @@ describe("assistant prompt bus", () => {
 
   it("keeps the request for the next mount when the handle never appears, and a newer one replaces it", () => {
     const first = renderHook(() => useAssistantPromptRequests(handleRef(null)));
-    requestAssistantPrompt("old");
-    requestAssistantPrompt("new");
+    requestAssistantPrompt({ text: "old" });
+    requestAssistantPrompt({ text: "new" });
     vi.advanceTimersByTime(10_000);
     first.unmount();
     const insertText = vi.fn();

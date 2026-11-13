@@ -87,7 +87,7 @@ export const defaultExternalMcpAdmissionsPort: ExternalMcpAdmissionsPort = {
  *  replaced by a generic one. */
 function resolveUnavailable({ error, t }: { error: unknown; t: Translate }, _options = {}): string | null {
   if (!error) return null;
-  return describeApiError(error, t("The assistant is not reporting what it loaded — it may not be running."));
+  return describeApiError({ e: error, fallback: t("The assistant is not reporting what it loaded — it may not be running.") });
 }
 
 /** The admissions route's own 503 code (`routes/external-mcp/admissions.ts`) for "the daemon could
@@ -313,7 +313,7 @@ export function useExternalMcpAdmissions(deps: {
     restartHelps: admissionRestartHelps({ connections }),
     canRestart: hasPermission({ permissions: permissions.data?.effectivePermissions ?? [], permission: "system.write" }),
     restarting: restartCall.status === "pending",
-    restartError: refusal ?? (restartCall.error ? describeApiError(restartCall.error, t("Could not restart the assistant.")) : null),
+    restartError: refusal ?? (restartCall.error ? describeApiError({ e: restartCall.error, fallback: t("Could not restart the assistant.") }) : null),
     restartAccepted: outcome?.ok === true && watching,
     restart,
   };

@@ -135,7 +135,7 @@ describe("useAssistantChats.persistUserTurn", () => {
       conversations: [CONVERSATION],
       onSaveMessage: (_conversationId, message) => {
         seen.push(message.id);
-        if (seen.length === 1) throw new HttpError(400, "Bad Request");
+        if (seen.length === 1) throw new HttpError({ status: 400, statusText: "Bad Request" });
       },
     });
     const { result } = await mountWith(port);
@@ -159,7 +159,7 @@ describe("useAssistantChats.persistUserTurn", () => {
     const port = createFakeAssistantChatsPort({
       conversations: [CONVERSATION],
       onSaveMessage: () => {
-        throw new HttpError(400, "Bad Request");
+        throw new HttpError({ status: 400, statusText: "Bad Request" });
       },
     });
     const { result } = await mountWith(port);

@@ -12,7 +12,7 @@ export const defaultIntegrationsPort: IntegrationsPort = {
   listIntegrationSubscriptions: () => api.listIntegrationSubscriptions(),
   createIntegrationSubscription: (input, _optional = {}) => api.createIntegrationSubscription(input),
   pauseIntegrationSubscription: ({ id, paused }) => api.pauseIntegrationSubscription({ id, paused }),
-  deleteIntegrationSubscription: ({ id }, _optional = {}) => api.deleteIntegrationSubscription(id),
+  deleteIntegrationSubscription: ({ id }, _optional = {}) => api.deleteIntegrationSubscription({ id }),
 };
 
 /** Seed state for {@link createFakeIntegrationsPort}. */

@@ -158,7 +158,7 @@ describe("isContentAnalysisHidden", () => {
   it("hides while the status read is loading, and when the plugin is off or not installed", () => {
     expect(isContentAnalysisHidden({ data: undefined, error: null })).toBe(true);
     expect(isContentAnalysisHidden({ data: { enabled: false }, error: null })).toBe(true);
-    expect(isContentAnalysisHidden({ data: undefined, error: new ApiError("plugin was not found", 404, "PLUGIN_NOT_FOUND") })).toBe(true);
+    expect(isContentAnalysisHidden({ data: undefined, error: new ApiError({ message: "plugin was not found", status: 404 }, { code: "PLUGIN_NOT_FOUND" }) })).toBe(true);
   });
 
   it("shows when the plugin is enabled", () => {
@@ -166,7 +166,7 @@ describe("isContentAnalysisHidden", () => {
   });
 
   it("shows (to carry the error) when the status read was refused or failed — never a silent 'off'", () => {
-    expect(isContentAnalysisHidden({ data: undefined, error: new ApiError("forbidden", 403, "FORBIDDEN") })).toBe(false);
+    expect(isContentAnalysisHidden({ data: undefined, error: new ApiError({ message: "forbidden", status: 403 }, { code: "FORBIDDEN" }) })).toBe(false);
     expect(isContentAnalysisHidden({ data: undefined, error: new Error("offline") })).toBe(false);
   });
 });
@@ -297,12 +297,12 @@ describe("describeAnalysisError", () => {
     ["PLUGIN_NOT_FOUND", "The Content Analyzer plugin is not installed."],
     ["PLUGIN_HOOK_FAILED", "The analyzer could not process this content."],
   ])("maps %s to its own copy", (code, message) => {
-    expect(describeAnalysisError({ error: new ApiError("server words", 409, code), t: identity })).toBe(message);
+    expect(describeAnalysisError({ error: new ApiError({ message: "server words", status: 409 }, { code }), t: identity })).toBe(message);
   });
 
   it("falls back to the shared API error copy for any other failure", () => {
-    expect(describeAnalysisError({ error: new ApiError("bad body", 400, "VALIDATION"), t: identity })).toBe("bad body");
-    expect(describeAnalysisError({ error: new ApiError("", 500), t: identity })).toBe("Analysis failed.");
+    expect(describeAnalysisError({ error: new ApiError({ message: "bad body", status: 400 }, { code: "VALIDATION" }), t: identity })).toBe("bad body");
+    expect(describeAnalysisError({ error: new ApiError({ message: "", status: 500 }), t: identity })).toBe("Analysis failed.");
     expect(describeAnalysisError({ error: "boom", t: marked })).toBe("<Analysis failed.>");
   });
 });

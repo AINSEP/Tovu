@@ -149,7 +149,7 @@ describe("AgentPlugins — Add a plugin", () => {
   });
 
   it("shows a server refusal in plain words and keeps the file for another try", async () => {
-    const port = createFakeAgentPluginInstallPort({ row: NOTE_TAKER }, { failWith: new ApiError("taken", 409, "AGENT_PLUGIN_PLUGIN_ID_TAKEN") });
+    const port = createFakeAgentPluginInstallPort({ row: NOTE_TAKER }, { failWith: new ApiError({ message: "taken", status: 409 }, { code: "AGENT_PLUGIN_PLUGIN_ID_TAKEN" }) });
     const { onInstalled } = renderAddTab(port);
     await openAddTab();
 

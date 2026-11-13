@@ -114,8 +114,8 @@ describe("observability default binding and error copy", () => {
 
   it.each([
     ["non-Error rejection", "offline", "no se pudo cargar el estado de observabilidad"],
-    ["empty ApiError", new ApiError("", 503), "no se pudo cargar el estado de observabilidad"],
-    ["ApiError message", new ApiError("permission denied", 403), "permission denied"],
+    ["empty ApiError", new ApiError({ message: "", status: 503 }), "no se pudo cargar el estado de observabilidad"],
+    ["ApiError message", new ApiError({ message: "permission denied", status: 403 }), "permission denied"],
   ])("maps %s to operator copy", async (_name, failure, expected) => {
     const port = createFakeObservabilityStatusPort({ failWith: failure });
     const { result } = renderHook(() => useObservabilityStatus({ port, locale: "es", t: (key) => key }));

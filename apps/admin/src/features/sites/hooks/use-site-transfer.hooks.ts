@@ -115,7 +115,7 @@ function useExportPassword({ port, t, canManageSavedKeys, identity, clipboard }:
       const result = await port.revealSharePassword({ shareId });
       if (request === generation.current) setRevealedPassword({ shareId, password: result.password });
     } catch (failure) {
-      if (request === generation.current) setPasswordError(describeApiError(failure, t("Couldn't reveal the password.")));
+      if (request === generation.current) setPasswordError(describeApiError({ e: failure, fallback: t("Couldn't reveal the password.") }));
     } finally {
       if (request === generation.current) setRevealingId(null);
     }
@@ -222,7 +222,7 @@ export function useSiteExport(
     try {
       await port.revokeShare({ shareId: share.shareId });
     } catch (failure) {
-      setExportError(describeApiError(failure, t("Revoke failed.")));
+      setExportError(describeApiError({ e: failure, fallback: t("Revoke failed.") }));
     } finally {
       setRevokingId(null);
       invalidate({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope] });
@@ -243,7 +243,7 @@ export function useSiteExport(
     canManageSavedKeys,
     ...staticSelection,
     shares,
-    listError: list.error ? describeApiError(list.error, t("Couldn't load exports.")) : null,
+    listError: list.error ? describeApiError({ e: list.error, fallback: t("Couldn't load exports.") }) : null,
     exporting: exportKind === "backup",
     exportingStatic: exportKind === "static",
     exportError,
@@ -423,7 +423,7 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
       setLinkState("");
       setFile(null);
     } catch (failure) {
-      setImportError(describeApiError(failure, t("Import failed. No site was changed.")));
+      setImportError(describeApiError({ e: failure, fallback: t("Import failed. No site was changed.") }));
     } finally {
       setImporting(false);
       refresh();
@@ -443,7 +443,7 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
       setPassword("");
       setConfirm("");
     } catch (failure) {
-      setOwnerError(describeApiError(failure, t("Couldn't create the site.")));
+      setOwnerError(describeApiError({ e: failure, fallback: t("Couldn't create the site.") }));
     } finally {
       // The archive password must not linger after an attempted submission, including failures.
       setSavedKeysPassword("");
@@ -456,7 +456,7 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
     savedKeysPassword,
     setSavedKeysPassword,
     imports: unavailable ? [] : list.data?.imports,
-    listError: list.error && !unavailable ? describeApiError(list.error, t("Couldn't load imports.")) : null,
+    listError: list.error && !unavailable ? describeApiError({ e: list.error, fallback: t("Couldn't load imports.") }) : null,
     link,
     setLink,
     file,
@@ -486,7 +486,7 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
     setLiveAddress,
     liveAddressValid: validWebsiteAddress(liveAddress),
     startLiveImport: () => {
-      if (validWebsiteAddress(liveAddress)) requestAssistantPrompt(liveImportPrompt(liveAddress));
+      if (validWebsiteAddress(liveAddress)) requestAssistantPrompt({ text: liveImportPrompt(liveAddress) });
     },
     arrivedForImport,
   };

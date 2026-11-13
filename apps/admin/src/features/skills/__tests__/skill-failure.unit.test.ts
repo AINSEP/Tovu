@@ -4,7 +4,7 @@ import { skillFailure } from "../skill-failure";
 import { t } from "../skills-i18n";
 
 it("preserves the incident ID and redacts diagnostics before copying", () => {
-  const failure = skillFailure({ error: new ApiError("Could not load skills. password=SKILL_SECRET_CANARY", 500, "INTERNAL_ERROR", { errorId: "skill-incident-123" }),
+  const failure = skillFailure({ error: new ApiError({ message: "Could not load skills. password=SKILL_SECRET_CANARY", status: 500 }, { code: "INTERNAL_ERROR", body: { errorId: "skill-incident-123" } }),
     message: "Could not load skills.", t: key => key });
   expect(failure.errorId).toBe("skill-incident-123");
   expect(failure.copyText).toContain("skill-incident-123");

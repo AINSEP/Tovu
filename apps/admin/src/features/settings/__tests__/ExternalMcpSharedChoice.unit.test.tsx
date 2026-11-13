@@ -55,10 +55,10 @@ describe('explicit saved MCP choices', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign in and save on this Mac' }));
     expect(signIn).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: 'Stop using here' }));
-    await waitFor(() => expect(stopHere).toHaveBeenCalledWith('server-a'));
+    await waitFor(() => expect(stopHere).toHaveBeenCalledWith({ serverId: 'server-a' }));
     await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(2));
     fireEvent.click(screen.getByRole('button', { name: "Use this site's local connection" }));
-    await waitFor(() => expect(useLocal).toHaveBeenCalledWith('server-a'));
+    await waitFor(() => expect(useLocal).toHaveBeenCalledWith({ serverId: 'server-a' }));
     await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(3));
   });
 

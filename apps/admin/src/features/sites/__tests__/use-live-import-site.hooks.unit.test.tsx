@@ -79,7 +79,7 @@ describe("useLiveImportSite", () => {
   });
 
   it("says in plain words when the site could not be made", async () => {
-    const sites = port({ createSite: () => Promise.reject(new ApiError("", 403, "SITE_SWITCHING_DISABLED")) });
+    const sites = port({ createSite: () => Promise.reject(new ApiError({ message: "", status: 403 }, { code: "SITE_SWITCHING_DISABLED" })) });
     const { result } = renderHook(() => useLiveImportSite({ port: sites, t }));
     await act(() => result.current.start("https://example.com"));
     expect(result.current.error).toBe("Site switching is turned off on this deployment.");
@@ -94,7 +94,7 @@ describe("useLiveImportSite", () => {
     expect(first.result.current.error).toBe("{name} was made but didn't start. Start it from All sites, then import there.".replace("{name}", "example-com"));
     expect(crashed.opened).toEqual([]);
 
-    const refused = port({ manageLocalSite: () => Promise.reject(new ApiError("", 409, "SITE_LIMIT")) });
+    const refused = port({ manageLocalSite: () => Promise.reject(new ApiError({ message: "", status: 409 }, { code: "SITE_LIMIT" })) });
     const second = renderHook(() => useLiveImportSite({ port: refused, t }, { wait: async () => {} }));
     await act(() => second.result.current.start("https://example.com"));
     expect(second.result.current.error).toBe("example-com was made but didn't start. Start it from All sites, then import there. Stop a site before starting another.");

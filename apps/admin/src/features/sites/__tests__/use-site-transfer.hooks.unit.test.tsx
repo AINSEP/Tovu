@@ -176,7 +176,7 @@ describe("useSiteExport", () => {
     act(() => { pending = result.current.exportSite(); });
     expect(result.current.exporting).toBe(true);
     await act(async () => {
-      rejectExport(new ApiError("Cannot share unsupported nonempty table 'p_unknown__data'.", 400, "UNSUPPORTED_DATA"));
+      rejectExport(new ApiError({ message: "Cannot share unsupported nonempty table 'p_unknown__data'.", status: 400 }, { code: "UNSUPPORTED_DATA" }));
       await pending;
     });
     expect(result.current.exportError).toContain("p_unknown__data");
@@ -205,7 +205,7 @@ describe("useSiteExport", () => {
   });
 
   it("shows the server's message when an export fails", async () => {
-    const port = createFakeSiteTransferPort({ createShare: async () => { throw new ApiError("No storage configured.", 400, "UNAVAILABLE"); } });
+    const port = createFakeSiteTransferPort({ createShare: async () => { throw new ApiError({ message: "No storage configured.", status: 400 }, { code: "UNAVAILABLE" }); } });
     const { result } = renderHook(() => useSiteExport({ port, t }), { wrapper });
     await act(() => result.current.exportSite());
     expect(result.current.exportError).toBe("No storage configured.");
@@ -274,7 +274,7 @@ describe("useSiteExport", () => {
     expect(revokeShare).toHaveBeenCalledWith({ shareId: "share-1" });
     expect(result.current.revokingId).toBeNull();
 
-    revokeShare.mockRejectedValueOnce(new ApiError("", 500));
+    revokeShare.mockRejectedValueOnce(new ApiError({ message: "", status: 500 }));
     await act(() => result.current.revoke(share()));
     expect(result.current.exportError).toBe("Revoke failed.");
   });
@@ -310,7 +310,7 @@ describe("useSiteExport", () => {
   });
 
   it("is not zip-only with no exports, and names a list failure", async () => {
-    const port = createFakeSiteTransferPort({ listShares: async () => { throw new ApiError("", 500); } });
+    const port = createFakeSiteTransferPort({ listShares: async () => { throw new ApiError({ message: "", status: 500 }); } });
     const { result } = renderHook(() => useSiteExport({ port, t }), { wrapper });
     await waitFor(() => expect(result.current.listError).toBe("Couldn't load exports."));
     expect(result.current.zipOnly).toBe(false);
@@ -437,7 +437,7 @@ describe("useSiteImport", () => {
   });
 
   it("says no site changed when the import fails, keeping the source to retry", async () => {
-    const port = createFakeSiteTransferPort({ startImport: async () => { throw new ApiError("", 500); } });
+    const port = createFakeSiteTransferPort({ startImport: async () => { throw new ApiError({ message: "", status: 500 }); } });
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
     act(() => result.current.setLink("https://example.com/s/abc"));
     await act(() => result.current.startImport());
@@ -449,7 +449,7 @@ describe("useSiteImport", () => {
   it("names an owner-step failure and keeps the import open", async () => {
     const port = createFakeSiteTransferPort({
       listImports: async () => ({ imports: [siteImport()] }),
-      completeImportOwner: async () => { throw new ApiError("", 500); },
+      completeImportOwner: async () => { throw new ApiError({ message: "", status: 500 }); },
     });
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
     await waitFor(() => expect(result.current.imports).toHaveLength(1));
@@ -462,7 +462,7 @@ describe("useSiteImport", () => {
   });
 
   it("names a list failure", async () => {
-    const port = createFakeSiteTransferPort({ listImports: async () => { throw new ApiError("", 500); } });
+    const port = createFakeSiteTransferPort({ listImports: async () => { throw new ApiError({ message: "", status: 500 }); } });
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
     await waitFor(() => expect(result.current.listError).toBe("Couldn't load imports."));
   });
@@ -470,7 +470,7 @@ describe("useSiteImport", () => {
   it("an unavailable import shows the server's reason, not a list failure, and uploads nothing", async () => {
     const reason = "Import requires local site creation and a configured sites home.";
     const uploadImportZip = vi.fn(async () => ({ uploadId: "never" }));
-    const port = createFakeSiteTransferPort({ uploadImportZip, listImports: async () => { throw new ApiError(reason, 503, "UNAVAILABLE"); } });
+    const port = createFakeSiteTransferPort({ uploadImportZip, listImports: async () => { throw new ApiError({ message: reason, status: 503 }, { code: "UNAVAILABLE" }); } });
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
     await waitFor(() => expect(result.current.importError).toBe(reason));
     expect(result.current.listError).toBeNull();
@@ -495,8 +495,8 @@ describe("useSiteImport", () => {
   it("a dropped upload asks the server why, so its refusal replaces 'cannot reach the API'", async () => {
     let listCalls = 0;
     const port = createFakeSiteTransferPort({
-      listImports: async () => { if (listCalls++ === 0) return { imports: [] }; throw new ApiError("Another ZIP upload is running.", 409, "BUSY"); },
-      uploadImportZip: async () => { throw new ApiError("cannot reach the Tovu API — is the server running?", 0, API_UNREACHABLE_CODE); },
+      listImports: async () => { if (listCalls++ === 0) return { imports: [] }; throw new ApiError({ message: "Another ZIP upload is running.", status: 409 }, { code: "BUSY" }); },
+      uploadImportZip: async () => { throw new ApiError({ message: "cannot reach the Tovu API — is the server running?", status: 0 }, { code: API_UNREACHABLE_CODE }); },
     });
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
     await waitFor(() => expect(result.current.imports).toEqual([]));
@@ -507,7 +507,7 @@ describe("useSiteImport", () => {
 
   it("a dropped upload keeps its own error when the server answers fine", async () => {
     const port = createFakeSiteTransferPort({
-      uploadImportZip: async () => { throw new ApiError("cannot reach the Tovu API — is the server running?", 0, API_UNREACHABLE_CODE); },
+      uploadImportZip: async () => { throw new ApiError({ message: "cannot reach the Tovu API — is the server running?", status: 0 }, { code: API_UNREACHABLE_CODE }); },
     });
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
     act(() => result.current.chooseFiles([new File(["PK"], "site.tovu.zip")]));

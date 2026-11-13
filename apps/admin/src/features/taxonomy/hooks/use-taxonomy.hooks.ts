@@ -177,7 +177,7 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
   const invalidate = useInvalidate();
   useEffect(() => {
     return subscribeToContentRefresh((scope) => {
-      if (contentRefreshApplies(scope, TAXONOMY_RESOURCE)) invalidate({ key: KEYS.list });
+      if (contentRefreshApplies({ scope, resource: TAXONOMY_RESOURCE })) invalidate({ key: KEYS.list });
     });
   }, [invalidate]);
 

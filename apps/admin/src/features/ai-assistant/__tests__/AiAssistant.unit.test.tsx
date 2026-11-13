@@ -312,11 +312,11 @@ describe("?tab= deep linking", () => {
       await userEvent.click(toggle);
       expect(requests).toEqual([true]);
       expect(toggle).not.toBeChecked();
-      act(() => publishAssistantDockState(true));
+      act(() => publishAssistantDockState({ open: true }));
       expect(toggle).toBeChecked();
       await userEvent.click(toggle);
       expect(requests).toEqual([true, false]);
-      act(() => publishAssistantDockState(false));
+      act(() => publishAssistantDockState({ open: false }));
       expect(toggle).not.toBeChecked();
     } finally {
       unsubscribe();

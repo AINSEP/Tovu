@@ -81,20 +81,20 @@ describe("defaultPublishCredentialsPort", () => {
     const c = credential({ label: "Renamed" });
     updatePublishCredential.mockResolvedValue({ credential: c });
     await expect(defaultPublishCredentialsPort.updateCredential({ id: "cred-1", input: { label: "Renamed" } })).resolves.toEqual(c);
-    expect(updatePublishCredential).toHaveBeenCalledWith("cred-1", { label: "Renamed" });
+    expect(updatePublishCredential).toHaveBeenCalledWith({ id: "cred-1", input: { label: "Renamed" } });
   });
 
   it("deleteCredential forwards id to api.deletePublishCredential", async () => {
     deletePublishCredential.mockResolvedValue(undefined);
     await expect(defaultPublishCredentialsPort.deleteCredential({ id: "cred-1" })).resolves.toBeUndefined();
-    expect(deletePublishCredential).toHaveBeenCalledWith("cred-1");
+    expect(deletePublishCredential).toHaveBeenCalledWith({ id: "cred-1" });
   });
 
   it("verifyCredential forwards id to api.verifyPublishCredential and unwraps the { verification } envelope", async () => {
     const v = verification({ status: "invalid", message: "bad token" });
     verifyPublishCredential.mockResolvedValue({ verification: v });
     await expect(defaultPublishCredentialsPort.verifyCredential({ id: "cred-1" })).resolves.toEqual(v);
-    expect(verifyPublishCredential).toHaveBeenCalledWith("cred-1");
+    expect(verifyPublishCredential).toHaveBeenCalledWith({ id: "cred-1" });
   });
 });
 

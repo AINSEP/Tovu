@@ -51,7 +51,7 @@ describe('owner recovery card', () => {
 
 it('keeps the status store failure and offers copyable details', async () => {
   const p = port();
-  p.status = async () => { throw new ApiError('The identity database is offline. Ask the host operator to reconnect it.', 503); };
+  p.status = async () => { throw new ApiError({ message: 'The identity database is offline. Ask the host operator to reconnect it.', status: 503 }); };
   render(<RecoveryCodesCard port={p} />);
   expect(await screen.findByRole('alert')).toHaveTextContent('The identity database is offline');
   fireEvent.click(screen.getByText('Show details'));
@@ -60,7 +60,7 @@ it('keeps the status store failure and offers copyable details', async () => {
 
 it.each(['issue', 'reset'] as const)('preserves the server explanation when %s fails', async action => {
   const p = port();
-  p[action] = vi.fn(async () => { throw new ApiError('Too many recovery attempts. Wait a minute and try again.', 429); });
+  p[action] = vi.fn(async () => { throw new ApiError({ message: 'Too many recovery attempts. Wait a minute and try again.', status: 429 }); });
   render(<RecoveryCodesCard port={p} />);
   await screen.findByText('Generate recovery codes');
   if (action === 'reset') fireEvent.click(screen.getByText('Reset owner password'));

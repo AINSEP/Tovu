@@ -74,24 +74,24 @@ export type SiteKeyGenerateFailure =
 
 /** Keep the server's public detail when present, including an intentionally empty string. */
 function siteKeyGenerateDetail(error: ApiError, t: Translate): string {
-  return typeof error.body?.detail === "string" ? error.body.detail : describeApiError(error, t(UNKNOWN_ERROR));
+  return typeof error.body?.detail === "string" ? error.body.detail : describeApiError({ e: error, fallback: t(UNKNOWN_ERROR) });
 }
 
 export function classifySiteKeyGenerateError({ e, t }: { e: unknown; t: Translate }, _optional: Record<string, never> = {}): SiteKeyGenerateFailure {
-  if (!(e instanceof ApiError)) return { kind: "generic", detail: describeApiError(e, t(UNKNOWN_ERROR)) };
+  if (!(e instanceof ApiError)) return { kind: "generic", detail: describeApiError({ e, fallback: t(UNKNOWN_ERROR) }) };
   const marker = e.code ?? e.message;
   const detail = siteKeyGenerateDetail(e, t);
   if (marker === "KEY_DEPENDENT_DATA" || marker === "KEY_MISMATCH") return { kind: "locked", code: marker, detail };
   if (marker === "KEY_INVALID" || marker === "SITE_META_UNREADABLE") return { kind: "refused", code: marker, detail };
   if (marker === "ALREADY_EXISTS") return { kind: "already-exists" };
-  return { kind: "generic", detail: describeApiError(e, t(UNKNOWN_ERROR)) };
+  return { kind: "generic", detail: describeApiError({ e, fallback: t(UNKNOWN_ERROR) }) };
 }
 
 export function useSiteKey({ port, t, locale }: { port: SiteKeyPort; t: Translate; locale: string }, _optional: Record<string, never> = {}): SiteKeyController {
   const key = useMemo(() => ["site-key", "status"] as const, []);
   const fetchStatus = useCallback(async () => {
     try { return await port.status(); }
-    catch (error) { throw new Error(siteKeyLoadErrorMessage({ locale, error: describeApiError(error, t(UNKNOWN_ERROR)) })); }
+    catch (error) { throw new Error(siteKeyLoadErrorMessage({ locale, error: describeApiError({ e: error, fallback: t(UNKNOWN_ERROR) }) })); }
   }, [port, locale, t]);
   const query = useFetchQuery({ key, fetch: fetchStatus }, { staleTime: 0 });
   const loader = useCachedLoader({ key, fetch: fetchStatus }, { staleTime: 0 });
@@ -112,7 +112,7 @@ export function useSiteKey({ port, t, locale }: { port: SiteKeyPort; t: Translat
       const result = await port.reveal();
       if (result.hex) setRevealedHex(result.hex);
     } catch (err) {
-      setRevealError(siteKeyRevealErrorMessage({ locale, error: describeApiError(err, t(UNKNOWN_ERROR)) }));
+      setRevealError(siteKeyRevealErrorMessage({ locale, error: describeApiError({ e: err, fallback: t(UNKNOWN_ERROR) }) }));
     } finally {
       setRevealing(false);
     }

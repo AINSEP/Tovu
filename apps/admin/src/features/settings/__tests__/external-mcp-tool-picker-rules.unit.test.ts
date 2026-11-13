@@ -370,14 +370,14 @@ describe("displayToolDescription — DISPLAY ONLY stripping of trust.ts's model-
 
 describe("describeProbeUnreachable — the local-command refusal points at where the fields actually are", () => {
   it("rewrites PROBE_UNSUPPORTED_TRANSPORT to name the Allowed tools field instead of 'directly'", () => {
-    const error = new ApiError("probe is not available for local-command servers yet — type tool names directly instead", 400, "PROBE_UNSUPPORTED_TRANSPORT");
+    const error = new ApiError({ message: "probe is not available for local-command servers yet — type tool names directly instead", status: 400 }, { code: "PROBE_UNSUPPORTED_TRANSPORT" });
     const message = describeProbeUnreachable({ error, t: driftCopyFor("en") });
     expect(message).toContain("Allowed tools");
     expect(message).not.toContain("directly instead");
   });
 
   it("leaves every OTHER probe failure exactly as describeApiError already renders it", () => {
-    const error = new ApiError("this server is disabled — enable it before probing", 400, "MCP_SERVER_DISABLED");
+    const error = new ApiError({ message: "this server is disabled — enable it before probing", status: 400 }, { code: "MCP_SERVER_DISABLED" });
     expect(describeProbeUnreachable({ error, t: driftCopyFor("en") })).toBe("this server is disabled — enable it before probing");
   });
 
@@ -392,7 +392,7 @@ describe("describeProbeUnreachable — the local-command refusal points at where
   // operator always saw the English literal. These pin the fix by asserting the ACTUAL Spanish
   // dictionary text comes back, not just "not English".
   it("translates the local-command refusal for a non-English locale", () => {
-    const error = new ApiError("probe is not available for local-command servers yet — type tool names directly instead", 400, "PROBE_UNSUPPORTED_TRANSPORT");
+    const error = new ApiError({ message: "probe is not available for local-command servers yet — type tool names directly instead", status: 400 }, { code: "PROBE_UNSUPPORTED_TRANSPORT" });
     const message = describeProbeUnreachable({ error, t: driftCopyFor("es") });
     expect(message).toBe(
       "Este servidor se ejecuta como un comando local y todavía no se puede sondear — escribe los nombres de las herramientas en 'Allowed tools', en la tarjeta del propio servidor.",

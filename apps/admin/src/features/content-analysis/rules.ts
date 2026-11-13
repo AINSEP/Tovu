@@ -396,5 +396,5 @@ export function describeAnalysisError({ error, t }: { error: unknown; t: Transla
     if (error.code === "PLUGIN_NOT_FOUND") return t(ERROR_COPY.notFound);
     if (error.code === "PLUGIN_HOOK_FAILED") return t(ERROR_COPY.hookFailed);
   }
-  return describeApiError(error, t(ERROR_COPY.fallback));
+  return describeApiError({ e: error, fallback: t(ERROR_COPY.fallback) });
 }

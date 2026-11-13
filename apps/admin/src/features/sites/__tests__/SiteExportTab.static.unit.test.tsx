@@ -23,7 +23,7 @@ it("retains a polled job failure through transport, controller and ErrorNotice",
     action: "Copy details and report this problem.", step: "archive", cause: "ZIP writer failed password=CANARY_EXPORT" },
     { errorId: "ERR-1234-5678-9ABC-DEF0", time: "2026-11-04T12:00:00Z", appVersion: "test" });
   const createShare = vi.fn().mockResolvedValueOnce({ jobId: "job-1", phase: "preparing" })
-    .mockRejectedValueOnce(new ApiError(failure.message, 500, "SHARE_FAILED", { details: { failure: { ...failure, copyText: "CANARY_WIRE" } } }));
+    .mockRejectedValueOnce(new ApiError({ message: failure.message, status: 500 }, { code: "SHARE_FAILED", body: { details: { failure: { ...failure, copyText: "CANARY_WIRE" } } } }));
   const port = createFakeSiteTransferPort({ createShare });
   render(<FetchQueryProvider><SiteExportTab t={t} useExport={() => useSiteExport({ port, t })} /></FetchQueryProvider>);
   fireEvent.click(screen.getByRole("button", { name: "Export Tovu site" }));

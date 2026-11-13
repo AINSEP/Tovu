@@ -11,22 +11,22 @@ import type { PostEditorPort } from "./post-editor-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultPostEditorPort: PostEditorPort = {
-  getPost: ({ id }, _optional = {}) => api.getPost(id),
+  getPost: ({ id }, _optional = {}) => api.getPost({ id }),
   createPost: (input, options = {}) => api.createPost(input, options),
   getPresentation: () => api.getPresentation({ kind: "post" }),
-  updatePost: ({ target, patch }, _optional = {}) => api.updatePost(target, patch),
-  deletePost: ({ id }, _optional = {}) => api.deletePost(id),
+  updatePost: ({ target, patch }, _optional = {}) => api.updatePost(target, { options: patch }),
+  deletePost: ({ id }, _optional = {}) => api.deletePost({ id }),
   listPosts: () => api.listPosts(),
   uploadMedia: (input, _optional = {}) => api.uploadMedia(input),
-  templatePreviewUrl: ({ id, templateChoice }, _optional = {}) => api.templatePreviewUrl(id, templateChoice),
-  putAutosave: ({ id, draft }, options = {}) => api.putAutosave(id, draft, options),
+  templatePreviewUrl: ({ id, templateChoice }, _optional = {}) => api.templatePreviewUrl({ id, templateChoice }),
+  putAutosave: ({ id, draft }, options = {}) => api.putAutosave({ id, draft }, options),
   getBackupPrincipalId: () => getAdminDraftIdentity(),
-  getAutosave: ({ id }, _optional = {}) => api.getAutosave(id),
-  discardAutosave: ({ id }, _optional = {}) => api.discardAutosave(id),
+  getAutosave: ({ id }, _optional = {}) => api.getAutosave({ id }),
+  discardAutosave: ({ id }, _optional = {}) => api.discardAutosave({ id }),
 };
 
 /** The featured/cover image preview's resized URL — `usePostFeaturedImage`'s `renditionUrl` seam. */
-export const defaultFeaturedImageRenditionUrl = ({ id }: { id: string }, _optional = {}): string => api.mediaPreviewRenditionUrl(id);
+export const defaultFeaturedImageRenditionUrl = ({ id }: { id: string }, _optional = {}): string => api.mediaPreviewRenditionUrl({ id });
 
 /** Seed state for {@link createFakePostEditorPort}. */
 export interface FakePostEditorPortOptions {
@@ -184,10 +184,10 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
       const { expectedVersion, hideCoverImageInBody, slugFromTitle, ...fields } = patch;
       if (expectedVersion !== undefined && expectedVersion !== state.post.version) {
         throw new ApiError(
-          `post '${state.post.id}' was modified by another save (expected version ${expectedVersion}, current version ${state.post.version})`,
-          409,
-          POST_VERSION_CONFLICT_CODE,
-          { details: { expectedVersion, currentVersion: state.post.version } }
+          { message: `post '${state.post.id}' was modified by another save (expected version ${expectedVersion}, current version ${state.post.version})`,
+          status: 409 },
+          { code: POST_VERSION_CONFLICT_CODE,
+          body: { details: { expectedVersion, currentVersion: state.post.version } } }
         );
       }
       // `fields`, not `patch` — `expectedVersion` is a basis to compare, never a column to store.

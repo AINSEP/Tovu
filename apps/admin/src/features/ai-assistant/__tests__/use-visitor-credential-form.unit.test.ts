@@ -529,7 +529,7 @@ describe("useVisitorCredentialForm — saveKey", () => {
   });
 
   it("on failure: reports a describable save error and leaves the typed key in place", async () => {
-    vi.spyOn(api, "setAssistantSiteCredential").mockRejectedValue(new ApiError("boom", 500));
+    vi.spyOn(api, "setAssistantSiteCredential").mockRejectedValue(new ApiError({ message: "boom", status: 500 }));
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
@@ -646,16 +646,16 @@ describe("useVisitorCredentialForm — switching provider while a key is stored 
       if (apiKey.trim()) return;
       if (!storedBaseUrl) {
         throw new ApiError(
-          "the stored site assistant credential has no saved endpoint, so this probe has no approved destination — save a base URL for the credential first, or supply an apiKey in this request",
-          400,
-          "STORED_CREDENTIAL_ENDPOINT_UNSET",
+          { message: "the stored site assistant credential has no saved endpoint, so this probe has no approved destination — save a base URL for the credential first, or supply an apiKey in this request",
+          status: 400 },
+          { code: "STORED_CREDENTIAL_ENDPOINT_UNSET" },
         );
       }
       if (baseUrl !== storedBaseUrl) {
         throw new ApiError(
-          `the stored site assistant credential is saved for '${storedBaseUrl}' and cannot be probed against '${baseUrl}' — save the new endpoint first, or supply an apiKey for it in this request`,
-          400,
-          "STORED_CREDENTIAL_ENDPOINT_MISMATCH",
+          { message: `the stored site assistant credential is saved for '${storedBaseUrl}' and cannot be probed against '${baseUrl}' — save the new endpoint first, or supply an apiKey for it in this request`,
+          status: 400 },
+          { code: "STORED_CREDENTIAL_ENDPOINT_MISMATCH" },
         );
       }
     };
@@ -877,7 +877,7 @@ describe("VisitorCredentialFormPort injection", () => {
     await saveVisitorKey({
       api: {
         getAssistantSiteCredential: () => Promise.reject(new Error("unused")),
-        setAssistantSiteCredential: () => Promise.reject(new ApiError("boom", 500, "SERVER_ERROR")),
+        setAssistantSiteCredential: () => Promise.reject(new ApiError({ message: "boom", status: 500 }, { code: "SERVER_ERROR" })),
       },
       config: { ...CONFIG, apiKey: "typed-key" },
       writers: {

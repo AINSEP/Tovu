@@ -57,7 +57,7 @@ describe("usePluginPackageFiles", () => {
 
   it("turns a refusal into an alert using the screen's own error text", async () => {
     const port = createFakePluginsPort();
-    port.getPluginFiles = () => Promise.reject(new ApiError("plugin id or version is not a safe path", 400, "PLUGIN_ID_INVALID"));
+    port.getPluginFiles = () => Promise.reject(new ApiError({ message: "plugin id or version is not a safe path", status: 400 }, { code: "PLUGIN_ID_INVALID" }));
     const { result } = renderHook(() => usePluginPackageFiles({ pluginId: "../escape", port, t: identity }));
 
     await waitFor(() => expect(result.current.status).toEqual({ text: "This plugin's id is invalid.", role: "alert" }));

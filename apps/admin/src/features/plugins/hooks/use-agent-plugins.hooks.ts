@@ -142,7 +142,7 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
   const key = useMemo(() => ["agent-plugins", "list"] as const, []);
   const fetchList = useCallback(async () => {
     try { return (await port.listAgentPlugins()).agentPlugins; }
-    catch (error) { throw new Error(describeApiError(error, translatePlugins({ locale, key: "failed to load agent plugins" }))); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: translatePlugins({ locale, key: "failed to load agent plugins" }) })); }
   }, [port, locale]);
   const query = useFetchQuery({ key, fetch: fetchList }, { staleTime: 0, refetchOnWindowFocus: true });
   const loader = useCachedLoader({ key, fetch: fetchList }, { staleTime: 0 });
@@ -178,7 +178,7 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
       // Lifecycle refusals by name (409), in the operator's language rather than the server's English.
       const known = e instanceof ApiError && e.code ? TOGGLE_REFUSAL_KEYS[e.code] : undefined;
       setToggleError(known ? translatePlugins({ locale, key: known })
-        : describeApiError(e, translatePlugins({ locale: locale, key: "failed to update agent plugin" })));
+        : describeApiError({ e, fallback: translatePlugins({ locale: locale, key: "failed to update agent plugin" }) }));
     } finally {
       setTogglingIds((ids) => withId({ ids, pluginId: plugin.pluginId, present: false }));
     }

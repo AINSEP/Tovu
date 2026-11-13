@@ -77,7 +77,7 @@ function describeAdminExecutionCredentialError({ e, fallback }: { e: unknown; fa
     if (e.code === "SECRET_STORE_UNCONFIGURED")
       return "The server can't store keys yet: it has no site key. Set TOVU_SITE_KEY (hex) and restart. Your key was not saved.";
   }
-  return describeApiErrorDefault(e, fallback);
+  return describeApiErrorDefault({ e, fallback });
 }
 
 export type UseAdminExecutionCredentialInput = UseExecutionCredentialInput;
@@ -91,7 +91,7 @@ const executionCredentialEffects: ExecutionCredentialEffects<AdminExecutionCrede
   readLegacyCredential: () => readLegacyLocalCredential(),
   clearLegacyCredential: () => clearLegacyLocalCredential(),
   describeError: ({ error, fallback }) => describeAdminExecutionCredentialError({ e: error, fallback }),
-  hasTypedKey: ({ apiKey }) => hasTypedAdminKey(apiKey),
+  hasTypedKey: ({ apiKey }) => hasTypedAdminKey({ apiKey }),
   storedKeyIsForOtherEndpoint: ({ stored, baseUrl }) => storedKeyIsForOtherEndpointRule(stored, baseUrl),
   hasUsableKey: ({ apiKey, stored, baseUrl }) => hasUsableKey(apiKey, stored, baseUrl),
   storedKeyBlocksProbe: ({ apiKey, stored, baseUrl }) => storedKeyBlocksProbe(apiKey, stored, baseUrl),

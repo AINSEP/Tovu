@@ -173,7 +173,7 @@ export function useCollectionEntryEditor(
 
   const contentType = list.data?.contentType;
   const loaded = list.status !== "loading";
-  const loadError = list.error ? describeApiError(list.error, translate({ locale: locale, key: "failed to load entry" })) : null;
+  const loadError = list.error ? describeApiError({ e: list.error, fallback: translate({ locale: locale, key: "failed to load entry" }) }) : null;
 
   function seedExistingWorkingCopy(
     { found, editor }: { found: AdminEntry; editor: Editor },

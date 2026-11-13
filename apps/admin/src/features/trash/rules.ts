@@ -8,7 +8,7 @@ export function describeTrashLoadError({ error, locale }: { error: unknown; loca
   if (error instanceof ApiError && error.code === REQUEST_TIMEOUT_CODE) {
     return t({ locale: locale, key: "The Tovu API did not respond. Try refreshing the Trash." });
   }
-  return describeApiError(error, t({ locale: locale, key: "failed to load the Trash" }));
+  return describeApiError({ e: error, fallback: t({ locale: locale, key: "failed to load the Trash" }) });
 }
 
 /**

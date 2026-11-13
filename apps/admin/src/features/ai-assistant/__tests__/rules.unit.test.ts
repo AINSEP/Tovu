@@ -28,23 +28,23 @@ function stored(overrides: Partial<SiteAssistantCredential> = {}): SiteAssistant
 describe("assistant error copy", () => {
   // Removing any code-specific override must fail its literal assertion (F1.2/F4.4).
   it("names the assistant setting on forbidden writes", () => {
-    expect(describeApiError({ e: new ApiError("raw denial", 403, "FORBIDDEN"), fallback: "fallback" }))
+    expect(describeApiError({ e: new ApiError({ message: "raw denial", status: 403 }, { code: "FORBIDDEN" }), fallback: "fallback" }))
       .toBe("You do not have permission to change the AI assistant's settings.");
   });
 
   it.each(["ASSISTANT_SETTINGS_VALIDATION_ERROR", "SITE_CREDENTIAL_VALIDATION_ERROR"])("preserves %s details and supplies its empty-message fallback", (code) => {
-    expect(describeApiError({ e: new ApiError("Model is unavailable", 400, code), fallback: "generic fallback" })).toBe("Model is unavailable");
-    expect(describeApiError({ e: new ApiError("", 400, code), fallback: "generic fallback" })).toBe("That value was rejected.");
+    expect(describeApiError({ e: new ApiError({ message: "Model is unavailable", status: 400 }, { code }), fallback: "generic fallback" })).toBe("Model is unavailable");
+    expect(describeApiError({ e: new ApiError({ message: "", status: 400 }, { code }), fallback: "generic fallback" })).toBe("That value was rejected.");
   });
 
   it("explains an unconfigured secret store without blaming the pasted key", () => {
-    expect(describeApiError({ e: new ApiError("operator-only detail", 503, "SECRET_STORE_UNCONFIGURED"), fallback: "fallback" }))
+    expect(describeApiError({ e: new ApiError({ message: "operator-only detail", status: 503 }, { code: "SECRET_STORE_UNCONFIGURED" }), fallback: "fallback" }))
       .toBe("The server can't store keys yet: it has no site key. Set TOVU_SITE_KEY (hex) and restart. Your key was not saved.");
   });
 
   it("delegates unrelated API, ordinary Error and non-Error failures", () => {
-    expect(describeApiError({ e: new ApiError("Conflict detail", 409, "CONFLICT"), fallback: "fallback" })).toBe("Conflict detail");
-    expect(describeApiError({ e: new ApiError("", 500, "OTHER"), fallback: "fallback" })).toBe("fallback");
+    expect(describeApiError({ e: new ApiError({ message: "Conflict detail", status: 409 }, { code: "CONFLICT" }), fallback: "fallback" })).toBe("Conflict detail");
+    expect(describeApiError({ e: new ApiError({ message: "", status: 500 }, { code: "OTHER" }), fallback: "fallback" })).toBe("fallback");
     expect(describeApiError({ e: new Error("offline"), fallback: "fallback" })).toBe("offline");
     expect(describeApiError({ e: { code: "FORBIDDEN" }, fallback: "fallback" })).toBe("fallback");
     expect(describeApiError({ e: null, fallback: "fallback" })).toBe("fallback");

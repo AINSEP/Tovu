@@ -70,7 +70,7 @@ test("createPage POSTs { title } and resolves the created page", async () => {
   const { body, method, calls } = stubFetchCapturing(() =>
     jsonResponse({ post: { id: "pg1", title: "Hello", kind: "page" } })
   );
-  await expect(api.createPage("Hello")).resolves.toEqual({ post: { id: "pg1", title: "Hello", kind: "page" } });
+  await expect(api.createPage({ title: "Hello" })).resolves.toEqual({ post: { id: "pg1", title: "Hello", kind: "page" } });
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/pages`);
   expect(body()).toEqual({ title: "Hello" });
   expect(method()).toBe("POST");

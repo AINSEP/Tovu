@@ -110,7 +110,7 @@ function controller(overrides: Partial<PostEditorController> = {}): PostEditorCo
     confirmLeave: () => true,
     dirty: false,
     contentDirty: false,
-    templatePreviewUrl: api.templatePreviewUrl(post.id, null),
+    templatePreviewUrl: api.templatePreviewUrl({ id: post.id, templateChoice: null }),
     bodyJson: null,
     showTemplateModal: false,
     setShowTemplateModal,

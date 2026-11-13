@@ -54,7 +54,7 @@ export function describeApiError({ e, fallback }: { e: unknown; fallback: string
     const override = PLUGIN_ERROR_MESSAGES.get(e.code);
     if (override !== undefined) return optional.translate ? optional.translate(override) : override;
   }
-  return describeApiErrorDefault(e, fallback);
+  return describeApiErrorDefault({ e, fallback });
 }
 
 /** Replaces each `{name}` in `template` with its value, literally — a function replacer, so a `$&`

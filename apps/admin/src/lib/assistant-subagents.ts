@@ -26,5 +26,5 @@ const path = `/workspaces/${WORKSPACE_ID}/system/assistant-full-cli`;
 /** Thin host adapter: shared authenticated requests retain the session/error boundary. */
 export const assistantSubagentsPort: AssistantSubagentsPort = {
   read: () => authenticatedAdminRequest({ path, method: "GET" }),
-  write: (body) => authenticatedAdminRequest({ path, method: "PUT", body }),
+  write: (body, _optional = {}) => authenticatedAdminRequest({ path, method: "PUT", body }),
 };

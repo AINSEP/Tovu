@@ -30,27 +30,27 @@ describe("describeApiError", () => {
     ["PERMISSION_UNKNOWN", "That permission is not recognized."],
     ["GRANT_EXCEEDS_ISSUER", "You cannot grant a permission you do not hold."],
   ])("maps ApiError code %s to its screen-specific copy", (code, expected) => {
-    const err = new ApiError("raw server message", 400, code);
+    const err = new ApiError({ message: "raw server message", status: 400 }, { code });
     expect(describeApiError({ e: err, fallback: "fallback", locale: "en" })).toBe(expected);
   });
 
   it("uses the ApiError's own message for VALIDATION_ERROR when present", () => {
-    const err = new ApiError("Name is required", 400, "VALIDATION_ERROR");
+    const err = new ApiError({ message: "Name is required", status: 400 }, { code: "VALIDATION_ERROR" });
     expect(describeApiError({ e: err, fallback: "fallback", locale: "en" })).toBe("Name is required");
   });
 
   it("falls back to the generic validation copy when VALIDATION_ERROR carries no message", () => {
-    const err = new ApiError("", 400, "VALIDATION_ERROR");
+    const err = new ApiError({ message: "", status: 400 }, { code: "VALIDATION_ERROR" });
     expect(describeApiError({ e: err, fallback: "fallback", locale: "en" })).toBe("Please correct the highlighted fields.");
   });
 
   it("defers to the shared default translation for an unrecognized ApiError code", () => {
-    const err = new ApiError("some other server message", 500, "SOME_OTHER_CODE");
+    const err = new ApiError({ message: "some other server message", status: 500 }, { code: "SOME_OTHER_CODE" });
     expect(describeApiError({ e: err, fallback: "fallback", locale: "en" })).toBe("some other server message");
   });
 
   it.each([undefined, ""])("preserves the server message when the ApiError code is %s", (code) => {
-    const err = new ApiError("Role service unavailable", 503, code);
+    const err = new ApiError({ message: "Role service unavailable", status: 503 }, { code });
     expect(describeApiError({ e: err, fallback: "Could not load roles", locale: "es" })).toBe("Role service unavailable");
   });
 
@@ -69,17 +69,17 @@ describe("describeApiError", () => {
     ["PERMISSION_UNKNOWN", "Ese permiso no se reconoce."],
     ["GRANT_EXCEEDS_ISSUER", "No puedes otorgar un permiso que no posees."],
   ])("translates the %s override into the operator's locale (es)", (code, expected) => {
-    expect(describeApiError({ e: new ApiError("raw", 400, code), fallback: "fallback", locale: "es" })).toBe(expected);
+    expect(describeApiError({ e: new ApiError({ message: "raw", status: 400 }, { code }), fallback: "fallback", locale: "es" })).toBe(expected);
   });
 
   it("translates the VALIDATION_ERROR fallback into the operator's locale (es)", () => {
-    expect(describeApiError({ e: new ApiError("", 400, "VALIDATION_ERROR"), fallback: "fallback", locale: "es" })).toBe(
+    expect(describeApiError({ e: new ApiError({ message: "", status: 400 }, { code: "VALIDATION_ERROR" }), fallback: "fallback", locale: "es" })).toBe(
       "Corrige los campos resaltados.",
     );
   });
 
   it("falls back to English for an unrecognized locale", () => {
-    expect(describeApiError({ e: new ApiError("raw", 400, "FORBIDDEN"), fallback: "fallback", locale: "xx" })).toBe(
+    expect(describeApiError({ e: new ApiError({ message: "raw", status: 400 }, { code: "FORBIDDEN" }), fallback: "fallback", locale: "xx" })).toBe(
       "You do not have permission to do that.",
     );
   });

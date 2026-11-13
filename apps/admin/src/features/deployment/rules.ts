@@ -255,7 +255,7 @@ export function staticPublishProjectNameCopy({ target }: { target: AdminPublishT
  *  lowercase words joined by single hyphens, and one throw blanks the whole admin, so a camelCase
  *  name (`accessKeyId`) becomes `access-key-id`. @complexity O(n) in the name's length. */
 export function fieldNameHandleSegment({ fieldName }: { fieldName: string }, _options = {}): string {
-  return asciiSlug(fieldName.replace(/([a-z0-9])([A-Z])/g, "$1-$2"));
+  return asciiSlug({ text: fieldName.replace(/([a-z0-9])([A-Z])/g, "$1-$2") });
 }
 
 /** The `agentHandle` id of one publish-config input. Ids predate the descriptors and are pinned by

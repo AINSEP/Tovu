@@ -213,22 +213,22 @@ describe("classifySourceControlCredentialSubmitError", () => {
   });
 
   it("classifies a DUPLICATE_LABEL code as duplicate-label", () => {
-    const err = new ApiError("dup", 409, "DUPLICATE_LABEL");
+    const err = new ApiError({ message: "dup", status: 409 }, { code: "DUPLICATE_LABEL" });
     expect(classifySourceControlCredentialSubmitError(err)).toEqual({ kind: "duplicate-label" });
   });
 
   it("classifies a VALIDATION code, carrying the body's detail text", () => {
-    const err = new ApiError("bad request", 400, "VALIDATION", { detail: "token is required" });
+    const err = new ApiError({ message: "bad request", status: 400 }, { code: "VALIDATION", body: { detail: "token is required" } });
     expect(classifySourceControlCredentialSubmitError(err)).toEqual({ kind: "validation", detail: "token is required" });
   });
 
   it("falls back to the message as detail when a VALIDATION error carries no body.detail", () => {
-    const err = new ApiError("bad request", 400, "VALIDATION");
+    const err = new ApiError({ message: "bad request", status: 400 }, { code: "VALIDATION" });
     expect(classifySourceControlCredentialSubmitError(err)).toEqual({ kind: "validation", detail: "bad request" });
   });
 
   it("classifies any other ApiError as generic", () => {
-    const err = new ApiError("server exploded", 500);
+    const err = new ApiError({ message: "server exploded", status: 500 });
     expect(classifySourceControlCredentialSubmitError(err)).toEqual({ kind: "generic" });
   });
 });

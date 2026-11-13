@@ -95,9 +95,9 @@ afterEach(() => {
 
 describe("useAdminExecutionCredential — host error copy", () => {
   it.each([
-    [new FakeApiError("Use a supported model.", 400, "EXECUTION_CREDENTIAL_VALIDATION_ERROR"), "Use a supported model."],
-    [new FakeApiError("", 400, "EXECUTION_CREDENTIAL_VALIDATION_ERROR"), "That value was rejected."],
-    [new FakeApiError("unrecognized failure", 409, "OTHER_CODE"), "unrecognized failure"],
+    [new FakeApiError({ message: "Use a supported model.", status: 400 }, { code: "EXECUTION_CREDENTIAL_VALIDATION_ERROR" }), "Use a supported model."],
+    [new FakeApiError({ message: "", status: 400 }, { code: "EXECUTION_CREDENTIAL_VALIDATION_ERROR" }), "That value was rejected."],
+    [new FakeApiError({ message: "unrecognized failure", status: 409 }, { code: "OTHER_CODE" }), "unrecognized failure"],
     [new Error("credential storage unavailable"), "credential storage unavailable"],
     [null, "failed to save the key"],
   ])("preserves or supplies the operator message for %s", async (error, message) => {
@@ -333,7 +333,7 @@ describe("useAdminExecutionCredential — cross-mount staleness (Finding 2)", ()
 
 describe("useAdminExecutionCredential — save FAILURE leaves the local key intact", () => {
   it("a rejected save reports an error and does NOT clear the typed key", async () => {
-    setAdminExecutionCredential.mockRejectedValue(new FakeApiError("no site key", 503, "SECRET_STORE_UNCONFIGURED"));
+    setAdminExecutionCredential.mockRejectedValue(new FakeApiError({ message: "no site key", status: 503 }, { code: "SECRET_STORE_UNCONFIGURED" }));
     const onByokChange = vi.fn();
     const { result } = renderHook(() => useWiredAdminExecutionCredential({ byok: byok({ apiKey: "sk-typed-key" }), onByokChange }));
     await waitFor(() => expect(result.current.stored).not.toBeNull());
@@ -394,7 +394,7 @@ describe("useAdminExecutionCredential — one-time migration prompt", () => {
 
   it("a FAILED migration save leaves localStorage untouched and the prompt still showing — no auto-clear", async () => {
     window.localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ apiKey: "sk-legacy" }));
-    setAdminExecutionCredential.mockRejectedValue(new FakeApiError("no site key", 503, "SECRET_STORE_UNCONFIGURED"));
+    setAdminExecutionCredential.mockRejectedValue(new FakeApiError({ message: "no site key", status: 503 }, { code: "SECRET_STORE_UNCONFIGURED" }));
     const { result } = renderHook(() => useWiredAdminExecutionCredential({ byok: byok(), onByokChange: vi.fn() }));
     await waitFor(() => expect(result.current.legacyKey).toBe("sk-legacy"));
 
@@ -467,7 +467,7 @@ describe("injected port — useAdminExecutionCredential with no lib/api mock", (
   it("a save the port rejects surfaces an error and never clears the typed field", async () => {
     const port = createFakeAdminExecutionCredentialPort({
       onSave: () => {
-        throw new FakeApiError("no site key", 503, "SECRET_STORE_UNCONFIGURED");
+        throw new FakeApiError({ message: "no site key", status: 503 }, { code: "SECRET_STORE_UNCONFIGURED" });
       },
     });
     const onByokChange = vi.fn();
@@ -651,7 +651,7 @@ describe("useAdminExecutionCredential — the two buttons write disjoint patches
   });
 
   it("saveSettings reports its own error without touching the key button's save state", async () => {
-    setAdminExecutionCredential.mockRejectedValue(new FakeApiError("boom", 500));
+    setAdminExecutionCredential.mockRejectedValue(new FakeApiError({ message: "boom", status: 500 }));
     const { result } = renderHook(() =>
       useWiredAdminExecutionCredential({ byok: byok({ apiKey: "sk-typed-key" }), onByokChange: vi.fn() }),
     );
@@ -870,7 +870,7 @@ describe("useAdminExecutionCredential — stored: an older read never overwrites
         });
       },
       async saveAdminExecutionCredential() {
-        throw new FakeApiError("boom", 500);
+        throw new FakeApiError({ message: "boom", status: 500 });
       },
     };
     const { result } = renderHook(() =>
@@ -1094,7 +1094,7 @@ describe("useAdminExecutionCredential — the three writes to the one credential
       },
       async saveAdminExecutionCredential() {
         callCount += 1;
-        if (callCount === 1) throw new FakeApiError("boom", 500);
+        if (callCount === 1) throw new FakeApiError({ message: "boom", status: 500 });
         return { isSet: true, masked: "••••bcde", protocol: "anthropic", providerId: "anthropic", baseUrl: null, model: "model-b", maxTokens: null, updatedAt: new Date(0).toISOString() };
       },
     };

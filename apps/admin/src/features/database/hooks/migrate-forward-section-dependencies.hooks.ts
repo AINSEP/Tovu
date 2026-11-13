@@ -10,7 +10,7 @@ import type { MigrateForwardSectionPort } from "./migrate-forward-section-port.h
 export const defaultMigrateForwardSectionPort: MigrateForwardSectionPort = {
   planMigrateForward: () => api.planMigrateForward(),
   confirmMigrateForward: (input, _options = {}) => api.confirmMigrateForward(input),
-  executeMigrateForward: ({ confirmationToken }, _options = {}) => api.executeMigrateForward(confirmationToken),
+  executeMigrateForward: ({ confirmationToken }, _options = {}) => api.executeMigrateForward({ confirmationToken }),
 };
 
 /** Seed state for {@link createFakeMigrateForwardSectionPort}. */

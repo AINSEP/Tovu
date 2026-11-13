@@ -50,7 +50,7 @@ describe("defaultThemesPort — real api wiring", () => {
     await expect(defaultThemesPort.setActiveTheme("quartz")).resolves.toMatchObject({
       settings: { activeThemeId: "quartz" },
     });
-    expect(spy).toHaveBeenCalledWith("quartz");
+    expect(spy).toHaveBeenCalledWith({ activeThemeId: "quartz" });
   });
 
   it("duplicateTheme delegates to api.duplicateTheme with the source id and new name", async () => {
@@ -62,7 +62,7 @@ describe("defaultThemesPort — real api wiring", () => {
     };
     const spy = vi.spyOn(api, "duplicateTheme").mockResolvedValue(copy);
     await expect(defaultThemesPort.duplicateTheme("quartz", "Quartz copy")).resolves.toEqual(copy);
-    expect(spy).toHaveBeenCalledWith("quartz", "Quartz copy");
+    expect(spy).toHaveBeenCalledWith({ themeId: "quartz", newName: "Quartz copy" });
   });
 
 });

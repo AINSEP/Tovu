@@ -33,7 +33,7 @@ describe("defaultThemeExplorePort — real api wiring", () => {
     };
     const spy = vi.spyOn(api, "getThemeDetail").mockResolvedValue(detail as never);
     await expect(defaultThemeExplorePort.getThemeDetail({ themeId: "basic" })).resolves.toEqual(detail);
-    expect(spy).toHaveBeenCalledWith("basic");
+    expect(spy).toHaveBeenCalledWith({ themeId: "basic" });
   });
 
   it("getThemeFile delegates to api.getThemeFile with the theme id and path", async () => {
@@ -41,7 +41,7 @@ describe("defaultThemeExplorePort — real api wiring", () => {
     await expect(defaultThemeExplorePort.getThemeFile({ themeId: "basic", path: "pages/index.html" })).resolves.toMatchObject({
       content: "<html></html>",
     });
-    expect(spy).toHaveBeenCalledWith("basic", "pages/index.html");
+    expect(spy).toHaveBeenCalledWith({ themeId: "basic", path: "pages/index.html" });
   });
 
   it("putThemeFile delegates to api.putThemeFile with the theme id, path, and content", async () => {
@@ -50,7 +50,7 @@ describe("defaultThemeExplorePort — real api wiring", () => {
       path: "pages/index.html",
       bytes: 42,
     });
-    expect(spy).toHaveBeenCalledWith("basic", "pages/index.html", "<html/>");
+    expect(spy).toHaveBeenCalledWith({ themeId: "basic", path: "pages/index.html", content: "<html/>" });
   });
 
   it("resetThemeFile delegates to api.resetThemeFile with the theme id and path", async () => {
@@ -60,13 +60,13 @@ describe("defaultThemeExplorePort — real api wiring", () => {
     await expect(defaultThemeExplorePort.resetThemeFile("basic", "pages/index.html")).resolves.toMatchObject({
       content: "orig",
     });
-    expect(spy).toHaveBeenCalledWith("basic", "pages/index.html");
+    expect(spy).toHaveBeenCalledWith({ themeId: "basic", path: "pages/index.html" });
   });
 
   it("saveThemeOriginal delegates to api.saveThemeOriginal with the theme id", async () => {
     const spy = vi.spyOn(api, "saveThemeOriginal").mockResolvedValue({ themeId: "basic", saved: true });
     await expect(defaultThemeExplorePort.saveThemeOriginal("basic")).resolves.toMatchObject({ saved: true });
-    expect(spy).toHaveBeenCalledWith("basic");
+    expect(spy).toHaveBeenCalledWith({ themeId: "basic" });
   });
 
   it("renameThemeFile delegates to api.renameThemeFile with the theme id, path, and new name", async () => {
@@ -82,7 +82,7 @@ describe("defaultThemeExplorePort — real api wiring", () => {
     await expect(defaultThemeExplorePort.renameThemeFile("basic", "pages/old.html", "about.html")).resolves.toMatchObject({
       path: "pages/about.html",
     });
-    expect(spy).toHaveBeenCalledWith("basic", "pages/old.html", "about.html");
+    expect(spy).toHaveBeenCalledWith({ themeId: "basic", path: "pages/old.html", name: "about.html" });
   });
 
   it("copyThemeFile delegates to api.copyThemeFile with the theme id and path", async () => {
@@ -98,7 +98,7 @@ describe("defaultThemeExplorePort — real api wiring", () => {
     await expect(defaultThemeExplorePort.copyThemeFile("basic", "pages/about.html")).resolves.toMatchObject({
       path: "pages/about-1.html",
     });
-    expect(spy).toHaveBeenCalledWith("basic", "pages/about.html");
+    expect(spy).toHaveBeenCalledWith({ themeId: "basic", path: "pages/about.html" });
   });
 
   it("deleteThemeFile delegates to api.deleteThemeFile with the theme id and path", async () => {
@@ -106,7 +106,7 @@ describe("defaultThemeExplorePort — real api wiring", () => {
     await expect(defaultThemeExplorePort.deleteThemeFile("basic", "pages/about.html")).resolves.toMatchObject({
       path: "pages/about.html",
     });
-    expect(spy).toHaveBeenCalledWith("basic", "pages/about.html");
+    expect(spy).toHaveBeenCalledWith({ themeId: "basic", path: "pages/about.html" });
   });
 
   it("setPagePublished delegates to api.setThemePagePublished with the theme id, page, and published flag", async () => {
@@ -119,7 +119,7 @@ describe("defaultThemeExplorePort — real api wiring", () => {
       page: "about",
       published: true,
     });
-    expect(spy).toHaveBeenCalledWith("basic", "about", true);
+    expect(spy).toHaveBeenCalledWith({ themeId: "basic", page: "about", published: true });
   });
 });
 

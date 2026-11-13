@@ -15,7 +15,7 @@ export interface SeoHostPorts {
 
 export const seoEvents: SeoEventsPort = {
   subscribe({ onRefresh }) {
-    return subscribeToContentRefresh(scope => { if (contentRefreshApplies(scope, 'seo')) onRefresh(); });
+    return subscribeToContentRefresh(scope => { if (contentRefreshApplies({ scope, resource: 'seo' })) onRefresh(); });
   },
 };
 
@@ -62,7 +62,7 @@ export function createSeoTranslator({ locale }: { locale: string }, _optional: R
 }
 
 /** Preserve the host ApiError empty-message fallback for entry/picker failures. */
-export const describeSeoHostError: SeoErrorFormatter = ({ error, fallback }) => describeApiError(error, fallback);
+export const describeSeoHostError: SeoErrorFormatter = ({ error, fallback }) => describeApiError({ e: error, fallback });
 
 /** Expand session grants through the host permission owner before Jini's explicit route gate.
  * Server requests retain their own authorization; this controls screen affordances only.

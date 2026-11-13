@@ -267,7 +267,7 @@ describe("useDashboard — boundary pins (L162 refactor)", () => {
   });
 
   it("an ApiError with an empty message falls back to the English source string", async () => {
-    const port: DashboardPort = { ...createFakeDashboardPort(), listPosts: () => Promise.reject(new ApiError("", 500)) };
+    const port: DashboardPort = { ...createFakeDashboardPort(), listPosts: () => Promise.reject(new ApiError({ message: "", status: 500 })) };
     const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
 
     await waitFor(() => expect(result.current.posts.error).toBe("failed to load posts"));

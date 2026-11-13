@@ -53,7 +53,7 @@ function renderView(props: NodeViewProps) {
 function deferredGetWidget() {
   const pending = new Map<string, { resolve: (value: GetWidgetResult) => void; reject: (error: unknown) => void }>();
   vi.spyOn(api, "getWidget").mockImplementation(
-    (id: string) => new Promise<GetWidgetResult>((resolve, reject) => pending.set(id, { resolve, reject })),
+    ({ id }: { id: string }) => new Promise<GetWidgetResult>((resolve, reject) => pending.set(id, { resolve, reject })),
   );
   return pending;
 }

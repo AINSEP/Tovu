@@ -24,7 +24,7 @@ it("uses the kind-guarded page read and the actual encoded slug", async () => {
   const getPage = vi.spyOn(api, "getPage").mockResolvedValue({ post: { id: "page-id", slug: "hello / 世界" } as AdminPost });
   const navigate = vi.spyOn(router, "navigate");
   await buildAdminAgentPages()["pages"]!.navigate({ entity: { type: "page", id: "page-id" } });
-  expect(getPage).toHaveBeenCalledWith("page-id");
+  expect(getPage).toHaveBeenCalledWith({ id: "page-id" });
   expect(navigate).toHaveBeenCalledExactlyOnceWith("/pages/hello%20%2F%20%E4%B8%96%E7%95%8C");
 });
 

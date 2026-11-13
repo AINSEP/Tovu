@@ -13,7 +13,7 @@ export function skillFailure(
   { error, message, t }: { error: unknown; message: string; t: Translate },
   _options = {},
 ): UserFacingError {
-  return formatUserFacingError({ message: t(describeApiError(error, message)),
+  return formatUserFacingError({ message: t(describeApiError({ e: error, fallback: message })),
     action: t("Reload skills before trying the change again."), step: "skills", cause: error },
   { ...TOVU_ERROR_REDACTION_OPTIONS,
     errorId: error instanceof ApiError && typeof error.body?.errorId === "string" ? error.body.errorId : undefined });

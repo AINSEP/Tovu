@@ -19,7 +19,7 @@ afterEach(() => {
 });
 
 function unreachable(): ApiError {
-  return new ApiError("cannot reach the Tovu API — is the server running?", 0, API_UNREACHABLE_CODE, {});
+  return new ApiError({ message: "cannot reach the Tovu API — is the server running?", status: 0 }, { code: API_UNREACHABLE_CODE, body: {} });
 }
 
 test("an already-aborted signal stops before the first wait, leaving no timer behind", async () => {
@@ -74,7 +74,7 @@ test("isAbortError matches by name only", () => {
 // L13 Stryker: `error instanceof ApiError && error.code === API_UNREACHABLE_CODE` — each clause alone.
 test("only an ApiError carrying the unreachable code is retried", async () => {
   for (const error of [
-    new ApiError("not found", 404, "NOT_FOUND", {}), new ApiError("timeout", 0, "REQUEST_TIMEOUT", {}),
+    new ApiError({ message: "not found", status: 404 }, { code: "NOT_FOUND", body: {} }), new ApiError({ message: "timeout", status: 0 }, { code: "REQUEST_TIMEOUT", body: {} }),
     Object.assign(new Error("look-alike"), { code: API_UNREACHABLE_CODE }), "unreachable",
   ]) {
     const load = vi.fn(async () => { throw error; });

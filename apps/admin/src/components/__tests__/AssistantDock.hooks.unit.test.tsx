@@ -1461,7 +1461,7 @@ describe("useLocalCliDaemonPrewarm", () => {
   it("opening the dock in API · BYOK mode never wakes the daemon: BYOK runs in the API process", () => {
     const activate = vi.fn().mockResolvedValue(undefined);
     renderHook(() => useLocalCliDaemonPrewarm({ mode: "byok", configLoaded: true }, { activate }));
-    act(() => publishAssistantDockState(true));
+    act(() => publishAssistantDockState({ open: true }));
     expect(activate).not.toHaveBeenCalled();
   });
 
@@ -1470,7 +1470,7 @@ describe("useLocalCliDaemonPrewarm", () => {
     const { rerender } = renderHook(({ configLoaded }) => useLocalCliDaemonPrewarm({ mode: "local-cli", configLoaded }, { activate }), {
       initialProps: { configLoaded: false },
     });
-    act(() => publishAssistantDockState(true));
+    act(() => publishAssistantDockState({ open: true }));
     // The default mode is local-cli, so a still-loading BYOK site must not wake it either.
     expect(activate).not.toHaveBeenCalled();
     rerender({ configLoaded: true });
@@ -1486,7 +1486,7 @@ describe("useLocalCliDaemonPrewarm", () => {
     });
     expect(activate).not.toHaveBeenCalled();
     rerender({ mode: "byok" });
-    act(() => publishAssistantDockState(true));
+    act(() => publishAssistantDockState({ open: true }));
     expect(activate).not.toHaveBeenCalled();
     rerender({ mode: "local-cli" });
     expect(activate).toHaveBeenCalledTimes(1);
@@ -1499,7 +1499,7 @@ describe("useLocalCliDaemonPrewarm", () => {
     const rebind = vi.fn().mockResolvedValue({ sessionId: "new", bindToken: "fresh" });
     const agentBridge = { rebind, bindToken: () => "fresh" } as unknown as FrontendSessionBridge;
     renderHook(() => useLocalCliDaemonPrewarm({ mode: "local-cli", configLoaded: true, agentBridge }, { activate }));
-    act(() => publishAssistantDockState(true));
+    act(() => publishAssistantDockState({ open: true }));
     expect(rebind).not.toHaveBeenCalled();
     await act(async () => { ready(); });
     expect(rebind).toHaveBeenCalledTimes(1);
@@ -1511,8 +1511,8 @@ describe("useLocalCliDaemonPrewarm", () => {
     const rebind = vi.fn().mockResolvedValue({ sessionId: "new", bindToken: "fresh" });
     const agentBridge = { rebind, bindToken: () => "fresh" } as unknown as FrontendSessionBridge;
     renderHook(() => useLocalCliDaemonPrewarm({ mode: "local-cli", configLoaded: true, agentBridge }, { activate }));
-    act(() => publishAssistantDockState(true));
-    act(() => publishAssistantDockState(false));
+    act(() => publishAssistantDockState({ open: true }));
+    act(() => publishAssistantDockState({ open: false }));
     await act(async () => { ready(); });
     expect(rebind).not.toHaveBeenCalled();
   });

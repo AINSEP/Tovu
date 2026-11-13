@@ -780,14 +780,14 @@ describe("readPostVersionConflict / postVersionConflictMessage", () => {
    * force through.
    */
   it("does NOT classify a slug-uniqueness 409 (same status, no code) as a version conflict", () => {
-    const slugConflict = new ApiError("slug 'taken' already exists", 409);
+    const slugConflict = new ApiError({ message: "slug 'taken' already exists", status: 409 });
     expect(readPostVersionConflict({ e: slugConflict, attemptedStatus: undefined })).toBeNull();
   });
 
   it("classifies a 409 VERSION_CONFLICT, carrying both versions and the attempted status", () => {
-    const err = new ApiError("post 'p1' was modified by another save (expected version 3, current version 4)", 409, "VERSION_CONFLICT", {
+    const err = new ApiError({ message: "post 'p1' was modified by another save (expected version 3, current version 4)", status: 409 }, { code: "VERSION_CONFLICT", body: {
       details: { expectedVersion: 3, currentVersion: 4 },
-    });
+    } });
     expect(readPostVersionConflict({ e: err, attemptedStatus: "published" })).toEqual({
       expectedVersion: 3,
       currentVersion: 4,
@@ -796,7 +796,7 @@ describe("readPostVersionConflict / postVersionConflictMessage", () => {
   });
 
   it("still reports a conflict when the server sent the code but no details bag", () => {
-    const err = new ApiError("stale", 409, "VERSION_CONFLICT");
+    const err = new ApiError({ message: "stale", status: 409 }, { code: "VERSION_CONFLICT" });
     expect(readPostVersionConflict({ e: err, attemptedStatus: undefined })).toEqual({
       expectedVersion: null,
       currentVersion: null,
@@ -805,7 +805,7 @@ describe("readPostVersionConflict / postVersionConflictMessage", () => {
   });
 
   it("ignores the code on a non-409 status, and any non-ApiError", () => {
-    expect(readPostVersionConflict({ e: new ApiError("nope", 500, "VERSION_CONFLICT"), attemptedStatus: undefined })).toBeNull();
+    expect(readPostVersionConflict({ e: new ApiError({ message: "nope", status: 500 }, { code: "VERSION_CONFLICT" }), attemptedStatus: undefined })).toBeNull();
     expect(readPostVersionConflict({ e: new Error("network down"), attemptedStatus: undefined })).toBeNull();
     expect(readPostVersionConflict({ e: "not an error at all", attemptedStatus: undefined })).toBeNull();
   });

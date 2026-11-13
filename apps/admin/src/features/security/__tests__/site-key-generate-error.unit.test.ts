@@ -13,7 +13,7 @@ import { classifySiteKeyGenerateError } from "../hooks/use-site-key.hooks";
 const t = (key: string): string => key;
 
 function refusal(code: string, detail: string): ApiError {
-  return new ApiError(code, 409, undefined, { error: code, detail });
+  return new ApiError({ message: code, status: 409 }, { code: undefined, body: { error: code, detail } });
 }
 
 describe("classifySiteKeyGenerateError", () => {
@@ -37,7 +37,7 @@ describe("classifySiteKeyGenerateError", () => {
   });
 
   it("ENV_VAR_ACTIVE is no longer a known code → 'generic'", () => {
-    expect(classifySiteKeyGenerateError({ e: new ApiError("ENV_VAR_ACTIVE", 409), t }).kind).toBe("generic");
+    expect(classifySiteKeyGenerateError({ e: new ApiError({ message: "ENV_VAR_ACTIVE", status: 409 }), t }).kind).toBe("generic");
   });
 
   it("a non-ApiError → 'generic'", () => {

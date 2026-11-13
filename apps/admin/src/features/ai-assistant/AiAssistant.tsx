@@ -204,7 +204,7 @@ function AdminAssistantSwitch({
     <div className="assistant-switch">
       <AssistantToggleRow t={t} label={t("Open the assistant panel")}
         info={t("Shows or hides the assistant panel in this admin.")}
-        checked={open} onChange={setOpen}
+        checked={open} onChange={(open) => setOpen({ open })}
         inputProps={agentHandle({ handle: "ai-assistant-admin-dock-toggle" }, { role: "field", label: "Open the assistant panel" })} />
     </div>
   );

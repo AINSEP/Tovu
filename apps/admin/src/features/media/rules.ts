@@ -698,11 +698,11 @@ export function visibleMediaError(params: {
   listFallback: string;
   hasMedia: boolean;
 }): string | null {
-  if (params.trashError) return describeApiError(params.trashError, params.deleteFallback);
-  if (params.purgeError) return describeApiError(params.purgeError, params.deleteFallback);
-  if (params.restoreError) return describeApiError(params.restoreError, params.restoreFallback);
+  if (params.trashError) return describeApiError({ e: params.trashError, fallback: params.deleteFallback });
+  if (params.purgeError) return describeApiError({ e: params.purgeError, fallback: params.deleteFallback });
+  if (params.restoreError) return describeApiError({ e: params.restoreError, fallback: params.restoreFallback });
   if (params.hasMedia) return null;
-  return params.listError ? describeApiError(params.listError, params.listFallback) : null;
+  return params.listError ? describeApiError({ e: params.listError, fallback: params.listFallback }) : null;
 }
 
 /** The callbacks a media row menu needs. Passed in rather than imported so this module stays free

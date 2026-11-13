@@ -539,7 +539,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
   });
 
   it("shows the translated conflict copy, not the raw server message, when a save loses the compare-and-set", async () => {
-    const saveError = new ApiError("expected version 2 for entry 'e1', found 3", 409, "VERSION_CONFLICT");
+    const saveError = new ApiError({ message: "expected version 2 for entry 'e1', found 3", status: 409 }, { code: "VERSION_CONFLICT" });
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY], saveError });
     const { result } = renderHook(() =>
       useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "es", t: ({ key: k }, _optional = {}) => k })

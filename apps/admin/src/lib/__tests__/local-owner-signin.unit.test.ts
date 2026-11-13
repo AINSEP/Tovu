@@ -57,12 +57,12 @@ it("initial unauthenticated local read uses one bootstrap and then the real sess
   const calls: string[] = []; let authenticated = false;
   expect(await readInitialAdminSession({ hostname: "localhost", port: {
     async signInLocalOwner() { calls.push("bootstrap"); authenticated = true; },
-    async me() { calls.push("me"); if (!authenticated) throw new ApiError("unauthenticated", 401, "UNAUTHENTICATED"); return { id: "owner" }; },
+    async me() { calls.push("me"); if (!authenticated) throw new ApiError({ message: "unauthenticated", status: 401 }, { code: "UNAUTHENTICATED" }); return { id: "owner" }; },
   } }, { onLocalSignIn: () => calls.push("settings-refresh") })).toEqual({ id: "owner" });
   expect(calls).toEqual(["me", "bootstrap", "me", "settings-refresh"]);
 });
 
-it.each([new ApiError("storage unavailable", 500), new ApiError("upstream refusal", 401, "UPSTREAM_REQUEST_FAILED"), new Error("network unavailable")])("initial non-authentication failure propagates without signing in", async (error) => {
+it.each([new ApiError({ message: "storage unavailable", status: 500 }), new ApiError({ message: "upstream refusal", status: 401 }, { code: "UPSTREAM_REQUEST_FAILED" }), new Error("network unavailable")])("initial non-authentication failure propagates without signing in", async (error) => {
   let bootstraps = 0;
   await expect(readInitialAdminSession({ hostname: "localhost", port: {
     async signInLocalOwner() { bootstraps++; }, async me() { throw error; },
@@ -71,7 +71,7 @@ it.each([new ApiError("storage unavailable", 500), new ApiError("upstream refusa
 });
 
 it("initial remote refusal preserves the exact original unauthenticated error", async () => {
-  const error = new ApiError("unauthenticated", 401, "UNAUTHENTICATED");
+  const error = new ApiError({ message: "unauthenticated", status: 401 }, { code: "UNAUTHENTICATED" });
   await expect(readInitialAdminSession({ hostname: "example.com", port: {
     async signInLocalOwner() { throw new Error("must not call"); }, async me() { throw error; },
   } })).rejects.toBe(error);

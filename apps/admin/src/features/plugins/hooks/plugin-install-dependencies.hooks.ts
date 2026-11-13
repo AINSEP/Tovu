@@ -20,7 +20,7 @@ export function createFakePluginInstallPort(required: { preview: PluginInstallPr
     installed,
     preview: async () => ({ plugin: required.preview }),
     install: async (input, _optional = {}) => {
-      if (input.expectedDigest !== required.preview.digest) throw new ApiError("Consent digest does not match", 409, "PLUGIN_CHANGED_SINCE_PREVIEW");
+      if (input.expectedDigest !== required.preview.digest) throw new ApiError({ message: "Consent digest does not match", status: 409 }, { code: "PLUGIN_CHANGED_SINCE_PREVIEW" });
       installed.push(required.preview); return { plugin: required.preview };
     },
   };

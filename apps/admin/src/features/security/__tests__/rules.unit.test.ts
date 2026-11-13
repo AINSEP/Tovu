@@ -594,19 +594,19 @@ describe("buildAccessTokenUpdatePatch", () => {
 
 describe("classifyAccessTokenSubmitError", () => {
   it("recognizes a legacy duplicate marker in the message when the code is absent", () => {
-    expect(classifyAccessTokenSubmitError({ e: new ApiError("DUPLICATE_LABEL", 409) })).toEqual({ kind: "duplicate-label" });
+    expect(classifyAccessTokenSubmitError({ e: new ApiError({ message: "DUPLICATE_LABEL", status: 409 }) })).toEqual({ kind: "duplicate-label" });
   });
 
   it.each([undefined, {}, { detail: 42 }])("uses the validation message when no string detail exists in %j", (body) => {
-    expect(classifyAccessTokenSubmitError({ e: new ApiError("Token rejected", 400, "VALIDATION", body) })).toEqual({ kind: "validation", detail: "Token rejected" });
+    expect(classifyAccessTokenSubmitError({ e: new ApiError({ message: "Token rejected", status: 400 }, { code: "VALIDATION", body }) })).toEqual({ kind: "validation", detail: "Token rejected" });
   });
 
   it("classifies a DUPLICATE_LABEL ApiError", () => {
-    expect(classifyAccessTokenSubmitError({ e: new ApiError("dup", 409, "DUPLICATE_LABEL") })).toEqual({ kind: "duplicate-label" });
+    expect(classifyAccessTokenSubmitError({ e: new ApiError({ message: "dup", status: 409 }, { code: "DUPLICATE_LABEL" }) })).toEqual({ kind: "duplicate-label" });
   });
 
   it("classifies a VALIDATION ApiError, preferring body.detail over the message", () => {
-    const err = new ApiError("bad request", 400, "VALIDATION", { detail: "token is required" });
+    const err = new ApiError({ message: "bad request", status: 400 }, { code: "VALIDATION", body: { detail: "token is required" } });
     expect(classifyAccessTokenSubmitError({ e: err })).toEqual({ kind: "validation", detail: "token is required" });
   });
 
@@ -615,7 +615,7 @@ describe("classifyAccessTokenSubmitError", () => {
   });
 
   it("falls back to generic for an ApiError whose code matches neither known marker", () => {
-    expect(classifyAccessTokenSubmitError({ e: new ApiError("internal error", 500, "SECRET_STORE_UNCONFIGURED") })).toEqual({ kind: "generic" });
+    expect(classifyAccessTokenSubmitError({ e: new ApiError({ message: "internal error", status: 500 }, { code: "SECRET_STORE_UNCONFIGURED" }) })).toEqual({ kind: "generic" });
   });
 });
 

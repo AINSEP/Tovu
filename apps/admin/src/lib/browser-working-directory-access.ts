@@ -65,7 +65,7 @@ function readRecentDirectoryNames(): string[] {
 }
 
 /** Moves `name` to the front of the persisted recent list, deduplicated and capped. */
-function recordRecentDirectoryName(name: string): void {
+function recordRecentDirectoryName({ name }: { name: string }, _optional: Record<string, never> = {}): void {
   try {
     const next = [name, ...readRecentDirectoryNames().filter((existing) => existing !== name)].slice(
       0,
@@ -105,7 +105,7 @@ export function createBrowserWorkingDirectoryAccess(): ChatPaneWorkingDirectoryA
       try {
         if (!window.showDirectoryPicker) throw new Error("working directory picker is unavailable");
         const handle = await window.showDirectoryPicker();
-        recordRecentDirectoryName(handle.name);
+        recordRecentDirectoryName({ name: handle.name });
         return handle.name;
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return null;

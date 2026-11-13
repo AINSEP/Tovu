@@ -22,20 +22,20 @@ describe("describeApiError", () => {
     ["FORBIDDEN", "You do not have permission to do that."],
     ["RESOURCE_CONFLICT", "That slug is already in use."],
   ])("overrides code %s with a fixed message", (code, expected) => {
-    expect(describeApiError({ e: new ApiError("raw", 400, code), fallback: "fallback", locale: "en" })).toBe(expected);
+    expect(describeApiError({ e: new ApiError({ message: "raw", status: 400 }, { code }), fallback: "fallback", locale: "en" })).toBe(expected);
   });
 
   it("VALIDATION_ERROR prefers the server's own message, falling back when blank", () => {
     expect(
-      describeApiError({ e: new ApiError("slug must be lowercase", 400, "VALIDATION_ERROR"), fallback: "fallback", locale: "en" }),
+      describeApiError({ e: new ApiError({ message: "slug must be lowercase", status: 400 }, { code: "VALIDATION_ERROR" }), fallback: "fallback", locale: "en" }),
     ).toBe("slug must be lowercase");
-    expect(describeApiError({ e: new ApiError("", 400, "VALIDATION_ERROR"), fallback: "fallback", locale: "en" })).toBe(
+    expect(describeApiError({ e: new ApiError({ message: "", status: 400 }, { code: "VALIDATION_ERROR" }), fallback: "fallback", locale: "en" })).toBe(
       "Please correct the highlighted fields.",
     );
   });
 
   it("an unrecognized code falls through to the shared default", () => {
-    expect(describeApiError({ e: new ApiError("raw message", 500, "SOMETHING_ELSE"), fallback: "fallback", locale: "en" })).toBe(
+    expect(describeApiError({ e: new ApiError({ message: "raw message", status: 500 }, { code: "SOMETHING_ELSE" }), fallback: "fallback", locale: "en" })).toBe(
       "raw message",
     );
   });
@@ -50,17 +50,17 @@ describe("describeApiError", () => {
     ["FORBIDDEN", "No tienes permiso para hacer eso."],
     ["RESOURCE_CONFLICT", "Ese slug ya está en uso."],
   ])("translates the %s override into the operator's locale (es)", (code, expected) => {
-    expect(describeApiError({ e: new ApiError("raw", 400, code), fallback: "fallback", locale: "es" })).toBe(expected);
+    expect(describeApiError({ e: new ApiError({ message: "raw", status: 400 }, { code }), fallback: "fallback", locale: "es" })).toBe(expected);
   });
 
   it("translates the VALIDATION_ERROR fallback into the operator's locale (es)", () => {
-    expect(describeApiError({ e: new ApiError("", 400, "VALIDATION_ERROR"), fallback: "fallback", locale: "es" })).toBe(
+    expect(describeApiError({ e: new ApiError({ message: "", status: 400 }, { code: "VALIDATION_ERROR" }), fallback: "fallback", locale: "es" })).toBe(
       "Corrige los campos resaltados.",
     );
   });
 
   it("falls back to English for an unrecognized locale", () => {
-    expect(describeApiError({ e: new ApiError("raw", 400, "FORBIDDEN"), fallback: "fallback", locale: "xx" })).toBe(
+    expect(describeApiError({ e: new ApiError({ message: "raw", status: 400 }, { code: "FORBIDDEN" }), fallback: "fallback", locale: "xx" })).toBe(
       "You do not have permission to do that.",
     );
   });

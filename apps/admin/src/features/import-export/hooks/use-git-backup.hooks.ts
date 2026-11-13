@@ -97,7 +97,7 @@ export function useGitBackup({ port, t }: { port: GitBackupPort; t: Translate },
       setPlan(result);
       setPhase("planned");
     } catch (failure) {
-      if (alive.current) refuse({ line: describeApiError(failure, t("Git backup failed.")) });
+      if (alive.current) refuse({ line: describeApiError({ e: failure, fallback: t("Git backup failed.") }) });
     }
   }
 
@@ -111,13 +111,13 @@ export function useGitBackup({ port, t }: { port: GitBackupPort; t: Translate },
       if (isGitBackupPushed(result)) { setDone({ repository: result.repository, commitUrl: result.commitUrl }); setPhase("done"); return; }
       refuse({ line: isGitBackupInProgress(result) ? t("The backup is taking too long. Check the repository later.") : gitBackupRefusalMessage(result, t) });
     } catch (failure) {
-      if (alive.current) refuse({ line: describeApiError(failure, t("Git backup failed.")) });
+      if (alive.current) refuse({ line: describeApiError({ e: failure, fallback: t("Git backup failed.") }) });
     }
   }
 
   return {
     connections,
-    connectionsError: list.error ? describeApiError(list.error, t("Couldn't load connections.")) : null,
+    connectionsError: list.error ? describeApiError({ e: list.error, fallback: t("Couldn't load connections.") }) : null,
     form: effectiveForm,
     // The shown connection is kept when another field is typed first, so it never silently changes.
     setField: ({ field, value }, _optional = {}) => setForm((current) => ({ ...current, connection: current.connection || (connections?.[0] ?? ""), [field]: value })),

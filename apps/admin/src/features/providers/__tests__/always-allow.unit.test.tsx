@@ -141,7 +141,7 @@ describe("AlwaysAllowPanel", () => {
     port.revokeExternalMcpToolApproval = async ({ serverId, toolName }) => {
       // A 404 means another window already removed it; the next list must agree.
       await removeApproval({ serverId, toolName });
-      throw new ApiError("no Always allow is saved for that tool", 404, "NOT_FOUND");
+      throw new ApiError({ message: "no Always allow is saved for that tool", status: 404 }, { code: "NOT_FOUND" });
     };
     renderPanel(port);
 
@@ -151,7 +151,7 @@ describe("AlwaysAllowPanel", () => {
   });
 
   it("keeps the row and says so when a revoke fails", async () => {
-    renderPanel(createFakeAlwaysAllowPort({ approvals: [approval("github", "get_file")], servers: SERVERS, revokeError: new ApiError("boom", 500) }));
+    renderPanel(createFakeAlwaysAllowPort({ approvals: [approval("github", "get_file")], servers: SERVERS, revokeError: new ApiError({ message: "boom", status: 500 }) }));
 
     await userEvent.click(await screen.findByRole("button", { name: "Revoke" }));
     expect(await screen.findByText("Couldn't revoke. Try again.")).toBeInTheDocument();
@@ -162,7 +162,7 @@ describe("AlwaysAllowPanel", () => {
   it("shows a load error instead of an empty list when the list cannot be read", async () => {
     const port = createFakeAlwaysAllowPort();
     port.listExternalMcpToolApprovals = async () => {
-      throw new ApiError("down", 500);
+      throw new ApiError({ message: "down", status: 500 });
     };
     renderPanel(port);
 

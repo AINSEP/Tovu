@@ -114,7 +114,7 @@ describe("WidgetEmbedNodeView", () => {
   it("a late response for a widget the node no longer points at does not overwrite the current widget", async () => {
     const pending = new Map<string, { resolve: (value: GetWidgetResult) => void; reject: (error: unknown) => void }>();
     vi.spyOn(api, "getWidget").mockImplementation(
-      (id: string) => new Promise<GetWidgetResult>((resolve, reject) => pending.set(id, { resolve, reject })),
+      ({ id }: { id: string }) => new Promise<GetWidgetResult>((resolve, reject) => pending.set(id, { resolve, reject })),
     );
     const { rerender } = render(<WidgetEmbedNodeView {...fakeNodeViewProps({ widgetEntryId: "w1", placementId: "p1" })} />);
     rerender(<WidgetEmbedNodeView {...fakeNodeViewProps({ widgetEntryId: "w2", placementId: "p1" })} />);
@@ -135,7 +135,7 @@ describe("WidgetEmbedNodeView", () => {
   it("a late failure for a widget the node no longer points at does not mark the current, resolved widget broken", async () => {
     const pending = new Map<string, { resolve: (value: GetWidgetResult) => void; reject: (error: unknown) => void }>();
     vi.spyOn(api, "getWidget").mockImplementation(
-      (id: string) => new Promise<GetWidgetResult>((resolve, reject) => pending.set(id, { resolve, reject })),
+      ({ id }: { id: string }) => new Promise<GetWidgetResult>((resolve, reject) => pending.set(id, { resolve, reject })),
     );
     const { rerender } = render(<WidgetEmbedNodeView {...fakeNodeViewProps({ widgetEntryId: "w1", placementId: "p1" })} />);
     rerender(<WidgetEmbedNodeView {...fakeNodeViewProps({ widgetEntryId: "w2", placementId: "p1" })} />);
@@ -649,7 +649,7 @@ describe("WidgetEmbedInsertControl", () => {
 describe("WidgetEmbed mounted node view", () => {
   it("Change updates the editor document and resolved widget while preserving placement identity", async () => {
     const replacement = { ...ACTIVE_WIDGET, id: "w2", title: "Replacement widget" };
-    vi.spyOn(api, "getWidget").mockImplementation(async (id) => ({ widget: id === "w2" ? replacement : ACTIVE_WIDGET, whereUsed: NO_WHERE_USED }));
+    vi.spyOn(api, "getWidget").mockImplementation(async ({ id }) => ({ widget: id === "w2" ? replacement : ACTIVE_WIDGET, whereUsed: NO_WHERE_USED }));
     vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [replacement] });
     const editor = new Editor({ extensions: [StarterKit, WidgetEmbed], content: { type: "doc", content: [
       { type: "widgetEmbed", attrs: { placementId: "p1", widgetEntryId: "w1" } }, { type: "paragraph" },

@@ -172,7 +172,7 @@ describe("SiteExportTab", () => {
     renderExport(createFakeSiteTransferPort({ listShares: () => new Promise((_, reject) => { fail = reject; }) }));
     expect(screen.getByText("Loading exports…")).toBeTruthy();
     await waitFor(() => expect(fail).toBeDefined());
-    fail!(new ApiError("", 500));
+    fail!(new ApiError({ message: "", status: 500 }));
     expect(await screen.findByText("Couldn't load exports.")).toBeTruthy();
   });
 
@@ -260,7 +260,7 @@ describe("SiteImportTab", () => {
   });
 
   it("shows the import list's error state", async () => {
-    renderImport(createFakeSiteTransferPort({ listImports: async () => { throw new ApiError("", 500); } }));
+    renderImport(createFakeSiteTransferPort({ listImports: async () => { throw new ApiError({ message: "", status: 500 }); } }));
     expect(await screen.findByText("Couldn't load imports.")).toBeTruthy();
   });
 

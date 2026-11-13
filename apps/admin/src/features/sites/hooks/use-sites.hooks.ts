@@ -290,7 +290,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
 function resolveWriteError(error: Error | null, t: Translate): string | null {
   if (error === null) return null;
   const key = siteWriteErrorKey(error);
-  return key === null ? describeApiError(error, t("That request failed.")) : t(key);
+  return key === null ? describeApiError({ e: error, fallback: t("That request failed.") }) : t(key);
 }
 
 /** {@link SitesController.createdTokens} from a create response.

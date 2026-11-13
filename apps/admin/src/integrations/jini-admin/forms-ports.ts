@@ -16,7 +16,7 @@ export interface FormsHostPorts {
 }
 export const formsEvents: FormsEventsPort = {
   subscribe({ onRefresh }, _optional: Record<string, never> = {}) {
-    return subscribeToContentRefresh(scope => { if (contentRefreshApplies(scope, FORMS_LIST_RESOURCE)) onRefresh(); });
+    return subscribeToContentRefresh(scope => { if (contentRefreshApplies({ scope, resource: FORMS_LIST_RESOURCE })) onRefresh(); });
   },
 };
 /** Delegate request construction to Jini; the host transport owns authentication and errors. */

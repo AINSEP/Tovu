@@ -78,7 +78,7 @@ export function subscribeToSettingsChanges(workspaceId: string, {
       for (const kind of ["theme-preview-refresh", "settings-changed", "open"] as const) {
         source.addEventListener(kind, (event) => {
           const message = event as MessageEvent<string>;
-          emit({ kind, data: message.data ?? "", id: message.lastEventId ?? "" });
+          emit({ frame: { kind, data: message.data ?? "", id: message.lastEventId ?? "" } });
         });
       }
       // Deliberately not closed here: EventSource reconnects with backoff on its own, and a

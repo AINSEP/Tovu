@@ -162,7 +162,7 @@ describe("useSiteKey", () => {
     ["KEY_DEPENDENT_DATA", "locked"], ["KEY_MISMATCH", "locked"],
     ["KEY_INVALID", "refused"], ["SITE_META_UNREADABLE", "refused"],
   ])("classifies generate refusal %s and refresh clears it", async (code, kind) => {
-    const port = makePort({ status: vi.fn(async () => MISSING), generate: vi.fn(async () => { throw new ApiError(code, 409, undefined, { error: code, detail: "Nothing changed" }); }) });
+    const port = makePort({ status: vi.fn(async () => MISSING), generate: vi.fn(async () => { throw new ApiError({ message: code, status: 409 }, { code: undefined, body: { error: code, detail: "Nothing changed" } }); }) });
     const { result } = await mount(port, MISSING);
     await act(async () => result.current.generate());
     expect(result.current.generateError).toEqual({ kind, code, detail: "Nothing changed" });

@@ -287,7 +287,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   const media = list.data?.media ?? null;
   const uploadFailure = readError ?? uploadMutation.error;
   // Local FileReader errors bypass the mutation; translate known copy while retaining diagnostics.
-  const uploadError = uploadFailure ? translate({ locale, key: describeApiError(uploadFailure, "upload failed") }) : null;
+  const uploadError = uploadFailure ? translate({ locale, key: describeApiError({ e: uploadFailure, fallback: "upload failed" }) }) : null;
   const error = visibleMediaError({
     trashError: trashMutation.error,
     purgeError: purgeMutation.error,

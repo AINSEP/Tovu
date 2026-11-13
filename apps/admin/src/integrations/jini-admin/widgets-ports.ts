@@ -17,7 +17,7 @@ export interface WidgetsHostPorts {
 // Library and regions use different resource names; editors keep their baseVersion drafts.
 export const widgetsEvents: WidgetsEventsPort = {
   subscribe({ resource, onRefresh }) {
-    return subscribeToContentRefresh(scope => { if (contentRefreshApplies(scope, resource)) onRefresh(); });
+    return subscribeToContentRefresh(scope => { if (contentRefreshApplies({ scope, resource })) onRefresh(); });
   },
 };
 export const widgetsNavigation: WidgetsNavigationPort = {

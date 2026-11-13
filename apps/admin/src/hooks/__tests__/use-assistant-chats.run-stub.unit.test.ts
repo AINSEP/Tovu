@@ -174,7 +174,7 @@ describe("useAssistantChats — request-bound legacy stub write", () => {
       onSaveMessage: (_conversationId, message) => {
         if (message.id === "a1" && failuresLeft > 0) {
           failuresLeft -= 1;
-          throw new HttpError(503, "Service Unavailable");
+          throw new HttpError({ status: 503, statusText: "Service Unavailable" });
         }
       },
     });

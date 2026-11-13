@@ -12,7 +12,7 @@ const SURFACE = 'admin-page-confirmation';
  * @overallScore 100
  */
 export function publishAdminPageSurface({ emission }: { emission: SurfaceEmission }, _optional = {}): void {
-  requestAssistantDock(true);
+  requestAssistantDock({ open: true });
   surfaces.dispatchEvent(new CustomEvent(SURFACE, { detail: emission }));
 }
 

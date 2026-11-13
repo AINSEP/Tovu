@@ -57,7 +57,7 @@ export function describeApiError({ e, fallback, locale }: { e: unknown; fallback
     const staticMessage = e.code ? STATIC_ERROR_MESSAGES[e.code] : undefined;
     if (staticMessage) return t({ locale: locale, key: staticMessage });
   }
-  return describeApiErrorDefault(e, fallback);
+  return describeApiErrorDefault({ e, fallback });
 }
 
 /** The callbacks a role row menu needs. Passed in rather than imported so this module stays free

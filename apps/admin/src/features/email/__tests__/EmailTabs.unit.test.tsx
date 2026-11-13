@@ -222,7 +222,7 @@ describe("Email tab components", () => {
     const dialog = await screen.findByRole("dialog", { name: "Unblock this address?" });
     expect(dialog).toHaveTextContent(PLAN.warnings[0]!);
     expect(api.removeSuppression).toHaveBeenCalledTimes(1);
-    api.removeSuppression.mockRejectedValueOnce(new ApiError("Forbidden", 403));
+    api.removeSuppression.mockRejectedValueOnce(new ApiError({ message: "Forbidden", status: 403 }));
     await userEvent.click(within(dialog).getByRole("button", { name: "Unblock" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Only the site owner can remove a block.");
     expect(screen.getByRole("dialog")).toBeInTheDocument();

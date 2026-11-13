@@ -120,7 +120,7 @@ test("updateUser throws ApiError for an unknown principalId", async () => {
 test("disableUser POSTs to /users/:principalId/disable and resolves the disabled user", async () => {
   const disabled = user({ status: "disabled" });
   const { calls } = stubFetchCapturing(okJson({ user: disabled }));
-  const result = await api.disableUser("p1");
+  const result = await api.disableUser({ principalId: "p1" });
   expect(calls[0].url).toBe(`${BASE}/users/p1/disable`);
   expect(calls[0].init?.method).toBe("POST");
   expect(calls[0].init?.body).toBeUndefined();
@@ -129,14 +129,14 @@ test("disableUser POSTs to /users/:principalId/disable and resolves the disabled
 
 test("disableUser throws ApiError for an unknown principalId", async () => {
   stubFetchCapturing(errJson(404, "user not found"));
-  const error = await api.disableUser("missing").catch((e: unknown) => e);
+  const error = await api.disableUser({ principalId: "missing" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
 });
 
 test("enableUser POSTs to /users/:principalId/enable and resolves the enabled user", async () => {
   const enabled = user({ status: "active" });
   const { calls } = stubFetchCapturing(okJson({ user: enabled }));
-  const result = await api.enableUser("p1");
+  const result = await api.enableUser({ principalId: "p1" });
   expect(calls[0].url).toBe(`${BASE}/users/p1/enable`);
   expect(calls[0].init?.method).toBe("POST");
   expect(calls[0].init?.body).toBeUndefined();
@@ -145,7 +145,7 @@ test("enableUser POSTs to /users/:principalId/enable and resolves the enabled us
 
 test("enableUser throws ApiError for an unknown principalId", async () => {
   stubFetchCapturing(errJson(404, "user not found"));
-  const error = await api.enableUser("missing").catch((e: unknown) => e);
+  const error = await api.enableUser({ principalId: "missing" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
 });
 

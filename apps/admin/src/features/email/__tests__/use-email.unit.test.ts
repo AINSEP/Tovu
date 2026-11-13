@@ -30,14 +30,14 @@ describe("useEmail", () => {
   });
 
   it("reports a 403 as forbidden", async () => {
-    const fake = port(vi.fn(async () => { throw new ApiError("forbidden", 403, "FORBIDDEN"); }));
+    const fake = port(vi.fn(async () => { throw new ApiError({ message: "forbidden", status: 403 }, { code: "FORBIDDEN" }); }));
     const { result } = renderHook(() => useEmail({ port: fake, locale: "en" }));
     await waitFor(() => expect(result.current.view).toEqual({ kind: "forbidden" }));
   });
 
   it("reports any other failure as error, and retry reads again", async () => {
     const getMailStatus = vi.fn<EmailPort["getMailStatus"]>()
-      .mockRejectedValueOnce(new ApiError("internal error", 500))
+      .mockRejectedValueOnce(new ApiError({ message: "internal error", status: 500 }))
       .mockResolvedValueOnce(READY);
     const fake = port(getMailStatus);
     const { result } = renderHook(() => useEmail({ port: fake, locale: "en" }));

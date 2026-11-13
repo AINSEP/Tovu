@@ -370,7 +370,7 @@ describe("useSiteSectionAvailability", () => {
     rerender({ user: bob });
     expect(result.current).toBe("unknown");
 
-    second.reject(new ApiError("forbidden", 403, "FORBIDDEN"));
+    second.reject(new ApiError({ message: "forbidden", status: 403 }, { code: "FORBIDDEN" }));
     await waitFor(() => expect(result.current).toBe("unavailable"));
 
     expect(listSites).toHaveBeenCalledTimes(2);

@@ -241,7 +241,7 @@ function publishCredentialSubmitErrorMessage({ err, t, locale }: { err: unknown;
   const classified = classifyPublishCredentialSubmitError({ e: err });
   if (classified.kind === "duplicate-label") return t("This connection was already saved — reload the page and try again.");
   if (classified.kind === "validation") return publishCredentialSaveErrorMessage({ locale, error: translateCredentialMessage({ message: classified.detail, locale }) });
-  return publishCredentialSaveErrorMessage({ locale, error: describeApiError(err, t("Unknown error")) });
+  return publishCredentialSaveErrorMessage({ locale, error: describeApiError({ e: err, fallback: t("Unknown error") }) });
 }
 
 export function usePublishCredentials(
@@ -264,7 +264,7 @@ export function usePublishCredentials(
     setExecutionMode(query.data.executionMode);
   }, [query.status, query.data]);
 
-  const loadError = query.error ? publishCredentialsLoadErrorMessage({ locale, error: describeApiError(query.error, "unknown error") }) : null;
+  const loadError = query.error ? publishCredentialsLoadErrorMessage({ locale, error: describeApiError({ e: query.error, fallback: "unknown error" }) }) : null;
 
   const [formStates, setFormStates] = useState<Record<AdminPublishCredentialProviderId, RowFormState>>({});
   // The picker's promotion state, kept apart from `formStates`: a `save` that lands mid-promotion
@@ -365,7 +365,7 @@ export function usePublishCredentials(
       patchRow({ providerId, patch: (current) => ({
         ...current,
         verifying: false,
-        verifyError: publishCredentialVerifyErrorMessage({ locale, error: describeApiError(err, "unknown error") }),
+        verifyError: publishCredentialVerifyErrorMessage({ locale, error: describeApiError({ e: err, fallback: "unknown error" }) }),
       }) });
     }
   }
@@ -413,7 +413,7 @@ export function usePublishCredentials(
       setCredentials((prev) => withPromotedDefault(prev ?? [], promoted));
       await reconcileCredentials();
     } catch (err) {
-      error = publishCredentialSelectErrorMessage({ locale, error: describeApiError(err, "unknown error") });
+      error = publishCredentialSelectErrorMessage({ locale, error: describeApiError({ e: err, fallback: "unknown error" }) });
     } finally {
       selectingRef.current.delete(providerId);
       setSelections((prev) => ({ ...prev, [providerId]: { pendingId: null, error } }));

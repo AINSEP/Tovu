@@ -132,7 +132,7 @@ describe("useLogin — submit", () => {
 });
 
 it("copies the server incident ID without copying a password or private backend facts", async () => {
-  const port: LoginPort = { login: async () => { throw new ApiError("private identity table; LOGIN_PASSWORD_CANARY", 500, "INTERNAL_ERROR", { errorId: "auth-incident-123" }); } };
+  const port: LoginPort = { login: async () => { throw new ApiError({ message: "private identity table; LOGIN_PASSWORD_CANARY", status: 500 }, { code: "INTERNAL_ERROR", body: { errorId: "auth-incident-123" } }); } };
   const { result } = renderHook(() => useLogin({ onLogin: vi.fn() }, { port }));
   act(() => result.current.setPassword("LOGIN_PASSWORD_CANARY"));
   await act(async () => result.current.submit(fakeSubmitEvent()));
@@ -143,7 +143,7 @@ it("copies the server incident ID without copying a password or private backend 
 });
 
 it.each([401, 429])("keeps the existing %s refusal message without replacing it with a server incident", async status => {
-  const port: LoginPort = { login: async () => { throw new ApiError("existing safe refusal", status); } };
+  const port: LoginPort = { login: async () => { throw new ApiError({ message: "existing safe refusal", status }); } };
   const { result } = renderHook(() => useLogin({ onLogin: vi.fn() }, { port }));
   await act(async () => result.current.submit(fakeSubmitEvent()));
   expect(result.current.error).toBe("existing safe refusal");

@@ -200,7 +200,7 @@ function confirmationNotice(
  */
 export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps = {}): UseFolderDrop {
   const getPort = deps.getPort ?? defaultGetPort;
-  const setCustomRoot = deps.setCustomRoot ?? api.setFsFilesCustomRoot;
+  const setCustomRoot = deps.setCustomRoot;
   const getCustomRoot = deps.getCustomRoot ?? api.getFsFilesCustomRoot;
   const autoDismissMs = deps.autoDismissMs ?? DEFAULT_AUTO_DISMISS_MS;
 
@@ -251,7 +251,7 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
         if (!settlement.isCurrent({ generation })) return;
         const settlesHere = () => mountedRef.current && settlement.isCurrent({ generation });
         try {
-          await setCustomRoot(path);
+          await (setCustomRoot ? setCustomRoot(path) : api.setFsFilesCustomRoot({ path }));
           if (!settlesHere()) return;
           setNotice(confirmationNotice({ path, previousPath }, { paths }));
           scheduleAutoDismiss();

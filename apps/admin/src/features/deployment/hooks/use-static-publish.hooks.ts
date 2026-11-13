@@ -155,8 +155,8 @@ export function useStaticPublish({ port, t, locale }: { port: StaticPublishPort;
   const targetsQuery = useFetchQuery({ key: ["deployment", "publish-targets"], fetch: () => port.listPublishTargets() });
   // The host's own text in the viewer's locale, once, so every consumer (this form, the credential
   // rows built from these targets) renders it translated.
-  const targets = useMemo(() => localizePublishTargets(targetsQuery.data, locale), [targetsQuery.data, locale]);
-  const targetsError = targetsQuery.error ? publishLoadErrorMessage({ locale, error: describeApiError(targetsQuery.error, UNKNOWN_ERROR) }) : null;
+  const targets = useMemo(() => localizePublishTargets({ targets: targetsQuery.data, locale }), [targetsQuery.data, locale]);
+  const targetsError = targetsQuery.error ? publishLoadErrorMessage({ locale, error: describeApiError({ e: targetsQuery.error, fallback: UNKNOWN_ERROR }) }) : null;
   const [chosenTarget, setChosenTarget] = useState<AdminStaticPublishTargetId | null>(null);
   const target = selectedPublishTargetId({ chosenTarget, targets });
   const selectedTarget = publishTargetById({ targets, id: target });
@@ -225,7 +225,7 @@ export function useStaticPublish({ port, t, locale }: { port: StaticPublishPort;
       setPreview(result);
     } catch (err) {
       if (previewGenerationRef.current !== requestGeneration) return;
-      setPreviewError(publishPreviewErrorMessage({ locale, error: describeApiError(err, UNKNOWN_ERROR) }));
+      setPreviewError(publishPreviewErrorMessage({ locale, error: describeApiError({ e: err, fallback: UNKNOWN_ERROR }) }));
     } finally {
       // Unconditional, unlike the two branches above: this request's own spinner must stop once ITS
       // OWN network call settles regardless of generation, or a discarded stale response would leave
@@ -254,7 +254,7 @@ export function useStaticPublish({ port, t, locale }: { port: StaticPublishPort;
     setRun(query.data);
   }, [query.status, query.data]);
 
-  const loadError = query.error ? publishLoadErrorMessage({ locale, error: describeApiError(query.error, UNKNOWN_ERROR) }) : null;
+  const loadError = query.error ? publishLoadErrorMessage({ locale, error: describeApiError({ e: query.error, fallback: UNKNOWN_ERROR }) }) : null;
 
   // Counts CONSECUTIVE poll failures for the `PUBLISH_POLL_FAILURE_LIMIT` bound below — same ref-not-
   // state reasoning `use-static-export.hooks.ts`'s own `pollFailuresRef` documents.
@@ -296,7 +296,7 @@ export function useStaticPublish({ port, t, locale }: { port: StaticPublishPort;
           // retry forever. Setting `pollError` also flips `isPublishing` false on the next render,
           // which re-arms this effect's own cleanup — but `return` here (no `scheduleNext()`) is
           // what actually stops the loop; it must not depend on that later render having happened.
-          setPollError(publishPollErrorMessage({ locale: pollLocale, error: describeApiError(err, UNKNOWN_ERROR) }));
+          setPollError(publishPollErrorMessage({ locale: pollLocale, error: describeApiError({ e: err, fallback: UNKNOWN_ERROR }) }));
           return;
         }
         scheduleNext();
@@ -341,7 +341,7 @@ export function useStaticPublish({ port, t, locale }: { port: StaticPublishPort;
       });
       setRun(started);
     } catch (err) {
-      const failure = formatUserFacingError({ message: publishTriggerErrorMessage({ locale, error: describeApiError(err, UNKNOWN_ERROR) }),
+      const failure = formatUserFacingError({ message: publishTriggerErrorMessage({ locale, error: describeApiError({ e: err, fallback: UNKNOWN_ERROR }) }),
         action: t("Check publish status before starting another publish. Copy details and report this problem."), step: "static.publish.start", cause: err }, TOVU_ERROR_REDACTION_OPTIONS);
       setPublishError(failure.message);
       setPublishFailure(failure);

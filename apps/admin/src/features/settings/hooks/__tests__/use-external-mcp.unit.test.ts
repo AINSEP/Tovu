@@ -115,7 +115,7 @@ describe("useExternalMcp — saved-server verification", () => {
       } });
     });
     expect(outcome).toMatchObject({ ok: true, source: { statusMessage: "Access token set · The server rejected this token." } });
-    expect(probeExternalMcpServer).toHaveBeenCalledExactlyOnceWith("remote");
+    expect(probeExternalMcpServer).toHaveBeenCalledExactlyOnceWith({ serverId: "remote" });
     expect(result.current.restartRequired).toBe(true);
     // The verified row is also the merge base for later edits, including failed ones.
     saveExternalMcpServer.mockRejectedValue(new Error("write failed"));
@@ -146,7 +146,7 @@ describe("useExternalMcp — saved-server verification", () => {
         ok: true, source: { statusMessage: "Connected." },
       });
     });
-    expect(probeExternalMcpServer).toHaveBeenCalledExactlyOnceWith("remote");
+    expect(probeExternalMcpServer).toHaveBeenCalledExactlyOnceWith({ serverId: "remote" });
   });
 
   it("leaves a disabled remote server saved but untested after replacing its token", async () => {
@@ -159,7 +159,7 @@ describe("useExternalMcp — saved-server verification", () => {
         enabled: false, statusMessage: "Access token set · Saved, not tested.",
       });
     });
-    expect(saveExternalMcpServer.mock.calls[0]![1]).toMatchObject({ enabled: false, accessToken: "new-token" });
+    expect(saveExternalMcpServer.mock.calls[0]![0].body).toMatchObject({ enabled: false, accessToken: "new-token" });
     expect(probeExternalMcpServer).not.toHaveBeenCalled();
   });
 
@@ -176,9 +176,9 @@ describe("useExternalMcp — saved-server verification", () => {
     await act(async () => {
       await expect(result.current.dependencies.port.updateSource!("uncached", { enabled: true })).resolves.toMatchObject({ id: "uncached", enabled: true });
     });
-    expect(saveExternalMcpServer).toHaveBeenCalledExactlyOnceWith("uncached", {
+    expect(saveExternalMcpServer).toHaveBeenCalledExactlyOnceWith({ serverId: "uncached", body: {
       transport: "stdio", enabled: true, command: "", url: "", args: "", allowedToolNames: "", writeAllowedToolNames: "", authMode: "static_env",
-    });
+    } });
     expect(probeExternalMcpServer).not.toHaveBeenCalled();
     expect(result.current.restartRequired).toBe(true);
   });
@@ -302,7 +302,7 @@ describe("useExternalMcp — the static_env access token in a save", () => {
     await act(async () => {
       await result.current.dependencies.port.addSource({ fields: { id: "local-fs", command: "npx", ...fields } });
     });
-    return saveExternalMcpServer.mock.calls[0]![1] as Record<string, unknown>;
+    return saveExternalMcpServer.mock.calls[0]![0].body as Record<string, unknown>;
   }
 
   it("sends a typed token and its variable name for static_env", async () => {
@@ -378,7 +378,7 @@ describe("useExternalMcp — addSource", () => {
       await result.current.dependencies.port.addSource({ fields: { id: "bare" } });
     });
 
-    expect(saveExternalMcpServer).toHaveBeenCalledWith("bare", {
+    expect(saveExternalMcpServer).toHaveBeenCalledWith({ serverId: "bare", body: {
       transport: "stdio",
       enabled: true,
       command: "",
@@ -387,7 +387,7 @@ describe("useExternalMcp — addSource", () => {
       allowedToolNames: "",
       writeAllowedToolNames: "",
       authMode: "static_env",
-    });
+    } });
   });
 
   it.each([undefined, "", "   "])("rejects a remote static_env create with an absent or blank token (%j) before saving", async (accessToken) => {
@@ -401,7 +401,7 @@ describe("useExternalMcp — addSource", () => {
     expect(probeExternalMcpServer).not.toHaveBeenCalled();
   });
 
-  it("saves via api.saveExternalMcpServer(id, body), trims the id, sets restartRequired, and returns the mapped item", async () => {
+  it("saves via api.saveExternalMcpServer({ serverId: id, body }), trims the id, sets restartRequired, and returns the mapped item", async () => {
     saveExternalMcpServer.mockResolvedValue({ server: server({ serverId: "new-server" }), restartRequired: true });
     const { result } = renderHook(() => useExternalMcp());
     expect(result.current.restartRequired).toBe(false);
@@ -413,7 +413,7 @@ describe("useExternalMcp — addSource", () => {
       });
     });
 
-    expect(saveExternalMcpServer).toHaveBeenCalledWith("new-server", {
+    expect(saveExternalMcpServer).toHaveBeenCalledWith({ serverId: "new-server", body: {
       label: "New Server",
       transport: "stdio",
       enabled: true,
@@ -424,7 +424,7 @@ describe("useExternalMcp — addSource", () => {
       writeAllowedToolNames: "",
       authMode: "static_env",
       env: "FOO=bar",
-    });
+    } });
     expect(outcome).toEqual({ ok: true, source: expect.objectContaining({ id: "new-server" }) });
     await waitFor(() => expect(result.current.restartRequired).toBe(true));
   });
@@ -439,7 +439,7 @@ describe("useExternalMcp — addSource", () => {
       });
     });
 
-    const [, body] = saveExternalMcpServer.mock.calls[0]!;
+    const [{ body }] = saveExternalMcpServer.mock.calls[0]!;
     expect(body.writeAllowedToolNames).toBe("generate_image");
   });
 
@@ -456,7 +456,7 @@ describe("useExternalMcp — addSource", () => {
 });
 
 describe("useExternalMcp — removeSource", () => {
-  it("calls api.deleteExternalMcpServer(id), sets restartRequired, and returns true", async () => {
+  it("calls api.deleteExternalMcpServer({ serverId: id }), sets restartRequired, and returns true", async () => {
     deleteExternalMcpServer.mockResolvedValue({ removed: true, restartRequired: true });
     const { result } = renderHook(() => useExternalMcp());
 
@@ -465,7 +465,7 @@ describe("useExternalMcp — removeSource", () => {
       outcome = await result.current.dependencies.port.removeSource("local-fs");
     });
 
-    expect(deleteExternalMcpServer).toHaveBeenCalledWith("local-fs");
+    expect(deleteExternalMcpServer).toHaveBeenCalledWith({ serverId: "local-fs" });
     expect(outcome).toBe(true);
     await waitFor(() => expect(result.current.restartRequired).toBe(true));
   });
@@ -495,7 +495,7 @@ describe("useExternalMcp — updateSource", () => {
     // not blanked out — the exact bug this "merge, don't replace" hook exists to prevent. `label`
     // is carried over too, from the fetched item's own label (mergeSourceUpdate's `patch.label ??
     // previous?.label`).
-    expect(saveExternalMcpServer).toHaveBeenCalledWith("existing", {
+    expect(saveExternalMcpServer).toHaveBeenCalledWith({ serverId: "existing", body: {
       label: "Local filesystem",
       transport: "stdio",
       enabled: false,
@@ -505,7 +505,7 @@ describe("useExternalMcp — updateSource", () => {
       allowedToolNames: "tool_a",
       writeAllowedToolNames: "",
       authMode: "static_env",
-    });
+    } });
   });
 
   it("a rejected update preserves the prior row with the failure message without throwing", async () => {
@@ -528,7 +528,7 @@ describe("useExternalMcp — updateSource", () => {
     });
     // Echoes back whatever body was actually sent, so each call's own `lastKnown` update reflects
     // that specific write — the same shape a real PUT-then-reread round trip has.
-    saveExternalMcpServer.mockImplementation((id: string, body: Record<string, unknown>) =>
+    saveExternalMcpServer.mockImplementation(({ serverId: id, body }: { serverId: string; body: Record<string, unknown> }) =>
       Promise.resolve({
         server: server({ serverId: id, command: body.command as string, enabled: body.enabled as boolean }),
         restartRequired: true,
@@ -550,7 +550,7 @@ describe("useExternalMcp — updateSource", () => {
       ]);
     });
 
-    const [, secondBody] = saveExternalMcpServer.mock.calls[1]!;
+    const [{ body: secondBody }] = saveExternalMcpServer.mock.calls[1]!;
     expect(secondBody.enabled).toBe(false);
     expect(secondBody.command).toBe("newcmd");
   });
@@ -562,7 +562,7 @@ describe("useExternalMcp — updateSource", () => {
       servers: [server({ serverId: "alpha" }), server({ serverId: "beta" })],
     });
     let releaseAlpha!: () => void;
-    saveExternalMcpServer.mockImplementation((id: string) => {
+    saveExternalMcpServer.mockImplementation(({ serverId: id }: { serverId: string }) => {
       if (id === "alpha") {
         return new Promise((resolve) => {
           releaseAlpha = () => resolve({ server: server({ serverId: "alpha", enabled: false }), restartRequired: true });
@@ -581,7 +581,7 @@ describe("useExternalMcp — updateSource", () => {
     });
 
     // beta reaches the server, and settles, while alpha's save is still parked.
-    await waitFor(() => expect(saveExternalMcpServer.mock.calls.map(([id]) => id)).toEqual(["alpha", "beta"]));
+    await waitFor(() => expect(saveExternalMcpServer.mock.calls.map(([{ serverId }]) => serverId)).toEqual(["alpha", "beta"]));
     await act(async () => {
       await expect(beta).resolves.toMatchObject({ id: "beta", enabled: false });
     });
@@ -618,11 +618,11 @@ describe("useExternalMcp — addSource rejects a malformed OAuth identity before
       })).toMatchObject({ ok: true });
     });
 
-    expect(saveExternalMcpServer).toHaveBeenCalledExactlyOnceWith("hosted", {
+    expect(saveExternalMcpServer).toHaveBeenCalledExactlyOnceWith({ serverId: "hosted", body: {
       transport: "streamable_http", enabled: true, command: "", url: "https://mcp.example.com/mcp",
       args: "", allowedToolNames: "", writeAllowedToolNames: "", authMode: "oauth",
       oauth: { grant: "authorization_code", clientId: "", scopes: "", tokenEnvName: "" },
-    });
+    } });
   });
 
   it("accepts an OAuth draft that names a provider id, and carries the oauth block through to the write", async () => {
@@ -645,7 +645,7 @@ describe("useExternalMcp — addSource rejects a malformed OAuth identity before
       });
     });
 
-    expect(saveExternalMcpServer).toHaveBeenCalledWith("hosted", {
+    expect(saveExternalMcpServer).toHaveBeenCalledWith({ serverId: "hosted", body: {
       transport: "streamable_http",
       enabled: true,
       command: "",
@@ -664,7 +664,7 @@ describe("useExternalMcp — addSource rejects a malformed OAuth identity before
         // below for why that omission is load-bearing.
         clientSecret: "shh",
       },
-    });
+    } });
   });
 
   it("omits providerId and the three OAuth endpoints when blank, so an untouched save can't look like an identity change (C-011)", async () => {
@@ -691,7 +691,7 @@ describe("useExternalMcp — addSource rejects a malformed OAuth identity before
       });
     });
 
-    const [, body] = saveExternalMcpServer.mock.calls[0]!;
+    const [{ body }] = saveExternalMcpServer.mock.calls[0]!;
     expect(body.oauth).not.toHaveProperty("providerId");
     expect(body.oauth).not.toHaveProperty("authorizationEndpoint");
     expect(body.oauth).not.toHaveProperty("tokenEndpoint");
@@ -717,7 +717,7 @@ describe("useExternalMcp — addSource rejects a malformed OAuth identity before
       });
     });
 
-    const [, body] = saveExternalMcpServer.mock.calls[0]!;
+    const [{ body }] = saveExternalMcpServer.mock.calls[0]!;
     expect(body.oauth).toMatchObject({ providerId: "example-oidc", tokenEndpoint: "https://auth.example.com/token" });
   });
 
@@ -739,7 +739,7 @@ describe("useExternalMcp — addSource rejects a malformed OAuth identity before
       });
     });
 
-    const [, body] = saveExternalMcpServer.mock.calls[0]!;
+    const [{ body }] = saveExternalMcpServer.mock.calls[0]!;
     expect(body.oauth).not.toHaveProperty("clientSecret");
   });
 });
@@ -754,7 +754,7 @@ describe("useExternalMcp — testSource (D-5: wired to the probe route)", () => 
     expect(probeExternalMcpServer).not.toHaveBeenCalled();
   });
 
-  it("calls api.probeExternalMcpServer(id) and reports the advertised tool count on success", async () => {
+  it("calls api.probeExternalMcpServer({ serverId: id }) and reports the advertised tool count on success", async () => {
     probeExternalMcpServer.mockResolvedValue({
       tools: [{ remoteName: "read_file" }, { remoteName: "generate_image" }],
       probedAt: "2026-08-26T00:00:00.000Z",
@@ -763,7 +763,7 @@ describe("useExternalMcp — testSource (D-5: wired to the probe route)", () => 
 
     const outcome = await result.current.dependencies.port.testSource!("local-fs");
 
-    expect(probeExternalMcpServer).toHaveBeenCalledWith("local-fs");
+    expect(probeExternalMcpServer).toHaveBeenCalledWith({ serverId: "local-fs" });
     expect(outcome.ok).toBe(true);
     expect(outcome.message).toBe("2 tools advertised.");
     expect(typeof outcome.latencyMs).toBe("number");
@@ -875,9 +875,9 @@ describe("useExternalMcp — hosted token validation characterization (L294)", (
         id: "remote", transport: "streamable_http", accessToken,
       } })).resolves.toMatchObject({ ok: true });
     });
-    expect(typedPort.saveExternalMcpServer).toHaveBeenCalledWith("remote", expect.objectContaining({
+    expect(typedPort.saveExternalMcpServer).toHaveBeenCalledWith({ serverId: "remote", body: expect.objectContaining({
       authMode: "static_env", accessToken,
-    }));
+    }) });
   });
 
   it.each([

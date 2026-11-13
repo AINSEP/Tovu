@@ -28,7 +28,7 @@ const MODES: readonly { mode: VisitorToolMode; label: string }[] = [
 ];
 /** Agent handles are lowercase hyphenated words; tool ids are server data (`list_posts`, plugin ids). */
 function toolHandle({ id, part }: { id: string; part: string }, _options: Record<string, never> = {}): string {
-  const slug = trimCharsEnd({ text: asciiSlug(id).slice(0, 40), chars: "-" }) || "tool";
+  const slug = trimCharsEnd({ text: asciiSlug({ text: id }).slice(0, 40), chars: "-" }) || "tool";
   return `ai-assistant-visitor-tool-${slug}-${part}`;
 }
 const GROUP_LABELS: Record<VisitorToolView["source"], string> = {

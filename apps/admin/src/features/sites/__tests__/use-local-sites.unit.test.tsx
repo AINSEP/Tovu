@@ -51,7 +51,7 @@ describe("local site card controller", () => {
     unmount();
   });
   it.each([
-    { failure: new ApiError("host refused", 409, "SITE_RUNNING"), message: "translated:Stop this site before moving it to Trash." },
+    { failure: new ApiError({ message: "host refused", status: 409 }, { code: "SITE_RUNNING" }), message: "translated:Stop this site before moving it to Trash." },
     { failure: new Error("host offline"), message: "host offline" },
     { failure: "opaque failure", message: "Request failed" },
   ])("reports $message and releases busy state so an action can be retried", async ({ failure, message }) => {
@@ -338,7 +338,7 @@ it("shows the Desktop refusal URL without starting restart polling or changing t
   const polling = pollingFakes();
   const message = "Site 'alpha' is open in Desktop at https://localhost:53775/admin/. Switch refused; the current site is still running.";
   const port = createFakeSitesPort(snapshot, {
-    manageLocalSite: async () => { throw new ApiError(message, 409, "SITE_ALREADY_RUNNING"); },
+    manageLocalSite: async () => { throw new ApiError({ message, status: 409 }, { code: "SITE_ALREADY_RUNNING" }); },
   });
   const { result, unmount } = renderHook(() => useLocalSites({ port, snapshot, t }, { ...polling, confirm: () => true }), { wrapper });
   await act(async () => { await result.current.run("alpha", "switch"); });

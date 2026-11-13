@@ -282,10 +282,10 @@ describe("useExternalMcpAdmissions — post-restart freshness (ADM-002)", () => 
 
 /** The admissions route's own 503 body for a daemon that is not listening yet. */
 function daemonUnavailable(): ApiError {
-  return new ApiError("the agent daemon is not reachable — the assistant may not be running", 503, "AGENT_DAEMON_UNAVAILABLE", {
+  return new ApiError({ message: "the agent daemon is not reachable — the assistant may not be running", status: 503 }, { code: "AGENT_DAEMON_UNAVAILABLE", body: {
     error: "the agent daemon is not reachable — the assistant may not be running",
     code: "AGENT_DAEMON_UNAVAILABLE",
-  });
+  } });
 }
 
 /** A port whose admissions read fails with `failure()` for the first `failures` reads, then answers. */
@@ -358,7 +358,7 @@ describe("useExternalMcpAdmissions — waits for a starting assistant instead of
   it("does not wait on an error that waiting cannot fix (403)", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
-      const { port, getAdmissions } = startingPort(Number.POSITIVE_INFINITY, () => new ApiError("forbidden", 403, "FORBIDDEN"));
+      const { port, getAdmissions } = startingPort(Number.POSITIVE_INFINITY, () => new ApiError({ message: "forbidden", status: 403 }, { code: "FORBIDDEN" }));
       const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
 
       await waitFor(() => expect(result.current.unavailable).toBe("forbidden"));
@@ -397,17 +397,17 @@ describe("useExternalMcpAdmissions — waits for a starting assistant instead of
 
 describe("isAssistantStartingError", () => {
   it.each([
-    ["the admissions route's 503", new ApiError("x", 503, "AGENT_DAEMON_UNAVAILABLE")],
-    ["an API that is itself restarting", new ApiError("x", 0, "API_UNREACHABLE")],
-    ["a request that timed out", new ApiError("x", 0, "REQUEST_TIMEOUT")],
-    ["a bare 500 from the dev proxy", new ApiError("", 500)],
+    ["the admissions route's 503", new ApiError({ message: "x", status: 503 }, { code: "AGENT_DAEMON_UNAVAILABLE" })],
+    ["an API that is itself restarting", new ApiError({ message: "x", status: 0 }, { code: "API_UNREACHABLE" })],
+    ["a request that timed out", new ApiError({ message: "x", status: 0 }, { code: "REQUEST_TIMEOUT" })],
+    ["a bare 500 from the dev proxy", new ApiError({ message: "", status: 500 })],
   ])("treats %s as 'still starting'", (_label, error) => {
     expect(isAssistantStartingError({ error })).toBe(true);
   });
 
   it.each([
-    ["a 401", new ApiError("x", 401, "UNAUTHENTICATED")],
-    ["a 403", new ApiError("x", 403, "FORBIDDEN")],
+    ["a 401", new ApiError({ message: "x", status: 401 }, { code: "UNAUTHENTICATED" })],
+    ["a 403", new ApiError({ message: "x", status: 403 }, { code: "FORBIDDEN" })],
     ["a plain Error", new Error("x")],
     ["nothing", null],
   ])("does not wait on %s", (_label, error) => {

@@ -72,7 +72,7 @@ export function useAssistantOwnerGrant<T extends Grant>(required: {
       const saved = await mutation.mutate({ input: { ...input.settings, riskAcknowledged: consent.acknowledged } });
       state.loader.replace({ value: saved });
       publishSettingsRefresh([required.namespace]);
-    } catch (error) { setSaveError(describeApiError(error, required.failure)); }
+    } catch (error) { setSaveError(describeApiError({ e: error, fallback: required.failure })); }
     finally { locked.current = false; setBusy(false); }
   }
   return { ...state, busy, saveError, save, dialog: { ...confirmation.dialog, onCancel: () => {

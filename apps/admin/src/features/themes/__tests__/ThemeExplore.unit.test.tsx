@@ -142,7 +142,7 @@ describe("Explore without a theme query parameter", () => {
       settings: { workspaceId: "workspace-local", activeThemeId: "novice", updatedAt: "2026-10-06T00:00:00Z" },
       availableThemeIds: ["novice"], availableThemes: [{ id: "novice", tier: "static" }],
     } as Awaited<ReturnType<typeof api.getPresentation>>);
-    const getDetail = vi.spyOn(api, "getThemeDetail").mockImplementation(async (themeId) => {
+    const getDetail = vi.spyOn(api, "getThemeDetail").mockImplementation(async ({ themeId }) => {
       // The empty ID reproduces the registry-shaped response that caused files.map to fail.
       if (!themeId) return { themes: [] } as never;
       return {
@@ -157,8 +157,8 @@ describe("Explore without a theme query parameter", () => {
       expect(getDetail.mock.calls).toEqual([]);
       await waitFor(() => expect(screen.getByTitle("Theme preview")).toBeInTheDocument());
       expect(presentation).toHaveBeenCalledTimes(1);
-      expect(getDetail.mock.calls).toEqual([["novice"]]);
-      await waitFor(() => expect(getFile.mock.calls).toEqual([["novice", "pages/index.html"]]));
+      expect(getDetail.mock.calls).toEqual([[{ themeId: "novice" }]]);
+      await waitFor(() => expect(getFile.mock.calls).toEqual([[{ themeId: "novice", path: "pages/index.html" }]]));
       expect(new URL((screen.getByTitle("Theme preview") as HTMLIFrameElement).src).pathname).toBe("/theme-explore/novice/index");
     } finally {
       presentation.mockRestore();

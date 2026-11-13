@@ -72,7 +72,7 @@ export function useExistingInstances(
 ) {
   const queryFetch = useQueryFetchCallback(async () => {
     try { return (await port.listWidgets({ widgetType })).widgets; }
-    catch (error) { throw new Error(describeApiError(error, sharedComponentsT({ locale, key: "failed to load existing widgets" }))); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: sharedComponentsT({ locale, key: "failed to load existing widgets" }) })); }
   }, [port, widgetType, locale]);
   // Widget type keys isolate the picker instances; a slow prior-type response cannot populate
   // the current picker. Port/locale dependencies refresh the fetch callback without resetting
@@ -256,14 +256,14 @@ export function useWidgetAddControl(
       const { widget } = await port.createWidget({ widgetType, title, config });
       widgetId = widget.id;
     } catch (e) {
-      setError(describeApiError(e, t("failed to create widget")));
+      setError(describeApiError({ e, fallback: t("failed to create widget") }));
       return;
     }
     setPickerType({ next: null });
     try {
       await props.onResolved(widgetId);
     } catch (e) {
-      const detail = describeApiError(e, t("failed to place widget"));
+      const detail = describeApiError({ e, fallback: t("failed to place widget") });
       setError(
         interpolate({ template: t('Widget "{title}" was created but not placed ({detail}). Choose it under Use existing to try again.'), vars: { title, detail } }
         )
@@ -276,7 +276,7 @@ export function useWidgetAddControl(
     try {
       await props.onResolved(widgetInstanceId);
     } catch (e) {
-      setError(describeApiError(e, t("failed to place widget")));
+      setError(describeApiError({ e, fallback: t("failed to place widget") }));
     }
   }
 

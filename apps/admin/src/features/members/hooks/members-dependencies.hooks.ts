@@ -9,8 +9,8 @@ import type { MembersPort } from "./members-port.hooks";
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultMembersPort: MembersPort = {
   listMembers: () => api.listMembers(),
-  getMember: ({ id }, _optional = {}) => api.getMember(id),
-  disableMember: ({ id }, _optional = {}) => api.disableMember(id),
+  getMember: ({ id }, _optional = {}) => api.getMember({ id }),
+  disableMember: ({ id }, _optional = {}) => api.disableMember({ id }),
   requestMemberMagicLink: (input, _optional = {}) => api.requestMemberMagicLink(input),
 };
 

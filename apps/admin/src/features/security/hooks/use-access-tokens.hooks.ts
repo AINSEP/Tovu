@@ -333,7 +333,7 @@ function accessTokenSubmitErrorMessage(
   const classified = classifyAccessTokenSubmitError({ e: err });
   if (classified.kind === "duplicate-label") return accessTokenDuplicateNameMessage({ locale, name: attemptedName, provider: providerLabel });
   if (classified.kind === "validation") return accessTokenSaveErrorMessage({ locale, error: translateCredentialMessage({ message: classified.detail, locale }) });
-  return accessTokenSaveErrorMessage({ locale, error: describeApiError(err, t(UNKNOWN_ERROR)) });
+  return accessTokenSaveErrorMessage({ locale, error: describeApiError({ e: err, fallback: t(UNKNOWN_ERROR) }) });
 }
 
 /** Translates a rejected remove/make-default into a row-ready string via `template` — the
@@ -352,7 +352,7 @@ function accessTokenActionErrorMessage(
   },
   _optional: Record<string, never> = {},
 ): string {
-  return template({ locale, error: describeApiError(err, t(UNKNOWN_ERROR)) });
+  return template({ locale, error: describeApiError({ e: err, fallback: t(UNKNOWN_ERROR) }) });
 }
 
 /** Combines the three independent list-fetch failures (publish, source-control, custom) into one
@@ -368,9 +368,9 @@ function accessTokensLoadError(
   },
   _optional: Record<string, never> = {},
 ): string | null {
-  if (publishError) return accessTokensLoadErrorMessage({ locale, error: describeApiError(publishError, t(UNKNOWN_ERROR)) });
-  if (sourceControlError) return accessTokensLoadErrorMessage({ locale, error: describeApiError(sourceControlError, t(UNKNOWN_ERROR)) });
-  if (customError) return accessTokensLoadErrorMessage({ locale, error: describeApiError(customError, t(UNKNOWN_ERROR)) });
+  if (publishError) return accessTokensLoadErrorMessage({ locale, error: describeApiError({ e: publishError, fallback: t(UNKNOWN_ERROR) }) });
+  if (sourceControlError) return accessTokensLoadErrorMessage({ locale, error: describeApiError({ e: sourceControlError, fallback: t(UNKNOWN_ERROR) }) });
+  if (customError) return accessTokensLoadErrorMessage({ locale, error: describeApiError({ e: customError, fallback: t(UNKNOWN_ERROR) }) });
   return null;
 }
 
@@ -429,15 +429,15 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     // Each host's own text (labels, guidance, extra-field labels) in the viewer's locale.
     () =>
       accessTokenProviders(
-        { publishTargets: localizePublishTargets(publishTargetsQuery.data, locale) },
-        { sourceControlProviders: sourceControlProvidersQuery.data === undefined ? undefined : localizeSourceControlProviders(sourceControlProvidersQuery.data, locale) }
+        { publishTargets: localizePublishTargets({ targets: publishTargetsQuery.data, locale }) },
+        { sourceControlProviders: sourceControlProvidersQuery.data === undefined ? undefined : localizeSourceControlProviders({ providers: sourceControlProvidersQuery.data, locale }) }
       ),
     [publishTargetsQuery.data, sourceControlProvidersQuery.data, locale]
   );
   // The existing catalogs own ids and labels; no parallel provider list lives in this UI.
   const worksForOptions = useMemo(() => Array.from(new Map([
-    ...(localizePublishTargets(publishTargetsQuery.data, locale) ?? []).map(target => [target.id, { value: target.id, label: target.label }] as const),
-    ...(localizeSourceControlProviders(sourceControlProvidersQuery.data ?? [], locale)).map(provider => [provider.id, { value: provider.id, label: provider.label }] as const),
+    ...(localizePublishTargets({ targets: publishTargetsQuery.data, locale }) ?? []).map(target => [target.id, { value: target.id, label: target.label }] as const),
+    ...(localizeSourceControlProviders({ providers: sourceControlProvidersQuery.data ?? [], locale })).map(provider => [provider.id, { value: provider.id, label: provider.label }] as const),
   ]).values()), [publishTargetsQuery.data, sourceControlProvidersQuery.data, locale]);
   const publishTargetsSettled = publishTargetsQuery.status !== "loading" && sourceControlProvidersQuery.status !== "loading";
   const [publishCredentials, setPublishCredentials] = useState<AdminPublishCredentialSummary[] | undefined>(undefined);
@@ -532,7 +532,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     if (sourceControlResult.status === "fulfilled") setSourceControlCredentials(sourceControlResult.value.credentials);
     if (customResult.status === "fulfilled") setCustomCredentials(customResult.value.credentials);
     const failureReason = firstRejectionReason(results);
-    setReloadError(failureReason === undefined ? null : accessTokensLoadErrorMessage({ locale, error: describeApiError(failureReason, t(UNKNOWN_ERROR)) }));
+    setReloadError(failureReason === undefined ? null : accessTokensLoadErrorMessage({ locale, error: describeApiError({ e: failureReason, fallback: t(UNKNOWN_ERROR) }) }));
     setHasReloadedOnce(true);
   }, [port, locale, t]);
 
@@ -583,7 +583,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
       await reloadAllStores();
       setCustomKeyBusy(prev => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
-      setCustomKeyBusy(prev => ({ ...prev, [row.id]: { saving: false, error: describeApiError(err, t(UNKNOWN_ERROR)) } }));
+      setCustomKeyBusy(prev => ({ ...prev, [row.id]: { saving: false, error: describeApiError({ e: err, fallback: t(UNKNOWN_ERROR) }) } }));
     } finally {
       customKeyPending.current.delete(row.id);
     }

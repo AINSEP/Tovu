@@ -9,7 +9,7 @@ export const defaultSitesPort: SitesPort = {
   listSites: () => api.listSites(),
   createSite: (input) => api.createSite(input),
   listTokenSignInPlugins: () => api.listTokenSignInPlugins(),
-  activateSite: (name) => api.activateSite(name),
+  activateSite: (name) => api.activateSite({ name }),
 };
 
 /** Overrides for {@link createFakeSitesPort} — anything not supplied rejects, so a test that

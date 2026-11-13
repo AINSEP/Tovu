@@ -25,7 +25,7 @@ function fakeReconnect(back: boolean): ServerReconnect & { waits: number; reache
   return fake;
 }
 
-const unreachable = () => new ApiError("unreachable", 0, API_UNREACHABLE_CODE, {});
+const unreachable = () => new ApiError({ message: "unreachable", status: 0 }, { code: API_UNREACHABLE_CODE, body: {} });
 
 afterEach(() => vi.unstubAllGlobals());
 

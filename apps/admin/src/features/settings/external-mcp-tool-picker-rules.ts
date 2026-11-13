@@ -104,7 +104,7 @@ export function describeProbeUnreachable({ error, t }: { error: unknown; t: Tran
       "This server runs as a local command and can't be probed yet — type its tool names into 'Allowed tools' on the server's own card instead.",
     );
   }
-  return describeApiError(error, t("Could not reach this server. You can still type tool names by hand."));
+  return describeApiError({ e: error, fallback: t("Could not reach this server. You can still type tool names by hand.") });
 }
 
 /** Where a row came from — an advertised tool the probe returned, or a name only the saved lists

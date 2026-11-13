@@ -16,9 +16,9 @@ let pending: string | null = null;
 const listeners = new Set<() => void>();
 
 /** Opens the dock and queues `text` for its composer. A newer request replaces an unsent one. */
-export function requestAssistantPrompt(text: string): void {
+export function requestAssistantPrompt({ text }: { text: string }, _optional: Record<string, never> = {}): void {
   pending = text;
-  requestAssistantDock(true);
+  requestAssistantDock({ open: true });
   for (const listener of [...listeners]) listener();
 }
 
@@ -40,7 +40,7 @@ const MAX_ATTEMPTS = 50;
 export function useAssistantPromptRequests(composerHandle: RefObject<ChatPaneComposerHandle | null>): void {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const deliver = (attempt = 0) => {
+    const deliver = (_required: Record<string, never>, { attempt = 0 }: { attempt?: number } = {}) => {
       clearTimeout(timer);
       if (pending === null) return;
       const handle = composerHandle.current;
@@ -50,11 +50,11 @@ export function useAssistantPromptRequests(composerHandle: RefObject<ChatPaneCom
         handle.insertText(text);
         return;
       }
-      if (attempt < MAX_ATTEMPTS) timer = setTimeout(() => deliver(attempt + 1), RETRY_MS);
+      if (attempt < MAX_ATTEMPTS) timer = setTimeout(() => deliver({}, { attempt: attempt + 1 }), RETRY_MS);
     };
-    const listener = () => deliver();
+    const listener = () => deliver({});
     listeners.add(listener);
-    deliver();
+    deliver({});
     return () => {
       listeners.delete(listener);
       clearTimeout(timer);

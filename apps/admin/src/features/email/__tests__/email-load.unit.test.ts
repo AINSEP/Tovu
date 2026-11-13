@@ -13,13 +13,13 @@ describe("useLoad", () => {
   });
 
   it("shows forbidden for 403 instead of an empty list", async () => {
-    const load = vi.fn(async () => { throw new ApiError("Forbidden", 403); });
+    const load = vi.fn(async () => { throw new ApiError({ message: "Forbidden", status: 403 }); });
     const { result } = renderHook(() => useLoad({ load }));
     await waitFor(() => expect(result.current.view).toEqual({ kind: "forbidden" }));
   });
 
   it("keeps safe API errors and retries after a failure", async () => {
-    const load = vi.fn<() => Promise<string[]>>().mockRejectedValueOnce(new ApiError("Try later", 503)).mockResolvedValueOnce(["fresh"]);
+    const load = vi.fn<() => Promise<string[]>>().mockRejectedValueOnce(new ApiError({ message: "Try later", status: 503 })).mockResolvedValueOnce(["fresh"]);
     const { result } = renderHook(() => useLoad({ load }));
     await waitFor(() => expect(result.current.view).toEqual({ kind: "error", message: "Try later" }));
     act(() => result.current.reload());

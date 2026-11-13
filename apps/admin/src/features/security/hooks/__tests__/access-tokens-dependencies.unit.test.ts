@@ -124,11 +124,11 @@ describe("defaultAccessTokensPort.publish", () => {
     const publish = publishCredential({ worksFor: ["github"] });
     updatePublishCredential.mockResolvedValue({ credential: publish });
     await expect(defaultAccessTokensPort.publish.update({ id: publish.id, input: { worksFor: ["github"] } })).resolves.toEqual(publish);
-    expect(updatePublishCredential).toHaveBeenCalledWith(publish.id, { worksFor: ["github"] });
+    expect(updatePublishCredential).toHaveBeenCalledWith({ id: publish.id, input: { worksFor: ["github"] } });
     const custom = customCredential({ worksFor: [] });
     updateCustomCredential.mockResolvedValue({ credential: custom });
     await expect(defaultAccessTokensPort.custom.update({ id: custom.id, input: { worksFor: [] } })).resolves.toEqual(custom);
-    expect(updateCustomCredential).toHaveBeenCalledWith(custom.id, { worksFor: [] });
+    expect(updateCustomCredential).toHaveBeenCalledWith({ id: custom.id, input: { worksFor: [] } });
   });
   it("list delegates to api.listPublishCredentials, returning the snapshot unchanged", async () => {
     const snapshot = { credentials: [publishCredential()], executionMode: "self-hosted-cli" as const };
@@ -149,13 +149,13 @@ describe("defaultAccessTokensPort.publish", () => {
     const credential = publishCredential({ label: "Renamed" });
     updatePublishCredential.mockResolvedValue({ credential });
     await expect(defaultAccessTokensPort.publish.update({ id: "cred-1", input: { label: "Renamed" } })).resolves.toEqual(credential);
-    expect(updatePublishCredential).toHaveBeenCalledWith("cred-1", { label: "Renamed" });
+    expect(updatePublishCredential).toHaveBeenCalledWith({ id: "cred-1", input: { label: "Renamed" } });
   });
 
   it("remove forwards id to api.deletePublishCredential", async () => {
     deletePublishCredential.mockResolvedValue(undefined);
     await expect(defaultAccessTokensPort.publish.remove({ id: "cred-1" })).resolves.toBeUndefined();
-    expect(deletePublishCredential).toHaveBeenCalledWith("cred-1");
+    expect(deletePublishCredential).toHaveBeenCalledWith({ id: "cred-1" });
   });
 });
 
@@ -209,13 +209,13 @@ describe("defaultAccessTokensPort.sourceControl", () => {
     const credential = sourceControlCredential({ label: "Renamed" });
     updateSourceControlCredential.mockResolvedValue({ credential });
     await expect(defaultAccessTokensPort.sourceControl.update({ id: "sc-1", input: { label: "Renamed" } })).resolves.toEqual(credential);
-    expect(updateSourceControlCredential).toHaveBeenCalledWith("sc-1", { label: "Renamed" });
+    expect(updateSourceControlCredential).toHaveBeenCalledWith({ id: "sc-1", input: { label: "Renamed" } });
   });
 
   it("remove forwards id to api.deleteSourceControlCredential", async () => {
     deleteSourceControlCredential.mockResolvedValue(undefined);
     await expect(defaultAccessTokensPort.sourceControl.remove({ id: "sc-1" })).resolves.toBeUndefined();
-    expect(deleteSourceControlCredential).toHaveBeenCalledWith("sc-1");
+    expect(deleteSourceControlCredential).toHaveBeenCalledWith({ id: "sc-1" });
   });
 });
 
@@ -239,13 +239,13 @@ describe("defaultAccessTokensPort.custom", () => {
     const credential = customCredential({ label: "Renamed" });
     updateCustomCredential.mockResolvedValue({ credential });
     await expect(defaultAccessTokensPort.custom.update({ id: "cc-1", input: { label: "Renamed" } })).resolves.toEqual(credential);
-    expect(updateCustomCredential).toHaveBeenCalledWith("cc-1", { label: "Renamed" });
+    expect(updateCustomCredential).toHaveBeenCalledWith({ id: "cc-1", input: { label: "Renamed" } });
   });
 
   it("remove forwards id to api.deleteCustomCredential", async () => {
     deleteCustomCredential.mockResolvedValue(undefined);
     await expect(defaultAccessTokensPort.custom.remove({ id: "cc-1" })).resolves.toBeUndefined();
-    expect(deleteCustomCredential).toHaveBeenCalledWith("cc-1");
+    expect(deleteCustomCredential).toHaveBeenCalledWith({ id: "cc-1" });
   });
 });
 

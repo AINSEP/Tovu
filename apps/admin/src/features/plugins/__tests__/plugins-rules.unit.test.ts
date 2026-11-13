@@ -86,29 +86,29 @@ describe("buildPluginRemoveConfirmCopy", () => {
 
 describe("describeApiError — PLUGIN_UNINSTALL's four codes", () => {
   it("maps PLUGIN_NOT_UNINSTALLABLE to a built-in-specific message", () => {
-    expect(describeApiError({ e: new ApiError("x", 422, "PLUGIN_NOT_UNINSTALLABLE"), fallback: "fallback" })).toBe(
+    expect(describeApiError({ e: new ApiError({ message: "x", status: 422 }, { code: "PLUGIN_NOT_UNINSTALLABLE" }), fallback: "fallback" })).toBe(
       "This plugin ships with Tovu and cannot be removed.",
     );
   });
 
   it("maps PLUGIN_ENABLED to the disable-first guidance", () => {
-    expect(describeApiError({ e: new ApiError("x", 409, "PLUGIN_ENABLED"), fallback: "fallback" })).toBe(
+    expect(describeApiError({ e: new ApiError({ message: "x", status: 409 }, { code: "PLUGIN_ENABLED" }), fallback: "fallback" })).toBe(
       "This plugin is enabled and must be disabled everywhere before it can be removed.",
     );
   });
 
   it("maps PLUGIN_IN_TRASH to restore-or-delete guidance", () => {
-    expect(describeApiError({ e: new ApiError("x", 409, "PLUGIN_IN_TRASH"), fallback: "fallback" })).toBe(
+    expect(describeApiError({ e: new ApiError({ message: "x", status: 409 }, { code: "PLUGIN_IN_TRASH" }), fallback: "fallback" })).toBe(
       "This plugin is already in the Trash. Restore or delete it there first.",
     );
   });
 
   it("maps PLUGIN_ID_INVALID", () => {
-    expect(describeApiError({ e: new ApiError("x", 400, "PLUGIN_ID_INVALID"), fallback: "fallback" })).toBe("This plugin's id is invalid.");
+    expect(describeApiError({ e: new ApiError({ message: "x", status: 400 }, { code: "PLUGIN_ID_INVALID" }), fallback: "fallback" })).toBe("This plugin's id is invalid.");
   });
 
   it("still maps PLUGIN_NOT_FOUND — shared verbatim with PLUGIN_SET_ENABLED's own error envelope", () => {
-    expect(describeApiError({ e: new ApiError("x", 404, "PLUGIN_NOT_FOUND"), fallback: "fallback" })).toBe("No plugin with that id is installed.");
+    expect(describeApiError({ e: new ApiError({ message: "x", status: 404 }, { code: "PLUGIN_NOT_FOUND" }), fallback: "fallback" })).toBe("No plugin with that id is installed.");
   });
 
   it("falls back to the shared default for a non-Error, non-ApiError rejection", () => {
@@ -122,22 +122,22 @@ describe("describeApiError — PLUGIN_UNINSTALL's four codes", () => {
 
 describe("describeApiError — characterization of every remaining branch", () => {
   it("maps PLUGIN_SET_ENABLED's PLUGIN_INVALID and PLUGIN_INCOMPATIBLE", () => {
-    expect(describeApiError({ e: new ApiError("x", 422, "PLUGIN_INVALID"), fallback: "fallback" })).toBe("This plugin failed validation and cannot be enabled.");
-    expect(describeApiError({ e: new ApiError("x", 422, "PLUGIN_INCOMPATIBLE"), fallback: "fallback" })).toBe("This plugin requires a different SDK version.");
+    expect(describeApiError({ e: new ApiError({ message: "x", status: 422 }, { code: "PLUGIN_INVALID" }), fallback: "fallback" })).toBe("This plugin failed validation and cannot be enabled.");
+    expect(describeApiError({ e: new ApiError({ message: "x", status: 422 }, { code: "PLUGIN_INCOMPATIBLE" }), fallback: "fallback" })).toBe("This plugin requires a different SDK version.");
   });
 
   it("an ApiError with an unmapped code, or no code, surfaces the server's own message", () => {
-    expect(describeApiError({ e: new ApiError("server says no", 500, "INTERNAL"), fallback: "fallback" })).toBe("server says no");
-    expect(describeApiError({ e: new ApiError("server says no", 500), fallback: "fallback" })).toBe("server says no");
+    expect(describeApiError({ e: new ApiError({ message: "server says no", status: 500 }, { code: "INTERNAL" }), fallback: "fallback" })).toBe("server says no");
+    expect(describeApiError({ e: new ApiError({ message: "server says no", status: 500 }), fallback: "fallback" })).toBe("server says no");
   });
 
   it("an ApiError with an unmapped code and an empty message uses the fallback", () => {
-    expect(describeApiError({ e: new ApiError("", 500, "INTERNAL"), fallback: "fallback" })).toBe("fallback");
+    expect(describeApiError({ e: new ApiError({ message: "", status: 500 }, { code: "INTERNAL" }), fallback: "fallback" })).toBe("fallback");
   });
 
   it("a code that names an Object.prototype member is not treated as a mapped code", () => {
-    expect(describeApiError({ e: new ApiError("server says no", 500, "toString"), fallback: "fallback" })).toBe("server says no");
-    expect(describeApiError({ e: new ApiError("server says no", 500, "constructor"), fallback: "fallback" })).toBe("server says no");
+    expect(describeApiError({ e: new ApiError({ message: "server says no", status: 500 }, { code: "toString" }), fallback: "fallback" })).toBe("server says no");
+    expect(describeApiError({ e: new ApiError({ message: "server says no", status: 500 }, { code: "constructor" }), fallback: "fallback" })).toBe("server says no");
   });
 });
 

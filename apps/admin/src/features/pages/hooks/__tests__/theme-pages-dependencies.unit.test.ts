@@ -34,14 +34,14 @@ describe("defaultThemePagesPort", () => {
     const response = { files: [ABOUT] };
     getThemeDetail.mockResolvedValue(response);
     await expect(defaultThemePagesPort.getThemeDetail({ themeId: "basic" })).resolves.toEqual(response);
-    expect(getThemeDetail).toHaveBeenCalledWith("basic");
+    expect(getThemeDetail).toHaveBeenCalledWith({ themeId: "basic" });
   });
 
   it("setPagePublished forwards themeId/page/published to api.setThemePagePublished", async () => {
     const response = { page: "about", published: true };
     setThemePagePublished.mockResolvedValue(response);
     await expect(defaultThemePagesPort.setPagePublished({ themeId: "basic", page: "about", published: true })).resolves.toEqual(response);
-    expect(setThemePagePublished).toHaveBeenCalledWith("basic", "about", true);
+    expect(setThemePagePublished).toHaveBeenCalledWith({ themeId: "basic", page: "about", published: true });
   });
 });
 

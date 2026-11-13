@@ -181,24 +181,24 @@ describe("siteWriteErrorKey", () => {
     ["AGENT_PLUGIN_TOKEN_INVALID", "That access token didn't work. Check it, or leave it empty and connect later from chat. No site was created."],
     ["AGENT_PLUGIN_TOKEN_UNSUPPORTED", "That service can't be connected with an access token here. Leave it empty and connect later from chat. No site was created."],
   ])("explains %s with its own recovery guidance", (code, expected) => {
-    expect(siteWriteErrorKey(new ApiError("write refused", 409, code))).toBe(expected);
+    expect(siteWriteErrorKey(new ApiError({ message: "write refused", status: 409 }, { code }))).toBe(expected);
   });
 
   it("translates the capability refusal and the occupied-folder conflict", () => {
-    expect(siteWriteErrorKey(new ApiError("nope", 403, "SITE_SWITCHING_DISABLED"))).toBe(
+    expect(siteWriteErrorKey(new ApiError({ message: "nope", status: 403 }, { code: "SITE_SWITCHING_DISABLED" }))).toBe(
       "Site switching is turned off on this deployment.",
     );
-    expect(siteWriteErrorKey(new ApiError("nope", 409, "SITE_ALREADY_EXISTS"))).toBe(
+    expect(siteWriteErrorKey(new ApiError({ message: "nope", status: 409 }, { code: "SITE_ALREADY_EXISTS" }))).toBe(
       "A folder with that name already exists under sites/.",
     );
   });
 
   it("defers to the shared fallback for an unrecognised ApiError code", () => {
-    expect(siteWriteErrorKey(new ApiError("boom", 500, "INTERNAL_ERROR"))).toBeNull();
+    expect(siteWriteErrorKey(new ApiError({ message: "boom", status: 500 }, { code: "INTERNAL_ERROR" }))).toBeNull();
   });
 
   it("defers to the shared fallback for an ApiError that carries no code", () => {
-    expect(siteWriteErrorKey(new ApiError("boom", 502))).toBeNull();
+    expect(siteWriteErrorKey(new ApiError({ message: "boom", status: 502 }))).toBeNull();
   });
 
   it("defers to the shared fallback for a failure that is not an ApiError", () => {
@@ -206,7 +206,7 @@ describe("siteWriteErrorKey", () => {
   });
 
   it("defers to the shared fallback for a code that names an Object.prototype member", () => {
-    expect(siteWriteErrorKey(new ApiError("odd", 400, "toString"))).toBeNull();
+    expect(siteWriteErrorKey(new ApiError({ message: "odd", status: 400 }, { code: "toString" }))).toBeNull();
   });
 });
 

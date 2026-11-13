@@ -984,7 +984,7 @@ describe("useAccessTokens: createToken", () => {
   });
 
   it("a server-detected duplicate label (race with another tab/session) surfaces the same duplicate-name message as the client precheck (accessTokenSubmitErrorMessage's duplicate-label branch)", async () => {
-    const port = fakePort({ publish: { create: () => Promise.reject(new ApiError("Conflict", 409, "DUPLICATE_LABEL")) } });
+    const port = fakePort({ publish: { create: () => Promise.reject(new ApiError({ message: "Conflict", status: 409 }, { code: "DUPLICATE_LABEL" })) } });
     const { result } = renderHook(() => useAccessTokens({ port, t: T, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const ref = { kind: "publish" as const, providerId: "netlify" };
@@ -997,7 +997,7 @@ describe("useAccessTokens: createToken", () => {
 
   it("a server VALIDATION rejection surfaces the server's own detail text, not a generic message (accessTokenSubmitErrorMessage's validation branch)", async () => {
     const port = fakePort({
-      publish: { create: () => Promise.reject(new ApiError("Bad request", 400, "VALIDATION", { detail: "Token looks malformed" })) },
+      publish: { create: () => Promise.reject(new ApiError({ message: "Bad request", status: 400 }, { code: "VALIDATION", body: { detail: "Token looks malformed" } })) },
     });
     const { result } = renderHook(() => useAccessTokens({ port, t: T, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());

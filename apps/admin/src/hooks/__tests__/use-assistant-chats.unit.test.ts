@@ -171,7 +171,7 @@ describe("a failed message write is retried", () => {
     vi.useFakeTimers();
     const port = createFakeAssistantChatsPort({
       onSaveMessage: (_conversationId, _message, attempt) => {
-        if (attempt === 1) throw new HttpError(503, "Service Unavailable");
+        if (attempt === 1) throw new HttpError({ status: 503, statusText: "Service Unavailable" });
       },
     });
 
@@ -208,7 +208,7 @@ describe("a failed message write is retried", () => {
     vi.useFakeTimers();
     const port = createFakeAssistantChatsPort({
       onSaveMessage: () => {
-        throw new HttpError(400, "Bad Request");
+        throw new HttpError({ status: 400, statusText: "Bad Request" });
       },
     });
 
@@ -411,7 +411,7 @@ describe("a background adoption never overrides an explicit switch", () => {
         // must not disturb, left pending forever. #2 is the explicit create, which resolves at once.
         if (createCalls === 1) {
           await firstGate;
-          throw new HttpError(500, "Internal Server Error");
+          throw new HttpError({ status: 500, statusText: "Internal Server Error" });
         }
         if (createCalls >= 3) return new Promise<never>(() => {});
         return base.createConversation({}, { firstMessage: firstMessage });
@@ -563,7 +563,7 @@ describe("guards proven necessary by deleting them", () => {
     vi.useFakeTimers();
     const port = createFakeAssistantChatsPort({
       onSaveMessage: (_c, _m, attempt) => {
-        if (attempt === 1) throw new HttpError(404, "Not Found");
+        if (attempt === 1) throw new HttpError({ status: 404, statusText: "Not Found" });
       },
     });
 
@@ -636,7 +636,7 @@ describe("guards proven necessary by deleting them", () => {
     vi.useFakeTimers();
     const port = createFakeAssistantChatsPort({
       onSaveMessage: () => {
-        throw new HttpError(503, "Service Unavailable");
+        throw new HttpError({ status: 503, statusText: "Service Unavailable" });
       },
     });
 
@@ -890,7 +890,7 @@ describe("ensureConversationId — the run needs the id BEFORE the first delta e
       ...base,
       createConversation: async () => {
         attempts += 1;
-        if (attempts === 1) throw new HttpError(500, "boom");
+        if (attempts === 1) throw new HttpError({ status: 500, statusText: "boom" });
         return base.createConversation({});
       },
     };

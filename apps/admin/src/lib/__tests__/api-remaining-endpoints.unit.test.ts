@@ -67,8 +67,8 @@ describe("endpoints", () => {
 
   it("post autosave read and discard", async () => {
     const calls = stubFetch();
-    await api.getAutosave("p/1");
-    await api.discardAutosave("p/1");
+    await api.getAutosave({ id: "p/1" });
+    await api.discardAutosave({ id: "p/1" });
     expect(calls.map(({ url, method }) => [url, method])).toEqual([[`${W}/posts/p%2F1/autosave`, "GET"], [`${W}/posts/p%2F1/autosave`, "DELETE"]]);
   });
 
@@ -79,10 +79,10 @@ describe("endpoints", () => {
       new Response(null, { status: 404, headers: { "content-type": "text/html" } }),
     ];
     const calls = stubFetch(() => replies.shift()!);
-    expect(await api.mediaContentType("m1")).toBe("video/mp4");
-    expect(await api.mediaContentType("m1")).toBe("");
-    expect(await api.mediaContentType("m1")).toBe("");
-    expect(calls.every((call) => call.method === "HEAD" && call.url === api.mediaOriginalUrl("m1"))).toBe(true);
+    expect(await api.mediaContentType({ id: "m1" })).toBe("video/mp4");
+    expect(await api.mediaContentType({ id: "m1" })).toBe("");
+    expect(await api.mediaContentType({ id: "m1" })).toBe("");
+    expect(calls.every((call) => call.method === "HEAD" && call.url === api.mediaOriginalUrl({ id: "m1" }))).toBe(true);
   });
 
   it("media import from URL, with and without descriptive options", async () => {
@@ -113,7 +113,7 @@ describe("endpoints", () => {
 
   it("deletes a user by encoded principal id", async () => {
     const calls = stubFetch(() => new Response(null, { status: 204 }));
-    await api.deleteUser("user/1");
+    await api.deleteUser({ principalId: "user/1" });
     expect(calls).toEqual([{ url: `${W}/users/user%2F1`, method: "DELETE" }]);
   });
 
@@ -137,11 +137,11 @@ describe("endpoints", () => {
 
   it("site and agent plugins: uninstall, files, list, enable", async () => {
     const calls = stubFetch();
-    await api.uninstallPlugin("seo/x");
-    await api.getPluginFiles("seo/x");
+    await api.uninstallPlugin({ pluginId: "seo/x" });
+    await api.getPluginFiles({ pluginId: "seo/x" });
     await api.listAgentPlugins();
-    await api.getAgentPluginFiles("agent/y");
-    await api.setAgentPluginEnabled("agent/y", { enabled: false });
+    await api.getAgentPluginFiles({ pluginId: "agent/y" });
+    await api.setAgentPluginEnabled({ pluginId: "agent/y", enabled: false });
     expect(calls).toEqual([
       { url: `${W}/plugins/seo%2Fx`, method: "DELETE" },
       { url: `${W}/plugins/seo%2Fx/files`, method: "GET" },
@@ -167,7 +167,7 @@ describe("endpoints", () => {
     const imported = ["tovu", "sk", "fixture"].join("_");
     await api.importSiteKey({ siteKey: imported });
     await api.previewSiteKeyStartFresh();
-    await api.startFreshSiteKey("START FRESH");
+    await api.startFreshSiteKey({ confirm: "START FRESH" });
     expect(calls).toEqual([
       { url: `${W}/system/site-key`, method: "GET" },
       { url: `${W}/system/site-key/reveal`, method: "POST" },

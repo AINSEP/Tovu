@@ -126,21 +126,21 @@ test("saveMediaProviders throws ApiError on a validation failure", async () => {
 // --- mediaOriginalUrl ---------------------------------------------------------------
 
 test("mediaOriginalUrl builds the byte-serving URL directly — not routed through request()/fetch at all", () => {
-  expect(api.mediaOriginalUrl("asset-1")).toBe(`${BASE}/media/asset-1/original`);
+  expect(api.mediaOriginalUrl({ id: "asset-1" })).toBe(`${BASE}/media/asset-1/original`);
 });
 
 // --- mediaContentType ---------------------------------------------------------------
 
 test("mediaContentType HEADs the byte-serving URL and resolves its Content-Type header", async () => {
   const { calls } = stubFetchCapturing(new Response(null, { status: 200, headers: { "Content-Type": "image/png" } }));
-  expect(await api.mediaContentType("asset-1")).toBe("image/png");
+  expect(await api.mediaContentType({ id: "asset-1" })).toBe("image/png");
   expect(calls[0].url).toBe(`${BASE}/media/asset-1/original`);
   expect(calls[0].init?.method).toBe("HEAD");
 });
 
 test("mediaContentType resolves '' for a non-2xx answer", async () => {
   stubFetchCapturing(new Response(null, { status: 404, headers: { "Content-Type": "application/json" } }));
-  expect(await api.mediaContentType("missing")).toBe("");
+  expect(await api.mediaContentType({ id: "missing" })).toBe("");
 });
 
 // --- uploadMedia ---------------------------------------------------------------
@@ -199,7 +199,7 @@ test("updateMedia throws ApiError for an unknown id", async () => {
 test("trashMedia POSTs to /media/:id/trash and resolves the trashed record", async () => {
   const trashed = media({ status: "trashed" });
   const { calls } = stubFetchCapturing(okJson({ media: trashed }));
-  const result = await api.trashMedia("asset-1");
+  const result = await api.trashMedia({ id: "asset-1" });
   expect(calls[0].url).toBe(`${BASE}/media/asset-1/trash`);
   expect(calls[0].init?.method).toBe("POST");
   expect(result).toEqual({ media: trashed });
@@ -207,7 +207,7 @@ test("trashMedia POSTs to /media/:id/trash and resolves the trashed record", asy
 
 test("trashMedia throws ApiError for an unknown id", async () => {
   stubFetchCapturing(errJson(404, "media not found"));
-  const error = await api.trashMedia("missing").catch((e: unknown) => e);
+  const error = await api.trashMedia({ id: "missing" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
 });
 
@@ -215,7 +215,7 @@ test("trashMedia throws ApiError for an unknown id", async () => {
 
 test("deleteMedia DELETEs /media/:id and resolves { purged: true }", async () => {
   const { calls } = stubFetchCapturing(okJson({ purged: true }));
-  const result = await api.deleteMedia("asset-1");
+  const result = await api.deleteMedia({ id: "asset-1" });
   expect(calls[0].url).toBe(`${BASE}/media/asset-1`);
   expect(calls[0].init?.method).toBe("DELETE");
   expect(result).toEqual({ purged: true });
@@ -223,7 +223,7 @@ test("deleteMedia DELETEs /media/:id and resolves { purged: true }", async () =>
 
 test("deleteMedia throws ApiError when the asset is still referenced", async () => {
   stubFetchCapturing(errJson(409, "still referenced by content", "RESOURCE_CONFLICT"));
-  const error = await api.deleteMedia("asset-1").catch((e: unknown) => e);
+  const error = await api.deleteMedia({ id: "asset-1" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("RESOURCE_CONFLICT");
 });

@@ -577,7 +577,7 @@ export function usePublishContentConfirm(props: {
       } catch (destinationErr) {
         if (cancelled || !live.current) return;
         setDestinationError(
-          describeApiError(destinationErr, t("Could not check whether this install can publish yet."))
+          describeApiError({ e: destinationErr, fallback: t("Could not check whether this install can publish yet.") })
         );
       } finally {
         if (!cancelled && live.current) setDestinationLoaded(true);
@@ -600,7 +600,7 @@ export function usePublishContentConfirm(props: {
         }
       } catch (error) {
         if (cancelled || !live.current) return;
-        setPeersError(describeApiError(error, t("Could not load publish targets.")));
+        setPeersError(describeApiError({ e: error, fallback: t("Could not load publish targets.") }));
       } finally {
         if (!cancelled && live.current) setPeersLoaded(true);
       }
@@ -702,7 +702,7 @@ export function usePublishContentConfirm(props: {
         if (!live.current || planPeerRef.current !== peerId) return;
         setPhase({
           kind: "failed",
-          message: describeApiError(error, t("Could not work out what would be published.")),
+          message: describeApiError({ e: error, fallback: t("Could not work out what would be published.") }),
           code: null,
         });
       }
@@ -762,7 +762,7 @@ export function usePublishContentConfirm(props: {
           setReplanPending(false);
           setPhase({
             kind: "failed",
-            message: describeApiError(error, t("Could not work out what would be published.")),
+            message: describeApiError({ e: error, fallback: t("Could not work out what would be published.") }),
             code: null,
           });
         }
@@ -810,7 +810,7 @@ export function usePublishContentConfirm(props: {
       void requestPlan(site.id);
     } catch (error) {
       if (!live.current) return;
-      setDestinationError(describeApiError(error, t("Could not connect.")));
+      setDestinationError(describeApiError({ e: error, fallback: t("Could not connect.") }));
       setConnecting(false);
     }
   }, [port, requestPlan, t]);
@@ -825,7 +825,7 @@ export function usePublishContentConfirm(props: {
         setPhase({ kind: "planned", plan: error.plan });
         return;
       }
-      setPhase({ kind: "failed", message: describeApiError(error, t("Could not publish.")), code: null });
+      setPhase({ kind: "failed", message: describeApiError({ e: error, fallback: t("Could not publish.") }), code: null });
     },
     [peers, t]
   );
@@ -925,7 +925,7 @@ export function usePublishContentConfirm(props: {
         setPhase({ kind: "done", result });
       } catch (error) {
         if (!live.current) return;
-        setPhase({ kind: "failed", message: describeApiError(error, t("Could not publish.")), code: null });
+        setPhase({ kind: "failed", message: describeApiError({ e: error, fallback: t("Could not publish.") }), code: null });
       }
     })();
   }, [executionToken, phase, port, t]);

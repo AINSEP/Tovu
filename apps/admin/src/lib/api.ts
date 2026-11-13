@@ -24,7 +24,7 @@ const BASE = "/api/admin/v1";
 
 /** The peer-scoped prefix every publish-content push call hangs off — the peer is named in the PATH
  *  (`routes/publish-content/peer-transport.ts`), never in a body, and never as a URL or credential. */
-function publishContentPeerPath(peerId: string): string {
+function publishContentPeerPath({ peerId }: { peerId: string }, _optional: Record<string, never> = {}): string {
   return `/workspaces/${WORKSPACE_ID}/publish-content/peers/${encodeURIComponent(peerId)}`;
 }
 
@@ -2351,7 +2351,7 @@ export class ApiError extends Error {
    * `code`/`message` (e.g. the comments moderation routes' 409 `currentVersion`, SPEC-036 REQ-07)
    * without a bespoke `ApiError` subclass per route. */
   readonly body?: Record<string, unknown>;
-  constructor(message: string, status: number, code?: string, body?: Record<string, unknown>) {
+  constructor({ message, status }: { message: string; status: number }, { code, body }: { code?: string; body?: Record<string, unknown> } = {}) {
     super(message);
     this.status = status;
     this.code = code;
@@ -2409,7 +2409,7 @@ function timeoutApiMessage(): string {
  * @complexity O(1).
  * @overallScore 100
  */
-function unreachableApiMessage(status?: number): string {
+function unreachableApiMessage(_required: Record<string, never>, { status }: { status?: number } = {}): string {
   const detail = status === undefined ? "" : ` (HTTP ${status})`;
   return `cannot reach the Tovu API${detail} — is the server running?`;
 }
@@ -2445,7 +2445,7 @@ const UNPARSEABLE_BODY = Symbol("unparseable-json-body");
  *  `fetch` with a `DOMException`, and DOMException's `instanceof Error` result is realm-dependent
  *  (true against Node's own global, observed false against a test environment's jsdom-provided
  *  global). Duck-typing `name` is the only check that holds in both. */
-function errorName(value: unknown): string | undefined {
+function errorName({ value }: { value: unknown }, _optional: Record<string, never> = {}): string | undefined {
   if (!value || typeof value !== "object" || !("name" in value)) return undefined;
   return typeof value.name === "string" ? value.name : undefined;
 }
@@ -2461,22 +2461,22 @@ function errorName(value: unknown): string | undefined {
  * it only resets the nesting depth they're scored at. Always throws; never returns normally, exactly
  * like the catch block it replaces.
  */
-function throwTranslatedFetchFailure(cause: unknown): never {
-  if (errorName(cause) === "AbortError") throw cause;
-  if (errorName(cause) === "TimeoutError") {
+function throwTranslatedFetchFailure({ cause }: { cause: unknown }, _optional: Record<string, never> = {}): never {
+  if (errorName({ value: cause }) === "AbortError") throw cause;
+  if (errorName({ value: cause }) === "TimeoutError") {
     const message = cause instanceof Error ? cause.message : String(cause);
-    throw new ApiError(timeoutApiMessage(), 0, REQUEST_TIMEOUT_CODE, { cause: message });
+    throw new ApiError({ message: timeoutApiMessage(), status: 0 }, { code: REQUEST_TIMEOUT_CODE, body: { cause: message } });
   }
   if (!(cause instanceof TypeError)) throw cause;
   // A navigation cancels in-flight fetches with this SAME `TypeError`, after `pagehide` (see
   // `page-lifecycle.ts`). That is a cancellation, not evidence the server is down.
   if (isPageUnloading()) throw new DOMException("request cancelled: the page is unloading", "AbortError");
-  throw new ApiError(unreachableApiMessage(), 0, API_UNREACHABLE_CODE, {
+  throw new ApiError({ message: unreachableApiMessage({}), status: 0 }, { code: API_UNREACHABLE_CODE, body: {
     cause: cause.message,
-  });
+  } });
 }
 
-async function fetchOrThrowUnreachable(url: string, init: RequestInit): Promise<Response> {
+async function fetchOrThrowUnreachable({ url, init }: { url: string; init: RequestInit }, _optional: Record<string, never> = {}): Promise<Response> {
   // A caller-supplied signal (none exist today, but `AbortError` handling below already
   // anticipates one) is honored as-is; otherwise every request is bounded so a queued-forever
   // request (see `REQUEST_TIMEOUT_CODE`'s own doc) cannot hang a screen indefinitely.
@@ -2484,7 +2484,7 @@ async function fetchOrThrowUnreachable(url: string, init: RequestInit): Promise<
   try {
     return await fetch(url, { ...init, signal });
   } catch (cause) {
-    return throwTranslatedFetchFailure(cause);
+    return throwTranslatedFetchFailure({ cause });
   }
 }
 
@@ -2553,7 +2553,7 @@ export const KEEPALIVE_MAX_BODY_BYTES = 64 * 1024;
  *
  * @complexity Time O(n) in body length; space O(n) for the encoded copy.
  */
-export function bodyFitsKeepalive(body: string): boolean {
+export function bodyFitsKeepalive({ body }: { body: string }, _optional: Record<string, never> = {}): boolean {
   return new TextEncoder().encode(body).length <= KEEPALIVE_MAX_BODY_BYTES;
 }
 
@@ -2643,9 +2643,9 @@ function buildRequestFailedError({
   const method = init?.method ?? "GET";
   const fallback = redactSecretShapes({ text: `The API could not finish ${method} ${path} (HTTP ${status}). Check whether your change was saved before trying again. Copy details and report this problem.` }).text;
   const decoded = decodeApiError({ body }, {
-    fallbackMessage: noAppEnvelope ? unreachableApiMessage(status) : fallback,
+    fallbackMessage: noAppEnvelope ? unreachableApiMessage({}, { status }) : fallback,
   });
-  const error = new ApiError(decoded.message, status, noAppEnvelope ? API_UNREACHABLE_CODE : decoded.code, body);
+  const error = new ApiError({ message: decoded.message, status }, { code: noAppEnvelope ? API_UNREACHABLE_CODE : decoded.code, body });
   return error;
 }
 
@@ -2672,7 +2672,7 @@ export async function requestOnce<T>(
   { path, init, onOk }: { path: string; init?: RequestInit; onOk?: (required: { response: Response }, optional?: Record<string, never>) => void },
   options: AuthenticatedAdminRequestOptions = {},
 ): Promise<T> {
-  const res = await fetchOrThrowUnreachable(`${options.basePath ?? BASE}${path}`, buildFetchInit(init));
+  const res = await fetchOrThrowUnreachable({ url: `${options.basePath ?? BASE}${path}`, init: buildFetchInit(init) });
   const { body, wasUnparseable } = await parseJsonBody(res, { requireJson: res.ok && options.requireJson });
   if (!res.ok) {
     notifyIfUnauthenticated({ status: res.status, body });
@@ -2716,7 +2716,7 @@ export async function requestRidingOutRestart<T>(
  * @complexity O(1) orchestration plus existing request/retry and bounded failure formatting.
  * @overallScore 98 — approved backend copy remains a server disclosure contract.
  */
-async function request<T>(path: string, init?: RequestInit, onOk?: (required: { response: Response }, optional?: Record<string, never>) => void, options: AuthenticatedAdminRequestOptions = {}): Promise<T> {
+async function request<T>({ path }: { path: string }, { init, onOk, options = {} }: { init?: RequestInit; onOk?: (required: { response: Response }, optional?: Record<string, never>) => void; options?: AuthenticatedAdminRequestOptions } = {}): Promise<T> {
   const generation = adminFailureChannel.getGeneration();
   const method = init?.method ?? "GET";
   try {
@@ -2768,7 +2768,7 @@ export interface AuthenticatedAdminRequestOptions {
 }
 
 /** The fetch init fragment for a body: none, a raw Blob with its own type, or JSON. */
-function requestPayload(body: unknown): { body?: BodyInit; headers?: Record<string, string> } {
+function requestPayload({ body }: { body: unknown }, _optional: Record<string, never> = {}): { body?: BodyInit; headers?: Record<string, string> } {
   if (body === undefined) return {};
   if (body instanceof Blob) return { body, headers: { "Content-Type": body.type || "application/octet-stream" } };
   return { body: JSON.stringify(body) };
@@ -2780,14 +2780,14 @@ export function authenticatedAdminRequest<T>(
   { path, method, body }: { path: string; method: string; body?: unknown },
   options: AuthenticatedAdminRequestOptions = {},
 ): Promise<T> {
-  const payload = requestPayload(body);
-  return request<T>(path, {
+  const payload = requestPayload({ body });
+  return request<T>({ path }, { init: {
     method,
     ...payload,
     headers: { ...payload.headers, ...options.headers },
     ...(options.signal ? { signal: options.signal } : {}),
     ...(options.keepalive === undefined ? {} : { keepalive: options.keepalive }),
-  }, options.onOk, options);
+  }, onOk: options.onOk, options });
 }
 export function authenticatedAdminUrl({ path }: { path: string }, _optional: Record<string, never> = {}): string {
   return `${BASE}${path}`;
@@ -2818,9 +2818,9 @@ export function adminSitePreviewUrl({ name, version }: { name: string; version: 
  * ```ts
  * import { describeApiError as describeApiErrorDefault } from "../lib/api";
  *
- * function describeApiError(e: unknown, fallback: string): string {
+ * function describeApiError({ e, fallback }: { e: unknown; fallback: string }, _optional: Record<string, never> = {}): string {
  *   if (e instanceof ApiError && e.code === "MY_SCREEN_SPECIFIC_CODE") return "...";
- *   return describeApiErrorDefault(e, fallback);
+ *   return describeApiErrorDefault({ e, fallback });
  * }
  * ```
  *
@@ -2836,22 +2836,22 @@ export function adminSitePreviewUrl({ name, version }: { name: string; version: 
  * @complexity O(1) — two `instanceof` checks, no iteration.
  * @overallScore 100
  */
-export function describeApiError(e: unknown, fallback: string): string {
+export function describeApiError({ e, fallback }: { e: unknown; fallback: string }, _optional: Record<string, never> = {}): string {
   if (e instanceof ApiError) return e.message || fallback;
   return e instanceof Error ? e.message || fallback : fallback;
 }
 
 export const api = {
   login: ({ username, password }: { username: string; password: string }, _options: Record<string, never> = {}) =>
-    request<{ user: AdminUser } | { mfaRequired: true; pendingToken: string }>("/auth/login", {
+    request<{ user: AdminUser } | { mfaRequired: true; pendingToken: string }>({ path: "/auth/login" }, { init: {
       method: "POST",
       body: JSON.stringify({ username, password }),
       // Signing in twice is harmless, so a login sent while the dev server restarts waits and retries.
-    }, undefined, { retryWrites: true }),
+    }, onOk: undefined, options: { retryWrites: true } }),
   completeMfa: (input: { pendingToken: string; code: string }) => requestOnce<{ user: AdminUser }>({
     path: "/auth/mfa/login", init: { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input), cache: "no-store" },
   }),
-  logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
+  logout: () => request<{ ok: boolean }>({ path: "/auth/logout" }, { init: { method: "POST" } }),
   /**
    * Exchanges a single-use loopback boot token (the zip launcher's `#boot=<token>` sign-in link,
    * run-from-zip plan S2) for a real admin session cookie — the SAME route the desktop shell already
@@ -2860,16 +2860,16 @@ export const api = {
    * fragment, then runs its existing `api.me()` chain unchanged — a rejected redemption (invalid,
    * spent, or absent) is swallowed by that caller and falls through to the normal `<Login>` screen.
    */
-  redeemBootSession: (token: string) =>
-    request<{ user: { id: string } }>("/auth/boot-session", {
+  redeemBootSession: ({ token }: { token: string }, _optional: Record<string, never> = {}) =>
+    request<{ user: { id: string } }>({ path: "/auth/boot-session" }, { init: {
       method: "POST",
       body: JSON.stringify({ token }),
-    }),
+    } }),
   /** Local dev bootstrap exchanges a server-only one-time boot token for an ordinary cookie.
    * The server refuses production, deployment, LAN listeners and cross-origin callers.
    */
   signInLocalOwner: (_required: Record<string, never>, _optional: Record<string, never> = {}) =>
-    request<{ user: { id: string } }>("/auth/local-boot-session", { method: "POST" }),
+    request<{ user: { id: string } }>({ path: "/auth/local-boot-session" }, { init: { method: "POST" } }),
   me: () =>
     request<{
       user: AdminUser;
@@ -2877,21 +2877,21 @@ export const api = {
       canManageUserTrash?: boolean;
       /** `false` on the live site (`publish-availability.store.ts`); absent on older servers. */
       canPublishToLive?: boolean;
-    }>("/auth/me"),
+    }>({ path: "/auth/me" }),
   /** Password-banner plan (2026-09-24), Slice 2: whether the SIGNED-IN caller's own stored
    *  credential still verifies against the default. Separate from `me()` since only the dashboard
    *  needs it and the server-side check costs a real argon2id verify. */
   getPasswordStatus: () =>
-    request<{ usesDefaultPassword: boolean }>("/auth/me/password-status"),
+    request<{ usesDefaultPassword: boolean }>({ path: "/auth/me/password-status" }),
   listPosts: () =>
-    request<{ posts: Array<{ post: AdminPost }> }>(`/workspaces/${WORKSPACE_ID}/posts`),
+    request<{ posts: Array<{ post: AdminPost }> }>({ path: `/workspaces/${WORKSPACE_ID}/posts` }),
   createPost: (input: AdminPostCreateInput, _options: Record<string, never> = {}) =>
-    request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts`, {
+    request<{ post: AdminPost }>({ path: `/workspaces/${WORKSPACE_ID}/posts` }, { init: {
       method: "POST",
       body: JSON.stringify(input),
-    }),
-  getPost: (id: string) =>
-    request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}`),
+    } }),
+  getPost: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
+    request<{ post: AdminPost }>({ path: `/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}` }),
   // Template-preview fix (2026-08-11). Kind-blind like getPost/updatePost/deletePost above — one
   // route serves both editors' Preview tabs (`apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts`'s own file
   // header explains why). NOT run through `request()`: the caller points an `<iframe src>` (or a
@@ -2918,7 +2918,7 @@ export const api = {
   // used by the live-site branch's own iframe `src` for exactly this "escape the admin origin in dev"
   // reason) makes this absolute in dev and a no-op in production, where the admin SPA, this API, and the
   // public site are already the same origin.
-  templatePreviewUrl: (id: string, templateChoice: string | null) =>
+  templatePreviewUrl: ({ id, templateChoice }: { id: string; templateChoice: string | null }, _optional: Record<string, never> = {}) =>
     siteUrl(
       `${BASE}/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/template-preview${
         templateChoice === null ? "" : `?templateChoice=${encodeURIComponent(templateChoice)}`
@@ -2929,27 +2929,24 @@ export const api = {
   // `409 VERSION_CONFLICT` when a newer save has superseded it. Purely additive and optional: a
   // caller that omits it (every caller but `features/posts`' editor today, PageEditor included)
   // gets exactly the last-write-wins behavior this method has always had.
-  updatePost: (
-    { id }: { id: string },
-    options: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "publishAt" | "featuredMediaId" | "author" | "showAuthor">> & {
+  updatePost: ({ id }: { id: string }, { options = {}, entry }: { options?: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "publishAt" | "featuredMediaId" | "author" | "showAuthor">> & {
       expectedVersion?: number;
       hideCoverImageInBody?: boolean;
       slugFromTitle?: boolean;
-    } = {},
-    { entry }: { entry?: "page" } = {},
+    }; entry?: "page" } = {}
   ) =>
-    request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}`, {
+    request<{ post: AdminPost }>({ path: `/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}` }, { init: {
       method: "PUT",
       body: JSON.stringify(options),
-    }, undefined, entry ? { failureEntry: entry } : {}),
+    }, onOk: undefined, options: entry ? { failureEntry: entry } : {} }),
   // Soft delete (apps/website/src/server/inbound/admin-http/routes/posts/delete.ts): trashes the row rather than removing it,
   // revertible server-side via POST /change-sets/:id/revert. Kind-blind like getPost/updatePost —
   // deletes whatever row has this id regardless of whether it is a post or a page, which is why
   // PostEditor (shared between both) calls this rather than deletePage.
-  deletePost: (id: string) =>
-    request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}`, {
+  deletePost: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
+    request<{ post: AdminPost }>({ path: `/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}` }, { init: {
       method: "DELETE",
-    }),
+    } }),
   // Standing-draft autosave (2026-09-06) — kind-blind like getPost/updatePost/deletePost above, one
   // route serves both editors (`server/inbound/admin-http/routes/posts/autosave.ts`'s own file
   // header explains why there is no parallel `/pages/.../autosave`).
@@ -2966,31 +2963,28 @@ export const api = {
   // rescue — was the one most likely to be dropped. It is opt-in rather than always-on because
   // `keepalive` carries a 64 KiB body ceiling an ordinary request does not; see
   // {@link bodyFitsKeepalive} for what happens to a body over it.
-  putAutosave: (
-    id: string,
-    draft: { bodyFormat: "doc"; bodyJson: Record<string, unknown>; title: string; slug: string; baseVersion: number } | {
+  putAutosave: ({ id, draft }: { id: string; draft: { bodyFormat: "doc"; bodyJson: Record<string, unknown>; title: string; slug: string; baseVersion: number } | {
       bodyFormat: "html";
       bodyHtml: string;
       title: string;
       slug: string;
       baseVersion: number;
-    },
-    options: { keepalive?: boolean } = {}
+    } }, options: { keepalive?: boolean } = {}
   ) => {
     const body = JSON.stringify(draft);
-    return request<{ applied: boolean }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/autosave`, {
+    return request<{ applied: boolean }>({ path: `/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/autosave` }, { init: {
       method: "PUT",
       body,
       // Silently dropped rather than sent for an oversized body: `fetch` REJECTS outright when a
       // keepalive body exceeds the ceiling, which would turn a request that had at least a chance
       // of completing into one that provably never leaves. A plain fetch on the way out is the
       // pre-2026-09-07 behavior, i.e. no worse than before for the pages this cannot cover.
-      ...(options.keepalive === true && bodyFitsKeepalive(body) ? { keepalive: true } : {}),
-    });
+      ...(options.keepalive === true && bodyFitsKeepalive({ body }) ? { keepalive: true } : {}),
+    } });
   },
   // The recovery-banner check on editor mount — reads whatever standing draft is currently parked,
   // or `null` when there is nothing to offer.
-  getAutosave: (id: string) =>
+  getAutosave: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
     request<{
       autosave: {
         bodyFormat: "doc" | "html";
@@ -3002,27 +2996,27 @@ export const api = {
         savedAt: string;
         savedByPrincipalId: string;
       } | null;
-    }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/autosave`),
+    }>({ path: `/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/autosave` }),
   // Clears the standing draft — called after a real Save/Publish succeeds, and on an explicit
   // operator Discard. Unconditional: there is no stale basis to guard against when the intent is
   // simply "there is no longer a draft to offer".
-  discardAutosave: (id: string) =>
-    request<{ ok: boolean }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/autosave`, {
+  discardAutosave: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
+    request<{ ok: boolean }>({ path: `/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/autosave` }, { init: {
       method: "DELETE",
-    }),
+    } }),
   listPages: () =>
-    request<{ posts: Array<{ post: AdminPost }> }>(`/workspaces/${WORKSPACE_ID}/pages`),
-  createPage: (title: string) =>
-    request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/pages`, {
+    request<{ posts: Array<{ post: AdminPost }> }>({ path: `/workspaces/${WORKSPACE_ID}/pages` }),
+  createPage: ({ title }: { title: string }, _optional: Record<string, never> = {}) =>
+    request<{ post: AdminPost }>({ path: `/workspaces/${WORKSPACE_ID}/pages` }, { init: {
       method: "POST",
       body: JSON.stringify({ title }),
-    }),
+    } }),
   // Kind-guarded read: 404s if the id's row is not actually `kind: "page"`. `features/pages` uses
   // this rather than `getPost` so the Pages editor can never silently open a Post — Pages and Posts
   // are separate features with separate editors, and the id in the URL is the only thing standing
   // between them.
-  getPage: (id: string) =>
-    request<{ post: AdminPost; pluginEmbeds?: readonly AdminPagePluginEmbed[] }>(`/workspaces/${WORKSPACE_ID}/pages/${encodeURIComponent(id)}`),
+  getPage: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
+    request<{ post: AdminPost; pluginEmbeds?: readonly AdminPagePluginEmbed[] }>({ path: `/workspaces/${WORKSPACE_ID}/pages/${encodeURIComponent(id)}` }),
   // SPEC-047 — writes the bespoke-HTML body, and births the html row on first call. A DIFFERENT
   // endpoint from `updatePost` on purpose: the body and the title/slug/status go through two
   // separate server-side write paths.
@@ -3040,18 +3034,18 @@ export const api = {
   // which is why `usePageEditor.save` writes metadata FIRST and only reaches this route once that
   // guard has passed. Reordering those two calls, or adding a body-only save path, silently removes
   // the protection — see `writePage` in `use-page-editor.hooks.ts`.
-  updatePageHtml: (id: string, html: string) =>
-    request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/pages/${encodeURIComponent(id)}/html`, {
+  updatePageHtml: ({ id, html }: { id: string; html: string }, _optional: Record<string, never> = {}) =>
+    request<{ post: AdminPost }>({ path: `/workspaces/${WORKSPACE_ID}/pages/${encodeURIComponent(id)}/html` }, { init: {
       method: "PUT",
       body: JSON.stringify({ html }),
-    }),
+    } }),
   // Soft delete (apps/website/src/server/inbound/admin-http/routes/pages/delete.ts): same trash marker as deletePost, but
   // kind-guarded — 404s if the id's row is not actually kind:"page" (indistinguishable from
   // not-found, matching the rest of the pages/* routes' disclosed asymmetry).
-  deletePage: (id: string) =>
-    request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/pages/${encodeURIComponent(id)}`, {
+  deletePage: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
+    request<{ post: AdminPost }>({ path: `/workspaces/${WORKSPACE_ID}/pages/${encodeURIComponent(id)}` }, { init: {
       method: "DELETE",
-    }),
+    } }),
   getPresentation: (required: { kind?: "post" | "page" } = {}, _optional: Record<string, never> = {}) =>
     request<{
       settings: PresentationSettings;
@@ -3064,12 +3058,12 @@ export const api = {
        *  list using the theme's optional `templateFor`; other callers retain the full catalog. */
       activeThemeTemplates: string[];
       activeThemeStaticPageIds: string[];
-    }>(`/workspaces/${WORKSPACE_ID}/presentation${querySuffix(required.kind ? "kind=" + required.kind : "")}`),
+    }>({ path: `/workspaces/${WORKSPACE_ID}/presentation${querySuffix(required.kind ? "kind=" + required.kind : "")}` }),
   /**
    * One theme's editable surface: which pages it ships, which root partials, and where it was
    * copied from. Drives the Explore screen's file list and its "you are editing a copy" banner.
    */
-  getThemeDetail: (themeId: string) =>
+  getThemeDetail: ({ themeId }: { themeId: string }, _optional: Record<string, never> = {}) =>
     request<{
       id: string;
       name: string;
@@ -3115,39 +3109,39 @@ export const api = {
       }>;
       /** True when an untouched original of this theme exists in the catalog to reset back to. */
       hasOriginal: boolean;
-    }>(`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}`),
+    }>({ path: `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}` }),
   /**
    * Restore one file to the pristine copy in the originals catalog, byte for byte. DESTRUCTIVE —
    * overwrites the working copy with no backup, so the caller must confirm with the operator first.
    * A file already identical to its original is not rewritten: `wasModified: false`, `bytes: 0`.
    * `content` is the restored file's text, or `null` past the server's 1 MB text-read limit.
    */
-  resetThemeFile: (themeId: string, path: string) =>
+  resetThemeFile: ({ themeId, path }: { themeId: string; path: string }, _optional: Record<string, never> = {}) =>
     request<{ path: string; wasModified: boolean; bytes: number; content: string | null }>(
-      `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/reset`,
-      { method: "POST", body: JSON.stringify({ path }) }
+      { path: `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/reset` },
+      { init: { method: "POST", body: JSON.stringify({ path }) } }
     ),
   /**
    * Save the theme's CURRENT files as its stored original, in the server's hidden originals catalog
    * (never a visible theme), so Reset has something to restore from. 409 `ORIGINAL_EXISTS` when the
    * theme already has one.
    */
-  saveThemeOriginal: (themeId: string) =>
-    request<{ themeId: string; saved: true }>(`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/original`, {
+  saveThemeOriginal: ({ themeId }: { themeId: string }, _optional: Record<string, never> = {}) =>
+    request<{ themeId: string; saved: true }>({ path: `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/original` }, { init: {
       method: "POST",
       body: JSON.stringify({}),
-    }),
+    } }),
   /** Raw source of one file inside a theme, relative to the theme root (`pages/about.html`). */
-  getThemeFile: (themeId: string, path: string) =>
+  getThemeFile: ({ themeId, path }: { themeId: string; path: string }, _optional: Record<string, never> = {}) =>
     request<{ path: string; content: string }>(
-      `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file?path=${encodeURIComponent(path)}`
+      { path: `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file?path=${encodeURIComponent(path)}` }
     ),
   /** Overwrite one file inside a theme. Refused for catalog originals — those are never editable —
    *  and for read-only groups (scripts, `other`); see `ApiError.code === "READ_ONLY_FILE"`. */
-  putThemeFile: (themeId: string, path: string, content: string) =>
+  putThemeFile: ({ themeId, path, content }: { themeId: string; path: string; content: string }, _optional: Record<string, never> = {}) =>
     request<{ path: string; bytes: number }>(
-      `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file`,
-      { method: "PUT", body: JSON.stringify({ path, content }) }
+      { path: `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file` },
+      { init: { method: "PUT", body: JSON.stringify({ path, content }) } }
     ),
   /**
    * Duplicate one file inside a theme. The server computes the destination name (`about.html` ->
@@ -3155,7 +3149,7 @@ export const api = {
    * typed. Offered for every group, including read-only-to-edit ones: copying a script's bytes is
    * harmless even though editing one is refused.
    */
-  copyThemeFile: (themeId: string, path: string) =>
+  copyThemeFile: ({ themeId, path }: { themeId: string; path: string }, _optional: Record<string, never> = {}) =>
     request<{
       path: string;
       group: ThemeFileGroup;
@@ -3164,17 +3158,17 @@ export const api = {
       resettable: boolean;
       modified: boolean | null;
       copiedFrom: string;
-    }>(`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/copy`, {
+    }>({ path: `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/copy` }, { init: {
       method: "POST",
       body: JSON.stringify({ path }),
-    }),
+    } }),
   /**
    * Rename one file within its current folder. `name` is a bare filename (no `/`), so this can never
    * move a file between folders. Refused for `pages/index.html`/`theme.json`/`tokens.json`
    * (`ApiError.code === "REQUIRED_FILE_LOCKED"`) and for a name already taken
    * (`code === "NAME_TAKEN"`).
    */
-  renameThemeFile: (themeId: string, path: string, name: string) =>
+  renameThemeFile: ({ themeId, path, name }: { themeId: string; path: string; name: string }, _optional: Record<string, never> = {}) =>
     request<{
       path: string;
       group: ThemeFileGroup;
@@ -3183,10 +3177,10 @@ export const api = {
       resettable: boolean;
       modified: boolean | null;
       renamedFrom: string;
-    }>(`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/rename`, {
+    }>({ path: `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/rename` }, { init: {
       method: "POST",
       body: JSON.stringify({ path, name }),
-    }),
+    } }),
   /**
    * Delete one file inside a theme, permanently — this repo keeps no theme-file revision history, so
    * there is no server-side undo. Refused for a theme's required files
@@ -3194,10 +3188,10 @@ export const api = {
    * (`script`, `other`) rename refuses (`code === "READ_ONLY_FILE"`) — see `explore.ts`'s
    * `validateFileIdentityChange` for the shared reasoning.
    */
-  deleteThemeFile: (themeId: string, path: string) =>
+  deleteThemeFile: ({ themeId, path }: { themeId: string; path: string }, _optional: Record<string, never> = {}) =>
     request<{ path: string; deleted: boolean }>(
-      `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/delete`,
-      { method: "POST", body: JSON.stringify({ path }) }
+      { path: `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/delete` },
+      { init: { method: "POST", body: JSON.stringify({ path }) } }
     ),
   /**
    * Publish or unpublish one of a static theme's own pages — the real replacement for the
@@ -3206,10 +3200,10 @@ export const api = {
    * that isn't one of this theme's own standalone pages — it does not exist, or is `index`/`404`/a
    * declared Post-or-Page template shell — with `code === "PAGE_NOT_PUBLISHABLE"`.
    */
-  setThemePagePublished: (themeId: string, page: string, published: boolean) =>
+  setThemePagePublished: ({ themeId, page, published }: { themeId: string; page: string; published: boolean }, _optional: Record<string, never> = {}) =>
     request<{ page: string; published: boolean; publishedPages: string[] }>(
-      `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/page/publish`,
-      { method: "POST", body: JSON.stringify({ page, published }) }
+      { path: `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/page/publish` },
+      { init: { method: "POST", body: JSON.stringify({ page, published }) } }
     ),
   /**
    * Re-run theme discovery server-side. Needed because the server's theme list is built once at
@@ -3223,121 +3217,121 @@ export const api = {
       total: number;
       availableThemeIds: string[];
       duplicateIds: string[];
-    }>(`/workspaces/${WORKSPACE_ID}/themes/rescan`, { method: "POST" }),
+    }>({ path: `/workspaces/${WORKSPACE_ID}/themes/rescan` }, { init: { method: "POST" } }),
   /**
    * Copy one theme into a new theme folder (the Themes screen's Duplicate action) — the same
    * server service the `theme_duplicate` agent tool calls. `newId` omitted ⇒ derived from `newName`
    * and suffixed until free. The server rescans before answering, so `availableThemeIds` already
    * includes the copy. Refusals carry `ApiError.code` (`ID_TAKEN`, `SYMLINK`, `TOO_LARGE`, …).
    */
-  duplicateTheme: (themeId: string, newName: string, newId?: string) =>
+  duplicateTheme: ({ themeId, newName }: { themeId: string; newName: string }, { newId }: { newId?: string } = {}) =>
     request<{
       theme: { id: string; name: string; tier: ThemeTier; status: string; errors: string[] };
       sourceThemeId: string;
       files: number;
       availableThemeIds: string[];
-    }>(`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/duplicate`, {
+    }>({ path: `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/duplicate` }, { init: {
       method: "POST",
       body: JSON.stringify(newId === undefined ? { newName } : { newName, newId }),
-    }),
-  setActiveTheme: (activeThemeId: string) =>
+    } }),
+  setActiveTheme: ({ activeThemeId }: { activeThemeId: string }, _optional: Record<string, never> = {}) =>
     request<{ settings: PresentationSettings; availableThemeIds: string[] }>(
-      `/workspaces/${WORKSPACE_ID}/presentation`,
-      { method: "PATCH", body: JSON.stringify({ activeThemeId }) }
+      { path: `/workspaces/${WORKSPACE_ID}/presentation` },
+      { init: { method: "PATCH", body: JSON.stringify({ activeThemeId }) } }
     ),
   listMembers: () =>
-    request<{ members: AdminMember[] }>(`/workspaces/${WORKSPACE_ID}/members`),
-  getMember: (id: string) =>
-    request<{ member: AdminMember }>(`/workspaces/${WORKSPACE_ID}/members/${encodeURIComponent(id)}`),
-  disableMember: (id: string) =>
-    request<{ member: AdminMember }>(`/workspaces/${WORKSPACE_ID}/members/${encodeURIComponent(id)}/disable`, {
+    request<{ members: AdminMember[] }>({ path: `/workspaces/${WORKSPACE_ID}/members` }),
+  getMember: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
+    request<{ member: AdminMember }>({ path: `/workspaces/${WORKSPACE_ID}/members/${encodeURIComponent(id)}` }),
+  disableMember: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
+    request<{ member: AdminMember }>({ path: `/workspaces/${WORKSPACE_ID}/members/${encodeURIComponent(id)}/disable` }, { init: {
       method: "POST",
-    }),
+    } }),
   requestMemberMagicLink: ({ email }: { email: string }, options: { redirectPath?: string } = {}) =>
-    request<{ delivered: true }>(`/workspaces/${WORKSPACE_ID}/members/request-magic-link`, {
+    request<{ delivered: true }>({ path: `/workspaces/${WORKSPACE_ID}/members/request-magic-link` }, { init: {
       method: "POST",
       body: JSON.stringify({ email, redirectPath: options.redirectPath }),
-    }),
+    } }),
   listRecentAnalyticsHits: (options: { limit?: number } = {}) =>
     request<{ hits: AdminAnalyticsHit[] }>(
-      `/workspaces/${WORKSPACE_ID}/analytics/recent-hits${querySuffix(options.limit ? "limit=" + options.limit : "")}`
+      { path: `/workspaces/${WORKSPACE_ID}/analytics/recent-hits${querySuffix(options.limit ? "limit=" + options.limit : "")}` }
     ),
   listMenus: () =>
-    request<{ menus: AdminMenu[] }>(`/workspaces/${WORKSPACE_ID}/menus`),
-  getMenu: (id: string) =>
-    request<{ menu: AdminMenu }>(`/workspaces/${WORKSPACE_ID}/menus/${encodeURIComponent(id)}`),
+    request<{ menus: AdminMenu[] }>({ path: `/workspaces/${WORKSPACE_ID}/menus` }),
+  getMenu: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
+    request<{ menu: AdminMenu }>({ path: `/workspaces/${WORKSPACE_ID}/menus/${encodeURIComponent(id)}` }),
   createMenu: (
     { title, slug }: { title: string; slug: string },
     options: { items?: AdminMenuItem[] } & AdminMenuAuthoring = {}
   ) =>
-    request<{ menu: AdminMenu }>(`/workspaces/${WORKSPACE_ID}/menus`, {
+    request<{ menu: AdminMenu }>({ path: `/workspaces/${WORKSPACE_ID}/menus` }, { init: {
       method: "POST",
       body: JSON.stringify({ title, slug, items: options.items, mode: options.mode, html: options.html }),
-    }),
+    } }),
   updateMenuTree: (
     { id, expectedVersion, items }: { id: string; expectedVersion: number; items: AdminMenuItem[] },
     options: { title?: string; slug?: string } & AdminMenuAuthoring = {}
   ) =>
-    request<{ menu: AdminMenu }>(`/workspaces/${WORKSPACE_ID}/menus/${encodeURIComponent(id)}`, {
+    request<{ menu: AdminMenu }>({ path: `/workspaces/${WORKSPACE_ID}/menus/${encodeURIComponent(id)}` }, { init: {
       method: "PUT",
       body: JSON.stringify({ expectedVersion, items, title: options.title, slug: options.slug, mode: options.mode, html: options.html }),
-    }),
+    } }),
   listIntegrationSubscriptions: () =>
     request<{ subscriptions: AdminWebhookSubscription[] }>(
-      `/workspaces/${WORKSPACE_ID}/integrations/subscriptions`
+      { path: `/workspaces/${WORKSPACE_ID}/integrations/subscriptions` }
     ),
   createIntegrationSubscription: (input: { label: string; targetUrl: string; topics: string[] }) =>
     request<{ subscription: AdminWebhookSubscription }>(
-      `/workspaces/${WORKSPACE_ID}/integrations/subscriptions`,
-      { method: "POST", body: JSON.stringify(input) }
+      { path: `/workspaces/${WORKSPACE_ID}/integrations/subscriptions` },
+      { init: { method: "POST", body: JSON.stringify(input) } }
     ),
   pauseIntegrationSubscription: (
     { id, paused }: { id: string; paused: boolean },
     _options: Record<string, never> = {}
   ) =>
     request<{ subscription: AdminWebhookSubscription }>(
-      `/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${encodeURIComponent(id)}/pause`,
-      { method: "POST", body: JSON.stringify({ paused }) }
+      { path: `/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${encodeURIComponent(id)}/pause` },
+      { init: { method: "POST", body: JSON.stringify({ paused }) } }
     ),
-  deleteIntegrationSubscription: (id: string) =>
+  deleteIntegrationSubscription: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
     request<{ subscription: AdminWebhookSubscription }>(
-      `/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${encodeURIComponent(id)}`,
-      { method: "DELETE" }
+      { path: `/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${encodeURIComponent(id)}` },
+      { init: { method: "DELETE" } }
     ),
-  listIntegrationDeliveries: (subscriptionId: string) =>
+  listIntegrationDeliveries: ({ subscriptionId }: { subscriptionId: string }, _optional: Record<string, never> = {}) =>
     request<{ deliveries: AdminWebhookDelivery[] }>(
-      `/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${encodeURIComponent(subscriptionId)}/deliveries`
+      { path: `/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${encodeURIComponent(subscriptionId)}/deliveries` }
     ),
-  listMedia: () => request<{ media: AdminMedia[] }>(`/workspaces/${WORKSPACE_ID}/media`),
+  listMedia: () => request<{ media: AdminMedia[] }>({ path: `/workspaces/${WORKSPACE_ID}/media` }),
   /** The workspace's media-generation vendor credentials, as markers only — never key material.
    *  Bare map, not a `{ data }` envelope, matching `MediaProvidersPort.fetchMediaProviders`. */
   getMediaProviders: () =>
-    request<AdminMediaProviderMap>(`/workspaces/${WORKSPACE_ID}/media/providers`),
+    request<AdminMediaProviderMap>({ path: `/workspaces/${WORKSPACE_ID}/media/providers` }),
   /** Replaces the workspace's ENTIRE provider set — a provider absent from `providers` is deleted
    *  server-side, which is how the tab expresses Clear. Resolves the authoritative copy back. */
   saveMediaProviders: (providers: AdminMediaProviderMap) =>
-    request<AdminMediaProviderMap>(`/workspaces/${WORKSPACE_ID}/media/providers`, {
+    request<AdminMediaProviderMap>({ path: `/workspaces/${WORKSPACE_ID}/media/providers` }, { init: {
       method: "PUT",
       body: JSON.stringify(providers),
-    }),
+    } }),
   /** The workspace's configured external MCP servers. Carries env variable NAMES only — there is no
    *  route anywhere that returns a stored env VALUE, by design. */
   listExternalMcpServers: () =>
-    request<{ servers: AdminExternalMcpServer[] }>(`/workspaces/${WORKSPACE_ID}/mcp-servers`),
+    request<{ servers: AdminExternalMcpServer[] }>({ path: `/workspaces/${WORKSPACE_ID}/mcp-servers` }),
   /** Creates or replaces one external MCP server. Omitting `env` PRESERVES the stored credentials
    *  (what an enable/disable toggle sends); passing `""` clears them. `restartRequired` is always
    *  true — federation freezes its tool set at connect, so a saved row lands at the next boot. */
-  saveExternalMcpServer: (serverId: string, body: AdminExternalMcpServerInput) =>
+  saveExternalMcpServer: ({ serverId, body }: { serverId: string; body: AdminExternalMcpServerInput }, _optional: Record<string, never> = {}) =>
     request<{ server: AdminExternalMcpServer; restartRequired: boolean }>(
-      `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}`,
-      { method: "PUT", body: JSON.stringify(body) }
+      { path: `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}` },
+      { init: { method: "PUT", body: JSON.stringify(body) } }
     ),
   /** Removes one external MCP server. 404s on an id that was never configured rather than
    *  reporting success, so deleting a typo cannot read as deleting the real server. */
-  deleteExternalMcpServer: (serverId: string) =>
+  deleteExternalMcpServer: ({ serverId }: { serverId: string }, _optional: Record<string, never> = {}) =>
     request<{ removed: boolean; restartRequired: boolean }>(
-      `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}`,
-      { method: "DELETE" }
+      { path: `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}` },
+      { init: { method: "DELETE" } }
     ),
   /**
    * Connects to one already-saved server RIGHT NOW, lists its tools, describes them, and closes —
@@ -3348,30 +3342,30 @@ export const api = {
    * Also backs `useExternalMcp`'s `testSource` port method, which is what lights up Jini's existing
    * "Test" button (`useSourceConfigList.ts`'s `capabilities.canTest`) for free.
    */
-  probeExternalMcpServer: (serverId: string) =>
+  probeExternalMcpServer: ({ serverId }: { serverId: string }, _optional: Record<string, never> = {}) =>
     request<AdminExternalMcpProbeResult>(
-      `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/probe`,
-      { method: "POST" }
+      { path: `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/probe` },
+      { init: { method: "POST" } }
     ),
   /** Starts an OAuth sign-in for one saved server. `redirect_required` carries the provider URL to
    *  open; `device_code` carries a code the operator types at `verificationUri`, then
    *  {@link api.pollExternalMcpOAuthDevice} reports when it lands. */
-  connectExternalMcpOAuth: (serverId: string, options?: { destination?: "shared" }) =>
+  connectExternalMcpOAuth: ({ serverId }: { serverId: string }, options: { destination?: "shared" } = {}) =>
     request<{ auth: AdminExternalMcpConnectStart }>(
-      `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/connect`,
-      { method: "POST", ...(options?.destination ? { body: JSON.stringify(options) } : {}) }
+      { path: `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/connect` },
+      { init: { method: "POST", ...(options?.destination ? { body: JSON.stringify(options) } : {}) } }
     ),
-  useLocalMcpConnection: (serverId: string) => request<void>(`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/shared`, { method: "DELETE" }),
-  stopSharedMcpConnection: (serverId: string) => request<void>(`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth`, { method: "DELETE" }),
-  listSharedMcpConnections: (serverId: string) => request<{ available: boolean; connections: { credentialId: string; label: string }[]; current: { credentialId: string; status: string; granted: boolean } | null }>(
-    `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/shared`),
+  useLocalMcpConnection: ({ serverId }: { serverId: string }, _optional: Record<string, never> = {}) => request<void>({ path: `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/shared` }, { init: { method: "DELETE" } }),
+  stopSharedMcpConnection: ({ serverId }: { serverId: string }, _optional: Record<string, never> = {}) => request<void>({ path: `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth` }, { init: { method: "DELETE" } }),
+  listSharedMcpConnections: ({ serverId }: { serverId: string }, _optional: Record<string, never> = {}) => request<{ available: boolean; connections: { credentialId: string; label: string }[]; current: { credentialId: string; status: string; granted: boolean } | null }>(
+    { path: `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/shared` }),
   useSharedMcpConnection: (input: { serverId: string; credentialId: string }) => request<{ connected: boolean }>(
-    `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(input.serverId)}/oauth/shared`, { method: "POST", body: JSON.stringify({ credentialId: input.credentialId }) }),
+    { path: `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(input.serverId)}/oauth/shared` }, { init: { method: "POST", body: JSON.stringify({ credentialId: input.credentialId }) } }),
   /** One poll of a device sign-in; the caller owns the loop and waits `retryAfterSeconds`. */
-  pollExternalMcpOAuthDevice: (serverId: string) =>
+  pollExternalMcpOAuthDevice: ({ serverId }: { serverId: string }, _optional: Record<string, never> = {}) =>
     request<{ status: "pending"; retryAfterSeconds: number } | { status: "connected" }>(
-      `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/device/poll`,
-      { method: "POST" }
+      { path: `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/device/poll` },
+      { init: { method: "POST" } }
     ),
   /**
    * What the RUNNING agent daemon actually admitted at its last boot, per connection (C-008,
@@ -3382,7 +3376,7 @@ export const api = {
    */
   getExternalMcpAdmissions: async (): Promise<AdminExternalMcpAdmissionsSnapshot> => {
     const raw = await request<{ connections?: RawAdmissionConnection[]; configFailures?: AdminExternalMcpConfigFailure[] }>(
-      `/workspaces/${WORKSPACE_ID}/mcp-servers/admissions`,
+      { path: `/workspaces/${WORKSPACE_ID}/mcp-servers/admissions` },
     );
     // `?? []` guards a malformed 200 (no `connections` key at all) — never reachable against the
     // real C-008 route, which always sends `{ connections: [...] }` on 200 and answers a down/
@@ -3398,12 +3392,12 @@ export const api = {
   },
   /** Every saved "Always allow" on this site, sorted by server then tool. */
   listExternalMcpToolApprovals: () =>
-    request<{ approvals: AdminExternalMcpToolApproval[] }>(`/workspaces/${WORKSPACE_ID}/mcp-servers/tool-approvals`),
+    request<{ approvals: AdminExternalMcpToolApproval[] }>({ path: `/workspaces/${WORKSPACE_ID}/mcp-servers/tool-approvals` }),
   /** Revokes one "Always allow", so that tool asks again. 404s when none is saved. */
-  revokeExternalMcpToolApproval: (serverId: string, toolName: string) =>
+  revokeExternalMcpToolApproval: ({ serverId, toolName }: { serverId: string; toolName: string }, _optional: Record<string, never> = {}) =>
     request<{ removed: boolean }>(
-      `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/tool-approvals/${encodeURIComponent(toolName)}`,
-      { method: "DELETE" }
+      { path: `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/tool-approvals/${encodeURIComponent(toolName)}` },
+      { init: { method: "DELETE" } }
     ),
   /** Byte-serving URL for an asset's original file (MSG-05) — authenticated, same-origin, so a
    *  plain `<img src>`/`<video src>` sends the session cookie automatically with no `crossorigin`
@@ -3412,7 +3406,7 @@ export const api = {
    *  is sniffed server-side from magic bytes (falls back to `application/octet-stream`, and a
    *  sniffed HTML/SVG is deliberately served as a non-rendering attachment) — see `Media.tsx`'s
    *  `MediaPreview` for how the client discovers which element type an asset actually needs. */
-  mediaOriginalUrl: (id: string) => `${BASE}/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/original`,
+  mediaOriginalUrl: ({ id }: { id: string }, _optional: Record<string, never> = {}) => `${BASE}/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/original`,
   /** The image a public post shows as its cover: the `/m/` route's core `public` rendition (WebP,
    *  uncropped, generated once and cached server-side — `apps/website/src/features/media/bootstrap.ts`).
    *  The Edit post cover slot shows this one so it matches the published page (owner 2026-10-11:
@@ -3420,12 +3414,12 @@ export const api = {
    *  whole image). A browser that opened the post already has it cached. `v1` because that bootstrap
    *  is find-or-create and never mints a second version; callers still fall back to
    *  {@link mediaOriginalUrl} when this fails to load (no `sharp`, a gated asset, a newer version). */
-  mediaPreviewRenditionUrl: (id: string) => siteUrl(`/m/${encodeURIComponent(id)}/public.v1/image.jpg`),
+  mediaPreviewRenditionUrl: ({ id }: { id: string }, _optional: Record<string, never> = {}) => siteUrl(`/m/${encodeURIComponent(id)}/public.v1/image.jpg`),
   /** The asset's real, server-sniffed `Content-Type`, read from a `HEAD` of {@link mediaOriginalUrl}
    *  (no body transferred) — the same value the public renderer dispatches `<img>` vs `<video>` on.
    *  Resolves `""` when the route answers non-2xx or sends no header. */
-  mediaContentType: async (id: string): Promise<string> => {
-    const res = await fetch(api.mediaOriginalUrl(id), {
+  mediaContentType: async ({ id }: { id: string }, _optional: Record<string, never> = {}): Promise<string> => {
+    const res = await fetch(api.mediaOriginalUrl({ id }), {
       method: "HEAD",
       credentials: "same-origin",
     });
@@ -3435,18 +3429,18 @@ export const api = {
     input: { url: string },
     options: { filename?: string; alt?: string; caption?: string; credit?: string } = {}
   ) =>
-    request<{ media: AdminMedia }>(`/workspaces/${WORKSPACE_ID}/media/import-url`, {
+    request<{ media: AdminMedia }>({ path: `/workspaces/${WORKSPACE_ID}/media/import-url` }, { init: {
       method: "POST",
       body: JSON.stringify({ ...input, ...options }),
-    }),
+    } }),
   uploadMedia: (
     input: { filename: string; contentType: string; dataBase64: string },
     options: { alt?: string; caption?: string; credit?: string } = {}
   ) =>
-    request<{ media: AdminMedia }>(`/workspaces/${WORKSPACE_ID}/media`, {
+    request<{ media: AdminMedia }>({ path: `/workspaces/${WORKSPACE_ID}/media` }, { init: {
       method: "POST",
       body: JSON.stringify({ ...input, ...options }),
-    }),
+    } }),
   updateMedia: (
     { id }: { id: string },
     options: {
@@ -3461,87 +3455,87 @@ export const api = {
       htmlAttributes?: string | null;
     } = {}
   ) =>
-    request<{ media: AdminMedia }>(`/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}`, {
+    request<{ media: AdminMedia }>({ path: `/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}` }, { init: {
       method: "PATCH",
       body: JSON.stringify(options),
-    }),
-  trashMedia: (id: string) =>
-    request<{ media: AdminMedia }>(`/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/trash`, {
+    } }),
+  trashMedia: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
+    request<{ media: AdminMedia }>({ path: `/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/trash` }, { init: {
       method: "POST",
-    }),
-  deleteMedia: (id: string) =>
-    request<{ purged: boolean }>(`/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}`, {
+    } }),
+  deleteMedia: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
+    request<{ purged: boolean }>({ path: `/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}` }, { init: {
       method: "DELETE",
-    }),
+    } }),
   /** Library documents (`kind=document`): private, active only, never in media pickers. */
-  listDocuments: () => request<{ media: AdminMedia[] }>(`/workspaces/${WORKSPACE_ID}/media?kind=document`),
+  listDocuments: () => request<{ media: AdminMedia[] }>({ path: `/workspaces/${WORKSPACE_ID}/media?kind=document` }),
   /** The server takes the document type from the filename's extension and checks the bytes. */
   uploadDocument: (input: { filename: string; dataBase64: string }) =>
-    request<{ media: AdminMedia }>(`/workspaces/${WORKSPACE_ID}/media`, {
+    request<{ media: AdminMedia }>({ path: `/workspaces/${WORKSPACE_ID}/media` }, { init: {
       method: "POST",
       body: JSON.stringify({ ...input, kind: "document" }),
-    }),
+    } }),
   /** A Markdown/text/CSV/JSON document's UTF-8 source, 64 KiB per page (`nextOffset` continues it). */
   readDocumentText: ({ id }: { id: string }, options: { offset?: number } = {}) =>
     request<{ id: string; text: string; offset: number; nextOffset: number | null; totalBytes: number; truncated: boolean }>(
-      `/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/text${querySuffix(options.offset ? "offset=" + options.offset : "")}`,
+      { path: `/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/text${querySuffix(options.offset ? "offset=" + options.offset : "")}` },
     ),
-  listUsers: () => request<{ users: AdminIdentityUser[] }>(`/workspaces/${WORKSPACE_ID}/users`),
+  listUsers: () => request<{ users: AdminIdentityUser[] }>({ path: `/workspaces/${WORKSPACE_ID}/users` }),
   createUser: (
     input: { username: string; password: string },
     options: { email?: string } = {}
   ) =>
-    request<{ user: AdminIdentityUser }>(`/workspaces/${WORKSPACE_ID}/users`, {
+    request<{ user: AdminIdentityUser }>({ path: `/workspaces/${WORKSPACE_ID}/users` }, { init: {
       method: "POST",
       body: JSON.stringify({ ...input, ...options }),
-    }),
+    } }),
   // SPEC-006 0.6.0 (users/roles/policies CRUD-completion amendment).
   updateUser: ({ principalId }: { principalId: string }, options: { email?: string; username?: string } = {}) =>
-    request<{ user: AdminIdentityUser }>(`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}`, {
+    request<{ user: AdminIdentityUser }>({ path: `/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}` }, { init: {
       method: "PATCH",
       body: JSON.stringify(options),
-    }),
-  disableUser: (principalId: string) =>
-    request<{ user: AdminIdentityUser }>(`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/disable`, {
+    } }),
+  disableUser: ({ principalId }: { principalId: string }, _optional: Record<string, never> = {}) =>
+    request<{ user: AdminIdentityUser }>({ path: `/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/disable` }, { init: {
       method: "POST",
-    }),
-  enableUser: (principalId: string) =>
-    request<{ user: AdminIdentityUser }>(`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/enable`, {
+    } }),
+  enableUser: ({ principalId }: { principalId: string }, _optional: Record<string, never> = {}) =>
+    request<{ user: AdminIdentityUser }>({ path: `/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/enable` }, { init: {
       method: "POST",
-    }),
+    } }),
   // Delete-user plan v2 (2026-09-24): DELETE now moves the target to the Trash (disabled, sessions
   // revoked, restorable there for 60 days) rather than hard-deleting it — same endpoint the v1
   // plan's `deleteUser` used, just a different server-side outcome behind the same 204.
-  deleteUser: (principalId: string) =>
-    request<void>(`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}`, {
+  deleteUser: ({ principalId }: { principalId: string }, _optional: Record<string, never> = {}) =>
+    request<void>({ path: `/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}` }, { init: {
       method: "DELETE",
-    }),
+    } }),
   resetUserPassword: (
     { principalId, password }: { principalId: string; password: string },
     _options: Record<string, never> = {}
   ) =>
-    request<void>(`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/reset-password`, {
+    request<void>({ path: `/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/reset-password` }, { init: {
       method: "POST",
       body: JSON.stringify({ password }),
-    }),
+    } }),
   assignRole: (
     { principalId, roleId }: { principalId: string; roleId: string },
     _options: Record<string, never> = {}
   ) =>
-    request<{ assignment: unknown }>(`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/roles`, {
+    request<{ assignment: unknown }>({ path: `/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/roles` }, { init: {
       method: "POST",
       body: JSON.stringify({ roleId }),
-    }),
+    } }),
   attachPolicy: (
     { principalId, policyId }: { principalId: string; policyId: string },
     _options: Record<string, never> = {}
   ) =>
-    request<{ attachment: unknown }>(`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/policies`, {
+    request<{ attachment: unknown }>({ path: `/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/policies` }, { init: {
       method: "POST",
       body: JSON.stringify({ policyId }),
-    }),
+    } }),
   listRoles: () => authenticatedAdminRequest<{ roles: AdminRole[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/roles` }),
-  createRole: (name: string) =>
+  createRole: ({ name }: { name: string }, _optional: Record<string, never> = {}) =>
     authenticatedAdminRequest<{ role: AdminRole }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/roles`, body: { name } }),
   // SPEC-006 0.6.0.
   updateRole: (
@@ -3549,7 +3543,7 @@ export const api = {
     _options: Record<string, never> = {}
   ) =>
     authenticatedAdminRequest<{ role: AdminRole }>({ method: "PATCH", path: `/workspaces/${WORKSPACE_ID}/roles/${encodeURIComponent(roleId)}`, body: { name } }),
-  deleteRole: (roleId: string) =>
+  deleteRole: ({ roleId }: { roleId: string }, _optional: Record<string, never> = {}) =>
     authenticatedAdminRequest<void>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/roles/${encodeURIComponent(roleId)}` }),
   listPolicies: () => authenticatedAdminRequest<{ policies: AdminPolicy[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/policies` }),
   createPolicy: ({ name }: { name: string }, options: { description?: string } = {}) =>
@@ -3560,14 +3554,14 @@ export const api = {
     options: { name?: string; description?: string } = {}
   ) =>
     authenticatedAdminRequest<{ policy: AdminPolicy }>({ method: "PATCH", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}`, body: options }),
-  deletePolicy: (policyId: string) =>
+  deletePolicy: ({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) =>
     authenticatedAdminRequest<void>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}` }),
   writePolicyPermission: (
     { policyId, permission }: { policyId: string; permission: string },
     options: { resourceType?: string } = {}
   ) =>
     authenticatedAdminRequest<{ policyPermission: unknown }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions`, body: { permission, resourceType: options.resourceType || undefined } }),
-  listPolicyPermissions: (policyId: string) =>
+  listPolicyPermissions: ({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) =>
     authenticatedAdminRequest<{ policyPermissions: AdminPolicyPermission[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions` }),
   removePolicyPermission: ({ policyId, policyPermissionId }: { policyId: string; policyPermissionId: string }) =>
     authenticatedAdminRequest<void>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions/${encodeURIComponent(policyPermissionId)}` }),
@@ -3654,7 +3648,7 @@ export const api = {
   // verbatim (not an absolute path, does not exist, or is a file rather than a directory) — callers
   // read `ApiError.body.error` for that case rather than treating every rejection as unexpected.
   getFsFilesCustomRoot: () => authenticatedAdminRequest<{ path: string | null }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/fs-files/custom-root` }),
-  setFsFilesCustomRoot: (path: string) =>
+  setFsFilesCustomRoot: ({ path }: { path: string }, _optional: Record<string, never> = {}) =>
     authenticatedAdminRequest<{ path: string }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/fs-files/custom-root`, body: { path } }),
   clearFsFilesCustomRoot: () => authenticatedAdminRequest<{ path: null }>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/fs-files/custom-root` }),
   // The composer's folder button. `GET` succeeds only when the server runs on this same machine
@@ -3686,7 +3680,7 @@ export const api = {
   getAssistantDaemonReadyz: async (): Promise<{ ready: boolean; assistantDaemonKnownFailed?: true }> => {
     // Raw response, but through the same bounded fetch as `request()`: a bare `fetch` here queued
     // forever once long-lived SSE connections had used up the origin's connection budget.
-    const res = await fetchOrThrowUnreachable("/readyz", { credentials: "same-origin" });
+    const res = await fetchOrThrowUnreachable({ url: "/readyz", init: { credentials: "same-origin" } });
     // `/readyz` (`apps/website/src/server/inbound/public-http/routes/ops/health.ts`'s `registerReadyzRoute`) always answers JSON, on both
     // its `200` and `503` branches — so a non-JSON response here means something ELSE answered
     // instead of the real route: a dev-server proxy gap (fixed 2026-08-17 in `vite.config.ts`, but
@@ -3732,20 +3726,20 @@ export const api = {
   // Collections (ADR-022/ADR-043) — content-types registry + entries. `/api/admin/v1/*`, not the
   // `/workspaces/{id}/*` shape the rest of this file uses — these routes take workspace from the
   // authed principal's session server-side, matching `database`/`recovery` below.
-  listContentTypes: () => request<{ items: AdminContentType[] }>("/content-types"),
+  listContentTypes: () => request<{ items: AdminContentType[] }>({ path: "/content-types" }),
   createContentType: (input: { key: string; label: string; fields: ContentTypeFieldDef[] }) =>
-    request<{ contentType: AdminContentType }>("/content-types", {
+    request<{ contentType: AdminContentType }>({ path: "/content-types" }, { init: {
       method: "POST",
       body: JSON.stringify(input),
-    }),
+    } }),
   updateContentTypeFields: (
     { key, fields, expectedVersion }: { key: string; fields: ContentTypeFieldDef[]; expectedVersion: number },
     _options: Record<string, never> = {}
   ) =>
-    request<{ contentType: AdminContentType }>(`/content-types/${encodeURIComponent(key)}/fields`, {
+    request<{ contentType: AdminContentType }>({ path: `/content-types/${encodeURIComponent(key)}/fields` }, { init: {
       method: "PUT",
       body: JSON.stringify({ fields, expectedVersion }),
-    }),
+    } }),
   contentTypeLifecycle: (
     {
       key,
@@ -3754,17 +3748,17 @@ export const api = {
     }: { key: string; op: ContentTypeLifecycleOp; expectedVersion: number },
     _options: Record<string, never> = {}
   ) =>
-    request<{ contentType: AdminContentType }>(`/content-types/${encodeURIComponent(key)}/lifecycle`, {
+    request<{ contentType: AdminContentType }>({ path: `/content-types/${encodeURIComponent(key)}/lifecycle` }, { init: {
       method: "POST",
       body: JSON.stringify({ op, expectedVersion }),
-    }),
+    } }),
   listEntries: (options: { type?: string } = {}) =>
-    request<{ items: AdminEntry[] }>(`/entries${querySuffix(options.type ? "type=" + encodeURIComponent(options.type) : "")}`),
+    request<{ items: AdminEntry[] }>({ path: `/entries${querySuffix(options.type ? "type=" + encodeURIComponent(options.type) : "")}` }),
   createEntry: (
     input: { type: string; slug: string; title: string },
     options: { fieldsJson?: unknown; bodyJson?: unknown } = {}
   ) =>
-    request<{ entry: AdminEntry }>("/entries", { method: "POST", body: JSON.stringify({ ...input, ...options }) }),
+    request<{ entry: AdminEntry }>({ path: "/entries" }, { init: { method: "POST", body: JSON.stringify({ ...input, ...options }) } }),
   updateEntry: (
     { id, expectedVersion }: { id: string; expectedVersion: number },
     // `bodyJson` was missing here, which made the rich-text half of an entry
@@ -3772,68 +3766,68 @@ export const api = {
     // has always accepted it, and `updatePost` does too.
     options: { title?: string; fieldsJson?: unknown; bodyJson?: unknown } = {}
   ) =>
-    request<{ entry: AdminEntry }>(`/entries/${encodeURIComponent(id)}`, {
+    request<{ entry: AdminEntry }>({ path: `/entries/${encodeURIComponent(id)}` }, { init: {
       method: "PUT",
       body: JSON.stringify({ expectedVersion, ...options }),
-    }),
+    } }),
   entryLifecycle: (
     { id, op, expectedVersion }: { id: string; op: "publish" | "unpublish"; expectedVersion: number },
     _options: Record<string, never> = {}
   ) =>
-    request<{ entry: AdminEntry }>(`/entries/${encodeURIComponent(id)}/lifecycle`, {
+    request<{ entry: AdminEntry }>({ path: `/entries/${encodeURIComponent(id)}/lifecycle` }, { init: {
       method: "POST",
       body: JSON.stringify({ op, expectedVersion }),
-    }),
+    } }),
 
   // Categories & Tags (ADR-044) — taxonomies + terms.
-  listTaxonomies: () => request<{ items: AdminTaxonomyWithTerms[] }>("/taxonomy"),
+  listTaxonomies: () => request<{ items: AdminTaxonomyWithTerms[] }>({ path: "/taxonomy" }),
   createTaxonomy: (input: { name: string; hierarchical: boolean }) =>
-    request<{ taxonomy: AdminTaxonomy }>("/taxonomy", { method: "POST", body: JSON.stringify(input) }),
+    request<{ taxonomy: AdminTaxonomy }>({ path: "/taxonomy" }, { init: { method: "POST", body: JSON.stringify(input) } }),
   createTerm: (
     { taxonomyId, name }: { taxonomyId: string; name: string },
     options: { parentId?: string | null } = {}
   ) =>
-    request<{ term: AdminTerm }>(`/taxonomy/${encodeURIComponent(taxonomyId)}/terms`, {
+    request<{ term: AdminTerm }>({ path: `/taxonomy/${encodeURIComponent(taxonomyId)}/terms` }, { init: {
       method: "POST",
       body: JSON.stringify({ name, parentId: options.parentId }),
-    }),
+    } }),
   renameTerm: (
     { termId, newName }: { termId: string; newName: string },
     _options: Record<string, never> = {}
   ) =>
-    request<{ term: AdminTerm }>(`/taxonomy/terms/${encodeURIComponent(termId)}`, {
+    request<{ term: AdminTerm }>({ path: `/taxonomy/terms/${encodeURIComponent(termId)}` }, { init: {
       method: "PUT",
       body: JSON.stringify({ newName }),
-    }),
+    } }),
   /** Additive: upserts one `entry_terms` row per `termIds` entry (never clears an existing,
    * unselected assignment — {@link unassignTerms} removes). Posts, pages and collection entries. */
   assignTerms: (input: { contentType: string; contentId: string; termIds: string[] }) =>
-    request<void>("/taxonomy/assign-terms", { method: "POST", body: JSON.stringify(input) }),
+    request<void>({ path: "/taxonomy/assign-terms" }, { init: { method: "POST", body: JSON.stringify(input) } }),
   /** Removes each `termIds` assignment; one that is not there is a no-op. */
   unassignTerms: (input: { contentType: string; contentId: string; termIds: string[] }) =>
-    request<void>("/taxonomy/unassign-terms", { method: "POST", body: JSON.stringify(input) }),
+    request<void>({ path: "/taxonomy/unassign-terms" }, { init: { method: "POST", body: JSON.stringify(input) } }),
   /** The term ids one post, page or entry holds now, sorted. */
   assignedTerms: ({ contentType, contentId }: { contentType: string; contentId: string }) =>
     request<{ termIds: string[] }>(
-      `/taxonomy/assigned-terms?contentType=${encodeURIComponent(contentType)}&contentId=${encodeURIComponent(contentId)}`
+      { path: `/taxonomy/assigned-terms?contentType=${encodeURIComponent(contentType)}&contentId=${encodeURIComponent(contentId)}` }
     ),
   // Categories & Tags — merge-term ceremony (ADR-044, SPEC-018 C-207). 3-step plan/confirm/execute.
   planMergeTerm: (
     { fromTermId, intoTermId }: { fromTermId: string; intoTermId: string },
     _options: Record<string, never> = {}
   ) =>
-    request<GatedPlanResult<MergeTermPlanDetails>>(`/taxonomy/terms/${encodeURIComponent(fromTermId)}/merge/plan`, {
+    request<GatedPlanResult<MergeTermPlanDetails>>({ path: `/taxonomy/terms/${encodeURIComponent(fromTermId)}/merge/plan` }, { init: {
       method: "POST",
       body: JSON.stringify({ intoTermId }),
-    }),
+    } }),
   confirmMergeTerm: (
     { fromTermId, planId, planHash }: { fromTermId: string; planId: string; planHash: string },
     _options: Record<string, never> = {}
   ) =>
-    request<GatedConfirmResult>(`/taxonomy/terms/${encodeURIComponent(fromTermId)}/merge/confirm`, {
+    request<GatedConfirmResult>({ path: `/taxonomy/terms/${encodeURIComponent(fromTermId)}/merge/confirm` }, { init: {
       method: "POST",
       body: JSON.stringify({ planId, planHash }),
-    }),
+    } }),
   executeMergeTerm: (
     {
       fromTermId,
@@ -3842,10 +3836,10 @@ export const api = {
     }: { fromTermId: string; intoTermId: string; confirmationToken: string },
     _options: Record<string, never> = {}
   ) =>
-    request<{ mergedCount: number }>(`/taxonomy/terms/${encodeURIComponent(fromTermId)}/merge/execute`, {
+    request<{ mergedCount: number }>({ path: `/taxonomy/terms/${encodeURIComponent(fromTermId)}/merge/execute` }, { init: {
       method: "POST",
       body: JSON.stringify({ intoTermId, confirmationToken }),
-    }),
+    } }),
 
   // Database — Timeline + restore points (ADR-041).
   getDatabaseTimeline: (options: {
@@ -3865,60 +3859,60 @@ export const api = {
     if (options.limit) params.set("limit", String(options.limit));
     const qs = params.toString();
     return request<{ items: AdminLedgerRow[]; nextCursor: string | null }>(
-      `/database/timeline${querySuffix(qs)}`
+      { path: `/database/timeline${querySuffix(qs)}` }
     );
   },
   /** ADR-041 §3 — this site's drift classification. Read-only: there is deliberately no matching
    *  write/repair call, and the server exposes none. */
-  getDatabaseSchemaState: () => request<AdminSchemaState>("/database/schema-state"),
+  getDatabaseSchemaState: () => request<AdminSchemaState>({ path: "/database/schema-state" }),
 
   // Database — migrate-forward ceremony (ADR-041 §3, SPEC-017 C-103/C-105). Plan takes no body —
   // the plan is computed entirely from the site's current migration/capability state server-side.
   planMigrateForward: () =>
-    request<GatedPlanResult>("/database/migrate-forward/plan", { method: "POST" }),
+    request<GatedPlanResult>({ path: "/database/migrate-forward/plan" }, { init: { method: "POST" } }),
   confirmMigrateForward: (
     { planId, planHash }: { planId: string; planHash: string },
     _options: Record<string, never> = {}
   ) =>
-    request<GatedConfirmResult>("/database/migrate-forward/confirm", {
+    request<GatedConfirmResult>({ path: "/database/migrate-forward/confirm" }, { init: {
       method: "POST",
       body: JSON.stringify({ planId, planHash }),
-    }),
-  executeMigrateForward: (confirmationToken: string) =>
-    request<MigrateForwardExecuteResult>("/database/migrate-forward/execute", {
+    } }),
+  executeMigrateForward: ({ confirmationToken }: { confirmationToken: string }, _optional: Record<string, never> = {}) =>
+    request<MigrateForwardExecuteResult>({ path: "/database/migrate-forward/execute" }, { init: {
       method: "POST",
       body: JSON.stringify({ confirmationToken }),
-    }),
+    } }),
 
   // Recovery (ADR-045) — restore-points list (shared with Database), disclosure, deep-link, status,
   // and the restore ceremony itself (SPEC-019 C-301/C-302/C-303).
-  listRecoveryRestorePoints: () => request<{ items: AdminRestorePoint[] }>("/recovery/restore-points"),
+  listRecoveryRestorePoints: () => request<{ items: AdminRestorePoint[] }>({ path: "/recovery/restore-points" }),
   /** Same underlying `/database/restore-points` write `createDatabaseRestorePoint` above uses — the
    *  `restore_points` table is genuinely shared (see `AdminRestorePoint`'s own doc comment) and
    *  there is no separate Recovery-owned write route. Recovery grew its own create action
    *  (2026-09-10, restore-point functionality consolidation) so this gets a Recovery-named entry
    *  point for that reason, not because the backend route differs. */
   createRecoveryRestorePoint: (options: { trigger?: string; costAck?: boolean } = {}) =>
-    request<{ restorePoint: AdminRestorePointSummary }>("/database/restore-points", {
+    request<{ restorePoint: AdminRestorePointSummary }>({ path: "/database/restore-points" }, { init: {
       method: "POST",
       body: JSON.stringify(options),
-    }),
-  computeRecoveryDisclosure: (restorePointId: string) =>
-    request<AdminDisclosureResult>("/recovery/disclosure", {
+    } }),
+  computeRecoveryDisclosure: ({ restorePointId }: { restorePointId: string }, _optional: Record<string, never> = {}) =>
+    request<AdminDisclosureResult>({ path: "/recovery/disclosure" }, { init: {
       method: "POST",
       body: JSON.stringify({ restorePointId }),
-    }),
+    } }),
   resolveRecoveryDeepLink: (envelope: DatabaseContextEnvelope) =>
-    request<AdminRecoveryDeepLinkResult>("/recovery/deep-link", {
+    request<AdminRecoveryDeepLinkResult>({ path: "/recovery/deep-link" }, { init: {
       method: "POST",
       body: JSON.stringify({ envelope }),
-    }),
-  getRecoveryStatus: () => request<AdminRecoveryStatus>("/recovery/status"),
-  planRestore: (restorePointId: string) =>
-    request<GatedPlanResult>("/recovery/restore/plan", {
+    } }),
+  getRecoveryStatus: () => request<AdminRecoveryStatus>({ path: "/recovery/status" }),
+  planRestore: ({ restorePointId }: { restorePointId: string }, _optional: Record<string, never> = {}) =>
+    request<GatedPlanResult>({ path: "/recovery/restore/plan" }, { init: {
       method: "POST",
       body: JSON.stringify({ restorePointId }),
-    }),
+    } }),
   confirmRestore: (
     {
       planId,
@@ -3927,18 +3921,18 @@ export const api = {
     }: { planId: string; planHash: string; disclosureAcknowledged: boolean },
     _options: Record<string, never> = {}
   ) =>
-    request<GatedConfirmResult>("/recovery/restore/confirm", {
+    request<GatedConfirmResult>({ path: "/recovery/restore/confirm" }, { init: {
       method: "POST",
       body: JSON.stringify({ planId, planHash, disclosureAcknowledged }),
-    }),
+    } }),
   executeRestore: (
     { confirmationToken, restorePointId }: { confirmationToken: string; restorePointId: string },
     _options: Record<string, never> = {}
   ) =>
-    request<RestoreExecuteResult>("/recovery/restore/execute", {
+    request<RestoreExecuteResult>({ path: "/recovery/restore/execute" }, { init: {
       method: "POST",
       body: JSON.stringify({ confirmationToken, restorePointId }),
-    }),
+    } }),
 
   // Comments — the dashboard reads the queue here; moderation and settings use Jini.
   // Mirrors `getDatabaseTimeline`'s query-param-building shape for the paginated queue read.
@@ -3989,7 +3983,7 @@ export const api = {
     // present only when the server dropped one or more malformed records. Absent in the common case.
     return authenticatedAdminRequest<{ widgets: AdminWidget[]; skippedCount?: number; skippedIds?: string[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets${querySuffix(qs)}` });
   },
-  getWidget: (id: string) =>
+  getWidget: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
     authenticatedAdminRequest<{ widget: AdminWidget; whereUsed: AdminWidgetWhereUsed }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}` }),
   createWidget: (
     input: { widgetType: AdminWidgetType; title: string; config: Record<string, unknown> },
@@ -3999,42 +3993,42 @@ export const api = {
 
   // SPEC-005 REQ-12..17 (1.1.0 UI amendment) — consumes REQ-10's PLUGINS_LIST/PLUGIN_SET_ENABLED
   // HTTP contract as a black box (ui.spec.md §3.1/§4.2).
-  listPlugins: () => request<{ plugins: AdminPlugin[] }>(`/workspaces/${WORKSPACE_ID}/plugins`),
+  listPlugins: () => request<{ plugins: AdminPlugin[] }>({ path: `/workspaces/${WORKSPACE_ID}/plugins` }),
   /** PLUGIN_PROVIDER_SETTINGS (2026-10-26) — a provider plugin's declared settings card. */
-  getPluginProviderSettings: (pluginId: string) =>
-    request<AdminPluginProviderSettings>(`/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/provider-settings`),
+  getPluginProviderSettings: ({ pluginId }: { pluginId: string }, _optional: Record<string, never> = {}) =>
+    request<AdminPluginProviderSettings>({ path: `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/provider-settings` }),
   /** Saves and reapplies card values; a blank secret keeps the saved one. */
-  savePluginProviderSettings: (pluginId: string, values: Record<string, string>) =>
-    request<AdminPluginProviderSettings>(`/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/provider-settings`, {
+  savePluginProviderSettings: ({ pluginId, values }: { pluginId: string; values: Record<string, string> }, _optional: Record<string, never> = {}) =>
+    request<AdminPluginProviderSettings>({ path: `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/provider-settings` }, { init: {
       method: "PUT", body: JSON.stringify({ values }),
-    }),
+    } }),
   useProjectKey: ({ keyId, use }: { keyId: string; use: boolean }, _optional = {}) =>
-    request<{ keyId: string; usedByThisSite: boolean; usedBy: string[]; appliesAt: "now" | "restart" | "failed"; message?: string }>(`/workspaces/${WORKSPACE_ID}/project-keys/${encodeURIComponent(keyId)}/use`, { method: "PUT", body: JSON.stringify({ use }) }),
-  setPluginEnabled: (pluginId: string, { enabled }: { enabled: boolean }) =>
+    request<{ keyId: string; usedByThisSite: boolean; usedBy: string[]; appliesAt: "now" | "restart" | "failed"; message?: string }>({ path: `/workspaces/${WORKSPACE_ID}/project-keys/${encodeURIComponent(keyId)}/use` }, { init: { method: "PUT", body: JSON.stringify({ use }) } }),
+  setPluginEnabled: ({ pluginId, enabled }: { pluginId: string; enabled: boolean }, _optional: Record<string, never> = {}) =>
     request<{ plugin: { id: string; version: string; enabled: boolean; updatedAt: string }; changeSetId: string }>(
-      `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}`,
-      { method: "PATCH", body: JSON.stringify({ enabled }) }
+      { path: `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}` },
+      { init: { method: "PATCH", body: JSON.stringify({ enabled }) } }
     ),
   /** Moves a site plugin to the 60-day Trash. `PLUGIN_IN_TRASH` reports an existing parked copy. */
-  uninstallPlugin: (pluginId: string) =>
+  uninstallPlugin: ({ pluginId }: { pluginId: string }, _optional: Record<string, never> = {}) =>
     request<{ pluginId: string; trashed: true }>(
-      `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}`,
-      { method: "DELETE" }
+      { path: `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}` },
+      { init: { method: "DELETE" } }
     ),
   /** PLUGIN_FILES (2026-09-13) — `GET /workspaces/:id/plugins/:pluginId/files`: the read-only,
    *  server-capped listing of one plugin's own files behind the Plugins screen's package-files
    *  viewer. Refuses `PLUGIN_NOT_FOUND` (404) and `PLUGIN_ID_INVALID` (400). */
-  getPluginFiles: (pluginId: string) =>
-    request<AdminPluginFiles>(`/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/files`),
+  getPluginFiles: ({ pluginId }: { pluginId: string }, _optional: Record<string, never> = {}) =>
+    request<AdminPluginFiles>({ path: `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/files` }),
 
   // 2026-09-09 — AGENT_PLUGINS_LIST: the `agent-plugins` screen's read of real installed Agent
   // Plugins (a separate family from listPlugins/setPluginEnabled above — see AdminAgentPlugin's doc).
-  listAgentPlugins: () => request<{ agentPlugins: AdminAgentPlugin[] }>(`/workspaces/${WORKSPACE_ID}/agent-plugins`),
+  listAgentPlugins: () => request<{ agentPlugins: AdminAgentPlugin[] }>({ path: `/workspaces/${WORKSPACE_ID}/agent-plugins` }),
   /** AGENT_PLUGIN_FILES (2026-09-13) — `GET /workspaces/:id/agent-plugins/:pluginId/files`: one
    *  installed Agent Plugin's files, switched on or off, behind the Agent Plugins eye button.
    *  Refuses `AGENT_PLUGIN_NOT_FOUND` (404). */
-  getAgentPluginFiles: (pluginId: string) =>
-    request<AdminAgentPluginFiles>(`/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}/files`),
+  getAgentPluginFiles: ({ pluginId }: { pluginId: string }, _optional: Record<string, never> = {}) =>
+    request<AdminAgentPluginFiles>({ path: `/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}/files` }),
   /**
    * AGENT_PLUGIN_SET_ENABLED — turns one installed Agent Plugin on or off for this workspace.
    *
@@ -4047,37 +4041,37 @@ export const api = {
    * `enabled` is validated server-side, not coerced — an omitted or non-boolean value is 400
    * `VALIDATION_ERROR` instead of a silent disable.
    */
-  setAgentPluginEnabled: (pluginId: string, { enabled }: { enabled: boolean }) =>
-    request<{ agentPlugin: AdminAgentPlugin; warnings?: string[] }>(`/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}`, {
+  setAgentPluginEnabled: ({ pluginId, enabled }: { pluginId: string; enabled: boolean }, _optional: Record<string, never> = {}) =>
+    request<{ agentPlugin: AdminAgentPlugin; warnings?: string[] }>({ path: `/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}` }, { init: {
       method: "PATCH",
       body: JSON.stringify({ enabled }),
-    }),
+    } }),
 
   // Deployment panel (`apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts` /
   // `dockerfile-source.ts`) — `system.read`-gated, same shape as `getModuleStatus` just above.
   /** Runtime mode, boot-gate/default-password status, agent-daemon known-failure state, db/uploads
    *  paths, and required-env-var presence (never values) — the Deployment panel's Overview tab. */
   getDeploymentOverview: () =>
-    request<AdminDeploymentOverview>(`/workspaces/${WORKSPACE_ID}/system/deployment-overview`),
+    request<AdminDeploymentOverview>({ path: `/workspaces/${WORKSPACE_ID}/system/deployment-overview` }),
 
   // Observability panel, Overview tab (`apps/website/src/server/inbound/admin-http/routes/system/
   // observability-status.ts`) — `system.read`-gated, same shape as `getDeploymentOverview` above.
   /** Whether `platform/observability`'s real OTel adapter is on right now, and under what service
    *  name — never the OTLP endpoint value itself. See {@link AdminObservabilityStatus}. */
   getObservabilityStatus: () =>
-    request<AdminObservabilityStatus>(`/workspaces/${WORKSPACE_ID}/system/observability-status`),
-  sendObservabilityTestError: () => request<AdminTelemetryTestResult>(`/workspaces/${WORKSPACE_ID}/system/observability/test-error`, { method: "POST" }),
+    request<AdminObservabilityStatus>({ path: `/workspaces/${WORKSPACE_ID}/system/observability-status` }),
+  sendObservabilityTestError: () => request<AdminTelemetryTestResult>({ path: `/workspaces/${WORKSPACE_ID}/system/observability/test-error` }, { init: { method: "POST" } }),
   /** Owner-only filter over native CLI fallback entries in the existing audit store. */
-  getToolGaps: () => request<{ entries: import('@jini-ai/daemon/tool-audit').ToolGapEntry[] }>(`/workspaces/${WORKSPACE_ID}/system/tool-gaps`),
+  getToolGaps: () => request<{ entries: import('@jini-ai/daemon/tool-audit').ToolGapEntry[] }>({ path: `/workspaces/${WORKSPACE_ID}/system/tool-gaps` }),
   /** Recent captured server log lines (`routes/system/server-logs.ts`, `system.read`-gated) — the
    *  Observability "Recent errors" tab. */
   getServerLogs: (query: AdminServerLogsQuery = {}) => {
     const params = new URLSearchParams(Object.entries(query).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
     const qs = params.toString();
-    return request<AdminServerLogs>(`/workspaces/${WORKSPACE_ID}/system/server-logs${querySuffix(qs)}`);
+    return request<AdminServerLogs>({ path: `/workspaces/${WORKSPACE_ID}/system/server-logs${querySuffix(qs)}` });
   },
   /** Whether outbound email really sends — the form editor greys out its notify settings when not. */
-  getMailStatus: () => request<AdminMailStatus>(`/workspaces/${WORKSPACE_ID}/system/mail-status`),
+  getMailStatus: () => request<AdminMailStatus>({ path: `/workspaces/${WORKSPACE_ID}/system/mail-status` }),
 
   // Sites panel (`apps/website/src/server/inbound/admin-http/routes/system/sites.ts`) — list is
   // `system.read`, create/activate are `system.write` AND additionally refused with
@@ -4085,39 +4079,39 @@ export const api = {
   // `getDockerfileSource`/`setDockerfileSource` immediately above.
   /** Every site under `sites/`, plus what this server process is ACTUALLY bound to right now and
    *  any pending activate choice — see {@link AdminSitesSnapshot}. */
-  getSitesConfig: () => request<SitesUserConfig>(`/workspaces/${WORKSPACE_ID}/system/sites/config`),
-  setSitesConfig: (input: SitesUserConfigPatch) => request<SitesUserConfig>(`/workspaces/${WORKSPACE_ID}/system/sites/config`, { method: "PUT", body: JSON.stringify(input) }),
-  setSitesHome: (input: { path: string }) => request<{ home: string }>(`/workspaces/${WORKSPACE_ID}/system/sites/home`, { method: "PUT", body: JSON.stringify(input) }),
-  listSites: () => request<AdminSitesSnapshot>(`/workspaces/${WORKSPACE_ID}/system/sites`),
+  getSitesConfig: () => request<SitesUserConfig>({ path: `/workspaces/${WORKSPACE_ID}/system/sites/config` }),
+  setSitesConfig: (input: SitesUserConfigPatch) => request<SitesUserConfig>({ path: `/workspaces/${WORKSPACE_ID}/system/sites/config` }, { init: { method: "PUT", body: JSON.stringify(input) } }),
+  setSitesHome: (input: { path: string }) => request<{ home: string }>({ path: `/workspaces/${WORKSPACE_ID}/system/sites/home` }, { init: { method: "PUT", body: JSON.stringify(input) } }),
+  listSites: () => request<AdminSitesSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/sites` }),
   /** Create `sites/<name>/` through the same `initSite` path `tovu init` uses. `409`
    *  `SITE_ALREADY_EXISTS` when the directory is occupied, `400` `VALIDATION_ERROR` for a name
    *  outside `[a-z0-9-]{1,100}`. */
   createSite: (input: { name: string; adminPassword?: string; agentPluginTokens?: Record<string, string> }) =>
-    request<{ site: AdminCreatedSite; agentPluginTokens?: AdminCreatedSiteAgentPluginTokens }>(`/workspaces/${WORKSPACE_ID}/system/sites`, {
+    request<{ site: AdminCreatedSite; agentPluginTokens?: AdminCreatedSiteAgentPluginTokens }>({ path: `/workspaces/${WORKSPACE_ID}/system/sites` }, { init: {
       method: "POST",
       body: JSON.stringify(input),
-    }),
+    } }),
   /** Installed Agent Plugins that take a pasted access token — the create form's optional
    *  "connect now" fields. A given token is checked, then applied on the new site's first start. */
   listTokenSignInPlugins: () =>
-    request<{ plugins: AdminTokenSignInPlugin[] }>(`/workspaces/${WORKSPACE_ID}/system/sites/token-sign-in-plugins`),
+    request<{ plugins: AdminTokenSignInPlugin[] }>({ path: `/workspaces/${WORKSPACE_ID}/system/sites/token-sign-in-plugins` }),
   /** Persist `name` as the site the NEXT boot serves. Writes `TOVU_SITE=<name>` to the repo-root
    *  `.env` and returns restart instructions — it does not kill, signal, or re-exec anything, and
    *  this process keeps serving whatever it booted with. See {@link AdminSiteActivation}. */
-  activateSite: (name: string) =>
+  activateSite: ({ name }: { name: string }, _optional: Record<string, never> = {}) =>
     request<AdminSiteActivation>(
-      `/workspaces/${WORKSPACE_ID}/system/sites/${encodeURIComponent(name)}/activate`,
-      { method: "POST" }
+      { path: `/workspaces/${WORKSPACE_ID}/system/sites/${encodeURIComponent(name)}/activate` },
+      { init: { method: "POST" } }
     ),
   manageLocalSite: (input: { name: string; action: AdminLocalSiteAction; confirmed?: boolean; checked?: boolean }) => {
     const name = encodeURIComponent(input.name);
     if (input.action === "switch") return request<AdminSiteActivation>(
-      `/workspaces/${WORKSPACE_ID}/system/sites/${name}/activate`, { method: "POST", body: JSON.stringify({ restartNow: true }) }, () => adminFailureChannel.reset());
+      { path: `/workspaces/${WORKSPACE_ID}/system/sites/${name}/activate` }, { init: { method: "POST", body: JSON.stringify({ restartNow: true }) }, onOk: () => adminFailureChannel.reset() });
     const path = input.action === "restore" || input.action === "delete"
       ? `trash/${name}/${input.action}` : `${name}/${input.action}`;
-    return request<unknown>(`/workspaces/${WORKSPACE_ID}/system/sites/${path}`, {
+    return request<unknown>({ path: `/workspaces/${WORKSPACE_ID}/system/sites/${path}` }, { init: {
       method: "POST", body: JSON.stringify({ confirmed: input.confirmed, checked: input.checked }),
-    });
+    } });
   },
   /** The repo-root `Dockerfile`'s current contents, or `{ exists: false }` when none has been
    *  generated yet, plus its `etag` merged in from the response's own `ETag` header (never the JSON
@@ -4140,7 +4134,7 @@ export const api = {
    *  as the `If-Match` request header and REQUIRED by the server — a stale value rejects with a
    *  `412` `ApiError` whose `.body.current` carries the real `{exists, contents}` currently on disk,
    *  a missing/empty one with `400`; see {@link AdminDockerfileSource.etag}'s own doc for why. */
-  setDockerfileSource: (contents: string, ifMatch: string): Promise<AdminDockerfileSource> => {
+  setDockerfileSource: ({ contents, ifMatch }: { contents: string; ifMatch: string }, _optional: Record<string, never> = {}): Promise<AdminDockerfileSource> => {
     let etag = "";
     return authenticatedAdminRequest<{ exists: boolean; contents: string | null }>(
       { method: "PUT", path: `/workspaces/${WORKSPACE_ID}/system/dockerfile`, body: { contents } },
@@ -4157,13 +4151,13 @@ export const api = {
   /** Starts a new static-site export. `409` (surfaced as a thrown error by `request`, same as any
    *  non-2xx) if one is already running — this instance runs at most one export at a time. */
   triggerSiteExport: (options?: { clean?: boolean; basePath?: string }) =>
-    request<AdminExportRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/export`, {
+    request<AdminExportRunSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/export` }, { init: {
       method: "POST",
       body: JSON.stringify(options ?? {}),
-    }),
+    } }),
   /** The current/most recent export run's status — poll this after `triggerSiteExport` until
    *  `status` is no longer `"running"`. */
-  getSiteExportStatus: () => request<AdminExportRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/export`),
+  getSiteExportStatus: () => request<AdminExportRunSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/export` }),
 
   // Static Site tab "Getting it online" card (`apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts`) —
   // publishing the current export straight to an installed static host plugin's target.
@@ -4174,12 +4168,12 @@ export const api = {
    *  configured for the target (a boolean only, never the credential itself). Never starts a run. */
   getPublishPreview: (config: AdminStaticPublishConfig) => {
     const query = new URLSearchParams({ ...config.fields, target: config.target });
-    return request<AdminStaticPublishPreview>(`/workspaces/${WORKSPACE_ID}/system/publish/preview?${query.toString()}`);
+    return request<AdminStaticPublishPreview>({ path: `/workspaces/${WORKSPACE_ID}/system/publish/preview?${query.toString()}` });
   },
   /** The deploy targets the installed hosting plugins provide, with their publish and credential
    *  form fields — the publish card renders from this. */
   getPublishTargets: () =>
-    request<{ targets: AdminPublishTargetDescriptor[] }>(`/workspaces/${WORKSPACE_ID}/system/publish-targets`).then((res) => res.targets),
+    request<{ targets: AdminPublishTargetDescriptor[] }>({ path: `/workspaces/${WORKSPACE_ID}/system/publish-targets` }).then((res) => res.targets),
   /** Starts a new publish to `config.target`. `409` (surfaced as a thrown error) if one is already
    *  running — this instance runs at most one publish at a time, independent of a plain export.
    *
@@ -4192,7 +4186,7 @@ export const api = {
    *  `undefined`) when this provider has no saved connection — an install publishing from server
    *  env vars has no connection ids at all, and that caller keeps the default lookup. */
   triggerPublish: (input: { config: AdminStaticPublishConfig; projectName: string; credentialId?: string }) =>
-    request<AdminPublishRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/publish`, {
+    request<AdminPublishRunSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/publish` }, { init: {
       method: "POST",
       body: JSON.stringify({
         ...input.config.fields,
@@ -4200,14 +4194,14 @@ export const api = {
         projectName: input.projectName,
         ...(input.credentialId !== undefined ? { credentialId: input.credentialId } : {}),
       }),
-    }),
+    } }),
   /** The current/most recent publish run's status — poll this after `triggerPublish` until `status`
    *  is no longer `"running"`. */
-  getPublishStatus: () => request<AdminPublishRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/publish`),
+  getPublishStatus: () => request<AdminPublishRunSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/publish` }),
   /** Past static publishes, Tovu peers pushed to, and deploys of this site, newest first. Read-only:
    *  publishing again still goes through `triggerPublish` or the publish-content push. */
   listPublishDestinations: () =>
-    request<AdminPublishDestination[]>(`/workspaces/${WORKSPACE_ID}/system/publish/destinations`),
+    request<AdminPublishDestination[]>({ path: `/workspaces/${WORKSPACE_ID}/system/publish/destinations` }),
 
   // Static Site tab "Getting it online" card → credential management (`apps/website/src/server/inbound/admin-http/routes/
   // system/publish-credentials.ts`) — named provider connections for `triggerPublish`, stored
@@ -4217,7 +4211,7 @@ export const api = {
    *  ONLY source of truth for whether this instance can drive a CLI locally or needs a stored
    *  credential to publish at all. Never sniffed client-side; see `AdminPublishExecutionMode`'s doc. */
   listPublishCredentials: () =>
-    request<AdminPublishCredentialsSnapshot>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials`),
+    request<AdminPublishCredentialsSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/publish/credentials` }),
   /** Creates one named connection. `409 DUPLICATE_LABEL` (surfaced as a thrown `ApiError` with that
    *  `code`) if this workspace already has a credential with the same label — labels are the only
    *  human-facing identifier a reader has for telling two connections apart, so silently allowing a
@@ -4225,25 +4219,25 @@ export const api = {
    *  entirely (not `false`) lets the server apply its own default-assignment rule (e.g. a provider's
    *  first-ever saved connection), rather than this admin guessing at it. */
   createPublishCredential: (input: { label: string; connection: AdminPublishConnectionInput; isDefault?: boolean; worksFor?: string[] }) =>
-    request<{ credential: AdminPublishCredentialSummary; verification?: AdminPublishCredentialVerification }>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials`, {
+    request<{ credential: AdminPublishCredentialSummary; verification?: AdminPublishCredentialVerification }>({ path: `/workspaces/${WORKSPACE_ID}/system/publish/credentials` }, { init: {
       method: "POST",
       body: JSON.stringify(input),
-    }),
+    } }),
   /** Updates a credential's label, connection, and/or default status. Omitting `connection` entirely
    *  — never sending it as an empty object or blank fields — is what keeps the stored secret
    *  untouched; see `use-publish-credentials.hooks.ts`'s header for why the form can never send a
    *  half-blank one. `isDefault: true` makes this the default connection for its provider (the server
    *  owns clearing any previous default for that same provider); omitted leaves default status
    *  unchanged. `worksFor` omitted preserves compatibility; [] clears it without a connection. */
-  updatePublishCredential: (id: string, input: { label?: string; connection?: AdminPublishConnectionInput; isDefault?: boolean; worksFor?: string[] }) =>
-    request<{ credential: AdminPublishCredentialSummary; verification?: AdminPublishCredentialVerification }>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${encodeURIComponent(id)}`, {
+  updatePublishCredential: ({ id, input }: { id: string; input: { label?: string; connection?: AdminPublishConnectionInput; isDefault?: boolean; worksFor?: string[] } }, _optional: Record<string, never> = {}) =>
+    request<{ credential: AdminPublishCredentialSummary; verification?: AdminPublishCredentialVerification }>({ path: `/workspaces/${WORKSPACE_ID}/system/publish/credentials/${encodeURIComponent(id)}` }, { init: {
       method: "PUT",
       body: JSON.stringify(input),
-    }),
+    } }),
   /** `204`, idempotent — deleting an id that is already gone (a stale list, a double click) still
    *  resolves rather than throwing. */
-  deletePublishCredential: (id: string) =>
-    request<void>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  deletePublishCredential: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
+    request<void>({ path: `/workspaces/${WORKSPACE_ID}/system/publish/credentials/${encodeURIComponent(id)}` }, { init: { method: "DELETE" } }),
   /** Re-checks one already-saved credential against its real provider right now — the human-facing
    *  counterpart to the best-effort verify a create/update already runs automatically, for when that
    *  cached result has gone stale (a rotated token) or was lost (a server restart clears the
@@ -4251,10 +4245,10 @@ export const api = {
    *  DB-persisted half of this survives that even though this specific response does not). Never
    *  4xxs for an unreachable or rejected provider — a failed verification is still a `200` carrying
    *  `status: "invalid" | "unreachable"`, only a genuinely missing credential id 404s. */
-  verifyPublishCredential: (id: string) =>
-    request<{ verification: AdminPublishCredentialVerification }>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${encodeURIComponent(id)}/verify`, {
+  verifyPublishCredential: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
+    request<{ verification: AdminPublishCredentialVerification }>({ path: `/workspaces/${WORKSPACE_ID}/system/publish/credentials/${encodeURIComponent(id)}/verify` }, { init: {
       method: "POST",
-    }),
+    } }),
 
   // Secrets panel → site key tab (`src/server/inbound/admin-http/routes/system/site-key.ts`)
   // — status of the TOVU_SITE_KEY site key's generated-file fallback, an explicit
@@ -4266,14 +4260,14 @@ export const api = {
   // database it protects.
   /** Never throws for "no key active" — that is `{active: false, source: "none"}`, a normal 200,
    *  not an error. Never carries the key value — see `revealSiteKey` for that. */
-  getSiteKeyStatus: () => request<AdminSiteKeyStatus>(`/workspaces/${WORKSPACE_ID}/system/site-key`),
+  getSiteKeyStatus: () => request<AdminSiteKeyStatus>({ path: `/workspaces/${WORKSPACE_ID}/system/site-key` }),
   /** Returns the raw key value (whichever source is active) when one is set — a deliberate,
    *  explicit, separately-clickable action, never fired on page load. Superseded an earlier
    *  fingerprint-only brief (owner: "i want that token to be visible to admins or else when it
    *  breaks they have no idea whats going on"). No audit trail — this codebase has no
    *  general-purpose sensitive-read audit mechanism to hook into (checked; not built here). */
   revealSiteKey: () =>
-    request<AdminRevealedSiteKey>(`/workspaces/${WORKSPACE_ID}/system/site-key/reveal`, { method: "POST" }),
+    request<AdminRevealedSiteKey>({ path: `/workspaces/${WORKSPACE_ID}/system/site-key/reveal` }, { init: { method: "POST" } }),
   /** Makes sure this site has the RIGHT key, never a second one (2026-09-29): resolves `200`
    *  `already-active`/`recovered` or `201` `created` ({@link AdminSiteKeyGenerateOutcome}).
    *  Refusals are `409 {error, detail}`, nothing written, thrown as an `ApiError` whose `.message`
@@ -4283,21 +4277,21 @@ export const api = {
    *  production `ALREADY_EXISTS` (a key file appeared mid-request). See `use-site-key.hooks.ts`'s
    *  `classifySiteKeyGenerateError`. Never overwrites or rotates a key. */
   generateSiteKey: () =>
-    request<AdminGeneratedSiteKey>(`/workspaces/${WORKSPACE_ID}/system/site-key/generate`, { method: "POST" }),
+    request<AdminGeneratedSiteKey>({ path: `/workspaces/${WORKSPACE_ID}/system/site-key/generate` }, { init: { method: "POST" } }),
   /** "Paste your old token": installs `token` only once it opens this site's saved credentials,
    *  moving anything saved under the key in place onto it first. Refusals throw an `ApiError` with
    *  a plain `.body.detail`: `TOKEN_INVALID` (400), `TOKEN_DOES_NOT_OPEN`, `ENV_KEY_SET`,
    *  `RESTORE_POINT_UNAVAILABLE`, `SITE_META_UNREADABLE` (409). */
   importSiteKey: (input: { siteKey: string }, _optional = {}) =>
-    request<AdminImportedSiteKey>(`/workspaces/${WORKSPACE_ID}/system/site-key/import`, { method: "POST", body: JSON.stringify(input) }),
+    request<AdminImportedSiteKey>({ path: `/workspaces/${WORKSPACE_ID}/system/site-key/import` }, { init: { method: "POST", body: JSON.stringify(input) } }),
   /** What "Start fresh" would remove and which webhooks get a new signing secret. Changes nothing. */
   previewSiteKeyStartFresh: () =>
-    request<AdminSiteKeyStartFreshPreview>(`/workspaces/${WORKSPACE_ID}/system/site-key/start-fresh`),
+    request<AdminSiteKeyStartFreshPreview>({ path: `/workspaces/${WORKSPACE_ID}/system/site-key/start-fresh` }),
   /** "Start fresh": restore point, remove what can't be unlocked, install the key. `confirm` must be
    *  `START FRESH` (else 400 `CONFIRMATION_REQUIRED`); other refusals as {@link importSiteKey}'s
    *  plus `STORAGE_SECRET_LOCKED`. */
-  startFreshSiteKey: (confirm: string) =>
-    request<AdminStartedFreshSiteKey>(`/workspaces/${WORKSPACE_ID}/system/site-key/start-fresh`, { method: "POST", body: JSON.stringify({ confirm }) }),
+  startFreshSiteKey: ({ confirm }: { confirm: string }, _optional: Record<string, never> = {}) =>
+    request<AdminStartedFreshSiteKey>({ path: `/workspaces/${WORKSPACE_ID}/system/site-key/start-fresh` }, { init: { method: "POST", body: JSON.stringify({ confirm }) } }),
 
   // Source Control page → credential management (`apps/website/src/server/inbound/admin-http/routes/system/
   // source-control-credentials.ts`) — one saved GitHub/GitLab/Bitbucket identity connection per
@@ -4308,35 +4302,35 @@ export const api = {
   // that route's own header for why connecting a source-control identity is not a publish
   // trigger).
   /** The source-control hosts switched-on plugins declare, with their credential forms. */
-  listSourceControlProviders: () => request<AdminSourceControlProvidersSnapshot>(`/workspaces/${WORKSPACE_ID}/system/source-control/providers`),
+  listSourceControlProviders: () => request<AdminSourceControlProvidersSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/source-control/providers` }),
   /** Every configured source-control credential for this workspace. */
   listSourceControlCredentials: () =>
-    request<AdminSourceControlCredentialsSnapshot>(`/workspaces/${WORKSPACE_ID}/system/source-control/credentials`),
+    request<AdminSourceControlCredentialsSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/source-control/credentials` }),
   /** Creates one named connection. `409 DUPLICATE_LABEL` (surfaced as a thrown `ApiError` with that
    *  `code`) if this workspace already has a credential with the same `(providerId, label)`.
    *  `isDefault` is optional — omitted entirely (not `false`) lets the server apply its own
    *  default-assignment rule (a provider's first-ever saved connection), rather than this admin
    *  guessing at it. */
   createSourceControlCredential: (input: { label: string; connection: AdminSourceControlConnectionInput; isDefault?: boolean }) =>
-    request<{ credential: AdminSourceControlCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/source-control/credentials`, {
+    request<{ credential: AdminSourceControlCredentialSummary }>({ path: `/workspaces/${WORKSPACE_ID}/system/source-control/credentials` }, { init: {
       method: "POST",
       body: JSON.stringify(input),
-    }),
+    } }),
   /** Updates a credential's label, connection, and/or default status. Omitting `connection`
    *  entirely — never sending it as an empty object or blank fields — is what keeps the stored
    *  secret untouched; see `use-source-control-credentials.hooks.ts`'s header for why the form can
    *  never send a half-blank one. */
-  updateSourceControlCredential: (id: string, input: { label?: string; connection?: AdminSourceControlConnectionInput; isDefault?: boolean }) =>
-    request<{ credential: AdminSourceControlCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/source-control/credentials/${encodeURIComponent(id)}`, {
+  updateSourceControlCredential: ({ id, input }: { id: string; input: { label?: string; connection?: AdminSourceControlConnectionInput; isDefault?: boolean } }, _optional: Record<string, never> = {}) =>
+    request<{ credential: AdminSourceControlCredentialSummary }>({ path: `/workspaces/${WORKSPACE_ID}/system/source-control/credentials/${encodeURIComponent(id)}` }, { init: {
       method: "PUT",
       body: JSON.stringify(input),
-    }),
+    } }),
   /** `204`, idempotent — deleting an id that is already gone (a stale list, a double click) still
    *  resolves rather than throwing. Not called anywhere on this page today (there is no delete
    *  affordance in the UI — replacing a token PUTs over the existing row), kept for parity with
    *  the publish-credentials block above. */
-  deleteSourceControlCredential: (id: string) =>
-    request<void>(`/workspaces/${WORKSPACE_ID}/system/source-control/credentials/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  deleteSourceControlCredential: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
+    request<void>({ path: `/workspaces/${WORKSPACE_ID}/system/source-control/credentials/${encodeURIComponent(id)}` }, { init: { method: "DELETE" } }),
 
   /** Owner-only Shared Keys metadata; no other site inventories or credential values. */
   listCredentialCopySources: (_required: Record<string, never>, options: AuthenticatedAdminRequestOptions = {}) =>
@@ -4355,7 +4349,7 @@ export const api = {
   // source-control-credentials block above. `custom-credentials.write`-gated on every verb
   // server-side.
   /** Every configured custom-provider credential for this workspace. */
-  listCustomCredentials: () => request<AdminCustomCredentialsSnapshot>(`/workspaces/${WORKSPACE_ID}/system/custom/credentials`),
+  listCustomCredentials: () => request<AdminCustomCredentialsSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/custom/credentials` }),
   /** Creates one custom-provider credential. `409 DUPLICATE_LABEL` (surfaced as a thrown `ApiError`
    *  with that `code`) if this workspace already has one with the same `label`. */
   createCustomCredential: (input: {
@@ -4369,10 +4363,10 @@ export const api = {
     additionalHosts?: readonly string[];
     connection: AdminCustomConnectionInput;
   }) =>
-    request<{ credential: AdminCustomCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/custom/credentials`, {
+    request<{ credential: AdminCustomCredentialSummary }>({ path: `/workspaces/${WORKSPACE_ID}/system/custom/credentials` }, { init: {
       method: "POST",
       body: JSON.stringify(input),
-    }),
+    } }),
   /** Updates a credential's label, category, base URL, additional hosts, username, and/or
    *  connection. Omitting `connection` entirely — never sending it as an empty object or blank
    *  fields — is what keeps the stored secret untouched, same contract every sibling credential
@@ -4384,9 +4378,7 @@ export const api = {
    *  way. When both `username` and `connection` are sent in the same call, `username` wins for what
    *  gets stored in the plaintext column (server-side precedence, not a client-side rule).
    *  `worksFor` omitted preserves compatibility; [] clears it without a connection. */
-  updateCustomCredential: (
-    id: string,
-    input: {
+  updateCustomCredential: ({ id, input }: { id: string; input: {
       worksFor?: string[];
       label?: string;
       category?: AdminCustomCredentialCategoryId;
@@ -4394,14 +4386,14 @@ export const api = {
       additionalHosts?: readonly string[];
       username?: string | null;
       connection?: AdminCustomConnectionInput;
-    }
+    } }, _optional: Record<string, never> = {}
   ) =>
-    request<{ credential: AdminCustomCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/custom/credentials/${encodeURIComponent(id)}`, {
+    request<{ credential: AdminCustomCredentialSummary }>({ path: `/workspaces/${WORKSPACE_ID}/system/custom/credentials/${encodeURIComponent(id)}` }, { init: {
       method: "PUT",
       body: JSON.stringify(input),
-    }),
+    } }),
   /** `204`, idempotent. */
-  deleteCustomCredential: (id: string) => request<void>(`/workspaces/${WORKSPACE_ID}/system/custom/credentials/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  deleteCustomCredential: ({ id }: { id: string }, _optional: Record<string, never> = {}) => request<void>({ path: `/workspaces/${WORKSPACE_ID}/system/custom/credentials/${encodeURIComponent(id)}` }, { init: { method: "DELETE" } }),
 
 
   // Publish Content — the peer push ceremony behind the Dashboard's "Publish Content"
@@ -4414,20 +4406,20 @@ export const api = {
   // never returned to it — `PublishContentPeerSummary` carries `masked`/`hasCredential` and nothing
   // else credential-shaped (Task 10 owns the sealing).
   listPublishContentPeers: () =>
-    request<{ peers: PublishContentPeerSummary[] }>(`/workspaces/${WORKSPACE_ID}/publish-content/peers`),
+    request<{ peers: PublishContentPeerSummary[] }>({ path: `/workspaces/${WORKSPACE_ID}/publish-content/peers` }),
   /** Zero-setup connect — reads whether this install already publishes somewhere, and if not, the
    *  candidate pre-filled from the repo's own deploy config
    *  (`routes/publish-content/destination.ts`). Nothing credential-shaped is ever in this response:
    *  see that route's own header for why. */
-  getPublishDestination: () => request<AdminPublishDestinationView>(publishContentDestinationPath()),
+  getPublishDestination: () => request<AdminPublishDestinationView>({ path: publishContentDestinationPath() }),
   /** The one action that turns a fresh install into a connected one — no key is minted, displayed
    *  or copied. `siteUrl` is optional; omitted, the server falls back to its own candidate, which is
    *  the only path the Dashboard's empty-state offer uses. */
   connectPublishDestination: (input: { siteUrl?: string } = {}) =>
-    request<AdminPublishDestinationView>(`${publishContentDestinationPath()}/connect`, {
+    request<AdminPublishDestinationView>({ path: `${publishContentDestinationPath()}/connect` }, { init: {
       method: "POST",
       body: JSON.stringify(input),
-    }),
+    } }),
   /** `selectedEntityKeys` (the report rows' own `entityType:entityId` keys) narrows the bundle this
    *  push stages on the peer BEFORE it plans — omitted means "everything", which is what an
    *  untouched dialog sends. See `features/publish-content/export-bundle.ts`'s `selectBundleEntities`
@@ -4451,7 +4443,7 @@ export const api = {
     overwriteEntityKeys?: readonly string[];
     scope?: PublishScope;
   }) =>
-    request<PublishContentPlanResult>(`${publishContentPeerPath(peerId)}/push/plan`, {
+    request<PublishContentPlanResult>({ path: `${publishContentPeerPath({ peerId })}/push/plan` }, { init: {
       method: "POST",
       ...(selectedEntityKeys === undefined && overwriteEntityKeys === undefined && scope === undefined
         ? {}
@@ -4462,15 +4454,15 @@ export const api = {
               ...(scope === undefined ? {} : { scope }),
             }),
           }),
-    }),
+    } }),
   confirmPublishContent: (
     { peerId, planId, planHash }: { peerId: string; planId: string; planHash: string },
     _options: Record<string, never> = {}
   ) =>
-    request<PublishContentConfirmResult>(`${publishContentPeerPath(peerId)}/push/confirm`, {
+    request<PublishContentConfirmResult>({ path: `${publishContentPeerPath({ peerId })}/push/confirm` }, { init: {
       method: "POST",
       body: JSON.stringify({ planId, planHash }),
-    }),
+    } }),
   /** `bundleId` comes from `planPublishContent`'s own response and is required: the peer's
    *  `/import/execute` refuses a confirmation token against any bundle but the one it planned.
    *  `overwriteEntityKeys` (publish-overwrite-live-plan §4/S9) is echoed straight from the confirmed
@@ -4485,8 +4477,8 @@ export const api = {
     }: { peerId: string; bundleId: string; confirmationToken: string; overwriteEntityKeys?: readonly string[] },
     _options: Record<string, never> = {}
   ) =>
-    request<PublishContentExecuteResult>(`${publishContentPeerPath(peerId)}/push/execute`, {
+    request<PublishContentExecuteResult>({ path: `${publishContentPeerPath({ peerId })}/push/execute` }, { init: {
       method: "POST",
       body: JSON.stringify({ bundleId, confirmationToken, ...(overwriteEntityKeys === undefined ? {} : { overwriteEntityKeys }) }),
-    }),
+    } }),
 };

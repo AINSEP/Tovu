@@ -66,7 +66,7 @@ describe("MediaPickerDialog — loading/error/empty", () => {
   });
 
   it("shows a describable error notice on a failed fetch", async () => {
-    vi.spyOn(api, "listMedia").mockRejectedValue(new ApiError("media table locked", 500));
+    vi.spyOn(api, "listMedia").mockRejectedValue(new ApiError({ message: "media table locked", status: 500 }));
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} />);
     expect(await screen.findByText("media table locked")).toBeInTheDocument();
   });
@@ -89,7 +89,7 @@ describe("MediaPickerDialog — populated grid", () => {
     // only wins as an accessible-name fallback when there's no content — not the case here.
     const item = await screen.findByTitle("Sunset");
     const img = item.querySelector("img");
-    expect(img).toHaveAttribute("src", api.mediaOriginalUrl("m1"));
+    expect(img).toHaveAttribute("src", api.mediaOriginalUrl({ id: "m1" }));
     expect(img).toHaveAttribute("alt", "A sunset over water");
     expect(item).toHaveTextContent("Sunset");
   });
@@ -128,8 +128,8 @@ describe("MediaPickerDialog — populated grid", () => {
     // `defaultMediaPickerPort.mediaOriginalUrl` forwards to the real `api.mediaOriginalUrl`, so the
     // real client is exercised through the port here — the assertion below is the seam proof; the
     // "useDialog injection" describe block further down is the fake-value proof.
-    expect(mediaOriginalUrlSpy).toHaveBeenCalledWith("m1");
-    expect(img).toHaveAttribute("src", api.mediaOriginalUrl("m1"));
+    expect(mediaOriginalUrlSpy).toHaveBeenCalledWith({ id: "m1" });
+    expect(img).toHaveAttribute("src", api.mediaOriginalUrl({ id: "m1" }));
   });
 });
 
