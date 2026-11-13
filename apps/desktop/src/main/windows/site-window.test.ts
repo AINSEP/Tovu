@@ -56,7 +56,7 @@ function harness(overrides: Partial<SiteWindowPorts<FakeServer, FakeWindow, Ctx>
   const backendCalls: Array<{ siteDir: string; ctx: Ctx; port?: number }> = [];
   const ports: SiteWindowPorts<FakeServer, FakeWindow, Ctx> = {
     openSites,
-    startSiteBackend: async ({ siteDir, ctx }, options) => {
+    startSiteBackend: async ({ siteDir, ctx }, options = {}) => {
       backendCalls.push({ siteDir, ctx, ...options });
       spawned++;
       log.push(`spawn ${siteDir}`);
@@ -64,7 +64,7 @@ function harness(overrides: Partial<SiteWindowPorts<FakeServer, FakeWindow, Ctx>
     },
     sitePartition: (siteDir) => `persist:${siteDir}`,
     createWindow: ({ url, title, partition }) => { log.push(`window ${url} ${title} ${partition}`); return fakeWindow(`w${log.length}`); },
-    readSiteName: (siteDir) => `Name of ${siteDir}`,
+    readSiteName: ({ siteDir }) => `Name of ${siteDir}`,
     recordSiteClosed: ({ registryPath, siteDir, pid }) => { log.push(`row-closed ${registryPath} ${siteDir} ${pid}`); },
     siteThemePreviews: {
       sync: ({ siteDir }) => { log.push(`theme-sync ${siteDir}`); },
@@ -75,7 +75,7 @@ function harness(overrides: Partial<SiteWindowPorts<FakeServer, FakeWindow, Ctx>
     trackTeardown: ({ promise }) => tracker.track({ promise }),
     platform: "win32",
     quitPhase: () => quitPhase,
-    logError: (message) => { log.push(`error ${message}`); },
+    logError: ({ message }) => { log.push(`error ${message}`); },
     ...overrides,
   };
   return { ports, log, openSites, tracker, backendCalls, setQuitPhase: (phase: QuitPhase) => { quitPhase = phase; } };

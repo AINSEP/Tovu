@@ -9,7 +9,7 @@
 /** One verifier run's ledger. */
 interface CheckLog {
   /** Record one check, printing `PASS:: <name> — <detail>` or `FAIL:: <name> — <detail>`. */
-  check(name: string, ok: boolean, detail: string): void;
+  check(required: { name: string; ok: boolean; detail: string }, optional?: {}): void;
   /** Print the verdict: every failure (exit 1) or `VERIFY_OK` (exit 0). */
   report(): 0 | 1;
 }
@@ -21,7 +21,7 @@ interface CheckLog {
 export function createCheckLog({ log }: { log: (line: string) => void }): CheckLog {
   const failures: string[] = [];
   return {
-    check(name, ok, detail) {
+    check({ name, ok, detail }, _optional = {}) {
       log(`${ok ? "PASS" : "FAIL"}:: ${name} — ${detail}`);
       if (!ok) failures.push(`${name}: ${detail}`);
     },

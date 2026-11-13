@@ -33,7 +33,7 @@ export function ensureIndependentSiteIdentity({ siteDir }: { siteDir: string }, 
 
   const marker = path.join(canonical, ".site-meta.json");
   try {
-    withFileLock(marker, () => replaceCopiedIdentity({ marker, id }, { ...options, workspace }));
+    withFileLock({ filePath: marker, critical: () => replaceCopiedIdentity({ marker, id }, { ...options, workspace }) });
   } catch (error) {
     throw new Error("This copied website could not start because Tovu could not give its folder a separate identity.", { cause: error });
   }

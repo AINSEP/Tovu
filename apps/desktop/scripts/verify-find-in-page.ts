@@ -80,7 +80,7 @@ const countText = (win: Page): Promise<string> =>
 async function waitForCount(win: Page, timeoutMs = 6000): Promise<Count | null> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
-    const parsed = parseCount(await countText(win));
+    const parsed = parseCount({ text: await countText(win) });
     if (parsed !== null || Date.now() > deadline) return parsed;
     await win.waitForTimeout(250);
   }
@@ -130,7 +130,7 @@ async function pressEnter(
   for (let i = 0; i < times; i += 1) {
     await win.keyboard.press(modifier ? `${modifier}+Enter` : 'Enter');
     await win.waitForTimeout(450);
-    seen.push(parseCount(await countText(win)));
+    seen.push(parseCount({ text: await countText(win) }));
     if (shotName) await shot(win, `${shotName}-${i + 1}`);
   }
   return seen;
@@ -140,11 +140,11 @@ async function pressEnter(
  *  is currently open over. */
 async function verifyCycling(win: Page, start: Count): Promise<void> {
   const forward = await pressEnter(win, 3, { shotName: 'projects-enter' });
-  check('ENTER_ADVANCES', advancesEveryStep(start.ordinal, forward, start.total), `${start.ordinal} -> ${forward.map((s) => s?.ordinal).join(' -> ')} of ${start.total}`);
-  const here = parseCount(await countText(win));
+  check({ name: 'ENTER_ADVANCES', ok: advancesEveryStep({ start: start.ordinal, steps: forward, total: start.total }), detail: `${start.ordinal} -> ${forward.map((s) => s?.ordinal).join(' -> ')} of ${start.total}` });
+  const here = parseCount({ text: await countText(win) });
   const [back] = await pressEnter(win, 1, { modifier: 'Shift', shotName: 'projects-shift-enter' });
-  const expectedBack = previousOrdinal(here);
-  check('SHIFT_ENTER_GOES_BACK', back != null && back.ordinal === expectedBack, `${here?.ordinal} -> ${back?.ordinal} (expected ${expectedBack}) of ${here?.total}`);
+  const expectedBack = previousOrdinal({ count: here });
+  check({ name: 'SHIFT_ENTER_GOES_BACK', ok: back != null && back.ordinal === expectedBack, detail: `${here?.ordinal} -> ${back?.ordinal} (expected ${expectedBack}) of ${here?.total}` });
 }
 
 /** Re-focuses the find input, optionally clears the document selection, issues a raw
@@ -157,7 +157,7 @@ async function rawFindFromInput(
 ): Promise<{ before: Count | null; after: Count | null }> {
   await win.evaluate(() => document.querySelector<HTMLInputElement>('.findbar__input')?.focus());
   await win.waitForTimeout(250);
-  const before = parseCount(await countText(win));
+  const before = parseCount({ text: await countText(win) });
   if (clearSelection) await win.evaluate(() => document.getSelection()?.removeAllRanges());
   await app.evaluate(
     ({ BrowserWindow }, { id, findText }) => {
@@ -166,23 +166,23 @@ async function rawFindFromInput(
     { id: homeWindowId, findText: query },
   );
   await win.waitForTimeout(500);
-  return { before, after: parseCount(await countText(win)) };
+  return { before, after: parseCount({ text: await countText(win) }) };
 }
 
 /** CHROMIUM_ANCHOR: the platform behaviour the fix compensates for, pinned both ways. */
 async function verifyChromiumAnchor(app: ElectronApplication, win: Page, homeWindowId: number, query: string): Promise<void> {
   const anchored = await rawFindFromInput(app, win, homeWindowId, { query, clearSelection: false });
   check(
-    'CHROMIUM_ANCHOR_STILL_BITES',
-    anchored.after !== null && anchored.after.ordinal !== nextOrdinal(anchored.before),
-    `caret in the input: ${anchored.before?.ordinal} -> ${anchored.after?.ordinal} (a plain follow-up find must NOT advance; if it does, Chromium changed and runFind's selection clearing can go)`,
+    { name: 'CHROMIUM_ANCHOR_STILL_BITES',
+    ok: anchored.after !== null && anchored.after.ordinal !== nextOrdinal({ count: anchored.before }),
+    detail: `caret in the input: ${anchored.before?.ordinal} -> ${anchored.after?.ordinal} (a plain follow-up find must NOT advance; if it does, Chromium changed and runFind's selection clearing can go)` },
   );
 
   const cleared = await rawFindFromInput(app, win, homeWindowId, { query, clearSelection: true });
   check(
-    'CLEARING_THE_SELECTION_IS_WHAT_FIXES_IT',
-    cleared.after !== null && cleared.after.ordinal === nextOrdinal(cleared.before),
-    `selection cleared first: ${cleared.before?.ordinal} -> ${cleared.after?.ordinal} of ${cleared.before?.total}`,
+    { name: 'CLEARING_THE_SELECTION_IS_WHAT_FIXES_IT',
+    ok: cleared.after !== null && cleared.after.ordinal === nextOrdinal({ count: cleared.before }),
+    detail: `selection cleared first: ${cleared.before?.ordinal} -> ${cleared.after?.ordinal} of ${cleared.before?.total}` },
   );
 }
 
@@ -246,11 +246,11 @@ async function verifyNativeTyping(
   await win.waitForTimeout(500);
   const afterTyping = await inputState(win);
   check(
-    `${label}_EVERY_NATIVE_KEYSTROKE_LANDS`,
-    typed.ok && afterTyping.value === query,
-    typed.ok
+    { name: `${label}_EVERY_NATIVE_KEYSTROKE_LANDS`,
+    ok: typed.ok && afterTyping.value === query,
+    detail: typed.ok
       ? `input value = ${JSON.stringify(afterTyping.value)}, typed ${JSON.stringify(query)} as OS keystrokes at ${msPerKey}ms/key — "${query[0]}" alone means the browser routed every later key into the guest`
-      : typed.why,
+      : typed.why },
   );
   await shot(win, `${label.toLowerCase()}-native-typed`);
   await win.keyboard.press('Escape');
@@ -261,19 +261,19 @@ async function verifyTopLevel(app: ElectronApplication, win: Page, homeWindowId:
   await shot(win, 'projects-before-find');
   await verifyNativeTyping(app, win, homeWindowId, { label: 'TOP', query: 'website', msPerKey: 150 });
   await openBar(app, win, homeWindowId);
-  check('BAR_OPENS', await barOpen(win), 'find bar present after the menu channel fired');
+  check({ name: 'BAR_OPENS', ok: await barOpen(win), detail: 'find bar present after the menu channel fired' });
 
   // A query with several matches on the Projects screen. 'e' is deliberately unambitious: what is
   // under test is cycling, not matching.
   const query = 'e';
   await typeQuery(win, query);
   const afterTyping = await inputState(win);
-  check('INPUT_KEEPS_FOCUS', afterTyping.active === 'findbar__input', `activeElement after typing = ${afterTyping.active}`);
-  check('EVERY_KEYSTROKE_LANDS', afterTyping.value === query, `input value = ${JSON.stringify(afterTyping.value)}, typed ${JSON.stringify(query)}`);
+  check({ name: 'INPUT_KEEPS_FOCUS', ok: afterTyping.active === 'findbar__input', detail: `activeElement after typing = ${afterTyping.active}` });
+  check({ name: 'EVERY_KEYSTROKE_LANDS', ok: afterTyping.value === query, detail: `input value = ${JSON.stringify(afterTyping.value)}, typed ${JSON.stringify(query)}` });
 
   const start = await waitForCount(win);
   const enoughMatches = start !== null && start.total >= 3;
-  check('COUNTER_SHOWS_MATCHES', enoughMatches, `counter = ${JSON.stringify(await countText(win))}`);
+  check({ name: 'COUNTER_SHOWS_MATCHES', ok: enoughMatches, detail: `counter = ${JSON.stringify(await countText(win))}` });
   await shot(win, 'projects-typed');
   if (start === null || !enoughMatches) return;
 
@@ -282,7 +282,7 @@ async function verifyTopLevel(app: ElectronApplication, win: Page, homeWindowId:
 
   await win.keyboard.press('Escape');
   await win.waitForTimeout(400);
-  check('ESCAPE_CLOSES', !(await barOpen(win)), 'find bar gone after Escape');
+  check({ name: 'ESCAPE_CLOSES', ok: !(await barOpen(win)), detail: 'find bar gone after Escape' });
   await shot(win, 'projects-after-escape');
 }
 
@@ -330,15 +330,15 @@ async function openGuestTab(win: Page): Promise<{ available: boolean; attached: 
  */
 async function verifyColdGuest(app: ElectronApplication, win: Page, homeWindowId: number): Promise<void> {
   const { available, attached } = await openGuestTab(win);
-  check('COLD_GUEST_TAB_AVAILABLE', available, 'an openable project card exists in this profile');
+  check({ name: 'COLD_GUEST_TAB_AVAILABLE', ok: available, detail: 'an openable project card exists in this profile' });
   if (!available) return;
-  check('COLD_GUEST_ATTACHED', attached, 'a project tab webview attached with a real src, before any find has run on this window');
+  check({ name: 'COLD_GUEST_ATTACHED', ok: attached, detail: 'a project tab webview attached with a real src, before any find has run on this window' });
   if (!attached) return;
   await win.waitForTimeout(6000);
   await shot(win, 'cold-tab-loaded');
 
   await openBar(app, win, homeWindowId);
-  check('COLD_GUEST_BAR_OPENS', await barOpen(win), 'find bar present over the project tab, window still cold');
+  check({ name: 'COLD_GUEST_BAR_OPENS', ok: await barOpen(win), detail: 'find bar present over the project tab, window still cold' });
 
   // 'the' rather than a site-specific word like 'site': it must be a query this test can trust to
   // MATCH regardless of which project fixture the profile happens to have (measured "No results"
@@ -348,33 +348,33 @@ async function verifyColdGuest(app: ElectronApplication, win: Page, homeWindowId
   await typeQuery(win, query, 80);
   const afterTyping = await inputState(win);
   const hasFocus = await win.evaluate(() => document.hasFocus());
-  check('COLD_GUEST_INPUT_KEEPS_FOCUS', afterTyping.active === 'findbar__input', `activeElement after typing = ${afterTyping.active}`);
+  check({ name: 'COLD_GUEST_INPUT_KEEPS_FOCUS', ok: afterTyping.active === 'findbar__input', detail: `activeElement after typing = ${afterTyping.active}` });
   check(
-    'COLD_GUEST_EVERY_KEYSTROKE_LANDS',
-    afterTyping.value === query,
-    `input value = ${JSON.stringify(afterTyping.value)}, typed ${JSON.stringify(query)} — a cold guest focus theft used to drop every letter after the first`,
+    { name: 'COLD_GUEST_EVERY_KEYSTROKE_LANDS',
+    ok: afterTyping.value === query,
+    detail: `input value = ${JSON.stringify(afterTyping.value)}, typed ${JSON.stringify(query)} — a cold guest focus theft used to drop every letter after the first` },
   );
   check(
-    'COLD_GUEST_DOCUMENT_HAS_FOCUS',
-    hasFocus,
-    `document.hasFocus() = ${hasFocus} — activeElement alone does not catch a guest theft, since the host keeps reporting the input as active even after losing page focus`,
+    { name: 'COLD_GUEST_DOCUMENT_HAS_FOCUS',
+    ok: hasFocus,
+    detail: `document.hasFocus() = ${hasFocus} — activeElement alone does not catch a guest theft, since the host keeps reporting the input as active even after losing page focus` },
   );
   await shot(win, 'cold-tab-typed');
 
   const start = await waitForCount(win);
-  check('COLD_GUEST_COUNTER_SHOWS_MATCHES', start !== null && start.total >= 1, `counter = ${JSON.stringify(await countText(win))}`);
+  check({ name: 'COLD_GUEST_COUNTER_SHOWS_MATCHES', ok: start !== null && start.total >= 1, detail: `counter = ${JSON.stringify(await countText(win))}` });
   if (start === null) return;
 
   const forward = await pressEnter(win, 1, { shotName: 'cold-tab-enter' });
   check(
-    'COLD_GUEST_ENTER_ADVANCES',
-    advancesEveryStep(start.ordinal, forward, start.total),
-    `${start.ordinal} -> ${forward.map((s) => s?.ordinal).join(' -> ')} of ${start.total}`,
+    { name: 'COLD_GUEST_ENTER_ADVANCES',
+    ok: advancesEveryStep({ start: start.ordinal, steps: forward, total: start.total }),
+    detail: `${start.ordinal} -> ${forward.map((s) => s?.ordinal).join(' -> ')} of ${start.total}` },
   );
 
   await win.keyboard.press('Escape');
   await win.waitForTimeout(400);
-  check('COLD_GUEST_ESCAPE_CLOSES', !(await barOpen(win)), 'find bar gone after Escape');
+  check({ name: 'COLD_GUEST_ESCAPE_CLOSES', ok: !(await barOpen(win)), detail: 'find bar gone after Escape' });
 
   // Back to the Projects screen so `verifyTopLevel` and `verifyGuest` start from the surface they
   // expect — the only route home (see `App.tsx`'s `TabStrip` doc: the "All" tab is not closable by
@@ -390,9 +390,9 @@ async function verifyColdGuest(app: ElectronApplication, win: Page, homeWindowId
 
 async function verifyGuest(app: ElectronApplication, win: Page, homeWindowId: number): Promise<void> {
   const { available, attached } = await openGuestTab(win);
-  check('GUEST_TAB_AVAILABLE', available, 'an openable project card exists in this profile — the guest path went unverified');
+  check({ name: 'GUEST_TAB_AVAILABLE', ok: available, detail: 'an openable project card exists in this profile — the guest path went unverified' });
   if (!available) return;
-  check('GUEST_ATTACHED', attached, 'a project tab webview attached with a real src');
+  check({ name: 'GUEST_ATTACHED', ok: attached, detail: 'a project tab webview attached with a real src' });
   if (!attached) return;
   await win.waitForTimeout(6000);
   await shot(win, 'tab-loaded');
@@ -400,7 +400,7 @@ async function verifyGuest(app: ElectronApplication, win: Page, homeWindowId: nu
   await verifyNativeTyping(app, win, homeWindowId, { label: 'GUEST', query: 'the', msPerKey: 150 });
 
   await openBar(app, win, homeWindowId);
-  check('GUEST_BAR_OPENS', await barOpen(win), 'find bar present over the project tab');
+  check({ name: 'GUEST_BAR_OPENS', ok: await barOpen(win), detail: 'find bar present over the project tab' });
 
   // WHERE a guest's find is reported is Chromium's choice, not ours, and it is not stable:
   // `WebContents::GetFindRequestManager` walks up the outer-WebContents chain and reuses the first
@@ -421,22 +421,22 @@ async function verifyGuest(app: ElectronApplication, win: Page, homeWindowId: nu
   const query = 'e';
   await typeQuery(win, query);
   const afterTyping = await inputState(win);
-  check('GUEST_INPUT_KEEPS_FOCUS', afterTyping.active === 'findbar__input', `activeElement after typing = ${afterTyping.active}`);
-  check('GUEST_EVERY_KEYSTROKE_LANDS', afterTyping.value === query, `input value = ${JSON.stringify(afterTyping.value)}`);
+  check({ name: 'GUEST_INPUT_KEEPS_FOCUS', ok: afterTyping.active === 'findbar__input', detail: `activeElement after typing = ${afterTyping.active}` });
+  check({ name: 'GUEST_EVERY_KEYSTROKE_LANDS', ok: afterTyping.value === query, detail: `input value = ${JSON.stringify(afterTyping.value)}` });
 
   const start = await waitForCount(win);
-  check('GUEST_COUNTER_SHOWS_MATCHES', start !== null && start.total >= 3, `counter = ${JSON.stringify(await countText(win))}`);
+  check({ name: 'GUEST_COUNTER_SHOWS_MATCHES', ok: start !== null && start.total >= 3, detail: `counter = ${JSON.stringify(await countText(win))}` });
   await shot(win, 'tab-typed');
   if (start === null || start.total < 3) return;
 
   const forward = await pressEnter(win, 3, { shotName: 'tab-enter' });
-  check('GUEST_ENTER_ADVANCES', advancesEveryStep(start.ordinal, forward, start.total), `${start.ordinal} -> ${forward.map((s) => s?.ordinal).join(' -> ')} of ${start.total}`);
+  check({ name: 'GUEST_ENTER_ADVANCES', ok: advancesEveryStep({ start: start.ordinal, steps: forward, total: start.total }), detail: `${start.ordinal} -> ${forward.map((s) => s?.ordinal).join(' -> ')} of ${start.total}` });
   const topLevelFinds = await app.evaluate(() => (globalThis as { __topLevelFinds?: number }).__topLevelFinds ?? -1);
-  const here = parseCount(await countText(win));
+  const here = parseCount({ text: await countText(win) });
   check(
-    'GUEST_CONTENT_IS_SEARCHED',
-    here !== null && here.total > 30,
-    `${here?.total} matches over the tab (the Projects screen alone reports ~12 for this query, so a search that reached only the shell would land there); the window's own webContents reported ${topLevelFinds} of these results, which is Chromium's find-manager reuse, not a routing fallback`,
+    { name: 'GUEST_CONTENT_IS_SEARCHED',
+    ok: here !== null && here.total > 30,
+    detail: `${here?.total} matches over the tab (the Projects screen alone reports ~12 for this query, so a search that reached only the shell would land there); the window's own webContents reported ${topLevelFinds} of these results, which is Chromium's find-manager reuse, not a routing fallback` },
   );
 }
 

@@ -14,20 +14,20 @@
  *
  * Best-effort: a missing or unreadable icon file must not stop the app booting.
  *
- * @param dock `app.dock`; `undefined` off macOS.
- * @param iconPath the Tovu mark's PNG.
- * @param log where a failure is reported.
+ * @param required.dock `app.dock`; `undefined` off macOS.
+ * @param required.iconPath the Tovu mark's PNG.
+ * @param required.log where a failure is reported.
  * @complexity O(1).
  */
 function applyDockIcon(
-  { dock, iconPath, log }: { dock: { setIcon(iconPath: string): void } | undefined; iconPath: string; log: (message: string) => void },
+  { dock, iconPath, log }: { dock: { setIcon(iconPath: string): void } | undefined; iconPath: string; log: (required: { message: string }) => void },
   _optional = {},
 ): void {
   if (!dock) return;
   try {
     dock.setIcon(iconPath);
   } catch (error) {
-    log(`tovu desktop: could not set the dock icon (${(error as Error).message}) — using the default.`);
+    log({ message: `tovu desktop: could not set the dock icon (${(error as Error).message}) — using the default.` });
   }
 }
 

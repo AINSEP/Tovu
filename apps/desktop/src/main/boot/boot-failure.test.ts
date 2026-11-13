@@ -13,16 +13,16 @@ function harness(overrides: Partial<BootFailurePorts> = {}) {
   const effects: string[] = [];
   const infos: unknown[] = [];
   const ports: BootFailurePorts = {
-    isSelectionCancelled: (error) => error instanceof Cancelled,
+    isSelectionCancelled: ({ error }) => error instanceof Cancelled,
     selftest: false,
     isUnattended: () => false,
     showInfo: async (options) => { effects.push("info"); infos.push(options); },
     showError: ({ title, content }) => { effects.push(`errorBox:${title}:${content}`); },
-    logError: (message) => { effects.push(`log:${message}`); },
-    setExitCode: (code) => { effects.push(`exitCode:${code}`); },
+    logError: ({ message }) => { effects.push(`log:${message}`); },
+    setExitCode: ({ code }) => { effects.push(`exitCode:${code}`); },
     openSiteCount: () => 0,
     quit: () => { effects.push("quit"); },
-    exit: (code) => { effects.push(`exit:${code}`); },
+    exit: ({ code }) => { effects.push(`exit:${code}`); },
     ...overrides,
   };
   return { ports, effects, infos };
@@ -95,9 +95,9 @@ function selftestHarness(expectedCount: number) {
   const out: string[] = [];
   const tracker = buildSelftestTracker({
     expectedCount,
-    log: (message) => out.push(`log:${message}`),
-    logError: (message) => out.push(`error:${message}`),
-    setExitCode: (code) => out.push(`exitCode:${code}`),
+    log: ({ message }) => out.push(`log:${message}`),
+    logError: ({ message }) => out.push(`error:${message}`),
+    setExitCode: ({ code }) => out.push(`exitCode:${code}`),
     quit: () => out.push("quit"),
   });
   return { tracker, out };

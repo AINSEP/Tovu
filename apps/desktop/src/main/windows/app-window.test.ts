@@ -110,7 +110,7 @@ test("the page may not retitle the window", () => {
 test("the boundary is the loaded URL's parsed origin, not a string prefix", () => {
   const fake = fakeWindowFactory();
   const opened: string[] = [];
-  createAppWindow({ url: `${APP}/admin/pages?x=1`, createBrowserWindow: fake.create, preloadPath: "/p", openExternal: (u) => opened.push(u) });
+  createAppWindow({ url: `${APP}/admin/pages?x=1`, createBrowserWindow: fake.create, preloadPath: "/p", openExternal: ({ url }) => opened.push(url) });
   assert.equal(fake.navigate(`${APP}/admin/media`), false, "same origin stays in the window");
   assert.equal(fake.navigate(`${APP}@evil.example/admin`), true, "userinfo is not the host");
   assert.equal(fake.navigate("http://127.0.0.1:4568/admin"), true, "another port is another origin");

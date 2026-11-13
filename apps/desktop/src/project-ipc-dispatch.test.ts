@@ -53,11 +53,11 @@ function fixture({ t }: { t: TestContext }) {
     repoRoot: path.join(root, "repo"),
     statePath: path.join(root, "state", "desktop-state.json"),
     cliMode: "source",
-    readSiteName: (dir) => (JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")) as { name: string }).name,
+    readSiteName: ({ siteDir: dir }) => (JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")) as { name: string }).name,
     writeSiteName,
-    readPreviewVersion: (dir) => previews.has(dir) ? 7 : null,
-    readPreviewDataUrl: (dir) => previews.get(dir) ?? null,
-    deletePreview: (dir) => { deletedPreviews.push(dir); previews.delete(dir); },
+    readPreviewVersion: ({ siteDir }) => previews.has(siteDir) ? 7 : null,
+    readPreviewDataUrl: ({ id }) => previews.get(id) ?? null,
+    deletePreview: ({ id }) => { deletedPreviews.push(id); previews.delete(id); },
     adoptSiteDir: async (input) => {
       adoptions.push(input);
       fs.mkdirSync(input.dir, { recursive: true });
@@ -68,7 +68,7 @@ function fixture({ t }: { t: TestContext }) {
     addSitePointer,
     listTokenSignInPlugins: async () => [],
     classifySiteDir: classifySiteDirSafely,
-    openSiteServer: async (dir) => {
+    openSiteServer: async ({ siteDir: dir }) => {
       deps.openSites.set(dir, { server: { port: 4321, origin: "http://127.0.0.1:4321", pid: 12345,
         stop: async () => { stops += 1; } } });
     },
@@ -217,7 +217,7 @@ test("registered delete drains the selected adopted site and removes only its ca
   trackSite(f.deps.projectsPath, keep);
   const contentPath = path.join(id, "content.db");
   fs.writeFileSync(contentPath, "adopted site's bytes");
-  await f.deps.openSiteServer(id, f.deps.ctx);
+  await f.deps.openSiteServer({ siteDir: id, ctx: f.deps.ctx });
   f.previews.set(id, "data:image/png;base64,AA==");
   const result = await f.invoke({ channel: SITE_IPC_CHANNELS.delete, payload: id });
   assert.equal(result, undefined);
@@ -234,7 +234,7 @@ test("registered delete drains the selected adopted site and removes only its ca
 test("registered browser handoff routes each requested surface to the selected running site", async (t) => {
   const f = fixture({ t });
   const id = f.site({ name: "external" });
-  await f.deps.openSiteServer(id, f.deps.ctx);
+  await f.deps.openSiteServer({ siteDir: id, ctx: f.deps.ctx });
   for (const view of ["site", "admin"]) {
     await f.invoke({ channel: SITE_IPC_CHANNELS.openExternal, payload: { siteId: id, view } });
   }
@@ -256,8 +256,8 @@ test("registered rename updates the selected config, returned name and native wi
   const renamed = f.invoke({ channel: SITE_IPC_CHANNELS.rename, payload: { id, name: "  New display name  " } });
   assert.equal(renamed.id, id);
   assert.equal(renamed.displayName, "New display name");
-  assert.equal(f.deps.readSiteName(id), "New display name");
-  assert.equal(f.deps.readSiteName(other), "leave-me");
+  assert.equal(f.deps.readSiteName({ siteDir: id }), "New display name");
+  assert.equal(f.deps.readSiteName({ siteDir: other }), "leave-me");
   assert.deepEqual(titles, ["New display name"]);
 });
 
@@ -381,7 +381,7 @@ test("registered Start attaches through the host port and retains the external o
   const f = sharedFixture({ t }), id = f.site({ name: "external-start" });
   trackSite(f.deps.projectsPath, id);
   const claim = f.workspace.claim({ path: id, app: "Web", port: 3456, scheme: "https" });
-  f.deps.openSiteServer = async (dir) => {
+  f.deps.openSiteServer = async ({ siteDir: dir }) => {
     const server = attachRunningSite({ workspace: f.workspace, dir }); assert.ok(server);
     f.deps.openSites.set(dir, { server });
   };

@@ -8,7 +8,7 @@ import { createSelftestTracker, type SelftestTracker } from "../../selftest-trac
 /** The process and dialog effects a boot failure may apply. */
 export interface BootFailurePorts {
   /** `error instanceof SiteDirSelectionCancelled` (`site-dir-store.ts`). */
-  isSelectionCancelled: (error: Error) => boolean;
+  isSelectionCancelled: (required: { error: Error }) => boolean;
   /** `TOVU_DESKTOP_SELFTEST === "1"` for this launch. */
   selftest: boolean;
   /** `startup-env.ts`'s `isUnattendedSiteLaunch` over this launch's env; read only when needed. */
@@ -17,12 +17,12 @@ export interface BootFailurePorts {
   showInfo: (options: { type: "info"; title: string; message: string; detail: string }) => Promise<unknown>;
   /** `dialog.showErrorBox`. */
   showError: (required: { title: string; content: string }) => void;
-  logError: (message: string) => void;
-  setExitCode: (code: number) => void;
+  logError: (required: { message: string }) => void;
+  setExitCode: (required: { code: number }) => void;
   /** `openSites.size`. */
   openSiteCount: () => number;
   quit: () => void;
-  exit: (code: number) => void;
+  exit: (required: { code: number }) => void;
 }
 
 /** Cancelling the folder picker is the user declining to start: say so (unless headless), exit 0. */
@@ -56,12 +56,12 @@ function shouldShowErrorBox(ports: BootFailurePorts): boolean {
  * @complexity O(1).
  */
 export async function reportBootFailure({ error, ports }: { error: Error; ports: BootFailurePorts }, _optional = {}): Promise<void> {
-  if (ports.isSelectionCancelled(error)) {
+  if (ports.isSelectionCancelled({ error })) {
     await reportDeclinedStart(ports);
     return;
   }
-  ports.logError(`tovu desktop: ${error.message}`);
-  ports.setExitCode(1);
+  ports.logError({ message: `tovu desktop: ${error.message}` });
+  ports.setExitCode({ code: 1 });
   if (shouldShowErrorBox(ports)) ports.showError({ title: "Tovu could not start", content: error.message });
   // `app.exit(1)` ONLY when nothing is open — a boot failure this early (resolving which site
   // dir(s) to serve, before any window exists) always has `openSites` empty, so there is nothing
@@ -72,7 +72,7 @@ export async function reportBootFailure({ error, ports }: { error: Error; ports:
   // multi-dir launch failing after an earlier one succeeded), `app.quit()` stays exactly as before
   // so `before-quit` still gets the chance to stop that child gracefully; that path's exit code is
   // unchanged pre-existing behavior, not something this fix touches.
-  if (ports.openSiteCount() === 0) ports.exit(1);
+  if (ports.openSiteCount() === 0) ports.exit({ code: 1 });
   else ports.quit();
 }
 
@@ -86,19 +86,19 @@ export async function reportBootFailure({ error, ports }: { error: Error; ports:
  */
 export function buildSelftestTracker({ expectedCount, log, logError, setExitCode, quit }: {
   expectedCount: number;
-  log: (message: string) => void;
-  logError: (message: string) => void;
-  setExitCode: (code: number) => void;
+  log: (required: { message: string }) => void;
+  logError: (required: { message: string }) => void;
+  setExitCode: (required: { code: number }) => void;
   quit: () => void;
 }, _optional = {}): SelftestTracker {
   return createSelftestTracker(expectedCount, {
     onWindowLoaded: ({ url, title }) => {
-      log(`tovu desktop: loaded ${url}`);
-      log(`tovu desktop: title=${JSON.stringify(title)}`);
+      log({ message: `tovu desktop: loaded ${url}` });
+      log({ message: `tovu desktop: title=${JSON.stringify(title)}` });
     },
     onWindowFailed: ({ url, code, description }) => {
-      logError(`tovu desktop: FAILED to load ${url} (${code} ${description})`);
-      setExitCode(1);
+      logError({ message: `tovu desktop: FAILED to load ${url} (${code} ${description})` });
+      setExitCode({ code: 1 });
     },
     onAllSettled: () => quit(),
   });

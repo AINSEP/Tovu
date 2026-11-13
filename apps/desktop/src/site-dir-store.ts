@@ -120,7 +120,7 @@ function readDesktopState(statePath: string): DesktopState {
  * @complexity O(n) in file size.
  */
 function readRecentSiteDirs(statePath: string): RecentSiteDirsRead {
-  const read = readJsonFile(statePath);
+  const read = readJsonFile({ filePath: statePath });
   if (read.state === "missing") return { recentSiteDirs: [], damaged: false };
   const recent = (read.state === "ok" ? read.value : null) as { recentSiteDirs?: unknown } | null;
   if (!Array.isArray(recent?.recentSiteDirs)) return { recentSiteDirs: [], damaged: true };
@@ -137,7 +137,7 @@ function readRecentSiteDirs(statePath: string): RecentSiteDirsRead {
  * @complexity O(n) in the MRU length.
  */
 function writeDesktopState(statePath: string, state: DesktopState): void {
-  writeJsonFileAtomic(statePath, state);
+  writeJsonFileAtomic({ filePath: statePath, value: state });
 }
 
 /**
@@ -165,13 +165,13 @@ function rememberSiteDir(statePath: string, dir: string, { workspace }: { worksp
     rememberSharedSiteOpen({ workspace, dir });
     return existingRecentSiteDirs(statePath, { workspace });
   }
-  return withFileLock(statePath, () => {
+  return withFileLock({ filePath: statePath, critical: () => {
     const previous = readRecentSiteDirs(statePath);
     const recentSiteDirs = [dir, ...previous.recentSiteDirs.filter((entry) => entry !== dir)].slice(0, MAX_RECENT_SITE_DIRS);
-    if (previous.damaged && !quarantineUnreadableFile(statePath, RECENT_SITES_QUARANTINE_NOTICE)) return recentSiteDirs;
+    if (previous.damaged && !quarantineUnreadableFile({ filePath: statePath, notice: RECENT_SITES_QUARANTINE_NOTICE })) return recentSiteDirs;
     writeDesktopState(statePath, { recentSiteDirs });
     return recentSiteDirs;
-  });
+  } });
 }
 
 /**

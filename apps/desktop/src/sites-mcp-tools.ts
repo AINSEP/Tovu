@@ -73,7 +73,7 @@ type ClassifySiteDirFn = typeof classifySiteDirSafely;
 interface ToolContext {
   userDataDir?: string;
   projectsPath: string;
-  revealPath: (target: string) => Promise<void>;
+  revealPath: (required: { target: string }) => Promise<void>;
   classifySiteDir?: ClassifySiteDirFn;
 }
 
@@ -248,7 +248,7 @@ async function revealSiteFolder(args: ToolArgs, context: ToolContext): Promise<T
     );
   }
 
-  await context.revealPath(siteDir);
+  await context.revealPath({ target: siteDir });
   return {
     structured: { siteDir, revealed: true },
     text: `Opened ${siteDir} in a file-manager window. You can act on the folder there yourself — nothing was changed.`,

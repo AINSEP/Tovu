@@ -15,7 +15,7 @@ function tempDir(): string {
 }
 
 test("the presence directory is `instances` inside userData", () => {
-  assert.equal(presenceDirPath("/u"), path.join("/u", "instances"));
+  assert.equal(presenceDirPath({ userDataDir: "/u" }), path.join("/u", "instances"));
 });
 
 test("a written record reads back, and a heartbeat overwrites it in place", () => {

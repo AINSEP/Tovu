@@ -38,7 +38,7 @@ function distinctRoots({ roots }: { roots: string[] }, _options = {}): string[] 
  * @complexity O(n) in settings size.
  */
 function readStoredFolders({ filePath }: { filePath: string }, _options = {}): { stored: StoredSiteFolders; damaged: boolean } {
-  const result = readJsonFile(filePath);
+  const result = readJsonFile({ filePath });
   const value = result.state === 'ok' ? result.value as Partial<StoredSiteFolders> | null : null;
   if (!Array.isArray(value?.creationRoots) || !Array.isArray(value.extraRoots)) {
     return { stored: { creationRoots: [], extraRoots: [] }, damaged: result.state !== 'missing' };
@@ -81,13 +81,13 @@ export function createSiteFolders({ statePath, defaultRoots, createdSiteDirs = (
   };
   /** Preserve sibling-process edits and damaged bytes across a settings mutation. */
   const update = (change: (stored: StoredSiteFolders) => StoredSiteFolders): void => {
-    withFileLock(filePath, () => {
+    withFileLock({ filePath, critical: () => {
       const { stored, damaged } = readStoredFolders({ filePath });
-      if (damaged && !quarantine(filePath, {
+      if (damaged && !quarantine({ filePath, notice: {
         label: 'sites folders settings', consequence: 'the previous folder settings are only in that copy now.',
-      })) throw new Error(`Could not preserve damaged sites folders settings at ${filePath}. Nothing was saved.`);
-      writeJsonFileAtomic(filePath, change(stored));
-    });
+      } })) throw new Error(`Could not preserve damaged sites folders settings at ${filePath}. Nothing was saved.`);
+      writeJsonFileAtomic({ filePath, value: change(stored) });
+    } });
   };
   return {
     read,
@@ -127,11 +127,11 @@ function sharedSiteFolders({ workspace, filePath, createdSiteDirs, quarantine }:
     if (registry.hasMigration({ migration: "desktop-roots-config-v1" })) return;
     const { stored, damaged } = readStoredFolders({ filePath });
     if (damaged) {
-      withFileLock(filePath, () => {
-        if (readStoredFolders({ filePath }).damaged && !quarantine(filePath, {
+      withFileLock({ filePath, critical: () => {
+        if (readStoredFolders({ filePath }).damaged && !quarantine({ filePath, notice: {
           label: "sites folders settings", consequence: "Using shared settings; the damaged legacy bytes are preserved.",
-        })) throw new Error("Could not preserve legacy settings.");
-      });
+        } })) throw new Error("Could not preserve legacy settings.");
+      } });
     }
     const config = workspace.config({});
     if (!config.overrides.siteRoots) {

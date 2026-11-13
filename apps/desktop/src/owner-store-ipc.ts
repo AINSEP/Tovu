@@ -130,7 +130,7 @@ async function executeRequest({ action, input, ports, serialize }: {
  */
 export function createOwnerStoreController(ports: OwnerStorePorts, _options = {}): OwnerStoreController {
   const queue = createKeyedSerializer();
-  const serialize: Serialize = work => queue.run('owner-store', work);
+  const serialize: Serialize = work => queue.run({ key: 'owner-store', fn: work });
   return {
     execute: async ({ action, input }, _options = {}) => {
       try { return await executeRequest({ action, input, ports, serialize }); }
@@ -183,16 +183,16 @@ export function disconnectConfirmation({ report }: { report: SharedOAuthDisconne
  * @example await settleLegacyOwnerStore({ run, removeFiles, notify, log });
  */
 export async function settleLegacyOwnerStore({ run, removeFiles, notify, log }: {
-  run: OwnerStoreRun; removeFiles: () => void; notify: () => void; log: (message: string) => void;
+  run: OwnerStoreRun; removeFiles: () => void; notify: () => void; log: (required: { message: string }) => void;
 }, _options = {}): Promise<'none' | 'removed' | 'available' | 'settled' | 'failed'> {
   try {
     const reply = await run({ action: 'status', fields: {} });
-    if (!reply.ok) { log('tovu desktop: the older shared-key store could not be checked; it was left in place.'); return 'failed'; }
+    if (!reply.ok) { log({ message: 'tovu desktop: the older shared-key store could not be checked; it was left in place.' }); return 'failed'; }
     if (reply.data.legacy === 'empty') { removeFiles(); return 'removed'; }
     if (reply.data.legacy === 'available') notify();
     return reply.data.legacy;
   } catch (error) {
-    log(`tovu desktop: the older shared-key store could not be checked; it was left in place. Cause: ${describeErrorForLog({ err: error })}`);
+    log({ message: `tovu desktop: the older shared-key store could not be checked; it was left in place. Cause: ${describeErrorForLog({ err: error })}` });
     return 'failed';
   }
 }
@@ -205,12 +205,12 @@ export async function settleLegacyOwnerStore({ run, removeFiles, notify, log }: 
  */
 export function registerOwnerStoreIpc({ ipcMain, allowed, controller }: {
   ipcMain: { handle: (channel: string, listener: (event: OwnerStoreEvent, input: unknown) => Promise<OwnerStoreReply>) => void };
-  allowed: (url: string) => boolean; controller: Pick<OwnerStoreController, 'execute'>;
+  allowed: (required: { url: string }) => boolean; controller: Pick<OwnerStoreController, 'execute'>;
 }, _options = {}): void {
   for (const action of Object.keys(OWNER_STORE_CHANNELS) as OwnerStoreAction[]) {
     ipcMain.handle(OWNER_STORE_CHANNELS[action], (event, input) => {
       // Same S2 boundary: sharing the file URL does not make an embedded subframe sites home.
-      if (!event.senderFrame || event.senderFrame.parent !== null || !allowed(event.senderFrame.url)) {
+      if (!event.senderFrame || event.senderFrame.parent !== null || !allowed({ url: event.senderFrame.url })) {
         throw new Error('Shared keys are only available in the sites home window.');
       }
       return controller.execute({ action, input });

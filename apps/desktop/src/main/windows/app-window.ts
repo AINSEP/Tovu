@@ -79,7 +79,7 @@ function appWindowOptions(
  */
 function createAppWindow<W extends AppWindow>(
   { url, createBrowserWindow, preloadPath, openExternal }: {
-    url: string; createBrowserWindow: (options: AppWindowOptions) => W; preloadPath: string; openExternal: (url: string) => void;
+    url: string; createBrowserWindow: (options: AppWindowOptions) => W; preloadPath: string; openExternal: (required: { url: string }) => void;
   },
   { title, partition, selftest = false, trackWindow }: {
     title?: string; partition?: string; selftest?: boolean; trackWindow?: (window: W) => void;
@@ -103,7 +103,7 @@ function createAppWindow<W extends AppWindow>(
   // Anything that navigates away from the app's own origin belongs in the OS browser — a
   // "view site ↗" link must not replace the admin shell inside the app window, and nothing but this
   // origin may run with the speech preload. See `window-navigation-policy.ts`.
-  installAppWindowNavigationPolicy(window.webContents, { appOrigin: new URL(url).origin, openExternal });
+  installAppWindowNavigationPolicy(window.webContents, { appOrigin: new URL(url).origin, openExternal: (url) => openExternal({ url }) });
 
   void window.loadURL(url);
   return window;

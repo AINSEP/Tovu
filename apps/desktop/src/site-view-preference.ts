@@ -7,7 +7,7 @@ import { IDLE_SITE_SLEEP, IDLE_SITE_SLEEP_CHANNELS, idleSiteSleepChoice, type Id
  * @complexity O(file bytes) time and space. Does not modify unreadable preferences.
  */
 export function readIdleSiteSleepMinutes({ preferencePath }: { preferencePath: string }, { warn = console.warn }: { warn?: (message: string) => void } = {}): IdleSiteSleepMinutes {
-  const read = readJsonFile(preferencePath);
+  const read = readJsonFile({ filePath: preferencePath });
   if (read.state === 'missing') return IDLE_SITE_SLEEP.fallback;
   const value = read.state === 'ok' ? objectSettings(read.value).idleSiteSleepMinutes : undefined;
   const saved = idleSiteSleepChoice({ value });
@@ -23,10 +23,10 @@ export function readIdleSiteSleepMinutes({ preferencePath }: { preferencePath: s
 export function writeIdleSiteSleepMinutes({ preferencePath, idleSiteSleepMinutes }: { preferencePath: string; idleSiteSleepMinutes: number }, _options = {}): IdleSiteSleepMinutes {
   const saved = idleSiteSleepChoice({ value: idleSiteSleepMinutes });
   if (saved === undefined) throw new Error('INVALID_IDLE_SITE_SLEEP_MINUTES');
-  withFileLock(preferencePath, () => {
-    if (readJsonFile(preferencePath).state === 'unreadable') throw new Error('DESKTOP_PREFERENCES_UNREADABLE');
-    writeJsonFileAtomic(preferencePath, { ...settingsAt(preferencePath), idleSiteSleepMinutes: saved });
-  });
+  withFileLock({ filePath: preferencePath, critical: () => {
+    if (readJsonFile({ filePath: preferencePath }).state === 'unreadable') throw new Error('DESKTOP_PREFERENCES_UNREADABLE');
+    writeJsonFileAtomic({ filePath: preferencePath, value: { ...settingsAt(preferencePath), idleSiteSleepMinutes: saved } });
+  } });
   return saved;
 }
 
@@ -39,10 +39,10 @@ export function registerIdleSiteSleepIpc<Sender>({ ipcMain, allowed, preferenceP
     handle: (channel: string, handler: (event: { sender: Sender }, value?: unknown) => number) => void;
     removeHandler?: (channel: string) => void;
   };
-  allowed: (sender: Sender) => boolean;
+  allowed: (required: { sender: Sender }) => boolean;
   preferencePath: string | (() => string);
 }, _options = {}): () => void {
-  const trusted = (sender: Sender) => { if (!allowed(sender)) throw new Error('UNTRUSTED_SITE_VIEW_PREFERENCE_SENDER'); };
+  const trusted = (sender: Sender) => { if (!allowed({ sender })) throw new Error('UNTRUSTED_SITE_VIEW_PREFERENCE_SENDER'); };
   const resolvePath = () => typeof preferencePath === 'function' ? preferencePath() : preferencePath;
   ipcMain.handle(IDLE_SITE_SLEEP_CHANNELS.read, ({ sender }) => {
     trusted(sender);
@@ -61,7 +61,7 @@ export function registerIdleSiteSleepIpc<Sender>({ ipcMain, allowed, preferenceP
 }
 
 function settingsAt(preferencePath: string): Record<string, unknown> {
-  const read = readJsonFile(preferencePath);
+  const read = readJsonFile({ filePath: preferencePath });
   const value = read.state === 'ok' ? read.value : null;
   return objectSettings(value);
 }
@@ -73,7 +73,7 @@ function objectSettings(value: unknown): Record<string, unknown> {
 /** Read the saved whole number, clamped to 1–5; malformed values warn and fall back to one. O(file bytes). */
 export function readMaximumLiveSiteViews({ preferencePath }: { preferencePath: string }, { warn = console.warn }: { warn?: (message: string) => void } = {}): number {
   const fallback = LIVE_SITE_VIEWS.fallback;
-  const read = readJsonFile(preferencePath);
+  const read = readJsonFile({ filePath: preferencePath });
   if (read.state === 'missing') return fallback;
   if (read.state === 'unreadable') { warn(`tovu desktop: unreadable maximumLiveSiteViews; using ${fallback}`); return fallback; }
   const settings = objectSettings(read.value);
@@ -95,10 +95,10 @@ function isWholeViewCount(value: unknown): value is number {
 export function writeMaximumLiveSiteViews({ preferencePath, maximumLiveSiteViews }: { preferencePath: string; maximumLiveSiteViews: number }, _options = {}): number {
   if (!isWholeViewCount(maximumLiveSiteViews)) throw new Error('INVALID_MAXIMUM_LIVE_SITE_VIEWS');
   const saved = clampLiveSiteViews({ value: maximumLiveSiteViews });
-  withFileLock(preferencePath, () => {
-    if (readJsonFile(preferencePath).state === 'unreadable') throw new Error('DESKTOP_PREFERENCES_UNREADABLE');
-    writeJsonFileAtomic(preferencePath, { ...settingsAt(preferencePath), maximumLiveSiteViews: saved });
-  });
+  withFileLock({ filePath: preferencePath, critical: () => {
+    if (readJsonFile({ filePath: preferencePath }).state === 'unreadable') throw new Error('DESKTOP_PREFERENCES_UNREADABLE');
+    writeJsonFileAtomic({ filePath: preferencePath, value: { ...settingsAt(preferencePath), maximumLiveSiteViews: saved } });
+  } });
   return saved;
 }
 
@@ -153,11 +153,11 @@ export function registerSiteViewPreferenceIpc<Sender>({ ipcMain, allowed, read, 
     handle: (channel: string, handler: (event: { sender: Sender }, value?: unknown) => number) => void;
     removeHandler: (channel: string) => void;
   };
-  allowed: (sender: Sender) => boolean;
+  allowed: (required: { sender: Sender }) => boolean;
   read: () => number;
   write: (input: { maximumLiveSiteViews: number }) => number;
 }, _options = {}): () => void {
-  const trusted = (sender: Sender) => { if (!allowed(sender)) throw new Error('UNTRUSTED_SITE_VIEW_PREFERENCE_SENDER'); };
+  const trusted = (sender: Sender) => { if (!allowed({ sender })) throw new Error('UNTRUSTED_SITE_VIEW_PREFERENCE_SENDER'); };
   ipcMain.handle(SITE_VIEW_PREFERENCE_CHANNELS.read, ({ sender }) => { trusted(sender); return read(); });
   ipcMain.handle(SITE_VIEW_PREFERENCE_CHANNELS.write, ({ sender }, value) => {
     trusted(sender);

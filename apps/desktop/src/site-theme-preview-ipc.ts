@@ -17,7 +17,7 @@ export function registerSiteThemePreviewIpc(
       removeHandler: (channel: string) => void;
     };
     subscriptions: Pick<ReturnType<typeof createSiteThemePreviewSubscriptions>, 'watch'>;
-    allowed: (sender: PreviewSender) => boolean;
+    allowed: (required: { sender: PreviewSender }) => boolean;
   }, _optional = {},
 ): () => void {
   type Owner = { claims: Map<string, () => void>; destroy: () => void };
@@ -36,7 +36,7 @@ export function registerSiteThemePreviewIpc(
   };
   ipcMain.handle(channels.watch, ({ sender }, input) => {
     const id = inputId(input);
-    if (!allowed(sender) || sender.isDestroyed() || !id) return;
+    if (!allowed({ sender }) || sender.isDestroyed() || !id) return;
     const siteDir = watchSiteDirectory({ input });
     if (siteDir === undefined) return;
     let owner = owners.get(sender);

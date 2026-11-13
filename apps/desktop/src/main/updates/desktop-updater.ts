@@ -37,8 +37,8 @@ export interface DesktopUpdaterPorts {
    *  Read when a controller is created, not when this updater is: `userData` may still move before then. */
   controllerDeps: () => Omit<AutoUpdateControllerDeps, "updater" | "promptUpdateReady">;
   promptUpdateReady: (args: { version: string }) => Promise<boolean>;
-  log: (message: string) => void;
-  logError: (message: string) => void;
+  log: (required: { message: string }) => void;
+  logError: (required: { message: string }) => void;
 }
 
 export interface DesktopUpdater {
@@ -72,7 +72,7 @@ export function desktopUpdaterSkipReason({ isPackaged, windowsStore, platform, e
   });
 }
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+const messageOf = ({ error }: { error: unknown }, _optional = {}): string => (error instanceof Error ? error.message : String(error));
 
 /**
  * Binds the updater lifecycle to injected preference, Electron and controller ports.
@@ -87,7 +87,7 @@ export function createDesktopUpdater({ ports }: { ports: DesktopUpdaterPorts }, 
   function eligible(): boolean {
     const skip = ports.skipReason();
     if (skip === null) return true;
-    ports.log(`auto-update off: ${skip}`);
+    ports.log({ message: `auto-update off: ${skip}` });
     return false;
   }
 
@@ -97,7 +97,7 @@ export function createDesktopUpdater({ ports }: { ports: DesktopUpdaterPorts }, 
     state.controller = createController({
       ...ports.controllerDeps(),
       updater,
-      promptUpdateReady: (version) => {
+      promptUpdateReady: ({ version }) => {
         state.readyVersion = version;
         return ports.promptUpdateReady({ version });
       },
@@ -132,7 +132,7 @@ export function createDesktopUpdater({ ports }: { ports: DesktopUpdaterPorts }, 
   // Not awaited: the updater's first check waits on its own timer, and a failure to load it must
   // never block or fail the boot.
   function startInBackground(): void {
-    start().catch((error: unknown) => ports.logError(`auto-update not started: ${messageOf(error)}`));
+    start().catch((error: unknown) => ports.logError({ message: `auto-update not started: ${messageOf({ error })}` }));
   }
 
   function stop(): void {

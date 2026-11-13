@@ -335,7 +335,7 @@ interface IpcMainLike {
  *  own value rather than a wrapped `Promise`. The real `createKeyedSerializer()` still satisfies
  *  this — `Promise<T>` is one of the two arms. */
 interface Serializer {
-  run<T>(key: string, fn: () => T | PromiseLike<T>): T | PromiseLike<T>;
+  run<T>(required: { key: string; fn: () => T | PromiseLike<T> }, optional?: {}): T | PromiseLike<T>;
 }
 
 /** {@link handleCreate}'s input — mirrors `contracts/project.ts`'s `CreateSiteInput`, kept local for
@@ -459,8 +459,8 @@ function siteExternalLauncher(externalUrl: string | undefined, sharedRunning: Sh
 }
 
 /** The card name: an alias, the config's name, or (config gone) the last known name. */
-function siteDisplayName(row: SiteRow, validSite: boolean, readSiteName: (siteDir: string) => string): string {
-  return row.displayNameAlias ?? (validSite ? readSiteName(row.siteDir) : row.displayName ?? path.basename(row.siteDir));
+function siteDisplayName(row: SiteRow, validSite: boolean, readSiteName: (required: { siteDir: string }) => string): string {
+  return row.displayNameAlias ?? (validSite ? readSiteName({ siteDir: row.siteDir }) : row.displayName ?? path.basename(row.siteDir));
 }
 
 /** Join local liveness and shared-lease startup with the explicit transition's intent. O(1). */
@@ -533,7 +533,7 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
     // A version token, never the image — see `SiteRecord.previewVersion`'s own doc on why this
     // record (polled every 4s) must never carry a payload. `null` for a site with no capture yet,
     // which is every site's ordinary state until it has been opened once.
-    previewVersion: deps.readPreviewVersion(row.siteDir),
+    previewVersion: deps.readPreviewVersion({ siteDir: row.siteDir }),
     // Asked of the disk on every poll, never stored: a folder renamed or deleted behind the app's
     // back is exactly the case a stored flag would get wrong. Admission also rejects a leftover
     // themes-only/corrupt directory — the same Locate / Remove recovery applies to it.
@@ -654,7 +654,7 @@ function otherSiteNames({ deps, siteDir }: {
   deps: Pick<ProjectIpcDeps, "projectsPath" | "readSiteName">; siteDir: string;
 }, _optional = {}): string[] {
   return readTrackedSites(deps.projectsPath).filter((row) => row.siteDir !== siteDir).map((row) =>
-    row.displayNameAlias ?? (!fs.existsSync(row.siteDir) && row.displayName ? row.displayName : deps.readSiteName(row.siteDir)));
+    row.displayNameAlias ?? (!fs.existsSync(row.siteDir) && row.displayName ? row.displayName : deps.readSiteName({ siteDir: row.siteDir })));
 }
 
 /** Adding a website must not rewrite its config. Persist a shell alias only when disambiguating. */
@@ -677,7 +677,7 @@ function adoptWithUniqueNames({ deps, siteDirs }: {
   deps: Pick<ProjectIpcDeps, "projectsPath" | "readSiteName">; siteDirs: string[];
 }, _optional = {}): void {
   for (const siteDir of adoptDiscoveredSites(deps.projectsPath, siteDirs)) {
-    const originalName = deps.readSiteName(siteDir);
+    const originalName = deps.readSiteName({ siteDir });
     const displayName = uniqueSiteName({ name: originalName, names: otherSiteNames({ deps, siteDir }) });
     if (displayName !== originalName) rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias: displayName });
   }
@@ -784,7 +784,7 @@ function recordCreatedSite(
   try { deps.siteFolders?.rememberCreated({ siteDir }); }
   catch (error) { console.warn("tovu desktop: could not remember the created website folder; the website was created successfully.", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
   rememberSiteName({ projectsPath: deps.projectsPath, siteDir, displayName });
-  const displayNameAlias = displayName !== deps.readSiteName(siteDir) ? displayName : undefined;
+  const displayNameAlias = displayName !== deps.readSiteName({ siteDir }) ? displayName : undefined;
   rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias });
   const tracked = readTrackedSites(deps.projectsPath).find((row) => row.siteDir === siteDir);
   if (!tracked) throw new Error("The website was created, but its desktop catalog entry is missing. Use Import to add the folder again.");
@@ -865,7 +865,7 @@ async function handleAddSite(
   // Read back rather than synthesized: an already-tracked folder keeps its ORIGINAL `createdAt` and
   // origin, and a fabricated row would report today's date and reorder the operator's grid.
   if (!alreadyTracked) {
-    const originalName = deps.readSiteName(siteDir);
+    const originalName = deps.readSiteName({ siteDir });
     const displayName = uniqueSiteName({ name: originalName, names: otherSiteNames({ deps, siteDir }) });
     row.displayNameAlias = displayName !== originalName ? displayName : undefined;
     rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias: row.displayNameAlias });
@@ -936,7 +936,7 @@ async function handleImportArchive(
   if (source === null) return null;
   const imported = await deps.importSiteArchive({ source, repoRoot: deps.repoRoot, cliMode: deps.cliMode });
   if (imported === null) return null;
-  const displayName = uniqueSiteName({ name: deps.readSiteName(imported.dir), names: otherSiteNames({ deps, siteDir: imported.dir }) });
+  const displayName = uniqueSiteName({ name: deps.readSiteName({ siteDir: imported.dir }), names: otherSiteNames({ deps, siteDir: imported.dir }) });
   return { ...recordCreatedSite({ siteDir: imported.dir, displayName }, deps), warnings: imported.warnings };
 }
 
@@ -1029,7 +1029,7 @@ function liveForeignServers(deps: Pick<ProjectIpcDeps, "readRegistry" | "registr
  *   an already-queued operation on the same site takes to settle.
  */
 async function handleDelete(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites">): Promise<void> {
-  await deps.serializer.run(id, () => deleteProject(id, deps));
+  await deps.serializer.run({ key: id, fn: () => deleteProject(id, deps) });
 }
 
 /**
@@ -1077,7 +1077,7 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
   // cached thumbnail: once the row is gone `buildSiteRecord` can never ask for it again
   // (`site-preview-store.ts`'s own doc on why an orphan is otherwise unreachable, not merely
   // unlikely), so leaving the file behind would only be litter for the boot sweep to find later.
-  deps.deletePreview(id);
+  deps.deletePreview({ id });
 
 }
 
@@ -1299,7 +1299,7 @@ async function handleOpenExternal(input: OpenSiteSurfaceInput, deps: Pick<Projec
  * @complexity O(1) beyond `readPreviewDataUrl`'s own cost.
  */
 function handleGetPreview(id: string, deps: Pick<ProjectIpcDeps, "readPreviewDataUrl">) {
-  return deps.readPreviewDataUrl(id);
+  return deps.readPreviewDataUrl({ id });
 }
 
 /**
@@ -1331,7 +1331,7 @@ function handleGetPreview(id: string, deps: Pick<ProjectIpcDeps, "readPreviewDat
  *   `openSiteServer` and any already-queued operation on the same site.
  */
 async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir" | "startAllowed">>) {
-  return await deps.serializer.run(id, async () => {
+  return await deps.serializer.run({ key: id, fn: async () => {
     const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
     if (row === undefined) {
       throw new Error(`Unknown project: ${id}`);
@@ -1340,9 +1340,9 @@ async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "s
     if ((deps.classifySiteDir ?? classifySiteDirSafely)(row.siteDir) !== "site") throw new Error("Folder moved or not a site. Locate the website folder or remove this card.");
     ensureIndependentSiteIdentity({ siteDir: row.siteDir }, { workspace: deps.sharedSites });
     if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [row.siteDir], createdBy: "Desktop", allowRelocation: true });
-    await markTransition(deps.transitions, id, "starting", () => explainMissingSiteDir(id, deps.openSiteServer(id, deps.ctx)));
+    await markTransition(deps.transitions, id, "starting", () => explainMissingSiteDir(id, deps.openSiteServer({ siteDir: id, ctx: deps.ctx })));
     return buildSiteRecord(row, deps);
-  });
+  } });
 }
 
 /**
@@ -1406,7 +1406,7 @@ async function explainMissingSiteDir(siteDir: string, starting: Promise<unknown>
  *   an already-queued operation on the same site takes to settle.
  */
 async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions" | "sharedSites" | "siteRuntime" | "pendingTeardowns" | "externalSites">) {
-  return await deps.serializer.run(id, async () => {
+  return await deps.serializer.run({ key: id, fn: async () => {
     const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
     if (row === undefined) {
       throw new Error(`Unknown project: ${id}`);
@@ -1421,7 +1421,7 @@ async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | 
     if (running && !openEntry) throw new Error(`Running in ${running.app} (port ${running.port}). Stop it in that app.`);
     await markTransition(deps.transitions, id, "stopping", () => stopSiteServer(id, deps));
     return buildSiteRecord(row, deps);
-  });
+  } });
 }
 
 /**
@@ -1592,7 +1592,7 @@ async function handleAddSiteFolder({ deps }: { deps: Pick<ProjectIpcDeps, "dialo
  *   this process's own memory, cannot.
  * @param deps.isLiveServeRow `site-process-registry.ts`'s "is this row's pid still its own live
  *   `tovu serve`" identity proof, so a stale or recycled pid can never block a delete.
- * @param deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
+ * @param deps.ctx `{cliMode, registryPath}` — passed to `openSiteServer` with the site dir.
  * @param options Injected clock/scheduler and preference reader for deterministic lifecycle tests.
  * @returns Presence, confirmed-exit recovery and one-pass maintenance; dispose revokes automatic
  *   starts, retry timers and sender hooks. Start/Stop remain on the existing per-directory serializer.
@@ -1731,11 +1731,11 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   }, _options = {}): Promise<void> {
     const stopIfIdle = server.stopIfIdle;
     if (!stopIfIdle) return;
-    await deps.serializer.run(siteDir, async () => {
+    await deps.serializer.run({ key: siteDir, fn: async () => {
       if (disposed || state.cancelled || deps.openSites.get(siteDir)?.server !== server) return;
       if (!restart && presence.has({ siteId: siteDir })) return;
       await requestIdleStop({ state, server, restart, stopIfIdle });
-    });
+    } });
   }
 
   /** Fence an RSS restart until confirmed exit; a refused sleep leaves it eligible next tick.
@@ -1792,7 +1792,8 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   });
   // The state and preferences files share the launch's userData folder, including E2E profiles.
   // Keep registration here: the original independent UI slice and the lifecycle share this profile.
-  const offSleep = registerIdleSiteSleepIpc({ ipcMain: deps.ipcMain, allowed: deps.isPresenceShell ?? (() => false),
+  const isSleepPreferenceSender = deps.isPresenceShell ?? (() => false);
+  const offSleep = registerIdleSiteSleepIpc<PresenceSender & { getURL(): string }>({ ipcMain: deps.ipcMain, allowed: ({ sender }) => isSleepPreferenceSender(sender),
     preferencePath: () => path.join(path.dirname(deps.statePath), 'desktop-preferences.json') });
   const relocationGate = createRelocationGate({}, { classifySiteDir: deps.classifySiteDir });
   // Handlers share the live host ports: settings and discovery may be supplied after registration.
@@ -1905,11 +1906,11 @@ interface ProjectIpcDeps<TCtx = unknown> {
   repoRoot: string;
   statePath: string;
   cliMode: "source" | "compiled";
-  readSiteName: (siteDir: string) => string;
+  readSiteName: (required: { siteDir: string }) => string;
   writeSiteName: (siteDir: string, rawName: unknown) => string;
-  readPreviewVersion: (siteDir: string) => number | null;
-  readPreviewDataUrl: (id: string) => string | null;
-  deletePreview: (id: string) => void;
+  readPreviewVersion: (required: { siteDir: string }) => number | null;
+  readPreviewDataUrl: (required: { id: string }) => string | null;
+  deletePreview: (required: { id: string }) => void;
   removeSiteTree?: typeof removeSiteTree;
   /** Stop/Restart must withdraw pending hidden-window work before the server drains. */
   cancelPreviewCapture?: (required: { siteDir: string }, optional: {}) => void;
@@ -1925,7 +1926,7 @@ interface ProjectIpcDeps<TCtx = unknown> {
   // `classifySiteDirSafely`'s verdicts, spelled out because `site-dir-store.ts` does not export its
   // `SiteClassification`. The throwing `classifySiteDir` and the tests' fakes return a subset.
   classifySiteDir: (dir: string) => "site" | "incomplete" | "empty" | "occupied" | "unreadable";
-  openSiteServer: (siteDir: string, ctx: TCtx) => Promise<unknown>;
+  openSiteServer: (required: { siteDir: string; ctx: TCtx }) => Promise<unknown>;
   /**
    * `site-transitions.ts`'s store — which sites are mid-start or mid-stop right now, the fact
    * `openSites` cannot express. `main.ts` wires the real one (`main-project-wiring.test.ts` holds

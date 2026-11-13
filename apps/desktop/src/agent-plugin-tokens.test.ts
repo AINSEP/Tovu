@@ -77,7 +77,7 @@ function createDeps(overrides: Record<string, unknown> = {}) {
     statePath: path.join(dir, "desktop-state.json"),
     cliMode: "source" as const,
     openSites: new Map(),
-    readSiteName: (siteDir: string) => path.basename(siteDir),
+    readSiteName: ({ siteDir }: { siteDir: string }) => path.basename(siteDir),
     readPreviewVersion: () => null,
     classifySiteDir: () => "empty",
     dialog: { showOpenDialog: async () => assert.fail("Create must never open a folder picker") },

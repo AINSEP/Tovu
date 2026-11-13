@@ -26,10 +26,10 @@ export async function startDesktopMcpHttp({ context }: { context: ToolContext },
  * @example const runtime = createDesktopMcpHttpRuntime({ context, warn });
  * @complexity O(1) state; per-call work belongs to the table/HTTP host.
  */
-export function createDesktopMcpHttpRuntime({ context, warn }: { context: ToolContext; warn: (message: string) => void },
+export function createDesktopMcpHttpRuntime({ context, warn }: { context: ToolContext; warn: (required: { message: string }) => void },
   { start, fetch: fetchImpl = globalThis.fetch }: { start?: typeof startDesktopMcpHttp; fetch?: typeof fetch } = {},
 ): { environment(required: Record<string, never>, optional?: Record<string, never>): Promise<Record<string, string>>;
-  connectSite(required: { adminUrl: string; onExit: (listener: () => void) => void }, optional?: Record<string, never>): void;
+  connectSite(required: { adminUrl: string; onExit: (required: { listener: () => void }) => void }, optional?: Record<string, never>): void;
   close(required: Record<string, never>, optional?: Record<string, never>): Promise<void> } {
   const table = createSitesMcpToolHost({ context });
   const handoffToken = randomBytes(32).toString('hex');
@@ -39,8 +39,8 @@ export function createDesktopMcpHttpRuntime({ context, warn }: { context: ToolCo
   // during the preparation/release handoff. Jini owns listener retries once available.
   const runtime = Promise.resolve().then(() => createMcpHttpToolServerRuntime({
     name: SITES_MCP_SERVER_ID, version: '1', tools: table.tools, resolveBaseUrl: () => '',
-  }, { warn, ...(start ? { start: () => start({ context }, { warn }) } : {}) })).catch(() => {
-    warn('tovu-desktop: desktop tools host unavailable for this application release.');
+  }, { warn: (message) => warn({ message }), ...(start ? { start: () => start({ context }, { warn: (message) => warn({ message }) }) } : {}) })).catch(() => {
+    warn({ message: 'tovu-desktop: desktop tools host unavailable for this application release.' });
     return undefined;
   });
   return {
@@ -58,7 +58,7 @@ export function createDesktopMcpHttpRuntime({ context, warn }: { context: ToolCo
       let unsubscribe: (() => void) | undefined;
       const disconnect = () => { abort.abort(); unsubscribe?.(); disconnects.delete(disconnect); };
       disconnects.add(disconnect);
-      onExit(disconnect);
+      onExit({ listener: disconnect });
       void runtime.then(host => {
         if (abort.signal.aborted) return;
         // Delivery retries belong to the same Jini runtime that repairs the listener. Only this
@@ -71,7 +71,7 @@ export function createDesktopMcpHttpRuntime({ context, warn }: { context: ToolCo
           await response.body?.cancel();
           if (!response.ok) throw new Error('Desktop capability handoff unavailable');
         } });
-      }).catch(() => { warn('tovu-desktop: desktop capability recovery unavailable for this application release.'); });
+      }).catch(() => { warn({ message: 'tovu-desktop: desktop capability recovery unavailable for this application release.' }); });
     },
     async close(required, optional = {}) {
       stopped = true;

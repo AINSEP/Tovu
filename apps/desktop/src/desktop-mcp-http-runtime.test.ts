@@ -28,7 +28,7 @@ test('listener startup repairs automatically without delaying site hosting', asy
   t.mock.timers.enable({ apis: ['setTimeout'] });
   let starts = 0;
   const warnings: string[] = [];
-  const runtime = createDesktopMcpHttpRuntime({ context, warn: message => warnings.push(message) }, { start: async () => {
+  const runtime = createDesktopMcpHttpRuntime({ context, warn: ({ message }) => warnings.push(message) }, { start: async () => {
     starts++;
     if (starts === 1) throw new Error('bind failed with private details');
     return { url: env.TOVU_DESKTOP_MCP_URL, token: env.TOVU_DESKTOP_MCP_TOKEN, env, close: async () => {} };
@@ -78,7 +78,7 @@ test('a site spawned during listener failure receives the recovered capability a
   assert.ok(launch.TOVU_DESKTOP_MCP_HANDOFF_TOKEN);
   assert.equal(launch.TOVU_DESKTOP_MCP_URL, undefined);
   let exited!: () => void;
-  runtime.connectSite({ adminUrl: 'http://127.0.0.1:4102/admin/', onExit: listener => { exited = listener; } });
+  runtime.connectSite({ adminUrl: 'http://127.0.0.1:4102/admin/', onExit: ({ listener }) => { exited = listener; } });
   t.mock.timers.tick(1000);
   for (let turn = 0; turn < 20; turn++) await Promise.resolve();
   assert.deepEqual(requests, [{ url: 'http://127.0.0.1:4102/internal/desktop-mcp-capability',

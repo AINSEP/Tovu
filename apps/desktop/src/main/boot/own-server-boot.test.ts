@@ -79,10 +79,10 @@ test("a picker cancellation surfaces unchanged for the boot-failure reporter", a
 
 test("orphan reconciliation is silent when nothing was reaped and names every reaped site otherwise", async () => {
   const logs: string[] = [];
-  await reconcileOrphansOnBoot({ registryPath: "/ud/registry", reconcileOrphans: async (p) => { assert.equal(p, "/ud/registry"); return []; }, log: (m) => logs.push(m) });
+  await reconcileOrphansOnBoot({ registryPath: "/ud/registry", reconcileOrphans: async ({ registryPath }) => { assert.equal(registryPath, "/ud/registry"); return []; }, log: ({ message }) => logs.push(message) });
   // A length check, not deepEqual(logs, []): that asserts `logs` is `never[]` for the rest of the test.
   assert.equal(logs.length, 0);
-  await reconcileOrphansOnBoot({ registryPath: "/ud/registry", reconcileOrphans: async () => [{ siteDir: "/a" }, { siteDir: "/b" }], log: (m) => logs.push(m) });
+  await reconcileOrphansOnBoot({ registryPath: "/ud/registry", reconcileOrphans: async () => [{ siteDir: "/a" }, { siteDir: "/b" }], log: ({ message }) => logs.push(message) });
   assert.deepEqual(logs, ["tovu desktop: reconciled 2 orphaned site process(es) left running by a previous crash: /a, /b"]);
 });
 
@@ -100,14 +100,14 @@ function bootHarness(overrides: Partial<OwnServerBootPorts> = {}) {
   let activate: (() => void) | undefined;
   const ports: OwnServerBootPorts = {
     sitesConfigWarning: () => undefined,
-    warn: (m) => warnings.push(m),
+    warn: ({ message }) => warnings.push(message),
     refreshAppMenu: () => { events.push("menu"); },
     resolveStartupSiteDirs: async (ctx) => { events.push("resolve"); ctx.firstSitePort = 4100; return ["/a", "/b"]; },
     selftest: false,
     installSelftestTracker: ({ expectedCount }) => { events.push(`selftest:${expectedCount}`); },
-    runSerialized: (siteDir, work) => { events.push(`serial:${siteDir}`); return work(); },
+    runSerialized: ({ siteDir, work }) => { events.push(`serial:${siteDir}`); return work(); },
     openSiteWindow: async (required, optional) => { events.push(`open:${required.siteDir}`); opens.push([required.siteDir, optional]); },
-    onActivate: (listener) => { events.push("activate-registered"); activate = listener; },
+    onActivate: ({ listener }) => { events.push("activate-registered"); activate = listener; },
     windowCount: () => 0,
     quitPhase: () => "idle",
     openSiteDirs: () => [],
@@ -190,7 +190,7 @@ test("Dock restore failures use the recoverable open reporter for each failed si
   const h = bootHarness({
     openSiteDirs: () => ["/a", "/b"],
     openSiteWindow: async ({ siteDir }) => { throw new Error(`cannot reopen ${siteDir}`); },
-    reportOpenFailure: (error) => { failures.push(error.message); },
+    reportOpenFailure: ({ error }) => { failures.push(error.message); },
   });
   createOwnServerActivate({ ctx: baseCtx(), ports: h.ports })();
   await new Promise((resolve) => setImmediate(resolve));

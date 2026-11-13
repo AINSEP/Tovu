@@ -25,7 +25,7 @@ function fixture() {
     rendererPids: () => new Set([2, 3]), heapUsedBytes: () => 25.6 * MB, uptime: () => at / 1000,
     tracker: { ...createNoopTracker({}), capture() { assert.fail('memory uses metrics'); },
       metric: (input, options) => { metrics.push({ input, options }); }, error: ({ error }, { context } = {}) => { errors.push({ error, context }); } },
-  }, { now: () => at, schedule: (_tick, ms) => { cadence = ms; return () => { cancelled++; }; } });
+  }, { now: () => at, schedule: ({ ms }) => { cadence = ms; return () => { cancelled++; }; } });
   return { memory, monitor, metrics, errors, at: (next: number) => { at = next; }, rss: (value: number) => { rssMb = value; },
     consent: (next: ProductConsent) => { consent = next; }, reads: () => reads, cancelled: () => cancelled, cadence: () => cadence };
 }
@@ -63,7 +63,7 @@ test('host visibility scheduling pauses memory sampling while inactive and dispo
     monitor: { get: async () => { reads++; return snapshot; } }, tracker: createNoopTracker({}),
     readConsent: () => ({ crashes: true, usage: true, installationId: 'FAKE_INSTALL' }),
     desktopPid: 1, rendererPids: () => new Set([2]), heapUsedBytes: () => 0, uptime: () => 0,
-  }, { schedule: (tick, ms) => startVisibleInterval(tick, ms, {
+  }, { schedule: ({ tick, ms }) => startVisibleInterval(tick, ms, {
     get visibilityState() { return visible ? 'visible' : 'hidden'; },
     addEventListener: (_type, listener) => { listeners.add(listener); },
     removeEventListener: (_type, listener) => { assert.equal(listeners.delete(listener), true); },

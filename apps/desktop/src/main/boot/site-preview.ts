@@ -17,7 +17,7 @@ export interface LivePreviewGuest {
 export interface PreviewCapturePorts {
   liveGuest: (input: { siteDir: string }) => LivePreviewGuest | undefined;
   writePreview: (input: { siteDir: string; png: Buffer }) => number | null;
-  warn: (message: string) => void;
+  warn: (required: { message: string }) => void;
 }
 
 /** Same-origin public pages only. Query/fragment state and reserved private surfaces fail closed.
@@ -59,7 +59,7 @@ export function createSitePreviewCapture({ ports }: { ports: PreviewCapturePorts
       const origin = scheme === 'https' ? `https://localhost:${port}` : `http://127.0.0.1:${port}`;
       return await captureEligiblePreview({ guest, origin, siteDir, isCurrent, ports });
     } catch (error) {
-      ports.warn(`tovu desktop: could not capture a preview for ${siteDir} — ${error instanceof Error ? error.message : String(error)}`);
+      ports.warn({ message: `tovu desktop: could not capture a preview for ${siteDir} — ${error instanceof Error ? error.message : String(error)}` });
       return false;
     }
   };
@@ -105,12 +105,12 @@ export function sweepSitePreviewsOnBoot({ projectsPath, readTrackedSites, sweepO
   projectsPath: string;
   readTrackedSites: (projectsPath: string) => readonly { siteDir: string }[];
   sweepOrphanedPreviews: (required: { trackedDirs: string[] }) => unknown;
-  warn: (message: string) => void;
+  warn: (required: { message: string }) => void;
 }, _optional = {}): void {
   try {
     const trackedDirs = readTrackedSites(projectsPath).map((row) => row.siteDir);
     sweepOrphanedPreviews({ trackedDirs });
   } catch (error) {
-    warn(`tovu desktop: could not sweep orphaned site previews — ${(error as Error).message}`);
+    warn({ message: `tovu desktop: could not sweep orphaned site previews — ${(error as Error).message}` });
   }
 }

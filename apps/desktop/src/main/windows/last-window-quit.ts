@@ -46,12 +46,12 @@ interface LastWindowQuitPorts<W> {
   /** `app.getLocale()`, read when the box opens. */
   locale: () => string;
   /** `dialog.showMessageBox`, parented so it is a sheet on macOS and modal to the window on Windows. */
-  showMessageBox: (window: W, options: MessageBoxOptions) => Promise<{ response: number }>;
+  showMessageBox: (required: { window: W; options: MessageBoxOptions }) => Promise<{ response: number }>;
   /** `app.quit()`: the same graceful drain Cmd+Q runs. */
   quit: () => void;
   /** Keep running in background: idle sleep must not stop these sites later. */
   keepSitesRunning: () => void;
-  logError: (message: string) => void;
+  logError: (required: { message: string }) => void;
 }
 
 /** The ask, as `main.ts` uses it. */
@@ -127,7 +127,7 @@ function createLastWindowQuitPrompt<W extends QuitPromptWindow>(
   function ask({ window, stops, keeps }: { window: W; stops: number; keeps: number }): void {
     const box = new AbortController();
     openBox = box;
-    ports.showMessageBox(window, { ...lastWindowQuitDialog({ locale: ports.locale(), stops, keeps }), signal: box.signal })
+    ports.showMessageBox({ window, options: { ...lastWindowQuitDialog({ locale: ports.locale(), stops, keeps }), signal: box.signal } })
       .then(({ response }) => {
         openBox = null;
         if (response === QUIT_BUTTON) ports.quit();
@@ -135,7 +135,7 @@ function createLastWindowQuitPrompt<W extends QuitPromptWindow>(
       })
       .catch((error: unknown) => {
         openBox = null;
-        ports.logError(`[tovu-desktop] could not ask before quitting: ${(error as Error).message}`);
+        ports.logError({ message: `[tovu-desktop] could not ask before quitting: ${(error as Error).message}` });
       });
   }
 

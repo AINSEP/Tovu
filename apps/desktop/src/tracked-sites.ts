@@ -161,10 +161,10 @@ function normalizeOrigin(origin: unknown): SiteOrigin {
  * @complexity O(n) in file size, plus {@link salvageJsonPrefix}'s bounded retries for a damaged file.
  */
 function readProjectsFile(projectsPath: string): ProjectsFile {
-  const read = readJsonFile(projectsPath);
+  const read = readJsonFile({ filePath: projectsPath });
   if (read.state === "missing") return { state: "missing", rows: [], dismissed: [], dismissedRecorded: false };
   if (read.state === "ok" && isProjectsShape(read.value)) return { state: "ok", ...contentsOf(read.value) };
-  const salvaged = read.state === "ok" ? read.value : salvageJsonPrefix(read.text ?? "");
+  const salvaged = read.state === "ok" ? read.value : salvageJsonPrefix({ text: read.text ?? "" });
   return { state: "unreadable", ...contentsOf(stripProvenance(salvaged)) };
 }
 
@@ -290,16 +290,16 @@ interface WritableTrackedRow {
  * @complexity O(n) in the row count, plus the lock wait.
  */
 function updateProjectsFile(projectsPath: string, change: (current: ProjectsFile) => ProjectsUpdate | null): ProjectsUpdate {
-  return withFileLock(projectsPath, () => {
+  return withFileLock({ filePath: projectsPath, critical: () => {
     const current = readProjectsFile(projectsPath);
     const next = change(current);
     if (next === null) return { rows: current.rows, dismissed: current.dismissed };
-    if (current.state === "unreadable" && !quarantineUnreadableFile(projectsPath, PROJECTS_QUARANTINE_NOTICE)) {
+    if (current.state === "unreadable" && !quarantineUnreadableFile({ filePath: projectsPath, notice: PROJECTS_QUARANTINE_NOTICE })) {
       throw new Error(`The projects list ${projectsPath} is damaged and could not be moved aside, so this change was not saved. Nothing was written over it.`);
     }
-    writeJsonFileAtomic(projectsPath, { projects: next.rows, dismissed: next.dismissed });
+    writeJsonFileAtomic({ filePath: projectsPath, value: { projects: next.rows, dismissed: next.dismissed } });
     return next;
-  });
+  } });
 }
 
 /**

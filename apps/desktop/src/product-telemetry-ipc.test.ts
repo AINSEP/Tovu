@@ -11,7 +11,7 @@ function fixture() {
   const dispose = registerProductTelemetryIpc({ ipcMain: {
     on: (channel, handler) => { assert.equal(channel, PRODUCT_TELEMETRY_CHANNEL); listener = handler; },
     removeListener: (channel, handler) => { assert.equal(channel, PRODUCT_TELEMETRY_CHANNEL); assert.equal(handler, listener); removed++; },
-  }, isShellPage: url => url === 'file:///fake-shell.html', tracker: {
+  }, isShellPage: ({ url }) => url === 'file:///fake-shell.html', tracker: {
     ...createNoopTracker({}), error: ({ error }, { context } = {}) => { errors.push({ error, context }); }, capture: (input, options = {}) => { events.push({ ...input, ...options }); },
   } }, { now: () => at });
   const trusted = { sender: { getURL: () => 'file:///fake-shell.html' }, senderFrame: { url: 'file:///fake-shell.html', parent: null } };

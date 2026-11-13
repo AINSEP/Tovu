@@ -283,13 +283,13 @@ const DESKTOP_ROOTS = resolveDesktopRoots({
 
 // This launch's `userData`, and the E2E-only `TOVU_DESKTOP_USER_DATA_DIR` override that wins over it.
 // Must run before `app.whenReady()`; see `applyUserDataDir`'s doc (src/main/boot/boot-steps.ts) for why.
-const userDataProfile = applyUserDataDir({ env: process.env, defaultUserDataDir: DESKTOP_ROOTS.userDataDir, resolvePath: (dir) => path.resolve(dir),
-  setUserDataDir: (dir) => app.setPath("userData", dir), getUserDataDir: () => app.getPath("userData") });
+const userDataProfile = applyUserDataDir({ env: process.env, defaultUserDataDir: DESKTOP_ROOTS.userDataDir, resolvePath: ({ dir }) => path.resolve(dir),
+  setUserDataDir: ({ dir }) => app.setPath("userData", dir), getUserDataDir: () => app.getPath("userData") });
 
 // The bundled node/npm/npx shims' env, or `undefined` if writing them failed. Written once, after
 // `userData` is set and before any site is served; see `prepareNodeToolchainEnv`'s doc.
 const NODE_TOOLCHAIN_ENV = prepareNodeToolchainEnv({ userDataDir: app.getPath("userData"), electronPath: process.execPath,
-  npmRoot: DESKTOP_ROOTS.npmRoot, writeNodeToolchain, buildNodeToolchainEnv, warn: (message) => console.warn(message) });
+  npmRoot: DESKTOP_ROOTS.npmRoot, writeNodeToolchain, buildNodeToolchainEnv, warn: ({ message }) => console.warn(message) });
 
 /**
  * The runnable Tovu tree: `dist/`'s CLI, `apps/admin/dist`, `apps/site-chat/dist` and the
@@ -363,7 +363,7 @@ const ownerStore = createOwnerStoreController({
  */
 function settleLegacyOwnerStoreOnStart(): void {
   void settleLegacyOwnerStoreOnStartIn({ userDataDir: app.getPath("userData"), settle: (input) => settleLegacyOwnerStore({ ...input, run: runOwnerStore }),
-    removeFile: (file) => fs.rmSync(file, { force: true }), showNotice: showDesktopNotice, warn: (message) => console.warn(message) });
+    removeFile: ({ filePath }) => fs.rmSync(filePath, { force: true }), showNotice: showDesktopNotice, warn: ({ message }) => console.warn(message) });
 }
 
 
@@ -383,7 +383,7 @@ const recoveringSiteWindows = new Map<string, BrowserWindow>();
  * to "Start site", and the 4 s renderer poll re-read an answer that could not change.
  */
 const openSites = createSiteSupervisor<OpenSite>({
-  onUnexpectedExit: (siteDir, exit, entry) => {
+  onUnexpectedExit: ({ siteDir, exit, entry }) => {
     sitePreviewScheduler.cancel({ siteDir }, {});
     siteThemePreviews.stop({ siteDir }, {});
     // The row exists to let the NEXT launch reap a child this process left running. This one is
@@ -415,7 +415,7 @@ const desktopResources = createDesktopResources({ desktopPid: process.pid, platf
 async function initializeDesktopProductTelemetry(): Promise<void> {
   const preferencePath = desktopPreferencesPath();
   await initializeProductTelemetryIn({ app, processInfo: process, crashReporter, ipcMain, webContents, windows: BrowserWindow,
-    preferencePath, isShellPage, monitor: desktopResources, state: productState,
+    preferencePath, isShellPage: ({ url }) => isShellPage({ raw: url }), monitor: desktopResources, state: productState,
     armConsent: () => armFirstProductConsent<BrowserWindow>({ app, dialog, menu: Menu, preferencePath, state: productState }) });
 }
 
@@ -468,13 +468,13 @@ const desktopUpdater = createDesktopUpdater({ ports: {
   // Imported here, not at the top, so a dev launch never loads it.
     loadNativeUpdater: async () => electronUpdater.autoUpdater,
   quitIdle: () => quitPhase === "idle",
-  controllerDeps: () => ({ platform: process.platform, pid: process.pid, presenceDir: presenceDirPath(app.getPath("userData")),
-    now: Date.now, explainOthersOpen: (count: number) => explainOthersOpen({ dialog, count }), quit: () => app.quit(),
-    log: (message: string) => console.log(`[tovu-desktop] ${message}`) }),
+  controllerDeps: () => ({ platform: process.platform, pid: process.pid, presenceDir: presenceDirPath({ userDataDir: app.getPath("userData") }),
+    now: Date.now, explainOthersOpen: ({ count }: { count: number }) => explainOthersOpen({ dialog, count }), quit: () => app.quit(),
+    log: ({ message }: { message: string }) => console.log(`[tovu-desktop] ${message}`) }),
   promptUpdateReady: ({ version }) => promptUpdateReady({ dialog, windows: BrowserWindow,
     automaticUpdates: () => readAutomaticUpdates({ preferencePath: desktopPreferencesPath() }), version }),
-  log: (message) => console.log(`[tovu-desktop] ${message}`),
-  logError: (message) => console.error(`[tovu-desktop] ${message}`),
+  log: ({ message }) => console.log(`[tovu-desktop] ${message}`),
+  logError: ({ message }) => console.error(`[tovu-desktop] ${message}`),
 } });
 
 /**
@@ -488,27 +488,27 @@ const QUIT_DEADLINE_MS = DEFAULT_STOP_GRACE_MS * 3;
 
 
 /** Ask the user which folder holds their site; cancelling returns `null`. See `site-folder-prompt.ts`. */
-function promptForSiteDir(rejectedDefault: RejectedDefault | null): Promise<string | null> {
+function promptForSiteDir({ rejectedDefault }: { rejectedDefault: RejectedDefault | null }, _optional = {}): Promise<string | null> {
   return promptForSiteFolder({ rejectedDefault, dialog: { showOpenDialog: (options) => dialog.showOpenDialog(options) }, selftest: SELFTEST });
 }
 
 
 // Wiring edge for the launch-time decisions in `startup-env.ts` / `site-name.ts`: each binds this
-// process's own `process.env`, packaged CLI default or filesystem, keeping the call sites (and the
-// source-shape wiring tests that read them) unchanged.
+// process's own `process.env`, packaged CLI default or filesystem, keeping the call sites and the
+// source-shape wiring tests focused on this composition edge.
 function resolveCliMode(): CliMode { return resolveCliModeIn({ env: process.env, defaultCliMode: DESKTOP_ROOTS.defaultCliMode }); }
 function isUnattendedSiteLaunch(): boolean { return isUnattendedSiteLaunchIn({ env: process.env }); }
-function readSiteName(siteDir: string): string { return readSiteNameIn({ siteDir }); }
+function readSiteName({ siteDir }: { siteDir: string }, _optional = {}): string { return readSiteNameIn({ siteDir }); }
 
 /** The ask before the last app window closes with sites running — see `last-window-quit.ts`. */
 const lastWindowQuit = createLastWindowQuitPrompt<BrowserWindow>({ ports: {
   openServers: () => [...openSites.values()].map((entry) => entry.server),
   platform: process.platform,
   locale: () => app.getLocale(),
-  showMessageBox: (window, options) => dialog.showMessageBox(window, options),
+  showMessageBox: ({ window, options }) => dialog.showMessageBox(window, options),
   quit: () => app.quit(),
   keepSitesRunning: () => siteLifecycle?.keepAwake(),
-  logError: (message) => console.error(message),
+  logError: ({ message }) => console.error(message),
 } });
 
 /** Every app window, as it is created. Capture windows do not come through here. */
@@ -523,9 +523,9 @@ function appWindowCount(): number {
 }
 
 /** One sandboxed admin window (own-server site or attach mode) — see `app-window.ts`. */
-function createWindow(url: string, title?: string, partition?: string): BrowserWindow {
+function createWindow({ url }: { url: string }, { title, partition }: { title?: string; partition?: string } = {}): BrowserWindow {
   return createAppWindow(
-    { url, createBrowserWindow: (options) => new BrowserWindow(options), preloadPath: SPEECH_PRELOAD_PATH, openExternal: (target) => void shell.openExternal(target) },
+    { url, createBrowserWindow: (options) => new BrowserWindow(options), preloadPath: SPEECH_PRELOAD_PATH, openExternal: ({ url: target }) => void shell.openExternal(target) },
     { title, partition, selftest: SELFTEST, trackWindow: trackAppWindow },
   );
 }
@@ -534,14 +534,14 @@ function createWindow(url: string, title?: string, partition?: string): BrowserW
 function openSitesHomeWindow(): BrowserWindow | null {
   return openSitesHomeWindowWith<BrowserWindow>({ ports: {
     rendererPath: SITES_RENDERER_PATH, sitesPreloadPath: SITES_PRELOAD_PATH, guestPreloadPath: SPEECH_PRELOAD_PATH,
-    userDataDir: app.getPath("userData"), fileExists: (file) => fs.existsSync(file),
+    userDataDir: app.getPath("userData"), fileExists: ({ filePath }) => fs.existsSync(filePath),
     createBrowserWindow: (options) => new BrowserWindow(options), getAllDisplays: () => screen.getAllDisplays(),
-    readWindowBounds, writeWindowBounds, isSupervisedGuestUrl,
+    readWindowBounds, writeWindowBounds, isSupervisedGuestUrl: (raw) => isSupervisedGuestUrl({ raw }),
     registerPreviewGuest: ({ window, webContents: contents }) => livePreviewGuests.register({ owner: window, guest: contents as WebContents }),
-    openExternal: (target) => void shell.openExternal(target),
+    openExternal: ({ url }) => void shell.openExternal(url),
     relayFindResults, registerSpellCheck: ({ webContents }) => registerSpellCheckContextMenu({ webContents, menuBuilder: Menu }),
-    showErrorBox: (title, message) => dialog.showErrorBox(title, message), logError: (message) => console.error(message),
-    setExitCode: (code) => { process.exitCode = code; }, quit: () => app.quit(),
+    showErrorBox: ({ title, message }) => dialog.showErrorBox(title, message), logError: ({ message }) => console.error(message),
+    setExitCode: ({ code }) => { process.exitCode = code; }, quit: () => app.quit(),
   } }, { selftest: SELFTEST, trackWindow: trackAppWindow });
 }
 
@@ -549,8 +549,8 @@ function openSitesHomeWindow(): BrowserWindow | null {
  * republished when this instance attaches to another main's server. */
 const desktopMcpHttp = createDesktopMcpHttpRuntime({ context: {
   projectsPath: sitesFilePath(app.getPath("userData")),
-  revealPath: async (target) => { shell.showItemInFolder(target); },
-}, warn: (message) => console.warn(message) });
+  revealPath: async ({ target }) => { shell.showItemInFolder(target); },
+}, warn: ({ message }) => console.warn(message) });
 
 /** Spawn-or-attach one site's `tovu serve`, seed its admin session, bind the desktop capability —
  *  see `site-backend.ts`. Shared by own-server windows and sites-home tabs. */
@@ -566,7 +566,7 @@ const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   resolveAdminDevProxyUrl: () => resolveAdminDevProxyUrl({ isPackaged: app.isPackaged, env: process.env }),
   startCaptureBridge: () => startDesktopCaptureBridge({ createWindow: (options) => new BrowserWindow(options), capturePool }),
   desktopMcpEnv: () => desktopMcpHttp.environment({}),
-  connectDesktopMcp: server => desktopMcpHttp.connectSite({ adminUrl: server.adminUrl, onExit: listener => server.onExit(listener) }),
+  connectDesktopMcp: ({ server }) => desktopMcpHttp.connectSite({ adminUrl: server.adminUrl, onExit: ({ listener }) => server.onExit(listener) }),
   startServer: (input) => startTovuServer({ ...input,
     isPackaged: app.isPackaged, productTelemetry: productState.product.launch, repoRoot: PAYLOAD_ROOT }),
   baseToolchainEnv: NODE_TOOLCHAIN_ENV,
@@ -575,7 +575,7 @@ const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   armOwnerSignIn: ({ partition, adminUrl, capability }) => armDesktopOwnerSignIn({ session: session.fromPartition(partition), adminUrl, capability }),
   ensureSession: ({ partition, adminUrl, redeem }) => ensureSiteSession({ net, session: session.fromPartition(partition), adminUrl, redeem }),
   redeemBootSession: ({ partition, adminUrl, bootToken }) => redeemBootSession({ net, session: session.fromPartition(partition), adminUrl, bootToken }),
-  log: (message) => console.log(message), warn: (message) => console.warn(message), error: (message) => console.error(message),
+  log: ({ message }) => console.log(message), warn: ({ message }) => console.warn(message), error: ({ message }) => console.error(message),
   openSites,
   syncThemePreview: ({ siteDir }) => siteThemePreviews.sync({ siteDir }, {}),
 } });
@@ -603,7 +603,7 @@ const livePreviewGuests = createLivePreviewGuests<BrowserWindow, WebContents>({
 const captureSitePreview = createSitePreviewCapture({ ports: {
   liveGuest: input => livePreviewGuests.liveGuest(input),
   writePreview: ({ siteDir, png }) => writePreview(app.getPath("userData"), siteDir, png),
-  warn: message => console.warn(message),
+  warn: ({ message }) => console.warn(message),
 } });
 const sitePreviewScheduler = createSitePreviewScheduler<ReturnType<typeof setTimeout>>({ ports: {
   current: currentPreviewTarget, capture: captureSitePreview,
@@ -611,20 +611,20 @@ const sitePreviewScheduler = createSitePreviewScheduler<ReturnType<typeof setTim
 } }, { debounceMs: PREVIEW_CAPTURE_DEBOUNCE_MS });
 
 
-/** Open (or focus) one own-server site's window — see `site-window.ts`. Run through `serializer.run(siteDir, …)`. */
-async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOpenOptions = {}): Promise<BrowserWindow> {
+/** Open (or focus) one own-server site's window — see `site-window.ts`. Run through `serializer.run({ key: siteDir, fn: ... })`. */
+async function openSiteWindow({ siteDir, ctx }: { siteDir: string; ctx: SiteOpenCtx }, options: SiteOpenOptions = {}): Promise<BrowserWindow> {
   siteLifecycle?.manualStart({ siteDir }, {});
   return openSiteWindowWith({ siteDir, ctx, ports: {
     openSites,
-    startSiteBackend: ({ siteDir: dir, ctx: openCtx }, openOptions) => siteBackend.startSiteBackend({ siteDir: dir, ctx: openCtx }, openOptions),
+    startSiteBackend: ({ siteDir: dir, ctx: openCtx }, openOptions = {}) => siteBackend.startSiteBackend({ siteDir: dir, ctx: openCtx }, openOptions),
     sitePartition, readSiteName,
-    createWindow: ({ url, title, partition }) => createWindow(url, title, partition),
+    createWindow: ({ url, title, partition }) => createWindow({ url }, { title, partition }),
     recordSiteClosed: ({ registryPath, siteDir: dir, pid }) => recordSiteClosed(registryPath, dir, { pid }),
     siteThemePreviews, sitePreviewScheduler,
     endSiteSession: ({ partition, adminUrl }) => endSiteSession({ net, session: session.fromPartition(partition), adminUrl }),
     trackTeardown: ({ promise }) => pendingTeardowns.track({ promise }),
     cancelRestart: ({ siteDir: dir }) => { siteLifecycle?.cancel({ siteDir: dir }); recoveringSiteWindows.delete(dir); },
-    platform: process.platform, quitPhase: () => quitPhase, logError: (message) => console.error(message),
+    platform: process.platform, quitPhase: () => quitPhase, logError: ({ message }) => console.error(message),
   } }, options).catch(error => {
     // A failed first window boot has no window to repoint. Keep it stopped for an explicit retry;
     // background retries are safe only when an existing window can adopt their replacement.
@@ -642,7 +642,7 @@ async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
  *
  * @complexity O(n) in currently open sites.
  */
-function isSupervisedGuestUrl(raw: string): boolean {
+function isSupervisedGuestUrl({ raw }: { raw: string }, _optional = {}): boolean {
   return isSupervisedSiteUrl({ raw, sites: openSites.values() });
 }
 
@@ -654,9 +654,9 @@ function isSupervisedGuestUrl(raw: string): boolean {
  *
  * @complexity O(n) in currently open sites.
  */
-function isShellPage(raw: string): boolean {
+function isShellPage({ raw }: { raw: string }, _optional = {}): boolean {
   return isShellPageUrl(raw, {
-    isSupervisedSite: isSupervisedGuestUrl,
+    isSupervisedSite: (raw) => isSupervisedGuestUrl({ raw }),
     attachUrl: process.env.TOVU_DESKTOP_URL?.trim(),
     rendererFileUrl: pathToFileURL(SITES_RENDERER_PATH).href,
   });
@@ -668,15 +668,15 @@ const signInWindows = new WeakSet<WebContents>();
  *  the OS browser — see `guest-navigation.ts`. Registered once, globally, from the sites-home branch. */
 function registerGuestNavigationPolicy(): void {
   app.on("web-contents-created", (_event, contents) =>
-    installWebviewGuestPolicy({ contents, isSupervisedGuestUrl, openExternal: (url) => {
+    installWebviewGuestPolicy({ contents, isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl({ raw: url }), openExternal: ({ url }) => {
       const target = new URL(url);
-      if (!isSupervisedGuestUrl(url) || !isSameOrigin(url, contents.getURL()) ||
+      if (!isSupervisedGuestUrl({ raw: url }) || !isSameOrigin(url, contents.getURL()) ||
           !(isHostedMcpSignInLinkPath({ pathname: target.pathname }) || isHostedSignInLinkPath({ pathname: target.pathname }))) return void shell.openExternal(url);
       const popup = new BrowserWindow({ webPreferences: { session: contents.session, sandbox: true, contextIsolation: true, nodeIntegration: false } });
       signInWindows.add(popup.webContents);
       contents.session.setPermissionRequestHandler((wc, _permission, callback) => callback(!signInWindows.has(wc)));
       contents.session.setPermissionCheckHandler((wc) => !wc || !signInWindows.has(wc));
-      installGuestWindowOpenPolicy(popup.webContents, { isSupervisedGuestUrl, openExternal: (next) => void shell.openExternal(next) });
+      installGuestWindowOpenPolicy(popup.webContents, { isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl({ raw: url }), openExternal: ({ url: next }) => void shell.openExternal(next) });
       popup.webContents.on("will-navigate", (event, next) => { if (!isExternalBrowserUrl(next)) event.preventDefault(); });
       popup.webContents.on("will-redirect", (event) => { if (event.isMainFrame && !isExternalBrowserUrl(event.url)) event.preventDefault(); });
       void popup.loadURL(url);
@@ -686,14 +686,14 @@ function registerGuestNavigationPolicy(): void {
 /** "Open Site…" / "Open Recent" effects, bound to one launch's `ctx` — see `site-open-actions.ts`. */
 function siteOpenPorts(ctx: SiteOpenCtx): SiteOpenActionPorts {
   return {
-    adoptSiteDir: (dir) => adoptSiteDir({ dir, sharedSites, repoRoot: PAYLOAD_ROOT, statePath: ctx.statePath, cliMode: ctx.cliMode }),
-    openSiteWindow: (siteDir) => openSiteWindow(siteDir, ctx),
+    adoptSiteDir: ({ dir }) => adoptSiteDir({ dir, sharedSites, repoRoot: PAYLOAD_ROOT, statePath: ctx.statePath, cliMode: ctx.cliMode }),
+    openSiteWindow: ({ siteDir }) => openSiteWindow({ siteDir, ctx }),
     refreshAppMenu: () => refreshAppMenu(ctx),
-    promptForSiteDir: () => promptForSiteDir(null),
-    showErrorBox: (title, message) => dialog.showErrorBox(title, message),
+    promptForSiteDir: () => promptForSiteDir({ rejectedDefault: null }),
+    showErrorBox: ({ title, message }) => dialog.showErrorBox(title, message),
   };
 }
-async function adoptAndOpenSite(dir: string, ctx: SiteOpenCtx): Promise<void> { await adoptAndOpenSiteWith({ dir, ports: siteOpenPorts(ctx) }); }
+async function adoptAndOpenSite({ dir, ctx }: { dir: string; ctx: SiteOpenCtx }, _optional = {}): Promise<void> { await adoptAndOpenSiteWith({ dir, ports: siteOpenPorts(ctx) }); }
 async function promptAndOpenNewSite(ctx: SiteOpenCtx): Promise<void> { await promptAndOpenNewSiteWith({ ports: siteOpenPorts(ctx) }); }
 
 /**
@@ -706,8 +706,8 @@ async function promptAndOpenNewSite(ctx: SiteOpenCtx): Promise<void> { await pro
 function buildAppMenu(ctx: SiteOpenCtx): Menu {
   return Menu.buildFromTemplate(ownServerMenuTemplate({ platform: process.platform,
     recents: existingRecentSiteDirs(ctx.statePath, { workspace: sharedSites }), settings: desktopUpdateSettingsMenu(),
-    openNewSite: () => void serializer.run("__open_new__", () => promptAndOpenNewSite(ctx)),
-    openRecent: ({ dir }) => void serializer.run(dir, () => adoptAndOpenSite(dir, ctx)) }));
+    openNewSite: () => void serializer.run({ key: "__open_new__", fn: () => promptAndOpenNewSite(ctx) }),
+    openRecent: ({ dir }) => void serializer.run({ key: dir, fn: () => adoptAndOpenSite({ dir, ctx }) }) }));
 }
 
 function refreshAppMenu(ctx: SiteOpenCtx): void {
@@ -715,17 +715,17 @@ function refreshAppMenu(ctx: SiteOpenCtx): void {
 }
 
 /** Report a boot failure where the user can actually see it — see `boot-failure.ts`. */
-function reportBootFailure(error: Error): Promise<void> {
-  return reportBootFailureIn({ error, ports: { isSelectionCancelled: (candidate) => candidate instanceof SiteDirSelectionCancelled, selftest: SELFTEST,
+function reportBootFailure({ error }: { error: Error }, _optional = {}): Promise<void> {
+  return reportBootFailureIn({ error, ports: { isSelectionCancelled: ({ error: candidate }) => candidate instanceof SiteDirSelectionCancelled, selftest: SELFTEST,
     isUnattended: isUnattendedSiteLaunch, showInfo: (options) => dialog.showMessageBox(options),
-    showError: ({ title, content }) => dialog.showErrorBox(title, content), logError: (message) => console.error(message),
-    setExitCode: (code) => { process.exitCode = code; }, openSiteCount: () => openSites.size, quit: () => app.quit(), exit: (code) => app.exit(code) } });
+    showError: ({ title, content }) => dialog.showErrorBox(title, content), logError: ({ message }) => console.error(message),
+    setExitCode: ({ code }) => { process.exitCode = code; }, openSiteCount: () => openSites.size, quit: () => app.quit(), exit: ({ code }) => app.exit(code) } });
 }
 
 /** `selftest-tracker.ts`'s completion tracking, bound to this process's logging and exit. */
-function buildSelftestTracker(expectedCount: number): SelftestTracker {
-  return buildSelftestTrackerIn({ expectedCount, log: (message) => console.log(message), logError: (message) => console.error(message),
-    setExitCode: (code) => { process.exitCode = code; }, quit: () => app.quit() });
+function buildSelftestTracker({ expectedCount }: { expectedCount: number }, _optional = {}): SelftestTracker {
+  return buildSelftestTrackerIn({ expectedCount, log: ({ message }) => console.log(message), logError: ({ message }) => console.error(message),
+    setExitCode: ({ code }) => { process.exitCode = code; }, quit: () => app.quit() });
 }
 
 /** `null` outside SELFTEST mode; otherwise created once, before any window opens, and consulted by
@@ -736,11 +736,11 @@ let selftestTracker: SelftestTracker | null = null;
 /** The site dir(s) own-server mode opens at launch — see `own-server-boot.ts`'s `resolveStartupSiteDirs`. */
 function resolveStartupSiteDirs(ctx: SiteOpenCtx): Promise<string[]> {
   return resolveStartupSiteDirsIn({ ctx, ports: { env: process.env, repoRoot: PAYLOAD_ROOT, devFallbackDir: DEV_FALLBACK_SITE_DIR,
-    resolveOrInitSiteDir, resolveSiteDir: (input) => resolveSiteDir({ ...input, sharedSites }), pickDir: promptForSiteDir } });
+    resolveOrInitSiteDir, resolveSiteDir: (input) => resolveSiteDir({ ...input, sharedSites }), pickDir: (rejectedDefault) => promptForSiteDir({ rejectedDefault }) } });
 }
 
 /** The Tovu mark on the macOS dock tile — see `dock-icon.ts`. */
-function applyDockIcon(): void { applyDockIconWith({ dock: app.dock, iconPath: APP_ICON_PATH, log: (message) => console.log(message) }); }
+function applyDockIcon(): void { applyDockIconWith({ dock: app.dock, iconPath: APP_ICON_PATH, log: ({ message }) => console.log(message) }); }
 
 /** Reap every `tovu serve` a PREVIOUS launch left running, above the boot-mode split — see
  *  `own-server-boot.ts`'s `reconcileOrphansOnBoot` for why every mode runs it. */
@@ -748,22 +748,22 @@ function reconcileOrphansOnBoot(): Promise<void> {
   // Not awaited: a killed import's leftovers are no reason to hold up the launch.
   void Promise.resolve().then(() => tidyInterruptedImports({ appData: sharedSites.config({}).appData, repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode() }))
     .catch((error: unknown) => console.warn("tovu desktop: could not check for interrupted imports:", error));
-  return reconcileOrphansOnBootIn({ registryPath: registryDirPath(app.getPath("userData")), reconcileOrphans: (registryPath) => reconcileOrphans(registryPath), log: (message) => console.log(message) });
+  return reconcileOrphansOnBootIn({ registryPath: registryDirPath(app.getPath("userData")), reconcileOrphans: ({ registryPath }) => reconcileOrphans(registryPath), log: ({ message }) => console.log(message) });
 }
 
 /** Boot mode 2 — own server — see `own-server-boot.ts`. */
 async function bootOwnServerMode(): Promise<void> {
   registerProjectLifecycle(buildProjectDeps(sitesHomeCtx()));
   const ctx: SiteOpenCtx = { cliMode: resolveCliMode(), statePath: stateFilePath(app.getPath("userData")), registryPath: registryDirPath(app.getPath("userData")) };
-  await bootOwnServerModeIn({ ctx, ports: { sitesConfigWarning: () => sharedSites.config({}).warning, warn: (message) => console.warn(message),
+  await bootOwnServerModeIn({ ctx, ports: { sitesConfigWarning: () => sharedSites.config({}).warning, warn: ({ message }) => console.warn(message),
     refreshAppMenu, resolveStartupSiteDirs, selftest: SELFTEST,
-    installSelftestTracker: ({ expectedCount }) => { selftestTracker = buildSelftestTracker(expectedCount); },
-    runSerialized: (siteDir, work) => serializer.run(siteDir, work),
-    openSiteWindow: ({ siteDir, ctx: openCtx }, options) => openSiteWindow(siteDir, openCtx, options),
-    onActivate: (listener) => { app.on("activate", listener); },
+    installSelftestTracker: ({ expectedCount }) => { selftestTracker = buildSelftestTracker({ expectedCount }); },
+    runSerialized: ({ siteDir, work }) => serializer.run({ key: siteDir, fn: work }),
+    openSiteWindow: ({ siteDir, ctx: openCtx }, options = {}) => openSiteWindow({ siteDir, ctx: openCtx }, options),
+    onActivate: ({ listener }) => { app.on("activate", listener); },
     windowCount: appWindowCount, quitPhase: () => quitPhase,
     openSiteDirs: () => [...openSites.values()].map((entry) => entry.siteDir), promptAndOpenNewSite,
-    reportOpenFailure: (error) => dialog.showErrorBox("Tovu could not open that site", error.message) } });
+    reportOpenFailure: ({ error }) => dialog.showErrorBox("Tovu could not open that site", error.message) } });
 }
 
 function currentUpdaterSkipReason(): string | null {
@@ -810,7 +810,7 @@ function desktopUpdateSettingsMenu(): MenuItemConstructorOptions {
   return desktopSettingsMenu({ locale: app.getLocale(), preferencePath: desktopPreferencesPath(), product: productState.product,
     setAutomaticUpdates: desktopUpdater.setAutomaticUpdates,
     setMaximumLiveSiteViews: saveMaximumLiveSiteViews,
-    showErrorBox: (title, content) => dialog.showErrorBox(title, content) });
+    showErrorBox: ({ title, content }) => dialog.showErrorBox(title, content) });
 }
 
 /**
@@ -835,7 +835,7 @@ function registerAppWideIpc(): void {
   // call (fired from the preload the instant the page mounts) never races an unregistered
   // channel — see `SPEECH_PRELOAD_PATH`'s own doc for why this and the preload path are both
   // needed for `window.tovuVoice` to exist at all.
-  registerSpeechIpc({ ipcMain, isTrustedSender: isShellPage });
+  registerSpeechIpc({ ipcMain, isTrustedSender: (raw) => isShellPage({ raw }) });
   // General, not sites-home-only: registered here for the same reason `registerSpeechIpc` is —
   // resolves its target from `event.sender` at call time, so it needs no per-window setup and is
   // harmless to register even for a boot mode whose window never calls it (no preload exposes
@@ -844,14 +844,14 @@ function registerAppWideIpc(): void {
   // The web admin's "Open Import in Tovu" (owner, 2026-11-10): admin pages only reach it through
   // their preload's `tovuImport`, behind the speech channels' sender check. App-wide for the same
   // reason as speech; with no sites home window open it answers `opened: false`.
-  registerImportHandoffIpc({ ipcMain, isTrustedSender: isShellPage, sitesHomeWindows: openSitesHomeWindows });
+  registerImportHandoffIpc({ ipcMain, isTrustedSender: (raw) => isShellPage({ raw }), sitesHomeWindows: openSitesHomeWindows });
   registerSiteViewPreferenceIpc({ ipcMain,
-    allowed: (sender: WebContents) => !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
+    allowed: ({ sender }: { sender: WebContents }) => !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
     read: () => readMaximumLiveSiteViews({ preferencePath: desktopPreferencesPath() }),
     write: saveMaximumLiveSiteViews,
   });
   registerSiteThemePreviewIpc({ ipcMain, subscriptions: siteThemePreviews,
-    allowed: (sender) => !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
+    allowed: ({ sender }) => !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
   });
 }
 
@@ -927,9 +927,9 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     // site every other consumer resolves it from — an independently-resolved userData here
     // would write E2E previews into the real operator's profile (see `site-preview-store.ts`'s
     // own header, and `applyUserDataDir`'s doc on `TOVU_DESKTOP_USER_DATA_DIR`).
-    readPreviewVersion: (siteDir: string) => readPreviewVersion(app.getPath("userData"), siteDir),
-    readPreviewDataUrl: (siteDir: string) => readPreviewDataUrl(app.getPath("userData"), siteDir),
-    deletePreview: (siteDir: string) => deletePreview(app.getPath("userData"), siteDir),
+    readPreviewVersion: ({ siteDir }: { siteDir: string }) => readPreviewVersion(app.getPath("userData"), siteDir),
+    readPreviewDataUrl: ({ id }: { id: string }) => readPreviewDataUrl(app.getPath("userData"), id),
+    deletePreview: ({ id }: { id: string }) => deletePreview(app.getPath("userData"), id),
     cancelPreviewCapture: ({ siteDir }: { siteDir: string }, _optional = {}) => {
       sitePreviewScheduler.cancel({ siteDir }, {});
       siteThemePreviews.stop({ siteDir }, {});
@@ -953,7 +953,7 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     addSitePointer,
     importSiteArchive,
     stopRunningImports,
-    openSiteServer: (siteDir: string, ctx: SitesHomeCtx) => siteBackend.openSiteServer({ siteDir, ctx }),
+    openSiteServer: ({ siteDir, ctx }: { siteDir: string; ctx: SitesHomeCtx }) => siteBackend.openSiteServer({ siteDir, ctx }),
     recordSiteClosed,
     // How `handleDelete` sees a SIBLING app instance's open sites before erasing a directory —
     // `openSites` above is this process's own memory and cannot (D-08). See
@@ -982,18 +982,18 @@ type ProjectDeps = ReturnType<typeof buildProjectDeps>;
 function startSitesHomeDiscovery(projectDeps: ProjectDeps): void {
   void startDesktopSiteDiscovery({
     scan: () => rescanSites(projectDeps),
-    report: (failure) => console.warn(`tovu desktop: ${failure instanceof Error ? failure.message : String(failure)}`),
+    report: ({ failure }) => console.warn(`tovu desktop: ${failure instanceof Error ? failure.message : String(failure)}`),
     // Hygiene runs after discovery settles, so it sees the fullest tracked list; cleanup,
     // never correctness. See sweepSitePreviewsOnBoot's own doc.
     sweep: () => sweepSitePreviewsOnBootIn({ projectsPath: projectDeps.ctx.projectsPath, readTrackedSites,
-      sweepOrphanedPreviews: ({ trackedDirs }) => sweepOrphanedPreviews(app.getPath("userData"), trackedDirs), warn: (message) => console.warn(message) }),
+      sweepOrphanedPreviews: ({ trackedDirs }) => sweepOrphanedPreviews(app.getPath("userData"), trackedDirs), warn: ({ message }) => console.warn(message) }),
   });
 }
 
 /** A Dock-reopenable single window opened by `openSingleWindow` — see `boot-sequence.ts`. */
-function singleWindowPorts(openWindow: () => void): SingleWindowPorts {
-  return { selftest: SELFTEST, installSelftestTracker: ({ expectedCount }) => { selftestTracker = buildSelftestTracker(expectedCount); },
-    openWindow, onActivate: (listener) => { app.on("activate", listener); },
+function singleWindowPorts({ openWindow }: { openWindow: () => void }, _optional = {}): SingleWindowPorts {
+  return { selftest: SELFTEST, installSelftestTracker: ({ expectedCount }) => { selftestTracker = buildSelftestTracker({ expectedCount }); },
+    openWindow, onActivate: ({ listener }) => { app.on("activate", listener); },
     windowCount: appWindowCount, quitPhase: () => quitPhase };
 }
 
@@ -1026,15 +1026,15 @@ function bootSitesHomeMode(): void {
     settleDevFallbackRows: () => settleDevFallbackRows({ projectsPath: sitesCtx.projectsPath, devFallbackDir: DEV_FALLBACK_SITE_DIR,
       classifySiteDir: classifySiteDirSafely, migrateLegacyDismissals, seedDevFallbackSite, retireDevFallbackSite }),
     buildProjectDeps: () => buildProjectDeps(sitesCtx),
-    registerSiteIpcHandlers: (projectDeps) => registerProjectLifecycle(projectDeps),
-    startSiteDiscovery: startSitesHomeDiscovery,
+    registerSiteIpcHandlers: ({ deps }) => registerProjectLifecycle(deps),
+    startSiteDiscovery: ({ deps }) => startSitesHomeDiscovery(deps),
     registerAppVersionIpc: () => registerAppVersionIpc({ ipcMain, app }, { repoRoot: REPO_ROOT }),
     registerResourcesIpc: () => registerResourcesIpc({ ipcMain,
-      allowed: (url) => url === pathToFileURL(SITES_RENDERER_PATH).href,
+      allowed: ({ url }) => url === pathToFileURL(SITES_RENDERER_PATH).href,
       monitor: desktopResources,
     }),
     registerOwnerStoreIpc: () => registerOwnerStoreIpc({ ipcMain,
-      allowed: (url) => url === pathToFileURL(SITES_RENDERER_PATH).href,
+      allowed: ({ url }) => url === pathToFileURL(SITES_RENDERER_PATH).href,
       controller: ownerStore,
     }),
     settleLegacyOwnerStore: settleLegacyOwnerStoreOnStart,
@@ -1042,13 +1042,13 @@ function bootSitesHomeMode(): void {
     registerRunnerIpcStubs: () => registerRunnerIpcStubs({ ipcMain }),
     registerGuestNavigationPolicy,
     installMenu: installAppWideMenu,
-    ...singleWindowPorts(() => { openSitesHomeWindow(); }),
+    ...singleWindowPorts({ openWindow: () => { openSitesHomeWindow(); } }),
   } });
 }
 
 /** Boot mode 3 — attach to an already-running site at `TOVU_DESKTOP_URL`. Always exactly one window. */
 function bootAttachMode({ url }: { url: string }): void {
-  openSingleWindow({ ports: singleWindowPorts(() => { createWindow(url, "Tovu"); }) });
+  openSingleWindow({ ports: singleWindowPorts({ openWindow: () => { createWindow({ url }, { title: "Tovu" }); } }) });
 }
 
 /** The launch, in order — see `boot-sequence.ts`'s `runDesktopBoot` for why each step sits where it does. */
@@ -1079,7 +1079,7 @@ function bootDesktop(): Promise<void> {
 // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
 // The disabled helper is recoverable with its imports and call from git history.
 
-app.whenReady().then(bootDesktop).catch(reportBootFailure);
+app.whenReady().then(bootDesktop).catch((error: Error) => reportBootFailure({ error }));
 
 /**
  * Every spawned `tovu serve` must not outlive the app, and each must be given the chance to shut

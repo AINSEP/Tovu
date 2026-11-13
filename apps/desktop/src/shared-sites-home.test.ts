@@ -25,7 +25,7 @@ test("desktop creates inside the shared home and reads Web/external entries as a
       dialog: { showOpenDialog: async () => { throw new Error("Creation must not ask for another folder"); } },
       classifySiteDir: (dir: string) => fs.existsSync(path.join(dir, "config.json")) ? "site" as const : "empty" as const,
       adoptSiteDir: async ({ dir, name }: { dir: string; name?: string }) => { writeSite(dir, "11111111-1111-4111-8111-111111111111", name); return dir; },
-      readSiteName: (dir: string) => JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")).name as string,
+      readSiteName: ({ siteDir: dir }: { siteDir: string }) => JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")).name as string,
       readPreviewVersion: () => null,
     };
     const created = await handleCreate({ displayName: "My Website", database: { kind: "sqlite" } }, deps);

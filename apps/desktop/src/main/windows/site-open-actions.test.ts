@@ -11,11 +11,11 @@ import type { SiteOpenActionPorts } from "./site-open-actions.ts";
 function fakePorts(overrides: Partial<SiteOpenActionPorts> = {}) {
   const log: string[] = [];
   const ports: SiteOpenActionPorts = {
-    adoptSiteDir: async (dir) => { log.push(`adopt ${dir}`); return `${dir}/site`; },
-    openSiteWindow: async (siteDir) => { log.push(`open ${siteDir}`); },
+    adoptSiteDir: async ({ dir }) => { log.push(`adopt ${dir}`); return `${dir}/site`; },
+    openSiteWindow: async ({ siteDir }) => { log.push(`open ${siteDir}`); },
     refreshAppMenu: () => { log.push("refresh"); },
     promptForSiteDir: async () => { log.push("prompt"); return "/picked"; },
-    showErrorBox: (title, message) => { log.push(`error ${title}: ${message}`); },
+    showErrorBox: ({ title, message }) => { log.push(`error ${title}: ${message}`); },
     ...overrides,
   };
   return { ports, log };

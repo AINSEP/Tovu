@@ -35,7 +35,7 @@ test("main.ts hands the resolver Electron's appData root", () => {
 test("main.ts applies the resolver's userData through applyUserDataDir, and sets it nowhere else", () => {
   const call = source.slice(source.search(APPLY_USER_DATA), source.indexOf("});", source.search(APPLY_USER_DATA)));
   assert.match(call, /env: process\.env, defaultUserDataDir: DESKTOP_ROOTS\.userDataDir,/);
-  assert.match(call, /setUserDataDir: \(dir\) => app\.setPath\("userData", dir\)/);
+  assert.match(call, /setUserDataDir: \(\{ dir \}\) => app\.setPath\("userData", dir\)/);
   assert.equal(source.match(/applyUserDataDir\(/g)?.length, 1, "exactly one module-scope userData apply, so nothing later overrides it");
   assert.equal(source.match(/app\.setPath\("userData"/g)?.length, 1, "no second setPath outside applyUserDataDir");
 });

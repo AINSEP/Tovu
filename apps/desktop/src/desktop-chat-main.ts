@@ -59,7 +59,7 @@ function startDesktopChat(deps: DesktopChatMainDeps, optional: { siteTools?: Sit
     agentRuntime: deps.agentRuntime,
     workDir: path.join(deps.userDataDir, "desktop-agent"),
     buildTools: ({ addresseeOf }) => buildDesktopAgentTools({
-      sitesToolContext: { userDataDir: deps.userDataDir, projectsPath: deps.projectsPath, revealPath: deps.revealPath },
+      sitesToolContext: { userDataDir: deps.userDataDir, projectsPath: deps.projectsPath, revealPath: ({ target }) => deps.revealPath(target) },
       addresseeOf,
       siteTools: optional.siteTools ?? UNBUILT_SITE_TOOL_GATEWAY,
       navigate: ({ section }) => deps.broadcast(WORKSPACE_CHAT_IPC.navigate, section),

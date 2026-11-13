@@ -42,9 +42,9 @@ function harness(overrides: Partial<SiteBackendPorts<FakeServer>> = {}) {
     armOwnerSignIn: (input) => { calls.push("arm"); arms.push(input); },
     ensureSession: async ({ redeem }) => { calls.push("ensure"); return redeem(); },
     redeemBootSession: async () => { calls.push("redeem"); return { ok: true }; },
-    log: (message) => logs.push(message),
-    warn: (message) => warns.push(message),
-    error: (message) => errors.push(message),
+    log: ({ message }) => logs.push(message),
+    warn: ({ message }) => warns.push(message),
+    error: ({ message }) => errors.push(message),
     openSites: { get: (dir) => openSites.get(dir), set: (dir, entry) => openSites.set(dir, entry) },
     syncThemePreview: ({ siteDir }) => { calls.push(`theme:${siteDir}`); },
     ...overrides,
@@ -177,7 +177,7 @@ test("a start whose session is still valid never redeems a boot token", async ()
 
 test("only freshly spawned servers receive the main's automatic capability recovery", async () => {
   const delivered: FakeServer[] = [];
-  const h = harness({ connectDesktopMcp: server => { delivered.push(server); } });
+  const h = harness({ connectDesktopMcp: ({ server }) => { delivered.push(server); } });
   await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx });
   assert.deepEqual(delivered, [h.spawned]);
   const attached = harness({ attachRunning: () => fakeServer(), connectDesktopMcp: () => assert.fail("foreign main must retain ownership") });

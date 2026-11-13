@@ -12,7 +12,7 @@ function fixture() {
     totalMem: () => 1000, openSites: () => [],
     listUsage: async () => [{ pid: 1, ppid: 0, rssBytes: 100, cpuSeconds: 0, name: 'Electron' }] });
   registerResourcesIpc({ ipcMain: { handle: (channel, listener) => { handlers.set(channel, listener); } },
-    allowed: (url) => url === 'file:///sites-home.html', monitor: { get: (input) => { calls.push(input); return monitor.get(input); } } });
+    allowed: ({ url }) => url === 'file:///sites-home.html', monitor: { get: (input) => { calls.push(input); return monitor.get(input); } } });
   return { handlers, calls, get: handlers.get(RUNNER_RESOURCES_GET_CHANNEL)!, event: { senderFrame: { url: 'file:///sites-home.html', parent: null } } };
 }
 

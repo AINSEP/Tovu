@@ -40,7 +40,7 @@ export function desktopSettingsMenu({ locale, preferencePath, product, setAutoma
   product: ProductMenuSource;
   setAutomaticUpdates: (args: { enabled: boolean }) => void;
   setMaximumLiveSiteViews?: (args: { maximumLiveSiteViews: number }) => void;
-  showErrorBox: (title: string, content: string) => void;
+  showErrorBox: (required: { title: string; content: string }) => void;
 }, {
   readAutomatic = readAutomaticUpdates,
   readSharing = readProductTelemetryPreference,
@@ -56,20 +56,20 @@ export function desktopSettingsMenu({ locale, preferencePath, product, setAutoma
     locale,
     enabled: readAutomatic({ preferencePath }),
     setEnabled: setAutomaticUpdates,
-    onError: ({ error }) => showErrorBox(desktopCopy({ locale }).saveUpdateError,
-      error instanceof Error ? error.message : String(error)),
+    onError: ({ error }) => showErrorBox({ title: desktopCopy({ locale }).saveUpdateError,
+      content: error instanceof Error ? error.message : String(error) }),
   });
   const submenu: MenuItemConstructorOptions[] = [...settings.submenu];
   if (product.launch) submenu.push(...productTelemetryMenu({
     preference: readSharing({ preferencePath }),
-    save: patch => writeSharing({ preferencePath, patch }),
-    changed: preference => product.consentChanged(preference),
-    onError: () => showErrorBox("Tovu", SHARING_SAVE_ERROR),
+    save: ({ patch }) => writeSharing({ preferencePath, patch }),
+    changed: ({ preference }) => product.consentChanged(preference),
+    onError: () => showErrorBox({ title: "Tovu", content: SHARING_SAVE_ERROR }),
   }));
   submenu.push(maximumLiveSiteViewsMenu({
     maximumLiveSiteViews: readViewMaximum({ preferencePath }),
     setMaximum: setMaximumLiveSiteViews ?? (input => writeMaximumLiveSiteViews({ preferencePath, ...input })),
-    onError: ({ error }) => showErrorBox('Tovu', error instanceof Error ? error.message : String(error)),
+    onError: ({ error }) => showErrorBox({ title: 'Tovu', content: error instanceof Error ? error.message : String(error) }),
   }));
   return { label: settings.label, submenu };
 }

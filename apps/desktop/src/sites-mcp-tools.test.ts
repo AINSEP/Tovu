@@ -41,7 +41,7 @@ function fakeContext(userDataDir: string = tempDir()) {
     context: {
       userDataDir,
       projectsPath: sitesFilePath(userDataDir),
-      revealPath: async (target: string) => {
+      revealPath: async ({ target }: { target: string }) => {
         revealed.push(target);
       },
     },
