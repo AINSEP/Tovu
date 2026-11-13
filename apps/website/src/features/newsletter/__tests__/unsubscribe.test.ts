@@ -57,7 +57,7 @@ function makeDeps(subscription: SubscriptionRow, withCapability = true): { deps:
       return { status: "revoked" };
     },
   };
-  const repo = new InMemoryNewsletterSubscriptionRepo([subscription]);
+  const repo = new InMemoryNewsletterSubscriptionRepo({}, { initialRows: [subscription] });
   return {
     repo,
     deps: { subscriptionRepo: repo, keyring, originRegistry, consentCapability: withCapability ? capability : null, clock },

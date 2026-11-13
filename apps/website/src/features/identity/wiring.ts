@@ -172,9 +172,12 @@ export interface IdentityRouteDepsSlice {
  * that bypasses seeding entirely, including its repair paths and username-based lookup.
  */
 function buildIdentityRouteDeps(
-  repos: IdentityRepos,
-  apiKeyRepo: ApiKeyRepoPort,
-  required: { workspaceId: UUID; clock: ClockPort | { nowIso(): string }; idGen: IdGeneratorPort; permissionGrants: PermissionGrantRegistry; reconcileGrantsOnBoot?: boolean; ownerCredentials: OwnerCredentials; readOnlyOwnerPrincipalId?: UUID }
+  { repos, apiKeyRepo, required }: {
+    repos: IdentityRepos;
+    apiKeyRepo: ApiKeyRepoPort;
+    required: { workspaceId: UUID; clock: ClockPort | { nowIso(): string }; idGen: IdGeneratorPort; permissionGrants: PermissionGrantRegistry; reconcileGrantsOnBoot?: boolean; ownerCredentials: OwnerCredentials; readOnlyOwnerPrincipalId?: UUID };
+  },
+  _options = {},
 ): IdentityRouteDepsSlice {
   assertOwnerCredentials(required.ownerCredentials);
   const passwordHasher = new Argon2PasswordHasher({ loadBinding: loadArgon2Binding });
@@ -316,7 +319,7 @@ export function createInMemoryIdentityRouteDeps(required: {
     principalRoles: new InMemoryPrincipalRoleRepo({}),
     principalPolicies: new InMemoryPrincipalPolicyRepo({}),
   } });
-  return buildIdentityRouteDeps(repos, new InMemoryApiKeyRepo(), required);
+  return buildIdentityRouteDeps({ repos, apiKeyRepo: new InMemoryApiKeyRepo(), required });
 }
 
 /**
@@ -371,5 +374,5 @@ export function createSqliteIdentityRouteDeps(
     principalRoles: new SqlitePrincipalRoleRepo(db),
     principalPolicies: new SqlitePrincipalPolicyRepo(db),
   };
-  return { ...buildIdentityRouteDeps(repos, apiKeyRepo, seedRequired), recoveryCodes: createRecoveryCodeStore({ kernel: db }, {}), mfaStore: createMfaStore({ kernel: db }, {}), passkeyStore: createPasskeyStore({ kernel: db }, {}) };
+  return { ...buildIdentityRouteDeps({ repos, apiKeyRepo, required: seedRequired }), recoveryCodes: createRecoveryCodeStore({ kernel: db }, {}), mfaStore: createMfaStore({ kernel: db }, {}), passkeyStore: createPasskeyStore({ kernel: db }, {}) };
 }

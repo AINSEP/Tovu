@@ -470,7 +470,7 @@ test("identity_user_create's published schema/description are a real derivation 
   const registration = wiredRegistration("identity_user_create");
   const catalog = catalogEntry("identity_user_create");
 
-  assert.deepEqual(registration.descriptor.inputSchema, withoutPassword(catalog.inputSchema), "identity_user_create's published schema must be Jini's catalog schema run through withoutPassword(), not a second, hand-copied shape that could silently drift from it");
+  assert.deepEqual(registration.descriptor.inputSchema, withoutPassword({ schema: catalog.inputSchema }), "identity_user_create's published schema must be Jini's catalog schema run through withoutPassword(), not a second, hand-copied shape that could silently drift from it");
   assert.equal(registration.descriptor.description, `${catalog.description}${USER_CREATE_DESCRIPTION_SUFFIX}`);
 });
 

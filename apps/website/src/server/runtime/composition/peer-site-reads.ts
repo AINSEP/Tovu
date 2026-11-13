@@ -277,8 +277,8 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     resolveActiveThemeId: () => resolveActiveThemeId({ presentationRepo, workspaceId }),
     commentRepo: new SqliteCommentRepo({ store: kernel }, {}), commentsReady: Promise.resolve(), commentsSettingsReady: Promise.resolve(),
     memberRepo: new SqliteMemberRepo(kernel), memberTierRepo: new SqliteMemberTierRepo(kernel), memberSubscriptionRepo: new SqliteMemberSubscriptionRepo(kernel),
-    newsletterReady: Promise.resolve(), newsletterCampaignRepo: new SqliteNewsletterCampaignRepo(kernel), newsletterListRepo: new SqliteNewsletterListRepo(kernel),
-    newsletterSubscriptionRepo: new SqliteNewsletterSubscriptionRepo(kernel), newsletterAudienceSnapshotRepo: new SqliteNewsletterAudienceSnapshotRepo(kernel), newsletterSendRepo: new SqliteNewsletterSendRepo(kernel),
+    newsletterReady: Promise.resolve(), newsletterCampaignRepo: new SqliteNewsletterCampaignRepo({ store: kernel }), newsletterListRepo: new SqliteNewsletterListRepo({ store: kernel }),
+    newsletterSubscriptionRepo: new SqliteNewsletterSubscriptionRepo({ store: kernel }), newsletterAudienceSnapshotRepo: new SqliteNewsletterAudienceSnapshotRepo({ store: kernel }), newsletterSendRepo: new SqliteNewsletterSendRepo({ store: kernel }),
     redirectRepo: SqliteRedirectRepo({ store: kernel }, {}), originRegistry, seoDeps, seoReady: Promise.resolve(),
     // redirects_list hides Trashed rules (03fb27a27) by reading the PEER's Trash rows; every write stays poisoned.
     redirectsWriteDeps: readsOnly({ field: 'redirectsWriteDeps', reads: { isInTrash: async ({ workspaceId: id, id: entityId }: { workspaceId: string; id: string }) =>

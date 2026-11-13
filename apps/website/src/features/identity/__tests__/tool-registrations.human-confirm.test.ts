@@ -363,7 +363,7 @@ for (const changed of [false, true]) {
 }
 
 test("withoutPassword preserves other schema rules and handles an omitted required list", () => {
-  assert.deepEqual(withoutPassword({ type: "object", additionalProperties: false, properties: { username: { type: "string" }, password: { type: "string" } } }), {
+  assert.deepEqual(withoutPassword({ schema: { type: "object", additionalProperties: false, properties: { username: { type: "string" }, password: { type: "string" } } } }), {
     type: "object", additionalProperties: false, required: [], properties: { username: { type: "string" } },
   });
 });

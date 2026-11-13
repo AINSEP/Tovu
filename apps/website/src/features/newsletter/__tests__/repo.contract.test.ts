@@ -84,7 +84,7 @@ async function makeSqliteDb(): Promise<ContentDb> {
 
 const campaignAdapters: Array<[string, () => Promise<NewsletterCampaignRepoPort>]> = [
   ["memory", async () => new InMemoryNewsletterCampaignRepo()],
-  ["sqlite", async () => new SqliteNewsletterCampaignRepo(await makeSqliteDb())],
+  ["sqlite", async () => new SqliteNewsletterCampaignRepo({ store: await makeSqliteDb() })],
 ];
 
 for (const [name, makeRepo] of campaignAdapters) {
@@ -132,7 +132,7 @@ for (const [name, makeRepo] of campaignAdapters) {
   test(`[${name}] NewsletterCampaignRepoPort: transaction rolls back on a thrown error (real tx at sqlite; no-op-but-still-throws at memory)`, async () => {
     const repo = await makeRepo();
     await assert.rejects(
-      repo.transaction(async () => {
+      repo.transaction({ fn: async () => {
         await repo.saveCampaignRow({
           id: "camp-tx",
           workspaceId: WS,
@@ -153,7 +153,7 @@ for (const [name, makeRepo] of campaignAdapters) {
           updatedAt: NOW,
         });
         throw new Error("forced mid-tx failure");
-      })
+      } })
     );
   });
 
@@ -205,7 +205,7 @@ for (const [name, makeRepo] of campaignAdapters) {
 
 const listAdapters: Array<[string, () => Promise<NewsletterListRepoPort>]> = [
   ["memory", async () => new InMemoryNewsletterListRepo()],
-  ["sqlite", async () => new SqliteNewsletterListRepo(await makeSqliteDb())],
+  ["sqlite", async () => new SqliteNewsletterListRepo({ store: await makeSqliteDb() })],
 ];
 
 for (const [name, makeRepo] of listAdapters) {
@@ -235,7 +235,7 @@ for (const [name, makeRepo] of listAdapters) {
 
 const subscriptionAdapters: Array<[string, () => Promise<NewsletterSubscriptionRepoPort>]> = [
   ["memory", async () => new InMemoryNewsletterSubscriptionRepo()],
-  ["sqlite", async () => new SqliteNewsletterSubscriptionRepo(await makeSqliteDb())],
+  ["sqlite", async () => new SqliteNewsletterSubscriptionRepo({ store: await makeSqliteDb() })],
 ];
 
 for (const [name, makeRepo] of subscriptionAdapters) {
@@ -277,7 +277,7 @@ for (const [name, makeRepo] of subscriptionAdapters) {
 
 const snapshotAdapters: Array<[string, () => Promise<NewsletterAudienceSnapshotRepoPort>]> = [
   ["memory", async () => new InMemoryNewsletterAudienceSnapshotRepo()],
-  ["sqlite", async () => new SqliteNewsletterAudienceSnapshotRepo(await makeSqliteDb())],
+  ["sqlite", async () => new SqliteNewsletterAudienceSnapshotRepo({ store: await makeSqliteDb() })],
 ];
 
 for (const [name, makeRepo] of snapshotAdapters) {
@@ -300,7 +300,7 @@ for (const [name, makeRepo] of snapshotAdapters) {
 
 const sendAdapters: Array<[string, () => Promise<NewsletterSendRepoPort>]> = [
   ["memory", async () => new InMemoryNewsletterSendRepo()],
-  ["sqlite", async () => new SqliteNewsletterSendRepo(await makeSqliteDb())],
+  ["sqlite", async () => new SqliteNewsletterSendRepo({ store: await makeSqliteDb() })],
 ];
 
 function makePendingSendRow(overrides: Partial<SendRow> = {}): SendRow {
@@ -446,7 +446,7 @@ for (const [name, makeRepo] of sendAdapters) {
 
 const tokenAdapters: Array<[string, () => Promise<NewsletterConfirmationTokenRepoPort>]> = [
   ["memory", async () => new InMemoryNewsletterConfirmationTokenRepo()],
-  ["sqlite", async () => new SqliteNewsletterConfirmationTokenRepo(await makeSqliteDb())],
+  ["sqlite", async () => new SqliteNewsletterConfirmationTokenRepo({ store: await makeSqliteDb() })],
 ];
 
 for (const [name, makeRepo] of tokenAdapters) {
@@ -547,7 +547,7 @@ test("memory list upserts and default lookup respect workspace and default flag"
   const foreign = { ...ordinary, workspaceId: "other-workspace", isDefault: true };
   const chosen = { ...ordinary, id: "default", isDefault: true };
   const seeds = [foreign, ordinary, chosen];
-  const repo = new InMemoryNewsletterListRepo(seeds);
+  const repo = new InMemoryNewsletterListRepo({}, { initialRows: seeds });
   seeds.pop();
   assert.deepEqual(await repo.findDefault({ workspaceId: WS }), chosen);
   assert.equal(await repo.findDefault({ workspaceId: "missing" }), null);
@@ -566,7 +566,7 @@ test("memory subscriptions distinguish subscriber, list and workspace during loo
   const otherList = { ...row, id: "sub-2", listId: "other-list" };
   const otherSubscriber = { ...row, id: "sub-3", subscriberId: "reader-2" };
   const seeds = [foreign, otherList, otherSubscriber, row];
-  const repo = new InMemoryNewsletterSubscriptionRepo(seeds);
+  const repo = new InMemoryNewsletterSubscriptionRepo({}, { initialRows: seeds });
   seeds.pop();
   assert.deepEqual(await repo.findBySubscriberAndList({ workspaceId: WS, listId: "list-1", subscriberId: "reader-1" }), row);
   assert.equal(await repo.findBySubscriberAndList({ workspaceId: WS, listId: "list-1", subscriberId: "missing" }), null);
@@ -584,7 +584,7 @@ test("memory audience snapshots miss on either lookup key and remain immutable w
   const row: AudienceSnapshotRow = { id: "snapshot-1", workspaceId: WS, campaignId: "camp-1", listId: "list-1", recipientCount: 3, createdAt: NOW };
   const foreign = { ...row, workspaceId: "other-workspace" };
   const seeds = [foreign, row];
-  const repo = new InMemoryNewsletterAudienceSnapshotRepo(seeds);
+  const repo = new InMemoryNewsletterAudienceSnapshotRepo({}, { initialRows: seeds });
   seeds.pop();
   assert.equal(await repo.findById({ workspaceId: WS, id: "missing" }), null);
   assert.equal(await repo.findById({ workspaceId: "missing", id: "snapshot-1" }), null);
@@ -606,7 +606,7 @@ test("memory send filters distinguish workspace, campaign, audience and pending 
   const otherAudience = makePendingSendRow({ id: "send-3", audienceSnapshotId: "other-snapshot", idempotencyKey: "other-audience" });
   const delivered = makePendingSendRow({ id: "send-4", status: "delivered", idempotencyKey: "delivered" });
   const seeds = [foreign, otherCampaign, otherAudience, delivered, row];
-  const repo = new InMemoryNewsletterSendRepo(seeds);
+  const repo = new InMemoryNewsletterSendRepo({}, { initialRows: seeds });
   seeds.pop();
   assert.equal(await repo.findById({ workspaceId: WS, id: "missing" }), null);
   assert.equal(await repo.findByIdempotencyKey({ workspaceId: WS, idempotencyKey: "missing" }), null);
@@ -629,7 +629,7 @@ test("memory confirmation-token lookup requires the subscription and token hash 
   const otherSubscription = { ...row, id: "token-2", subscriptionId: "other-subscription", tokenHash: "other-hash" };
   const consumed = { ...row, id: "token-3", tokenHash: "consumed-hash", consumedAt: NOW };
   const seeds = [foreign, otherSubscription, consumed, row];
-  const repo = new InMemoryNewsletterConfirmationTokenRepo(seeds);
+  const repo = new InMemoryNewsletterConfirmationTokenRepo({}, { initialRows: seeds });
   seeds.pop();
   assert.deepEqual(await repo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" }), [row]);
   assert.equal(await repo.findByTokenHash({ workspaceId: WS, tokenHash: "missing" }), null);

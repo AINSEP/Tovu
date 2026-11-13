@@ -43,14 +43,14 @@ test("message-less newsletter lookup and authorization errors preserve their dom
 });
 
 test("NewsletterSubscriberNotFoundError stores subscriberId", () => {
-  const err = new NewsletterSubscriberNotFoundError("subscriber missing", "sub-123");
+  const err = new NewsletterSubscriberNotFoundError({ message: "subscriber missing", subscriberId: "sub-123" });
   assert.ok(err instanceof Error);
   assert.equal(err.message, "subscriber missing");
   assert.equal(err.subscriberId, "sub-123");
 });
 
 test("NewsletterValidationError stores field and reason", () => {
-  const err = new NewsletterValidationError("invalid field", "email", "malformed");
+  const err = new NewsletterValidationError({ message: "invalid field", field: "email", reason: "malformed" });
   assert.ok(err instanceof Error);
   assert.equal(err.message, "invalid field");
   assert.equal(err.field, "email");
@@ -58,7 +58,7 @@ test("NewsletterValidationError stores field and reason", () => {
 });
 
 test("NewsletterCampaignNotEditableError stores currentStatus and attemptedAction", () => {
-  const err = new NewsletterCampaignNotEditableError("cannot edit", "sent", "update_body");
+  const err = new NewsletterCampaignNotEditableError({ message: "cannot edit", currentStatus: "sent", attemptedAction: "update_body" });
   assert.ok(err instanceof Error);
   assert.equal(err.message, "cannot edit");
   assert.equal(err.currentStatus, "sent");
@@ -66,14 +66,14 @@ test("NewsletterCampaignNotEditableError stores currentStatus and attemptedActio
 });
 
 test("NewsletterDefaultListProtectedError stores listId", () => {
-  const err = new NewsletterDefaultListProtectedError("default list protected", "list-default");
+  const err = new NewsletterDefaultListProtectedError({ message: "default list protected", listId: "list-default" });
   assert.ok(err instanceof Error);
   assert.equal(err.message, "default list protected");
   assert.equal(err.listId, "list-default");
 });
 
 test("NewsletterConflictError stores entity, id, expectedVersion, and actualVersion", () => {
-  const err = new NewsletterConflictError("conflict detected", "campaign", "c-1", 2, 3);
+  const err = new NewsletterConflictError({ message: "conflict detected", entity: "campaign", id: "c-1", expectedVersion: 2, actualVersion: 3 });
   assert.ok(err instanceof Error);
   assert.equal(err.message, "conflict detected");
   assert.equal(err.entity, "campaign");
@@ -84,7 +84,7 @@ test("NewsletterConflictError stores entity, id, expectedVersion, and actualVers
 
 test("NewsletterLaunchGateBlockedError stores unmetPreconditions array", () => {
   const preconditions = ["LIST_EMPTY", "MISSING_SUBJECT"];
-  const err = new NewsletterLaunchGateBlockedError("launch blocked", preconditions);
+  const err = new NewsletterLaunchGateBlockedError({ message: "launch blocked", unmetPreconditions: preconditions });
   assert.ok(err instanceof Error);
   assert.equal(err.message, "launch blocked");
   assert.deepEqual(err.unmetPreconditions, preconditions);
@@ -93,7 +93,7 @@ test("NewsletterLaunchGateBlockedError stores unmetPreconditions array", () => {
 test("NewsletterConfirmTokenInvalidError stores reason", () => {
   const reasons = ["expired", "already_consumed", "not_found"] as const;
   for (const reason of reasons) {
-    const err = new NewsletterConfirmTokenInvalidError(`token ${reason}`, reason);
+    const err = new NewsletterConfirmTokenInvalidError({ message: `token ${reason}`, reason });
     assert.ok(err instanceof Error);
     assert.equal(err.message, `token ${reason}`);
     assert.equal(err.reason, reason);
@@ -103,7 +103,7 @@ test("NewsletterConfirmTokenInvalidError stores reason", () => {
 test("NewsletterUnsubscribeTokenInvalidError stores reason", () => {
   const reasons = ["consent_revision_mismatch", "signature_invalid", "expired", "not_found"] as const;
   for (const reason of reasons) {
-    const err = new NewsletterUnsubscribeTokenInvalidError(`unsubscribe ${reason}`, reason);
+    const err = new NewsletterUnsubscribeTokenInvalidError({ message: `unsubscribe ${reason}`, reason });
     assert.ok(err instanceof Error);
     assert.equal(err.message, `unsubscribe ${reason}`);
     assert.equal(err.reason, reason);

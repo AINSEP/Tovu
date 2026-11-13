@@ -62,6 +62,6 @@ export interface ApiKeyRepoPort {
  * foreign stored hash resolves `false` (rejected credential), never a 500 and never a bypass.
  */
 export interface ApiKeySecretHasherPort {
-  hash(secret: string): Promise<string>;
-  verify(storedHash: string, secret: string): Promise<boolean>;
+  hash(required: { secret: string }, optional?: {}): Promise<string>;
+  verify(required: { storedHash: string; secret: string }, optional?: {}): Promise<boolean>;
 }

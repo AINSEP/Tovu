@@ -454,7 +454,7 @@ function runApiKeyRepoSuite(adapterName: string, makeRepo: () => ApiKeyRepoPort)
     await repo.save(row);
     const deps = { repos, tokens: new NodeSessionTokens({}), apiKeys: repo, clock: { nowIso: () => "2026-01-05T00:00:00.000Z", nowMs: () => Date.parse("2026-01-05T00:00:00.000Z") }, idGen: { newId: () => "unused" },
       hasher: { hash: async ({ password }: { password: string }) => password, verify: async ({ hash, password }: { hash: string; password: string }) => hash === password },
-      secretHasher: { hash: async () => row.keyHash, verify: async (hash: string, secret: string) => hash === row.keyHash && secret === "test-secret" } };
+      secretHasher: { hash: async () => row.keyHash, verify: async ({ storedHash, secret }: { storedHash: string; secret: string }) => storedHash === row.keyHash && secret === "test-secret" } };
     const input = { workspaceId: WS, rawKey: `${row.prefix}.test-secret` };
     assert.equal(await authenticateApiKey({ deps, input }), null);
     assert.equal((await repo.findById({ workspaceId: WS, id: row.id }))?.lastUsedAt, undefined);

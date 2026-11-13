@@ -187,7 +187,7 @@ function makeRig(opts: {
   launchGateOverrides?: Parameters<typeof makeLaunchGateDeps>[0];
 } = {}): Rig {
   const campaignRepo = new InMemoryNewsletterCampaignRepo({ campaigns: opts.campaigns ?? [] });
-  const subscriptionRepo = new InMemoryNewsletterSubscriptionRepo(opts.subscriptions ?? []);
+  const subscriptionRepo = new InMemoryNewsletterSubscriptionRepo({}, { initialRows: opts.subscriptions ?? [] });
   const audienceSnapshotRepo = new InMemoryNewsletterAudienceSnapshotRepo();
   const sendRepo = new InMemoryNewsletterSendRepo();
   const outbox = new ObservedOutbox();
@@ -683,10 +683,10 @@ test("dispatchRow: each row supplies its own provider idempotency key and source
 
 test("dispatchRow: beforeSend transformations reach the mailer", async () => {
   const hooks = createHookRegistry();
-  hooks.registerBeforeSendHook((ctx, message) => {
+  hooks.registerBeforeSendHook({ hook: (ctx, message) => {
     assert.deepEqual(ctx, { workspaceId: WS, campaignId: "camp-1", sendId: "send-1", subscriberId: "sub-1" });
     return { ...message, subject: "Transformed subject", text: `${message.text} footer`, html: "<p>unsubscribe marker</p>" };
-  });
+  } });
   const mailer = makeMailer();
   const rig = makeRig({ mailer, hooks });
   await dispatchRow({ deps: rig.deps, row: makeSendRow(), campaignId: "camp-1", listId: "list-1", status: "subscribed", message: dispatchMessage });
@@ -705,7 +705,7 @@ test("dispatchRow: mailer failure -- outcome 'failed', error passed through", as
 
 test("dispatchRow: recipient.filter hook suppresses -- outcome 'suppressed', mailer never invoked", async () => {
   const hooks = createHookRegistry();
-  hooks.registerRecipientFilterHook(() => false);
+  hooks.registerRecipientFilterHook({ hook: () => false });
   const mailer = makeMailer();
   const rig = makeRig({ mailer, hooks });
   const row = makeSendRow({ status: "pending" });
@@ -810,7 +810,7 @@ async function makeSqliteRaceRepos(): Promise<RaceRepos> {
     db: contentKernel((db as unknown as { $client: import("better-sqlite3").Database }).$client),
     dbPath: ":memory:",
   });
-  return { campaignRepo: new SqliteNewsletterCampaignRepo(db), sendRepo: new SqliteNewsletterSendRepo(db) };
+  return { campaignRepo: new SqliteNewsletterCampaignRepo({ store: db }), sendRepo: new SqliteNewsletterSendRepo({ store: db }) };
 }
 
 const raceFlavors: Array<[string, () => RaceRepos | Promise<RaceRepos>]> = [
@@ -1205,10 +1205,10 @@ test("handleSendBatchClaimed: happy path -- dispatches, records the result, and 
 test("handleSendBatchClaimed: no matching subscription row -- status passed to hooks defaults to 'unsubscribed'", async () => {
   let observedStatus: string | null = null;
   const hooks = createHookRegistry();
-  hooks.registerRecipientFilterHook((ctx) => {
+  hooks.registerRecipientFilterHook({ hook: (ctx) => {
     observedStatus = ctx.status;
     return true;
-  });
+  } });
   const rig = makeRig({ campaigns: [makeCampaign({ status: "sending" })], hooks }); // no subscription rows seeded
   await rig.sendRepo.save(makeSendRow({ status: "pending" }));
   await handleSendBatchClaimed({ deps: rig.deps, job: makeJob() });
@@ -1265,7 +1265,7 @@ test("handleSendBatchClaimed: one row's mailer failure never aborts sibling rows
  */
 test("handleSendBatchClaimed: BUG REGRESSION -- a suppressed row must still reach a terminal status so the campaign can drain", async () => {
   const hooks = createHookRegistry();
-  hooks.registerRecipientFilterHook((ctx) => ctx.subscriberId !== "sub-suppressed");
+  hooks.registerRecipientFilterHook({ hook: (ctx) => ctx.subscriberId !== "sub-suppressed" });
   const rig = makeRig({
     campaigns: [makeCampaign({ status: "sending" })],
     subscriptions: [

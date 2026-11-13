@@ -29,7 +29,7 @@ test("mintApiKey produces a prefixed key with a 256-bit secret, and never repeat
 
 test("parseApiKey round-trips a minted key and rejects everything else", () => {
   const minted = mintApiKey();
-  assert.deepEqual(parseApiKey(minted.rawKey), { prefix: minted.prefix, secret: minted.secret });
+  assert.deepEqual(parseApiKey({ rawKey: minted.rawKey }), { prefix: minted.prefix, secret: minted.secret });
 
   const rejected = [
     "",
@@ -43,19 +43,19 @@ test("parseApiKey round-trips a minted key and rejects everything else", () => {
     `prefixtovu_ak_000000000000.${minted.secret}`, // unanchored match attempt
   ];
   for (const candidate of rejected) {
-    assert.equal(parseApiKey(candidate), null, `rejected: ${JSON.stringify(candidate)}`);
+    assert.equal(parseApiKey({ rawKey: candidate }), null, `rejected: ${JSON.stringify(candidate)}`);
   }
 });
 
 test("the stored digest verifies the right secret, rejects a wrong one, and leaks neither", async () => {
   const hasher = new ScryptApiKeySecretHasher();
   const minted = mintApiKey();
-  const stored = await hasher.hash(minted.secret);
+  const stored = await hasher.hash({ secret: minted.secret });
 
-  assert.equal(await hasher.verify(stored, minted.secret), true);
-  assert.equal(await hasher.verify(stored, mintApiKey().secret), false);
-  assert.equal(await hasher.verify(stored, ""), false);
-  assert.equal(await hasher.verify(stored, `${minted.secret}x`), false);
+  assert.equal(await hasher.verify({ storedHash: stored, secret: minted.secret }), true);
+  assert.equal(await hasher.verify({ storedHash: stored, secret: mintApiKey().secret }), false);
+  assert.equal(await hasher.verify({ storedHash: stored, secret: "" }), false);
+  assert.equal(await hasher.verify({ storedHash: stored, secret: `${minted.secret}x` }), false);
 
   // INV-05: the digest is not the secret, and does not contain it.
   assert.ok(!stored.includes(minted.secret));
@@ -66,10 +66,10 @@ test("hashing the same secret twice produces different digests (per-key salt)", 
   const hasher = new ScryptApiKeySecretHasher();
   const minted = mintApiKey();
 
-  const [first, second] = await Promise.all([hasher.hash(minted.secret), hasher.hash(minted.secret)]);
+  const [first, second] = await Promise.all([hasher.hash({ secret: minted.secret }), hasher.hash({ secret: minted.secret })]);
   assert.notEqual(first, second, "two hashes of one secret must not collide — no shared salt");
-  assert.equal(await hasher.verify(first, minted.secret), true);
-  assert.equal(await hasher.verify(second, minted.secret), true);
+  assert.equal(await hasher.verify({ storedHash: first, secret: minted.secret }), true);
+  assert.equal(await hasher.verify({ storedHash: second, secret: minted.secret }), true);
 });
 
 test("verify fails closed on a malformed, foreign, or hostile stored hash instead of throwing", async () => {
@@ -89,7 +89,7 @@ test("verify fails closed on a malformed, foreign, or hostile stored hash instea
     "scrypt$1048576$8$1$c2FsdA$ZGlnZXN0",
   ];
   for (const stored of malformed) {
-    assert.equal(await hasher.verify(stored, secret), false, `rejected: ${JSON.stringify(stored)}`);
+    assert.equal(await hasher.verify({ storedHash: stored, secret }), false, `rejected: ${JSON.stringify(stored)}`);
   }
 });
 
@@ -97,17 +97,17 @@ test("decoyKeyHash hashes one verifiable decoy per hasher and rejects presented 
   const hasher = new ScryptApiKeySecretHasher();
   const hash = hasher.hash.bind(hasher);
   const inputs: string[] = [];
-  t.mock.method(hasher, "hash", async (secret: string) => { inputs.push(secret); return hash(secret); });
+  t.mock.method(hasher, "hash", async ({ secret }: { secret: string }) => { inputs.push(secret); return hash({ secret }); });
 
   const first = await decoyKeyHash(hasher);
   const second = await decoyKeyHash(hasher);
   assert.equal(first, second, "memoized: one derivation per hasher per process");
   assert.match(first, /^scrypt\$/);
   assert.equal(inputs.length, 1, "memoization performs exactly one real hash");
-  assert.equal(await hasher.verify(first, inputs[0]!), true, "the decoy digest must verify its captured input, so it cannot be a malformed prefix");
+  assert.equal(await hasher.verify({ storedHash: first, secret: inputs[0]! }), true, "the decoy digest must verify its captured input, so it cannot be a malformed prefix");
   // It must be well-formed enough that `verify` actually does the work — a digest that parsed to
   // null would return instantly and defeat the timing defence it exists to provide.
-  assert.equal(await hasher.verify(first, mintApiKey().secret), false);
+  assert.equal(await hasher.verify({ storedHash: first, secret: mintApiKey().secret }), false);
 
   const other = await decoyKeyHash(new ScryptApiKeySecretHasher());
   assert.notEqual(first, other, "not a shared constant across hashers");
@@ -130,16 +130,16 @@ for (const [label, n, r, p] of [
   test(`verify rejects ${label}`, async () => {
     const scheme = label === "foreign scheme with six fields" ? "foreign" : "scrypt";
     const stored = `${scheme}$${n}$${r}$${p}$c2FsdA$ZGlnZXN0`;
-    assert.equal(await new ScryptApiKeySecretHasher().verify(stored, "presented-secret"), false);
+    assert.equal(await new ScryptApiKeySecretHasher().verify({ storedHash: stored, secret: "presented-secret" }), false);
   });
 }
 
 test("verify rejects a nonempty digest of the wrong byte length", async () => {
-  assert.equal(await new ScryptApiKeySecretHasher().verify("scrypt$16384$8$1$c2FsdA$YQ", "secret"), false);
+  assert.equal(await new ScryptApiKeySecretHasher().verify({ storedHash: "scrypt$16384$8$1$c2FsdA$YQ", secret: "secret" }), false);
 });
 
 test("verify fails closed when scrypt rejects a non-power-of-two cost", async () => {
-  assert.equal(await new ScryptApiKeySecretHasher().verify("scrypt$3$8$1$c2FsdA$ZGlnZXN0", "secret"), false);
+  assert.equal(await new ScryptApiKeySecretHasher().verify({ storedHash: "scrypt$3$8$1$c2FsdA$ZGlnZXN0", secret: "secret" }), false);
 });
 
 test("a crypto callback failure rejects hashing and fails verification closed", async (t) => {
@@ -149,6 +149,6 @@ test("a crypto callback failure rejects hashing and fails verification closed", 
   syncBuiltinESMExports();
   t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
   const hasher = new ScryptApiKeySecretHasher();
-  await assert.rejects(hasher.hash("secret"), { message: "scrypt worker failed" });
-  assert.equal(await hasher.verify("scrypt$16384$8$1$c2FsdA$ZGlnZXN0", "secret"), false);
+  await assert.rejects(hasher.hash({ secret: "secret" }), { message: "scrypt worker failed" });
+  assert.equal(await hasher.verify({ storedHash: "scrypt$16384$8$1$c2FsdA$ZGlnZXN0", secret: "secret" }), false);
 });

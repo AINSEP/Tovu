@@ -30,7 +30,7 @@ async function depsForHandler(): Promise<ApiKeysRouteDeps> {
     rolePolicyRepo: repos.rolePolicies, principalRoleRepo: repos.principalRoles, principalPolicyRepo: repos.principalPolicies,
     transactions: repos.transactions, tokens: new NodeSessionTokens({}),
     passwordHasher: { hash: async ({ password }) => password, verify: async ({ hash, password }) => hash === password },
-    apiKeySecretHasher: { hash: async (secret) => secret, verify: async (hash, secret) => hash === secret },
+    apiKeySecretHasher: { hash: async ({ secret }) => secret, verify: async ({ storedHash, secret }) => storedHash === secret },
     apiKeyRepo: new InMemoryApiKeyRepo(),
   };
   await deps.principalRepo.save({ id: "operator-9", workspaceId: "ws-7", kind: "user", displayName: "Operator", status: "active", createdAt: NOW });

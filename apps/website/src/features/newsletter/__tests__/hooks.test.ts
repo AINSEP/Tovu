@@ -28,11 +28,11 @@ const beforeSendContext = { workspaceId: "ws-1", campaignId: "camp-1", sendId: "
 test("runHookChain: beforeSend never runs for a row recipient.filter suppressed (EC-01, post-freeze unsubscribe case)", async () => {
   const registry = createHookRegistry();
   let beforeSendCalled = false;
-  registry.registerRecipientFilterHook(() => false); // suppress
-  registry.registerBeforeSendHook((_ctx, message) => {
+  registry.registerRecipientFilterHook({ hook: () => false }); // suppress
+  registry.registerBeforeSendHook({ hook: (_ctx, message) => {
     beforeSendCalled = true;
     return message;
-  });
+  } });
 
   const result = await registry.runHookChain({ recipientFilterContext, beforeSendContext, message: baseMessage });
   assert.equal(result.keep, false);
@@ -41,20 +41,20 @@ test("runHookChain: beforeSend never runs for a row recipient.filter suppressed 
 
 test("runHookChain: a kept row runs beforeSend and returns the transformed message", async () => {
   const registry = createHookRegistry();
-  registry.registerRecipientFilterHook((ctx) => {
+  registry.registerRecipientFilterHook({ hook: (ctx) => {
     assert.deepEqual(ctx, recipientFilterContext);
     return true;
-  });
-  registry.registerBeforeSendHook((ctx, message) => {
+  } });
+  registry.registerBeforeSendHook({ hook: (ctx, message) => {
     assert.deepEqual(ctx, beforeSendContext);
     return { ...message, subject: "Transformed", text: `${message.text} footer` };
-  });
-  registry.registerBeforeSendHook((ctx, message) => {
+  } });
+  registry.registerBeforeSendHook({ hook: (ctx, message) => {
     assert.deepEqual(ctx, beforeSendContext);
     assert.equal(message.subject, "Transformed");
     assert.equal(message.text, "hi footer");
     return { ...message, text: `${message.text} unsubscribe` };
-  });
+  } });
 
   const result = await registry.runHookChain({ recipientFilterContext, beforeSendContext, message: baseMessage });
   assert.equal(result.keep, true);
@@ -64,19 +64,19 @@ test("runHookChain: a kept row runs beforeSend and returns the transformed messa
 
 test("runHookChain: a throwing recipient.filter hook is fail-closed suppression, never 'keep by default' (behavior.spec §7)", async () => {
   const registry = createHookRegistry();
-  registry.registerRecipientFilterHook(() => {
+  registry.registerRecipientFilterHook({ hook: () => {
     throw new Error("boom");
-  });
+  } });
   const result = await registry.runHookChain({ recipientFilterContext, beforeSendContext, message: baseMessage });
   assert.equal(result.keep, false);
 });
 
 test("runHookChain: a throwing beforeSend hook is also fail-closed suppression", async () => {
   const registry = createHookRegistry();
-  registry.registerRecipientFilterHook(() => true);
-  registry.registerBeforeSendHook(() => {
+  registry.registerRecipientFilterHook({ hook: () => true });
+  registry.registerBeforeSendHook({ hook: () => {
     throw new Error("boom");
-  });
+  } });
   const result = await registry.runHookChain({ recipientFilterContext, beforeSendContext, message: baseMessage });
   assert.equal(result.keep, false);
 });
@@ -90,9 +90,9 @@ test("runHookChain: with no hooks registered, the message passes through kept an
 
 test("runHookChain: multiple recipient.filter hooks — any single suppress wins, subsequent filters don't override it back to keep", async () => {
   const registry = createHookRegistry();
-  registry.registerRecipientFilterHook(() => true);
-  registry.registerRecipientFilterHook(() => false);
-  registry.registerRecipientFilterHook(() => true);
+  registry.registerRecipientFilterHook({ hook: () => true });
+  registry.registerRecipientFilterHook({ hook: () => false });
+  registry.registerRecipientFilterHook({ hook: () => true });
   const result = await registry.runHookChain({ recipientFilterContext, beforeSendContext, message: baseMessage });
   assert.equal(result.keep, false);
 });
@@ -100,15 +100,15 @@ test("runHookChain: multiple recipient.filter hooks — any single suppress wins
 test("runHookChain: asynchronous suppression and transformations are awaited", async () => {
   const suppressed = createHookRegistry();
   let beforeSendCalled = false;
-  suppressed.registerRecipientFilterHook(async () => { await Promise.resolve(); return false; });
-  suppressed.registerBeforeSendHook(() => { beforeSendCalled = true; return baseMessage; });
+  suppressed.registerRecipientFilterHook({ hook: async () => { await Promise.resolve(); return false; } });
+  suppressed.registerBeforeSendHook({ hook: () => { beforeSendCalled = true; return baseMessage; } });
   assert.equal((await suppressed.runHookChain({ recipientFilterContext, beforeSendContext, message: baseMessage })).keep, false);
   assert.equal(beforeSendCalled, false);
 
   const kept = createHookRegistry();
-  kept.registerRecipientFilterHook(async () => { await Promise.resolve(); return true; });
-  kept.registerBeforeSendHook(async (_ctx, message) => { await Promise.resolve(); return { ...message, text: "async footer" }; });
-  kept.registerBeforeSendHook((_ctx, message) => ({ ...message, text: `${message.text} unsubscribe` }));
+  kept.registerRecipientFilterHook({ hook: async () => { await Promise.resolve(); return true; } });
+  kept.registerBeforeSendHook({ hook: async (_ctx, message) => { await Promise.resolve(); return { ...message, text: "async footer" }; } });
+  kept.registerBeforeSendHook({ hook: (_ctx, message) => ({ ...message, text: `${message.text} unsubscribe` }) });
   const result = await kept.runHookChain({ recipientFilterContext, beforeSendContext, message: baseMessage });
   assert.equal(result.keep, true);
   assert.deepEqual(result.keep ? result.message : null, { ...baseMessage, text: "async footer unsubscribe" });
@@ -118,7 +118,7 @@ test("runHookChain: non-subscribed recipients are suppressed even with no regist
   for (const status of ["pending", "unsubscribed", "bounced", "complained"] as const) {
     const registry = createHookRegistry();
     let beforeSendCalled = false;
-    registry.registerBeforeSendHook((_ctx, message) => { beforeSendCalled = true; return message; });
+    registry.registerBeforeSendHook({ hook: (_ctx, message) => { beforeSendCalled = true; return message; } });
     const result = await registry.runHookChain({ recipientFilterContext: { ...recipientFilterContext, status }, beforeSendContext, message: baseMessage });
     assert.equal(result.keep, false, status);
     assert.equal(beforeSendCalled, false, "suppression must precede beforeSend");

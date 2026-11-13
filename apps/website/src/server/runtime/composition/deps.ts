@@ -1306,7 +1306,7 @@ async function composeSiteRouteDeps(
   // failure/rollback path separately). Fire-and-forget, mirroring `menuBindingsReady`'s shape: logged
   // and swallowed rather than aborting boot on failure — a failed install leaves Newsletter's admin
   // routes 404/500ing against missing tables, but never bricks the rest of the server.
-  const newsletterListRepo = new SqliteNewsletterListRepo(kernel);
+  const newsletterListRepo = new SqliteNewsletterListRepo({ store: kernel });
   // T030: seed the workspace's default "all subscribers" list right after the tables exist —
   // idempotent (`ensureDefaultList` is itself a find-or-create), matching `declareDataModule()`'s own
   // skip-if-exists convention.
@@ -2561,12 +2561,12 @@ async function composeSiteRouteDeps(
     // not shipped a real capability this pass (ADR-PIPE-011 Risks item 3); Newsletter must not
     // substitute a local stand-in that returns success by default.
     newsletterReady,
-    newsletterCampaignRepo: new SqliteNewsletterCampaignRepo(kernel),
+    newsletterCampaignRepo: new SqliteNewsletterCampaignRepo({ store: kernel }),
     newsletterListRepo,
-    newsletterSubscriptionRepo: new SqliteNewsletterSubscriptionRepo(kernel),
-    newsletterAudienceSnapshotRepo: new SqliteNewsletterAudienceSnapshotRepo(kernel),
-    newsletterSendRepo: new SqliteNewsletterSendRepo(kernel),
-    newsletterConfirmationTokenRepo: new SqliteNewsletterConfirmationTokenRepo(kernel),
+    newsletterSubscriptionRepo: new SqliteNewsletterSubscriptionRepo({ store: kernel }),
+    newsletterAudienceSnapshotRepo: new SqliteNewsletterAudienceSnapshotRepo({ store: kernel }),
+    newsletterSendRepo: new SqliteNewsletterSendRepo({ store: kernel }),
+    newsletterConfirmationTokenRepo: new SqliteNewsletterConfirmationTokenRepo({ store: kernel }),
     membersConsentCapability: null,
     // Stage 5 (routes) wiring — see the hoisted-vars comment above `commentsModule`/return.
     newsletterSubscriberDirectory,

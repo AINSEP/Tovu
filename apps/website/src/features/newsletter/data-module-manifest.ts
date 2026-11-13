@@ -23,14 +23,14 @@ import { type DataModuleDecl, type DataModuleStore, declareDataModule } from "..
 export const NEWSLETTER_PLUGIN_ID = "newsletter";
 
 /** Fully-qualified table name helper — matches `declareDataModule()`'s own `p_{pluginId}__{name}` convention. */
-export const p = (name: string): string => `p_${NEWSLETTER_PLUGIN_ID}__${name}`;
+export const p = ({ name }: { name: string }, _options = {}): string => `p_${NEWSLETTER_PLUGIN_ID}__${name}`;
 
 export const NEWSLETTER_TABLE_NAMES = {
-  lists: p("lists"),
-  subscriptions: p("subscriptions"),
-  audienceSnapshots: p("audience_snapshots"),
-  sends: p("sends"),
-  confirmationTokens: p("confirmation_tokens"),
+  lists: p({ name: "lists" }),
+  subscriptions: p({ name: "subscriptions" }),
+  audienceSnapshots: p({ name: "audience_snapshots" }),
+  sends: p({ name: "sends" }),
+  confirmationTokens: p({ name: "confirmation_tokens" }),
 } as const;
 
 /**

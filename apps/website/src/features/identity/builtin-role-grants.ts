@@ -134,9 +134,8 @@ export interface ApplyBuiltinRoleGrantsResult {
  * with their policy).
  */
 async function grantToRoleBindings(
-  deps: ApplyBuiltinRoleGrantsDeps,
-  grant: BuiltinRoleGrant,
-  roleId: UUID
+  { deps, grant, roleId }: { deps: ApplyBuiltinRoleGrantsDeps; grant: BuiltinRoleGrant; roleId: UUID },
+  _options = {},
 ): Promise<number> {
   const { workspaceId } = deps;
   let granted = 0;
@@ -192,7 +191,7 @@ export async function applyBuiltinRoleGrants(
     const role = await deps.roles.findByName({ workspaceId, name: grant.role });
     if (!role || !role.isBuiltin) continue;
 
-    grantedCount += await grantToRoleBindings(deps, grant, role.id);
+    grantedCount += await grantToRoleBindings({ deps, grant, roleId: role.id });
   }
 
   return { grantedCount };
