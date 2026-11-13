@@ -130,3 +130,20 @@ Exactly the codes listed per site in the Terra prompt. For a site the prompt doe
 
 ## Status / remaining (2026-11-13)
 Done: Jini mechanism on main (`w3-db-main` 64619ab41; tests + mutation; settings CAS is main's own, red-checked by removing its call), migration 0042, example V1 (member tiers, re-run green on the main-based shim). Not done: a V3/V4/V5 example end-to-end (route + tool + admin) — the first Terra batch item (external MCP servers) is the pilot; review it before releasing the rest. Jini release of the two subpaths, then the Tovu bump.
+
+## Decisions on the rows the first Terra run stopped on (2026-11-13, Opus)
+Terra's first run is committed as Tovu `84d9382e2` / Jini `d5680965c` (unreviewed). Follow-up job: `lost-update-followup.terra-prompt.md` (READY). Admin rows: `ui-lane.md`.
+- **New rule (Forms, generalised): a write with no editor basis compares against its own read.** Every whole-row service save passes `{ expectedVersion: callerBasis ?? existing.version }` and stores `existing.version + 1`. Without it a basis-less API edit, a login stamp or a status flip writes its whole stale row over an edit that landed after its read. This is NOT a substitute for the editor's basis (the "Do NOT" line still holds for editor paths); it is the fallback for callers that have none.
+- J1/T3/T19 Forms inconsistency (unguarded SQL `update` did not store the version the service returned; status flip wrote a stale whole row): **Opus did it**, Jini `0504b34da` (4 RED → 15/15 GREEN, 3 mutations RED).
+- J7/T4–T6 identity parser only took strings: **Opus did it**, Jini `214590d86` — integer properties (`integers` map, `identityInput().int()`), 13 RED → GREEN, pins + schema-agreement updated. Rest of identity → follow-up J-ID: `version` on the three Jini types; logins write only `last_login_at` (`recordLogin`); role rename, username and email edits are single-field (E2) and compare their own read; only `identity_policy_update` (two fields) takes an editor basis.
+- T2/T18 external MCP is Jini-owned (`@jini-ai/core/contracts/hosted-mcp`): follow-up J-MCP adds `version` to record/view/save input and the port option; Tovu CAS runs inside the existing vault transaction.
+- J2 redirects: the live write is `insertRedirectAndRevision → RedirectDbHandle.insertRedirect`, not `save`; the guard goes there.
+- T1/T17/T9/T24/T15 multi-key settings: Jini `set` gains `input.skipTransaction` exactly like `clear` (explicit, never an ambient depth counter — the memory repo refuses nesting, the Tovu kernel would join it); writers open one `settingsRepo.transaction` and pass per-key `expectedRevisions`.
+- T10–T11: `SettingsService.set/clear` forward `SettingsValueWriteOptions`; raw GET returns `revisionSeqs`.
+- T13 media: keep its slug/sha guards; add the version predicate inside the existing guarded UPDATE (never insert under a basis).
+- T16 site assistant key: public `version` = vault `revision` (0 = none saved); basis compared to the read, vault CAS kept, `VaultError("conflict")` mapped to the shared conflict.
+- T20 forms PATCH: basis guards the field patch only; status flip is E2; a conflicting patch throws before the flip.
+- T21 media providers map: **DEFERRED (Opus later, not owner)** — the PUT body IS the provider map and omission tombstones, so a guard needs (a) each row's vault revision surfaced from the private `vaultRecord`, and (b) a compare inside `replaceWorkspace`'s `plan` (it already runs inside the transaction against the rows it read) of a client-sent `{ providerId: revision }` map, carried in a new optional query parameter or an envelope body. Low traffic (admin-only vendor keys); do it with the media-providers UI change.
+- T22 page HTML: check the basis before the destructive doc→html conversion (`ensureHtmlFormat(seed, { ifVersion })`), then write under the post-conversion version.
+- Extra rows found by the first run: Tovu workspace PATCH (J3b, V3) and webhook pause (T14b, own-read compare) added to the follow-up.
+- OWNER questions: none.

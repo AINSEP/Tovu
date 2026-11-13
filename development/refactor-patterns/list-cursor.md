@@ -70,3 +70,17 @@ Keep fetched pages in state; render a "Load more" button below the list while `n
 
 ## Status / remaining (2026-11-13)
 Done: Jini mechanism on main (`w3-db-main` 64619ab41, unit tests). Members example (T1+T2+T3+T4, b1aed55c1): regression test 12/12 RED before, GREEN after; mutation `limit(limit + 1)`→`limit(limit)` 4 RED; route and tool mutations (drop `nextCursor`) RED. NOT done: T5 admin "Load more" for members (`apps/admin/src/features/members/`, `api.listMembers` in `apps/admin/src/lib/api.ts`) — a UI change; and the Jini release + Tovu bump.
+
+## Decisions on the rows the first Terra run stopped on (2026-11-13, Opus)
+Terra's first run: Tovu `84d9382e2` / Jini `d5680965c` (rows 1, 2, 6, 11, 12, 14, 15). Follow-up job: `list-cursor-followup.terra-prompt.md` (READY). Admin "Load more": `ui-lane.md`.
+- Row 3 redirects: not a cursor site — the repo already loads every wildcard rule; the 500 cap is a deliberate per-request bound (OQ-01). Fix = refuse the 501st ACTIVE wildcard rule at write time with plain words.
+- Row 4 commerce `listActive`: EXEMPT X4 — its one live caller reads 25 to decide "more than 24?"; nothing exposes the list.
+- Row 5 routine runs: keep the lenient `limit` parse; cursor errors use the daemon adapter's own `validationError` (nested BAD_REQUEST → 400), not a flat `VALIDATION_ERROR` (unmapped there → 500).
+- Row 7 visitor search: cursor position = `[slug, type]`, both already public in every result; order becomes slug order. No internal id ever enters the cursor.
+- Rows 13/16 send log: split — the pipeline keeps `listByCampaign` (X1 drain); the tool and admin route move to a new `listByCampaignPage`.
+- Row 17 DNS host picker: not a cursor — query the latest reachable publish per target (`listLatestReachableUrls`, max-id-per-target like `listDestinationHistory`); no stable row id needed.
+- Row 18 other-site keys: keep the 50/site display cap but say so in words; `find`/`adopt` address one row by id, never through the capped list.
+- Mechanism bug C1: `pageFromArray` must validate the cursor before the empty-rows return (follow-up row C1).
+- Later (not scheduled): a list discriminator inside `encodeListCursor` so a cursor from another list with the same position shape is refused instead of skipping rows (queries stay workspace-scoped, so no cross-tenant read).
+- Bug logged for the owner: `features/newsletter/send-pipeline.ts:137` reads at most 100000 send rows for one campaign.
+- OWNER questions: none.

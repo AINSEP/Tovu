@@ -2,6 +2,8 @@
 
 STATUS: READY (2026-11-13). Jini lines re-verified on Jini main (clone branch `w3-db-main`). Worked example done: members (commit b1aed55c1).
 
+RUN 1 DONE 2026-11-13 (Tovu 84d9382e2 / Jini d5680965c). Do NOT re-run this prompt: the rows it stopped on are decided in `list-cursor-followup.terra-prompt.md` (READY).
+
 HARD RULE: stop before ~300k tokens of context. If you get close, commit what you have, list the sites not done, and stop.
 
 You apply ONE pattern. Each site already has its variant. Read `development/refactor-patterns/list-cursor.md` in the Tovu clone FIRST and follow its decision table exactly (T1–T5). Copy the worked example: `git -C /Users/la/Programming/tovu-terra-w3-db show b1aed55c1` (members repo + memory twin + `members_list` + admin route; test `apps/website/src/features/members/__tests__/member-repo.list-cursor.test.ts`).

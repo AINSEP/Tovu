@@ -2,6 +2,8 @@
 
 STATUS: READY (2026-11-13). Jini lines re-verified on Jini main (clone branch `w3-db-main`).
 
+RUN 1 DONE 2026-11-13 (Tovu 84d9382e2 / Jini d5680965c). Do NOT re-run this prompt: the rows it stopped on are decided in `lost-update-followup.terra-prompt.md` (READY).
+
 HARD RULE: stop before ~300k tokens of context. If you get close, commit what you have, list the sites not done, and stop.
 
 You apply ONE pattern at the sites listed below. You do not decide what the fix is: each site already has its variant. Read `development/refactor-patterns/lost-update.md` in the Tovu clone FIRST and follow its decision table exactly (V1–V5), including the exact before→after code shapes.
