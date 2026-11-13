@@ -352,7 +352,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     slot.initializationObserved = true;
     const event = { name: 'provider_initialized', userId: `site:${required.site.siteId}`,
       properties: { contract: slot.contract, providerId: slot.id, outcome, reasonClass } };
-    if (tracker) tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
+    if (tracker) void tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
     else initializations.push(event);
   }
   let closed = false;
@@ -474,7 +474,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   tracker = ports.tracker;
   // Boot settles before a tracker exists. Flush only through the healthy, consenting facade;
   // local diagnostics remain authoritative when analytics itself failed to initialize.
-  for (const event of initializations) tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
+  for (const event of initializations) void tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
   initializations.length = 0;
   let disposal: Promise<void> | undefined;
   return { ...ports, formCollectionProviders: () => formCollectionRegistry,

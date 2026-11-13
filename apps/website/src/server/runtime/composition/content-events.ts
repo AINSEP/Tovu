@@ -24,7 +24,7 @@ export async function registerContentAnalytics(
         if (!resourceId) return;
         const kind = payload.contentType;
         const name = contentEventName({ topic, kind });
-        deps.tracker.capture({ name, userId: payload.actorId ?? `system:${deps.workspaceId}` }, { properties: {
+        void deps.tracker.capture({ name, userId: payload.actorId ?? `system:${deps.workspaceId}` }, { properties: {
           eventId: event.id, resourceKind: kind, resourceId,
           source: payload.source === "admin" || payload.source === "assistant" ? payload.source : "service",
           ...(payload.initialStatus ? { initialStatus: payload.initialStatus } : {}),

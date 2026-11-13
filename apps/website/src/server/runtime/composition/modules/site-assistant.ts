@@ -668,7 +668,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
         let terminalNavigation = false;
         const capture = async (name: string, properties: Record<string, string | number | boolean>) => {
           if (!provenance?.consentProof || !await deps.visitorAnalyticsDeliveryAllowed?.({ proof: provenance.consentProof })) return;
-          (deps.visitorTracker ?? deps.tracker).capture({ name, userId: provenance.subjectId }, { properties: { chatSurface: "public", ...properties } });
+          void (deps.visitorTracker ?? deps.tracker).capture({ name, userId: provenance.subjectId }, { properties: { chatSurface: "public", ...properties } });
         };
         const memberResolver = new DefaultMemberAccessResolver({
           sessions: deps.memberSessionRepo, subscriptions: deps.memberSubscriptionRepo, tiers: deps.memberTierRepo,

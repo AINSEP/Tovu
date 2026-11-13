@@ -3042,7 +3042,7 @@ function flushLifecycleEvents(
   { pending, tracker }: { pending: Array<Parameters<RouteDeps['tracker']['capture']>>; tracker: RouteDeps['tracker'] },
   _optional = {},
 ): void {
-  for (const [input, options] of pending.splice(0)) tracker.capture(input, options);
+  for (const [input, options] of pending.splice(0)) void tracker.capture(input, options);
 }
 
 function compositionConsentOptions(

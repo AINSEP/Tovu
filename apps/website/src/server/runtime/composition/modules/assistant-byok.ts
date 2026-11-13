@@ -763,7 +763,7 @@ export function createAssistantByokModule(
       // DB and outbound spans nest under the run rather than the long-lived request.
       return await routeDeps.tracker.trace({ name: "assistant.run", run: async (span) => {
         const aiTrace = startByokTrace({ routeDeps, run, credential, messages });
-        routeDeps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, eventId: `assistant-start:${run.id}` } });
+        void routeDeps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, eventId: `assistant-start:${run.id}` } });
         let reportedError = false;
         // A failed turn (a provider error event or a throw, not an owner's cancel) is an incident for
         // the error tracker too: the protocol and run id only, the key blanked even without a known shape.
@@ -772,7 +772,7 @@ export function createAssistantByokModule(
         function finishFailedTurn({ error }: { error: unknown }, _optional = {}): void {
           aiTrace?.observe({ type: "error", message: error instanceof Error ? error.message : String(error) });
           aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : "failed" });
-          routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : "failed", eventId: `assistant-finish:${run.id}` } });
+          void routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : "failed", eventId: `assistant-finish:${run.id}` } });
           span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
           if (!abort.signal.aborted && !reportedError) reportRunFailure(error);
           endFailedByokResponse({ res, error, lowered: liveToolRun.lowered });
@@ -818,7 +818,7 @@ export function createAssistantByokModule(
 
         span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }));
         aiTrace?.finish({ outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }) });
-        routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }), eventId: `assistant-finish:${run.id}` } });
+        void routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }), eventId: `assistant-finish:${run.id}` } });
         endByokResponse({ res, lowered: liveToolRun.lowered, reason: result.stopReason ?? 'stop' });
       } }, { agent: { runId: run.id, agentName: credential.protocol } });
     } catch (error) {

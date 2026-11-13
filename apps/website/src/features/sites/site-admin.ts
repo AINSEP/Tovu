@@ -227,7 +227,7 @@ export async function createSiteForOwner(
 
 function trackCreatedSite({ required, site }: { required: CreateSiteForOwnerRequired; site: CreateSiteForOwnerResult["site"] }, ports: Pick<CreateSiteForOwnerPorts, "tracker">): void {
   // initSite has committed; later optional credential setup cannot turn this into another creation.
-  try { ports.tracker?.capture({ name: "site_created", userId: required.actorId ?? `system:${required.workspaceId}` }, { properties: {
+  try { void ports.tracker?.capture({ name: "site_created", userId: required.actorId ?? `system:${required.workspaceId}` }, { properties: {
     targetSiteId: site.siteId, templateKind: "default", source: required.source ?? "service",
   } }); } catch { /* Product analytics cannot fail an already-created site. */ }
 }

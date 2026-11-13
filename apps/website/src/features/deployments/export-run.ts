@@ -237,7 +237,7 @@ export function startExportRun<TRouteDeps extends { clock: Clock; exportOutputRo
     .finally(() => {
       const status = currentRun.status === "completed" ? "completed" : "errored";
       const event = optional?.productEvent;
-      event?.tracker.capture({ name: "site_exported", userId: event.userId }, { properties: { outcome: status, operationId: event.operationId, eventId: `export:${event.operationId}`, source: event.source } });
+      void event?.tracker.capture({ name: "site_exported", userId: event.userId }, { properties: { outcome: status, operationId: event.operationId, eventId: `export:${event.operationId}`, source: event.source } });
       optional?.onSettled?.({ status });
     });
 

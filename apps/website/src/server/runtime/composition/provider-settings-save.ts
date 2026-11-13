@@ -115,7 +115,7 @@ async function savedProviderSettingsResult({ config, pluginId, fields, saved }: 
   const applied = reapply ? await reapply({ pluginId }) : "restart";
   const appliesAt = typeof applied === "string" ? applied : applied.appliesAt;
   const message = typeof applied === "string" ? undefined : `Saved, but the provider could not start. ${applied.reason} ${applied.action}`;
-  if (telemetry) for (const contract of new Set(telemetry.contracts)) telemetry.tracker.capture({ name: 'provider_configured', userId: telemetry.userId }, { properties: { contract, pluginId, action: 'save' } });
+  if (telemetry) for (const contract of new Set(telemetry.contracts)) void telemetry.tracker.capture({ name: 'provider_configured', userId: telemetry.userId }, { properties: { contract, pluginId, action: 'save' } });
   const configured = usage.usedByThisSite && providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields }, saved }) !== undefined;
   return { saved: true as const, configured, ...usage, appliesAt, ...(message ? { message } : {}) };
 }

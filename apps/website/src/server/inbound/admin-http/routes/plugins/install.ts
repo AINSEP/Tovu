@@ -92,7 +92,7 @@ async function handleInstall(req: Request, res: Response, context: InstallContex
   const result = route.preview
     ? await installer.preview(read.input)
     : await installer.install({ ...read.input, expectedDigest: read.expectedDigest as string });
-  if (!route.preview) deps.tracker.capture({ name: "plugin_installed", userId: principal.id }, { properties: { pluginId: result.id, pluginKind: "cms", source: "admin" } });
+  if (!route.preview) void deps.tracker.capture({ name: "plugin_installed", userId: principal.id }, { properties: { pluginId: result.id, pluginKind: "cms", source: "admin" } });
   res.status(route.preview ? 200 : 201).json({ plugin: result });
 }
 
@@ -116,7 +116,7 @@ export const registerPluginInstallRoutes = (app: Express, deps: PluginInstallRou
       try {
         await handleInstall(req, res, context);
       } catch (error) {
-        if (!preview) deps.tracker.capture({ name: "operation_failed", userId: getAuthedPrincipal(res).id }, { properties: { operationKind: "plugin_install", reasonClass: error instanceof PluginInstallError ? "refused" : "internal", surface: "admin", retryable: false } });
+        if (!preview) void deps.tracker.capture({ name: "operation_failed", userId: getAuthedPrincipal(res).id }, { properties: { operationKind: "plugin_install", reasonClass: error instanceof PluginInstallError ? "refused" : "internal", surface: "admin", retryable: false } });
         respondInstallFailure(res, error);
       }
     });

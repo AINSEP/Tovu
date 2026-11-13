@@ -54,7 +54,7 @@ export function domainPublishTool(required: {
     run: async (ctx, { hooks, planned }, confirmer) => {
       const consent = await checkToolPublishConsent({ deps, principalId: ctx.principal.id });
       if (consent) {
-        deps.tracker?.capture({ name: 'site_publish_blocked', userId: ctx.principal.id }, { properties: { target: config.target, reasonClass: 'consent', source: 'assistant' } });
+        void deps.tracker?.capture({ name: 'site_publish_blocked', userId: ctx.principal.id }, { properties: { target: config.target, reasonClass: 'consent', source: 'assistant' } });
         return { published: false, cancelled: false, ...consent };
       }
       const token = await confirm({ deps: gateway, principalId: confirmer.id, principalKind: confirmer.kind, hooks, planId: planned.planId, planHash: planned.planHash });

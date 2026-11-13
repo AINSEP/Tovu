@@ -24,7 +24,7 @@ export function createChatRunLedger({ store }: { store: ChatKernel | SqliteConne
         tracker.error({ error: new Error("Run analytics attribution lookup failed") }, { context: { operation: "assistant.run.product-event" } });
         return null;
       });
-      if (run?.principalId) tracker.capture({ name: "assistant_run_finished", userId: run.principalId }, { properties: { chatSurface: "admin", logicalRunId: required.messageId, outcome: required.status, eventId: `assistant-finish:${required.messageId}` } });
+      if (run?.principalId) void tracker.capture({ name: "assistant_run_finished", userId: run.principalId }, { properties: { chatSurface: "admin", logicalRunId: required.messageId, outcome: required.status, eventId: `assistant-finish:${required.messageId}` } });
       return changed;
     },
     unlessSettled: (run, write) => ledger.unlessSettled({ run, write }, {}) };

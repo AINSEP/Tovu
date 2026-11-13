@@ -105,7 +105,7 @@ function toReportedError(event: Extract<BrowserTelemetryEvent, { type: "error" }
 /** Hands one sanitized event to its port. Ports never throw by contract; this never awaits them. */
 export function forwardBrowserTelemetry(deps: AdminBrowserTelemetryDeps, { event, principalId }: { event: BrowserTelemetryEvent; principalId: string }): void {
   if (event.type === "pageview") {
-    deps.tracker.capture({ name: "admin_pageview", userId: principalId }, { properties: { route: event.route } });
+    void deps.tracker.capture({ name: "admin_pageview", userId: principalId }, { properties: { route: event.route } });
     return;
   }
   const attributes = { source: "admin-browser", route: event.route, ...(event.componentStack ? { componentStack: event.componentStack } : {}) };
