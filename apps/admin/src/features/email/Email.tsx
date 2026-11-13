@@ -66,7 +66,7 @@ type ActivityPart = (typeof ACTIVITY_PARTS)[number];
 const ACTIVITY_PART_LABELS: Record<ActivityPart, string> = { sends: "Recent sends", blocked: "Blocked addresses", reports: "Bounce and spam reports" };
 
 /** `p` when it names one of `parts`, else the first. Pure. */
-function pickPart<T extends string>(parts: readonly T[], part: string | null | undefined): T {
+function pickPart<T extends string>({ parts, part }: { parts: readonly T[]; part: string | null | undefined }, _options = {}): T {
   const selected = parts.find((id) => id === part) ?? parts[0];
   if (selected === undefined) throw new Error("email section has no available parts");
   return selected;
@@ -138,15 +138,15 @@ const WIRED_TAB_HOOKS: EmailTabHooks = {
   activity: useWiredEmailActivity,
 };
 
-type PartProps = { hooks: EmailTabHooks; locale: string; part: string | null | undefined; onPart: (part: string) => void };
+type PartProps = { hooks: EmailTabHooks; locale: string; part: string | null | undefined; onPart: (required: { next: string }, optional?: {}) => void };
 
 /** Overview's hook stays mounted across its segments, so the uses read and a typed test address survive a switch. */
 function OverviewTab(props: PartProps & { label: string; status: ReactNode }) {
   const controller = props.hooks.overview();
-  const part = pickPart(OVERVIEW_PARTS, props.part);
+  const part = pickPart({ parts: OVERVIEW_PARTS, part: props.part });
   return (
     <>
-      <PartSegments name="email-overview-part" label={props.label} labels={OVERVIEW_PART_LABELS} active={part} locale={props.locale} onSelect={props.onPart} />
+      <PartSegments name="email-overview-part" label={props.label} labels={OVERVIEW_PART_LABELS} active={part} locale={props.locale} onSelect={(next) => props.onPart({ next })} />
       {part === "status" ? props.status : <EmailOverviewTab controller={controller} locale={props.locale} part={part} />}
     </>
   );
@@ -155,15 +155,15 @@ function ProviderTab(props: PartProps & { status: EmailController }) {
   const controller = props.hooks.provider({ onChanged: props.status.retry });
   return (
     <EmailProviderTab controller={controller} status={props.status.view.kind === "loaded" ? props.status.view.status : null} locale={props.locale}
-      selectedId={props.part} onSelect={props.onPart} />
+      selectedId={props.part} onSelect={(next) => props.onPart({ next })} />
   );
 }
 function SenderTab(props: PartProps & { label: string; status: EmailController }) {
   const controller = props.hooks.sender({ onChanged: props.status.retry });
-  const part = pickPart(SENDER_PARTS, props.part);
+  const part = pickPart({ parts: SENDER_PARTS, part: props.part });
   return (
     <>
-      <PartSegments name="email-sender-part" label={props.label} labels={SENDER_PART_LABELS} active={part} locale={props.locale} onSelect={props.onPart} />
+      <PartSegments name="email-sender-part" label={props.label} labels={SENDER_PART_LABELS} active={part} locale={props.locale} onSelect={(next) => props.onPart({ next })} />
       <EmailSenderTab controller={controller} warnings={props.status.view.kind === "loaded" ? props.status.view.status.warnings ?? [] : []} locale={props.locale} part={part} />
     </>
   );
@@ -174,10 +174,10 @@ function TemplatesTab(props: { hooks: EmailTabHooks; locale: string }) {
 /** Activity's hook stays mounted across its segments, so filters, searches and loaded pages survive a switch. */
 function ActivityTab(props: PartProps & { label: string }) {
   const controller = props.hooks.activity();
-  const part = pickPart(ACTIVITY_PARTS, props.part);
+  const part = pickPart({ parts: ACTIVITY_PARTS, part: props.part });
   return (
     <>
-      <PartSegments name="email-activity-part" label={props.label} labels={ACTIVITY_PART_LABELS} active={part} locale={props.locale} onSelect={props.onPart} />
+      <PartSegments name="email-activity-part" label={props.label} labels={ACTIVITY_PART_LABELS} active={part} locale={props.locale} onSelect={(next) => props.onPart({ next })} />
       <EmailActivityTab controller={controller} locale={props.locale} part={part} />
     </>
   );
@@ -198,7 +198,7 @@ export function Email(props: { tabId?: string | null; part?: string | null; useE
   }));
   const partProps: PartProps = {
     hooks, locale, part: props.part,
-    onPart: (next) => navigate(`/email?tab=${activeId}&p=${encodeURIComponent(next)}`, { replace: true }),
+    onPart: ({ next }, _options = {}) => navigate(`/email?tab=${activeId}&p=${encodeURIComponent(next)}`, { replace: true }),
   };
   const tabLabel = createEmailTabLabel({ locale, labels: TAB_LABELS });
   return (

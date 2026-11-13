@@ -75,7 +75,7 @@ function ActivityRow(props: { item: MailActivityItem; controller: EmailActivityC
         <Chip tone={outcome.tone}>{t({ locale, key: outcome.label })}</Chip>
         <span className="email-activity-what">
           <span className="email-activity-recipient">{item.recipient}</span>
-          <span className="jini-field-hint">{t({ locale, key: USE[item.use] ?? item.use })} · {when(item.createdAt, locale)}</span>
+          <span className="jini-field-hint">{t({ locale, key: USE[item.use] ?? item.use })} · {when({ iso: item.createdAt, locale })}</span>
         </span>
         {itemId ? (
           <button type="button" className="btn-secondary email-push-end" aria-expanded={open} onClick={() => controller.toggleDetail(itemId)}
@@ -100,7 +100,7 @@ function ActivityRow(props: { item: MailActivityItem; controller: EmailActivityC
                   <dd>
                     {data.feedback.length === 0
                       ? <span className="jini-field-hint">{t({ locale, key: "None received yet" })}</span>
-                      : data.feedback.map((event, i) => <span key={i} className="jini-field-hint">{t({ locale, key: OUTCOME[event.kind]?.label ?? event.kind })} · {when(event.receivedAt, locale)}</span>)}
+                      : data.feedback.map((event, i) => <span key={i} className="jini-field-hint">{t({ locale, key: OUTCOME[event.kind]?.label ?? event.kind })} · {when({ iso: event.receivedAt, locale })}</span>)}
                   </dd>
                 </div>
               </dl>
@@ -166,7 +166,7 @@ function RemovalBody(props: { controller: EmailActivityController; locale: strin
   return (
     <div className="email-removal">
       <p>
-        {t({ locale, key: "Blocked since {when} ({why})." }).replace("{when}", () => when(step.plan.suppressedAt, locale)).replace("{why}", () => t({ locale, key: SUPPRESSION_REASON[step.plan.suppressionReason] }))}
+        {t({ locale, key: "Blocked since {when} ({why})." }).replace("{when}", () => when({ iso: step.plan.suppressedAt, locale })).replace("{why}", () => t({ locale, key: SUPPRESSION_REASON[step.plan.suppressionReason] }))}
       </p>
       <ul className="email-reasons">{step.plan.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
       <p className="jini-field-hint">{t({ locale, key: "Reason: {reason}" }).replace("{reason}", () => step.plan.reason)}</p>
@@ -195,7 +195,7 @@ function BlockedAddresses(props: { controller: EmailActivityController; locale: 
               <li key={`${entry.address}-${entry.scope}`} className="email-row email-blocked">
                 <span className="email-activity-recipient">{entry.address}</span>
                 <Chip tone={entry.reason === "manual" ? "neutral" : "warning"}>{t({ locale, key: SUPPRESSION_REASON[entry.reason] })}</Chip>
-                <span className="jini-field-hint">{t({ locale, key: entry.scope === "bulk" ? "Newsletters only" : "All email" })} · {when(entry.createdAt, locale)}</span>
+                <span className="jini-field-hint">{t({ locale, key: entry.scope === "bulk" ? "Newsletters only" : "All email" })} · {when({ iso: entry.createdAt, locale })}</span>
                 <button type="button" className="btn-secondary email-push-end" onClick={() => controller.startRemoval(entry)}
                   {...agentHandle({ handle: `email-blocked-${i}-remove` }, { role: "button", label: `Unblock ${entry.address}` })}>
                   {t({ locale, key: "Unblock" })}
@@ -250,7 +250,7 @@ function FeedbackSetup(props: { controller: EmailActivityController; locale: str
                     <span className="jini-field-hint">{t({ locale, key: "Verify the site's address first; the webhook URL needs it." })}</span>
                   ) : null}
                   {lastVerifiedEvent ? (
-                    <span className="jini-field-hint">{t({ locale, key: "Last report: {when}" }).replace("{when}", () => when(lastVerifiedEvent.receivedAt, locale))}</span>
+                    <span className="jini-field-hint">{t({ locale, key: "Last report: {when}" }).replace("{when}", () => when({ iso: lastVerifiedEvent.receivedAt, locale }))}</span>
                   ) : null}
                 </li>
               );

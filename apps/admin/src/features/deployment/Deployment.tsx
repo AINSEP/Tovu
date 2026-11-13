@@ -45,7 +45,7 @@ type DeploymentTabId = (typeof DEPLOYMENT_TAB_IDS)[number];
  *  `Database.tsx`/`Themes.tsx` all use — same reason `SettingsUi.tsx`'s `requestedTabId` and
  *  `WidgetInstanceEditor`'s `?type=` both apply their own guard (a stale link or a typo must not
  *  blank the panel). */
-function resolveDeploymentTabId(tabId: string | null | undefined): DeploymentTabId {
+function resolveDeploymentTabId({ tabId }: { tabId: string | null | undefined }, _options = {}): DeploymentTabId {
   return resolveActiveTabId({ tabId: tabId, validIds: DEPLOYMENT_TAB_IDS, defaultId: "overview" });
 }
 
@@ -71,7 +71,7 @@ export function Deployment(props: DeploymentProps) {
   // No hook file of its own — this shell owns no fetch/state (each tab owns its own), matching
   // `Database.tsx`'s own carve-out for a top-level screen with nothing to inject.
   const locale = useAdminLocale();
-  const activeTabId = resolveDeploymentTabId(props.tabId);
+  const activeTabId = resolveDeploymentTabId({ tabId: props.tabId });
 
   const tabs: TabBarTab[] = [
     {

@@ -93,7 +93,7 @@ export interface UseFolderDropInput {
 }
 
 export interface UseFolderDropDeps {
-  /** Test seam — defaults to the real `getFolderDropPort(undefined)` (`window.tovuFiles`). Called
+  /** Test seam — defaults to the real `getFolderDropPort({ targetWindow: undefined })` (`window.tovuFiles`). Called
    *  at render, not at drop; a drop uses the latest committed render's port. */
   readonly getPort?: () => FolderDropPort | null;
   /** Test seam — defaults to the real `api.setFsFilesCustomRoot`. */
@@ -120,7 +120,7 @@ const DEFAULT_AUTO_DISMISS_MS = 4000;
  * @complexity Time/space: O(1).
  */
 function defaultGetPort(): FolderDropPort | null {
-  return getFolderDropPort(undefined);
+  return getFolderDropPort({ targetWindow: undefined });
 }
 
 /**
@@ -134,7 +134,7 @@ function defaultGetPort(): FolderDropPort | null {
  *
  * @complexity Time/space: O(1).
  */
-function reasonForCustomRootError(err: unknown): FolderDropErrorReason {
+function reasonForCustomRootError({ err }: { err: unknown }, _options = {}): FolderDropErrorReason {
   if (!(err instanceof ApiError) || err.code !== "INVALID_PATH") return "endpoint-unreachable";
   const message = typeof err.body?.error === "string" ? err.body.error : "";
   return message.includes("does not exist") ? "does-not-exist" : "not-a-directory";
@@ -261,7 +261,7 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
           if (!settlesHere()) return;
           // An error is not auto-dismissed, so an earlier success's pending timer must not wipe it.
           if (dismissTimer.current !== null) clearTimeout(dismissTimer.current);
-          setNotice({ kind: "error", path, reason: reasonForCustomRootError(err) });
+          setNotice({ kind: "error", path, reason: reasonForCustomRootError({ err }) });
         }
       } });
     },

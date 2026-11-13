@@ -87,7 +87,10 @@ export interface MigrateForwardSectionDependencies {
 }
 
 /** The failure copy for whichever step failed, in step order; `null` when none did. */
-function migrateForwardErrorKey(planError: unknown, confirmError: unknown, executeError: unknown): string | null {
+function migrateForwardErrorKey(
+  { planError, confirmError, executeError }: { planError: unknown; confirmError: unknown; executeError: unknown },
+  _options = {},
+): string | null {
   if (planError) return "Failed to plan the forward migration";
   if (confirmError) return "Failed to confirm the forward migration";
   if (executeError) return "Failed to execute the forward migration";
@@ -114,7 +117,7 @@ export function useMigrateForwardSection(deps: MigrateForwardSectionDependencies
     run: ({ input }: { input: { planId: string; planHash: string } }) => port.confirmMigrateForward(input),
   });
   const executeMutation = useFetchMutation({
-    run: ({ input: confirmationTokenInput }: { input: string }) => port.executeMigrateForward(confirmationTokenInput),
+    run: ({ input: confirmationTokenInput }: { input: string }) => port.executeMigrateForward({ confirmationToken: confirmationTokenInput }),
   }, {
     invalidates: MIGRATION_CHANGES_READS,
   });
@@ -171,7 +174,7 @@ export function useMigrateForwardSection(deps: MigrateForwardSectionDependencies
   // predecessor's output — see this file's own header), so at most one of these three is ever
   // non-null at a time; a plain precedence chain is enough, no `clearOtherWriteErrors` needed.
   const rawError = startPlanMutation.error ?? confirmMutation.error ?? executeMutation.error;
-  const errorKey = migrateForwardErrorKey(startPlanMutation.error, confirmMutation.error, executeMutation.error);
+  const errorKey = migrateForwardErrorKey({ planError: startPlanMutation.error, confirmError: confirmMutation.error, executeError: executeMutation.error });
   const error = errorKey === null ? null : describeApiError(rawError, t({ locale: locale, key: errorKey }));
 
   return { step, busy, error, plan, confirmationToken, done, reset, startPlan, doConfirm, doExecute, t: boundT, locale };

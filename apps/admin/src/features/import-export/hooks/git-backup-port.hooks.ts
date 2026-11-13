@@ -51,27 +51,27 @@ export type GitBackupPushResult =
 export interface GitBackupPort {
   /** Every saved Source Control connection (`GET …/system/source-control/credentials`). */
   listConnections(): Promise<AdminSourceControlCredentialSummary[]>;
-  plan(input: GitBackupPlanInput): Promise<GitBackupPlan | GitBackupRefusal>;
+  plan(input: GitBackupPlanInput, optional?: {}): Promise<GitBackupPlan | GitBackupRefusal>;
   /** Waits ~1.5 s server-side, then answers the outcome or the job's progress. */
-  push(input: { planId: string }): Promise<GitBackupPushResult>;
+  push(input: { planId: string }, optional?: {}): Promise<GitBackupPushResult>;
 }
 
 const BACKUPS = `/workspaces/${WORKSPACE_ID}/site-backups`;
 
 export const defaultGitBackupPort: GitBackupPort = {
   listConnections: () => api.listSourceControlCredentials().then((snapshot) => snapshot.credentials),
-  plan: (input) => authenticatedAdminRequest({ method: "POST", path: `${BACKUPS}/plan`, body: input }),
-  push: (input) => authenticatedAdminRequest({ method: "POST", path: `${BACKUPS}/push`, body: input }),
+  plan: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: `${BACKUPS}/plan`, body: input }),
+  push: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: `${BACKUPS}/push`, body: input }),
 };
 
 /** An in-memory {@link GitBackupPort} for tests. Unlisted calls reject, so a test that reaches one
  *  it did not describe fails loudly. */
 export function createFakeGitBackupPort(overrides: Partial<GitBackupPort> = {}): GitBackupPort {
-  const unexpected = (name: string) => () => Promise.reject(new Error(`${name} was not expected`));
+  const unexpected = ({ name }: { name: string }, _options = {}) => () => Promise.reject(new Error(`${name} was not expected`));
   return {
     listConnections: () => Promise.resolve([]),
-    plan: unexpected("plan"),
-    push: unexpected("push"),
+    plan: unexpected({ name: "plan" }),
+    push: unexpected({ name: "push" }),
     ...overrides,
   };
 }

@@ -133,7 +133,7 @@ function DnsBody(props: { status: MailDnsStatus; locale: string }) {
         <>
           <Records dns={dns} locale={locale} />
           {dns.reason ? <p className="jini-field-hint">{dns.reason}</p> : null}
-          <p className="jini-field-hint">{t({ locale, key: "Checked {when}" }).replace("{when}", () => when(dns.checkedAt, locale))}</p>
+          <p className="jini-field-hint">{t({ locale, key: "Checked {when}" }).replace("{when}", () => when({ iso: dns.checkedAt, locale }))}</p>
         </>
       ) : (
         <p className="jini-field-hint">{[t({ locale, key: STATE_LINE[status.state] || "No DNS check yet." }), LINE_SAYS_IT_ALL.has(status.state) ? undefined : status.message].filter(Boolean).join(" ")}</p>

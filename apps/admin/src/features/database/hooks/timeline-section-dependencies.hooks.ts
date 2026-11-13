@@ -8,14 +8,14 @@ import type { TimelineSectionPort } from "./timeline-section-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultTimelineSectionPort: TimelineSectionPort = {
-  getDatabaseTimeline: (options) => api.getDatabaseTimeline(options),
+  getDatabaseTimeline: (_required, { options } = {}) => api.getDatabaseTimeline(options),
 };
 
 /** Seed state for {@link createFakeTimelineSectionPort}. */
 export interface FakeTimelineSectionPortOptions {
   items?: AdminLedgerRow[];
   nextCursor?: string | null;
-  /** When set, `getDatabaseTimeline()` rejects with this instead of resolving — for load-failure
+  /** When set, `getDatabaseTimeline({})` rejects with this instead of resolving — for load-failure
    *  tests. */
   getDatabaseTimelineError?: Error;
 }
@@ -36,7 +36,7 @@ export function createFakeTimelineSectionPort(options: FakeTimelineSectionPortOp
 
   return {
     calls,
-    async getDatabaseTimeline(reqOptions = {}) {
+    async getDatabaseTimeline(_required, { options: reqOptions = {} } = {}) {
       calls.push(reqOptions);
       if (options.getDatabaseTimelineError) throw options.getDatabaseTimelineError;
       return { items: options.items ?? [], nextCursor: options.nextCursor ?? null };

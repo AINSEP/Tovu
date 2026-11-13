@@ -165,6 +165,6 @@ export function resolveSchemaStateWarning(
  *
  * @complexity O(1).
  */
-export function viewInRecoveryAccessibleName(locale: string, row: Pick<AdminLedgerRow, "kind" | "createdAt">): string {
+export function viewInRecoveryAccessibleName({ locale, row }: { locale: string; row: Pick<AdminLedgerRow, "kind" | "createdAt"> }, _options = {}): string {
   return `${t({ locale: locale, key: "View in Recovery →" })} — ${row.kind}, ${formatTimestamp({ iso: row.createdAt }, { timeZone: "local" })}`;
 }

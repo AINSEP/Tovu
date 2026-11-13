@@ -62,19 +62,19 @@ describe("productionGateLabelKey", () => {
 
 describe("daemonStatusLabelKey", () => {
   it("reports no known failure when the daemon hasn't latched a failure", () => {
-    expect(daemonStatusLabelKey(false)).toBe("No known failure");
+    expect(daemonStatusLabelKey({ daemonKnownFailed: false })).toBe("No known failure");
   });
   it("reports the known-failure key when it has", () => {
-    expect(daemonStatusLabelKey(true)).toBe("Known failure — check server logs.");
+    expect(daemonStatusLabelKey({ daemonKnownFailed: true })).toBe("Known failure — check server logs.");
   });
 });
 
 describe("ownerPasswordLabelKey", () => {
   it("warns when the password is still the default", () => {
-    expect(ownerPasswordLabelKey(true)).toBe("Still the default — set TOVU_ADMIN_PASSWORD.");
+    expect(ownerPasswordLabelKey({ defaultOwnerPasswordUnsafe: true })).toBe("Still the default — set TOVU_ADMIN_PASSWORD.");
   });
   it("confirms when it's been changed", () => {
-    expect(ownerPasswordLabelKey(false)).toBe("Changed from the default.");
+    expect(ownerPasswordLabelKey({ defaultOwnerPasswordUnsafe: false })).toBe("Changed from the default.");
   });
 });
 
@@ -130,109 +130,109 @@ describe("credentialVerifyStatusClass", () => {
 describe("deploymentEnvVarNoteKey", () => {
   it("returns a distinct note per known var", () => {
     const names = ["TOVU_ADMIN_PASSWORD", "TOVU_ADMIN_USER", "TOVU_SITE_KEY", "JINI_AGENT_DAEMON_PORT"];
-    const notes = names.map(deploymentEnvVarNoteKey);
+    const notes = names.map((name) => deploymentEnvVarNoteKey({ name }));
     expect(new Set(notes).size).toBe(names.length);
     expect(notes.every((n) => n.length > 0)).toBe(true);
-    expect(deploymentEnvVarNoteKey("TOVU_ADMIN_PASSWORD")).toBe("Falls back to a public default.");
-    expect(deploymentEnvVarNoteKey("TOVU_ADMIN_USER")).toBe('Falls back to "admin".');
-    expect(deploymentEnvVarNoteKey("JINI_AGENT_DAEMON_PORT")).toBe("Falls back to port 4319.");
+    expect(deploymentEnvVarNoteKey({ name: "TOVU_ADMIN_PASSWORD" })).toBe("Falls back to a public default.");
+    expect(deploymentEnvVarNoteKey({ name: "TOVU_ADMIN_USER" })).toBe('Falls back to "admin".');
+    expect(deploymentEnvVarNoteKey({ name: "JINI_AGENT_DAEMON_PORT" })).toBe("Falls back to port 4319.");
   });
 
   it("states the integrations Site key is boot-blocking in production, with the local-mode 503 fallback noted too", () => {
-    expect(deploymentEnvVarNoteKey("TOVU_SITE_KEY")).toMatch(/required to boot in production/i);
-    expect(deploymentEnvVarNoteKey("TOVU_SITE_KEY")).toMatch(/503/);
+    expect(deploymentEnvVarNoteKey({ name: "TOVU_SITE_KEY" })).toMatch(/required to boot in production/i);
+    expect(deploymentEnvVarNoteKey({ name: "TOVU_SITE_KEY" })).toMatch(/503/);
   });
 
   it("returns an empty string for an unrecognized name rather than throwing or fabricating a note", () => {
-    expect(deploymentEnvVarNoteKey("SOME_UNKNOWN_VAR")).toBe("");
+    expect(deploymentEnvVarNoteKey({ name: "SOME_UNKNOWN_VAR" })).toBe("");
   });
 });
 
 
 describe("runStatusTone", () => {
   it("maps idle to neutral, running to warning, errored to error", () => {
-    expect(runStatusTone("idle", undefined)).toBe("neutral");
-    expect(runStatusTone("running", undefined)).toBe("warning");
-    expect(runStatusTone("errored", undefined)).toBe("error");
+    expect(runStatusTone({ status: "idle" }, { ok: undefined })).toBe("neutral");
+    expect(runStatusTone({ status: "running" }, { ok: undefined })).toBe("warning");
+    expect(runStatusTone({ status: "errored" }, { ok: undefined })).toBe("error");
   });
 
   it("maps a completed run to ok when successful and error when ok is explicitly false", () => {
-    expect(runStatusTone("completed", true)).toBe("ok");
-    expect(runStatusTone("completed", undefined)).toBe("ok");
-    expect(runStatusTone("completed", false)).toBe("error");
+    expect(runStatusTone({ status: "completed" }, { ok: true })).toBe("ok");
+    expect(runStatusTone({ status: "completed" }, { ok: undefined })).toBe("ok");
+    expect(runStatusTone({ status: "completed" }, { ok: false })).toBe("error");
   });
 });
 
 describe("exportRunStatusLabelKey", () => {
   it("reads an undefined run the same as an explicit idle run", () => {
-    expect(exportRunStatusLabelKey(undefined)).toBe(exportRunStatusLabelKey({ status: "idle" }));
-    expect(exportRunStatusLabelKey(undefined)).toBe("Not started");
-    expect(exportRunStatusLabelKey({ status: "idle" })).toBe("Not started");
+    expect(exportRunStatusLabelKey({ run: undefined })).toBe(exportRunStatusLabelKey({ run: { status: "idle" } }));
+    expect(exportRunStatusLabelKey({ run: undefined })).toBe("Not started");
+    expect(exportRunStatusLabelKey({ run: { status: "idle" } })).toBe("Not started");
   });
 
   it("distinguishes a clean finish from one with route failures", () => {
-    expect(exportRunStatusLabelKey({ status: "completed", ok: true })).toBe("Export finished");
-    expect(exportRunStatusLabelKey({ status: "completed", ok: false })).toBe("Finished with failures");
+    expect(exportRunStatusLabelKey({ run: { status: "completed", ok: true } })).toBe("Export finished");
+    expect(exportRunStatusLabelKey({ run: { status: "completed", ok: false } })).toBe("Finished with failures");
   });
 
   it("reports running and errored distinctly", () => {
-    expect(exportRunStatusLabelKey({ status: "running" })).toBe("Exporting…");
-    expect(exportRunStatusLabelKey({ status: "errored" })).toBe("Export failed");
+    expect(exportRunStatusLabelKey({ run: { status: "running" } })).toBe("Exporting…");
+    expect(exportRunStatusLabelKey({ run: { status: "errored" } })).toBe("Export failed");
   });
 });
 
 describe("publishRunStatusLabelKey", () => {
   it("reads an undefined run the same as an explicit idle run", () => {
-    expect(publishRunStatusLabelKey(undefined)).toBe(publishRunStatusLabelKey({ status: "idle" }));
-    expect(publishRunStatusLabelKey(undefined)).toBe("Not started");
-    expect(publishRunStatusLabelKey({ status: "idle" })).toBe("Not started");
+    expect(publishRunStatusLabelKey({ run: undefined })).toBe(publishRunStatusLabelKey({ run: { status: "idle" } }));
+    expect(publishRunStatusLabelKey({ run: undefined })).toBe("Not started");
+    expect(publishRunStatusLabelKey({ run: { status: "idle" } })).toBe("Not started");
   });
 
   it("distinguishes a real success from a completed-but-failed outcome (e.g. no credentials)", () => {
-    expect(publishRunStatusLabelKey({ status: "completed", result: { ok: true } as never })).toBe("Published");
-    expect(publishRunStatusLabelKey({ status: "completed", result: { ok: false } as never })).toBe("Publish failed");
+    expect(publishRunStatusLabelKey({ run: { status: "completed", result: { ok: true } as never } })).toBe("Published");
+    expect(publishRunStatusLabelKey({ run: { status: "completed", result: { ok: false } as never } })).toBe("Publish failed");
   });
 
   it("reports running and errored distinctly", () => {
-    expect(publishRunStatusLabelKey({ status: "running" })).toBe("Publishing…");
-    expect(publishRunStatusLabelKey({ status: "errored" })).toBe("Publish failed");
+    expect(publishRunStatusLabelKey({ run: { status: "running" } })).toBe("Publishing…");
+    expect(publishRunStatusLabelKey({ run: { status: "errored" } })).toBe("Publish failed");
   });
 });
 
 describe("staticPublishFormReadyForPreview / staticPublishFormReadyToPublish", () => {
   it("a preview needs every REQUIRED config field the host's descriptor declares, and nothing else", () => {
-    expect(staticPublishFormReadyForPreview(GITHUB_PAGES_TARGET, {})).toBe(false);
-    expect(staticPublishFormReadyForPreview(GITHUB_PAGES_TARGET, { owner: "octo", repo: " " })).toBe(false);
-    expect(staticPublishFormReadyForPreview(GITHUB_PAGES_TARGET, { owner: "octo", repo: "demo" })).toBe(true);
-    expect(staticPublishFormReadyForPreview(VERCEL_TARGET, {})).toBe(true); // teamId is optional
-    expect(staticPublishFormReadyForPreview(PLAIN_TARGET, {})).toBe(true);
+    expect(staticPublishFormReadyForPreview({ target: GITHUB_PAGES_TARGET, values: {} })).toBe(false);
+    expect(staticPublishFormReadyForPreview({ target: GITHUB_PAGES_TARGET, values: { owner: "octo", repo: " " } })).toBe(false);
+    expect(staticPublishFormReadyForPreview({ target: GITHUB_PAGES_TARGET, values: { owner: "octo", repo: "demo" } })).toBe(true);
+    expect(staticPublishFormReadyForPreview({ target: VERCEL_TARGET, values: {} })).toBe(true); // teamId is optional
+    expect(staticPublishFormReadyForPreview({ target: PLAIN_TARGET, values: {} })).toBe(true);
   });
 
   it("is never ready before the target list has loaded", () => {
-    expect(staticPublishFormReadyForPreview(undefined, {})).toBe(false);
-    expect(staticPublishFormReadyToPublish(undefined, {}, "demo")).toBe(false);
+    expect(staticPublishFormReadyForPreview({ target: undefined, values: {} })).toBe(false);
+    expect(staticPublishFormReadyToPublish({ target: undefined, values: {}, projectName: "demo" })).toBe(false);
   });
 
   it("publishing additionally requires a non-blank projectName when the host declares one", () => {
-    expect(staticPublishFormReadyToPublish(GITHUB_PAGES_TARGET, { owner: "octo", repo: "demo" }, "")).toBe(false);
-    expect(staticPublishFormReadyToPublish(GITHUB_PAGES_TARGET, { owner: "octo", repo: "demo" }, "  ")).toBe(false);
-    expect(staticPublishFormReadyToPublish(GITHUB_PAGES_TARGET, { owner: "octo", repo: "demo" }, "demo")).toBe(true);
+    expect(staticPublishFormReadyToPublish({ target: GITHUB_PAGES_TARGET, values: { owner: "octo", repo: "demo" }, projectName: "" })).toBe(false);
+    expect(staticPublishFormReadyToPublish({ target: GITHUB_PAGES_TARGET, values: { owner: "octo", repo: "demo" }, projectName: "  " })).toBe(false);
+    expect(staticPublishFormReadyToPublish({ target: GITHUB_PAGES_TARGET, values: { owner: "octo", repo: "demo" }, projectName: "demo" })).toBe(true);
   });
 
   it("a host that declares no projectName (S3-compatible storage) publishes without one", () => {
-    expect(staticPublishFormReadyToPublish(PLAIN_TARGET, {}, "")).toBe(true);
-    expect(staticPublishFormReadyToPublish(PLAIN_TARGET, {}, "stray")).toBe(true);
+    expect(staticPublishFormReadyToPublish({ target: PLAIN_TARGET, values: {}, projectName: "" })).toBe(true);
+    expect(staticPublishFormReadyToPublish({ target: PLAIN_TARGET, values: {}, projectName: "stray" })).toBe(true);
   });
 });
 
 describe("staticPublishProjectNameToSend", () => {
   it("sends the typed name to a host that declares one", () => {
-    expect(staticPublishProjectNameToSend(GITHUB_PAGES_TARGET, "Publish from Tovu")).toBe("Publish from Tovu");
+    expect(staticPublishProjectNameToSend({ target: GITHUB_PAGES_TARGET, projectName: "Publish from Tovu" })).toBe("Publish from Tovu");
   });
 
   it("sends the host's id to a host that declares none, since the server requires a non-blank value", () => {
-    expect(staticPublishProjectNameToSend(PLAIN_TARGET, "")).toBe("plain-host");
-    expect(staticPublishProjectNameToSend(PLAIN_TARGET, "stray")).toBe("plain-host");
+    expect(staticPublishProjectNameToSend({ target: PLAIN_TARGET, projectName: "" })).toBe("plain-host");
+    expect(staticPublishProjectNameToSend({ target: PLAIN_TARGET, projectName: "stray" })).toBe("plain-host");
   });
 });
 
@@ -248,19 +248,19 @@ describe("buildStaticPublishConfig", () => {
 
 describe("staticPublishProjectNameCopy", () => {
   it("uses the host's own label and help when its descriptor names the field", () => {
-    expect(staticPublishProjectNameCopy(GITHUB_PAGES_TARGET)).toEqual({
+    expect(staticPublishProjectNameCopy({ target: GITHUB_PAGES_TARGET })).toEqual({
       labelKey: "Commit message",
       helpKey: "Used as the commit message on the gh-pages branch.",
     });
   });
 
   it("is null for a host that declares no project name, and while the list loads, so the tab shows no field", () => {
-    expect(staticPublishProjectNameCopy(PLAIN_TARGET)).toBeNull();
-    expect(staticPublishProjectNameCopy(undefined)).toBeNull();
+    expect(staticPublishProjectNameCopy({ target: PLAIN_TARGET })).toBeNull();
+    expect(staticPublishProjectNameCopy({ target: undefined })).toBeNull();
   });
 
   it("keeps a declared label with no help, leaving helpKey undefined", () => {
-    expect(staticPublishProjectNameCopy({ ...PLAIN_TARGET, projectName: { label: "Site name" } })).toEqual({ labelKey: "Site name", helpKey: undefined });
+    expect(staticPublishProjectNameCopy({ target: { ...PLAIN_TARGET, projectName: { label: "Site name" } } })).toEqual({ labelKey: "Site name", helpKey: undefined });
   });
 });
 
@@ -281,7 +281,7 @@ describe("credentialFormReadyToSave / buildCredentialConnectionInput", () => {
   });
 
   it("builds the connection from declared fields only, trimming ordinary fields and preserving the token for store validation", () => {
-    expect(buildCredentialConnectionInput("cloudflare-pages", spec, { token: " tok ", accountId: " acct ", stray: "x" })).toEqual({
+    expect(buildCredentialConnectionInput({ providerId: "cloudflare-pages", spec, values: { token: " tok ", accountId: " acct ", stray: "x" } })).toEqual({
       providerId: "cloudflare-pages",
       token: " tok ",
       accountId: "acct",
@@ -289,7 +289,7 @@ describe("credentialFormReadyToSave / buildCredentialConnectionInput", () => {
   });
 
   it("omits an absent token from the connection while retaining declared account fields", () => {
-    expect(buildCredentialConnectionInput("cloudflare-pages", spec, { accountId: " acct ", stray: "x" })).toEqual({
+    expect(buildCredentialConnectionInput({ providerId: "cloudflare-pages", spec, values: { accountId: " acct ", stray: "x" } })).toEqual({
       providerId: "cloudflare-pages",
       accountId: "acct",
     });
@@ -298,18 +298,18 @@ describe("credentialFormReadyToSave / buildCredentialConnectionInput", () => {
 
 describe("agent handle ids", () => {
   it("keeps the ids agent tooling already uses for config and credential inputs", () => {
-    expect(publishConfigFieldHandleId("owner")).toBe("deployment-static-site-publish-owner");
-    expect(publishConfigFieldHandleId("teamId")).toBe("deployment-static-site-publish-team");
-    expect(credentialFieldHandleId("host", "token", "token")).toBe("deployment-static-site-credentials-token-host");
-    expect(credentialFieldHandleId("host", "accountId", "token")).toBe("deployment-static-site-credentials-account-host");
-    expect(credentialFieldHandleId("host", "region", "secretKey")).toBe("deployment-static-site-credentials-region-host");
+    expect(publishConfigFieldHandleId({ fieldName: "owner" })).toBe("deployment-static-site-publish-owner");
+    expect(publishConfigFieldHandleId({ fieldName: "teamId" })).toBe("deployment-static-site-publish-team");
+    expect(credentialFieldHandleId({ providerId: "host", fieldName: "token", tokenField: "token" })).toBe("deployment-static-site-credentials-token-host");
+    expect(credentialFieldHandleId({ providerId: "host", fieldName: "accountId", tokenField: "token" })).toBe("deployment-static-site-credentials-account-host");
+    expect(credentialFieldHandleId({ providerId: "host", fieldName: "region", tokenField: "secretKey" })).toBe("deployment-static-site-credentials-region-host");
   });
 
   it("hyphenates a camelCase field name, since agentHandle() throws on capitals and one throw blanks the admin", () => {
     // S3-compatible's `accessKeyId` crashed the Static Site tab on 2026-09-29 (seen in the browser).
-    expect(credentialFieldHandleId("s3-compatible", "accessKeyId", "secretAccessKey")).toBe("deployment-static-site-credentials-access-key-id-s3-compatible");
-    expect(publishConfigFieldHandleId("basePath")).toBe("deployment-static-site-publish-base-path");
-    expect(fieldNameHandleSegment("publicURL")).toBe("public-url");
+    expect(credentialFieldHandleId({ providerId: "s3-compatible", fieldName: "accessKeyId", tokenField: "secretAccessKey" })).toBe("deployment-static-site-credentials-access-key-id-s3-compatible");
+    expect(publishConfigFieldHandleId({ fieldName: "basePath" })).toBe("deployment-static-site-publish-base-path");
+    expect(fieldNameHandleSegment({ fieldName: "publicURL" })).toBe("public-url");
   });
 });
 
@@ -324,41 +324,41 @@ describe("credentialNoun / credentialStepSubtitle", () => {
 
   it("says 'Save your <credential>' unless the workspace cannot reach a terminal", () => {
     const identity = (key: string) => key;
-    expect(credentialStepSubtitle("self-hosted-cli", spec("API token"), identity)).toBe("Save your API token so Tovu can publish on your behalf.");
-    expect(credentialStepSubtitle("hosted-api-only", spec("API token"), identity)).toBe(
+    expect(credentialStepSubtitle({ executionMode: "self-hosted-cli", credential: spec("API token"), translate: identity })).toBe("Save your API token so Tovu can publish on your behalf.");
+    expect(credentialStepSubtitle({ executionMode: "hosted-api-only", credential: spec("API token"), translate: identity })).toBe(
       "This workspace can't use your computer's terminal — connecting here is the only way to publish."
     );
   });
 
   it("fills the host's credential into a translated template", () => {
     const spanish = (key: string) => (key === "Save your {credential} so Tovu can publish on your behalf." ? "Guarda tu {credential} para que Tovu pueda publicar en tu nombre." : key);
-    expect(credentialStepSubtitle("self-hosted-cli", spec("Access token"), spanish)).toBe("Guarda tu access token para que Tovu pueda publicar en tu nombre.");
+    expect(credentialStepSubtitle({ executionMode: "self-hosted-cli", credential: spec("Access token"), translate: spanish })).toBe("Guarda tu access token para que Tovu pueda publicar en tu nombre.");
   });
 });
 
 describe("fieldHelpText", () => {
   it("shows the person-facing userHelp over the agent's help", () => {
-    expect(fieldHelpText({ name: "owner", label: "Owner", help: "Never guess it.", userHelp: "The account that owns the repository." })).toBe(
+    expect(fieldHelpText({ field: { name: "owner", label: "Owner", help: "Never guess it.", userHelp: "The account that owns the repository." } })).toBe(
       "The account that owns the repository."
     );
   });
 
   it("reads a credential form's guidance the same way: userHelp over help", () => {
-    expect(fieldHelpText({ help: "Ask me for the steps.", userHelp: "Create the bucket first.", tokenField: "token", fields: [] })).toBe("Create the bucket first.");
-    expect(fieldHelpText({ help: "Needs an API token.", tokenField: "token", fields: [] })).toBe("Needs an API token.");
+    expect(fieldHelpText({ field: { help: "Ask me for the steps.", userHelp: "Create the bucket first.", tokenField: "token", fields: [] } })).toBe("Create the bucket first.");
+    expect(fieldHelpText({ field: { help: "Needs an API token.", tokenField: "token", fields: [] } })).toBe("Needs an API token.");
   });
 
   it("falls back to help, and to nothing when a field has neither", () => {
-    expect(fieldHelpText({ name: "branch", label: "Branch", help: "Defaults to gh-pages." })).toBe("Defaults to gh-pages.");
-    expect(fieldHelpText({ name: "repo", label: "Repository" })).toBeUndefined();
+    expect(fieldHelpText({ field: { name: "branch", label: "Branch", help: "Defaults to gh-pages." } })).toBe("Defaults to gh-pages.");
+    expect(fieldHelpText({ field: { name: "repo", label: "Repository" } })).toBeUndefined();
   });
 });
 
 describe("publishTargetById / fieldLabelParts", () => {
   it("finds a listed target and returns undefined for an unknown id or an unloaded list", () => {
-    expect(publishTargetById(PUBLISH_TARGETS, "vercel")).toBe(VERCEL_TARGET);
-    expect(publishTargetById(PUBLISH_TARGETS, "nope")).toBeUndefined();
-    expect(publishTargetById(undefined, "vercel")).toBeUndefined();
+    expect(publishTargetById({ targets: PUBLISH_TARGETS, id: "vercel" })).toBe(VERCEL_TARGET);
+    expect(publishTargetById({ targets: PUBLISH_TARGETS, id: "nope" })).toBeUndefined();
+    expect(publishTargetById({ targets: undefined, id: "vercel" })).toBeUndefined();
   });
 
   it("adds the optional suffix key only to optional fields", () => {
@@ -462,27 +462,27 @@ describe("defaultCredentialForProvider", () => {
 describe("classifyPublishCredentialSubmitError", () => {
   it("recognizes DUPLICATE_LABEL via e.message (the dispatched contract's own shape: { error: 'DUPLICATE_LABEL' }, no separate code)", () => {
     const err = new ApiError("DUPLICATE_LABEL", 409);
-    expect(classifyPublishCredentialSubmitError(err)).toEqual({ kind: "duplicate-label" });
+    expect(classifyPublishCredentialSubmitError({ e: err })).toEqual({ kind: "duplicate-label" });
   });
 
   it("recognizes DUPLICATE_LABEL via e.code too (this codebase's usual { error, code } shape)", () => {
     const err = new ApiError("A credential with this label already exists.", 409, "DUPLICATE_LABEL");
-    expect(classifyPublishCredentialSubmitError(err)).toEqual({ kind: "duplicate-label" });
+    expect(classifyPublishCredentialSubmitError({ e: err })).toEqual({ kind: "duplicate-label" });
   });
 
   it("recognizes VALIDATION and surfaces body.detail when present", () => {
     const err = new ApiError("VALIDATION", 400, undefined, { error: "VALIDATION", detail: "accountId is required for cloudflare-pages" });
-    expect(classifyPublishCredentialSubmitError(err)).toEqual({ kind: "validation", detail: "accountId is required for cloudflare-pages" });
+    expect(classifyPublishCredentialSubmitError({ e: err })).toEqual({ kind: "validation", detail: "accountId is required for cloudflare-pages" });
   });
 
   it("VALIDATION without a body.detail falls back to the error message itself, never throws or drops the failure", () => {
     const err = new ApiError("VALIDATION", 400);
-    expect(classifyPublishCredentialSubmitError(err)).toEqual({ kind: "validation", detail: "VALIDATION" });
+    expect(classifyPublishCredentialSubmitError({ e: err })).toEqual({ kind: "validation", detail: "VALIDATION" });
   });
 
   it("falls through to 'generic' for an unrecognized ApiError and for a non-ApiError rejection", () => {
-    expect(classifyPublishCredentialSubmitError(new ApiError("request failed (500)", 500))).toEqual({ kind: "generic" });
-    expect(classifyPublishCredentialSubmitError(new Error("network down"))).toEqual({ kind: "generic" });
-    expect(classifyPublishCredentialSubmitError("not even an Error")).toEqual({ kind: "generic" });
+    expect(classifyPublishCredentialSubmitError({ e: new ApiError("request failed (500)", 500) })).toEqual({ kind: "generic" });
+    expect(classifyPublishCredentialSubmitError({ e: new Error("network down") })).toEqual({ kind: "generic" });
+    expect(classifyPublishCredentialSubmitError({ e: "not even an Error" })).toEqual({ kind: "generic" });
   });
 });

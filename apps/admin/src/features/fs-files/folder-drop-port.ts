@@ -33,12 +33,12 @@ declare global {
 /**
  * Resolves the folder-drop port for the current runtime.
  *
- * @param targetWindow - Injected so a test can simulate either runtime without touching the real
+ * @param required.targetWindow - Injected so a test can simulate either runtime without touching the real
  *   `window` global. A real caller omits it — same convention as `getVoiceInputPort`.
  * @returns The real port when running inside the desktop shell, `null` in a plain browser tab.
  * @complexity Time/space: O(1).
  */
-export function getFolderDropPort(targetWindow: Window | undefined): FolderDropPort | null {
+export function getFolderDropPort({ targetWindow }: { targetWindow: Window | undefined }, _options = {}): FolderDropPort | null {
   if (targetWindow !== undefined) return targetWindow?.tovuFiles ?? null;
   return typeof window === "undefined" ? null : (window.tovuFiles ?? null);
 }

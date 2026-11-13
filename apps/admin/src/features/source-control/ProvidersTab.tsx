@@ -418,19 +418,19 @@ function SourceControlCredentialFields({
         </div>
 
         {info.fields.map((field) => {
-          const help = fieldHelpText(field);
+          const help = fieldHelpText({ field });
           return <div className="field" key={field.name}>
-            <label className="field-label" htmlFor={`source-control-credentials-${fieldNameHandleSegment(field.name)}-${row.providerId}`}>
+            <label className="field-label" htmlFor={`source-control-credentials-${fieldNameHandleSegment({ fieldName: field.name })}-${row.providerId}`}>
               {translate(field.label)}
             </label>
             <SecretInput
               label={translate(field.label)}
               secret={field.secret === true}
-              id={`source-control-credentials-${fieldNameHandleSegment(field.name)}-${row.providerId}`}
+              id={`source-control-credentials-${fieldNameHandleSegment({ fieldName: field.name })}-${row.providerId}`}
               autoComplete="new-password"
               value={row.values[field.name] ?? ""}
               onChange={(e) => controller.setField(row.providerId, field.name, e.target.value)}
-              {...agentHandle({ handle: `source-control-credentials-${fieldNameHandleSegment(field.name)}-${row.providerId}` }, {
+              {...agentHandle({ handle: `source-control-credentials-${fieldNameHandleSegment({ fieldName: field.name })}-${row.providerId}` }, {
                 role: "field",
                 label: `${info.label} ${field.label}`,
               })}

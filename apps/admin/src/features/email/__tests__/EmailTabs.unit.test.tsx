@@ -109,14 +109,14 @@ describe("Email tab components", () => {
     const a = { ...PROVIDER, id: "a" };
     const b = { ...PROVIDER, id: "b", lanes: ["transactional"] as const };
     const c = { ...PROVIDER, id: "c", lanes: ["transactional", "bulk"] as const };
-    expect(shownProviderId([a, b, c], "a")).toBe("a");
-    expect(shownProviderId([a, b, c], "gone")).toBe("c");
-    expect(shownProviderId([a, b], null)).toBe("b");
-    expect(shownProviderId([a], undefined)).toBe("a");
-    expect(shownProviderId([], "a")).toBeUndefined();
-    expect(segmentLabel("Console (local development, sends nothing)")).toBe("Console");
-    expect(segmentLabel("SMTP server")).toBe("SMTP server");
-    expect(segmentLabel("(odd)")).toBe("(odd)");
+    expect(shownProviderId({ providers: [a, b, c], selectedId: "a" })).toBe("a");
+    expect(shownProviderId({ providers: [a, b, c], selectedId: "gone" })).toBe("c");
+    expect(shownProviderId({ providers: [a, b], selectedId: null })).toBe("b");
+    expect(shownProviderId({ providers: [a], selectedId: undefined })).toBe("a");
+    expect(shownProviderId({ providers: [], selectedId: "a" })).toBeUndefined();
+    expect(segmentLabel({ label: "Console (local development, sends nothing)" })).toBe("Console");
+    expect(segmentLabel({ label: "SMTP server" })).toBe("SMTP server");
+    expect(segmentLabel({ label: "(odd)" })).toBe("(odd)");
   });
 
   it("shows DNS expected/observed values, treats unknown separately from mismatch, and saves sender explicitly", async () => {

@@ -49,7 +49,7 @@ function useProviderChoices(required: { pluginApi: PluginApi; refresh: () => Pro
     let live = true;
     pluginApi.listAgentPlugins().then(({ agentPlugins }) => {
       if (live) setChoices(agentPlugins.filter((p) => !p.enabled && p.provides?.includes("outbound-mail")));
-    }, (error: unknown) => { if (live) setAddError(errorMessage(error)); });
+    }, (error: unknown) => { if (live) setAddError(errorMessage({ error })); });
     return () => { live = false; };
   }, [pluginApi, attempt]);
   const addProvider = useCallback(async ({ pluginId }: { pluginId: string }, _optional = {}) => {
@@ -68,7 +68,7 @@ function useProviderChoices(required: { pluginApi: PluginApi; refresh: () => Pro
       setChoices((rows) => rows?.filter((p) => p.pluginId !== pluginId) ?? null);
       return provider.id;
     } catch (error) {
-      setAddError(error instanceof Error ? error.message : errorMessage(error));
+      setAddError(error instanceof Error ? error.message : errorMessage({ error }));
       return undefined;
     } finally {
       locked.current = false;
@@ -89,7 +89,7 @@ export function isFullyActive(provider: MailProviderConfiguration): boolean {
 }
 
 /** The body a key save sends: trimmed, blank parts left out (a rotation may change just one). Pure. */
-export function credentialBody(draft: MailProviderCredentialInput | undefined): MailProviderCredentialInput {
+export function credentialBody({ draft }: { draft: MailProviderCredentialInput | undefined }, _options = {}): MailProviderCredentialInput {
   const out: MailProviderCredentialInput = {};
   for (const key of ["token", "username", "baseUrl"] as const) {
     const value = draft?.[key]?.trim();
@@ -121,7 +121,7 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
   }, []);
 
   const saveKey = useCallback(async (provider: MailProviderConfiguration) => {
-    const body = credentialBody(drafts[provider.id]);
+    const body = credentialBody({ draft: drafts[provider.id] });
     if (!provider.credential.saved && !body.token) {
       setNotice({ providerId: provider.id, tone: "error", text: "Enter the key first." });
       return;
@@ -135,7 +135,7 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
       reload();
       onChanged?.();
     } catch (error) {
-      setNotice({ providerId: provider.id, tone: "error", text: errorMessage(error) });
+      setNotice({ providerId: provider.id, tone: "error", text: errorMessage({ error }) });
     } finally {
       setBusyId(null);
     }
@@ -152,7 +152,7 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
       reload();
       onChanged?.();
     } catch (error) {
-      setNotice({ providerId: provider.id, tone: "error", text: errorMessage(error) });
+      setNotice({ providerId: provider.id, tone: "error", text: errorMessage({ error }) });
     } finally {
       setBusyId(null);
       setPendingSwitch(null);

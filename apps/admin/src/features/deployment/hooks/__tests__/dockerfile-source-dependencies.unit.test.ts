@@ -35,7 +35,7 @@ describe("defaultDockerfileSourcePort", () => {
     const written = { exists: true, contents: "FROM node:22-slim\n", etag: '"def456"' };
     setDockerfileSource.mockResolvedValue(written);
     await expect(
-      defaultDockerfileSourcePort.setDockerfileSource("FROM node:22-slim\n", '"abc123"'),
+      defaultDockerfileSourcePort.setDockerfileSource({ contents: "FROM node:22-slim\n", ifMatch: '"abc123"' }),
     ).resolves.toEqual(written);
     expect(setDockerfileSource).toHaveBeenCalledWith("FROM node:22-slim\n", '"abc123"');
   });

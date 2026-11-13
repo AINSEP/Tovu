@@ -2290,7 +2290,7 @@ export const t = createDictionaryTranslator({ featureDictionary: DEPLOYMENT_DICT
  *
  * @complexity O(1) — one lookup and one substitution.
  */
-export function dockerfileLineCountLabel(translate: (key: string) => string, count: number): string {
+export function dockerfileLineCountLabel({ translate, count }: { translate: (key: string) => string; count: number }, _options = {}): string {
   return interpolate({ template: translate("{count} lines"), vars: { count: String(count) } });
 }
 
@@ -2321,7 +2321,7 @@ const OVERVIEW_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   bn: "ডিপ্লয়মেন্ট অবস্থা লোড করা যায়নি ({error})।",
 };
 
-export function deploymentOverviewLoadErrorMessage(locale: string, error: string): string {
+export function deploymentOverviewLoadErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: OVERVIEW_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2351,7 +2351,7 @@ const DOCKERFILE_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   bn: "Dockerfile লোড করা যায়নি ({error})।",
 };
 
-export function dockerfileLoadErrorMessage(locale: string, error: string): string {
+export function dockerfileLoadErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: DOCKERFILE_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2377,7 +2377,7 @@ const DOCKERFILE_SAVE_ERROR_TEMPLATE: Record<string, string> = {
   "pt-BR": "Não foi possível salvar o Dockerfile ({error}).",
 };
 
-export function dockerfileSaveErrorMessage(locale: string, error: string): string {
+export function dockerfileSaveErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: DOCKERFILE_SAVE_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2395,7 +2395,7 @@ const EXPORT_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   "pt-BR": "Não foi possível carregar o status da exportação ({error}).",
 };
 
-export function exportLoadErrorMessage(locale: string, error: string): string {
+export function exportLoadErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: EXPORT_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2418,7 +2418,7 @@ const EXPORT_TRIGGER_ERROR_TEMPLATE: Record<string, string> = {
   "pt-BR": "Não foi possível iniciar a exportação ({error}).",
 };
 
-export function exportTriggerErrorMessage(locale: string, error: string): string {
+export function exportTriggerErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: EXPORT_TRIGGER_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2435,7 +2435,7 @@ const EXPORT_POLL_ERROR_TEMPLATE: Record<string, string> = {
   en: "Lost track of this export's status and stopped checking ({error}). It may still be running — try again in a moment.",
 };
 
-export function exportPollErrorMessage(locale: string, error: string): string {
+export function exportPollErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: EXPORT_POLL_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2453,7 +2453,7 @@ const PUBLISH_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   "pt-BR": "Não foi possível carregar o status da publicação ({error}).",
 };
 
-export function publishLoadErrorMessage(locale: string, error: string): string {
+export function publishLoadErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: PUBLISH_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2471,7 +2471,7 @@ const PUBLISH_PREVIEW_ERROR_TEMPLATE: Record<string, string> = {
   "pt-BR": "Não foi possível verificar este destino ({error}).",
 };
 
-export function publishPreviewErrorMessage(locale: string, error: string): string {
+export function publishPreviewErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: PUBLISH_PREVIEW_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2490,7 +2490,7 @@ const PUBLISH_TRIGGER_ERROR_TEMPLATE: Record<string, string> = {
   "pt-BR": "Não foi possível iniciar a publicação ({error}).",
 };
 
-export function publishTriggerErrorMessage(locale: string, error: string): string {
+export function publishTriggerErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: PUBLISH_TRIGGER_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2502,7 +2502,7 @@ const PUBLISH_POLL_ERROR_TEMPLATE: Record<string, string> = {
   en: "Lost track of this publish's status and stopped checking ({error}). It may still be running — try again in a moment.",
 };
 
-export function publishPollErrorMessage(locale: string, error: string): string {
+export function publishPollErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: PUBLISH_POLL_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2516,7 +2516,7 @@ const PUBLISH_CREDENTIALS_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   en: "Could not load publish credentials ({error}).",
 };
 
-export function publishCredentialsLoadErrorMessage(locale: string, error: string): string {
+export function publishCredentialsLoadErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: PUBLISH_CREDENTIALS_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2531,7 +2531,7 @@ const PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE: Record<string, string> = {
   en: "Could not save this token ({error}).",
 };
 
-export function publishCredentialSaveErrorMessage(locale: string, error: string): string {
+export function publishCredentialSaveErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2545,7 +2545,7 @@ const PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE: Record<string, string> = {
   en: "Could not verify this token ({error}).",
 };
 
-export function publishCredentialVerifyErrorMessage(locale: string, error: string): string {
+export function publishCredentialVerifyErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2557,6 +2557,6 @@ const PUBLISH_CREDENTIAL_SELECT_ERROR_TEMPLATE: Record<string, string> = {
   en: "Could not switch the publishing token ({error}). Publishing still uses the one shown.",
 };
 
-export function publishCredentialSelectErrorMessage(locale: string, error: string): string {
+export function publishCredentialSelectErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: PUBLISH_CREDENTIAL_SELECT_ERROR_TEMPLATE, locale }), vars: { error } });
 }

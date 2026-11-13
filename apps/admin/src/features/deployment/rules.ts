@@ -126,7 +126,7 @@ export type PublishCredentialSubmitFailure = { kind: "duplicate-label" } | { kin
  * shape the concurrently-built backend actually sends, one of the two carries the marker.
  * @complexity O(1).
  */
-export function classifyPublishCredentialSubmitError(e: unknown): PublishCredentialSubmitFailure {
+export function classifyPublishCredentialSubmitError({ e }: { e: unknown }, _options = {}): PublishCredentialSubmitFailure {
   if (!(e instanceof ApiError)) return { kind: "generic" };
   const marker = e.code ?? e.message;
   if (marker === "DUPLICATE_LABEL") return { kind: "duplicate-label" };
@@ -140,8 +140,8 @@ export function classifyPublishCredentialSubmitError(e: unknown): PublishCredent
 /** The descriptor for `id`, or `undefined` while the list loads or when the id is not listed.
  *  @complexity O(t) in the (small) target count. */
 export function publishTargetById(
-  targets: readonly AdminPublishTargetDescriptor[] | undefined,
-  id: AdminStaticPublishTargetId
+  { targets, id }: { targets: readonly AdminPublishTargetDescriptor[] | undefined; id: AdminStaticPublishTargetId },
+  _options = {},
 ): AdminPublishTargetDescriptor | undefined {
   return targets?.find((target) => target.id === id);
 }
@@ -186,8 +186,8 @@ export function buildStaticPublishConfig(
 /** Whether the publish form can ask for a PREVIEW: a known target with its required config
  *  fields filled. @complexity O(f). */
 export function staticPublishFormReadyForPreview(
-  target: AdminPublishTargetDescriptor | undefined,
-  values: Readonly<Record<string, string>>
+  { target, values }: { target: AdminPublishTargetDescriptor | undefined; values: Readonly<Record<string, string>> },
+  _options = {},
 ): boolean {
   return target !== undefined && requiredFieldsFilled(target.configFields, values);
 }
@@ -195,18 +195,20 @@ export function staticPublishFormReadyForPreview(
 /** Whether the form can ask for a real PUBLISH — everything a preview needs plus a non-blank
  *  `projectName` when the host declares one (the preview has no such field). @complexity O(f). */
 export function staticPublishFormReadyToPublish(
-  target: AdminPublishTargetDescriptor | undefined,
-  values: Readonly<Record<string, string>>,
-  projectName: string
+  { target, values, projectName }: { target: AdminPublishTargetDescriptor | undefined; values: Readonly<Record<string, string>>; projectName: string },
+  _options = {},
 ): boolean {
   const projectNameReady = target?.projectName === undefined || projectName.trim() !== "";
-  return projectNameReady && staticPublishFormReadyForPreview(target, values);
+  return projectNameReady && staticPublishFormReadyForPreview({ target, values });
 }
 
 /** The `projectName` the publish request carries. The server requires a non-blank one on every
  *  publish, but a host that declares no project name (e.g. object storage) ignores it, so the
  *  admin hides the field and sends the host's id instead. @complexity O(1). */
-export function staticPublishProjectNameToSend(target: AdminPublishTargetDescriptor, projectName: string): string {
+export function staticPublishProjectNameToSend(
+  { target, projectName }: { target: AdminPublishTargetDescriptor; projectName: string },
+  _options = {},
+): string {
   return target.projectName === undefined ? target.id : projectName;
 }
 
@@ -223,9 +225,8 @@ export function credentialFormReadyToSave(
 /** The wire connection for one host's credential form: its id plus the declared fields' trimmed,
  *  non-blank values. @complexity O(f). */
 export function buildCredentialConnectionInput(
-  providerId: AdminPublishCredentialProviderId,
-  spec: AdminPublishTargetCredentialSpec,
-  values: Readonly<Record<string, string>>
+  { providerId, spec, values }: { providerId: AdminPublishCredentialProviderId; spec: AdminPublishTargetCredentialSpec; values: Readonly<Record<string, string>> },
+  _options = {},
 ): AdminPublishConnectionInput {
   const fields = declaredFieldValues(spec.fields, values);
   // tokenField is authoritative even for a descriptor that omitted its secret flag.
@@ -244,7 +245,7 @@ export interface StaticPublishProjectNameCopy {
   readonly helpKey: string | undefined;
 }
 
-export function staticPublishProjectNameCopy(target: AdminPublishTargetDescriptor | undefined): StaticPublishProjectNameCopy | null {
+export function staticPublishProjectNameCopy({ target }: { target: AdminPublishTargetDescriptor | undefined }, _options = {}): StaticPublishProjectNameCopy | null {
   const copy = target?.projectName;
   if (copy === undefined) return null;
   return { labelKey: copy.label, helpKey: copy.help };
@@ -253,23 +254,26 @@ export function staticPublishProjectNameCopy(target: AdminPublishTargetDescripto
 /** A descriptor field name as an `agentHandle` segment: `agentHandle()` throws on anything but
  *  lowercase words joined by single hyphens, and one throw blanks the whole admin, so a camelCase
  *  name (`accessKeyId`) becomes `access-key-id`. @complexity O(n) in the name's length. */
-export function fieldNameHandleSegment(fieldName: string): string {
+export function fieldNameHandleSegment({ fieldName }: { fieldName: string }, _options = {}): string {
   return asciiSlug(fieldName.replace(/([a-z0-9])([A-Z])/g, "$1-$2"));
 }
 
 /** The `agentHandle` id of one publish-config input. Ids predate the descriptors and are pinned by
  *  agent tooling, so `teamId` keeps its old `team` id; every other field uses its own name.
  *  @complexity O(n) in the name's length. */
-export function publishConfigFieldHandleId(fieldName: string): string {
-  return `deployment-static-site-publish-${fieldName === "teamId" ? "team" : fieldNameHandleSegment(fieldName)}`;
+export function publishConfigFieldHandleId({ fieldName }: { fieldName: string }, _options = {}): string {
+  return `deployment-static-site-publish-${fieldName === "teamId" ? "team" : fieldNameHandleSegment({ fieldName })}`;
 }
 
 /** The `agentHandle`/DOM id of one credential input. The token field keeps its old `token` id and
  *  `accountId` its old `account` id (both pinned by agent tooling); every other field uses its own
  *  name. @complexity O(n) in the name's length. */
-export function credentialFieldHandleId(providerId: string, fieldName: string, tokenField: string): string {
+export function credentialFieldHandleId(
+  { providerId, fieldName, tokenField }: { providerId: string; fieldName: string; tokenField: string },
+  _options = {},
+): string {
   if (fieldName === tokenField) return `deployment-static-site-credentials-token-${providerId}`;
-  return `deployment-static-site-credentials-${fieldName === "accountId" ? "account" : fieldNameHandleSegment(fieldName)}-${providerId}`;
+  return `deployment-static-site-credentials-${fieldName === "accountId" ? "account" : fieldNameHandleSegment({ fieldName })}-${providerId}`;
 }
 
 /** How a host's credential is named mid-sentence: its token field's own label ("API token",
@@ -285,7 +289,10 @@ export function credentialNoun(credential: AdminPublishTargetCredentialSpec): st
  *  `AdminPublishExecutionMode`'s doc in `lib/api.ts`), not on whether the selected PROVIDER has a
  *  CLI route. Otherwise it names the host's own credential ({@link credentialNoun}), never a
  *  "personal access token" a host that issues only API tokens or access key pairs does not have. @complexity O(f). */
-export function credentialStepSubtitle(executionMode: AdminPublishExecutionMode, credential: AdminPublishTargetCredentialSpec, translate: (key: string) => string): string {
+export function credentialStepSubtitle(
+  { executionMode, credential, translate }: { executionMode: AdminPublishExecutionMode; credential: AdminPublishTargetCredentialSpec; translate: (key: string) => string },
+  _options = {},
+): string {
   if (executionMode === "hosted-api-only") {
     return translate("This workspace can't use your computer's terminal — connecting here is the only way to publish.");
   }
@@ -295,7 +302,7 @@ export function credentialStepSubtitle(executionMode: AdminPublishExecutionMode,
 /** The help a config field, credential field or credential form shows: the descriptor's
  *  person-facing `userHelp`, else its `help` (written for the agent); `undefined` when it has
  *  neither. @complexity O(1). */
-export function fieldHelpText(field: AdminPublishTargetField | AdminPublishTargetCredentialSpec): string | undefined {
+export function fieldHelpText({ field }: { field: AdminPublishTargetField | AdminPublishTargetCredentialSpec }, _options = {}): string | undefined {
   return field.userHelp ?? field.help;
 }
 
@@ -362,7 +369,7 @@ export const FULL_SITE_CAPABILITIES: readonly DeploymentCapability[] = STATIC_SI
  *
  * @complexity O(1) — one map lookup.
  */
-export function deploymentEnvVarNoteKey(name: string): string {
+export function deploymentEnvVarNoteKey({ name }: { name: string }, _options = {}): string {
   const notes: Record<string, string> = {
     TOVU_ADMIN_PASSWORD: "Falls back to a public default.",
     TOVU_ADMIN_USER: 'Falls back to "admin".',
@@ -424,12 +431,12 @@ export function productionGateLabelKey(gate: AdminDeploymentOverview["production
 }
 
 /** The Overview tab's agent-daemon status label key. @complexity O(1). */
-export function daemonStatusLabelKey(daemonKnownFailed: boolean): string {
+export function daemonStatusLabelKey({ daemonKnownFailed }: { daemonKnownFailed: boolean }, _options = {}): string {
   return daemonKnownFailed ? "Known failure — check server logs." : "No known failure";
 }
 
 /** The Overview tab's owner-password status label key. @complexity O(1). */
-export function ownerPasswordLabelKey(defaultOwnerPasswordUnsafe: boolean): string {
+export function ownerPasswordLabelKey({ defaultOwnerPasswordUnsafe }: { defaultOwnerPasswordUnsafe: boolean }, _options = {}): string {
   return defaultOwnerPasswordUnsafe ? "Still the default — set TOVU_ADMIN_PASSWORD." : "Changed from the default.";
 }
 
@@ -438,8 +445,8 @@ export function ownerPasswordLabelKey(defaultOwnerPasswordUnsafe: boolean): stri
  *  input (`ok`) to tell a real success apart from a completed-but-failed outcome (an export whose
  *  routes failed, or a publish `StaticPublishOutcome` with `ok: false`). @complexity O(1). */
 export function runStatusTone(
-  status: "idle" | "running" | "completed" | "errored",
-  ok = true
+  { status }: { status: "idle" | "running" | "completed" | "errored" },
+  { ok = true }: { ok?: boolean } = {},
 ): "neutral" | "warning" | "ok" | "error" {
   if (status === "idle") return "neutral";
   if (status === "running") return "warning";
@@ -450,7 +457,7 @@ export function runStatusTone(
 /** The Static Site tab's export-run status label key — `run` is `undefined` before the first poll
  *  has resolved, which reads the same as `"idle"` (nothing has ever run in THIS browser session's
  *  view of it either). @complexity O(1). */
-export function exportRunStatusLabelKey(run: Pick<AdminExportRunSnapshot, "status" | "ok"> | undefined): string {
+export function exportRunStatusLabelKey({ run }: { run: Pick<AdminExportRunSnapshot, "status" | "ok"> | undefined }, _options = {}): string {
   const status = run?.status ?? "idle";
   if (status === "idle") return "Not started";
   if (status === "running") return "Exporting…";
@@ -462,7 +469,7 @@ export function exportRunStatusLabelKey(run: Pick<AdminExportRunSnapshot, "statu
  *  {@link exportRunStatusLabelKey} documents, and the same `result.ok` distinction for a completed
  *  run that nonetheless failed (bad config, no credential, a rejected provider call — see
  *  `StaticPublishOutcome`'s own `code` union). @complexity O(1). */
-export function publishRunStatusLabelKey(run: Pick<AdminPublishRunSnapshot, "status" | "result"> | undefined): string {
+export function publishRunStatusLabelKey({ run }: { run: Pick<AdminPublishRunSnapshot, "status" | "result"> | undefined }, _options = {}): string {
   const status = run?.status ?? "idle";
   if (status === "idle") return "Not started";
   if (status === "running") return "Publishing…";

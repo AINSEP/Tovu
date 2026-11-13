@@ -318,7 +318,7 @@ function ExportRunResult({ run, t: translate }: { run: AdminExportRunSnapshot; t
  *  build action: a clean/overwrite checkbox, the Build button itself, a live status pill, and the
  *  run's own result once it settles. */
 function BuildExportCard({ controller, t: translate }: { controller: StaticExportController; t: Translate }) {
-  const tone = runStatusTone(controller.run?.status ?? "idle", controller.run?.ok);
+  const tone = runStatusTone({ status: controller.run?.status ?? "idle" }, { ok: controller.run?.ok });
 
   return (
     <div
@@ -331,7 +331,7 @@ function BuildExportCard({ controller, t: translate }: { controller: StaticExpor
       <div className="card-head">
         <h2 className="card-title">{translate("Build here or in a terminal")}</h2>
         <div className="card-head-actions">
-          <span className={`status status-${tone}`}>{translate(exportRunStatusLabelKey(controller.run))}</span>
+          <span className={`status status-${tone}`}>{translate(exportRunStatusLabelKey({ run: controller.run }))}</span>
         </div>
       </div>
       <div className="deployment-card-body">
@@ -450,7 +450,7 @@ export function StaticSiteTab(props: StaticSiteTabProps) {
 
   const exportController = useStaticExportHook();
   const publishController = useStaticPublishHook();
-  const credentialsController = usePublishCredentialsHook(publishController.targets);
+  const credentialsController = usePublishCredentialsHook({ targets: publishController.targets });
 
   return (
     <div className="deployment-tab">
@@ -768,7 +768,7 @@ function PublishCredentialFields({
 
   return (
     <>
-      {fieldHelpText(row.credential) ? <p className="deployment-action-reason">{fieldHelpText(row.credential)}</p> : null}
+      {fieldHelpText({ field: row.credential }) ? <p className="deployment-action-reason">{fieldHelpText({ field: row.credential })}</p> : null}
       <div className="deployment-credential-fields">
         {row.credential.fields.map((field) => (
           <CredentialFieldInput key={field.name} row={row} field={field} controller={controller} t={translate} />
@@ -825,7 +825,7 @@ function CredentialFieldInput({
   controller: PublishCredentialsController;
   t: Translate;
 }) {
-  const id = credentialFieldHandleId(row.providerId, field.name, row.credential.tokenField);
+  const id = credentialFieldHandleId({ providerId: row.providerId, fieldName: field.name, tokenField: row.credential.tokenField });
   const isToken = field.name === row.credential.tokenField;
   return (
     <div className="field">
@@ -836,14 +836,14 @@ function CredentialFieldInput({
         id={id}
         autoComplete="new-password"
         value={row.values[field.name] ?? ""}
-        onChange={(e) => controller.setField(row.providerId, field.name, e.target.value)}
+        onChange={(e) => controller.setField({ providerId: row.providerId, fieldName: field.name, value: e.target.value })}
         {...agentHandle({ handle: id }, {
           role: "field",
           label: isToken ? `${row.label} access token — stored encrypted, never shown again once saved` : `${row.label} ${field.label}`,
         })}
       />
       {isToken ? <TokenFieldHints row={row} t={translate} /> : null}
-      {fieldHelpText(field) ? <p className="field-hint">{fieldHelpText(field)}</p> : null}
+      {fieldHelpText({ field }) ? <p className="field-hint">{fieldHelpText({ field })}</p> : null}
     </div>
   );
 }
@@ -912,7 +912,7 @@ function CredentialStepTodo({
           <h3 className="deployment-step-title">
             {translate("Connect")} <span translate="no">{row.label}</span>
           </h3>
-          <p className="deployment-step-subtitle">{credentialStepSubtitle(executionMode, row.credential, translate)}</p>
+          <p className="deployment-step-subtitle">{credentialStepSubtitle({ executionMode, credential: row.credential, translate })}</p>
         </div>
       </div>
       <PublishCredentialFields row={row} controller={controller} t={translate} />
@@ -1129,7 +1129,7 @@ function CredentialTokenPicker({
         id={fieldId}
         value={row.selectingCredentialId ?? saved.id}
         disabled={row.selectingCredentialId !== null}
-        onChange={(e) => void controller.selectCredential(row.providerId, e.target.value)}
+        onChange={(e) => void controller.selectCredential({ providerId: row.providerId, credentialId: e.target.value })}
         {...agentHandle({ handle: fieldId }, {
           role: "field",
           label: `Choose which of this workspace's saved ${row.label} tokens is the one Tovu publishes with`,
@@ -1169,7 +1169,7 @@ function StaticPublishTargetFields({ controller, t: translate }: { controller: S
   return (
     <>
       {target.configFields.map((field) => {
-        const id = publishConfigFieldHandleId(field.name);
+        const id = publishConfigFieldHandleId({ fieldName: field.name });
         return (
           <div className="field" key={field.name}>
             <FieldLabel field={field} htmlFor={id} t={translate} />
@@ -1177,10 +1177,10 @@ function StaticPublishTargetFields({ controller, t: translate }: { controller: S
               id={id}
               type="text"
               value={controller.configValues[field.name] ?? ""}
-              onChange={(e) => controller.setConfigField(field.name, e.target.value)}
+              onChange={(e) => controller.setConfigField({ name: field.name, value: e.target.value })}
               {...agentHandle({ handle: id }, { role: "field", label: `${target.label} ${field.label}` })}
             />
-            {fieldHelpText(field) ? <p className="field-hint">{fieldHelpText(field)}</p> : null}
+            {fieldHelpText({ field }) ? <p className="field-hint">{fieldHelpText({ field })}</p> : null}
           </div>
         );
       })}
@@ -1232,7 +1232,7 @@ function PublishPreviewAction({
  *  complexity-gate reason {@link PublishPreviewAction} documents. `busy` and `runTone` are passed in
  *  rather than recomputed here — `busy` is `StaticPublishForm`'s own value, read by BOTH the disabled
  *  check below and the button's own label, and computing it twice would let the two drift; `runTone`
- *  is `runStatusTone(controller.run?.status ?? "idle", ...)`, whose own optional-chaining/`??`
+ *  is `runStatusTone({ status: controller.run?.status ?? "idle" }, ...)`, whose own optional-chaining/`??`
  *  operators each count as a branch for this repo's `complexity` rule same as a ternary does — kept
  *  in the parent (mirrors `BuildExportCard` keeping its own `tone` outside `ExportTriggerAction`)
  *  rather than pushing this function back over the 9/9 gate the same way computing it here once did. */
@@ -1259,7 +1259,7 @@ function PublishTriggerAction({
 }) {
   return (
     <div className="deployment-action">
-      <span className={`status status-${runTone}`}>{translate(publishRunStatusLabelKey(controller.run))}</span>
+      <span className={`status status-${runTone}`}>{translate(publishRunStatusLabelKey({ run: controller.run }))}</span>
       <button
         type="button"
         disabled={!canPublish || busy || credentialChangePending}
@@ -1322,7 +1322,7 @@ function StaticPublishForm({
   t: Translate;
 }) {
   const { canPreview, canPublish, projectNameCopy } = controller;
-  const runTone = runStatusTone(controller.run?.status ?? "idle", controller.run?.result?.ok);
+  const runTone = runStatusTone({ status: controller.run?.status ?? "idle" }, { ok: controller.run?.result?.ok });
   // `publishing` (the POST-in-flight flag) is included alongside `isPublishing` (the server-confirmed
   // "running" state) on purpose — without it, the window between clicking Publish and the response
   // supplying a "running" run left the button enabled, which is exactly how a double-click could send

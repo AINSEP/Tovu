@@ -56,7 +56,7 @@ function UseRow(props: { row: MailUseRow; locale: string }) {
       ) : null}
       <span className="jini-field-hint">
         {evidence
-          ? t({ locale, key: "Last send: {outcome}, {when}" }).replace("{outcome}", () => evidence.outcome).replace("{when}", () => when(evidence.at, locale))
+          ? t({ locale, key: "Last send: {outcome}, {when}" }).replace("{outcome}", () => evidence.outcome).replace("{when}", () => when({ iso: evidence.at, locale }))
           : t({ locale, key: "No sends yet" })}
       </span>
     </li>
@@ -64,7 +64,7 @@ function UseRow(props: { row: MailUseRow; locale: string }) {
 }
 
 /** The one-line truth about a test send. Pure apart from translation. */
-export function testResultLine(result: MailTestSendResult, locale: string): { tone: Tone; text: string } {
+export function testResultLine({ result, locale }: { result: MailTestSendResult; locale: string }, _options = {}): { tone: Tone; text: string } {
   switch (result.outcome) {
     case "accepted":
       return { tone: "ok", text: t({ locale, key: "Accepted by the provider for {to}." }).replace("{to}", () => result.to) };
@@ -103,7 +103,7 @@ function UsesSection(props: { controller: EmailOverviewController; locale: strin
 function TestSection(props: { controller: EmailOverviewController; locale: string; hideTitle: boolean }) {
   const { controller, locale } = props;
   const test = controller.test;
-  const line = test.kind === "done" ? testResultLine(test.result, locale) : null;
+  const line = test.kind === "done" ? testResultLine({ result: test.result, locale }) : null;
   return (
     <Section id="test" title={t({ locale, key: "Send test email" })} hideTitle={props.hideTitle}>
       <form className="email-test-form" onSubmit={(event) => { event.preventDefault(); void controller.sendTest(); }}>
@@ -120,7 +120,7 @@ function TestSection(props: { controller: EmailOverviewController; locale: strin
       </form>
       {line && test.kind === "done" ? (
         <div className="email-row" role="status">
-          <Chip tone={line.tone}>{when(test.result.at, locale)}</Chip>
+          <Chip tone={line.tone}>{when({ iso: test.result.at, locale })}</Chip>
           <span className="jini-field-hint">{line.text}</span>
         </div>
       ) : null}

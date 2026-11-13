@@ -35,7 +35,7 @@ afterEach(() => {
 describe("useStaticPublish — field state", () => {
   it("defaults to the first target the registry lists, with every field blank", async () => {
     const port = portWith();
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
     expect(result.current.target).toBe("github-pages");
@@ -48,11 +48,11 @@ describe("useStaticPublish — field state", () => {
 
   it("setters update their own field independently", async () => {
     const port = portWith();
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
-    act(() => result.current.setConfigField("owner", "octo"));
-    act(() => result.current.setConfigField("repo", "demo-repo"));
+    act(() => result.current.setConfigField({ name: "owner", value: "octo" }));
+    act(() => result.current.setConfigField({ name: "repo", value: "demo-repo" }));
     act(() => result.current.setProjectName("demo"));
     expect((result.current.configValues.owner ?? "")).toBe("octo");
     expect((result.current.configValues.repo ?? "")).toBe("demo-repo");
@@ -61,12 +61,12 @@ describe("useStaticPublish — field state", () => {
 
   it("switching target does not clear the other target's already-typed fields", async () => {
     const port = portWith();
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
-    act(() => result.current.setConfigField("owner", "octo"));
+    act(() => result.current.setConfigField({ name: "owner", value: "octo" }));
     act(() => result.current.setTarget("vercel"));
-    act(() => result.current.setConfigField("teamId", "team_123"));
+    act(() => result.current.setConfigField({ name: "teamId", value: "team_123" }));
     expect(result.current.configValues).toEqual({ teamId: "team_123" });
     act(() => result.current.setTarget("github-pages"));
 
@@ -75,7 +75,7 @@ describe("useStaticPublish — field state", () => {
 
   it("exposes the registry's targets and the selected one's descriptor, and ignores an unlisted id", async () => {
     const port = portWith();
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.targets).not.toBeUndefined());
 
     expect(result.current.targets?.map((target) => target.id)).toEqual(["github-pages", "vercel", "netlify", "cloudflare-pages"]);
@@ -86,7 +86,7 @@ describe("useStaticPublish — field state", () => {
 
   it("reports '' and nothing selected while the list loads, and a translated error when it fails", async () => {
     const port = portWith({ listPublishTargets: () => Promise.reject(new Error("boom")) });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     expect(result.current.target).toBe("");
     expect(result.current.selectedTarget).toBeUndefined();
     await waitFor(() => expect(result.current.targetsError).toContain("boom"));
@@ -95,13 +95,13 @@ describe("useStaticPublish — field state", () => {
 
   it("derives canPreview/canPublish and the project-name copy from the selected host's descriptor", async () => {
     const port = portWith();
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.targets).not.toBeUndefined());
 
     expect(result.current.canPreview).toBe(false); // owner + repo required
     expect(result.current.projectNameCopy?.labelKey).toBe("Commit message");
-    act(() => result.current.setConfigField("owner", "octo"));
-    act(() => result.current.setConfigField("repo", "demo"));
+    act(() => result.current.setConfigField({ name: "owner", value: "octo" }));
+    act(() => result.current.setConfigField({ name: "repo", value: "demo" }));
     expect(result.current.canPreview).toBe(true);
     expect(result.current.canPublish).toBe(false);
     act(() => result.current.setProjectName("demo"));
@@ -146,11 +146,11 @@ describe("useStaticPublish — preview", () => {
         return Promise.resolve(previewResult);
       },
     });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
-    act(() => result.current.setConfigField("owner", "octo"));
-    act(() => result.current.setConfigField("repo", "demo-repo"));
+    act(() => result.current.setConfigField({ name: "owner", value: "octo" }));
+    act(() => result.current.setConfigField({ name: "repo", value: "demo-repo" }));
     await act(async () => {
       await result.current.checkPreview();
     });
@@ -176,12 +176,12 @@ describe("useStaticPublish — preview", () => {
         });
       },
     });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
-    act(() => result.current.setConfigField("owner", "octo"));
-    act(() => result.current.setConfigField("repo", "demo-repo"));
-    act(() => result.current.setConfigField("branch", "  "));
+    act(() => result.current.setConfigField({ name: "owner", value: "octo" }));
+    act(() => result.current.setConfigField({ name: "repo", value: "demo-repo" }));
+    act(() => result.current.setConfigField({ name: "branch", value: "  " }));
     await act(async () => {
       await result.current.checkPreview();
     });
@@ -206,12 +206,12 @@ describe("useStaticPublish — preview", () => {
         });
       },
     });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
-    act(() => result.current.setConfigField("owner", "octo"));
-    act(() => result.current.setConfigField("repo", "demo-repo"));
-    act(() => result.current.setConfigField("branch", "  main  "));
+    act(() => result.current.setConfigField({ name: "owner", value: "octo" }));
+    act(() => result.current.setConfigField({ name: "repo", value: "demo-repo" }));
+    act(() => result.current.setConfigField({ name: "branch", value: "  main  " }));
     await act(async () => {
       await result.current.checkPreview();
     });
@@ -235,11 +235,11 @@ describe("useStaticPublish — preview", () => {
         });
       },
     });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
     act(() => result.current.setTarget("vercel"));
-    act(() => result.current.setConfigField("teamId", "  team_123  "));
+    act(() => result.current.setConfigField({ name: "teamId", value: "  team_123  " }));
     await act(async () => {
       await result.current.checkPreview();
     });
@@ -263,10 +263,10 @@ describe("useStaticPublish — preview", () => {
         });
       },
     });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
-    act(() => result.current.setConfigField("owner", "octo")); // typed while on github-pages, then switched away
+    act(() => result.current.setConfigField({ name: "owner", value: "octo" })); // typed while on github-pages, then switched away
     act(() => result.current.setTarget("netlify"));
     await act(async () => {
       await result.current.checkPreview();
@@ -294,11 +294,11 @@ describe("useStaticPublish — preview", () => {
     const port = portWith({
       getPublishPreview: () => new Promise((resolve) => (resolvePreview = resolve)),
     });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
-    act(() => result.current.setConfigField("owner", "acme"));
-    act(() => result.current.setConfigField("repo", "old"));
+    act(() => result.current.setConfigField({ name: "owner", value: "acme" }));
+    act(() => result.current.setConfigField({ name: "repo", value: "old" }));
 
     let previewPromise!: Promise<void>;
     act(() => {
@@ -307,7 +307,7 @@ describe("useStaticPublish — preview", () => {
     await waitFor(() => expect(result.current.previewLoading).toBe(true));
 
     // The operator edits the target BEFORE the slow preview request resolves.
-    act(() => result.current.setConfigField("repo", "new"));
+    act(() => result.current.setConfigField({ name: "repo", value: "new" }));
     expect(result.current.preview).toBeUndefined();
 
     // The stale request now resolves, reporting the OLD repo's preview.
@@ -331,11 +331,11 @@ describe("useStaticPublish — preview", () => {
     const port = portWith({
       getPublishPreview: () => new Promise((_resolve, reject) => (rejectPreview = reject)),
     });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
-    act(() => result.current.setConfigField("owner", "acme"));
-    act(() => result.current.setConfigField("repo", "old"));
+    act(() => result.current.setConfigField({ name: "owner", value: "acme" }));
+    act(() => result.current.setConfigField({ name: "repo", value: "old" }));
 
     let previewPromise!: Promise<void>;
     act(() => {
@@ -344,7 +344,7 @@ describe("useStaticPublish — preview", () => {
     await waitFor(() => expect(result.current.previewLoading).toBe(true));
 
     // The operator edits the target BEFORE the slow preview request rejects.
-    act(() => result.current.setConfigField("repo", "new"));
+    act(() => result.current.setConfigField({ name: "repo", value: "new" }));
 
     await act(async () => {
       rejectPreview(new Error("boom"));
@@ -371,27 +371,27 @@ describe("useStaticPublish — preview", () => {
           willInjectNojekyll: true,
         }),
     });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
-    act(() => result.current.setConfigField("owner", "octo"));
-    act(() => result.current.setConfigField("repo", "demo-repo"));
+    act(() => result.current.setConfigField({ name: "owner", value: "octo" }));
+    act(() => result.current.setConfigField({ name: "repo", value: "demo-repo" }));
     await act(async () => {
       await result.current.checkPreview();
     });
     expect(result.current.preview).not.toBeUndefined();
 
-    act(() => result.current.setConfigField("repo", "renamed-repo"));
+    act(() => result.current.setConfigField({ name: "repo", value: "renamed-repo" }));
     expect(result.current.preview).toBeUndefined();
   });
 
   it("switching hosts clears a completed preview", async () => {
     const oldPreview = previewResultFixture();
     const port = portWith({ getPublishPreview: () => Promise.resolve(oldPreview) });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.targets).not.toBeUndefined());
-    act(() => result.current.setConfigField("owner", "octo"));
-    act(() => result.current.setConfigField("repo", "demo-repo"));
+    act(() => result.current.setConfigField({ name: "owner", value: "octo" }));
+    act(() => result.current.setConfigField({ name: "repo", value: "demo-repo" }));
     await act(async () => { await result.current.checkPreview(); });
     expect(result.current.preview).toEqual(oldPreview);
 
@@ -403,10 +403,10 @@ describe("useStaticPublish — preview", () => {
   it("switching hosts discards a pending preview's late response", async () => {
     let resolvePreview!: (value: AdminStaticPublishPreview) => void;
     const port = portWith({ getPublishPreview: () => new Promise((resolve) => { resolvePreview = resolve; }) });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.targets).not.toBeUndefined());
-    act(() => result.current.setConfigField("owner", "octo"));
-    act(() => result.current.setConfigField("repo", "demo-repo"));
+    act(() => result.current.setConfigField({ name: "owner", value: "octo" }));
+    act(() => result.current.setConfigField({ name: "repo", value: "demo-repo" }));
     let previewPromise!: Promise<void>;
     act(() => { previewPromise = result.current.checkPreview(); });
     expect(result.current.previewLoading).toBe(true);
@@ -430,11 +430,11 @@ describe("useStaticPublish — preview", () => {
         return new Promise((resolve) => setTimeout(() => resolve(previewResultFixture()), 5));
       },
     });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
-    act(() => result.current.setConfigField("owner", "octo"));
-    act(() => result.current.setConfigField("repo", "demo-repo"));
+    act(() => result.current.setConfigField({ name: "owner", value: "octo" }));
+    act(() => result.current.setConfigField({ name: "repo", value: "demo-repo" }));
 
     // Simulate a double-click: two checkPreview() calls fired synchronously, before either has any
     // chance to resolve (or even for React to re-render with the Preview button disabled) — same
@@ -462,7 +462,7 @@ describe("useStaticPublish — preview", () => {
 
   it("surfaces a rejected preview as a translated preview error", async () => {
     const port = portWith({ getPublishPreview: () => Promise.reject(new Error("boom")) });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
     await act(async () => {
@@ -483,7 +483,7 @@ describe("useStaticPublish — publish trigger and poll", () => {
         return Promise.resolve(runningRun);
       },
     });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
     act(() => result.current.setTarget("vercel"));
@@ -505,7 +505,7 @@ describe("useStaticPublish — publish trigger and poll", () => {
         return Promise.resolve({ status: "running", startedAtIso: "t0", finishedAtIso: null, target: "netlify" } as AdminPublishRunSnapshot);
       },
     });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
     act(() => result.current.setTarget("vercel"));
     act(() => result.current.setProjectName("form-name"));
@@ -525,7 +525,7 @@ describe("useStaticPublish — publish trigger and poll", () => {
         return Promise.resolve(IDLE_RUN);
       },
     });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await act(async () => {
       await result.current.publish();
     });
@@ -541,7 +541,7 @@ describe("useStaticPublish — publish trigger and poll", () => {
         return Promise.resolve({ status: "running", startedAtIso: "t0", finishedAtIso: null, target: input.config.target });
       },
     });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
     act(() => result.current.setTarget("netlify"));
@@ -571,7 +571,7 @@ describe("useStaticPublish — publish trigger and poll", () => {
     const triggerPublish = vi.fn().mockResolvedValue(runningRun);
     const port = portWith({ getPublishStatus, triggerPublish });
 
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
 
     // The host list is its own query (publish() needs a registry target selected), so let it land;
     // the bootstrap status read is still in flight — nothing has seeded `run` yet.
@@ -605,7 +605,7 @@ describe("useStaticPublish — publish trigger and poll", () => {
 
   it("surfaces a rejected publish (e.g. 409 already running) as a translated publish error", async () => {
     const port = portWith({ triggerPublish: () => Promise.reject(new Error("a publish is already running")) });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
     act(() => result.current.setProjectName("demo"));
@@ -619,7 +619,7 @@ describe("useStaticPublish — publish trigger and poll", () => {
 
   it("explains a publish rejection without a message and retains copyable redacted evidence", async () => {
     const port = portWith({ triggerPublish: async () => { throw { password: "CANARY_PUBLISH", note: "tovu_ak_012345abcdef.PUBLISH_KEY_CANARY_abcdefghijklmnop" }; } });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
     act(() => result.current.setProjectName("demo"));
     await act(() => result.current.publish());
@@ -648,7 +648,7 @@ describe("useStaticPublish — publish trigger and poll", () => {
       return Promise.resolve(pollCount < 2 ? runningRun : completedRun);
     });
     const port = portWith({ getPublishStatus });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
     act(() => result.current.setProjectName("demo"));
@@ -678,7 +678,7 @@ describe("useStaticPublish — publish trigger and poll", () => {
       return Promise.resolve(completedRun);
     });
     const port = portWith({ getPublishStatus });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run).toEqual(IDLE_RUN));
 
     act(() => result.current.setProjectName("demo"));
@@ -716,7 +716,7 @@ describe("useStaticPublish — publish trigger and poll", () => {
       .mockRejectedValueOnce(new Error("blip 3"))
       .mockResolvedValue(completedRun);
     const port = portWith({ getPublishStatus });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.isPublishing).toBe(true));
 
     for (let poll = 1; poll <= 5; poll += 1) {
@@ -740,7 +740,7 @@ describe("useStaticPublish — publish trigger and poll", () => {
     const getPublishStatus = vi.fn().mockResolvedValueOnce(runningRun).mockRejectedValue(new Error("ECONNREFUSED"));
     const port = portWith({ getPublishStatus });
 
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.isPublishing).toBe(true));
 
     // Three consecutive failed polls — the bound this fix introduces.
@@ -804,7 +804,7 @@ describe("useStaticPublish — publish trigger and poll", () => {
     });
     const port = portWith({ getPublishStatus });
 
-    const { result, unmount } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result, unmount } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.isPublishing).toBe(true));
 
     await act(async () => {
@@ -832,7 +832,7 @@ describe("useStaticPublish — publish trigger and poll", () => {
     });
     const port = portWith({ getPublishStatus });
 
-    const { result, unmount } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result, unmount } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.isPublishing).toBe(true));
 
     await act(async () => {
@@ -852,11 +852,11 @@ describe("useStaticPublish — publish trigger and poll", () => {
     const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "github-pages" };
     const triggerPublish = vi.fn().mockResolvedValue(runningRun);
     const port = portWith({ triggerPublish });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
-    act(() => result.current.setConfigField("owner", "acme"));
-    act(() => result.current.setConfigField("repo", "site"));
+    act(() => result.current.setConfigField({ name: "owner", value: "acme" }));
+    act(() => result.current.setConfigField({ name: "repo", value: "site" }));
     act(() => result.current.setProjectName("demo"));
 
     // Simulate a double-click: two publish() calls fired synchronously, before the first has any
@@ -886,7 +886,7 @@ describe("useStaticPublish — publish trigger and poll", () => {
 describe("useStaticPublish — initial load", () => {
   it("seeds run from the fake port's initial status read", async () => {
     const port = portWith({ getPublishStatus: () => Promise.resolve(IDLE_RUN) });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
     expect(result.current.run).toEqual(IDLE_RUN);
     expect(result.current.loadError).toBeNull();
@@ -894,7 +894,7 @@ describe("useStaticPublish — initial load", () => {
 
   it("surfaces a rejected initial read as a translated load error", async () => {
     const port = portWith({ getPublishStatus: () => Promise.reject(new Error("disk error")) });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.loadError).not.toBeNull());
     expect(result.current.loadError).toContain("Could not load the publish status");
     expect(result.current.loadError).toContain("disk error");
@@ -909,7 +909,7 @@ describe("useStaticPublish — the publish names the chosen credential", () => {
     const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" };
     const triggerPublish = vi.fn().mockResolvedValue(runningRun);
     const port = portWith({ triggerPublish });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
     act(() => result.current.setTarget("vercel"));
@@ -925,7 +925,7 @@ describe("useStaticPublish — the publish names the chosen credential", () => {
     const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" };
     const triggerPublish = vi.fn().mockResolvedValue(runningRun);
     const port = portWith({ triggerPublish });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
     act(() => result.current.setTarget("vercel"));
@@ -941,7 +941,7 @@ describe("useStaticPublish — the publish names the chosen credential", () => {
     const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "plain-host" };
     const triggerPublish = vi.fn().mockResolvedValue(runningRun);
     const port = portWith({ triggerPublish, listPublishTargets: () => Promise.resolve([...PUBLISH_TARGETS, PLAIN_TARGET]) });
-    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticPublish({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
 
     act(() => result.current.setTarget("plain-host"));

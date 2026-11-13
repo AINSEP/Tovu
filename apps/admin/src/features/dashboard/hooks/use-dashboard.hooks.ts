@@ -199,7 +199,7 @@ function countWithStatus({ rows, status }: { rows: ReadonlyArray<{ status: strin
  *  one of the two settles.
  *  @complexity Time: O(n log n) via `mergeRecent`. */
 function recentActivity({ posts, pages }: { posts: AdminPost[] | undefined; pages: AdminPost[] | undefined }): AdminPost[] | null {
-  return posts || pages ? mergeRecent(posts ?? null, pages ?? []) : null;
+  return posts || pages ? mergeRecent({ prev: posts ?? null, incoming: pages ?? [] }) : null;
 }
 
 type DashboardStats = Pick<DashboardController,
@@ -237,8 +237,8 @@ function useDefaultPasswordBanner({ port }: { port: DashboardPort }): Pick<Dashb
   const [dismissedBy, setDismissedBy] = useState<string | null>(readDefaultPasswordBannerDismissedBy);
   return {
     showDefaultPasswordBanner: shouldShowDefaultPasswordBanner(
-      passwordStatus?.usesDefaultPassword ?? null,
-      passwordStatus !== null && dismissedBy === passwordStatus.principalId,
+      { usesDefault: passwordStatus?.usesDefaultPassword ?? null,
+      dismissed: passwordStatus !== null && dismissedBy === passwordStatus.principalId },
     ),
     dismissDefaultPasswordBanner: () => {
       if (passwordStatus === null) return;
@@ -258,7 +258,7 @@ function useSiteKeyBanner({ port, t }: { port: DashboardPort; t: Translate }): P
   // undefined until the site-key status fetch settles (or forever if it fails).
   // shouldShowSiteKeyBanner treats undefined as "don't show".
   const siteKeyState = siteKeyQuery.data?.state;
-  return { showSiteKeyBanner: shouldShowSiteKeyBanner(siteKeyState), siteKeyBannerMessage: siteKeyBannerCopy(siteKeyState, t) };
+  return { showSiteKeyBanner: shouldShowSiteKeyBanner({ state: siteKeyState }), siteKeyBannerMessage: siteKeyBannerCopy({ state: siteKeyState, t }) };
 }
 
 /**

@@ -35,7 +35,7 @@ const ADDRESS_CHARS = /^[^\s@<>()[\]",;:\\]+$/;
 
 /** `local@domain` where the domain has a dot with something on both sides. Same acceptance as
  *  `/^[^…]+@[^…]+\.[^…]+$/` over that character class, without its backtracking. */
-function isAddress(value: string): boolean {
+function isAddress({ value }: { value: string }, _options = {}): boolean {
   const at = value.indexOf("@");
   if (at === -1) return false;
   const local = value.slice(0, at);
@@ -46,18 +46,18 @@ function isAddress(value: string): boolean {
 }
 
 /** A plain address or blank (blank = not configured). Pure. */
-export function isValidSenderEmail(value: string): boolean {
+export function isValidSenderEmail({ value }: { value: string }, _options = {}): boolean {
   const trimmed = value.trim();
-  return trimmed === "" || isAddress(trimmed);
+  return trimmed === "" || isAddress({ value: trimmed });
 }
 
 /** The sender from the effective-settings rows; anything non-string reads as blank. Pure. */
 export function readSenderRows(rows: readonly { key: string; value: unknown }[]): SenderValues {
-  const value = (key: string) => {
+  const value = ({ key }: { key: string }, _options = {}) => {
     const found = rows.find((row) => row.key === key)?.value;
     return typeof found === "string" ? found : "";
   };
-  return { name: value("senderName"), email: value("senderEmail") };
+  return { name: value({ key: "senderName" }), email: value({ key: "senderEmail" }) };
 }
 
 /**
@@ -87,7 +87,7 @@ export function useEmailSender(required: { api: Pick<EmailApi, "readSender" | "s
 
   const save = useCallback(async () => {
     if (!saved) return;
-    if (!isValidSenderEmail(draft.email)) {
+    if (!isValidSenderEmail({ value: draft.email })) {
       setSaveState({ error: "Enter one email address, like hello@example.com." });
       return;
     }
@@ -101,7 +101,7 @@ export function useEmailSender(required: { api: Pick<EmailApi, "readSender" | "s
       reloadDns();
       onChanged?.();
     } catch (error) {
-      setSaveState({ error: errorMessage(error) });
+      setSaveState({ error: errorMessage({ error }) });
     }
   }, [api, draft, saved, setSender, reloadDns, onChanged]);
 
@@ -111,7 +111,7 @@ export function useEmailSender(required: { api: Pick<EmailApi, "readSender" | "s
     try {
       setDns(await api.verifyDns());
     } catch (error) {
-      setCheckError(errorMessage(error));
+      setCheckError(errorMessage({ error }));
     } finally {
       setChecking(false);
     }

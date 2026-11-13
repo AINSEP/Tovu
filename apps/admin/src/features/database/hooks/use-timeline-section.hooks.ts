@@ -122,13 +122,15 @@ export function useTimelineSection(deps: TimelineSectionDependencies): TimelineS
   const locale = useWiredAdminLocale();
   const boundT = (key: string): string => t({ locale: locale, key: key });
 
-  function fetchTimelinePage(filters: TimelineFilters, cursor?: string) {
-    return port.getDatabaseTimeline({
-      kind: filters.kind || undefined,
-      outcome: filters.outcome || undefined,
-      fromDate: filters.fromDate || undefined,
-      toDate: filters.toDate || undefined,
-      cursor,
+  function fetchTimelinePage({ filters }: { filters: TimelineFilters }, { cursor }: { cursor?: string } = {}) {
+    return port.getDatabaseTimeline({}, {
+      options: {
+        kind: filters.kind || undefined,
+        outcome: filters.outcome || undefined,
+        fromDate: filters.fromDate || undefined,
+        toDate: filters.toDate || undefined,
+        cursor,
+      },
     });
   }
 
@@ -143,7 +145,7 @@ export function useTimelineSection(deps: TimelineSectionDependencies): TimelineS
 
   const firstPage = useFetchQuery({
     key: KEYS.timeline(appliedFilters),
-    fetch: () => fetchTimelinePage(appliedFilters),
+    fetch: () => fetchTimelinePage({ filters: appliedFilters }),
   });
 
   const [morePages, setMorePages] = useState<AdminLedgerRow[]>([]);
@@ -180,7 +182,7 @@ export function useTimelineSection(deps: TimelineSectionDependencies): TimelineS
     setLoadingMore(true);
     setMoreError(null);
     try {
-      const r = await fetchTimelinePage(filtersAtCall, moreCursor);
+      const r = await fetchTimelinePage({ filters: filtersAtCall }, { cursor: moreCursor });
       if (filtersAtCall !== filtersRef.current) return; // stale — filters changed while this was in flight
       setMorePages((prev) => [...prev, ...r.items]);
       setMoreCursor(r.nextCursor);

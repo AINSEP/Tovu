@@ -192,7 +192,7 @@ function OverviewEnvVarRow({ varStatus, t }: { varStatus: AdminDeploymentEnvVarS
         </span>
         <span className={`status status-${tone}`}>{t(envVarStatusLabelKey(varStatus))}</span>
       </div>
-      <p className="deployment-env-note">{t(deploymentEnvVarNoteKey(varStatus.name))}</p>
+      <p className="deployment-env-note">{t(deploymentEnvVarNoteKey({ name: varStatus.name }))}</p>
     </li>
   );
 }
@@ -223,12 +223,12 @@ function OverviewSnapshotBody({ snapshot, t }: { snapshot: AdminDeploymentOvervi
           </OverviewFact>
           <OverviewFact label={t("Owner password")}>
             <span className={`status status-${snapshot.defaultOwnerPasswordUnsafe ? "warning" : "ok"}`}>
-              {t(ownerPasswordLabelKey(snapshot.defaultOwnerPasswordUnsafe))}
+              {t(ownerPasswordLabelKey({ defaultOwnerPasswordUnsafe: snapshot.defaultOwnerPasswordUnsafe }))}
             </span>
           </OverviewFact>
           <OverviewFact label={t("Agent daemon")}>
             <span className={`status status-${snapshot.daemonKnownFailed ? "warning" : "ok"}`}>
-              {t(daemonStatusLabelKey(snapshot.daemonKnownFailed))}
+              {t(daemonStatusLabelKey({ daemonKnownFailed: snapshot.daemonKnownFailed }))}
             </span>
           </OverviewFact>
           <OverviewFact label={t("Database file")}>
@@ -266,7 +266,8 @@ function OverviewSnapshotBody({ snapshot, t }: { snapshot: AdminDeploymentOvervi
  *  cyclomatic-complexity count from counting a second branch for the empty-props case (same
  *  reasoning `SettingsUi.tsx`'s `resolveSettingsUiHook` documents for its own props). */
 function resolveDeploymentOverviewHook(
-  override: typeof useWiredDeploymentOverview | undefined
+  { override }: { override: typeof useWiredDeploymentOverview | undefined },
+  _options = {},
 ): typeof useWiredDeploymentOverview {
   return override ?? useWiredDeploymentOverview;
 }
@@ -295,7 +296,7 @@ function OverviewDiagnostics({
 }
 
 export function OverviewTab(props: OverviewTabProps) {
-  const useDeploymentOverviewHook = resolveDeploymentOverviewHook(props.useDeploymentOverviewHook);
+  const useDeploymentOverviewHook = resolveDeploymentOverviewHook({ override: props.useDeploymentOverviewHook });
   const { snapshot, error, t } = useDeploymentOverviewHook();
 
   return (

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 /**
- * @file Coverage for `useWiredPublishCredentials` — the zero-arg entry point that binds the real
+ * @file Coverage for `useWiredPublishCredentials` — the wired entry point that binds the real
  * port and the real resolved locale. Kept separate from `use-publish-credentials.unit.test.ts`
  * (which drives `usePublishCredentials` entirely through an injected fake port) because this one
  * test needs a module-level `vi.mock` of `@/lib/api` and `@/hooks/use-admin-locale.hooks`, which
@@ -33,7 +33,7 @@ describe("useWiredPublishCredentials", () => {
       { id: "host-a", label: "Host A", configFields: [], credential: { tokenField: "token", fields: [{ name: "token", label: "Token", required: true, secret: true as const }] } },
       { id: "host-b", label: "Host B", configFields: [] },
     ];
-    const { result } = renderHook(() => useWiredPublishCredentials(targets), { wrapper });
+    const { result } = renderHook(() => useWiredPublishCredentials({ targets }), { wrapper });
 
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
     expect(listPublishCredentials).toHaveBeenCalledWith();

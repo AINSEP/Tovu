@@ -633,7 +633,7 @@ export function buildAccessTokenConnectionInput(
   if (fields.ref.kind === "publish") {
     const spec = info.publishCredential ?? { tokenField: "token", fields: [{ name: "token", label: "Access token", required: true }] };
     const providerId: AdminPublishCredentialProviderId = fields.ref.providerId;
-    return buildCredentialConnectionInput(providerId, spec, { ...fields.values, [spec.tokenField]: fields.token });
+    return buildCredentialConnectionInput({ providerId, spec, values: { ...fields.values, [spec.tokenField]: fields.token } });
   }
   return buildSourceControlConnectionInput({ providerId: fields.ref.providerId, token: fields.token, values: fields.values }, info.extraFields);
 }
@@ -641,7 +641,7 @@ export function buildAccessTokenConnectionInput(
 /** The DOM/agent id suffix of one extra field's input. `accountId` keeps its old `account` suffix
  *  (pinned by agent tooling); every other field uses its own name, hyphenated. @complexity O(n). */
 export function accessTokenExtraFieldIdSuffix(fieldName: string): string {
-  return fieldName === "accountId" ? "account" : fieldNameHandleSegment(fieldName);
+  return fieldName === "accountId" ? "account" : fieldNameHandleSegment({ fieldName });
 }
 
 /** Every saved row for one provider, in the order the server returned them.

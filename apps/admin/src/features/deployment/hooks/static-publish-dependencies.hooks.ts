@@ -5,8 +5,8 @@ import type { StaticPublishPort } from "./static-publish-port.hooks";
  *  `static-export-dependencies.hooks.ts`'s `defaultStaticExportPort`. */
 export const defaultStaticPublishPort: StaticPublishPort = {
   listPublishTargets: () => api.getPublishTargets(),
-  getPublishPreview: (config) => api.getPublishPreview(config),
-  triggerPublish: (input) => api.triggerPublish(input),
+  getPublishPreview: (config, _options = {}) => api.getPublishPreview(config),
+  triggerPublish: (input, _options = {}) => api.triggerPublish(input),
   getPublishStatus: () => api.getPublishStatus(),
 };
 

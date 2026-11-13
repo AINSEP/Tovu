@@ -668,7 +668,7 @@ function ExtraFieldInput({
         onChange={(e) => onChange(e.target.value)}
         {...agentHandle({ handle: id }, { role: "field", label: `This provider's ${field.label}` })}
       />
-      {fieldHelpText(field) ? <p className="field-hint">{fieldHelpText(field)}</p> : null}
+      {fieldHelpText({ field }) ? <p className="field-hint">{fieldHelpText({ field })}</p> : null}
     </div>
   );
 }

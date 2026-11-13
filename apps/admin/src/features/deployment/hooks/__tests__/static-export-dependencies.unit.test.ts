@@ -33,13 +33,13 @@ const RUNNING_RUN: AdminExportRunSnapshot = { status: "running", startedAtIso: "
 describe("defaultStaticExportPort", () => {
   it("triggerSiteExport forwards options to api.triggerSiteExport", async () => {
     triggerSiteExport.mockResolvedValue(RUNNING_RUN);
-    await expect(defaultStaticExportPort.triggerSiteExport({ clean: true })).resolves.toEqual(RUNNING_RUN);
+    await expect(defaultStaticExportPort.triggerSiteExport({}, { options: { clean: true } })).resolves.toEqual(RUNNING_RUN);
     expect(triggerSiteExport).toHaveBeenCalledWith({ clean: true });
   });
 
   it("triggerSiteExport delegates with no options when called bare", async () => {
     triggerSiteExport.mockResolvedValue(RUNNING_RUN);
-    await expect(defaultStaticExportPort.triggerSiteExport()).resolves.toEqual(RUNNING_RUN);
+    await expect(defaultStaticExportPort.triggerSiteExport({})).resolves.toEqual(RUNNING_RUN);
     expect(triggerSiteExport).toHaveBeenCalledWith(undefined);
   });
 
@@ -52,14 +52,14 @@ describe("defaultStaticExportPort", () => {
 
 describe("createFakeStaticExportPort — defaults", () => {
   it("triggerSiteExport defaults to resolving the seeded status when not overridden", async () => {
-    const port = createFakeStaticExportPort(RUNNING_RUN);
-    await expect(port.triggerSiteExport()).resolves.toEqual(RUNNING_RUN);
+    const port = createFakeStaticExportPort({ status: RUNNING_RUN });
+    await expect(port.triggerSiteExport({})).resolves.toEqual(RUNNING_RUN);
   });
 
   it("an explicit triggerSiteExport override wins over the default", async () => {
     const triggerOverride = vi.fn().mockResolvedValue(RUNNING_RUN);
-    const port = createFakeStaticExportPort(IDLE_RUN, { triggerSiteExport: triggerOverride });
-    await expect(port.triggerSiteExport({ clean: true })).resolves.toEqual(RUNNING_RUN);
-    expect(triggerOverride).toHaveBeenCalledWith({ clean: true });
+    const port = createFakeStaticExportPort({ status: IDLE_RUN }, { triggerSiteExport: triggerOverride });
+    await expect(port.triggerSiteExport({}, { options: { clean: true } })).resolves.toEqual(RUNNING_RUN);
+    expect(triggerOverride).toHaveBeenCalledWith({}, { options: { clean: true } });
   });
 });
