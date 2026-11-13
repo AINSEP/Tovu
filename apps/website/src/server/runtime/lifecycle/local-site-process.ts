@@ -205,9 +205,8 @@ export function createLocalSiteProcessPort(
         const pid = record?.port === daemonPort ? record.pid : daemon?.pid;
         if (pid === undefined) return;
         const live = (await listProcessSnapshots()).find((item) => item.pid === pid);
-        const owner = live ? readFlagValue(live.command.trim().split(/\s+/), "--local-site-api-pid") : null;
         const apiPid = watch ? listSites({ cwd: switcherBase, env }).find(site => site.name === name)?.running?.pid : child.pid;
-        if (!live?.command.includes("agent-daemon-server") || owner !== String(apiPid)) { daemon = undefined; return; }
+        if (!isDaemonOwnedBy({ live, apiPid })) { daemon = undefined; return; }
         daemon = { pid, on() {}, kill(_required, { signal = "SIGTERM" } = {}) {
           try { process.kill(pid, signal); return true; } catch { return false; }
         } };
@@ -260,4 +259,13 @@ export function createLocalSiteProcessPort(
       };
     },
   };
+}
+
+/** The live process is this site's daemon only when it names the daemon entry and the API pid that launched it. */
+function isDaemonOwnedBy(
+  { live, apiPid }: { live: Awaited<ReturnType<typeof listProcessSnapshots>>[number] | undefined; apiPid: number | undefined },
+  _optional = {},
+): boolean {
+  const owner = live ? readFlagValue(live.command.trim().split(/\s+/), "--local-site-api-pid") : null;
+  return Boolean(live?.command.includes("agent-daemon-server")) && owner === String(apiPid);
 }

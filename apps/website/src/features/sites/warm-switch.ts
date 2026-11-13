@@ -22,10 +22,15 @@ export async function activateSiteWithWarmServer(required: ActivateSiteRequired,
     const activated = activateSite({ ...required, currentSiteName: required.name, restartNow: false }, ports);
     return activated.ok ? { ...activated, url, restartInstructions: 'Open this site at its own server URL.' } : activated;
   } catch (error) {
-    if (error instanceof LocalSiteError && ['SITE_LIMIT', 'SITE_STOP_FAILED'].includes(error.code)) {
+    if (isWarmCapacityRefusal({ error })) {
       return { ok: false, code: 'SITE_ALREADY_RUNNING', error: 'The warm sites are busy. Finish their work or stop an idle site before opening another.' };
     }
     (ports.warn ?? console.warn)('tovu dev: warm site could not start; falling back to the restart switch.');
     return activateSite(required, ports);
   }
+}
+
+/** The warm pool is full or cannot retire a site: refuse rather than restart a busy host. */
+function isWarmCapacityRefusal({ error }: { error: unknown }, _optional = {}): boolean {
+  return error instanceof LocalSiteError && ['SITE_LIMIT', 'SITE_STOP_FAILED'].includes(error.code);
 }

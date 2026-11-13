@@ -16,11 +16,7 @@ const MATCH_KINDS: Readonly<Record<string, string>> = {
 export function warnCredentialContent(required: { path: string; text: string; credentialWarnings: CredentialWarning[] }, optional: { codeAware?: boolean; vendorOnly?: boolean } = {}): void {
   const result = redactSecretShapes({ text: required.text }, optional);
   if (!result.redactions) return;
-  // Read only the scanner's fixed replacement vocabulary; no matched text is ever returned.
-  const original = new Map<string, number>();
-  for (const match of required.text.matchAll(/\[REDACTED:[a-z_]+\]/g)) {
-    original.set(match[0], (original.get(match[0]) ?? 0) + 1);
-  }
+  const original = existingMarkerCounts({ text: required.text });
   const kinds = new Set<string>();
   for (const match of result.text.matchAll(/\[REDACTED:([a-z_]+)\]/g)) {
     const count = original.get(match[0]) ?? 0;
@@ -30,6 +26,18 @@ export function warnCredentialContent(required: { path: string; text: string; cr
   // A replacement can absorb an existing tag. Still warn even if no new marker survives.
   if (!kinds.size) kinds.add("credential-looking content");
   for (const kind of kinds) addCredentialWarning({ ...required, kind });
+}
+
+/** Count the redaction markers the input already held, so they are not reported as new findings.
+ * @complexity O(text bytes).
+ */
+function existingMarkerCounts({ text }: { text: string }, _optional = {}): Map<string, number> {
+  // Read only the scanner's fixed replacement vocabulary; no matched text is ever returned.
+  const original = new Map<string, number>();
+  for (const match of text.matchAll(/\[REDACTED:[a-z_]+\]/g)) {
+    original.set(match[0], (original.get(match[0]) ?? 0) + 1);
+  }
+  return original;
 }
 
 /** Deduplicate by safe shown location/kind. Values embedded in a filename are redacted too.

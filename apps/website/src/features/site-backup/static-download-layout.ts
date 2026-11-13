@@ -259,9 +259,19 @@ export function staticDownloadLayout({ copy, copies = [copy], activeThemeId, the
     landing.push(landingTheme({ plan, files, activeThemeId: activeThemeId ?? copy.themeId }));
   }
   // A partial render may lose a home page; the landing page still lists every delivered page.
-  add({ path: LANDING_FILE, content: staticLandingPage({ siteName: copy.readme?.name ?? copy.siteSlug ?? "Website", exportedWords: copy.readme?.words, themes: landing }) });
-  if (readmes.length) add({ path: "README.txt", content: Buffer.from(readmes.join("\n") + (copies.length > 1 ? `\nShared media: ${deliveredMedia.size} files in media/.\n` : "")) });
+  add(landingFile({ copy, landing }));
+  if (readmes.length) add(readmeFile({ readmes }, { sharedMedia: copies.length > 1 ? deliveredMedia.size : undefined }));
   return entries;
+}
+
+/** The download's landing page, named after the site and listing every theme card. */
+function landingFile({ copy, landing }: { copy: Copy; landing: readonly LandingTheme[] }, _options = {}): File {
+  return { path: LANDING_FILE, content: staticLandingPage({ siteName: copy.readme?.name ?? copy.siteSlug ?? "Website", exportedWords: copy.readme?.words, themes: landing }) };
+}
+
+/** The combined per-theme README; a multi-theme download also counts its shared media. */
+function readmeFile({ readmes }: { readmes: readonly string[] }, { sharedMedia }: { sharedMedia?: number } = {}): File {
+  return { path: "README.txt", content: Buffer.from(readmes.join("\n") + (sharedMedia !== undefined ? `\nShared media: ${sharedMedia} files in media/.\n` : "")) };
 }
 
 /** One landing card: the theme's display title, its folder and its delivered pages (redirect stubs omitted). */

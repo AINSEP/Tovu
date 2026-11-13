@@ -10,12 +10,18 @@ export async function fetchWithDaemonParkRecovery({ send }: { send: () => Promis
   ensureReady = ensureAssistantDaemonReady, onParked = required => noteAssistantDaemonParking(required, {}), passive = false,
 }: { ensureReady?: typeof ensureAssistantDaemonReady; onParked?: (required: { pid: number }) => void; passive?: boolean } = {}): Promise<Response> {
   const response = await send();
-  if (response.status !== 503 || response.headers.get("x-tovu-daemon-parked") !== "1") return response;
-  const pid = Number(response.headers.get("x-tovu-daemon-pid"));
-  if (!Number.isSafeInteger(pid) || pid <= 0) return response;
+  const pid = parkedDaemonPid({ response });
+  if (pid === undefined) return response;
   onParked({ pid });
   if (passive) return response;
   await response.body?.cancel();
   await ensureReady({}, {});
   return send();
+}
+
+/** The parked child's pid from an explicit park refusal; undefined for any other response. */
+function parkedDaemonPid({ response }: { response: Response }, _optional = {}): number | undefined {
+  if (response.status !== 503 || response.headers.get("x-tovu-daemon-parked") !== "1") return undefined;
+  const pid = Number(response.headers.get("x-tovu-daemon-pid"));
+  return Number.isSafeInteger(pid) && pid > 0 ? pid : undefined;
 }

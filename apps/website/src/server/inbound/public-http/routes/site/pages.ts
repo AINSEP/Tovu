@@ -2642,20 +2642,8 @@ function addPluginExportHostsToResponse({ req, hosts }: { req: Request; hosts: i
 }
 
 async function finalizePublicPageHtml(req: Request, html: string, formResult: FormSubmissionRedirectResult | undefined, deps: RouteDeps): Promise<string> {
-  // A see-more batch URL answers with just that listing's next items, not the page around them.
-  const listingBatch = listingBatchRequests.get(req);
-  if (listingBatch?.format === "json") {
-    const page = listingJsonPages.get(listingBatch);
-    if (page === undefined) throw new ListingBatchNotFoundError();
-    // Every caller has already typed the response as html; the JSON form answers as JSON.
-    req.res?.type("json");
-    return JSON.stringify(page);
-  }
-  if (listingBatch !== undefined) {
-    const batch = extractListingBatch({ html, key: listingBatch.key });
-    if (batch === undefined) throw new ListingBatchNotFoundError();
-    return renderListingBatchDocument({ key: listingBatch.key, ...batch });
-  }
+  const batchBody = listingBatchBody({ req, html });
+  if (batchBody !== undefined) return batchBody;
   assertListingPageServed({ req, html });
   html = injectExtraHeadIntoStaticPage(html, deps.pluginExportRender?.headHtml({}));
   addPluginExportHostsToResponse({ req, hosts: deps.pluginExportRender?.declaredHosts({}) });
@@ -2672,6 +2660,27 @@ async function finalizePublicPageHtml(req: Request, html: string, formResult: Fo
     deps.formSubmissionAttempts?.issue({ workspaceId: deps.workspaceId, slug, attemptToken, issuedAtMs: deps.clock.nowMs() }, {});
     return attemptToken;
   } }, {}), workspaceId: deps.workspaceId });
+}
+
+/** The body for a see-more batch request, or undefined when this is an ordinary page request.
+ * @throws ListingBatchNotFoundError when the requested batch is not on this page.
+ */
+function listingBatchBody({ req, html }: { req: Request; html: string }, _optional: Record<string, never> = {}): string | undefined {
+  // A see-more batch URL answers with just that listing's next items, not the page around them.
+  const listingBatch = listingBatchRequests.get(req);
+  if (listingBatch?.format === "json") {
+    const page = listingJsonPages.get(listingBatch);
+    if (page === undefined) throw new ListingBatchNotFoundError();
+    // Every caller has already typed the response as html; the JSON form answers as JSON.
+    req.res?.type("json");
+    return JSON.stringify(page);
+  }
+  if (listingBatch !== undefined) {
+    const batch = extractListingBatch({ html, key: listingBatch.key });
+    if (batch === undefined) throw new ListingBatchNotFoundError();
+    return renderListingBatchDocument({ key: listingBatch.key, ...batch });
+  }
+  return undefined;
 }
 
 /**

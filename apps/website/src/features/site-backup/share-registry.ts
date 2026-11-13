@@ -105,7 +105,7 @@ export class SiteShareRegistry {
     try { shareId = await readFile(path.join(this.directory, `${required.token}.token`), "utf8"); }
     catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") { return null; } throw error; }
     const row = await this.get({ shareId });
-    return row?.token === required.token && row.file === required.file && row.status === "active" && !row.needsAcknowledgement ? row : null;
+    return row && servesToken({ row, ...required }) ? row : null;
   }
   async disable(required: { shareId: string; site: string }, _optional: Record<string, never> = {}): Promise<SiteShareRecord | null> {
     const row = await this.get(required);
@@ -133,6 +133,11 @@ export class SiteShareRegistry {
   async deleteArtifact(required: { shareId: string }, _optional: Record<string, never> = {}): Promise<void> {
     await unlink(this.artifactPath(required)).catch(error => { if (error.code !== "ENOENT") throw error; });
   }
+}
+
+/** A public token serves only its own active, acknowledged file. */
+function servesToken({ row, token, file }: { row: SiteShareRecord; token: string; file: string }, _optional = {}): boolean {
+  return row.token === token && row.file === file && row.status === "active" && !row.needsAcknowledgement;
 }
 
 /**

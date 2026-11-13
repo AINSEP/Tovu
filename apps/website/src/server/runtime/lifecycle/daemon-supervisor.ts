@@ -629,7 +629,7 @@ export function startAssistantDaemon(
     return;
   }
 
-  const parent = options.parentIpc ?? (process.send && process.env[DESKTOP_AGENT_SERVICE_ENV] === '1' ? process : false);
+  const parent = delegationParent({ parentIpc: options.parentIpc });
   if (parent) {
     registerDelegatedDaemon({ input, parent }, options);
     return;
@@ -658,18 +658,7 @@ export function startAssistantDaemon(
     const record = await (options.readDiscovery ?? (() => readPreviousAssistantDaemon({ siteDir: input.siteDir }, {})))();
     return record !== null && record.pid === pid;
   } };
-  let supervisor: DaemonSupervisor;
-  if (options.spawnDaemonProcess !== undefined) {
-    const spawnDaemonProcess = options.spawnDaemonProcess;
-    supervisor = createDaemonSupervisor({
-      spawnDaemonProcess: () => spawnDaemonProcess(spawnEnv),
-      daemonPort: daemonPortOverride,
-      readiness,
-      scheduler: options.scheduler,
-    });
-  } else {
-    supervisor = bindDaemonSupervisor(createRealDaemonProcessPorts(spawnEnv, { spawn: options.nativeSpawn }), { daemonPort: daemonPortOverride, readiness, scheduler: options.scheduler });
-  }
+  const supervisor = spawningSupervisor({ spawnEnv, daemonPort: daemonPortOverride, readiness }, options);
   singleton = supervisor;
   // Registration is cold. Demand callers await seeders and discovery through ensureReady.
 
@@ -684,6 +673,28 @@ export function startAssistantDaemon(
       process.exit(0);
     });
   }
+}
+
+/** The desktop agent service's inherited IPC parent when this process delegates; false keeps local supervision. */
+function delegationParent({ parentIpc }: { parentIpc?: NodeIpcPeer | false }, _optional = {}): NodeIpcPeer | false {
+  return parentIpc ?? (process.send && process.env[DESKTOP_AGENT_SERVICE_ENV] === '1' ? process : false);
+}
+
+/** The local supervisor over the test spawn seam when given, else over the real process ports. */
+function spawningSupervisor(
+  { spawnEnv, daemonPort, readiness }: { spawnEnv: DaemonSpawnEnvInput; daemonPort: string | undefined; readiness: DaemonSupervisorRequired["readiness"] },
+  options: Pick<StartAssistantDaemonOptions, "spawnDaemonProcess" | "nativeSpawn" | "scheduler"> = {},
+): DaemonSupervisor {
+  if (options.spawnDaemonProcess !== undefined) {
+    const spawnDaemonProcess = options.spawnDaemonProcess;
+    return createDaemonSupervisor({
+      spawnDaemonProcess: () => spawnDaemonProcess(spawnEnv),
+      daemonPort,
+      readiness,
+      scheduler: options.scheduler,
+    });
+  }
+  return bindDaemonSupervisor(createRealDaemonProcessPorts(spawnEnv, { spawn: options.nativeSpawn }), { daemonPort, readiness, scheduler: options.scheduler });
 }
 
 /**

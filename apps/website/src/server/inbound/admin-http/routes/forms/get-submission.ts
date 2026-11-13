@@ -20,6 +20,14 @@ async function findSubmissionScopedToDefinition(
   return submission && submission.formDefinitionId === definitionId ? submission : undefined;
 }
 
+/** Add the submission's notification delivery summary when this host reports one. */
+async function withNotificationDelivery({ deps, response, submissionId }: {
+  deps: Pick<FormsRouteDeps, "workspaceId" | "formDeliveryStatus">; response: ReturnType<typeof toAdminFormSubmissionResponse>; submissionId: string;
+}, _options = {}) {
+  if (deps.formDeliveryStatus?.notificationSummary) response.data.notificationDelivery = await deps.formDeliveryStatus.notificationSummary({ workspaceId: deps.workspaceId, submissionId });
+  return response;
+}
+
 /** GET one submission's full field values (`FORMS_GET_SUBMISSION`, REQ-13). */
 export const registerAdminFormsGetSubmissionRoute: FormsRouteRegistrar = (app, deps) => {
   app.get(
@@ -67,9 +75,7 @@ export const registerAdminFormsGetSubmissionRoute: FormsRouteRegistrar = (app, d
             .json({ error: `submission '${submissionId}' was not found`, code: "FORMS_SUBMISSION_NOT_FOUND" });
           return;
         }
-        const response = toAdminFormSubmissionResponse(submission);
-        if (deps.formDeliveryStatus?.notificationSummary) response.data.notificationDelivery = await deps.formDeliveryStatus.notificationSummary({ workspaceId: deps.workspaceId, submissionId });
-        res.json(response);
+        res.json(await withNotificationDelivery({ deps, response: toAdminFormSubmissionResponse(submission), submissionId }));
       } catch (error) {
         sendAdminFailure({ res, error }, { operation: "routes/forms/get-submission", code: "INTERNAL_ERROR" });
       }

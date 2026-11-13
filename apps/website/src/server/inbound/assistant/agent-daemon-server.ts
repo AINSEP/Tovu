@@ -211,20 +211,7 @@ async function start(): Promise<void> {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("daemon has no listening address");
   listenerUrl = `http://127.0.0.1:${address.port}`;
-  if (!sharedHost) {
-    // Standalone uses exactly the same factory and middleware at its historical root routes.
-    const env = startupSecretEnvironment({ env: process.env });
-    const siteId = env.TOVU_WORKSPACE;
-    const token = env[TOOL_EXEC_TOKEN_ENV_VAR];
-    if (!siteId || !token) throw new Error("standalone daemon requires its site binding");
-    // A standalone process has one configured site; validate its directory before starting it.
-    const scopeKey = requireScopeKey({ scopeKey: env.TOVU_SITE_DIR });
-    const scope = createSiteScope({ siteId, env: { ...env, JINI_AGENT_DAEMON_URL: listenerUrl,
-      TOVU_SITE_PROCESS_CWD: process.env.TOVU_SITE_PROCESS_CWD ?? process.cwd() }, token }, { idlePark });
-    scopes.set(scopeKey, scope);
-    const ready = await scope;
-    scopedExchanges.set(scopeKey, ready.hasExchanges); app.use(ready.app);
-  }
+  if (!sharedHost) await mountStandaloneScope({ url: listenerUrl });
   if (daemonExiting) return;
   registryPublication = daemonRegistry?.write({ record: {
     url: listenerUrl, host: "127.0.0.1", port: address.port, pid: process.pid, startedAt: new Date().toISOString(),
@@ -232,6 +219,22 @@ async function start(): Promise<void> {
   await registryPublication;
   idlePark.start({}, {});
   if (!isDaemonLifecycleLogQuiet()) console.log(`[agent-daemon] listening on ${listenerUrl}`);
+}
+
+/** Mount this process's one configured site at the root routes once the listener has a URL. */
+async function mountStandaloneScope({ url }: { url: string }, _optional = {}): Promise<void> {
+  // Standalone uses exactly the same factory and middleware at its historical root routes.
+  const env = startupSecretEnvironment({ env: process.env });
+  const siteId = env.TOVU_WORKSPACE;
+  const token = env[TOOL_EXEC_TOKEN_ENV_VAR];
+  if (!siteId || !token) throw new Error("standalone daemon requires its site binding");
+  // A standalone process has one configured site; validate its directory before starting it.
+  const scopeKey = requireScopeKey({ scopeKey: env.TOVU_SITE_DIR });
+  const scope = createSiteScope({ siteId, env: { ...env, JINI_AGENT_DAEMON_URL: url,
+    TOVU_SITE_PROCESS_CWD: process.env.TOVU_SITE_PROCESS_CWD ?? process.cwd() }, token }, { idlePark });
+  scopes.set(scopeKey, scope);
+  const ready = await scope;
+  scopedExchanges.set(scopeKey, ready.hasExchanges); app.use(ready.app);
 }
 const startup = start();
 if (process.send) {

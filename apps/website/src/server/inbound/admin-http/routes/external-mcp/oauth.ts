@@ -134,8 +134,7 @@ export function registerAdminExternalMcpOAuthConnectRoute(
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
       const serverId = String(req.params.serverId ?? "");
-      const destination = req.body?.destination;
-      if (destination !== undefined && destination !== 'shared') throw new ExternalMcpValidationError('Choose local sign-in or save the connection on this Mac.', 'destination');
+      const destination = connectDestination({ body: req.body });
       if (destination === 'shared' && !rejectUnlessSessionCredential(res, { message: 'Open Settings → External MCP in your signed-in owner browser to save a shared connection.', permission: SHARED_MCP_PERMISSION })) return;
       const started = await deps.externalMcpOAuth.beginConnect({
         serverId, actorId: getAuthedPrincipal(res).id,
@@ -148,6 +147,23 @@ export function registerAdminExternalMcpOAuthConnectRoute(
       sendExternalMcpOAuthError(res, error);
     }
   } }));
+}
+
+/** Where a connect request saves its sign-in: this browser (undefined) or the shared Mac connection. */
+function connectDestination({ body }: { body: { destination?: unknown } | undefined }, _options = {}): 'shared' | undefined {
+  const destination = body?.destination;
+  if (destination !== undefined && destination !== 'shared') throw new ExternalMcpValidationError('Choose local sign-in or save the connection on this Mac.', 'destination');
+  return destination;
+}
+
+/** The one saved connection id a select request may carry; anything else is refused. */
+function savedCredentialId({ body: input }: { body: unknown }, _options = {}): string {
+  const body = input as Record<string, unknown> | undefined;
+  if (!body || Object.keys(body).some(key => key !== 'credentialId')) throw new ExternalMcpValidationError('Choose an existing saved connection.', 'credentialId');
+  if (typeof body.credentialId !== 'string' || body.credentialId.length > 512 || !body.credentialId) {
+    throw new ExternalMcpValidationError('Choose an existing saved connection.', 'credentialId');
+  }
+  return body.credentialId;
 }
 
 /** Authenticated, user-opened host hop: one cookie and redirect, never proof in a link.
@@ -253,13 +269,9 @@ function registerSharedMcpRoutes(app: Express, deps: ExternalMcpOAuthRouteDeps, 
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
       if (!rejectUnlessSessionCredential(res, { message: 'Choose a saved connection from your signed-in owner browser.', permission: SHARED_MCP_PERMISSION })) return;
-      const body = req.body as Record<string, unknown> | undefined;
-      if (!body || Object.keys(body).some(key => key !== 'credentialId')) throw new ExternalMcpValidationError('Choose an existing saved connection.', 'credentialId');
-      if (typeof body.credentialId !== 'string' || body.credentialId.length > 512 || !body.credentialId) {
-        throw new ExternalMcpValidationError('Choose an existing saved connection.', 'credentialId');
-      }
+      const credentialId = savedCredentialId({ body: req.body });
       if (!deps.externalMcpOAuth.useSharedConnection) throw new ExternalMcpValidationError('Shared connections are available only in this Mac owner profile.', 'credentialId');
-      await deps.externalMcpOAuth.useSharedConnection({ serverId: String(req.params.serverId), credentialId: body.credentialId, actorId: getAuthedPrincipal(res).id });
+      await deps.externalMcpOAuth.useSharedConnection({ serverId: String(req.params.serverId), credentialId, actorId: getAuthedPrincipal(res).id });
       res.json({ connected: true });
     } catch (error) { sendExternalMcpOAuthError(res, error); }
   } }));

@@ -266,14 +266,22 @@ function listingManagement({ deps, localSiteSupervisor, switcherBase, devRestart
   switcherBase: string | null; devRestart: DevRestartPort | null; binding: AdminSitesDeps["siteBinding"];
   isSiteSwitcherEnabled: ListingContext["isSiteSwitcherEnabled"];
 }, _options = {}) {
+  const manageable = canManageLocalSites({ isSiteSwitcherEnabled, localSiteSupervisor, switcherBase });
   return {
-    localManagementEnabled: isSiteSwitcherEnabled() && localSiteSupervisor !== undefined && switcherBase !== null,
-    canSwitchNow: process.env.TOVU_DEV_WARM_SITES === "1" && isSiteSwitcherEnabled() && localSiteSupervisor !== undefined && switcherBase !== null
+    localManagementEnabled: manageable,
+    canSwitchNow: process.env.TOVU_DEV_WARM_SITES === "1" && manageable
       || canSwitchListingSite({ isSiteSwitcherEnabled, devRestart, binding, switcherBase }),
     localSites,
-    trash: isSiteSwitcherEnabled() && switcherBase !== null && localSiteSupervisor
+    trash: manageable && switcherBase !== null
       ? (deps.listSiteTrash ?? listSiteTrash)({ base: switcherBase }) : [],
   };
+}
+
+/** Local sites are managed here only with the switcher on, a supervisor and a sites folder. @complexity O(1). */
+function canManageLocalSites({ isSiteSwitcherEnabled, localSiteSupervisor, switcherBase }: {
+  isSiteSwitcherEnabled: ListingContext["isSiteSwitcherEnabled"]; localSiteSupervisor: AdminSitesDeps["localSiteSupervisor"]; switcherBase: string | null;
+}, _options = {}): boolean {
+  return isSiteSwitcherEnabled() && localSiteSupervisor !== undefined && switcherBase !== null;
 }
 
 /** Forward raw create fields to their feature owner; validation and errors stay there.
@@ -302,15 +310,8 @@ function createSiteFromRequest({ body, deps, switcherBase, name, actorId }: {
   );
 }
 
-export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): void {
-  const sitesWorkspace = deps.sitesWorkspace ?? createSitesWorkspace({});
-  registerSitesHomeRoutes({ app, deps, workspace: sitesWorkspace });
-  if (registerWarmSiteControl({ app, binding: deps.siteBinding, workspaceId: deps.workspaceId })) return;
-  const listSites = deps.listSites ?? listSitesReal;
-  const isSiteSwitcherEnabled = deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabledReal;
-  const readPersistedActiveSite = deps.readPersistedActiveSite ?? readPersistedActiveSiteReal;
-  const localSiteSupervisor = deps.localSiteSupervisor ?? localSiteSupervisorForHost({ binding: deps.siteBinding, workspaceId: deps.workspaceId });
-  const warmServer = warmSiteServerForHost({ binding: deps.siteBinding, workspaceId: deps.workspaceId });
+/** The dev supervisor's token-gated warm-start hook; absent without a warm server and its token. */
+function registerDevWarmSiteRoute({ app, warmServer }: { app: Express; warmServer: ReturnType<typeof warmSiteServerForHost> }, _options = {}): void {
   if (warmServer && process.env.TOVU_DEV_WARM_CONTROL_TOKEN) {
     app.post("/internal/dev-warm-site", async (req, res) => {
       if (req.headers["x-tovu-warm-control"] !== process.env.TOVU_DEV_WARM_CONTROL_TOKEN) { res.sendStatus(404); return; }
@@ -323,6 +324,18 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       }
     });
   }
+}
+
+export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): void {
+  const sitesWorkspace = deps.sitesWorkspace ?? createSitesWorkspace({});
+  registerSitesHomeRoutes({ app, deps, workspace: sitesWorkspace });
+  if (registerWarmSiteControl({ app, binding: deps.siteBinding, workspaceId: deps.workspaceId })) return;
+  const listSites = deps.listSites ?? listSitesReal;
+  const isSiteSwitcherEnabled = deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabledReal;
+  const readPersistedActiveSite = deps.readPersistedActiveSite ?? readPersistedActiveSiteReal;
+  const localSiteSupervisor = deps.localSiteSupervisor ?? localSiteSupervisorForHost({ binding: deps.siteBinding, workspaceId: deps.workspaceId });
+  const warmServer = warmSiteServerForHost({ binding: deps.siteBinding, workspaceId: deps.workspaceId });
+  registerDevWarmSiteRoute({ app, warmServer });
   // HTTP sends its JSON response before the timer fires; only chat needs a reply grace period.
   const devRestart = deps.devRestart === undefined ? devRestartPortFromEnv({ delayMs: 0 }) : deps.devRestart;
   const sitePreviews = deps.sitePreviews === undefined ? sitePreviewServiceForHost({ binding: deps.siteBinding }) : deps.sitePreviews ?? undefined;

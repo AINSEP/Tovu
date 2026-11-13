@@ -207,13 +207,23 @@ function buildAskChoiceFormSurface(
     ...(parsed.description === undefined ? {} : { description: parsed.description }),
     submitLabel: parsed.submitLabel ?? "Submit",
     toolName,
-    baseParams: { ...baseParams, ...(parsed.actions?.[0] ? { __choiceAction: parsed.actions[0].id } : {}) },
-    additionalSubmitActions: parsed.actions?.slice(1).map(action => ({ id: action.id, label: action.label, params: { __choiceAction: action.id } })) ?? [],
+    ...choiceActionButtons({ question: parsed, baseParams }),
     fields: buildAskChoiceFields(parsed, { customAnswer }),
     cancel: cancelParams ? { label: parsed.actions ? "Skip" : "Cancel", toolName, params: cancelParams } : { label: "Cancel" },
     app: { appName: "tovu-ask-choice", appVersion: "1" },
     preferredFrameSize: ["100%", "420px"],
   });
+}
+
+/** The question's own actions: the first rides on Submit, the rest become extra submit buttons. */
+function choiceActionButtons(
+  { question, baseParams }: { question: Pick<AskChoiceForm["question"], "actions">; baseParams: AskChoiceForm["baseParams"] },
+  _options = {},
+) {
+  return {
+    baseParams: { ...baseParams, ...(question.actions?.[0] ? { __choiceAction: question.actions[0].id } : {}) },
+    additionalSubmitActions: question.actions?.slice(1).map(action => ({ id: action.id, label: action.label, params: { __choiceAction: action.id } })) ?? [],
+  };
 }
 
 /** The card renderer for one call; with a call it adds "Something else" and records the shown question.
