@@ -1,179 +1,86 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-
+import { pathToFileURL } from "node:url";
 import { diffAgainstBaseline, violationKey, type Violation } from "../check-src-complexity-drift.js";
 import debt from "../src-complexity-debt.json" with { type: "json" };
 
-test("CLI consumes scanner JSON and fails on a new violation, with the expected scan arguments", (t) => {
+// The former file-level admin allowance masked a second function in the same file;
+// identical anonymous functions also require counts, not a presence-only Set.
+const existing: Violation = {
+  file: "apps/admin/src/lib/assistant-transport.ts", function: "translateRunAgentPayload#1",
+  line: 20, rule: "complexity", value: 13,
+};
+
+test("a different function in an already grandfathered file is new debt", () => {
+  const added = { ...existing, function: "buildLocalCliContextRef#1" };
+  assert.deepEqual(diffAgainstBaseline([existing], [existing, added]).added, [added]);
+});
+
+test("a third identical occurrence cannot be hidden by a multiset entry", () => {
+  const result = diffAgainstBaseline([existing, existing], [existing, existing, existing]);
+  assert.deepEqual(result.added, [existing]);
+  assert.deepEqual(result.removed, []);
+});
+
+test("a worse value fails while an improvement and a line shift remain allowed", () => {
+  const increased = { ...existing, line: 21, value: 14 };
+  assert.deepEqual(diffAgainstBaseline([existing], [increased]).worsened, [{ baseline: existing, current: increased }]);
+  const improved = { ...existing, line: 21, value: 11 };
+  assert.deepEqual(diffAgainstBaseline([existing], [improved]), { added: [], removed: [], worsened: [] });
+});
+
+test("a fixed violation must be removed from the debt list", () => {
+  assert.deepEqual(diffAgainstBaseline([existing], []).removed, [existing]);
+});
+
+test("file and rule are part of the function identity, but line and value are not", () => {
+  assert.equal(violationKey(existing), violationKey({ ...existing, line: 99, value: 12 }));
+  assert.notEqual(violationKey(existing), violationKey({ ...existing, file: "other.ts" }));
+  assert.notEqual(violationKey(existing), violationKey({ ...existing, rule: "sonarjs/cognitive-complexity" }));
+});
+
+test("the recorded snapshot compares cleanly against itself", () => {
+  assert.deepEqual(diffAgainstBaseline(debt.violations as Violation[], debt.violations as Violation[]),
+    { added: [], removed: [], worsened: [] });
+});
+
+test("CLI consumes the ESLint JSON, names the function, and rejects new debt", (t) => {
   const scratch = mkdtempSync(path.join(tmpdir(), "complexity-cli-"));
   t.after(() => rmSync(scratch, { recursive: true, force: true }));
-  const report = path.join(scratch, "eslint.json");
-  const recording = path.join(scratch, "args.json");
-  // Substitute only the external scanner process: no real lint run or repository writes.
-  const scanner = path.join(scratch, "npx");
-  writeFileSync(scanner, `#!${process.execPath}\n` +
-    `const fs = require('node:fs');\n` +
-    `fs.writeFileSync(${JSON.stringify(recording)}, JSON.stringify(process.argv.slice(2)));\n` +
-    `process.stdout.write(fs.readFileSync(${JSON.stringify(report)}, 'utf8'));\nprocess.exitCode = 1;\n`);
-  chmodSync(scanner, 0o755);
-  const repo = path.resolve(import.meta.dirname, "../../..");
-  const reason = "Function 'fixture' has a complexity of 10. Maximum allowed is 9.";
-  writeFileSync(report, JSON.stringify([
-    { filePath: path.join(repo, "apps/website/src/features/fixture-drift.ts"), messages: [
-      { ruleId: "complexity", message: reason }, { ruleId: "unrelated-rule", message: "ignore" },
-    ] },
-    { filePath: path.join(repo, "apps/website/src/features/__tests__/fixture.test.ts"), messages: [{ ruleId: "complexity", message: reason }] },
-  ]));
-  const run = () => spawnSync(process.execPath, ["--import", "tsx", path.resolve(import.meta.dirname, "../check-src-complexity-drift.ts")], {
-    cwd: repo, encoding: "utf8", env: { ...process.env, PATH: `${scratch}${path.delimiter}${process.env.PATH ?? ""}` },
-  });
-  const failing = run();
-  assert.equal(failing.status, 1, failing.stderr);
-  assert.match(failing.stderr, /1 NEW/);
-  assert.ok(failing.stderr.includes(`[complexity] apps/website/src/features/fixture-drift.ts: ${reason}`));
-  assert.doesNotMatch(failing.stderr, /fixture\.test\.ts|unrelated-rule/);
-  assert.deepEqual(JSON.parse(readFileSync(recording, "utf8")), [
-    "eslint", "--no-error-on-unmatched-pattern", "--ignore-pattern", "**/__tests__/**",
-    "--ignore-pattern", "**/__measurements__/**", "--rule",
-    JSON.stringify({ complexity: ["error", 9], "sonarjs/cognitive-complexity": ["error", 9] }), "-f", "json",
-    "apps/website/src/server", "apps/website/src/assistant", "apps/website/src/features", "apps/website/src/widgets",
-    "apps/website/src/seo", "apps/website/src/analytics", "apps/website/src/media", "apps/site-chat/src",
-  ]);
-  writeFileSync(report, "[]");
-  const clean = run();
-  assert.equal(clean.status, 0, clean.stderr);
-  assert.match(clean.stdout, /0 new complexity violations/);
-});
-
-/**
- * @file Direct coverage for `diffAgainstBaseline`'s multiset behavior — the load-bearing part of
- * `check-src-complexity-drift.ts` (see that file's header for the full design rationale). This is
- * not a hypothetical edge case: `src/server/routes/admin/widgets/agent-tools.ts` genuinely carries
- * two textually-identical `complexity` violations today ("Async arrow function has a complexity of
- * 10. Maximum allowed is 9." — two different anonymous async arrow functions, both reporting the
- * same message), confirmed by a live scan at HEAD `af5af566` on 2026-08-17. A naive `Set`-based
- * diff (as `check-admin-complexity-drift.ts`'s file-level precedent uses, and as Jini's
- * `check-guard-drift.ts` documents hitting first) treats "does this key exist in the baseline" as
- * the whole question — it cannot tell "two known" from "three, one of them new" apart, because a
- * Set collapses duplicates to one membership bit. `agent-tools.test-fixture` below reproduces that
- * exact shape with the real file/message text so this test is not testing an invented scenario.
- */
-
-function agentToolsViolation(): Violation {
-  return {
-    rule: "complexity",
-    file: "src/server/routes/admin/widgets/agent-tools.ts",
-    reason: "Async arrow function has a complexity of 10. Maximum allowed is 9.",
-  };
-}
-
-test("multiset: a THIRD occurrence of an already-known (rule, file, reason) is reported as added", () => {
-  // Baseline (as shipped in src-complexity-debt.json) knows about exactly TWO of these — the real,
-  // current count for agent-tools.ts. A THIRD identical violation appearing (e.g. a new function
-  // added to the same file at the same complexity) must be flagged, not silently absorbed.
-  const baseline = [agentToolsViolation(), agentToolsViolation()];
-  const current = [agentToolsViolation(), agentToolsViolation(), agentToolsViolation()];
-
-  const { added, removed } = diffAgainstBaseline(baseline, current);
-
-  assert.equal(added.length, 1, "exactly the surplus (3rd) occurrence should be flagged as new");
-  assert.deepEqual(added[0], agentToolsViolation());
-  assert.equal(removed.length, 0);
-});
-
-test("multiset: a naive presence-only Set diff would have missed the same case (documented contrast)", () => {
-  const baseline = [agentToolsViolation(), agentToolsViolation()];
-  const current = [agentToolsViolation(), agentToolsViolation(), agentToolsViolation()];
-
-  // The bug this test guards against, made concrete: a Set diff asks "was this key EVER seen in
-  // baseline", not "how many times". Because the key exists in the baseline (twice), a naive Set
-  // diff reports 0 new violations even though a real 3rd one just landed.
-  const baselineKeySet = new Set(baseline.map(violationKey));
-  const naiveAdded = current.filter((v) => !baselineKeySet.has(violationKey(v)));
-  assert.equal(naiveAdded.length, 0, "sanity check: the naive Set approach really does miss this");
-
-  // The real implementation must NOT make the same mistake.
-  const { added } = diffAgainstBaseline(baseline, current);
-  assert.equal(added.length, 1);
-});
-
-test("multiset: exact count match on both sides — nothing added, nothing removed", () => {
-  const baseline = [agentToolsViolation(), agentToolsViolation()];
-  const current = [agentToolsViolation(), agentToolsViolation()];
-
-  const { added, removed } = diffAgainstBaseline(baseline, current);
-  assert.deepEqual(added, []);
-  assert.deepEqual(removed, []);
-});
-
-test("multiset: fewer occurrences in current than baseline — reported as removed, never as added", () => {
-  const baseline = [agentToolsViolation(), agentToolsViolation()];
-  const current = [agentToolsViolation()];
-
-  const { added, removed } = diffAgainstBaseline(baseline, current);
-  assert.deepEqual(added, []);
-  assert.equal(removed.length, 1);
-  assert.deepEqual(removed[0], agentToolsViolation());
-});
-
-test("multiset: a violation entirely absent from current is reported as removed", () => {
-  const baseline = [agentToolsViolation()];
-  const current: Violation[] = [];
-
-  const { added, removed } = diffAgainstBaseline(baseline, current);
-  assert.deepEqual(added, []);
-  assert.equal(removed.length, 1);
-});
-
-test("multiset: a violation entirely absent from baseline is reported as added", () => {
-  const baseline: Violation[] = [];
-  const current = [agentToolsViolation()];
-
-  const { added, removed } = diffAgainstBaseline(baseline, current);
-  assert.equal(added.length, 1);
-  assert.deepEqual(removed, []);
-});
-
-test("identity: same file and reason text but a DIFFERENT rule are distinct keys, not one", () => {
-  // A single function can trip both `complexity` and `sonarjs/cognitive-complexity` — they must
-  // never be treated as the same violation just because they share a file, even in the (contrived)
-  // case where the message text happens to collide too.
-  const cyclomatic: Violation = {
-    rule: "complexity",
-    file: "src/server/routes/admin/system/publish-site.ts",
-    reason: "shared reason text",
-  };
-  const cognitive: Violation = {
-    rule: "sonarjs/cognitive-complexity",
-    file: "src/server/routes/admin/system/publish-site.ts",
-    reason: "shared reason text",
-  };
-
-  assert.notEqual(violationKey(cyclomatic), violationKey(cognitive));
-
-  // baseline knows only the cyclomatic one; the cognitive one must be flagged as new, not
-  // absorbed because "a violation on this file+reason was already known".
-  const { added } = diffAgainstBaseline([cyclomatic], [cyclomatic, cognitive]);
-  assert.equal(added.length, 1);
-  assert.deepEqual(added[0], cognitive);
-});
-
-test("identity: two DIFFERENT files with the same rule and reason text are distinct keys", () => {
-  const fileA: Violation = { rule: "complexity", file: "a.ts", reason: "Async arrow function has a complexity of 10. Maximum allowed is 9." };
-  const fileB: Violation = { rule: "complexity", file: "b.ts", reason: "Async arrow function has a complexity of 10. Maximum allowed is 9." };
-
-  const { added } = diffAgainstBaseline([fileA], [fileA, fileB]);
-  assert.equal(added.length, 1);
-  assert.deepEqual(added[0], fileB);
-});
-
-test("real baseline snapshot: development/scripts/src-complexity-debt.json diffs clean against itself", () => {
-  const violations = (debt as { violations: Violation[] }).violations;
-  const { added, removed } = diffAgainstBaseline(violations, violations);
-  assert.deepEqual(added, [], "a baseline diffed against itself must never report new violations");
-  assert.deepEqual(removed, [], "a baseline diffed against itself must never report stale entries");
+  const fixture = path.join(scratch, "fixture.ts");
+  const preload = path.join(scratch, "scanner.mjs");
+  const root = path.resolve(import.meta.dirname, "../../..");
+  const debtPath = path.join(root, "development/scripts/src-complexity-debt.json");
+  writeFileSync(fixture, "function fixture() { return 1; }\n");
+  // Only replace the scanner process and the baseline read: the real CLI and JSON conversion run.
+  writeFileSync(preload, `
+    import assert from 'node:assert/strict';
+    import cp from 'node:child_process';
+    import fs from 'node:fs';
+    import { syncBuiltinESMExports } from 'node:module';
+    const read = fs.readFileSync;
+    fs.readFileSync = (file, ...args) => file === ${JSON.stringify(debtPath)}
+      ? JSON.stringify({ version: 2, violations: [] }) : read(file, ...args);
+    cp.execFileSync = (command, args) => {
+      assert.equal(command, process.execPath);
+      assert.ok(args.includes('development/scripts/complexity-eslint.config.mjs'));
+      assert.ok(args.includes('--no-inline-config'));
+      assert.ok(args.some(arg => arg.startsWith('apps/*/src/')));
+      assert.ok(args.some(arg => arg.startsWith('packages/*/src/')));
+      assert.ok(args.some(arg => arg.startsWith('content/agent-plugins/')));
+      throw Object.assign(new Error('ESLint findings'), { status: 1, stdout: JSON.stringify([{
+        filePath: ${JSON.stringify(fixture)}, messages: [{ ruleId: 'complexity', line: 1, column: 10,
+          message: "Function 'fixture' has a complexity of 11. Maximum allowed is 10." }]
+      }]) });
+    };
+    syncBuiltinESMExports();
+  `);
+  const result = spawnSync(process.execPath, ["--import", "tsx", "--import", pathToFileURL(preload).href,
+    path.join(root, "development/scripts/check-src-complexity-drift.ts")], { cwd: root, encoding: "utf8" });
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /New violation: .*fixture\.ts:1 fixture#1 \[complexity\] 11/);
 });

@@ -9,7 +9,7 @@
  *     missing records), reused rather than reimplemented so this can never silently drift from what
  *     the real gate enforces.
  *   - `check-src-complexity-drift.ts`'s live `findViolations()` — current ESLint `complexity` +
- *     `sonarjs/cognitive-complexity` scan of the same scope, hard-ceiling 9/9. Live, not the frozen
+ *     `sonarjs/cognitive-complexity` scan of production source (9/9 for admin, 10/10 elsewhere). Live, not the frozen
  *     `src-complexity-debt.json` snapshot, so a file fixed for complexity earlier tonight doesn't
  *     misreport as still-complex.
  *
@@ -116,12 +116,12 @@ function main(): void {
     if (!brfByFile.has(rec.file)) brfByFile.set(rec.file, rec.brf);
   }
 
-  console.log(`classify-coverage-gaps — running live complexity scan (npx eslint, src/server/routes)...`);
+  console.log(`classify-coverage-gaps — running live production complexity scan...`);
   const violations = findViolations();
   const complexityByFile = new Map<string, string[]>();
   for (const v of violations) {
     const list = complexityByFile.get(v.file) ?? [];
-    list.push(`[${v.rule}] ${v.reason}`);
+    list.push(`[${v.rule}] ${v.function} at line ${v.line}: ${v.value}`);
     complexityByFile.set(v.file, list);
   }
 

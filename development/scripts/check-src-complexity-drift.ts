@@ -1,294 +1,216 @@
 /**
- * `src/server/**` + `src/assistant/**` complexity-ceiling drift check (2026-08-17, following the
- * 2026-08-16 server-routes coverage/complexity audit — see
- * `ADS-memory/reports/2026-08-16-server-routes-coverage-complexity-audit.md` §1 for the
- * measurement that triggered this and `ADS-memory/reports/2026-08-17-src-complexity-gate.md`
- * for the full writeup).
+ * Ratchet ESLint's two per-function complexity rules across production source.
+ * Admin retains its 9/9 ceiling; other production code uses 10/10. Test and
+ * generated code and pinned migrations are excluded by complexity-eslint.config.mjs.
+ * The old list of selected directories silently missed most source after the
+ * apps/website move; broad production-root globs avoid repeating that failure.
  *
- * ## What this measures, and what it does NOT
+ * A file-level allowance hid unrelated admin functions, so the baseline identifies
+ * functions within each file. A multiset is still necessary: identical anonymous
+ * functions must not collapse into a single allowance. Line numbers are diagnostics,
+ * not identity, so unrelated edits above a function do not invalidate the baseline.
  *
- * There is no complexity gate on `src/` today. `eslint.config.mjs` sets `complexity` and
- * `sonarjs/cognitive-complexity` to `warn`/15 repo-wide, so `npm run complexity` (plain
- * `eslint .`) cannot fail CI on complexity regardless of content — see that config's own
- * comments. `apps/admin/src` already has a hard `error`/9 gate plus a grandfathered debt list
- * (`admin-complexity-debt.json` / `check-admin-complexity-drift.ts`); this file is that same
- * pattern applied to `src/`.
- *
- * SCOPE HISTORY — read before citing any older count from this file's git history:
- *   2026-08-17  created covering `src/server/routes/**` ONLY (98 violations / 64 files today).
- *   2026-08-20  widened to `src/server/**` + `src/assistant/**` at the owner's direction. The
- *               widening added 21 violations in `src/server` outside routes and 31 in
- *               `src/assistant` — 52 that had accumulated unseen, because `eslint.config.mjs`
- *               sets these two rules to `warn`/15 repo-wide and a warning cannot fail CI.
- *   2026-09-02  repointed 8 of the 9 SCOPES entries from `src/...` to `apps/website/src/...`. The
- *               apps/website restructure moved the tree but not these strings, so every entry but
- *               `apps/site-chat/src` was a dead ESLint target — `check:src-complexity-drift` was
- *               linting one small app and nothing else. See `dead-path-sweep.test.ts`. This is a
- *               pure path repoint, not a re-scope: `src-complexity-debt.json`'s baseline entries
- *               still read `src/...` and are NOT touched here, so every entry there now reads as
- *               removed (no longer reproduces at its old path), and the real scan below will surface
- *               whatever violations exist in the tree it can finally see — an owner decision on
- *               whether/how to re-baseline, not made by this change.
- * `src/server` subsumes `src/server/routes`, so pre-existing route baseline entries keep matching
- * unchanged — widening the scan cannot orphan them.
- *
- * Still NOT covered by this gate: `src/features/**`, `src/platform/export/**`, `src/seo/**`,
- * `src/widgets/**`, `packages/**`, `apps/site-chat/**`. `apps/admin/src` has its own equivalent
- * gate (`check-admin-complexity-drift.ts`). Each remaining area needs its own fresh measurement
- * before it is added to `SCOPES`.
- *
- * Tool and threshold are IDENTICAL to `apps/admin`'s gate — plain ESLint `complexity` (cyclomatic)
- * and `sonarjs/cognitive-complexity`, both hard-overridden to `error`/9 via `--rule`, ignoring
- * `eslint.config.mjs`'s own repo-wide `warn`/15. This is a real trap in this repo (see
- * `ADS-memory/reports/continuity/2026-08-16-session-8-handoff.md`'s "two complexity metrics on
- * apps/admin" note): there is a SEPARATE per-scope numbering scheme elsewhere and nesting does
- * NOT fold across tools. This script uses exactly one tool (ESLint, per-function, no custom
- * folding) and the `SCOPES` list below (excluding `__tests__`/`__measurements__` —
- * same exclusion `check-admin-complexity-drift.ts` applies, for the same reason: test/measurement
- * code is out of scope for this ceiling, not silently-tracked debt). Do not compare this script's
- * counts to any other complexity number in this repo without checking both use the same tool,
- * threshold, and scope.
- *
- * ## Why a MULTISET diff, not a Set (the admin precedent uses a plain file-level Set)
- *
- * `src/server/routes/admin/widgets/agent-tools.ts` carries TWO textually identical violations
- * today — two different async arrow functions both reporting "Async arrow function has a
- * complexity of 10. Maximum allowed is 9." A presence-only (Set) diff keyed on
- * `(rule, file, reason)` would record that key ONCE in the baseline and then treat a THIRD
- * identical violation appearing later in the same file as "already known" — silently letting a
- * real new violation through. `diffAgainstBaseline` below counts occurrences per key and only
- * calls a violation "new" once the current count for that exact key exceeds what the baseline
- * already allows for it, in both directions (mirrors Jini's `scripts/check-guard-drift.ts`,
- * which hit the identical shape of bug first — see that file's header). Covered by
- * `development/scripts/__tests__/check-src-complexity-drift.test.ts`, including a fixture built
- * directly from the real `agent-tools.ts` duplicate so the test is not a hypothetical.
- *
- * ## Baseline provenance
- *
- * `src-complexity-debt.json`'s `violations` array was captured by running THIS script's own
- * `findViolations()` (structured JSON straight from `eslint -f json`, not scraped from human-
- * readable stdout) against a fresh tree, not typed by hand or copied from the audit's prose
- * counts. See that file's `_comment` for the exact HEAD sha and count at capture time, and the
- * explicit warning that six-plus other agents were editing this tree concurrently — the baseline
- * may already be stale by the time this is read; re-run to check.
- *
- * Usage: npx tsx development/scripts/check-src-complexity-drift.ts
- * Exit codes: 0 = no file under `SCOPES` outside the debt list violates 9/9 complexity.
- *             1 = at least one does.
+ * In CI, COMPLEXITY_BASE_REF selects the previous revision of the debt list. This
+ * prevents hiding a new or worsened violation by editing that list in the same change.
  */
-import { pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
+import ts from "typescript";
+import { complexityScopes } from "./complexity-eslint.config.mjs";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
-const DEBT_PATH = path.join(import.meta.dirname, "src-complexity-debt.json");
-/**
- * Scanned subtrees. `src/server` subsumes the original `src/server/routes` scope, so routes stay
- * covered by the same baseline entries they always were — widening the scan cannot orphan them.
- * ESLint accepts multiple path patterns, so adding an area here is the whole change.
- */
-const SCOPES = [
-  "apps/website/src/server",
-  "apps/website/src/assistant",
-  "apps/website/src/features",
-  "apps/website/src/widgets",
-  "apps/website/src/seo",
-  "apps/website/src/analytics",
-  "apps/website/src/media",
-  "apps/site-chat/src",
-] as const;
-const THRESHOLD = 9;
+const DEBT_FILE = "development/scripts/src-complexity-debt.json";
+const DEBT_PATH = path.join(REPO_ROOT, DEBT_FILE);
 
+type ComplexityRule = "complexity" | "sonarjs/cognitive-complexity";
 export interface Violation {
-  readonly rule: string;
   readonly file: string;
-  readonly reason: string;
+  readonly function: string;
+  readonly line: number;
+  readonly rule: ComplexityRule;
+  readonly value: number;
 }
-
 interface EslintMessage {
   ruleId: string | null;
+  fatal?: boolean;
+  line: number;
+  column: number;
   message: string;
 }
-interface EslintFileResult {
-  filePath: string;
-  messages: EslintMessage[];
-}
+interface EslintFileResult { filePath: string; messages: EslintMessage[] }
+interface FunctionLocation { start: number; end: number; name: string }
 
-/** Stable identity for a violation. `|`-joined rather than a template string with visible
- * separators: `reason` legitimately contains colons, quotes, and periods (ESLint's own complexity
- * messages), so any human-readable separator risks two distinct violations colliding onto the
- * same key. Deliberately excludes line number — see the module header on why identity is
- * (rule, file, message-text), not (rule, file, line): two functions in the same file can report
- * the exact same message at different lines, and that is precisely the case the multiset diff
- * exists to handle correctly rather than to avoid by over-specifying the key. */
+/** Stable per-function identity; line and value are allowed to change independently. */
 export function violationKey(violation: Violation): string {
-  return `${violation.rule}|${violation.file}|${violation.reason}`;
-}
-
-function countByKey(violations: readonly Violation[]): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const violation of violations) {
-    const key = violationKey(violation);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  return counts;
+  return JSON.stringify([violation.file, violation.function, violation.rule]);
 }
 
 export interface DriftResult {
-  /** Present in `current` beyond what `baseline` allows for that exact (rule, file, reason) — a
-   * real new violation, or an existing one that got MORE numerous. */
   readonly added: readonly Violation[];
-  /** Present in `baseline` beyond what `current` still has — a violation that was fixed (or whose
-   * count went down); a prompt to delete the now-stale entry from the baseline file. */
   readonly removed: readonly Violation[];
+  readonly worsened: readonly { baseline: Violation; current: Violation }[];
 }
 
-/**
- * Multiset diff between `baseline` and `current`. Symmetric in structure (each direction walks
- * its own list against the other's per-key counts) but asymmetric in meaning: `added` is what the
- * gate fails on, `removed` is reported only, never failed on — deleting a stale debt entry is the
- * baseline shrinking, which is always allowed.
- */
+/** Compare allowances as multisets so duplicates cannot hide a new violation. */
 export function diffAgainstBaseline(baseline: readonly Violation[], current: readonly Violation[]): DriftResult {
-  const baselineCounts = countByKey(baseline);
+  const groups = new Map<string, { baseline: Violation[]; current: Violation[] }>();
+  for (const [side, violations] of [["baseline", baseline], ["current", current]] as const) {
+    for (const violation of violations) {
+      const key = violationKey(violation);
+      const group = groups.get(key) ?? { baseline: [], current: [] };
+      group[side].push(violation);
+      groups.set(key, group);
+    }
+  }
   const added: Violation[] = [];
-  const consumedFromBaseline = new Map<string, number>();
-  for (const violation of current) {
-    const key = violationKey(violation);
-    const allowed = baselineCounts.get(key) ?? 0;
-    const consumed = consumedFromBaseline.get(key) ?? 0;
-    if (consumed >= allowed) {
-      added.push(violation);
-    } else {
-      consumedFromBaseline.set(key, consumed + 1);
-    }
-  }
-
-  const currentCounts = countByKey(current);
   const removed: Violation[] = [];
-  const consumedFromCurrent = new Map<string, number>();
-  for (const violation of baseline) {
-    const key = violationKey(violation);
-    const stillPresent = currentCounts.get(key) ?? 0;
-    const consumed = consumedFromCurrent.get(key) ?? 0;
-    if (consumed >= stillPresent) {
-      removed.push(violation);
-    } else {
-      consumedFromCurrent.set(key, consumed + 1);
+  const worsened: { baseline: Violation; current: Violation }[] = [];
+  for (const group of groups.values()) {
+    group.baseline.sort((a, b) => b.value - a.value);
+    group.current.sort((a, b) => b.value - a.value);
+    const matched = Math.min(group.baseline.length, group.current.length);
+    for (let i = 0; i < matched; i++) {
+      const previous = group.baseline[i];
+      const actual = group.current[i];
+      if (actual.value > previous.value) worsened.push({ baseline: previous, current: actual });
     }
+    added.push(...group.current.slice(matched));
+    removed.push(...group.baseline.slice(matched));
   }
-
-  return { added, removed };
+  return { added, removed, worsened };
 }
 
-/**
- * Live ESLint scan of `src/server/routes` with `complexity` and `sonarjs/cognitive-complexity`
- * hard-overridden to `error`/9 via `--rule`, ignoring `eslint.config.mjs`'s repo-wide `warn`/15 —
- * same technique `check-admin-complexity-drift.ts` uses, so a grandfathered/lower severity
- * elsewhere in the config can never hide a violation from this gate. Reads ESLint's own `-f json`
- * output (structured, not scraped from the human-readable formatter), per the dispatch brief's
- * explicit warning that stdout-scraping breaks on the next formatter change.
- */
-export function findViolations(): Violation[] {
-  const ruleOverride = JSON.stringify({
-    complexity: ["error", THRESHOLD],
-    "sonarjs/cognitive-complexity": ["error", THRESHOLD],
+/** Index lexical function names and ranges, including anonymous callbacks and class initializers. */
+function functionLocations(file: string, source: string): FunctionLocation[] {
+  const kind = /\.[jt]sx$/.test(file) ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, kind);
+  const locations: FunctionLocation[] = [];
+  const counts = new Map<string, number>();
+  const visit = (node: ts.Node, parents: string[]): void => {
+    let nextParents = parents;
+    const isFunction = ts.isFunctionLike(node) && "body" in node && node.body;
+    const isInitializer = ts.isPropertyDeclaration(node) && node.initializer && !ts.isFunctionLike(node.initializer);
+    const isStaticBlock = ts.isClassStaticBlockDeclaration(node);
+    if (isFunction || isInitializer || isStaticBlock) {
+      const namedNode = node as ts.Node & { name?: ts.Node };
+      const parent = node.parent;
+      let name = namedNode.name?.getText(tree);
+      if (!name && (ts.isVariableDeclaration(parent) || ts.isPropertyAssignment(parent))) {
+        name = parent.name.getText(tree);
+      }
+      if (!name) name = isStaticBlock ? "<static block>" : "<anonymous>";
+      const prefix = [...parents, name].join(".");
+      const ordinal = (counts.get(prefix) ?? 0) + 1;
+      counts.set(prefix, ordinal);
+      const qualified = `${prefix}#${ordinal}`;
+      locations.push({ start: node.getStart(tree), end: node.end, name: qualified });
+      nextParents = [...parents, `${name}#${ordinal}`];
+    }
+    ts.forEachChild(node, child => visit(child, nextParents));
+  };
+  visit(tree, []);
+  return locations;
+}
+
+/** Convert ESLint's JSON locations and measured values into reviewable debt entries. */
+function readViolations(result: EslintFileResult): Violation[] {
+  const file = path.relative(REPO_ROOT, result.filePath).split(path.sep).join("/");
+  const relevant = result.messages.filter(message => {
+    if (message.fatal || message.ruleId === null) throw new Error(`${file}:${message.line}: ${message.message}`);
+    return message.ruleId === "complexity" || message.ruleId === "sonarjs/cognitive-complexity";
   });
+  if (relevant.length === 0) return [];
+  const source = readFileSync(result.filePath, "utf8");
+  const offsets = [0];
+  for (let i = 0; i < source.length; i++) if (source[i] === "\n") offsets.push(i + 1);
+  const locations = functionLocations(file, source);
+  return relevant.map(message => {
+    const offset = offsets[message.line - 1] + message.column - 1;
+    const location = locations.filter(candidate => candidate.start <= offset && candidate.end > offset)
+      .sort((a, b) => (a.end - a.start) - (b.end - b.start))[0];
+    const match = message.ruleId === "complexity"
+      ? /complexity of (\d+)/i.exec(message.message)
+      : /complexity from (\d+)/i.exec(message.message);
+    if (!location || !match) throw new Error(`Cannot identify complexity violation at ${file}:${message.line}: ${message.message}`);
+    return { file, function: location.name, line: message.line, rule: message.ruleId as ComplexityRule, value: Number(match[1]) };
+  });
+}
+
+/** Run only the two complexity rules and fail closed on scanner or parser failures. */
+export function findViolations(): Violation[] {
+  const args = [
+    path.join(REPO_ROOT, "node_modules/eslint/bin/eslint.js"),
+    "--no-config-lookup", "--config", "development/scripts/complexity-eslint.config.mjs",
+    "--no-inline-config", "--no-error-on-unmatched-pattern", "--no-warn-ignored", "--format", "json",
+    ...complexityScopes,
+  ];
   let raw: string;
   try {
-    raw = execFileSync(
-      "npx",
-      [
-        "eslint",
-        "--no-error-on-unmatched-pattern",
-        // Load-bearing, NOT cosmetic. Without these, scanning `src/features` makes ESLint exit 2
-        // with EMPTY stdout and `could not find plugin "sonarjs"` — caused by local build debris at
-        // `src/features/theme/__tests__/fixtures/astro-bundler-probe/` (a real node_modules tree
-        // with .vite prebundles, gitignored by that fixture's own .gitignore, so CI never has it).
-        // Exit 2 is not exit 1: the `catch` below only recovers a report when stdout exists, so an
-        // unguarded scan would throw rather than silently pass — but a caller reading only the exit
-        // code could still misread 2 as "not 1, therefore fine". Same category as the
-        // `.claude/worktrees` entry in eslint.config.mjs.
-        // apps/admin/dist-debug/ was deleted 2026-10-03: unused debug build; see development/DELETED-CODE.md.
-        "--ignore-pattern",
-        "**/__tests__/**",
-        "--ignore-pattern",
-        "**/__measurements__/**",
-        "--rule",
-        ruleOverride,
-        "-f",
-        "json",
-        ...SCOPES,
-      ],
-      { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: 1024 * 1024 * 16 }
-    );
-  } catch (err) {
-    // ESLint exits 1 when it finds lint errors — the expected, non-exceptional case here, and its
-    // JSON report is on stdout regardless of exit code (execFileSync attaches it to the thrown
-    // error). A genuine tooling failure (ESLint crash, bad flags) has no `stdout` at all.
-    const stdout = (err as { stdout?: string }).stdout;
-    if (typeof stdout !== "string" || stdout.length === 0) throw err;
-    raw = stdout;
+    raw = execFileSync(process.execPath, args, { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: 128 * 1024 * 1024 });
+  } catch (error) {
+    // Exit 1 is ESLint's normal result for findings; exit 2 is a configuration/tool failure.
+    const failure = error as { status?: number; stdout?: string };
+    if (failure.status !== 1 || !failure.stdout) throw error;
+    raw = failure.stdout;
   }
-
-  const results = JSON.parse(raw) as EslintFileResult[];
-  const violations: Violation[] = [];
-  for (const result of results) {
-    const relPath = path.relative(REPO_ROOT, result.filePath).split(path.sep).join("/");
-    // Mirrors check-admin-complexity-drift.ts's own exclusion, and the audit's own stated scope
-    // ("234 route files... excludes __tests__ dirs"): test/measurement code is out of scope for
-    // this ceiling entirely, not debt to grandfather. Empirically empty today (0 of 115 violations
-    // measured 2026-08-16/17 fell in a __tests__ dir) but kept as a real guard, not dead code —
-    // nothing prevents a future complex test-setup helper from tripping it.
-    if (relPath.includes("__tests__/") || relPath.includes("__measurements__/")) continue;
-    violations.push(...result.messages.flatMap((message): Violation[] => {
-      if (message.ruleId === "complexity" || message.ruleId === "sonarjs/cognitive-complexity") {
-        return [{ rule: message.ruleId, file: relPath, reason: message.message }];
-      }
-      return [];
-    }));
-  }
-  return violations;
+  return (JSON.parse(raw) as EslintFileResult[]).flatMap(readViolations);
 }
 
-function main(): void {
-  const debt = JSON.parse(readFileSync(DEBT_PATH, "utf8")) as { violations: Violation[] };
-  const current = findViolations();
-  const { added, removed } = diffAgainstBaseline(debt.violations, current);
+function printViolation(violation: Violation): string {
+  return `${violation.file}:${violation.line} ${violation.function} [${violation.rule}] ${violation.value}`;
+}
 
-  if (removed.length > 0) {
-    console.log(
-      `check:src-complexity-drift — ${removed.length} baseline entr${removed.length === 1 ? "y" : "ies"} in src-complexity-debt.json no longer reproduce(s) — delete to let the baseline shrink:`
-    );
-    for (const violation of removed) console.log(`  - [${violation.rule}] ${violation.file}: ${violation.reason}`);
+/** Validate the committed debt format before trusting it as an allowance. */
+function readDebt(raw: string): Violation[] {
+  const debt = JSON.parse(raw) as { version?: number; violations?: Violation[] };
+  if (debt.version !== 2 || !Array.isArray(debt.violations)) throw new Error("Invalid complexity debt format");
+  for (const entry of debt.violations) {
+    if (typeof entry.file !== "string" || typeof entry.function !== "string" ||
+        !Number.isInteger(entry.line) || entry.line < 1 || !Number.isInteger(entry.value) || entry.value < 1 ||
+        (entry.rule !== "complexity" && entry.rule !== "sonarjs/cognitive-complexity")) {
+      throw new Error(`Invalid complexity debt entry: ${JSON.stringify(entry)}`);
+    }
   }
+  return debt.violations;
+}
 
-  if (added.length === 0) {
-    console.log(
-      `check:src-complexity-drift — ok — 0 new complexity violations (${current.length} total, ${debt.violations.length} in baseline).`
-    );
+/** Compare the proposed debt against CI's base, allowing the one-time legacy-format migration. */
+function checkDebtHistory(current: readonly Violation[]): boolean {
+  const base = process.env.COMPLEXITY_BASE_REF;
+  if (!base) return true;
+  const raw = execFileSync("git", ["show", `${base}:${DEBT_FILE}`], { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+  const previous = JSON.parse(raw) as { version?: number; violations?: unknown[] };
+  if (previous.version === undefined && previous.violations?.every(entry => typeof entry === "object" && entry !== null && "reason" in entry)) {
+    console.log("check:complexity — replacing the legacy baseline with the first unified snapshot.");
+    return true;
+  }
+  const drift = diffAgainstBaseline(readDebt(raw), current);
+  for (const entry of drift.added) console.error(`Added debt is not allowed: ${printViolation(entry)}`);
+  for (const { baseline, current: entry } of drift.worsened) {
+    console.error(`Increased debt is not allowed: ${printViolation(entry)} (was ${baseline.value})`);
+  }
+  return drift.added.length === 0 && drift.worsened.length === 0;
+}
+
+export function main(): void {
+  const debt = readDebt(readFileSync(DEBT_PATH, "utf8"));
+  const historyOk = checkDebtHistory(debt);
+  const current = findViolations();
+  const { added, removed, worsened } = diffAgainstBaseline(debt, current);
+  for (const entry of added) console.error(`New violation: ${printViolation(entry)}`);
+  for (const { baseline, current: entry } of worsened) {
+    console.error(`Worsened violation: ${printViolation(entry)} (baseline ${baseline.value})`);
+  }
+  for (const entry of removed) console.error(`Delete stale debt entry: ${printViolation(entry)}`);
+  if (!historyOk || added.length || removed.length || worsened.length) {
+    process.exitCode = 1;
     return;
   }
-
-  console.error(
-    `check:src-complexity-drift — ${added.length} NEW ${SCOPES.join(" / ")} complexity violation(s), not covered by src-complexity-debt.json:`
-  );
-  for (const violation of added) console.error(`  - [${violation.rule}] ${violation.file}: ${violation.reason}`);
-  console.error(
-    "\nRefactor the function under the 9/9 ceiling, or — only if genuinely intentional — add it to" +
-      " development/scripts/src-complexity-debt.json with a justification in an update to that file's own _comment."
-  );
-  process.exit(1);
+  const cyclomatic = current.filter(entry => entry.rule === "complexity").length;
+  console.log(`check:complexity — ok: ${current.length} entries (${cyclomatic} cyclomatic, ${current.length - cyclomatic} cognitive).`);
 }
 
-// Guarded, unlike check-admin-complexity-drift.ts's unconditional `main();`: this file is also
-// imported as a plain module by its own unit test (`check-src-complexity-drift.test.ts`, which
-// exercises `diffAgainstBaseline`/`violationKey` directly). Without this guard, importing those
-// two pure functions would also run the real ESLint scan against the real repo on every test
-// run (slow) and risk a bare `process.exit(1)` killing the whole test process the moment a real
-// new violation exists, rather than failing one assertion normally. Same idiom
-// `generate-postgres-schema.ts` already uses in this repo.
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main();
-}
+// Importers use the scanner and diff without accidentally launching ESLint or exiting the process.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
