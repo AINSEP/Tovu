@@ -2,7 +2,8 @@
 
 Status 2026-11-13: mechanism + 4 example sites landed on branch w3-dc (commits ee495812f, 8963c150c,
 bfce1ebd6, ac7112b3c; Jini 501da27d4). E Part 1 was reverted (bcc5b013f) for a redo on this pattern.
-HANDOFF: section 7 lists what is left (D regressions, the Terra prompt file).
+2026-11-13 later: D regressions fixed (321fe38d3), admin fallback versions (9b37e33cc), Terra prompt
+READY: `user-facing-errors.terra-prompt.md`. Section 7 lists what is left.
 
 ## 1. The rule
 Every error a user sees = (1) plain words: what failed + what to do; (2) a "Copy details" block
@@ -79,12 +80,24 @@ T: peer-site-reads:347 (DONE).
 2. "no site key" matched by message at publish-trust-auth.ts:228,258 and handshake.ts:131 -> export `isNoSiteKeyError(error)` (or a named class) next to the throw in features/webhooks/keyring.env.ts:149; use at all 3.
 3. use-theme-canvas-styling.hooks.ts:313 404 by message; use-site-workspace.hooks.ts:575 by full sentence -> match a status/code field (or an exported constant from the thrower).
 4. use-resources.hooks.ts:67, product-memory-telemetry.ts:78 log every poll -> log once per failure streak.
-5. Log regressions (old line had message/stack, D made it class-only) -> `formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)`: handshake.ts:168, site-window.ts:464, desktop-agent.ts:412, consent/settings.ts:37. Tests already assert the regression and must be changed first (red): consent/__tests__/adapters.test.ts:224, main/windows/site-window.test.ts:283, desktop-agent.test.ts:256,355.
+5. DONE 321fe38d3 (handshake.ts `answered`, site-window.ts x2, desktop-agent.ts x3, consent/settings.ts; tests red/green/mutation). Log regressions (old line had message/stack, D made it class-only) -> `formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)`: handshake.ts:168, site-window.ts:464, desktop-agent.ts:412, consent/settings.ts:37. Tests already assert the regression and must be changed first (red): consent/__tests__/adapters.test.ts:224, main/windows/site-window.test.ts:283, desktop-agent.test.ts:256,355.
 
 ## 7. Remaining (handoff)
-- Section 6 item 5 (4 log regressions, test-first) NOT done.
-- `user-facing-errors.terra-prompt.md` NOT written: build it from section 5 + 6 (self-contained rules, the 4 example commits, one test file per site, `--maxWorkers=2`, leave nothing running).
-- publishAdminFailure's fallback (server-envelope-less failures) still omits app/Jini version; server
-  reportServerFailure/sendAdminFailure carry no app/Jini version (no server version source exists).
+- Run `user-facing-errors.terra-prompt.md` (READY: 73 lines in 52 files + section 6 items 1-4) on Codex
+  Terra; review its diff (one reviewer), then commit. Deviations from section 5 written into the prompt:
+  site-key-boot-notice:90 -> LS (it inspects site key material); theme-page-preview:254 -> plain-text
+  reply + reportServerFailure (the JSON envelope would land in the preview frame); backstop-preview:40
+  and commit-site:500 RES logs use describeErrorForLog; memory.ts:40 split = fs error (`code` string)
+  is the incident; assistant-byok:465 split = new `AttachmentUnavailableError`.
+- Server Copy details carry no app/Jini version (no server version source). How: add
+  `apps/website/src/server/runtime/app-version.ts` exporting `SERVER_VERSIONS = { appVersion, jiniVersion }`
+  read once at module load: Jini = `version` of `@jini-ai/core/package.json` (not in its `exports`, so
+  resolve `require.resolve("@jini-ai/core")`, walk up to the folder whose package.json `name` is
+  `@jini-ai/core`, read it with fs; on any failure "unknown"); app = `process.env.TOVU_APP_VERSION`
+  (desktop passes `app.getVersion()` when it spawns the server; a plain `npm start` falls back to the
+  root package.json version). Then spread them into the metadata of `unexpectedAdminBody`
+  (site-share-errors.ts, the `formatUserFacingError(..., { ...context.metadata, ... })` call) and add them
+  to the `reportServerFailure` log line. Test: site-share-errors unit test asserts both fields.
+  Admin fallback (`publishAdminFailure` without approved server wording) now carries both (9b37e33cc).
 - Jini 501da27d4 must be released before Tovu admin/desktop rely on the Jini `describeErrorForLog` being total.
-- Admin tsc not run (heavy); the website/desktop/admin single test files above all pass.
+- Admin tsc not run (heavy); every single test file touched passes.
