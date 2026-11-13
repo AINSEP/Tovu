@@ -198,7 +198,8 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
 }: MenuEditorDependencies): MenuEditorController {
   const isNew = menuId === null;
   const fetchMenu = useCallback(async () => {
-    try { return await port.getMenu(menuId!); }
+    if (menuId === null) throw new Error("menu editor has no menu id to load");
+    try { return await port.getMenu(menuId); }
     catch (error) { throw new Error(error instanceof Error ? error.message : t("failed to load menu")); }
   }, [menuId, port, t]);
   const menuKey = useMemo(() => ["menus", "detail", menuId ?? "new"] as const, [menuId]);
@@ -215,7 +216,10 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   const [mode, setMode] = useState<AdminMenuMode>("items");
   const [html, setHtml] = useState("");
   const needsPages = hasPageLinks({ items });
-  const pageQueryFetch = useQueryFetchCallback(async () => (await port.listPages!({})).pages, [port]);
+  const pageQueryFetch = useQueryFetchCallback(async () => {
+    if (!port.listPages) throw new Error("menu editor page lookup is unavailable");
+    return (await port.listPages({})).pages;
+  }, [port]);
   const pageQuery = useFetchQuery({ key: ["menus", "page-options"], fetch: pageQueryFetch }, { enabled: needsPages && !!port.listPages, staleTime: 0 });
   const pageChoices = needsPages ? pageQuery.data : undefined;
   const [message, setMessage] = useState<string | null>(null);

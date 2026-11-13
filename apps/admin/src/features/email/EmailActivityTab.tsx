@@ -65,6 +65,7 @@ function LoadMore<T>(props: { list: PagedList<T>; locale: string; handle: string
 
 function ActivityRow(props: { item: MailActivityItem; controller: EmailActivityController; locale: string; index: number }) {
   const { item, controller, locale } = props;
+  const itemId = item.id;
   const outcome = OUTCOME[item.outcome] ?? { tone: "neutral" as const, label: item.outcome };
   const open = item.id !== undefined && controller.openId === item.id;
   const detail = open ? controller.detail : null;
@@ -76,8 +77,8 @@ function ActivityRow(props: { item: MailActivityItem; controller: EmailActivityC
           <span className="email-activity-recipient">{item.recipient}</span>
           <span className="jini-field-hint">{t({ locale, key: USE[item.use] ?? item.use })} · {when(item.createdAt, locale)}</span>
         </span>
-        {item.id ? (
-          <button type="button" className="btn-secondary email-push-end" aria-expanded={open} onClick={() => controller.toggleDetail(item.id!)}
+        {itemId ? (
+          <button type="button" className="btn-secondary email-push-end" aria-expanded={open} onClick={() => controller.toggleDetail(itemId)}
             {...agentHandle({ handle: `email-activity-${props.index}-details` }, { role: "button", label: "Show this send's details" })}>
             {open ? t({ locale, key: "Hide details" }) : t({ locale, key: "Details" })}
           </button>
@@ -120,7 +121,11 @@ function RecentSends(props: { controller: EmailActivityController; locale: strin
           onChange={(e) => controller.setFilter({ ...controller.filter, outcome: e.target.value || undefined })}
           {...agentHandle({ handle: "email-activity-outcome" }, { role: "field", label: "Filter sends by outcome" })}>
           <option value="">{t({ locale, key: "All outcomes" })}</option>
-          {OUTCOMES.map((value) => <option key={value} value={value}>{t({ locale, key: OUTCOME[value]!.label })}</option>)}
+          {OUTCOMES.map((value) => {
+            const outcome = OUTCOME[value];
+            if (!outcome) throw new Error(`email activity outcome ${value} is missing`);
+            return <option key={value} value={value}>{t({ locale, key: outcome.label })}</option>;
+          })}
         </select>
         <input className="jini-input" type="search" aria-label={t({ locale, key: "Recipient" })} placeholder={t({ locale, key: "Search by recipient" })}
           value={controller.filter.recipient ?? ""} onChange={(e) => controller.setFilter({ ...controller.filter, recipient: e.target.value })}
@@ -173,13 +178,14 @@ function RemovalBody(props: { controller: EmailActivityController; locale: strin
 function BlockedAddresses(props: { controller: EmailActivityController; locale: string; hideTitle: boolean }) {
   const { controller, locale } = props;
   const step = controller.removal;
+  const removedNotice = controller.removedNotice;
   return (
     <Section id="blocked" title={t({ locale, key: "Blocked addresses" })} hideTitle={props.hideTitle}>
       <p className="jini-field-hint">{t({ locale, key: "Addresses that bounced, marked mail as spam, or were blocked by hand. Nothing is sent to them." })}</p>
       <input className="jini-input" type="search" aria-label={t({ locale, key: "Search blocked addresses" })} placeholder={t({ locale, key: "Search blocked addresses" })}
         value={controller.search} onChange={(e) => controller.setSearch(e.target.value)}
         {...agentHandle({ handle: "email-blocked-search" }, { role: "field", label: "Search blocked addresses" })} />
-      {controller.removedNotice ? <p className="jini-field-hint" role="status">{t({ locale, key: "{address} can get email again." }).replace("{address}", () => controller.removedNotice!)}</p> : null}
+      {removedNotice ? <p className="jini-field-hint" role="status">{t({ locale, key: "{address} can get email again." }).replace("{address}", () => removedNotice)}</p> : null}
       <Loaded view={controller.suppressions.view} locale={locale} retry={controller.suppressions.reload}>
         {(page) => (page.items.length === 0 ? (
           <p className="jini-field-hint">{t({ locale, key: page.empty === "no_matches" ? "No blocked addresses match." : "No blocked addresses." })}</p>
@@ -226,6 +232,7 @@ function FeedbackSetup(props: { controller: EmailActivityController; locale: str
           <ul className="email-list">
             {report.providers.map((provider) => {
               const state = FEEDBACK_STATE[provider.state];
+              const lastVerifiedEvent = provider.lastVerifiedEvent;
               return (
                 <li key={provider.providerId} className="email-provider">
                   <div className="email-row">
@@ -242,8 +249,8 @@ function FeedbackSetup(props: { controller: EmailActivityController; locale: str
                   {provider.supported && !provider.webhookUrl ? (
                     <span className="jini-field-hint">{t({ locale, key: "Verify the site's address first; the webhook URL needs it." })}</span>
                   ) : null}
-                  {provider.lastVerifiedEvent ? (
-                    <span className="jini-field-hint">{t({ locale, key: "Last report: {when}" }).replace("{when}", () => when(provider.lastVerifiedEvent!.receivedAt, locale))}</span>
+                  {lastVerifiedEvent ? (
+                    <span className="jini-field-hint">{t({ locale, key: "Last report: {when}" }).replace("{when}", () => when(lastVerifiedEvent.receivedAt, locale))}</span>
                   ) : null}
                 </li>
               );

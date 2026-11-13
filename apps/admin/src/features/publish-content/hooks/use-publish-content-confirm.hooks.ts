@@ -464,7 +464,10 @@ function buildCriteriaPublishResult(
     }
     // `toPublishReportRows` gives every skipped row a reason (its own MISSING_REASON fallback when the
     // peer sent none), so a skipped row's `reason` is never null here.
-    if (row.disposition === "skipped") leftAlone.push({ label: row.entityLabel, reason: row.reason! });
+    if (row.disposition === "skipped") {
+      if (row.reason === null || row.reason === undefined) throw new Error(`skipped publish item ${row.entityLabel} has no reason`);
+      leftAlone.push({ label: row.entityLabel, reason: row.reason });
+    }
   }
   return {
     opened: true,

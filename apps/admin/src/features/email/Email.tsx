@@ -67,7 +67,9 @@ const ACTIVITY_PART_LABELS: Record<ActivityPart, string> = { sends: "Recent send
 
 /** `p` when it names one of `parts`, else the first. Pure. */
 function pickPart<T extends string>(parts: readonly T[], part: string | null | undefined): T {
-  return parts.find((id) => id === part) ?? parts[0]!;
+  const selected = parts.find((id) => id === part) ?? parts[0];
+  if (selected === undefined) throw new Error("email section has no available parts");
+  return selected;
 }
 
 /** A segmented pill over fixed parts, labelled through the dictionary. */

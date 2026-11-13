@@ -164,13 +164,13 @@ function AgentPluginList({
               pluginId={plugin.pluginId}
               displayName={agentPluginDisplayName(plugin)}
               t={controller.t}
-              agentHandleBase={rowHandles[index]!}
+              agentHandleBase={rowHandles[index]}
               onManage={(surfaces) => controller.inspectPlugin({ id: plugin.pluginId, displayName: agentPluginDisplayName(plugin), maturity: plugin.maturity, surfaces })}
             />
           ) : undefined}
           uninstallNoteId={uninstallNoteId}
-          agentHandleBase={rowHandles[index]!}
-          update={updateSlotFor({ plugin, controller, agentHandleBase: rowHandles[index]!, port: updatePort })}
+          agentHandleBase={rowHandles[index]}
+          update={updateSlotFor({ plugin, controller, agentHandleBase: rowHandles[index], port: updatePort })}
         />
       ))}
     </ul>
@@ -500,7 +500,7 @@ export function AgentPlugins({
             // id alone rather than threaded down from whichever tab's row is currently mounted —
             // that function derives a handle from the id, not list position, so this always matches
             // the handle the row published, in either tab.
-            agentHandleBase={buildAgentListHandles({ prefix: "agent-plugin-row", ids: [pendingDisablePlugin.pluginId] })[0]!}
+            agentHandleBase={buildAgentListHandles({ prefix: "agent-plugin-row", ids: [pendingDisablePlugin.pluginId] })[0]}
             onConfirm={() => {
               setPendingDisable(null);
               void onToggleEnabled(pendingDisablePlugin);

@@ -75,7 +75,7 @@ export function createFakeCollectionEntryEditorPort(
       if (options.saveError) throw options.saveError;
       const index = entries.findIndex((e) => e.id === id);
       if (index < 0) throw new Error(`fake entry not found: ${id}`);
-      const updated = { ...entries[index]!, ...patch, version: expectedVersion + 1 } as AdminEntry;
+      const updated = { ...entries[index], ...patch, version: expectedVersion + 1 } as AdminEntry;
       entries[index] = updated;
       return { entry: updated };
     },
@@ -96,7 +96,7 @@ export function createFakeCollectionEntryEditorPort(
       const index = entries.findIndex((e) => e.id === id);
       if (index < 0) throw new Error(`fake entry not found: ${id}`);
       const updated: AdminEntry = {
-        ...entries[index]!,
+        ...entries[index],
         status: op === "publish" ? "published" : "unpublished",
         version: expectedVersion + 1,
       };

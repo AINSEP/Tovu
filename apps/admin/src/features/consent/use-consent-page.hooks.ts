@@ -101,11 +101,13 @@ export function useConsentPage({ port, t }: { port: ConsentRevisionsPort; t: Tra
 
   function onChange({ patch }: { patch: Partial<ConsentSettingsView> }) {
     if (!valueRef.current || saveState === 'conflict') return;
+    const saver = autosave.current;
+    if (!saver) throw new Error('cookie consent editor has no autosave');
     valueRef.current = { ...valueRef.current, ...patch };
     setValue(valueRef.current);
     setSettled(false);
     setPublishError(null);
-    autosave.current!.change({ config: valueRef.current });
+    saver.change({ config: valueRef.current });
   }
 
   const canPublish = canPublishConsent({ saveState, settled, hasUnpublished, problems, publishing });
@@ -113,16 +115,22 @@ export function useConsentPage({ port, t }: { port: ConsentRevisionsPort; t: Tra
   async function publish() {
     if (!canPublish) return;
     // canPublish implies a saved, loaded draft: draftId, the value and autosave all exist.
-    const draftId = heads.draftId!;
+    const draftId = heads.draftId;
+    if (draftId === null) throw new Error('cookie consent publish has no draft id');
+    if (valueRef.current === null) throw new Error('cookie consent publish has no settings');
+    const saver = autosave.current;
+    if (!saver) throw new Error('cookie consent publish has no autosave');
     setPublishing(true);
     setPublishError(null);
     try {
       await port.publish({ draftId, expectedPublishedId: heads.publishedId });
       setHeads({ draftId, publishedId: draftId });
-      setLiveEnabled(valueRef.current!.enabled);
+      const currentValue = valueRef.current;
+      if (!currentValue) throw new Error('cookie consent publish lost its settings');
+      setLiveEnabled(currentValue.enabled);
       setPublishedCount(count => count + 1);
     } catch (error) {
-      if (isConsentConflict({ error })) { autosave.current!.stop(); setSaveState('conflict'); }
+      if (isConsentConflict({ error })) { saver.stop(); setSaveState('conflict'); }
       else setPublishError(describeApiError(error, t("Couldn't publish.")));
     } finally {
       setPublishing(false);

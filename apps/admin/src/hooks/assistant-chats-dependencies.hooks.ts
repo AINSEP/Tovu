@@ -163,7 +163,7 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
 
     async renameConversation(id: string, title: string) {
       const index = conversations.findIndex((c) => c.id === id);
-      if (index >= 0) conversations[index] = { ...conversations[index]!, title, titleSource: "manual" };
+      if (index >= 0) conversations[index] = { ...conversations[index], title, titleSource: "manual" };
     },
 
     async deleteConversation(id: string) {
@@ -200,12 +200,14 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
        * "landed on a live conversation" from "landed on a dead one", and an external review found a
        * real `remove()` race that this fake was actively hiding.
        */
-      const index = conversations.findIndex((conversation) => conversation.id === conversationId);
+      let index = conversations.findIndex((conversation) => conversation.id === conversationId);
       if (index < 0) throw new HttpError(404, "Not Found");
       // Before recording, so a throwing hook leaves the fake's durable state untouched — which is
       // exactly what a real failed `PUT` does, and what makes "was it actually persisted?" a
       // meaningful question to ask this fake afterwards.
       options.onSaveMessage?.(conversationId, message, attempts);
+      index = conversations.findIndex((conversation) => conversation.id === conversationId);
+      if (index < 0) throw new HttpError(404, "Not Found");
 
       // Upsert IN PLACE, preserving first-insert order — see {@link upsertMessage}.
       const existing = messages.get(conversationId) ?? [];
@@ -215,9 +217,9 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
       saved.set(conversationId, upsertMessage(written, message));
 
       // See {@link withDerivedTitle} for the naming rule this applies.
-      conversations[index] = withDerivedTitle(conversations[index]!, message);
+      conversations[index] = withDerivedTitle(conversations[index], message);
       // `messageCount`/`updatedAt` are list-visible after a write on the real route too.
-      const current = conversations[index]!;
+      const current = conversations[index];
       conversations[index] = {
         ...current,
         messageCount: at >= 0 ? current.messageCount : current.messageCount + 1,

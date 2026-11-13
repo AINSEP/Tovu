@@ -376,14 +376,18 @@ async function writeCredential(
 ): Promise<AdminPublishCredentialSummary | AdminSourceControlCredentialSummary> {
   if (kind === "publish") {
     const connection = patch.connection as AdminPublishConnectionInput | undefined;
-    return mode.type === "create"
-      ? port.publish.create({ label: mode.label, connection: connection!, isDefault: patch.isDefault, worksFor: patch.worksFor })
-      : port.publish.update(mode.id, { ...patch, connection });
+    if (mode.type === "create") {
+      if (!connection) throw new Error("new publish credential has no connection");
+      return port.publish.create({ label: mode.label, connection, isDefault: patch.isDefault, worksFor: patch.worksFor });
+    }
+    return port.publish.update(mode.id, { ...patch, connection });
   }
   const connection = patch.connection as AdminSourceControlConnectionInput | undefined;
-  return mode.type === "create"
-    ? port.sourceControl.create({ label: mode.label, connection: connection!, isDefault: patch.isDefault })
-    : port.sourceControl.update(mode.id, { ...patch, connection });
+  if (mode.type === "create") {
+    if (!connection) throw new Error("new source control credential has no connection");
+    return port.sourceControl.create({ label: mode.label, connection, isDefault: patch.isDefault });
+  }
+  return port.sourceControl.update(mode.id, { ...patch, connection });
 }
 
 export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: string): AccessTokensController {
@@ -584,7 +588,8 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    *  ever touching Username) would otherwise blank a saved username out of the draft the identical way
    *  it used to blank Name. @complexity O(1). */
   function setExistingField(rowId: string, patch: Partial<DraftFields>): void {
-    if (patch.token !== undefined) setExistingBusy(prev => ({ ...prev, [rowId]: { saving: prev[rowId]?.saving ?? false, error: credentialDraftError({ value: patch.token! }, { locale }) } }));
+    const token = patch.token;
+    if (token !== undefined) setExistingBusy(prev => ({ ...prev, [rowId]: { saving: prev[rowId]?.saving ?? false, error: credentialDraftError({ value: token }, { locale }) } }));
     setExistingDrafts((prev) => {
       const existing = prev[rowId];
       if (existing) return { ...prev, [rowId]: { ...existing, ...patch } };
@@ -745,7 +750,8 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   }
   function setAddField(ref: AccessTokenProviderRef, patch: Partial<DraftFields>): void {
     const key = addFormKey(ref);
-    if (patch.token !== undefined) setAddForms(prev => ({ ...prev, [key]: { ...(prev[key] ?? blankAddFormEntry()), error: credentialDraftError({ value: patch.token! }, { locale, required: true }) } }));
+    const token = patch.token;
+    if (token !== undefined) setAddForms(prev => ({ ...prev, [key]: { ...(prev[key] ?? blankAddFormEntry()), error: credentialDraftError({ value: token }, { locale, required: true }) } }));
     setAddForms((prev) => {
       const entry = prev[key] ?? blankAddFormEntry();
       const compatibility = ref.kind === "publish" ? addWorksForPatch({ draft: entry.draft, patch, options: worksForOptions }) : {};
@@ -819,7 +825,8 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   const matchCount = rows === undefined ? 0 : rows.filter((row) => accessTokenRowMatchesQuery(row, accessTokenRowProviderInfo(providers, row), query)).length;
 
   function setCustomAddField(patch: Partial<CustomDraftFields>): void {
-    if (patch.token !== undefined) setCustomAddBusy(prev => ({ ...prev, error: credentialDraftError({ value: patch.token! }, { locale, required: true }) }));
+    const token = patch.token;
+    if (token !== undefined) setCustomAddBusy(prev => ({ ...prev, error: credentialDraftError({ value: token }, { locale, required: true }) }));
     setCustomAddDraft((prev) => ({ ...prev, ...patch, ...addWorksForPatch({ draft: prev, patch, options: worksForOptions }) }));
   }
 

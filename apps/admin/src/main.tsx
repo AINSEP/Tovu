@@ -67,7 +67,9 @@ function SessionApp() {
   </CommentQueueScopeProvider>;
 }
 
-ReactDOM.createRoot(document.getElementById("root")!, reactRootErrorOptions({ telemetry: adminTelemetry })).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("admin app root element is missing");
+ReactDOM.createRoot(rootElement, reactRootErrorOptions({ telemetry: adminTelemetry })).render(
   <React.StrictMode>
     {/* Server-state cache for every section that reads through `fetch-query`.
         Sections not yet migrated are unaffected — they still call `api.*`

@@ -207,7 +207,11 @@ const STATIC_EXPORT_PICKER_KEYS = ["Choose sites to export", "Sites to export", 
 // No `!` on the merge target: the dictionary-lookup-sinks guard accepts `Object.assign(DICT[locale], …)`
 // only as written, and the index type is already non-optional here.
 for (const [locale, values] of Object.entries(STATIC_EXPORT_PICKER_DICT)) {
-  Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(STATIC_EXPORT_PICKER_KEYS.map((key, index) => [key, values[index]!])));
+  Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(STATIC_EXPORT_PICKER_KEYS.map((key, index) => {
+    const value = values[index];
+    if (value === undefined) throw new Error(`site transfer dictionary ${locale} is missing ${key}`);
+    return [key, value];
+  })));
 }
 
 // Saved-keys export/import copy, merged the same way as the static export picker copy above.
@@ -238,7 +242,11 @@ const SAVED_KEYS_COPY: Record<string, readonly string[]> = {
 };
 
 for (const [locale, values] of Object.entries(SAVED_KEYS_COPY)) {
-  Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(SAVED_KEYS_LABELS.map((key, index) => [key, values[index]!])));
+  Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(SAVED_KEYS_LABELS.map((key, index) => {
+    const value = values[index];
+    if (value === undefined) throw new Error(`site transfer dictionary ${locale} is missing ${key}`);
+    return [key, value];
+  })));
 }
 
 // Credential warning copy (owner, 2026-11-03), merged the same way as the saved-keys copy above.
@@ -279,7 +287,11 @@ const CREDENTIAL_COPY: Record<string, readonly string[]> = {
 };
 
 for (const [locale, values] of Object.entries(CREDENTIAL_COPY)) {
-  Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(CREDENTIAL_LABELS.map((key, index) => [key, values[index]!])));
+  Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(CREDENTIAL_LABELS.map((key, index) => {
+    const value = values[index];
+    if (value === undefined) throw new Error(`site transfer dictionary ${locale} is missing ${key}`);
+    return [key, value];
+  })));
 }
 
 // The notices' warning sign (owner, 2026-11-05).
@@ -336,7 +348,11 @@ const LIVE_NEW_SITE_COPY: Record<string, string[]> = {
 };
 
 for (const [locale, values] of Object.entries(LIVE_NEW_SITE_COPY)) {
-  Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(LIVE_NEW_SITE_LABELS.map((key, index) => [key, values[index]!])));
+  Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(LIVE_NEW_SITE_LABELS.map((key, index) => {
+    const value = values[index];
+    if (value === undefined) throw new Error(`site transfer dictionary ${locale} is missing ${key}`);
+    return [key, value];
+  })));
 }
 
 // Inside the desktop app, a live website hands off to the app's own Import tab (owner, 2026-11-10).
@@ -366,7 +382,11 @@ const DESKTOP_IMPORT_COPY: Record<string, string[]> = {
 };
 
 for (const [locale, values] of Object.entries(DESKTOP_IMPORT_COPY)) {
-  Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(DESKTOP_IMPORT_LABELS.map((key, index) => [key, values[index]!])));
+  Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(DESKTOP_IMPORT_LABELS.map((key, index) => {
+    const value = values[index];
+    if (value === undefined) throw new Error(`site transfer dictionary ${locale} is missing ${key}`);
+    return [key, value];
+  })));
 }
 
 export const t = createDictionaryTranslator({ featureDictionary: SITE_TRANSFER_DICT }, { commonDictionary: COMMON_I18N });

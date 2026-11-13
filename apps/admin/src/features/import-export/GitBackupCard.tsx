@@ -69,7 +69,7 @@ function GitBackupFormFields({ controller, connections, t }: GitBackupCardProps 
         <TextField id="git-backup-repo" label={t("Repository")} value={form.repo} onChange={(value) => controller.setField("repo", value)} />
         <TextField id="git-backup-branch" label={t("Branch")} placeholder={t("Default branch")} value={form.branch} onChange={(value) => controller.setField("branch", value)} />
       </div>
-      {connections.length === 1 ? <p className="field-hint">{interpolate({ template: t("Uses {connection}."), vars: { connection: connections[0]! } })}</p> : null}
+      {connections.length === 1 ? <p className="field-hint">{interpolate({ template: t("Uses {connection}."), vars: { connection: connections[0] } })}</p> : null}
       <div>
         <button type="submit" className="btn-primary" disabled={!controller.canPlan} aria-busy={planning} {...agentHandle({ handle: "import-export-git-backup-plan" }, { role: "button", label: "Plan a Git backup of this site" })}>
           {planning ? t("Planning…") : t("Plan backup")}
@@ -89,7 +89,8 @@ function TextField({ id, label, value, placeholder, onChange }: { id: string; la
 }
 
 function PlanSummary({ controller, t }: GitBackupCardProps) {
-  const plan = controller.plan!;
+  const plan = controller.plan;
+  if (!plan) throw new Error("Git backup summary has no plan");
   const pushing = controller.phase === "pushing";
   return (
     <>
@@ -113,7 +114,8 @@ function PlanSummary({ controller, t }: GitBackupCardProps) {
 }
 
 function BackupDone({ controller, t }: GitBackupCardProps) {
-  const done = controller.done!;
+  const done = controller.done;
+  if (!done) throw new Error("Git backup completion has no result");
   return (
     <>
       <p role="status">{interpolate({ template: t("Backed up to {repository}."), vars: { repository: done.repository } })}</p>

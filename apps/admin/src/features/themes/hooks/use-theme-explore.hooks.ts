@@ -1090,7 +1090,10 @@ export function useThemeExplore(
   const readPathLoaded = isOpenFileLoaded(loadedFile, themeId, readPath);
 
   const textKey = useMemo(() => ["themes", "file", themeId, readPath ?? "", fileReadNonce] as const, [themeId, readPath, fileReadNonce]);
-  const fetchText = useCallback(() => cachedReads.getThemeFile(themeId, readPath!), [themeId, readPath, cachedReads]);
+  const fetchText = useCallback(() => {
+    if (readPath === null) throw new Error("theme file read has no selected path");
+    return cachedReads.getThemeFile(themeId, readPath);
+  }, [themeId, readPath, cachedReads]);
   useFetchQuery({ key: textKey, fetch: fetchText }, { enabled: readPath !== null && readPathReadable !== false && !readPathLoaded, staleTime: 0 });
   const textLoader = useCachedLoader({ key: textKey, fetch: fetchText }, { staleTime: 0 });
   // `fileReadNonce` is a dependency only so a reset that returned no text can re-run this read. Every

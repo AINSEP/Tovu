@@ -66,9 +66,10 @@ export function WidgetEmbedStatus({ widget, isBroken, typeLabel }: { widget: Adm
       </span>
     );
   }
+  if (!widget) throw new Error("widget embed is marked resolved but has no widget");
   return (
     <span className="widget-embed-node__label">
-      <strong>{widget!.title}</strong> <span className="muted-cell">({typeLabel})</span>
+      <strong>{widget.title}</strong> <span className="muted-cell">({typeLabel})</span>
     </span>
   );
 }

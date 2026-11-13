@@ -288,7 +288,7 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
     if (paths.length === 0) { showPathHint(); return; }
     input.composerHandle.current?.addFolders({ folders: paths });
     // See this module's own doc ("Multiple folders in one drop event") for why the LAST path wins.
-    void applyCustomRoot(paths[paths.length - 1]!, paths);
+    void applyCustomRoot(paths[paths.length - 1], paths);
   }, [input.composerHandle, applyCustomRoot, showPathHint]);
 
   const { composerHandle } = input;

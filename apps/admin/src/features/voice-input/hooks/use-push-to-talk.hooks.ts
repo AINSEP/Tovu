@@ -195,7 +195,8 @@ export function usePushToTalk(options: UsePushToTalkOptions, overrides: UsePushT
       setState((previous) => nextPushToTalkState(previous, { type: "stop" }));
       // `"recording"` is only reached via `startHold`'s `mic-granted`, which runs after it stored
       // the capture here; nothing clears `captureRef`, so it is always set at this point.
-      const capture = captureRef.current!;
+      const capture = captureRef.current;
+      if (!capture) throw new Error("push to talk has no active recording capture");
       liveCaptureRef.current = null;
       capture
         .stopAndTranscribe()

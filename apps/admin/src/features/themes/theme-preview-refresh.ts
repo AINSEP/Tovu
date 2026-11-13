@@ -13,7 +13,10 @@ export function publishThemePreviewRefresh(
 ): void {
   if (!/^[\w-]{1,100}$/.test(frame.revision) || recentRevisions.has(frame.revision)) return;
   recentRevisions.add(frame.revision);
-  if (recentRevisions.size > 256) recentRevisions.delete(recentRevisions.values().next().value!);
+  if (recentRevisions.size > 256) {
+    const oldest = recentRevisions.values().next();
+    if (!oldest.done) recentRevisions.delete(oldest.value);
+  }
   for (const listener of [...listeners]) listener(frame);
 }
 export function subscribeThemePreviewRefresh(

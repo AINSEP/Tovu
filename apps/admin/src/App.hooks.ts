@@ -1100,7 +1100,9 @@ export function registerAdminWebMcpTool(
     capability: PUBLISH_CONTENT_CAPABILITY,
     execute: ({ id, args }) => {
       if (signal.aborted || !getBrowserAgentEnabled({})) throw new Error("WebMCP admin access is disabled or closed");
-      return executors["admin."]!(id, args);
+      const execute = executors["admin."];
+      if (!execute) throw new Error("WebMCP admin executor is missing");
+      return execute.call(executors, id, args);
     },
   }, { signal });
   try {

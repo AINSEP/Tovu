@@ -98,8 +98,11 @@ export const MediaImage = TiptapImage.extend({
   parseHTML() {
     // Ref-based exports have no src; keep the parent's rules for legacy URL images.
     // `TiptapImage` always declares `parseHTML` (its `img[src]` rule), so the parent and its rule
-    // list are always present here; the assertions restate that for the type system.
-    return [...this.parent!()!, { tag: "img[assetid][transformname]" }];
+    // list are expected here; check both before extending the inherited rules.
+    if (!this.parent) throw new Error("media image extension has no parent HTML parser");
+    const rules = this.parent();
+    if (!rules) throw new Error("media image parent HTML parser returned no rules");
+    return [...rules, { tag: "img[assetid][transformname]" }];
   },
 
   addNodeView() {

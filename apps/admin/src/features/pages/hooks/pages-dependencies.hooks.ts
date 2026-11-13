@@ -69,7 +69,7 @@ export function createFakePagesPort(options: FakePagesPortOptions = {}): PagesPo
     simulateConcurrentSave(id, title = "Saved by someone else") {
       const index = pages.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake page not found: ${id}`);
-      pages[index] = { ...pages[index]!, title, version: pages[index]!.version + 1 };
+      pages[index] = { ...pages[index], title, version: pages[index].version + 1 };
     },
     async listPages() {
       return { posts: pages.map((post) => ({ post })) };
@@ -84,7 +84,7 @@ export function createFakePagesPort(options: FakePagesPortOptions = {}): PagesPo
       if (options.updateError) throw options.updateError;
       const index = pages.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake page not found: ${id}`);
-      const current = pages[index]!;
+      const current = pages[index];
       // Modeled real guard — see `posts-list-dependencies.hooks.ts`'s identical comment.
       const { expectedVersion, ...fields } = patch;
       if (expectedVersion !== undefined && expectedVersion !== current.version) {
@@ -104,7 +104,7 @@ export function createFakePagesPort(options: FakePagesPortOptions = {}): PagesPo
       const index = pages.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake page not found: ${id}`);
       const [removed] = pages.splice(index, 1);
-      return { post: removed! };
+      return { post: removed };
     },
   };
 }

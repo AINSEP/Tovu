@@ -13,11 +13,14 @@ export interface StandingDraftAutosavePort {
 /** Memoize the converted port: a new identity would repeat recovery and flush pending edits on render. */
 export function useStandingDraftAutosave(input: Omit<StandingDraftAutosaveOptions, "port" | "backup"> & { port: StandingDraftAutosavePort }, _options = {}) {
   const { port } = input;
-  const adapted = useMemo<JiniPort>(() => ({
-    ...(port.getBackupPrincipalId ? { getBackupPrincipalId: (required: Record<string, never>, options: Record<string, never> = {}) => port.getBackupPrincipalId!(required, options) } : {}),
-    putAutosave: ({ id, draft }, options) => port.putAutosave(id, draft, options),
-    getAutosave: ({ id }) => port.getAutosave(id),
-    discardAutosave: ({ id }) => port.discardAutosave(id),
-  }), [port]);
+  const adapted = useMemo<JiniPort>(() => {
+    const getBackupPrincipalId = port.getBackupPrincipalId;
+    return {
+      ...(getBackupPrincipalId ? { getBackupPrincipalId: (required: Record<string, never>, options: Record<string, never> = {}) => getBackupPrincipalId.call(port, required, options) } : {}),
+      putAutosave: ({ id, draft }, options) => port.putAutosave(id, draft, options),
+      getAutosave: ({ id }) => port.getAutosave(id),
+      discardAutosave: ({ id }) => port.discardAutosave(id),
+    };
+  }, [port]);
   return useAutosave({ ...input, port: adapted, backup: standingDraftLocalBackup }, {});
 }

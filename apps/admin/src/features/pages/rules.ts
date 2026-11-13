@@ -154,7 +154,7 @@ export function buildPageRowMenuHandleMap(pages: AdminPost[] | null): Map<string
   if (!pages) return new Map();
   const handles = buildAgentListHandles({ prefix: "pages-row", ids: pages.map((page) => page.id) }
   );
-  return new Map(pages.map((page, index) => [page.id, handles[index]!]));
+  return new Map(pages.map((page, index) => [page.id, handles[index]]));
 }
 
 /** The callbacks a Theme Page row's menu needs. Passed in rather than imported, same reasoning as

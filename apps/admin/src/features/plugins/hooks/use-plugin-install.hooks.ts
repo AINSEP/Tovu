@@ -70,7 +70,12 @@ export function usePluginInstall(required: { port: PluginInstallPort; t: Transla
     const generation = sequence.current;
     const source = currentSource();
     try {
-      await (install ? installReviewed(source, preview!, generation) : reviewSource(source, generation));
+      if (install) {
+        if (!preview) throw new Error("plugin install has no reviewed preview");
+        await installReviewed(source, preview, generation);
+      } else {
+        await reviewSource(source, generation);
+      }
     } catch (e) {
       if (generation === sequence.current) {
         setPreview(null);

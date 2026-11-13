@@ -94,7 +94,7 @@ export function buildPostRowMenuHandleMap(posts: AdminPost[] | null): Map<string
   if (!posts) return new Map();
   const handles = buildAgentListHandles({ prefix: "posts-row", ids: posts.map((post) => post.id) }
   );
-  return new Map(posts.map((post, index) => [post.id, handles[index]!]));
+  return new Map(posts.map((post, index) => [post.id, handles[index]]));
 }
 
 /**

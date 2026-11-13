@@ -124,7 +124,7 @@ function PackageFileTree({
   const tree = usePackageFileTree({ paths: files.map((file) => file.relativePath), selectedPath, onOpenFile: onSelectFile });
   const folderPaths = tree.rows.filter((row) => row.node.kind === "folder").map((row) => row.node.path);
   const folderHandles = buildAgentListHandles({ prefix: `${handlePrefix}-folder`, ids: folderPaths });
-  const folderHandleByPath = new Map(folderPaths.map((path, index) => [path, folderHandles[index]!]));
+  const folderHandleByPath = new Map(folderPaths.map((path, index) => [path, folderHandles[index]]));
 
   return (
     <div ref={tree.treeRef} role="tree" aria-label={label} className="agent-plugin-source-tree" onKeyDown={tree.onKeyDown}>
@@ -237,7 +237,9 @@ export function PackageFilesModal({
   // other list on this workstream uses (`buildAgentListHandles`).
   const fileHandles = buildAgentListHandles({ prefix: handlePrefix, ids: files.map((file) => file.relativePath) }
   );
-  const fileHandleByPath = new Map(files.map((file, index) => [file.relativePath, fileHandles[index]!]));
+  const fileHandleByPath = new Map(files.map((file, index) => [file.relativePath, fileHandles[index]]));
+  const selectedHandle = selectedFile ? fileHandleByPath.get(selectedFile.relativePath) : undefined;
+  if (selectedFile && selectedHandle === undefined) throw new Error(`package file ${selectedFile.relativePath} has no handle`);
 
   return (
     <PreviewModalShell
@@ -269,12 +271,12 @@ export function PackageFilesModal({
                   label={t("Package files")}
                 />
               </nav>
-              {selectedFile ? (
+              {selectedFile && selectedHandle !== undefined ? (
                 <PackageFileContent
                   file={selectedFile}
                   headingId={selectedFileHeadingId}
                   key={selectedFile.relativePath}
-                  agentHandleBase={fileHandleByPath.get(selectedFile.relativePath)!}
+                  agentHandleBase={selectedHandle}
                   t={t}
                 />
               ) : null}

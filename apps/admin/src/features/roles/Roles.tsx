@@ -366,7 +366,7 @@ function PolicyPermissionList({ policyId, permission, t }: PolicyPermissionListP
             disabled={permission.removingId === row.id}
             aria-label={`${t("Remove permission")} ${row.permission}`}
             onClick={() => permission.requestRemove({ policyId, row })}
-            {...agentHandle({ handle: removeHandles[index]! }, { role: "button", label: `Remove the "${row.permission}" permission from this policy` })}
+            {...agentHandle({ handle: removeHandles[index] }, { role: "button", label: `Remove the "${row.permission}" permission from this policy` })}
           >
             {permission.removingId === row.id ? t("Removing…") : t("Remove")}
           </button>
@@ -382,7 +382,7 @@ function PolicyPermissionList({ policyId, permission, t }: PolicyPermissionListP
 function PolicyPermissionForm({ policyId, savingId, permission, t }: PolicyPermissionFormProps) {
   // Only the currently-open policy's own form is ever mounted at once — same reasoning
   // `PolicyPermissionList`'s own `removeHandles` comment gives, one level up.
-  const formHandleBase = buildAgentListHandles({ prefix: "policy-permission-form", ids: [policyId] })[0]!;
+  const formHandleBase = buildAgentListHandles({ prefix: "policy-permission-form", ids: [policyId] })[0];
   return (
     <tr>
       <td colSpan={4}>
@@ -550,7 +550,7 @@ export function PoliciesSection({ policies, create, row, permission, t, locale }
                     policy={policy}
                     row={row}
                     permission={permission}
-                    agentBase={policyMenuBases[index]!}
+                    agentBase={policyMenuBases[index]}
                     t={t}
                     locale={locale}
                   />

@@ -122,7 +122,7 @@ export function createFakeRolesPort(options: FakeRolesPortOptions = {}): RolesPo
       if (options.updateRoleError) throw options.updateRoleError;
       const index = roles.findIndex((r) => r.id === input.roleId);
       if (index < 0) throw new Error(`fake role not found: ${input.roleId}`);
-      const updated = { ...roles[index]!, name: input.name };
+      const updated = { ...roles[index], name: input.name };
       roles[index] = updated;
       return { role: updated };
     },
@@ -146,7 +146,7 @@ export function createFakeRolesPort(options: FakeRolesPortOptions = {}): RolesPo
       if (options.updatePolicyError) throw options.updatePolicyError;
       const index = policies.findIndex((p) => p.id === target.policyId);
       if (index < 0) throw new Error(`fake policy not found: ${target.policyId}`);
-      const updated = { ...policies[index]!, ...opts };
+      const updated = { ...policies[index], ...opts };
       policies[index] = updated;
       return { policy: updated };
     },

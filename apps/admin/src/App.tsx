@@ -118,7 +118,7 @@ const NO_PERMISSIONS: readonly string[] = [];
 export function parseRoute(routePath: string): Route {
   // Everything before the first `?` (the query is `matchRoute`'s to read). A replace rather than
   // `split("?")[0]`, whose `?? ""` fallback for an index that always exists could never fire.
-  const rawPath = routePath.split("?", 1)[0]!;
+  const rawPath = routePath.split("?", 1)[0];
   const parts = rawPath.split("/").filter(Boolean);
 
   // Stored assistant links must reach the registered page without mounting Dashboard first.
@@ -218,7 +218,8 @@ function renderRoute(route: Route, siteSection: SiteSectionAvailability, access:
   // `matchRoute` over this same `ADMIN_PANELS`) only ever yields a registered panel id, the root's
   // `"dashboard"`, or `null` (mapped to `"dashboard"` here) — and `panels.tsx` registers
   // `dashboard`. The legacy `/section/:id` branch returns early above for an unregistered id.
-  const panel = PANELS_BY_ID.get(route.panelId ?? "dashboard")!;
+  const panel = PANELS_BY_ID.get(route.panelId ?? "dashboard");
+  if (!panel) throw new Error(`admin panel is missing for ${route.panelId ?? "dashboard"}`);
   return panel.render({ view: route.view, params: route.params, query: route.query, Placeholder });
 }
 

@@ -13,11 +13,12 @@ export function useStaticExportSelection({ port, t }: { port: SiteTransferPort; 
   const roster = useFetchQuery({ key: [...STATIC_EXPORT_OPTIONS_KEY], fetch: () => port.staticExportOptions({}) });
   const [selection, setSelection] = useState<readonly string[] | null>(null);
   const themes = roster.data?.themes;
+  const activeThemeId = roster.data?.activeThemeId;
   useEffect(() => {
     if (!themes) return;
     const installed = new Set(themes.map(theme => theme.themeId));
     setSelection(previous => previous === null
-      ? themes.filter(theme => theme.themeId === roster.data!.activeThemeId).map(theme => theme.themeId)
+      ? themes.filter(theme => theme.themeId === activeThemeId).map(theme => theme.themeId)
       : previous.filter(id => installed.has(id)));
   }, [themes, roster.data?.activeThemeId]);
   const installed = new Set(themes?.map(theme => theme.themeId));
@@ -30,9 +31,12 @@ export function useStaticExportSelection({ port, t }: { port: SiteTransferPort; 
     staticOptionsError: roster.error ? describeApiError(roster.error, t("Couldn't load sites to export.")) : null,
     toggleStaticTheme: ({ themeId }: { themeId: string }, _options = {}) => {
       if (!installed.has(themeId)) return;
-      setSelection(previous => (previous ?? []).includes(themeId) ? previous!.filter(id => id !== themeId) : [...previous ?? [], themeId]);
+      setSelection(previous => previous?.includes(themeId) ? previous.filter(id => id !== themeId) : [...previous ?? [], themeId]);
     },
-    selectAllStaticThemes: ({ checked }: { checked: boolean }, _options = {}) => setSelection(checked ? themes!.map(theme => theme.themeId) : []),
+    selectAllStaticThemes: ({ checked }: { checked: boolean }, _options = {}) => {
+      if (checked && !themes) throw new Error("static export has no loaded sites to select");
+      setSelection(checked && themes ? themes.map(theme => theme.themeId) : []);
+    },
   };
 }
 

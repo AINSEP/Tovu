@@ -105,7 +105,7 @@ export function stripCsiSequences(text: string): string {
 
 function prefixEnd(text: string, from: number): number {
   let end = from;
-  while (end < text.length && CSI_PREFIX_CHARS.includes(text[end]!)) end += 1;
+  while (end < text.length && CSI_PREFIX_CHARS.includes(text.charAt(end))) end += 1;
   return end;
 }
 
@@ -143,7 +143,7 @@ export function redactCredentialShapes(text: string): string {
   let copied = 0;
   let i = 0;
   while (i < text.length) {
-    const end = i > 0 && WORD_CHAR.test(text[i - 1]!) ? -1 : stickyEnd(TOKEN_SHAPE, text, i);
+    const end = i > 0 && WORD_CHAR.test(text.charAt(i - 1)) ? -1 : stickyEnd(TOKEN_SHAPE, text, i);
     if (end === -1) {
       i += 1;
     } else {
@@ -173,7 +173,7 @@ function assignedValueAfter(name: RegExp, text: string, at: number): ValueSpan |
 
 function nameRunEnd(text: string, from: number): number {
   let end = from;
-  while (end < text.length && NAME_CHAR.test(text[end]!)) end += 1;
+  while (end < text.length && NAME_CHAR.test(text.charAt(end))) end += 1;
   return end;
 }
 

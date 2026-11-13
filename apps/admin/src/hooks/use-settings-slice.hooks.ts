@@ -19,11 +19,12 @@ export interface SettingsSliceOptions<T> extends Omit<JiniOptions<T>, "load" | "
 }
 /** Keep existing tab adapters while crossing the package boundary with two objects. */
 export function useSettingsSlice<T>(input: SettingsSliceOptions<T>, _options = {}): SettingsSlice<T> {
+  const reconcileRefresh = input.reconcileRefresh;
   return useSlice({
     ...input,
     load: () => input.load(),
     save: ({ next, previous }) => input.save(next, previous),
-    reconcileRefresh: input.reconcileRefresh ? ({ current, loaded }) => input.reconcileRefresh!(current, loaded) : undefined,
+    reconcileRefresh: reconcileRefresh ? ({ current, loaded }) => reconcileRefresh.call(input, current, loaded) : undefined,
     refreshPort: input.refreshPort ?? defaultRefreshPort,
   }, {});
 }

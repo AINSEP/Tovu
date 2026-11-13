@@ -182,7 +182,7 @@ function TrashItemsView(props: { controller: TrashController }) {
 
   const rowHandles = buildAgentListHandles({ prefix: "trash-row", ids: controller.items.map((item) => item.id) }
   );
-  const handleById = new Map(controller.items.map((item, index) => [item.id, rowHandles[index]!]));
+  const handleById = new Map(controller.items.map((item, index) => [item.id, rowHandles[index]]));
 
   return (
     <>
@@ -196,7 +196,11 @@ function TrashItemsView(props: { controller: TrashController }) {
           anyRows: controller.items.length > 0,
           onToggle: controller.toggle,
           onToggleAll: controller.toggleAll,
-          handleForRow: (id) => handleById.get(id)!,
+          handleForRow: (id) => {
+            const handle = handleById.get(id);
+            if (handle === undefined) throw new Error(`trash item ${id} has no row handle`);
+            return handle;
+          },
           actorUsernames: controller.actorUsernames,
         })}
       />

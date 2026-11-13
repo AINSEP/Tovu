@@ -128,11 +128,26 @@ type JiniHostOptions = NonNullable<Parameters<typeof client.createAssistantTrans
  */
 function jiniHostOptions(options: CreateTovuAssistantTransportOptions): JiniHostOptions {
  return {
-  getExecutionConfig: options.getExecutionConfig && (() => options.getExecutionConfig!()),
-  getAgUiEnabled: options.getAgUiEnabled && (() => options.getAgUiEnabled!()),
-  getResumeCapableAgentIds: options.getResumeCapableAgentIds && (() => options.getResumeCapableAgentIds!()),
-  ensureConversationId: options.ensureConversationId && (() => options.ensureConversationId!()),
-  persistUserTurn: options.persistUserTurn && (({ conversationId, message }) => options.persistUserTurn!(conversationId, message)),
+  getExecutionConfig: options.getExecutionConfig && (() => {
+    if (!options.getExecutionConfig) throw new Error("assistant transport has no execution config callback");
+    return options.getExecutionConfig();
+  }),
+  getAgUiEnabled: options.getAgUiEnabled && (() => {
+    if (!options.getAgUiEnabled) throw new Error("assistant transport has no AG-UI enabled callback");
+    return options.getAgUiEnabled();
+  }),
+  getResumeCapableAgentIds: options.getResumeCapableAgentIds && (() => {
+    if (!options.getResumeCapableAgentIds) throw new Error("assistant transport has no resumable agents callback");
+    return options.getResumeCapableAgentIds();
+  }),
+  ensureConversationId: options.ensureConversationId && (() => {
+    if (!options.ensureConversationId) throw new Error("assistant transport has no conversation id callback");
+    return options.ensureConversationId();
+  }),
+  persistUserTurn: options.persistUserTurn && (({ conversationId, message }) => {
+    if (!options.persistUserTurn) throw new Error("assistant transport has no user turn persistence callback");
+    return options.persistUserTurn(conversationId, message);
+  }),
  };
 }
 

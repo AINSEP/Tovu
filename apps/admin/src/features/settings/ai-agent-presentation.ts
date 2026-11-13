@@ -51,9 +51,10 @@ export function createAgentPresentationPort(
     if (scan === latestScan) onAgents(agents);
     return agents;
   };
+  const rescanLocalAgents = port.rescanLocalAgents;
   return {
     ...port,
     detectLocalAgents: () => project(() => port.detectLocalAgents()),
-    ...(port.rescanLocalAgents ? { rescanLocalAgents: () => project(() => port.rescanLocalAgents!()) } : {}),
+    ...(rescanLocalAgents ? { rescanLocalAgents: () => project(() => rescanLocalAgents.call(port)) } : {}),
   };
 }

@@ -92,10 +92,11 @@ export function startBrowserStream<Frame>(
   /** A pending/acquired lock owns its own cancellation; denied hosts switch to tab mode. */
   function acquire(): void {
     if (lock) return;
+    if (!ports.requestLock) throw new Error("shared browser stream has no lock provider");
     const requested = new AbortController();
     lock = requested;
     // Disposal and pagehide both run `halt()`, which aborts this request, so its signal covers them.
-    void ports.requestLock!({ key: `browser-stream:${key}`, signal: requested.signal, hold: async () => {
+    void ports.requestLock({ key: `browser-stream:${key}`, signal: requested.signal, hold: async () => {
       if (requested.signal.aborted) return;
       // Set the release first so cleanup always releases even when connect throws.
       await new Promise<void>((resolve, reject) => {

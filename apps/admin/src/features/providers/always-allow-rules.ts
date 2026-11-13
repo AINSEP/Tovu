@@ -45,12 +45,12 @@ export function groupAlwaysAllow(
   // `buildAgentListHandles` returns exactly one handle per id, positionally aligned, so both
   // index reads below always hit.
   return sorted.map((group, index) => {
-    const handle = handles[index]!;
+    const handle = handles[index];
     const revokeHandles = buildAgentListHandles({ prefix: `${handle}-revoke`, ids: group.tools.map((tool) => tool.toolName) });
     return {
       ...group,
       handle,
-      tools: group.tools.map((tool, toolIndex) => ({ ...tool, revokeHandle: revokeHandles[toolIndex]! })),
+      tools: group.tools.map((tool, toolIndex) => ({ ...tool, revokeHandle: revokeHandles[toolIndex] })),
     };
   });
 }

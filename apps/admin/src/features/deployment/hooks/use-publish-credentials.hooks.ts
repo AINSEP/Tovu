@@ -347,10 +347,14 @@ export function usePublishCredentials(
       // rather than waiting on a refetch this hook has no other reason to trigger. `undefined` (no
       // account label on this result) leaves whatever the row already had alone, same "only a truthy
       // finding heals forward" rule the server side follows.
-      if (result.accountLabel !== undefined) {
+      const accountLabel = result.accountLabel;
+      if (accountLabel !== undefined) {
         // `connected` came from a loaded list, and nothing sets the list back to `undefined` once
         // loaded, so `prev` is defined here (the old `prev ?? []` could not fire).
-        setCredentials((prev) => prev!.map((c) => (c.id === connected.id ? { ...c, accountLabel: result.accountLabel! } : c)));
+        setCredentials((prev) => {
+          if (!prev) throw new Error("publish credentials disappeared during verification");
+          return prev.map((c) => (c.id === connected.id ? { ...c, accountLabel } : c));
+        });
       }
       patchRow(providerId, (current) => ({ ...current, verifying: false, verification: result, verifyError: null }));
     } catch (err) {

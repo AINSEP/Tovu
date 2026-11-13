@@ -8,7 +8,7 @@ export function guideToPendingCredentialCard(
   // the same test as `/secret-card/` on `data-agent-element`, without a separate filter pass.
   const cards = document.querySelectorAll<HTMLElement>('[data-agent-element^="mcp-ui-pending-"][data-agent-element*="secret-card"]');
   if (cards.length !== 1) return false;
-  const card = cards[0]!.closest<HTMLElement>(".mcpui-surface-overflow-wrap") ?? cards[0]!;
+  const card = cards[0].closest<HTMLElement>(".mcpui-surface-overflow-wrap") ?? cards[0];
   card.scrollIntoView?.({ block: "center", behavior: "smooth" });
   card.querySelector<HTMLIFrameElement>("iframe")?.focus();
   return true;

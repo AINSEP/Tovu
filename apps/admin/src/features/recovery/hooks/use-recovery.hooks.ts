@@ -140,8 +140,9 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
     port
       .resolveRecoveryDeepLink(parsed.envelope)
       .then((result) => {
-        if (result.found && result.restorePoint) {
-          const match = points.find((p) => p.id === result.restorePoint!.restorePointId);
+        const restorePoint = result.restorePoint;
+        if (result.found && restorePoint) {
+          const match = points.find((p) => p.id === restorePoint.restorePointId);
           if (match) {
             setSelected(match);
             // Tabs (2026-09-10): a resolved deep link used to swap straight into `RestoreFlow` with

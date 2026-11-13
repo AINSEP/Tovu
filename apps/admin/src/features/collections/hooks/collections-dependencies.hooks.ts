@@ -46,7 +46,7 @@ export function createFakeCollectionsPort(options: FakeCollectionsPortOptions = 
       const index = types.findIndex((t) => t.key === key);
       if (index < 0) throw new Error(`fake content type not found: ${key}`);
       const nextStatus = LIFECYCLE_NEXT_STATUS[op];
-      const updated: AdminContentType = { ...types[index]!, status: nextStatus, version: expectedVersion + 1 };
+      const updated: AdminContentType = { ...types[index], status: nextStatus, version: expectedVersion + 1 };
       types[index] = updated;
       return { contentType: updated };
     },

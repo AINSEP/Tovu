@@ -107,6 +107,8 @@ function InstalledPluginRows({
     <ul className="plugin-rows">
       {plugins.map((plugin) => {
         const control = pluginToggleControl(plugin, rowSavingId, locale);
+        const handle = rowHandleById.get(plugin.id);
+        if (handle === undefined) throw new Error(`plugin ${plugin.id} has no row handle`);
         return (
           <PluginRow
             key={plugin.id}
@@ -114,7 +116,7 @@ function InstalledPluginRows({
             t={t}
             expanded={expandedIds.has(plugin.id)}
             onToggleExpanded={() => onToggleExpanded(plugin.id)}
-            agentHandleBase={rowHandleById.get(plugin.id)!}
+            agentHandleBase={handle}
             onInspect={() => controller.onInspectPlugin(plugin.id)}
             {...(plugin.providerSettings ? { onSettings: () => controller.onOpenSettings(plugin.id) } : {})}
             focused={plugin.id === focusPluginId}
@@ -164,6 +166,8 @@ function DownloadedPluginRows({
   return (
     <ul className="plugin-rows">
       {plugins.map((plugin) => {
+        const handle = rowHandleById.get(plugin.id);
+        if (handle === undefined) throw new Error(`plugin ${plugin.id} has no row handle`);
         const removeBlocker = pluginRemoveBlocker(plugin);
         const busy = rowSavingId === plugin.id;
         const action = (
@@ -192,7 +196,7 @@ function DownloadedPluginRows({
             t={t}
             expanded={expandedIds.has(plugin.id)}
             onToggleExpanded={() => onToggleExpanded(plugin.id)}
-            agentHandleBase={rowHandleById.get(plugin.id)!}
+            agentHandleBase={handle}
             onInspect={() => controller.onInspectPlugin(plugin.id)}
             {...(plugin.providerSettings ? { onSettings: () => controller.onOpenSettings(plugin.id) } : {})}
             action={action}
@@ -345,7 +349,11 @@ function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { pl
   // reasoning for deriving from the id alone, not list position).
   const rowHandles = buildAgentListHandles({ prefix: "plugins-row", ids: plugins.map((plugin) => plugin.id) }
   );
-  const rowHandleById = new Map(plugins.map((plugin, index) => [plugin.id, rowHandles[index]!]));
+  const rowHandleById = new Map(plugins.map((plugin, index) => [plugin.id, rowHandles[index]]));
+  const settingsHandle = settingsPlugin ? rowHandleById.get(settingsPlugin.id) : undefined;
+  if (settingsPlugin && settingsHandle === undefined) throw new Error(`plugin ${settingsPlugin.id} has no settings handle`);
+  const removeHandle = pendingRemovePlugin ? rowHandleById.get(pendingRemovePlugin.id) : undefined;
+  if (pendingRemovePlugin && removeHandle === undefined) throw new Error(`plugin ${pendingRemovePlugin.id} has no remove handle`);
   const ActivePanel = PLUGINS_TAB_PANELS[activeTabId];
   const canInstall = controller.canInstallFolder === true;
 
@@ -387,16 +395,16 @@ function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { pl
 
       {inspectedPlugin ? <PluginPackageFilesModal plugin={inspectedPlugin} onClose={controller.onCloseInspector} /> : null}
 
-      {settingsPlugin ? (
-        <PluginProviderSettingsDialog plugin={settingsPlugin} agentHandleBase={rowHandleById.get(settingsPlugin.id)!} onClose={controller.onCloseSettings} onSaved={controller.onSettingsSaved} />
+      {settingsPlugin && settingsHandle !== undefined ? (
+        <PluginProviderSettingsDialog plugin={settingsPlugin} agentHandleBase={settingsHandle} onClose={controller.onCloseSettings} onSaved={controller.onSettingsSaved} />
       ) : null}
       {/* A toast, like Themes' and Library's: it confirms what the owner just did and clears itself. */}
       {controller.settingsNotice ? <Toast message={controller.settingsNotice} role="status" tone="success" ttlMs={6000} onDismiss={controller.dismissSettingsNotice} /> : null}
 
-      {pendingRemovePlugin ? (
+      {pendingRemovePlugin && removeHandle !== undefined ? (
         <PluginRemoveConfirmDialog
           name={pendingRemovePlugin.name}
-          agentHandleBase={rowHandleById.get(pendingRemovePlugin.id)!}
+          agentHandleBase={removeHandle}
           onConfirm={() => controller.onConfirmRemove(pendingRemovePlugin)}
           onCancel={controller.onCancelRemove}
           t={t}

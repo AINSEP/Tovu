@@ -26,7 +26,8 @@ export function AdminAppearance({ useAppearanceHook = useAdminAppearanceSettings
   // Loading precedes the dialog provider, so use the settings-shell translator here.
   if (!appearance.value) return <p role="status">{settingsT({ locale, key: "Loading appearance…" })}</p>;
   const value = appearance.value;
-  const preview = findAdminTheme({ id: themeId }).preview[scheme]!;
+  const preview = findAdminTheme({ id: themeId }).preview[scheme];
+  if (!preview) throw new Error(`admin theme ${themeId} has no ${scheme} preview`);
   return (
     <I18nProvider key={locale} initialLocale={locale} dictionaries={SETTINGS_DIALOG_DICTIONARIES} syncDocumentAttributes={false}>
       {/* Classic retains its unverified-dark light pin; Glass follows the document scheme. */}

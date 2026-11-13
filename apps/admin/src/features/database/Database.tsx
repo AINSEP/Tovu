@@ -239,14 +239,18 @@ function TimelineBody(props: { locale: string; rows: AdminLedgerRow[]; nextCurso
   }
   const restorePointHandles = buildAgentListHandles({ prefix: "database-timeline-restore-point", ids: props.rows.map((row) => row.id) }
   );
-  const restorePointHandleById = new Map(props.rows.map((row, index) => [row.id, restorePointHandles[index]!]));
+  const restorePointHandleById = new Map(props.rows.map((row, index) => [row.id, restorePointHandles[index]]));
 
   return (
     <>
       <DataTable
         rows={props.rows}
         rowKey={(row) => row.id}
-        columns={timelineColumns(locale, (rowId) => restorePointHandleById.get(rowId)!)}
+        columns={timelineColumns(locale, (rowId) => {
+          const handle = restorePointHandleById.get(rowId);
+          if (handle === undefined) throw new Error(`database restore point ${rowId} has no row handle`);
+          return handle;
+        })}
       />
       {props.nextCursor ? (
         <button

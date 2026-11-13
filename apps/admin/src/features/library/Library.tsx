@@ -115,14 +115,14 @@ export function UploadTab({ controller }: { controller: LibraryController }) {
       </button>
       <div ref={zoneRef} onDropCapture={(event) => {
         const items = Array.from(event.dataTransfer.items ?? []);
-        const packages = items.map(item => item.webkitGetAsEntry?.()).filter(entry =>
-          entry?.isDirectory && /\.(pages|key)$/i.test(entry.name));
+        const packages = items.map(item => item.webkitGetAsEntry?.()).filter((entry): entry is FileSystemEntry =>
+          Boolean(entry?.isDirectory && /\.(pages|key)$/i.test(entry.name)));
         if (!packages.length) return;
         // A macOS package is a directory. Stop expansion so its internals cannot become uploads.
         event.preventDefault();
         event.stopPropagation();
-        addFiles([...packages.map(entry => new File([], entry!.name)),
-          ...items.map(item => item.getAsFile()).filter((file): file is File => !!file && !packages.some(entry => entry!.name === file.name))]);
+        addFiles([...packages.map(entry => new File([], entry.name)),
+          ...items.map(item => item.getAsFile()).filter((file): file is File => !!file && !packages.some(entry => entry.name === file.name))]);
       }}>
         <FileDropzone
           accept={LIBRARY_ACCEPT}
@@ -289,7 +289,8 @@ function MarkdownFrame({ html, title }: { html: string; title: string }) {
   useLayoutEffect(() => {
     // The host div always renders, and React attaches its ref before layout effects run, so the
     // ref is set here (the old `if (!host) return` guard could never fire).
-    const host = hostRef.current!;
+    const host = hostRef.current;
+    if (!host) throw new Error("library markdown preview has no host element");
     const computed = getComputedStyle(host);
     setColors({
       text: computed.color || "CanvasText",

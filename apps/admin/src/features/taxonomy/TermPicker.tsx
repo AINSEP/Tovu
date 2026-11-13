@@ -47,7 +47,7 @@ export function TermPicker(props: {
   // term's handle must not change with what else is on screen.
   const termIds = taxonomies.flatMap(({ terms }) => terms.map((term) => term.id));
   const termHandles = buildAgentListHandles({ prefix: "term-picker-term", ids: termIds });
-  const termHandleById = new Map(termIds.map((termId, index) => [termId, termHandles[index]!]));
+  const termHandleById = new Map(termIds.map((termId, index) => [termId, termHandles[index]]));
   const taxonomyIds = taxonomies.map(({ taxonomy }) => taxonomy.id);
   const addInputHandles = buildAgentListHandles({ prefix: "term-picker-new-term", ids: taxonomyIds });
   const addTriggerHandles = buildAgentListHandles({ prefix: "term-picker-open-new-term", ids: taxonomyIds });
@@ -81,9 +81,13 @@ export function TermPicker(props: {
                     terms={terms}
                     picker={picker}
                     handles={{
-                      term: (termId) => termHandleById.get(termId)!,
-                      more: moreHandles[groupIndex]!,
-                      search: searchHandles[groupIndex]!,
+                      term: (termId) => {
+                        const handle = termHandleById.get(termId);
+                        if (handle === undefined) throw new Error(`taxonomy term ${termId} has no picker handle`);
+                        return handle;
+                      },
+                      more: moreHandles[groupIndex],
+                      search: searchHandles[groupIndex],
                     }}
                   />
                 ) : null}
@@ -92,7 +96,7 @@ export function TermPicker(props: {
                     type="button"
                     className="btn-ghost term-picker-add-trigger"
                     onClick={() => picker.setAddOpen(id, true)}
-                    {...agentHandle({ handle: addTriggerHandles[groupIndex]! }, {
+                    {...agentHandle({ handle: addTriggerHandles[groupIndex] }, {
                       role: "button",
                       label: `Open the box for adding a new "${taxonomy.name}" term to this ${subject}`,
                     })}
@@ -117,7 +121,7 @@ export function TermPicker(props: {
                       disabled={loading}
                       onValueChange={(value) => picker.setNewTermName(id, value)}
                       onKeyDown={(e) => picker.onNewTermKeyDown(id, e)}
-                      agentHandle={addInputHandles[groupIndex]!}
+                      agentHandle={addInputHandles[groupIndex]}
                       agentLabel={`A "${taxonomy.name}" term name to tag this ${subject} with — an existing one is ticked, a new one is created then ticked; press Enter`}
                     />
                     <button
@@ -125,7 +129,7 @@ export function TermPicker(props: {
                       className="btn-secondary"
                       onClick={() => void picker.addTerm(id)}
                       disabled={termCreationDisabled({ loading, picker, id })}
-                      {...agentHandle({ handle: addButtonHandles[groupIndex]! }, {
+                      {...agentHandle({ handle: addButtonHandles[groupIndex] }, {
                         role: "button",
                         label: `Tick the typed "${taxonomy.name}" term, creating it if it does not exist yet`,
                       })}

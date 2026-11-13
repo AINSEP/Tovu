@@ -73,10 +73,10 @@ export function themeExploreActiveGroup({
   highlightedPath: string | null;
   choice: ThemeExploreGroupChoice | null;
 }): ThemeFileGroup | null {
-  const hasGroup = (group: ThemeFileGroup | undefined) => group !== undefined && tabs.some((tab) => tab.key === group);
+  const hasGroup = (group: ThemeFileGroup | undefined): group is ThemeFileGroup => group !== undefined && tabs.some((tab) => tab.key === group);
   if (choice && choice.forPath === highlightedPath && hasGroup(choice.group)) return choice.group;
   const selectedKind = files.find((file) => file.path === highlightedPath)?.kind;
-  if (hasGroup(selectedKind)) return selectedKind!;
+  if (hasGroup(selectedKind)) return selectedKind;
   return tabs[0]?.key ?? null;
 }
 
@@ -97,7 +97,10 @@ export function themeExploreVisibleGroupFiles(
   if (expanded || !collapsible) return { visible: [...files], collapsible };
   const visible = files.slice(0, limit);
   const highlightedIndex = files.findIndex((file) => file.path === highlightedPath);
-  if (highlightedIndex >= limit) visible.push(files[highlightedIndex]!);
+  if (highlightedIndex >= limit) {
+    if (highlightedIndex < 0) throw new Error("theme file group has an invalid collapsed limit");
+    visible.push(files[highlightedIndex]);
+  }
   return { visible, collapsible };
 }
 

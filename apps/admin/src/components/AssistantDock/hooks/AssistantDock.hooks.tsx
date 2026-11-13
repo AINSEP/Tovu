@@ -258,7 +258,8 @@ export function useExecutionConfig(
   const activeRefresh = useRef<Promise<ExecutionConfig> | null>(null);
 
   const refreshExecutionConfig = useCallback(() => {
-    const controller = lifecycleRef.current!;
+    const controller = lifecycleRef.current;
+    if (!controller) throw new Error("assistant dock execution config lifecycle is missing");
     refreshGeneration.current += 1;
     const generation = refreshGeneration.current;
     const writesAtStart = localWriteRef.current;

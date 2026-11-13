@@ -113,7 +113,7 @@ export function redirectLegacyHashUrl(): boolean {
    * both outcomes are equally "you did not get a real screen" for a URL nobody has.
    */
   // `String#split` always yields at least one element, so the path part is always a string.
-  const path = rawPath!;
+  const path = rawPath;
   const stripped = path.replace(/^section\//, "");
   const canStrip = stripped.split("/").filter(Boolean).length === 1;
   const query = rawQuery ? `?${rawQuery}` : "";

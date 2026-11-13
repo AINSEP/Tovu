@@ -232,7 +232,11 @@ export async function projectComposerCapabilities(
   }
 
   return {
-    groups: groupOrder.map((id) => ({ id, label: itemsByGroup.get(id)!.label, items: itemsByGroup.get(id)!.items })),
+    groups: groupOrder.map((id) => {
+      const group = itemsByGroup.get(id);
+      if (!group) throw new Error(`composer capability group ${id} is missing`);
+      return { id, label: group.label, items: group.items };
+    }),
     byItemId,
     byPluginRefId,
   };
@@ -399,6 +403,11 @@ export function rankComposerDiscoveryGroups(groups: readonly ComposerDiscoveryGr
   const familyRanks = new Map<string, number>();
   for (const row of rows) familyRanks.set(row.name, Math.min(familyRanks.get(row.name) ?? 4, nameMatchRank(row.name, query), nameMatchRank(discoveryLabelName(row.item), query)));
   const skillFamilies = new Set(rows.filter(row => row.item.kind === "skill").map(row => row.name));
-  rows.sort((a, b) => (familyRanks.get(a.name)! - familyRanks.get(b.name)!) || Number(skillFamilies.has(b.name)) - Number(skillFamilies.has(a.name)) || a.name.localeCompare(b.name) || Number(b.item.kind === "skill") - Number(a.item.kind === "skill"));
+  rows.sort((a, b) => {
+    const rankA = familyRanks.get(a.name);
+    const rankB = familyRanks.get(b.name);
+    if (rankA === undefined || rankB === undefined) throw new Error("composer capability family has no rank");
+    return (rankA - rankB) || Number(skillFamilies.has(b.name)) - Number(skillFamilies.has(a.name)) || a.name.localeCompare(b.name) || Number(b.item.kind === "skill") - Number(a.item.kind === "skill");
+  });
   return rows.map(({ group, item }) => ({ id: `${group.id}:${item.id}`, label: group.label, items: [item] }));
 }

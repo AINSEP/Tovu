@@ -891,7 +891,7 @@ function namespaceList({
                 {deleteState.deleteTermBlocked.state.message}
               </p>
             ) : null}
-            <NewTermForm taxonomy={group} onCreated={load} agentBase={newTermFormBases[groupIndex]!} t={t} />
+            <NewTermForm taxonomy={group} onCreated={load} agentBase={newTermFormBases[groupIndex]} t={t} />
           </section>
         );
       })}

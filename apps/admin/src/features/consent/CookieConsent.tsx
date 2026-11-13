@@ -107,11 +107,13 @@ function ConsentPreviewPane({ page, preview, fit, translation }: {
   fit: ReturnType<typeof useConsentPreviewScale>;
   translation: ConsentTranslation;
 }) {
+  const value = page.value;
+  if (!value) throw new Error("cookie consent preview has no loaded settings");
   return (
     <div className="card consent-preview-pane" ref={fit.ref} style={{ "--consent-preview-scale": fit.scale, "--consent-preview-desktop-width": `${CONSENT_PREVIEW_DESKTOP_WIDTH}px` } as CSSProperties}>
       {preview.error && <p className="notice error" role="alert">{preview.error}</p>}
       {/* "My own" and "None" render no Jini banner, so its skipped styles are noise there. */}
-      <CssWarnings warnings={preview.warnings} enabled={Boolean(page.editor?.bannerModes) && (page.value!.bannerMode ?? "jini") === "jini"} t={translation.t} />
+      <CssWarnings warnings={preview.warnings} enabled={Boolean(page.editor?.bannerModes) && (value.bannerMode ?? "jini") === "jini"} t={translation.t} />
       <ConsentPreviewFrame html={preview.html} status={translation.t("Loading preview…")} dictionary={translation.dictionary} />
     </div>
   );
@@ -120,7 +122,8 @@ function ConsentPreviewPane({ page, preview, fit, translation }: {
 function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<ConsentTabId, "overview">; page: ConsentPageController; port: ConsentRevisionsPort; translation: ConsentTranslation; delays: CookieConsentProps["delays"] }) {
   const preview = useConsentPreview({ port, config: tab === "rules" ? null : page.value, t: translation.t }, consentDelayOptions({ delayMs: delays?.previewMs }));
   const fit = useConsentPreviewScale();
-  const value = page.value!;
+  const value = page.value;
+  if (!value) throw new Error("cookie consent editor has no loaded settings");
   const { textLimits, regionModes, bannerModes, placements } = page.editor ?? {};
   const fields = { value, onChange: page.onChange, problems: page.problems, dictionary: translation.dictionary, disabled: page.saveState === "conflict", limits: textLimits };
   if (tab === "rules") {

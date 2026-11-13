@@ -279,10 +279,12 @@ export function useOtherCredentials(
   const firstLoadError = OTHER_CREDENTIAL_STORES.map((store) => storeStates[store.id]?.loadError).find((error) => error) ?? null;
 
   const groups: readonly OtherCredentialGroupState[] | undefined = allSettled
-    ? OTHER_CREDENTIAL_STORES.filter((store) => accessTokenCategoryMatches(store.category, filter.category)).map((store) =>
+    ? OTHER_CREDENTIAL_STORES.filter((store) => accessTokenCategoryMatches(store.category, filter.category)).map((store) => {
         // `allSettled` above already proved every store's `items` is defined.
-        buildGroup(store, storeStates[store.id]!.items!, drafts, filter.query)
-      )
+        const items = storeStates[store.id]?.items;
+        if (!items) throw new Error(`credential store ${store.id} has no loaded items`);
+        return buildGroup(store, items, drafts, filter.query);
+      })
     : undefined;
 
   const totalCount = OTHER_CREDENTIAL_STORES.reduce((sum, store) => sum + (storeStates[store.id]?.items?.length ?? 0), 0);

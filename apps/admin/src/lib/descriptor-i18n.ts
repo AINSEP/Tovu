@@ -28,7 +28,7 @@ export function descriptorText(i18n: AdminDescriptorI18n | undefined, locale: st
   const exact = i18n[locale]?.[english];
   if (exact !== undefined) return exact;
   // `String#split` always yields at least one element (`"".split("-")` is `[""]`), so `[0]` is defined.
-  const base = locale.split("-")[0]!;
+  const base = locale.split("-")[0];
   return (base !== locale ? i18n[base]?.[english] : undefined) ?? english;
 }
 

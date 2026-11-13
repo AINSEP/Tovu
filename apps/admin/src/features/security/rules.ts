@@ -1028,7 +1028,7 @@ export const OTHER_CREDENTIAL_STORES: readonly OtherCredentialStoreInfo[] = [
  *  render something absent from its own table" guarantee {@link accessTokenProviderInfo} gives Tier 1.
  *  @complexity O(1) — the array has exactly four entries. */
 export function otherCredentialStoreInfo(id: OtherCredentialStoreId): OtherCredentialStoreInfo {
-  return OTHER_CREDENTIAL_STORES.find((store) => store.id === id) ?? OTHER_CREDENTIAL_STORES[0]!;
+  return OTHER_CREDENTIAL_STORES.find((store) => store.id === id) ?? OTHER_CREDENTIAL_STORES[0];
 }
 
 /** Whether a Tier-2 store (or, for a multi-item store, one of its own item names) matches an active

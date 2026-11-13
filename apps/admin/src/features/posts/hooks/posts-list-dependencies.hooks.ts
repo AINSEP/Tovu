@@ -46,7 +46,7 @@ export function createFakePostsListPort(options: FakePostsListPortOptions = {}):
     simulateConcurrentSave(id, title = "Saved by someone else") {
       const index = posts.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake post not found: ${id}`);
-      posts[index] = { ...posts[index]!, title, version: posts[index]!.version + 1 };
+      posts[index] = { ...posts[index], title, version: posts[index].version + 1 };
     },
     async listPosts() {
       return { posts: posts.map((post) => ({ post })) };
@@ -55,7 +55,7 @@ export function createFakePostsListPort(options: FakePostsListPortOptions = {}):
       if (options.updateError) throw options.updateError;
       const index = posts.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake post not found: ${id}`);
-      const current = posts[index]!;
+      const current = posts[index];
       // The real route's optimistic-concurrency guard, modeled rather than stubbed — see
       // `post-editor-dependencies.hooks.ts`'s identical comment on its own `updatePost` for why this
       // is modeled (a caller reaches a conflict by genuinely being stale) rather than a canned
@@ -78,7 +78,7 @@ export function createFakePostsListPort(options: FakePostsListPortOptions = {}):
       const index = posts.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake post not found: ${id}`);
       const [removed] = posts.splice(index, 1);
-      return { post: removed! };
+      return { post: removed };
     },
   };
 }

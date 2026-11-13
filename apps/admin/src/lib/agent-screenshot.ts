@@ -173,8 +173,8 @@ function parseDataUrl(dataUrl: string): { readonly mimeType: string; readonly da
   const match = /^data:([^;,]+);base64,(.+)$/s.exec(dataUrl);
   if (!match) return undefined;
   // Both capture groups use a `+` quantifier, so a successful match always carries a non-empty
-  // mime type and payload; the non-null assertions restate that regex guarantee for the type system.
-  return { mimeType: match[1]!, data: match[2]! };
+  // mime type and payload.
+  return { mimeType: match[1], data: match[2] };
 }
 
 /**

@@ -24,7 +24,8 @@ function skillSelectedPath({ loaded, selectedPath }: { loaded: PackageFilesRead 
 export function useSkillFiles({ toolId, read, t }: SkillFilesDependencies) {
   const [selection, setSelection] = useState<{ toolId: string | null; path: string } | null>(null);
   const queryFetch = useQueryFetchCallback(async () => {
-    try { return await read(toolId!); }
+    if (toolId === null) throw new Error("skill files have no selected skill id");
+    try { return await read(toolId); }
     catch (error) { if (error instanceof Error) throw error; throw new Error("Could not load skill files."); }
   }, [read, toolId]);
   const query = useFetchQuery({ key: ["skills", "files", toolId ?? ""], fetch: queryFetch }, { enabled: toolId !== null, staleTime: 0 });

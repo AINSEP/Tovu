@@ -527,7 +527,7 @@ function ThemeExploreFileList({
   // group filter, so a path's handle never depends on which group tab is showing.
   const fileMenuHandles = buildAgentListHandles({ prefix: "theme-explore-file", ids: files.map((file) => file.path) }
   );
-  const fileMenuHandleByPath = new Map(files.map((file, index) => [file.path, fileMenuHandles[index]!]));
+  const fileMenuHandleByPath = new Map(files.map((file, index) => [file.path, fileMenuHandles[index]]));
   const groups = useThemeExploreFileGroups({ files, highlightedPath: selected });
   return (
     <nav className="theme-explore-files" aria-label={t("Theme files")}>
@@ -539,8 +539,10 @@ function ThemeExploreFileList({
         className="theme-explore-files-panel"
       >
         <ul className="theme-explore-file-chips">
-          {groups.visibleFiles.map((file) => (
-            <ThemeExploreFileRow
+          {groups.visibleFiles.map((file) => {
+            const handle = fileMenuHandleByPath.get(file.path);
+            if (handle === undefined) throw new Error(`theme file ${file.path} has no row handle`);
+            return <ThemeExploreFileRow
               key={file.path}
               file={file}
               selected={selected}
@@ -554,10 +556,10 @@ function ThemeExploreFileList({
               copyingPath={copyingPath}
               copyFile={copyFile}
               openDeleteConfirm={openDeleteConfirm}
-              agentBase={fileMenuHandleByPath.get(file.path)!}
+              agentBase={handle}
               t={t}
-            />
-          ))}
+            />;
+          })}
         </ul>
         <ThemeExploreShowAllToggle groups={groups} t={t} />
       </div>

@@ -18,7 +18,9 @@ export function uniqueId(): string {
 function fallbackSuffix(webCrypto: Partial<Crypto> | undefined): string {
   if (typeof webCrypto?.getRandomValues === "function") {
     const words = webCrypto.getRandomValues(new Uint32Array(2));
-    return words[0]!.toString(36) + words[1]!.toString(36);
+    const [first, second] = words;
+    if (first === undefined || second === undefined) throw new Error("unique id random source returned fewer than two values");
+    return first.toString(36) + second.toString(36);
   }
   fallbackSequence += 1;
   return fallbackSequence.toString(36);

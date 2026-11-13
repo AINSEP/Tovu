@@ -55,7 +55,7 @@ export function createFakeMembersPort(options: FakeMembersPortOptions = {}): Mem
     async disableMember(id) {
       const index = members.findIndex((m) => m.id === id);
       if (index < 0) throw new Error(`fake member not found: ${id}`);
-      const updated: AdminMember = { ...members[index]!, status: "disabled" };
+      const updated: AdminMember = { ...members[index], status: "disabled" };
       members[index] = updated;
       return { member: updated };
     },

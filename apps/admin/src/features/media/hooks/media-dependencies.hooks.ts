@@ -90,7 +90,7 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
     async updateMedia({ id }, options = {}) {
       const index = items.findIndex((item) => item.id === id);
       if (index < 0) throw new Error(`fake media not found: ${id}`);
-      const updated = { ...items[index]!, ...options };
+      const updated = { ...items[index], ...options };
       items[index] = updated;
       return { media: updated };
     },
@@ -98,7 +98,7 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
     async trashMedia(id) {
       const index = items.findIndex((item) => item.id === id);
       if (index < 0) throw new Error(`fake media not found: ${id}`);
-      const trashed: AdminMedia = { ...items[index]!, status: "trashed" };
+      const trashed: AdminMedia = { ...items[index], status: "trashed" };
       items[index] = trashed;
       return { media: trashed };
     },
@@ -106,7 +106,7 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
     async restoreMedia(id) {
       const index = items.findIndex((item) => item.id === id);
       if (index < 0) throw new Error(`fake media not found: ${id}`);
-      items[index] = { ...items[index]!, status: "active" };
+      items[index] = { ...items[index], status: "active" };
       return { restored: true };
     },
 

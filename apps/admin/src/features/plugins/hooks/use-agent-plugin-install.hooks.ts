@@ -140,7 +140,8 @@ export function useAgentPluginInstall(
   const drop = useZipDrop({
     isLocked: () => locked.current,
     onDropFiles: (files) => {
-      if (files.length === 1) choose(files[0]!);
+      const file = files[0];
+      if (files.length === 1 && file) choose(file);
       else {
         setInstalled(null);
         setError(t(ONE_ZIP));

@@ -67,10 +67,10 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       if (index < 0) throw new Error(`fake plugin not found: ${id}`);
       // The real enable gate (`onPluginEnabled`, 2026-10-04): a plugin whose row lists conflicts is
       // refused with 409 PLUGIN_CONFLICT and stays off. Turning a plugin OFF is never refused.
-      if (patch.enabled && (plugins[index]!.conflicts ?? []).length > 0) {
+      if (patch.enabled && (plugins[index].conflicts ?? []).length > 0) {
         throw new ApiError(`Plugin '${id}' was not turned on because it claims things already in use.`, 409, "PLUGIN_CONFLICT");
       }
-      const updated = { ...plugins[index]!, enabled: patch.enabled };
+      const updated = { ...plugins[index], enabled: patch.enabled };
       plugins[index] = updated;
       // Matches the real route's own narrow echo shape — see `PluginsPort.setPluginEnabled`'s doc.
       return { plugin: { id: updated.id, version: "1", enabled: updated.enabled, updatedAt: new Date(0).toISOString() }, changeSetId: "fake-cs-1" };
@@ -82,7 +82,7 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       }
       const index = plugins.findIndex((p) => p.id === id);
       if (index < 0) throw new ApiError("plugin not found", 404, "PLUGIN_NOT_FOUND");
-      const plugin = plugins[index]!;
+      const plugin = plugins[index];
       if (plugin.source === "built-in") {
         throw new ApiError(`plugin '${id}' is a built-in plugin and cannot be uninstalled`, 422, "PLUGIN_NOT_UNINSTALLABLE");
       }
@@ -119,7 +119,10 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
         if (entered) return entered;
         return field.saved ? "saved" : "";
       };
-      const changed = card.fields.filter((field) => !field.secret && values[field.name] !== undefined && effective(field, values[field.name]!.trim()) !== effective(field, field.value));
+      const changed = card.fields.filter((field) => {
+        const value = values[field.name];
+        return !field.secret && value !== undefined && effective(field, value.trim()) !== effective(field, field.value);
+      });
       const kept = card.fields.filter((field) => field.secret && field.saved && !values[field.name]?.trim());
       if (changed.length > 0 && kept.length > 0) {
         const labels = (list: typeof kept) => list.map((field) => field.label).join(", ");
@@ -136,8 +139,11 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       });
       // Like the server: once settings are saved, the retired-key and can't-read notices are gone.
       const { legacyCredential: _retired, unreadable: _unreadable, ...current } = card;
-      options.providerSettings![id] = { ...current, fields };
-      return options.providerSettings![id]!;
+      const providerSettings = options.providerSettings;
+      if (!providerSettings) throw new ApiError("this plugin declares no provider settings", 404, "PLUGIN_NOT_FOUND");
+      const updated = { ...current, fields };
+      providerSettings[id] = updated;
+      return updated;
     },
   };
 }

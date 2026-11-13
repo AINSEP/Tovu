@@ -697,7 +697,11 @@ function buildDictionary(
   rows: Record<string, readonly string[]>,
 ): Record<string, Record<string, string>> {
   return Object.fromEntries(
-    Object.entries(rows).map(([locale, row]) => [locale, Object.fromEntries(keys.map((key, index) => [key, row[index]!]))]),
+    Object.entries(rows).map(([locale, row]) => [locale, Object.fromEntries(keys.map((key, index) => {
+      const value = row[index];
+      if (value === undefined) throw new Error(`content analysis dictionary ${locale} is missing ${key}`);
+      return [key, value];
+    }))]),
   );
 }
 

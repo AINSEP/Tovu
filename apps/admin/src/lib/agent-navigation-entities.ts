@@ -31,5 +31,7 @@ const lookups: Readonly<Record<string, (id: string) => Promise<ResolvedPageEntit
 /** Entity type admission happens against the published panel before this adapter is called. */
 export const lookupAdminNavigationEntity: PageEntityLookup = async ({ type, id }, _options = {}) => {
   if (!Object.hasOwn(lookups, type)) return null;
-  return lookups[type]!(id);
+  const lookup = lookups[type];
+  if (!lookup) throw new Error(`admin navigation lookup for ${type} is missing`);
+  return lookup(id);
 };

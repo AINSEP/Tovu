@@ -15,7 +15,9 @@ async function collect(entries: readonly DropEntry[]) {
   const limit = (message: string) => sawSkill ? new Error(message) : NOT_A_SKILL;
   async function collectFile({ entry }: { entry: DropEntry }, _options = {}): Promise<void> {
     if (entry.name === "SKILL.md") sawSkill = true;
-    const file = await new Promise<File>((resolve, reject) => entry.file!(resolve, reject));
+    const readFile = entry.file;
+    if (!readFile) throw new Error(`skill file ${entry.name} cannot be read`);
+    const file = await new Promise<File>((resolve, reject) => readFile.call(entry, resolve, reject));
     total += file.size;
     if (files.length >= 256 || total > 8 * 1024 * 1024) throw limit("Choose up to 256 files, 8 MiB total.");
     files.push(file); paths.push(entry.fullPath.replace(/^\/+/, ""));
@@ -28,7 +30,8 @@ async function collect(entries: readonly DropEntry[]) {
       return;
     }
     if (!entry.isDirectory) return;
-    const reader = entry.createReader!();
+    if (!entry.createReader) throw new Error(`skill folder ${entry.name} cannot be read`);
+    const reader = entry.createReader();
     for (;;) {
       const batch = await new Promise<DropEntry[]>((resolve, reject) => reader.readEntries(resolve, reject));
       if (!batch.length) break;

@@ -62,7 +62,7 @@ export function useAdminThemeState(_required: object, { root = document.document
   }, [root]);
   const value = useSyncExternalStore(subscribe, snapshot, () => "classic/light");
   const [themeId, scheme] = value.split("/");
-  return { themeId: themeId!, scheme: scheme as "light" | "dark" };
+  return { themeId, scheme: scheme as "light" | "dark" };
 }
 
 /** The shared compatibility boundary for screens whose Classic dark paint is unverified. */

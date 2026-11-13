@@ -71,10 +71,11 @@ export function useLogin({ onLogin }: LoginHookProps, { port }: LoginDependencie
       throw err instanceof Error ? err : new Error("Sign-in could not finish. Try signing in again.");
     }
   }
+  const completeMfa = port.completeMfa;
   const controller = useJiniLogin({ onLogin, translate: text => text,
     port: { login: input => observed(() => port.login(input), [input.password]),
-      ...(port.completeMfa ? { completeMfa: (input: { pendingToken: string; code: string }) =>
-        observed(() => port.completeMfa!(input), [input.code, input.pendingToken]) } : {}) } }, { initialUsername: "admin" });
+      ...(completeMfa ? { completeMfa: (input: { pendingToken: string; code: string }) =>
+        observed(() => completeMfa.call(port, input), [input.code, input.pendingToken]) } : {}) } }, { initialUsername: "admin" });
   return { ...controller, failure };
 }
 

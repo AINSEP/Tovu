@@ -74,14 +74,14 @@ export function createFakeMenusPort(options: FakeMenusPortOptions = {}): MenusPo
       const index = menus.findIndex((m) => m.id === id);
       if (index < 0) throw new Error(`fake menu not found: ${id}`);
       const updated: AdminMenu = {
-        ...menus[index]!,
+        ...menus[index],
         items,
-        title: updateOptions.title ?? menus[index]!.title,
-        slug: updateOptions.slug ?? menus[index]!.slug,
+        title: updateOptions.title ?? menus[index].title,
+        slug: updateOptions.slug ?? menus[index].slug,
         // Same keep-when-omitted rule as the server's `updateMenuTree`.
-        mode: updateOptions.mode ?? menus[index]!.mode,
-        html: updateOptions.html ?? menus[index]!.html,
-        version: menus[index]!.version + 1,
+        mode: updateOptions.mode ?? menus[index].mode,
+        html: updateOptions.html ?? menus[index].html,
+        version: menus[index].version + 1,
       };
       menus[index] = updated;
       return { menu: updated };
@@ -90,7 +90,7 @@ export function createFakeMenusPort(options: FakeMenusPortOptions = {}): MenusPo
     async trash({ id }) {
       const index = menus.findIndex((m) => m.id === id);
       if (index < 0) throw new Error(`fake menu not found: ${id}`);
-      const trashed: AdminMenu = { ...menus[index]!, status: "trash" };
+      const trashed: AdminMenu = { ...menus[index], status: "trash" };
       menus[index] = trashed;
       return { ok: true, version: trashed.version };
     },

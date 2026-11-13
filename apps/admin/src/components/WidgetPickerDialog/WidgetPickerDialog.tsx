@@ -109,6 +109,7 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
     t,
   } = useDialog(props);
   // Native modality keeps Tab inside; Jini also restores the opener when this dialog unmounts.
+  if (hasExisting && !instances) throw new Error("widget picker has existing widgets but no instances");
 
   const content = (
     <>
@@ -120,7 +121,7 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
             </span>
           ) : null}
 
-          {hasExisting ? (
+          {hasExisting && instances ? (
             <form onSubmit={submitUseExisting} className="widget-picker-section">
               <h3>{t("Use existing")}</h3>
               <div className="field">
@@ -133,7 +134,7 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
                   onChange={setSelectedExistingId}
                   // `hasExisting` is `(instances?.length ?? 0) > 0` (the hook), so this section only
                   // renders once `instances` is a loaded, non-empty list; the old `?? []` here could not fire.
-                  options={toExistingOptions(instances!)}
+                  options={toExistingOptions(instances)}
                   placeholder={t("Choose a widget…")}
                   agentHandle={subHandle(base, "existing-select")}
                   t={t}

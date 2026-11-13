@@ -427,7 +427,7 @@ function ExternalMcpSourcesSection(props: {
         <ExternalMcpSourceRow
           key={source.id}
           source={source}
-          cardHandle={cardHandles[index]!}
+          cardHandle={cardHandles[index]}
           list={list}
           tDrift={tDrift}
           onRequestRemove={onRequestRemove}
@@ -455,13 +455,13 @@ function ExternalMcpRemoveConfirmSection(props: {
   if (confirmRemoveId === null) return null;
   const index = sources.findIndex((source) => source.id === confirmRemoveId);
   if (index === -1) return null;
-  const source = sources[index]!;
+  const source = sources[index];
 
   return (
     <ExternalMcpRemoveConfirmDialog
       name={sourceDisplayLabel(source, buildExternalMcpFieldSpecs(source.fields, tDrift))}
       isOAuth={resolveExternalMcpEffectiveAuthMode(source.fields) === "oauth"}
-      cardHandle={cardHandles[index]!}
+      cardHandle={cardHandles[index]}
       onConfirm={() => onConfirm(source.id)}
       onCancel={onCancel}
       t={tDrift}

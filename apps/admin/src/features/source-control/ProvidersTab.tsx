@@ -301,16 +301,18 @@ function SourceControlRowSummary({
   connected: boolean;
   t: Translate;
 }) {
+  const saved = row.saved;
+  if (connected && !saved) throw new Error(`source control provider ${row.providerId} has no saved credential`);
   return (
     <summary className="source-control-row-summary">
       <span className={connected ? "source-control-row-marker source-control-row-marker-done" : "source-control-row-marker"} aria-hidden="true">
         {connected ? <ConnectedMarkIcon /> : null}
       </span>
       <span className="source-control-row-summary-text">
-        {connected ? (
+        {connected && saved ? (
           <>
             <span translate="no">{label}</span> {translate("connected")} · {translate("token stored, encrypted")} ·{" "}
-            {translate("saved")} {formatTimestamp({ iso: row.saved!.updatedAt }, { timeZone: "local" })} <CredentialHint hint={row.saved!.tokenHint} />
+            {translate("saved")} {formatTimestamp({ iso: saved.updatedAt }, { timeZone: "local" })} <CredentialHint hint={saved.tokenHint} />
           </>
         ) : (
           <h3 className="source-control-row-title">
@@ -415,8 +417,9 @@ function SourceControlCredentialFields({
           <SourceControlScopeGuidance info={info} providerId={row.providerId} t={translate} />
         </div>
 
-        {info.fields.map((field) => (
-          <div className="field" key={field.name}>
+        {info.fields.map((field) => {
+          const help = fieldHelpText(field);
+          return <div className="field" key={field.name}>
             <label className="field-label" htmlFor={`source-control-credentials-${fieldNameHandleSegment(field.name)}-${row.providerId}`}>
               {translate(field.label)}
             </label>
@@ -432,9 +435,9 @@ function SourceControlCredentialFields({
                 label: `${info.label} ${field.label}`,
               })}
             />
-            {fieldHelpText(field) !== undefined ? <p className="field-hint">{translate(fieldHelpText(field)!)}</p> : null}
-          </div>
-        ))}
+            {help !== undefined ? <p className="field-hint">{translate(help)}</p> : null}
+          </div>;
+        })}
       </div>
 
       <div className="source-control-action">

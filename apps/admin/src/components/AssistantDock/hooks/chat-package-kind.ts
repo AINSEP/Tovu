@@ -49,7 +49,7 @@ function readPackageMarkers({ bytes, count }: { bytes: Uint8Array; count: number
   for (let i = 0; i < count; i++) {
     const entry = readEntry({ bytes, view, cursor });
     if (!entry) return null;
-    if (PACKAGE_MARKER.test(entry.name) && !entry.name.startsWith("__MACOSX/")) names.add(entry.name.split("/").at(-1)!);
+    if (PACKAGE_MARKER.test(entry.name) && !entry.name.startsWith("__MACOSX/")) names.add(entry.name.slice(entry.name.lastIndexOf("/") + 1));
     cursor = entry.next;
   }
   return cursor === bytes.length ? names : null;
@@ -98,11 +98,11 @@ export async function partitionChatPackages(
   const paths = files.map(file => ((file as File & { relativePath?: string }).relativePath || file.webkitRelativePath || "").replaceAll("\\", "/"));
   const roots = paths.map(value => value.includes("/") ? value.slice(0, value.indexOf("/") + 1) : "");
   const pluginRoots = new Set(roots.filter((root, index) => root && (paths[index] === `${root}plugin.json` || paths[index] === `${root}jini.plugin.json` || paths[index] === `${root}tovu.plugin.json`))); // tovu.plugin.json: legacy alias
-  const skillRoots = new Set(roots.filter((root, index) => root && files[index]!.name === "SKILL.md" && !pluginRoots.has(root)));
+  const skillRoots = new Set(roots.filter((root, index) => root && files[index].name === "SKILL.md" && !pluginRoots.has(root)));
   const kinds = await Promise.all(files.map(file => chatPackageKind({ file })));
   const skills: File[] = [], attachments: File[] = [];
   files.forEach((file, index) => {
-    const root = roots[index]!;
+    const root = roots[index];
     const insidePlugin = Boolean(root) && pluginRoots.has(root);
     const insideSkill = Boolean(root) && skillRoots.has(root);
     const isSkill = !insidePlugin && (insideSkill || kinds[index] === "skill");

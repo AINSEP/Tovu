@@ -228,20 +228,22 @@ function CopyLine({
  *  it to 11 — same reasoning `PublishPreviewAction`'s own doc gives for splitting the publish half of
  *  this tab. No behavior moved, only where the branches are counted. */
 function ExportRunCounts({ run, t: translate }: { run: AdminExportRunSnapshot; t: Translate }) {
+  const counts = run.counts;
+  if (!counts) throw new Error("completed export run has no counts");
   return (
     <div className="deployment-facts">
       <div className="deployment-fact">
         <span className="deployment-fact-label">{translate("Routes")}</span>
         <span className="deployment-fact-value">
-          {run.counts!.routesSucceeded} {translate("succeeded")}
-          {run.counts!.routesFailed > 0 ? `, ${run.counts!.routesFailed} ${translate("failed")}` : ""}
+          {counts.routesSucceeded} {translate("succeeded")}
+          {counts.routesFailed > 0 ? `, ${counts.routesFailed} ${translate("failed")}` : ""}
         </span>
       </div>
       <div className="deployment-fact">
         <span className="deployment-fact-label">{translate("Assets")}</span>
         <span className="deployment-fact-value">
-          {run.counts!.assetsSucceeded} {translate("succeeded")}
-          {run.counts!.assetsFailed > 0 ? `, ${run.counts!.assetsFailed} ${translate("failed")}` : ""}
+          {counts.assetsSucceeded} {translate("succeeded")}
+          {counts.assetsFailed > 0 ? `, ${counts.assetsFailed} ${translate("failed")}` : ""}
         </span>
       </div>
       {run.outputDir ? (
@@ -995,6 +997,8 @@ function CredentialStepDone({
   controller: PublishCredentialsController;
   t: Translate;
 }) {
+  const saved = row.saved;
+  if (!saved) throw new Error(`publish credential row ${row.providerId} has no saved credential`);
   return (
     <details
       className="deployment-step deployment-step-done"
@@ -1012,13 +1016,13 @@ function CredentialStepDone({
             <span translate="no">{row.label}</span>
           </TemplateWithNode>{" "}
           · {translate("token stored, encrypted")} ·{" "}
-          {interpolate({ template: translate("saved {time}"), vars: { time: formatTimestamp({ iso: row.saved!.updatedAt }, { timeZone: "local" }) } })} <CredentialHint hint={row.saved!.tokenHint} />
-          {row.saved!.accountLabel ? (
+          {interpolate({ template: translate("saved {time}"), vars: { time: formatTimestamp({ iso: saved.updatedAt }, { timeZone: "local" }) } })} <CredentialHint hint={saved.tokenHint} />
+          {saved.accountLabel ? (
             <>
               {" "}
               ·{" "}
               <TemplateWithNode template={translate("connected as {account}")} token="{account}">
-                <span translate="no">{row.saved!.accountLabel}</span>
+                <span translate="no">{saved.accountLabel}</span>
               </TemplateWithNode>
             </>
           ) : null}
@@ -1109,10 +1113,12 @@ function CredentialTokenPicker({
   controller: PublishCredentialsController;
   t: Translate;
 }) {
-  // Rendered only inside the connected row (`row.saved` set — that row reads `row.saved!` too), so
+  // Rendered only inside the connected row (`row.saved` set — that row checks it too), so
   // the selected value falls back to the saved default's id with no further "nothing saved" arm.
   const options = controller.credentialsForProvider(row.providerId);
   if (options.length < 2) return null;
+  const saved = row.saved;
+  if (!saved) throw new Error(`publish credential picker ${row.providerId} has no saved credential`);
   const fieldId = `deployment-static-site-credentials-picker-${row.providerId}`;
   return (
     <div className="field">
@@ -1121,7 +1127,7 @@ function CredentialTokenPicker({
       </label>
       <select
         id={fieldId}
-        value={row.selectingCredentialId ?? row.saved!.id}
+        value={row.selectingCredentialId ?? saved.id}
         disabled={row.selectingCredentialId !== null}
         onChange={(e) => void controller.selectCredential(row.providerId, e.target.value)}
         {...agentHandle({ handle: fieldId }, {

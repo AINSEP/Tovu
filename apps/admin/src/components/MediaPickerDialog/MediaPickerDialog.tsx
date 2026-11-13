@@ -94,7 +94,7 @@ function MediaPickerItems({ items, itemHandles, dialog, emptyState }: {
           className="media-picker-item"
           title={item.title}
           onClick={() => select(item)}
-          {...(itemHandles ? agentHandle({ handle: itemHandles[index]! }, { role: "button", label: item.title }) : {})}
+          {...(itemHandles ? agentHandle({ handle: itemHandles[index] }, { role: "button", label: item.title }) : {})}
         >
           <img src={mediaOriginalUrl(item.id)} alt={item.alt || item.title} loading="lazy" />
           <span className="media-picker-item-title">{item.title}</span>

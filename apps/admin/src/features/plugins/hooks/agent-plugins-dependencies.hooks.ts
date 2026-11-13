@@ -53,7 +53,7 @@ export function createFakeAgentPluginsPort(options: FakeAgentPluginsPortOptions 
       if (options.failToggleWith !== undefined) throw options.failToggleWith;
       const index = agentPlugins.findIndex((plugin) => plugin.pluginId === pluginId);
       if (index < 0) throw new Error(`fake port: '${pluginId}' is not installed`);
-      const updated: AdminAgentPlugin = { ...agentPlugins[index]!, enabled };
+      const updated: AdminAgentPlugin = { ...agentPlugins[index], enabled };
       agentPlugins[index] = updated;
       if (options.deferToggles) await new Promise<void>((resolve) => pendingToggles.push(resolve));
       return { agentPlugin: updated };

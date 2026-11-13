@@ -412,7 +412,10 @@ function ThemeGrid({
 }) {
   // A delete can only be requested through `onRequestDelete`, which exists only when `trash` does,
   // so the hook's `trash` is only ever called with `trash` defined.
-  const deletion = useThemeDeleteRequest({ t, trash: (themeId) => trash!(themeId) });
+  const deletion = useThemeDeleteRequest({ t, trash: (themeId) => {
+    if (!trash) throw new Error("theme delete action is unavailable");
+    return trash(themeId);
+  } });
   const onRequestDelete = trash ? (request: ThemeDeleteRequest) => void deletion.requestDelete(request) : undefined;
   if (visibleThemes.length === 0) {
     return (
@@ -434,7 +437,7 @@ function ThemeGrid({
       <div className="theme-grid" role="group" aria-label={t("Themes")}>
         {visibleThemes.map((themeId, index) => {
           const active = isActiveTheme(settings, themeId);
-          const handleBase = cardHandles[index]!;
+          const handleBase = cardHandles[index];
           const name = themeDisplayName(themeId, themeNames);
           return (
             <div key={themeId} className={`theme-card theme-${themeId}${active ? " active" : ""}`}>

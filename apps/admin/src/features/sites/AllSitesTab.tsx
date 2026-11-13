@@ -299,7 +299,7 @@ function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActiva
   // Folder names are unique under `sites/` (they ARE the directory entries), so they disambiguate
   // one card's controls from another's — same reasoning as every other list on this workstream.
   const rowHandles = resolveSitesRowHandles(sites);
-  const handleOf = new Map(sites.map((site, index) => [site.name, rowHandles[index]!]));
+  const handleOf = new Map(sites.map((site, index) => [site.name, rowHandles[index]]));
   return (
     // One wrapper so the page's section gap stays above the toolbar, not between it and its cards.
     <div>
@@ -319,20 +319,22 @@ function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActiva
       />
       {list.visible.length === 0 ? <p className="sites-empty-lead">{t("Every site is hidden. Open Hidden to bring one back.")}</p> : null}
       <div className="sites-grid" role="group" aria-label={t("Sites")}>
-        {list.visible.map(({ site }) => (
-          <SiteCard
+        {list.visible.map(({ site }) => {
+          const handle = handleOf.get(site.name);
+          if (handle === undefined) throw new Error(`site ${site.name} has no card handle`);
+          return <SiteCard
             key={site.name}
             site={site}
             snapshot={snapshot}
-            handle={handleOf.get(site.name)!}
+            handle={handle}
             switchingEnabled={switchingEnabled}
             activatingName={activatingName}
             onActivate={onActivate}
             localSites={localSites}
             list={list}
             t={t}
-          />
-        ))}
+          />;
+        })}
       </div>
     </div>
   );

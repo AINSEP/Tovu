@@ -70,7 +70,7 @@ function joinHeadlineAndCause(headline: string, cause: string | null): string {
  *  `Error`/`Exception`, or `Caused by`. -1 otherwise. */
 function errorNameEnd(line: string, at: number): number {
   let end = at;
-  while (end < line.length && ERROR_NAME_CHAR.test(line[end]!)) end += 1;
+  while (end < line.length && ERROR_NAME_CHAR.test(line.charAt(end))) end += 1;
   const name = line.slice(at, end);
   if (/^[A-Z]/.test(name) && (name.endsWith("Error") || name.endsWith("Exception"))) return end;
   return line.startsWith("Caused by", at) ? at + "Caused by".length : -1;
@@ -82,7 +82,7 @@ function messageAfterColon(afterColon: string): string | null {
   const text = afterColon.trim();
   if (text !== "") return LINE_TERMINATOR.test(text) ? null : text;
   for (let i = afterColon.length - 1; i >= 0; i -= 1) {
-    if (!LINE_TERMINATOR.test(afterColon[i]!)) return afterColon[i]!;
+    if (!LINE_TERMINATOR.test(afterColon.charAt(i))) return afterColon.charAt(i);
   }
   return null;
 }

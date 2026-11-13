@@ -119,7 +119,8 @@ export function readMediaContent(
   const { config, widgetType } = required;
   const mode = readMode(config);
   const layouts = mediaLayoutsFor(widgetType);
-  const layout = layouts.find((candidate) => candidate === config.layout) ?? layouts[0]!;
+  const layout = layouts.find((candidate) => candidate === config.layout) ?? layouts[0];
+  if (layout === undefined) throw new Error(`media widget ${widgetType} has no layouts`);
   const media: MediaDraft = { items: readItems(config, optional.library ?? null), layout };
   if (typeof config.columns === "number") media.columns = config.columns;
   for (const key of ["aspectRatio", "cssClass", "htmlAttributes"] as const) {
@@ -223,7 +224,8 @@ export function moveMediaItem(required: { items: MediaItem[]; from: number; to: 
   if (from < 0 || from >= items.length || from === to) return items;
   const next = items.slice();
   const [moved] = next.splice(from, 1);
-  next.splice(to, 0, moved!);
+  if (moved === undefined) throw new Error(`media item is missing at index ${from}`);
+  next.splice(to, 0, moved);
   return next;
 }
 
@@ -332,7 +334,7 @@ export function htmlAttributesToRows(text: string | undefined): HtmlAttributeRow
     const skipped = source.slice(consumed, match.index).trim();
     if (skipped !== "") rows.push({ name: skipped, value: "" });
     consumed = match.index + match[0].length;
-    rows.push({ name: match[1]!, value: decodeAttributeValue(match[2] ?? match[3] ?? match[4] ?? "") });
+    rows.push({ name: match[1], value: decodeAttributeValue(match[2] ?? match[3] ?? match[4] ?? "") });
   }
   const trailing = source.slice(consumed).trim();
   if (trailing !== "") rows.push({ name: trailing, value: "" });

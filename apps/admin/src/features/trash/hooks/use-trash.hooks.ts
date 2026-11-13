@@ -120,7 +120,10 @@ export function useTrash(deps: TrashDependencies): TrashController {
   // than calling a method that might not exist.
   const usersQuery = useFetchQuery({
     key: KEYS.actorUsernames(),
-    fetch: () => port.listUsers!(),
+    fetch: () => {
+      if (!port.listUsers) throw new Error("trash user lookup is unavailable");
+      return port.listUsers();
+    },
   }, {
     enabled: Boolean(port.listUsers),
   });

@@ -103,7 +103,8 @@ export function createBrowserWorkingDirectoryAccess(): ChatPaneWorkingDirectoryA
      */
     async pickWorkingDirectory(): Promise<string | null> {
       try {
-        const handle = await window.showDirectoryPicker!();
+        if (!window.showDirectoryPicker) throw new Error("working directory picker is unavailable");
+        const handle = await window.showDirectoryPicker();
         recordRecentDirectoryName(handle.name);
         return handle.name;
       } catch (error) {

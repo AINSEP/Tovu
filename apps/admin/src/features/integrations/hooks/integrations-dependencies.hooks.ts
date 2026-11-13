@@ -60,7 +60,7 @@ export function createFakeIntegrationsPort(options: FakeIntegrationsPortOptions 
     async pauseIntegrationSubscription({ id, paused }) {
       const index = subscriptions.findIndex((s) => s.id === id);
       if (index < 0) throw new Error(`fake integrations port: unknown subscription ${id}`);
-      const updated = { ...subscriptions[index]!, status: (paused ? "paused" : "active") as AdminWebhookSubscription["status"] };
+      const updated = { ...subscriptions[index], status: (paused ? "paused" : "active") as AdminWebhookSubscription["status"] };
       subscriptions[index] = updated;
       return { subscription: updated };
     },
@@ -69,7 +69,7 @@ export function createFakeIntegrationsPort(options: FakeIntegrationsPortOptions 
       const index = subscriptions.findIndex((s) => s.id === id);
       if (index < 0) throw new Error(`fake integrations port: unknown subscription ${id}`);
       const [removed] = subscriptions.splice(index, 1);
-      return { subscription: removed! };
+      return { subscription: removed };
     },
   };
 }

@@ -164,7 +164,7 @@ export function defaultThemeTabGroup(
   settings: PresentationSettings,
   themeTiers: Record<string, ThemeTier>,
 ): ThemeTabGroup {
-  if (isThemeDisabled(settings)) return THEME_TAB_GROUPS[0]!;
+  if (isThemeDisabled(settings)) return THEME_TAB_GROUPS[0];
   return themeTabGroup(settings.activeThemeId, themeTiers);
 }
 
@@ -175,7 +175,7 @@ export function defaultThemeTabGroup(
  * @complexity Time/space: O(n) in `themes.length`.
  */
 export function themeNamesById(themes: ReadonlyArray<{ id: string; name?: string }>): Record<string, string> {
-  return Object.fromEntries(themes.filter((theme) => theme.name).map((theme) => [theme.id, theme.name!]));
+  return Object.fromEntries(themes.filter((theme): theme is typeof theme & { name: string } => Boolean(theme.name)).map((theme) => [theme.id, theme.name]));
 }
 
 /**

@@ -8,7 +8,11 @@ export function menuHtmlEmbed({ slug }: { slug: string }, _optional = {}): strin
 }
 
 function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
+  return value.replace(/[&<>"']/g, (char) => {
+    const escaped = ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char];
+    if (escaped === undefined) throw new Error(`menu HTML escape has no replacement for ${char}`);
+    return escaped;
+  });
 }
 
 /** Best href the admin knows without a server round-trip: a URL's own href, a page link's last

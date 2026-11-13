@@ -349,7 +349,7 @@ export function parseMediaHtmlAttributes(text: string): ParsedMediaHtmlAttribute
     }
     consumed = match.index + match[0].length;
 
-    const name = match[1]!.toLowerCase();
+    const name = match[1].toLowerCase();
     const value = mediaAttributeTokenValue(match);
     const rejection = classifyMediaHtmlAttributeToken(name, value);
     if (rejection) {

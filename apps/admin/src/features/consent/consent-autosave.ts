@@ -50,7 +50,8 @@ export function createConsentAutosave(
   /** One PUT; edits that arrived meanwhile are saved right after it, with its new draft id. */
   async function saveOnce(): Promise<void> {
     queued = false;
-    const config = latest!;
+    const config = latest;
+    if (config === null) throw new Error('consent autosave has no draft to save');
     events.onSaving();
     try {
       const result = await port.saveDraft({ config, expectedDraftId: lastDraftId });

@@ -135,7 +135,7 @@ function RestorePointsList(props: {
   // only receives the row, not its index.
   const rowHandles = buildAgentListHandles({ prefix: "recovery-row", ids: props.points.map((p) => p.id) }
   );
-  const rowHandleById = new Map(props.points.map((p, index) => [p.id, rowHandles[index]!]));
+  const rowHandleById = new Map(props.points.map((p, index) => [p.id, rowHandles[index]]));
   return (
     <DataTable
       rows={props.points}
