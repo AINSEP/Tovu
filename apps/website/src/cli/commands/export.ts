@@ -94,6 +94,18 @@ function printExportReport(report: ExportReport): void {
   }
 }
 
+/** Reject an export that reported a failed route or asset after printing the report.
+ * @throws {ExportIncompleteError} when either failure list is nonempty.
+ * @complexity O(1) time and space.
+ */
+function assertExportComplete({ report }: { report: ExportReport }, _optional = {}): void {
+  if (report.routes.failed.length > 0 || report.assets.failed.length > 0) {
+    throw new ExportIncompleteError(
+      `export finished with ${report.routes.failed.length} failed route(s) and ${report.assets.failed.length} failed asset(s) — see stderr above`
+    );
+  }
+}
+
 export interface RunExportCommandOptional {
   /** Command effects stay injectable so cleanup can be exercised without replacing modules. */
   bootSiteDir?: typeof bootSiteDir;
@@ -169,11 +181,7 @@ export async function runExportCommand(input: RunExportCommandInput, optional: R
 
     const report = await (optional.exportSite ?? exportSite)({ routeDeps, outputDir, clean: input.clean ?? false, basePath: input.basePath, publicUrl: input.publicUrl });
     printExportReport(report);
-    if (report.routes.failed.length > 0 || report.assets.failed.length > 0) {
-      throw new ExportIncompleteError(
-        `export finished with ${report.routes.failed.length} failed route(s) and ${report.assets.failed.length} failed asset(s) — see stderr above`
-      );
-    }
+    assertExportComplete({ report });
   } finally {
     await closeExportBoot({ routeDeps: routeDepsForCleanup, bootResult, composedStore }, optional);
   }

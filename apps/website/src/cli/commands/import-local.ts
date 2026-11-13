@@ -125,12 +125,21 @@ function mintOwnerPassword(): string {
   return randomBytes(32).toString("base64url");
 }
 
-function parseRequest({ text }: { text: string }): ImportLocalRequest {
+/** Parse the request text as an object; reject malformed JSON and non-object values.
+ * @throws {ValidationError} when the text is not a JSON object.
+ * @complexity O(n) time and space for n characters of JSON.
+ */
+function parseRequestObject({ text }: { text: string }, _optional = {}): ImportLocalRequest & { [key: string]: unknown } {
   let raw: ImportLocalRequest & { [key: string]: unknown };
   try {
     raw = JSON.parse(text) as typeof raw;
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("shape");
   } catch { throw new ValidationError({ message: "import-local: stdin must contain one JSON request object." }); }
+  return raw;
+}
+
+function parseRequest({ text }: { text: string }, _optional = {}): ImportLocalRequest {
+  const raw = parseRequestObject({ text });
   if (raw.tidy === true && Object.keys(raw).length === 1) return { tidy: true };
   if (Object.keys(raw).some(key => !["file", "url"].includes(key)) || (raw.file === undefined) === (raw.url === undefined)) {
     throw new ValidationError({ message: "import-local: provide exactly one of file or url." });

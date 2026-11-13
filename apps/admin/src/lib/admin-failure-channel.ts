@@ -35,6 +35,17 @@ function approvedFailure({ value, entry }: { value: unknown; entry?: "page" }): 
   });
 }
 
+/** Return approved server explanations only for signed-in, non-auth requests.
+ * @complexity O(n) for n characters of bounded formatted text, via {@link approvedFailure}.
+ */
+function approvedResponseFailure(
+  { details, path, entry }: { details: Record<string, unknown>; path: string; entry?: "page" },
+  _options = {},
+): UserFacingError | undefined {
+  const authenticated = getAdminDraftIdentity() !== null && !path.startsWith("/auth/");
+  return authenticated ? approvedFailure({ value: details.failure, ...(entry ? { entry } : {}) }) : undefined;
+}
+
 /** Describe only the incident evidence actually returned by the request, never an inferred report.
  * @complexity O(1), no I/O. @overallScore 100 — fixed copy with directly tested reference/response cases.
  */
@@ -58,8 +69,7 @@ export function publishAdminFailure(
   const envelope = record(body);
   const reference = details.errorId ?? envelope.errorId ?? decoded.requestId;
   const errorId = typeof reference === "string" ? reference : undefined;
-  const authenticated = getAdminDraftIdentity() !== null && !path.startsWith("/auth/");
-  const approved = authenticated ? approvedFailure({ value: details.failure, ...(entry ? { entry } : {}) }) : undefined;
+  const approved = approvedResponseFailure({ details, path, entry });
   const wording = describeRequestFailure({ method, route: entry === "page" ? path.replace(/\/posts\//, "/pages/") : path, vocabulary: ADMIN_FAILURE_VOCABULARY });
   const step = status === 0 ? `${wording.step} (no server response)` : `${wording.step} (HTTP ${status})`;
   const cause = incidentCause({ status, errorId });
