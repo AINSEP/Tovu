@@ -32,7 +32,7 @@ function readDefaultPasswordBannerDismissedBy(): string | null {
 
 /** Best-effort write — silent no-op on any storage failure, for the same reason the read above is.
  *  @complexity Time/space: O(1). */
-function writeDefaultPasswordBannerDismissedBy(principalId: string): void {
+function writeDefaultPasswordBannerDismissedBy({ principalId }: { principalId: string }, _optional = {}): void {
   try {
     localStorage.setItem(DEFAULT_CREDENTIAL_BANNER_DISMISSED_KEY, principalId);
   } catch {
@@ -183,10 +183,10 @@ function useActiveThemeRefresh(): void {
   useContentRefreshSubscription(ACTIVE_THEME_RESOURCE, refresh);
 }
 
-/** One stat card's state: `count(data)` once the read settles, `null` while pending or failed.
+/** One stat card's state: `count({ data })` once the read settles, `null` while pending or failed.
  *  @complexity Time/space: whatever `count` costs. */
-function statState<T>({ query, count }: { query: QueryResult<T>; count: (data: T) => number }): StatState {
-  return { value: query.data === undefined ? null : count(query.data), error: query.error?.message ?? null };
+function statState<T>({ query, count }: { query: QueryResult<T>; count: (required: { data: T }, optional?: Record<string, never>) => number }): StatState {
+  return { value: query.data === undefined ? null : count({ data: query.data }), error: query.error?.message ?? null };
 }
 
 /** How many `rows` carry `status`, or `null` while the rows are still pending.
@@ -210,12 +210,12 @@ type DashboardStats = Pick<DashboardController,
 function deriveStats(queries: ReturnType<typeof useStatQueries>): DashboardStats {
   const { postsQuery, pagesQuery, mediaQuery, commentsQuery, themeQuery } = queries;
   return {
-    posts: statState({ query: postsQuery, count: rows => rows.length }),
+    posts: statState({ query: postsQuery, count: ({ data: rows }, _optional = {}) => rows.length }),
     published: countWithStatus({ rows: postsQuery.data, status: "published" }),
-    pages: statState({ query: pagesQuery, count: rows => rows.length }),
+    pages: statState({ query: pagesQuery, count: ({ data: rows }, _optional = {}) => rows.length }),
     drafts: countWithStatus({ rows: pagesQuery.data, status: "draft" }),
-    media: statState({ query: mediaQuery, count: data => data.media.filter(item => item.status === "active").length }),
-    comments: statState({ query: commentsQuery, count: data => data.items.length }),
+    media: statState({ query: mediaQuery, count: ({ data }, _optional = {}) => data.media.filter(item => item.status === "active").length }),
+    comments: statState({ query: commentsQuery, count: ({ data }, _optional = {}) => data.items.length }),
     themeId: themeQuery.data?.settings.activeThemeId ?? null,
     themeName: themeQuery.data ? activeThemeName(themeQuery.data) : null,
     themeError: themeQuery.error?.message ?? null,
@@ -242,7 +242,7 @@ function useDefaultPasswordBanner({ port }: { port: DashboardPort }): Pick<Dashb
     ),
     dismissDefaultPasswordBanner: () => {
       if (passwordStatus === null) return;
-      writeDefaultPasswordBannerDismissedBy(passwordStatus.principalId);
+      writeDefaultPasswordBannerDismissedBy({ principalId: passwordStatus.principalId });
       setDismissedBy(passwordStatus.principalId);
     },
   };

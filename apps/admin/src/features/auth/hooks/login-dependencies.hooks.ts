@@ -8,8 +8,8 @@ import type { LoginPort } from "./login-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultLoginPort: LoginPort = {
-  login: (credentials) => api.login(credentials),
-  completeMfa: input => api.completeMfa(input),
+  login: (credentials, _optional = {}) => api.login(credentials),
+  completeMfa: (input, _optional = {}) => api.completeMfa(input),
 };
 
 /** Fallback fake user returned by {@link createFakeLoginPort} when the caller doesn't seed one —

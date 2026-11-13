@@ -83,7 +83,7 @@ describe("field editing", () => {
   it("updateField patches the matching row", () => {
     const { view } = mount();
     const rowId = view.result.current.fields[0]._rowId;
-    act(() => view.result.current.updateField(rowId, { name: "prep_time" }));
+    act(() => view.result.current.updateField({ rowId, patch: { name: "prep_time" } }));
     expect(view.result.current.fields[0].name).toBe("prep_time");
   });
 
@@ -98,10 +98,10 @@ describe("field editing", () => {
     act(() => view.result.current.addField());
     const firstRowId = view.result.current.fields[0]._rowId;
     const secondRowId = view.result.current.fields[1]._rowId;
-    act(() => view.result.current.updateField(firstRowId, { name: "prep_time", kind: "integer", required: true }));
-    act(() => view.result.current.updateField(secondRowId, { name: "instructions", kind: "text" }));
+    act(() => view.result.current.updateField({ rowId: firstRowId, patch: { name: "prep_time", kind: "integer", required: true } }));
+    act(() => view.result.current.updateField({ rowId: secondRowId, patch: { name: "instructions", kind: "text" } }));
     const firstRow = view.result.current.fields[0];
-    act(() => view.result.current.removeField(secondRowId));
+    act(() => view.result.current.removeField({ rowId: secondRowId }));
     expect(view.result.current.fields).toHaveLength(1);
     expect(view.result.current.fields).toEqual([firstRow]);
     expect(view.result.current.fields[0]._rowId).not.toBe(secondRowId);
@@ -134,7 +134,7 @@ describe("submit — validation", () => {
 
     act(() => view.result.current.setKey("recipe"));
     act(() => view.result.current.setLabel("Recipe"));
-    act(() => view.result.current.updateField(view.result.current.fields[0]._rowId, { name: "prep_time" }));
+    act(() => view.result.current.updateField({ rowId: view.result.current.fields[0]._rowId, patch: { name: "prep_time" } }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ contentType: {} }));
 
     await act(async () => {
@@ -149,7 +149,7 @@ describe("submit — success", () => {
     const { view, onCreated } = mount();
     act(() => view.result.current.setKey("  recipe  "));
     act(() => view.result.current.setLabel("  Recipe  "));
-    act(() => view.result.current.updateField(view.result.current.fields[0]._rowId, { name: "prep_time" }));
+    act(() => view.result.current.updateField({ rowId: view.result.current.fields[0]._rowId, patch: { name: "prep_time" } }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ contentType: {} }));
 
     await act(async () => {
@@ -169,7 +169,7 @@ describe("submit — success", () => {
     const { view } = mount();
     act(() => view.result.current.setKey("recipe"));
     act(() => view.result.current.setLabel("Recipe"));
-    act(() => view.result.current.updateField(view.result.current.fields[0]._rowId, { name: "prep_time" }));
+    act(() => view.result.current.updateField({ rowId: view.result.current.fields[0]._rowId, patch: { name: "prep_time" } }));
 
     let resolveCreate: ((r: Response) => void) | undefined;
     fetchMock.mockImplementationOnce(() => new Promise((resolve) => (resolveCreate = resolve)));
@@ -201,7 +201,7 @@ describe("submit — failure", () => {
     const { view, onCreated } = mount();
     act(() => view.result.current.setKey("recipe"));
     act(() => view.result.current.setLabel("Recipe"));
-    act(() => view.result.current.updateField(view.result.current.fields[0]._rowId, { name: "prep_time" }));
+    act(() => view.result.current.updateField({ rowId: view.result.current.fields[0]._rowId, patch: { name: "prep_time" } }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500));
 
     await act(async () => {
@@ -217,7 +217,7 @@ describe("submit — failure", () => {
     const { view } = mount();
     act(() => view.result.current.setKey("recipe"));
     act(() => view.result.current.setLabel("Recipe"));
-    act(() => view.result.current.updateField(view.result.current.fields[0]._rowId, { name: "prep_time" }));
+    act(() => view.result.current.updateField({ rowId: view.result.current.fields[0]._rowId, patch: { name: "prep_time" } }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "recipe already exists" }, 409));
 
     await act(async () => {
@@ -231,7 +231,7 @@ describe("submit — failure", () => {
 describe("native dialog lifecycle (M3)", () => {
   it("native cancel reaches the domain's current cancel handler", () => {
     const onCancel = vi.fn();
-    render(<NewContentTypeDialog onCreated={vi.fn()} onCancel={onCancel} t={(key) => key}
+    render(<NewContentTypeDialog onCreated={vi.fn()} onCancel={onCancel} t={({ key }, _optional = {}) => key}
       useNewContentTypeDialogHook={(props) => useNewContentTypeDialog(props, { port: createFakeNewContentTypeDialogPort(), locale: "en" })} />, { wrapper });
     fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     expect(onCancel).toHaveBeenCalledTimes(1);
@@ -241,7 +241,7 @@ describe("native dialog lifecycle (M3)", () => {
     const opener = document.createElement("button");
     document.body.appendChild(opener);
     opener.focus();
-    const { unmount } = render(<NewContentTypeDialog onCreated={vi.fn()} onCancel={vi.fn()} t={(key) => key}
+    const { unmount } = render(<NewContentTypeDialog onCreated={vi.fn()} onCancel={vi.fn()} t={({ key }, _optional = {}) => key}
       useNewContentTypeDialogHook={(props) => useNewContentTypeDialog(props, { port: createFakeNewContentTypeDialogPort(), locale: "en" })} />, { wrapper });
     expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
     expect(screen.getByRole("dialog")).toHaveAttribute("open");
@@ -263,7 +263,7 @@ describe("cancel — in-flight guard (H4)", () => {
 
     act(() => result.current.setKey("recipe"));
     act(() => result.current.setLabel("Recipe"));
-    act(() => result.current.updateField(result.current.fields[0]._rowId, { name: "prep_time" }));
+    act(() => result.current.updateField({ rowId: result.current.fields[0]._rowId, patch: { name: "prep_time" } }));
     act(() => {
       void result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
     });
@@ -291,7 +291,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
       act(() => result.current.setKey("  recipe  "));
       act(() => result.current.setLabel("  Recipe  "));
-      act(() => result.current.updateField(result.current.fields[0]._rowId, { name: "prep_time" }));
+      act(() => result.current.updateField({ rowId: result.current.fields[0]._rowId, patch: { name: "prep_time" } }));
 
       await act(async () => {
         await result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
@@ -316,7 +316,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
     act(() => result.current.setKey("recipe"));
     act(() => result.current.setLabel("Recipe"));
-    act(() => result.current.updateField(result.current.fields[0]._rowId, { name: "prep_time" }));
+    act(() => result.current.updateField({ rowId: result.current.fields[0]._rowId, patch: { name: "prep_time" } }));
 
     await act(async () => {
       await result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);

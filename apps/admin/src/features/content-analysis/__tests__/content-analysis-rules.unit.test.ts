@@ -27,34 +27,34 @@ const marked = (key: string) => `<${key}>`;
 
 describe("parseContentAnalysisReport", () => {
   it("parses a valid v1 report string", () => {
-    expect(parseContentAnalysisReport(VALID_REPORT_JSON)).toEqual(VALID_REPORT);
+    expect(parseContentAnalysisReport({ raw: VALID_REPORT_JSON })).toEqual(VALID_REPORT);
   });
 
   it.each([
     "v", "score", "wordCount", "sentenceCount", "readingTimeMinutes", "readability", "toc", "checks",
   ])("rejects a report missing its required %s field", (field) => {
-    expect(parseContentAnalysisReport(reportJson({ [field]: undefined }))).toBeNull();
+    expect(parseContentAnalysisReport({ raw: reportJson({ [field]: undefined }) })).toBeNull();
   });
 
   describe.each(["score", "wordCount", "sentenceCount", "readingTimeMinutes"])("%s metric", (field) => {
     it.each([null, true, "12", {}, []])("rejects the non-numeric value %j", (value) => {
-      expect(parseContentAnalysisReport(reportJson({ [field]: value }))).toBeNull();
+      expect(parseContentAnalysisReport({ raw: reportJson({ [field]: value }) })).toBeNull();
     });
 
     it.each(["1e400", "-1e400"])("rejects a JSON number that overflows to %s", (literal) => {
       const raw = reportJson({ [field]: "overflow" }).replace('"overflow"', literal);
-      expect(parseContentAnalysisReport(raw)).toBeNull();
+      expect(parseContentAnalysisReport({ raw })).toBeNull();
     });
 
     it.each([0, -1, 1.5, Number.MAX_VALUE])("preserves the finite value %s without range checks", (value) => {
       const report = { ...VALID_REPORT, [field]: value };
-      expect(parseContentAnalysisReport(JSON.stringify(report))).toEqual(report);
+      expect(parseContentAnalysisReport({ raw: JSON.stringify(report) })).toEqual(report);
     });
   });
 
   it("accepts empty collections and preserves extra report fields", () => {
     const report = { ...VALID_REPORT, toc: [], checks: [], futureField: { enabled: true } };
-    expect(parseContentAnalysisReport(JSON.stringify(report))).toEqual(report);
+    expect(parseContentAnalysisReport({ raw: JSON.stringify(report) })).toEqual(report);
   });
 
   it.each([
@@ -87,34 +87,34 @@ describe("parseContentAnalysisReport", () => {
     ["a check with null params", reportJson({ checks: [{ id: "single-h1", status: "pass", params: null }] })],
     ["a check param that is a boolean", reportJson({ checks: [{ id: "single-h1", status: "pass", params: { h1: true } }] })],
   ])("returns null for %s", (_label, raw) => {
-    expect(parseContentAnalysisReport(raw)).toBeNull();
+    expect(parseContentAnalysisReport({ raw })).toBeNull();
   });
 
   it("keeps a check whose id this admin does not know (a newer plugin's extra check)", () => {
-    const report = parseContentAnalysisReport(reportJson({ checks: [{ id: "future-check", status: "warn", params: { n: 1 } }] }));
+    const report = parseContentAnalysisReport({ raw: reportJson({ checks: [{ id: "future-check", status: "warn", params: { n: 1 } }] }) });
     expect(report?.checks).toEqual([{ id: "future-check", status: "warn", params: { n: 1 } }]);
   });
 });
 
 describe("storedAnalysis", () => {
   it("is missing when the post carries no ext at all", () => {
-    expect(storedAnalysis(undefined)).toEqual({ kind: "missing" });
+    expect(storedAnalysis({ ext: undefined })).toEqual({ kind: "missing" });
   });
 
   it("is missing when no content-analyzer bag is present", () => {
-    expect(storedAnalysis({ "word-count": { words: 3 } })).toEqual({ kind: "missing" });
+    expect(storedAnalysis({ ext: { "word-count": { words: 3 } } })).toEqual({ kind: "missing" });
   });
 
   it("is missing when the bag has no report field", () => {
-    expect(storedAnalysis({ [CONTENT_ANALYZER_PLUGIN_ID]: { score: 80 } })).toEqual({ kind: "missing" });
+    expect(storedAnalysis({ ext: { [CONTENT_ANALYZER_PLUGIN_ID]: { score: 80 } } })).toEqual({ kind: "missing" });
   });
 
   it("is invalid when the stored report does not parse", () => {
-    expect(storedAnalysis({ [CONTENT_ANALYZER_PLUGIN_ID]: { report: "{bad" } })).toEqual({ kind: "invalid" });
+    expect(storedAnalysis({ ext: { [CONTENT_ANALYZER_PLUGIN_ID]: { report: "{bad" } } })).toEqual({ kind: "invalid" });
   });
 
   it("is the stored report when it parses", () => {
-    expect(storedAnalysis({ [CONTENT_ANALYZER_PLUGIN_ID]: { report: VALID_REPORT_JSON } })).toEqual({
+    expect(storedAnalysis({ ext: { [CONTENT_ANALYZER_PLUGIN_ID]: { report: VALID_REPORT_JSON } } })).toEqual({
       kind: "report",
       source: "stored",
       report: VALID_REPORT,
@@ -138,19 +138,19 @@ describe("currentAnalysis", () => {
   const freshState: AnalysisState = { kind: "invalid" };
 
   it("shows the stored analysis when nothing was analyzed on demand", () => {
-    expect(currentAnalysis({ id: "p1", version: 3, ext }, null)).toMatchObject({ kind: "report", source: "stored" });
+    expect(currentAnalysis({ post: { id: "p1", version: 3, ext }, fresh: null })).toMatchObject({ kind: "report", source: "stored" });
   });
 
   it("shows the Analyze-now result while it belongs to the post as loaded", () => {
-    expect(currentAnalysis({ id: "p1", version: 3, ext }, { postId: "p1", version: 3, state: freshState })).toBe(freshState);
+    expect(currentAnalysis({ post: { id: "p1", version: 3, ext }, fresh: { postId: "p1", version: 3, state: freshState } })).toBe(freshState);
   });
 
   it("drops back to the stored analysis once a save moved the version on", () => {
-    expect(currentAnalysis({ id: "p1", version: 4, ext }, { postId: "p1", version: 3, state: freshState })).toMatchObject({ source: "stored" });
+    expect(currentAnalysis({ post: { id: "p1", version: 4, ext }, fresh: { postId: "p1", version: 3, state: freshState } })).toMatchObject({ source: "stored" });
   });
 
   it("never shows another post's Analyze-now result", () => {
-    expect(currentAnalysis({ id: "p2", version: 3 }, { postId: "p1", version: 3, state: freshState })).toEqual({ kind: "missing" });
+    expect(currentAnalysis({ post: { id: "p2", version: 3 }, fresh: { postId: "p1", version: 3, state: freshState } })).toEqual({ kind: "missing" });
   });
 });
 
@@ -186,7 +186,7 @@ describe("previewRequestBody", () => {
 });
 
 describe("buildContentAnalysisView", () => {
-  const stored: AnalysisState = { kind: "report", source: "stored", report: parseContentAnalysisReport(VALID_REPORT_JSON)! };
+  const stored: AnalysisState = { kind: "report", source: "stored", report: parseContentAnalysisReport({ raw: VALID_REPORT_JSON })! };
 
   it("leads with where the analysis came from", () => {
     expect(buildContentAnalysisView(stored, identity).lead).toBe("From the last save.");
@@ -297,13 +297,13 @@ describe("describeAnalysisError", () => {
     ["PLUGIN_NOT_FOUND", "The Content Analyzer plugin is not installed."],
     ["PLUGIN_HOOK_FAILED", "The analyzer could not process this content."],
   ])("maps %s to its own copy", (code, message) => {
-    expect(describeAnalysisError(new ApiError("server words", 409, code), identity)).toBe(message);
+    expect(describeAnalysisError({ error: new ApiError("server words", 409, code), t: identity })).toBe(message);
   });
 
   it("falls back to the shared API error copy for any other failure", () => {
-    expect(describeAnalysisError(new ApiError("bad body", 400, "VALIDATION"), identity)).toBe("bad body");
-    expect(describeAnalysisError(new ApiError("", 500), identity)).toBe("Analysis failed.");
-    expect(describeAnalysisError("boom", marked)).toBe("<Analysis failed.>");
+    expect(describeAnalysisError({ error: new ApiError("bad body", 400, "VALIDATION"), t: identity })).toBe("bad body");
+    expect(describeAnalysisError({ error: new ApiError("", 500), t: identity })).toBe("Analysis failed.");
+    expect(describeAnalysisError({ error: "boom", t: marked })).toBe("<Analysis failed.>");
   });
 });
 

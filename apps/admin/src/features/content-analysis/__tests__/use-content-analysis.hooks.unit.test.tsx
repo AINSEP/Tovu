@@ -137,7 +137,7 @@ describe("Analyze now", () => {
     expect(result.current.analyzing).toBe(false);
     expect(result.current.view.lead).toBe("From the last save.");
 
-    port.setPreviewError(null);
+    port.setPreviewError({ error: null });
     await act(() => result.current.analyze());
     await waitFor(() => expect(result.current.error).toBeNull());
     expect(result.current.view.lead).toBe("From your current draft, including unsaved changes.");

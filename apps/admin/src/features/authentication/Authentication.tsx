@@ -88,7 +88,7 @@ function AuthenticationProviderPanel(props: { provider: AuthenticationProviderSc
   return (
     <section className="jini-settings-section" aria-label={`${props.provider.label} authentication setup`}>
       <p id={noteId} className="settings-ui-inert-note" role="note">
-        {providerBackendNote(props.locale, props.provider.label)}
+        {providerBackendNote({ locale: props.locale, provider: props.provider.label })}
       </p>
       <fieldset
         className="source-config-add-form settings-ui-inert-control"

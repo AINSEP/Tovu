@@ -10,5 +10,5 @@ export interface NewContentTypeDialogPort {
     key: string;
     label: string;
     fields: ContentTypeFieldDef[];
-  }): Promise<{ contentType: AdminContentType }>;
+  }, optional?: Record<string, never>): Promise<{ contentType: AdminContentType }>;
 }

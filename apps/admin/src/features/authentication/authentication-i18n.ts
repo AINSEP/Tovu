@@ -53,6 +53,6 @@ const PROVIDER_BACKEND_NOTE_TEMPLATE: Record<string, string> = {
 
 export const t = createDictionaryTranslator({ featureDictionary: AUTHENTICATION_TRANSLATIONS }, { commonDictionary: COMMON_I18N });
 
-export function providerBackendNote(locale: string, provider: string): string {
+export function providerBackendNote({ locale, provider }: { locale: string; provider: string }, _optional = {}): string {
   return interpolate({ template: localeEntry({ table: PROVIDER_BACKEND_NOTE_TEMPLATE, locale }), vars: { provider } });
 }

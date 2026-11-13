@@ -8,7 +8,7 @@ import type { EditFieldsDialogPort } from "./edit-fields-dialog-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultEditFieldsDialogPort: EditFieldsDialogPort = {
-  updateContentTypeFields: (input) => api.updateContentTypeFields(input),
+  updateContentTypeFields: (input, _optional = {}) => api.updateContentTypeFields(input),
 };
 
 /** Seed state for {@link createFakeEditFieldsDialogPort}. */
@@ -44,7 +44,7 @@ export function createFakeEditFieldsDialogPort(options: FakeEditFieldsDialogPort
     get lastUpdate() {
       return state.lastUpdate;
     },
-    async updateContentTypeFields(input) {
+    async updateContentTypeFields(input, _optional = {}) {
       state.lastUpdate = input;
       if (options.updateError) throw options.updateError;
       return { contentType: options.updatedContentType ?? FAKE_CONTENT_TYPE };

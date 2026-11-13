@@ -45,8 +45,8 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
 
 export interface EditFieldsDialogController {
   fields: DraftField[];
-  updateField: (rowId: number, patch: Partial<DraftField>) => void;
-  removeField: (rowId: number) => void;
+  updateField: (required: { rowId: number; patch: Partial<DraftField> }, optional?: Record<string, never>) => void;
+  removeField: (required: { rowId: number }, optional?: Record<string, never>) => void;
   addField: () => void;
   error: string | null;
   saving: boolean;
@@ -58,16 +58,14 @@ export interface EditFieldsDialogController {
 }
 
 export function useEditFieldsDialog(
-  props: {
-    contentType: AdminContentType;
-    onSaved: () => void;
-    onCancel: () => void;
+  { props, port }: {
+    props: { contentType: AdminContentType; onSaved: () => void; onCancel: () => void };
+    port: EditFieldsDialogPort;
   },
-  port: EditFieldsDialogPort,
   options: { t?: Translate } = {},
 ): EditFieldsDialogController {
   const t = options.t ?? ((key: string) => key);
-  const [fields, setFields] = useState<DraftField[]>(() => draftFieldsFromContentType(props.contentType.fields));
+  const [fields, setFields] = useState<DraftField[]>(() => draftFieldsFromContentType({ fields: props.contentType.fields }));
   const [validationError, setValidationError] = useState<string | null>(null);
   const inFlightRef = useRef(false);
 
@@ -83,23 +81,23 @@ export function useEditFieldsDialog(
     invalidates: [KEYS.list],
   });
 
-  function updateField(rowId: number, patch: Partial<DraftField>) {
-    setFields((current) => updateDraftField(current, rowId, patch));
+  function updateField({ rowId, patch }: { rowId: number; patch: Partial<DraftField> }, _optional = {}) {
+    setFields((current) => updateDraftField({ fields: current, rowId, patch }));
   }
 
-  function removeField(rowId: number) {
-    setFields((current) => removeDraftField(current, rowId));
+  function removeField({ rowId }: { rowId: number }, _optional = {}) {
+    setFields((current) => removeDraftField({ fields: current, rowId }));
   }
 
   function addField() {
-    setFields((current) => addDraftField(current));
+    setFields((current) => addDraftField({ fields: current }));
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setValidationError(null);
 
-    const draftError = validateEditFieldsDraft(fields, t);
+    const draftError = validateEditFieldsDraft({ fields }, { localeOrTranslate: t });
     if (draftError) {
       setValidationError(draftError);
       return;
@@ -109,7 +107,7 @@ export function useEditFieldsDialog(
     try {
       await updateFieldsMutation.mutate({ input: {
         key: props.contentType.key,
-        fields: stripDraftFieldRowIds(fields),
+        fields: stripDraftFieldRowIds({ fields }),
         expectedVersion: props.contentType.version,
       } });
       props.onSaved();
@@ -121,7 +119,7 @@ export function useEditFieldsDialog(
   }
 
   const saving = updateFieldsMutation.status === "pending";
-  const error = validationError ?? (updateFieldsMutation.error ? describeEditFieldsError(updateFieldsMutation.error, t) : null);
+  const error = validationError ?? (updateFieldsMutation.error ? describeEditFieldsError({ e: updateFieldsMutation.error }, { localeOrTranslate: t }) : null);
 
   return { fields, updateField, removeField, addField, error, saving, submit, cancel };
 }
@@ -141,5 +139,5 @@ export function useWiredEditFieldsDialog(props: {
 }): EditFieldsDialogController {
   const locale = useAdminLocale();
   const t = (key: string): string => translate({ locale: locale, key: key });
-  return useEditFieldsDialog(props, defaultEditFieldsDialogPort, { t });
+  return useEditFieldsDialog({ props, port: defaultEditFieldsDialogPort }, { t });
 }

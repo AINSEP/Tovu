@@ -9,7 +9,7 @@ import type { CollectionEntriesPort } from "./collection-entries-port.hooks";
 /** The live implementation, as a module-level singleton. */
 export const defaultCollectionEntriesPort: CollectionEntriesPort = {
   listContentTypes: () => api.listContentTypes(),
-  listEntries: (options) => api.listEntries(options),
+  listEntries: (options, _optional = {}) => api.listEntries(options),
 };
 
 /** Seed state for {@link createFakeCollectionEntriesPort}. */
@@ -39,7 +39,7 @@ export function createFakeCollectionEntriesPort(options: FakeCollectionEntriesPo
       if (options.listContentTypesError) throw options.listContentTypesError;
       return { items: types };
     },
-    async listEntries(queryOptions) {
+    async listEntries(queryOptions, _optional = {}) {
       if (options.listEntriesError) throw options.listEntriesError;
       return { items: queryOptions.type ? entries.filter((e) => e.type === queryOptions.type) : entries };
     },

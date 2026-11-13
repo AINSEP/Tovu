@@ -38,18 +38,18 @@ import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.h
  * `t` is now ALSO injected (standing i18n rule, 2026-08-11, superseding this file's earlier
  * "stays a direct import" note above — see `use-collections.hooks.ts`'s identical update) so
  * `CollectionEntryEditor.tsx` sources its UI copy from this hook instead of its own
- * `useAdminLocale()`/`COLLECTIONS_DICT` import. `collections-i18n.ts`'s own `t(locale, key)` —
- * aliased `translate` here to avoid colliding with this file's bound `(key) => string` closure —
+ * `useAdminLocale()`/`COLLECTIONS_DICT` import. `collections-i18n.ts`'s own `t({ locale, key })` —
+ * aliased `translate` here to avoid colliding with this file's bound `({ key }) => string` closure —
  * stays a direct, uninjected import for this hook's OWN error strings: a pure lookup that already
  * takes `locale` explicitly, not a host reach.
  *
  * `@jini-ai/ui/fetch-query` migration (2026-08-12): the combined content-type/entry read is one
- * `useFetchQuery` keyed on `KEYS.entry(contentTypeKey, entryId)` — a SIBLING of `use-collection-
- * entries.hooks.ts`'s `KEYS.entries(key)`, deliberately NOT nested under it (see `rules.ts`'s `KEYS`
+ * `useFetchQuery` keyed on `KEYS.entry({ contentTypeKey, entryId })` — a SIBLING of `use-collection-
+ * entries.hooks.ts`'s `KEYS.entries({ contentTypeKey: key })`, deliberately NOT nested under it (see `rules.ts`'s `KEYS`
  * doc for the regression that nesting caused: every save background-refetched this SAME hook's own
  * read, firing 3 extra requests right after the save's own one and breaking several "the last fetch
  * call was the save" test assertions). `save()`/`toggleLifecycle()` still `invalidates:
- * [KEYS.entries(contentTypeKey)]` directly, so the sibling entries LIST still refreshes — this hook's
+ * [KEYS.entries({ contentTypeKey })]` directly, so the sibling entries LIST still refreshes — this hook's
  * own read just isn't a fellow traveller of that invalidation. It IS still nested under `KEYS.list`,
  * so a content-type field/lifecycle change (from `use-collections.hooks.ts`/`use-edit-fields-
  * dialog.hooks.ts`) still refreshes an open editor, which is wanted. `entry`/`title`/`slug`/
@@ -83,21 +83,21 @@ export interface CollectionEntryEditorController {
   busy: boolean;
   editor: Editor | null;
   save: () => Promise<void>;
-  toggleLifecycle: (op: "publish" | "unpublish") => Promise<void>;
+  toggleLifecycle: (required: { op: "publish" | "unpublish" }, optional?: Record<string, never>) => Promise<void>;
   /** M2: a `json`-kind dynamic field control reports its own parse validity here on every change
    *  (and clears it to valid on unmount) — see `use-json-field-control.hooks.ts`. `save()`/
    *  Publish refuse to write while any field is reporting invalid. */
   setFieldValidity: (fieldName: string, valid: boolean) => void;
   /** Bound translator — `CollectionEntryEditor.tsx`'s only source of UI copy; see this file's own
    *  header. */
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 export interface CollectionEntryEditorDependencies {
   port: CollectionEntryEditorPort;
   navigate: (path: string, options?: { replace?: boolean }) => void;
   locale: string;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 export function useCollectionEntryEditor(
@@ -150,11 +150,11 @@ export function useCollectionEntryEditor(
   const editor = useEditor({
     extensions: [StarterKit, WidgetEmbed],
     content: "",
-    editorProps: { attributes: { role: "textbox", "aria-label": t("Content") } },
+    editorProps: { attributes: { role: "textbox", "aria-label": t({ key: "Content" }) } },
   });
 
   const list = useFetchQuery({
-    key: KEYS.entry(props.contentTypeKey, props.entryId),
+    key: KEYS.entry({ contentTypeKey: props.contentTypeKey, entryId: props.entryId }),
     fetch: async () => {
       const [typesResult, entriesResult] = await Promise.all([
         port.listContentTypes(),
@@ -219,20 +219,20 @@ export function useCollectionEntryEditor(
 
   const updateMutation = useFetchMutation({
     run: ({ input }: { input: { target: { id: string; expectedVersion: number }; patch: { title?: string; fieldsJson?: unknown; bodyJson?: unknown } } }) =>
-      port.updateEntry(input.target, input.patch),
+      port.updateEntry({ target: input.target, patch: input.patch }),
   }, {
-    invalidates: [KEYS.entries(props.contentTypeKey)],
+    invalidates: [KEYS.entries({ contentTypeKey: props.contentTypeKey })],
   });
   const createMutation = useFetchMutation({
     run: ({ input }: { input: { input: { type: string; slug: string; title: string }; options: { fieldsJson?: unknown; bodyJson?: unknown } } }) =>
-      port.createEntry(input.input, input.options),
+      port.createEntry({ input: input.input, options: input.options }),
   }, {
-    invalidates: [KEYS.entries(props.contentTypeKey)],
+    invalidates: [KEYS.entries({ contentTypeKey: props.contentTypeKey })],
   });
   const lifecycleMutation = useFetchMutation({
     run: ({ input }: { input: { id: string; op: "publish" | "unpublish"; expectedVersion: number } }) => port.entryLifecycle(input),
   }, {
-    invalidates: [KEYS.entries(props.contentTypeKey)],
+    invalidates: [KEYS.entries({ contentTypeKey: props.contentTypeKey })],
   });
 
   /**
@@ -323,7 +323,7 @@ export function useCollectionEntryEditor(
     }
   }
 
-  async function toggleLifecycle(op: "publish" | "unpublish") {
+  async function toggleLifecycle({ op }: { op: "publish" | "unpublish" }, _optional = {}) {
     if (!entry) return;
     if (op === "publish") {
       await publishWithSave(entry);
@@ -354,7 +354,7 @@ export function useCollectionEntryEditor(
     createError: createMutation.error,
     lifecycleError: lifecycleMutation.error,
     saveFallback: translate({ locale: locale, key: "save failed" }),
-    lifecycleFallback: lastLifecycleOp ? entryLifecycleFailureMessage(locale, lastLifecycleOp) : null,
+    lifecycleFallback: lastLifecycleOp ? entryLifecycleFailureMessage({ locale, op: lastLifecycleOp }) : null,
     versionConflictMessage: translate({ locale: locale, key: VERSION_CONFLICT_MESSAGE }),
   });
 
@@ -393,6 +393,6 @@ export function useWiredCollectionEntryEditor(props: {
   entryId: string | null;
 }): CollectionEntryEditorController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate({ locale: locale, key: key });
+  const t = ({ key }: { key: string }, _optional = {}): string => translate({ locale: locale, key: key });
   return useCollectionEntryEditor(props, { port: defaultCollectionEntryEditorPort, navigate: defaultNavigate, locale, t });
 }

@@ -76,12 +76,12 @@ function isReadability(value: unknown): value is ContentAnalysisReport["readabil
   );
 }
 
-function isHeadingLevel(level: unknown): boolean {
+function isHeadingLevel({ level }: { level: unknown }, _optional = {}): boolean {
   return Number.isInteger(level) && (level as number) >= 1 && (level as number) <= 6;
 }
 
 function isTocEntry(value: unknown): value is TocEntry {
-  if (!isRecord(value) || !isHeadingLevel(value.level)) return false;
+  if (!isRecord(value) || !isHeadingLevel({ level: value.level })) return false;
   return typeof value.text === "string" && typeof value.anchor === "string";
 }
 
@@ -110,18 +110,18 @@ function hasReportMetrics(
   );
 }
 
-function isArrayOf(value: unknown, isItem: (item: unknown) => boolean): boolean {
+function isArrayOf({ value, isItem }: { value: unknown; isItem: (item: unknown) => boolean }, _optional = {}): boolean {
   return Array.isArray(value) && value.every(isItem);
 }
 
 function isReport(value: unknown): value is ContentAnalysisReport {
   if (!isRecord(value) || value.v !== 1) return false;
   if (!hasReportMetrics({ value }) || !isReadability(value.readability)) return false;
-  return isArrayOf(value.toc, isTocEntry) && isArrayOf(value.checks, isCheck);
+  return isArrayOf({ value: value.toc, isItem: isTocEntry }) && isArrayOf({ value: value.checks, isItem: isCheck });
 }
 
 /** The `report` field's JSON string as a v1 report, or `null` for anything else. */
-export function parseContentAnalysisReport(raw: unknown): ContentAnalysisReport | null {
+export function parseContentAnalysisReport({ raw }: { raw: unknown }, _optional = {}): ContentAnalysisReport | null {
   if (typeof raw !== "string") return null;
   let parsed: unknown;
   try {
@@ -134,17 +134,17 @@ export function parseContentAnalysisReport(raw: unknown): ContentAnalysisReport 
 
 /** The analysis stored on the post by its last save. No `report` field at all is "not analyzed
  *  yet" (a post saved before the plugin was enabled), distinct from one that will not parse. */
-export function storedAnalysis(ext: Record<string, Record<string, unknown>> | undefined): AnalysisState {
+export function storedAnalysis({ ext }: { ext: Record<string, Record<string, unknown>> | undefined }, _optional = {}): AnalysisState {
   const raw = ext?.[CONTENT_ANALYZER_PLUGIN_ID]?.report;
   if (raw === undefined) return { kind: "missing" };
-  const report = parseContentAnalysisReport(raw);
+  const report = parseContentAnalysisReport({ raw });
   return report ? { kind: "report", source: "stored", report } : { kind: "invalid" };
 }
 
 /** The analysis an Analyze-now preview returned. The plugin ran, so a missing report is a broken
  *  reply ("unavailable"), not "not analyzed yet". */
 export function previewAnalysis(fields: Record<string, unknown>): AnalysisState {
-  const report = parseContentAnalysisReport(fields.report);
+  const report = parseContentAnalysisReport({ raw: fields.report });
   return report ? { kind: "report", source: "fresh", report } : { kind: "invalid" };
 }
 
@@ -160,11 +160,11 @@ export interface FreshAnalysis {
  *  `ext`, so the stored analysis wins again from that moment — including over a preview that was
  *  still in flight when the save landed (it is tagged with the older version). */
 export function currentAnalysis(
-  post: { id: string; version: number; ext?: Record<string, Record<string, unknown>> },
-  fresh: FreshAnalysis | null,
+  { post, fresh }: { post: { id: string; version: number; ext?: Record<string, Record<string, unknown>> }; fresh: FreshAnalysis | null },
+  _optional = {},
 ): AnalysisState {
   if (fresh && fresh.postId === post.id && fresh.version === post.version) return fresh.state;
-  return storedAnalysis(post.ext);
+  return storedAnalysis({ ext: post.ext });
 }
 
 /** Whether the card hides, from the plugin's preview-status read — the card's only gate. Hidden
@@ -352,7 +352,7 @@ function buildStats(report: ContentAnalysisReport, t: Translate): AnalysisStat[]
   ];
 }
 
-function buildToc(toc: TocEntry[]): AnalysisTocItem[] {
+function buildToc({ toc }: { toc: TocEntry[] }, _optional = {}): AnalysisTocItem[] {
   const shallowest = Math.min(...toc.map((entry) => entry.level));
   return toc.map((entry, index) => ({
     key: `${index}-${entry.anchor}`,
@@ -362,7 +362,7 @@ function buildToc(toc: TocEntry[]): AnalysisTocItem[] {
   }));
 }
 
-function buildChecks(checks: ContentCheck[], t: Translate): AnalysisCheckItem[] {
+function buildChecks({ checks, t }: { checks: ContentCheck[]; t: Translate }, _optional = {}): AnalysisCheckItem[] {
   return checks.map((check, index) => {
     const meta = STATUS_META[check.status];
     const title = CHECK_TITLES[check.id];
@@ -384,13 +384,13 @@ export function buildContentAnalysisView(state: AnalysisState, t: Translate): Co
   const { report } = state;
   return {
     lead: t(LEADS[state.source]),
-    report: { stats: buildStats(report, t), toc: buildToc(report.toc), checks: buildChecks(report.checks, t) },
+    report: { stats: buildStats(report, t), toc: buildToc({ toc: report.toc }), checks: buildChecks({ checks: report.checks, t }) },
   };
 }
 
 /** Operator copy for a failed Analyze-now — the preview route's own refusal codes first, then the
  *  app's shared fallback chain. */
-export function describeAnalysisError(error: unknown, t: Translate): string {
+export function describeAnalysisError({ error, t }: { error: unknown; t: Translate }, _optional = {}): string {
   if (error instanceof ApiError) {
     if (error.code === "PLUGIN_NOT_ENABLED") return t(ERROR_COPY.notEnabled);
     if (error.code === "PLUGIN_NOT_FOUND") return t(ERROR_COPY.notFound);

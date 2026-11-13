@@ -86,24 +86,23 @@ describe("visitorCredentialKeyStatusMessage", () => {
 
 describe("visitorCredentialApiKeyPlaceholder", () => {
   it("returns undefined when nothing is stored", () => {
-    expect(visitorCredentialApiKeyPlaceholder(null)).toBeUndefined();
+    expect(visitorCredentialApiKeyPlaceholder({ stored: null })).toBeUndefined();
   });
 
   it("returns undefined when stored but the server sent no mask", () => {
-    expect(visitorCredentialApiKeyPlaceholder({ isSet: true, masked: null, provider: "google", baseUrl: null, model: null, updatedAt: null })).toBeUndefined();
+    expect(visitorCredentialApiKeyPlaceholder({ stored: { isSet: true, masked: null, provider: "google", baseUrl: null, model: null, updatedAt: null } })).toBeUndefined();
   });
 
   it("returns the mask when one is stored and the server sent it", () => {
     expect(
-      visitorCredentialApiKeyPlaceholder({ isSet: true, masked: "••••ab12", provider: "google", baseUrl: null, model: null, updatedAt: null }),
+      visitorCredentialApiKeyPlaceholder({ stored: { isSet: true, masked: "••••ab12", provider: "google", baseUrl: null, model: null, updatedAt: null } }),
     ).toBe("••••ab12");
   });
 
   it("returns undefined when the stored key belongs to another endpoint, so the new provider's field reads empty", () => {
     expect(
       visitorCredentialApiKeyPlaceholder(
-        { isSet: true, masked: "••••mw4w", provider: "google", baseUrl: "https://generativelanguage.googleapis.com", model: null, updatedAt: null },
-        true,
+        { stored: { isSet: true, masked: "••••mw4w", provider: "google", baseUrl: "https://generativelanguage.googleapis.com", model: null, updatedAt: null } }, { storedKeyIsForOtherEndpoint: true },
       ),
     ).toBeUndefined();
   });

@@ -69,7 +69,7 @@ export function useContentAnalysis(props: ContentAnalysisTarget, deps: ContentAn
   const t: Translate = (key) => translate({ locale: locale, key: key });
   const statusQuery = useFetchQuery({ key: STATUS_KEY, fetch: () => port.previewStatus({ pluginId: CONTENT_ANALYZER_PLUGIN_ID }) }, { staleTime: 0 });
   const previewMutation = useFetchMutation({
-    run: ({ input: body }: { input: PluginPreviewRequest }) => port.previewPlugin({ pluginId: CONTENT_ANALYZER_PLUGIN_ID }, body),
+    run: ({ input: body }: { input: PluginPreviewRequest }) => port.previewPlugin({ target: { pluginId: CONTENT_ANALYZER_PLUGIN_ID }, body }),
   });
   const [fresh, setFresh] = useState<FreshAnalysis | null>(null);
   // `disabled={analyzing}` only lands on the next render; a double click's second click arrives
@@ -93,17 +93,17 @@ export function useContentAnalysis(props: ContentAnalysisTarget, deps: ContentAn
 
   return {
     hidden: isContentAnalysisHidden(statusQuery),
-    view: buildContentAnalysisView(currentAnalysis(post, fresh), t),
+    view: buildContentAnalysisView(currentAnalysis({ post, fresh }), t),
     analyzing: previewMutation.status === "pending",
-    error: describeCardError(previewMutation.error ?? statusQuery.error, t),
+    error: describeCardError({ error: previewMutation.error ?? statusQuery.error, t }),
     analyze,
     t,
   };
 }
 
 /** The card's error line: the latest Analyze-now failure, else a failed status read. @complexity O(1). */
-function describeCardError(error: unknown, t: Translate): string | null {
-  return error ? describeAnalysisError(error, t) : null;
+function describeCardError({ error, t }: { error: unknown; t: Translate }, _optional = {}): string | null {
+  return error ? describeAnalysisError({ error, t }) : null;
 }
 
 /**

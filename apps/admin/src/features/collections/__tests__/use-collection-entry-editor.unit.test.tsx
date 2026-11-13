@@ -353,7 +353,7 @@ describe("toggleLifecycle", () => {
     const view = await mountLoaded({ entryId: null });
     const callsBefore = fetchMock.mock.calls.length;
     await act(async () => {
-      await view.result.current.toggleLifecycle("publish");
+      await view.result.current.toggleLifecycle({ op: "publish" });
     });
     expect(fetchMock.mock.calls.length).toBe(callsBefore);
   });
@@ -364,7 +364,7 @@ describe("toggleLifecycle", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY_WITH_BODY, status: "published", version: 4 } })); // the lifecycle call
 
     await act(async () => {
-      await view.result.current.toggleLifecycle("publish");
+      await view.result.current.toggleLifecycle({ op: "publish" });
     });
 
     const calls = fetchMock.mock.calls;
@@ -388,7 +388,7 @@ describe("toggleLifecycle", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...published, status: "unpublished", version: 3 } }));
 
     await act(async () => {
-      await view.result.current.toggleLifecycle("unpublish");
+      await view.result.current.toggleLifecycle({ op: "unpublish" });
     });
 
     expect(view.result.current.message).toBe("Entry unpublished · version 3");
@@ -400,7 +400,7 @@ describe("toggleLifecycle", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500)); // the lifecycle call fails
 
     await act(async () => {
-      await view.result.current.toggleLifecycle("publish");
+      await view.result.current.toggleLifecycle({ op: "publish" });
     });
 
     expect(view.result.current.error).toBe("Failed to publish entry");
@@ -411,14 +411,14 @@ describe("toggleLifecycle", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY, version: 3 } })); // the save (PUT) succeeds
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500)); // the lifecycle call fails
     await act(async () => {
-      await view.result.current.toggleLifecycle("publish");
+      await view.result.current.toggleLifecycle({ op: "publish" });
     });
     expect(view.result.current.error).not.toBeNull();
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY, version: 4 } })); // the retry's save (PUT) succeeds
     fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY, status: "published", version: 5 } }));
     await act(async () => {
-      await view.result.current.toggleLifecycle("publish");
+      await view.result.current.toggleLifecycle({ op: "publish" });
     });
     expect(view.result.current.error).toBeNull();
   });
@@ -431,7 +431,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     try {
       const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
       const { result } = renderHook(() =>
-        useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
+        useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: ({ key: k }, _optional = {}) => k })
       , { wrapper });
       await waitFor(() => expect(result.current.loaded).toBe(true));
       await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
@@ -450,7 +450,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
     const navigateSpy = vi.fn();
     const { result } = renderHook(() =>
-      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: navigateSpy, locale: "en", t: (k) => k })
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: navigateSpy, locale: "en", t: ({ key: k }, _optional = {}) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
     await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
@@ -471,7 +471,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [] });
     const navigateSpy = vi.fn();
     const { result } = renderHook(() =>
-      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }, { port, navigate: navigateSpy, locale: "en", t: (k) => k })
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }, { port, navigate: navigateSpy, locale: "en", t: ({ key: k }, _optional = {}) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
@@ -495,7 +495,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
     const navigateSpy = vi.fn();
     const { result } = renderHook(() =>
-      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: ENTRY.slug }, { port, navigate: navigateSpy, locale: "en", t: (k) => k })
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: ENTRY.slug }, { port, navigate: navigateSpy, locale: "en", t: ({ key: k }, _optional = {}) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
     await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
@@ -513,7 +513,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     });
     const navigateSpy = vi.fn();
     const { result } = renderHook(() =>
-      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: ENTRY_UUID }, { port, navigate: navigateSpy, locale: "en", t: (k) => k })
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: ENTRY_UUID }, { port, navigate: navigateSpy, locale: "en", t: ({ key: k }, _optional = {}) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
     await waitFor(() => expect(result.current.entry).toEqual({ ...ENTRY, id: ENTRY_UUID, slug: "hello-recipe" }));
@@ -525,7 +525,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
   it("sets the fallback error when the injected port's save call rejects", async () => {
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY], saveError: new Error("save exploded") });
     const { result } = renderHook(() =>
-      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: ({ key: k }, _optional = {}) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
     await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
@@ -542,7 +542,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     const saveError = new ApiError("expected version 2 for entry 'e1', found 3", 409, "VERSION_CONFLICT");
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY], saveError });
     const { result } = renderHook(() =>
-      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "es", t: (k) => k })
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "es", t: ({ key: k }, _optional = {}) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
@@ -557,14 +557,14 @@ describe("injected port (useWiredX conversion coverage)", () => {
   it("toggleLifecycle publishes through the injected port and sets entry + message", async () => {
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
     const { result } = renderHook(() =>
-      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: ({ key: k }, _optional = {}) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
 
     await act(async () => {
-      await result.current.toggleLifecycle("publish");
+      await result.current.toggleLifecycle({ op: "publish" });
     });
 
     // Publish now saves first (H2), so the fake port's `updateEntry` bumps the version once, then
@@ -577,7 +577,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
   it("Publish saves the edited title/body before publishing", async () => {
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
     const { result } = renderHook(() =>
-      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: ({ key: k }, _optional = {}) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
     await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
@@ -592,7 +592,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     act(() => { result.current.editor!.commands.setContent(editedBody); });
     expect(result.current.editor!.getJSON()).toEqual(editedBody);
     await act(async () => {
-      await result.current.toggleLifecycle("publish");
+      await result.current.toggleLifecycle({ op: "publish" });
     });
 
     expect(port.entries[0]!.title).toBe("Edited title");
@@ -609,14 +609,14 @@ describe("injected port (useWiredX conversion coverage)", () => {
       saveError: new Error("save exploded"),
     });
     const { result } = renderHook(() =>
-      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: ({ key: k }, _optional = {}) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
 
     await act(async () => {
-      await result.current.toggleLifecycle("publish");
+      await result.current.toggleLifecycle({ op: "publish" });
     });
 
     expect(port.entries[0]!.status).toBe("draft");
@@ -628,7 +628,7 @@ describe("M2 — an invalid json field refuses to save instead of saving the old
   it("keeps duplicate validity reports idempotent and blocks saving until every invalid field is fixed", async () => {
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
     const { result } = renderHook(() => useCollectionEntryEditor(
-      { contentTypeKey: "recipe", entryId: ENTRY.id }, { port, navigate: () => {}, locale: "en", t: k => k }), { wrapper });
+      { contentTypeKey: "recipe", entryId: ENTRY.id }, { port, navigate: () => {}, locale: "en", t:({ key: k }, _optional = {}) => k }), { wrapper });
     await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
     act(() => {
       result.current.setTitle("Corrected recipe");
@@ -651,7 +651,7 @@ describe("M2 — an invalid json field refuses to save instead of saving the old
   it("refuses to save while a json field is invalid, then saves once it's fixed", async () => {
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
     const { result } = renderHook(() =>
-      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: ({ key: k }, _optional = {}) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
     await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
@@ -682,7 +682,7 @@ describe("M2 — an invalid json field refuses to save instead of saving the old
   it("refuses to Publish (its save leg) while a json field is invalid", async () => {
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
     const { result } = renderHook(() =>
-      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: ({ key: k }, _optional = {}) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
     await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
@@ -690,7 +690,7 @@ describe("M2 — an invalid json field refuses to save instead of saving the old
 
     act(() => result.current.setFieldValidity("meta", false));
     await act(async () => {
-      await result.current.toggleLifecycle("publish");
+      await result.current.toggleLifecycle({ op: "publish" });
     });
 
     expect(port.entries[0]!.status).toBe("draft");
@@ -709,7 +709,7 @@ describe("entry field fallbacks", () => {
     };
     const { result } = renderHook(() => ({
       editor: useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: ENTRY.id },
-        { port, navigate: () => {}, locale: "en", t: k => k }),
+        { port, navigate: () => {}, locale: "en", t:({ key: k }, _optional = {}) => k }),
       invalidate: useInvalidate(),
     }), { wrapper });
     await waitFor(() => expect(result.current.editor.entry).toEqual(ENTRY));
@@ -733,7 +733,7 @@ describe("entry field fallbacks", () => {
     const entry = { ...ENTRY, fieldsJson };
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [entry] });
     const { result } = renderHook(() => useCollectionEntryEditor(
-      { contentTypeKey: "recipe", entryId: entry.id }, { port, navigate: () => {}, locale: "en", t: k => k }), { wrapper });
+      { contentTypeKey: "recipe", entryId: entry.id }, { port, navigate: () => {}, locale: "en", t:({ key: k }, _optional = {}) => k }), { wrapper });
     await waitFor(() => expect(result.current.entry).toEqual(entry));
     expect(result.current.extFields).toEqual({});
     expect(result.current.title).toBe(ENTRY.title);
@@ -749,7 +749,7 @@ describe("stale-response race (2026-08-12 regression test)", () => {
    * overwrite the newer entry's already-rendered fields with the previous entry's data — a real
    * "typed content snaps back to an earlier entry" bug, not cosmetic.
    *
-   * `useFetchQuery` fixes this by construction: `KEYS.entry(contentTypeKey, entryId)` is part of the
+   * `useFetchQuery` fixes this by construction: `KEYS.entry({ contentTypeKey, entryId })` is part of the
    * cache key, so a response for the OLD key is written into the OLD key's own cache slot — it can
    * never become `list.data` for a NEW key's observer, no matter which promise settles last. This
    * test proves that end-to-end (through `entry`/`title`, the fields the seeding effect writes to
@@ -789,7 +789,7 @@ describe("stale-response race (2026-08-12 regression test)", () => {
     };
 
     const { result, rerender } = renderHook(
-      ({ entryId }) => useCollectionEntryEditor({ contentTypeKey: "recipe", entryId }, { port, navigate: vi.fn(), locale: "en", t: (k) => k }),
+      ({ entryId }) => useCollectionEntryEditor({ contentTypeKey: "recipe", entryId }, { port, navigate: vi.fn(), locale: "en", t: ({ key: k }, _optional = {}) => k }),
       { initialProps: { entryId: "e1" as string | null }, wrapper }
     );
 
@@ -836,22 +836,22 @@ describe("collection editor fake port contract", () => {
     expect(await port.listEntries({})).toEqual({ items: [ENTRY, other] });
     expect(await port.listEntries({ type: "note" })).toEqual({ items: [other] });
     expect(await port.listEntries({ type: "missing" })).toEqual({ items: [] });
-    await port.createEntry({ type: "recipe", slug: "new", title: "New" }, {});
+    await port.createEntry({ input: { type: "recipe", slug: "new", title: "New" }, options: {} });
     expect(seed).toEqual([ENTRY, other]);
   });
 
   it("creates deterministic defaults and preserves supplied body and fields", async () => {
     const port = createFakeCollectionEntryEditorPort();
     const input = { type: "recipe", slug: "new", title: "New" };
-    const first = await port.createEntry(input, {});
+    const first = await port.createEntry({ input: input, options: {} });
     expect(first.entry).toEqual({
       id: "fake-entry-1", workspaceId: "fake-ws", ...input, status: "draft",
       bodyJson: null, fieldsJson: { ext: { site: {} } }, publishedAt: null,
       createdAt: "1970-01-01T00:00:00.000Z", updatedAt: "1970-01-01T00:00:00.000Z", version: 1,
     });
-    const second = await port.createEntry({ ...input, title: "Second" }, {
+    const second = await port.createEntry({ input: { ...input, title: "Second" }, options: {
       bodyJson: ENTRY_WITH_BODY.bodyJson, fieldsJson: ENTRY.fieldsJson,
-    });
+    } });
     expect(second.entry.id).toBe("fake-entry-2");
     expect(second.entry.bodyJson).toEqual(ENTRY_WITH_BODY.bodyJson);
     expect(second.entry.fieldsJson).toEqual(ENTRY.fieldsJson);
@@ -863,13 +863,13 @@ describe("collection editor fake port contract", () => {
       listContentTypesError: new Error("types unavailable"), saveError: new Error("write refused"),
     });
     await expect(port.listContentTypes()).rejects.toThrow("types unavailable");
-    await expect(port.createEntry({ type: "recipe", slug: "new", title: "New" }, {})).rejects.toThrow("write refused");
+    await expect(port.createEntry({ input: { type: "recipe", slug: "new", title: "New" }, options: {} })).rejects.toThrow("write refused");
     expect((await port.listEntries({})).items).toEqual([]);
   });
 
   it("refuses updates and lifecycle changes for an unknown ID without changing existing entries", async () => {
     const port = createFakeCollectionEntryEditorPort({ entries: [ENTRY] });
-    await expect(port.updateEntry({ id: "missing", expectedVersion: 2 }, { title: "Lost" })).rejects.toThrow("fake entry not found: missing");
+    await expect(port.updateEntry({ target: { id: "missing", expectedVersion: 2 }, patch: { title: "Lost" } })).rejects.toThrow("fake entry not found: missing");
     await expect(port.entryLifecycle({ id: "missing", op: "publish", expectedVersion: 2 })).rejects.toThrow("fake entry not found: missing");
     expect((await port.listEntries({})).items).toEqual([ENTRY]);
   });
@@ -897,7 +897,7 @@ describe("L289 working-copy hydration characterization", () => {
       const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [entry] });
       const { result } = renderHook(() => useCollectionEntryEditor(
         { contentTypeKey: "recipe", entryId: entry.id },
-        { port, navigate: vi.fn(), locale: "en", t: key => key },
+        { port, navigate: vi.fn(), locale: "en", t:({ key }, _optional = {}) => key },
       ), { wrapper });
       await waitFor(() => expect(result.current.entry).toEqual(entry));
       expect(result.current.title).toBe(entry.title);
@@ -914,7 +914,7 @@ describe("L289 working-copy hydration characterization", () => {
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [entry] });
     const { result } = renderHook(() => useCollectionEntryEditor(
       { contentTypeKey: "recipe", entryId: entry.id },
-      { port, navigate: vi.fn(), locale: "en", t: key => key },
+      { port, navigate: vi.fn(), locale: "en", t:({ key }, _optional = {}) => key },
     ), { wrapper });
     await waitFor(() => expect(result.current.entry).toEqual(entry));
     expect(result.current.extFields).toEqual(site);
@@ -929,7 +929,7 @@ describe("L289 working-copy hydration characterization", () => {
     const { result, rerender } = renderHook(
       ({ entryId }: { entryId: string | null }) => useCollectionEntryEditor(
         { contentTypeKey: "recipe", entryId },
-        { port, navigate: navigateSpy, locale: "en", t: key => key },
+        { port, navigate: navigateSpy, locale: "en", t:({ key }, _optional = {}) => key },
       ),
       { initialProps: { entryId: ENTRY.id as string | null }, wrapper },
     );

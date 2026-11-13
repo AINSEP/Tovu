@@ -26,7 +26,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
   const { contentType, entries, error, t } = useCollectionEntriesHook({ contentTypeKey });
 
   if (error && !entries) return <div className="notice error">{error}</div>;
-  if (!entries || contentType === undefined) return <div className="notice">{t("Loading entries…")}</div>;
+  if (!entries || contentType === undefined) return <div className="notice">{t({ key: "Loading entries…" })}</div>;
   // `contentType === null` means the lookup finished and found nothing — a bogus/typo'd
   // `contentTypeKey` (e.g. a stale bookmark). Previously nothing checked this case, so the screen
   // fell through to rendering a real, empty, creatable collection — indistinguishable from a
@@ -34,7 +34,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
   // `CollectionEntryEditor.tsx:266` one route deeper already gets this right — matching its exact
   // copy here rather than inventing a second wording for the same situation).
   if (contentType === null) {
-    return <div className="notice error">{t('Unknown content type "{contentTypeKey}".').replace("{contentTypeKey}", () => contentTypeKey)}</div>;
+    return <div className="notice error">{t({ key: 'Unknown content type "{contentTypeKey}".' }).replace("{contentTypeKey}", () => contentTypeKey)}</div>;
   }
 
   const label = contentType.label;
@@ -50,7 +50,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
     <div className="page">
       <p className="muted-cell">
         <a href="/admin/collections" {...agentHandle({ handle: "collection-entries-breadcrumb" }, { role: "link", label: "Back to the Collections list" })}>
-          {t("Collections")}
+          {t({ key: "Collections" })}
         </a>{" "}
         / {label}
       </p>
@@ -62,10 +62,10 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
         })}
       >
         <div className="page-header-text">
-          <p className="page-kicker">{t("Content")}</p>
+          <p className="page-kicker">{t({ key: "Content" })}</p>
           <h1 className="page-title">{label}</h1>
           <p className="page-description">
-            {t('All "{label}" entries in this collection.').replace("{label}", () => label)}
+            {t({ key: 'All "{label}" entries in this collection.' }).replace("{label}", () => label)}
           </p>
         </div>
         <div className="page-actions">
@@ -82,7 +82,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
             href={`/admin/collections/${contentTypeKey}/new`}
             {...agentHandle({ handle: "collection-entries-new" }, { role: "link", label: "Create a new entry in this content type" })}
           >
-            {t("New entry")}
+            {t({ key: "New entry" })}
           </a>
         </div>
       </div>
@@ -95,14 +95,14 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>{t("No entries yet in {label}.").replace("{label}", () => label)}</p>
+              <p>{t({ key: "No entries yet in {label}." }).replace("{label}", () => label)}</p>
             </div>
           </div>
         }
         columns={[
           {
             key: "title",
-            header: t("Title"),
+            header: t({ key: "Title" }),
             cell: (entry, index) => (
               <a
                 href={`/admin/collections/${contentTypeKey}/${entry.slug}`}
@@ -115,10 +115,10 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
           { key: "slug", header: "Slug", cell: (entry) => entry.slug },
           {
             key: "status",
-            header: t("Status"),
+            header: t({ key: "Status" }),
             cell: (entry) => <span className={`status status-${entry.status}`}><ServerLabel value={entry.status} /></span>,
           },
-          { key: "updated", header: t("Updated"), cell: (entry) => formatTimestamp({ iso: entry.updatedAt }, { timeZone: "local" }) },
+          { key: "updated", header: t({ key: "Updated" }), cell: (entry) => formatTimestamp({ iso: entry.updatedAt }, { timeZone: "local" }) },
         ]}
       />
     </div>

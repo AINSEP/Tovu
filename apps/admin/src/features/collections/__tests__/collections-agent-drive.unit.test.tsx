@@ -156,7 +156,7 @@ describe("addressing the collections list", () => {
       copiedKey: null,
       copyFallback: null,
       copyEmbedCode: vi.fn(async () => {}),
-      t: (key: string) => key,
+      t: ({ key }: { key: string }, _optional = {}) => key,
       locale: "en",
       ...overrides,
     };

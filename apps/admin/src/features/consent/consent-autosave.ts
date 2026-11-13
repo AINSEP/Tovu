@@ -18,8 +18,8 @@ export interface ConsentAutosaveEvents {
 }
 
 export interface ConsentTimers {
-  setTimeout(callback: () => void, ms: number): unknown;
-  clearTimeout(handle: unknown): void;
+  setTimeout(required: { callback: () => void; ms: number }, optional?: Record<string, never>): unknown;
+  clearTimeout(required: { handle: unknown }, optional?: Record<string, never>): void;
 }
 
 export interface ConsentAutosave {
@@ -31,8 +31,8 @@ export interface ConsentAutosave {
 }
 
 const browserTimers: ConsentTimers = {
-  setTimeout: (callback, ms) => globalThis.setTimeout(callback, ms),
-  clearTimeout: handle => globalThis.clearTimeout(handle as ReturnType<typeof setTimeout>),
+  setTimeout: ({ callback, ms }, _optional = {}) => globalThis.setTimeout(callback, ms),
+  clearTimeout: ({ handle }, _optional = {}) => globalThis.clearTimeout(handle as ReturnType<typeof setTimeout>),
 };
 
 /** @complexity O(1) per edit; at most one request in flight and one queued. */
@@ -65,7 +65,7 @@ export function createConsentAutosave(
   }
 
   function flush(): Promise<void> {
-    timers.clearTimeout(timer);
+    timers.clearTimeout({ handle: timer });
     timer = null;
     if (stopped || latest === null) return Promise.resolve();
     if (running) { queued = true; return running; }
@@ -77,11 +77,11 @@ export function createConsentAutosave(
     change({ config }) {
       if (stopped) return;
       latest = config;
-      timers.clearTimeout(timer);
-      timer = timers.setTimeout(() => { void flush(); }, delayMs);
+      timers.clearTimeout({ handle: timer });
+      timer = timers.setTimeout({ callback: () => { void flush(); }, ms: delayMs });
     },
     flush,
-    stop() { stopped = true; timers.clearTimeout(timer); },
+    stop() { stopped = true; timers.clearTimeout({ handle: timer }); },
     draftId: () => lastDraftId,
   };
 }

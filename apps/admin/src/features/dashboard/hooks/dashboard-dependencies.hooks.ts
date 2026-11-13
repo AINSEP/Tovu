@@ -14,7 +14,7 @@ export const defaultDashboardPort: DashboardPort = {
   listPosts: () => api.listPosts(),
   listPages: () => api.listPages(),
   listMedia: () => api.listMedia(),
-  listCommentsQueue: (options) => api.listCommentsQueue(options),
+  listCommentsQueue: (options, _optional = {}) => api.listCommentsQueue(options),
   getPresentation: () => api.getPresentation(),
   getPasswordStatus: async ({ principalId } = {}) => {
     // App already authenticated this principal. Standalone dashboard consumers still resolve it.

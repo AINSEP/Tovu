@@ -37,8 +37,8 @@ const CATEGORY_ORDER = ['necessary', 'functional', 'analytics', 'marketing'];
 export function pausedByCategory({ detected }: { detected: readonly ConsentDetectedItem[] }, _optional = {}): { category: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const item of detected) counts.set(item.category, (counts.get(item.category) ?? 0) + 1);
-  const rank = (category: string) => { const index = CATEGORY_ORDER.indexOf(category); return index === -1 ? CATEGORY_ORDER.length : index; };
-  return [...counts].map(([category, count]) => ({ category, count })).sort((a, b) => rank(a.category) - rank(b.category) || a.category.localeCompare(b.category));
+  const rank = ({ category }: { category: string }, _optional = {}) => { const index = CATEGORY_ORDER.indexOf(category); return index === -1 ? CATEGORY_ORDER.length : index; };
+  return [...counts].map(([category, count]) => ({ category, count })).sort((a, b) => rank({ category: a.category }) - rank({ category: b.category }) || a.category.localeCompare(b.category));
 }
 
 export type ConsentSaveState = 'idle' | 'saving' | 'saved' | 'error' | 'conflict';

@@ -22,7 +22,7 @@ export interface DashboardPort {
   listPosts(): Promise<{ posts: Array<{ post: AdminPost }> }>;
   listPages(): Promise<{ posts: Array<{ post: AdminPost }> }>;
   listMedia(): Promise<{ media: Array<{ status: string }> }>;
-  listCommentsQueue(options: { status: "pending" }): Promise<{ items: unknown[] }>;
+  listCommentsQueue(options: { status: "pending" }, optional?: Record<string, never>): Promise<{ items: unknown[] }>;
   getPresentation(): Promise<{ settings: { activeThemeId: string }; availableThemes?: Array<{ id: string; name?: string }> }>;
   /** Password-banner plan (2026-09-24), Slice 3 — whether the SIGNED-IN caller's own stored
    *  credential still verifies against the default password (`GET /auth/me/password-status`,

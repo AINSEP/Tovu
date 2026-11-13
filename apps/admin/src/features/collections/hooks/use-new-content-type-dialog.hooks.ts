@@ -45,8 +45,8 @@ export interface NewContentTypeDialogController {
   key: string;
   setKey: (value: string) => void;
   fields: DraftField[];
-  updateField: (rowId: number, patch: Partial<DraftField>) => void;
-  removeField: (rowId: number) => void;
+  updateField: (required: { rowId: number; patch: Partial<DraftField> }, optional?: Record<string, never>) => void;
+  removeField: (required: { rowId: number }, optional?: Record<string, never>) => void;
   addField: () => void;
   error: string | null;
   saving: boolean;
@@ -88,23 +88,23 @@ export function useNewContentTypeDialog(
     invalidates: [KEYS.list],
   });
 
-  function updateField(rowId: number, patch: Partial<DraftField>) {
-    setFields((current) => updateDraftField(current, rowId, patch));
+  function updateField({ rowId, patch }: { rowId: number; patch: Partial<DraftField> }, _optional = {}) {
+    setFields((current) => updateDraftField({ fields: current, rowId, patch }));
   }
 
-  function removeField(rowId: number) {
-    setFields((current) => removeDraftField(current, rowId));
+  function removeField({ rowId }: { rowId: number }, _optional = {}) {
+    setFields((current) => removeDraftField({ fields: current, rowId }));
   }
 
   function addField() {
-    setFields((current) => addDraftField(current));
+    setFields((current) => addDraftField({ fields: current }));
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setValidationError(null);
 
-    const draftError = validateNewContentTypeDraft({ key, label, fields }, locale);
+    const draftError = validateNewContentTypeDraft({ draft: { key, label, fields } }, { locale });
     if (draftError) {
       setValidationError(draftError);
       return;
@@ -115,7 +115,7 @@ export function useNewContentTypeDialog(
       await createMutation.mutate({ input: {
         key: key.trim(),
         label: label.trim(),
-        fields: stripDraftFieldRowIds(fields),
+        fields: stripDraftFieldRowIds({ fields }),
       } });
       props.onCreated();
     } catch {

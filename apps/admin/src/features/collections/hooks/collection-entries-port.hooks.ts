@@ -7,5 +7,5 @@ import type { AdminContentType, AdminEntry } from "@/lib/api";
  */
 export interface CollectionEntriesPort {
   listContentTypes(): Promise<{ items: AdminContentType[] }>;
-  listEntries(options: { type?: string }): Promise<{ items: AdminEntry[] }>;
+  listEntries(options: { type?: string }, optional?: Record<string, never>): Promise<{ items: AdminEntry[] }>;
 }

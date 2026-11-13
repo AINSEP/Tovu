@@ -177,7 +177,7 @@ export async function saveVisitorKey(deps: {
     // masked placeholder now carries the "which key" answer the field would otherwise be giving.
     setConfig((current) => ({ ...current, apiKey: "" }));
   } catch (e) {
-    setSaveState({ status: "error", message: describeApiError(e, "failed to save the key") });
+    setSaveState({ status: "error", message: describeApiError({ e, fallback: "failed to save the key" }) });
   }
 }
 
@@ -212,7 +212,7 @@ export async function saveVisitorSettings(deps: {
     setSettingsSaveState({ status: "saved", at: data.updatedAt });
     setDirty(false);
   } catch (e) {
-    setSettingsSaveState({ status: "error", message: describeApiError(e, "failed to save the settings") });
+    setSettingsSaveState({ status: "error", message: describeApiError({ e, fallback: "failed to save the settings" }) });
   }
 }
 
@@ -484,7 +484,7 @@ export function useVisitorCredentialForm({
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        setLoadState({ status: "error", message: describeApiError(error, "Could not load saved settings.") });
+        setLoadState({ status: "error", message: describeApiError({ e: error, fallback: "Could not load saved settings." }) });
       });
     return () => {
       cancelled = true;
@@ -541,7 +541,7 @@ export function useVisitorCredentialForm({
   // buttons. Why an explicit press rather than the debounce this used to be, and why each patch
   // carries what it carries — see `saveVisitorKey`/`saveVisitorSettings`'s own doc comments above
   // (moved WITH the functions in the complexity-pass extraction, not summarised here).
-  const hasStoredKey = hasStoredCredential(stored);
+  const hasStoredKey = hasStoredCredential({ stored });
 
   // One lane for both Save buttons, which can be enabled at the same time. The server builds every
   // write from the row it reads first (`site-credential-store.ts`'s `setSiteAssistantCredential`:
@@ -569,7 +569,7 @@ export function useVisitorCredentialForm({
   // `isPresetSuppliedEndpoint` (in `../rules.ts`) is the SECURITY GATE for the debounced discovery
   // effect below — read its doc comment there before touching either. Memoised on `baseUrl` alone,
   // matching the effect's own dependency list.
-  const presetSuppliedEndpoint = useMemo(() => isPresetSuppliedEndpoint(baseUrl), [baseUrl]);
+  const presetSuppliedEndpoint = useMemo(() => isPresetSuppliedEndpoint({ baseUrl }), [baseUrl]);
 
   /**
    * Debounced, key-driven model discovery.

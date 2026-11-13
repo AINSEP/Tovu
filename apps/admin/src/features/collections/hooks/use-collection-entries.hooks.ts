@@ -21,16 +21,16 @@ import type { CollectionEntriesPort } from "./collection-entries-port.hooks";
  *
  * `t` (standing i18n rule, 2026-08-11 — see `use-collections.hooks.ts`'s identical note): injected
  * alongside `port`/`locale` so `CollectionEntries.tsx` sources its UI copy from this hook instead of
- * its own `useAdminLocale()`/`COLLECTIONS_DICT` import. `collections-i18n.ts`'s own `t(locale, key)`
- * — aliased `translate` here to avoid colliding with this file's bound `(key) => string` closure —
+ * its own `useAdminLocale()`/`COLLECTIONS_DICT` import. `collections-i18n.ts`'s own `t({ locale, key })`
+ * — aliased `translate` here to avoid colliding with this file's bound `({ key }) => string` closure —
  * stays a direct, uninjected import for this hook's OWN error string (pure, takes `locale`
  * explicitly, not a host reach).
  *
  * `@jini-ai/ui/fetch-query` migration (2026-08-12): the combined content-type + entries read (still one
  * `Promise.all`, since the screen genuinely needs both before it can render) is now one
- * `useFetchQuery` keyed on `KEYS.entries(contentTypeKey)` — a child of `use-collections.hooks.ts`'s
+ * `useFetchQuery` keyed on `KEYS.entries({ contentTypeKey })` — a child of `use-collections.hooks.ts`'s
  * `KEYS.list`, so a content-type lifecycle/field change refreshes this list too. `use-collection-
- * entry-editor.hooks.ts`'s `save()`/`toggleLifecycle()` also `invalidates: [KEYS.entries(key)]`
+ * entry-editor.hooks.ts`'s `save()`/`toggleLifecycle()` also `invalidates: [KEYS.entries({ contentTypeKey: key })]`
  * directly (not by nesting a shared key under it — see `rules.ts`'s `KEYS` doc for why that nesting
  * was tried and reverted), so saving one entry refreshes this list too.
  */
@@ -41,13 +41,13 @@ export interface CollectionEntriesController {
   error: string | null;
   /** Bound translator — `CollectionEntries.tsx`'s only source of UI copy; see this file's own
    *  header. */
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 export interface CollectionEntriesDependencies {
   port: CollectionEntriesPort;
   locale: string;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 export function useCollectionEntries(
@@ -57,7 +57,7 @@ export function useCollectionEntries(
   const { port, locale, t } = deps;
 
   const list = useFetchQuery({
-    key: KEYS.entries(props.contentTypeKey),
+    key: KEYS.entries({ contentTypeKey: props.contentTypeKey }),
     fetch: async () => {
       const [typesResult, entriesResult] = await Promise.all([
         port.listContentTypes(),
@@ -86,6 +86,6 @@ export function useCollectionEntries(
  */
 export function useWiredCollectionEntries(props: { contentTypeKey: string }): CollectionEntriesController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate({ locale: locale, key: key });
+  const t = ({ key }: { key: string }, _optional = {}): string => translate({ locale: locale, key: key });
   return useCollectionEntries(props, { port: defaultCollectionEntriesPort, locale, t });
 }

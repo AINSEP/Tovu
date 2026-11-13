@@ -59,7 +59,7 @@ describe("useCollectionEntries", () => {
     const port = createFakeCollectionEntriesPort({ types: [RECIPE_TYPE], entries: [RECIPE_ENTRY], listEntriesError: error });
 
     await expect(port.listEntries({ type: "recipe" })).rejects.toBe(error);
-    const { result } = renderHook(() => useCollectionEntries({ contentTypeKey: "recipe" }, { port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useCollectionEntries({ contentTypeKey: "recipe" }, { port, locale: "en", t: ({ key: k }, _optional = {}) => k }), { wrapper });
 
     await waitFor(() => expect(result.current.error).toBe("entries unavailable"));
     expect(result.current.entries).toBeNull();
@@ -78,7 +78,7 @@ describe("useCollectionEntries", () => {
     vi.stubGlobal("fetch", fetchMock);
     try {
       const port = createFakeCollectionEntriesPort({ types: [RECIPE_TYPE], entries: [RECIPE_ENTRY, ARTICLE_ENTRY] });
-      const { result } = renderHook(() => useCollectionEntries({ contentTypeKey: "recipe" }, { port, locale: "en", t: (k) => k }), { wrapper });
+      const { result } = renderHook(() => useCollectionEntries({ contentTypeKey: "recipe" }, { port, locale: "en", t: ({ key: k }, _optional = {}) => k }), { wrapper });
 
       await waitFor(() => expect(result.current.entries).not.toBeNull());
       expect(result.current.contentType).toEqual(RECIPE_TYPE);
@@ -91,7 +91,7 @@ describe("useCollectionEntries", () => {
 
   it("resolves contentType to null when no content type matches the key", async () => {
     const port = createFakeCollectionEntriesPort({ types: [{ ...RECIPE_TYPE, key: "other" }], entries: [] });
-    const { result } = renderHook(() => useCollectionEntries({ contentTypeKey: "recipe" }, { port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useCollectionEntries({ contentTypeKey: "recipe" }, { port, locale: "en", t: ({ key: k }, _optional = {}) => k }), { wrapper });
 
     await waitFor(() => expect(result.current.entries).not.toBeNull());
     expect(result.current.contentType).toBeNull();
@@ -99,7 +99,7 @@ describe("useCollectionEntries", () => {
 
   it("starts contentType as undefined (the not-yet-resolved sentinel) before the load settles", () => {
     const port = createFakeCollectionEntriesPort({ types: [RECIPE_TYPE], entries: [] });
-    const { result } = renderHook(() => useCollectionEntries({ contentTypeKey: "recipe" }, { port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useCollectionEntries({ contentTypeKey: "recipe" }, { port, locale: "en", t: ({ key: k }, _optional = {}) => k }), { wrapper });
 
     expect(result.current.contentType).toBeUndefined();
     expect(result.current.entries).toBeNull();
@@ -111,7 +111,7 @@ describe("useCollectionEntries", () => {
       entries: [RECIPE_ENTRY, ARTICLE_ENTRY],
     });
     const { result, rerender } = renderHook(
-      ({ contentTypeKey }) => useCollectionEntries({ contentTypeKey }, { port, locale: "en", t: (k) => k }),
+      ({ contentTypeKey }) => useCollectionEntries({ contentTypeKey }, { port, locale: "en", t: ({ key: k }, _optional = {}) => k }),
       { initialProps: { contentTypeKey: "recipe" }, wrapper }
     );
     await waitFor(() => expect(result.current.entries).toEqual([RECIPE_ENTRY]));
@@ -123,7 +123,7 @@ describe("useCollectionEntries", () => {
 
   it("sets the fallback error when the injected port rejects", async () => {
     const port = createFakeCollectionEntriesPort({ listContentTypesError: new Error("boom") });
-    const { result } = renderHook(() => useCollectionEntries({ contentTypeKey: "recipe" }, { port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useCollectionEntries({ contentTypeKey: "recipe" }, { port, locale: "en", t: ({ key: k }, _optional = {}) => k }), { wrapper });
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("boom");

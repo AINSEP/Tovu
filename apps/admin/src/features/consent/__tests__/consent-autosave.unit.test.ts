@@ -7,7 +7,7 @@ import { CONSENT_CONFIG, conflict, saved } from './consent-fixtures';
 /** Timers the test fires by hand, so debounce order is explicit. */
 function manualTimers() {
   let next: (() => void) | null = null;
-  const timers: ConsentTimers = { setTimeout: callback => { next = callback; return callback; }, clearTimeout: handle => { if (handle === next) next = null; } };
+  const timers: ConsentTimers = { setTimeout: ({ callback }, _optional = {}) => { next = callback; return callback; }, clearTimeout: ({ handle }, _optional = {}) => { if (handle === next) next = null; } };
   return { timers, fire: () => { const callback = next; next = null; callback?.(); }, pending: () => next !== null };
 }
 

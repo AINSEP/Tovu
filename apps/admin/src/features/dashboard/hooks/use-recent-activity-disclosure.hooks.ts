@@ -23,7 +23,7 @@ function readOpen(): boolean {
 }
 
 /** @complexity Time/space: O(1). */
-function writeOpen(open: boolean): void {
+function writeOpen({ open }: { open: boolean }, _optional = {}): void {
   try {
     localStorage.setItem(RECENT_ACTIVITY_OPEN_KEY, open ? "1" : "0");
   } catch {
@@ -47,7 +47,7 @@ export function useRecentActivityDisclosure(): RecentActivityDisclosure {
   const panelId = useId();
   const toggle = useCallback(() => {
     setOpen((previous) => {
-      writeOpen(!previous);
+      writeOpen({ open: !previous });
       return !previous;
     });
   }, []);

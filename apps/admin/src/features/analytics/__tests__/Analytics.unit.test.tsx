@@ -17,7 +17,7 @@ import type { AnalyticsController } from "../hooks/use-analytics.hooks";
  */
 
 function stubHook(overrides: Partial<AnalyticsController>): () => AnalyticsController {
-  return () => ({ hits: null, error: null, t: (key: string) => key, ...overrides });
+  return () => ({ hits: null, error: null, t: ({ key }: { key: string }, _optional = {}) => key, ...overrides });
 }
 
 const HIT_WITH_EVENT = {

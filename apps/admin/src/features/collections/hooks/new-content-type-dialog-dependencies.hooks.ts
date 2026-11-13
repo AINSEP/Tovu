@@ -8,7 +8,7 @@ import type { NewContentTypeDialogPort } from "./new-content-type-dialog-port.ho
 
 /** The live implementation, as a module-level singleton. */
 export const defaultNewContentTypeDialogPort: NewContentTypeDialogPort = {
-  createContentType: (input) => api.createContentType(input),
+  createContentType: (input, _optional = {}) => api.createContentType(input),
 };
 
 /** Seed state for {@link createFakeNewContentTypeDialogPort}. */
@@ -44,7 +44,7 @@ export function createFakeNewContentTypeDialogPort(
     get lastCreate() {
       return state.lastCreate;
     },
-    async createContentType(input) {
+    async createContentType(input, _optional = {}) {
       state.lastCreate = input;
       if (options.createError) throw options.createError;
       return { contentType: options.createdContentType ?? FAKE_CONTENT_TYPE };

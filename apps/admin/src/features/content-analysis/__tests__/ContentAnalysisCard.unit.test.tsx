@@ -16,7 +16,7 @@ import { VALID_REPORT_JSON, reportJson } from "./content-analysis-fixtures";
  */
 
 const identity = (key: string) => key;
-const REPORT = parseContentAnalysisReport(VALID_REPORT_JSON)!;
+const REPORT = parseContentAnalysisReport({ raw: VALID_REPORT_JSON })!;
 const TARGET: ContentAnalysisTarget = {
   post: { id: "p1", version: 1, ext: { [CONTENT_ANALYZER_PLUGIN_ID]: { report: VALID_REPORT_JSON } } },
   title: "Draft",
