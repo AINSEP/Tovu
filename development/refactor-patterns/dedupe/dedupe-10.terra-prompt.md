@@ -21,8 +21,7 @@ Each group below needs the owner's yes first (see PLAN.md, Owner decisions). Ski
   - tests: cd packages/core && npx vitest run --maxWorkers=2 src/records.test.ts ; then npx tsc --noEmit -p packages/<pkg>/tsconfig.json for each touched package ; per touched file run its colocated test: cd packages/<pkg> && npx vitest run --maxWorkers=2 $(rg -l '<basename-without-ext>' src --glob '*.test.ts' | head -3)
 - **T11** EXTRACT SHARED HELPER — risk M; est. −35 lines; divergence: none
   - tests: cd apps/admin && npx vitest run --maxWorkers=2 src/components/AssistantDock src/features/pages src/features/media
-- **T33** MERGE INTO EXISTING — risk H; est. −45 lines; divergence: YES BUG CANDIDATE: admin route toSendPipelineDeps hard-wires isSendingEnabled: async () => false (deps.ts:153, documented as deliberate) while the agent-tool twin honors deps.newsletterSendingEnabled (tool-registrations.ts:175)
-  - tests: npx tsx --test --test-concurrency=1 apps/website/src/features/newsletter/__tests__ + apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__
+- **T33** moved to job dedupe-03.
 
 ## Recipes (exact before → after)
 
@@ -61,16 +60,5 @@ NOT touched (one line each): array-permissive copies (agent-runtime claude-segme
 3. Move each deleted file's `@file` paragraphs into a "Callers" section of the new file's header: the single-instance notes for ThemePagesTab and Media, and the ImagePreviewModal lineage.
 4. Retarget the three hook tests to the new hook.
 
-### T32, T33, T34: feature-owned mappers (run after dedupe-01/02 have landed; in `server/inbound/*` change only the lines named here)
-- T32:
-  - Export `toMembersWriteServiceDeps` from `features/members/tool-registrations.ts`.
-  - Its parameter becomes `Pick<MembersToolDeps, "clock" | "idGen" | "memberRepo" | "memberTierRepo" | "memberSubscriptionRepo" | "memberSessionRepo" | "magicLinkRepo" | "mailer" | "mailStatus" | "originRegistry" | "principalRepo" | "mailSenderIdentity">`.
-  - `server/inbound/admin-http/routes/members/deps.ts` deletes its copy and re-exports it with `export { toMembersWriteServiceDeps } from "../../../../../features/members/tool-registrations.js";`. Check the relative depth first.
-- T33: owner-gated (job dedupe-10 only). In job dedupe-03 skip T33 entirely.
-  - After that, export `toConfirmationDeps`, `toSubscriptionsDeps` and `toNewsletterSendPipelineDeps` from features/newsletter.
-  - Type their parameters as `Pick<>` of the fields they read, plus `newsletterSendingEnabled?`.
-  - The admin and public deps files re-export them under their current names: `toConfirmationDeps`, `toPublicConfirmationDeps`, `toSubscriptionsDeps` and `toSendPipelineDeps`.
-  - Keep the launch-gate doc block from admin `deps.ts:120-142` verbatim on the survivor.
-- T34:
-  - Export `toDeliveryToolView` (rename it `toWebhookDeliveryView`), the subscription mapper and `toChangeSetToolView` (rename it `toChangeSetView`) from the feature files.
-  - `integrations.ts` defines `toAdminDeliveryResponse = (d: WebhookDeliveryRecord): AdminWebhookDeliveryResponse => toWebhookDeliveryView(d)`, or replaces its body if the types are assignable. The same goes for the subscription mapper and `toChangeSetHeaderResponse`.
+### T33
+Moved to job dedupe-03 (both launch-gate bindings are now passed in explicitly, so the merge no longer needs O4's answer). Nothing to do here.

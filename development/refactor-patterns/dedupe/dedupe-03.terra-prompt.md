@@ -33,7 +33,9 @@ Order: X (import swaps) first, then T/TR groups. Groups that name a Jini export 
   - tests: npx tsc --noEmit -p apps/website (type-only) + npx tsx --test --test-concurrency=1 apps/website/src/features/<each touched feature>/__tests__/**/agent-tools*.test.ts
 - **T32** MERGE INTO EXISTING — risk L; est. −15 lines; divergence: none
   - tests: npx tsx --test --test-concurrency=1 apps/website/src/server/inbound/admin-http/routes/members/__tests__ (members route tests) + apps/website/src/features/members/__tests__
-- **T34** MERGE INTO EXISTING — risk M; est. −40 lines; divergence: none today; couples agent-tool view to admin wire shape
+- **T33** MERGE INTO EXISTING (moved from job 10) — risk M; est. −35 lines; divergence: YES, kept explicitly: admin send pipeline hard-wires `isSendingEnabled: false` and supplies `unsubscribe` + `sleep`; the agent-tool pipeline honors `newsletterSendingEnabled` and supplies neither. Both are passed into one builder; characterization test pins them
+  - tests: the new deps-builders.characterization.test.ts, then npx tsx --test --test-concurrency=1 apps/website/src/features/newsletter/__tests__ + apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__ (one file at a time)
+- **T34** MERGE INTO EXISTING — risk L; est. −25 lines; divergence: none for the two merged projections (delivery detail, change-set header); subscription projections are DIFFERENT contracts and stay separate
   - tests: npx tsx --test --test-concurrency=1 apps/website/src/features/webhooks/__tests__ apps/website/src/features/change-sets/__tests__ + inbound integrations/change-sets tests
 - **TR01** EXTRACT SHARED HELPER — risk M; est. −50 lines; divergence: media_import_* result JSON key order changes (createdBy moves from 6th to 2nd, matching media_generate_asset); values identical. Any deep-equal test is unaffected; a string snapshot would need updating
   - tests: npx tsx --test --test-concurrency=1 apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts apps/website/src/features/media-import/__tests__/tool-registrations.test.ts apps/website/src/features/media/__tests__/content-duplicate.media.test.ts apps/website/src/features/media/__tests__/agent-upload-sniff.test.ts apps/website/src/server/inbound/admin-http/routes/media/__tests__/upload.test.ts apps/website/src/server/inbound/admin-http/routes/media/__tests__/import-url.test.ts
@@ -180,19 +182,38 @@ In each of the 20 files listed in the TSV:
 5. Move the `inputSchema` JSDoc ("JSON Schema for this tool's `input`… refuses to wire any tool lacking one", plus any file-specific line such as recovery's "Optional, matching…") onto the alias. This follows the comments/forms precedent.
 6. Run `npx tsc --noEmit -p apps/website` once at the end to type-check.
 
-### T32, T33, T34: feature-owned mappers (run after dedupe-01/02 have landed; in `server/inbound/*` change only the lines named here)
+### T32, T33, T34: feature-owned builders and mappers (run after dedupe-01/02 have landed; in `server/inbound/*` change only the lines named here)
 - T32:
   - Export `toMembersWriteServiceDeps` from `features/members/tool-registrations.ts`.
   - Its parameter becomes `Pick<MembersToolDeps, "clock" | "idGen" | "memberRepo" | "memberTierRepo" | "memberSubscriptionRepo" | "memberSessionRepo" | "magicLinkRepo" | "mailer" | "mailStatus" | "originRegistry" | "principalRepo" | "mailSenderIdentity">`.
   - `server/inbound/admin-http/routes/members/deps.ts` deletes its copy and re-exports it with `export { toMembersWriteServiceDeps } from "../../../../../features/members/tool-registrations.js";`. Check the relative depth first.
-- T33: owner-gated (job dedupe-10 only). In job dedupe-03 skip T33 entirely.
-  - After that, export `toConfirmationDeps`, `toSubscriptionsDeps` and `toNewsletterSendPipelineDeps` from features/newsletter.
-  - Type their parameters as `Pick<>` of the fields they read, plus `newsletterSendingEnabled?`.
-  - The admin and public deps files re-export them under their current names: `toConfirmationDeps`, `toPublicConfirmationDeps`, `toSubscriptionsDeps` and `toSendPipelineDeps`.
-  - Keep the launch-gate doc block from admin `deps.ts:120-142` verbatim on the survivor.
-- T34:
-  - Export `toDeliveryToolView` (rename it `toWebhookDeliveryView`), the subscription mapper and `toChangeSetToolView` (rename it `toChangeSetView`) from the feature files.
-  - `integrations.ts` defines `toAdminDeliveryResponse = (d: WebhookDeliveryRecord): AdminWebhookDeliveryResponse => toWebhookDeliveryView(d)`, or replaces its body if the types are assignable. The same goes for the subscription mapper and `toChangeSetHeaderResponse`.
+- T33 (moved here from job 10; it no longer waits on O4 because both launch-gate behaviors are passed in explicitly, so the merge changes nothing; O4 stays an open owner question):
+  1. FIRST write the characterization test `apps/website/src/features/newsletter/__tests__/deps-builders.characterization.test.ts` (reuse the deps fixture of an existing newsletter route test: `rg -l "toSendPipelineDeps|NewsletterRouteDeps" apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__`; no `as any`). It must PASS on the code before the change and after it:
+     - admin `toSendPipelineDeps(routeDeps)`: `unsubscribe` is defined (equal to `toUnsubscribeDeps(routeDeps)` field by field), `typeof sleep === "function"`, and `await launchGateDeps.isSendingEnabled("ws")` is `false` even when the fixture carries a `newsletterSendingEnabled` that returns `true`;
+     - tool `toNewsletterSendPipelineDeps(toolDeps)`: `"unsubscribe" in result` and `"sleep" in result` are both `false`, and `isSendingEnabled` returns what `toolDeps.newsletterSendingEnabled` returns (and `false` when it is absent).
+  2. New `apps/website/src/features/newsletter/deps-builders.ts` (features may not import inbound; inbound may import features). Bodies are the current admin `deps.ts` bodies, key order unchanged:
+```ts
+export type ConfirmationSourceDeps = Pick<NewsletterToolDeps, "newsletterConfirmationTokenRepo" | "newsletterSubscriptionRepo" | "mailer" | "membersConsentCapability" | "originRegistry" | "clock" | "idGen" | "mailSenderIdentity">;
+export type SubscriptionsSourceDeps = ConfirmationSourceDeps & Pick<NewsletterToolDeps, "newsletterListRepo" | "newsletterSubscriberDirectory">;
+export type SendPipelineSourceDeps = Pick<NewsletterToolDeps, "newsletterCampaignRepo" | "newsletterSubscriptionRepo" | "newsletterAudienceSnapshotRepo" | "newsletterSendRepo" | "newsletterSubscriberDirectory" | "newsletterHooks" | "mailer" | "membersConsentCapability" | "originRegistry" | "outbox" | "bus" | "clock" | "idGen">;
+export function buildConfirmationDeps({ deps }: { deps: ConfirmationSourceDeps }, _optional: Record<string, never> = {}): ConfirmationDeps
+export function buildSubscriptionsDeps({ deps }: { deps: SubscriptionsSourceDeps }, _optional: Record<string, never> = {}): SubscriptionsDeps   // confirmationDeps: buildConfirmationDeps({ deps })
+export function buildSendPipelineDeps(
+  { deps, isSendingEnabled }: { deps: SendPipelineSourceDeps; isSendingEnabled: (workspaceId: string) => Promise<boolean> },
+  { unsubscribe, sleep }: { unsubscribe?: UnsubscribeDeps; sleep?: (ms: number) => Promise<void> } = {},
+): SendPipelineDeps
+```
+     `buildSendPipelineDeps` returns the admin object with `isSendingEnabled` from the argument, `...(unsubscribe === undefined ? {} : { unsubscribe })` where admin has `unsubscribe:`, and `...(sleep === undefined ? {} : { sleep })` where admin has `sleep:`. Move the two inline comments ("Campaign mail is bulk…", "Short provider quota hints…") onto those spreads. If a `Pick` key does not exist on `NewsletterToolDeps`, STALE T33.
+  3. Keep every existing exported name and its positional signature as a one-line adapter (no caller changes):
+     - `features/newsletter/tool-registrations.ts`: delete the local `toConfirmationDeps`/`toSubscriptionsDeps` bodies and replace their calls in this file with `buildConfirmationDeps({ deps })` / `buildSubscriptionsDeps({ deps })`. `toNewsletterSendPipelineDeps(deps)` stays exported with its doc; body: `return buildSendPipelineDeps({ deps, isSendingEnabled: deps.newsletterSendingEnabled ?? (async () => false) });` (no `unsubscribe`, no `sleep`: today's agent-tool behavior, see PLAN.md bug list).
+     - admin `routes/newsletter/deps.ts`: `toConfirmationDeps` / `toSubscriptionsDeps` bodies become `return buildConfirmationDeps({ deps });` / `return buildSubscriptionsDeps({ deps });`. `toSendPipelineDeps` keeps its whole doc block verbatim; body: `return buildSendPipelineDeps({ deps, isSendingEnabled: async () => false }, { unsubscribe: toUnsubscribeDeps(deps), sleep: (ms) => delay(ms) });`.
+     - public `routes/site/newsletter-deps.ts`: `toPublicConfirmationDeps` body becomes `return buildConfirmationDeps({ deps });` (this was RG5).
+  4. Run the characterization test, then the newsletter tests listed for T33. Commit "refactor(website): one newsletter deps builder, both launch-gate bindings kept (dedupe T33/RG5)".
+- T34 (only the identical projections; the two SUBSCRIPTION projections stay separate on purpose):
+  - Do NOT merge `features/webhooks/tool-registrations.ts#toSubscriptionToolView` with `admin-http/http/integrations.ts#toAdminSubscriptionResponse`: the tool view nests the FULL delivery view, the admin response nests `toAdminDeliverySummary` (7 fields). Merging would add `eventId`, `topic`, `nextAttemptAt`, `signedWithVersion`, `subscriptionId`, `deadAt` to the admin HTTP list response. `toAdminDeliverySummary` also stays.
+  - Delivery: in `features/webhooks/tool-registrations.ts` rename `toDeliveryToolView` to `toWebhookDeliveryView`, change it to `export function toWebhookDeliveryView({ delivery }: { delivery: WebhookDeliveryRecord }, _optional: Record<string, never> = {})` (body unchanged, doc unchanged) and update every in-file reference (`rg -n toDeliveryToolView` in that file): a call `toDeliveryToolView(x)` becomes `toWebhookDeliveryView({ delivery: x })`, a bare reference such as `.map(toDeliveryToolView)` becomes `.map((delivery) => toWebhookDeliveryView({ delivery }))`. In `admin-http/http/integrations.ts` keep `export function toAdminDeliveryResponse(delivery: WebhookDeliveryRecord): AdminWebhookDeliveryResponse` with its doc; body becomes `return toWebhookDeliveryView({ delivery });` (both return the same 13 fields in the same order; checked at 60f52fea1). If the compiler rejects the return type, STALE this half.
+  - Change sets: in `features/change-sets/tool-registrations.ts` rename `toChangeSetToolView` to `toChangeSetView`, export it as `({ changeSet }: { changeSet: ChangeSetRecord }, _optional: Record<string, never> = {})`, update every in-file reference the same way (calls and bare `.map(...)` references). Its doc ("deliberately separate from the admin HTTP response-serializer module…") is now wrong: replace that clause with "shared with `admin-http/http/change-sets.ts#toChangeSetHeaderResponse`, which delegates here"; keep the `inversePayload` sentence. In `admin-http/http/change-sets.ts` keep `export function toChangeSetHeaderResponse(changeSet: ChangeSetRecord)`; body becomes `return toChangeSetView({ changeSet });`. Keep that file's `@file` header (the `inversePayload` rule).
+  - Imports in inbound use the `#src/features/...` alias form already used in that file, or the relative form if the file has no alias imports.
 
 ## TR01 assistant media persistence (EXTRACT, new apps/website/src/features/media/persist-assistant-media.ts)
 ```ts
