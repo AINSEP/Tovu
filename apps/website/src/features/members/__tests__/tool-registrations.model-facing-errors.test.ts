@@ -341,3 +341,22 @@ test("member create and update reject invalid input and denied permission withou
     if (!denied.ok) assert.equal(denied.error.message, "MEMBERS_FORBIDDEN: principal 'principal-1' is not authorized for 'member.manage' (insufficient_permission)");
   }
 });
+
+// REGRESSION (Stop before write): Stop pressed while the permission check is in flight used to let
+// the rename go through while the executor reported the call as cancelled.
+test("members_update_profile leaves the member unchanged when Stop lands during the permission check", async () => {
+  const controller = new AbortController();
+  const deps: MembersToolDeps = {
+    ...makeRouteDeps(),
+    authorize: async () => { controller.abort(); return { allowed: true, reason: "matched" }; },
+  };
+  await seedMember(deps);
+  const { run, toolExecutor } = await buildHarness(deps);
+  const result = await toolExecutor.execute(
+    { principal: { id: PRINCIPAL_ID }, run, toolId: "members_update_profile", input: { memberId: "m-1", name: "Renamed after Stop" } },
+    { signal: controller.signal },
+  );
+  assert.equal(result.status, "cancelled");
+  const stored = await deps.memberRepo.findById({ workspaceId: WORKSPACE_ID, id: "m-1" });
+  assert.equal(stored?.name, MEMBER_VIEW.name, "a stopped call must not have renamed the member");
+});

@@ -210,6 +210,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       const input = requireInputRecord({ input: ctx.input });
       const memberId = requireString({ input, key: "memberId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
+      ctx.signal.throwIfAborted();
       const { member } = await updateProfile({ deps: toMembersWriteServiceDeps(deps), input: { workspaceId: deps.workspaceId, memberId, name: requireString({ input, key: "name" }) } });
       return { member: toMemberToolView(member) };
     },

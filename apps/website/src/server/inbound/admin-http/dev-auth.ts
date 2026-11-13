@@ -31,6 +31,7 @@ import { authenticateApiKey, type ApiKeyServiceDeps } from "#src/features/identi
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { createBootSessionTokenStore, redeemBootSessionToken } from "#src/features/identity/boot-session-token";
 import { sendAdminFailure } from "./routes/system/site-share-errors.js";
+import { asyncRoute } from "../shared/async-route.js";
 import { allowsLocalOwnerSignInRequest, bootLocalOwnerSignIn, type LocalOwnerSignInPolicy } from "../../runtime/boot/local-owner-signin.js";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { callerMayManageUserTrash, principalHoldsBuiltinAdminRole, principalHoldsOwnerWildcard } from "#src/features/identity/delete-user-service";
@@ -771,7 +772,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
     } catch (error) { next(error); }
   });
 
-  app.get("/api/admin/v1/auth/me", async (req, res) => {
+  app.get("/api/admin/v1/auth/me", asyncRoute({ handler: async (req, res) => {
     const principal = await currentPrincipal(deps, req, { localOwnerSignIn });
     if (!principal) {
       res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });
@@ -811,7 +812,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
       // `false` (the live site); the push routes refuse on their own (`live-site-policy.ts`).
       canPublishToLive: canPublishToLive(),
     });
-  });
+  } }));
 
   // Password-banner plan (2026-09-24), Slice 2: tells the DASHBOARD (not deployment-overview,
   // which is owner-only and `system.read`-gated) whether the SIGNED-IN CALLER's own stored

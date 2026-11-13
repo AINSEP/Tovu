@@ -323,6 +323,7 @@ export function buildWebhooksRegistrations(
         if (ctx.signal.aborted) return { deleted: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
         const current = await routeDeps.webhookSubscriptionRepo.findById({ workspaceId: routeDeps.workspaceId, id: subscriptionId });
         if (!isDeepStrictEqual(current, existing)) throw new ToolInputError({ message: "webhooks_delete_subscription: target changed while confirmation was open. Request a new confirmation; nothing was deleted." });
+        ctx.signal.throwIfAborted();
         const { subscription } = await deleteSubscription({
           deps: { clock: routeDeps.clock, repo: routeDeps.webhookSubscriptionRepo, idGenerator: routeDeps.idGen, isAllowedTarget },
           input: { workspaceId: routeDeps.workspaceId, id: subscriptionId },
