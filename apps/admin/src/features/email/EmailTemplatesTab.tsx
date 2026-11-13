@@ -39,7 +39,7 @@ export function EmailTemplatesTab(props: { controller: EmailTemplatesController;
                 key: "name",
                 header: t({ locale, key: "Name" }),
                 cell: (template) => (
-                  <a href={adminHref(templateEditorPath(template.id))} {...agentHandle({ handle: `email-template-${template.id}-edit` }, { role: "link", label: `Open the ${template.name} template` })}>
+                  <a href={adminHref(templateEditorPath({ id: template.id }))} {...agentHandle({ handle: `email-template-${template.id}-edit` }, { role: "link", label: `Open the ${template.name} template` })}>
                     {template.name}
                   </a>
                 ),
@@ -50,7 +50,7 @@ export function EmailTemplatesTab(props: { controller: EmailTemplatesController;
                 header: t({ locale, key: "Fields" }),
                 cell: (template) => (template.fields.length === 0 ? "—" : <code className="email-break">{template.fields.map((field) => `{{${field.name}}}`).join(" ")}</code>),
               },
-              { key: "updated", header: t({ locale, key: "Updated" }), cell: (template) => when(template.updatedAt, locale) },
+              { key: "updated", header: t({ locale, key: "Updated" }), cell: (template) => when({ iso: template.updatedAt, locale }) },
               {
                 key: "actions",
                 header: t({ locale, key: "More" }),
@@ -59,7 +59,7 @@ export function EmailTemplatesTab(props: { controller: EmailTemplatesController;
                     triggerLabel={t({ locale, key: "Actions for \"{name}\"" }).replace("{name}", () => template.name)}
                     agentHandle={`email-template-${template.id}-menu`}
                     items={[
-                      { key: "edit", label: t({ locale, key: "Edit" }), onSelect: () => navigate(templateEditorPath(template.id)) },
+                      { key: "edit", label: t({ locale, key: "Edit" }), onSelect: () => navigate(templateEditorPath({ id: template.id })) },
                       { key: "rename", label: t({ locale, key: "Rename" }), onSelect: () => controller.startRename(template) },
                       { key: "trash", label: t({ locale, key: "Move to trash" }), destructive: true, onSelect: () => controller.setPendingTrash(template) },
                     ]}

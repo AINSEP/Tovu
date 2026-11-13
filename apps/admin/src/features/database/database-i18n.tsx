@@ -1220,7 +1220,7 @@ const PLAN_READY_FRAGMENTS: Record<string, { before: string; after: string }> = 
   },
 };
 
-export function planReadyMessage(locale: string, planId: string): ReactNode {
+export function planReadyMessage({ locale, planId }: { locale: string; planId: string }, _options = {}): ReactNode {
   const f = localeEntry({ table: PLAN_READY_FRAGMENTS, locale });
   return (
     <>

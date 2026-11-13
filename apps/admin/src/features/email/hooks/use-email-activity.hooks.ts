@@ -67,7 +67,7 @@ function usePaged<T>(required: { fetchPage: (cursor?: string) => Promise<Page<T>
       const next = await fetchPage(view.data.nextCursor);
       setData({ ...next, items: [...view.data.items, ...next.items], empty: null });
     } catch (error) {
-      setMoreError(errorMessage(error));
+      setMoreError(errorMessage({ error }));
     } finally {
       setLoadingMore(false);
     }
@@ -76,7 +76,7 @@ function usePaged<T>(required: { fetchPage: (cursor?: string) => Promise<Page<T>
 }
 
 /** The value a text filter commits after the person stops typing. */
-function useDebounced(value: string, ms: number): string {
+function useDebounced({ value, ms }: { value: string; ms: number }, _options = {}): string {
   const [settled, setSettled] = useState(value);
   useEffect(() => {
     const timer = setTimeout(() => setSettled(value), ms);
@@ -96,7 +96,7 @@ export function useEmailActivity(
   const { api } = required;
   const debounceMs = optional.debounceMs ?? 350;
   const [filter, setFilter] = useState<MailActivityFilter>({});
-  const recipient = useDebounced(filter.recipient?.trim() ?? "", debounceMs);
+  const recipient = useDebounced({ value: filter.recipient?.trim() ?? "", ms: debounceMs });
   const outcome = filter.outcome;
   const fetchActivity = useCallback((cursor?: string) => api.listActivity({ filter: { outcome, recipient: recipient || undefined }, ...(cursor ? { cursor } : {}) }), [api, outcome, recipient]);
   const activity = usePaged({ fetchPage: fetchActivity });
@@ -115,12 +115,12 @@ export function useEmailActivity(
     detailFor.current = id;
     api.getActivity({ id }).then(
       (data) => { if (detailFor.current === id) setDetail({ kind: "loaded", data }); },
-      (error: unknown) => { if (detailFor.current === id) setDetail(isForbidden(error) ? { kind: "forbidden" } : { kind: "error", message: errorMessage(error) }); },
+      (error: unknown) => { if (detailFor.current === id) setDetail(isForbidden({ error }) ? { kind: "forbidden" } : { kind: "error", message: errorMessage({ error }) }); },
     );
   }, [api, openId]);
 
   const [search, setSearch] = useState("");
-  const settledSearch = useDebounced(search.trim(), debounceMs);
+  const settledSearch = useDebounced({ value: search.trim(), ms: debounceMs });
   const fetchSuppressions = useCallback((cursor?: string) => api.listSuppressions({ search: settledSearch || undefined, ...(cursor ? { cursor } : {}) }), [api, settledSearch]);
   const suppressions = usePaged({ fetchPage: fetchSuppressions });
 
@@ -133,7 +133,7 @@ export function useEmailActivity(
   const setRemovalReason = useCallback((reason: string) => setRemoval((step) => (step?.kind === "reason" ? { ...step, reason, error: null } : step)), []);
   const cancelRemoval = useCallback(() => setRemoval(null), []);
 
-  const refusal = (error: unknown) => (isForbidden(error) ? "Only the site owner can remove a block." : errorMessage(error));
+  const refusal = ({ error }: { error: unknown }, _options = {}) => (isForbidden({ error }) ? "Only the site owner can remove a block." : errorMessage({ error }));
   const submitReason = useCallback(async (step: Extract<RemovalStep, { kind: "reason" }>) => {
     const reason = step.reason.trim();
     if (reason.length < MIN_REASON) {
@@ -145,7 +145,7 @@ export function useEmailActivity(
       const answer = await api.removeSuppression({ address: step.entry.address, scope: step.entry.scope, reason });
       setRemoval(answer.plan ? { kind: "confirm", entry: step.entry, plan: answer.plan, error: null, pending: false } : null);
     } catch (error) {
-      setRemoval({ ...step, pending: false, error: refusal(error) });
+      setRemoval({ ...step, pending: false, error: refusal({ error }) });
     }
   }, [api]);
   const reloadSuppressions = suppressions.reload;
@@ -158,7 +158,7 @@ export function useEmailActivity(
       setRemovedNotice(plan.address);
       reloadSuppressions();
     } catch (error) {
-      setRemoval({ ...step, pending: false, error: refusal(error) });
+      setRemoval({ ...step, pending: false, error: refusal({ error }) });
     }
   }, [api, reloadSuppressions]);
   const continueRemoval = useCallback(async () => {

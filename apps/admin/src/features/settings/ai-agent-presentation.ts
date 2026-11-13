@@ -14,7 +14,7 @@ export function localCliScopeCopy(
 export function isDesktopAdmin(
   {}: Record<string, never>, { targetWindow }: { targetWindow?: Window } = {},
 ): boolean {
-  return getFolderDropPort(targetWindow) !== null || getVoiceInputPort(targetWindow) !== null;
+  return getFolderDropPort({ targetWindow }) !== null || getVoiceInputPort(targetWindow) !== null;
 }
 
 /** Unknown authentication is not a refusal. Warn only about a confirmed missing sign-in. */

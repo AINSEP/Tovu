@@ -7,6 +7,6 @@ import type { GatedConfirmResult, GatedPlanResult, MigrateForwardExecuteResult }
  */
 export interface MigrateForwardSectionPort {
   planMigrateForward(): Promise<GatedPlanResult>;
-  confirmMigrateForward(input: { planId: string; planHash: string }): Promise<GatedConfirmResult>;
-  executeMigrateForward(confirmationToken: string): Promise<MigrateForwardExecuteResult>;
+  confirmMigrateForward(input: { planId: string; planHash: string }, optional?: {}): Promise<GatedConfirmResult>;
+  executeMigrateForward(required: { confirmationToken: string }, optional?: {}): Promise<MigrateForwardExecuteResult>;
 }

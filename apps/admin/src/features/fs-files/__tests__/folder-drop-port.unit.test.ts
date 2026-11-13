@@ -8,7 +8,7 @@ describe("getFolderDropPort", () => {
   it("returns null when there is no global window and no injected window", () => {
     vi.stubGlobal("window", undefined);
     try {
-      expect(getFolderDropPort(undefined)).toBeNull();
+      expect(getFolderDropPort({ targetWindow: undefined })).toBeNull();
     } finally {
       vi.unstubAllGlobals();
     }
@@ -16,13 +16,13 @@ describe("getFolderDropPort", () => {
 
   it("returns null for a window with no tovuFiles bridge (plain browser tab)", () => {
     const fakeWindow = {} as unknown as Window;
-    expect(getFolderDropPort(fakeWindow)).toBeNull();
+    expect(getFolderDropPort({ targetWindow: fakeWindow })).toBeNull();
   });
 
   it("returns the real port when window.tovuFiles is present (inside the desktop shell)", () => {
     const port: FolderDropPort = { getPathForFile: () => "/Users/x/Desktop/Folder" };
     const fakeWindow = { tovuFiles: port } as unknown as Window;
-    expect(getFolderDropPort(fakeWindow)).toBe(port);
+    expect(getFolderDropPort({ targetWindow: fakeWindow })).toBe(port);
   });
 
   it("falls back to the global window when no target is injected", () => {
@@ -30,9 +30,9 @@ describe("getFolderDropPort", () => {
     const port: FolderDropPort = { getPathForFile: () => "/Users/x/Desktop/Folder" };
     try {
       window.tovuFiles = port;
-      expect(getFolderDropPort(undefined)).toBe(port);
+      expect(getFolderDropPort({ targetWindow: undefined })).toBe(port);
       delete window.tovuFiles;
-      expect(getFolderDropPort(undefined)).toBeNull();
+      expect(getFolderDropPort({ targetWindow: undefined })).toBeNull();
     } finally {
       if (previous === undefined) delete window.tovuFiles;
       else window.tovuFiles = previous;

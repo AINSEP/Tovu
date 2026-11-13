@@ -254,7 +254,7 @@ function useEditorKeys(
 }
 
 /** The locale prop when a test passes one, else the operator's. */
-function useEditorLocale(override: string | undefined): string {
+function useEditorLocale({ override }: { override: string | undefined }, _options = {}): string {
   const adminLocale = useAdminLocale();
   return override ?? adminLocale;
 }
@@ -272,7 +272,7 @@ export function editorStatus(controller: Pick<EmailTemplateEditorController, "sa
 export function EmailTemplateEditor(props: { id: string; useEditorHook?: (required: { id: string }) => EmailTemplateEditorController; locale?: string }) {
   const useEditor = props.useEditorHook ?? useWiredEmailTemplateEditor;
   const controller = useEditor({ id: props.id });
-  const locale = useEditorLocale(props.locale);
+  const locale = useEditorLocale({ override: props.locale });
   const view = useEmailTemplateView();
   useEditorKeys({ controller, locale });
   return (

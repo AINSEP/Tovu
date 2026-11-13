@@ -53,7 +53,7 @@ export function useEmailOverview(required: { api: Pick<EmailApi, "readUses" | "s
     } catch (error) {
       // 429 still carries the truthful result (duplicate or rate limited): show it, not a bare error.
       const result = error instanceof ApiError ? (error.body?.result as MailTestSendResult | undefined) : undefined;
-      setTest(result ? { kind: "done", result } : { kind: "error", message: errorMessage(error) });
+      setTest(result ? { kind: "done", result } : { kind: "error", message: errorMessage({ error }) });
     }
   }, [api, to, makeId, reloadUses]);
 

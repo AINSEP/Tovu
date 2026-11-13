@@ -11,10 +11,10 @@ function withSaveVerification(res: { credential: AdminPublishCredentialSummary; 
  *  `static-publish-dependencies.hooks.ts`'s `defaultStaticPublishPort`. */
 export const defaultPublishCredentialsPort: PublishCredentialsPort = {
   listCredentials: () => api.listPublishCredentials(),
-  createCredential: (input) => api.createPublishCredential(input).then(withSaveVerification),
-  updateCredential: (id, input) => api.updatePublishCredential(id, input).then(withSaveVerification),
-  deleteCredential: (id) => api.deletePublishCredential(id),
-  verifyCredential: (id) => api.verifyPublishCredential(id).then((res) => res.verification),
+  createCredential: (input, _options = {}) => api.createPublishCredential(input).then(withSaveVerification),
+  updateCredential: ({ id, input }, _options = {}) => api.updatePublishCredential(id, input).then(withSaveVerification),
+  deleteCredential: ({ id }, _options = {}) => api.deletePublishCredential(id),
+  verifyCredential: ({ id }, _options = {}) => api.verifyPublishCredential(id).then((res) => res.verification),
 };
 
 /** An in-memory {@link PublishCredentialsPort} for tests. Each of the five calls defaults to a

@@ -13,7 +13,8 @@ export const defaultDeploymentOverviewPort: DeploymentOverviewPort = {
  * this app's "every port gets a fake" rule.
  */
 export function createFakeDeploymentOverviewPort(
-  snapshot: AdminDeploymentOverview | (() => Promise<AdminDeploymentOverview>)
+  { snapshot }: { snapshot: AdminDeploymentOverview | (() => Promise<AdminDeploymentOverview>) },
+  _options = {},
 ): DeploymentOverviewPort {
   return {
     getDeploymentOverview: () => (typeof snapshot === "function" ? snapshot() : Promise.resolve(snapshot)),

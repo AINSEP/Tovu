@@ -136,9 +136,8 @@ function readSaveConflictPayload(err: ApiError): { exists: boolean; contents: st
 }
 
 export function useDockerfileSource(
-  port: DockerfileSourcePort,
-  t: Translate,
-  locale: string
+  { port, t, locale }: { port: DockerfileSourcePort; t: Translate; locale: string },
+  _options = {},
 ): DockerfileSourceController {
   const query = useFetchQuery({
     key: ["deployment", "dockerfile"],
@@ -164,13 +163,13 @@ export function useDockerfileSource(
   }, [query.status, query.data]);
 
   const error = query.error
-    ? dockerfileLoadErrorMessage(locale, describeApiError(query.error, "unknown error"))
+    ? dockerfileLoadErrorMessage({ locale, error: describeApiError(query.error, "unknown error") })
     : null;
 
   // No `invalidates` — see this file's header for why a redundant re-`GET` of this hook's own read
   // key would be strictly worse than the response already in hand.
   const saveMutation = useFetchMutation({
-    run: ({ input }: { input: { contents: string; ifMatch: string } }) => port.setDockerfileSource(input.contents, input.ifMatch),
+    run: ({ input }: { input: { contents: string; ifMatch: string } }) => port.setDockerfileSource(input),
   });
 
   // No `translate`: this hook reads only `isDirty`, never the guard's translated leave-confirm, so
@@ -243,7 +242,7 @@ export function useDockerfileSource(
   }
 
   const saveError = saveMutation.error
-    ? dockerfileSaveErrorMessage(locale, describeApiError(saveMutation.error, "unknown error"))
+    ? dockerfileSaveErrorMessage({ locale, error: describeApiError(saveMutation.error, "unknown error") })
     : null;
 
   async function reloadAfterConflict() {
@@ -286,5 +285,5 @@ export function useDockerfileSource(
 export function useWiredDockerfileSource(): DockerfileSourceController {
   const locale = useAdminLocale();
   const t = (key: string): string => defaultT({ locale: locale, key: key });
-  return useDockerfileSource(defaultDockerfileSourcePort, t, locale);
+  return useDockerfileSource({ port: defaultDockerfileSourcePort, t, locale });
 }

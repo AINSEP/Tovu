@@ -145,7 +145,7 @@ export interface PublishCredentialsController {
   credentialChangePending: boolean;
 
   /** Sets one credential field's draft value on one provider's row. */
-  setField: (providerId: AdminPublishCredentialProviderId, fieldName: string, value: string) => void;
+  setField: (required: { providerId: AdminPublishCredentialProviderId; fieldName: string; value: string }, optional?: {}) => void;
   /** Creates or replaces one provider's saved connection from its own row's current field values
    *  — see this file's header for the create-vs-update decision. A no-op if
    *  `credentialFormReadyToSave` (`rules.ts`) says this row is not ready (the same guard the row's
@@ -170,7 +170,7 @@ export interface PublishCredentialsController {
    *  A no-op if `credentialId` is already this provider's default, or while a promotion for this
    *  provider is still in flight. Never rejects — a failure lands in that row's
    *  {@link PublishCredentialRowState.selectError}. */
-  selectCredential: (providerId: AdminPublishCredentialProviderId, credentialId: string) => Promise<void>;
+  selectCredential: (required: { providerId: AdminPublishCredentialProviderId; credentialId: string }, optional?: {}) => Promise<void>;
   /** Re-checks the provider's currently connected (default) row against its real provider right now
    *  — the UI half of `POST .../credentials/:id/verify` (`publish-credentials.ts`'s route doc), for
    *  when the automatic verify-on-save result is stale (a rotated token) or was lost (an in-memory
@@ -237,18 +237,16 @@ function rowFormStateFor(states: Readonly<Record<string, RowFormState>>, provide
  *  server's own wording — this case should be unreachable in normal use (save always targets an
  *  existing row's id once one exists) and can only fire on a genuine write race.
  *  @complexity O(1). */
-function publishCredentialSubmitErrorMessage(err: unknown, t: Translate, locale: string): string {
-  const classified = classifyPublishCredentialSubmitError(err);
+function publishCredentialSubmitErrorMessage({ err, t, locale }: { err: unknown; t: Translate; locale: string }, _options = {}): string {
+  const classified = classifyPublishCredentialSubmitError({ e: err });
   if (classified.kind === "duplicate-label") return t("This connection was already saved — reload the page and try again.");
-  if (classified.kind === "validation") return publishCredentialSaveErrorMessage(locale, translateCredentialMessage({ message: classified.detail, locale }));
-  return publishCredentialSaveErrorMessage(locale, describeApiError(err, t("Unknown error")));
+  if (classified.kind === "validation") return publishCredentialSaveErrorMessage({ locale, error: translateCredentialMessage({ message: classified.detail, locale }) });
+  return publishCredentialSaveErrorMessage({ locale, error: describeApiError(err, t("Unknown error")) });
 }
 
 export function usePublishCredentials(
-  port: PublishCredentialsPort,
-  t: Translate,
-  locale: string,
-  targets: readonly AdminPublishTargetDescriptor[] | undefined
+  { port, t, locale, targets }: { port: PublishCredentialsPort; t: Translate; locale: string; targets: readonly AdminPublishTargetDescriptor[] | undefined },
+  _options = {},
 ): PublishCredentialsController {
   const query = useFetchQuery({ key: ["deployment", "publish-credentials"], fetch: () => port.listCredentials() });
   const [credentials, setCredentials] = useState<AdminPublishCredentialSummary[] | undefined>(undefined);
@@ -266,7 +264,7 @@ export function usePublishCredentials(
     setExecutionMode(query.data.executionMode);
   }, [query.status, query.data]);
 
-  const loadError = query.error ? publishCredentialsLoadErrorMessage(locale, describeApiError(query.error, "unknown error")) : null;
+  const loadError = query.error ? publishCredentialsLoadErrorMessage({ locale, error: describeApiError(query.error, "unknown error") }) : null;
 
   const [formStates, setFormStates] = useState<Record<AdminPublishCredentialProviderId, RowFormState>>({});
   // The picker's promotion state, kept apart from `formStates`: a `save` that lands mid-promotion
@@ -281,14 +279,20 @@ export function usePublishCredentials(
   const savingRef = useRef(new Set<AdminPublishCredentialProviderId>());
 
   // Every write below goes through this, so a row never touched before starts from a blank state.
-  function patchRow(providerId: AdminPublishCredentialProviderId, patch: (current: RowFormState) => RowFormState) {
+  function patchRow(
+    { providerId, patch }: { providerId: AdminPublishCredentialProviderId; patch: (current: RowFormState) => RowFormState },
+    _options = {},
+  ) {
     setFormStates((prev) => ({ ...prev, [providerId]: patch(rowFormStateFor(prev, providerId)) }));
   }
 
-  function setField(providerId: AdminPublishCredentialProviderId, fieldName: string, value: string) {
+  function setField(
+    { providerId, fieldName, value }: { providerId: AdminPublishCredentialProviderId; fieldName: string; value: string },
+    _options = {},
+  ) {
     const spec = targets?.find(target => target.id === providerId)?.credential;
     const secret = fieldName === spec?.tokenField || spec?.fields.some(field => field.name === fieldName && field.secret);
-    patchRow(providerId, (current) => ({ ...current, values: { ...current.values, [fieldName]: value }, ...(secret ? { error: credentialDraftError({ value }, { locale }) } : {}) }));
+    patchRow({ providerId, patch: (current) => ({ ...current, values: { ...current.values, [fieldName]: value }, ...(secret ? { error: credentialDraftError({ value }, { locale }) } : {}) }) });
   }
 
   /** Validate the draft before checking the in-flight guard, so even a duplicate click reports
@@ -303,7 +307,7 @@ export function usePublishCredentials(
   ): boolean {
     if (spec) {
       const error = credentialDraftError({ value: values[spec.tokenField] ?? '' }, { locale, required: !defaultCredentialForProvider(credentials ?? [], providerId) });
-      if (error) { patchRow(providerId, current => ({ ...current, error })); return false; }
+      if (error) { patchRow({ providerId, patch: current => ({ ...current, error }) }); return false; }
     }
     return spec !== undefined && credentialFormReadyToSave(spec, values) && !savingRef.current.has(providerId);
   }
@@ -315,11 +319,11 @@ export function usePublishCredentials(
     savingRef.current.add(providerId);
 
     const existing = defaultCredentialForProvider(credentials ?? [], providerId);
-    patchRow(providerId, (current) => ({ ...current, saving: true, error: null }));
+    patchRow({ providerId, patch: (current) => ({ ...current, saving: true, error: null }) });
     try {
-      const connection = buildCredentialConnectionInput(providerId, spec, values);
+      const connection = buildCredentialConnectionInput({ providerId, spec, values });
       const { verification, ...saved } = existing
-        ? await port.updateCredential(existing.id, { connection })
+        ? await port.updateCredential({ id: existing.id, input: { connection } })
         : await port.createCredential({ label: PUBLISH_CREDENTIAL_ROW_LABEL, connection });
       // The response's summary predates the server's own `healAccountLabel` write in the same request.
       const result = verifiedCredentialSummary({ saved, verification });
@@ -327,9 +331,9 @@ export function usePublishCredentials(
         const base = prev ?? [];
         return existing ? base.map((current) => (current.id === result.id ? result : current)) : [...base, result];
       });
-      patchRow(providerId, (current) => ({ ...rowFormStateAfterSave(current, values), verification, verifiedCredentialId: verification ? result.id : null }));
+      patchRow({ providerId, patch: (current) => ({ ...rowFormStateAfterSave(current, values), verification, verifiedCredentialId: verification ? result.id : null }) });
     } catch (err) {
-      patchRow(providerId, (current) => ({ ...current, saving: false, error: publishCredentialSubmitErrorMessage(err, t, locale) }));
+      patchRow({ providerId, patch: (current) => ({ ...current, saving: false, error: publishCredentialSubmitErrorMessage({ err, t, locale }) }) });
     } finally {
       savingRef.current.delete(providerId);
     }
@@ -339,9 +343,9 @@ export function usePublishCredentials(
     const connected = defaultCredentialForProvider(credentials ?? [], providerId);
     if (!connected) return; // Nothing saved for this provider yet — no row for `verify`'s button to have come from.
 
-    patchRow(providerId, (current) => ({ ...current, verifying: true, verifyError: null, verifiedCredentialId: connected.id }));
+    patchRow({ providerId, patch: (current) => ({ ...current, verifying: true, verifyError: null, verifiedCredentialId: connected.id }) });
     try {
-      const result = await port.verifyCredential(connected.id);
+      const result = await port.verifyCredential({ id: connected.id });
       // Mirrors the server's own `healAccountLabel` write (`publish-credentials.ts`'s route doc) —
       // a `"valid"` result carrying an `accountLabel` updates this row's SAVED summary immediately,
       // rather than waiting on a refetch this hook has no other reason to trigger. `undefined` (no
@@ -356,13 +360,13 @@ export function usePublishCredentials(
           return prev.map((c) => (c.id === connected.id ? { ...c, accountLabel } : c));
         });
       }
-      patchRow(providerId, (current) => ({ ...current, verifying: false, verification: result, verifyError: null }));
+      patchRow({ providerId, patch: (current) => ({ ...current, verifying: false, verification: result, verifyError: null }) });
     } catch (err) {
-      patchRow(providerId, (current) => ({
+      patchRow({ providerId, patch: (current) => ({
         ...current,
         verifying: false,
-        verifyError: publishCredentialVerifyErrorMessage(locale, describeApiError(err, "unknown error")),
-      }));
+        verifyError: publishCredentialVerifyErrorMessage({ locale, error: describeApiError(err, "unknown error") }),
+      }) });
     }
   }
 
@@ -398,18 +402,18 @@ export function usePublishCredentials(
     return credentialsForProvider(credentials ?? [], providerId);
   }
 
-  async function selectCredential(providerId: AdminPublishCredentialProviderId, credentialId: string): Promise<void> {
+  async function selectCredential({ providerId, credentialId }: { providerId: AdminPublishCredentialProviderId; credentialId: string }, _options = {}): Promise<void> {
     const current = defaultCredentialForProvider(credentials ?? [], providerId);
     if (current?.id === credentialId || selectingRef.current.has(providerId)) return;
     selectingRef.current.add(providerId);
     setSelections((prev) => ({ ...prev, [providerId]: { pendingId: credentialId, error: null } }));
     let error: string | null = null;
     try {
-      const promoted = await port.updateCredential(credentialId, { isDefault: true });
+      const promoted = await port.updateCredential({ id: credentialId, input: { isDefault: true } });
       setCredentials((prev) => withPromotedDefault(prev ?? [], promoted));
       await reconcileCredentials();
     } catch (err) {
-      error = publishCredentialSelectErrorMessage(locale, describeApiError(err, "unknown error"));
+      error = publishCredentialSelectErrorMessage({ locale, error: describeApiError(err, "unknown error") });
     } finally {
       selectingRef.current.delete(providerId);
       setSelections((prev) => ({ ...prev, [providerId]: { pendingId: null, error } }));
@@ -444,13 +448,13 @@ export function usePublishCredentials(
 
 /**
  * Binds the real `/api/.../system/publish/credentials` client, and a `t` bound to the real resolved
- * locale — the zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, same shape
+ * locale — the wired half of the `useX(dependencies)` / `useWiredX()` pair, same shape
  * `use-static-publish.hooks.ts`'s `useWiredStaticPublish` documents.
  */
-export function useWiredPublishCredentials(targets: readonly AdminPublishTargetDescriptor[] | undefined): PublishCredentialsController {
+export function useWiredPublishCredentials({ targets }: { targets: readonly AdminPublishTargetDescriptor[] | undefined }, _options = {}): PublishCredentialsController {
   const locale = useAdminLocale();
   const t = (key: string): string => defaultT({ locale: locale, key: key });
-  return usePublishCredentials(defaultPublishCredentialsPort, t, locale, targets);
+  return usePublishCredentials({ port: defaultPublishCredentialsPort, t, locale, targets });
 }
 
 /** Verification may heal the saved account label without erasing an absent finding. */

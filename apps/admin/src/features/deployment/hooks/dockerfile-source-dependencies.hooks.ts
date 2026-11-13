@@ -5,7 +5,7 @@ import type { DockerfileSourcePort } from "./dockerfile-source-port.hooks";
  *  `deployment-overview-dependencies.hooks.ts`'s `defaultDeploymentOverviewPort`. */
 export const defaultDockerfileSourcePort: DockerfileSourcePort = {
   getDockerfileSource: () => api.getDockerfileSource(),
-  setDockerfileSource: (contents, ifMatch) => api.setDockerfileSource(contents, ifMatch),
+  setDockerfileSource: ({ contents, ifMatch }, _options = {}) => api.setDockerfileSource(contents, ifMatch),
 };
 
 /** A fixed, deliberately-fake-looking etag for {@link createFakeDockerfileSourcePort}'s default
@@ -27,13 +27,13 @@ export const FAKE_DOCKERFILE_ETAG = '"fake-etag"';
  *  rejection shaped like the real `ApiError` for the 412 path — see
  *  `use-dockerfile-source.unit.test.tsx`'s own conflict tests). */
 export function createFakeDockerfileSourcePort(
-  snapshot: AdminDockerfileSource | (() => Promise<AdminDockerfileSource>),
-  options: { setDockerfileSource?: (contents: string, ifMatch: string) => Promise<AdminDockerfileSource> } = {}
+  { snapshot }: { snapshot: AdminDockerfileSource | (() => Promise<AdminDockerfileSource>) },
+  options: { setDockerfileSource?: DockerfileSourcePort["setDockerfileSource"] } = {},
 ): DockerfileSourcePort {
   return {
     getDockerfileSource: () => (typeof snapshot === "function" ? snapshot() : Promise.resolve(snapshot)),
     setDockerfileSource:
       options.setDockerfileSource ??
-      ((contents: string) => Promise.resolve({ exists: true, contents, etag: FAKE_DOCKERFILE_ETAG })),
+      (({ contents }, _options = {}) => Promise.resolve({ exists: true, contents, etag: FAKE_DOCKERFILE_ETAG })),
   };
 }

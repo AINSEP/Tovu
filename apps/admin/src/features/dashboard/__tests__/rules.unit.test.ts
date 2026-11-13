@@ -17,107 +17,107 @@ const identityT = (key: string): string => key;
 
 describe("postsStatMeta", () => {
   it("is blank while published is still pending (null)", () => {
-    expect(postsStatMeta(null, identityT)).toBe("");
+    expect(postsStatMeta({ published: null, t: identityT })).toBe("");
   });
 
   it("reports the published count once known, including zero", () => {
-    expect(postsStatMeta(0, identityT)).toBe("0 published");
-    expect(postsStatMeta(5, identityT)).toBe("5 published");
+    expect(postsStatMeta({ published: 0, t: identityT })).toBe("0 published");
+    expect(postsStatMeta({ published: 5, t: identityT })).toBe("5 published");
   });
 });
 
 describe("pagesStatMeta", () => {
   it("is blank while drafts is still pending (null)", () => {
-    expect(pagesStatMeta(null, identityT)).toBe("");
+    expect(pagesStatMeta({ drafts: null, t: identityT })).toBe("");
   });
 
   it("singularizes 'draft' for exactly one", () => {
-    expect(pagesStatMeta(1, identityT)).toBe("1 draft");
+    expect(pagesStatMeta({ drafts: 1, t: identityT })).toBe("1 draft");
   });
 
   it("pluralizes for zero and for more than one", () => {
-    expect(pagesStatMeta(0, identityT)).toBe("0 drafts");
-    expect(pagesStatMeta(3, identityT)).toBe("3 drafts");
+    expect(pagesStatMeta({ drafts: 0, t: identityT })).toBe("0 drafts");
+    expect(pagesStatMeta({ drafts: 3, t: identityT })).toBe("3 drafts");
   });
 });
 
 describe("commentsStatMeta", () => {
   it("reads 'nothing to review' only when the pending count is exactly 0", () => {
-    expect(commentsStatMeta(0, identityT)).toBe("nothing to review");
+    expect(commentsStatMeta({ pendingCount: 0, t: identityT })).toBe("nothing to review");
   });
 
   it("reads 'awaiting moderation' for a positive pending count", () => {
-    expect(commentsStatMeta(4, identityT)).toBe("awaiting moderation");
+    expect(commentsStatMeta({ pendingCount: 4, t: identityT })).toBe("awaiting moderation");
   });
 
   it("reads 'awaiting moderation' while still pending (null) — preserved, not fixed, by this extraction", () => {
-    expect(commentsStatMeta(null, identityT)).toBe("awaiting moderation");
+    expect(commentsStatMeta({ pendingCount: null, t: identityT })).toBe("awaiting moderation");
   });
 });
 
 describe("stat meta translators", () => {
   it("translates every template and substitutes counts after translation", () => {
     const markerT = (key: string) => `[${key}]`;
-    expect(postsStatMeta(0, markerT)).toBe("[0 published]");
-    expect(postsStatMeta(5, markerT)).toBe("[5 published]");
-    expect(pagesStatMeta(1, markerT)).toBe("[1 draft]");
-    expect(pagesStatMeta(0, markerT)).toBe("[0 drafts]");
-    expect(pagesStatMeta(3, markerT)).toBe("[3 drafts]");
-    expect(commentsStatMeta(0, markerT)).toBe("[nothing to review]");
-    expect(commentsStatMeta(4, markerT)).toBe("[awaiting moderation]");
-    expect(commentsStatMeta(null, markerT)).toBe("[awaiting moderation]");
+    expect(postsStatMeta({ published: 0, t: markerT })).toBe("[0 published]");
+    expect(postsStatMeta({ published: 5, t: markerT })).toBe("[5 published]");
+    expect(pagesStatMeta({ drafts: 1, t: markerT })).toBe("[1 draft]");
+    expect(pagesStatMeta({ drafts: 0, t: markerT })).toBe("[0 drafts]");
+    expect(pagesStatMeta({ drafts: 3, t: markerT })).toBe("[3 drafts]");
+    expect(commentsStatMeta({ pendingCount: 0, t: markerT })).toBe("[nothing to review]");
+    expect(commentsStatMeta({ pendingCount: 4, t: markerT })).toBe("[awaiting moderation]");
+    expect(commentsStatMeta({ pendingCount: null, t: markerT })).toBe("[awaiting moderation]");
   });
 });
 
 describe("shouldShowDefaultPasswordBanner", () => {
   it("shows when the caller is on the default and hasn't dismissed", () => {
-    expect(shouldShowDefaultPasswordBanner(true, false)).toBe(true);
+    expect(shouldShowDefaultPasswordBanner({ usesDefault: true, dismissed: false })).toBe(true);
   });
 
   it("hides once dismissed, even if still on the default", () => {
-    expect(shouldShowDefaultPasswordBanner(true, true)).toBe(false);
+    expect(shouldShowDefaultPasswordBanner({ usesDefault: true, dismissed: true })).toBe(false);
   });
 
   it("hides when the caller is not on the default", () => {
-    expect(shouldShowDefaultPasswordBanner(false, false)).toBe(false);
+    expect(shouldShowDefaultPasswordBanner({ usesDefault: false, dismissed: false })).toBe(false);
   });
 
   it("hides while the status is unknown (null) — fail closed, not open", () => {
-    expect(shouldShowDefaultPasswordBanner(null, false)).toBe(false);
+    expect(shouldShowDefaultPasswordBanner({ usesDefault: null, dismissed: false })).toBe(false);
   });
 });
 
 describe("shouldShowSiteKeyBanner (site-key plan §A.6)", () => {
   it("shows for missing-with-data — a site key can't be found but this site has saved credentials", () => {
-    expect(shouldShowSiteKeyBanner("missing-with-data")).toBe(true);
+    expect(shouldShowSiteKeyBanner({ state: "missing-with-data" })).toBe(true);
   });
 
   it("shows for mismatch — the active key's fingerprint disagrees with the site's stamped one", () => {
-    expect(shouldShowSiteKeyBanner("mismatch")).toBe(true);
+    expect(shouldShowSiteKeyBanner({ state: "mismatch" })).toBe(true);
   });
 
   it("shows for invalid — a source was found but fails hex validation", () => {
-    expect(shouldShowSiteKeyBanner("invalid")).toBe(true);
+    expect(shouldShowSiteKeyBanner({ state: "invalid" })).toBe(true);
   });
 
   it("hides for active — the normal case", () => {
-    expect(shouldShowSiteKeyBanner("active")).toBe(false);
+    expect(shouldShowSiteKeyBanner({ state: "active" })).toBe(false);
   });
 
   it("hides for plain missing — a fresh site before its first key is minted at boot", () => {
-    expect(shouldShowSiteKeyBanner("missing")).toBe(false);
+    expect(shouldShowSiteKeyBanner({ state: "missing" })).toBe(false);
   });
 
   it("hides while the state is unknown (undefined) — fail closed, same default shouldShowDefaultPasswordBanner uses", () => {
-    expect(shouldShowSiteKeyBanner(undefined)).toBe(false);
+    expect(shouldShowSiteKeyBanner({ state: undefined })).toBe(false);
   });
 });
 
 describe("siteKeyBannerCopy (site-key plan §A.6)", () => {
   it("has non-empty, distinct copy for each of the three bannered states", () => {
-    const missingWithData = siteKeyBannerCopy("missing-with-data", identityT);
-    const mismatch = siteKeyBannerCopy("mismatch", identityT);
-    const invalid = siteKeyBannerCopy("invalid", identityT);
+    const missingWithData = siteKeyBannerCopy({ state: "missing-with-data", t: identityT });
+    const mismatch = siteKeyBannerCopy({ state: "mismatch", t: identityT });
+    const invalid = siteKeyBannerCopy({ state: "invalid", t: identityT });
     expect(missingWithData.length).toBeGreaterThan(0);
     expect(mismatch.length).toBeGreaterThan(0);
     expect(invalid.length).toBeGreaterThan(0);
@@ -125,9 +125,9 @@ describe("siteKeyBannerCopy (site-key plan §A.6)", () => {
   });
 
   it("returns empty string for a non-bannered state — Dashboard.tsx never renders it for these", () => {
-    expect(siteKeyBannerCopy("active", identityT)).toBe("");
-    expect(siteKeyBannerCopy("missing", identityT)).toBe("");
-    expect(siteKeyBannerCopy(undefined, identityT)).toBe("");
+    expect(siteKeyBannerCopy({ state: "active", t: identityT })).toBe("");
+    expect(siteKeyBannerCopy({ state: "missing", t: identityT })).toBe("");
+    expect(siteKeyBannerCopy({ state: undefined, t: identityT })).toBe("");
   });
 });
 

@@ -28,9 +28,8 @@ export interface DeploymentOverviewController {
 }
 
 export function useDeploymentOverview(
-  port: DeploymentOverviewPort,
-  t: Translate,
-  locale: string
+  { port, t, locale }: { port: DeploymentOverviewPort; t: Translate; locale: string },
+  _options = {},
 ): DeploymentOverviewController {
   const query = useFetchQuery({
     key: ["deployment", "overview"],
@@ -38,7 +37,7 @@ export function useDeploymentOverview(
   });
 
   const error = query.error
-    ? deploymentOverviewLoadErrorMessage(locale, describeApiError(query.error, "unknown error"))
+    ? deploymentOverviewLoadErrorMessage({ locale, error: describeApiError(query.error, "unknown error") })
     : null;
 
   return { snapshot: query.data, error, t };
@@ -55,5 +54,5 @@ export function useDeploymentOverview(
 export function useWiredDeploymentOverview(): DeploymentOverviewController {
   const locale = useAdminLocale();
   const t = (key: string): string => defaultT({ locale: locale, key: key });
-  return useDeploymentOverview(defaultDeploymentOverviewPort, t, locale);
+  return useDeploymentOverview({ port: defaultDeploymentOverviewPort, t, locale });
 }

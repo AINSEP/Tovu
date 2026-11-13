@@ -26,7 +26,7 @@ describe("plan-ready message", () => {
     ["xx", "Plan ready (plan ", "). Confirming issues a one-time execution token — nothing is migrated yet."],
   ])("renders %s copy around the exact plan identifier as inert code text", (locale, before, after) => {
     const id = '<b>plan-42 & "next"</b>';
-    const { container } = render(<div>{planReadyMessage(locale, id)}</div>);
+    const { container } = render(<div>{planReadyMessage({ locale, planId: id })}</div>);
     const code = container.querySelector("code")!;
     expect(code).toBeInTheDocument();
     expect(code.textContent).toBe(id);
@@ -39,7 +39,7 @@ describe("plan-ready message", () => {
     const locales = ADMIN_LOCALES.filter(({ code }) => code !== "en");
     expect(locales.map(({ code }) => code)).toContain("es");
     for (const { code } of locales) {
-      const { container, unmount } = render(<div>{planReadyMessage(code, "migration-17")}</div>);
+      const { container, unmount } = render(<div>{planReadyMessage({ locale: code, planId: "migration-17" })}</div>);
       expect(container.querySelector("code")?.textContent, code).toBe("migration-17");
       expect(container.textContent, code).not.toContain("Plan ready (plan");
       expect(container.textContent!.length, code).toBeGreaterThan("migration-17".length);

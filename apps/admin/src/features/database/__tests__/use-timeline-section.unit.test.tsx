@@ -162,7 +162,7 @@ describe("loadMore", () => {
     const oldPage = new Promise<{ items: AdminLedgerRow[]; nextCursor: string | null }>((_resolve, reject) => { rejectOld = reject; });
     const filteredRow = { ...ROW_WITH_RESTORE_POINT, id: "filtered" };
     const port = {
-      getDatabaseTimeline: async ({ kind, cursor }: { kind?: string; cursor?: string } = {}) => {
+      getDatabaseTimeline: async (_required: {}, { options: { kind, cursor } = {} }: { options?: { kind?: string; cursor?: string } } = {}) => {
         if (cursor === "c2") return oldPage;
         if (kind === "core.backup") return { items: [filteredRow], nextCursor: null };
         return { items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" };
@@ -211,7 +211,7 @@ describe("loadMore", () => {
     expect(result.current.loadingMore).toBe(true);
 
     await act(async () => { resolveNew({ items: [ROW_WITHOUT_RESTORE_POINT], nextCursor: null }); });
-    expect(getDatabaseTimeline.mock.calls.at(-1)?.[0]).toMatchObject({ kind: "core.backup", cursor: "filtered-c2" });
+    expect(getDatabaseTimeline.mock.calls.at(-1)?.[1]).toMatchObject({ options: { kind: "core.backup", cursor: "filtered-c2" } });
     expect(result.current.rows).toEqual([filteredRow, ROW_WITHOUT_RESTORE_POINT]);
     expect(result.current.loadingMore).toBe(false);
   });

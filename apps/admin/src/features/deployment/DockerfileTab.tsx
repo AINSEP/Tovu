@@ -60,7 +60,8 @@ export interface DockerfileTabProps {
 /** Resolves {@link DockerfileTabProps.useDockerfileSourceHook} to the real hook when a caller
  *  passes none — same reasoning as `OverviewTab.tsx`'s `resolveDeploymentOverviewHook`. */
 function resolveDockerfileSourceHook(
-  override: typeof useWiredDockerfileSource | undefined
+  { override }: { override: typeof useWiredDockerfileSource | undefined },
+  _options = {},
 ): typeof useWiredDockerfileSource {
   return override ?? useWiredDockerfileSource;
 }
@@ -70,7 +71,7 @@ function resolveDockerfileSourceHook(
  *  `use-dockerfile-source.hooks.ts`'s header for why `copy` DOES live there but this doesn't).
  *  `URL.revokeObjectURL` after the click so the blob URL doesn't leak for the rest of the page's
  *  lifetime — the anchor never needs to be appended to the document for `.click()` to fire it. */
-function downloadDockerfile(contents: string): void {
+function downloadDockerfile({ contents }: { contents: string }, _options = {}): void {
   const blob = new Blob([contents], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -85,7 +86,7 @@ function downloadDockerfile(contents: string): void {
  *  many. Counts `draft`, not the last-saved `snapshot.contents`, so the count tracks what the
  *  operator is actually looking at, including unsaved edits.
  *  @complexity O(n) in the draft's length, once per render of an already-in-memory string. */
-function countLines(draft: string): number {
+function countLines({ draft }: { draft: string }, _options = {}): number {
   if (!draft) return 0;
   return draft.trimEnd().split("\n").length;
 }
@@ -253,7 +254,7 @@ function DockerfileEditorCard({
       <div className="card-head">
         <h2 className="card-title">{t("Dockerfile")}</h2>
         <div className="card-head-actions">
-          <span className="deployment-provider-cost">{dockerfileLineCountLabel(t, countLines(draft))}</span>
+          <span className="deployment-provider-cost">{dockerfileLineCountLabel({ translate: t, count: countLines({ draft }) })}</span>
           {isDirty ? (
             <span
               className="status status-warning"
@@ -293,7 +294,7 @@ function DockerfileEditorCard({
           <button
             type="button"
             className="btn-secondary"
-            onClick={() => downloadDockerfile(draft)}
+            onClick={() => downloadDockerfile({ contents: draft })}
             disabled={!hasContent}
             {...agentHandle({ handle: "deployment-dockerfile-download" }, {
               role: "button",
@@ -346,7 +347,7 @@ function DockerfileEditorCard({
 }
 
 export function DockerfileTab(props: DockerfileTabProps) {
-  const useDockerfileSourceHook = resolveDockerfileSourceHook(props.useDockerfileSourceHook);
+  const useDockerfileSourceHook = resolveDockerfileSourceHook({ override: props.useDockerfileSourceHook });
   const {
     snapshot,
     draft,

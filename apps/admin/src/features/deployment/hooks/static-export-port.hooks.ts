@@ -10,7 +10,7 @@ export interface StaticExportPort {
    *  is the actual write and the server refuses it outright — e.g. malformed options — a rejection).
    *  A `409` while a run is already in flight also surfaces as a rejection; see `use-static-export
    *  .hooks.ts`'s own handling of that case. */
-  triggerSiteExport(options?: { clean?: boolean }): Promise<AdminExportRunSnapshot>;
+  triggerSiteExport(required: {}, optional?: { options?: { clean?: boolean } }): Promise<AdminExportRunSnapshot>;
   /** The current/most recent run's status — polled while `status === "running"`. */
   getSiteExportStatus(): Promise<AdminExportRunSnapshot>;
 }

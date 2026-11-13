@@ -20,5 +20,5 @@ export interface DockerfileSourcePort {
    *  contract as `api.setDockerfileSource`. A stale/missing `ifMatch` rejects (an `ApiError` with
    *  `.status` 412/400 for the real transport; a test double may reject with anything its own test
    *  recognizes). */
-  setDockerfileSource(contents: string, ifMatch: string): Promise<AdminDockerfileSource>;
+  setDockerfileSource(required: { contents: string; ifMatch: string }, optional?: {}): Promise<AdminDockerfileSource>;
 }

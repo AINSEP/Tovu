@@ -44,13 +44,13 @@ export function templateFieldNames(required: { declared: readonly { name: string
 }
 
 /** The friendly line for a save failure; a 409 means someone else saved first. Pure. */
-export function saveFailureText(error: unknown): string {
+export function saveFailureText({ error }: { error: unknown }, _options = {}): string {
   if (error instanceof ApiError && error.status === 409) return "Someone else changed this template. Reload to get their version; copy your edits first.";
-  return errorMessage(error);
+  return errorMessage({ error });
 }
 
 /** Keeps the last good preview on screen beside the failure. */
-function previewFailed(error: string): (current: EmailTemplateEditorController["preview"]) => EmailTemplateEditorController["preview"] {
+function previewFailed({ error }: { error: string }, _options = {}): (current: EmailTemplateEditorController["preview"]) => EmailTemplateEditorController["preview"] {
   return (current) => ({ data: current.data, error, pending: false });
 }
 
@@ -101,7 +101,7 @@ export function useEmailTemplateEditor(
     const timer = setTimeout(() => {
       api.previewTemplate({ html, values, mode }).then(
         (data) => { if (live) setPreview({ data, error: null, pending: false }); },
-        (error: unknown) => { if (live) setPreview(previewFailed(errorMessage(error))); },
+        (error: unknown) => { if (live) setPreview(previewFailed({ error: errorMessage({ error }) })); },
       );
     }, debounceMs);
     return () => { live = false; clearTimeout(timer); };
@@ -126,7 +126,7 @@ export function useEmailTemplateEditor(
       setHtml((current) => (current === html ? saved.html : current));
       setSavedAt(saved.updatedAt);
     } catch (error) {
-      setSaveError(saveFailureText(error));
+      setSaveError(saveFailureText({ error }));
     } finally {
       setSaving(false);
     }
@@ -145,7 +145,7 @@ export function useEmailTemplateEditor(
       // Keep the working copy: a rename only changes the title and the version the next save states.
       setData({ ...detail, name: renamed.name, version: renamed.version, updatedAt: renamed.updatedAt });
     } catch (error) {
-      setRenameError(saveFailureText(error));
+      setRenameError(saveFailureText({ error }));
       setName(detail.name);
     }
   }, [api, detail, name, setData]);

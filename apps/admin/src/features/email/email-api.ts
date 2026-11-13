@@ -218,53 +218,56 @@ const query = (params: Record<string, string | undefined>): string => {
   return text ? `?${text}` : "";
 };
 
-const get = <T>(path: string) => authenticatedAdminRequest<T>({ method: "GET", path });
-const send = <T>(method: string, path: string, body?: unknown) => authenticatedAdminRequest<T>({ method, path, body: body ?? {} });
+const get = <T>({ path }: { path: string }, _options = {}) => authenticatedAdminRequest<T>({ method: "GET", path });
+const send = <T>(
+  { method, path }: { method: string; path: string },
+  { body }: { body?: unknown } = {},
+) => authenticatedAdminRequest<T>({ method, path, body: body ?? {} });
 const enc = encodeURIComponent;
 
 /** The Email page's API port: one object a test replaces wholesale. */
 export const emailApi = {
-  listProviders: () => get<MailProviderConfigurationReport>(`${SYSTEM}/mail-providers`),
+  listProviders: () => get<MailProviderConfigurationReport>({ path: `${SYSTEM}/mail-providers` }),
   saveProviderKey: ({ providerId, input }: { providerId: string; input: MailProviderCredentialInput }) =>
-    send<{ provider: MailProviderConfiguration }>("PUT", `${SYSTEM}/mail-providers/${enc(providerId)}/credential`, input),
+    send<{ provider: MailProviderConfiguration }>({ method: "PUT", path: `${SYSTEM}/mail-providers/${enc(providerId)}/credential` }, { body: input }),
   activateProvider: ({ providerId }: { providerId: string }) =>
-    send<{ set: true; providerId: string; label: string }>("POST", `${SYSTEM}/mail-providers/${enc(providerId)}/activate`),
+    send<{ set: true; providerId: string; label: string }>({ method: "POST", path: `${SYSTEM}/mail-providers/${enc(providerId)}/activate` }),
 
-  readDns: () => get<MailDnsStatus>(`${SYSTEM}/mail-dns`),
-  verifyDns: () => send<MailDnsStatus>("POST", `${SYSTEM}/mail-dns/verify`),
+  readDns: () => get<MailDnsStatus>({ path: `${SYSTEM}/mail-dns` }),
+  verifyDns: () => send<MailDnsStatus>({ method: "POST", path: `${SYSTEM}/mail-dns/verify` }),
 
   sendTest: ({ to, requestId }: { to?: string; requestId: string }) =>
-    send<{ sent: boolean; result: MailTestSendResult }>("POST", `${SYSTEM}/mail-test-send`, { ...(to ? { to } : {}), requestId }),
-  readUses: () => get<{ checkedAt: string; uses: MailUseRow[] }>(`${SYSTEM}/mail-uses`),
+    send<{ sent: boolean; result: MailTestSendResult }>({ method: "POST", path: `${SYSTEM}/mail-test-send` }, { body: { ...(to ? { to } : {}), requestId } }),
+  readUses: () => get<{ checkedAt: string; uses: MailUseRow[] }>({ path: `${SYSTEM}/mail-uses` }),
 
   listActivity: ({ filter, cursor }: { filter: MailActivityFilter; cursor?: string }) =>
-    get<MailActivityPage>(`${SYSTEM}/mail-activity${query({ outcome: filter.outcome, recipient: filter.recipient, cursor })}`),
-  getActivity: ({ id }: { id: string }) => get<MailActivityDetail>(`${SYSTEM}/mail-activity/${enc(id)}`),
+    get<MailActivityPage>({ path: `${SYSTEM}/mail-activity${query({ outcome: filter.outcome, recipient: filter.recipient, cursor })}` }),
+  getActivity: ({ id }: { id: string }) => get<MailActivityDetail>({ path: `${SYSTEM}/mail-activity/${enc(id)}` }),
   listSuppressions: ({ search, cursor }: { search?: string; cursor?: string }) =>
-    get<MailSuppressionPage>(`${SYSTEM}/mail-suppressions${query({ search, cursor })}`),
+    get<MailSuppressionPage>({ path: `${SYSTEM}/mail-suppressions${query({ search, cursor })}` }),
   /** Without `confirm` this only previews (`plan`); with it, `revision` must be the previewed one. */
   removeSuppression: (required: { address: string; scope: MailSuppressionScope; reason: string }, options: { confirm?: { revision: string } } = {}) =>
-    send<{ removed: boolean; confirmationRequired?: true; plan?: MailSuppressionRemovalPlan }>("POST", `${SYSTEM}/mail-suppressions/remove`, {
-      ...required, ...(options.confirm ? { confirmed: true, revision: options.confirm.revision } : {}),
+    send<{ removed: boolean; confirmationRequired?: true; plan?: MailSuppressionRemovalPlan }>({ method: "POST", path: `${SYSTEM}/mail-suppressions/remove` }, {
+      body: { ...required, ...(options.confirm ? { confirmed: true, revision: options.confirm.revision } : {}) },
     }),
-  readFeedback: () => get<MailFeedbackSetupReport>(`${SYSTEM}/mail-feedback`),
+  readFeedback: () => get<MailFeedbackSetupReport>({ path: `${SYSTEM}/mail-feedback` }),
 
-  listTemplates: () => get<{ templates: EmailTemplateSummary[]; nextCursor?: string }>(`${TEMPLATES}?limit=100`),
-  createTemplate: ({ name }: { name: string }) => send<EmailTemplateDetail>("POST", TEMPLATES, { name }),
-  getTemplate: ({ id }: { id: string }) => get<EmailTemplateDetail>(`${TEMPLATES}/${enc(id)}`),
+  listTemplates: () => get<{ templates: EmailTemplateSummary[]; nextCursor?: string }>({ path: `${TEMPLATES}?limit=100` }),
+  createTemplate: ({ name }: { name: string }) => send<EmailTemplateDetail>({ method: "POST", path: TEMPLATES }, { body: { name } }),
+  getTemplate: ({ id }: { id: string }) => get<EmailTemplateDetail>({ path: `${TEMPLATES}/${enc(id)}` }),
   saveTemplateHtml: ({ id, html, expectedVersion }: { id: string; html: string; expectedVersion: number }) =>
-    send<EmailTemplateDetail>("PUT", `${TEMPLATES}/${enc(id)}/html`, { html, expectedVersion }),
+    send<EmailTemplateDetail>({ method: "PUT", path: `${TEMPLATES}/${enc(id)}/html` }, { body: { html, expectedVersion } }),
   renameTemplate: ({ id, name, expectedVersion }: { id: string; name: string; expectedVersion: number }) =>
-    send<EmailTemplateDetail>("PATCH", `${TEMPLATES}/${enc(id)}`, { name, expectedVersion }),
+    send<EmailTemplateDetail>({ method: "PATCH", path: `${TEMPLATES}/${enc(id)}` }, { body: { name, expectedVersion } }),
   previewTemplate: ({ html, values, mode }: { html: string; values: Record<string, string>; mode: "admin" | "sent" }) =>
-    send<EmailTemplatePreview>("POST", `${TEMPLATES}/preview`, { html, values, mode }),
+    send<EmailTemplatePreview>({ method: "POST", path: `${TEMPLATES}/preview` }, { body: { html, values, mode } }),
   /** Move through the scoped template registration; Trash owns marker, index and restore. */
-  trashTemplate: ({ id }: { id: string }, _options = {}) => send<{ ok: true }>("POST", `/workspaces/${WORKSPACE_ID}/trash/items`, { type: "email-template", id }),
+  trashTemplate: ({ id }: { id: string }, _options = {}) => send<{ ok: true }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/trash/items` }, { body: { type: "email-template", id } }),
 
   readSender: () =>
     authenticatedAdminRequest<{ data: { key: string; value: unknown }[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/settings/effective?namespace=core.mail` }),
   saveSender: ({ key, value }: { key: "senderEmail" | "senderName"; value: string }) =>
-    send<unknown>("PUT", `/workspaces/${WORKSPACE_ID}/settings/value`, { namespace: "core.mail", key, scope: "workspace", valueJson: value }),
+    send<unknown>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/settings/value` }, { body: { namespace: "core.mail", key, scope: "workspace", valueJson: value } }),
 };
 
 export type EmailApi = typeof emailApi;

@@ -38,7 +38,7 @@ describe("usePublishCredentials — initial load", () => {
   it("seeds rows (one per provider) and executionMode from the port's initial read", async () => {
     const snapshot: AdminPublishCredentialsSnapshot = { credentials: [GH_CREDENTIAL], executionMode: "hosted-api-only" };
     const port = createFakePublishCredentialsPort({ listCredentials: () => Promise.resolve(snapshot) });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
 
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
     expect(result.current.rows?.map((row) => row.providerId)).toEqual(CREDENTIAL_TARGET_IDS);
@@ -49,14 +49,14 @@ describe("usePublishCredentials — initial load", () => {
 
   it("rows stay undefined until the first load resolves", () => {
     const port = createFakePublishCredentialsPort({ listCredentials: () => new Promise(() => {}) });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     expect(result.current.rows).toBeUndefined();
     expect(result.current.executionMode).toBeUndefined();
   });
 
   it("surfaces a rejected initial read as a translated load error, rows/executionMode stay undefined", async () => {
     const port = createFakePublishCredentialsPort({ listCredentials: () => Promise.reject(new Error("disk error")) });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
 
     await waitFor(() => expect(result.current.loadError).not.toBeNull());
     expect(result.current.loadError).toContain("Could not load publish credentials");
@@ -84,10 +84,10 @@ describe("usePublishCredentials — called before the initial load resolves", ()
         return Promise.resolve(created);
       },
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     expect(result.current.rows).toBeUndefined();
 
-    act(() => result.current.setField("vercel", "token", "vc_abc"));
+    act(() => result.current.setField({ providerId: "vercel", fieldName: "token", value: "vc_abc" }));
     await act(async () => {
       await result.current.save("vercel");
     });
@@ -98,7 +98,7 @@ describe("usePublishCredentials — called before the initial load resolves", ()
   it("verify() is a no-op (credentials ?? [] finds no 'connected' row to verify)", async () => {
     const verifyCredential = vi.fn();
     const port = createFakePublishCredentialsPort({ listCredentials: () => new Promise(() => {}), verifyCredential });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
 
     await act(async () => {
       await result.current.verify("vercel");
@@ -108,7 +108,7 @@ describe("usePublishCredentials — called before the initial load resolves", ()
 
   it("credentialsForProvider returns [] rather than throwing", () => {
     const port = createFakePublishCredentialsPort({ listCredentials: () => new Promise(() => {}) });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
 
     expect(result.current.credentialsForProvider("vercel")).toEqual([]);
   });
@@ -125,16 +125,16 @@ describe("usePublishCredentials — called before the initial load resolves", ()
         if (listCalls === 1) return new Promise(() => {});
         return Promise.resolve({ credentials: [promoted], executionMode: "self-hosted-cli" as const });
       },
-      updateCredential: (id) => {
+      updateCredential: ({ id }) => {
         sentId = id;
         return Promise.resolve(promoted);
       },
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     expect(result.current.rows).toBeUndefined();
 
     await act(async () => {
-      await result.current.selectCredential("github-pages", "cred-1");
+      await result.current.selectCredential({ providerId: "github-pages", credentialId: "cred-1" });
     });
     expect(sentId).toBe("cred-1");
   });
@@ -143,7 +143,7 @@ describe("usePublishCredentials — called before the initial load resolves", ()
 describe("usePublishCredentials — row shape", () => {
   it("a provider with no saved connection shows saved: undefined and blank draft fields", async () => {
     const port = createFakePublishCredentialsPort();
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     const vercelRow = result.current.rows!.find((row) => row.providerId === "vercel")!;
@@ -158,7 +158,7 @@ describe("usePublishCredentials — row shape", () => {
     const port = createFakePublishCredentialsPort({
       listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     const ghRow = result.current.rows!.find((row) => row.providerId === "github-pages")!;
@@ -172,7 +172,7 @@ describe("usePublishCredentials — row shape", () => {
     const port = createFakePublishCredentialsPort({
       listCredentials: () => Promise.resolve({ credentials: [backup, GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     const ghRow = result.current.rows!.find((row) => row.providerId === "github-pages")!;
@@ -183,12 +183,12 @@ describe("usePublishCredentials — row shape", () => {
 describe("usePublishCredentials — setToken / setAccountId", () => {
   it("each provider's draft fields are independent of every other provider's", async () => {
     const port = createFakePublishCredentialsPort();
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("vercel", "token", "vercel-token"));
-    act(() => result.current.setField("netlify", "token", "netlify-token"));
-    act(() => result.current.setField("cloudflare-pages", "accountId", "acct-1"));
+    act(() => result.current.setField({ providerId: "vercel", fieldName: "token", value: "vercel-token" }));
+    act(() => result.current.setField({ providerId: "netlify", fieldName: "token", value: "netlify-token" }));
+    act(() => result.current.setField({ providerId: "cloudflare-pages", fieldName: "accountId", value: "acct-1" }));
 
     const byProvider = Object.fromEntries(result.current.rows!.map((row) => [row.providerId, row]));
     expect(byProvider["vercel"].values.token ?? "").toBe("vercel-token");
@@ -209,10 +209,10 @@ describe("usePublishCredentials — save, provider not yet connected (create)", 
         return Promise.resolve(created);
       },
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("vercel", "token", "vc_abc"));
+    act(() => result.current.setField({ providerId: "vercel", fieldName: "token", value: "vc_abc" }));
     await act(async () => {
       await result.current.save("vercel");
     });
@@ -231,11 +231,11 @@ describe("usePublishCredentials — save, provider not yet connected (create)", 
         return Promise.resolve(created);
       },
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("cloudflare-pages", "token", "cf_tok"));
-    act(() => result.current.setField("cloudflare-pages", "accountId", "acct-1"));
+    act(() => result.current.setField({ providerId: "cloudflare-pages", fieldName: "token", value: "cf_tok" }));
+    act(() => result.current.setField({ providerId: "cloudflare-pages", fieldName: "accountId", value: "acct-1" }));
     await act(async () => {
       await result.current.save("cloudflare-pages");
     });
@@ -246,7 +246,7 @@ describe("usePublishCredentials — save, provider not yet connected (create)", 
   it("is a no-op while the row is not ready to save — never calls the port", async () => {
     const createCredential = vi.fn();
     const port = createFakePublishCredentialsPort({ createCredential });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     // token still blank.
@@ -259,10 +259,10 @@ describe("usePublishCredentials — save, provider not yet connected (create)", 
   it("cloudflare-pages stays not-ready (and never calls the port) until BOTH token and accountId are filled", async () => {
     const createCredential = vi.fn();
     const port = createFakePublishCredentialsPort({ createCredential });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("cloudflare-pages", "token", "cf_tok"));
+    act(() => result.current.setField({ providerId: "cloudflare-pages", fieldName: "token", value: "cf_tok" }));
     await act(async () => {
       await result.current.save("cloudflare-pages");
     });
@@ -272,11 +272,11 @@ describe("usePublishCredentials — save, provider not yet connected (create)", 
   it("clears the draft token/accountId back to blank once the save resolves", async () => {
     const created: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-cf", providerId: "cloudflare-pages" };
     const port = createFakePublishCredentialsPort({ createCredential: () => Promise.resolve(created) });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("cloudflare-pages", "token", "cf_tok"));
-    act(() => result.current.setField("cloudflare-pages", "accountId", "acct-1"));
+    act(() => result.current.setField({ providerId: "cloudflare-pages", fieldName: "token", value: "cf_tok" }));
+    act(() => result.current.setField({ providerId: "cloudflare-pages", fieldName: "accountId", value: "acct-1" }));
     await act(async () => {
       await result.current.save("cloudflare-pages");
     });
@@ -294,16 +294,16 @@ describe("usePublishCredentials — save, provider not yet connected (create)", 
     const created: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-cf", providerId: "cloudflare-pages" };
     let resolveCreate!: (value: AdminPublishCredentialSummary) => void;
     const port = createFakePublishCredentialsPort({ createCredential: () => new Promise((resolve) => (resolveCreate = resolve)) });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("cloudflare-pages", "token", "cf_first"));
-    act(() => result.current.setField("cloudflare-pages", "accountId", "acct-1"));
+    act(() => result.current.setField({ providerId: "cloudflare-pages", fieldName: "token", value: "cf_first" }));
+    act(() => result.current.setField({ providerId: "cloudflare-pages", fieldName: "accountId", value: "acct-1" }));
     let savePromise!: Promise<void>;
     act(() => {
       savePromise = result.current.save("cloudflare-pages");
     });
-    act(() => result.current.setField("cloudflare-pages", "token", "cf_second"));
+    act(() => result.current.setField({ providerId: "cloudflare-pages", fieldName: "token", value: "cf_second" }));
     await act(async () => {
       resolveCreate(created);
       await savePromise;
@@ -323,10 +323,10 @@ describe("usePublishCredentials — save, duplicate submit (terra #5's sibling)"
     const created: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-cf", providerId: "cloudflare-pages" };
     const createCredential = vi.fn().mockResolvedValue(created);
     const port = createFakePublishCredentialsPort({ createCredential });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
-    act(() => result.current.setField("cloudflare-pages", "token", "cf_tok"));
-    act(() => result.current.setField("cloudflare-pages", "accountId", "acct-1"));
+    act(() => result.current.setField({ providerId: "cloudflare-pages", fieldName: "token", value: "cf_tok" }));
+    act(() => result.current.setField({ providerId: "cloudflare-pages", fieldName: "accountId", value: "acct-1" }));
 
     let firstCall!: Promise<void>;
     let secondCall!: Promise<void>;
@@ -350,10 +350,10 @@ describe("usePublishCredentials — save, duplicate submit (terra #5's sibling)"
       Promise.resolve({ ...GH_CREDENTIAL, id: `cred-${input.connection.providerId}`, providerId: input.connection.providerId } as AdminPublishCredentialSummary),
     );
     const port = createFakePublishCredentialsPort({ createCredential });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
-    act(() => result.current.setField("vercel", "token", "v_tok"));
-    act(() => result.current.setField("netlify", "token", "n_tok"));
+    act(() => result.current.setField({ providerId: "vercel", fieldName: "token", value: "v_tok" }));
+    act(() => result.current.setField({ providerId: "netlify", fieldName: "token", value: "n_tok" }));
 
     await act(async () => {
       await Promise.all([result.current.save("vercel"), result.current.save("netlify")]);
@@ -369,16 +369,16 @@ describe("usePublishCredentials — save, provider already connected (update)", 
     const updated: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, updatedAt: "2026-08-15T12:00:00.000Z" };
     const port = createFakePublishCredentialsPort({
       listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
-      updateCredential: (id, input) => {
+      updateCredential: ({ id, input }) => {
         sentId = id;
         sentInput = input;
         return Promise.resolve(updated);
       },
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("github-pages", "token", "new-token"));
+    act(() => result.current.setField({ providerId: "github-pages", fieldName: "token", value: "new-token" }));
     await act(async () => {
       await result.current.save("github-pages");
     });
@@ -396,7 +396,7 @@ describe("usePublishCredentials — save, provider already connected (update)", 
       listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
       updateCredential,
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     await act(async () => {
@@ -412,10 +412,10 @@ describe("usePublishCredentials — save, provider already connected (update)", 
       listCredentials: () => Promise.resolve({ credentials: [backup, GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
       updateCredential: () => Promise.resolve(updated),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("github-pages", "token", "new-token"));
+    act(() => result.current.setField({ providerId: "github-pages", fieldName: "token", value: "new-token" }));
     await act(async () => {
       await result.current.save("github-pages"); // updates the DEFAULT (cred-1), not the backup
     });
@@ -429,15 +429,15 @@ describe("usePublishCredentials — save, provider already connected (update)", 
     let sentInput: { label?: string } | undefined;
     const port = createFakePublishCredentialsPort({
       listCredentials: () => Promise.resolve({ credentials: [renamedRow], executionMode: "self-hosted-cli" }),
-      updateCredential: (_id, input) => {
+      updateCredential: ({ id: _id, input }) => {
         sentInput = input;
         return Promise.resolve(renamedRow);
       },
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("github-pages", "token", "new-token"));
+    act(() => result.current.setField({ providerId: "github-pages", fieldName: "token", value: "new-token" }));
     await act(async () => {
       await result.current.save("github-pages");
     });
@@ -451,7 +451,7 @@ describe("usePublishCredentials — credentialsForProvider (the Static Site key-
     const port = createFakePublishCredentialsPort({
       listCredentials: () => Promise.resolve({ credentials: [backup, GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     const github = result.current.credentialsForProvider("github-pages");
@@ -460,7 +460,7 @@ describe("usePublishCredentials — credentialsForProvider (the Static Site key-
 
   it("returns an empty list for a provider with nothing saved", async () => {
     const port = createFakePublishCredentialsPort();
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     expect(result.current.credentialsForProvider("vercel")).toEqual([]);
@@ -481,17 +481,17 @@ describe("usePublishCredentials — selectCredential (the Static Site key-picker
         const credentials = listCalls === 1 ? [backup, GH_CREDENTIAL] : [demoted, promoted];
         return Promise.resolve({ credentials, executionMode: "self-hosted-cli" });
       },
-      updateCredential: (id, input) => {
+      updateCredential: ({ id, input }) => {
         sentId = id;
         sentInput = input;
         return Promise.resolve(promoted);
       },
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     await act(async () => {
-      await result.current.selectCredential("github-pages", "cred-2");
+      await result.current.selectCredential({ providerId: "github-pages", credentialId: "cred-2" });
     });
 
     expect(sentId).toBe("cred-2");
@@ -507,11 +507,11 @@ describe("usePublishCredentials — selectCredential (the Static Site key-picker
       listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
       updateCredential,
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     await act(async () => {
-      await result.current.selectCredential("github-pages", "cred-1");
+      await result.current.selectCredential({ providerId: "github-pages", credentialId: "cred-1" });
     });
     expect(updateCredential).not.toHaveBeenCalled();
   });
@@ -522,16 +522,16 @@ describe("usePublishCredentials — selectCredential (the Static Site key-picker
     const port = createFakePublishCredentialsPort({
       // Nothing saved for github-pages at all — `defaultCredentialForProvider` finds no current row.
       listCredentials: () => Promise.resolve({ credentials: [], executionMode: "self-hosted-cli" }),
-      updateCredential: (id) => {
+      updateCredential: ({ id }) => {
         sentId = id;
         return Promise.resolve(promoted);
       },
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     await act(async () => {
-      await result.current.selectCredential("github-pages", "cred-1");
+      await result.current.selectCredential({ providerId: "github-pages", credentialId: "cred-1" });
     });
     expect(sentId).toBe("cred-1");
   });
@@ -558,13 +558,13 @@ describe("usePublishCredentials — a credential change must be observable until
           resolveUpdate = resolve;
         }),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
     expect(result.current.credentialChangePending).toBe(false);
 
     let pending: Promise<void> = Promise.resolve();
     act(() => {
-      pending = result.current.selectCredential("github-pages", "cred-2");
+      pending = result.current.selectCredential({ providerId: "github-pages", credentialId: "cred-2" });
     });
 
     expect(result.current.credentialChangePending).toBe(true);
@@ -583,11 +583,11 @@ describe("usePublishCredentials — a credential change must be observable until
       listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL, BACKUP], executionMode: "self-hosted-cli" }),
       updateCredential: () => Promise.reject(new Error("network down")),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     await act(async () => {
-      await result.current.selectCredential("github-pages", "cred-2");
+      await result.current.selectCredential({ providerId: "github-pages", credentialId: "cred-2" });
     });
 
     const row = githubRow(result.current.rows);
@@ -608,11 +608,11 @@ describe("usePublishCredentials — a credential change must be observable until
       },
       updateCredential: () => Promise.resolve({ ...BACKUP, isDefault: true }),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     await act(async () => {
-      await result.current.selectCredential("github-pages", "cred-2");
+      await result.current.selectCredential({ providerId: "github-pages", credentialId: "cred-2" });
     });
 
     expect(listCalls).toBe(2);
@@ -629,13 +629,13 @@ describe("usePublishCredentials — a credential change must be observable until
       listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL, BACKUP], executionMode: "self-hosted-cli" }),
       updateCredential,
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     // Same synchronous tick, same stale closure — exactly what a state-only guard cannot see.
     act(() => {
-      void result.current.selectCredential("github-pages", "cred-2");
-      void result.current.selectCredential("github-pages", "cred-2");
+      void result.current.selectCredential({ providerId: "github-pages", credentialId: "cred-2" });
+      void result.current.selectCredential({ providerId: "github-pages", credentialId: "cred-2" });
     });
     expect(updateCredential).toHaveBeenCalledTimes(1);
   });
@@ -645,10 +645,10 @@ describe("usePublishCredentials — a credential change must be observable until
       listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
       updateCredential: () => new Promise(() => {}),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("github-pages", "token", "ghp_new"));
+    act(() => result.current.setField({ providerId: "github-pages", fieldName: "token", value: "ghp_new" }));
     act(() => {
       void result.current.save("github-pages");
     });
@@ -661,12 +661,12 @@ describe("usePublishCredentials — verify (the 'hit verify on the token' button
     let sentId: string | undefined;
     const port = createFakePublishCredentialsPort({
       listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
-      verifyCredential: (id) => {
+      verifyCredential: ({ id }) => {
         sentId = id;
         return Promise.resolve({ status: "valid", message: "GitHub accepted this credential.", checkedAt: "2026-08-16T00:00:00.000Z", accountLabel: "leonaburime-ucla" });
       },
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     await act(async () => {
@@ -686,7 +686,7 @@ describe("usePublishCredentials — verify (the 'hit verify on the token' button
       verifyCredential: () =>
         Promise.resolve({ status: "valid", message: "GitHub accepted this credential.", checkedAt: "2026-08-16T00:00:00.000Z", accountLabel: "leonaburime-ucla" }),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     expect(result.current.rows!.find((r) => r.providerId === "github-pages")!.saved?.accountLabel).toBeNull();
@@ -705,7 +705,7 @@ describe("usePublishCredentials — verify (the 'hit verify on the token' button
       verifyCredential: () =>
         Promise.resolve({ status: "valid", message: "GitHub accepted this credential.", checkedAt: "2026-08-16T00:00:00.000Z", accountLabel: "leonaburime-ucla" }),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     await act(async () => {
@@ -722,7 +722,7 @@ describe("usePublishCredentials — verify (the 'hit verify on the token' button
       listCredentials: () => Promise.resolve({ credentials: [alreadyLabeled], executionMode: "self-hosted-cli" }),
       verifyCredential: () => Promise.resolve({ status: "unreachable", message: "Could not reach GitHub to verify this credential.", checkedAt: "2026-08-16T00:00:00.000Z" }),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     await act(async () => {
@@ -735,7 +735,7 @@ describe("usePublishCredentials — verify (the 'hit verify on the token' button
   it("is a no-op — never calls the port — when this provider has nothing saved to verify", async () => {
     const verifyCredential = vi.fn();
     const port = createFakePublishCredentialsPort({ verifyCredential });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     await act(async () => {
@@ -758,7 +758,7 @@ describe("usePublishCredentials — verify (the 'hit verify on the token' button
       listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
       verifyCredential: () => Promise.reject(new Error("network down")),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     await act(async () => {
@@ -779,7 +779,7 @@ describe("usePublishCredentials — verify (the 'hit verify on the token' button
       listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
       verifyCredential,
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     await act(async () => { await result.current.verify("github-pages"); });
@@ -804,7 +804,7 @@ describe("usePublishCredentials — verify (the 'hit verify on the token' button
           resolveVerify = () => resolve({ status: "valid", message: "ok", checkedAt: "2026-08-16T00:00:00.000Z" });
         }),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     let verifyPromise!: Promise<void>;
@@ -826,10 +826,10 @@ describe("usePublishCredentials — verify (the 'hit verify on the token' button
 describe("usePublishCredentials — save, error handling", () => {
   it("a rejected save surfaces a translated, per-row error and leaves that row's draft fields intact", async () => {
     const port = createFakePublishCredentialsPort({ createCredential: () => Promise.reject(new Error("network down")) });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("vercel", "token", "vc_abc"));
+    act(() => result.current.setField({ providerId: "vercel", fieldName: "token", value: "vc_abc" }));
     await act(async () => {
       await result.current.save("vercel");
     });
@@ -843,10 +843,10 @@ describe("usePublishCredentials — save, error handling", () => {
 
   it("a DUPLICATE_LABEL rejection (a write race — this row should already exist) surfaces its own reload-and-retry message", async () => {
     const port = createFakePublishCredentialsPort({ createCredential: () => Promise.reject(new ApiError("DUPLICATE_LABEL", 409)) });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("vercel", "token", "vc_abc"));
+    act(() => result.current.setField({ providerId: "vercel", fieldName: "token", value: "vc_abc" }));
     await act(async () => {
       await result.current.save("vercel");
     });
@@ -859,10 +859,10 @@ describe("usePublishCredentials — save, error handling", () => {
     const port = createFakePublishCredentialsPort({
       createCredential: () => Promise.reject(new ApiError("VALIDATION", 400, undefined, { detail: "owner is required" })),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("vercel", "token", "vc_abc"));
+    act(() => result.current.setField({ providerId: "vercel", fieldName: "token", value: "vc_abc" }));
     await act(async () => {
       await result.current.save("vercel");
     });
@@ -876,11 +876,11 @@ describe("usePublishCredentials — save, error handling", () => {
       createCredential: (input: { connection: { providerId: string } }) =>
         input.connection.providerId === "vercel" ? Promise.reject(new Error("nope")) : Promise.resolve(GH_CREDENTIAL),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("vercel", "token", "vc_abc"));
-    act(() => result.current.setField("netlify", "token", "nl_abc"));
+    act(() => result.current.setField({ providerId: "vercel", fieldName: "token", value: "vc_abc" }));
+    act(() => result.current.setField({ providerId: "netlify", fieldName: "token", value: "nl_abc" }));
     await act(async () => {
       await result.current.save("vercel");
     });
@@ -909,10 +909,10 @@ describe("usePublishCredentials — save surfaces the server's save-time verific
           verification: { status: "invalid", message: "GitHub rejected this token (401 Bad credentials).", checkedAt: "2026-09-24T00:00:00.000Z" },
         }),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("github-pages", "token", "ghp_bad"));
+    act(() => result.current.setField({ providerId: "github-pages", fieldName: "token", value: "ghp_bad" }));
     await act(async () => {
       await result.current.save("github-pages");
     });
@@ -934,10 +934,10 @@ describe("usePublishCredentials — save surfaces the server's save-time verific
           verification: { status: "valid", message: "Connected as octocat.", checkedAt: "2026-09-24T00:00:00.000Z", accountLabel: "octocat" },
         }),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("github-pages", "token", "ghp_new"));
+    act(() => result.current.setField({ providerId: "github-pages", fieldName: "token", value: "ghp_new" }));
     await act(async () => {
       await result.current.save("github-pages");
     });
@@ -959,7 +959,7 @@ describe("usePublishCredentials — save surfaces the server's save-time verific
       verifyCredential: () => Promise.resolve({ status: "valid", message: "Connected as octocat.", checkedAt: "2026-09-24T00:00:00.000Z" }),
       updateCredential: () => Promise.resolve({ ...backup, isDefault: true }),
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     await act(async () => {
@@ -968,7 +968,7 @@ describe("usePublishCredentials — save surfaces the server's save-time verific
     expect(githubRow(result.current.rows).verification?.message).toBe("Connected as octocat.");
 
     await act(async () => {
-      await result.current.selectCredential("github-pages", "cred-2");
+      await result.current.selectCredential({ providerId: "github-pages", credentialId: "cred-2" });
     });
 
     const row = githubRow(result.current.rows);
@@ -982,11 +982,11 @@ describe("usePublishCredentials — rows come from the deploy registry's descrip
     const created = { ...GH_CREDENTIAL, id: "vercel-new", providerId: "vercel" };
     const createCredential = vi.fn().mockResolvedValue(created);
     const port = createFakePublishCredentialsPort({ createCredential });
-    const { result, rerender } = renderHook(({ targets }) => usePublishCredentials(port, fakeT, fakeLocale, targets), {
+    const { result, rerender } = renderHook(({ targets }) => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets }), {
       wrapper, initialProps: { targets: undefined as typeof PUBLISH_TARGETS | undefined },
     });
     await waitFor(() => expect(result.current.executionMode).not.toBeUndefined());
-    act(() => result.current.setField("vercel", "token", "vc_draft"));
+    act(() => result.current.setField({ providerId: "vercel", fieldName: "token", value: "vc_draft" }));
 
     await act(async () => result.current.save("vercel"));
 
@@ -1008,23 +1008,23 @@ describe("usePublishCredentials — rows come from the deploy registry's descrip
       ],
     } }];
     const port = createFakePublishCredentialsPort();
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, targets), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("bucket-host", "accessKey", "   "));
+    act(() => result.current.setField({ providerId: "bucket-host", fieldName: "accessKey", value: "   " }));
 
     expect(result.current.rows![0].error).toBe("Enter a token. Spaces alone are not a token.");
-    act(() => result.current.setField("bucket-host", "bucket", "site"));
+    act(() => result.current.setField({ providerId: "bucket-host", fieldName: "bucket", value: "site" }));
     expect(result.current.rows![0].error).toBe("Enter a token. Spaces alone are not a token.");
     expect(result.current.rows![0].values).toEqual({ accessKey: "   ", bucket: "site" });
-    act(() => result.current.setField("bucket-host", "accessKey", "valid_access_key"));
+    act(() => result.current.setField({ providerId: "bucket-host", fieldName: "accessKey", value: "valid_access_key" }));
     expect(result.current.rows![0].error).toBeNull();
     expect(result.current.rows![0].values.accessKey).toBe("valid_access_key");
   });
 
   it("stays undefined until the targets are known, even once credentials have loaded", async () => {
     const port = createFakePublishCredentialsPort();
-    const { result, rerender } = renderHook(({ targets }) => usePublishCredentials(port, fakeT, fakeLocale, targets), {
+    const { result, rerender } = renderHook(({ targets }) => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets }), {
       wrapper,
       initialProps: { targets: undefined as typeof PUBLISH_TARGETS | undefined },
     });
@@ -1038,7 +1038,7 @@ describe("usePublishCredentials — rows come from the deploy registry's descrip
   it("lists only hosts that take a saved credential, carrying each host's label and credential form", async () => {
     const port = createFakePublishCredentialsPort();
     const targets = [PLAIN_TARGET, CLOUDFLARE_PAGES_TARGET];
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, targets), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
     expect(result.current.rows).toHaveLength(1);
@@ -1063,14 +1063,14 @@ describe("usePublishCredentials — rows come from the deploy registry's descrip
       },
     };
     const targets = [bucket];
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, targets), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets }), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
 
-    act(() => result.current.setField("bucket-host", "secretKey", "s3cr3t"));
+    act(() => result.current.setField({ providerId: "bucket-host", fieldName: "secretKey", value: "s3cr3t" }));
     await act(async () => result.current.save("bucket-host"));
     expect(createCredential).not.toHaveBeenCalled(); // bucket is required
 
-    act(() => result.current.setField("bucket-host", "bucket", " site "));
+    act(() => result.current.setField({ providerId: "bucket-host", fieldName: "bucket", value: " site " }));
     await act(async () => result.current.save("bucket-host"));
     expect(createCredential).toHaveBeenCalledWith({ label: "default", connection: { providerId: "bucket-host", bucket: "site", secretKey: "s3cr3t" } });
   });
@@ -1094,11 +1094,11 @@ describe("usePublishCredentials — save preflight characterization (L239)", () 
       createCredential,
       updateCredential,
     });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
     act(() => {
       for (const [field, value] of Object.entries(values)) {
-        result.current.setField("cloudflare-pages", field, value ?? "");
+        result.current.setField({ providerId: "cloudflare-pages", fieldName: field, value: value ?? "" });
       }
     });
     await act(async () => result.current.save("cloudflare-pages"));
@@ -1115,12 +1115,12 @@ describe("usePublishCredentials — save preflight characterization (L239)", () 
     let resolveCreate!: (saved: AdminPublishCredentialSummary) => void;
     const createCredential = vi.fn(() => new Promise<AdminPublishCredentialSummary>(resolve => { resolveCreate = resolve; }));
     const port = createFakePublishCredentialsPort({ createCredential });
-    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    const { result } = renderHook(() => usePublishCredentials({ port, t: fakeT, locale: fakeLocale, targets: PUBLISH_TARGETS }), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
-    act(() => result.current.setField("vercel", "token", "fixture-token"));
+    act(() => result.current.setField({ providerId: "vercel", fieldName: "token", value: "fixture-token" }));
     let pending!: Promise<void>;
     act(() => { pending = result.current.save("vercel"); });
-    act(() => result.current.setField("vercel", "token", ""));
+    act(() => result.current.setField({ providerId: "vercel", fieldName: "token", value: "" }));
     await act(async () => result.current.save("vercel"));
     const row = result.current.rows!.find(row => row.providerId === "vercel")!;
     expect(row.error).toBe("Enter a token. Spaces alone are not a token.");

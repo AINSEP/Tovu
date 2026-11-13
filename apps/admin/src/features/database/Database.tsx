@@ -74,7 +74,7 @@ type DatabaseTabId = (typeof DATABASE_TAB_IDS)[number];
  *  shared `../../lib/resolve-active-tab-id` guard — same "don't trust a raw query value" reason
  *  `Deployment.tsx`/`Security.tsx`/`SourceControl.tsx`/`Themes.tsx` and `SettingsUi.tsx`'s own
  *  `requestedTabId` all apply (a stale link or a typo must not blank the panel). */
-function resolveDatabaseTabId(tabId: string | null | undefined): DatabaseTabId {
+function resolveDatabaseTabId({ tabId }: { tabId: string | null | undefined }, _options = {}): DatabaseTabId {
   return resolveActiveTabId({ tabId: tabId, validIds: DATABASE_TAB_IDS, defaultId: "timeline" });
 }
 
@@ -174,14 +174,14 @@ function TimelineFilterForm(props: {
 
 /** Builds the Timeline `DataTable`'s column descriptors. A plain function rather than a closure
  *  declared inside `TimelineBody`'s body — it closes over nothing but module-scope values, so it
- *  takes no parameters at all beyond `locale`. */
+ *  takes `locale` and the row-handle resolver explicitly. */
 /** Timeline rows page in over "Load more", so handles are derived fresh each render from
  *  whichever rows are currently on screen — same per-row-id derivation every other list on this
  *  workstream uses (`buildAgentListHandles`), keyed by a lookup rather than row position because
  *  `DataTable`'s `cell` callback only receives the row, not its index. */
 function timelineColumns(
-  locale: string,
-  handleForRestorePointCell: (rowId: string) => string,
+  { locale, handleForRestorePointCell }: { locale: string; handleForRestorePointCell: (rowId: string) => string },
+  _options = {},
 ): Array<{
   key: string;
   header: string;
@@ -207,7 +207,7 @@ function timelineColumns(
             // button is on screen at once (not a per-row menu item) — see `rules.ts`'s
             // `viewInRecoveryAccessibleName` doc comment for why that is ambiguous to anything
             // resolving elements by accessible name rather than table position.
-            aria-label={viewInRecoveryAccessibleName(locale, row)}
+            aria-label={viewInRecoveryAccessibleName({ locale, row })}
             {...agentHandle({ handle: handleForRestorePointCell(row.id) }, {
               role: "button",
               label: "Open this ledger entry's restore point in Recovery",
@@ -246,11 +246,11 @@ function TimelineBody(props: { locale: string; rows: AdminLedgerRow[]; nextCurso
       <DataTable
         rows={props.rows}
         rowKey={(row) => row.id}
-        columns={timelineColumns(locale, (rowId) => {
+        columns={timelineColumns({ locale, handleForRestorePointCell: (rowId) => {
           const handle = restorePointHandleById.get(rowId);
           if (handle === undefined) throw new Error(`database restore point ${rowId} has no row handle`);
           return handle;
-        })}
+        } })}
       />
       {props.nextCursor ? (
         <button
@@ -340,7 +340,7 @@ function PlanMigrationStep(props: { locale: string; busy: boolean; onStartPlan: 
 function PlannedStep(props: { locale: string; plan: { planId: string }; busy: boolean; onConfirm: () => void }) {
   return (
     <div className="notice">
-      <p>{planReadyMessage(props.locale, props.plan.planId)}</p>
+      <p>{planReadyMessage({ locale: props.locale, planId: props.plan.planId })}</p>
       <button
         type="button"
         className="btn-secondary"
@@ -500,7 +500,7 @@ export interface DatabaseProps {
 
 export function Database(props: DatabaseProps) {
   const locale = useAdminLocale();
-  const activeTabId = resolveDatabaseTabId(props.tabId);
+  const activeTabId = resolveDatabaseTabId({ tabId: props.tabId });
 
   // Icons (2026-09-06): the same icon-beside-label idiom every other `TabBar` row in this admin
   // carries — this was one of two rows still bare after the Media pass. See `database-visuals.tsx`.

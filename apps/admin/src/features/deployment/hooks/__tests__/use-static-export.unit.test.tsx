@@ -36,9 +36,9 @@ describe("useStaticExport — initial load", () => {
   it("seeds run from the fake port's status read, with no fetch involved", async () => {
     const networkMock = vi.fn();
     vi.stubGlobal("fetch", networkMock);
-    const port = createFakeStaticExportPort(IDLE_RUN);
+    const port = createFakeStaticExportPort({ status: IDLE_RUN });
 
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
 
     await waitFor(() => expect(result.current.run).not.toBeUndefined());
     expect(result.current.run).toEqual(IDLE_RUN);
@@ -49,15 +49,15 @@ describe("useStaticExport — initial load", () => {
 
   it("seeds an already-running run so a reload mid-export shows the real state", async () => {
     const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
-    const port = createFakeStaticExportPort(runningRun);
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const port = createFakeStaticExportPort({ status: runningRun });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
 
     await waitFor(() => expect(result.current.isRunning).toBe(true));
   });
 
   it("surfaces a rejected initial read as a translated, formatted load error", async () => {
-    const port = createFakeStaticExportPort(() => Promise.reject(new Error("disk error")));
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const port = createFakeStaticExportPort({ status: () => Promise.reject(new Error("disk error")) });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
 
     await waitFor(() => expect(result.current.loadError).not.toBeNull());
     expect(result.current.loadError).toContain("Could not load the export status");
@@ -67,8 +67,8 @@ describe("useStaticExport — initial load", () => {
 
 describe("useStaticExport — clean flag", () => {
   it("defaults clean to false and setClean updates it", async () => {
-    const port = createFakeStaticExportPort(IDLE_RUN);
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const port = createFakeStaticExportPort({ status: IDLE_RUN });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run).not.toBeUndefined());
 
     expect(result.current.clean).toBe(false);
@@ -82,9 +82,9 @@ describe("useStaticExport — trigger", () => {
     const getSiteExportStatus = vi.fn().mockResolvedValue(IDLE_RUN);
     const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
     const triggerSiteExport = vi.fn().mockResolvedValue(runningRun);
-    const port = createFakeStaticExportPort(IDLE_RUN, { getSiteExportStatus, triggerSiteExport });
+    const port = createFakeStaticExportPort({ status: IDLE_RUN }, { getSiteExportStatus, triggerSiteExport });
 
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run).not.toBeUndefined());
 
     act(() => result.current.setClean(true));
@@ -92,7 +92,7 @@ describe("useStaticExport — trigger", () => {
       await result.current.trigger();
     });
 
-    expect(triggerSiteExport).toHaveBeenCalledWith({ clean: true });
+    expect(triggerSiteExport).toHaveBeenCalledWith({}, { options: { clean: true } });
     expect(result.current.run).toEqual(runningRun);
     expect(result.current.triggerError).toBeNull();
     expect(result.current.triggering).toBe(false);
@@ -102,10 +102,10 @@ describe("useStaticExport — trigger", () => {
 
   it("sets triggering true while the POST is in flight, then false once it settles", async () => {
     let resolveTrigger!: (value: AdminExportRunSnapshot) => void;
-    const port = createFakeStaticExportPort(IDLE_RUN, {
+    const port = createFakeStaticExportPort({ status: IDLE_RUN }, {
       triggerSiteExport: () => new Promise((resolve) => (resolveTrigger = resolve)),
     });
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run).not.toBeUndefined());
 
     let triggerPromise!: Promise<void>;
@@ -122,10 +122,10 @@ describe("useStaticExport — trigger", () => {
   });
 
   it("surfaces a rejected trigger (e.g. 409 already running) as a translated trigger error, leaving run untouched", async () => {
-    const port = createFakeStaticExportPort(IDLE_RUN, {
+    const port = createFakeStaticExportPort({ status: IDLE_RUN }, {
       triggerSiteExport: () => Promise.reject(new Error("an export is already running")),
     });
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run).not.toBeUndefined());
 
     await act(async () => {
@@ -151,9 +151,9 @@ describe("useStaticExport — trigger", () => {
     });
     const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
     const triggerSiteExport = vi.fn().mockResolvedValue(runningRun);
-    const port = createFakeStaticExportPort(IDLE_RUN, { getSiteExportStatus, triggerSiteExport });
+    const port = createFakeStaticExportPort({ status: IDLE_RUN }, { getSiteExportStatus, triggerSiteExport });
 
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
 
     // The bootstrap read is still in flight — nothing has seeded `run` yet.
     expect(result.current.run).toBeUndefined();
@@ -191,8 +191,8 @@ describe("useStaticExport — duplicate submit (terra #5)", () => {
   it("a second trigger() while the first is still in flight sends no second POST and leaves no false error", async () => {
     const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
     const triggerSiteExport = vi.fn().mockResolvedValue(runningRun);
-    const port = createFakeStaticExportPort(IDLE_RUN, { triggerSiteExport });
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const port = createFakeStaticExportPort({ status: IDLE_RUN }, { triggerSiteExport });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run).not.toBeUndefined());
     act(() => result.current.setClean(true));
 
@@ -215,8 +215,8 @@ describe("useStaticExport — duplicate submit (terra #5)", () => {
   it("releases the guard once a trigger settles — a later, separate trigger() sends its own POST, even after a failure", async () => {
     const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
     const triggerSiteExport = vi.fn().mockRejectedValueOnce(new Error("disk full")).mockResolvedValueOnce(runningRun);
-    const port = createFakeStaticExportPort(IDLE_RUN, { triggerSiteExport });
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const port = createFakeStaticExportPort({ status: IDLE_RUN }, { triggerSiteExport });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run).not.toBeUndefined());
 
     await act(async () => {
@@ -248,9 +248,9 @@ describe("useStaticExport — poll loop", () => {
       pollCount += 1;
       return Promise.resolve(pollCount < 2 ? runningRun : completedRun);
     });
-    const port = createFakeStaticExportPort(runningRun, { getSiteExportStatus });
+    const port = createFakeStaticExportPort({ status: runningRun }, { getSiteExportStatus });
 
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.isRunning).toBe(true));
     expect(getSiteExportStatus).toHaveBeenCalledTimes(1);
 
@@ -276,9 +276,9 @@ describe("useStaticExport — poll loop", () => {
       if (call === 2) return Promise.reject(new Error("network blip"));
       return Promise.resolve(runningRun);
     });
-    const port = createFakeStaticExportPort(runningRun, { getSiteExportStatus });
+    const port = createFakeStaticExportPort({ status: runningRun }, { getSiteExportStatus });
 
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.isRunning).toBe(true));
 
     await act(async () => {
@@ -303,8 +303,8 @@ describe("useStaticExport — poll loop", () => {
       .mockResolvedValueOnce(runningRun)
       .mockRejectedValueOnce(new Error("blip 3"))
       .mockResolvedValue(completedRun);
-    const port = createFakeStaticExportPort(runningRun, { getSiteExportStatus });
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const port = createFakeStaticExportPort({ status: runningRun }, { getSiteExportStatus });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.isRunning).toBe(true));
 
     for (let poll = 1; poll <= 5; poll += 1) {
@@ -327,9 +327,9 @@ describe("useStaticExport — poll loop", () => {
     // poll after that fails permanently — the local-dev `tsx watch` restart scenario the audit
     // finding names, made permanent so the bound has to actually fire rather than recover.
     const getSiteExportStatus = vi.fn().mockResolvedValueOnce(runningRun).mockRejectedValue(new Error("ECONNREFUSED"));
-    const port = createFakeStaticExportPort(runningRun, { getSiteExportStatus });
+    const port = createFakeStaticExportPort({ status: runningRun }, { getSiteExportStatus });
 
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.isRunning).toBe(true));
 
     // Three consecutive failed polls — the bound this fix introduces.
@@ -391,9 +391,9 @@ describe("useStaticExport — poll loop", () => {
       if (call === 1) return Promise.resolve(runningRun);
       return new Promise<AdminExportRunSnapshot>((resolve) => { resolvePoll = resolve; });
     });
-    const port = createFakeStaticExportPort(runningRun, { getSiteExportStatus });
+    const port = createFakeStaticExportPort({ status: runningRun }, { getSiteExportStatus });
 
-    const { result, unmount } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const { result, unmount } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.isRunning).toBe(true));
 
     // Arm the second poll, then unmount WHILE its request is still pending.
@@ -421,9 +421,9 @@ describe("useStaticExport — poll loop", () => {
       if (call === 1) return Promise.resolve(runningRun);
       return new Promise<AdminExportRunSnapshot>((_resolve, reject) => { rejectPoll = reject; });
     });
-    const port = createFakeStaticExportPort(runningRun, { getSiteExportStatus });
+    const port = createFakeStaticExportPort({ status: runningRun }, { getSiteExportStatus });
 
-    const { result, unmount } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const { result, unmount } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.isRunning).toBe(true));
 
     await act(async () => {
@@ -451,8 +451,8 @@ describe("useStaticExport — content refresh bus", () => {
 
   it("re-reads the status when a content refresh fires, so a run started from ANOTHER tab appears without a reload", async () => {
     let current: AdminExportRunSnapshot = IDLE_RUN;
-    const port = createFakeStaticExportPort(() => Promise.resolve(current));
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const port = createFakeStaticExportPort({ status: () => Promise.resolve(current) });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run).toEqual(IDLE_RUN));
 
     // A DIFFERENT tab/session called `deployment_trigger_export` — this hook's own `seededRef` means
@@ -470,8 +470,8 @@ describe("useStaticExport — content refresh bus", () => {
 
   it("refreshes on a notification that names deployment-export, and ignores one that names only other resources", async () => {
     let current: AdminExportRunSnapshot = IDLE_RUN;
-    const port = createFakeStaticExportPort(() => Promise.resolve(current));
-    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const port = createFakeStaticExportPort({ status: () => Promise.resolve(current) });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run).toEqual(IDLE_RUN));
 
     current = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
@@ -490,9 +490,9 @@ describe("useStaticExport — content refresh bus", () => {
   });
 
   it("stops re-reading once unmounted", async () => {
-    const port = createFakeStaticExportPort(IDLE_RUN);
+    const port = createFakeStaticExportPort({ status: IDLE_RUN });
     const statusSpy = vi.spyOn(port, "getSiteExportStatus");
-    const { result, unmount } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    const { result, unmount } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.run).toEqual(IDLE_RUN));
 
     const callsWhileMounted = statusSpy.mock.calls.length;

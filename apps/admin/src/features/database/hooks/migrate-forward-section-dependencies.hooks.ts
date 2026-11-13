@@ -9,8 +9,8 @@ import type { MigrateForwardSectionPort } from "./migrate-forward-section-port.h
 /** The live implementation, as a module-level singleton. */
 export const defaultMigrateForwardSectionPort: MigrateForwardSectionPort = {
   planMigrateForward: () => api.planMigrateForward(),
-  confirmMigrateForward: (input) => api.confirmMigrateForward(input),
-  executeMigrateForward: (confirmationToken) => api.executeMigrateForward(confirmationToken),
+  confirmMigrateForward: (input, _options = {}) => api.confirmMigrateForward(input),
+  executeMigrateForward: ({ confirmationToken }, _options = {}) => api.executeMigrateForward(confirmationToken),
 };
 
 /** Seed state for {@link createFakeMigrateForwardSectionPort}. */
