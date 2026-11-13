@@ -119,14 +119,20 @@ export function registerPluginProviderSettingsRoutes(app: Express, deps: Provide
   registerProjectKeyUseRoute(app, deps);
 }
 
+/** Only the installation owner's own session may change saved-key grants; refusals are answered here. */
+async function isOwnerSession({ res, deps, principalId }: { res: Response; deps: ProviderSettingsRouteDeps; principalId: string }, _options = {}): Promise<boolean> {
+  if (!rejectUnlessSessionCredential(res, { message: "Use the owner's session to approve or revoke a saved key for this site.", permission: "custom-credentials.write" })) return false;
+  if (principalId !== await deps.ownerPrincipalId) { res.status(403).json({ error: "Sign in as the installation owner to change this site's saved key grants." }); return false; }
+  return true;
+}
+
 /** Admin and chat share the same attachment owner and per-kind save permission. */
 function registerProjectKeyUseRoute(app: Express, deps: ProviderSettingsRouteDeps): void {
   app.put("/api/admin/v1/workspaces/:workspaceId/project-keys/:keyId/use", async (req, res) => {
     try {
       if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
       const principal = getAuthedPrincipal(res);
-      if (!rejectUnlessSessionCredential(res, { message: "Use the owner's session to approve or revoke a saved key for this site.", permission: "custom-credentials.write" })) return;
-      if (principal.id !== await deps.ownerPrincipalId) { res.status(403).json({ error: "Sign in as the installation owner to change this site's saved key grants." }); return; }
+      if (!await isOwnerSession({ res, deps, principalId: principal.id })) return;
       if (!deps.projectKeys) { res.status(503).json({ error: "This site has no project key store." }); return; }
       const input = req.body as Record<string, unknown> | null;
       if (!isProjectKeyUseInput(input)) { res.status(400).json({ error: "use must be true or false" }); return; }

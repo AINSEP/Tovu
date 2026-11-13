@@ -119,6 +119,11 @@ function optionalCreateFields({ body }: { body: Record<string, unknown> }, _opti
   };
 }
 
+/** Deploy targets are loaded only when there is a publish-verification cache to invalidate. */
+async function registryForInvalidation({ deps }: { deps: Pick<AdminCustomCredentialsDeps, "workspaceId" | "loadDeployTargets" | "publishCredentialVerificationCache"> }, _optional = {}) {
+  return deps.loadDeployTargets && deps.publishCredentialVerificationCache ? await deps.loadDeployTargets(deps.workspaceId) : undefined;
+}
+
 export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCustomCredentialsDeps): void {
   const readDeps = { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer };
   const writeDeps = {
@@ -182,7 +187,7 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
-      const registry = deps.loadDeployTargets && deps.publishCredentialVerificationCache ? await deps.loadDeployTargets(deps.workspaceId) : undefined;
+      const registry = await registryForInvalidation({ deps });
       const credential = await createCustomCredential(writeDeps, {
         workspaceId: deps.workspaceId,
         label: body.label,
@@ -202,7 +207,7 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
-      const registry = deps.loadDeployTargets && deps.publishCredentialVerificationCache ? await deps.loadDeployTargets(deps.workspaceId) : undefined;
+      const registry = await registryForInvalidation({ deps });
       const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       const ownerSession = res.locals.authCredentialKind === "session" && getAuthedPrincipal(res).id === await deps.ownerPrincipalId;
       const credential = await updateCustomCredential({ ...writeDeps, allowSharedKeyReplacement: ownerSession }, buildUpdateCredentialInput(deps.workspaceId, req.params.id, body));
@@ -218,7 +223,7 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
     try {
       // Idempotent — `deleteCustomCredential`/`CustomCredentialSetRepoPort.delete` are both no-ops
       // (not errors) for a missing row, matching this route's own documented 204-always contract.
-      const registry = deps.loadDeployTargets && deps.publishCredentialVerificationCache ? await deps.loadDeployTargets(deps.workspaceId) : undefined;
+      const registry = await registryForInvalidation({ deps });
       const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       await deleteCustomCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       if (before && registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before });
