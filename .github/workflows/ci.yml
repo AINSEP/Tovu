@@ -218,20 +218,14 @@ jobs:
         continue-on-error: true
         run: npm run check:inventory
 
-      - name: Check src/server/routes complexity drift
-        # Requested by src-complexity-gate, wired in here (that agent owns package.json scripts,
-        # not workflows). Same ratchet shape as check:architecture above: blocking, fails only when
-        # a NEW violation appears that isn't already in the committed baseline
-        # (development/scripts/src-complexity-debt.json — 115 violations / 72 files as of
-        # 2026-08-16). Plain `tsx`, no dependency on any earlier step's output, so it's safe here or
-        # run standalone. Scope is deliberately `src/server/routes/**` only, NOT all of `src/` — every
-        # number in the baseline came from an audit that only measured route files; there is no
-        # `src/`-wide measurement to ratchet against. Verified locally before wiring in: `npm run
-        # check:src-complexity-drift` exits 0, "0 new complexity violations (115 total, 115 in
-        # baseline)".
+      - name: Check production complexity ratchet
+        # Compare the baseline with the PR base or the previous push, so new violations cannot be
+        # grandfathered in the same change. New branches fall back to the default branch.
+        env:
+          COMPLEXITY_BASE_REF: ${{ github.event.pull_request.base.sha || (github.event.before != '0000000000000000000000000000000000000000' && github.event.before) || format('origin/{0}', github.event.repository.default_branch) }}
         id: gate-src-complexity
         continue-on-error: true
-        run: npm run check:src-complexity-drift
+        run: npm run check:complexity
 
       - name: Check seed-content drift
         # Added 2026-08-21 (Sol audit finding, MEDIUM): development/scripts/ci-local.sh has run
@@ -328,13 +322,11 @@ jobs:
         # enforcement guarantee that did not, in fact, enforce anything. Caught by
         # external review, not by us.
         #
-        # Safe to block because the config's only `error`-level rule is that
-        # import boundary; `complexity`/`sonarjs` are `warn` and do not affect the
-        # exit code. Verified: the command exits 0 against the tree as it stands,
-        # so this step fails only on a genuine boundary violation.
+        # Complexity is checked by the ratchet above; disable just those two rules here
+        # so known complexity debt cannot hide the other ESLint boundary findings.
         id: gate-eslint-boundaries
         continue-on-error: true
-        run: npm run complexity
+        run: npm run complexity -- --rule 'complexity: off' --rule 'sonarjs/cognitive-complexity: off'
 
       - name: Install admin dependencies
         run: npm ci --prefix apps/admin
@@ -393,7 +385,7 @@ jobs:
           check "${{ steps.gate-boundaries.outcome }}"         "check:boundaries (dependency-cruiser)"
           check "${{ steps.gate-architecture.outcome }}"       "check:architecture"
           check "${{ steps.gate-inventory.outcome }}"          "check:inventory"
-          check "${{ steps.gate-src-complexity.outcome }}"     "check:src-complexity-drift"
+          check "${{ steps.gate-src-complexity.outcome }}"     "check:complexity"
           check "${{ steps.gate-seed-content-drift.outcome }}" "check:seed-content-drift"
           check "${{ steps.gate-shipped-theme-drift.outcome }}" "shipped theme/reference/reset drift"
           check "${{ steps.gate-coverage-integrity.outcome }}" "check:coverage-integrity"

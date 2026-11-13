@@ -62,8 +62,9 @@
     "check:outbox-bridge": "tsx development/scripts/check-outbox-bridge.ts",
     "check:seal-aad": "tsx apps/website/src/features/webhooks/seal-aad-invariant.ts",
     "check:secret-scan": "tsx apps/website/src/features/webhooks/secret-scan-guard.ts",
-    "check:admin-complexity-drift": "tsx development/scripts/check-admin-complexity-drift.ts",
-    "check:src-complexity-drift": "tsx development/scripts/check-src-complexity-drift.ts",
+    "check:complexity": "node --import tsx development/scripts/check-src-complexity-drift.ts",
+    "check:admin-complexity-drift": "npm run check:complexity",
+    "check:src-complexity-drift": "npm run check:complexity",
     "check:governance-adr-scope-drift": "tsx development/scripts/check-governance-adr-scope-drift.ts",
     "check:menu-href-allowlist-sync": "tsx development/scripts/check-menu-href-allowlist-sync.ts",
     "check:coverage-integrity": "tsx development/scripts/check-coverage-integrity.ts",
@@ -107,7 +108,7 @@
     "quality:knip": "knip --config knip.json --no-progress",
     "quality:properties": "node --import tsx --test \"apps/website/src/platform/oauth/__tests__/unit/endpoint-safety.property.unit.test.ts\" \"apps/website/src/features/consent/__tests__/unit/validation.property.unit.test.ts\" \"apps/website/src/features/forms/__tests__/unit/field-validation.property.unit.test.ts\"",
     "quality:sonar": "eslint --no-config-lookup --config development/sonarjs/eslint.config.mjs --format ./development/sonarjs/formatter.mjs \"apps/*/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\" \"content/agent-plugins/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\"",
-    "complexity:strict": "eslint --no-error-on-unmatched-pattern --no-inline-config --ignore-pattern '**/{__tests__,__measurements__,__mocks__,fixtures,test,tests,vendor,.build}/**' --ignore-pattern '**/*.{test,spec,typecheck}.*' --ignore-pattern '**/*.d.{ts,mts,cts}' --ignore-pattern 'apps/website/src/platform/db/migrations/{0002,0006,0011,0012,0013,0020}_*.ts' --rule '{\"complexity\":[\"error\",10],\"sonarjs/cognitive-complexity\":[\"error\",10]}' \"apps/*/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\" \"packages/*/src/**/*.{ts,tsx}\" \"content/agent-plugins/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\""
+    "complexity:strict": "npm run check:complexity"
   },
   "overrides": {
     "@jini-ai/chat@^0.7.0": {

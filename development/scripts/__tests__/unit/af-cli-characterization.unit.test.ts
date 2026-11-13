@@ -255,7 +255,7 @@ test('coverage triage CLI includes complexity-only files absent from both covera
     export const loadRouteCoverage = () => [{ file: 'covered.ts', brf: 5 }];
   `);
   f.write('development/scripts/check-src-complexity-drift.js', `export const findViolations = () => [
-    { file: 'untested.ts', rule: 'complexity', reason: 'too complex' }
+    { file: 'untested.ts', function: 'fixture#1', line: 12, rule: 'complexity', value: 11 }
   ];`);
   f.write('development/scripts/check-route-coverage-diff.js', `export const evaluateFileTiers = (file, unit, integration) => ({
     file, ok: Boolean(unit && integration), unit: { detail: unit ? 'covered' : 'missing' },
@@ -265,7 +265,7 @@ test('coverage triage CLI includes complexity-only files absent from both covera
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /1 file\(s\) below tier threshold, 2 scanned/);
   assert.match(result.stdout, /ARCHITECTURE_DEBT \(1\)/);
-  assert.match(result.stdout, /untested\.ts: unit missing, integration missing\n\s+\[complexity\] too complex/);
+  assert.match(result.stdout, /untested\.ts: unit missing, integration missing\n\s+\[complexity\] fixture#1 at line 12: 11/);
 });
 
 test('web dev CLI attaches to the selected running site and opens its admin URL', t => {
