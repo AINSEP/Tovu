@@ -15,10 +15,10 @@ type DiscoveryWorker = Pick<Worker, 'once' | 'removeAllListeners' | 'terminate' 
  * @complexity O(1) orchestration beyond the supplied discovery/sweep operations.
  */
 export async function startDesktopSiteDiscovery({ scan, sweep, report }: {
-  scan: () => Promise<unknown>; sweep: () => void; report: (failure: unknown) => void;
+  scan: () => Promise<unknown>; sweep: () => void; report: (required: { failure: unknown }) => void;
 }, _options = {}): Promise<void> {
   try { await scan(); }
-  catch (failure) { report(failure); }
+  catch (failure) { report({ failure }); }
   sweep();
 }
 

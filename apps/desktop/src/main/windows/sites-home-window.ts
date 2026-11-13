@@ -48,19 +48,19 @@ interface SitesHomePorts<W extends SitesHomeWindow> {
   /** The speech preload every supervised guest is given. */
   guestPreloadPath: string;
   userDataDir: string;
-  fileExists: (filePath: string) => boolean;
+  fileExists: (required: { filePath: string }) => boolean;
   createBrowserWindow: (options: SitesHomeWindowOptions) => W;
   getAllDisplays: () => readonly DisplayLike[];
   readWindowBounds: (args: { boundsPath: string }) => WindowBounds | null;
   writeWindowBounds: (args: { boundsPath: string; bounds: WindowBounds }) => void;
   isSupervisedGuestUrl: (url: string) => boolean;
-  openExternal: (url: string) => void;
+  openExternal: (required: { url: string }) => void;
   relayFindResults: (args: { window: W }) => unknown;
   registerSpellCheck: (args: { webContents: SpellCheckWebContents }) => unknown;
   registerPreviewGuest?: (args: { window: W; webContents: SpellCheckWebContents }) => unknown;
-  showErrorBox: (title: string, message: string) => void;
-  logError: (message: string) => void;
-  setExitCode: (code: number) => void;
+  showErrorBox: (required: { title: string; message: string }) => void;
+  logError: (required: { message: string }) => void;
+  setExitCode: (required: { code: number }) => void;
   quit: () => void;
 }
 
@@ -81,9 +81,9 @@ function reportMissingRenderer<W extends SitesHomeWindow>(
   { selftest = false }: { selftest?: boolean } = {},
 ): void {
   const message = `The sites home UI is not built. Run \`npm run build\` in apps/desktop, or unset TOVU_DESKTOP_UI to launch a site instead.\n\nExpected: ${ports.rendererPath}`;
-  ports.logError(`tovu desktop: ${message}`);
-  ports.setExitCode(1);
-  if (!selftest) ports.showErrorBox("Tovu could not start", message);
+  ports.logError({ message: `tovu desktop: ${message}` });
+  ports.setExitCode({ code: 1 });
+  if (!selftest) ports.showErrorBox({ title: "Tovu could not start", message });
   ports.quit();
 }
 
@@ -182,7 +182,7 @@ function openSitesHomeWindow<W extends SitesHomeWindow>(
   { ports }: { ports: SitesHomePorts<W> },
   { selftest = false, trackWindow }: SitesHomeOptions<W> = {},
 ): W | null {
-  if (!ports.fileExists(ports.rendererPath)) {
+  if (!ports.fileExists({ filePath: ports.rendererPath })) {
     reportMissingRenderer({ ports }, { selftest });
     return null;
   }
@@ -213,7 +213,7 @@ function openSitesHomeWindow<W extends SitesHomeWindow>(
   // another page. See `window-navigation-policy.ts`.
   installSitesHomeNavigationPolicy(window.webContents, {
     rendererFileUrl: pathToFileURL(ports.rendererPath).href,
-    openExternal: ports.openExternal,
+    openExternal: (url) => ports.openExternal({ url }),
   });
 
   void window.loadFile(ports.rendererPath);

@@ -24,7 +24,7 @@ function preferenceOf({ settings }: { settings: Record<string, unknown> }, _opti
 
 /** Missing, unreadable and malformed consent never grants permission. O(1) fields, O(n) file read. */
 export function readProductTelemetryPreference({ preferencePath }: { preferencePath: string }, _options = {}): ProductTelemetryPreference {
-  const read = readJsonFile(preferencePath);
+  const read = readJsonFile({ filePath: preferencePath });
   return read.state === 'ok' ? preferenceOf({ settings: preferenceSettings({ value: read.value }) }) : { ...OFF };
 }
 
@@ -35,17 +35,17 @@ export function readProductTelemetryPreference({ preferencePath }: { preferenceP
 export function writeProductTelemetryPreference({ preferencePath, patch }: {
   preferencePath: string; patch: Partial<Pick<ProductConsent, 'crashes' | 'usage'>>;
 }, { uuid = randomUUID, now = () => new Date().toISOString() }: { uuid?: () => string; now?: () => string } = {}): ProductTelemetryPreference {
-  return withFileLock(preferencePath, () => {
-    const read = readJsonFile(preferencePath);
+  return withFileLock({ filePath: preferencePath, critical: () => {
+    const read = readJsonFile({ filePath: preferencePath });
     if (read.state === 'unreadable') throw new Error('DESKTOP_PREFERENCES_UNREADABLE');
     const settings = preferenceSettings({ value: read.state === 'ok' ? read.value : undefined });
     const current = preferenceOf({ settings });
     const crashes = patch.crashes ?? current.crashes;
     const usage = patch.usage ?? current.usage;
     const next = { crashes, usage, installationId: crashes || usage ? current.installationId ?? uuid() : null, decidedAt: now() };
-    writeJsonFileAtomic(preferencePath, { ...settings, productTelemetry: next });
+    writeJsonFileAtomic({ filePath: preferencePath, value: { ...settings, productTelemetry: next } });
     return next;
-  });
+  } });
 }
 
 /** Native dialog buttons; Escape/window close has its own cancel index and records no decision. */
@@ -62,13 +62,13 @@ export const PRODUCT_CONSENT_DIALOG = Object.freeze({
  */
 export async function offerProductTelemetryConsent({ active, preference, show, save }: {
   active: boolean; preference: ProductTelemetryPreference;
-  show: (options: typeof PRODUCT_CONSENT_DIALOG) => Promise<{ response: number }>;
-  save: (patch: Pick<ProductConsent, 'crashes' | 'usage'>) => void;
+  show: (required: { options: typeof PRODUCT_CONSENT_DIALOG }) => Promise<{ response: number }>;
+  save: (required: { patch: Pick<ProductConsent, 'crashes' | 'usage'> }) => void;
 }, _options = {}): Promise<boolean> {
   if (!active || preference.decidedAt !== null) return false;
-  const { response } = await show(PRODUCT_CONSENT_DIALOG);
+  const { response } = await show({ options: PRODUCT_CONSENT_DIALOG });
   if (response < 0 || response > 2) return false;
-  save({ crashes: response !== 2, usage: response === 0 });
+  save({ patch: { crashes: response !== 2, usage: response === 0 } });
   return true;
 }
 
@@ -79,8 +79,8 @@ export async function offerProductTelemetryConsent({ active, preference, show, s
  */
 export function productTelemetryMenu({ preference, save, changed, onError }: {
   preference: ProductTelemetryPreference;
-  save: (patch: Partial<Pick<ProductConsent, 'crashes' | 'usage'>>) => ProductTelemetryPreference;
-  changed: (preference: ProductTelemetryPreference) => void;
+  save: (required: { patch: Partial<Pick<ProductConsent, 'crashes' | 'usage'>> }) => ProductTelemetryPreference;
+  changed: (required: { preference: ProductTelemetryPreference }) => void;
   onError: () => void;
 }, _options = {}): ConsentMenuItem[] {
   return (['crashes', 'usage'] as const).map(key => ({
@@ -88,9 +88,9 @@ export function productTelemetryMenu({ preference, save, changed, onError }: {
     checked: preference[key], toolTip: 'Already queued events may send for up to 10 seconds. Native crash collection starts after restart.',
     click(item: { checked: boolean }) {
       let saved: ProductTelemetryPreference;
-      try { saved = save({ [key]: item.checked }); }
+      try { saved = save({ patch: { [key]: item.checked } }); }
       catch { item.checked = !item.checked; onError(); return; }
       item.checked = saved[key];
-      changed(saved);
+      changed({ preference: saved });
     } }));
 }

@@ -44,7 +44,7 @@ test('S3 all six channels reject untrusted, null, child and navigated frames bef
   const handlers = new Map<string, (event: { senderFrame: { url: string; parent: unknown } | null }, input: unknown) => Promise<OwnerStoreReply>>();
   let executions = 0;
   registerOwnerStoreIpc({ ipcMain: { handle: (channel, fn) => { handlers.set(channel, fn); } },
-    allowed: url => url === 'file:///sites-home.html',
+    allowed: ({ url }) => url === 'file:///sites-home.html',
     controller: { execute: async ({ action }) => { executions++; return ownerStoreFailure({ action, code: 'operation-failed' }); } },
   });
   assert.deepEqual([...handlers.keys()], Object.values(OWNER_STORE_CHANNELS));
@@ -229,7 +229,7 @@ function settleFixture(status: OwnerStoreReply<'status'> | Error) {
     return status as never;
   };
   return { events, ports: { run, removeFiles: () => { events.push('remove'); }, notify: () => { events.push('notify'); },
-    log: (message: string) => { events.push(`log:${message}`); } } };
+    log: ({ message }: { message: string }) => { events.push(`log:${message}`); } } };
 }
 const statusReply = (legacy: OwnerStoreData['status']['legacy'], count = 0) => reply({ action: 'status', data: { legacy, entries: count, grants: count } });
 

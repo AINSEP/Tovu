@@ -70,10 +70,10 @@ export interface SiteBackendPorts<TServer extends SiteBackendServer> {
   /** `desktop-auth.ts`'s `redeemBootSession` on this partition's session. May reject. */
   redeemBootSession: (required: { partition: string; adminUrl: string; bootToken: string }) => Promise<{ ok: boolean; reason?: string }>;
   /** Subscribe only this main's own child to automatic capability recovery. */
-  connectDesktopMcp?: (server: TServer) => void;
-  log: (message: string) => void;
-  warn: (message: string) => void;
-  error: (message: string) => void;
+  connectDesktopMcp?: (required: { server: TServer }) => void;
+  log: (required: { message: string }) => void;
+  warn: (required: { message: string }) => void;
+  error: (required: { message: string }) => void;
   /** The `openSites` supervisor surface {@link SiteBackend.openSiteServer} reads and writes. */
   openSites: OpenSitesPort<TServer>;
   /** `siteThemePreviews.sync`. */
@@ -117,7 +117,7 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
     { siteDir, server, partition }: { siteDir: string; server: TServer; partition: string }, _opts = {},
   ): Promise<boolean> {
     if (typeof server.bootToken !== "string" || server.bootToken.length === 0) {
-      ports.log(`tovu desktop: ${siteDir} reported no boot token — the admin will ask for a login.`);
+      ports.log({ message: `tovu desktop: ${siteDir} reported no boot token — the admin will ask for a login.` });
       return false;
     }
     let result;
@@ -126,18 +126,18 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
     } catch (error) {
       // `assertLoopbackAdminUrl` throwing is a wiring bug, not an auth outcome — something handed
       // this a non-loopback origin, which must be loud rather than swallowed.
-      ports.error(`tovu desktop: desktop sign-in refused for ${siteDir}: ${(error as Error).message}`);
+      ports.error({ message: `tovu desktop: desktop sign-in refused for ${siteDir}: ${(error as Error).message}` });
       return false;
     }
     if (!result.ok) {
-      ports.log(`tovu desktop: desktop sign-in did not apply to ${siteDir} (${result.reason}) — the admin will ask for a login.`);
+      ports.log({ message: `tovu desktop: desktop sign-in did not apply to ${siteDir} (${result.reason}) — the admin will ask for a login.` });
     }
     return result.ok;
   }
 
   /** Spawn this site's child, or attach to a server a concurrent Web start won the race with.
    *  `spawned: false` means the returned handle is attached: remember the open, but never claim it. */
-  async function spawnSiteServer(siteDir: string, ctx: SiteBackendCtx, port: number | undefined): Promise<{ server: TServer; spawned: boolean }> {
+  async function spawnSiteServer({ siteDir, ctx, port }: { siteDir: string; ctx: SiteBackendCtx; port: number | undefined }, _optional = {}): Promise<{ server: TServer; spawned: boolean }> {
     // ALWAYS emitted (DS-01). `emitBootToken` is what makes `server.bootToken` non-null below — see
     // `desktop-auth.ts`'s header for why this replaced a shell-minted, shell-stored password
     // entirely. It used to be `!alreadyAuthenticated`, decided from the cookie jar BEFORE this spawn,
@@ -160,7 +160,7 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
     const captureBridge = await ports.startCaptureBridge();
     let desktopMcpEnv: Record<string, string> | undefined;
     try { desktopMcpEnv = await ports.desktopMcpEnv?.(); }
-    catch (error) { ports.warn(`tovu-desktop: desktop tools listener unavailable; retrying automatically. Cause: ${describeErrorForLog({ err: error })}`); }
+    catch (error) { ports.warn({ message: `tovu-desktop: desktop tools listener unavailable; retrying automatically. Cause: ${describeErrorForLog({ err: error })}` }); }
     let server: TServer;
     try {
       server = await ports.startServer({
@@ -181,7 +181,7 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
   }
 
   /** Record, arm, authenticate and subscribe a freshly spawned child. */
-  async function adoptSpawnedServer(siteDir: string, ctx: SiteBackendCtx, server: TServer, partition: string): Promise<void> {
+  async function adoptSpawnedServer({ siteDir, ctx, server, partition }: { siteDir: string; ctx: SiteBackendCtx; server: TServer; partition: string }, _optional = {}): Promise<void> {
     ports.rememberOpen({ siteDir });
     ports.recordSiteOpened({ registryPath: ctx.registryPath, row: {
       siteDir, port: server.port, workspaceId: server.workspaceId, pid: server.pid, updatedAt: ports.now(),
@@ -197,7 +197,7 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
       partition, adminUrl: server.adminUrl,
       redeem: () => authenticateSiteSession({ siteDir, server, partition }),
     });
-    ports.connectDesktopMcp?.(server);
+    ports.connectDesktopMcp?.({ server });
   }
 
   /**
@@ -232,8 +232,8 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
       ports.rememberOpen({ siteDir });
       return { server: attached, partition };
     }
-    const { server, spawned } = await spawnSiteServer(siteDir, ctx, port);
-    if (spawned) await adoptSpawnedServer(siteDir, ctx, server, partition);
+    const { server, spawned } = await spawnSiteServer({ siteDir, ctx, port });
+    if (spawned) await adoptSpawnedServer({ siteDir, ctx, server, partition });
     else ports.rememberOpen({ siteDir });
     return { server, partition };
   }
@@ -252,7 +252,7 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
    * stops every entry in `openSites` on quit, sites-home-opened or not, and `project-ipc.ts`'s
    * `handleDelete` still stops one explicitly.
    *
-   * Callers MUST run this through `serializer.run(siteDir, ...)`, same requirement as
+   * Callers MUST run this through `serializer.run({ key: siteDir, fn: ... })`, same requirement as
    * `openSiteWindow` and for the same reason.
    *
    * @returns the started (or reused) server handle.

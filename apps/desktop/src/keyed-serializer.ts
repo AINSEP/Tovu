@@ -15,11 +15,11 @@
 
 /** What {@link createKeyedSerializer} returns. */
 interface KeyedSerializer {
-  run<T>(key: string, fn: () => T | PromiseLike<T>): Promise<T>;
+  run<T>(required: { key: string; fn: () => T | PromiseLike<T> }, optional?: {}): Promise<T>;
 }
 
 /**
- * @returns `{ run(key, fn) }` — a fresh, independent chain store.
+ * @returns `{ run({ key, fn }) }` — a fresh, independent chain store.
  * @complexity O(1) to construct.
  */
 function createKeyedSerializer(): KeyedSerializer {
@@ -33,7 +33,7 @@ function createKeyedSerializer(): KeyedSerializer {
    * @returns `fn`'s own resolution or rejection.
    * @complexity O(1) scheduling cost; `fn`'s own cost is the caller's.
    */
-  function run<T>(key: string, fn: () => T | PromiseLike<T>): Promise<T> {
+  function run<T>({ key, fn }: { key: string; fn: () => T | PromiseLike<T> }, _optional = {}): Promise<T> {
     const previous = chains.get(key) ?? Promise.resolve();
     // The previous caller receives its own rejection; the queue must continue.
     const next = previous.catch(() => {}).then(fn);

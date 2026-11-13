@@ -205,7 +205,7 @@ function installGuestPopupOnFake(isSupervisedGuestUrl: (url: string) => boolean)
       openHandler = handler;
     },
   };
-  installGuestWindowOpenPolicy(contents, { isSupervisedGuestUrl, openExternal: (url) => opened.push(url) });
+  installGuestWindowOpenPolicy(contents, { isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl(url), openExternal: ({ url }) => opened.push(url) });
   return {
     opened,
     windowOpen(url: string): WindowOpenResponse {
@@ -298,11 +298,11 @@ test("isShellPageUrl refuses foreign pages and garbage without throwing", () => 
 // `isShellPageUrl` itself is covered above; this pins only that the entry feeds it the live inputs.
 test("main.ts registers the speech channels with the shell-page sender check", () => {
   const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
-  assert.match(source, /registerSpeechIpc\(\{ ipcMain, isTrustedSender: isShellPage \}\)/);
+  assert.match(source, /registerSpeechIpc\(\{ ipcMain, isTrustedSender: \(raw\) => isShellPage\(\{ raw \}\) \}\)/);
   const shellPage = source.slice(source.indexOf("function isShellPage("), source.indexOf("function registerGuestNavigationPolicy("));
   assert.match(
     shellPage,
-    /isShellPageUrl\(raw, \{\s*isSupervisedSite: isSupervisedGuestUrl,\s*attachUrl: process\.env\.TOVU_DESKTOP_URL\?\.trim\(\),\s*rendererFileUrl: pathToFileURL\(SITES_RENDERER_PATH\)\.href,\s*\}\)/,
+    /isShellPageUrl\(raw, \{\s*isSupervisedSite: \(raw\) => isSupervisedGuestUrl\(\{ raw \}\),\s*attachUrl: process\.env\.TOVU_DESKTOP_URL\?\.trim\(\),\s*rendererFileUrl: pathToFileURL\(SITES_RENDERER_PATH\)\.href,\s*\}\)/,
   );
 });
 

@@ -39,10 +39,10 @@ export function shellTelemetryPayload({ input }: { input: unknown }, _options = 
 /** The trusted shell's main frame. A frame or sender torn down while its message was in flight
  * throws on `url`/`getURL()`; inside an `ipcMain` listener that is a main-process error, so it reads
  * as untrusted and the message is dropped. O(1). */
-function fromShellMainFrame({ event, isShellPage }: { event: TelemetryEvent; isShellPage: (url: string) => boolean }, _options = {}): boolean {
+function fromShellMainFrame({ event, isShellPage }: { event: TelemetryEvent; isShellPage: (required: { url: string }) => boolean }, _options = {}): boolean {
   try {
     const frame = event.senderFrame;
-    return !!frame && frame.parent === null && isShellPage(frame.url) && isShellPage(event.sender.getURL());
+    return !!frame && frame.parent === null && isShellPage({ url: frame.url }) && isShellPage({ url: event.sender.getURL() });
   } catch {
     return false;
   }
@@ -54,7 +54,7 @@ function fromShellMainFrame({ event, isShellPage }: { event: TelemetryEvent; isS
 export function registerProductTelemetryIpc({ ipcMain, isShellPage, tracker }: {
   ipcMain: { on(channel: string, listener: (event: TelemetryEvent, input: unknown) => void): unknown;
     removeListener(channel: string, listener: (event: TelemetryEvent, input: unknown) => void): unknown };
-  isShellPage: (url: string) => boolean; tracker: Tracker;
+  isShellPage: (required: { url: string }) => boolean; tracker: Tracker;
 }, { now = Date.now }: { now?: () => number } = {}): () => void {
   let errors: number[] = [];
   const recordError = ({ message, stack }: { message: string; stack: string }) => {

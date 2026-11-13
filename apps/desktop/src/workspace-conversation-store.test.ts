@@ -19,10 +19,10 @@ function memoryPorts(initial: unknown = null, { readState = "ok" }: { readState?
   const locks: string[] = [];
   const ports: ConversationStorePorts = {
     read: () => (file === null ? { state: "missing" } : readState === "ok" ? { state: "ok", value: structuredClone(file) } : { state: "unreadable", text: "{" }) as ReturnType<ConversationStorePorts["read"]>,
-    write: (_path, value) => { file = structuredClone(value); },
+    write: ({ value }) => { file = structuredClone(value); },
     now: () => ++clock,
     newId: () => `c${++ids}`,
-    withLock: (filePath, critical) => { locks.push(filePath); return critical(); },
+    withLock: ({ filePath, critical }) => { locks.push(filePath); return critical(); },
   };
   return { ports, file: () => file, locks };
 }

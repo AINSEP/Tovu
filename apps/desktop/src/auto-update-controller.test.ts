@@ -61,11 +61,11 @@ function setup(overrides: Partial<AutoUpdateControllerDeps> = {}) {
     presenceDir,
     now: () => clock,
     isAlive: (pid) => alive.has(pid),
-    promptUpdateReady: async (version) => {
+    promptUpdateReady: async ({ version }) => {
       events.push(`prompt ${version}`);
       return restartChoice;
     },
-    explainOthersOpen: (count) => events.push(`others ${count}`),
+    explainOthersOpen: ({ count }) => events.push(`others ${count}`),
     quit: () => events.push("quit"),
     log: () => {},
     stageTimeoutMs: 60_000,
@@ -135,7 +135,7 @@ test("an older live sibling with a stale heartbeat cannot suppress this instance
 
 test("a failed check is logged, not thrown, and frees the next due check", async () => {
   const logs: string[] = [];
-  const t = setup({ log: (message) => logs.push(message) });
+  const t = setup({ log: ({ message }) => logs.push(message) });
   t.updater.checkResult = Promise.reject(new Error("offline"));
   t.controller.tick();
   await flush();

@@ -123,7 +123,7 @@ test("readRegistry unions every instance's file and the legacy file, ignoring te
   writeRegistry(instanceFilePath(registryDir), { sites: [own] });
   writeRegistry(instanceFilePath(registryDir, "77777-0badf00d"), { sites: [sibling] });
   writeRegistry(legacyRegistryFilePath(registryDir), { sites: [legacy] });
-  fs.writeFileSync(tempPathFor(instanceFilePath(registryDir, "77777-0badf00d"), 77777), "{ half a wri");
+  fs.writeFileSync(tempPathFor({ filePath: instanceFilePath(registryDir, "77777-0badf00d") }, { pid: 77777 }), "{ half a wri");
   fs.writeFileSync(`${instanceFilePath(registryDir, "88888-0badf00d")}.corrupt-1`, "garbage");
 
   const { sites, unreadable } = readRegistry(registryDir);
@@ -309,7 +309,7 @@ test("reconcileOrphans terminates a live, identity-confirmed orphan and deletes 
   const pid = await spawnOrphanedServeChild(siteDir, port);
   const crashed = await deadInstanceId();
   recordSiteOpened(registryDir, { siteDir, port, workspaceId: "w5", pid, updatedAt: Date.now() }, { instanceId: crashed });
-  fs.writeFileSync(tempPathFor(instanceFilePath(registryDir, crashed), Number(crashed.split("-")[0])), "{ a crash left this");
+  fs.writeFileSync(tempPathFor({ filePath: instanceFilePath(registryDir, crashed) }, { pid: Number(crashed.split("-")[0]) }), "{ a crash left this");
 
   const reconciled = await reconcileOrphans(registryDir);
 
@@ -615,7 +615,7 @@ test("a crash between the temp write and the rename leaves the previous file who
   const before = fs.readFileSync(filePath, "utf8");
   let replacement: unknown;
   const crash = t.mock.method(fs, "renameSync", (from: fs.PathLike, to: fs.PathLike) => {
-    assert.equal(from, tempPathFor(filePath));
+    assert.equal(from, tempPathFor({ filePath }));
     assert.equal(to, filePath);
     replacement = JSON.parse(fs.readFileSync(from, "utf8"));
     throw new Error("simulated crash before rename");
@@ -628,7 +628,7 @@ test("a crash between the temp write and the rename leaves the previous file who
   assert.equal(fs.readFileSync(filePath, "utf8"), before);
   assert.deepEqual(replacement, { sites: [ROW_A, ROW_B] }, "the complete new state reached the temp file before rename, not the real one");
   // Shared atomic-write hardening cleans an owned temp when rename throws (arch-02 § BEHAVIOR-CHANGES).
-  assert.equal(fs.existsSync(tempPathFor(filePath)), false, "failed replacement must clean its owned temp file");
+  assert.equal(fs.existsSync(tempPathFor({ filePath })), false, "failed replacement must clean its owned temp file");
   assert.deepEqual(readRegistry(registryDir), { sites: [ROW_A], unreadable: [] });
 });
 

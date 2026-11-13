@@ -136,7 +136,7 @@ test("Start automatically re-identifies a copy already tracked by an older deskt
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,
     openSites: new Map(), serializer: createKeyedSerializer(), ctx: {},
     readSiteName: () => "Harbor Florist", readPreviewVersion: () => null,
-    openSiteServer: async (siteDir: string) => {
+    openSiteServer: async ({ siteDir }: { siteDir: string }) => {
       const id = readMeta({ siteDir }).siteId;
       if (siteDir === f.copy) assert.notEqual(id, ORIGINAL_ID, "identity must be repaired before spawning");
       else assert.equal(id, ORIGINAL_ID);
@@ -160,7 +160,7 @@ test("Start keeps a moved folder's identity and relocates its existing reservati
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,
     openSites: new Map(), serializer: createKeyedSerializer(), ctx: {},
     readSiteName: () => "Harbor Florist", readPreviewVersion: () => null,
-    openSiteServer: async (siteDir) => {
+    openSiteServer: async ({ siteDir }) => {
       assert.equal(readMeta({ siteDir }).siteId, ORIGINAL_ID);
       assert.equal(f.workspace.registry({}).list({}).find((row) => row.id === ORIGINAL_ID)?.path, f.copy);
     },

@@ -106,7 +106,7 @@ export interface SingleWindowPorts {
   selftest: boolean;
   installSelftestTracker: (input: { expectedCount: number }) => void;
   openWindow: () => void;
-  onActivate: (listener: () => void) => void;
+  onActivate: (required: { listener: () => void }) => void;
   windowCount: () => number;
   quitPhase: () => QuitPhase;
 }
@@ -120,17 +120,17 @@ export interface SingleWindowPorts {
 export function openSingleWindow({ ports }: { ports: SingleWindowPorts }, _optional = {}): void {
   if (ports.selftest) ports.installSelftestTracker({ expectedCount: 1 });
   ports.openWindow();
-  ports.onActivate(() => {
+  ports.onActivate({ listener: () => {
     if (shouldReopenOnActivate({ windowCount: ports.windowCount(), quitPhase: ports.quitPhase() })) ports.openWindow();
-  });
+  } });
 }
 
 /** The sites-home steps, in `runSitesHomeBoot`'s order. `Deps` is `project-ipc.ts`'s deps bag. */
 export interface SitesHomeBootPorts<Deps> extends SingleWindowPorts {
   settleDevFallbackRows: () => void;
   buildProjectDeps: () => Deps;
-  registerSiteIpcHandlers: (deps: Deps) => void;
-  startSiteDiscovery: (deps: Deps) => void;
+  registerSiteIpcHandlers: (required: { deps: Deps }) => void;
+  startSiteDiscovery: (required: { deps: Deps }) => void;
   registerAppVersionIpc: () => void;
   registerResourcesIpc: () => void;
   registerOwnerStoreIpc: () => void;
@@ -156,12 +156,12 @@ export function runSitesHomeBoot<Deps>({ ports }: { ports: SitesHomeBootPorts<De
   const projectDeps = ports.buildProjectDeps();
   // Registered BEFORE the stubs: `ipcMain.handle` throws on a duplicate registration, so these
   // real handlers must claim their channels first — see `project-ipc.ts`'s own header.
-  ports.registerSiteIpcHandlers(projectDeps);
+  ports.registerSiteIpcHandlers({ deps: projectDeps });
   // The boot discovery pass, and the answer to "a site created by `tovu init` outside the shell
   // never appears": until this existed the Projects screen rendered `desktop-projects.json` and
   // nothing else. The read-only worker starts here without delaying the window; the normal
   // list poll picks up its discoveries. A stalled/removable volume cannot hold boot hostage.
-  ports.startSiteDiscovery(projectDeps);
+  ports.startSiteDiscovery({ deps: projectDeps });
   ports.registerAppVersionIpc();
   ports.registerResourcesIpc();
   ports.registerOwnerStoreIpc();

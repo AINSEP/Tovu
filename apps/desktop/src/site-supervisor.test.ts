@@ -56,7 +56,7 @@ function fakeServer(port = 4321) {
 function stores(): [StoreArm<SiteSupervisor<TestEntry>>, StoreArm<Map<string, TestEntry>>] {
   const reported: StoreArm<unknown>["reported"] = [];
   return [
-    { name: "supervisor", store: createSiteSupervisor<TestEntry>({ onUnexpectedExit: (siteDir, exit) => reported.push({ siteDir, exit }) }), reported },
+    { name: "supervisor", store: createSiteSupervisor<TestEntry>({ onUnexpectedExit: ({ siteDir, exit }) => reported.push({ siteDir, exit }) }), reported },
     { name: "plain Map (pre-fix baseline)", store: new Map(), reported: [] },
   ];
 }

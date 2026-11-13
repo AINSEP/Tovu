@@ -43,11 +43,11 @@ interface SiteWindowPorts<S extends SiteWindowServer, W extends SiteWindow, C ex
     delete(siteDir: string): unknown;
   };
   /** Spawn (or attach to) the site's server and arm its session — `main.ts`'s `startSiteBackend`. */
-  startSiteBackend: (required: { siteDir: string; ctx: C }, optional: { port?: number }) => Promise<{ server: S; partition: string }>;
+  startSiteBackend: (required: { siteDir: string; ctx: C }, optional?: { port?: number }) => Promise<{ server: S; partition: string }>;
   sitePartition: (input: { siteDir: string }, options?: Record<string, never>) => string;
   /** `main.ts`'s `createWindow` (see `app-window.ts`). */
   createWindow: (required: { url: string; title: string; partition: string }) => W;
-  readSiteName: (siteDir: string) => string;
+  readSiteName: (required: { siteDir: string }) => string;
   /** Drop this child's crash-safety row — `site-process-registry.ts`'s `recordSiteClosed`. */
   recordSiteClosed: (required: { registryPath: string; siteDir: string; pid: number }) => void;
   siteThemePreviews: { sync: SiteHook; stop: SiteHook };
@@ -60,7 +60,7 @@ interface SiteWindowPorts<S extends SiteWindowServer, W extends SiteWindow, C ex
   platform: string;
   /** The live `quitPhase`, read when the window closes. */
   quitPhase: () => QuitPhase;
-  logError: (message: string) => void;
+  logError: (required: { message: string }) => void;
   /** Deliberate close must also revoke retries while its server is between boots. */
   cancelRestart?: (input: { siteDir: string }) => void;
 }
@@ -115,9 +115,9 @@ function trackSiteTeardown<S extends SiteWindowServer, W extends SiteWindow, C e
   // the last window (see `shutdown-tracker.ts`).
   ports.trackTeardown({
     promise: (revokeSession ? ports.endSiteSession({ partition, adminUrl: server.adminUrl }) : Promise.resolve())
-      .catch((error: unknown) => ports.logError(`[tovu-desktop] Could not end the site session: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`))
+      .catch((error: unknown) => ports.logError({ message: `[tovu-desktop] Could not end the site session: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}` }))
       .then(() => stopSiteServer({ siteDir, ctx, server, ports }))
-      .catch((error: unknown) => ports.logError(`[tovu-desktop] site shutdown failed: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`)),
+      .catch((error: unknown) => ports.logError({ message: `[tovu-desktop] site shutdown failed: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}` })),
   });
 }
 
@@ -200,7 +200,7 @@ function stopClosedWindowServer<S extends SiteWindowServer, W extends SiteWindow
  * row rather than leaving either half of that inconsistent, then rethrows so the caller still
  * reports the failure.
  *
- * Callers MUST run this through `serializer.run(siteDir, ...)` — this function itself does not
+ * Callers MUST run this through `serializer.run({ key: siteDir, fn: ... })` — this function itself does not
  * serialize, so two concurrent calls for the same `siteDir` (a fast double-click) could otherwise
  * both see "not open yet" and spawn two children for the same site.
  *
@@ -229,7 +229,7 @@ async function openSiteWindow<S extends SiteWindowServer, W extends SiteWindow, 
 
   let window: W;
   try {
-    window = ports.createWindow({ url: server.adminUrl, title: ports.readSiteName(siteDir), partition });
+    window = ports.createWindow({ url: server.adminUrl, title: ports.readSiteName({ siteDir }), partition });
   } catch (error) {
     if (!already) {
       // No window was published, so only the tracker can make quit wait for this rollback.

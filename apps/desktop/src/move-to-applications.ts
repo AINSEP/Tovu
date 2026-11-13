@@ -84,7 +84,7 @@ function moveDeclineFilePath(userDataDir: string): string {
 /** @returns the version "Not Now" was chosen on; `null` if never, or the file is unusable.
  *  @complexity O(n) in file size. */
 function readDeclinedVersion(filePath: string): string | null {
-  const read = readJsonFile(filePath);
+  const read = readJsonFile({ filePath });
   if (read.state !== "ok") return null;
   const version = (read.value as { declinedVersion?: unknown } | null)?.declinedVersion;
   return typeof version === "string" ? version : null;
@@ -92,7 +92,7 @@ function readDeclinedVersion(filePath: string): string | null {
 
 /** Records "Not Now" for `version`, replacing any earlier one. @complexity O(1). */
 function recordDeclinedVersion(filePath: string, version: string): void {
-  writeJsonFileAtomic(filePath, { declinedVersion: version });
+  writeJsonFileAtomic({ filePath, value: { declinedVersion: version } });
 }
 
 /** @returns the `.app` bundle holding `execPath` (`…/X.app/Contents/MacOS/X`), or `null`.

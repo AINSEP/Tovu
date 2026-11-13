@@ -37,8 +37,8 @@ interface ConversationStore {
 
 /** File ports, injected so the store is testable against a temp dir or an in-memory fake. */
 interface ConversationStorePorts {
-  read: (filePath: string) => ReturnType<typeof readJsonFile>;
-  write: (filePath: string, value: unknown) => void;
+  read: typeof readJsonFile;
+  write: typeof writeJsonFileAtomic;
   now: () => number;
   newId: () => string;
   withLock: typeof withFileLock;
@@ -82,13 +82,13 @@ function createConversationStore(
     ...optional,
   };
   const load = (): StoredConversation[] => {
-    const read = ports.read(required.filePath);
+    const read = ports.read({ filePath: required.filePath });
     if (read.state !== "ok") return [];
     const rows = (read.value as { conversations?: unknown } | null)?.conversations;
     return Array.isArray(rows) ? (rows as StoredConversation[]) : [];
   };
   const readGaps = (): ToolGapEntry[] => {
-    const read = ports.read(required.filePath);
+    const read = ports.read({ filePath: required.filePath });
     if (read.state !== "ok") return [];
     const entries = (read.value as { toolGaps?: unknown } | null)?.toolGaps;
     return Array.isArray(entries) ? entries.flatMap(entry => {
@@ -97,8 +97,8 @@ function createConversationStore(
     }) : [];
   };
   // Every chat write preserves audit metadata; renderer message saves cannot erase it.
-  const save = (rows: StoredConversation[]) => ports.write(required.filePath, { conversations: rows, toolGaps: readGaps() });
-  const locked = <T>(critical: () => T) => ports.withLock(required.filePath, critical);
+  const save = (rows: StoredConversation[]) => ports.write({ filePath: required.filePath, value: { conversations: rows, toolGaps: readGaps() } });
+  const locked = <T>(critical: () => T) => ports.withLock({ filePath: required.filePath, critical });
   const mutate = (id: string, change: (row: StoredConversation) => void) => locked(() => {
     const rows = load();
     const row = rows.find((candidate) => candidate.id === id);
@@ -111,7 +111,7 @@ function createConversationStore(
   return {
     appendToolGap: ({ entry }) => locked(() => {
       const entries = readGaps().filter(existing => existing.id !== entry.id);
-      ports.write(required.filePath, { conversations: load(), toolGaps: [...entries, entry].slice(-1000) });
+      ports.write({ filePath: required.filePath, value: { conversations: load(), toolGaps: [...entries, entry].slice(-1000) } });
     }),
     listToolGaps: (_required, { limit = 100 } = {}) => readGaps().slice(-Math.max(1, Math.min(200, limit))).reverse(),
     list: () => load().map(summarize).sort((a, b) => b.updatedAt - a.updatedAt),

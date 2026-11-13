@@ -31,7 +31,7 @@ test('settings with either list missing or not an array are damaged: read ignore
   for (const stored of [{ creationRoots: [], extraRoots: 'x' }, { creationRoots: 'x', extraRoots: [] }, { extraRoots: [] }, null, 'not json']) {
     const { statePath, extra, settings } = layout(t, stored);
     const quarantined: string[] = [];
-    const refuse = createSiteFolders({ statePath, defaultRoots: [] }, { quarantine: ((file: string) => { quarantined.push(file); return false; }) as never });
+    const refuse = createSiteFolders({ statePath, defaultRoots: [] }, { quarantine: (({ filePath }: { filePath: string }) => { quarantined.push(filePath); return false; }) as never });
     assert.deepEqual(refuse.read({}).extraRoots, [], JSON.stringify(stored));
     assert.throws(() => refuse.add({ root: extra }), { message: `Could not preserve damaged sites folders settings at ${settings}. Nothing was saved.` }, JSON.stringify(stored));
     assert.deepEqual(quarantined, [settings]);

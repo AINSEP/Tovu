@@ -18,7 +18,7 @@ const filesystem: PresenceFilesystemPort = {
 };
 
 /** Resolve Tovu's existing on-disk directory. @complexity O(n) in path length. */
-function presenceDirPath(userDataDir: string): string {
+function presenceDirPath({ userDataDir }: { userDataDir: string }, _optional = {}): string {
   return resolvePresenceDirectory({ userDataDir, directoryName: "instances" });
 }
 

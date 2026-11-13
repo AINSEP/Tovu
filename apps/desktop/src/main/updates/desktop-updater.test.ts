@@ -41,7 +41,7 @@ interface Harness {
   errors: string[];
   native: NativeUpdater;
   automatic: { value: boolean };
-  created: { promptUpdateReady: (version: string) => Promise<boolean>; updater: unknown; platform: string }[];
+  created: { promptUpdateReady: (required: { version: string }) => Promise<boolean>; updater: unknown; platform: string }[];
   updater: ReturnType<typeof createDesktopUpdater>;
 }
 
@@ -70,8 +70,8 @@ function harness({
     controllerDeps: () => ({ platform: "darwin", pid: 7, presenceDir: "/ud/presence", now: () => 0,
       explainOthersOpen() {}, quit() {}, log() {} }),
     promptUpdateReady: async ({ version }) => { calls.push(`prompt:${version}`); return prompt; },
-    log: message => logs.push(message),
-    logError: message => errors.push(message),
+    log: ({ message }) => logs.push(message),
+    logError: ({ message }) => errors.push(message),
   };
   const updater = createDesktopUpdater({ ports }, {
     createController: deps => {
@@ -207,7 +207,7 @@ test("the controller's download prompt records the ready version for Check for u
   const h = harness({ prompt: false });
   await h.updater.start();
   assert.equal(h.updater.readyVersion(), null);
-  assert.equal(await h.created[0]!.promptUpdateReady("3.1.0"), false);
+  assert.equal(await h.created[0]!.promptUpdateReady({ version: "3.1.0" }), false);
   assert.equal(h.updater.readyVersion(), "3.1.0");
   assert.ok(h.calls.includes("prompt:3.1.0"));
 });
@@ -215,7 +215,7 @@ test("the controller's download prompt records the ready version for Check for u
 test("a ready version is not offered once the controller is gone", async () => {
   const h = harness();
   await h.updater.start();
-  await h.created[0]!.promptUpdateReady("3.1.0");
+  await h.created[0]!.promptUpdateReady({ version: "3.1.0" });
   h.updater.setAutomaticUpdates({ enabled: false });
   assert.equal(h.updater.readyVersion(), null);
 });

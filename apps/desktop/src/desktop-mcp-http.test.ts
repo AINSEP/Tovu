@@ -23,7 +23,7 @@ async function fixture(t: test.TestContext, revealPath: (target: string) => Prom
   const projectsPath = sitesFilePath(dir);
   // Use the registry owner, so authorization exercises the actual tool handler.
   trackSite(projectsPath, '/sites/example');
-  const server = await startDesktopMcpHttp({ context: { projectsPath, revealPath } });
+  const server = await startDesktopMcpHttp({ context: { projectsPath, revealPath: ({ target }) => revealPath(target) } });
   t.after(() => server.close({}));
   const emptySiteDir = path.join(dir, 'empty');
   fs.mkdirSync(emptySiteDir);

@@ -32,9 +32,9 @@ test("the sites-home deps object carries the three preview operations, bound to 
   const end = rest.search(/\n\s*};\n/);
   const depsBlock = end === -1 ? rest : rest.slice(0, end);
 
-  assert.match(depsBlock, /readPreviewVersion: \(siteDir: string\) => readPreviewVersion\(app\.getPath\("userData"\), siteDir\)/);
-  assert.match(depsBlock, /readPreviewDataUrl: \(siteDir: string\) => readPreviewDataUrl\(app\.getPath\("userData"\), siteDir\)/);
-  assert.match(depsBlock, /deletePreview: \(siteDir: string\) => deletePreview\(app\.getPath\("userData"\), siteDir\)/);
+  assert.match(depsBlock, /readPreviewVersion: \(\{ siteDir \}: \{ siteDir: string \}\) => readPreviewVersion\(app\.getPath\("userData"\), siteDir\)/);
+  assert.match(depsBlock, /readPreviewDataUrl: \(\{ id \}: \{ id: string \}\) => readPreviewDataUrl\(app\.getPath\("userData"\), id\)/);
+  assert.match(depsBlock, /deletePreview: \(\{ id \}: \{ id: string \}\) => deletePreview\(app\.getPath\("userData"\), id\)/);
 });
 
 test("boot discovery leaves the home window free and sweeps only after the scan settles", async () => {
@@ -52,7 +52,7 @@ test("boot discovery leaves the home window free and sweeps only after the scan 
 test("a failed boot scan reports the failure and still performs preview hygiene", async () => {
   const failure = new Error('unavailable volume'), effects: unknown[] = [];
   await startDesktopSiteDiscovery({ scan: async () => { throw failure; },
-    report: (error) => { effects.push(error); }, sweep: () => { effects.push('sweep'); },
+    report: ({ failure }) => { effects.push(failure); }, sweep: () => { effects.push('sweep'); },
   });
   assert.deepEqual(effects, [failure, 'sweep']);
 });

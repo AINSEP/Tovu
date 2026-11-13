@@ -89,7 +89,7 @@ test('non-clean renderer/GPU/utility exits and one unexpected supervisor exit ca
   assert.equal(reports.length, 3);
   assert.deepEqual(reports[0]!.context, { operation: 'desktop.process_gone', attributes: { process: 'renderer', code: 'crashed' } });
   let exit!: (value: { code: number | null; signal: string | null }) => void;
-  const supervisor = createSiteSupervisor({ onUnexpectedExit: (_siteDir, outcome) => reportDesktopServerExit({ tracker, ...outcome }) });
+  const supervisor = createSiteSupervisor({ onUnexpectedExit: ({ exit }) => reportDesktopServerExit({ tracker, ...exit }) });
   supervisor.set('/fake/private-site', { server: { onExit: listener => { exit = listener; } } });
   exit({ code: 7, signal: null }); exit({ code: 7, signal: null });
   assert.equal(reports.length, 4);

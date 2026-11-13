@@ -20,8 +20,8 @@ interface AppWindowPolicyOptions {
   openExternal: (url: string) => void;
 }
 interface GuestWindowOpenOptions {
-  isSupervisedGuestUrl: (url: string) => boolean;
-  openExternal: (url: string) => void;
+  isSupervisedGuestUrl: (required: { url: string }) => boolean;
+  openExternal: (required: { url: string }) => void;
 }
 interface ShellPages {
   isSupervisedSite: (url: string) => boolean;
@@ -64,8 +64,8 @@ function installSitesHomeNavigationPolicy(
 function installGuestWindowOpenPolicy(contents: Pick<NavigableContents, "setWindowOpenHandler">, options: GuestWindowOpenOptions): void {
   installGuestPolicy({
     contents,
-    isSupervisedGuestUrl: ({ url }) => options.isSupervisedGuestUrl(url),
-    openExternal: ({ url }) => options.openExternal(url),
+    isSupervisedGuestUrl: options.isSupervisedGuestUrl,
+    openExternal: options.openExternal,
   });
 }
 

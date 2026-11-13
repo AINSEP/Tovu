@@ -19,12 +19,12 @@ function requestInput({ input }: { input: unknown }, _options = {}): ResourcesRe
  */
 export function registerResourcesIpc({ ipcMain, allowed, monitor }: {
   ipcMain: { handle: (channel: string, listener: (event: ResourcesEvent, input: unknown) => Promise<ResourcesSnapshot>) => void };
-  allowed: (url: string) => boolean;
+  allowed: (required: { url: string }) => boolean;
   monitor: { get: (input: ResourcesRequest) => Promise<ResourcesSnapshot> };
 }, _options = {}): void {
   ipcMain.handle(RUNNER_RESOURCES_GET_CHANNEL, (event, input) => {
     // Main frame only: a subframe can share the file URL but is not the sites home document.
-    if (!event.senderFrame || event.senderFrame.parent !== null || !allowed(event.senderFrame.url)) throw new Error('Resource monitor is only available in the sites home window.');
+    if (!event.senderFrame || event.senderFrame.parent !== null || !allowed({ url: event.senderFrame.url })) throw new Error('Resource monitor is only available in the sites home window.');
     return monitor.get(requestInput({ input }));
   });
 }

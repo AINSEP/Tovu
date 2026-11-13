@@ -44,12 +44,12 @@ export interface ExternalLease {
 
 /** OS reads and effects, injected so tests never touch a real process. */
 export interface ExternalStopPorts {
-  readCommand: (pid: number) => string | null;
-  readParentPid: (pid: number) => number | null;
+  readCommand: (required: { pid: number }) => string | null;
+  readParentPid: (required: { pid: number }) => number | null;
   /** Process start time in epoch ms, or `null` when the pid is gone or cannot be read. */
-  readStartMs: (pid: number) => number | null;
-  kill: (pid: number, signal: NodeJS.Signals) => void;
-  sleep: (ms: number) => Promise<void>;
+  readStartMs: (required: { pid: number }) => number | null;
+  kill: (required: { pid: number; signal: NodeJS.Signals }) => void;
+  sleep: (required: { ms: number }) => Promise<void>;
   nowMs: () => number;
 }
 
@@ -75,8 +75,8 @@ const STOP_POLL_MS = 200;
  * `ps`'s start time is whole seconds, truncated, so a genuine process can only read earlier, never later.
  * @complexity O(1) beyond one `ps` call.
  */
-function predatesLease(pid: number, lease: ExternalLease, ports: Pick<ExternalStopPorts, "readStartMs">): boolean {
-  const startMs = ports.readStartMs(pid);
+function predatesLease({ pid, lease, ports }: { pid: number; lease: ExternalLease; ports: Pick<ExternalStopPorts, "readStartMs"> }, _optional = {}): boolean {
+  const startMs = ports.readStartMs({ pid });
   const claimedMs = Date.parse(lease.started);
   return startMs !== null && Number.isFinite(claimedMs) && startMs <= claimedMs;
 }
@@ -92,15 +92,15 @@ export function resolveExternalStopTarget(
   { lease }: { lease: ExternalLease },
   { ports }: { ports: Pick<ExternalStopPorts, "readCommand" | "readParentPid" | "readStartMs"> },
 ): ExternalStopTarget | null {
-  const serverCommand = ports.readCommand(lease.pid);
-  if (serverCommand === null || !predatesLease(lease.pid, lease, ports)) return null;
-  let pid = ports.readParentPid(lease.pid);
+  const serverCommand = ports.readCommand({ pid: lease.pid });
+  if (serverCommand === null || !predatesLease({ pid: lease.pid, lease, ports })) return null;
+  let pid = ports.readParentPid({ pid: lease.pid });
   for (let depth = 0; pid !== null && pid > 1 && depth < MAX_ANCESTORS; depth++) {
-    const command = ports.readCommand(pid);
+    const command = ports.readCommand({ pid });
     if (command !== null && DEV_LAUNCHER.test(command)) {
-      return predatesLease(pid, lease, ports) ? { pid, launcher: "npm-run-dev", command } : null;
+      return predatesLease({ pid, lease, ports }) ? { pid, launcher: "npm-run-dev", command } : null;
     }
-    pid = ports.readParentPid(pid);
+    pid = ports.readParentPid({ pid });
   }
   return { pid: lease.pid, launcher: "other", command: serverCommand };
 }
@@ -123,8 +123,8 @@ export async function stopExternalSite(
   const target = resolveExternalStopTarget({ lease }, { ports });
   if (target === null) throw new Error(EXTERNAL_STOP_UNCONFIRMED);
   if (readLease()?.token !== lease.token) return;
-  if (ports.readCommand(target.pid) !== target.command || !predatesLease(target.pid, lease, ports)) throw new Error(EXTERNAL_STOP_UNCONFIRMED);
-  ports.kill(target.pid, "SIGTERM");
+  if (ports.readCommand({ pid: target.pid }) !== target.command || !predatesLease({ pid: target.pid, lease, ports })) throw new Error(EXTERNAL_STOP_UNCONFIRMED);
+  ports.kill({ pid: target.pid, signal: "SIGTERM" });
   await waitForExternalSiteStop({ lease, target, readLease, ports }, { timeoutMs, pollMs });
 }
 
@@ -138,14 +138,14 @@ export async function waitForExternalSiteStop(
   { timeoutMs = STOP_TIMEOUT_MS, pollMs = STOP_POLL_MS }: { timeoutMs?: number; pollMs?: number } = {},
 ): Promise<void> {
   const deadline = ports.nowMs() + timeoutMs;
-  while (readLease()?.token === lease.token || predatesLease(target.pid, lease, ports)) {
+  while (readLease()?.token === lease.token || predatesLease({ pid: target.pid, lease, ports })) {
     if (ports.nowMs() >= deadline) throw new Error(`The site did not stop within ${Math.round(timeoutMs / 1000)} s. Stop it where it was started.`);
-    await ports.sleep(pollMs);
+    await ports.sleep({ ms: pollMs });
   }
 }
 
 /** `ps` with `args`, in the C locale so its dates parse; throws when `ps` exits non-zero (a gone pid). */
-function runPsInCLocale(args: string[]): string {
+function runPsInCLocale({ args }: { args: string[] }, _optional = {}): string {
   const command = resolveOnPath({ bin: 'ps' });
   if (command === null) throw new Error('ps executable is unavailable.');
   return execFileSync(command, args, { encoding: "utf8", env: { ...process.env, LC_ALL: "C" } });
@@ -154,17 +154,18 @@ function runPsInCLocale(args: string[]): string {
 /**
  * Process start time via `ps -o lstart=` (argv-free, like `readProcessCommand`), in the C locale so
  * the date parses. `null` on win32, for a gone pid, or for output that does not parse.
+ * @param required.pid the process whose start time is read.
+ * @param options.platform host platform; defaults to the current platform.
  * @param options.runPs runs `ps` and returns its stdout (test seam); defaults to the real `ps`.
  * @complexity O(1); one subprocess call.
  */
 export function readProcessStartMs(
-  pid: number,
-  platform: NodeJS.Platform = process.platform,
-  { runPs = runPsInCLocale }: { runPs?: (args: string[]) => string } = {},
+  { pid }: { pid: number },
+  { platform = process.platform, runPs = runPsInCLocale }: { platform?: NodeJS.Platform; runPs?: (required: { args: string[] }) => string } = {},
 ): number | null {
   if (platform === "win32") return null;
   try {
-    const parsed = Date.parse(runPs(["-o", "lstart=", "-p", String(pid)]).trim());
+    const parsed = Date.parse(runPs({ args: ["-o", "lstart=", "-p", String(pid)] }).trim());
     return Number.isFinite(parsed) ? parsed : null;
   } catch {
     return null;
@@ -172,11 +173,11 @@ export function readProcessStartMs(
 }
 
 export const NODE_PORTS: ExternalStopPorts = {
-  readCommand: (pid) => readProcessCommand(pid),
-  readParentPid: (pid) => readProcessParentPid(pid),
-  readStartMs: (pid) => readProcessStartMs(pid),
-  kill: (pid, signal) => { process.kill(pid, signal); },
-  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  readCommand: ({ pid }) => readProcessCommand(pid),
+  readParentPid: ({ pid }) => readProcessParentPid(pid),
+  readStartMs: ({ pid }) => readProcessStartMs({ pid }),
+  kill: ({ pid, signal }) => { process.kill(pid, signal); },
+  sleep: ({ ms }) => new Promise((resolve) => setTimeout(resolve, ms)),
   nowMs: () => Date.now(),
 };
 

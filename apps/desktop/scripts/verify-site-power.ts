@@ -172,11 +172,11 @@ async function setTheme({ win, theme }: { win: Page; theme: string }, _options =
 async function requireSeededCard({ win, expectedSiteName }: { win: Page; expectedSiteName: string }, _options = {}): Promise<CardState> {
   const idle = await cardState(win);
   const seen = flat(idle);
-  check('CARD_SEEDED', idle !== null, `card rendered, status ${seen.status}`);
+  check({ name: 'CARD_SEEDED', ok: idle !== null, detail: `card rendered, status ${seen.status}` });
   check(
-    'CARD_IS_SEEDED_SITE',
-    seen.name === expectedSiteName,
-    `first card is "${seen.name}", seeded site's config.json says "${expectedSiteName}"`,
+    { name: 'CARD_IS_SEEDED_SITE',
+    ok: seen.name === expectedSiteName,
+    detail: `first card is "${seen.name}", seeded site's config.json says "${expectedSiteName}"` },
   );
   if (idle === null || idle.name !== expectedSiteName) {
     throw new Error(
@@ -188,9 +188,9 @@ async function requireSeededCard({ win, expectedSiteName }: { win: Page; expecte
 
 /** The three `LAYOUT_*` checks for one card state. */
 function checkLayout(claims: LayoutClaims): void {
-  check('LAYOUT_KEBAB_ON_NAME_ROW', claims.onNameRow.ok, claims.onNameRow.why);
-  check('LAYOUT_POWER_UNDER_TEXT', claims.powerUnderText.ok, claims.powerUnderText.why);
-  check('LAYOUT_STATUS_UNDER_KEBAB', claims.statusUnderMenu.ok, claims.statusUnderMenu.why);
+  check({ name: 'LAYOUT_KEBAB_ON_NAME_ROW', ok: claims.onNameRow.ok, detail: claims.onNameRow.why });
+  check({ name: 'LAYOUT_POWER_UNDER_TEXT', ok: claims.powerUnderText.ok, detail: claims.powerUnderText.why });
+  check({ name: 'LAYOUT_STATUS_UNDER_KEBAB', ok: claims.statusUnderMenu.ok, detail: claims.statusUnderMenu.why });
 }
 
 /** The stopped card, before anything is clicked: it is the seeded site, its controls sit where the
@@ -198,24 +198,24 @@ function checkLayout(claims: LayoutClaims): void {
 async function verifyIdleCard({ win, expectedSiteName }: { win: Page; expectedSiteName: string }, _options = {}): Promise<void> {
   const idle = await requireSeededCard({ win, expectedSiteName });
   check(
-    'ACTIONS_IN_BODY',
-    idle.actionsInBody && !idle.menuInTile,
-    `actions row in the info block (menu on preview: ${idle.menuInTile})`,
+    { name: 'ACTIONS_IN_BODY',
+    ok: idle.actionsInBody && !idle.menuInTile,
+    detail: `actions row in the info block (menu on preview: ${idle.menuInTile})` },
   );
-  check('ALWAYS_VISIBLE', idle.menuVisible, `⋮ visible ${idle.menuVisible} — with no pointer over the card`);
+  check({ name: 'ALWAYS_VISIBLE', ok: idle.menuVisible, detail: `⋮ visible ${idle.menuVisible} — with no pointer over the card` });
   check(
-    'NO_TOP_LEVEL_TRASH',
-    !idle.trashOnCard,
-    `a standalone .card__delete exists on the card outside the ⋮ menu (${idle.trashOnCard})`,
+    { name: 'NO_TOP_LEVEL_TRASH',
+    ok: !idle.trashOnCard,
+    detail: `a standalone .card__delete exists on the card outside the ⋮ menu (${idle.trashOnCard})` },
   );
   checkLayout(layoutClaims(idle));
   const label = flat(idle).label;
-  check('POWER_OFFERS_START', label === 'Start', `power button reads "${label}"`);
+  check({ name: 'POWER_OFFERS_START', ok: label === 'Start', detail: `power button reads "${label}"` });
   const startStyle = await powerMatchesCreate(win);
   check(
-    'POWER_MATCHES_CREATE_STYLE',
-    startStyle.found && startStyle.sameBackground && startStyle.sameBorderColor && startStyle.sameFontWeight,
-    `power bg ${startStyle.powerBg} vs create bg ${startStyle.createBg} (border match: ${startStyle.sameBorderColor}, weight match: ${startStyle.sameFontWeight})`,
+    { name: 'POWER_MATCHES_CREATE_STYLE',
+    ok: startStyle.found && startStyle.sameBackground && startStyle.sameBorderColor && startStyle.sameFontWeight,
+    detail: `power bg ${startStyle.powerBg} vs create bg ${startStyle.createBg} (border match: ${startStyle.sameBorderColor}, weight match: ${startStyle.sameFontWeight})` },
   );
   await shot({ win, name: 'light-stopped' });
 }
@@ -226,9 +226,9 @@ async function clickPowerExpectingTransition({ win, checkName, label, verb }: { 
   await win.click('.card__power');
   const mid = flat(await cardState(win));
   check(
-    checkName,
-    mid.label === label && mid.disabled === true,
-    `mid-${verb} the button reads "${mid.label}" (disabled: ${mid.disabled})`,
+    { name: checkName,
+    ok: mid.label === label && mid.disabled === true,
+    detail: `mid-${verb} the button reads "${mid.label}" (disabled: ${mid.disabled})` },
   );
 }
 
@@ -240,15 +240,15 @@ async function verifyStarted(win: Page): Promise<void> {
 
   const runningState = await waitForStatus({ win, want: 'Running', timeoutMs: 90_000 });
   const running = flat(runningState);
-  check('STARTED', running.status === 'Running', `status after start: ${running.status}`);
-  check('POWER_OFFERS_STOP', running.label === 'Stop', `power button reads "${running.label}"`);
+  check({ name: 'STARTED', ok: running.status === 'Running', detail: `status after start: ${running.status}` });
+  check({ name: 'POWER_OFFERS_STOP', ok: running.label === 'Stop', detail: `power button reads "${running.label}"` });
   // Re-read with the WIDER label in place: "Stop" is a bigger box than "Start", and a column that
   // only lines up around the narrow one is not right-aligned, it is coincidental.
   const runningLayout = layoutClaims(runningState);
   check(
-    'LAYOUT_HOLDS_WITH_STOP',
-    allLayoutClaimsHold(runningLayout),
-    `with "Stop" — ${runningLayout.powerUnderText.why}; ${runningLayout.statusUnderMenu.why}`,
+    { name: 'LAYOUT_HOLDS_WITH_STOP',
+    ok: allLayoutClaimsHold(runningLayout),
+    detail: `with "Stop" — ${runningLayout.powerUnderText.why}; ${runningLayout.statusUnderMenu.why}` },
   );
   await shot({ win, name: 'light-running' });
 }
@@ -259,11 +259,11 @@ async function verifyStopped(win: Page): Promise<void> {
   await shot({ win, name: 'light-stopping' });
 
   const stopped = flat(await waitForStatus({ win, want: 'Stopped', timeoutMs: 30_000 }));
-  check('STOPPED', stopped.status === 'Stopped', `status after stop: ${stopped.status}`);
-  check('POWER_BACK_TO_START', stopped.label === 'Start', `power button reads "${stopped.label}"`);
+  check({ name: 'STOPPED', ok: stopped.status === 'Stopped', detail: `status after stop: ${stopped.status}` });
+  check({ name: 'POWER_BACK_TO_START', ok: stopped.label === 'Start', detail: `power button reads "${stopped.label}"` });
   // The port is reassigned on every start, so a stopped card must not keep showing the one it had.
-  check('NO_STALE_PORT', stopped.port == null || stopped.port === '0', `port fallback shows ${stopped.port}`);
-  check('NO_ERROR', stopped.error == null, `no failure text on the card (${stopped.error})`);
+  check({ name: 'NO_STALE_PORT', ok: stopped.port == null || stopped.port === '0', detail: `port fallback shows ${stopped.port}` });
+  check({ name: 'NO_ERROR', ok: stopped.error == null, detail: `no failure text on the card (${stopped.error})` });
   await shot({ win, name: 'light-stopped-again' });
 }
 
@@ -281,11 +281,11 @@ async function checkMenuNotClipped(win: Page): Promise<void> {
     return { listTop: l.top, listBottom: l.bottom, cardTop: c.top, cardBottom: c.bottom };
   });
   check(
-    'MENU_LIST_NOT_CLIPPED',
-    menuClip !== null && menuClip.listTop >= menuClip.cardTop && menuClip.listBottom <= menuClip.cardBottom,
-    menuClip === null
+    { name: 'MENU_LIST_NOT_CLIPPED',
+    ok: menuClip !== null && menuClip.listTop >= menuClip.cardTop && menuClip.listBottom <= menuClip.cardBottom,
+    detail: menuClip === null
       ? 'no open menu list to measure'
-      : `list ${menuClip.listTop.toFixed(1)}–${menuClip.listBottom.toFixed(1)} inside card ${menuClip.cardTop.toFixed(1)}–${menuClip.cardBottom.toFixed(1)}`,
+      : `list ${menuClip.listTop.toFixed(1)}–${menuClip.listBottom.toFixed(1)} inside card ${menuClip.cardTop.toFixed(1)}–${menuClip.cardBottom.toFixed(1)}` },
   );
 }
 
@@ -301,17 +301,17 @@ async function verifyDeleteEntry(win: Page): Promise<void> {
     return item ? { text: (item.textContent ?? '').trim(), danger: item.classList.contains('card__menuitem--danger') } : null;
   });
   check(
-    'ADOPTED_SITE_ENTRY_NOT_DANGER_STYLED',
-    deleteEntry?.text === 'Remove from Projects…' && !deleteEntry.danger,
-    `entry "${deleteEntry?.text}", danger class present: ${deleteEntry?.danger}`,
+    { name: 'ADOPTED_SITE_ENTRY_NOT_DANGER_STYLED',
+    ok: deleteEntry?.text === 'Remove from Projects…' && !deleteEntry.danger,
+    detail: `entry "${deleteEntry?.text}", danger class present: ${deleteEntry?.danger}` },
   );
   await win.click('.card__menulist [role="menuitem"]:has-text("Remove from Projects")');
   const confirmShown = await win.evaluate(() => document.querySelector('.card__confirm') !== null);
-  check('DELETE_ENTRY_OPENS_CONFIRM', confirmShown, 'clicking the menu entry must open the confirm overlay, not delete directly');
+  check({ name: 'DELETE_ENTRY_OPENS_CONFIRM', ok: confirmShown, detail: 'clicking the menu entry must open the confirm overlay, not delete directly' });
   await shot({ win, name: 'light-menu-delete-confirm' });
   await win.click('.card__confirmacts .button--quiet');
   const confirmDismissed = await win.evaluate(() => document.querySelector('.card__confirm') === null);
-  check('CONFIRM_CANCEL_DISMISSES', confirmDismissed, 'Cancel must close the overlay without deleting');
+  check({ name: 'CONFIRM_CANCEL_DISMISSES', ok: confirmDismissed, detail: 'Cancel must close the overlay without deleting' });
 }
 
 /** Closes an open ⋮ menu the way a user would: Escape, then a click on empty page. */
@@ -332,17 +332,17 @@ async function verifyMenu(win: Page): Promise<void> {
   const menuItems = await win.evaluate(() =>
     [...document.querySelectorAll('.card__menulist [role="menuitem"]')].map((el) => (el.textContent ?? '').trim()),
   );
-  check('MENU_OPENS', menuItems.length > 0, `menu items: ${menuItems.join(' | ')}`);
+  check({ name: 'MENU_OPENS', ok: menuItems.length > 0, detail: `menu items: ${menuItems.join(' | ')}` });
   await checkMenuNotClipped(win);
   check(
-    'MENU_HAS_NO_LIFECYCLE',
-    !menuItems.some((item) => item === 'Start' || item === 'Stop'),
-    'neither Start nor Stop is duplicated in the ⋮ menu',
+    { name: 'MENU_HAS_NO_LIFECYCLE',
+    ok: !menuItems.some((item) => item === 'Start' || item === 'Stop'),
+    detail: 'neither Start nor Stop is duplicated in the ⋮ menu' },
   );
   check(
-    'MENU_HAS_DELETE_ENTRY',
-    menuItems.some((item) => item === 'Delete…' || item === 'Remove from Projects…'),
-    `menu items: ${menuItems.join(' | ')}`,
+    { name: 'MENU_HAS_DELETE_ENTRY',
+    ok: menuItems.some((item) => item === 'Delete…' || item === 'Remove from Projects…'),
+    detail: `menu items: ${menuItems.join(' | ')}` },
   );
   await shot({ win, name: 'light-menu-open' });
   await verifyDeleteEntry(win);
@@ -355,12 +355,12 @@ async function verifyDark(win: Page): Promise<void> {
   const darkState = await cardState(win);
   const dark = flat(darkState);
   check(
-    'DARK_ALWAYS_VISIBLE',
-    dark.menuVisible === true && dark.trashOnCard === false && dark.hasPower === true,
-    `dark mode: ⋮ ${dark.menuVisible}, top-level trash present ${dark.trashOnCard}, power "${dark.label}"`,
+    { name: 'DARK_ALWAYS_VISIBLE',
+    ok: dark.menuVisible === true && dark.trashOnCard === false && dark.hasPower === true,
+    detail: `dark mode: ⋮ ${dark.menuVisible}, top-level trash present ${dark.trashOnCard}, power "${dark.label}"` },
   );
   const darkLayout = layoutClaims(darkState);
-  check('DARK_LAYOUT_HOLDS', allLayoutClaimsHold(darkLayout), `dark mode — ${darkLayout.onNameRow.why}`);
+  check({ name: 'DARK_LAYOUT_HOLDS', ok: allLayoutClaimsHold(darkLayout), detail: `dark mode — ${darkLayout.onNameRow.why}` });
   await shot({ win, name: 'dark-stopped' });
   await win.click('.card__menubutton');
   await win.waitForTimeout(150); // see the identical wait in `verifyMenu` — the same paint race.
@@ -368,11 +368,11 @@ async function verifyDark(win: Page): Promise<void> {
   await closeMenu(win);
   await win.click('.card__power');
   const darkRunning = flat(await waitForStatus({ win, want: 'Running', timeoutMs: 90_000 }));
-  check('DARK_STARTED', darkRunning.status === 'Running', `dark mode status after start: ${darkRunning.status}`);
+  check({ name: 'DARK_STARTED', ok: darkRunning.status === 'Running', detail: `dark mode status after start: ${darkRunning.status}` });
   await shot({ win, name: 'dark-running' });
   await win.click('.card__power');
   const darkStopped = flat(await waitForStatus({ win, want: 'Stopped', timeoutMs: 30_000 }));
-  check('DARK_STOPPED', darkStopped.status === 'Stopped', `dark mode status after stop: ${darkStopped.status}`);
+  check({ name: 'DARK_STOPPED', ok: darkStopped.status === 'Stopped', detail: `dark mode status after stop: ${darkStopped.status}` });
   await shot({ win, name: 'dark-stopped-again' });
 }
 

@@ -11,7 +11,7 @@ import type { WindowOpenResponse } from "../../window-navigation-policy.ts";
 const SITE = "http://127.0.0.1:4567";
 const OTHER_SITE = "http://127.0.0.1:4600";
 const supervised = new Set([SITE, OTHER_SITE]);
-const isSupervisedGuestUrl = (url: string) => {
+const isSupervisedGuestUrl = ({ url }: { url: string }) => {
   try { return supervised.has(new URL(url).origin); } catch { return false; }
 };
 
@@ -33,7 +33,7 @@ function fakeGuest(type: string, current = `${SITE}/admin`) {
     },
   };
   const opened: string[] = [];
-  installWebviewGuestPolicy({ contents, isSupervisedGuestUrl, openExternal: (url) => opened.push(url) });
+  installWebviewGuestPolicy({ contents, isSupervisedGuestUrl, openExternal: ({ url }) => opened.push(url) });
   return {
     registered, opened,
     popup: (url: string) => popup!({ url }), // `!`: only called on a webview, where it is registered.

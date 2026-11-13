@@ -54,7 +54,7 @@ export function startProductMemoryTelemetry({ monitor, tracker, readConsent, des
   monitor: { get(input: { panelOpen: boolean }): Promise<ResourcesSnapshot> }; tracker: Tracker;
   readConsent: () => ProductConsent; desktopPid: number; rendererPids: () => ReadonlySet<number>;
   heapUsedBytes: () => number; uptime: () => number;
-}, { intervalMs = 5 * 60_000, now = Date.now, schedule }: { intervalMs?: number; now?: () => number; schedule: (tick: () => void, ms: number) => () => void }): ProductMemoryTelemetry {
+}, { intervalMs = 5 * 60_000, now = Date.now, schedule }: { intervalMs?: number; now?: () => number; schedule: (required: { tick: () => void; ms: number }) => () => void }): ProductMemoryTelemetry {
   const cadenceMs = Math.max(60_000, intervalMs);
   const growth = createMemoryGrowthDetector({ now }, { maxSamples: Math.min(64, Math.ceil(60 * 60_000 / cadenceMs) + 2), maxGapMs: cadenceMs * 2 });
   let disposed = false;
@@ -84,7 +84,7 @@ export function startProductMemoryTelemetry({ monitor, tracker, readConsent, des
     }).finally(() => { pending = undefined; });
     return pending;
   }
-  const cancel = schedule(() => { void tick(); }, cadenceMs);
+  const cancel = schedule({ tick: () => { void tick(); }, ms: cadenceMs });
   return {
     tick,
     dispose() {

@@ -51,7 +51,7 @@ interface SiteEntry {
 
 /** {@link createSiteSupervisor}'s dependencies. */
 interface SiteSupervisorDeps<E extends SiteEntry> {
-  onUnexpectedExit: (siteDir: string, exit: ServerExit, entry: E) => void;
+  onUnexpectedExit: (required: { siteDir: string; exit: ServerExit; entry: E }) => void;
 }
 
 /** What {@link createSiteSupervisor} returns: `Map<siteDir, E>`'s surface plus {@link lastExitOf}. */
@@ -99,7 +99,7 @@ function createSiteSupervisor<E extends SiteEntry>(deps: SiteSupervisorDeps<E>):
     if (live.get(siteDir) !== entry) return;
     live.delete(siteDir);
     exits.set(siteDir, exit);
-    deps.onUnexpectedExit(siteDir, exit, entry);
+    deps.onUnexpectedExit({ siteDir, exit, entry });
   }
 
   return {

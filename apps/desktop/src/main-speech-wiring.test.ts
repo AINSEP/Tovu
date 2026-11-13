@@ -32,7 +32,7 @@ const source = fs.readFileSync(MAIN_PATH, "utf8");
 test("main.ts calls registerSpeechIpc with the real ipcMain and the shell-page sender check", () => {
   // The real ipcMain, the shell-page sender check, and no injected `port` — a port here would
   // replace the real recognizer. `window-navigation-policy.test.ts` pins what `isShellPage` checks.
-  assert.match(source, /registerSpeechIpc\(\s*\{\s*ipcMain,\s*isTrustedSender: isShellPage\s*\}\s*\)/);
+  assert.match(source, /registerSpeechIpc\(\s*\{\s*ipcMain,\s*isTrustedSender: \(raw\) => isShellPage\(\{ raw \}\)\s*\}\s*\)/);
 });
 
 // `createWindow` hands `SPEECH_PRELOAD_PATH` to `src/main/windows/app-window.ts`, whose test pins that

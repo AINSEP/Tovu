@@ -166,7 +166,7 @@ function isUsableRow(row: unknown): boolean {
  * @complexity O(n) in file size.
  */
 function readRegistryFile(filePath: string): RegistryFileRead {
-  const read = readJsonFile(filePath);
+  const read = readJsonFile({ filePath });
   if (read.state !== "ok") return read.state === "missing" ? { state: "missing" } : { state: "unreadable" };
   const sites = (read.value as { sites?: unknown } | null)?.sites;
   if (!Array.isArray(sites)) return { state: "unreadable" };
@@ -250,7 +250,7 @@ const REGISTRY_QUARANTINE_NOTICE: QuarantineNotice = {
  * @complexity O(n) in row count.
  */
 function writeRegistry(filePath: string, state: WritableSiteProcessRegistry): void {
-  writeJsonFileAtomic(filePath, state);
+  writeJsonFileAtomic({ filePath, value: state });
 }
 
 /**
@@ -269,7 +269,7 @@ function readOwnRowsForUpdate(filePath: string, quarantine: typeof quarantineUnr
   const read = readRegistryFile(filePath);
   if (read.state === "ok") return read.sites;
   if (read.state === "missing") return [];
-  return quarantine(filePath, REGISTRY_QUARANTINE_NOTICE) ? [] : null;
+  return quarantine({ filePath, notice: REGISTRY_QUARANTINE_NOTICE }) ? [] : null;
 }
 
 /** {@link recordSiteOpened}'s own options. */
@@ -586,7 +586,7 @@ async function reconcileInstanceFile(file: InstanceFile): Promise<SiteProcessRow
   const ownerGone = !isProcessAlive(file.ownerPid);
   const read = readRegistryFile(file.filePath);
   if (read.state === "unreadable") {
-    if (ownerGone) quarantineUnreadableFile(file.filePath, REGISTRY_QUARANTINE_NOTICE);
+    if (ownerGone) quarantineUnreadableFile({ filePath: file.filePath, notice: REGISTRY_QUARANTINE_NOTICE });
     else console.error(`tovu desktop: site-process registry file ${file.filePath} is unreadable; its owner (pid ${file.ownerPid}) is still running, so it is left untouched.`);
     return [];
   }
@@ -595,7 +595,7 @@ async function reconcileInstanceFile(file: InstanceFile): Promise<SiteProcessRow
     // A dangling link still owns a directory entry; Node 24.2's rmSync leaves it behind.
     if (fs.lstatSync(file.filePath, { throwIfNoEntry: false })?.isSymbolicLink()) fs.unlinkSync(file.filePath);
     else fs.rmSync(file.filePath, { force: true });
-    fs.rmSync(tempPathFor(file.filePath, file.ownerPid), { force: true });
+    fs.rmSync(tempPathFor({ filePath: file.filePath }, { pid: file.ownerPid }), { force: true });
   }
   return reconciled;
 }
@@ -609,7 +609,7 @@ async function reconcileInstanceFile(file: InstanceFile): Promise<SiteProcessRow
 async function reconcileLegacyFile(legacyPath: string): Promise<SiteProcessRow[]> {
   const read = readRegistryFile(legacyPath);
   if (read.state === "unreadable") {
-    quarantineUnreadableFile(legacyPath, REGISTRY_QUARANTINE_NOTICE);
+    quarantineUnreadableFile({ filePath: legacyPath, notice: REGISTRY_QUARANTINE_NOTICE });
     return [];
   }
   return read.state === "ok" ? reconcileRows(read.sites) : [];

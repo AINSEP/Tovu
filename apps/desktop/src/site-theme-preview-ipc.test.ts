@@ -10,7 +10,7 @@ test('IPC claims are scoped to a trusted sender and tab; closing tabs or destroy
   let destroyed = () => {};
   const dispose = registerSiteThemePreviewIpc({
     ipcMain: { handle: (channel, listener) => { handlers.set(channel, listener); }, removeHandler: (channel) => { removed.push(channel); } },
-    allowed: (source) => source === sender,
+    allowed: ({ sender: source }) => source === sender,
     subscriptions: { watch: ({ siteDir, listener }) => { claimed++; listener({ siteDir, revision: 'one' }); return () => { cleaned++; }; } },
   });
   const watch = handlers.get(channels.watch)!;
@@ -53,7 +53,7 @@ test('IPC ignores untrusted, destroyed or malformed claims and never pushes to a
   const stranger = { ...sender, id: 2 };
   registerSiteThemePreviewIpc({
     ipcMain: { handle: (channel, listener) => { handlers.set(channel, listener); }, removeHandler: () => {} },
-    allowed: (source) => source === sender,
+    allowed: ({ sender: source }) => source === sender,
     subscriptions: { watch: ({ listener }) => { claimed++; push = listener; return () => {}; } },
   });
   const watch = handlers.get(channels.watch)!, unwatch = handlers.get(channels.unwatch)!;

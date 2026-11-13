@@ -85,7 +85,7 @@ export interface ProductTelemetryBootArgs {
   windows: { getFocusedWindow(): unknown };
   preferencePath: string;
   /** The shell-page predicate speech uses; product IPC narrows it to `file:` pages. */
-  isShellPage: (url: string) => boolean;
+  isShellPage: (required: { url: string }) => boolean;
   monitor: Parameters<typeof startProductMemoryTelemetry>[0]["monitor"];
   state: DesktopProductState;
   /** Arms the first-run dialog; called only when product telemetry booted with a launch config. */
@@ -114,22 +114,22 @@ function wireProcessReports({ app, ipcMain, isShellPage, state }: ProductTelemet
   state.disposers.push(installErrorReporting({ tracker: state.product.tracker, processRole: "desktop-main" }));
   // Speech's shared predicate also admits supervised admin origins; product IPC is shell-only.
   state.disposers.push(registerIpc({ ipcMain,
-    isShellPage: url => isShellPage(url) && url.startsWith("file:"), tracker: state.product.tracker }));
+    isShellPage: ({ url }) => isShellPage({ url }) && url.startsWith("file:"), tracker: state.product.tracker }));
   app.on("render-process-gone", (_event, _contents, details) => reportDesktopProcessGone({ tracker: state.product.tracker, type: "renderer", reason: details.reason }));
   app.on("child-process-gone", (_event, details) => reportDesktopProcessGone({ tracker: state.product.tracker, type: details.type, reason: details.reason }));
 }
 
 /** Memory observations, sampled only while an app window is focused. */
-function startMemorySampling(args: ProductTelemetryBootArgs, readConsent: ReturnType<typeof createProductConsentReader>, {
+function startMemorySampling({ args, readConsent }: { args: ProductTelemetryBootArgs; readConsent: ReturnType<typeof createProductConsentReader> }, {
   startMemory = startProductMemoryTelemetry,
   schedule = startVisibleInterval,
-}: ProductTelemetryBootOptions): void {
+}: ProductTelemetryBootOptions = {}): void {
   const { app, processInfo, webContents, windows, monitor, state } = args;
   const visibility = focusVisibility({ app, windows });
   const memory = startMemory({ monitor, tracker: state.product.tracker, readConsent,
     desktopPid: processInfo.pid, rendererPids: () => new Set(webContents.getAllWebContents().map(contents => contents.getOSProcessId())),
     heapUsedBytes: () => processInfo.memoryUsage().heapUsed, uptime: () => processInfo.uptime(),
-  }, { schedule: (tick, ms) => schedule(tick, ms, visibility) });
+  }, { schedule: ({ tick, ms }) => schedule(tick, ms, visibility) });
   state.disposers.push(memory.dispose);
 }
 
@@ -150,7 +150,7 @@ export async function initializeDesktopProductTelemetry(args: ProductTelemetryBo
     launchMode: desktopLaunchMode({ argv: processInfo.argv }) });
   wireProcessReports(args, options);
   if (!state.product.launch) return;
-  startMemorySampling(args, readConsent, options);
+  startMemorySampling({ args, readConsent }, options);
   armConsent();
 }
 
@@ -194,8 +194,8 @@ export function armFirstProductConsent<W extends ConsentWindow>({ app, dialog, m
       app.off("browser-window-created", onWindow);
       void offerProductTelemetryConsent({ active: Boolean(state.product.launch),
         preference: readSharing({ preferencePath }),
-        show: options => dialog.showMessageBox(window, options),
-        save: patch => {
+        show: ({ options }) => dialog.showMessageBox(window, options),
+        save: ({ patch }) => {
           const saved = writeSharing({ preferencePath, patch });
           state.product.consentChanged(saved);
           refreshProductMenu({ menu, preferencePath }, { readSharing });

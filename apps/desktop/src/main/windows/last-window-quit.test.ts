@@ -54,13 +54,13 @@ function harness({ servers = [{}], platform = "darwin" }: { servers?: { external
     openServers: () => servers,
     platform,
     locale: () => "en-US",
-    showMessageBox: (parent, options) => {
+    showMessageBox: ({ window: parent, options }) => {
       shown.push({ parent, options });
       return new Promise((resolve, reject) => answers.push({ resolve, reject }));
     },
     quit: () => { quits += 1; },
     keepSitesRunning: () => { kept += 1; },
-    logError: (message) => errors.push(message),
+    logError: ({ message }) => errors.push(message),
   } });
   return { prompt, shown, answers, errors, quits: () => quits, kept: () => kept };
 }
