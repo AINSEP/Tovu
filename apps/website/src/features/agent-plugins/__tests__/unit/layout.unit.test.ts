@@ -95,7 +95,7 @@ test("pluginDataDir joins the plugin id under this workspace's own data root", (
 test("pluginDataDir rejects a plugin id that isn't a valid Agent Plugin name", () => {
   const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ cwd: "/srv/tovu-site", env: {} }) }, { env: {} });
   const ws = layout.forWorkspace(WORKSPACE_ID);
-  assert.throws(() => ws.pluginDataDir("../escape"));
+  assert.throws(() => ws.pluginDataDir("../escape"), { name: "Error", message: "pluginDataDir: '../escape' is not a valid Agent Plugin id" });
 });
 
 test("forWorkspace rejects a workspace id that could escape its own path segment", () => {

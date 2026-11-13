@@ -1,13 +1,16 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 /** Tovu binding for @jini-ai/cms/routing. One instance preserves the existing process-wide
  * registration lifecycle; the current publication gate remains the sole visibility owner. */
 import { createRouting } from '@jini-ai/cms/routing';
 import { currentIso, isLiveAt } from "#src/contracts/core/scheduled-publish";
 
+const consoleLogger = createConsoleLogger({ prefix: "" });
+
 const routing = createRouting({ ports: {
   isLive: ({ post }) => isLiveAt(post, currentIso()),
   reportPhaseError: ({ message, error }) => {
-    // eslint-disable-next-line no-console -- preserve routing's existing operator-facing fault channel.
-    console.error(message, error);
+    // preserve routing's existing operator-facing fault channel.
+    consoleLogger.error({ message }, { error });
   },
 } });
 

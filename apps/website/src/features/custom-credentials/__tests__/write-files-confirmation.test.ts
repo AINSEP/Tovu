@@ -281,7 +281,7 @@ test("insufficient permission is refused before any decrypt or network call", as
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  await assert.rejects(() => call(writeTool));
+  await assert.rejects(() => call(writeTool), { constructor: ToolInputError, name: "ToolInputError", message: "CUSTOM_CREDENTIALS_FORBIDDEN: principal 'principal-under-test' is not authorized for 'custom-credentials.write' (insufficient_permission)" });
   assert.equal(sealer.openCalls, 0);
   assert.equal(httpClient.calls.length, 0);
 });

@@ -1,4 +1,4 @@
-import { Liquid, Hash, type TagToken, type Context, type FS } from "liquidjs";
+import { Liquid, Hash, type Tag, type TagToken, type Context, type FS } from "liquidjs";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { DEFAULT_SITE_TIME_ZONE, normalizeTimeZone } from "@jini-ai/cms/widgets/date-label";
@@ -53,13 +53,11 @@ export const NO_ACCESS_FS: FS = {
 
 /** `{% render_block %}` — the seam back into Tovu's trusted component registry, registered on every engine. */
 const RENDER_BLOCK_TAG = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  parse(this: any, token: TagToken) {
-    this.hash = new Hash(token.args);
+  parse(this: Tag, token: TagToken) {
+    (this as Tag & { hash: Hash }).hash = new Hash(token.args);
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  *render(this: any, ctx: Context): Generator<unknown, string, unknown> {
-    const props = (yield this.hash.render(ctx)) as JsonObject;
+  *render(this: Tag, ctx: Context): Generator<unknown, string, unknown> {
+    const props = (yield (this as Tag & { hash: Hash }).hash.render(ctx)) as JsonObject;
     const siteCtx = ctx.getSync([RENDER_CTX_KEY]) as SiteRenderContext | undefined;
     if (!siteCtx) return `<!-- render_block: no site context -->`;
 

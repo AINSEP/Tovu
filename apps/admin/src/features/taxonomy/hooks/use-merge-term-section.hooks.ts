@@ -90,21 +90,24 @@ export function useMergeTermSection(
   // flip one again after the term-change effect below has already reset it.
   const activeTermIdRef = useRef(term.id);
   activeTermIdRef.current = term.id;
+  const resetPlan = planMutation.reset;
+  const resetConfirm = confirmMutation.reset;
+  const resetExecute = executeMutation.reset;
 
   // Same deps as the pre-migration effect ([term.id]) — the three mutation objects are
   // intentionally excluded, same reasoning as `use-term-detail-panel.hooks.ts`'s identical effect.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mutation objects intentionally excluded — same reasoning as use-term-detail-panel.hooks.ts's identical effect.
   useEffect(() => {
+    if (activeTermIdRef.current !== term.id) return;
     setIntoTermId("");
     setStep("idle");
     setPlan(null);
     setConfirmationToken(null);
     setBusy(false);
     setError(null);
-    planMutation.reset();
-    confirmMutation.reset();
-    executeMutation.reset();
-  }, [term.id]);
+    resetPlan();
+    resetConfirm();
+    resetExecute();
+  }, [term.id, resetPlan, resetConfirm, resetExecute]);
 
   async function startPlan() {
     if (!intoTermId) return;

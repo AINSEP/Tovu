@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // The shared DEFAULT translator (`lib/api.ts`), not `../rules`'s screen-level override — that
 // override's `FORBIDDEN` copy names "the AI assistant's settings" specifically, which would be a
@@ -87,9 +87,9 @@ export function useAssistantDaemonRestart({
     }
   }
 
+  const initialCheckStatus = useRef(checkStatus);
   useEffect(() => {
-    void checkStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void initialCheckStatus.current();
   }, []);
 
   async function restart() {

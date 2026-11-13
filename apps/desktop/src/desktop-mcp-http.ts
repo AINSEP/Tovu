@@ -1,5 +1,5 @@
 /** Electron-main adapter: Jini owns HTTP/SDK hosting, the desktop table owns tool behavior. */
-import type { McpHttpToolServerHandle } from '@jini-ai/mcp';
+import { createMcpHttpToolServerRuntime, startMcpHttpToolServer, type McpHttpToolServerHandle } from '@jini-ai/mcp';
 import { randomBytes } from 'node:crypto';
 import { assertLoopbackAdminUrl } from './desktop-auth.ts';
 import { createSitesMcpToolHost, type ToolContext } from './sites-mcp-tools.ts';
@@ -13,8 +13,7 @@ import { DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV, DESKTOP_MCP_HANDOFF_ENV, SI
 export async function startDesktopMcpHttp({ context }: { context: ToolContext },
   { warn }: { warn?: (message: string) => void } = {},
 ): Promise<McpHttpToolServerHandle & { env: Record<string, string> }> {
-  // Load inside the best-effort start: an unavailable package adapter degrades tools, not site boot.
-  const { startMcpHttpToolServer } = await import('@jini-ai/mcp');
+  // Keep listener startup best-effort: an unavailable tools host degrades tools, not site boot.
   const table = createSitesMcpToolHost({ context });
   const host = await startMcpHttpToolServer({ name: SITES_MCP_SERVER_ID, version: '1', tools: table.tools, resolveBaseUrl: () => '' }, { warn });
   return { ...host, env: { [DESKTOP_MCP_URL_ENV]: host.url, [DESKTOP_MCP_TOKEN_ENV]: host.token },
@@ -36,9 +35,9 @@ export function createDesktopMcpHttpRuntime({ context, warn }: { context: ToolCo
   const handoffToken = randomBytes(32).toString('hex');
   const disconnects = new Set<() => void>();
   let stopped = false;
-  // The package is loaded behind a best-effort boundary so missing runtime exports cannot refuse
-  // site boot during the preparation/release handoff. Jini owns listener retries once available.
-  const runtime = import('@jini-ai/mcp').then(({ createMcpHttpToolServerRuntime }) => createMcpHttpToolServerRuntime({
+  // The factory runs behind a best-effort boundary so startup errors do not refuse site boot
+  // during the preparation/release handoff. Jini owns listener retries once available.
+  const runtime = Promise.resolve().then(() => createMcpHttpToolServerRuntime({
     name: SITES_MCP_SERVER_ID, version: '1', tools: table.tools, resolveBaseUrl: () => '',
   }, { warn, ...(start ? { start: () => start({ context }, { warn }) } : {}) })).catch(() => {
     warn('tovu-desktop: desktop tools host unavailable for this application release.');

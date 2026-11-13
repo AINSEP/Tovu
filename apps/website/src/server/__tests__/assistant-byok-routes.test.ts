@@ -1270,7 +1270,7 @@ test(`${BYOK_TURN_PATH} spans: the browser disconnecting mid-turn ends the span 
   }).then((res) => res.text());
   await providerCalled;
   controller.abort();
-  await assert.rejects(pending);
+  await assert.rejects(pending, { constructor: DOMException, name: "AbortError", message: "This operation was aborted" });
 
   const run = await agentRunSpan();
   assert.equal(run.attributes["agent.run.status"], "canceled");

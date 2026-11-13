@@ -93,7 +93,7 @@ test("resolver output requires both bridge entries, preserving their command/arg
   for (const entries of [null, [], [site], [site, { ...desktop, env: {} }], [site, { ...desktop, args: [42] }]]) {
     assert.throws(() => parseJiniEntries({ stdout: JSON.stringify({ entries, desktopHttp: true }) }));
   }
-  assert.throws(() => parseJiniEntries({ stdout: "not json" }));
+  assert.throws(() => parseJiniEntries({ stdout: "not json" }), { name: "Error", message: "invalid packaged Jini entries: not json" });
 });
 
 test("packaged desktop smoke exercises authenticated HTTP without a launcher or keyring", () => {

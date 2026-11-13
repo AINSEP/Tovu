@@ -260,7 +260,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   }) as typeof process.once);
   t.mock.method(process, "exit", ((code: number) => { exitCode = code; }) as typeof process.exit);
   const logged: string[] = [];
-  t.mock.method(console, "log", (...args: unknown[]) => { logged.push(args.map(String).join(" ")); });
+  t.mock.method(console, "info", (...args: unknown[]) => { logged.push(args.map(String).join(" ")); });
   const errors: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { errors.push(args); });
   const stderr: string[] = [];

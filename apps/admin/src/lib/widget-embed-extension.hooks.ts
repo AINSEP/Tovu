@@ -216,7 +216,7 @@ function changeDialogController(
         const { widget: created } = await api.createWidget({ widgetType, title, config });
         changeInstance(created.id);
       } catch (e) {
-        // eslint-disable-next-line no-alert
+        // eslint-disable-next-line no-alert -- this controller has no other error surface for the failed create.
         window.alert(describeApiError(e, "failed to create widget"));
       }
     },

@@ -169,7 +169,9 @@ function validateSchemaVersion({ identity, schema }: { identity: ArchiveManifest
  * @returns A path/size/hash record, or throws SiteShareRefusal for malformed input.
  */
 export function requireArchiveFileRecord(required: { file: unknown }, _optional = {}): ArchiveFile {
-  const file = required.file as any;
-  if (typeof file?.path !== "string" || !Number.isSafeInteger(file.bytes) || file.bytes < 0 || !HASH.test(file.sha256)) invalid();
+  const file = required.file;
+  if (typeof file !== "object" || file === null || !("path" in file) || typeof file.path !== "string"
+    || !("bytes" in file) || typeof file.bytes !== "number" || !Number.isSafeInteger(file.bytes) || file.bytes < 0
+    || !("sha256" in file) || typeof file.sha256 !== "string" || !HASH.test(file.sha256)) invalid();
   return file as ArchiveFile;
 }

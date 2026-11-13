@@ -8,6 +8,7 @@ import test, { type TestContext } from "node:test";
 
 import {
   createTovuAgentPluginLifecycle,
+  PackagePathViolation,
   explicitRootAgentPluginActivations,
   resolveAgentPluginDeliveryMode,
   unboundSiteAgentPluginLayout,
@@ -173,7 +174,7 @@ test("a plugin without an overlay keeps the owner's prefix unchanged", async t =
 test("pure helpers delegate unchanged: entry paths, digest ledgers, archive cap and ranking", async t => {
   const { lifecycle } = await boundLifecycle(t);
   assert.equal(lifecycle.normalizePackageEntryPath("skills/notes/SKILL.md"), "skills/notes/SKILL.md");
-  assert.throws(() => lifecycle.normalizePackageEntryPath("../escape"));
+  assert.throws(() => lifecycle.normalizePackageEntryPath("../escape"), { name: "Error", message: "package entry path escapes the package root: '../escape'", constructor: PackagePathViolation });
   assert.ok(lifecycle.maxAgentPluginInstallArchiveBytes() > 0);
   assert.equal(lifecycle.normalizeBundledDigests("not a ledger").size, 0);
   assert.deepEqual(lifecycle.rankInstalledAgentPlugins("notes", [], 5), []);

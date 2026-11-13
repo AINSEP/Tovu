@@ -408,7 +408,7 @@ test("confirm: uninstalls — package root gone, activation record deleted, and 
     // memory, so it keeps answering until a restart — "uninstalled" alone would mislead.
     assert.equal(out.restartRequired, true);
     assert.match(out.note, /restart/i);
-    await assert.rejects(() => stat(installed.packageRoot));
+    await assert.rejects(() => stat(installed.packageRoot), { constructor: Error, name: "Error", code: "ENOENT", message: `ENOENT: no such file or directory, stat '${installed.packageRoot}'` });
 
     const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal("operator-plugin" in activations.plugins, false, "the activation record must be deleted, not tombstoned");

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ApiError } from "@/lib/api";
 import { emailApi, type EmailApi, type EmailTemplateDetail, type EmailTemplatePreview } from "../email-api";
@@ -79,13 +79,16 @@ export function useEmailTemplateEditor(
 
   // Seed the working copy once per loaded template (not on every save's fresh detail).
   const loadedId = detail?.id ?? null;
+  const seededId = useRef<string | null>(null);
   useEffect(() => {
-    if (!detail) return;
+    if (!detail) { seededId.current = null; return; }
+    if (seededId.current === loadedId) return;
+    seededId.current = loadedId;
     setHtml(detail.html);
     setName(detail.name);
     setValues(Object.fromEntries(detail.fields.map((field) => [field.name, field.sample ?? ""])));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the id on purpose (see above).
-  }, [loadedId]);
+    // Keyed on the id on purpose: a save's refreshed detail must not replace the working copy.
+  }, [detail, loadedId]);
 
   useEffect(() => {
     if (!loadedId) return undefined;

@@ -1,3 +1,4 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { startupSecretEnvironment } from "../boot/startup-secrets.js";
@@ -403,6 +404,8 @@ export { builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportO
 // redirects. `src/__tests__/no-first-party-require.boundary.test.ts` now forbids that pattern.
 import { exportSite } from "#src/features/site-export/index";
 import { createApp, siteAppBootWorkByDeps, startSettingsRegistration } from "./app.js";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * `TOVU_THEMES_DIR` env, then `<site>/themes` — the site's OWN themes root, and the only theme tree
@@ -1147,8 +1150,7 @@ async function composeSiteRouteDeps(
     // SQLite only: a Postgres/PGlite site never had chat rows in its content tables.
     if (store.storage.kind === "sqlite") {
       await warnOnOrphanedChatRows({ contentDb: kernel, contentDbPath: dbPath, chatDbPath }).catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error(`warnOnOrphanedChatRows failed at boot: ${(err as Error).message}`);
+        consoleLogger.error({ message: `warnOnOrphanedChatRows failed at boot: ${(err as Error).message}` });
       });
     }
   }
@@ -1294,8 +1296,7 @@ async function composeSiteRouteDeps(
   })
     .then(() => undefined)
     .catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error(`rebuildNavLocationBindings failed at boot: ${(err as Error).message}`);
+      consoleLogger.error({ message: `rebuildNavLocationBindings failed at boot: ${(err as Error).message}` });
     });
 
   // SPEC-011 (Newsletter, ADR-PIPE-011 T011/W-010): boot-time `declareDataModule()` invocation for
@@ -1313,8 +1314,7 @@ async function composeSiteRouteDeps(
     .then(() => ensureDefaultList({ deps: { listRepo: newsletterListRepo, clock, ids: idGen }, input: { workspaceId: workspaceId } }))
     .then(() => undefined)
     .catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error(`installNewsletterDataModule failed at boot: ${(err as Error).message}`);
+      consoleLogger.error({ message: `installNewsletterDataModule failed at boot: ${(err as Error).message}` });
     });
 
   /**
@@ -1330,8 +1330,7 @@ async function composeSiteRouteDeps(
   const commentsReady = newsletterReady
     .then(() => installCommentsDataModule({ db: kernel, dbPath }))
     .catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error(`installCommentsDataModule failed at boot: ${(err as Error).message}`);
+      consoleLogger.error({ message: `installCommentsDataModule failed at boot: ${(err as Error).message}` });
     });
 
   // ADR-027 §4 — the core "public" transform definition that lets the unauthenticated `/m/`
@@ -1354,8 +1353,7 @@ async function composeSiteRouteDeps(
       })
     )
     .catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error(`ensureCoreMediaTransform failed at boot: ${(err as Error).message}`);
+      consoleLogger.error({ message: `ensureCoreMediaTransform failed at boot: ${(err as Error).message}` });
     });
 
   // Fills in stock blob BYTES for `media`/`asset_blobs` rows this site inherited from
@@ -1378,8 +1376,7 @@ async function composeSiteRouteDeps(
     seedUploadsDir: builtInSeedUploadsDir(resolvedSiteBinding.name),
     blobStore,
   }).catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error(`hydrateBlobStoreFromSeed failed at boot: ${(err as Error).message}`);
+    consoleLogger.error({ message: `hydrateBlobStoreFromSeed failed at boot: ${(err as Error).message}` });
     return undefined;
   });
 
@@ -2823,13 +2820,11 @@ async function composeSiteRouteDeps(
     .then(() => adoptLegacyTrashedWidgets({ deps: buildWidgetsDeps(routeDeps), input: { workspaceId } }))
     .then(({ adopted }) => {
       for (const widget of adopted) {
-        // eslint-disable-next-line no-console
-        console.info(`[trash] moved legacy deleted widget '${widget.id}' ("${widget.title}") to the Trash`);
+        consoleLogger.info({ message: `[trash] moved legacy deleted widget '${widget.id}' ("${widget.title}") to the Trash` });
       }
     })
     .catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error(`adoptLegacyTrashedWidgets failed at boot: ${(err as Error).message}`);
+      consoleLogger.error({ message: `adoptLegacyTrashedWidgets failed at boot: ${(err as Error).message}` });
     });
 
   // Keep the boot-tail contract used by shutdown. Legacy credentials are folded once by 0012;

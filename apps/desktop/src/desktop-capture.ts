@@ -4,6 +4,7 @@
 import type { BrowserWindow, BrowserWindowConstructorOptions } from 'electron';
 import { createElectronRenderService, type ElectronBrowserWindowFactory, type ElectronWebContentsLike, type ElectronUrlCapturePoolPort } from '@jini-ai/desktop-host/electron';
 import { RenderServiceError } from '@jini-ai/desktop-host';
+import { startRenderBridge } from '@jini-ai/desktop-host/render-bridge';
 
 /** Native bindings only; Jini owns rendering, bounds, request policy and destruction.
  * @complexity O(1), apart from Electron's page work.
@@ -79,7 +80,6 @@ export async function startDesktopCaptureBridge({ createWindow, capturePool }: {
   createWindow: (options: BrowserWindowConstructorOptions) => BrowserWindow;
   capturePool: ElectronUrlCapturePoolPort;
 }, _options = {}) {
-  const { startRenderBridge } = await import('@jini-ai/desktop-host/render-bridge');
   const service = createElectronRenderService({ createBrowserWindow: desktopCaptureWindowFactory({ createWindow }), capturePool });
   return startRenderBridge({ capture: { async captureUrl(request, options) {
     const url = new URL(request.url);

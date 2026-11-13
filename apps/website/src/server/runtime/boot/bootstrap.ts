@@ -1,3 +1,4 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import path from "node:path";
 
 import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";
@@ -16,6 +17,8 @@ import { applyPendingAgentPluginTokens, listPendingAgentPluginTokenIds } from ".
 import { startPluginActivationPolling } from "../composition/plugin-activation-polling.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 
+const consoleLogger = createConsoleLogger({ prefix: "" });
+
 /**
  * @file ADR-046 Phase 3 (SPEC-031) — composes the boot modules `index.ts` runs through
  * `runBootLifecycle()` (ADR-046 Phase 2). Pulled out of `index.ts` so this composition logic is
@@ -32,10 +35,8 @@ import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsle
 
 const noop = async (): Promise<void> => {};
 
-/* eslint-disable no-console */
 /** Boot's plain log: token imports and the bundled-plugin warnings below. */
-const bootLog = { info: (message: string) => console.info(message), warn: (message: string) => console.warn(message) };
-/* eslint-enable no-console */
+const bootLog = { info: (message: string) => consoleLogger.info({ message }), warn: (message: string) => consoleLogger.warn({ message }) };
 
 /** One vendor, one switch (`provider-plugin-link.ts`): after seeding, each agent plugin that is a
  *  provider plugin's face follows that plugin's switch — so a face seeded inactive, or one whose mirror
@@ -47,8 +48,7 @@ async function syncProviderFacesAtBoot(deps: NewsletterRouteDeps): Promise<void>
       providerEnabled: async ({ pluginId }) => (await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId }))?.enabled === true,
     });
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.warn(`[bundled-agent-plugins] provider plugin faces could not be synced; the next start retries: ${error instanceof Error ? error.message : String(error)}`);
+    consoleLogger.warn({ message: `[bundled-agent-plugins] provider plugin faces could not be synced; the next start retries: ${error instanceof Error ? error.message : String(error)}` });
   }
 }
 
@@ -124,20 +124,15 @@ function logBundledPluginRetirements(
   // because an operator had turned it off.
   for (const retirement of retirements) {
     if (retirement.status === "failed") {
-      // eslint-disable-next-line no-console
-      console.warn(`[bundled-agent-plugins] retired '${retirement.pluginId}' could not be removed: ${retirement.reason}`);
+      consoleLogger.warn({ message: `[bundled-agent-plugins] retired '${retirement.pluginId}' could not be removed: ${retirement.reason}` });
     }
     if (retirement.status === "retired") {
-      // eslint-disable-next-line no-console
       // A parked plugin (formspree, 2026-11-10) retires into nothing; Jini reports its successor as "".
-      console.info(retirement.successorId === ""
+      consoleLogger.info({ message: retirement.successorId === ""
         ? `[bundled-agent-plugins] retired '${retirement.pluginId}' (no successor)`
-        : `[bundled-agent-plugins] retired '${retirement.pluginId}' (moved into '${retirement.successorId}'; successor: ${retirement.successor})`);
+        : `[bundled-agent-plugins] retired '${retirement.pluginId}' (moved into '${retirement.successorId}'; successor: ${retirement.successor})` });
       if (retirement.successor === "left-disabled-by-operator") {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[bundled-agent-plugins] '${retirement.pluginId}' was enabled but its successor '${retirement.successorId}' is turned off by an operator and was left off — turn it on in Agent Plugins to keep that capability`,
-        );
+        consoleLogger.warn({ message: `[bundled-agent-plugins] '${retirement.pluginId}' was enabled but its successor '${retirement.successorId}' is turned off by an operator and was left off — turn it on in Agent Plugins to keep that capability` });
       }
     }
   }
@@ -305,8 +300,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
         try {
           await deps.agentPluginLifecycle.reconcileAgentPluginUpdates({ workspaceId: deps.workspaceId });
         } catch (error) {
-          // eslint-disable-next-line no-console
-          console.error(`[agent-plugin-update-recovery] an interrupted Agent Plugin update could not be recovered; it is retried next boot: ${error instanceof Error ? error.message : String(error)}`);
+          consoleLogger.error({ message: `[agent-plugin-update-recovery] an interrupted Agent Plugin update could not be recovered; it is retried next boot: ${error instanceof Error ? error.message : String(error)}` });
           throw error;
         }
       },
@@ -334,8 +328,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
         });
         for (const outcome of result.outcomes) {
           if (outcome.status === "failed") {
-            // eslint-disable-next-line no-console
-            console.warn(`[bundled-agent-plugins] '${outcome.pluginId}' could not be seeded: ${outcome.reason}`);
+            consoleLogger.warn({ message: `[bundled-agent-plugins] '${outcome.pluginId}' could not be seeded: ${outcome.reason}` });
           }
         }
         if (result.ledgerFailure !== undefined) {
@@ -343,8 +336,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
           // What is lost is this boot's record of WHICH digest the build published, so a bundled
           // plugin that was upgraded in place falls back to being refused as ambiguous until a
           // later boot writes the ledger (`features/agent-plugins/bundled-digests.ts`).
-          // eslint-disable-next-line no-console
-          console.warn(`[bundled-agent-plugins] the bundled-digest ledger could not be written: ${result.ledgerFailure}`);
+          consoleLogger.warn({ message: `[bundled-agent-plugins] the bundled-digest ledger could not be written: ${result.ledgerFailure}` });
         }
         logBundledPluginRetirements({ retirements: result.retirements });
         await warnAboutMissingBundledPlugins(deps, { result });
@@ -389,7 +381,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
 export function logCriticalBootFailures(bootResult: BootResult): void {
   for (const module of bootResult.modules) {
     if (module.criticality === "critical" && module.lifecycle.status !== "ready") {
-      console.error(`[boot-lifecycle] critical module "${module.name}" (${module.owner}) is ${module.lifecycle.status}: ${module.lifecycle.reasonCode}`);
+      consoleLogger.error({ message: `[boot-lifecycle] critical module "${module.name}" (${module.owner}) is ${module.lifecycle.status}: ${module.lifecycle.reasonCode}` });
     }
   }
 }

@@ -65,7 +65,6 @@ export function useExternalMcpToolsModalEscape(onClose: () => void): ExternalMcp
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose]);
 
   return { dialogRef, closeRef };

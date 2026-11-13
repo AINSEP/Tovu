@@ -23,7 +23,7 @@ export interface SeaApi {
 /** Loads node:sea when running inside a single-executable build. */
 export function seaApi(): SeaApi | null {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- the optional SEA probe must stay synchronous and catch an unavailable module.
     const sea = require("node:sea") as SeaApi;
     return sea.isSea() ? sea : null;
   } catch {

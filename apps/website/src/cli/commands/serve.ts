@@ -1,3 +1,4 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { tidyImportDatabases } from "../../features/site-backup/import-database.js";
 import { reportSitesSyncWarning } from "../../platform/site-dir/sites-home.js";
 import { resolveSiteDatabasePaths } from "../../platform/site-dir/site-databases.js";
@@ -38,6 +39,8 @@ import { awaitSiteBootReadiness } from "../../server/runtime/boot/site-boot-read
 import { resolveBindHost, isLoopbackHost, DEFAULT_LOCAL_BIND_HOST } from "../../server/runtime/boot/bind-host.js";
 import { setReadinessSnapshot } from "../../server/runtime/lifecycle/readiness-state.js";
 import { registerAdminDevProxyUpgrade } from "../../server/inbound/admin-http/admin-dev-proxy.js";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file SPEC-003 C-002 (`CLI_SERVE`) — boot a site, compose its server and listen (W-002).
@@ -427,12 +430,10 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
       // secret in front of every consumer of it. Emitted only when explicitly asked for, and only
       // once the listener is bound, so a token can never outlive a boot that failed.
       if (input.emitBootToken === true) {
-        // eslint-disable-next-line no-console
-        console.log(`tovu serve: bootToken=${mintBootSessionToken()}`);
+        consoleLogger.info({ message: `tovu serve: bootToken=${mintBootSessionToken()}` });
       }
       // api.spec.md §5: "one startup line including: dir, resolved port, schemaVersion, workspace id".
-      // eslint-disable-next-line no-console
-      console.log(`tovu serve: dir=${target} port=${port} schemaVersion=${runtime.index} workspaceId=${bootResult.workspaceId}`);
+      consoleLogger.info({ message: `tovu serve: dir=${target} port=${port} schemaVersion=${runtime.index} workspaceId=${bootResult.workspaceId}` });
       // AFTER the documented startup line, same ordering reason as the boot token above — a parser
       // treating that line as the ready signal must see it exactly as documented, unwidened by a
       // second line ahead of it. LAN-bind plan (2026-09-23): this is the one place `--host`/

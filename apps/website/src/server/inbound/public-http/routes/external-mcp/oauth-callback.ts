@@ -1,3 +1,4 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import type { Express } from "express";
 import { clearedBrowserBindingCookie, readBrowserBinding, EXTERNAL_MCP_BROWSER_BINDING } from '#src/features/api-connections/browser-binding';
 
@@ -9,6 +10,8 @@ import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage, type OAuthCallbackFailureReason } from "../oauth/callback-page.js";
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH, externalMcpOAuthCallbackUrl } from "./oauth-callback-url.js";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file The PUBLIC external-MCP OAuth callback — a route that is not behind `requireAdminSession`
@@ -165,8 +168,7 @@ export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: Extern
       await notifyExternalMcpRosterChanged();
       res.status(200).type("html").send(renderOAuthCallbackPage({ ok: true, messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }));
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error(`external-mcp oauth callback failed: ${error instanceof Error ? error.message : String(error)}`);
+      consoleLogger.error({ message: `external-mcp oauth callback failed: ${error instanceof Error ? error.message : String(error)}` });
       res.status(400).type("html").send(
         renderOAuthCallbackPage({ ok: false, reason: classifyCallbackFailure(error), messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }),
       );

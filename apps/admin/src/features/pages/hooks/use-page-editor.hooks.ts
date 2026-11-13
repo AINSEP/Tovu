@@ -781,9 +781,12 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // The previous load effect ran only for the route, even when locale changed. Keep the draft
   // captured once per route; locale changes may refresh the loader without replacing typed text.
   // `port` is stable in production (`useWiredPageEditor` uses a module-level singleton).
-  // biome-ignore lint/correctness/useExhaustiveDependencies: initial captures locale; a hydrated route retains its draft.
+  // Initial loading captures locale; a hydrated route retains its draft.
+  const loadInputs = useRef({ navigate, t, locale });
+  loadInputs.current = { navigate, t, locale };
   useEffect(() => {
     let cancelled = false;
+    const { navigate, t, locale } = loadInputs.current;
     // Loaded together, same reasoning as `usePostEditor`'s identical `Promise.all` — the picker
     // needs `activeThemeTemplates` in hand before it can render anything meaningful, and a fast
     // page-load racing a slow presentation-settings load would otherwise flash an empty picker.
@@ -811,7 +814,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     return () => {
       cancelled = true;
     };
-  }, [routeSlug, port, initial]);
+  }, [routeSlug, initial]);
 
   // HTML tab pretty-printing (owner-reported regression, 2026-08-11 — verified nothing formatted this
   // view before either; see `lib/prettify-html.ts`'s file header). `draftHtml` is a LOCAL, display-only

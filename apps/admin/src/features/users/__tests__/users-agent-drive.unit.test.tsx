@@ -156,7 +156,7 @@ describe("driving the new-user form through page.* verbs", () => {
 
     await expect(
       executePageCapability({ driver, capabilityId: "page.fill", input: { handle: "users-new-password", text: "hunter2" } }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(new Error('no element published as "users-new-password" on this page'));
   });
 });
 
@@ -308,10 +308,10 @@ describe("account-management controls are agent-drivable, like the rest of the p
     expect(password).toHaveAttribute("data-agent-private");
     expect(retype).toHaveAttribute("data-agent-private");
     for (const handle of ["users-reset-password", "users-reset-password-retype"]) {
-      await expect(executePageCapability({ driver, capabilityId: "page.fill", input: { handle, text: "secret123" } })).rejects.toThrow();
+      await expect(executePageCapability({ driver, capabilityId: "page.fill", input: { handle, text: "secret123" } })).rejects.toThrow(new Error(`no element published as "${handle}" on this page`));
     }
     for (const handle of ["users-reset-password-reveal", "users-reset-password-retype-reveal"]) {
-      await expect(executePageCapability({ driver, capabilityId: "page.click", input: { handle } })).rejects.toThrow();
+      await expect(executePageCapability({ driver, capabilityId: "page.click", input: { handle } })).rejects.toThrow(new Error(`no element published as "${handle}" on this page`));
     }
     fireEvent.click(screen.getByRole("button", { name: "Show New password" }));
     fireEvent.click(screen.getByRole("button", { name: "Show Confirm new password" }));

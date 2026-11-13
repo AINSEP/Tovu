@@ -119,8 +119,7 @@ function validateThemeName(newName: string): string {
   if (name.length > MAX_THEME_NAME_LENGTH) {
     throw new DuplicateThemeError("INVALID_NAME", `newName must be at most ${MAX_THEME_NAME_LENGTH} characters`);
   }
-  // eslint-disable-next-line no-control-regex
-  if (/[\u0000-\u001f\u007f]/.test(name)) throw new DuplicateThemeError("INVALID_NAME", "newName must not contain control characters");
+  if ([...name].some(character => character.charCodeAt(0) < 0x20 || character.charCodeAt(0) === 0x7f)) throw new DuplicateThemeError("INVALID_NAME", "newName must not contain control characters");
   return name;
 }
 

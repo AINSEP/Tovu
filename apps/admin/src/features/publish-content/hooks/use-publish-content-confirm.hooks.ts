@@ -565,8 +565,11 @@ export function usePublishContentConfirm(props: {
   const [destination, setDestination] = useState<AdminPublishDestinationView | null>(null);
   const [destinationLoaded, setDestinationLoaded] = useState(false);
   const [destinationError, setDestinationError] = useState<string | null>(null);
+  const peerLoadTranslator = useRef(t);
+  peerLoadTranslator.current = t;
 
   useEffect(() => {
+    const t = peerLoadTranslator.current;
     let cancelled = false;
     const readDestination = async (_required: Record<string, never>, _options: Record<string, never> = {}) => {
       try {
@@ -610,7 +613,6 @@ export function usePublishContentConfirm(props: {
     // `t` is read only for a fallback string and is deliberately NOT a dependency: a caller whose
     // translator is a fresh closure each render would otherwise refetch the peer list on every
     // render. The worst case is a fallback sentence in a stale locale.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [port]);
 
   const connectOffer = publishConnectOffer({
@@ -975,6 +977,10 @@ export function usePublishContentConfirm(props: {
   const criteriaAppliedRef = useRef(false);
   const criteriaSelectionRef = useRef<CriteriaSelection | null>(null);
   const criteriaAwaitingReplanRef = useRef(false);
+  const criteriaInputs = useRef({ criteria: props.criteria, applyOverwriteKeys });
+  criteriaInputs.current = { criteria: props.criteria, applyOverwriteKeys };
+  const planReportInputs = useRef({ onPlanned: props.onPlanned, peers, selectedPeerId });
+  planReportInputs.current = { onPlanned: props.onPlanned, peers, selectedPeerId };
 
   useEffect(() => {
     if (props.criteria === undefined || criteriaAutoPlanRef.current) return;
@@ -984,9 +990,10 @@ export function usePublishContentConfirm(props: {
   }, [props.criteria, selectedPeerId, phase, requestPlan]);
 
   useEffect(() => {
-    if (props.criteria === undefined || criteriaAppliedRef.current || phase.kind !== "planned") return;
+    const { criteria, applyOverwriteKeys } = criteriaInputs.current;
+    if (criteria === undefined || criteriaAppliedRef.current || phase.kind !== "planned") return;
     criteriaAppliedRef.current = true;
-    const sel = applyPublishCriteria(toPublishReportRows(phase.plan.details), props.criteria);
+    const sel = applyPublishCriteria(toPublishReportRows(phase.plan.details), criteria);
     criteriaSelectionRef.current = sel;
     setDeselectedKeys(sel.deselectedKeys);
     if (sel.overwriteKeys.size > 0) {
@@ -997,12 +1004,12 @@ export function usePublishContentConfirm(props: {
     // where `phase` FIRST becomes "planned" (so `applyOverwriteKeys`'s own `phase.kind==="planned"`
     // guard is current, not stale — see this block's own header), and it self-guards with the ref
     // against ever running a second time regardless of what else changes identity around it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
   useEffect(() => {
+    const { onPlanned, peers, selectedPeerId } = planReportInputs.current;
     const sel = criteriaSelectionRef.current;
-    if (sel === null || phase.kind !== "planned" || props.onPlanned === undefined) return;
+    if (sel === null || phase.kind !== "planned" || onPlanned === undefined) return;
     if (criteriaAwaitingReplanRef.current) {
       // The real (not stale-closure) current value — see this file's header on why `requestPlan`
       // can't read `phase` this way but a ref always can.
@@ -1011,8 +1018,7 @@ export function usePublishContentConfirm(props: {
     }
     criteriaSelectionRef.current = null;
     const siteLabel = peers.find((peer) => peer.id === selectedPeerId)?.label ?? null;
-    props.onPlanned(buildCriteriaPublishResult(rows, sel, siteLabel));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    onPlanned(buildCriteriaPublishResult(rows, sel, siteLabel));
   }, [phase, rows]);
 
   const { overwriteWarning, overwriteUnavailable } = publishOverwriteNotices({

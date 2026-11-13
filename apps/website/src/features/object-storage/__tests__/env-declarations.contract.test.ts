@@ -39,5 +39,5 @@ test("unreadable declarations are synchronous errors", t => {
   const sourceRoot = sources(t, [[entry]]);
   const file = path.join(sourceRoot, "example-0", "tovu-object-stores.json");
   rmSync(file); mkdirSync(file);
-  assert.throws(() => readBundledObjectStoreEnvDeclarations({ sourceRoot }));
+  assert.throws(() => readBundledObjectStoreEnvDeclarations({ sourceRoot }), { constructor: Error, name: "Error", code: "EISDIR", message: "EISDIR: illegal operation on a directory, read" });
 });

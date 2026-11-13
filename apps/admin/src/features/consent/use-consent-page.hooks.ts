@@ -65,12 +65,17 @@ export function useConsentPage({ port, t }: { port: ConsentRevisionsPort; t: Tra
   const [publishedCount, setPublishedCount] = useState(0);
   const valueRef = useRef<ConsentSettingsView | null>(null);
   const autosave = useRef<ConsentAutosave | null>(null);
+  const currentLoadNonce = useRef(loadNonce);
+  currentLoadNonce.current = loadNonce;
+  const loadInputs = useRef({ t, delayMs, timers });
+  loadInputs.current = { t, delayMs, timers };
 
   useEffect(() => {
+    const { t, delayMs, timers } = loadInputs.current;
     let alive = true;
     setLoadError(null);
     port.get().then(loaded => {
-      if (!alive) return;
+      if (!alive || currentLoadNonce.current !== loadNonce) return;
       const draftId = loaded.draft?.id ?? null;
       valueRef.current = loaded.draft?.config ?? loaded.effective;
       setSnapshot(loaded);
@@ -88,9 +93,9 @@ export function useConsentPage({ port, t }: { port: ConsentRevisionsPort; t: Tra
         onConflict: () => setSaveState('conflict'),
         onError: ({ error }) => { setSaveState('error'); setSaveError(describeApiError(error, t("Couldn't save."))); },
       } }, consentAutosaveOptions({ delayMs, timers }));
-    }, error => { if (alive) setLoadError(describeApiError(error, t("Couldn't load cookie consent."))); });
+    }, error => { if (alive && currentLoadNonce.current === loadNonce) setLoadError(describeApiError(error, t("Couldn't load cookie consent."))); });
     return () => { alive = false; autosave.current?.stop(); };
-  }, [port, loadNonce]); // eslint-disable-line react-hooks/exhaustive-deps -- t/delay/timers are fixed per mount
+  }, [port, loadNonce]); // Reload restarts the load; t/delay/timers must not reset a draft.
 
   const hasUnpublished = heads.draftId !== null && heads.draftId !== heads.publishedId;
 
@@ -144,8 +149,11 @@ export interface ConsentPreviewState {
 export function useConsentPreview({ port, config, t }: { port: ConsentRevisionsPort; config: ConsentSettingsView | null; t: Translate }, { delayMs = 500 }: { delayMs?: number } = {}): ConsentPreviewState {
   const [state, setState] = useState<ConsentPreviewState>({ html: null, problems: [], warnings: [], error: null });
   const sequence = useRef(0);
+  const translator = useRef(t);
+  translator.current = t;
   useEffect(() => {
     if (!config) return undefined;
+    const t = translator.current;
     sequence.current += 1;
     const ticket = sequence.current;
     const timer = setTimeout(() => {
@@ -155,7 +163,7 @@ export function useConsentPreview({ port, config, t }: { port: ConsentRevisionsP
       );
     }, delayMs);
     return () => clearTimeout(timer);
-  }, [port, config, delayMs]); // eslint-disable-line react-hooks/exhaustive-deps -- t is fixed per mount
+  }, [port, config, delayMs]); // Translation changes do not restart the pending preview.
   return state;
 }
 
@@ -179,14 +187,19 @@ export function useConsentPreviewScale(_required: Record<string, never> = {}, _o
  * Reloads whenever `refresh` changes. */
 export function useConsentReadiness({ port, refresh, t }: { port: ConsentRevisionsPort; refresh: string; t: Translate }, _optional = {}): { readiness: ConsentReadiness | null; error: string | null } {
   const [state, setState] = useState<{ readiness: ConsentReadiness | null; error: string | null }>({ readiness: null, error: null });
+  const translator = useRef(t);
+  translator.current = t;
+  const currentRefresh = useRef(refresh);
+  currentRefresh.current = refresh;
   useEffect(() => {
+    const t = translator.current;
     let alive = true;
     port.readiness({}).then(
-      readiness => { if (alive) setState({ readiness, error: null }); },
-      error => { if (alive) setState({ readiness: null, error: describeApiError(error, t("Couldn't check readiness.")) }); },
+      readiness => { if (alive && currentRefresh.current === refresh) setState({ readiness, error: null }); },
+      error => { if (alive && currentRefresh.current === refresh) setState({ readiness: null, error: describeApiError(error, t("Couldn't check readiness.")) }); },
     );
     return () => { alive = false; };
-  }, [port, refresh]); // eslint-disable-line react-hooks/exhaustive-deps -- t is fixed per mount
+  }, [port, refresh]); // Refresh triggers the read; translation changes must not restart it.
   return state;
 }
 

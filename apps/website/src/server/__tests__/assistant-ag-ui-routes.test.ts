@@ -970,7 +970,7 @@ test("spans: an abort before the daemon run existed still ends its span as cance
   const fetchPromise = postAgUiRun(baseUrl, cookie, { signal: controller.signal });
   await startGate.arrived;
   controller.abort();
-  await assert.rejects(fetchPromise);
+  await assert.rejects(fetchPromise, { constructor: DOMException, name: "AbortError", message: "This operation was aborted" });
   await clientCloseGate.arrived;
   startGate.release();
 

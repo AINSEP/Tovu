@@ -33,6 +33,7 @@ import type { FederatedCallTarget } from "@jini-ai/mcp/federation";
 
 const WORKSPACE = "workspace-1";
 const SERVER = "higgs";
+const REAUTH_ERROR = { constructor: ExternalMcpReauthRequiredError, name: "ExternalMcpReauthRequiredError", message: '"Higgs" is disconnected: its authorization expired or was revoked. Ask the operator to reconnect it in Settings → External MCP. Do not retry this tool.' };
 const REDIRECT_URI = "https://tovu.example.com/api/mcp-servers/oauth/callback/higgs";
 
 const PROVIDER: OAuthProviderDescriptor = {
@@ -424,7 +425,7 @@ test("markNeedsReauth clears the token but PRESERVES the client secret sharing i
   await connect(service);
   clock.advance(60 * 60 * 1000);
 
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
 
   const row = await readRow(repo);
   assert.equal(row.oauthStatus, "needs_reauth");
@@ -446,9 +447,9 @@ test("needs_reauth is DURABLE — a second call does not re-probe the provider",
   await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
   clock.advance(60 * 60 * 1000);
 
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
   const callsAfterFirst = http.callCount();
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
 
   assert.equal(http.callCount(), callsAfterFirst, "a durable state must not be re-tested on every tool call");
 });
@@ -504,7 +505,7 @@ test("a needs_reauth connection is REPORTED at boot, not silently dropped", asyn
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
   await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
   clock.advance(60 * 60 * 1000);
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
 
   const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: service.tokenResolver }, WORKSPACE);
 
@@ -569,7 +570,7 @@ test("reportAuthFailure is idempotent against a connection already needs_reauth 
   });
   await connect(service);
   clock.advance(60 * 60 * 1000);
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
   const rowAfterFirstMark = await readRow(repo);
   assert.equal(rowAfterFirstMark.oauthStatus, "needs_reauth");
 
@@ -873,7 +874,7 @@ test("the connection gate refuses a needs_reauth connection with the terminal, m
   });
   await connect(service);
   clock.advance(60 * 60 * 1000);
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
   const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
   const call = await rosterCallTarget(repo, SERVER, "generate_image");
 
@@ -902,7 +903,7 @@ test("the gate still refuses a needs_reauth ROSTER connection with the unchanged
   });
   await connect(service);
   clock.advance(60 * 60 * 1000);
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
   const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
   const call = await rosterCallTarget(repo, SERVER, "generate_image");
 
@@ -933,7 +934,7 @@ test("the connection gate reads the ROW, so the daemon sees a state the web serv
 
   // The "web server" discovers the dead grant.
   clock.advance(60 * 60 * 1000);
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
 
   // The "daemon"'s gate, built before that happened, now refuses.
   await assert.rejects(() => daemonGate(SERVER, call), (error: unknown) => error instanceof ExternalMcpReauthRequiredError);

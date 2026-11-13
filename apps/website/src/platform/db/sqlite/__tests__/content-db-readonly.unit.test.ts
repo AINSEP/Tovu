@@ -142,7 +142,7 @@ test("openContentDbReadOnly: throws rather than creating a new file when the pat
   const scratch = tmpDir("content-db-readonly-missing-");
   const missingPath = path.join(scratch, "does-not-exist.db");
 
-  assert.throws(() => openContentDbReadOnly(missingPath));
+  assert.throws(() => openContentDbReadOnly(missingPath), { constructor: Database.SqliteError, name: "SqliteError", code: "SQLITE_CANTOPEN", message: "unable to open database file" });
   assert.equal(fs.existsSync(missingPath), false, "a read-only open must never create the file it was asked to read");
 
   fs.rmSync(scratch, { recursive: true, force: true });

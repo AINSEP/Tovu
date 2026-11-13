@@ -494,6 +494,10 @@ export function useVisitorCredentialForm({
   const { apiKey, baseUrl, protocol } = config;
   const storedKeyIsForOtherEndpoint = storedKeyIsForOtherEndpointRule(stored, baseUrl);
   const usableKey = hasUsableKey(apiKey, stored, baseUrl);
+  const discoveryConfig = useRef(config);
+  discoveryConfig.current = config;
+  const storedEndpointMismatch = useRef(storedKeyIsForOtherEndpoint);
+  storedEndpointMismatch.current = storedKeyIsForOtherEndpoint;
 
   /**
    * Discovery on load, for a key this browser does not have.
@@ -511,14 +515,14 @@ export function useVisitorCredentialForm({
    * flag: it also flips when "Save settings" re-points the stored row at the form's endpoint, and an
    * automatic probe at that moment would send the previous provider's key to the new one unasked.
    */
-  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on stored flag + endpoint only — see doc comment above; `config` as a whole would re-run on every model/max-tokens edit.
   useEffect(() => {
     // Missing optional discovery must not leave the form waiting for work it cannot start.
     const listModels = port.current.listModels?.bind(port.current);
-    if (!stored?.isSet || apiKey.trim() || storedKeyIsForOtherEndpoint || !listModels) return undefined;
+    const config = discoveryConfig.current;
+    if (!stored?.isSet || config.apiKey.trim() || storedEndpointMismatch.current || !listModels) return undefined;
     let cancelled = false;
     setDiscovery({ status: "loading" });
-    listModels({ ...config, apiKey: "" })
+    listModels({ ...config, apiKey: "", baseUrl, protocol })
       .then((models) => {
         if (cancelled) return;
         setDiscovery({ status: "ok", models });
@@ -576,7 +580,6 @@ export function useVisitorCredentialForm({
    * key for the first time and the only useful moment to look up its models is right after they
    * finish typing it. The debounce is what makes keying on the key affordable.
    */
-  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the credential itself (key+endpoint); `config` intentionally excluded so editing model/max-tokens doesn't re-trigger discovery.
   useEffect(() => {
     // The endpoint condition is the security gate above — NOT an optimization. Removing it
     // reintroduces the prefix-walk credential leak; read that comment before touching this line.
@@ -588,6 +591,7 @@ export function useVisitorCredentialForm({
     }
     let cancelled = false;
     setDiscovery({ status: "loading" });
+    const config = discoveryConfig.current;
     const timer = setTimeout(() => {
       listModels({ ...config, apiKey, baseUrl, protocol })
         // `cancelled` guards the classic out-of-order finish: a slow request for an earlier,

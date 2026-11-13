@@ -1,14 +1,16 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import * as forms from "@jini-ai/cms/forms";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { createSubmissionIpRetentionRepo } from "#src/features/forms/repo.sqlite";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 type SubmissionIpSweep = typeof import("@jini-ai/cms/forms").sweepExpiredSubmissionIps;
 
 /** Daily after the boot pass; the 90-day policy constant belongs solely to Jini. */
 export const SUBMISSION_IP_SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 function warn(error: unknown): void {
-  // eslint-disable-next-line no-console
-  console.warn(`[submission-ip-expiry-sweep] sweep failed: ${error instanceof Error ? error.message : String(error)}`);
+  consoleLogger.warn({ message: `[submission-ip-expiry-sweep] sweep failed: ${error instanceof Error ? error.message : String(error)}` });
 }
 
 /**

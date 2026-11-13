@@ -179,8 +179,7 @@ export function undeclaredFieldsIn({ html, declarations }: { html: string; decla
 function isActiveUrl({ value }: { value: string }, _options: Record<string, never> = {}): boolean {
   // Browsers drop ASCII tab/newline anywhere in a URL and leading C0 controls/space, so
   // `java\nscript:` is still script; `stripActiveHtml`'s own test only trims leading whitespace.
-  // eslint-disable-next-line no-control-regex
-  const normalized = value.replace(/[\u0000- ]/g, "");
+  const normalized = value.split("").filter(character => character.charCodeAt(0) > 0x20).join("");
   return ACTIVE_URL.test(normalized) || (/^data:/i.test(normalized) && !/^data:image\/[^;,]+[;,]/i.test(normalized));
 }
 
