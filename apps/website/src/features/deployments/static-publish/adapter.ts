@@ -484,7 +484,7 @@ async function publishAndMapOutcome(
     // until that plugin reports evidence or returns a deployment ID.
     input.onProgress?.({ progress: { phase: "uploading", deploymentCreated: "unknown" } });
     const result = await jiniTarget.publish(publishInput, publishOptions({ input, formDestination, readHeaders }));
-    if (result.status === "failed") return { ok: false, code: "PROVIDER_ERROR", message: result.statusMessage ?? `Publishing to ${input.config.target} failed. Check the provider dashboard before publishing again. Deployment ID: ${result.deploymentId ?? "unknown"}.` };
+    if (result.status === "failed") return { ok: false, code: "PROVIDER_ERROR", message: failedPublishMessage({ targetId: input.config.target, result }) };
     if (result.status !== "ready") {
       return buildPartialPublishOutcome({ targetId: input.config.target, result, basePath });
     }
@@ -493,6 +493,11 @@ async function publishAndMapOutcome(
     const message = err instanceof DeployError || err instanceof Error ? err.message : String(err);
     return { ok: false, code: "PROVIDER_ERROR", message };
   }
+}
+
+/** The provider's own failure text, else a plain fallback naming the target and deployment. */
+function failedPublishMessage({ targetId, result }: { targetId: string; result: { statusMessage?: string; deploymentId?: string } }, _options = {}): string {
+  return result.statusMessage ?? `Publishing to ${targetId} failed. Check the provider dashboard before publishing again. Deployment ID: ${result.deploymentId ?? "unknown"}.`;
 }
 
 /**
@@ -538,7 +543,7 @@ async function publishStaticSiteSteps(deps: StaticPublishDeps, input: StaticPubl
   if (!credentialResult.ok) {
     return credentialResult.outcome;
   }
-  if (input.domainApproval && input.domainApproval.credentialBinding !== createHash("sha256").update(JSON.stringify(toDeployTargetCredential(credentialResult.credential))).digest("hex")) {
+  if (credentialChangedSinceReview({ input, credential: credentialResult.credential })) {
     return { ok: false, code: "INVALID_CONFIG", message: "CREDENTIAL_CHANGED: The connection changed after domain review. Preview and confirm again before publishing." };
   }
 
@@ -556,16 +561,26 @@ async function publishStaticSiteSteps(deps: StaticPublishDeps, input: StaticPubl
   const forms = await prepareFormDestination({ deps, input });
   if (!forms.ok) return forms.outcome;
   const publishInput: DeployPublishInput = { files: filesForReceiver({ files, submitUrl: forms.submitUrl }), projectName: input.projectName };
-  // Report-only data: a catalog read failure must not stop a publish.
-  const hosts = await deps.pluginExportHosts?.().catch((error: unknown) => {
-    console.warn("[static-publish] Could not read plugin export hosts", describeErrorForLog({ err: error }));
-    return undefined;
-  });
+  const hosts = await readPluginExportHosts({ deps });
   const baseHeaders = deps.publicPageSecurityHeaders ?? (() => publicPageSecurityHeaders({}));
   const outcome = await publishAndMapOutcome({ jiniTarget: targetResult.target, publishInput, input, basePath: plan.basePath }, { formDestination: forms.hosting, readHeaders: () => hosts ? withDeclaredHosts({ headers: baseHeaders(), hosts }) : baseHeaders() });
   await saveReceiverKey({ outcome, save: forms.save });
   const reported = publishConsentWarning({ outcome, warning: exportResult.report.consentWarning });
   return finishPublishOutcome({ outcome: reported, credential: credentialResult.credential, target: plan.target });
+}
+
+/** A domain review binds the credential it saw; any other credential needs a fresh review. */
+function credentialChangedSinceReview({ input, credential }: { input: StaticPublishInput; credential: Parameters<typeof toDeployTargetCredential>[0] }, _options = {}): boolean {
+  return Boolean(input.domainApproval) && input.domainApproval?.credentialBinding !== createHash("sha256").update(JSON.stringify(toDeployTargetCredential(credential))).digest("hex");
+}
+
+/** Hosts the site's plugin exports declare, for the published security headers. */
+async function readPluginExportHosts({ deps }: { deps: StaticPublishDeps }, _options = {}) {
+  // Report-only data: a catalog read failure must not stop a publish.
+  return deps.pluginExportHosts?.().catch((error: unknown) => {
+    console.warn("[static-publish] Could not read plugin export hosts", describeErrorForLog({ err: error }));
+    return undefined;
+  });
 }
 
 /** Keep a successful publication's export warning in the result without changing its status. */

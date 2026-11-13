@@ -104,6 +104,16 @@ async function resolveExport(required: {
   const consentOff = required.deps.embedConsentOff?.() === true;
   collectScripts({ selected, mode: required.mode, head: required.head, consentOff });
   addHosts({ sets: required.hosts, definition: selected.definition });
+  return exportTemplate({ selected, config: required.config, deps: required.deps, host, consentOff });
+}
+
+/** The CMS-side template for one resolved occurrence: its contract fields, template file and props.
+ * @complexity O(1) plus one contained template read.
+ */
+async function exportTemplate(required: {
+  selected: SelectedPluginExport; config: Readonly<Record<string, unknown>>; deps: RuntimeDeps; host: Readonly<Record<string, unknown>>; consentOff: boolean;
+}, _options = {}): Promise<PluginExportTemplate> {
+  const { selected, consentOff, host } = required;
   return { plugin: selected.owner.id, component: selected.component, version: selected.definition.version,
     minVersion: selected.definition.minVersion, consent: selected.definition.consent, consentOff,
     frameHosts: selected.definition.externalHosts?.frame ?? [], scriptData: (selected.definition.scripts?.length ?? 0) > 0,
