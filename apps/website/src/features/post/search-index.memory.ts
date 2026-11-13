@@ -59,7 +59,7 @@ export class InMemoryPostSearchIndex implements PostSearchPort {
    * @overallScore 100
    */
   async search(required: PostSearchQuery): Promise<PostSearchHit[]> {
-    this.kernel ??= contentKernel(openContentDb(":memory:"));
+    this.kernel ??= contentKernel({ store: openContentDb(":memory:") });
     const kernel = this.kernel;
     const posts = await this.repo.list({ workspaceId: required.workspaceId });
     // One transaction for mirror + query: a concurrent search for another workspace cannot swap the

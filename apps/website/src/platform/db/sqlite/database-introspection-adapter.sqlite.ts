@@ -107,7 +107,7 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
   private readonly journalPath: string;
 
   constructor(deps: { db: ContentKernel | ContentDb; dbPath: string; journalPath?: string }) {
-    this.kernel = contentKernel(deps.db);
+    this.kernel = contentKernel({ store: deps.db });
     this.dbPath = deps.dbPath;
     // Overridable only for this adapter's own tests (a fixture journal with genuinely pending
     // entries) — every real composition root uses the default bundled path.
@@ -137,7 +137,7 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
     const siteMeta = this.readSiteMetaSnapshot();
     // One journal read serves both sides, so the applied identity and the fallback head agree.
     const journal = this.readJournal();
-    const runtime = await this.readAppliedSnapshot(journal);
+    const runtime = await this.readAppliedSnapshot({ journal });
 
     if (!runtime) {
       // No real applied identity to compare; the bundled identity cannot stand in for it.
@@ -228,8 +228,8 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
    * Returns `null` when the table is unreadable, empty, or its latest row's `created_at` matches no
    * entry in the bundled journal (a divergent-lineage case this adapter refuses to guess at, rather
    * than fabricating a snapshot). */
-  private async readAppliedSnapshot(journal: DrizzleJournal | null): Promise<SchemaSnapshot | null> {
-    if (this.kernel.dialect === "postgres") return this.readAppliedPostgresSnapshot(journal);
+  private async readAppliedSnapshot({ journal }: { journal: DrizzleJournal | null }): Promise<SchemaSnapshot | null> {
+    if (this.kernel.dialect === "postgres") return this.readAppliedPostgresSnapshot({ journal });
     if (!(await this.migrationsTableExists())) return null;
 
     let latest: { hash: string; created_at: number | string } | undefined;
@@ -250,7 +250,7 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
 
   /** Postgres/PGlite: the bundled journal's head once `0000_legacy_baseline` is in `tovu_migrations`
    * (the baseline is the whole frozen drizzle chain), else `null` (no ledger, or no baseline yet). */
-  private async readAppliedPostgresSnapshot(journal: DrizzleJournal | null): Promise<SchemaSnapshot | null> {
+  private async readAppliedPostgresSnapshot({ journal }: { journal: DrizzleJournal | null }): Promise<SchemaSnapshot | null> {
     if (!(await this.readLedgerIds()).has(LEGACY_BASELINE_ID)) return null;
     const head = journal?.entries.at(-1);
     return head ? { version: head.idx, tag: head.tag } : null;

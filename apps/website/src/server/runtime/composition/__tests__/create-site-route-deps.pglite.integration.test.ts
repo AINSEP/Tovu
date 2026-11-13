@@ -45,7 +45,7 @@ const savedSocketEnv = process.env[PG_SOCKET_ENV];
 before(async () => {
   parent = fs.mkdtempSync(path.join(os.tmpdir(), "r1f-pglite-site-"));
   siteDir = path.join(parent, "site");
-  socketDir = defaultPgliteSocketDir(path.join(siteDir, PGLITE_DATA_DIR_NAME));
+  socketDir = defaultPgliteSocketDir({ dataDir: path.join(siteDir, PGLITE_DATA_DIR_NAME) });
   socketPath = path.join(socketDir, PGLITE_SOCKET_FILE);
   process.env[PG_SOCKET_ENV] = socketPath;
   // `tovu init --storage pglite`: the data dir at head with the starter template, store closed.

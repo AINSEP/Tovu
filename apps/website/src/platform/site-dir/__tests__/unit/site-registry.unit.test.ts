@@ -123,7 +123,7 @@ test("createSite: the resulting content.db starts with only the Blog listing pag
   const { cwd } = mkSitesRoot();
   try {
     const result = await createSite({ name: "root-page-check" }, { cwd });
-    const db = openContentDbReadOnly(resolveSiteDatabasePaths({ dir: result.dir }).contentDbPath);
+    const db = openContentDbReadOnly({ filePath: resolveSiteDatabasePaths({ dir: result.dir }).contentDbPath });
     try {
       const rows = db.select().from(postsTable).all();
       assert.deepEqual(rows.map(({ id, kind, slug, templateChoice }) => ({ id, kind, slug, templateChoice })), [

@@ -162,8 +162,8 @@ describeEachDialect("SiteAssistantCredentialRepoPort", { tables: ["workspaces"],
 
 test("the vault CHECK constraint rejects a half-sealed row written outside this adapter", async () => {
   const db = openContentDb(":memory:");
-  await prepareVault(contentKernel(db));
-  await seedWorkspaces(contentKernel(db), [WORKSPACE]);
+  await prepareVault(contentKernel({ store: db }));
+  await seedWorkspaces(contentKernel({ store: db }), [WORKSPACE]);
   assert.throws(() => {
     db.$client
       .prepare(

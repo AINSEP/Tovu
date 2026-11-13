@@ -10,6 +10,6 @@ import { SqlPresentationSettingsRepo } from "./repo.js";
 export class SqlitePresentationSettingsRepo extends SqlPresentationSettingsRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }

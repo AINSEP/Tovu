@@ -45,7 +45,7 @@ test("a non-terminal migration_runs row (simulated crash mid-migration) is recon
     // pre-seed step runs BEFORE createSiteRouteDeps(), so it must create it too.
     const databaseJournalDbPath = defaultDatabaseJournalDbPath(dbPath);
     fs.mkdirSync(path.dirname(databaseJournalDbPath), { recursive: true });
-    const databaseJournalDb = openDatabaseJournalDb(databaseJournalDbPath);
+    const databaseJournalDb = openDatabaseJournalDb({ filePath: databaseJournalDbPath });
     const migrationRunsRepo = new SqliteMigrationRunsRepo({ db: databaseJournalDb, siteId: "workspace-local" });
     await migrationRunsRepo.insert({
       id: "run-crashed-1",
@@ -87,7 +87,7 @@ test("ADR-041/043/044/045 re-audit round 2 (codex finding R2-F2-BLOCK-NOT-ENFORC
   try {
     const databaseJournalDbPath = defaultDatabaseJournalDbPath(dbPath);
     fs.mkdirSync(path.dirname(databaseJournalDbPath), { recursive: true });
-    const databaseJournalDb = openDatabaseJournalDb(databaseJournalDbPath);
+    const databaseJournalDb = openDatabaseJournalDb({ filePath: databaseJournalDbPath });
     const migrationRunsRepo = new SqliteMigrationRunsRepo({ db: databaseJournalDb, siteId: "workspace-local" });
     await migrationRunsRepo.insert({
       id: "run-crashed-2",
@@ -170,7 +170,7 @@ test("round-5 re-audit (codex R5-F1-BLOCKED-RECOVERY-NOT-RESTART-SAFE / Fable R5
   try {
     const databaseJournalDbPath = defaultDatabaseJournalDbPath(dbPath);
     fs.mkdirSync(path.dirname(databaseJournalDbPath), { recursive: true });
-    const databaseJournalDb = openDatabaseJournalDb(databaseJournalDbPath);
+    const databaseJournalDb = openDatabaseJournalDb({ filePath: databaseJournalDbPath });
     const migrationRunsRepo = new SqliteMigrationRunsRepo({ db: databaseJournalDb, siteId: "workspace-local" });
     await migrationRunsRepo.insert({
       id: "run-crashed-restart-safe",
@@ -220,7 +220,7 @@ test("round-5/6 re-audit (codex R5-F1 / Fable R5-F2-BLOCK-HAS-NO-EXIT, then code
   try {
     const databaseJournalDbPath = defaultDatabaseJournalDbPath(dbPath);
     fs.mkdirSync(path.dirname(databaseJournalDbPath), { recursive: true });
-    const databaseJournalDb = openDatabaseJournalDb(databaseJournalDbPath);
+    const databaseJournalDb = openDatabaseJournalDb({ filePath: databaseJournalDbPath });
     const migrationRunsRepo = new SqliteMigrationRunsRepo({ db: databaseJournalDb, siteId: "workspace-local" });
     await migrationRunsRepo.insert({
       id: "run-crashed-restore-exit",

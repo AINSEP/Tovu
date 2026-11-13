@@ -74,7 +74,7 @@ for (const placement of ["inSite", "appData"] as const) {
     const bearer = "roundTripCredentialValue987654321";
     sourceDb.$client.prepare("UPDATE posts SET body_json=? WHERE id='post-0'").run(JSON.stringify({ text: "Authorization: Bearer " + bearer }));
     const keyring = new FixedSiteKeyKeyring("11".repeat(32)), sealer = new AesGcmSecretSealer(keyring);
-    const source = await createSavedKeysStore({ kernel: contentKernel(sourceDb), workspaceId, keyring, sealer });
+    const source = await createSavedKeysStore({ kernel: contentKernel({ store: sourceDb }), workspaceId, keyring, sealer });
     const put = async (store: typeof source, id: string, label: string, token: string) => store.vault.put({ workspaceId: store.workspaceId, id,
       kind: "vendor", ownerKey: "tovu", principalId: null, binding: null, provider: "hosting", label, isDefault: false, expectedRevision: null,
       meta: { credentialType: "vendor", worksFor: ["hosting"] }, payload: { token } });

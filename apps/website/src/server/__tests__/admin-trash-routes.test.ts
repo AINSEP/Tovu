@@ -188,10 +188,10 @@ function buildTrashHarness(): TrashHarness {
     .run(base.workspaceId, "ws", "ws", "2026-01-01T00:00:00.000Z");
 
   const registry = buildTrashRegistry();
-  const sqliteTrashDb = contentKernel(db);
+  const sqliteTrashDb = contentKernel({ store: db });
   const adapters = new Map<string, TrashAdapter>([
-    [POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel(client))],
-    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(contentKernel(client))],
+    [POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel({ store: client }))],
+    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(contentKernel({ store: client }))],
     // `moveToTrash` (`POST .../trash/items`) is exercised through the `form` entry — the one
     // registry-derived kind G1c registers.
     ...[...registry.values()].map(

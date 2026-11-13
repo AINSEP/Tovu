@@ -70,7 +70,7 @@ export interface VaultCredentialSnapshot {
 /** Catalog suffix of every sealed envelope column; shared with the key-minting gate's scan. */
 export const SEALED_COLUMN_SUFFIX = "sealed_ciphertext";
 /** Quad siblings for a catalog name, quoted verbatim by callers. */
-export function siblingColumns(column: string): { keyId: string; nonce: string; alg: string } {
+export function siblingColumns({ column }: { column: string }, _optional: Record<string, never> = {}): { keyId: string; nonce: string; alg: string } {
   const prefix = column.slice(0, -SEALED_COLUMN_SUFFIX.length);
   return { keyId: `${prefix}sealed_key_id`, nonce: `${prefix}sealed_nonce`, alg: `${prefix}sealed_alg` };
 }
@@ -127,13 +127,13 @@ function selectVaultAad({ deps, record }: { deps: VaultCredentialKeyDeps; record
 }
 /** Device codes still have a live owner. Other catalog columns remain visible but unclassified. */
 async function readOther({ deps, ref }: { deps: VaultCredentialKeyDeps; ref: DiscoveredSealedColumn }): Promise<VaultCredentialValue[]> {
-  const siblings = siblingColumns(ref.column);
-  const optional = (name: string) => ref.tableColumns.has(name) ? sql.id(name) : sql`NULL`;
+  const siblings = siblingColumns({ column: ref.column });
+  const optional = ({ name }: { name: string }, _optional: Record<string, never> = {}) => ref.tableColumns.has(name) ? sql.id(name) : sql`NULL`;
   const device = isDeviceCodeColumn({ ref });
   const workspaceColumn = device ? sql.id("workspace_id") : sql`NULL`;
   const serverColumn = device ? sql.id("server_id") : sql`NULL`;
   const rows = await deps.kernel.query<Record<string, unknown>>(sql`SELECT ${sql.id(ref.column)} AS ciphertext,
-    ${optional(siblings.keyId)} AS key_id, ${optional(siblings.nonce)} AS nonce, ${optional(siblings.alg)} AS alg,
+    ${optional({ name: siblings.keyId })} AS key_id, ${optional({ name: siblings.nonce })} AS nonce, ${optional({ name: siblings.alg })} AS alg,
     ${workspaceColumn} AS workspace_id,
     ${serverColumn} AS server_id FROM ${sql.id(ref.table)} WHERE ${sql.id(ref.column)} IS NOT NULL`);
   return rows.map(row => otherValue({ ref, siblings, row, identity: device ? deviceIdentity({ row }) : undefined }));
@@ -169,7 +169,7 @@ function otherValue({ ref, siblings, row, identity }: {
   return { ref, sealed, ciphertext: String(row.ciphertext),
     guard: Object.fromEntries([[ref.column, row.ciphertext], [siblings.keyId, row.key_id], [siblings.nonce, row.nonce], [siblings.alg, row.alg]]
       .filter(([column]) => ref.tableColumns.has(column as string))), ...(identity ? { device: identity } : {}),
-    aad: identity ? deviceAad(identity.workspaceId, identity.serverId) : undefined,
+    aad: identity ? deviceAad({ workspaceId: identity.workspaceId, serverId: identity.serverId }) : undefined,
     reason,
     entry: otherEntry({ ref, row, identity }) };
 }

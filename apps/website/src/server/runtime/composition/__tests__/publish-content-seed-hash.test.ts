@@ -42,7 +42,7 @@ async function hydrateLive(t: { after(fn: () => void): void }) {
   try {
     const page = seededPosts.find((post) => post.id === "post-themes");
     assert.ok(page, "the source seed contains post-themes");
-    await prepareContentStore(contentKernel(seedDb), { seed: {
+    await prepareContentStore(contentKernel({ store: seedDb }), { seed: {
       workspace: seededWorkspace, posts: [{ ...page, kind: "page" }], presentation: seededPresentation,
     } });
     await new SqliteMenuRepo(seedDb).save({

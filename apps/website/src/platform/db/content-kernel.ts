@@ -16,7 +16,7 @@ export type ContentKernel = StorageKernel<ContentDatabase>;
  * pass `ContentDb`). Told apart by `lockKey`, which only a kernel has (a Drizzle handle has a
  * `dialect` of its own, a better-sqlite3 client an `inTransaction` flag).
  */
-export function contentKernel(store: ContentKernel | SqliteConnectionSource): ContentKernel {
+export function contentKernel({ store }: { store: ContentKernel | SqliteConnectionSource }, _optional: Record<string, never> = {}): ContentKernel {
   return typeof (store as Partial<ContentKernel>).lockKey === "function"
     ? (store as ContentKernel)
     : sqliteKernel<ContentDatabase>(store as SqliteConnectionSource);

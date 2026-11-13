@@ -807,7 +807,7 @@ interface RaceRepos {
 async function makeSqliteRaceRepos(): Promise<RaceRepos> {
   const db = openContentDb(":memory:");
   await installNewsletterDataModule({
-    db: contentKernel((db as unknown as { $client: import("better-sqlite3").Database }).$client),
+    db: contentKernel({ store: (db as unknown as { $client: import("better-sqlite3").Database }).$client }),
     dbPath: ":memory:",
   });
   return { campaignRepo: new SqliteNewsletterCampaignRepo({ store: db }), sendRepo: new SqliteNewsletterSendRepo({ store: db }) };

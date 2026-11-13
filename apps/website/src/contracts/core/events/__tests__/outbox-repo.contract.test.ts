@@ -240,8 +240,8 @@ function runSettledRowSuite(label: string, makeOutbox: () => OutboxPort) {
 
 runContractSuite("memory", (options) => new InMemoryOutbox(options));
 
-runContractSuite("sqlite", (options) => new SqliteOutboxAdapter(openContentDb(":memory:"), options));
-runSettledRowSuite("sqlite", () => new SqliteOutboxAdapter(openContentDb(":memory:")));
+runContractSuite("sqlite", (options) => new SqliteOutboxAdapter({ store: openContentDb(":memory:") }, options));
+runSettledRowSuite("sqlite", () => new SqliteOutboxAdapter({ store: openContentDb(":memory:") }));
 
 // The one Kysely body on every dialect (storage plan §4): SQLite again through the neutral adapter, and PGlite.
 for (const each of eachDialect({ tables: ["outbox_events"], make: (kernel) => kernel })) {

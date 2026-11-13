@@ -336,7 +336,7 @@ export const TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z = {
  * `at` (`agent_tool_attempts.at`) — deliberately NOT `/_at$/` alone, which would miss the bare case,
  * and deliberately NOT a substring match, which would wrongly catch `from_path_at_capture` /
  * `to_path_at_capture` (point-in-time path snapshots, not timestamps of the row itself). */
-export function isTimestampColumnName(sqlColumnName: string): boolean {
+export function isTimestampColumnName({ sqlColumnName }: { sqlColumnName: string }, _optional: Record<string, never> = {}): boolean {
   return sqlColumnName === "at" || sqlColumnName.endsWith("_at");
 }
 
@@ -355,7 +355,7 @@ export function isTimestampColumnName(sqlColumnName: string): boolean {
 // JSON_TEXT_NOTE (apps/website/src/platform/db/migration/manifest.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /** Matches this schema's JSON-payload naming convention: SQL name ends `_json`. */
-export function isJsonColumnName(sqlColumnName: string): boolean {
+export function isJsonColumnName({ sqlColumnName }: { sqlColumnName: string }, _optional: Record<string, never> = {}): boolean {
   return sqlColumnName.endsWith("_json");
 }
 
@@ -453,7 +453,7 @@ export type SemanticColumnClass =
  * that registry's own doc for why that is a feature, not a bug: a schema change this manifest has not
  * been updated for must fail loudly here, not silently classify as "must be fine."
  */
-function classifyCoreIntegerColumn(key: string, col: SQLiteColumn): SemanticColumnClass {
+function classifyCoreIntegerColumn({ key, col }: { key: string; col: SQLiteColumn }, _optional: Record<string, never> = {}): SemanticColumnClass {
   const review = REVIEWED_INTEGER_ID_COLUMNS[key];
   if (review) return { kind: "reviewed-id", growthClass: review.growthClass, rationale: review.rationale };
   const isAutoIncrementPk = Boolean(col.primary) && Boolean((col as unknown as { autoIncrement?: boolean }).autoIncrement);
@@ -479,9 +479,9 @@ function classifyCoreIntegerColumn(key: string, col: SQLiteColumn): SemanticColu
  * also matching `_at`/`at` — not possible for any column in `schema.sqlite.ts` today (no name both ends
  * `_json`-or-registry AND `_at`), but the ordering documents the intended precedence regardless.
  */
-function classifyCoreTextColumn(key: string, col: SQLiteColumn): SemanticColumnClass {
-  if (isJsonColumnName(col.name) || REVIEWED_JSON_COLUMNS[key]) return { kind: "json-text" };
-  if (isTimestampColumnName(col.name)) return { kind: "utc-timestamp-text" };
+function classifyCoreTextColumn({ key, col }: { key: string; col: SQLiteColumn }, _optional: Record<string, never> = {}): SemanticColumnClass {
+  if (isJsonColumnName({ sqlColumnName: col.name }) || REVIEWED_JSON_COLUMNS[key]) return { kind: "json-text" };
+  if (isTimestampColumnName({ sqlColumnName: col.name })) return { kind: "utc-timestamp-text" };
   return { kind: "plain-text" };
 }
 
@@ -489,15 +489,15 @@ function classifyCoreTextColumn(key: string, col: SQLiteColumn): SemanticColumnC
  * Classifies one column of one CORE (schema.sqlite.ts) table. See `classifyCoreIntegerColumn` and
  * `classifyCoreTextColumn` above for the `SQLiteInteger`/`SQLiteText` cases' own logic and rationale.
  */
-export function classifyCoreColumn(sqlTableName: string, col: SQLiteColumn): SemanticColumnClass {
+export function classifyCoreColumn({ sqlTableName, col }: { sqlTableName: string; col: SQLiteColumn }, _optional: Record<string, never> = {}): SemanticColumnClass {
   const key = `${sqlTableName}.${col.name}`;
   switch (col.columnType) {
     case "SQLiteBoolean":
       return { kind: "boolean-flag" };
     case "SQLiteInteger":
-      return classifyCoreIntegerColumn(key, col);
+      return classifyCoreIntegerColumn({ key, col });
     case "SQLiteText":
-      return classifyCoreTextColumn(key, col);
+      return classifyCoreTextColumn({ key, col });
     default:
       throw new Error(
         `unmapped column kind "${col.columnType}" on "${key}". This manifest was written against the same ` +
@@ -529,7 +529,7 @@ export function classifyAllCoreColumns(): ClassifiedColumn[] {
         tsName: tsNames.get(col) ?? col.name,
         sqlTableName: cfg.name,
         sqlColumnName: col.name,
-        columnClass: classifyCoreColumn(cfg.name, col),
+        columnClass: classifyCoreColumn({ sqlTableName: cfg.name, col }),
       });
     }
   }
@@ -584,9 +584,9 @@ export function collectIdentityColumns(): IdentityColumn[] {
  * `nextval()` return exactly that `1`, not `2` — the same mechanism the empty-table case already
  * relied on before this function handled non-positive ids too.
  */
-export function reseedSequenceSql(sqlTableName: string, sqlColumnName: string): string {
-  assertIdentifierFits(sqlTableName, `table name`);
-  assertIdentifierFits(sqlColumnName, `column name`);
+export function reseedSequenceSql({ sqlTableName, sqlColumnName }: { sqlTableName: string; sqlColumnName: string }, _optional: Record<string, never> = {}): string {
+  assertIdentifierFits({ identifier: sqlTableName, what: `table name` });
+  assertIdentifierFits({ identifier: sqlColumnName, what: `column name` });
   const maxExpr = `(SELECT max(${sqlColumnName}) FROM ${sqlTableName})`;
   // NULL (empty table) and any non-positive max both collapse to 0 here, so both take the same
   // "start fresh at 1" path below — the sequence's minimum value is 1, so nothing lower is a legal
@@ -727,7 +727,7 @@ function buildCopyOrderGraph(allExportNames: readonly string[], edges: readonly 
  * `topologicalTableCopyOrder`'s loop below, not just among the initial zero-in-degree set. Mutates
  * `ready` in place.
  */
-function insertIntoReadyQueue(ready: string[], name: string): void {
+function insertIntoReadyQueue({ ready, name }: { ready: string[]; name: string }, _optional: Record<string, never> = {}): void {
   const insertAt = ready.findIndex((n) => n > name);
   if (insertAt === -1) ready.push(name);
   else ready.splice(insertAt, 0, name);
@@ -764,7 +764,7 @@ export function topologicalTableCopyOrder(allExportNames: readonly string[], edg
     for (const dependent of dependents.get(next) ?? []) {
       const updated = (remaining.get(dependent) ?? 0) - 1;
       remaining.set(dependent, updated);
-      if (updated === 0) insertIntoReadyQueue(ready, dependent);
+      if (updated === 0) insertIntoReadyQueue({ ready, name: dependent });
     }
   }
 
@@ -833,8 +833,8 @@ export function classifyPluginColumn(decl: ColumnDecl): PluginSemanticColumnClas
       }
       return { kind: "plain-integer" };
     case "TEXT":
-      if (isJsonColumnName(decl.name)) return { kind: "json-text" };
-      if (isTimestampColumnName(decl.name)) return { kind: "utc-timestamp-text" };
+      if (isJsonColumnName({ sqlColumnName: decl.name })) return { kind: "json-text" };
+      if (isTimestampColumnName({ sqlColumnName: decl.name })) return { kind: "utc-timestamp-text" };
       return { kind: "plain-text" };
     case "REAL":
       return { kind: "real" };
@@ -941,7 +941,7 @@ const MAX_IDENTIFIER_BYTES = 63;
  * already relies on. Rejects rather than truncates: PostgreSQL truncates an over-long identifier
  * SILENTLY, which is a worse failure than a loud one at declare/copy time.
  */
-export function assertIdentifierFits(identifier: string, what: string): void {
+export function assertIdentifierFits({ identifier, what }: { identifier: string; what: string }, _optional: Record<string, never> = {}): void {
   const bytes = Buffer.byteLength(identifier, "utf8");
   if (bytes <= MAX_IDENTIFIER_BYTES) return;
   throw new Error(

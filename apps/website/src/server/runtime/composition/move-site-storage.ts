@@ -77,7 +77,7 @@ function requirePgliteDataDir({ siteDir, meta }: { siteDir: string; meta: Record
 /** Translate only the shared owner's running-site refusal; other failures propagate. O(1). */
 function lockStoppedSite({ dataDir }: { dataDir: string }, _options = {}): () => void {
   try {
-    return acquireOwnerLock(dataDir);
+    return acquireOwnerLock({ dataDir });
   } catch (err) {
     if (err instanceof PgliteOwnerLockedError) {
       throw new ValidationError({ message: `storage move: the site is running (process ${err.pid ?? "unknown"}); stop it, then move it` });
@@ -115,7 +115,7 @@ export async function moveSiteStorage(required: MoveSiteStorageRequired, optiona
       await migrateContentDatabase(kernel);
       await migrateChatDatabase(kernel);
     }
-    const tables = await copyPgStore(source, target, { onCopied: optional.onCopied });
+    const tables = await copyPgStore({ source, target }, { onCopied: optional.onCopied });
     await storageOps(target).compactAndVerify();
 
     if (secretRef === "site") await writeSealedConnectionString({ siteDir, connectionString }, optional.sealer);

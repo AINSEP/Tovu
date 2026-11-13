@@ -46,10 +46,10 @@ const LEDGER_ROW = { id: "l1", kind: "core.migration", outcome: "ok", restorePoi
 
 test("a new file gets all three tables and reopening it is a no-op", async (t) => {
   const filePath = tempJournalPath(t);
-  const first = journalKernel(filePath);
+  const first = journalKernel({ filePath });
   await new SqliteDatabaseLedgerRepo({ db: first, siteId: "s" }).append(LEDGER_ROW);
   await first.close();
-  const again = journalKernel(filePath);
+  const again = journalKernel({ filePath });
   try {
     const ledger = await new SqliteDatabaseLedgerRepo({ db: again, siteId: "s" }).query({ limit: 5 });
     assert.deepEqual(ledger.items.map((row) => row.id), ["l1"]);
@@ -70,7 +70,7 @@ test("a file built by BOTH old Drizzle migrations opens with its rows intact", a
     sql`INSERT INTO database_ledger (id, site_id, kind, outcome, created_at) VALUES ('old-1', 's', 'restore.executed', 'ok', '2026-07-02T00:00:00.000Z')`
   );
   await legacy.close();
-  const kernel = journalKernel(filePath);
+  const kernel = journalKernel({ filePath });
   try {
     const ledger = new SqliteDatabaseLedgerRepo({ db: kernel, siteId: "s" });
     await ledger.append(LEDGER_ROW);
@@ -88,7 +88,7 @@ test("a file only the first old migration built gets storage_ledger renamed, row
     sql`INSERT INTO storage_ledger (id, site_id, kind, outcome, created_at) VALUES ('old-1', 's', 'restore.executed', 'ok', '2026-07-02T00:00:00.000Z')`
   );
   await legacy.close();
-  const kernel = journalKernel(filePath);
+  const kernel = journalKernel({ filePath });
   try {
     const items = (await new SqliteDatabaseLedgerRepo({ db: kernel, siteId: "s" }).query({ limit: 5 })).items;
     assert.deepEqual(items, [
@@ -114,14 +114,14 @@ test("no drizzle-kit target or dist copy points at the journal any more", () => 
 test("a file that is not a database fails every call with the open error", async (t) => {
   const filePath = tempJournalPath(t);
   fs.writeFileSync(filePath, "this is not a sqlite database, just some text long enough to be a header ".repeat(4));
-  const kernel = journalKernel(filePath);
+  const kernel = journalKernel({ filePath });
   await assert.rejects(kernel.ready, /not a database/);
   await assert.rejects(new SqliteMigrationRunsRepo({ db: kernel, siteId: "s" }).findNonTerminalForSite("s"), /not a database/);
   await kernel.close();
 });
 
 test("journal writes inside a failed kernel transaction roll back together", async (t) => {
-  const kernel = journalKernel(tempJournalPath(t));
+  const kernel = journalKernel({ filePath: tempJournalPath(t) });
   try {
     const ledger = new SqliteDatabaseLedgerRepo({ db: kernel, siteId: "s" });
     const runs = new SqliteMigrationRunsRepo({ db: kernel, siteId: "s" });
@@ -144,7 +144,7 @@ test("journal writes inside a failed kernel transaction roll back together", asy
 });
 
 test("restore-point flow: save with defaults, dedupe by idempotency key per site, list newest-first", async (t) => {
-  const kernel = journalKernel(tempJournalPath(t));
+  const kernel = journalKernel({ filePath: tempJournalPath(t) });
   try {
     const points = new SqliteRestorePointsRepo({ db: kernel, siteId: "s" });
     const other = new SqliteRestorePointsRepo({ db: kernel, siteId: "other" });
@@ -179,7 +179,7 @@ test("restore-point flow: save with defaults, dedupe by idempotency key per site
 });
 
 test("interrupted-migration flow: detect, record once per boot, update state, resolve", async (t) => {
-  const kernel = journalKernel(tempJournalPath(t));
+  const kernel = journalKernel({ filePath: tempJournalPath(t) });
   try {
     const runs = new SqliteMigrationRunsRepo({ db: kernel, siteId: "s" });
     const ledger = new SqliteDatabaseLedgerRepo({ db: kernel, siteId: "s" });

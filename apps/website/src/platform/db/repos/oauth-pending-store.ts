@@ -49,7 +49,7 @@ export interface SqlDeviceAuthorizationStoreDeps {
  *  storage-only file does not have to reach into that module for a two-field template string.
  *  Exported so the vault inventory/recovery scan opens retained device rows through this store's own
  *  AAD rather than a restated copy. */
-export function deviceAad(workspaceId: UUID, serverId: string): string {
+export function deviceAad({ workspaceId, serverId }: { workspaceId: UUID; serverId: string }, _optional: Record<string, never> = {}): string {
   return `${workspaceId}:${serverId}`;
 }
 
@@ -69,7 +69,7 @@ export function createSqlDeviceAuthorizationStore(deps: SqlDeviceAuthorizationSt
       const sealed = await deps.sealer.seal({
         plaintext: authorization.deviceCode,
         key: await deps.keyring.activeKey(),
-        aad: deviceAad(deps.workspaceId, serverId),
+        aad: deviceAad({ workspaceId: deps.workspaceId, serverId }),
       });
       const row: Insertable<OauthDeviceAuthorizationsTable> = {
         workspace_id: deps.workspaceId,
@@ -101,7 +101,7 @@ export function createSqlDeviceAuthorizationStore(deps: SqlDeviceAuthorizationSt
           .executeTakeFirst()
       );
       if (!row) return undefined;
-      const deviceCode = await deps.sealer.open({ sealed: toSealedSecret(row) }, { aad: deviceAad(deps.workspaceId, serverId) });
+      const deviceCode = await deps.sealer.open({ sealed: toSealedSecret(row) }, { aad: deviceAad({ workspaceId: deps.workspaceId, serverId }) });
       const authorization: DeviceAuthorization = {
         deviceCode,
         userCode: row.user_code,

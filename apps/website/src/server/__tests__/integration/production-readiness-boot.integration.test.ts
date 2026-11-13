@@ -105,7 +105,7 @@ test("the real production gateway keeps a pending confirmation token after closi
     await first.gatedMutations.gatewayDeps.tokens.save(record);
     await close();
     const reopened = await open();
-    assert.deepEqual(await reopened.gatedMutations.gatewayDeps.tokens.findByToken(record.confirmationToken), record);
+    assert.deepEqual(await reopened.gatedMutations.gatewayDeps.tokens.findByToken({ token: record.confirmationToken }), record);
     assert.deepEqual(await reopened.gatedMutations.gatewayDeps.tokens.tryRedeem({ token: record.confirmationToken, now: "2026-10-01T00:05:00.000Z" }), {
       redeemed: true, record: { ...record, status: "redeemed" },
     });

@@ -122,7 +122,7 @@ test("both publish-history adapters return newest recorded first, even when publ
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
   db.insert(workspaces).values({ id: WORKSPACE_A, name: WORKSPACE_A, slug: WORKSPACE_A, createdAt: "2026-08-16T00:00:00.000Z" }).run();
-  for (const store of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore(db)]) {
+  for (const store of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore({ store: db })]) {
     await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url: "u1", publishedAt: "2026-08-16T00:00:00.000Z" }) });
     await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url: "u2", publishedAt: "2026-08-14T00:00:00.000Z" }) });
     await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ target: "vercel", url: "u3", publishedAt: "2026-08-15T00:00:00.000Z" }) });
@@ -140,7 +140,7 @@ test("Publish destinations: both adapters retain latest successful project acros
     db.insert(workspaces).values({ id, name: id, slug: id, createdAt: "2026-10-18T00:00:00Z" }).run();
   }
   const registry = await loadBundledDeployTargets();
-  for (const historyStore of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore(db)]) {
+  for (const historyStore of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore({ store: db })]) {
     const list = () => listStaticPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry });
     assert.deepEqual(await list(), []);
     const saved = entry({ target: "vercel", projectName: "first", credentialId: "connection-a", configFields: { teamId: "team-a", token: "NEVER_RETURN", unknown: "NEVER_RETURN" } });
@@ -205,7 +205,7 @@ test("mixed destination kinds group independently, retain latest successes, and 
   t.after(() => db.$client.close());
   for (const id of [WORKSPACE_A, WORKSPACE_B]) db.insert(workspaces).values({ id, name: id, slug: id, createdAt: "2026-10-18T00:00:00Z" }).run();
   const registry = await loadBundledDeployTargets();
-  for (const historyStore of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore(db)]) {
+  for (const historyStore of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore({ store: db })]) {
     const staticRow = entry({ target: "vercel", projectName: "site", configFields: {}, publishedAt: "2026-10-18T01:00:00Z" });
     const peerRow = entry({ kind: "tovu-peer", target: "saved", projectName: "", configFields: undefined, url: "https://live.test", publishedAt: "2026-10-18T03:00:00Z" });
     const deployRow = entry({ kind: "deploy", target: "vercel", projectName: "site", configFields: undefined, url: "https://live.test/", publishedAt: "2026-10-18T02:00:00Z" });
@@ -231,7 +231,7 @@ test("both adapters expose accepted deploys only as pending, including legacy re
   t.after(() => db.$client.close());
   db.insert(workspaces).values({ id: WORKSPACE_A, name: WORKSPACE_A, slug: WORKSPACE_A, createdAt: "2026-10-18T00:00:00Z" }).run();
   const registry = await loadBundledDeployTargets();
-  for (const historyStore of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore(db)]) {
+  for (const historyStore of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore({ store: db })]) {
     for (const reachable of [false, true]) {
       await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ kind: "deploy", target: "server",
         projectName: String(reachable), url: "https://live.test", reachable, status: "started" }) });

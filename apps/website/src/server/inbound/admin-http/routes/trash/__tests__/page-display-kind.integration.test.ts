@@ -25,7 +25,7 @@ const outbox: OutboxPort = {
 function harness(t: { after(fn: () => Promise<void>): void }) {
   const db = openContentDb(":memory:");
   db.$client.prepare("INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WS, WS, WS, AT);
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   t.after(() => kernel.close());
   const postRepo = new SqlitePostRepo({ store: db });
   const trashRepo = new SqliteTrashRepo({ store: db });

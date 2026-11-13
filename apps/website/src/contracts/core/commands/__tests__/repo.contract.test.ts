@@ -160,7 +160,7 @@ function runContractSuite(label: string, makeRepo: () => ChangeSetRepoPort) {
 
 runContractSuite("memory", () => new InMemoryChangeSetRepo());
 
-runContractSuite("sqlite", () => new SqliteChangeSetRepo(openContentDb(":memory:")));
+runContractSuite("sqlite", () => new SqliteChangeSetRepo({ store: openContentDb(":memory:") }));
 
 // The one Kysely body on every dialect (storage plan §4): SQLite again through the neutral adapter, and PGlite.
 for (const each of eachDialect({ tables: ["change_set_items", "change_sets", "outbox_events"], make: kernel => new SqlChangeSetRepo(kernel) })) {

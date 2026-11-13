@@ -23,7 +23,7 @@ test("SQLite staging sweeps rows strictly older than the staging clock", async (
   const { dir, dbPath } = createFreshContentDbInTempDir();
   const db = openContentDb(dbPath);
   try {
-    const repo = new SqlitePublishContentBundleRepo(db);
+    const repo = new SqlitePublishContentBundleRepo({ store: db });
     const input = {
       workspaceId: "workspace-local",
       sourcePrincipalId: "bundle-sweep-test-principal",

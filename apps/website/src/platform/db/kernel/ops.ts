@@ -32,6 +32,6 @@ export function storageOps<DB>(kernel: StorageKernel<DB>, optional: { pgliteOwne
 }
 
 /** Restore a served dump with Tovu's driver and remove its historical owner lock from the copy. */
-export function copyServedPgliteTo(owner: PgliteExclusive, targetPath: string): Promise<void> {
+export function copyServedPgliteTo({ owner, targetPath }: { owner: PgliteExclusive; targetPath: string }, _optional: Record<string, never> = {}): Promise<void> {
   return jiniCopyServedPgliteTo(owner, targetPath, { PGlite, ownerLockFileName: OWNER_LOCK_FILE });
 }

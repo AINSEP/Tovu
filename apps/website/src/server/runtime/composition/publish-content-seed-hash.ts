@@ -98,7 +98,7 @@ export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInpu
     ports: {
       post: { repo: seedPostRepo },
       media: {
-        repo: new SqliteMediaRepo(seedDb),
+        repo: new SqliteMediaRepo({ store: seedDb }),
         assetBlobRepo: unusedBySeedInspect("media.assetBlobRepo"),
         blobStore: unusedBySeedInspect("media.blobStore"),
         contentTypeStore: unusedBySeedInspect("media.contentTypeStore"),

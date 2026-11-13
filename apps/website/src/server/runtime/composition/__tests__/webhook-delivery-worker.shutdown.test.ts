@@ -39,8 +39,8 @@ function openSite(path: string) {
   const db = openContentDb(path);
   let now = T0;
   const deps = {
-    webhookDeliveryRepo: new SqliteWebhookDeliveryRepo(db),
-    webhookSubscriptionRepo: new SqliteWebhookSubscriptionRepo(db),
+    webhookDeliveryRepo: new SqliteWebhookDeliveryRepo({ store: db }),
+    webhookSubscriptionRepo: new SqliteWebhookSubscriptionRepo({ store: db }),
     webhookSigner: createFixedSecretSigner(new Map([["sub-1", Buffer.from("shared-secret")]])),
     clock: { nowIso: () => now },
     observability: createNoopObservabilityPort({}),

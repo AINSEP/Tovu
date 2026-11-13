@@ -15,7 +15,7 @@ import { createFormMediaCleanup, hasFormFileOwners, hasFormFileStorageKeyOwners,
 
 test('rendition journal and row removal roll back together and survive a database reopen', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'form-renditions-')); const path = join(dir, 'content.sqlite');
-  let db = openContentDb(path), kernel = contentKernel(db); let id = 0;
+  let db = openContentDb(path), kernel = contentKernel({ store: db }); let id = 0;
   const blobStore = new InMemoryBlobStore();
   try {
     db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w','now');
@@ -39,7 +39,7 @@ test('rendition journal and row removal roll back together and survive a databas
     assert.ok(await mediaRepo.findById({ workspaceId: 'w', id: media.id }));
     assert.equal((await kernel.run(q => q.selectFrom('outbox_events').select('id').execute())).length, 0);
     await purgeMedia({ deps: cleanup, input: { workspaceId: 'w', id: media.id } });
-    db.$client.close(); db = openContentDb(path); kernel = contentKernel(db);
+    db.$client.close(); db = openContentDb(path); kernel = contentKernel({ store: db });
     const row = await kernel.run(q => q.selectFrom('outbox_events').select('event_json').executeTakeFirstOrThrow());
     const event = JSON.parse(row.event_json);
     assert.deepEqual(event.payload.storageKeys, [originalKey, thumbKey]);
@@ -61,7 +61,7 @@ test('rendition journal and row removal roll back together and survive a databas
 });
 
 test('exact-key ownership includes other assets and workspaces while excluding only this tombstone', async () => {
-  const db = openContentDb(':memory:'); const kernel = contentKernel(db);
+  const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db });
   try {
     for (const workspace of ['w','other']) db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run(workspace,workspace,workspace,'now');
     const blobs = new SqlAssetBlobRepo(kernel), renditions = new SqlAssetRenditionRepo(kernel);
@@ -93,7 +93,7 @@ test('canonical captured keys wait for the matching upload hash lock and unknown
 
 test('SQLite compensation commits before a same-hash upload waiting for its database turn', async () => {
   const { createFormFileStorage } = await import('../form-file-storage.js');
-  const db = openContentDb(':memory:'); const kernel = contentKernel(db); let id = 0;
+  const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db }); let id = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w','now');
@@ -124,7 +124,7 @@ test('SQLite compensation commits before a same-hash upload waiting for its data
 });
 
 test('tombstoning keeps the hash lock outside SQLite transactions and for other dialects', async () => {
-  const db = openContentDb(':memory:'); const kernel = contentKernel(db);
+  const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db });
   try {
     const options = { outbox: { enqueue: async () => {} }, clock: { nowMs: () => 0 }, graceMs: 1 };
     assert.equal(createFormMediaCleanup(options).cleanupTransaction, undefined);

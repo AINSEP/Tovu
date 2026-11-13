@@ -51,7 +51,7 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
   const registry = buildTrashRegistry();
-  const trashDb = contentKernel(db);
+  const trashDb = contentKernel({ store: db });
   const adapters = new Map<string, TrashAdapter>(
     [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
   );
@@ -79,7 +79,7 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
   const widgetDeps: WidgetTrashDeps = { host: buildWidgetHostPorts({}, {}),
     entryRepo: entries,
     contentTypeRepo: new SqliteContentTypeRepo(db),
-    entryRefsRepo: new SqliteEntryRefsRepo(db),
+    entryRefsRepo: new SqliteEntryRefsRepo({ store: db }),
     clock: { nowMs: () => Date.parse(AT) },
     ids: { newId: () => randomUUID() },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
@@ -207,7 +207,7 @@ test("the widget entry's scope: moveToTrash on a non-widget entries row reads no
     {
       registry: h.registry,
       trash: h.trash,
-      db: contentKernel(h.db),
+      db: contentKernel({ store: h.db }),
       authorize: async () => ({ allowed: true, reason: "matched" }),
       clock: { nowIso: () => AT },
     }

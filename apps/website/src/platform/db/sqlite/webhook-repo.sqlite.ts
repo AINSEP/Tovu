@@ -12,15 +12,15 @@ import type { ContentDb } from "./content-db.js";
 /** @overallScore 100 */
 export class SqliteWebhookSubscriptionRepo extends SqlWebhookSubscriptionRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super(contentKernel({ store }));
   }
 }
 
 /** @overallScore 100 */
 export class SqliteWebhookDeliveryRepo extends SqlWebhookDeliveryRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super(contentKernel({ store }));
   }
 }

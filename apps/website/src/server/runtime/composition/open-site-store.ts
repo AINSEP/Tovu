@@ -81,7 +81,7 @@ export async function openSiteStore(required: OpenSiteStoreRequired, optional: O
   }
   return {
     storage,
-    content: contentKernel(db),
+    content: contentKernel({ store: db }),
     chat: chatKernel(chatDb),
     sqliteDb: db,
     close: async () => {
@@ -123,8 +123,8 @@ async function openPgliteSiteStore(
   // dir: it unlinks whatever sits at its socket path, which is only safe when that path is its own.
   const fromEnv = (optional.env ?? process.env)[PG_SOCKET_ENV]?.trim();
   let owner: PgliteOwner | undefined;
-  if (required.role === "owner") owner = await startPgliteOwner({ dataDir }, { socketDir: defaultPgliteSocketDir(dataDir) });
-  const socketPath = owner?.socketPath ?? (fromEnv || join(defaultPgliteSocketDir(dataDir), PGLITE_SOCKET_FILE));
+  if (required.role === "owner") owner = await startPgliteOwner({ dataDir }, { socketDir: defaultPgliteSocketDir({ dataDir }) });
+  const socketPath = owner?.socketPath ?? (fromEnv || join(defaultPgliteSocketDir({ dataDir }), PGLITE_SOCKET_FILE));
   const stopOwner = async () => {
     await owner?.close();
   };

@@ -81,7 +81,7 @@ export type JournalKernel = StorageKernel<JournalDatabase>;
  * rejects), and `ready` reported as the kernel's own: the {@link StorageKernel.ready} contract, for a
  * kernel whose schema is applied through the kernel itself after the connection opens.
  */
-export function gateJournalKernel(kernel: JournalKernel, ready: Promise<void>): JournalKernel {
+export function gateJournalKernel({ kernel, ready }: { kernel: JournalKernel; ready: Promise<void> }, _optional: Record<string, never> = {}): JournalKernel {
   // Observed here so a failed open is not an unhandled rejection; every call below re-throws it.
   ready.catch(() => {});
   return {

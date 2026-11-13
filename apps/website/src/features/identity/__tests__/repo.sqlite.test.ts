@@ -9,7 +9,7 @@ for (const mode of ["handle", "kernel"] as const) {
   test(`SQLite API keys use the supplied ${mode} for reads, updates and workspace isolation`, async (t) => {
     const db = openContentDb(":memory:");
     t.after(() => db.$client.close());
-    const kernel = contentKernel(db);
+    const kernel = contentKernel({ store: db });
     await kernel.run(async (q) => {
       await q.insertInto("workspaces").values({ id: "ws-a", name: "Site", slug: "site", created_at: "2026-10-01T12:00:00Z" }).execute();
       await q.insertInto("principals").values({ id: "machine-a", workspace_id: "ws-a", kind: "api_key", display_name: "Build machine", status: "active", created_at: "2026-10-01T12:00:00Z" }).execute();

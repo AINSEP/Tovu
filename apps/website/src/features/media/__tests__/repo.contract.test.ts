@@ -708,19 +708,19 @@ test("ADR-046 Phase 1: media + asset_blobs + asset_renditions + transform_regist
   try {
     const db1 = openContentDb(dbPath);
     const media = makeMedia({ width: 1280, height: 720, cssClass: "restart-video", htmlAttributes: 'poster="/m/poster/original"' });
-    await new SqliteMediaRepo(db1).save(media);
-    await new SqliteAssetBlobRepo(db1).save(makeAssetBlob());
-    await new SqliteAssetRenditionRepo(db1).save(makeRendition());
-    await new SqliteTransformDefinitionRepo(db1).insert(makeTransformDef());
+    await new SqliteMediaRepo({ store: db1 }).save(media);
+    await new SqliteAssetBlobRepo({ store: db1 }).save(makeAssetBlob());
+    await new SqliteAssetRenditionRepo({ store: db1 }).save(makeRendition());
+    await new SqliteTransformDefinitionRepo({ store: db1 }).insert(makeTransformDef());
 
     db1.$client.close();
     // "Restart": brand-new content.db handles against the SAME on-disk file — the in-memory
     // adapters this replaces would have lost all four rows entirely.
     const db2 = openContentDb(dbPath);
-    assert.deepEqual(await new SqliteMediaRepo(db2).findById({ workspaceId: WORKSPACE_ID, id: "media-1" }), media);
-    assert.deepEqual(await new SqliteAssetBlobRepo(db2).findByHash({ workspaceId: WORKSPACE_ID, sha256: "b".repeat(64) }), makeAssetBlob());
-    assert.deepEqual(await new SqliteAssetRenditionRepo(db2).findOne({ workspaceId: WORKSPACE_ID, assetId: "blob-1", transformName: "thumb", version: 1 }), makeRendition());
-    assert.deepEqual(await new SqliteTransformDefinitionRepo(db2).findByNameVersion({ workspaceId: WORKSPACE_ID, name: "thumb", version: 1 }), makeTransformDef());
+    assert.deepEqual(await new SqliteMediaRepo({ store: db2 }).findById({ workspaceId: WORKSPACE_ID, id: "media-1" }), media);
+    assert.deepEqual(await new SqliteAssetBlobRepo({ store: db2 }).findByHash({ workspaceId: WORKSPACE_ID, sha256: "b".repeat(64) }), makeAssetBlob());
+    assert.deepEqual(await new SqliteAssetRenditionRepo({ store: db2 }).findOne({ workspaceId: WORKSPACE_ID, assetId: "blob-1", transformName: "thumb", version: 1 }), makeRendition());
+    assert.deepEqual(await new SqliteTransformDefinitionRepo({ store: db2 }).findByNameVersion({ workspaceId: WORKSPACE_ID, name: "thumb", version: 1 }), makeTransformDef());
     db2.$client.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });

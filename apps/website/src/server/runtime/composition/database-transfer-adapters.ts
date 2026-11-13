@@ -32,7 +32,7 @@ export function createDatabaseTransferAdapters(_required = {}, _optional = {}): 
 /** Read-only online backup of the exact configured chat DB; never create a missing source. */
 async function captureChatSnapshot(deps: Pick<DatabaseTransferToolDeps, "db" | "databaseTransferChatSnapshot">, _optional = {}): Promise<Buffer> {
   if (deps.databaseTransferChatSnapshot) return deps.databaseTransferChatSnapshot();
-  const contentPath = deps.db === undefined ? null : await databaseFile(contentKernel(deps.db));
+  const contentPath = deps.db === undefined ? null : await databaseFile(contentKernel({ store: deps.db }));
   if (contentPath === null) throw new Error("the chat snapshot source is not wired");
   const path = process.env.TOVU_CHAT_DB ?? join(dirname(contentPath), "chat.db");
   const dir = await mkdtemp(join(tmpdir(), "tovu-transfer-chat-"));

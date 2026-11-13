@@ -10,7 +10,7 @@ for (const useKernel of [false, true]) {
     t.after(() => db.$client.close());
     db.$client.prepare("INSERT INTO site_title_preexisting_workspaces (workspace_id, preserved_at) VALUES (?, NULL)").run("ws-b");
     db.$client.prepare("INSERT INTO site_title_preexisting_workspaces (workspace_id, preserved_at) VALUES (?, NULL)").run("ws-a");
-    const store = new SqliteSiteTitlePreservationStore(contentKernel(useKernel ? contentKernel(db) : db));
+    const store = new SqliteSiteTitlePreservationStore(contentKernel({ store: useKernel ? contentKernel({ store: db }) : db }));
     assert.deepEqual(await store.listPendingWorkspaceIds(), ["ws-a", "ws-b"]);
     await store.markPreserved({ workspaceId: "ws-a", preservedAt: "2026-10-01T12:00:00.000Z" });
     assert.deepEqual(db.$client.prepare("SELECT workspace_id, preserved_at FROM site_title_preexisting_workspaces ORDER BY workspace_id").all(),

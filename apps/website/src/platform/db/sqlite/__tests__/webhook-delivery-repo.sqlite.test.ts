@@ -348,11 +348,11 @@ runContractSuite("InMemory", () => {
   });
 });
 
-runContractSuite("SqliteWebhookDeliveryRepo", () => new SqliteWebhookDeliveryRepo(openContentDb(":memory:")));
+runContractSuite("SqliteWebhookDeliveryRepo", () => new SqliteWebhookDeliveryRepo({ store: openContentDb(":memory:") }));
 
 test("ADR-046 fold-in item 5 (GAP-05/GAP-12): SqliteWebhookDeliveryRepo.enqueue()'s optional envelope argument is durably readable BEFORE any separate save() call ever runs", async () => {
   const db = openContentDb(":memory:");
-  const repo = new SqliteWebhookDeliveryRepo(db);
+  const repo = new SqliteWebhookDeliveryRepo({ store: db });
 
   // The envelope rides into enqueue() itself — save() is never called in this test at all. If
   // this were the old two-step design (enqueue() always leaves payload_json NULL, only save()
@@ -369,13 +369,13 @@ test("SqliteWebhookDeliveryRepo: a fresh repo instance against the same underlyi
   try {
     const writer = openContentDb(dbPath);
     try {
-      const first = new SqliteWebhookDeliveryRepo(writer);
+      const first = new SqliteWebhookDeliveryRepo({ store: writer });
       await first.enqueue({ record: makeDelivery() });
       await first.save({ deliveryId: "delivery-1", envelope: makeEnvelope() });
     } finally { writer.$client.close(); }
     const reader = openContentDb(dbPath);
     try {
-      const rehydrated = new SqliteWebhookDeliveryRepo(reader);
+      const rehydrated = new SqliteWebhookDeliveryRepo({ store: reader });
       assert.deepEqual(await rehydrated.findById({ workspaceId: "workspace-1", id: "delivery-1" }), makeDelivery());
       assert.deepEqual(await rehydrated.find({ deliveryId: "delivery-1" }), makeEnvelope());
     } finally { reader.$client.close(); }
@@ -389,7 +389,7 @@ test("SqliteWebhookDeliveryRepo: a fresh repo instance against the same underlyi
  */
 test("SqliteWebhookDeliveryRepo.enqueue: a colliding id (PRIMARY KEY, not the unique index) is also a silent no-op", async () => {
   const db = openContentDb(":memory:");
-  const repo = new SqliteWebhookDeliveryRepo(db);
+  const repo = new SqliteWebhookDeliveryRepo({ store: db });
   await repo.enqueue({ record: makeDelivery() });
 
   // Same id as the row above, but a different (workspaceId, subscriptionId, eventId) — this trips
@@ -404,7 +404,7 @@ test("SqliteWebhookDeliveryRepo.enqueue: a colliding id (PRIMARY KEY, not the un
  *  NULL failure on `topic`) must propagate, not be swallowed as "already enqueued". */
 test("SqliteWebhookDeliveryRepo.enqueue: a non-uniqueness constraint violation (NOT NULL) is rethrown, not swallowed", async () => {
   const db = openContentDb(":memory:");
-  const repo = new SqliteWebhookDeliveryRepo(db);
+  const repo = new SqliteWebhookDeliveryRepo({ store: db });
 
   // `topic` is `NOT NULL` in the schema; `WebhookTopic` itself disallows null, so this cast is the
   // only way to construct the malformed record this test needs to reach the real SQLite driver.

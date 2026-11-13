@@ -135,8 +135,8 @@ test("unsupported Postgres copies retain Tovu operator guidance without a server
 test("owner shims preserve Tovu socket names, low-memory settings and private directory checks", () => {
   const dataDir = path.join(os.tmpdir(), "j02-never-opened");
   const key = createHash("sha256").update(path.resolve(dataDir)).digest("hex").slice(0, 8);
-  assert.equal(defaultPgliteSocketDir(dataDir, "/short"), path.join("/short", ".tovu", "run", key));
-  assert.equal(defaultPgliteSocketDir(dataDir, "/" + "deep/".repeat(50)), path.join("/tmp", `tovu-${process.getuid?.() ?? "user"}`, key));
+  assert.equal(defaultPgliteSocketDir({ dataDir }, { home: "/short" }), path.join("/short", ".tovu", "run", key));
+  assert.equal(defaultPgliteSocketDir({ dataDir }, { home: "/" + "deep/".repeat(50) }), path.join("/tmp", `tovu-${process.getuid?.() ?? "user"}`, key));
   assert.deepEqual(PGLITE_LOW_MEMORY_START_PARAMS, [
     ...PGlite.defaultStartParams,
     "-c", "shared_buffers=16MB",
@@ -147,10 +147,10 @@ test("owner shims preserve Tovu socket names, low-memory settings and private di
   ]);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "j02-owner-"));
   try {
-    const release = acquireOwnerLock(dir);
+    const release = acquireOwnerLock({ dataDir: dir });
     try {
       assert.equal(fs.readFileSync(path.join(dir, OWNER_LOCK_FILE), "utf8").trim(), String(process.pid));
-      assert.throws(() => acquireOwnerLock(dir), PgliteOwnerLockedError);
+      assert.throws(() => acquireOwnerLock({ dataDir: dir }), PgliteOwnerLockedError);
     } finally {
       release();
     }

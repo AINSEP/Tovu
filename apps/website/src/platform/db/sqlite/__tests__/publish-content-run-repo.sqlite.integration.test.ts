@@ -23,7 +23,7 @@ test("SQLite run snapshots upsert durable per-item progress and remain workspace
   const { dir, dbPath } = createFreshContentDbInTempDir();
   const db = openContentDb(dbPath);
   try {
-    const repo = new SqlitePublishContentRunRepo(db);
+    const repo = new SqlitePublishContentRunRepo({ store: db });
     const initial: PublishContentRunRecord = {
       id: "run-progress-1",
       workspaceId: "workspace-local",

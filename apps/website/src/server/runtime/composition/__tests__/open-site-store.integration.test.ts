@@ -197,7 +197,7 @@ test("a pglite owner ignores an inherited TOVU_PG_SOCKET: it serves its own data
       { env: { [PG_SOCKET_ENV]: foreignSocket } }
     );
     try {
-      const expected = path.join(defaultPgliteSocketDir(path.join(dir, PGLITE_DATA_DIR_NAME)), PGLITE_SOCKET_FILE);
+      const expected = path.join(defaultPgliteSocketDir({ dataDir: path.join(dir, PGLITE_DATA_DIR_NAME) }), PGLITE_SOCKET_FILE);
       assert.equal(store.pgliteSocketPath, expected);
       assert.equal(fs.readFileSync(foreignSocket, "utf8"), "another site's live socket");
     } finally {

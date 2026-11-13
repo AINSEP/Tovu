@@ -10,10 +10,10 @@ import type { ContentDb } from "./content-db.js";
 
 export class SqliteOutboxAdapter extends SqlOutboxAdapter {
   /**
-   * @param store the connection's kernel, or the content db handle it is derived from.
+   * @param required.store the connection's kernel, or the content db handle it is derived from.
    * @param optional.claimLeaseMs claim lease length.
    */
-  constructor(store: ContentKernel | ContentDb, optional: { claimLeaseMs?: number } = {}) {
-    super(contentKernel(store), optional);
+  constructor({ store }: { store: ContentKernel | ContentDb }, optional: { claimLeaseMs?: number } = {}) {
+    super(contentKernel({ store }), optional);
   }
 }

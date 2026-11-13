@@ -16,7 +16,7 @@ import * as schema from "../../schema.sqlite.js";
 
 /** The seed on `db`'s kernel. */
 function seedContentDb(required: { db: ContentDb; seed: ContentDbSeedData }): Promise<void> {
-  return seedContentStore(contentKernel(required.db), required.seed);
+  return seedContentStore(contentKernel({ store: required.db }), required.seed);
 }
 
 function seedData(overrides: Partial<ContentDbSeedData> = {}): ContentDbSeedData {

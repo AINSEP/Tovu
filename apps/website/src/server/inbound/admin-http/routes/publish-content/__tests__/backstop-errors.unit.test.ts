@@ -25,7 +25,7 @@ function fixture(t: TestContext) {
   db.exec(`CREATE TABLE publish_backstop_log (id TEXT PRIMARY KEY, workspace_id TEXT, direction TEXT,
     actor_id TEXT, destination TEXT, reason TEXT, at TEXT, items_json TEXT, gap_labels_json TEXT,
     result TEXT, run_id TEXT, details_json TEXT, inverses_json TEXT)`);
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   const reports: unknown[] = [], logs: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
   const app = express();

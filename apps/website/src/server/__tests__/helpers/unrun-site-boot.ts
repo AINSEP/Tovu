@@ -85,7 +85,7 @@ export async function bootSite(t: TestContext, dialect: SiteDialect, optional: {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), `unrun-site-${dialect}-`));
   const siteDir = path.join(parent, "site");
   const savedSocketEnv = process.env[PG_SOCKET_ENV];
-  const socketDir = defaultPgliteSocketDir(path.join(siteDir, PGLITE_DATA_DIR_NAME));
+  const socketDir = defaultPgliteSocketDir({ dataDir: path.join(siteDir, PGLITE_DATA_DIR_NAME) });
   if (dialect === "pglite") process.env[PG_SOCKET_ENV] = path.join(socketDir, PGLITE_SOCKET_FILE);
 
   let boot: Awaited<ReturnType<typeof bootSiteDir>> | undefined;

@@ -10,7 +10,7 @@ import { SqlTrashRepo } from "./repo.js";
 export class SqliteTrashRepo extends SqlTrashRepo {
   /** @param required.store the content db handle, its better-sqlite3 client, or the kernel itself. */
   constructor({ store }: { store: ContentKernel | SqliteConnectionSource }) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
@@ -27,7 +27,7 @@ export class SqliteTrashRepo extends SqlTrashRepo {
  * @complexity O(1) beyond `fn`.
  */
 export function createContentDbTransactionRunner({ store }: { store: ContentKernel | SqliteConnectionSource }, _optional = {}) {
-  const kernel = contentKernel(store);
+  const kernel = contentKernel({ store });
   return function runInTransaction<T>(fn: () => Promise<T>): Promise<T> {
     return kernel.transaction(fn);
   };

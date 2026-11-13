@@ -68,7 +68,7 @@ export class SqlTokenStore implements TokenStorePort {
     );
   }
 
-  async findByToken(token: string): Promise<ConfirmationTokenRecord | null> {
+  async findByToken({ token }: { token: string }): Promise<ConfirmationTokenRecord | null> {
     const row = await this.kernel.run((db) =>
       db.selectFrom("gated_mutation_tokens").selectAll().where("confirmation_token", "=", token).executeTakeFirst()
     );

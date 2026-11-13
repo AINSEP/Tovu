@@ -152,7 +152,7 @@ async function main(): Promise<void> {
   const dbPath = resolveExistingDbPath(args.dbPath);
   // A dry run must never migrate the schema — which `openContentDb` does unconditionally. Only
   // `--apply` gets the read-write, migrating open; every dry run opens strictly read-only.
-  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
+  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly({ filePath: dbPath });
 
   const possiblyCollidingSlugs = collectPossiblyCollidingSlugs(builtInThemesDir());
   console.log(

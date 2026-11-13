@@ -55,7 +55,7 @@ const productsDecl = {
 
 test("dataModule: declares a namespaced table and records a migration-journal entry", async () => {
   const { db, dbPath, dir } = openWithCore();
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: productsDecl });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: productsDecl });
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.created, ["p_hello__products"]);
@@ -89,7 +89,7 @@ test("dataModule: a dbPath naming a different real file warns, still installs, a
   new Database(wrongPath).close();
   const warn = t.mock.method(console, "warn", () => {});
   const measured: string[] = [];
-  const result = await declareDataModule({ db: contentKernel(db), dbPath: wrongPath, decl: productsDecl }, {
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath: wrongPath, decl: productsDecl }, {
     checkHeadroom: ({ dbPath }) => { measured.push(dbPath); return { ok: true, requiredBytes: 0, freeBytes: 0 }; },
   });
 
@@ -113,7 +113,7 @@ test("dataModule: a different path to the same database file (a second mount, a 
   fs.linkSync(dbPath, alias);
   const warn = t.mock.method(console, "warn", () => {});
   const measured: string[] = [];
-  const result = await declareDataModule({ db: contentKernel(db), dbPath: alias, decl: productsDecl }, {
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath: alias, decl: productsDecl }, {
     checkHeadroom: ({ dbPath }) => { measured.push(dbPath); return { ok: true, requiredBytes: 0, freeBytes: 0 }; },
   });
 
@@ -138,7 +138,7 @@ test("dataModule: a FAILED migration keeps its snapshot, and that snapshot is th
   // fails loudly, and both entries survive the `toCreate` filter because neither exists yet.
   const { db, dbPath, dir } = openWithCore();
   const result = await declareDataModule({
-    db: contentKernel(db),
+    db: contentKernel({ store: db }),
     dbPath,
     decl: { ...productsDecl, tables: [productsDecl.tables[0]!, productsDecl.tables[0]!] },
   });
@@ -163,7 +163,7 @@ test("dataModule: a FAILED migration keeps its snapshot, and that snapshot is th
 
 test("dataModule: rejects a table outside the p_{pluginId}__* namespace / bad declaration (no DDL)", async () => {
   const { db, dbPath, dir } = openWithCore();
-  const bad = await declareDataModule({ db: contentKernel(db), dbPath, decl: {
+  const bad = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: {
     ...productsDecl,
     pluginId: "Bad-Id", // invalid: not a stable lowercase id
   } });
@@ -172,7 +172,7 @@ test("dataModule: rejects a table outside the p_{pluginId}__* namespace / bad de
   assert.equal(bad.snapshotPath, null, "no snapshot wasted on an invalid declaration");
   assert.equal(tableExists(db, "p_Bad-Id__products"), false);
 
-  const badType = await declareDataModule({ db: contentKernel(db), dbPath, decl: {
+  const badType = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: {
     ...productsDecl,
     tables: [{ name: "x", columns: [{ name: "c", type: "DROP TABLE" as never }] }],
   } });
@@ -186,7 +186,7 @@ test("dataModule: rejects a table outside the p_{pluginId}__* namespace / bad de
 test("dataModule: a failing DDL rolls back to a working state (never-brick), snapshot kept as recovery point", async () => {
   const { db, dbPath, dir } = openWithCore();
   // Two tables with the same name in one call: the second CREATE fails → whole tx rolls back.
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: {
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: {
     pluginId: "hello",
     pluginTier: "tier-2" as const,
     provenance: { sourceUrl: "test://hello", publisher: "test" },
@@ -220,7 +220,7 @@ test("dataModule: a failing DDL rolls back to a working state (never-brick), sna
  */
 test("dataModule: a pre-commit DDL failure still journals a truthful ROLLED_BACK", async () => {
   const { db, dbPath, dir } = openWithCore();
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: {
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: {
     pluginId: "journaltest",
     pluginTier: "tier-2" as const,
     provenance: { sourceUrl: "test://journaltest", publisher: "test" },
@@ -250,7 +250,7 @@ test("dataModule: FAULT INJECTION — a verification failure now rolls back the 
     provenance: { sourceUrl: "test://committest", publisher: "test" },
     tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] }],
   };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   const v2 = {
     ...v1,
@@ -266,7 +266,7 @@ test("dataModule: FAULT INJECTION — a verification failure now rolls back the 
   // etc.), goes straight through to the real connection.
   const proxiedDb = staleColumnsOnSecondRead(db, "p_committest__widgets");
 
-  const result = await declareDataModule({ db: contentKernel(proxiedDb), dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel({ store: proxiedDb }), dbPath, decl: v2 });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "DDL_FAILED");
@@ -311,7 +311,7 @@ test("dataModule: DATA-LOSS REPRODUCTION — writes accepted after a post-commit
     provenance: { sourceUrl: "test://dataloss", publisher: "test" },
     tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] }],
   };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   const v2 = {
     ...v1,
@@ -322,7 +322,7 @@ test("dataModule: DATA-LOSS REPRODUCTION — writes accepted after a post-commit
   // table (verification) sees stale, pre-ALTER data.
   const proxiedDb = staleColumnsOnSecondRead(db, "p_dataloss__widgets");
 
-  const declareResult = await declareDataModule({ db: contentKernel(proxiedDb), dbPath, decl: v2 });
+  const declareResult = await declareDataModule({ db: contentKernel({ store: proxiedDb }), dbPath, decl: v2 });
   assert.equal(declareResult.ok, false, "the injected verification failure is reported");
 
   // The site does NOT crash — this is the whole point of the bug. It keeps serving and accepting
@@ -336,7 +336,7 @@ test("dataModule: DATA-LOSS REPRODUCTION — writes accepted after a post-commit
   const { recoverIncompleteDataModuleMigrations, restoreSqliteSnapshots } = await import("../migration-recovery.js");
   const scan = new Database(dbPath);
   await recoverIncompleteDataModuleMigrations({
-    store: contentKernel(scan),
+    store: contentKernel({ store: scan }),
     restoreSnapshots: (entries) => {
       scan.close();
       restoreSqliteSnapshots(dbPath, entries);
@@ -358,11 +358,11 @@ test("dataModule: DATA-LOSS REPRODUCTION — writes accepted after a post-commit
 
 test("dataModule: declaring the same table twice is idempotent (no error, no double-create)", async () => {
   const { db, dbPath, dir } = openWithCore();
-  const first = await declareDataModule({ db: contentKernel(db), dbPath, decl: productsDecl });
+  const first = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: productsDecl });
   assert.equal(first.ok, true);
   assert.deepEqual(first.created, ["p_hello__products"]);
 
-  const second = await declareDataModule({ db: contentKernel(db), dbPath, decl: productsDecl });
+  const second = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: productsDecl });
   assert.equal(second.ok, true);
   assert.deepEqual(second.created, [], "nothing re-created");
   assert.equal(second.snapshotPath, null, "no snapshot taken when there's nothing to do");
@@ -387,7 +387,7 @@ test("dataModule: against an in-memory db, snapshotPath is null and NO `:memory:
   db.prepare(`CREATE TABLE posts (id TEXT PRIMARY KEY, title TEXT)`).run();
 
   const before = new Set(fs.readdirSync(process.cwd()));
-  const result = await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl: productsDecl });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath: ":memory:", decl: productsDecl });
   const after = fs.readdirSync(process.cwd());
 
   assert.equal(result.ok, true);
@@ -413,7 +413,7 @@ test("dataModule: an in-memory db's failing DDL still rolls back to a working st
   db.prepare(`INSERT INTO posts VALUES ('p1', 'hello')`).run();
 
   const before = new Set(fs.readdirSync(process.cwd()));
-  const result = await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl: {
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath: ":memory:", decl: {
     pluginId: "hello",
     pluginTier: "tier-2" as const,
     provenance: { sourceUrl: "test://hello", publisher: "test" },
@@ -458,7 +458,7 @@ test("dataModule: FAULT INJECTION, :memory: — a post-commit verification failu
     provenance: { sourceUrl: "test://memcommit", publisher: "test" },
     tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] }],
   };
-  await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath: ":memory:", decl: v1 });
 
   const v2 = {
     ...v1,
@@ -469,7 +469,7 @@ test("dataModule: FAULT INJECTION, :memory: — a post-commit verification failu
   // call for this table (verification, now inside the DDL transaction) sees stale, pre-ALTER data.
   const proxiedDb = staleColumnsOnSecondRead(db, "p_memcommit__widgets");
 
-  const result = await declareDataModule({ db: contentKernel(proxiedDb), dbPath: ":memory:", decl: v2 });
+  const result = await declareDataModule({ db: contentKernel({ store: proxiedDb }), dbPath: ":memory:", decl: v2 });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "DDL_FAILED");
@@ -504,7 +504,7 @@ const longNameDecl = (pluginId: string, tableName: string, indexName?: string) =
 test("dataModule: rejects a table whose namespaced name would exceed PostgreSQL's 63-byte identifier limit", async () => {
   const { db, dbPath, dir } = openWithCore();
   // `p_` + pluginId(30) + `__` + tableName(32) = 66 bytes.
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: longNameDecl("a".repeat(30), "b".repeat(32)) });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: longNameDecl("a".repeat(30), "b".repeat(32)) });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "IDENTIFIER_TOO_LONG");
@@ -517,7 +517,7 @@ test("dataModule: rejects a table whose namespaced name would exceed PostgreSQL'
 test("dataModule: rejects an index whose generated name would exceed the identifier limit, even when the table fits", async () => {
   const { db, dbPath, dir } = openWithCore();
   // Table `p_short__t` fits easily; the index `idx_p_short__t__<50 chars>` does not.
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: longNameDecl("short", "t", "i".repeat(50)) });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: longNameDecl("short", "t", "i".repeat(50)) });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "IDENTIFIER_TOO_LONG");
@@ -529,7 +529,7 @@ test("dataModule: rejects an index whose generated name would exceed the identif
 test("dataModule: accepts an identifier of exactly 63 bytes — the limit is inclusive", async () => {
   const { db, dbPath, dir } = openWithCore();
   // `p_`(2) + pluginId(30) + `__`(2) + tableName(29) = exactly 63.
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: longNameDecl("a".repeat(30), "b".repeat(29)) });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: longNameDecl("a".repeat(30), "b".repeat(29)) });
 
   assert.equal(result.ok, true, result.error?.message);
   assert.deepEqual(result.created, [`p_${"a".repeat(30)}__${"b".repeat(29)}`]);
@@ -543,7 +543,7 @@ test("dataModule refuses an otherwise valid Tier-1 declaration before schema, sn
   try {
     const schema = db.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY name").all();
     const files = fs.readdirSync(dir).sort();
-    const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: { ...productsDecl, pluginTier: "tier-1" } });
+    const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: { ...productsDecl, pluginTier: "tier-1" } });
     assert.equal(result.ok, false);
     assert.equal(result.error?.code, "TIER1_NOT_ALLOWED");
     assert.equal(result.snapshotPath, null);
@@ -571,7 +571,7 @@ test("dataModule reports a committed migration as successful despite a post-comm
     return typeof value === "function" ? value.bind(target) : value;
   } });
   try {
-    const result = await declareDataModule({ db: contentKernel(fault), dbPath, decl: productsDecl });
+    const result = await declareDataModule({ db: contentKernel({ store: fault }), dbPath, decl: productsDecl });
     assert.equal(failedCheckpoint, true, "fault must reach the checkpoint after durable DDL");
     assert.equal(result.ok, true);
     assert.deepEqual(result.created, ["p_hello__products"]);
@@ -579,7 +579,7 @@ test("dataModule reports a committed migration as successful despite a post-comm
     assert.equal((db.prepare("SELECT phase FROM _plugin_migration_journal ORDER BY id DESC LIMIT 1").get() as { phase: string }).phase, "COMMITTED");
     db.prepare("INSERT INTO posts VALUES ('p2', 'after commit')").run();
     const { recoverIncompleteDataModuleMigrations } = await import("../migration-recovery.js");
-    const recovery = await recoverIncompleteDataModuleMigrations({ store: contentKernel(db), restoreSnapshots: () => { assert.fail("a committed migration must never restore"); } });
+    const recovery = await recoverIncompleteDataModuleMigrations({ store: contentKernel({ store: db }), restoreSnapshots: () => { assert.fail("a committed migration must never restore"); } });
     assert.deepEqual(recovery, { recovered: 0, entries: [] });
     assert.deepEqual(db.prepare("SELECT * FROM posts WHERE id = 'p2'").get(), { id: "p2", title: "after commit" });
   } finally {
@@ -600,7 +600,7 @@ for (const { name, decl, code, message } of invalidDeclarations) {
   test(`dataModule rejects ${name} before any database writes`, async (t) => {
     const db = new Database(":memory:");
     t.after(() => db.close());
-    const result = await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl });
+    const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath: ":memory:", decl });
     assert.deepEqual(result, { ok: false, created: [], altered: [], snapshotPath: null, error: { code, message } });
     assert.deepEqual(db.prepare("SELECT name FROM sqlite_master").all(), []);
   });
@@ -611,7 +611,7 @@ for (const freeBytes of [12, null]) {
     const { db, dbPath, dir } = openWithCore();
     t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
     const files = fs.readdirSync(dir).sort();
-    const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: productsDecl }, {
+    const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: productsDecl }, {
       checkHeadroom: ({ dbPath: requestedPath }) => {
         assert.equal(requestedPath, dbPath);
         return { ok: false, requiredBytes: 200, freeBytes };
@@ -631,9 +631,9 @@ test("dataModule skips disk measurement for in-memory declarations and fully rec
   const db = new Database(":memory:");
   t.after(() => db.close());
   const options = { checkHeadroom: () => { throw new Error("in-memory declarations must not measure disk space"); } };
-  const first = await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl: productsDecl }, options);
+  const first = await declareDataModule({ db: contentKernel({ store: db }), dbPath: ":memory:", decl: productsDecl }, options);
   assert.deepEqual(first, { ok: true, created: ["p_hello__products"], altered: [], snapshotPath: null });
-  const second = await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl: productsDecl }, options);
+  const second = await declareDataModule({ db: contentKernel({ store: db }), dbPath: ":memory:", decl: productsDecl }, options);
   assert.deepEqual(second, { ok: true, created: [], altered: [], snapshotPath: null });
   assert.equal(tableExists(db, "p_hello__products"), true);
 });
@@ -644,11 +644,11 @@ test("dataModule accepts Tier-3 declarations with explicitly false nullable, key
   const decl: DataModuleDecl = { ...productsDecl, pluginTier: "tier-3", tables: [{ name: "products", columns: [
     { name: "id", type: "TEXT", notNull: false, primaryKey: false },
   ], indexes: [{ name: "by_id", columns: ["id"], unique: false }] }] };
-  assert.deepEqual(await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl }), {
+  assert.deepEqual(await declareDataModule({ db: contentKernel({ store: db }), dbPath: ":memory:", decl }), {
     ok: true, created: ["p_hello__products"], altered: [], snapshotPath: null,
   });
   // The second declaration compares false (rather than omitted) against the live shape.
-  assert.deepEqual(await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl }), {
+  assert.deepEqual(await declareDataModule({ db: contentKernel({ store: db }), dbPath: ":memory:", decl }), {
     ok: true, created: [], altered: [], snapshotPath: null,
   });
   db.prepare("INSERT INTO p_hello__products (id) VALUES (NULL), ('duplicate'), ('duplicate')").run();
@@ -662,7 +662,7 @@ test("dataModule rolls back migration bookkeeping when a created table cannot be
   t.after(() => db.close());
   db.prepare("CREATE TABLE posts (id TEXT PRIMARY KEY, title TEXT)").run();
   db.prepare("INSERT INTO posts VALUES ('p1', 'keep')").run();
-  const kernel = pluginKernel(contentKernel(db));
+  const kernel = pluginKernel(contentKernel({ store: db }));
   let droppedCreate = false;
   // A driver that acknowledges CREATE without applying it must not leave committed migration
   // bookkeeping. All other statements, including the transaction/rollback, use the real kernel.
@@ -689,7 +689,7 @@ for (const checkpointFails of [false, true]) {
   test(`dataModule housekeeping ${checkpointFails ? "retains the snapshot on checkpoint failure" : "checkpoints before discarding the snapshot"}`, async (t) => {
     const { db, dbPath, dir } = openWithCore();
     t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
-    const kernel = pluginKernel(contentKernel(db));
+    const kernel = pluginKernel(contentKernel({ store: db }));
     let committedCheckpoint = false;
     let snapshotAtCheckpoint: string | undefined;
     const fault: PluginKernel = { ...kernel, query: async (statement) => {
@@ -718,7 +718,7 @@ for (const checkpointFails of [false, true]) {
 test("dataModule housekeeping skips checkpoints and backups without a file-backed snapshot", async (t) => {
   const db = new Database(":memory:");
   t.after(() => db.close());
-  const kernel = pluginKernel(contentKernel(db));
+  const kernel = pluginKernel(contentKernel({ store: db }));
   const fault: PluginKernel = { ...kernel,
     backupTo: async () => { assert.fail("an in-memory declaration must not create a backup"); },
     query: async (statement) => {

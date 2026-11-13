@@ -32,7 +32,7 @@ export function columnRow(table: Table, value: object): AnyRow {
   return row;
 }
 
-async function insertRow(kernel: ContentKernel, table: Table, value: object): Promise<void> {
+async function insertRow({ kernel, table, value }: { kernel: ContentKernel; table: Table; value: object }, _optional: Record<string, never> = {}): Promise<void> {
   // Any table by its runtime name: the typed Kysely surface cannot name a table picked at runtime.
   await (kernel as unknown as StorageKernel<AnyTables>).run((db) => db.insertInto(getTableName(table)).values(columnRow(table, value)).execute());
 }
@@ -55,14 +55,14 @@ export async function seedContentStore(kernel: ContentKernel, seed: ContentDbSee
     );
     if (existing !== undefined) return;
 
-    await insertRow(kernel, schema.workspaces, seed.workspace);
+    await insertRow({ kernel, table: schema.workspaces, value: seed.workspace });
     for (const post of seed.posts) {
-      await insertRow(kernel, schema.posts, { ...post, bodyJson: JSON.stringify(post.bodyJson), ext: JSON.stringify(post.ext ?? {}) });
+      await insertRow({ kernel, table: schema.posts, value: { ...post, bodyJson: JSON.stringify(post.bodyJson), ext: JSON.stringify(post.ext ?? {}) } });
     }
     for (const entry of seed.contentEntries ?? []) {
-      await insertRow(kernel, schema.entries, { ...entry, fieldsJson: JSON.stringify(entry.fieldsJson) });
+      await insertRow({ kernel, table: schema.entries, value: { ...entry, fieldsJson: JSON.stringify(entry.fieldsJson) } });
     }
-    await insertRow(kernel, schema.presentationSettings, seed.presentation);
+    await insertRow({ kernel, table: schema.presentationSettings, value: seed.presentation });
   });
 }
 

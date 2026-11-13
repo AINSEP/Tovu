@@ -33,13 +33,13 @@ export type DatabaseJournalDb = JournalKernel;
  * through the kernel right after, and every call on the kernel waits for them (`ready`) and fails
  * with their error if they failed. The parent directory must exist.
  */
-export function journalKernel(filePath: string): JournalKernel {
+export function journalKernel({ filePath }: { filePath: string }, _optional: Record<string, never> = {}): JournalKernel {
   const kernel = openSqliteFileKernel<JournalDatabase>(filePath);
   const ready = (async () => {
     await kernel.query(sql`PRAGMA journal_mode = WAL`);
     await applyDatabaseJournalSchema(kernel);
   })();
-  return gateJournalKernel(kernel, ready);
+  return gateJournalKernel({ kernel, ready });
 }
 
 /** Open (or create) `ops/database-journal.db` — {@link journalKernel}, under the name its call sites use. */

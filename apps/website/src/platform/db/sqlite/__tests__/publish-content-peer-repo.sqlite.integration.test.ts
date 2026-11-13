@@ -53,7 +53,7 @@ async function createFreshContentDbInTempDir(): Promise<{ readonly dir: string; 
   db.insert(workspaces)
     .values({ id: WORKSPACE_ID, name: WORKSPACE_ID, slug: WORKSPACE_ID, createdAt: "2026-09-18T00:00:00.000Z" })
     .run();
-  await ensureVaultRepoFixture({ kernel: contentKernel(db) });
+  await ensureVaultRepoFixture({ kernel: contentKernel({ store: db }) });
   db.$client.close();
   return { dir, dbPath };
 }
@@ -62,7 +62,7 @@ function makeDeps(dbPath: string, idPrefix: string) {
   let n = 0;
   const keyring = new InMemoryKeyring();
   return {
-    repo: new SqlitePublishContentPeerRepo(contentKernel(openContentDb(dbPath))),
+    repo: new SqlitePublishContentPeerRepo(contentKernel({ store: openContentDb(dbPath) })),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
     clock: { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") },
@@ -182,7 +182,7 @@ test("credential rotation and moving or removing a connected destination preserv
   let nextId = 0;
   const keyring = new InMemoryKeyring();
   const deps = {
-    repo: new SqlitePublishContentPeerRepo(contentKernel(db)),
+    repo: new SqlitePublishContentPeerRepo(contentKernel({ store: db })),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
     clock: { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") },

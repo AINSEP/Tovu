@@ -20,41 +20,41 @@ import {
 export class SqliteNewsletterCampaignRepo extends SqlNewsletterCampaignRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteNewsletterListRepo extends SqlNewsletterListRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteNewsletterSubscriptionRepo extends SqlNewsletterSubscriptionRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteNewsletterAudienceSnapshotRepo extends SqlNewsletterAudienceSnapshotRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteNewsletterSendRepo extends SqlNewsletterSendRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteNewsletterConfirmationTokenRepo extends SqlNewsletterConfirmationTokenRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }

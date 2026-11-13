@@ -61,7 +61,7 @@ test("the card names the source, counts and every overwritten title; only a huma
   assert.equal(f.restorePoints.size, 1);
   assert.deepEqual(confirmations.map(record => ({ confirmer: record.confirmerPrincipalId, scope: record.scopeId })), [{ confirmer: OWNER, scope: "local" }]);
   assert.equal(redemptions, 1);
-  assert.equal((await tokens.findByToken(confirmations[0]!.confirmationToken))?.status, "redeemed");
+  assert.equal((await tokens.findByToken({ token: confirmations[0]!.confirmationToken }))?.status, "redeemed");
   assert.equal(f.applied.length, 1);
   assert.equal(f.applied[0]!.principalId, OWNER);
   const applyAuth = f.authCalls.filter(a => a.permission === "publish_content.apply");

@@ -340,11 +340,11 @@ async function createSqliteSiteStore(
   const db = openSqliteContentConnection(dbPath);
   try {
     await migrateContentDatabase(sqliteKernel<unknown>(db));
-    if (!verifiedRestore) await prepareContentStore(contentKernel(db), { seed });
+    if (!verifiedRestore) await prepareContentStore(contentKernel({ store: db }), { seed });
     // A freshly initialized site must already carry current repair markers, so its first boot
     // does not mutate content.db merely to record a no-op repair. Older sites still repair on boot.
-    await deps.runBootDataRepairs({ kernel: contentKernel(db) });
-    await deps.seedNewSiteOwner({ kernel: contentKernel(db), seed, adminPassword });
+    await deps.runBootDataRepairs({ kernel: contentKernel({ store: db }) });
+    await deps.seedNewSiteOwner({ kernel: contentKernel({ store: db }), seed, adminPassword });
     verifiedRestore?.signal?.throwIfAborted();
   } finally {
     closeSqliteConnection(db);

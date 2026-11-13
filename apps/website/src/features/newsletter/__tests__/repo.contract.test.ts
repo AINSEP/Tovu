@@ -76,7 +76,7 @@ function makeContractCampaign(overrides: Partial<CampaignRecord> = {}): Campaign
 async function makeSqliteDb(): Promise<ContentDb> {
   const db = openContentDb(":memory:");
   await installNewsletterDataModule({
-    db: contentKernel((db as unknown as { $client: import("better-sqlite3").Database }).$client),
+    db: contentKernel({ store: (db as unknown as { $client: import("better-sqlite3").Database }).$client }),
     dbPath: ":memory:",
   });
   return db;

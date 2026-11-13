@@ -10,6 +10,6 @@ import { SqlContentTypeRepo } from "./repo.js";
 export class SqliteContentTypeRepo extends SqlContentTypeRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }

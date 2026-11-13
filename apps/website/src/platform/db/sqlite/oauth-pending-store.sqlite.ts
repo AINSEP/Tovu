@@ -23,5 +23,5 @@ export interface SqliteDeviceAuthorizationStoreDeps {
 
 /** {@link createSqlDeviceAuthorizationStore} on `deps.db`, scoped to one workspace. */
 export function createSqliteDeviceAuthorizationStore(deps: SqliteDeviceAuthorizationStoreDeps, _optional: Record<string, never> = {}): DeviceAuthorizationStore {
-  return createSqlDeviceAuthorizationStore({ ...deps, kernel: contentKernel(deps.db) });
+  return createSqlDeviceAuthorizationStore({ ...deps, kernel: contentKernel({ store: deps.db }) });
 }

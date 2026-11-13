@@ -155,7 +155,7 @@ for (const state of ["live", "missing", "denied"] as const) {
       (id, workspace_id, name, slug, fields_json, notify_json, status, created_at, updated_at, version)
       VALUES ('f1', ?, 'Contact', 'contact', '{}', '{}', 'active', ?, ?, 1)`).run(workspaceId, at, at);
     const registry = new Map([["form", buildTrashRegistry().get("form")!]]);
-    const kernel = contentKernel(db);
+    const kernel = contentKernel({ store: db });
     const adapter = createTableTrashAdapter({ db: kernel, entry: registry.get("form")! });
     const trash = createTrashService({ repo: new InMemoryTrashRepo({}), adapters: new Map([["form", adapter]]),
       idGen: { newId: () => "l128-trash" }, entityPolicy: ({ entityType }) => registry.has(entityType),

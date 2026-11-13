@@ -215,7 +215,7 @@ test("AC-14: a confirmed token cannot execute in another scope with the same pri
     (err: unknown) => err instanceof ForbiddenError && err.reasonCode === "SCOPE_MISMATCH"
   );
   assert.equal(otherScopeHooks.mutationRuns, 0);
-  assert.equal((await deps.tokens.findByToken(token.confirmationToken))?.status, "minted");
+  assert.equal((await deps.tokens.findByToken({ token: token.confirmationToken }))?.status, "minted");
 });
 
 // ---------------------------------------------------------------------------
@@ -421,7 +421,7 @@ test("execute() succeeds exactly once for a valid token satisfying every check, 
 
   assert.deepEqual(result, { migrated: true });
   assert.equal(hooks.mutationRuns, 1);
-  assert.equal((await tokens.findByToken(record.confirmationToken))?.status, "redeemed");
+  assert.equal((await tokens.findByToken({ token: record.confirmationToken }))?.status, "redeemed");
   await assert.rejects(
     execute({ deps, principalId: "u-1", principalKind: "user", hooks, confirmationToken: record.confirmationToken }),
     TokenAlreadyRedeemedError
@@ -441,7 +441,7 @@ test("concurrent execute() calls with one valid token permit exactly one mutatio
   assert.equal(rejected.length, 4);
   for (const attempt of rejected) assert.ok(attempt.reason instanceof TokenAlreadyRedeemedError);
   assert.equal(hooks.mutationRuns, 1);
-  assert.equal((await tokens.findByToken(record.confirmationToken))?.status, "redeemed");
+  assert.equal((await tokens.findByToken({ token: record.confirmationToken }))?.status, "redeemed");
 });
 
 test("execute() passes the re-derived verified plan hash and details to the mutation", async () => {

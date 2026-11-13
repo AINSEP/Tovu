@@ -19,7 +19,7 @@ for (const scenario of [
     t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 1000 });
     const customSocket = path.join(siteDir, "custom-socket");
     const socketPath = scenario.socketEnv === "custom" ? customSocket :
-      path.join(defaultPgliteSocketDir(path.join(siteDir, PGLITE_DATA_DIR_NAME)), PGLITE_SOCKET_FILE);
+      path.join(defaultPgliteSocketDir({ dataDir: path.join(siteDir, PGLITE_DATA_DIR_NAME) }), PGLITE_SOCKET_FILE);
     const env = scenario.socketEnv === "absent" ? {} : { [PG_SOCKET_ENV]: scenario.socketEnv === "blank" ? "   " : ` ${customSocket} ` };
     let settled = false;
     const opening = openSiteStore({ storage: { kind: "pglite" }, dbPath: path.join(siteDir, "content.db"),

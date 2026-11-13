@@ -19,11 +19,11 @@ test('draft saves preserve published enforcement; stale editors and stale public
   await assert.rejects(f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: first.revision.id }), SiteConsentConflict);
   await assert.rejects(f.service.publish({ principalId: 'owner', draftId: first.revision.id, expectedPublishedId: null }), SiteConsentConflict);
   await assert.rejects(f.service.publish({ principalId: 'owner', draftId: next.revision.id, expectedPublishedId: null }), SiteConsentConflict);
-  const reopened = createSiteConsentStore({ kernel: contentKernel(f.db), workspaceId: 'ws' });
+  const reopened = createSiteConsentStore({ kernel: contentKernel({ store: f.db }), workspaceId: 'ws' });
   assert.equal((await reopened.read({})).published?.id, first.revision.id);
-  const rows = await contentKernel(f.db).query<{ n: number }>(sql`SELECT count(*) AS n FROM site_consent_revisions`);
+  const rows = await contentKernel({ store: f.db }).query<{ n: number }>(sql`SELECT count(*) AS n FROM site_consent_revisions`);
   assert.equal(rows[0]?.n, 2);
-  assert.deepEqual(await createSiteConsentStore({ kernel: contentKernel(f.db), workspaceId: 'other' }).read({}), { draft: null, published: null });
+  assert.deepEqual(await createSiteConsentStore({ kernel: contentKernel({ store: f.db }), workspaceId: 'other' }).read({}), { draft: null, published: null });
 });
 
 test('readiness validates declarations and reports unmanaged warnings without changing receipts or settings', async t => {
@@ -184,7 +184,7 @@ test('persisted policies missing enabled are rejected by reads, publication and 
   const f = consentFixture({ t });
   const { enabled: _enabled, ...incomplete } = f.config;
   const saved = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
-  await contentKernel(f.db).execute(sql`UPDATE site_consent_revisions SET config_json = ${JSON.stringify(incomplete)} WHERE id = ${saved.revision.id}`);
+  await contentKernel({ store: f.db }).execute(sql`UPDATE site_consent_revisions SET config_json = ${JSON.stringify(incomplete)} WHERE id = ${saved.revision.id}`);
   await assert.rejects(f.service.publish({ principalId: 'owner', draftId: saved.revision.id, expectedPublishedId: null }), /Invalid consent field: enabled/);
   await f.store.publish({ draftId: saved.revision.id, expectedPublishedId: null });
   await assert.rejects(f.service.read({ principalId: 'owner' }), /Invalid consent field: enabled/);
@@ -220,7 +220,7 @@ test('Jini validators reject credential links and unreadable custom colors; auto
 });
 
 test('SQL-only schema has exact columns and failed duplicate saves cannot move either head', async t => {
-  const f = consentFixture({ t }); const kernel = contentKernel(f.db);
+  const f = consentFixture({ t }); const kernel = contentKernel({ store: f.db });
   const revisions = await kernel.query<{ name: string }>(sql`PRAGMA table_info(site_consent_revisions)`);
   const heads = await kernel.query<{ name: string }>(sql`PRAGMA table_info(site_consent_heads)`);
   assert.deepEqual(revisions.map(row => row.name).sort(), ['actor_id', 'config_json', 'created_at', 'id', 'workspace_id']);
@@ -281,7 +281,7 @@ test('standalone banner preview never calls the page renderer; unavailable page 
 
 test('the store refuses a head that points at a missing or oversized revision, and an oversized draft', async t => {
   const f = consentFixture({ t });
-  const kernel = contentKernel(f.db);
+  const kernel = contentKernel({ store: f.db });
   await kernel.execute(sql`INSERT INTO site_consent_heads (workspace_id, draft_id, published_id) VALUES (${'ws'}, ${'ghost'}, NULL)`);
   await assert.rejects(f.store.read({}), { message: 'Stored consent revision is unavailable.' });
   await kernel.execute(sql`INSERT INTO site_consent_revisions (workspace_id, id, config_json, actor_id, created_at) VALUES (${'ws'}, ${'ghost'}, ${JSON.stringify({ title: 'x'.repeat(32_768) })}, ${'owner'}, ${'2026-10-20T12:00:00.000Z'})`);
@@ -321,7 +321,7 @@ test('deployment supports default-only and valid published consent while still v
   const saved = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
   await f.service.publish({ principalId: 'owner', draftId: saved.revision.id, expectedPublishedId: null });
   assert.equal(await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }), null);
-  await contentKernel(f.db).execute(sql`UPDATE site_consent_revisions SET config_json = ${JSON.stringify({ ...f.config, privacyPolicyUrl: '' })} WHERE id = ${saved.revision.id}`);
+  await contentKernel({ store: f.db }).execute(sql`UPDATE site_consent_revisions SET config_json = ${JSON.stringify({ ...f.config, privacyPolicyUrl: '' })} WHERE id = ${saved.revision.id}`);
   assert.equal((await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }))?.code, 'CONSENT_REVIEW_REQUIRED');
   f.ports.defaultOnly = async () => { throw new Error('ledger unreadable'); };
   f.ports.store = { ...f.store, read: async () => ({ draft: null, published: null }) };

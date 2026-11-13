@@ -22,7 +22,7 @@ describeEachDialect<ContentKernel>("checkForOrphanedChatRows", { tables: [], mak
     const kernel = makeKernel();
     await dropChatTables(kernel);
 
-    const check = await checkForOrphanedChatRows(kernel);
+    const check = await checkForOrphanedChatRows({ contentDb: kernel });
 
     assert.deepEqual(check, { counts: { aiChats: 0, aiChatMessages: 0, assistantAgentSessions: 0 }, total: 0, orphaned: false });
   });
@@ -36,7 +36,7 @@ describeEachDialect<ContentKernel>("checkForOrphanedChatRows", { tables: [], mak
       await kernel.execute(sql`INSERT INTO ai_chats (id) VALUES ('a'), ('b')`);
       await kernel.execute(sql`INSERT INTO ai_chat_messages (id) VALUES ('m1'), ('m2'), ('m3')`);
 
-      const check = await checkForOrphanedChatRows(kernel);
+      const check = await checkForOrphanedChatRows({ contentDb: kernel });
 
       assert.deepEqual(check, { counts: { aiChats: 2, aiChatMessages: 3, assistantAgentSessions: 0 }, total: 5, orphaned: true });
     } finally {

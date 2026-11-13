@@ -15,7 +15,7 @@ function fixture(t: test.TestContext) {
   const db = new Database(":memory:");
   t.after(() => db.close());
   db.exec("PRAGMA foreign_keys=ON; CREATE TABLE p_widgets(id TEXT PRIMARY KEY, title TEXT); CREATE TABLE p_links(id TEXT PRIMARY KEY, widget_id TEXT REFERENCES p_widgets(id));");
-  const rows = createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel(db) });
+  const rows = createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel({ store: db }) });
   const outbox = new InMemoryOutbox();
   let serial = 0;
   const deps: PublishContentDeps = {

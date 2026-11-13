@@ -51,7 +51,7 @@ function buildHarness(): Harness {
     .run(base.workspaceId, "ws", "ws", "2026-01-01T00:00:00.000Z");
 
   const registry = buildTrashRegistry();
-  const sqliteTrashDb = contentKernel(db);
+  const sqliteTrashDb = contentKernel({ store: db });
   const adapters = new Map<string, TrashAdapter>(
     [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: sqliteTrashDb })] as const)
   );

@@ -334,7 +334,7 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; omitte
     const plugins = await prepareSharePluginTables({ target, present, modules: required.modules });
     await refuseUnknownShareTables({ source, trusted: new Set([...await listTables(target), ...plugins.private]) });
     await copyPortableTables({ source: from, target, present, plugins, credentialWarnings, omittedMediaIds: required.omittedMediaIds }, optional);
-    await backfillPostSearchIndex({ kernel: contentKernel(fresh) });
+    await backfillPostSearchIndex({ kernel: contentKernel({ store: fresh }) });
     const documents = await documentReferences({ target });
     const media = [
       ...await target.run(db => db.selectFrom("asset_blobs").select(["storage_key as storageKey", "sha256"]).execute()) as { storageKey: string; sha256: string }[],

@@ -69,7 +69,7 @@ function harness(hooks: TrashFollowUpHooks, entry: TrashEntry = buildEntry()): H
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
-  const trashDb = contentKernel(db);
+  const trashDb = contentKernel({ store: db });
   const baseAdapter = createTableTrashAdapter({ entry, db: trashDb });
   const wrapped = withFollowUps({ adapter: baseAdapter }, hooks);
   const adapters = new Map<string, TrashAdapter>([[ENTITY_TYPE, wrapped]]);

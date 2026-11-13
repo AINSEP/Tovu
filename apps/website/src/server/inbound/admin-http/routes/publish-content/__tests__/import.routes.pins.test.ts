@@ -74,7 +74,7 @@ async function rawRowPlanDeps(t: TestContext, bundleRepo: InMemoryPublishContent
   db.exec("CREATE TABLE p_banner(id TEXT PRIMARY KEY, title TEXT); INSERT INTO p_banner VALUES('one','Old footer');");
   resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
   registerPublishContentContributor(contributeRawRowPublish());
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   const live = await createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel }).read({ table: "p_banner", pk: { id: "one" } });
   assert.ok(live);
   const state = { ...live, values: { ...live.values, title: "New footer" } };

@@ -138,4 +138,4 @@ function runSuite(adapterName: string, makeRepo: () => EntryRefsRepoPort) {
 }
 
 runSuite("InMemoryEntryRefsRepo", () => new InMemoryEntryRefsRepo());
-runSuite("SqliteEntryRefsRepo", () => new SqliteEntryRefsRepo(openContentDb(":memory:")));
+runSuite("SqliteEntryRefsRepo", () => new SqliteEntryRefsRepo({ store: openContentDb(":memory:") }));

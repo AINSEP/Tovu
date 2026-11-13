@@ -115,7 +115,7 @@ for (const [pluginId, table, columns] of [
   const h = await importFixture(t);
   const decl = FIRST_PARTY_DATA_MODULES.find(module => module.pluginId === pluginId)!;
   assert.ok(decl.tables.every(entry => entry.portability === undefined), `${pluginId} gained a portability policy; update this pin`);
-  const result = await declareDataModule({ db: contentKernel(h.db), dbPath: ":memory:", decl });
+  const result = await declareDataModule({ db: contentKernel({ store: h.db }), dbPath: ":memory:", decl });
   assert.equal(result.ok, true, result.error?.message);
   await sanitizeShareDatabase({ snapshot: h.db.$client.serialize() });
   const name = `p_${pluginId}__${table}`;

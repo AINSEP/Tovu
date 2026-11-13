@@ -14,6 +14,6 @@ export { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables
 export class SqliteWidgetRegionBindingRepo extends SqlWidgetRegionBindingRepo {
   /** @param store - The connection's kernel, or the content db handle it is derived from. */
   constructor(store: ContentKernel | ContentDb) {
-    super({ kernel: contentKernel(store) as unknown as StorageKernel<WidgetsDatabase>, tables: { regionBindings: WIDGET_REGION_BINDINGS_TABLE } }, {});
+    super({ kernel: contentKernel({ store }) as unknown as StorageKernel<WidgetsDatabase>, tables: { regionBindings: WIDGET_REGION_BINDINGS_TABLE } }, {});
   }
 }

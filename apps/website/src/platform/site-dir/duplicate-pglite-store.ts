@@ -41,12 +41,12 @@ async function purgeAiChat(kernel: StorageKernel<unknown>): Promise<void> {
 async function copySource({ sourceDataDir, targetDataDir }: { sourceDataDir: string; targetDataDir: string }, _optional = {}): Promise<void> {
   const owner = runningPgliteOwner(sourceDataDir);
   if (owner !== undefined) {
-    await copyServedPgliteTo(owner, targetDataDir);
+    await copyServedPgliteTo({ owner, targetPath: targetDataDir });
     return;
   }
   let release: () => void;
   try {
-    release = acquireOwnerLock(sourceDataDir);
+    release = acquireOwnerLock({ dataDir: sourceDataDir });
   } catch (err) {
     if (err instanceof PgliteOwnerLockedError) {
       throw new ValidationError({ message: `the site being duplicated is running (process ${err.pid ?? "unknown"}); stop it, or duplicate it from inside that site, then retry` });

@@ -135,7 +135,7 @@ function sqliteFormHarness(options: { deny?: boolean } = {}): SqliteFormHarness 
     .run(workspaceId, NOW, NOW);
 
   const registry = buildTrashRegistry();
-  const trashDb = contentKernel(db);
+  const trashDb = contentKernel({ store: db });
   const adapters = new Map<string, TrashAdapter>(
     [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
   );

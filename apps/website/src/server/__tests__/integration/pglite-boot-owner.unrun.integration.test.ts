@@ -50,7 +50,7 @@ async function freshPgliteSite(t: TestContext): Promise<PgliteSite> {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "unrun-pglite-boot-"));
   const siteDir = path.join(parent, "site");
   const dataDir = path.join(siteDir, PGLITE_DATA_DIR_NAME);
-  const socketDir = defaultPgliteSocketDir(dataDir);
+  const socketDir = defaultPgliteSocketDir({ dataDir });
   t.after(() => {
     fs.rmSync(parent, { recursive: true, force: true });
     fs.rmSync(socketDir, { recursive: true, force: true });

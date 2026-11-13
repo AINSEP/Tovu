@@ -56,8 +56,8 @@ test('Library: document metadata and original bytes survive a real SQLite and fi
   const dir = await mkdtemp(join(tmpdir(), 'library-restart-')); t.after(() => rm(dir, { recursive: true, force: true }));
   const { deps: memory } = libraryFixture();
   const filename = join(dir, 'content.db'); let db = openContentDb(filename);
-  const makeDeps = () => ({ ...memory, mediaRepo: new SqliteMediaRepo(db), blobRepo: new SqliteAssetBlobRepo(db),
-    renditionRepo: new SqliteAssetRenditionRepo(db), blobStore: new LocalFsBlobStore({ rootDir: join(dir, 'uploads') }) });
+  const makeDeps = () => ({ ...memory, mediaRepo: new SqliteMediaRepo({ store: db }), blobRepo: new SqliteAssetBlobRepo({ store: db }),
+    renditionRepo: new SqliteAssetRenditionRepo({ store: db }), blobStore: new LocalFsBlobStore({ rootDir: join(dir, 'uploads') }) });
   const first = makeDeps();
   const { media } = await uploadMedia({ deps: first, input: { workspaceId: 'site-a', kind: 'document', filename: 'restart.md',
     contentType: 'text/markdown', bytes: Buffer.from('Persistent source'), createdByPrincipal: 'uploader' } });

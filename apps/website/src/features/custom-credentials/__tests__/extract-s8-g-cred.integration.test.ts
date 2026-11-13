@@ -116,7 +116,7 @@ interface Site { kernel: ContentKernel; counts: Counts; vault: VaultRepoPort; de
  * SQL facade (indexed `findByLabel` included) behind counting wrappers. */
 async function openSite(optional: { project?: CustomCredentialProjectScope; before?: (name: string) => Promise<void>; keyring?: KeyringPort; ids?: string[] } = {}): Promise<Site> {
   const db = openContentDb(":memory:");
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   const fixtureKernel = sqliteKernel<unknown>(db);
   await insertFixture(fixtureKernel, "workspaces", { id: WS, name: WS, slug: WS, created_at: KEY.clock });
   for (const row of ROWS) await insertFixture(fixtureKernel, "secrets_vault", row);

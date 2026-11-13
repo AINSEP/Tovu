@@ -65,7 +65,7 @@ async function destination(t: TestContext, inverses: readonly BackstopInverse[],
   const db = new Database(":memory:"); t.after(() => db.close());
   // Test-only schema; no active migration is created or installed.
   db.exec(AUDIT_TABLE);
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   const audit = createBackstopAuditSqlitePort({ kernel });
   await audit.save({ record: record(inverses) });
   if (options.refuseAuditWrites) {

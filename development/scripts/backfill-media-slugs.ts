@@ -159,7 +159,7 @@ async function main(): Promise<void> {
   // Prove the database is really there BEFORE opening it — see this file's header for why a typo'd
   // path must fail loudly rather than silently open (and migrate) a brand-new empty database.
   const dbPath = resolveExistingDbPath(args.dbPath);
-  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
+  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly({ filePath: dbPath });
 
   const rows = loadRowsMissingSlug(db);
   console.log(`Found ${rows.length} media row(s) with no slug, across every workspace.`);

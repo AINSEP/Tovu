@@ -12,6 +12,6 @@ export type { EntryPublishReadPort } from "./contracts.js";
 export class SqliteEntryRepo extends SqlEntryRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }

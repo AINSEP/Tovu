@@ -51,7 +51,7 @@ function buildDeps(db: ContentDb, workspaceId: string, idPrefix = "id") {
     terms: new SqliteTermRepo({ db, workspaceId }),
     entryTerms: new SqliteEntryTermRepo({ db, workspaceId }),
     revisions: new SqliteTaxonomyRevisionRepo({ db, workspaceId }),
-    stampWatermark: kernelStampWatermark(contentKernel(db)),
+    stampWatermark: kernelStampWatermark(contentKernel({ store: db })),
     outbox: { enqueue: async () => {} },
     // `deleteTerm`/`deleteTaxonomy` (coordinator review addition) and `assignTerms` are the only
     // functions in this file's test set that dereference these two — `createTaxonomy`/`createTerm`/

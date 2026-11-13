@@ -38,7 +38,7 @@ test('an unreadable newer draft cannot affect the live publication read', async 
   const { closeSqliteConnection } = await import('#src/platform/db/kernel/drivers/sqlite');
   const db = openContentDb(':memory:');
   t.after(() => closeSqliteConnection(db));
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   const store = createSiteConsentStore({ workspaceId: 'public-test', kernel });
   await store.saveDraft({ revision: published, expectedDraftId: null });
   await store.publish({ draftId: published.id, expectedPublishedId: null });

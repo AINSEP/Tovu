@@ -60,19 +60,19 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     workspace.registry({}).merge({ entries: [{ id: name, path: dir, name, createdBy: 'peer-test', lastOpened: null }] });
     const paths = resolveSiteDatabasePaths({ dir }, { workspace, placement, reserveIdentity: false });
     fs.mkdirSync(path.dirname(paths.contentDbPath), { recursive: true });
-    const db = openContentDb(paths.contentDbPath), kernel = contentKernel(db);
+    const db = openContentDb(paths.contentDbPath), kernel = contentKernel({ store: db });
     close.push(() => { db.$client.close(); });
     const workspaceId = `${name}-workspace`, at = '2026-10-16T00:00:00.000Z';
     db.$client.prepare('INSERT INTO workspaces(id,name,slug,created_at) VALUES(?,?,?,?)').run(workspaceId, name, name, at);
     let sequence = 0;
     const clock = { nowMs: () => Date.parse(at), nowIso: () => at }, idGen = { newId: () => `${name}-id-${++sequence}` };
-    const identity = createSqliteIdentityRouteDeps({ db: contentKernel(db), workspaceId, ownerCredentials: DEFAULT_OWNER_CREDENTIALS,
+    const identity = createSqliteIdentityRouteDeps({ db: contentKernel({ store: db }), workspaceId, ownerCredentials: DEFAULT_OWNER_CREDENTIALS,
       permissionGrants: createAppPermissionGrants({}), clock, idGen });
     await identity.identityReady;
     await installCommentsDataModule({ db: kernel, dbPath: paths.contentDbPath });
     await installNewsletterDataModule({ db: kernel, dbPath: paths.contentDbPath });
     const ownerId = await identity.ownerPrincipalId;
-    const postRepo = new SqlitePostRepo({ store: kernel }), mediaRepo = new SqliteMediaRepo(kernel), formDefinitionRepo = new SqliteFormDefinitionRepo(kernel);
+    const postRepo = new SqlitePostRepo({ store: kernel }), mediaRepo = new SqliteMediaRepo({ store: kernel }), formDefinitionRepo = new SqliteFormDefinitionRepo(kernel);
     await createPost({ deps: { repo: postRepo, clock }, input: { workspaceId, id: 'post', title: `${name} post`, actorId: ownerId } });
     await createPost({ deps: { repo: postRepo, clock }, input: { workspaceId, id: 'page', kind: 'page', title: `${name} page`, actorId: ownerId } });
     await new PagesHtmlDocumentStore({ workspaceId, postId: 'page', actorId: ownerId }, { db: kernel, clock }).ensureHtmlFormat(`<main>${name} page</main>`);
@@ -80,8 +80,8 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     const sha256 = createHash('sha256').update(bytes).digest('hex');
     const blobStore = new LocalFsBlobStore({ rootDir: path.join(dir, 'uploads') });
     const { storageKey } = await blobStore.put({ workspaceId, sha256, bytes });
-    await new SqliteAssetBlobRepo(kernel).save({ id: 'blob', workspaceId, sha256, storageKey, status: 'active', createdAt: at, createdByPrincipal: ownerId });
-    await new SqliteMediaContentTypeStore(kernel).set({ workspaceId, sha256, contentType: 'image/png' });
+    await new SqliteAssetBlobRepo({ store: kernel }).save({ id: 'blob', workspaceId, sha256, storageKey, status: 'active', createdAt: at, createdByPrincipal: ownerId });
+    await new SqliteMediaContentTypeStore({ store: kernel }).set({ workspaceId, sha256, contentType: 'image/png' });
     await mediaRepo.save({ id: 'media', workspaceId, title: `${name} media`, slug: 'media', alt: '', caption: '', credit: '',
       source: { sha256 }, status: 'active', version: 1, createdAt: at, updatedAt: at,
       width: null, height: null, cssClass: null, htmlAttributes: null, createdBy: ownerId });
@@ -97,7 +97,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     close.push(() => { chat.close(); });
     const journalPath = path.join(path.dirname(paths.contentDbPath), 'ops', 'database-journal.db');
     fs.mkdirSync(path.dirname(journalPath), { recursive: true });
-    const journal = openDatabaseJournalDb(journalPath);
+    const journal = openDatabaseJournalDb({ filePath: journalPath });
     await journal.ready;
     close.push(() => journal.close());
     return { name, dir, paths, journalPath, db, kernel, identity, ownerId, staffId, workspaceId, postRepo, mediaRepo, formDefinitionRepo, chatHistory, clock, idGen };

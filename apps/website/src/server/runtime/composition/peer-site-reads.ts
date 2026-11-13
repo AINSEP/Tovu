@@ -213,10 +213,10 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
   await identity.identityReady;
   const postRepo = new SqlitePostRepo({ store: kernel }), settingsRepo = new SqliteSettingsRepo(kernel);
   const presentationRepo = new SqlitePresentationSettingsRepo(kernel);
-  const entryRefsRepo = new SqliteEntryRefsRepo(kernel), mediaRepo = new SqliteMediaRepo(kernel);
-  const mediaContentTypeStore = new SqliteMediaContentTypeStore(kernel);
-  const transformDefinitionRepo = new SqliteTransformDefinitionRepo(kernel);
-  const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo(kernel) });
+  const entryRefsRepo = new SqliteEntryRefsRepo({ store: kernel }), mediaRepo = new SqliteMediaRepo({ store: kernel });
+  const mediaContentTypeStore = new SqliteMediaContentTypeStore({ store: kernel });
+  const transformDefinitionRepo = new SqliteTransformDefinitionRepo({ store: kernel });
+  const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo({ store: kernel }) });
   const themesDir = path.join(source.dir, 'themes'), uploadsDir = path.join(source.dir, 'uploads');
   for (const file of [themesDir, uploadsDir]) if (fs.existsSync(file)) confinedPath({ root: source.dir, file });
   assertPeerThemes({ siteDir: source.dir, themesDir });
@@ -236,7 +236,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     postRepo, postSearch: postSearchIndexFor(kernel), entryRefsRepo,
     docBodyAsPageHtml: renderDocBodyAsPageHtml,
     pagesHtmlStore: (scope: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[0], options: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[1] = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo }),
-    mediaRepo, assetBlobRepo: new SqliteAssetBlobRepo(kernel), assetRenditionRepo: new SqliteAssetRenditionRepo(kernel), mediaContentTypeStore, transformDefinitionRepo,
+    mediaRepo, assetBlobRepo: new SqliteAssetBlobRepo({ store: kernel }), assetRenditionRepo: new SqliteAssetRenditionRepo({ store: kernel }), mediaContentTypeStore, transformDefinitionRepo,
     imageCodec: new SharpImageTransformer(),
     // Only read capabilities are exposed; neither a stray blob write nor an escaping stored key can reach disk.
     blobStore: {
@@ -283,7 +283,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     // redirects_list hides Trashed rules (03fb27a27) by reading the PEER's Trash rows; every write stays poisoned.
     redirectsWriteDeps: readsOnly({ field: 'redirectsWriteDeps', reads: { isInTrash: async ({ workspaceId: id, id: entityId }: { workspaceId: string; id: string }) =>
       (await trashRepo.findByEntity({ workspaceId: id, entityType: REDIRECT_ENTITY_TYPE, entityId })) !== null } }),
-    widgetBindingRepo: new SqliteWidgetRegionBindingRepo(kernel), changeSets: new SqliteChangeSetRepo(kernel),
+    widgetBindingRepo: new SqliteWidgetRegionBindingRepo(kernel), changeSets: new SqliteChangeSetRepo({ store: kernel }),
     registry: buildTrashRegistry(), trash: { list: trashRepo.list.bind(trashRepo) },
     databaseIntrospection: introspection, dbOps: { getCapabilities: dbOps.getCapabilities.bind(dbOps) },
     gatedMutations: { gatewayDeps: buildGatewayDeps({ clock, idGen, authorize: identity.authorize,

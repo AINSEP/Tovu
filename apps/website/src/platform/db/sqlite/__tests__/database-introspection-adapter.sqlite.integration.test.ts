@@ -121,7 +121,7 @@ test("real runner: an adopted SQLite baseline ignores rewritten legacy timestamp
   const dbPath = path.join(dir, "content.db");
   const db = openSqliteContentConnection({ filePath: dbPath });
   try {
-    const report = await migrateSqliteContentFile(db, dbPath);
+    const report = await migrateSqliteContentFile({ db, filePath: dbPath });
     assert.deepEqual(report.applied, CONTENT_MIGRATIONS.map((step) => step.id));
     const chain = readFrozenChain();
     const entry = chain[67];
@@ -145,7 +145,7 @@ test("real runner: SQLite reports a missing content step by ledger id and conten
   const dbPath = path.join(dir, "content.db");
   const db = openSqliteContentConnection({ filePath: dbPath });
   try {
-    await migrateSqliteContentFile(db, dbPath);
+    await migrateSqliteContentFile({ db, filePath: dbPath });
     const index = CONTENT_MIGRATIONS.length - 1;
     const lastStep = CONTENT_MIGRATIONS[index];
     assert.ok(lastStep);

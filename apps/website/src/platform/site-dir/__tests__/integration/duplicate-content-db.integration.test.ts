@@ -171,7 +171,7 @@ test("the copy passes integrity_check and keeps the migrator's bookkeeping table
     }
     const reopened = openSqliteContentConnection(targetDbPath);
     try {
-      const report = await migrateSqliteContentFile(reopened, targetDbPath);
+      const report = await migrateSqliteContentFile({ db: reopened, filePath: targetDbPath });
       assert.deepEqual(report.applied, [], "production reopen must not replay migrations");
       assert.deepEqual(reopened.$client.prepare("SELECT * FROM __drizzle_migrations ORDER BY id").all(), expectedHistory);
     } finally {
