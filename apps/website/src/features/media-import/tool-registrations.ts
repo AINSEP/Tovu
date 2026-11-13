@@ -302,6 +302,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
               },
               { toolId: "media_replace_file" })
             : await readLocalReplacement({ routeDeps, input });
+          ctx.signal.throwIfAborted();
           const saved = await replaceMediaFile({ deps: routeDeps, media, ...source, principalId: ctx.principal.id }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
           if (!saved) throw new MediaImportValidationError({ message: "Media changed while replacing its file. Read the current item and retry; nothing was replaced." });
           const urls = await resolveMediaPublicUrls(routeDeps, [saved]);
@@ -333,6 +334,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
           // uploadMedia derives its title by stripping the final extension. A synthetic suffix lets
           // an explicit editorial title keep its punctuation and spaces; this is never a disk path.
           const filename = title === undefined ? relativePath.split(/[\\/]/).at(-1)! : `${title}.imported`;
+          ctx.signal.throwIfAborted();
           const result = await persistImportedMedia({
             routeDeps, actorId: ctx.principal.id,
             input: {
@@ -367,6 +369,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
           withCallerSafeEgressRefusal(logEgressRefusal, async () => {
             const fetched = await fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient, plainHttpTestOrigins: routeDeps.outboundTestOrigins }, url });
 
+            ctx.signal.throwIfAborted();
             const result = await persistImportedMedia({
               routeDeps, actorId: ctx.principal.id,
               input: {

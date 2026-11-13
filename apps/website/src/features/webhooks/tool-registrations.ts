@@ -235,6 +235,7 @@ export function buildWebhooksRegistrations(
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription" });
 
       const rawTopics = input.topics;
+      ctx.signal.throwIfAborted();
       const { subscription } = await createSubscription({
         deps: { clock: routeDeps.clock, repo: routeDeps.webhookSubscriptionRepo, idGenerator: routeDeps.idGen, isAllowedTarget },
         input: {
@@ -260,6 +261,7 @@ export function buildWebhooksRegistrations(
       if (!Array.isArray(input.topics) || !input.topics.every(topic => typeof topic === "string")) {
         throw new WebhookSubscriptionValidationError({ message: "topics must be an array of strings" });
       }
+      ctx.signal.throwIfAborted();
       const { subscription } = await updateSubscription({
         deps: { clock: routeDeps.clock, repo: routeDeps.webhookSubscriptionRepo, idGenerator: routeDeps.idGen, isAllowedTarget },
         input: { workspaceId: routeDeps.workspaceId, id: subscriptionId, label: requireString({ input, key: "label" }), targetUrl: requireString({ input, key: "targetUrl" }), topics: input.topics },

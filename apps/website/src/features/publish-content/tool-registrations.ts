@@ -191,6 +191,7 @@ export function buildPublishContentRegistrations(
       refuseUnexpectedKeys(input, ["peerId", "types", "items", "excludeItems", "overwrite"]);
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
         workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
+      ctx.signal.throwIfAborted();
       return publishContentFromTool({ deps: routeDeps, principalId: ctx.principal.id }, input);
     }),
     [PUBLISH_BACKSTOP_GAPS_TOOL_ID]: async (ctx) => {

@@ -165,6 +165,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
       await routeDeps.seoReady;
 
       // Self-enforcing chokepoint (see file header) — no requireToolPermission call here.
+      ctx.signal.throwIfAborted();
       const { overrides } = await withSchemaOnRejection({
           toolId: "seo_set_entry_overrides",
           catalog: CATALOG_BY_ID,
@@ -200,6 +201,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
       // names is a non-image. Same order as `put-settings.ts`: authorize, then the chokepoint.
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_SEO_PERMISSION }, { entityType: "seo-settings" });
 
+      ctx.signal.throwIfAborted();
       const settings = await withSchemaOnRejection({ toolId: "seo_set_settings", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => error instanceof SeoSettingsValidationError, fn: () =>
           setSeoSettings(
             {

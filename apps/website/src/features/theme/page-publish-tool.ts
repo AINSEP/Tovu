@@ -40,6 +40,7 @@ export function buildRegistrations(deps: Deps): ToolRegistration[] {
       if (typeof input.page !== "string" || input.page.trim() === "") throw new ToolInputError({ message: "page must be a non-empty string." });
       if (typeof input.published !== "boolean") throw new ToolInputError({ message: "published must be a boolean." });
       try {
+        ctx.signal.throwIfAborted();
         return setThemePagePublished(deps, { themeId: input.themeId, page: input.page, published: input.published });
       } catch (error) {
         if (error instanceof ThemePagePublicationError || error instanceof ThemePathError) throw new ToolInputError({ message: error.message });

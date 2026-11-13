@@ -391,6 +391,7 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, _surfaces
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.compose" }, { entityType: "newsletter_campaign" });
 
       await deps.newsletterReady;
+      ctx.signal.throwIfAborted();
       const { campaign } = await saveCampaign({
         deps: toCampaignWriteServiceDeps(deps),
         input: {
@@ -418,6 +419,7 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, _surfaces
       const existing = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
       if (!existing) throw new NewsletterCampaignNotFoundError(`campaign ${campaignId} was not found`);
 
+      ctx.signal.throwIfAborted();
       const { campaign } = await saveCampaign({
         deps: toCampaignWriteServiceDeps(deps),
         input: {
@@ -442,6 +444,7 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, _surfaces
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.compose" }, { entityType: "newsletter_campaign" });
 
       await deps.newsletterReady;
+      ctx.signal.throwIfAborted();
       const { campaign } = await cancelCampaign({
         deps: toCampaignWriteServiceDeps(deps),
         input: { workspaceId: deps.workspaceId, id: campaignId, actorId: ctx.principal.id },
@@ -463,6 +466,7 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, _surfaces
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.list.manage" }, { entityType: "newsletter_list" });
 
       await deps.newsletterReady;
+      ctx.signal.throwIfAborted();
       const { list } = await saveList({
         deps: toListsDeps(deps),
         input: { workspaceId: deps.workspaceId, name: requireString({ input, key: "name" }), slug: requireString({ input, key: "slug" }) },
@@ -475,6 +479,7 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, _surfaces
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.list.manage" }, { entityType: "newsletter_list" });
 
       await deps.newsletterReady;
+      ctx.signal.throwIfAborted();
       const { list } = await archiveList({ deps: toListsDeps(deps), input: { workspaceId: deps.workspaceId, id: listId } });
       return { list: toListToolView(list) };
     },
@@ -486,6 +491,7 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, _surfaces
 
       await deps.newsletterReady;
       const source = typeof input.source === "string" ? (input.source as SubscriptionRow["source"]) : "admin";
+      ctx.signal.throwIfAborted();
       const { subscription } = await saveSubscription({
         deps: toSubscriptionsDeps(deps),
         input: { workspaceId: deps.workspaceId, listId, subscriberId: requireString({ input, key: "subscriberId" }), source },

@@ -347,6 +347,7 @@ export function buildWidgetsRegistrations(
         throw new WidgetInstanceNotFoundError({ message: `widget instance '${widgetInstanceId}' was not found` });
       }
 
+      ctx.signal.throwIfAborted();
       const { version } = await trashWidgetInstance({
         deps: buildWidgetsDeps(routeDeps),
         input: {

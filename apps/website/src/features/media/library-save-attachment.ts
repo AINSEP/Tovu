@@ -68,6 +68,7 @@ export function buildLibrarySaveAttachmentTool(required: {
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'media.upload' }, { entityType: 'media' });
       const input = requireInputRecord({ input: ctx.input });
       refuseUnexpectedKeys(input, ['attachmentRef', 'name', 'content']);
+      ctx.signal.throwIfAborted();
       if (input.attachmentRef === undefined) return saveLibraryDocument({ deps, ...generatedDocument({ input }), principalId: ctx.principal.id }, { archiveReader: required.archiveReader });
       if (input.name !== undefined || input.content !== undefined) throw new ToolInputError({ message: 'Supply attachmentRef OR name and content, never both' });
       const ref = requireString({ input, key: 'attachmentRef' });
@@ -77,6 +78,7 @@ export function buildLibrarySaveAttachmentTool(required: {
       if (!store) throw new Error('attachment store is not ready');
       // resolveForRun still owns run isolation and integrity validation; membership alone never reads.
       const { bytes, name } = await resolveChatAttachmentBytes({ store, readFile: required.readFile }, { ref, runId: ctx.run.id });
+      ctx.signal.throwIfAborted();
       return saveLibraryDocument({ deps, bytes, name, principalId: ctx.principal.id }, { archiveReader: required.archiveReader });
     },
   };

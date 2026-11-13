@@ -130,6 +130,7 @@ function buildImportThemeFileHandler(
         const theme = findThemeOrThrow(routeDeps, themeId);
         assertThemeFileWritable(theme, relativePath);
         const destination = { themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath };
+        ctx.signal.throwIfAborted();
         const imported = toolId === "theme_import_local_file"
           ? await importThemeFileFromLocalFile({
               ...destination,

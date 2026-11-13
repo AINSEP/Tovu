@@ -61,6 +61,7 @@ export function buildEmailTemplatesRegistrations(deps: EmailTemplatesToolDeps): 
     email_template_create: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
       await permission(deps, ctx, PAGES_EDIT_HTML_PERMISSION);
+      ctx.signal.throwIfAborted();
       return createEmailTemplate({ deps, input, actorId: ctx.principal.id });
     },
     email_template_edit: async ctx => {

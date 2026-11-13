@@ -1012,6 +1012,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         const featuredMediaId = await resolveFeaturedImageInput(routeDeps, input);
         const postId = routeDeps.idGen.newId();
 
+        ctx.signal.throwIfAborted();
         const { result } = await executeCommand<{ post: PostRecord }>({
           deps: postCommandDeps(routeDeps),
           command: {
@@ -1113,6 +1114,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         let merged: { title: string; slug: string; bodyJson: JsonObject; status: PostStatus };
         let basisVersion = expectedVersion;
 
+        ctx.signal.throwIfAborted();
         const { result } = await executeCommand<{ post: PostRecord }>({
           deps: postCommandDeps(routeDeps),
           command: {
@@ -1244,6 +1246,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       const current = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
       assertFreshVersion(current, existing, kind);
 
+      ctx.signal.throwIfAborted();
       const { result } = await executeCommand<{ post: PostRecord }>({
         deps: postCommandDeps(routeDeps),
         command: {
