@@ -46,7 +46,6 @@ export function useAgentPluginDisableConfirm(props: {
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onCancel]);
 
   return { copy: buildAgentPluginDisableConfirmCopy({ name: props.name, variant: props.variant, origin: props.origin, requiredBy: props.requiredBy }, props.t), dialogRef };

@@ -2,6 +2,7 @@ import { sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import { createTovuOAuthGuard } from "../../../platform/oauth/endpoint-safety.js";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { OAuthError } from "@jini-ai/oauth";
 
 import { startDiscoveryFixture, startLoopbackServer, sendJson } from "../../../platform/oauth/__tests__/helpers.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
@@ -718,7 +719,7 @@ test("a token endpoint that rejects the client as invalid_client makes the next 
   try {
     await save(store, { url: fixture.resourceUrl });
     const service = makeService(store);
-    await assert.rejects(() => connectThroughCallback(service));
+    await assert.rejects(() => connectThroughCallback(service), { constructor: OAuthError, name: "OAuthError", code: "OAUTH_PROVIDER_REJECTED", message: "the authorization server refused the request (HTTP 401, invalid_client)" });
 
     const record = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
     assert.equal(record?.oauthClientId, null);

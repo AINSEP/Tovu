@@ -1,3 +1,4 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { JsonValue, UUID } from "@jini-ai/core/primitives";
 // From the package, not `./index.js`: the barrel's `set` comes from `site-title-write.ts`, which
@@ -13,6 +14,8 @@ import {
   type SettingsRepoPort,
 } from "@jini-ai/core/settings";
 import type { WorkspaceRecord } from "@jini-ai/cms/workspace";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file SPEC-050 (`core.site.title`): the public site title as a per-workspace setting, the one
@@ -167,10 +170,7 @@ export async function preserveLegacySiteTitles(
     else result.failedWorkspaceIds.push(workspaceId);
   }
 
-  // eslint-disable-next-line no-console
-  console.info(
-    `preserveLegacySiteTitles: pinned=${result.pinnedWorkspaceIds.length} skipped=${result.skippedWorkspaceIds.length} failed=${result.failedWorkspaceIds.length}`
-  );
+  consoleLogger.info({ message: `preserveLegacySiteTitles: pinned=${result.pinnedWorkspaceIds.length} skipped=${result.skippedWorkspaceIds.length} failed=${result.failedWorkspaceIds.length}` });
   return result;
 }
 
@@ -204,8 +204,7 @@ async function pinOneWorkspace(
 }
 
 function logPinFailure(workspaceId: UUID, reason: string): "failed" {
-  // eslint-disable-next-line no-console
-  console.error(`preserveLegacySiteTitles: workspace '${workspaceId}' stays pending, pin failed: ${reason}`);
+  consoleLogger.error({ message: `preserveLegacySiteTitles: workspace '${workspaceId}' stays pending, pin failed: ${reason}` });
   return "failed";
 }
 
@@ -265,8 +264,7 @@ export async function resolveSiteTitle(deps: ResolveSiteTitleDeps, input: { work
     if (pending) return LEGACY_SITE_TITLE;
     return (await resolveSiteDisplayName(deps, input.workspaceId)) ?? LEGACY_SITE_TITLE;
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(`resolveSiteTitle: falling back to the legacy title for workspace '${input.workspaceId}': ${(err as Error).message}`);
+    consoleLogger.error({ message: `resolveSiteTitle: falling back to the legacy title for workspace '${input.workspaceId}': ${(err as Error).message}` });
     return LEGACY_SITE_TITLE;
   }
 }

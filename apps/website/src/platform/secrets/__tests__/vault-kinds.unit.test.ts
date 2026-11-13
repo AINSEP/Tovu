@@ -1,7 +1,7 @@
 import "../../site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryVaultRepo, type VaultContext, type VaultKind, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVaultRepo, VaultError, type VaultContext, type VaultKind, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../../contracts/core/custom-credential-categories.js";
@@ -35,8 +35,11 @@ test("api-connection formats reject extra fields, bad attempts and malformed rec
     for (const patch of [{ unexpected: true }, { normalization: ["conflict"] }, { normalization: 1 },
       { normalization: "unknown" }, { migration: [] }, { migration: null }, { legacyAad: {} }]) {
       const input = { kind: "api-connection" as const, meta: { ...plain, ...patch } };
-      assert.throws(() => registry.metaParsers[input.kind](input));
-      assert.throws(() => parseTovuStoreMeta(input));
+      const expected = plain.credentialFormat === "oauth-token-set" && "unexpected" in patch
+        ? { name: "OAuthTokenStoreError", code: "invalid-record", message: "OAuth token store: the stored credential is not a valid OAuth token record." }
+        : { constructor: VaultError, name: "VaultError", code: "invalid-meta", message: "Secrets vault: invalid-meta" };
+      assert.throws(() => registry.metaParsers[input.kind](input), expected);
+      assert.throws(() => parseTovuStoreMeta(input), expected);
     }
   }
   for (const expiresAtMs of [null, "123", 1.5]) {
@@ -48,7 +51,7 @@ test("api-connection formats reject extra fields, bad attempts and malformed rec
 test("only the api-connection kind dispatches OAuth metadata; legacy MCP metadata remains supported", () => {
   const registry = createTovuVaultKinds({ policy });
   assert.deepEqual(registry.metaParsers["mcp-auth"]({ meta: {} }), {});
-  assert.throws(() => registry.metaParsers["mcp-auth"]({ meta: apiConnectionMeta[3] }));
+  assert.throws(() => registry.metaParsers["mcp-auth"]({ meta: apiConnectionMeta[3] }), { constructor: VaultError, name: "VaultError", code: "invalid-meta", message: "Secrets vault: invalid-meta" });
   assert.throws(() => registry.metaParsers["api-connection"]({ meta: {} }), { name: "OAuthTokenStoreError", code: "invalid-record" });
 });
 const parsers = createTovuVaultKinds({ policy }).metaParsers;

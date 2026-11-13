@@ -139,10 +139,10 @@ describe("admin page WebMCP", () => {
 
   it("retains Jini navigation and credential-field refusals", async () => {
     const f = fixture();
-    await expect(f.tool("page.navigate").execute({ page: "https://evil.example" })).rejects.toThrow();
+    await expect(f.tool("page.navigate").execute({ page: "https://evil.example" })).rejects.toThrow(new Error('"https://evil.example" is not a published page. Available: pages (Pages)'));
     expect(f.driver.navigate).not.toHaveBeenCalled();
     vi.mocked(f.driver.describeField).mockResolvedValue({ type: "password", name: "password" });
-    await expect(f.tool("page.fill").execute({ handle: "save", text: "secret" })).rejects.toThrow();
+    await expect(f.tool("page.fill").execute({ handle: "save", text: "secret" })).rejects.toThrow(new Error('refusing to fill "save": this field type can never be filled by an agent'));
     expect(f.driver.fill).not.toHaveBeenCalled();
     expect(f.requestPageAction).not.toHaveBeenCalled();
   });

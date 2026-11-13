@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ToolInputError } from "@jini-ai/core";
-import { plan, confirm, execute } from "../../../contracts/core/gated-mutations/gateway.js";
+import { ToolInputError, ToolPermissionDeniedError } from "@jini-ai/core";
+import { plan, confirm, execute, PlanStaleError } from "../../../contracts/core/gated-mutations/gateway.js";
+import { importErrorResponse } from "../../../server/inbound/admin-http/routes/publish-content/import-errors.js";
 import { stageBundle } from "../bundle-staging.js";
 import { buildPublishContentImportHooks } from "../gated-hooks.js";
 import { contentHash } from "../content-hash.js";
@@ -77,7 +78,14 @@ async function fixture(entities = [post("one", "How Tovu Saves You Time"), post(
     } else if (path.endsWith("/import/execute")) {
       executes++;
       beforeExecute?.();
-      result = await execute({ deps: f.deps.gatedMutations.gatewayDeps, principalId: OWNER, principalKind: "user", hooks: hooks(body.bundleId, body.overwriteEntityKeys), confirmationToken: body.confirmationToken });
+      try {
+        result = await execute({ deps: f.deps.gatedMutations.gatewayDeps, principalId: OWNER, principalKind: "user", hooks: hooks(body.bundleId, body.overwriteEntityKeys), confirmationToken: body.confirmationToken });
+      } catch (error) {
+        if (!(error instanceof PlanStaleError)) throw error;
+        // The real peer turns a stale plan into an HTTP refusal instead of a network failure.
+        const refusal = importErrorResponse(error);
+        return { status: refusal.status, headers: {}, bodyText: JSON.stringify(refusal.body) };
+      }
     } else throw new Error(`unexpected peer call: ${path}`);
     return { status: 200, headers: {}, bodyText: JSON.stringify(result) };
   } };
@@ -206,7 +214,7 @@ test("selection re-plan uses the same consistency check", async () => {
 test("the destination gateway still rejects a stale plan at execute", async () => {
   const f = await fixture();
   f.setBeforeExecute(() => f.destination.set("one", { version: 1, hash: "changed", title: "Changed" }));
-  await assert.rejects(() => publish(f));
+  await assert.rejects(() => publish(f), { constructor: ToolInputError, name: "ToolInputError", message: "the peer refused POST /api/admin/v1/workspaces/remote/publish-content/import/execute with HTTP 409. The destination changed since the plan was checked; check what would change again." });
   assert.equal(f.applied.length, 0);
 });
 
@@ -240,7 +248,7 @@ test("an unmatched selection performs no confirm or execute", async () => {
 test("permission and malformed input refuse the publish", async () => {
   const f = await fixture();
   f.denied.add("publish_content.apply");
-  await assert.rejects(() => publish(f));
+  await assert.rejects(() => publish(f), { constructor: ToolPermissionDeniedError, name: "Error", message: "principal 'human-owner' is not authorized for 'publish_content.apply' (insufficient_permission)" });
   f.denied.clear();
   for (const input of [{ items: "Contact" }, { excludeItems: [""] }, { overwrite: "true" }, { confirm: true }]) {
     await assert.rejects(() => publish(f, input));

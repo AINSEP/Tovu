@@ -1,4 +1,4 @@
-import { Liquid, Hash, type TagToken } from "liquidjs";
+import { Liquid, Hash, type Tag, type TagToken } from "liquidjs";
 
 /**
  * @file ADR-020 Tier-2 guardrail: the allowlist of LiquidJS tags/filters a
@@ -152,9 +152,8 @@ export const ALLOWED_LIQUID_FILTERS: ReadonlySet<string> = new Set([
  */
 const parser = new Liquid({ cache: false });
 parser.registerTag("render_block", {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  parse(this: any, token: TagToken) {
-    this.hash = new Hash(token.args);
+  parse(this: Tag, token: TagToken) {
+    (this as Tag & { hash: Hash }).hash = new Hash(token.args);
   },
   render(): string {
     return "";

@@ -45,7 +45,6 @@ export function useExternalMcpRemoveConfirm(props: {
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onCancel]);
 
   return { copy: buildExternalMcpRemoveConfirmCopy({ name: props.name, isOAuth: props.isOAuth }, props.t), dialogRef };

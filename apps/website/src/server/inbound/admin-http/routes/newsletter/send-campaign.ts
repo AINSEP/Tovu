@@ -1,8 +1,11 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { authorizeSend, claimBatch, freezeAudience } from "#src/features/newsletter/send-pipeline";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/inbound/admin-http/http/newsletter";
 import type { SendPipelineDeps } from "#src/features/newsletter/send-pipeline";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps.js";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /** Composition seams for {@link createAdminNewsletterSendCampaignRoute}. */
 export interface SendCampaignRouteOptions {
@@ -71,8 +74,7 @@ export function createAdminNewsletterSendCampaignRoute(optional: SendCampaignRou
           });
           await claimBatch({ deps: sendPipelineDeps });
         } catch (freezeErr) {
-          // eslint-disable-next-line no-console
-          console.error(`freezeAudience/claimBatch failed after authorizeSend for campaign ${campaign.id}: ${(freezeErr as Error).message}`);
+          consoleLogger.error({ message: `freezeAudience/claimBatch failed after authorizeSend for campaign ${campaign.id}: ${(freezeErr as Error).message}` });
         }
       } catch (err) {
         mapNewsletterErrorToResponse(err, res);

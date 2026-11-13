@@ -22,7 +22,7 @@ export function elements(node: any): any[] {
   if (Array.isArray(node)) return node.flatMap(elements);
   if (!React.isValidElement(node)) return [];
   const element = node as React.ReactElement<any>;
-  if (typeof element.type === 'function') return elements((element.type as any)(element.props));
+  if (typeof element.type === 'function') return elements((element.type as (props: typeof element.props) => React.ReactNode)(element.props));
   return [element, ...elements(element.props.children)];
 }
 

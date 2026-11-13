@@ -1,6 +1,9 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import type { ContentKernel } from "../db/content-kernel.js";
 import type { WorkspaceRecord } from "../../features/workspace/index.js";
 import { SiteCorruptError, ValidationError } from "./errors.js";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file SPEC-003 C-005 — `resolveWorkspace`, the single source of truth for resolving which
@@ -73,10 +76,7 @@ export async function resolveWorkspace(
 
   // `rows` is non-empty (checked above), so the sorted copy always has a first element.
   const [primary = only, ...rest] = [...rows].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
-  // eslint-disable-next-line no-console
-  console.warn(
-    `resolveWorkspace: content.db has ${rows.length} workspace rows; defaulting to the oldest (id="${primary.id}"). ` +
-      `Pass --workspace <id> (tovu serve) to pick a different one — other ids: ${rest.map((w) => w.id).join(", ")}.`
-  );
+  consoleLogger.warn({ message: `resolveWorkspace: content.db has ${rows.length} workspace rows; defaulting to the oldest (id="${primary.id}"). ` +
+      `Pass --workspace <id> (tovu serve) to pick a different one — other ids: ${rest.map((w) => w.id).join(", ")}.` });
   return primary;
 }

@@ -153,6 +153,8 @@ export function useStaticExport(port: StaticExportPort, t: Translate, locale: st
   const pollFailuresRef = useRef(0);
 
   const isRunning = run?.status === "running" && pollError === null;
+  const pollInputs = useRef({ port, locale });
+  pollInputs.current = { port, locale };
 
   // Poll loop: re-armed only when `isRunning` FLIPS to true (mount-while-running counts), not on
   // every `run` update the loop itself produces — a dependency on `run` here would re-schedule (or,
@@ -161,9 +163,9 @@ export function useStaticExport(port: StaticExportPort, t: Translate, locale: st
   // the STATUS IT JUST FETCHED, not from the outer `isRunning` closure, which is correctly stale
   // inside a single effect run. A fetch failure retries on the same schedule rather than silently
   // giving up — a transient network hiccup must not strand the UI on "Exporting…" forever.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-armed only when `isRunning` flips true; `run`/`port` deliberately excluded — see comment above.
   useEffect(() => {
     if (!isRunning) return undefined;
+    const { port: pollPort, locale: pollLocale } = pollInputs.current;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
 
@@ -172,7 +174,7 @@ export function useStaticExport(port: StaticExportPort, t: Translate, locale: st
     }
     async function poll() {
       try {
-        const status = await port.getSiteExportStatus();
+        const status = await pollPort.getSiteExportStatus();
         if (cancelled) return;
         pollFailuresRef.current = 0;
         setRun(status);
@@ -185,7 +187,7 @@ export function useStaticExport(port: StaticExportPort, t: Translate, locale: st
           // `isRunning` false on the next render, which re-arms this very effect's cleanup and
           // re-enables the Build button — but `return` here (no `scheduleNext()`) is what actually
           // stops the loop; it must not depend on that later render having happened yet.
-          setPollError(exportPollErrorMessage(locale, describeApiError(err, "unknown error")));
+          setPollError(exportPollErrorMessage(pollLocale, describeApiError(err, "unknown error")));
           return;
         }
         scheduleNext();

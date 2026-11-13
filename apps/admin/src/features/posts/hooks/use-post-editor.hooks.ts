@@ -876,8 +876,11 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     setOriginal(postFormSnapshot({ fields: form, bodyJson: editor.getJSON() }));
   }
 
+  const loadInputs = useRef({ port, applyLoadedPost, navigate, t });
+  loadInputs.current = { port, applyLoadedPost, navigate, t };
   useEffect(() => {
     if (postId === savedRouteSlug.current) return;
+    const { port, applyLoadedPost, navigate, t } = loadInputs.current;
     firstSaveRequest.current = null;
     setPost(null);
     setError(null);
@@ -914,7 +917,6 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         if (redirectPath) navigate(redirectPath, { replace: true });
       })
       .catch((e) => setError(e instanceof Error ? e.message : t("failed to load post")));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId]);
 
   // Mention feature (2026-08-11) — fetched once per mount, independent of `postId` (same
@@ -922,9 +924,10 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // Failure is silently absorbed (no `setError`): an operator who can't get the mention picker
   // populated can still write and save a post normally — this is a nice-to-have, not the editor's
   // own load-bearing content, so it must not turn into a full-screen error for an unrelated fetch.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mention list fetched once per mount, independent of postId — see comment above.
+  // Fetch the mention list once per mount, independent of postId, as explained above.
+  const mentionPort = useRef(port);
   useEffect(() => {
-    port.listPosts().then(
+    mentionPort.current.listPosts().then(
       ({ posts }) => setMentionablePosts(posts.map((entry) => entry.post)),
       () => {}
     );

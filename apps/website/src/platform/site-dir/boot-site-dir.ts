@@ -1,3 +1,4 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import type { BootSiteDirDeps } from "./ports.js";
 import type { SiteStore } from "./site-store.js";
 import type { SitesWorkspace } from "./sites-home.js";
@@ -19,6 +20,8 @@ import { resolveWorkspace } from "./resolve-workspace.js";
 import { compareSchemaVersion, runtimeSchemaVersion } from "./schema-guard.js";
 import { parseSiteStorage } from "./site-storage.js";
 import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file SPEC-003 C-008 — `bootSiteDir`, `tovu serve`'s validate -> guard -> migrate+stamp ->
@@ -175,8 +178,7 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
 
     // EC-07: an unrecognized templateId is provenance-only — warn, never block serving.
     if (meta.templateId !== "starter") {
-      // eslint-disable-next-line no-console
-      console.warn(`bootSiteDir: unrecognized .site-meta.json templateId "${meta.templateId}" at ${target} — proceeding (provenance only)`);
+      consoleLogger.warn({ message: `bootSiteDir: unrecognized .site-meta.json templateId "${meta.templateId}" at ${target} — proceeding (provenance only)` });
     }
 
     return { storage, db, workspaceId: workspace.id, config };
@@ -212,8 +214,7 @@ async function bootStoreSiteDir(
     await deps.normalizeSiteVaultAtBoot({ kernel: store.content, workspaceId: workspace.id, siteDir: target,
       clock: { nowMs: () => Date.now() } });
     if (meta.templateId !== "starter") {
-      // eslint-disable-next-line no-console
-      console.warn(`bootSiteDir: unrecognized .site-meta.json templateId "${meta.templateId}" at ${target} — proceeding (provenance only)`);
+      consoleLogger.warn({ message: `bootSiteDir: unrecognized .site-meta.json templateId "${meta.templateId}" at ${target} — proceeding (provenance only)` });
     }
     return { storage, store, workspaceId: workspace.id, config };
   } catch (err) {

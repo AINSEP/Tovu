@@ -285,13 +285,13 @@ export function usePublishCriteriaDeepLink(
   { request = requestPublish }: { request?: (criteria: PublishCriteria) => unknown } = {},
 ): void {
   const handledRef = useRef(false);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: once per mount by design (see above); a new `request` identity must not re-run it.
+  // The ref keeps this once per mount even if `request` changes identity.
   useEffect(() => {
     if (handledRef.current) return;
     handledRef.current = true;
     const criteria = takePublishCriteriaFromQuery(window.location, window.history);
     if (criteria !== null) void request(criteria);
-  }, []);
+  }, [request]);
 }
 
 /**

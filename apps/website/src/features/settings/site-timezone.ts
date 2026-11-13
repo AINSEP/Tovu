@@ -1,6 +1,9 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import type { UUID } from "@jini-ai/core/primitives";
 import { ensureSettingDefinitions, getEffective, SCOPE_BIT, type EnsureSettingDefinitionsDeps, type SettingsRepoPort } from "@jini-ai/core/settings";
 import { DEFAULT_SITE_TIME_ZONE, normalizeTimeZone, type SiteTimeZonePort } from "@jini-ai/cms/widgets/date-label";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file Bug D (2026-10-22): `core.site.timezone`, the IANA zone public pages format post dates in.
@@ -80,8 +83,7 @@ export async function resolveSiteTimeZone(deps: ResolveSiteTimeZoneDeps, input: 
     );
     return ownerTimeZone(resolved) ?? creationOrDefault(deps);
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(`resolveSiteTimeZone: using the creation zone for workspace '${input.workspaceId}': ${(err as Error).message}`);
+    consoleLogger.error({ message: `resolveSiteTimeZone: using the creation zone for workspace '${input.workspaceId}': ${(err as Error).message}` });
     return creationOrDefault(deps);
   }
 }

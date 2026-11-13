@@ -89,6 +89,8 @@
  *  (`tool-result-media.ts`) — this is the wire shape `extractResultMedia` recognizes, not a new one.
  *  Redeclared locally rather than imported: apps/admin has no dependency on `@jini-ai/daemon`, and
  *  taking one solely for two structural field names would be a heavier coupling than restating them. */
+import html2canvas from "html2canvas-pro";
+
 export type ScreenshotContentBlock = { readonly type: "text"; readonly text: string } | { readonly type: "image"; readonly mimeType: string; readonly data: string };
 
 export interface ScreenshotToolResult {
@@ -245,8 +247,8 @@ export async function captureAdminScreenshotToolResult(options: CaptureAdminScre
 }
 
 /**
- * The real capture adapter — dynamically imports `html2canvas-pro` so its ~230KB parses only when
- * this capability is actually invoked, not on every admin page load. Not exercised by this module's
+ * The real capture adapter — `html2canvas-pro` adds ~230KB to the admin load; it was previously
+ * deferred until this capability was invoked. Not exercised by this module's
  * own unit tests (see this file's module doc): jsdom does not lay out or paint, so a test importing
  * the real library here would assert nothing about real rendering while paying real cost to run it.
  * Real verification is manual/browser (see the handoff's Self-Validation section) — which is what
@@ -269,7 +271,6 @@ export async function captureAdminScreenshotToolResult(options: CaptureAdminScre
  * to the viewport's rendered subtree size.
  */
 export async function renderAdminScreenshotCanvas(element: HTMLElement): Promise<CapturedCanvas> {
-  const { default: html2canvas } = await import("html2canvas-pro");
   return html2canvas(element, {
     scale: 1,
     useCORS: true,

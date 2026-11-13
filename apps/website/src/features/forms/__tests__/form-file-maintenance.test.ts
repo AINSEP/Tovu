@@ -135,7 +135,7 @@ test('command parses explicit apply/cursor and previews an existing SQLite file 
   const { join } = await import('node:path'); const { tmpdir } = await import('node:os');
   assert.equal(parseFormsMaintenanceArgs({ argv: ['--help'] }).help, true);
   assert.throws(() => parseFormsMaintenanceArgs({ argv: [] }), /--database/);
-  assert.throws(() => parseFormsMaintenanceArgs({ argv: ['--other'] }));
+  assert.throws(() => parseFormsMaintenanceArgs({ argv: ['--other'] }), { name: 'TypeError', code: 'ERR_PARSE_ARGS_UNKNOWN_OPTION', message: "Unknown option '--other'" });
   assert.deepEqual(parseFormsMaintenanceArgs({ argv: ['--database','content.db','--workspace','w','--after','m','--apply'] }), { database: 'content.db', workspace: 'w', after: 'm', apply: true, help: false });
   const dir = await mkdtemp(join(tmpdir(), 'forms-maintenance-')); const database = join(dir, 'content.db');
   const f = await fixture(database); await f.prove();

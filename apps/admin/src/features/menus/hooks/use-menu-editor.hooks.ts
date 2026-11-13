@@ -237,9 +237,12 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   // path (`then`/`catch`/`finally`), not just the success path, since an unguarded `finally`
   // clearing `loading` is the one most likely to leave stale data on screen with no spinner to flag
   // it.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the loader captures the port; an already hydrated route retains its draft.
+  // The loader captures the port; an already hydrated route retains its draft.
+  const loadNavigation = useRef(navigate);
+  loadNavigation.current = navigate;
   useEffect(() => {
     if (hydratedRoute.current === menuId) return undefined;
+    const navigate = loadNavigation.current;
     let cancelled = false;
     setCopyFeedback(null);
     slugEdited.current = false;

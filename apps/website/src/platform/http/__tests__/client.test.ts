@@ -277,7 +277,7 @@ test("rejects/permits egress consistently with classifyAddress for a raw-IP CGNA
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
   const client = createHttpClient({ transport, policy: makePolicy() });
 
-  await assert.rejects(() => client.send(makeRequest({ url: "https://100.64.0.1/" })));
+  await assert.rejects(() => client.send(makeRequest({ url: "https://100.64.0.1/" })), { constructor: EgressRefusedError, name: "EgressRefusedError", message: "egress to '100.64.0.1' (100.64.0.1) rejected: resolved address is private" });
   assert.equal(transport.calls.length, 0, "transport must never be reached for a rejected target");
 });
 
@@ -285,9 +285,9 @@ test("rejects a private/loopback/link-local target pre-connect for each address 
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
   const client = createHttpClient({ transport, policy: makePolicy() });
 
-  await assert.rejects(() => client.send(makeRequest({ url: "https://127.0.0.1/" })));
-  await assert.rejects(() => client.send(makeRequest({ url: "https://10.0.0.1/" })));
-  await assert.rejects(() => client.send(makeRequest({ url: "https://169.254.169.254/" })));
+  await assert.rejects(() => client.send(makeRequest({ url: "https://127.0.0.1/" })), { constructor: EgressRefusedError, name: "EgressRefusedError", message: "egress to '127.0.0.1' (127.0.0.1) rejected: resolved address is loopback" });
+  await assert.rejects(() => client.send(makeRequest({ url: "https://10.0.0.1/" })), { constructor: EgressRefusedError, name: "EgressRefusedError", message: "egress to '10.0.0.1' (10.0.0.1) rejected: resolved address is private" });
+  await assert.rejects(() => client.send(makeRequest({ url: "https://169.254.169.254/" })), { constructor: EgressRefusedError, name: "EgressRefusedError", message: "egress to '169.254.169.254' (169.254.169.254) rejected: resolved address is link-local" });
   // WHATWG URL brackets a literal IPv6 hostname (`new URL("https://[::1]/").hostname === "[::1]"`).
   // Assert the EXACT classification message, not just "something threw" — before
   // `resolveHostAddresses` strips the brackets, `isIP("[::1]")` is 0, so this falls through to
@@ -559,14 +559,14 @@ test("rejects a scheme not in the policy's allowedSchemes", async () => {
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
   const client = createHttpClient({ transport, policy: makePolicy({ allowedSchemes: ["https"] }) });
 
-  await assert.rejects(() => client.send(makeRequest({ url: "http://example.com/" })));
+  await assert.rejects(() => client.send(makeRequest({ url: "http://example.com/" })), { constructor: EgressRefusedError, name: "EgressRefusedError", message: "scheme 'http:' is not in the allowed egress schemes" });
 });
 
 test("rejects a target URL carrying embedded credentials", async () => {
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
   const client = createHttpClient({ transport, policy: makePolicy() });
 
-  await assert.rejects(() => client.send(makeRequest({ url: "https://user:pass@example.com/" })));
+  await assert.rejects(() => client.send(makeRequest({ url: "https://user:pass@example.com/" })), { constructor: EgressRefusedError, name: "EgressRefusedError", message: "credentials embedded in the target URL are not allowed" });
 });
 
 // -------------------------------------------------------------------------------------------
