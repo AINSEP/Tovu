@@ -13,14 +13,17 @@ The 2026-11-11 survey found Tovu files that nothing in production imports (DELET
 - If this job edits Jini, the runner must give you `/Users/la/Programming/jini-terra-d1` as a writable directory; if it is read-only, stop and say so.
 
 ## Input
-`development/refactor-patterns/move-to-jini/stage-01.files.tsv` (200 rows, header line first). Columns: path, loc, action, pkg, subpath, exists_now, feature, label, home. Skip header and any row whose path is under `__tests__/` or ends in `.test.ts(x)`.
+`development/refactor-patterns/move-to-jini/stage-01.files.tsv` (176 rows, header line first). Columns: path, loc, action, pkg, subpath, exists_now, feature, label, home, was, route. Skip header and any row whose path is under `__tests__/` or ends in `.test.ts(x)`. Rows whose survey text asks to inline, fold or relocate a file are NOT in this list (they are adapter-inline work in stage 02b); if a row's `home` still asks for that ("inline", "fold", "move ... to tests", or offers an alternative with "or"), mark it BLOCKED "adapter-inline: stage 02b" and do not touch it.
 
 ## What to do per row
 Find importers first, every time (labels are from 2026-11-11 and may be stale):
 ```
-STEM=<basename without .ts/.tsx>; rg -n --glob '!**/node_modules/**' -e "from ['\"][^'\"]*/$STEM(\.js)?['\"]" -e "import\(['\"][^'\"]*/$STEM(\.js)?['\"]\)" apps development
+STEM=<basename without its extension>
+rg -n --glob '!**/node_modules/**' -e "['\"][^'\"]*/$STEM(\.(js|mjs|cjs|jsx|ts|tsx|mts|cts))?['\"]" apps development
 ```
+This matches every quoted specifier that ends in the stem, with ANY extension or none: `from`, `export ... from`, `import()`, `require()`, `mock.module()`/`vi.mock()` and `new URL()` all show up. Tovu imports `.ts` paths directly in places (e.g. `apps/desktop` imports `"../../auto-update-controller.ts"`), so a search without `.ts`/`.tsx` misses live importers. If the basename is `index`, search for the folder instead (`STEM=<folder name>` and also `<folder>/index`).
 Keep only hits that really resolve to this file (same folder path; `#src/x/y` = `apps/website/src/x/y`; admin `@/x` = `apps/admin/src/x`). A hit in `__tests__/` or a `.test.` file is a test importer; anything else is a prod importer.
+Cross-check with the survey: if `home` or `label` says the file has callers ("1 prod caller", "2 callers", "Repoint ...") and your search found fewer, the search is wrong, not the survey: mark the row BLOCKED "importer count disagrees with survey" and do not delete.
 
 A. action `DELETE`, label has NO backticked identifier (whole-file delete):
    - 0 prod importers: delete the file. Each test importer whose ONLY subject is this file: delete that test file. A test that also tests other files: remove only the `import` and the `test(...)`/`it(...)` blocks that use this file's names; if that is not clean (shared setup), mark BLOCKED.
@@ -61,7 +64,7 @@ The SCC sizes and mutual-pair counts after your change must be equal or smaller 
 Change summary for the coordinator's commit: `refactor(tovu): delete dead code and Jini re-export shims (move-to-jini stage 01)`.
 
 ## Report (your final message)
-1. Per row/edge: DONE, BLOCKED (with the exact blocking `file:line` and import), or SKIPPED (why). Use the row's path as the key.
+1. Per row/edge: DONE, BLOCKED (with the exact blocking `file:line` and import), or SKIPPED (why). Use the row's path as the key. Every BLOCKED/SKIPPED row also gets `waits_on:` = what must land first (`path:<tovu path>`, `stage:<NN>`, `owner:<Dn>`, or `design:<one line>`); the coordinator copies these into `development/refactor-patterns/move-to-jini/ledger.tsv`.
 2. The gate outputs (before/after).
 3. Changed, added and deleted paths per repo (you do not commit).
 4. Anything surprising, in one line each. Do not paste diffs.

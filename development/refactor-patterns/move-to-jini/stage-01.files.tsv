@@ -1,201 +1,177 @@
-path	loc	action	pkg	subpath	exists_now	feature	label	home
-apps/admin/src/components/ComingSoonPanel.tsx	4	T0:JINI-SHIM (DELETE + repoint importers)			y	admin/components		
-apps/admin/src/components/InstallTabCard/folder-zip.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	admin/components/InstallTabCard		
-apps/admin/src/components/Select/Select.hooks.tsx	177	DELETE			y	admin/components/Select	DELETE	Repoint 1 prod importer, `Select.tsx:3` (a `import type` only), to `PackageProps["useDropdown"]`. Tests: 2 files
-apps/admin/src/components/Select/Select.tsx	24	DELETE	ui	/admin-widgets	y	admin/components/Select	DELETE	Repoint 1 caller (WidgetPickerDialog.tsx:9) to `@jini-ai/ui/admin-widgets` Select
-apps/admin/src/features/ai-assistant/hooks/ai-assistant-port.hooks.ts	15	DELETE			y	admin/features/ai-assistant	DELETE	inline into `use-ai-assistant.hooks.ts`
-apps/admin/src/features/ai-assistant/hooks/assistant-daemon-restart-dependencies.hooks.ts	53	DELETE			y	admin/features/ai-assistant	DELETE	move fake to tests
-apps/admin/src/features/ai-assistant/hooks/assistant-daemon-restart-port.hooks.ts	20	DELETE			y	admin/features/ai-assistant	DELETE	inline
-apps/admin/src/features/ai-assistant/hooks/visitor-credential-form-dependencies.hooks.ts	59	DELETE			y	admin/features/ai-assistant	DELETE	move fake to tests
-apps/admin/src/features/ai-assistant/hooks/visitor-credential-form-port.hooks.ts	22	DELETE			y	admin/features/ai-assistant	DELETE	inline
-apps/admin/src/features/analytics/hooks/analytics-dependencies.hooks.ts	34	DELETE			y	admin/features/analytics	DELETE	move fake to tests
-apps/admin/src/features/analytics/hooks/analytics-port.hooks.ts	14	DELETE			y	admin/features/analytics	DELETE	inline
-apps/admin/src/features/collections/hooks/collection-entries-dependencies.hooks.ts	47	DELETE			y	admin/features/collections	DELETE (fold into port file)	-- (fake port helper could be shared)
-apps/admin/src/features/collections/hooks/collection-entry-editor-dependencies.hooks.ts	107	DELETE			y	admin/features/collections	DELETE (fold)	as above
-apps/admin/src/features/collections/hooks/collections-dependencies.hooks.ts	54	DELETE			y	admin/features/collections	DELETE (fold)	as above
-apps/admin/src/features/collections/hooks/use-lifecycle-confirm-dialog.hooks.ts	28	DELETE			y	admin/features/collections	DELETE	inline `lifecycleCopy(op, locale)`
-apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	58	DELETE			y	admin/features/database	DELETE (fold into hook)	n/a
-apps/admin/src/features/database/hooks/migrate-forward-section-port.hooks.ts	12	DELETE			y	admin/features/database	DELETE (inline type)	n/a
-apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts	34	DELETE			y	admin/features/database	DELETE (fold)	n/a
-apps/admin/src/features/database/hooks/schema-state-section-port.hooks.ts	18	DELETE			y	admin/features/database	DELETE (inline)	n/a
-apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts	45	DELETE			y	admin/features/database	DELETE (fold)	n/a
-apps/admin/src/features/database/hooks/timeline-section-port.hooks.ts	17	DELETE			y	admin/features/database	DELETE (inline)	n/a
-apps/admin/src/features/integrations/hooks/integration-deliveries-dependencies.hooks.ts	36	DELETE			y	admin/features/integrations	DELETE (pass-through default port; the fake is test-only and moves to tests)	n/a
-apps/admin/src/features/integrations/hooks/integrations-dependencies.hooks.ts	75	DELETE			y	admin/features/integrations	DELETE (default port = `api` pass-through; fake test-only)	n/a
-apps/admin/src/features/observability/hooks/use-recent-error-item.hooks.ts	38	DELETE			y	admin/features/observability	DELETE	`useCopyToClipboard` + `useState`/`useId` inline in the panel
-apps/admin/src/features/pages/ThemePageDetailsModal.hooks.tsx	75	DELETE	ui-kit	/react/native	y	admin/features/pages	DELETE	`@jini-ai/ui-kit/react/native` `useNativeDialog`, or the kit `Dialog` that `MediaEditDialog`/`WidgetPickerDialog` already use. Repoint 1 prod caller (`ThemePageDetailsModal.tsx`) and drop its `useModal` test-injection prop
-apps/admin/src/features/plugins/package-file-tree.ts	10	DELETE	admin	/agent-plugins	y	admin/features/plugins	DELETE (3 prod callers: `PackageFilesModal.tsx:9`, `use-package-file-tree.hooks.ts:3`, `rules.ts:6`; +1 test)	callers import `@jini-ai/admin/agent-plugins` directly, object-arg style
-apps/admin/src/features/plugins/PluginPackageFilesModal.tsx	35	DELETE			y	admin/features/plugins	DELETE	Inline into `Plugins.tsx`. 1 prod caller (`direct.prod`).
-apps/admin/src/features/providers/hooks/use-providers.hooks.ts	47	DELETE			y	admin/features/providers	DELETE (1 caller: `Providers.tsx`)	`Providers.tsx` calls `useExternalMcp()` directly
-apps/admin/src/features/settings/hooks/use-external-mcp-remove-confirm.hooks.ts	52	DELETE	admin	/react	y	admin/features/settings	DELETE (and the dialog that is its 1 caller)	Use Jini `ConfirmDialog` from `@jini-ai/admin/react`. Tovu already imports it in 8 files (Posts, Themes, PostEditor, AssistantDock, …). Keep `buildExternalMcpRemoveConfirmCopy`. Parity gap: agent handles `<card>-remove-confirm`/`-remove-cancel` vs ConfirmDialog's `agentHandle` scheme
-apps/admin/src/features/sites/hooks/use-sites-home.hooks.ts	17	DELETE			y	admin/features/sites	DELETE	— (0 prod callers. Also delete `api.setSitesHome`, lib/api.ts:4090, whose only caller is this file, plus its unit test)
-apps/admin/src/features/source-control/hooks/source-control-credentials-dependencies.hooks.ts	57	DELETE			y	admin/features/source-control	DELETE	The live binding is one-to-one onto `api.*`. The fake is test-only.
-apps/admin/src/features/workspace/hooks/use-workspace-redirect.hooks.ts	37	DELETE			y	admin/features/workspace	DELETE	Same as above.
-apps/admin/src/features/workspace/WorkspaceRedirect.tsx	12	DELETE			y	admin/features/workspace	DELETE	`panels.tsx` (the only prod caller, 1 direct importer via the feature barrel) can do a redirect route.
-apps/admin/src/hooks/use-settings-slice.hooks.ts	33	DELETE	ui	/panel-kit	y	admin/hooks	DELETE	@jini-ai/ui/panel-kit already owns it. Repoint 4 prod callers (dossier `direct`.prod=4) to the Jini hook plus a host `refreshPort` default.
-apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts	23	DELETE			y	admin/hooks	DELETE	panel-kit already exports it. Repoint 4 prod callers (`direct`.prod=10 counts the type re-exports).
-apps/admin/src/integrations/chart-providers/chart-registry-port.hooks.ts	6	DELETE			y	admin/integrations/chart-providers	DELETE	fold into dependencies file
-apps/admin/src/integrations/jini-admin/ModulePanel.tsx	5	DELETE			y	admin/integrations/jini-admin	DELETE	none
-apps/admin/src/lib/browser-working-directory-access.ts	134	DELETE	chat	/react	y	admin/lib	MOVE	J @jini-ai/chat/react (implements Jini's own ChatPaneWorkingDirectoryAccess); host supplies storage key
-apps/admin/src/lib/fetch-query/adapter-context.ts	5	DELETE			y	admin/lib/fetch-query	DELETE-candidate	-
-apps/admin/src/lib/query-suffix.ts	4	DELETE			y	admin/lib	DELETE (inline)	-
-apps/admin/src/lib/standing-draft-recovery-message.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	admin/lib		
-apps/admin/src/media-panel.ts	19	DELETE			y	admin/(src)	DELETE	fold into panels.tsx; 1 direct importer (panels.tsx)
-apps/desktop/src/auto-update-controller.ts	49	DELETE			y	desktop/(src)	DELETE	fold into `main/updates/desktop-updater.ts` (1 direct prod caller, 2 tests)
-apps/desktop/src/move-to-applications.ts	241	DELETE			y	desktop/(src)	DELETE	— (0 prod callers; delete with `move-to-applications.test.ts` and the all-`test.skip` `main-move-to-applications-wiring.test.ts`)
-apps/desktop/src/renderer/create-website-onboarding-policy.ts	14	DELETE			y	desktop/renderer	DELETE	1 prod importer
-apps/desktop/src/renderer/mount-renderer.ts	41	DELETE			y	desktop/renderer	DELETE (inline into main.tsx; 1 prod caller)	none
-apps/desktop/src/renderer/WorkspaceChatPane.tsx	143	DELETE			y	desktop/renderer	DELETE	none; 0 prod importers (`direct.prod=0`, 1 test)
-apps/desktop/src/webview-guest-policy.ts	33	DELETE	desktop-host	/electron/navigation-policy	y	desktop/(src)	DELETE (1 prod caller: `main/windows/sites-home-window.ts`)	`@jini-ai/desktop-host/electron/navigation-policy`, used directly
-apps/desktop/src/window-navigation-policy.ts	84	DELETE	desktop-host	/electron/navigation-policy	y	desktop/(src)	DELETE	Call `@jini-ai/desktop-host/electron/navigation-policy` directly. Callers: 4 prod direct importers (main/index.ts:134, sites-home-window.ts:12, guest-navigation.ts:8, app-window.ts:7).
-apps/website/src/assistant/daemon-respawn-policy.ts	36	DELETE	sidecar	/respawn-policy	y	website/assistant	DELETE	Jini `@jini-ai/sidecar/respawn-policy` already carries identical defaults (1s..30s, 60s, 5, 3)
-apps/website/src/assistant/demo-image-png.ts	144	DELETE			y	website/assistant	STAY-PRODUCT (cut it down, see O6)	—
-apps/website/src/assistant/durable-runs/continuation.ts	1	T0:JINI-SHIM (DELETE + repoint importers)			y	website/assistant/durable-runs		
-apps/website/src/assistant/durable-runs/ports.ts	1	T0:JINI-SHIM (DELETE + repoint importers)			y	website/assistant/durable-runs		
-apps/website/src/assistant/durable-runs/recover.ts	1	T0:JINI-SHIM (DELETE + repoint importers)			y	website/assistant/durable-runs		
-apps/website/src/assistant/mcp-federation/adapter.memory.ts	55	DELETE	mcp	/federation/testing	y	website/assistant/mcp-federation	DELETE	Jini `@jini-ai/mcp/federation/testing`
-apps/website/src/assistant/site/client-directives.ts	4	DELETE			y	website/assistant/site	DELETE	none
-apps/website/src/assistant/site/mode.ts	17	DELETE			y	website/assistant/site	DELETE	none
-apps/website/src/assistant/tool-catalog-live-query.ts	55	DELETE	registry	/tool-catalog-builder	y	website/assistant	DELETE (direct prod callers: 0; 2 test importers)	`@jini-ai/registry/tool-catalog-builder` `createLiveToolCatalogQuery`
-apps/website/src/assistant/tool-contribution-registry.ts	76	DELETE			y	website/assistant	DELETE	none
-apps/website/src/assistant/tool-search-doc2query.ts	15	DELETE			y	website/assistant	DELETE	none
-apps/website/src/cli/help.ts	35	DELETE			y	website/cli	DELETE	none
-apps/website/src/contracts/core/commands/repo.memory.ts	1	T0:JINI-SHIM (DELETE + repoint importers)			y	website/contracts/core/commands		
-apps/website/src/contracts/core/commands/revert.ts	1	T0:JINI-SHIM (DELETE + repoint importers)			y	website/contracts/core/commands		
-apps/website/src/contracts/core/events/enqueue-only-outbox.ts	33	DELETE	infra	/events/outbox	y	website/contracts/core/events	DELETE	Jini already exports `toEnqueueOnlyOutbox` (`@jini-ai/infra/events/outbox`). Callers: 1 re-export (events/index) + 1 test.
-apps/website/src/contracts/core/events/outbox-worker.ts	98	DELETE			y	website/contracts/core/events	DELETE (facade)	Keep only `processOutbox` bound to the retry policy. Re-exports of Jini constants + `computeOutboxBackoffMs` pass-through go.
-apps/website/src/contracts/core/extension-capability-vocabulary.ts	33	DELETE			y	website/contracts/core	DELETE	Inline the three strings in `features/plugin-runtime/host-binding.ts`, its only prod importer.
-apps/website/src/contracts/core/external-mcp-access.ts	5	T0:JINI-SHIM (DELETE + repoint importers)			y	website/contracts/core		
-apps/website/src/contracts/core/external-mcp-auth.ts	7	T0:JINI-SHIM (DELETE + repoint importers)			y	website/contracts/core		
-apps/website/src/contracts/core/gated-mutations/gateway.ts	212	DELETE	core	/gated-mutations	y	website/contracts/core/gated-mutations	DELETE	`@jini-ai/core/gated-mutations` (18 direct prod importers). Repoint to it with an adapter for `authorize`.
-apps/website/src/contracts/core/gated-mutations/token.ts	146	DELETE	core	/gated-mutations	y	website/contracts/core/gated-mutations	DELETE	`@jini-ai/core/gated-mutations` (`InMemoryTokenStore`, mint/redeem/expire).
-apps/website/src/contracts/core/gated-mutations/watermark.ts	52	DELETE			y	website/contracts/core/gated-mutations	DELETE	none
-apps/website/src/contracts/core/model-facing-tool-errors.ts	53	DELETE	core	/model-facing-tool-errors	y	website/contracts/core	DELETE	`@jini-ai/core/model-facing-tool-errors`
-apps/website/src/contracts/core/operation-lock.ts	6	DELETE	db	/recovery/operation-lock	y	website/contracts/core	DELETE	`@jini-ai/db/recovery/operation-lock`
-apps/website/src/contracts/core/path-containment.ts	20	T0:JINI-SHIM (DELETE + repoint importers)			y	website/contracts/core		
-apps/website/src/contracts/core/upload-limits.ts	7	T0:JINI-SHIM (DELETE + repoint importers)			y	website/contracts/core		
-apps/website/src/features/agent-plugins/connection-status.ts	15	DELETE	agent-plugins	/connect	y	website/features/agent-plugins	DELETE after callers pass ports	`@jini-ai/agent-plugins/connect`
-apps/website/src/features/agent-plugins/credential-cards.ts	1	DELETE	agent-plugins	/connect	y	website/features/agent-plugins	DELETE (barrel)	`@jini-ai/agent-plugins/connect`
-apps/website/src/features/agent-plugins/descriptor-i18n.ts	22	DELETE	core	/text	y	website/features/agent-plugins	DELETE (callers import from Jini)	`@jini-ai/core/text`
-apps/website/src/features/agent-plugins/executable-tools/approval.ts	9	DELETE			y	website/features/agent-plugins	DELETE	Same
-apps/website/src/features/agent-plugins/executable-tools/host-capabilities.ts	2	DELETE			y	website/features/agent-plugins	DELETE (barrel)	Same
-apps/website/src/features/agent-plugins/identity.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/agent-plugins		
-apps/website/src/features/agent-plugins/mail-provider-setup.ts	5	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/agent-plugins		
-apps/website/src/features/agent-plugins/mcp-metadata.ts	13	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/agent-plugins		
-apps/website/src/features/agent-plugins/memory-tools.ts	17	DELETE			y	website/features/agent-plugins	DELETE (0 prod importers; 3 test callers)	Jini host-tools `buildPluginMemoryRegistrations`, already registered by `registerInstalledAgentPluginTools`.
-apps/website/src/features/analytics/salt.ts	61	DELETE			y	website/features/analytics	DELETE (test-only wrapper)	None. The real salt wiring is `jini-adapters.ts:33-36`.
-apps/website/src/features/analytics/types.ts	53	DELETE	analytics		y	website/features/analytics	DELETE (JINI-SHIM)	`@jini-ai/analytics`.
-apps/website/src/features/api-connections/budgets.ts	36	DELETE			y	website/features/api-connections	DELETE (the factory has 0 prod callers)	Jini integrations builds budgets itself at `integrations/src/api-connections/host.ts:125`.
-apps/website/src/features/api-connections/hook-http.ts	1	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/integrations/src/api-connections/ j0.18/o0.54 (module only, own 0 tokens: no lift)			y	website/features/api-connections		
-apps/website/src/features/api-connections/surface-connections.ts	14	DELETE			y	website/features/api-connections	DELETE (1 caller, agent-plugin-connections.ts)	none; caller calls `createAdminSurfaceConnections` + `bindAdminSurfaceConnectionsHost` directly
-apps/website/src/features/comments/data-module-install.ts	20	DELETE			y	website/features/comments	DELETE (1 caller)	none; caller calls `declareDataModule` directly and throws on `!ok`
-apps/website/src/features/content-duplication/derive-available-name.ts	134	DELETE	core	/naming	y	website/features/content-duplication	DELETE (4 prod callers: post, forms ×2, media)	repoint to `@jini-ai/core/naming`
-apps/website/src/features/content-types/index.ts	122	DELETE	cms	/content-types	y	website/features/content-types	DELETE (barrel; 17 prod / 47 test direct importers)	repoint to `@jini-ai/cms/content-types`, keep only `DECLARED_CONTENT_TYPE_OWNERS`, `registerContentType`, `buildContentTypesRegistrations`
-apps/website/src/features/content-types/repo.memory.ts	17	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/cms/src/content-types/ j0.1/o0.29 (module only, own 0 tokens: no lift)			y	website/features/content-types		
-apps/website/src/features/custom-credentials/credential-tool-host.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/custom-credentials		
-apps/website/src/features/custom-credentials/credential-tool-operations.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/custom-credentials		
-apps/website/src/features/custom-credentials/sets/host.ts	7	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/custom-credentials		
-apps/website/src/features/custom-credentials/sets/store.ts	7	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/custom-credentials		
-apps/website/src/features/custom-credentials/sets/vault-repo.ts	7	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/custom-credentials		
-apps/website/src/features/database-transfer/plan-store.ts	5	DELETE			y	website/features/database-transfer	DELETE (2 callers; only `tool-registrations.ts` uses the singleton)	none
-apps/website/src/features/database-transfer/postgres-target.ts	7	DELETE	db	/transfer	y	website/features/database-transfer	DELETE (2 direct prod callers)	callers call `@jini-ai/db/transfer` `createPsqlPostgresTarget({connectionString},{parentEnv,applicationName:"tovu-database-transfer"})`
-apps/website/src/features/database/agent-tools.ts	9	DELETE	core		y	website/features/database	DELETE (1 prod direct caller, 4 tests)	inline `getDatabaseAgentToolCatalog({}, {messages: TOVU_DATABASE_MESSAGES})` at caller; type re-exports from `@jini-ai/core`
-apps/website/src/features/database/boot/evaluate-boot-migration-policy.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/database		
-apps/website/src/features/database/boot/reconcile-interrupted-migration.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/database		
-apps/website/src/features/database/migrate-forward/execute.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/database		
-apps/website/src/features/database/restore-points.ts	3	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/database		
-apps/website/src/features/database/timeline.ts	3	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/database		
-apps/website/src/features/deployments/deploy-ops/secrets.ts	8	DELETE	devops	/deploy	y	website/features/deployments	DELETE	1 prod caller (`deploy-ops/tool-registrations.ts`, types only). Repoint it to `@jini-ai/devops/deploy`.
-apps/website/src/features/deployments/deploy-ops/types.ts	8	DELETE	devops	/deploy	y	website/features/deployments	DELETE	Point the 3 prod callers at `@jini-ai/devops/deploy`.
-apps/website/src/features/deployments/static-publish/publish-consent.ts	11	DELETE			y	website/features/deployments	DELETE (2 direct callers)	caller calls `siteConsent.deploymentCheck` directly
-apps/website/src/features/deployments/types.ts	51	DELETE			y	website/features/deployments	DELETE-UNVERIFIED (no prod importer except 1 reexporter; tests 0)	
-apps/website/src/features/entries/index.ts	69	DELETE	cms	/entries	y	website/features/entries	DELETE (repoint 13 prod direct callers to `@jini-ai/cms/entries` / `@jini-ai/core/primitives`)	n/a
-apps/website/src/features/entries/public-read.ts	3	DELETE			y	website/features/entries	DELETE (1 caller: pages.ts:68)	n/a
-apps/website/src/features/entries/render-entry.ts	2	DELETE			y	website/features/entries	DELETE (1 caller: render.ts:37)	n/a
-apps/website/src/features/entries/repo.sqlite.ts	17	DELETE			y	website/features/entries	DELETE (4 prod direct callers: deps.ts:1721, peer-site-reads.ts:270, publish-content-seed-hash.ts:120, +type re-export)	n/a
-apps/website/src/features/external-mcp/external-mcp-repo.sqlite.ts	15	DELETE			y	website/features/external-mcp	DELETE	Inline `new SqlExternalMcpServerRepo(contentKernel(db))` at its 1 prod caller (server/runtime/composition/deps.ts) and 1 test
-apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts	2	DELETE	integrations	/api-connections/hosted-mcp	y	website/features/external-mcp	DELETE	Repoint 1 prod importer (contracts.ts type import) + 2 tests to `@jini-ai/integrations/api-connections/hosted-mcp`
-apps/website/src/features/external-mcp/external-mcp-store.memory.ts	10	DELETE			y	website/features/external-mcp	DELETE (low priority)	`new InMemoryExternalMcpServerRepo(externalMcpVaultPorts)` at 1 prod caller (app.ts, hermetic only) + 58 tests
-apps/website/src/features/form-destinations/index.ts	30	DELETE			y	website/features/form-destinations	DELETE (barrel; 2 prod direct importers, 8 test)	repoint to concrete files
-apps/website/src/features/form-destinations/types.ts	22	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/form-destinations		
-apps/website/src/features/forms/analytics-provenance.ts	2	DELETE	cookie-consent		y	website/features/forms	DELETE-INLINE (2 direct importers)	use `ConsentAnalyticsProof` shape from `@jini-ai/cookie-consent` directly or export from cms/forms
-apps/website/src/features/forms/mail-outbox-readiness.ts	2	DELETE			y	website/features/forms	DELETE (1 caller: composition/deps.ts:2019)	inline `() => true`-style check
-apps/website/src/features/identity/user-purge.sqlite.ts	8	DELETE			y	website/features/identity	DELETE	Repoint `server/runtime/composition/deps.ts:1599` (1 prod) + 6 tests to `SqlUserPurge`
-apps/website/src/features/mail/site-feedback-route.ts	28	DELETE			y	website/features/mail	DELETE	Inline into the app composition root
-apps/website/src/features/media/attachment-tools.ts	3	DELETE			y	website/features/media	DELETE	— (0 callers; also drop `"attachment-tools"` from `.dependency-cruiser.mjs:680` PUBLIC_ENTRIES)
-apps/website/src/features/media/media-provider-credential-repo.sqlite.ts	9	DELETE			y	website/features/media	DELETE	Repoint 1 caller (`server/runtime/composition/deps.ts:2348`) to `SqlMediaProviderCredentialRepo`
-apps/website/src/features/member-login/types.ts	4	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/member-login		
-apps/website/src/features/members/consent-service.ts	261	DELETE			y	website/features/members	DELETE (dead in prod; owner decision)	—
-apps/website/src/features/navigation/html-render.ts	3	DELETE			y	website/features/navigation	DELETE	repoint 0 prod / 3 tests → render-entry
-apps/website/src/features/navigation/index.ts	163	DELETE	cms	/navigation	y	website/features/navigation	DELETE (shrink to the 4 host-local exports, or repoint)	repoint 14 direct prod importers to `@jini-ai/cms/navigation(/node)`
-apps/website/src/features/navigation/menu-version-conflict-error.ts	12	DELETE			y	website/features/navigation	DELETE	repoint 1 prod (trash-aware-memory-menu-repo) + index re-export + 2 tests
-apps/website/src/features/newsletter/repo.sqlite.ts	60	DELETE			y	website/features/newsletter	DELETE	Repoint 2 prod (`composition/deps.ts`, `composition/peer-site-reads.ts`) + 4 test importers to `new SqlNewsletterXRepo(contentKernel(store))`
-apps/website/src/features/pages/html-document-store.sqlite.ts	31	DELETE			y	website/features/pages	DELETE	2 prod callers repoint to `SqlPagesHtmlDocumentStore` + `contentKernel(db)`
-apps/website/src/features/plugin-runtime/declarative-content-types.ts	89	DELETE	plugins		y	website/features/plugin-runtime	DELETE (7 dead re-exports) and keep a ~25-line binder	Rules already in @jini-ai/plugins host
-apps/website/src/features/plugin-runtime/invocation-core-deps.ts	52	DELETE			y	website/features/plugin-runtime	DELETE (inline into 1 caller: host-binding.ts)	n/a
-apps/website/src/features/plugins/data-module.ts	1	DELETE	db	/data-modules	y	website/features/plugins	DELETE	Repoint 4 prod (`composition/data-modules.ts:7`, `share-database/repo.sqlite.ts:22`, both manifests) + tests to `@jini-ai/db/data-modules`
-apps/website/src/features/plugins/disk-headroom.ts	4	DELETE			y	website/features/plugins	DELETE	Tests import Jini directly
-apps/website/src/features/plugins/index.ts	1	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/plugins		
-apps/website/src/features/plugins/migration-journal.ts	11	DELETE			y	website/features/plugins	DELETE	Tests import Jini
-apps/website/src/features/plugins/migration-recovery.ts	5	DELETE			y	website/features/plugins	DELETE	Repoint `composition/open-site-content-db.ts:1` (pass `{dbPath, entries}`)
-apps/website/src/features/plugins/plugin-identity.ts	4	DELETE			y	website/features/plugins	DELETE	Tests import Jini
-apps/website/src/features/plugins/plugin-store.ts	4	DELETE			y	website/features/plugins	DELETE	Tests import Jini
-apps/website/src/features/plugins/restore.ts	1	DELETE			y	website/features/plugins	DELETE	Tests import Jini
-apps/website/src/features/plugins/snapshot.ts	5	DELETE			y	website/features/plugins	DELETE	Repoint `composition/deps.ts:194` (`isInMemoryDbPath({dbPath})`)
-apps/website/src/features/post/author.ts	1	DELETE			y	website/features/post	DELETE	none. 0 direct callers
-apps/website/src/features/post/repo.sqlite.ts	17	DELETE			y	website/features/post	DELETE (13 test callers, 0 prod; plus `post/index.ts` re-export)	n/a
-apps/website/src/features/publish-content/publish-content-peer-repo.sqlite.ts	8	DELETE			y	website/features/publish-content	DELETE	—
-apps/website/src/features/publish-content/publish-content-peer-repo.ts	12	DELETE			y	website/features/publish-content	DELETE	—
-apps/website/src/features/recovery/deep-link.ts	2	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/db/src/recovery/ j0.16/o0.3 UNMOUNTED-REWRITE (module only, own 0 tokens: no lift)			y	website/features/recovery		
-apps/website/src/features/recovery/disclosure.ts	2	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/db/src/recovery/ j0.16/o0.3 UNMOUNTED-REWRITE (module only, own 0 tokens: no lift)			y	website/features/recovery		
-apps/website/src/features/recovery/recovery-orchestrator.ts	2	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/db/src/recovery/ j0.16/o0.3 UNMOUNTED-REWRITE (module only, own 0 tokens: no lift)			y	website/features/recovery		
-apps/website/src/features/recovery/repo.memory.ts	2	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/db/src/recovery/ j0.16/o0.3 UNMOUNTED-REWRITE (module only, own 0 tokens: no lift)			y	website/features/recovery		
-apps/website/src/features/recovery/restore-points.ts	2	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/db/src/recovery/ j0.16/o0.3 UNMOUNTED-REWRITE (module only, own 0 tokens: no lift)			y	website/features/recovery		
-apps/website/src/features/recovery/ui/degraded-banners.ts	2	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/db/src/recovery/ j0.16/o0.3 UNMOUNTED-REWRITE (module only, own 0 tokens: no lift)			y	website/features/recovery		
-apps/website/src/features/server-logs/process-source.ts	7	DELETE			y	website/features/server-logs	DELETE	Repoint 2 callers: `server/.../system/server-logs.ts` and `server-logs/tool-registrations.ts`.
-apps/website/src/features/settings/site-title-preservation.sqlite.ts	9	DELETE			y	website/features/settings	DELETE (1 caller: deps.ts:1245)	—
-apps/website/src/features/site-guide/contracts.ts	25	DELETE	agentic		y	website/features/site-guide	DELETE	Repoint to J `@jini-ai/agentic` types `GuideTopic`, `GuideFact`, `SiteGuide`, `SiteGuidePorts`. 13 prod importers via `direct`.
-apps/website/src/features/taxonomy/content-targets.ts	2	DELETE			y	website/features/taxonomy	DELETE (1 caller: `routes/taxonomy/assign-terms.ts`)	—
-apps/website/src/features/taxonomy/html-render.ts	3	DELETE			y	website/features/taxonomy	DELETE (0 importers)	—
-apps/website/src/features/taxonomy/repo.sqlite.ts	44	DELETE			y	website/features/taxonomy	DELETE after the repo moves (5 prod + 9 test callers), replaced by a STAY-WIRING factory like `redirects/repo.sqlite.ts`	—
-apps/website/src/features/taxonomy/term-sync.ts	2	DELETE			y	website/features/taxonomy	DELETE (2 callers: entries/post publish-content)	—
-apps/website/src/features/tool-audit/types.ts	3	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/tool-audit		
-apps/website/src/features/trash/agent-delete-policy.ts	5	DELETE			y	website/features/trash	DELETE	inline in its one test importer
-apps/website/src/features/trash/db-port.ts	19	DELETE			y	website/features/trash	DELETE	repoint to `ContentKernel`
-apps/website/src/features/vendor-credentials/index.ts	12	DELETE			y	website/features/vendor-credentials	DELETE (repoint `server/routes/types.ts:76` to `./types.js`)	—
-apps/website/src/features/vendor-credentials/vendor-credential-repo.sqlite.ts	10	DELETE			y	website/features/vendor-credentials	DELETE	—
-apps/website/src/features/vendor-credentials/vendor-credential-repo.ts	11	DELETE			y	website/features/vendor-credentials	DELETE (fold into a factory used by `deps.ts`)	—
-apps/website/src/features/web/html-document.ts	5	DELETE			y	website/features/web	DELETE (0 prod callers; 2 test files import it)	—
-apps/website/src/features/web/html-to-markdown.ts	2	DELETE			y	website/features/web	DELETE (0 prod callers; 2 test files)	—
-apps/website/src/features/web/web-page.ts	36	DELETE			y	website/features/web	DELETE once Tovu's `HttpClientPort` takes Jini's shape (2 prod files / 3 direct imports: tool-registrations, tool-catalog-manifest type)	Composition passes `userAgent: "Tovu/0.1 …"` through the existing Jini `WebFetchPorts.userAgent`.
-apps/website/src/features/webhooks/ports.ts	28	DELETE	integrations	/webhooks	y	website/features/webhooks	DELETE (fold into index)	`@jini-ai/integrations/webhooks`
-apps/website/src/features/webhooks/seal-aad-invariant.ts	234	DELETE			y	website/features/webhooks	DELETE (replace with a type)	n/a
-apps/website/src/features/webhooks/types.ts	13	DELETE	integrations	/webhooks	y	website/features/webhooks	DELETE (fold into index)	`@jini-ai/integrations/webhooks`
-apps/website/src/features/webmcp/generated/annotated-actions-script.ts	155	DELETE	agentic	/core	y	website/features/webmcp	DELETE (snapshot) — repoint 1 caller (`features/webmcp/published-html.ts:2`) to `@jini-ai/agentic/core`. Also delete `generated/provenance.json`, the provenance test and the README paragraph.	`Jini/packages/agentic/src/core/annotated-actions-script.ts` (exported from `core/index.ts:164`)
-apps/website/src/platform/db/kernel/dialect.ts	7	DELETE	db	/kernel	y	website/platform/db/kernel	DELETE	Repoint 21 prod + tests to `@jini-ai/db/kernel`
-apps/website/src/platform/db/kernel/port.ts	3	DELETE	db	/kernel	y	website/platform/db/kernel	DELETE	Repoint ~20 prod to `@jini-ai/db/kernel`
-apps/website/src/platform/db/kernel/schema-shape.ts	3	DELETE			y	website/platform/db/kernel	DELETE	Repoint `migrations/legacy-sqlite.ts:11` + 8 tests
-apps/website/src/platform/db/postgres/db-ops.ts	51	DELETE			y	website/platform/db/postgres	DELETE (inline into adapter)	n/a
-apps/website/src/platform/db/sqlite/db-ops.ts	93	DELETE	db	/sqlite	y	website/platform/db/sqlite	DELETE (replace with a factory)	`@jini-ai/db/sqlite` `SqliteDbOpsAdapter`
-apps/website/src/platform/db/sqlite/oauth-pending-store.sqlite.ts	27	DELETE			y	website/platform/db/sqlite	DELETE (pass-through)	n/a
-apps/website/src/platform/headless-browser/lazy-browser.ts	41	DELETE	diagnostics	/web-evidence/playwright.	y	website/platform/headless-browser	DELETE (2 prod callers)	Re-exports from @jini-ai/diagnostics/web-evidence/playwright. `importPlaywrightChromium` is 1 caller, `encodeJpeg` is 1 caller, both can sit in the caller.
-apps/website/src/platform/http/ports.ts	23	DELETE			y	website/platform/http	DELETE (6 prod direct)	Re-types Jini ports. `CreateHttpClient` is unused.
-apps/website/src/platform/mail/mail-status.ts	21	DELETE			y	website/platform/mail	DELETE-ish (1 prod, 4 tests)	The re-exports go away. `MailProviderControl` is a Tovu port.
-apps/website/src/platform/mail/provider-error.ts	7	T0:JINI-SHIM (DELETE + repoint importers)			y	website/platform/mail		
-apps/website/src/platform/mail/sender-domain-verification.ts	8	T0:JINI-SHIM (DELETE + repoint importers)			y	website/platform/mail		
-apps/website/src/platform/oauth/errors.ts	34	T0:JINI-SHIM (DELETE + repoint importers)			y	website/platform/oauth		
-apps/website/src/platform/oauth/index.ts	27	DELETE			y	website/platform/oauth	DELETE	0 prod importers, 8 test importers. Repoint the tests.
-apps/website/src/platform/oauth/ports.ts	27	T0:JINI-SHIM (DELETE + repoint importers)			y	website/platform/oauth		
-apps/website/src/platform/observability/index.ts	72	T0:JINI-SHIM (DELETE + repoint importers)			y	website/platform/observability		
-apps/website/src/platform/observability/report-error.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	website/platform/observability		
-apps/website/src/platform/routing/reserved-paths.ts	88	DELETE			y	website/platform/routing	DELETE the wrappers (2 prod)	Jini http-kit/verified-origin already has the functions. Keep only RESERVED_SEGMENTS.
-apps/website/src/platform/site-dir/atomic-write.ts	90	DELETE	platform	/fs	y	website/platform/site-dir	DELETE (repoint 7 direct prod callers) — blocked on Jini's sync `writeFileAtomic`/`writeJsonFileAtomic` defaulting `fs` to Node, the way `writeFileAtomicAsync` already does (`atomic-write.ts:218`)	`@jini-ai/platform/fs`
-apps/website/src/server/error-mapping/respond.ts	16	DELETE	http-kit		y	website/server/error-mapping	DELETE	Inline at the single caller (`routes/analytics/recent-hits.ts:77,:90`, 2 call sites). Direct importers: 1. Alternative: MOVE to `@jini-ai/http-kit` `response.ts` if other routes adopt the Jini envelope.
-apps/website/src/server/inbound/admin-http/routes/commerce/status.ts	64	DELETE	commerce		y	website/server/inbound/admin-http	DELETE (0 prod importers; owner to confirm)	`readCommerceStatus` already lives in `@jini-ai/commerce`
-apps/website/src/server/inbound/admin-http/routes/pages/update.ts	244	DELETE			y	website/server/inbound/admin-http	DELETE (callers: 1 prod `composition/modules/content.ts`, 2 tests)	—
-apps/website/src/server/inbound/admin-http/routes/widgets/agent-tools.ts	318	DELETE			y	website/server/inbound/admin-http	DELETE	none. Repoint 1 prod registrar (`runtime/composition/modules/widgets.ts`) and drop 2 tests
-apps/website/src/server/inbound/public-http/middleware/theme-preview-static.ts	42	DELETE			y	website/server/inbound/public-http	DELETE	Repoint 1 caller: app.ts:2468 (direct prod 1).
-apps/website/src/server/inbound/shared/body-size-limit.ts	55	DELETE			y	website/server/inbound/shared	DELETE	repoint 10 callers to http-kit `rejectOversizedJsonBody` with the message passed inline, or keep a 3-line const
-apps/website/src/server/runtime/boot/boot-listener.ts	39	DELETE	devops	/local-dev	y	website/server/runtime/boot	DELETE	repoint 2 callers to `listenServer` from @jini-ai/devops/local-dev
-apps/website/src/server/runtime/composition/store-bound-contracts.ts	9	DELETE			y	website/server/runtime/composition	DELETE (2 direct importers)	fold the interface into store-bound-services.ts
-apps/website/src/server/runtime/composition/webhook-delivery-worker.ts	77	DELETE	integrations	/webhooks	y	website/server/runtime/composition	DELETE the re-export block, keep wiring (STAY-WIRING)	Jini `@jini-ai/integrations/webhooks` already has the loop
+path	loc	action	pkg	subpath	exists_now	feature	label	home	was	route
+apps/admin/src/components/ComingSoonPanel.tsx	4	T0:JINI-SHIM (DELETE + repoint importers)			y	admin/components				
+apps/admin/src/components/InstallTabCard/folder-zip.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	admin/components/InstallTabCard				
+apps/admin/src/components/Select/Select.hooks.tsx	177	DELETE			y	admin/components/Select	DELETE	Repoint 1 prod importer, `Select.tsx:3` (a `import type` only), to `PackageProps["useDropdown"]`. Tests: 2 files		
+apps/admin/src/components/Select/Select.tsx	24	DELETE	ui	/admin-widgets	y	admin/components/Select	DELETE	Repoint 1 caller (WidgetPickerDialog.tsx:9) to `@jini-ai/ui/admin-widgets` Select		
+apps/admin/src/features/collections/hooks/collection-entries-dependencies.hooks.ts	47	DELETE			y	admin/features/collections	DELETE (fold into port file)	-- (fake port helper could be shared)		
+apps/admin/src/features/collections/hooks/collection-entry-editor-dependencies.hooks.ts	107	DELETE			y	admin/features/collections	DELETE (fold)	as above		
+apps/admin/src/features/collections/hooks/collections-dependencies.hooks.ts	54	DELETE			y	admin/features/collections	DELETE (fold)	as above		
+apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	58	DELETE			y	admin/features/database	DELETE (fold into hook)	n/a		
+apps/admin/src/features/database/hooks/migrate-forward-section-port.hooks.ts	12	DELETE			y	admin/features/database	DELETE (inline type)	n/a		
+apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts	34	DELETE			y	admin/features/database	DELETE (fold)	n/a		
+apps/admin/src/features/database/hooks/schema-state-section-port.hooks.ts	18	DELETE			y	admin/features/database	DELETE (inline)	n/a		
+apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts	45	DELETE			y	admin/features/database	DELETE (fold)	n/a		
+apps/admin/src/features/database/hooks/timeline-section-port.hooks.ts	17	DELETE			y	admin/features/database	DELETE (inline)	n/a		
+apps/admin/src/features/integrations/hooks/integration-deliveries-dependencies.hooks.ts	36	DELETE			y	admin/features/integrations	DELETE (pass-through default port; the fake is test-only and moves to tests)	n/a		
+apps/admin/src/features/integrations/hooks/integrations-dependencies.hooks.ts	75	DELETE			y	admin/features/integrations	DELETE (default port = `api` pass-through; fake test-only)	n/a		
+apps/admin/src/features/plugins/package-file-tree.ts	10	DELETE	admin	/agent-plugins	y	admin/features/plugins	DELETE (3 prod callers: `PackageFilesModal.tsx:9`, `use-package-file-tree.hooks.ts:3`, `rules.ts:6`; +1 test)	callers import `@jini-ai/admin/agent-plugins` directly, object-arg style		
+apps/admin/src/features/providers/hooks/use-providers.hooks.ts	47	DELETE			y	admin/features/providers	DELETE (1 caller: `Providers.tsx`)	`Providers.tsx` calls `useExternalMcp()` directly		
+apps/admin/src/features/settings/hooks/use-external-mcp-remove-confirm.hooks.ts	52	DELETE	admin	/react	y	admin/features/settings	DELETE (and the dialog that is its 1 caller)	Use Jini `ConfirmDialog` from `@jini-ai/admin/react`. Tovu already imports it in 8 files (Posts, Themes, PostEditor, AssistantDock, …). Keep `buildExternalMcpRemoveConfirmCopy`. Parity gap: agent handles `<card>-remove-confirm`/`-remove-cancel` vs ConfirmDialog's `agentHandle` scheme		
+apps/admin/src/features/sites/hooks/use-sites-home.hooks.ts	17	DELETE			y	admin/features/sites	DELETE	— (0 prod callers. Also delete `api.setSitesHome`, lib/api.ts:4090, whose only caller is this file, plus its unit test)		
+apps/admin/src/features/source-control/hooks/source-control-credentials-dependencies.hooks.ts	57	DELETE			y	admin/features/source-control	DELETE	The live binding is one-to-one onto `api.*`. The fake is test-only.		
+apps/admin/src/features/workspace/hooks/use-workspace-redirect.hooks.ts	37	DELETE			y	admin/features/workspace	DELETE	Same as above.		
+apps/admin/src/features/workspace/WorkspaceRedirect.tsx	12	DELETE			y	admin/features/workspace	DELETE	`panels.tsx` (the only prod caller, 1 direct importer via the feature barrel) can do a redirect route.		
+apps/admin/src/hooks/use-settings-slice.hooks.ts	33	DELETE	ui	/panel-kit	y	admin/hooks	DELETE	@jini-ai/ui/panel-kit already owns it. Repoint 4 prod callers (dossier `direct`.prod=4) to the Jini hook plus a host `refreshPort` default.		
+apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts	23	DELETE			y	admin/hooks	DELETE	panel-kit already exports it. Repoint 4 prod callers (`direct`.prod=10 counts the type re-exports).		
+apps/admin/src/integrations/jini-admin/ModulePanel.tsx	5	DELETE			y	admin/integrations/jini-admin	DELETE	none		
+apps/admin/src/lib/browser-working-directory-access.ts	134	DELETE	chat	/react	y	admin/lib	MOVE	J @jini-ai/chat/react (implements Jini's own ChatPaneWorkingDirectoryAccess); host supplies storage key		
+apps/admin/src/lib/fetch-query/adapter-context.ts	5	DELETE			y	admin/lib/fetch-query	DELETE-candidate	-		
+apps/admin/src/lib/query-suffix.ts	4	DELETE			y	admin/lib	DELETE (inline)	-		
+apps/admin/src/lib/standing-draft-recovery-message.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	admin/lib				
+apps/desktop/src/move-to-applications.ts	241	DELETE			y	desktop/(src)	DELETE	— (0 prod callers; delete with `move-to-applications.test.ts` and the all-`test.skip` `main-move-to-applications-wiring.test.ts`)		
+apps/desktop/src/renderer/create-website-onboarding-policy.ts	14	DELETE			y	desktop/renderer	DELETE	1 prod importer		
+apps/desktop/src/renderer/mount-renderer.ts	41	DELETE			y	desktop/renderer	DELETE (inline into main.tsx; 1 prod caller)	none		
+apps/desktop/src/renderer/WorkspaceChatPane.tsx	143	DELETE			y	desktop/renderer	DELETE	none; 0 prod importers (`direct.prod=0`, 1 test)		
+apps/desktop/src/webview-guest-policy.ts	33	DELETE	desktop-host	/electron/navigation-policy	y	desktop/(src)	DELETE (1 prod caller: `main/windows/sites-home-window.ts`)	`@jini-ai/desktop-host/electron/navigation-policy`, used directly		
+apps/desktop/src/window-navigation-policy.ts	84	DELETE	desktop-host	/electron/navigation-policy	y	desktop/(src)	DELETE	Call `@jini-ai/desktop-host/electron/navigation-policy` directly. Callers: 4 prod direct importers (main/index.ts:134, sites-home-window.ts:12, guest-navigation.ts:8, app-window.ts:7).		
+apps/website/src/assistant/daemon-respawn-policy.ts	36	DELETE	sidecar	/respawn-policy	y	website/assistant	DELETE	Jini `@jini-ai/sidecar/respawn-policy` already carries identical defaults (1s..30s, 60s, 5, 3)		
+apps/website/src/assistant/demo-image-png.ts	144	DELETE			y	website/assistant	STAY-PRODUCT (cut it down, see O6)	—		
+apps/website/src/assistant/durable-runs/continuation.ts	1	T0:JINI-SHIM (DELETE + repoint importers)			y	website/assistant/durable-runs				
+apps/website/src/assistant/durable-runs/ports.ts	1	T0:JINI-SHIM (DELETE + repoint importers)			y	website/assistant/durable-runs				
+apps/website/src/assistant/durable-runs/recover.ts	1	T0:JINI-SHIM (DELETE + repoint importers)			y	website/assistant/durable-runs				
+apps/website/src/assistant/mcp-federation/adapter.memory.ts	55	DELETE	mcp	/federation/testing	y	website/assistant/mcp-federation	DELETE	Jini `@jini-ai/mcp/federation/testing`		
+apps/website/src/assistant/site/client-directives.ts	4	DELETE			y	website/assistant/site	DELETE	none		
+apps/website/src/assistant/site/mode.ts	17	DELETE			y	website/assistant/site	DELETE	none		
+apps/website/src/assistant/tool-catalog-live-query.ts	55	DELETE	registry	/tool-catalog-builder	y	website/assistant	DELETE (direct prod callers: 0; 2 test importers)	`@jini-ai/registry/tool-catalog-builder` `createLiveToolCatalogQuery`		
+apps/website/src/assistant/tool-contribution-registry.ts	76	DELETE			y	website/assistant	DELETE	none		
+apps/website/src/assistant/tool-search-doc2query.ts	15	DELETE			y	website/assistant	DELETE	none		
+apps/website/src/cli/help.ts	35	DELETE			y	website/cli	DELETE	none		
+apps/website/src/contracts/core/commands/repo.memory.ts	1	T0:JINI-SHIM (DELETE + repoint importers)			y	website/contracts/core/commands				
+apps/website/src/contracts/core/commands/revert.ts	1	T0:JINI-SHIM (DELETE + repoint importers)			y	website/contracts/core/commands				
+apps/website/src/contracts/core/events/enqueue-only-outbox.ts	33	DELETE	infra	/events/outbox	y	website/contracts/core/events	DELETE	Jini already exports `toEnqueueOnlyOutbox` (`@jini-ai/infra/events/outbox`). Callers: 1 re-export (events/index) + 1 test.		
+apps/website/src/contracts/core/events/outbox-worker.ts	98	DELETE			y	website/contracts/core/events	DELETE (facade)	Keep only `processOutbox` bound to the retry policy. Re-exports of Jini constants + `computeOutboxBackoffMs` pass-through go.		
+apps/website/src/contracts/core/external-mcp-access.ts	5	T0:JINI-SHIM (DELETE + repoint importers)			y	website/contracts/core				
+apps/website/src/contracts/core/external-mcp-auth.ts	7	T0:JINI-SHIM (DELETE + repoint importers)			y	website/contracts/core				
+apps/website/src/contracts/core/gated-mutations/gateway.ts	212	DELETE	core	/gated-mutations	y	website/contracts/core/gated-mutations	DELETE	`@jini-ai/core/gated-mutations` (18 direct prod importers). Repoint to it with an adapter for `authorize`.		
+apps/website/src/contracts/core/gated-mutations/token.ts	146	DELETE	core	/gated-mutations	y	website/contracts/core/gated-mutations	DELETE	`@jini-ai/core/gated-mutations` (`InMemoryTokenStore`, mint/redeem/expire).		
+apps/website/src/contracts/core/gated-mutations/watermark.ts	52	DELETE			y	website/contracts/core/gated-mutations	DELETE	none		
+apps/website/src/contracts/core/model-facing-tool-errors.ts	53	DELETE	core	/model-facing-tool-errors	y	website/contracts/core	DELETE	`@jini-ai/core/model-facing-tool-errors`		
+apps/website/src/contracts/core/operation-lock.ts	6	DELETE	db	/recovery/operation-lock	y	website/contracts/core	DELETE	`@jini-ai/db/recovery/operation-lock`		
+apps/website/src/contracts/core/path-containment.ts	20	T0:JINI-SHIM (DELETE + repoint importers)			y	website/contracts/core				
+apps/website/src/contracts/core/upload-limits.ts	7	T0:JINI-SHIM (DELETE + repoint importers)			y	website/contracts/core				
+apps/website/src/features/agent-plugins/connection-status.ts	15	DELETE	agent-plugins	/connect	y	website/features/agent-plugins	DELETE after callers pass ports	`@jini-ai/agent-plugins/connect`		
+apps/website/src/features/agent-plugins/credential-cards.ts	1	DELETE	agent-plugins	/connect	y	website/features/agent-plugins	DELETE (barrel)	`@jini-ai/agent-plugins/connect`		
+apps/website/src/features/agent-plugins/descriptor-i18n.ts	22	DELETE	core	/text	y	website/features/agent-plugins	DELETE (callers import from Jini)	`@jini-ai/core/text`		
+apps/website/src/features/agent-plugins/executable-tools/approval.ts	9	DELETE			y	website/features/agent-plugins	DELETE	Same		
+apps/website/src/features/agent-plugins/executable-tools/host-capabilities.ts	2	DELETE			y	website/features/agent-plugins	DELETE (barrel)	Same		
+apps/website/src/features/agent-plugins/identity.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/agent-plugins				
+apps/website/src/features/agent-plugins/mail-provider-setup.ts	5	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/agent-plugins				
+apps/website/src/features/agent-plugins/mcp-metadata.ts	13	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/agent-plugins				
+apps/website/src/features/agent-plugins/memory-tools.ts	17	DELETE			y	website/features/agent-plugins	DELETE (0 prod importers; 3 test callers)	Jini host-tools `buildPluginMemoryRegistrations`, already registered by `registerInstalledAgentPluginTools`.		
+apps/website/src/features/analytics/salt.ts	61	DELETE			y	website/features/analytics	DELETE (test-only wrapper)	None. The real salt wiring is `jini-adapters.ts:33-36`.		
+apps/website/src/features/analytics/types.ts	53	DELETE	analytics		y	website/features/analytics	DELETE (JINI-SHIM)	`@jini-ai/analytics`.		
+apps/website/src/features/api-connections/budgets.ts	36	DELETE			y	website/features/api-connections	DELETE (the factory has 0 prod callers)	Jini integrations builds budgets itself at `integrations/src/api-connections/host.ts:125`.		
+apps/website/src/features/api-connections/hook-http.ts	1	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/integrations/src/api-connections/ j0.18/o0.54 (module only, own 0 tokens: no lift)			y	website/features/api-connections				
+apps/website/src/features/api-connections/surface-connections.ts	14	DELETE			y	website/features/api-connections	DELETE (1 caller, agent-plugin-connections.ts)	none; caller calls `createAdminSurfaceConnections` + `bindAdminSurfaceConnectionsHost` directly		
+apps/website/src/features/comments/data-module-install.ts	20	DELETE			y	website/features/comments	DELETE (1 caller)	none; caller calls `declareDataModule` directly and throws on `!ok`		
+apps/website/src/features/content-duplication/derive-available-name.ts	134	DELETE	core	/naming	y	website/features/content-duplication	DELETE (4 prod callers: post, forms ×2, media)	repoint to `@jini-ai/core/naming`		
+apps/website/src/features/content-types/index.ts	122	DELETE	cms	/content-types	y	website/features/content-types	DELETE (barrel; 17 prod / 47 test direct importers)	repoint to `@jini-ai/cms/content-types`, keep only `DECLARED_CONTENT_TYPE_OWNERS`, `registerContentType`, `buildContentTypesRegistrations`		
+apps/website/src/features/content-types/repo.memory.ts	17	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/cms/src/content-types/ j0.1/o0.29 (module only, own 0 tokens: no lift)			y	website/features/content-types				
+apps/website/src/features/custom-credentials/credential-tool-host.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/custom-credentials				
+apps/website/src/features/custom-credentials/credential-tool-operations.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/custom-credentials				
+apps/website/src/features/custom-credentials/sets/host.ts	7	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/custom-credentials				
+apps/website/src/features/custom-credentials/sets/store.ts	7	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/custom-credentials				
+apps/website/src/features/custom-credentials/sets/vault-repo.ts	7	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/custom-credentials				
+apps/website/src/features/database-transfer/plan-store.ts	5	DELETE			y	website/features/database-transfer	DELETE (2 callers; only `tool-registrations.ts` uses the singleton)	none		
+apps/website/src/features/database-transfer/postgres-target.ts	7	DELETE	db	/transfer	y	website/features/database-transfer	DELETE (2 direct prod callers)	callers call `@jini-ai/db/transfer` `createPsqlPostgresTarget({connectionString},{parentEnv,applicationName:"tovu-database-transfer"})`		
+apps/website/src/features/database/boot/evaluate-boot-migration-policy.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/database				
+apps/website/src/features/database/boot/reconcile-interrupted-migration.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/database				
+apps/website/src/features/database/migrate-forward/execute.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/database				
+apps/website/src/features/database/restore-points.ts	3	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/database				
+apps/website/src/features/database/timeline.ts	3	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/database				
+apps/website/src/features/deployments/deploy-ops/secrets.ts	8	DELETE	devops	/deploy	y	website/features/deployments	DELETE	1 prod caller (`deploy-ops/tool-registrations.ts`, types only). Repoint it to `@jini-ai/devops/deploy`.		
+apps/website/src/features/deployments/deploy-ops/types.ts	8	DELETE	devops	/deploy	y	website/features/deployments	DELETE	Point the 3 prod callers at `@jini-ai/devops/deploy`.		
+apps/website/src/features/deployments/static-publish/publish-consent.ts	11	DELETE			y	website/features/deployments	DELETE (2 direct callers)	caller calls `siteConsent.deploymentCheck` directly		
+apps/website/src/features/deployments/types.ts	51	DELETE			y	website/features/deployments	DELETE-UNVERIFIED (no prod importer except 1 reexporter; tests 0)			
+apps/website/src/features/entries/index.ts	69	DELETE	cms	/entries	y	website/features/entries	DELETE (repoint 13 prod direct callers to `@jini-ai/cms/entries` / `@jini-ai/core/primitives`)	n/a		
+apps/website/src/features/entries/public-read.ts	3	DELETE			y	website/features/entries	DELETE (1 caller: pages.ts:68)	n/a		
+apps/website/src/features/entries/render-entry.ts	2	DELETE			y	website/features/entries	DELETE (1 caller: render.ts:37)	n/a		
+apps/website/src/features/entries/repo.sqlite.ts	17	DELETE			y	website/features/entries	DELETE (4 prod direct callers: deps.ts:1721, peer-site-reads.ts:270, publish-content-seed-hash.ts:120, +type re-export)	n/a		
+apps/website/src/features/external-mcp/external-mcp-shared-oauth.ts	2	DELETE	integrations	/api-connections/hosted-mcp	y	website/features/external-mcp	DELETE	Repoint 1 prod importer (contracts.ts type import) + 2 tests to `@jini-ai/integrations/api-connections/hosted-mcp`		
+apps/website/src/features/external-mcp/external-mcp-store.memory.ts	10	DELETE			y	website/features/external-mcp	DELETE (low priority)	`new InMemoryExternalMcpServerRepo(externalMcpVaultPorts)` at 1 prod caller (app.ts, hermetic only) + 58 tests		
+apps/website/src/features/form-destinations/index.ts	30	DELETE			y	website/features/form-destinations	DELETE (barrel; 2 prod direct importers, 8 test)	repoint to concrete files		
+apps/website/src/features/form-destinations/types.ts	22	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/form-destinations				
+apps/website/src/features/identity/user-purge.sqlite.ts	8	DELETE			y	website/features/identity	DELETE	Repoint `server/runtime/composition/deps.ts:1599` (1 prod) + 6 tests to `SqlUserPurge`		
+apps/website/src/features/media/attachment-tools.ts	3	DELETE			y	website/features/media	DELETE	— (0 callers; also drop `"attachment-tools"` from `.dependency-cruiser.mjs:680` PUBLIC_ENTRIES)		
+apps/website/src/features/media/media-provider-credential-repo.sqlite.ts	9	DELETE			y	website/features/media	DELETE	Repoint 1 caller (`server/runtime/composition/deps.ts:2348`) to `SqlMediaProviderCredentialRepo`		
+apps/website/src/features/member-login/types.ts	4	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/member-login				
+apps/website/src/features/members/consent-service.ts	261	DELETE			y	website/features/members	DELETE (dead in prod; owner decision)	—		
+apps/website/src/features/navigation/html-render.ts	3	DELETE			y	website/features/navigation	DELETE	repoint 0 prod / 3 tests → render-entry		
+apps/website/src/features/navigation/index.ts	163	DELETE	cms	/navigation	y	website/features/navigation	DELETE (shrink to the 4 host-local exports, or repoint)	repoint 14 direct prod importers to `@jini-ai/cms/navigation(/node)`		
+apps/website/src/features/navigation/menu-version-conflict-error.ts	12	DELETE			y	website/features/navigation	DELETE	repoint 1 prod (trash-aware-memory-menu-repo) + index re-export + 2 tests		
+apps/website/src/features/newsletter/repo.sqlite.ts	60	DELETE			y	website/features/newsletter	DELETE	Repoint 2 prod (`composition/deps.ts`, `composition/peer-site-reads.ts`) + 4 test importers to `new SqlNewsletterXRepo(contentKernel(store))`		
+apps/website/src/features/pages/html-document-store.sqlite.ts	31	DELETE			y	website/features/pages	DELETE	2 prod callers repoint to `SqlPagesHtmlDocumentStore` + `contentKernel(db)`		
+apps/website/src/features/plugin-runtime/declarative-content-types.ts	89	DELETE	plugins		y	website/features/plugin-runtime	DELETE (7 dead re-exports) and keep a ~25-line binder	Rules already in @jini-ai/plugins host		
+apps/website/src/features/plugin-runtime/invocation-core-deps.ts	52	DELETE			y	website/features/plugin-runtime	DELETE (inline into 1 caller: host-binding.ts)	n/a		
+apps/website/src/features/plugins/data-module.ts	1	DELETE	db	/data-modules	y	website/features/plugins	DELETE	Repoint 4 prod (`composition/data-modules.ts:7`, `share-database/repo.sqlite.ts:22`, both manifests) + tests to `@jini-ai/db/data-modules`		
+apps/website/src/features/plugins/disk-headroom.ts	4	DELETE			y	website/features/plugins	DELETE	Tests import Jini directly		
+apps/website/src/features/plugins/index.ts	1	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/plugins				
+apps/website/src/features/plugins/migration-journal.ts	11	DELETE			y	website/features/plugins	DELETE	Tests import Jini		
+apps/website/src/features/plugins/migration-recovery.ts	5	DELETE			y	website/features/plugins	DELETE	Repoint `composition/open-site-content-db.ts:1` (pass `{dbPath, entries}`)		
+apps/website/src/features/plugins/plugin-identity.ts	4	DELETE			y	website/features/plugins	DELETE	Tests import Jini		
+apps/website/src/features/plugins/plugin-store.ts	4	DELETE			y	website/features/plugins	DELETE	Tests import Jini		
+apps/website/src/features/plugins/restore.ts	1	DELETE			y	website/features/plugins	DELETE	Tests import Jini		
+apps/website/src/features/plugins/snapshot.ts	5	DELETE			y	website/features/plugins	DELETE	Repoint `composition/deps.ts:194` (`isInMemoryDbPath({dbPath})`)		
+apps/website/src/features/post/author.ts	1	DELETE			y	website/features/post	DELETE	none. 0 direct callers		
+apps/website/src/features/post/repo.sqlite.ts	17	DELETE			y	website/features/post	DELETE (13 test callers, 0 prod; plus `post/index.ts` re-export)	n/a		
+apps/website/src/features/publish-content/publish-content-peer-repo.sqlite.ts	8	DELETE			y	website/features/publish-content	DELETE	—		
+apps/website/src/features/publish-content/publish-content-peer-repo.ts	12	DELETE			y	website/features/publish-content	DELETE	—		
+apps/website/src/features/recovery/deep-link.ts	2	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/db/src/recovery/ j0.16/o0.3 UNMOUNTED-REWRITE (module only, own 0 tokens: no lift)			y	website/features/recovery				
+apps/website/src/features/recovery/disclosure.ts	2	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/db/src/recovery/ j0.16/o0.3 UNMOUNTED-REWRITE (module only, own 0 tokens: no lift)			y	website/features/recovery				
+apps/website/src/features/recovery/recovery-orchestrator.ts	2	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/db/src/recovery/ j0.16/o0.3 UNMOUNTED-REWRITE (module only, own 0 tokens: no lift)			y	website/features/recovery				
+apps/website/src/features/recovery/repo.memory.ts	2	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/db/src/recovery/ j0.16/o0.3 UNMOUNTED-REWRITE (module only, own 0 tokens: no lift)			y	website/features/recovery				
+apps/website/src/features/recovery/restore-points.ts	2	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/db/src/recovery/ j0.16/o0.3 UNMOUNTED-REWRITE (module only, own 0 tokens: no lift)			y	website/features/recovery				
+apps/website/src/features/recovery/ui/degraded-banners.ts	2	T0:JINI-SHIM (DELETE + repoint importers); LEGACY-TWIN jini:packages/db/src/recovery/ j0.16/o0.3 UNMOUNTED-REWRITE (module only, own 0 tokens: no lift)			y	website/features/recovery				
+apps/website/src/features/server-logs/process-source.ts	7	DELETE			y	website/features/server-logs	DELETE	Repoint 2 callers: `server/.../system/server-logs.ts` and `server-logs/tool-registrations.ts`.		
+apps/website/src/features/settings/site-title-preservation.sqlite.ts	9	DELETE			y	website/features/settings	DELETE (1 caller: deps.ts:1245)	—		
+apps/website/src/features/site-guide/contracts.ts	25	DELETE	agentic		y	website/features/site-guide	DELETE	Repoint to J `@jini-ai/agentic` types `GuideTopic`, `GuideFact`, `SiteGuide`, `SiteGuidePorts`. 13 prod importers via `direct`.		
+apps/website/src/features/taxonomy/content-targets.ts	2	DELETE			y	website/features/taxonomy	DELETE (1 caller: `routes/taxonomy/assign-terms.ts`)	—		
+apps/website/src/features/taxonomy/html-render.ts	3	DELETE			y	website/features/taxonomy	DELETE (0 importers)	—		
+apps/website/src/features/taxonomy/repo.sqlite.ts	44	DELETE			y	website/features/taxonomy	DELETE after the repo moves (5 prod + 9 test callers), replaced by a STAY-WIRING factory like `redirects/repo.sqlite.ts`	—		
+apps/website/src/features/taxonomy/term-sync.ts	2	DELETE			y	website/features/taxonomy	DELETE (2 callers: entries/post publish-content)	—		
+apps/website/src/features/tool-audit/types.ts	3	T0:JINI-SHIM (DELETE + repoint importers)			y	website/features/tool-audit				
+apps/website/src/features/trash/db-port.ts	19	DELETE			y	website/features/trash	DELETE	repoint to `ContentKernel`		
+apps/website/src/features/vendor-credentials/index.ts	12	DELETE			y	website/features/vendor-credentials	DELETE (repoint `server/routes/types.ts:76` to `./types.js`)	—		
+apps/website/src/features/vendor-credentials/vendor-credential-repo.sqlite.ts	10	DELETE			y	website/features/vendor-credentials	DELETE	—		
+apps/website/src/features/vendor-credentials/vendor-credential-repo.ts	11	DELETE			y	website/features/vendor-credentials	DELETE (fold into a factory used by `deps.ts`)	—		
+apps/website/src/features/web/html-document.ts	5	DELETE			y	website/features/web	DELETE (0 prod callers; 2 test files import it)	—		
+apps/website/src/features/web/html-to-markdown.ts	2	DELETE			y	website/features/web	DELETE (0 prod callers; 2 test files)	—		
+apps/website/src/features/web/web-page.ts	36	DELETE			y	website/features/web	DELETE once Tovu's `HttpClientPort` takes Jini's shape (2 prod files / 3 direct imports: tool-registrations, tool-catalog-manifest type)	Composition passes `userAgent: "Tovu/0.1 …"` through the existing Jini `WebFetchPorts.userAgent`.		
+apps/website/src/features/webhooks/ports.ts	28	DELETE	integrations	/webhooks	y	website/features/webhooks	DELETE (fold into index)	`@jini-ai/integrations/webhooks`		
+apps/website/src/features/webhooks/seal-aad-invariant.ts	234	DELETE			y	website/features/webhooks	DELETE (replace with a type)	n/a		
+apps/website/src/features/webhooks/types.ts	13	DELETE	integrations	/webhooks	y	website/features/webhooks	DELETE (fold into index)	`@jini-ai/integrations/webhooks`		
+apps/website/src/features/webmcp/generated/annotated-actions-script.ts	155	DELETE	agentic	/core	y	website/features/webmcp	DELETE (snapshot) — repoint 1 caller (`features/webmcp/published-html.ts:2`) to `@jini-ai/agentic/core`. Also delete `generated/provenance.json`, the provenance test and the README paragraph.	`Jini/packages/agentic/src/core/annotated-actions-script.ts` (exported from `core/index.ts:164`)		
+apps/website/src/platform/db/kernel/dialect.ts	7	DELETE	db	/kernel	y	website/platform/db/kernel	DELETE	Repoint 21 prod + tests to `@jini-ai/db/kernel`		
+apps/website/src/platform/db/kernel/port.ts	3	DELETE	db	/kernel	y	website/platform/db/kernel	DELETE	Repoint ~20 prod to `@jini-ai/db/kernel`		
+apps/website/src/platform/db/kernel/schema-shape.ts	3	DELETE			y	website/platform/db/kernel	DELETE	Repoint `migrations/legacy-sqlite.ts:11` + 8 tests		
+apps/website/src/platform/db/postgres/db-ops.ts	51	DELETE			y	website/platform/db/postgres	DELETE (inline into adapter)	n/a		
+apps/website/src/platform/db/sqlite/db-ops.ts	93	DELETE	db	/sqlite	y	website/platform/db/sqlite	DELETE (replace with a factory)	`@jini-ai/db/sqlite` `SqliteDbOpsAdapter`		
+apps/website/src/platform/db/sqlite/oauth-pending-store.sqlite.ts	27	DELETE			y	website/platform/db/sqlite	DELETE (pass-through)	n/a		
+apps/website/src/platform/headless-browser/lazy-browser.ts	41	DELETE	diagnostics	/web-evidence/playwright.	y	website/platform/headless-browser	DELETE (2 prod callers)	Re-exports from @jini-ai/diagnostics/web-evidence/playwright. `importPlaywrightChromium` is 1 caller, `encodeJpeg` is 1 caller, both can sit in the caller.		
+apps/website/src/platform/http/ports.ts	23	DELETE			y	website/platform/http	DELETE (6 prod direct)	Re-types Jini ports. `CreateHttpClient` is unused.		
+apps/website/src/platform/mail/mail-status.ts	21	DELETE			y	website/platform/mail	DELETE-ish (1 prod, 4 tests)	The re-exports go away. `MailProviderControl` is a Tovu port.		
+apps/website/src/platform/mail/provider-error.ts	7	T0:JINI-SHIM (DELETE + repoint importers)			y	website/platform/mail				
+apps/website/src/platform/mail/sender-domain-verification.ts	8	T0:JINI-SHIM (DELETE + repoint importers)			y	website/platform/mail				
+apps/website/src/platform/oauth/errors.ts	34	T0:JINI-SHIM (DELETE + repoint importers)			y	website/platform/oauth				
+apps/website/src/platform/oauth/index.ts	27	DELETE			y	website/platform/oauth	DELETE	0 prod importers, 8 test importers. Repoint the tests.		
+apps/website/src/platform/oauth/ports.ts	27	T0:JINI-SHIM (DELETE + repoint importers)			y	website/platform/oauth				
+apps/website/src/platform/observability/index.ts	72	T0:JINI-SHIM (DELETE + repoint importers)			y	website/platform/observability				
+apps/website/src/platform/observability/report-error.ts	2	T0:JINI-SHIM (DELETE + repoint importers)			y	website/platform/observability				
+apps/website/src/platform/routing/reserved-paths.ts	88	DELETE			y	website/platform/routing	DELETE the wrappers (2 prod)	Jini http-kit/verified-origin already has the functions. Keep only RESERVED_SEGMENTS.		
+apps/website/src/platform/site-dir/atomic-write.ts	90	DELETE	platform	/fs	y	website/platform/site-dir	DELETE (repoint 7 direct prod callers) — blocked on Jini's sync `writeFileAtomic`/`writeJsonFileAtomic` defaulting `fs` to Node, the way `writeFileAtomicAsync` already does (`atomic-write.ts:218`)	`@jini-ai/platform/fs`		
+apps/website/src/server/inbound/admin-http/routes/commerce/status.ts	64	DELETE	commerce		y	website/server/inbound/admin-http	DELETE (0 prod importers; owner to confirm)	`readCommerceStatus` already lives in `@jini-ai/commerce`		
+apps/website/src/server/inbound/admin-http/routes/pages/update.ts	244	DELETE			y	website/server/inbound/admin-http	DELETE (callers: 1 prod `composition/modules/content.ts`, 2 tests)	—		
+apps/website/src/server/inbound/admin-http/routes/widgets/agent-tools.ts	318	DELETE			y	website/server/inbound/admin-http	DELETE	none. Repoint 1 prod registrar (`runtime/composition/modules/widgets.ts`) and drop 2 tests		
+apps/website/src/server/inbound/public-http/middleware/theme-preview-static.ts	42	DELETE			y	website/server/inbound/public-http	DELETE	Repoint 1 caller: app.ts:2468 (direct prod 1).		
+apps/website/src/server/runtime/boot/boot-listener.ts	39	DELETE	devops	/local-dev	y	website/server/runtime/boot	DELETE	repoint 2 callers to `listenServer` from @jini-ai/devops/local-dev		
+apps/website/src/server/runtime/composition/webhook-delivery-worker.ts	77	DELETE	integrations	/webhooks	y	website/server/runtime/composition	DELETE the re-export block, keep wiring (STAY-WIRING)	Jini `@jini-ai/integrations/webhooks` already has the loop		

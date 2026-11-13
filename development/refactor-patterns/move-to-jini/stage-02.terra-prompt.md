@@ -13,10 +13,10 @@ The survey found Tovu code that duplicates something Jini already publishes. Tov
 - If this job edits Jini, the runner must give you `/Users/la/Programming/jini-terra-d1` as a writable directory; if it is read-only, stop and say so.
 
 ## Input
-`development/refactor-patterns/move-to-jini/stage-02.files.tsv` (45 rows). The `home` column names the Jini symbol(s) and package/subpath, e.g. "`AgentToolDefinition`/`AgentToolSideEffect` from `@jini-ai/core` (`core/src/agent-tools.ts:15,24`)"; the `label` column may name which Tovu symbols are duplicates.
+`development/refactor-patterns/move-to-jini/stage-02.files.tsv` (16 rows; columns path, loc, action, pkg, subpath, exists_now, feature, label, home, was, route). This stage is ONLY for rows that name an already-published Jini equivalent: rows that ask to consolidate Tovu copies first, swap a visible component, add something to Jini or write a new shared helper were routed to stages 02b, 12 and 14 by the designer. The `home` column names the Jini symbol(s) and package/subpath, e.g. "`AgentToolDefinition`/`AgentToolSideEffect` from `@jini-ai/core` (`core/src/agent-tools.ts:15,24`)"; the `label` column may name which Tovu symbols are duplicates.
 
 ## What to do per row
-1. Identify the pairs: Tovu symbol -> Jini symbol, from `label` + `home`. If either side is not named explicitly, BLOCKED ("pair not named").
+1. Identify the pairs: Tovu symbol -> Jini symbol, from `label` + `home`. If either side is not named explicitly, BLOCKED ("pair not named"). If the `home` text asks for any work beyond repointing ("first", "collapse", "consolidate", "add", "promote", "made generic", "shared helper", "after", or two alternatives joined by "or"), BLOCKED ("needs design: not stage 02"); never write new Jini or shared Tovu code in this stage.
 2. Prove the Jini symbol is exported from the INSTALLED package Tovu uses: `rg -n -w "<JiniName>" node_modules/@jini-ai/<pkg>/dist/<subpath or root>/index.d.ts` (follow `export * from` / `export { } from` lines one or two hops). Not exported: BLOCKED ("not in published Jini").
 3. Prove they match: open the Jini declaration in `/Users/la/Programming/jini-terra-d1/packages/<pkg>/src/...`. Same parameter shape and return type, and for constants the same value. Differences in parameter ORDER or shape (Tovu positional vs Jini `(required, optional)`) are allowed only if the `home` text states the mapping; then rewrite each call accordingly. Any other difference: BLOCKED ("diverged: <one line>").
 4. Repoint every importer of the Tovu symbol (`rg -n -w <TovuName> apps`) to `import { <JiniName> } from "@jini-ai/<pkg>/<subpath>"` (use `import type` for types; alias with `as` only if the Tovu name differs and renaming call sites would touch more than 20 lines).
@@ -51,7 +51,7 @@ The SCC sizes and mutual-pair counts after your change must be equal or smaller 
 Change summary for the coordinator's commit: `refactor(tovu): import Jini instead of duplicate Tovu copies (move-to-jini stage 02)`.
 
 ## Report (your final message)
-1. Per row/edge: DONE, BLOCKED (with the exact blocking `file:line` and import), or SKIPPED (why). Use the row's path as the key.
+1. Per row/edge: DONE, BLOCKED (with the exact blocking `file:line` and import), or SKIPPED (why). Use the row's path as the key. Every BLOCKED/SKIPPED row also gets `waits_on:` (`path:<tovu path>`, `stage:<NN>`, `owner:<Dn>`, or `design:<one line>`); the coordinator copies these into `development/refactor-patterns/move-to-jini/ledger.tsv`.
 2. The gate outputs (before/after).
 3. Changed, added and deleted paths per repo (you do not commit).
 4. Anything surprising, in one line each. Do not paste diffs.
