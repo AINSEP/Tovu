@@ -1,6 +1,6 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Warm children delegate Sites management to the original dev host, never own another pool. */
-import type { Express } from 'express';
+import type { Express, Response } from 'express';
 import { requestLoopbackHttp } from '@jini-ai/platform/net';
 import type { SiteBinding } from '#src/platform/site-dir/index';
 import { resolveCheckoutRoot } from '#src/platform/site-dir/product-root';
@@ -34,15 +34,7 @@ export function registerWarmSiteControl({ app, binding, workspaceId }: { app: Ex
         headers: { cookie: req.headers.cookie ?? '', 'content-type': 'application/json' },
         ...(req.body === undefined ? {} : { body: JSON.stringify(req.body) }),
       }, { certificate: tls.credentials?.cert, timeoutMs: 55_000 });
-      // Set-Cookie is intentionally not relayed: those are the host's credentials, never this
-      // child's. Session renewal remains at each origin's ordinary auth endpoints.
-      if (/\/preview(?:\?|$)/.test(suffix) && reply.status === 200) {
-        res.status(200).type(reply.contentType ?? 'image/png').send(reply.body);
-        return;
-      }
-      const snapshot = JSON.parse(reply.body.toString('utf8')) as Record<string, unknown>;
-      res.status(reply.status).json(req.method === 'GET' && (suffix === '' || suffix.startsWith('?'))
-        ? warmSiteListing({ snapshot, binding }) : snapshot);
+      sendHostReply({ res, reply, suffix, method: req.method, binding });
     } catch (err) {
       let errorDiagnostic = "[diagnostic unavailable]";
       try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
@@ -51,4 +43,22 @@ export function registerWarmSiteControl({ app, binding, workspaceId }: { app: Ex
     }
   });
   return true;
+}
+
+/** Answer the child's request with the host's reply: previews as bytes, the listing re-bound to this child.
+ * @complexity O(reply bytes).
+ */
+function sendHostReply(
+  { res, reply, suffix, method, binding }: { res: Response; reply: Awaited<ReturnType<typeof requestLoopbackHttp>>; suffix: string; method: string; binding: SiteBinding },
+  _options = {},
+): void {
+  // Set-Cookie is intentionally not relayed: those are the host's credentials, never this
+  // child's. Session renewal remains at each origin's ordinary auth endpoints.
+  if (/\/preview(?:\?|$)/.test(suffix) && reply.status === 200) {
+    res.status(200).type(reply.contentType ?? 'image/png').send(reply.body);
+    return;
+  }
+  const snapshot = JSON.parse(reply.body.toString('utf8')) as Record<string, unknown>;
+  res.status(reply.status).json(method === 'GET' && (suffix === '' || suffix.startsWith('?'))
+    ? warmSiteListing({ snapshot, binding }) : snapshot);
 }
