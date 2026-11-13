@@ -33,12 +33,12 @@ export function unrecognisedThemes(required: { root: string; dir: string; files:
   for (const file of required.files) {
     const match = LIVE_THEME_FILE.exec(file);
     if (!match || !required.liveThemes.has(match[1]!) || unrecognised.has(match[2]!)) continue;
-    if (!sameBytes(path.join(required.root, file), path.join(required.dir, file))) unrecognised.add(match[2]!);
+    if (!sameBytes({ left: path.join(required.root, file), right: path.join(required.dir, file) })) unrecognised.add(match[2]!);
   }
   return unrecognised;
 }
 
-function sameBytes(left: string, right: string): boolean {
+function sameBytes({ left, right }: { left: string; right: string }, _optional: Record<string, never> = {}): boolean {
   return fs.existsSync(right) && fs.readFileSync(left).equals(fs.readFileSync(right));
 }
 

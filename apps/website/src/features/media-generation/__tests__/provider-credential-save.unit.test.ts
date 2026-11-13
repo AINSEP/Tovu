@@ -30,7 +30,7 @@ function makeDeps() {
 test("a first key for a provider is saved and reported configured, with no model or baseUrl", async () => {
   const { repo, deps } = makeDeps();
   assert.deepEqual(await saveMediaProviderKey({ deps, workspaceId: WS, provider: "openai", apiKey: "sk-first-abcd1234" }), { configured: true, tokenHint: { length: 17, last4: "1234" } });
-  const [row] = await repo.listByWorkspaceId(WS);
+  const [row] = await repo.listByWorkspaceId({ workspaceId: WS });
   assert.equal(row!.providerId, "openai");
   assert.equal(row!.baseUrl, null);
   assert.equal(row!.model, null);
@@ -54,7 +54,7 @@ test("saving one provider's key keeps its model/baseUrl and leaves every other p
 test("store validation errors propagate and nothing is written", async () => {
   const { repo, deps } = makeDeps();
   await assert.rejects(saveMediaProviderKey({ deps, workspaceId: WS, provider: "not-a-provider", apiKey: "sk-abcd1234" }));
-  assert.deepEqual(await repo.listByWorkspaceId(WS), []);
+  assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: WS }), []);
 });
 
 test("a blank key preserves a migrated provider whose token length is unknown and returns no hint", async () => {

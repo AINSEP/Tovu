@@ -56,7 +56,7 @@ export const contributeTaxonomyPublish = (): PublishContentContributor =>
     isTrashed: (row) => row.status === TRASH,
     fields: { name: "transferred", hierarchical: "transferred", id: "local", status: "local", updatedAt: "local", version: "local" },
     // Not unique in the schema; two same-named groups would read as one on screen.
-    address: { field: "name", holder: async (p, _workspaceId, name) => (await p.taxonomies.list()).find((t) => t.name === name) ?? null },
+    address: { field: "name", holder: async ({ ports: p, workspaceId: _workspaceId, value: name }) => (await p.taxonomies.list()).find((t) => t.name === name) ?? null },
     write: async (ctx) => {
       const { id, state, expectedVersion, principalId } = ctx;
       const deps = writeDeps({ ctx, entityType: "taxonomy" });
@@ -102,7 +102,7 @@ export const contributeTermPublish = (): PublishContentContributor =>
     // A name is taken only among its siblings (same taxonomy, same parent).
     address: {
       field: "name",
-      holder: async (p, _workspaceId, name, state) =>
+      holder: async ({ ports: p, workspaceId: _workspaceId, value: name, state }) =>
         (await p.terms.listByTaxonomy({ taxonomyId: state.taxonomyId as string })).find((t) => t.name === name && t.parentId === (state.parentId ?? null)) ?? null,
     },
     write: async (ctx) => {

@@ -31,9 +31,8 @@ const EXT_BY_TRANSFORM_FORMAT: Record<string, string> = { jpeg: "jpg", png: "png
  * has not run `ensureCoreMediaTransform`, or this is a test double with no transform registered).
  */
 function resolveOneAssetPublicUrl(
-  asset: MediaRecord,
-  contentTypes: ReadonlyMap<string, string>,
-  latest: Awaited<ReturnType<typeof getLatestTransformDefinition>>
+  { asset, contentTypes, latest }: { asset: MediaRecord; contentTypes: ReadonlyMap<string, string>; latest: Awaited<ReturnType<typeof getLatestTransformDefinition>> },
+  _optional: Record<string, never> = {}
 ): string | null {
   const key = mediaUrlKey(asset);
   const contentType = contentTypes.get(asset.source.sha256);
@@ -84,7 +83,7 @@ export async function resolveMediaPublicUrls(
   }) : null;
 
   for (const asset of active) {
-    result.set(asset.id, resolveOneAssetPublicUrl(asset, contentTypes, latest));
+    result.set(asset.id, resolveOneAssetPublicUrl({ asset, contentTypes, latest }));
   }
   return result;
 }

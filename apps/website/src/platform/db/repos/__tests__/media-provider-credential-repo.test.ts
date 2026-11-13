@@ -45,7 +45,7 @@ describeEachDialect(
     }
 
     test("listByWorkspaceId returns an empty array when no rows exist", async () => {
-      assert.deepEqual(await (await makeRepo()).listByWorkspaceId(WORKSPACE), []);
+      assert.deepEqual(await (await makeRepo()).listByWorkspaceId({ workspaceId: WORKSPACE }), []);
     });
 
     test("upsert then list round-trips a sealed record exactly", async () => {
@@ -59,7 +59,7 @@ describeEachDialect(
 
       await repo.upsert(record);
 
-      assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), [record]);
+      assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: WORKSPACE }), [record]);
     });
 
     test("a keyless row round-trips with sealed and keyTail both null", async () => {
@@ -68,7 +68,7 @@ describeEachDialect(
 
       await repo.upsert(record);
 
-      const [found] = await repo.listByWorkspaceId(WORKSPACE);
+      const [found] = await repo.listByWorkspaceId({ workspaceId: WORKSPACE });
       assert.equal(found?.sealed, null);
       assert.equal(found?.keyTail, null);
       assert.equal(found?.baseUrl, "https://proxy.example.com/v1");
@@ -100,7 +100,7 @@ describeEachDialect(
       await repo.upsert(makeRecord({ model: "dall-e-3" }));
       await repo.upsert(makeRecord({ model: "gpt-image-2", updatedAt: "2026-08-09T01:00:00.000Z" }));
 
-      const rows = await repo.listByWorkspaceId(WORKSPACE);
+      const rows = await repo.listByWorkspaceId({ workspaceId: WORKSPACE });
       assert.equal(rows.length, 1);
       assert.equal(rows[0]?.model, "gpt-image-2");
     });
@@ -110,7 +110,7 @@ describeEachDialect(
       await repo.upsert(makeRecord({ providerId: "openai" }));
       await repo.upsert(makeRecord({ providerId: "grok" }));
 
-      const ids = (await repo.listByWorkspaceId(WORKSPACE)).map((row) => row.providerId).sort();
+      const ids = (await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map((row) => row.providerId).sort();
       assert.deepEqual(ids, ["grok", "openai"]);
     });
 
@@ -119,8 +119,8 @@ describeEachDialect(
       await repo.upsert(makeRecord({ workspaceId: WORKSPACE, providerId: "openai" }));
       await repo.upsert(makeRecord({ workspaceId: OTHER_WORKSPACE, providerId: "grok" }));
 
-      assert.deepEqual((await repo.listByWorkspaceId(WORKSPACE)).map((r) => r.providerId), ["openai"]);
-      assert.deepEqual((await repo.listByWorkspaceId(OTHER_WORKSPACE)).map((r) => r.providerId), ["grok"]);
+      assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map((r) => r.providerId), ["openai"]);
+      assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: OTHER_WORKSPACE })).map((r) => r.providerId), ["grok"]);
     });
 
     test("deleteByProviderIds removes only the named ids", async () => {
@@ -131,7 +131,7 @@ describeEachDialect(
 
       await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: ["grok", "fal"] });
 
-      assert.deepEqual((await repo.listByWorkspaceId(WORKSPACE)).map((r) => r.providerId), ["openai"]);
+      assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map((r) => r.providerId), ["openai"]);
     });
 
     test("deleteByProviderIds on an empty list is a no-op, not an IN () syntax error", async () => {
@@ -140,7 +140,7 @@ describeEachDialect(
 
       await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: [] });
 
-      assert.equal((await repo.listByWorkspaceId(WORKSPACE)).length, 1);
+      assert.equal((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).length, 1);
     });
 
     test("deleteByProviderIds never crosses a workspace boundary", async () => {
@@ -149,13 +149,13 @@ describeEachDialect(
 
       await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: ["openai"] });
 
-      assert.equal((await repo.listByWorkspaceId(OTHER_WORKSPACE)).length, 1);
+      assert.equal((await repo.listByWorkspaceId({ workspaceId: OTHER_WORKSPACE })).length, 1);
     });
 
     test("deleteByProviderIds on ids with no rows is harmless", async () => {
       const repo = await makeRepo();
       await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: ["openai", "grok"] });
-      assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), []);
+      assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: WORKSPACE }), []);
     });
 
     test("replaceWorkspace commits every upsert and the tombstone delete together", async () => {
@@ -171,7 +171,7 @@ describeEachDialect(
       });
 
       assert.deepEqual(written.map((r) => r.providerId), ["openai"]);
-      const rows = await repo.listByWorkspaceId(WORKSPACE);
+      const rows = await repo.listByWorkspaceId({ workspaceId: WORKSPACE });
       assert.deepEqual(rows.map((r) => r.providerId).sort(), ["openai"]);
     });
 
@@ -195,7 +195,7 @@ describeEachDialect(
         /Secrets vault: conflict/
       );
 
-      const rows = await repo.listByWorkspaceId(WORKSPACE);
+      const rows = await repo.listByWorkspaceId({ workspaceId: WORKSPACE });
       assert.deepEqual(
         rows.map((r) => r.providerId).sort(),
         ["grok"],
@@ -219,7 +219,7 @@ describeEachDialect(
         /planner refused/
       );
 
-      assert.deepEqual((await repo.listByWorkspaceId(WORKSPACE)).map((r) => r.model), ["kept"]);
+      assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map((r) => r.model), ["kept"]);
     });
 
     test("the planner is handed the rows as of the transaction, never a caller's earlier snapshot", async () => {
@@ -228,13 +228,13 @@ describeEachDialect(
       // overwritten by the merge. The read now lives inside the boundary.
       const repo = await makeRepo();
       await repo.upsert(makeRecord({ providerId: "openai", model: "v1" }));
-      const staleSnapshot = await repo.listByWorkspaceId(WORKSPACE);
+      const staleSnapshot = await repo.listByWorkspaceId({ workspaceId: WORKSPACE });
       await repo.upsert(makeRecord({ providerId: "openai", model: "v2" }));
 
       let seenByPlanner: string[] = [];
       await repo.replaceWorkspace({
         workspaceId: WORKSPACE,
-        plan: (existing) => {
+        plan: ({ existing }) => {
           seenByPlanner = existing.map((row) => `${row.providerId}:${row.model}`);
           return { upserts: [], tombstoneProviderIds: [] };
         },
@@ -262,7 +262,7 @@ describeEachDialect(
       } });
       assert.ok(transactionStates.length > 0, "the real database must have been accessed");
       assert.ok(transactionStates.every(Boolean), "every read and write must use the transaction executor");
-      assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), [makeRecord()]);
+      assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: WORKSPACE }), [makeRecord()]);
     });
 
     test("a metadata-only SQL save preserves a rotation committed while its other key was sealing", async () => {
@@ -300,15 +300,15 @@ describeEachDialect(
       let seenByPlanner: string[] = [];
       await repo.replaceWorkspace({
         workspaceId: WORKSPACE,
-        plan: (existing) => {
+        plan: ({ existing }) => {
           seenByPlanner = existing.map((row) => row.providerId);
           return { upserts: [], tombstoneProviderIds: ["grok", "openai"] };
         },
       });
 
       assert.deepEqual(seenByPlanner, ["grok"]);
-      assert.deepEqual((await repo.listByWorkspaceId(OTHER_WORKSPACE)).map((r) => r.providerId), ["openai"]);
-      assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), []);
+      assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: OTHER_WORKSPACE })).map((r) => r.providerId), ["openai"]);
+      assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: WORKSPACE }), []);
     });
 
     test("a reader polling on the shared connection can never observe a half-replaced map", async () => {
@@ -322,7 +322,7 @@ describeEachDialect(
       await repo.upsert(makeRecord({ providerId: "grok", model: "old" }));
 
       const modelsNow = async (): Promise<string> =>
-        (await repo.listByWorkspaceId(WORKSPACE))
+        (await repo.listByWorkspaceId({ workspaceId: WORKSPACE }))
           .map((row) => `${row.providerId}:${row.model}`)
           .sort()
           .join(",");
@@ -375,11 +375,11 @@ describeEachDialect(
         })
       );
 
-      assert.deepEqual((await repo.listByWorkspaceId(WORKSPACE)).map((r) => r.providerId), ["grok"]);
+      assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map((r) => r.providerId), ["grok"]);
 
       // ...and the connection is usable afterwards, proving the aborted transaction really closed.
       await repo.upsert(makeRecord({ providerId: "openai" }));
-      assert.deepEqual((await repo.listByWorkspaceId(WORKSPACE)).map((r) => r.providerId).sort(), ["grok", "openai"]);
+      assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map((r) => r.providerId).sort(), ["grok", "openai"]);
     });
   }
 );

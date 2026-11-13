@@ -374,11 +374,11 @@ const GITHUB_HOST = { label: "GitHub", maxFileBytes: 100 * 1024 * 1024 };
 
 test("a file over GitHub's 100 MiB limit is refused, naming the host, the file and its size — never truncated", () => {
   const result = checkSiteBackupLimits(
-    [
+    { files: [
       { path: "database/content.db", bytes: GITHUB_HOST.maxFileBytes + 1 },
       { path: "uploads/small.png", bytes: 10 },
     ],
-    GITHUB_HOST,
+    host: GITHUB_HOST },
   );
   assert.equal(result.ok, false);
   if (result.ok) return;
@@ -389,17 +389,17 @@ test("a file over GitHub's 100 MiB limit is refused, naming the host, the file a
 
 test("exactly 100 MiB is allowed; the total is summed", () => {
   const result = checkSiteBackupLimits(
-    [
+    { files: [
       { path: "a", bytes: GITHUB_HOST.maxFileBytes },
       { path: "b", bytes: 5 },
     ],
-    GITHUB_HOST,
+    host: GITHUB_HOST },
   );
   assert.deepEqual(result, { ok: true, totalBytes: GITHUB_HOST.maxFileBytes + 5 });
 });
 
 test("a host that declares no per-file limit gets no per-file check, only this tool's own caps", () => {
-  const result = checkSiteBackupLimits([{ path: "big", bytes: 200 * 1024 * 1024 }], { label: "Other Host" });
+  const result = checkSiteBackupLimits({ files: [{ path: "big", bytes: 200 * 1024 * 1024 }], host: { label: "Other Host" } });
   assert.deepEqual(result, { ok: true, totalBytes: 200 * 1024 * 1024 });
 });
 
@@ -413,10 +413,10 @@ test("a disk file over the host's per-file limit is left out and named in skippe
 
 test("too many files, or too many bytes in total, is refused with the cap named", () => {
   const many = Array.from({ length: 4 }, (_, i) => ({ path: `f${i}`, bytes: 1 }));
-  const countResult = checkSiteBackupLimits(many, GITHUB_HOST, { ...SITE_BACKUP_LIMITS, maxFiles: 3 });
+  const countResult = checkSiteBackupLimits({ files: many, host: GITHUB_HOST }, { limits: { ...SITE_BACKUP_LIMITS, maxFiles: 3 } });
   assert.equal(countResult.ok, false);
   if (!countResult.ok) assert.match(countResult.message, /4 files/);
-  const totalResult = checkSiteBackupLimits(many, GITHUB_HOST, { ...SITE_BACKUP_LIMITS, maxTotalBytes: 3 });
+  const totalResult = checkSiteBackupLimits({ files: many, host: GITHUB_HOST }, { limits: { ...SITE_BACKUP_LIMITS, maxTotalBytes: 3 } });
   assert.equal(totalResult.ok, false);
 });
 
@@ -513,7 +513,7 @@ test("the manifest names the format, Tovu version, schema, timestamp, scopes, da
   assert.deepEqual(manifest.files, [{ path: "database/content.db", bytes: 6, sha256: "a".repeat(64) }]);
 });
 
-const walkFileSystem = { lstat, lstatBigInt: (file: string) => lstat(file, { bigint: true }), readdir: (dir: string) => readdir(dir, { withFileTypes: true }) };
+const walkFileSystem = { lstat: ({ file }: { file: string }) => lstat(file), lstatBigInt: ({ file }: { file: string }) => lstat(file, { bigint: true }), readdir: ({ dir }: { dir: string }) => readdir(dir, { withFileTypes: true }) };
 
 test("absent scope folders and settings files produce an empty backup", async (t) => {
   const site = makeSite();
@@ -557,7 +557,7 @@ test("a file disappearing between listing and lstat is omitted without losing st
   t.after(site.cleanup);
   const target = path.join(site.root, "config.json");
   const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, settings: true } }, {
-    fileSystem: { ...walkFileSystem, lstat: async file => {
+    fileSystem: { ...walkFileSystem, lstat: async ({ file }) => {
       if (file === target) throw Object.assign(new Error("removed"), { code: "ENOENT" });
       return lstat(file);
     } },
@@ -612,7 +612,7 @@ test("plugin-owned-directory lstat failures other than ENOENT abort collection",
   const failure = Object.assign(new Error("package metadata unavailable"), { code: "EIO" });
   const packagePath = path.join(site.sources.agentPlugins.forWorkspace({ workspaceId: "workspace-local" }).root, "packages");
   await assert.rejects(collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, plugins: true } }, {
-    fileSystem: { ...walkFileSystem, lstat: async file => {
+    fileSystem: { ...walkFileSystem, lstat: async ({ file }) => {
       if (file === packagePath) throw failure;
       return lstat(file);
     } },
@@ -620,7 +620,7 @@ test("plugin-owned-directory lstat failures other than ENOENT abort collection",
 });
 
 for (const [bytes, formatted] of [[0, "0 B"], [1023, "1023 B"], [1024, "1 KiB"], [1536, "1.5 KiB"], [1048576, "1 MiB"], [1073741824, "1 GiB"], [1610612736, "1.5 GiB"]] as const) {
-  test(`${bytes} bytes formats as ${formatted}`, () => assert.equal(formatByteSize(bytes), formatted));
+  test(`${bytes} bytes formats as ${formatted}`, () => assert.equal(formatByteSize({ bytes }), formatted));
 }
 
 test("a planned file replaced by a directory is stale", async (t) => {

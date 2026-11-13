@@ -132,7 +132,7 @@ export const contributeWidgetPublish = (): PublishContentContributor =>
     },
     address: {
       field: "slug",
-      holder: async (p, workspaceId, slug) => {
+      holder: async ({ ports: p, workspaceId, value: slug }) => {
         // Trash included: a trashed widget keeps its slug.
         const row = await p.entries.findAnyBySlug({ workspaceId, type: WIDGET_CONTENT_TYPE, slug });
         return row ? toWidgetRow(row) : null;
@@ -203,7 +203,7 @@ export const contributeWidgetAreaPublish = (): PublishContentContributor =>
     permission: "widgets.place",
     dependsOn: ["widget"],
     ports: (deps) => deps.ports["widget-area"],
-    list: listAreas,
+    list: ({ ports, workspaceId }) => listAreas({ ports, workspaceId }),
     find: async ({ ports: p, workspaceId, id: regionKey }) => (await listAreas({ ports: p, workspaceId })).find((row) => row.regionKey === regionKey) ?? null,
     idOf: (row) => row.regionKey,
     fields: {

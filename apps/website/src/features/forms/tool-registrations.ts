@@ -629,9 +629,9 @@ export function contributeFormsDuplicateHandlers(): DuplicateResourceHandlerCont
   return [
     {
       resource: "form",
-      build: (routeDeps) => ({
+      build: (routeDeps, _optional = {}) => ({
         permission: "admin.forms.manage",
-        duplicate: (input) => duplicateFormDefinition(routeDeps, input),
+        duplicate: (input, _optional = {}) => duplicateFormDefinition(routeDeps, input),
       }),
     },
   ];

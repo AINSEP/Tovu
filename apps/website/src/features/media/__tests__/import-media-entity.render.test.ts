@@ -35,7 +35,7 @@ const SOURCE_BYTES = new TextEncoder().encode("a real imported photo's bytes");
 const SOURCE_SHA256 = "86d9075d85c1cce55da0605a557dceaea6c27f18df8702ce86accccce8a41aa9";
 
 function makeDeps(): ImportMediaEntityDeps & { mediaRepo: InMemoryVersionedMediaRepo } {
-  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo({});
   return {
     mediaRepo,
     assetBlobRepo: new InMemoryAssetBlobRepo({}),

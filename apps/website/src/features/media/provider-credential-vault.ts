@@ -83,7 +83,7 @@ function carriedFromExisting({ record, existing }: { record: MediaProviderCreden
 export class MediaProviderCredentialVaultRepo implements MediaProviderCredentialRepoPort {
   readonly vault: VaultRepoPort;
   constructor({ vault }: { vault: VaultRepoPort }, _options = {}) { this.vault = vault; }
-  async listByWorkspaceId(workspaceId: string): Promise<MediaProviderCredentialRecord[]> {
+  async listByWorkspaceId({ workspaceId }: { workspaceId: string }): Promise<MediaProviderCredentialRecord[]> {
     return (await this.vault.list(mediaVaultScope({ workspaceId }))).map(row => mediaVaultRecord({ row }));
   }
   private row({ record, existing }: { record: MediaProviderCredentialRecord; existing?: VaultRecord }, _options = {}): VaultRecord {
@@ -108,7 +108,7 @@ export class MediaProviderCredentialVaultRepo implements MediaProviderCredential
     if (!this.vault.applyBatch) throw new VaultError({ code: "invalid-record" });
     const current = await this.vault.list(mediaVaultScope(input));
     const byProvider = new Map(current.map(row => [row.provider!, row]));
-    const plan = input.plan(current.map(row => mediaVaultRecord({ row })));
+    const plan = input.plan({ existing: current.map(row => mediaVaultRecord({ row })) });
     const ops: VaultBatchOp[] = plan.upserts.map(record => {
       if (record.workspaceId !== input.workspaceId) throw new VaultError({ code: "context" });
       const existing = byProvider.get(record.providerId);

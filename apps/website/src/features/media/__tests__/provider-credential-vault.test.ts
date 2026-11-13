@@ -163,7 +163,7 @@ test("mediaVaultRecord yields an empty tail for a long sealed token with no stor
 
 test("listByWorkspaceId reads the workspace's nonpersonal media group and maps each row", async () => {
   const vault = new RecordingVault([vaultRow({ provider: "openai" }), vaultRow({ id: "g", provider: "grok" })]);
-  const rows = await new MediaProviderCredentialVaultRepo({ vault }).listByWorkspaceId(WORKSPACE);
+  const rows = await new MediaProviderCredentialVaultRepo({ vault }).listByWorkspaceId({ workspaceId: WORKSPACE });
   assert.deepEqual(rows.map(row => row.providerId), ["openai", "grok"]);
   assert.deepEqual(vault.listQueries, [mediaVaultScope({ workspaceId: WORKSPACE })]);
 });
@@ -256,7 +256,7 @@ test("replaceWorkspace refuses a port without batch support as invalid-record be
 test("replaceWorkspace hands the planner the current DTOs and puts each upsert against its stored revision", async () => {
   const vault = new RecordingVault([vaultRow({ id: "o", revision: 2 })], []);
   let seen: string[] = [];
-  await new MediaProviderCredentialVaultRepo({ vault }).replaceWorkspace({ workspaceId: WORKSPACE, plan: current => {
+  await new MediaProviderCredentialVaultRepo({ vault }).replaceWorkspace({ workspaceId: WORKSPACE, plan: ({ existing: current }) => {
     seen = current.map(row => row.providerId);
     return { upserts: [dto(), dto({ providerId: "grok" })], tombstoneProviderIds: [] };
   } });

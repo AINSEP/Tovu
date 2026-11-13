@@ -63,7 +63,7 @@ export type ChatAttachmentLookup = Pick<AttachmentStore, "resolveForRun">;
 
 /** The safe, non-disclosing message given for both "never heard of this ref" and "a different run
  *  owns it" — mirrors `resolveForRun`'s own non-disclosure contract (see that method's doc). */
-function unknownAttachmentMessage(ref: string): string {
+function unknownAttachmentMessage({ ref }: { ref: string }, _optional: Record<string, never> = {}): string {
   return `attachment '${ref}' is unknown or already claimed by a different run`;
 }
 
@@ -92,10 +92,10 @@ export async function resolveChatAttachmentBytes(
     // claim) or `'attachment-integrity'` (the file changed since upload) — both caller-facing facts a
     // model can act on ("try again", "re-attach it"), and neither message leaks a filesystem path
     // (see `attachments.ts`'s own SEC-005 doc), so re-classifying as `ToolInputError` here is safe.
-    if (error instanceof AttachmentRejectedError) throw new ToolInputError({ message: unknownAttachmentMessage(input.ref) });
+    if (error instanceof AttachmentRejectedError) throw new ToolInputError({ message: unknownAttachmentMessage({ ref: input.ref }) });
     throw error;
   }
-  if (!resolved) throw new ToolInputError({ message: unknownAttachmentMessage(input.ref) });
+  if (!resolved) throw new ToolInputError({ message: unknownAttachmentMessage({ ref: input.ref }) });
   const bytes = await deps.readFile(resolved.path);
   return { bytes, name: resolved.name };
 }
@@ -103,7 +103,7 @@ export async function resolveChatAttachmentBytes(
 /** Falls back to a non-empty placeholder — `media_upload_asset`'s own schema requires `filename`
  *  to be non-empty, and a stored attachment's `name` is normally already sanitized/non-empty
  *  (`sanitizeAttachmentName`'s own fallback), but this stays defensive rather than assuming that. */
-function defaultFilename(attachmentName: string): string {
+function defaultFilename({ attachmentName }: { attachmentName: string }, _optional: Record<string, never> = {}): string {
   return attachmentName.length > 0 ? attachmentName : "attachment";
 }
 
@@ -132,7 +132,7 @@ const INPUT_SCHEMA = {
 } as const;
 
 /** Reads and validates `attachmentRef` out of an otherwise-`unknown` tool input. */
-function requireAttachmentRef(input: unknown): string {
+function requireAttachmentRef({ input }: { input: unknown }, _optional: Record<string, never> = {}): string {
   const record = input as Record<string, unknown> | null | undefined;
   const ref = record?.attachmentRef;
   if (typeof ref !== "string" || ref.length === 0) {
@@ -163,7 +163,7 @@ export function buildPromoteChatAttachmentTool(deps: {
   readonly readFile: (path: string) => Promise<Uint8Array>;
 }): ToolRegistration {
   const handler: ToolHandler = async (ctx: ToolExecutionContext, optional = {}) => {
-    const attachmentRef = requireAttachmentRef(ctx.input);
+    const attachmentRef = requireAttachmentRef({ input: ctx.input });
     const store = deps.getStore();
     if (!store) {
       // Structurally unreachable once the daemon has finished starting — see `agent-daemon-server.ts`'s
@@ -176,7 +176,7 @@ export function buildPromoteChatAttachmentTool(deps: {
     );
     const input = ctx.input as Record<string, unknown>;
     const uploadInput: Record<string, unknown> = {
-      filename: typeof input.filename === "string" && input.filename.length > 0 ? input.filename : defaultFilename(name),
+      filename: typeof input.filename === "string" && input.filename.length > 0 ? input.filename : defaultFilename({ attachmentName: name }),
       // Sniffed, never the caller's — see this file's header ("Design").
       contentType: sniffContentType({ bytes }),
       dataBase64: Buffer.from(bytes).toString("base64"),

@@ -42,10 +42,10 @@ interface EntryClaims {
 const SHARE_INVENTORY_ROOTS = /^(?:media|themes|plugins|agent-plugins|skills)\/.+/;
 const SHARE_SETTINGS_FILES = ["settings.json"];
 
-export function refuseArchive(message: string): never { throw new SiteShareRefusal({ code: "INVALID_ARCHIVE", message }); }
+export function refuseArchive({ message }: { message: string }, _optional: Record<string, never> = {}): never { throw new SiteShareRefusal({ code: "INVALID_ARCHIVE", message }); }
 
 /** Hex SHA-256 of a whole buffer. O(bytes). */
-export function sha256Hex(bytes: Buffer): string { return createHash("sha256").update(bytes).digest("hex"); }
+export function sha256Hex({ bytes }: { bytes: Buffer }, _optional: Record<string, never> = {}): string { return createHash("sha256").update(bytes).digest("hex"); }
 
 /**
  * First pass, metadata only: refuses links/special entries and enforces the entry cap, reads only
@@ -61,7 +61,7 @@ export async function scanArchiveMetadata(required: { archive: Buffer; reader: A
   for await (const entry of required.reader.entries({ archive: required.archive })) {
     optional.signal?.throwIfAborted();
     count++;
-    if (count > SHARE_LIMITS.maxFiles) refuseArchive("Import exceeds the 2,000-entry cap.");
+    if (count > SHARE_LIMITS.maxFiles) refuseArchive({ message: "Import exceeds the 2,000-entry cap." });
     const name = entry.entryPath.replace(/\/$/, "");
     validateRawEntry({ entry, name });
     if (!ignoredArchivePath({ path: name })) entries.push(entry);
@@ -94,7 +94,7 @@ async function readManifest(required: { archive: Buffer; reader: AgentPluginArch
     optional.signal?.throwIfAborted();
     if (entry.kind === "file" && entry.entryPath === required.path) return await readBounded({ entry, maxBytes: SHARE_LIMITS.maxManifestBytes, signal: optional.signal });
   }
-  return refuseArchive("A v2 manifest.json at root, or inside one wrapper folder with nothing outside it, is required.");
+  return refuseArchive({ message: "A v2 manifest.json at root, or inside one wrapper folder with nothing outside it, is required." });
 }
 
 /** Finder metadata is discarded identically in both passes, without decompressing it. */
@@ -102,7 +102,7 @@ export function ignoredArchivePath(required: { path: string }, _optional = {}): 
   return required.path.split("/").some(part => part === "__MACOSX" || part === ".DS_Store");
 }
 function stripArchiveWrapper(required: { path: string; wrapper: string }): string {
-  if (!required.path.startsWith(required.wrapper)) refuseArchive("Files outside the single wrapper folder are forbidden.");
+  if (!required.path.startsWith(required.wrapper)) refuseArchive({ message: "Files outside the single wrapper folder are forbidden." });
   const path = required.path.slice(required.wrapper.length);
   validateSharePath({ path: path.replace(/\/$/, "") });
   return path;
@@ -111,7 +111,7 @@ function stripArchiveWrapper(required: { path: string; wrapper: string }): strin
 /** Claims one entry; returns it when it is a file, `undefined` for a directory. */
 function claimEntry(required: { claims: EntryClaims; entry: AgentPluginArchiveEntry }): FileEntry | undefined {
   const { claims, entry } = required;
-  if (entry.kind !== "file" && entry.kind !== "directory") refuseArchive("ZIP links and special entries are forbidden.");
+  if (entry.kind !== "file" && entry.kind !== "directory") refuseArchive({ message: "ZIP links and special entries are forbidden." });
   if (entry.kind === "directory") {
     claimDirectory({ claims, name: entry.entryPath.replace(/\/$/, "") });
     return undefined;
@@ -123,7 +123,7 @@ function claimEntry(required: { claims: EntryClaims; entry: AgentPluginArchiveEn
 function claimDirectory(required: { claims: EntryClaims; name: string }): void {
   const { claims, name } = required;
   claimSharePath({ path: name, directory: true, aliases: claims.aliases, files: claims.fileAliases });
-  if (claims.directories.has(name) || claims.fileAliases.has(sharePathAlias({ path: name }))) refuseArchive("Duplicate directory or file/directory collision.");
+  if (claims.directories.has(name) || claims.fileAliases.has(sharePathAlias({ path: name }))) refuseArchive({ message: "Duplicate directory or file/directory collision." });
   claims.directories.add(name);
 }
 
@@ -131,9 +131,9 @@ function claimFile(required: { claims: EntryClaims; entry: FileEntry }): void {
   const { claims, entry } = required;
   const name = entry.entryPath;
   claimSharePath({ path: name, directory: false, aliases: claims.aliases, files: claims.fileAliases });
-  if (claims.directories.has(name)) refuseArchive("ZIP file/directory collision.");
+  if (claims.directories.has(name)) refuseArchive({ message: "ZIP file/directory collision." });
   const size = entry.declaredSize;
-  if (!Number.isSafeInteger(size) || size! < 0) refuseArchive("ZIP has an invalid declared size.");
+  if (!Number.isSafeInteger(size) || size! < 0) refuseArchive({ message: "ZIP has an invalid declared size." });
   claims.sizes.push({ path: name, bytes: size! });
   checkShareLimits({ files: claims.sizes });
 }
@@ -159,14 +159,14 @@ export function buildManifestInventory(required: { files: readonly unknown[] }):
     if (typeof (record as { path?: unknown })?.path === "string" && isStaticSitePath({ path: (record as { path: string }).path })) continue;
     const file = requireArchiveFileRecord({ file: record });
     validateSharePath({ path: file.path });
-    if (inventory.has(file.path) || file.path === SITE_BACKUP_MANIFEST_PATH) refuseArchive("Duplicate manifest file.");
-    if (refusedInventoryPath(file.path)) refuseArchive("Unrecognized or private file in share inventory.");
+    if (inventory.has(file.path) || file.path === SITE_BACKUP_MANIFEST_PATH) refuseArchive({ message: "Duplicate manifest file." });
+    if (refusedInventoryPath({ path: file.path })) refuseArchive({ message: "Unrecognized or private file in share inventory." });
     inventory.set(file.path, file);
   }
   return inventory;
 }
 
-function refusedInventoryPath(path: string): boolean {
+function refusedInventoryPath({ path }: { path: string }, _optional: Record<string, never> = {}): boolean {
   if (path === SITE_BACKUP_DATABASE_PATH || path === SAVED_KEYS_PATH) return false;
   const scanPath = archiveSecretScanPath({ path, plugins: [] });
   const privateRuntime = excludedSharePath({ path: scanPath });
@@ -180,8 +180,8 @@ function refusedInventoryPath(path: string): boolean {
  */
 export function checkArchiveMatchesInventory(required: { inventory: ReadonlyMap<string, InventoryRecord>; fileAliases: ReadonlySet<string>; directories: ReadonlySet<string> }): void {
   const { inventory } = required;
-  if (inventory.size + 1 !== required.fileAliases.size || !inventory.has(SITE_BACKUP_DATABASE_PATH)) refuseArchive("ZIP inventory differs from the manifest.");
-  for (const dir of required.directories) if (![...inventory.keys()].some(file => file.startsWith(dir + "/"))) refuseArchive("Unlisted ZIP directory.");
+  if (inventory.size + 1 !== required.fileAliases.size || !inventory.has(SITE_BACKUP_DATABASE_PATH)) refuseArchive({ message: "ZIP inventory differs from the manifest." });
+  for (const dir of required.directories) if (![...inventory.keys()].some(file => file.startsWith(dir + "/"))) refuseArchive({ message: "Unlisted ZIP directory." });
 }
 
 /**
@@ -216,9 +216,9 @@ function retainListedFile(required: { path: string; content: Buffer; files: Map<
 async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyMap<string, InventoryRecord>; remainingBytes: number; manifest?: ArchiveManifest; modified?: Set<string> }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string> }): Promise<Buffer> {
   const { entry } = required;
   const expected = required.inventory.get(entry.entryPath);
-  if (!expected) refuseArchive("Unlisted ZIP file.");
+  if (!expected) refuseArchive({ message: "Unlisted ZIP file." });
   const unit = archiveCodeUnit({ path: entry.entryPath });
-  if (!unit && expected.bytes !== entry.declaredSize) refuseArchive("ZIP size mismatch.");
+  if (!unit && expected.bytes !== entry.declaredSize) refuseArchive({ message: "ZIP size mismatch." });
   const content = await readBounded({ entry, maxBytes: Math.min(entry.declaredSize!, required.remainingBytes), signal: optional.signal });
   verifyListedIntegrity({ content, expected, unit, modified: required.modified });
   return content;
@@ -231,10 +231,10 @@ async function readBounded(required: { entry: FileEntry; maxBytes: number; signa
   for await (const chunk of required.entry.openReadStream({})) {
     required.signal?.throwIfAborted();
     size += chunk.length;
-    if (size > required.maxBytes) refuseArchive("Expanded ZIP bytes exceed the manifest or archive cap (possible ZIP bomb).");
+    if (size > required.maxBytes) refuseArchive({ message: "Expanded ZIP bytes exceed the manifest or archive cap (possible ZIP bomb)." });
     chunks.push(Buffer.from(chunk));
   }
-  if (size !== required.entry.declaredSize) refuseArchive("ZIP declared and actual size differ.");
+  if (size !== required.entry.declaredSize) refuseArchive({ message: "ZIP declared and actual size differ." });
   return Buffer.concat(chunks, size);
 }
 
@@ -242,7 +242,7 @@ function validateRawEntry(required: { entry: AgentPluginArchiveEntry; name: stri
   // Validate traversal/aliases even on ignored metadata. Its known OS name and the database
   // extension are placeholders only during the pre-strip path check, never extraction paths.
   validateSharePath({ path: required.name.split("/").map(part => part === ".DS_Store" ? "finder-metadata" : part).join("/").replace(/(^|\/)content\.db$/, "$1content-database") });
-  if (required.entry.kind !== "file" && required.entry.kind !== "directory") refuseArchive("ZIP links and special entries are forbidden.");
+  if (required.entry.kind !== "file" && required.entry.kind !== "directory") refuseArchive({ message: "ZIP links and special entries are forbidden." });
 }
 
 function claimNormalizedEntries(required: { entries: readonly AgentPluginArchiveEntry[]; claims: EntryClaims; wrapper: string }): void {
@@ -257,7 +257,7 @@ function claimNormalizedEntries(required: { entries: readonly AgentPluginArchive
 
 /** Editable code changes disable their entire unit; data integrity failures always refuse. */
 function verifyListedIntegrity(required: { content: Buffer; expected: InventoryRecord; unit: string | undefined; modified: Set<string> | undefined }): void {
-  if (required.content.length === required.expected.bytes && sha256Hex(required.content) === required.expected.sha256) return;
-  if (!required.unit || !required.modified) refuseArchive("ZIP size or SHA-256 mismatch.");
+  if (required.content.length === required.expected.bytes && sha256Hex({ bytes: required.content }) === required.expected.sha256) return;
+  if (!required.unit || !required.modified) refuseArchive({ message: "ZIP size or SHA-256 mismatch." });
   required.modified.add(required.unit);
 }

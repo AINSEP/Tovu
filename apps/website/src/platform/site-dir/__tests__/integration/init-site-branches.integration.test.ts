@@ -118,7 +118,7 @@ test("onAllocated journals the minted identity and database path before any site
   const f = fixture();
   try {
     const seen: { allocation: { dir: string; siteId: string; dbPath: string }; existed: boolean }[] = [];
-    const result = await initSite({ dir: f.target }, { onAllocated: (allocation) => { seen.push({ allocation, existed: fs.existsSync(f.target) }); } });
+    const result = await initSite({ dir: f.target }, { onAllocated: (allocation, _optional = {}) => { seen.push({ allocation, existed: fs.existsSync(f.target) }); } });
     assert.deepEqual(seen, [{ allocation: { dir: f.target, siteId: result.siteId, dbPath: path.join(f.target, "data.nosync", "content.db") }, existed: false }]);
   } finally { f.cleanup(); }
 });

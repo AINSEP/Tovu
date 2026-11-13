@@ -208,7 +208,7 @@ test('media providers: omitted provider map clears the whole set', async () => {
   const saved = await dispatchJsonRequest(app, 'PUT', `${BASE}/media/providers`, { openai: { apiKey: 'test-key' } });
   assert.equal(saved.status, 200);
   assert.deepEqual(await dispatchJsonRequest(app, 'PUT', `${BASE}/media/providers`), { status: 200, body: {} });
-  assert.deepEqual(await deps.mediaProviderCredentialRepo.listByWorkspaceId(WS), []);
+  assert.deepEqual(await deps.mediaProviderCredentialRepo.listByWorkspaceId({ workspaceId: WS }), []);
 });
 
 test('media list: documents include only active records and keep their type tied to filename', async t => {

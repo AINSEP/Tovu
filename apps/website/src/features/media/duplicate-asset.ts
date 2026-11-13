@@ -74,9 +74,8 @@ interface DuplicateMediaInput {
  * fixed-window scan.
  */
 async function resolveCopyContentType(
-  routeDeps: MediaToolDeps & MediaPublicUrlDeps,
-  sha256: string,
-  bytes: Uint8Array
+  { routeDeps, sha256, bytes }: { routeDeps: MediaToolDeps & MediaPublicUrlDeps; sha256: string; bytes: Uint8Array },
+  _optional: Record<string, never> = {}
 ): Promise<string> {
   const recorded = await routeDeps.mediaContentTypeStore?.getMany({ workspaceId: routeDeps.workspaceId, sha256s: [sha256] });
   return recorded?.get(sha256) ?? sniffContentType({ bytes });
@@ -93,9 +92,8 @@ async function resolveCopyContentType(
  * accepted O(n) scan rather than a new port method), then `deriveDuplicateName`'s own bounded search.
  */
 async function resolveDuplicateTitle(
-  routeDeps: MediaToolDeps,
-  source: MediaRecord,
-  overrideTitle: string | undefined
+  { routeDeps, source, overrideTitle }: { routeDeps: MediaToolDeps; source: MediaRecord; overrideTitle: string | undefined },
+  _optional: Record<string, never> = {}
 ): Promise<string> {
   if (overrideTitle !== undefined) return overrideTitle;
   const existingTitles = new Set(
@@ -103,7 +101,7 @@ async function resolveDuplicateTitle(
   );
   return deriveDuplicateName(
     { sourceName: source.title },
-    { isTaken: async ({ candidate }) => existingTitles.has(candidate) }
+    { isTaken: async ({ candidate }, _optional = {}) => existingTitles.has(candidate) }
   );
 }
 
@@ -125,10 +123,8 @@ async function resolveDuplicateTitle(
  * @complexity O(1) — one repo read plus one write.
  */
 async function applyCopiedMetadata(
-  routeDeps: MediaToolDeps,
-  created: MediaRecord,
-  source: MediaRecord,
-  resolved: { title: string; slug?: string }
+  { routeDeps, created, source, resolved }: { routeDeps: MediaToolDeps; created: MediaRecord; source: MediaRecord; resolved: { title: string; slug?: string } },
+  _optional: Record<string, never> = {}
 ): Promise<MediaRecord> {
   const { media } = await updateMediaMetadata({
     deps: { clock: routeDeps.clock, mediaRepo: routeDeps.mediaRepo },
@@ -201,12 +197,12 @@ export async function duplicateMediaAsset(
         "nothing was copied. Its bytes are missing, so a copy would reference content that does not exist." });
   }
   const bytes = await routeDeps.blobStore.get({ storageKey: blob.storageKey });
-  const contentType = await resolveCopyContentType(routeDeps, source.source.sha256, bytes);
+  const contentType = await resolveCopyContentType({ routeDeps, sha256: source.source.sha256, bytes });
 
   // Resolved before uploadMedia so BOTH the interim filename seed below and applyCopiedMetadata's
   // real write use the SAME final title — see resolveDuplicateTitle's own doc for why recomputing it
   // twice is a drift risk this avoids.
-  const title = await resolveDuplicateTitle(routeDeps, source, input.overrides.title);
+  const title = await resolveDuplicateTitle({ routeDeps, source, overrideTitle: input.overrides.title });
 
   // Dedups by (workspaceId, sha256) inside the sha256 lock: the copy REFERENCES the source's bytes
   // rather than duplicating them, and a tombstoned blob is resurrected rather than left to be
@@ -246,7 +242,7 @@ export async function duplicateMediaAsset(
   // same store and method the HTTP upload route and `media_upload_asset` already write through.
   try {
     await routeDeps.mediaContentTypeStore?.set({ workspaceId: routeDeps.workspaceId, sha256: created.source.sha256, contentType });
-    const media = await applyCopiedMetadata(routeDeps, created, source, { title, slug: input.overrides.slug });
+    const media = await applyCopiedMetadata({ routeDeps, created, source, resolved: { title, slug: input.overrides.slug } });
     return { media };
   } catch (error) {
     // uploadMedia already committed the copy: a refused override (a taken or invalid slug) must not
@@ -272,9 +268,9 @@ export function contributeMediaDuplicateHandlers(): DuplicateResourceHandlerCont
   return [
     {
       resource: "media",
-      build: (routeDeps) => ({
+      build: (routeDeps, _optional = {}) => ({
         permission: "media.upload",
-        duplicate: (input) => duplicateMediaAsset(routeDeps as unknown as MediaToolDeps & MediaPublicUrlDeps, input),
+        duplicate: (input, _optional = {}) => duplicateMediaAsset(routeDeps as unknown as MediaToolDeps & MediaPublicUrlDeps, input),
       }),
     },
   ];

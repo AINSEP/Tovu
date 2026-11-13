@@ -85,7 +85,7 @@ export const contributeMenusPublish = (): PublishContentContributor =>
       updatedAt: "local",
       version: "local",
     },
-    address: { field: "slug", holder: (p, workspaceId, slug) => p.repo.findBySlug({ workspaceId, slug }) },
+    address: { field: "slug", holder: ({ ports: p, workspaceId, value: slug }) => p.repo.findBySlug({ workspaceId, slug }) },
     validate: async ({ entity }) => {
       try {
         validateAndCloneTree({ items: (entity.state.doc as NavMenuDoc).items });

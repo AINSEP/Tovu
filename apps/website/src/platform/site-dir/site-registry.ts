@@ -179,7 +179,7 @@ export interface CreateSiteResult extends InitSiteResult {
   name: string;
 }
 
-export type CreateSiteOptions = ListSitesOptional & { initSite?: InitSitePort; workspace?: SitesWorkspace; verifiedRestore?: InitSiteRestorePort; collisionSafe?: boolean; onAllocated?: (required: SiteCreationAllocation) => void; beforeRegister?: (required: CreateSiteResult) => void };
+export type CreateSiteOptions = ListSitesOptional & { initSite?: InitSitePort; workspace?: SitesWorkspace; verifiedRestore?: InitSiteRestorePort; collisionSafe?: boolean; onAllocated?: (required: SiteCreationAllocation, optional?: Record<string, never>) => void; beforeRegister?: (required: CreateSiteResult) => void };
 export type CreateSitePort = (required: CreateSiteRequired, optional?: CreateSiteOptions) => Promise<CreateSiteResult>;
 
 /**

@@ -62,7 +62,7 @@ test('t10 media callback delivers a human key only to its parked call, rejects w
   assert.deepEqual(await callback('intruder', params), { status: 409, body: {
     error: 'that dialog is no longer waiting for an answer', code: 'SURFACE_NOT_PENDING', reason: 'binding-mismatch',
   } });
-  assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []);
+  assert.deepEqual(await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' }), []);
   assert.deepEqual(await callback('person', params), { status: 202, body: { delivered: true } });
   const result = await pending;
   assert.deepEqual(result, { saved: true, provider: 'openai', configured: true, tokenHint: { length: 27, last4: '-731' }, connection: 'not_tested', message: '…-731, 27 chars. Saved, not tested.' });
@@ -140,7 +140,7 @@ test('t10 media form masks the key and submits through a bound exchange; save re
   await saveMediaProviderCredentials(f.writeDeps, { workspaceId: 'ws-t10', providers: {
     openai: { apiKey: 'old-key', baseUrl: 'https://images.example.com', model: 'chosen-model' }, replicate: { apiKey: 'other-key' },
   } });
-  const otherBefore = (await f.repo.listByWorkspaceId('ws-t10')).find(r => r.providerId === 'replicate');
+  const otherBefore = (await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' })).find(r => r.providerId === 'replicate');
   const { pending, emitted, html } = await form(f);
   assert.match(html, /Connect OpenAI/); assert.match(html, /name="apiKey"[^>]*type="password"|type="password"[^>]*name="apiKey"/);
   assert.match(html, /credential_save/); assert.match(html, /exchange-t10/); assertNoSecret(emitted);
@@ -149,7 +149,7 @@ test('t10 media form masks the key and submits through a bound exchange; save re
   assert.deepEqual(await pending, { saved: true, provider: 'openai', configured: true, tokenHint: { length: 27, last4: '-731' }, connection: 'not_tested', message: '…-731, 27 chars. Saved, not tested.' });
   assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }),
     { apiKey: SECRET, baseUrl: 'https://images.example.com', model: 'chosen-model' });
-  assert.deepEqual((await f.repo.listByWorkspaceId('ws-t10')).find(r => r.providerId === 'replicate'), otherBefore);
+  assert.deepEqual((await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' })).find(r => r.providerId === 'replicate'), otherBefore);
   assert.equal(f.surfaces.size(), 0); assert.equal(emitted.length, 2); assertNoSecret(emitted);
 });
 
@@ -157,7 +157,7 @@ test('t10 media decline has no writes and returns saved false', async () => {
   const f = fixture(); const { pending } = await form(f);
   submit(f, { [SURFACE_DISMISSED_PARAM]: true, apiKey: SECRET });
   assert.deepEqual(await pending, { saved: false, provider: 'openai', configured: false });
-  assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []); assert.equal(f.surfaces.size(), 0);
+  assert.deepEqual(await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
 });
 
 test('t10 media both tools deny permission before reading or opening a form', async () => {
@@ -183,13 +183,13 @@ test('t10 media fails closed without a surface channel or after abort', async ()
     { message: 'media_propose_provider_credential requires an interactive form channel. Nothing was saved.' });
   const controller = new AbortController(); const { pending } = await form(f, { signal: controller.signal }); controller.abort();
   assert.deepEqual(await pending, { saved: false, provider: 'openai', configured: false });
-  assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []); assert.equal(f.surfaces.size(), 0);
+  assert.deepEqual(await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
 });
 
 for (const key of ['', '   ', 42]) test(`t10 media malformed submitted key ${JSON.stringify(key)} saves nothing`, async () => {
   const f = fixture(); const { pending } = await form(f); submit(f, { apiKey: key });
   assert.deepEqual(await pending, { saved: false, provider: 'openai', configured: false, message: 'Enter a token. Spaces alone are not a token.' });
-  assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []);
+  assert.deepEqual(await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' }), []);
 });
 
 test('t10 media raw save errors containing the key never reach the model or outcome surface', async () => {
@@ -204,13 +204,13 @@ test('t10 media expired form closes without saving', async t => {
   const f = fixture(true, { idleTtlMs: 5 }); const { pending } = await form(f);
   t.mock.timers.tick(5);
   assert.deepEqual(await pending, { saved: false, provider: 'openai', configured: false });
-  assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []); assert.equal(f.surfaces.size(), 0);
+  assert.deepEqual(await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
 });
 
 test('t10 media initial emission failure releases the exchange', async () => {
   const f = fixture();
   await assert.rejects(f.call('credential_save', { provider: 'openai' }, { emitSurface: async () => { throw new Error('surface unavailable'); } }), { message: 'surface unavailable' });
-  assert.equal(f.surfaces.size(), 0); assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []);
+  assert.equal(f.surfaces.size(), 0); assert.deepEqual(await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' }), []);
 });
 
 test('t10 media failed outcome emission still returns the persisted safe result', async () => {
@@ -250,10 +250,10 @@ test('t10 media saving while a different provider rotates preserves the latest c
   await saveMediaProviderCredentials(f.writeDeps, { workspaceId: 'ws-t10', providers: {
     openai: { apiKey: 'previous-key', baseUrl: 'https://new-images.example.com', model: 'latest-model' }, replicate: { apiKey: 'concurrent-key' },
   } });
-  const otherBefore = (await f.repo.listByWorkspaceId('ws-t10')).find(r => r.providerId === 'replicate');
+  const otherBefore = (await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' })).find(r => r.providerId === 'replicate');
   submit(f, { apiKey: SECRET });
   assert.deepEqual(await pending, { saved: true, provider: 'openai', configured: true, tokenHint: { length: 27, last4: '-731' }, connection: 'not_tested', message: '…-731, 27 chars. Saved, not tested.' });
-  assert.deepEqual((await f.repo.listByWorkspaceId('ws-t10')).find(r => r.providerId === 'replicate'), otherBefore);
+  assert.deepEqual((await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' })).find(r => r.providerId === 'replicate'), otherBefore);
   assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }),
     { apiKey: SECRET, baseUrl: 'https://new-images.example.com', model: 'latest-model' });
 });
@@ -293,7 +293,7 @@ test('t10 media abort during sealing writes nothing', async () => {
   const { pending, emitted } = await form(f, { signal: controller.signal });
   submit(f, { apiKey: SECRET });
   assert.deepEqual(await pending, { saved: false, provider: 'openai', configured: false });
-  assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []);
+  assert.deepEqual(await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' }), []);
   assert.equal(emitted.length, 1);
   assert.equal(f.surfaces.size(), 0);
   assertNoSecret(emitted);
@@ -308,18 +308,18 @@ test('media credential reasons longer than 1000 characters refuse before authori
   } }), { message: 'Credential setup reason must be at most 1000 characters.' });
   assert.deepEqual(f.auth, []);
   assert.equal(f.surfaces.size(), 0);
-  assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []);
+  assert.deepEqual(await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' }), []);
 });
 
 test('a configured media provider can preserve its exact key with an empty submission', async () => {
   const f = fixture();
   await saveMediaProviderCredentials(f.writeDeps, { workspaceId: 'ws-t10', providers: { openai: { apiKey: SECRET } } });
-  const before = await f.repo.listByWorkspaceId('ws-t10');
+  const before = await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' });
   const { pending, emitted } = await form(f);
   submit(f, { apiKey: '' });
   assert.deepEqual(await pending, { saved: true, provider: 'openai', configured: true,
     tokenHint: { length: 27, last4: '-731' }, connection: 'not_tested', message: '…-731, 27 chars. Saved, not tested.' });
-  assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), before);
+  assert.deepEqual(await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' }), before);
   assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }),
     { apiKey: SECRET, baseUrl: null, model: null });
   assert.equal(emitted.length, 2);
@@ -352,7 +352,7 @@ test('non-Error media persistence failures use fixed safe outcomes and leave no 
   const { pending, emitted } = await form(f);
   submit(f, { apiKey: SECRET });
   assert.deepEqual(await pending, { saved: false, provider: 'openai', configured: false });
-  assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []);
+  assert.deepEqual(await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' }), []);
   assert.deepEqual(warnings.map(line => JSON.parse(line)), [{ toolId: 'credential_save', exchangeId: 'exchange-t10', saved: false }]);
   assert.equal(emitted.length, 2);
   assert.match(JSON.stringify(emitted[1]), /Nothing was saved\. Check the key and the server credential store, then try again\./);
@@ -366,7 +366,7 @@ test('media token policy failures return the allowlisted message without saving'
   submit(f, { apiKey: 'x'.repeat(8193) });
   assert.deepEqual(await pending, { saved: false, provider: 'openai', configured: false,
     message: 'The token exceeds the 8192-character limit. Copy only the token.' });
-  assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []);
+  assert.deepEqual(await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' }), []);
   assert.equal(emitted.length, 2);
   assert.equal(f.surfaces.size(), 0);
 });
@@ -450,7 +450,7 @@ for (const ending of ['blank', 'safe-failure', 'raw-failure', 'cancelled', 'expi
       assert.match(html, /Provider key not saved/);
       assert.match(html, /data-state="failed"/);
     } else assert.equal(emitted.length, 1);
-    assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []);
+    assert.deepEqual(await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' }), []);
     assert.equal(f.surfaces.size(), 0);
     assertNoSecret(emitted);
   });

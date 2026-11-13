@@ -145,7 +145,7 @@ export type ImportMediaEntityResult =
  *
  * @complexity O(1).
  */
-function describeVersionMismatch(baseVersion: number | null, current: MediaRecord | null): string | null {
+function describeVersionMismatch({ baseVersion, current }: { baseVersion: number | null; current: MediaRecord | null }, _optional: Record<string, never> = {}): string | null {
   if (baseVersion === null) {
     return current === null ? null : `expected no existing row, found version ${current.version}`;
   }
@@ -175,9 +175,8 @@ function describeVersionMismatch(baseVersion: number | null, current: MediaRecor
  * @complexity O(1) — one repo write, plus at most one re-read on either refusal path.
  */
 async function writeMediaRowConditionally(
-  deps: ImportMediaEntityDeps,
-  row: MediaRecord,
-  baseVersion: number | null
+  { deps, row, baseVersion }: { deps: ImportMediaEntityDeps; row: MediaRecord; baseVersion: number | null },
+  _optional: Record<string, never> = {}
 ): Promise<ImportMediaEntityResult | null> {
   let applied: boolean;
   try {
@@ -199,7 +198,7 @@ async function writeMediaRowConditionally(
 
   const current = await deps.mediaRepo.findById({ workspaceId: row.workspaceId, id: row.id });
   const reason =
-    describeVersionMismatch(baseVersion, current) ??
+    describeVersionMismatch({ baseVersion, current }) ??
     (baseVersion === null
       ? "expected no existing row, but the id is already in use"
       : `expected version ${baseVersion}, but a concurrent write landed first`);
@@ -253,7 +252,7 @@ function basisRefusal(
   // Safety property 5 (compare-and-set basis) — checked before the slug check, so a caller whose
   // basis is already stale gets `conflict` (this row changed on the destination) rather than a
   // `blocked`/`slug-taken` that describes a state the caller was never even importing against.
-  const mismatch = describeVersionMismatch(baseVersion, existingById);
+  const mismatch = describeVersionMismatch({ baseVersion, current: existingById });
   if (mismatch) return { status: "conflict", reason: mismatch };
 
   // Safety property 2 (slug collision) — before any write.
@@ -378,7 +377,7 @@ export async function importMediaEntity(required: {
 
   // Safety property 5 (compare-and-set write) — the version compare traveled INTO this write via
   // `baseVersion`; see this function's own header and `writeMediaRowConditionally`'s doc.
-  const refusal = await writeMediaRowConditionally(deps, row, baseVersion);
+  const refusal = await writeMediaRowConditionally({ deps, row, baseVersion });
   if (refusal) return refusal;
 
   return { status: "imported", id: record.id, blobWritten };

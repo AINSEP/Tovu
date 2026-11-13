@@ -12,7 +12,7 @@ import { assertAdminResponse } from '#src/server/inbound/admin-http/http/__tests
 
 test('usage queries canonical id and slug and combines indexed widgets with current raw and placement post bodies', async () => {
   const clock: Clock = { nowMs: () => Date.parse('2026-10-10T00:00:00.000Z') };
-  const workspaceId = 'usage-ws', mediaRepo = new InMemoryVersionedMediaRepo(), entryRefsRepo = new InMemoryEntryRefsRepo(), postRepo = new InMemoryPostRepo({});
+  const workspaceId = 'usage-ws', mediaRepo = new InMemoryVersionedMediaRepo({}), entryRefsRepo = new InMemoryEntryRefsRepo(), postRepo = new InMemoryPostRepo({});
   await entryRefsRepo.replaceForSource({ workspaceId, sourceEntryId: 'widget', refs: extractEntryRefs({ workspaceId, sourceEntryId: 'widget', sourceEntryType: 'widget', bodyJson: null, fieldsExt: { widget: { widgetType: 'media', config: { items: [{ slug: 'photo' }] } } } }) });
   const raw = await createPost({ deps: { clock, repo: postRepo, outbox: new InMemoryOutbox() }, input: { id: 'raw-post', workspaceId, title: 'Raw', slug: 'raw', actorId: 'owner', bodyJson: { type: 'doc', content: [{ type: 'widgetEmbed', attrs: { widgetEntryId: 'w', placementId: 'p', content: { html: '<img data-media-slug="photo">' } } }] } } });
   const placed = await createPost({ deps: { clock, repo: postRepo, outbox: new InMemoryOutbox() }, input: { id: 'placed-post', workspaceId, title: 'Placed', slug: 'placed', actorId: 'owner', bodyJson: { type: 'doc', content: [{ type: 'widgetEmbed', attrs: { widgetEntryId: 'w', placementId: 'p', content: { items: [{ slug: 'photo' }] } } }] } } });
@@ -29,7 +29,7 @@ test('usage HTTP route enforces workspace and media.read before any asset lookup
   let handler: (req: any, res: any) => Promise<void> = async () => {};
   let reads = 0, allowed = false, status = 200, body: any;
   class MediaRepo extends InMemoryVersionedMediaRepo { override async findById(input: Parameters<InstanceType<typeof InMemoryVersionedMediaRepo>['findById']>[0]) { reads++; return super.findById(input); } }
-  const mediaRepo = new MediaRepo();
+  const mediaRepo = new MediaRepo({});
   const app = { get: (_path: string, fn: typeof handler) => { handler = fn; } } as unknown as Parameters<typeof registerAdminMediaWhereUsedRoute>[0]['app'];
   registerAdminMediaWhereUsedRoute({ app, deps: { workspaceId: 'ws', mediaRepo, entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo({}), authorize: async () => ({ allowed, reason: allowed ? 'matched' : 'insufficient_permission' }) } });
   const res = { req: { method: 'GET', route: { path: '/api/admin/v1/workspaces/:workspaceId/media/:mediaId/where-used' } },
@@ -56,7 +56,7 @@ test('usage HTTP route enforces workspace and media.read before any asset lookup
 test('Tovu purge refuses retired slug references from current post bodies and succeeds after removal', async () => {
   const { purgeMedia, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore } = await import('../index.js');
   const workspaceId = 'purge-ws', entryRefsRepo = new InMemoryEntryRefsRepo(), postRepo = new InMemoryPostRepo({});
-  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo({});
   const deps = { entryRefsRepo, postRepo, mediaRepo, blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore() };
   await mediaRepo.save({ id: 'asset', workspaceId, slug: 'photo', title: 'Photo', alt: '', caption: '', credit: '', source: { sha256: 'sha' }, status: 'trashed', createdAt: '2026-10-17T00:00:00.000Z', updatedAt: '2026-10-17T00:00:00.000Z', version: 1, width: null, height: null, cssClass: null, htmlAttributes: null });
   const { post } = await createPost({ deps: { clock: { nowMs: () => 0 }, repo: postRepo, outbox: new InMemoryOutbox() }, input: { id: 'ref-post', workspaceId, title: 'Referencing post', slug: 'ref-post', actorId: 'owner', bodyJson: { type: 'doc', content: [{ type: 'image', attrs: { src: '/m/photo' } }] } } });
@@ -80,14 +80,14 @@ test('usage reports an html-format post body under bodyHtml and never counts a s
   const html = await createPost({ deps: { clock, repo: seedRepo, outbox: new InMemoryOutbox() }, input: { id: 'html-post', workspaceId, title: 'Html', slug: 'html', actorId: 'owner', bodyJson: embed } });
   const gone = await createPost({ deps: { clock, repo: seedRepo, outbox: new InMemoryOutbox() }, input: { id: 'gone-post', workspaceId, title: 'Gone', slug: 'gone', actorId: 'owner', bodyJson: embed } });
   const posts = [{ ...html.post, bodyFormat: 'html' as const }, { ...gone.post, deletedAt: '2026-10-11T00:00:00.000Z' }];
-  const usage = await findMediaWhereUsed({ deps: { entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: { list: async () => posts }, mediaRepo: new InMemoryVersionedMediaRepo() }, input: { workspaceId, mediaId: 'canonical-photo', slug: 'photo' } });
+  const usage = await findMediaWhereUsed({ deps: { entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: { list: async () => posts }, mediaRepo: new InMemoryVersionedMediaRepo({}) }, input: { workspaceId, mediaId: 'canonical-photo', slug: 'photo' } });
   assert.equal(usage.count, 1);
   assert.deepEqual(usage.references.map(ref => [ref.sourceEntryId, ref.fieldPath, ref.targetId]), [['html-post', 'bodyHtml', 'canonical-photo']]);
 });
 
 test('cleanup usage includes restorable posts when requested and purge refuses their media', async () => {
   const { purgeMedia, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore } = await import('../index.js');
-  const workspaceId = 'trash-usage', postRepo = new InMemoryPostRepo({}), mediaRepo = new InMemoryVersionedMediaRepo();
+  const workspaceId = 'trash-usage', postRepo = new InMemoryPostRepo({}), mediaRepo = new InMemoryVersionedMediaRepo({});
   const entryRefsRepo = new InMemoryEntryRefsRepo();
   const { post } = await createPost({ deps: { clock: { nowMs: () => 0 }, repo: postRepo, outbox: new InMemoryOutbox() }, input: { id: 'restorable', workspaceId, title: 'Trash', slug: 'trash', actorId: 'owner', bodyJson: { type: 'doc', content: [{ type: 'image', attrs: { assetId: 'asset' } }] } } });
   await postRepo.save({ ...post, deletedAt: '2026-10-10T00:00:00Z' });

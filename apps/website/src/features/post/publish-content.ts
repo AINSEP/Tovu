@@ -360,7 +360,7 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     fields: { ...POST_FIELD_DISPOSITIONS, termIds: "transferred" },
     omitWhenAbsent: ["termIds", ...OMIT_WHEN_ABSENT],
     // Hash the established transport projection while find() retains the full compensation row.
-    legacyHashState: (row) => withTermIds({ state: toPublishableState(row), termIds: row.termIds }),
+    legacyHashState: ({ row }) => withTermIds({ state: toPublishableState(row), termIds: row.termIds }),
     references: (entity) => postReferences(entity.state),
     // Not the factory's `address`: a slug held by a trashed row keeps this sentence, and the slug
     // checks run before the kind check on an unfiltered read, as before the migration.

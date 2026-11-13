@@ -163,7 +163,7 @@ function refuse(refusal: ChatAttachmentRefusal): ChatAttachmentReadResult {
 /** Sidecar filename for a ref — a line-for-line mirror of `attachments.ts`'s
  *  `attachmentSidecarFileName`, which is exported from that module but not from the package's
  *  single `.` entry point (see this file's header). */
-export function chatAttachmentSidecarFileName(ref: string): string {
+export function chatAttachmentSidecarFileName({ ref }: { ref: string }, _optional: Record<string, never> = {}): string {
   return `${ref.replaceAll(/[^a-zA-Z0-9-]/gu, "_")}.json`;
 }
 
@@ -190,8 +190,8 @@ export function isChatAttachmentSidecarShape(raw: unknown): raw is SidecarRecord
  * Pure and exported so hostile records can be exercised directly, without staging files on disk.
  */
 export function resolveContainedAttachmentPath(
-  record: SidecarRecord,
-  canonicalUploadDirectory: string
+  { record, canonicalUploadDirectory }: { record: SidecarRecord; canonicalUploadDirectory: string },
+  _optional: Record<string, never> = {}
 ): string | undefined {
   if (!BATCH_ID_PATTERN.test(record.batchId)) return undefined;
   const batchDirectory = resolve(canonicalUploadDirectory, record.batchId);
@@ -203,9 +203,8 @@ export function resolveContainedAttachmentPath(
  *  filename is a LOSSY reduction of an id (`:` becomes `_`), so a filename alone does not prove
  *  which id it describes. */
 async function loadSidecar(
-  sidecarPath: string,
-  canonicalUploadDirectory: string,
-  ref: string
+  { sidecarPath, canonicalUploadDirectory, ref }: { sidecarPath: string; canonicalUploadDirectory: string; ref: string },
+  _optional: Record<string, never> = {}
 ): Promise<{ record: SidecarRecord; filePath: string } | ChatAttachmentRefusal> {
   let raw: unknown;
   try {
@@ -216,7 +215,7 @@ async function loadSidecar(
     return "no-record";
   }
   if (!isChatAttachmentSidecarShape(raw) || raw.id !== ref) return "record-unreadable";
-  const filePath = resolveContainedAttachmentPath(raw, canonicalUploadDirectory);
+  const filePath = resolveContainedAttachmentPath({ record: raw, canonicalUploadDirectory });
   if (filePath === undefined) return "record-outside-upload-root";
   return { record: raw, filePath };
 }
@@ -348,12 +347,12 @@ export async function readChatAttachmentForOwner(
   if (canonicalUploadDirectory === undefined) return refuse("no-record");
 
   const sidecarDirectory = resolve(canonicalUploadDirectory, SIDECAR_DIRECTORY_NAME);
-  const sidecarPath = resolve(sidecarDirectory, chatAttachmentSidecarFileName(input.ref));
+  const sidecarPath = resolve(sidecarDirectory, chatAttachmentSidecarFileName({ ref: input.ref }));
   // Defense in depth behind the ref pattern: even if that pattern were ever loosened, a path whose
   // parent is not exactly the sidecar directory never gets read.
   if (dirname(sidecarPath) !== sidecarDirectory) return refuse("malformed-ref");
 
-  const loaded = await loadSidecar(sidecarPath, canonicalUploadDirectory, input.ref);
+  const loaded = await loadSidecar({ sidecarPath, canonicalUploadDirectory, ref: input.ref });
   if (typeof loaded === "string") return refuse(loaded);
   // Ownership and size policy live in helpers so the read orchestration stays below its
   // complexity ceiling; these checks still precede every attachment-file operation.

@@ -21,7 +21,7 @@ const backend = createSiteImportBackend({ registry, workspace, createSite, resto
   http: { send: async () => { throw new Error("unexpected download"); } }, startSite: async () => { throw new Error("must stop before supervisor"); },
 }, { createSite: async (input, creation) => {
   const result = await createSite(input, { ...creation,
-    onAllocated: allocation => { creation?.onAllocated?.(allocation); if (boundary === "allocated") die(); },
+    onAllocated: (allocation, _optional = {}) => { creation?.onAllocated?.(allocation); if (boundary === "allocated") die(); },
     beforeRegister: result => { creation?.beforeRegister?.(result); if (boundary === "before-register") die(); },
     verifiedRestore: { ...creation!.verifiedRestore!, restore: async allocation => {
       await creation!.verifiedRestore!.restore(allocation);

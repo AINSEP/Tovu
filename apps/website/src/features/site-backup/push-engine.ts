@@ -49,7 +49,7 @@ export interface UploadPlannedContentInput {
   readonly signal: AbortSignal;
   readonly progress: SiteBackupPushProgress;
   /** Maps a provider failure to the tool's code, logging its server-only detail. */
-  readonly toRefusal: (failure: ProviderCallFailure) => PushFailure;
+  readonly toRefusal: (failure: ProviderCallFailure, optional?: Record<string, never>) => PushFailure;
   readonly concurrency?: number;
 }
 
@@ -87,13 +87,13 @@ class EntryBuilder {
   }
 
   /** @complexity O(bytes) to hash and decode; at most one upload per distinct content. */
-  async entryFor(path: string, content: Uint8Array): Promise<BackupTreeEntry | PushFailure> {
+  async entryFor({ path, content }: { path: string; content: Uint8Array }, _optional: Record<string, never> = {}): Promise<BackupTreeEntry | PushFailure> {
     const sha256 = createHash("sha256").update(content).digest("hex");
     const text = this.inlineText(content);
     if (text !== null) return { path, text, bytes: content.byteLength, sha256 };
     let pending = this.uploads.get(sha256);
     if (pending === undefined) {
-      pending = this.upload(path, content);
+      pending = this.upload({ path, content });
       this.uploads.set(sha256, pending);
     }
     const uploaded = await pending;
@@ -109,7 +109,7 @@ class EntryBuilder {
     return text;
   }
 
-  private async upload(path: string, content: Uint8Array): Promise<{ ok: true; blobSha: string } | PushFailure> {
+  private async upload({ path, content }: { path: string; content: Uint8Array }, _optional: Record<string, never> = {}): Promise<{ ok: true; blobSha: string } | PushFailure> {
     const uploaded = await this.input.provider.uploadBackupBlob(this.input.target, { path, content });
     return uploaded.ok ? { ok: true, blobSha: uploaded.blob.blobSha } : this.input.toRefusal(uploaded);
   }
@@ -135,7 +135,7 @@ function pendingFiles(plan: SiteBackupPlan): PendingFile[] {
  *
  * @complexity O(count) calls of `work`.
  */
-async function runBounded(count: number, concurrency: number, signal: AbortSignal, work: (index: number) => Promise<PushFailure | null>): Promise<PushFailure | null> {
+async function runBounded({ count, concurrency, signal, work }: { count: number; concurrency: number; signal: AbortSignal; work: (index: number) => Promise<PushFailure | null> }, _optional: Record<string, never> = {}): Promise<PushFailure | null> {
   let next = 0;
   let failure: PushFailure | null = null;
   const worker = async (): Promise<void> => {
@@ -161,17 +161,17 @@ export async function uploadPlannedContent(input: UploadPlannedContentInput): Pr
   const files = pendingFiles(plan);
   const entries: BackupTreeEntry[] = [];
   entries.length = files.length;
-  const failure = await runBounded(files.length, input.concurrency ?? SITE_BACKUP_UPLOAD_CONCURRENCY, input.signal, async (index) => {
+  const failure = await runBounded({ count: files.length, concurrency: input.concurrency ?? SITE_BACKUP_UPLOAD_CONCURRENCY, signal: input.signal, work: async (index) => {
     const file = files[index]!;
     const loaded = await file.load();
     if (!loaded.ok) return loaded;
-    const entry = await builder.entryFor(file.path, loaded.bytes);
+    const entry = await builder.entryFor({ path: file.path, content: loaded.bytes });
     if ("ok" in entry) return entry;
     entries[index] = entry;
     progress.filesDone += 1;
     progress.bytesDone += entry.bytes;
     return null;
-  });
+  } });
   if (failure !== null) return failure;
 
   const manifest = buildSiteBackupManifest({
@@ -184,7 +184,7 @@ export async function uploadPlannedContent(input: UploadPlannedContentInput): Pr
     scopeNotes: plan.scopeNotes,
     files: entries,
   });
-  const manifestEntry = await builder.entryFor(SITE_BACKUP_MANIFEST_PATH, Buffer.from(manifest, "utf8"));
+  const manifestEntry = await builder.entryFor({ path: SITE_BACKUP_MANIFEST_PATH, content: Buffer.from(manifest, "utf8") });
   if ("ok" in manifestEntry) return manifestEntry;
   return { ok: true, entries: [...entries, manifestEntry] };
 }

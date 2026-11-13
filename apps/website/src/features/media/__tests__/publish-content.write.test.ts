@@ -31,7 +31,7 @@ function photo(overrides: Partial<MediaRecord> = {}): MediaRecord {
 }
 
 async function fixture(input: { rows?: MediaRecord[]; staged?: boolean; sha256?: string; blobStore?: BlobStorePort } = {}) {
-  const repo = new InMemoryVersionedMediaRepo(input.rows ?? []);
+  const repo = new InMemoryVersionedMediaRepo({}, { initialRows: input.rows ?? [] });
   const assetBlobRepo = new InMemoryAssetBlobRepo({}, { initialRows: [] });
   const blobStore = input.blobStore ?? new InMemoryBlobStore();
   const contentTypeStore = new InMemoryMediaContentTypeStore();

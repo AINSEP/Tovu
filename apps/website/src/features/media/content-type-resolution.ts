@@ -82,8 +82,8 @@ export async function resolveContentTypes(
  * @complexity O(1) — a single-key batch lookup.
  */
 export async function readRecordedContentType(
-  deps: Pick<ContentTypeDeps, "workspaceId" | "mediaContentTypeStore">,
-  sha256: string
+  { deps, sha256 }: { deps: Pick<ContentTypeDeps, "workspaceId" | "mediaContentTypeStore">; sha256: string },
+  _optional: Record<string, never> = {}
 ): Promise<string | null> {
   const recorded = await deps.mediaContentTypeStore.getMany({
     workspaceId: deps.workspaceId,

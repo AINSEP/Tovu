@@ -72,7 +72,8 @@ export interface MediaProviderCredentialReplacePlan {
  * The return type is not a promise, so an `async` planner cannot type-check.
  */
 export type MediaProviderCredentialReplacePlanner = (
-  existing: readonly MediaProviderCredentialRecord[]
+  required: { existing: readonly MediaProviderCredentialRecord[] },
+  optional?: Record<string, never>
 ) => MediaProviderCredentialReplacePlan;
 
 
@@ -81,7 +82,7 @@ export type MediaProviderCredentialReplacePlanner = (
  *  bulk delete rather than a single find and a `clearKey`. */
 export interface MediaProviderCredentialRepoPort {
   readonly vault?: VaultRepoPort;
-  listByWorkspaceId(workspaceId: UUID): Promise<MediaProviderCredentialRecord[]>;
+  listByWorkspaceId(required: { workspaceId: UUID }): Promise<MediaProviderCredentialRecord[]>;
   upsert(record: MediaProviderCredentialRecord): Promise<void>;
   /** Idempotent: ids with no row are skipped, not an error. A no-op on an empty list. */
   deleteByProviderIds(input: { workspaceId: UUID; providerIds: readonly string[] }): Promise<void>;

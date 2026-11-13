@@ -28,7 +28,7 @@ test("native multipart preserves choice arrays, file bytes, duplicate scalar con
   await assert.rejects(parseFormMultipart({ bytes: png, contentType: "multipart/form-data" }));
 });
 test("form upload storage delegates to real media/blob/rendition ports and supports compensating cleanup", async () => {
-  let id = 0; const mediaRepo = new InMemoryVersionedMediaRepo(); const blobRepo = new InMemoryAssetBlobRepo({}); const renditionRepo = new InMemoryAssetRenditionRepo({}); const blobStore = new InMemoryBlobStore(); const contentTypes = new InMemoryMediaContentTypeStore();
+  let id = 0; const mediaRepo = new InMemoryVersionedMediaRepo({}); const blobRepo = new InMemoryAssetBlobRepo({}); const renditionRepo = new InMemoryAssetRenditionRepo({}); const blobStore = new InMemoryBlobStore(); const contentTypes = new InMemoryMediaContentTypeStore();
   const attributionRequests: { workspaceId: string }[] = [];
   const storage = createFormFileStorage({ media: { clock: { nowMs: () => 0 }, idGen: { newId: () => `asset-${++id}` }, mediaRepo, blobRepo, renditionRepo, blobStore, entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo({}) }, contentTypes, resolveCreatedByPrincipal: async (required) => { attributionRequests.push(required); return "site-system"; } });
   assert.equal(storage.detectContentType({ bytes: png }), "image/png");
@@ -46,7 +46,7 @@ test("form upload storage delegates to real media/blob/rendition ports and suppo
 });
 
 test("form upload removes its asset when recording the content type fails and preserves the original error", async () => {
-  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo({});
   const blobRepo = new InMemoryAssetBlobRepo({});
   const contentTypes = new InMemoryMediaContentTypeStore();
   const writeError = new Error("content type store failed");
@@ -67,7 +67,7 @@ test("form upload removes its asset when recording the content type fails and pr
 });
 
 test("form discard keeps a referenced upload trashed rather than bypassing the reference check", async () => {
-  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo({});
   const blobRepo = new InMemoryAssetBlobRepo({});
   const entryRefsRepo = new InMemoryEntryRefsRepo();
   let id = 0;
@@ -110,7 +110,7 @@ test("assistant create/update schemas advertise common native fields and builder
 });
 
 test("form upload attribution failure writes no media or blob", async () => {
-  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo({});
   const blobRepo = new InMemoryAssetBlobRepo({});
   const attributionError = new Error("identity seed failed");
   const storage = createFormFileStorage({

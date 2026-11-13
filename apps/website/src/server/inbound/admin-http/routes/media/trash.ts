@@ -83,7 +83,7 @@ function sendRemoveFailure({ res, mediaId, reason }: { res: Response; mediaId: s
  *  @complexity O(1) — three independent single-asset lookups. */
 async function toTrashedMediaResponse({ deps, media }: { deps: MediaRouteDeps; media: MediaRecord }) {
   const [contentType, publicUrl, byteSizes] = await Promise.all([
-    readRecordedContentType(deps, media.source.sha256),
+    readRecordedContentType({ deps, sha256: media.source.sha256 }),
     resolveMediaPublicUrls(deps, [media]).then((urls) => urls.get(media.id) ?? null),
     resolveMediaByteSizes({ deps, media: [media] }),
   ]);

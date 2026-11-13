@@ -24,7 +24,7 @@ async function fixture(t: test.TestContext) {
   const deps: PublishContentDeps = { workspaceId: "ws", clock: { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") },
     idGen: { newId: () => `id-${++id}` }, changeSets: new InMemoryChangeSetRepo([], [], outbox), outbox,
     authorize: async () => ({ allowed: true, reason: "test" }), ports: { media: {
-      repo: new InMemoryVersionedMediaRepo(), assetBlobRepo: new InMemoryAssetBlobRepo({}), blobStore: blobs, contentTypeStore: new InMemoryMediaContentTypeStore(),
+      repo: new InMemoryVersionedMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), blobStore: blobs, contentTypeStore: new InMemoryMediaContentTypeStore(),
     } },
     backstop: { files, blobs, fileBlobIndex: createFileBlobIndex(), fileRollbacks: [], coveredTables: [], coveredRoots: ["themes"], selection: { files: ["snippets/footer.html"] } } };
   const handler = contributeRawFilePublish().build(deps);

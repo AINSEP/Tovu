@@ -106,7 +106,7 @@ test("packed overwrite flags cannot authorize replacement and ordinary imports s
 
 test("a locally replaced file packs and overwrites the same media identity on live", async t => {
   const f = await fixture(t);
-  const localRepo = new InMemoryVersionedMediaRepo([f.prior]);
+  const localRepo = new InMemoryVersionedMediaRepo({}, { initialRows: [f.prior] });
   const replaced = await replaceMediaFile({ deps: { workspaceId, ...f.deps.ports.media!,
     mediaRepo: localRepo, clock: f.deps.clock, idGen: f.deps.idGen }, media: f.prior,
     bytes, contentType: "image/jpeg", provenance: { kind: "upload" }, principalId: "local-editor" });

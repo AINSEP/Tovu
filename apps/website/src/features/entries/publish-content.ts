@@ -91,7 +91,7 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
     address: {
       field: "slug",
       // Trash included: a trashed row keeps its slug (`entries_workspace_type_slug_unique`).
-      holder: (p, workspaceId, slug, state) => p.entries.findAnyBySlug({ workspaceId, type: state.type as string, slug }),
+      holder: ({ ports: p, workspaceId, value: slug, state }) => p.entries.findAnyBySlug({ workspaceId, type: state.type as string, slug }),
     },
     // A tombstone is terminal, so nothing in the bundle can fix it. A missing type is left to apply:
     // the same bundle may carry it.

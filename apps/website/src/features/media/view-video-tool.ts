@@ -96,7 +96,7 @@ function readInput({ input }: { input: unknown }, _optional: Record<string, neve
   assertEveryAndStart({ record });
   return { key, value, layout: record.layout as 'frames' | 'sheet' | undefined, frames: record.frames as number | undefined, at: record.at as number[] | undefined, every: record.every as number | undefined, start: record.start as number | undefined };
 }
-function isPreviewableSize(size: number | null | undefined): boolean {
+function isPreviewableSize({ size }: { size: number | null | undefined }, _optional: Record<string, never> = {}): boolean {
   if (size === undefined || size === null) return false;
   return Number.isFinite(size) && size > 0 && size <= VIDEO_MAX_INPUT_BYTES;
 }
@@ -110,7 +110,7 @@ async function ownedMediaBytes(
   const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: asset.source.sha256 });
   if (!blob) throw refusal({ message: 'media has no stored video.' });
   const size = await deps.blobStore.sizeOf?.({ storageKey: blob.storageKey }, {});
-  if (!isPreviewableSize(size)) throw refusal({ message: 'video size is unknown or exceeds the preview size limit (64 MiB).' });
+  if (!isPreviewableSize({ size })) throw refusal({ message: 'video size is unknown or exceeds the preview size limit (64 MiB).' });
   return deps.blobStore.get({ storageKey: blob.storageKey });
 }
 /** The caller's own video bytes, from the library or a chat attachment, checked as a previewable video. */
@@ -140,7 +140,7 @@ function extractionOptions({ input, signal }: { input: VideoToolInput; signal: A
 type ExtractedVideo = Extract<Awaited<ReturnType<VideoFrameExtractor['extract']>>, { ok: true }>;
 type ContactSheet = NonNullable<ExtractedVideo['sheets']>[number];
 
-function isGridSize(value: number, max: number): boolean {
+function isGridSize({ value, max }: { value: number; max: number }, _optional: Record<string, never> = {}): boolean {
   return Number.isInteger(value) && value >= 1 && value <= max;
 }
 /** Tile metadata must actually map each row-major position to a nonnegative finite time. */
@@ -154,7 +154,7 @@ function hasRowMajorTiles(sheet: ContactSheet): boolean {
 function isSheetWithinLimits(sheet: ContactSheet): boolean {
   const validFormat = sheet.bytes.byteLength <= VIDEO_MAX_SHEET_BYTES && sheet.mimeType === 'image/jpeg';
   if (!validFormat) return false;
-  return isGridSize(sheet.columns, 4) && isGridSize(sheet.rows, 4) && isGridSize(sheet.tileEdgePx, 768) && hasRowMajorTiles(sheet);
+  return isGridSize({ value: sheet.columns, max: 4 }) && isGridSize({ value: sheet.rows, max: 4 }) && isGridSize({ value: sheet.tileEdgePx, max: 768 }) && hasRowMajorTiles(sheet);
 }
 function assertSheetOutput({ result }: { result: ExtractedVideo }, _optional: Record<string, never> = {}): readonly ContactSheet[] {
   const sheets = result.sheets;

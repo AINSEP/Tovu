@@ -60,14 +60,14 @@ export interface MediaContentTypeStorePort {
 export class InMemoryMediaContentTypeStore implements MediaContentTypeStorePort {
   private readonly rows = new Map<string, string>();
 
-  private static keyOf(workspaceId: UUID, sha256: string): string {
+  private static keyOf({ workspaceId, sha256 }: { workspaceId: UUID; sha256: string }, _optional: Record<string, never> = {}): string {
     return `${workspaceId} ${sha256}`;
   }
 
   async getMany(required: { workspaceId: UUID; sha256s: readonly string[] }): Promise<Map<string, string>> {
     const found = new Map<string, string>();
     for (const sha256 of required.sha256s) {
-      const contentType = this.rows.get(InMemoryMediaContentTypeStore.keyOf(required.workspaceId, sha256));
+      const contentType = this.rows.get(InMemoryMediaContentTypeStore.keyOf({ workspaceId: required.workspaceId, sha256 }));
       // Absent stays absent — see the port's `getMany` doc for why a miss must not become a null.
       if (contentType !== undefined) found.set(sha256, contentType);
     }
@@ -75,6 +75,6 @@ export class InMemoryMediaContentTypeStore implements MediaContentTypeStorePort 
   }
 
   async set(required: { workspaceId: UUID; sha256: string; contentType: string }): Promise<void> {
-    this.rows.set(InMemoryMediaContentTypeStore.keyOf(required.workspaceId, required.sha256), required.contentType);
+    this.rows.set(InMemoryMediaContentTypeStore.keyOf({ workspaceId: required.workspaceId, sha256: required.sha256 }), required.contentType);
   }
 }

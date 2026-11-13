@@ -229,7 +229,7 @@ export type InitSiteOptions = ReadTemplateOptional & {
   workspace?: SitesWorkspace;
   filesystem?: AtomicFilesystemPort;
   verifiedRestore?: InitSiteRestorePort;
-  onAllocated?: (required: InitSiteResult & { dbPath: string }) => void;
+  onAllocated?: (required: InitSiteResult & { dbPath: string }, optional?: Record<string, never>) => void;
   /** The zone recorded as the site's creation zone (Bug D); defaults to this process's own zone. */
   detectTimeZone?: () => string;
 };

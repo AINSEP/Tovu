@@ -106,7 +106,7 @@ export class SiteBackupPlanStore<T extends SiteBackupCommonContent = SiteBackupP
     for (const [id, plan] of this.plans) {
       if (plan.expiresAtMs <= nowMs) this.plans.delete(id);
     }
-    this.makeRoom({ limit: this.maxPlans }, { owns: plan => plan.principalId === input.principalId && plan.workspaceId === input.workspaceId });
+    this.makeRoom({ limit: this.maxPlans }, { owns: ({ plan }, _optional = {}) => plan.principalId === input.principalId && plan.workspaceId === input.workspaceId });
     this.makeRoom({ limit: this.maxTotalPlans });
     const plan: SiteBackupPlan<T> = { ...input.content, planId: this.newId(), principalId: input.principalId, workspaceId: input.workspaceId, expiresAtMs: nowMs + this.ttlMs };
     this.plans.set(plan.planId, plan);
@@ -114,8 +114,8 @@ export class SiteBackupPlanStore<T extends SiteBackupCommonContent = SiteBackupP
   }
 
   /** Evicts the oldest matching plans so one more fits under `limit` (a zero limit evicts all of them). */
-  private makeRoom(required: { limit: number }, optional: { owns?: (plan: SiteBackupPlan<T>) => boolean } = {}): void {
-    const ids = [...this.plans.values()].filter(plan => optional.owns?.(plan) ?? true).map(plan => plan.planId);
+  private makeRoom(required: { limit: number }, optional: { owns?: (required: { plan: SiteBackupPlan<T> }, optional?: Record<string, never>) => boolean } = {}): void {
+    const ids = [...this.plans.values()].filter(plan => optional.owns?.({ plan }) ?? true).map(plan => plan.planId);
     for (const id of ids.slice(0, Math.max(0, ids.length - required.limit + 1))) this.plans.delete(id);
   }
 

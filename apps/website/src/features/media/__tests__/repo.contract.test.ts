@@ -144,7 +144,7 @@ for (const each of mediaDialects) runMediaSuite(each.name, each.make);
 // `InMemoryMediaRepo` (same `findById`/`findBySlug`/`list`/`save`/`remove` shape, see that class's
 // own doc) — running it through the SAME order-agnostic suite proves that parity directly, rather
 // than by inspection.
-runMediaSuite("memory-versioned", () => new InMemoryVersionedMediaRepo());
+runMediaSuite("memory-versioned", () => new InMemoryVersionedMediaRepo({}));
 
 /**
  * ADR-046 / sol-review 2026-09-20 finding 1 — the `VersionedMediaRepoPort` compare-and-set surface
@@ -237,7 +237,7 @@ function runVersionedMediaSuite(label: string, makeRepo: () => VersionedMediaRep
   });
 }
 
-runVersionedMediaSuite("memory-versioned", () => new InMemoryVersionedMediaRepo());
+runVersionedMediaSuite("memory-versioned", () => new InMemoryVersionedMediaRepo({}));
 for (const each of mediaDialects) runVersionedMediaSuite(each.name, each.make);
 
 /**
@@ -362,7 +362,7 @@ function runSlugHistorySuite(label: string, makeRepo: () => VersionedMediaRepoPo
   });
 }
 
-runSlugHistorySuite("memory-versioned", () => new InMemoryVersionedMediaRepo());
+runSlugHistorySuite("memory-versioned", () => new InMemoryVersionedMediaRepo({}));
 for (const each of mediaDialects) runSlugHistorySuite(each.name, each.make);
 
 /**

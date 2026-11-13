@@ -138,7 +138,7 @@ function baseConfig(overrides: Partial<RepoPublishTypeConfig<Row, ItemPorts>> = 
     isTrashed: (row) => row.status === "trashed",
     include: (row) => row.status !== "hidden",
     fields: { id: "local", workspaceId: "local", slug: "transferred", title: "transferred", note: "provenance", status: "transferred", version: "local" },
-    address: { field: "slug", holder: (ports, workspaceId, slug) => ports.repo.findBySlug(workspaceId, slug) },
+    address: { field: "slug", holder: ({ ports, workspaceId, value: slug }) => ports.repo.findBySlug(workspaceId, slug) },
     write: async (ctx) => {
       if (ctx.state.forceError === "blocked") throw new ItemValidationError("item validation failed");
       if (ctx.state.forceError === "conflict") throw new ItemConflictError("item write conflict");
@@ -201,7 +201,7 @@ test("pack honours packOrder, requiredBlobs and legacyHashState; extend's method
       packOrder: (rows) => [...rows].reverse(),
       requiredBlobs: (row) => [`sha-${row.id}`],
       // Post's legacy rule: hash every packed field, provenance included.
-      legacyHashState: (_row, packedState) => packedState,
+      legacyHashState: ({ row: _row, packedState }) => packedState,
       extend: () => ({ seedHash }),
     }),
     makeDeps({ repo })
@@ -278,7 +278,7 @@ test("precheck compares the address holder by idOf, so a natural-key type is not
     baseConfig({
       idOf: (row) => row.slug,
       find: ({ ports, workspaceId, id: slug }) => ports.repo.findBySlug(workspaceId, slug),
-      address: { field: "slug", holder: (ports, workspaceId, slug) => ports.repo.findBySlug(workspaceId, slug) },
+      address: { field: "slug", holder: ({ ports, workspaceId, value: slug }) => ports.repo.findBySlug(workspaceId, slug) },
     }),
     makeDeps({ repo })
   );

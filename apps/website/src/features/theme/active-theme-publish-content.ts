@@ -82,7 +82,7 @@ export const contributeActiveThemePublish = (): PublishContentContributor =>
       const row = await findActiveTheme({ ports: p, workspaceId, id: ACTIVE_THEME_ID });
       return row ? [row] : [];
     },
-    find: findActiveTheme,
+    find: ({ ports, workspaceId, id }) => findActiveTheme({ ports, workspaceId, id }),
     fields: { id: "local", label: "provenance", themeId: "transferred", tree: "provenance", themeName: "local", version: "local" },
     // The dialog names the row "Tovu Theme", not the id `label` still packs (so hashes stay put).
     displayLabel: (row) => row.themeName ?? undefined,
