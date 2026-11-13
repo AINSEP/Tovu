@@ -1,0 +1,2 @@
+shard 0 files=100 start=01:05:02
+exit=0 secs=8 peakRSS_MB=1109 end=01:05:10
