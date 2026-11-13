@@ -1,6 +1,8 @@
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { ToolInputError } from '@jini-ai/core';
+import { encodeListCursor } from '@jini-ai/core/list-page';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { assertAdminResponse } from '#src/server/inbound/admin-http/http/__tests__/assert-admin-response';
 import { registerAdminMemberGetRoute } from '../get-by-id.js';
@@ -30,14 +32,23 @@ test('member get: a missing record is 404; an unavailable repository is 500', as
   }
 });
 
-for (const query of ['', '?limit=no', '?limit=Infinity', '?limit=0', '?limit=-1', '?limit=2&afterId=previous', '?limit[x]=2&afterId[x]=bad']) {
+for (const query of ['', '?limit=no', '?limit=Infinity', '?limit=0', '?limit=-1', '?limit=2&afterId=previous', '?limit[x]=2&afterId[x]=bad', '?limit=2&cursor=opaque']) {
   test(`members list normalizes pagination ${query || '(absent)'}`, async () => {
     let input: unknown;
-    const { app } = fixture(registerAdminMemberListRoute, { memberRepo: { list: async (value: unknown) => { input = value; return []; } } });
-    assert.deepEqual(await dispatchJsonRequest(app, 'GET', `${BASE}/members${query}`), { status: 200, body: { members: [] } });
-    assert.deepEqual(input, { workspaceId: WS, afterId: query.includes('previous') ? 'previous' : undefined, limit: query.includes('previous') ? 2 : undefined });
+    const { app } = fixture(registerAdminMemberListRoute, { memberRepo: { list: async (...args: unknown[]) => { input = args; return { items: [], nextCursor: null }; } } });
+    // `members` stays the response key; `nextCursor` is added (null on the last page).
+    assert.deepEqual(await dispatchJsonRequest(app, 'GET', `${BASE}/members${query}`), { status: 200, body: { members: [], nextCursor: null } });
+    const cursor = query.includes('previous') ? encodeListCursor({ position: ['previous'] }) : query.includes('opaque') ? 'opaque' : null;
+    assert.deepEqual(input, [{ workspaceId: WS }, { ...(query.startsWith('?limit=2') ? { limit: 2 } : {}), cursor }]);
   });
 }
+
+test('members list: more members than one page answers with nextCursor; a cursor the list did not issue is a 400', async () => {
+  const more = fixture(registerAdminMemberListRoute, { memberRepo: { list: async () => ({ items: [], nextCursor: 'next-page' }) } });
+  assert.deepEqual(await dispatchJsonRequest(more.app, 'GET', `${BASE}/members`), { status: 200, body: { members: [], nextCursor: 'next-page' } });
+  const bad = fixture(registerAdminMemberListRoute, { memberRepo: { list: async () => { throw new ToolInputError({ message: 'invalid cursor' }); } } });
+  assert.deepEqual(await dispatchJsonRequest(bad.app, 'GET', `${BASE}/members?cursor=forged`), { status: 400, body: { error: 'invalid cursor', code: 'VALIDATION_ERROR' } });
+});
 
 test('magic link: absent body is validation failure without consuming email rate budget', async () => {
   let checks = 0;

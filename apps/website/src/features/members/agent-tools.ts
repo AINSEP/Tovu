@@ -108,7 +108,7 @@ export const membersAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "members_list",
     description:
-      "Lists the workspace's members (any status: pending/active/disabled), keyset-paginated. Read-only. Call this to find a member's id before getting details or disabling them.",
+      "Lists the workspace's members (any status: pending/active/disabled), one page at a time. Read-only. Call this to find a member's id before getting details or disabling them. When more members exist the result has a non-null nextCursor and a `more` note: call again with cursor set to nextCursor.",
     sideEffects: "none",
     authorization: { permission: MEMBER_MANAGE_PERMISSION },
     inputSchema: {
@@ -116,7 +116,8 @@ export const membersAgentToolCatalog: AgentToolDefinition[] = [
       additionalProperties: false,
       required: [],
       properties: {
-        afterId: { type: "string", description: "Keyset cursor (a previously-seen member id) for the next page. Omit for the first page." },
+        cursor: { type: "string", description: "nextCursor from the previous call. Omit for the first page." },
+        afterId: { type: "string", description: "Older form of cursor: a previously-seen member id; the page starts after it. Prefer cursor." },
         limit: { type: "integer", minimum: 1, maximum: 100, description: "Max rows to return (1-100). Defaults to the repo's own default page size." },
       },
     },

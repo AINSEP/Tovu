@@ -199,7 +199,7 @@ test("list, get, disable and magic-link success preserve the model-facing payloa
   const deps = makeRouteDeps();
   await seedMember(deps);
   const harness = await buildHarness(deps);
-  assert.deepEqual(output(await call(harness, "members_list", {})), { members: [MEMBER_VIEW] });
+  assert.deepEqual(output(await call(harness, "members_list", {})), { members: [MEMBER_VIEW], nextCursor: null });
   assert.deepEqual(output(await call(harness, "members_get_by_id", { memberId: "m-1" })), { member: MEMBER_VIEW });
   const disabled = { ...MEMBER_VIEW, status: "disabled", updatedAt: NOW, version: 4 };
   assert.deepEqual(output(await call(harness, "members_disable", { memberId: "m-1" })), { member: disabled });
@@ -265,8 +265,26 @@ test("members_list refuses a bad limit and an unknown afterId with the real reas
   if (unknown.ok) return;
   assert.deepEqual(unknown.error, { code: "BAD_REQUEST", message: "unknown afterId 'ghost'" });
 
-  assert.deepEqual(output(await call(harness, "members_list", { afterId: "m-1" })), { members: [] });
-  assert.deepEqual(output(await call(harness, "members_list", { limit: 500 })), { members: [MEMBER_VIEW] });
+  assert.deepEqual(output(await call(harness, "members_list", { afterId: "m-1" })), { members: [], nextCursor: null });
+  assert.deepEqual(output(await call(harness, "members_list", { limit: 500 })), { members: [MEMBER_VIEW], nextCursor: null });
+});
+
+// REGRESSION (refactor pattern list-cursor): a full page came back as a bare array, so the model read
+// the first 100 members as "all members" and could not reach the rest.
+test("members_list says when the list is incomplete and its nextCursor reaches the rest", async () => {
+  const deps = makeRouteDeps();
+  await seedMember(deps);
+  await deps.memberRepo.save({ ...MEMBER_VIEW, id: "m-2", email: "bob@example.com", workspaceId: WORKSPACE_ID, note: "", fields: {} });
+  const harness = await buildHarness(deps);
+
+  const first = output(await call(harness, "members_list", { limit: 1 })) as { members: { id: string }[]; nextCursor: string | null; more?: string };
+  assert.deepEqual(first.members.map((member) => member.id), ["m-1"]);
+  assert.equal(typeof first.nextCursor, "string");
+  assert.match(first.more ?? "", /NOT the full list.*members_list.*nextCursor/);
+  const second = output(await call(harness, "members_list", { limit: 1, cursor: first.nextCursor })) as { members: { id: string }[]; nextCursor: string | null; more?: string };
+  assert.deepEqual(second.members.map((member) => member.id), ["m-2"]);
+  assert.equal(second.nextCursor, null);
+  assert.equal(second.more, undefined);
 });
 
 
@@ -333,7 +351,7 @@ test("member create and update reject invalid input and denied permission withou
     const result = await call(await buildHarness(deps), toolId, input);
     assert.equal(result.ok, false);
     if (!result.ok) assert.deepEqual(result.error, { code: "BAD_REQUEST", message });
-    assert.deepEqual((await deps.memberRepo.list({ workspaceId: WORKSPACE_ID })).map(member => member.id), ["m-1"]);
+    assert.deepEqual((await deps.memberRepo.list({ workspaceId: WORKSPACE_ID })).items.map(member => member.id), ["m-1"]);
     assert.equal((await deps.memberRepo.findById({ workspaceId: WORKSPACE_ID, id: "m-1" }))?.version, 3);
     deps.authorize = async () => ({ allowed: false, reason: "insufficient_permission" });
     const denied = await call(await buildHarness(deps), toolId, input);

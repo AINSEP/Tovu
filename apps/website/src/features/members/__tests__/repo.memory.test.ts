@@ -19,14 +19,15 @@ test("InMemoryMemberRepo.list paginates by id cursor within a workspace", async 
     { id: "m-1-other-ws", workspaceId: "ws-2", email: "d@example.com", status: "active", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", version: 1 },
   ]);
 
-  const firstPage = await repo.list({ workspaceId: WORKSPACE_ID, limit: 2 });
-  assert.deepEqual(firstPage.map((m) => m.id), ["m-1", "m-2"]);
+  const firstPage = await repo.list({ workspaceId: WORKSPACE_ID }, { limit: 2 });
+  assert.deepEqual(firstPage.items.map((m) => m.id), ["m-1", "m-2"]);
 
-  const secondPage = await repo.list({ workspaceId: WORKSPACE_ID, afterId: "m-2", limit: 2 });
-  assert.deepEqual(secondPage.map((m) => m.id), ["m-3"]);
+  const secondPage = await repo.list({ workspaceId: WORKSPACE_ID }, { cursor: firstPage.nextCursor, limit: 2 });
+  assert.deepEqual(secondPage.items.map((m) => m.id), ["m-3"]);
+  assert.equal(secondPage.nextCursor, null);
 
   const otherWorkspace = await repo.list({ workspaceId: "ws-2" });
-  assert.deepEqual(otherWorkspace.map((m) => m.id), ["m-1-other-ws"]);
+  assert.deepEqual(otherWorkspace.items.map((m) => m.id), ["m-1-other-ws"]);
 });
 
 test("InMemoryMagicLinkTokenRepo.consume enforces single-use and rejects an unknown id", async () => {
@@ -83,7 +84,7 @@ test("InMemoryMemberRepo.list keeps seeded rows that share an id in their seed o
     { ...base, id: "m-2", email: "second@example.com" },
   ]);
 
-  const rows = await repo.list({ workspaceId: WORKSPACE_ID });
+  const rows = (await repo.list({ workspaceId: WORKSPACE_ID })).items;
   assert.deepEqual(rows.map((m) => m.email), ["x@example.com", "first@example.com", "second@example.com"]);
 });
 

@@ -872,7 +872,7 @@ test("createMember refuses as a conflict when a disabled row with the same email
     },
   );
   assert.equal(lookups, 2);
-  assert.deepEqual((await members.list({ workspaceId: WORKSPACE_ID })).map(m => m.id), ["member-raced"]);
+  assert.deepEqual((await members.list({ workspaceId: WORKSPACE_ID })).items.map(m => m.id), ["member-raced"]);
   assert.deepEqual(await principals.list({ workspaceId: WORKSPACE_ID }), []);
 });
 

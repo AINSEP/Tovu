@@ -21,6 +21,7 @@
  *
  * Interfaces and types only — no feature logic.
  */
+import type { ListPage } from "@jini-ai/core/list-page";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { MailStatus } from "@jini-ai/platform/mail";
@@ -54,12 +55,9 @@ export interface MemberRepoPort {
   findPasswordHash(required: { workspaceId: UUID; memberId: UUID }, options?: Record<string, never>): Promise<string | null>;
   /** Update only the hash; reject a missing/trashed member. Profile saves never write this column. */
   setPasswordHash(required: { workspaceId: UUID; memberId: UUID; passwordHash: string }, options?: Record<string, never>): Promise<void>;
-  list(required: {
-    workspaceId: UUID;
-    /** Keyset cursor (ULID id) for stable pagination; omit for first page. */
-    afterId?: UUID;
-    limit?: number;
-  }): Promise<MemberRecord[]>;
+  /** Members ordered by id, at most 100 per page. `nextCursor` is null on the last page; pass it back
+   *  as `cursor` for the next one. A cursor that is not one of these is refused, never read as page one. */
+  list(required: { workspaceId: UUID }, optional?: { limit?: number; cursor?: string | null }): Promise<ListPage<MemberRecord>>;
   save(record: MemberRecord): Promise<void>;
 }
 
