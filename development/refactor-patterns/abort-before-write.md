@@ -39,10 +39,14 @@ Re-run `node development/scripts/bug-class-audit.mjs --repo tovu=<clone> --repo 
 - Services that read-then-write internally (`createUser`, `importThemeFileFromUrl`: download then write) still have a window inside the service. Closing it means services take `{ signal }` in their optional argument and check before their own write — a separate, per-service change.
 - Paid vendor calls before a write (`media_generate_asset`'s `generate(...)`) should receive `ctx.signal` so Stop also stops the spend; separate decision.
 
-## REMAINING WORK (not done: context limit)
-1. 2-3 example site fixes with red/green/mutation. Planned: `features/members/tool-registrations.ts` `members_update_profile`, `features/webhooks/tool-registrations.ts` `webhooks_delete_subscription` (INSERT-KEEP-EXISTING), Jini `packages/cms/src/media/tool-registrations.ts` `media_trash_asset`. Test shape: build the registrations with fakes, make the permission/read await abort the controller (`controller.abort()` inside the fake), call the handler with `{ signal: controller.signal, ... }`, assert the write fake was NOT called (red today), then insert the check (green), then delete the line again (red) to prove the test.
-2. Teach audit check 3 the SKIP-NO-AWAIT exemption so the 36 no-change rows stop showing (optional).
-3. Then dispatch `abort-before-write.terra-prompt.md`.
+## Status 2026-11-13: ready to dispatch
+1. Done: two Tovu examples, each red before / green after / red again with the line removed:
+   - `members_update_profile`: test appended to `features/members/__tests__/tool-registrations.model-facing-errors.test.ts`; real executor, `authorize` fake aborts the controller; before the fix the result was `cancelled` but the member was renamed.
+   - `webhooks_delete_subscription` (INSERT-KEEP-EXISTING): test appended to `features/webhooks/__tests__/agent-tools.delete-confirmation.test.ts`; Stop lands during the post-confirmation re-read; before the fix the subscription ended `disabled`.
+   No Jini example was run (same one-line shape; Jini rows are listed with the same variants).
+2. Re-checked on Jini main 0.7.1 (`w3-da-main`): the executor checks `controller.signal.aborted` synchronously right before the handler (`daemon/src/tool-executor.ts:625`) and `failureResult` maps any rejection while aborted to `cancelled` (:438); the approval wrapper's `run` checks `ctx.signal.aborted` before `steps.run` (`core/src/approval.ts:162`). The mechanism above holds.
+3. Jini rows re-classified from the main audit: 12 INSERT (new vs the stale list: commerce create product/price, credential `setUsername`, plugin install, and `PLAN_TOOL_ID`, whose `handlePlan` awaits several reads before `plans.save`), 16 no-change. `abort-before-write.terra-prompt.md` is READY: 63 sites (12 jini, 51 tovu) + 35 no-change rows.
+4. Still open (optional): teach audit check 3 the "no await before the first write" exemption so the no-change rows stop showing.
 
 ## Open question for the owner
 When a handler finishes a write AFTER Stop, the executor reports `cancelled` even though the write happened. Should it instead report `completed` with a note ("finished after Stop")? This pattern shrinks the window but cannot close it for writes already in flight.
