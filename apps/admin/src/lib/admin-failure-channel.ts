@@ -66,6 +66,7 @@ export function publishAdminFailure(
   const cause = incidentCause({ status, errorId });
   const failure = approved ?? formatUserFacingError({ ...wording, step, cause }, {
     ...TOVU_ERROR_REDACTION_OPTIONS, errorId, time: new Date().toISOString(),
+    appVersion: `Tovu Admin ${TOVU_ADMIN_VERSION}`, jiniVersion: JINI_CORE_VERSION,
   });
   adminFailureChannel.publish({ failure, generation });
 }

@@ -20,6 +20,9 @@ it("publishes one final safe legacy failure while preserving the original reject
   expect(adminFailureChannel.getSnapshot()).toMatchObject({ errorId: "incident-1", cause: "The error ID identifies the server report." });
   expect(adminFailureChannel.getSnapshot()?.message).toMatch(/page/i);
   expect(adminFailureChannel.getSnapshot()?.copyText).not.toMatch(/PRIVATE_ID|HOST_SECRET_CANARY|Private backend/);
+  // Copy details names the app and Jini versions even when the server sent no approved failure.
+  expect(adminFailureChannel.getSnapshot()?.appVersion).toMatch(/^Tovu Admin \S+/);
+  expect(adminFailureChannel.getSnapshot()?.jiniVersion).toMatch(/\d+\.\d+\.\d+/);
 });
 
 it("reads canonical safe details after sign-in and retains the canonical response", async () => {
