@@ -51,7 +51,7 @@ function needsUpgrade({ kind, meta }: { kind: VaultKind; meta: Record<string, un
 
 /** "Vercel, thetayway": provider, then the label when it says something more, then the site. */
 function keyName({ row, site }: { row: MetaRow; site: string }, _options = {}): string {
-  const provider = row.provider ? row.provider[0]!.toUpperCase() + row.provider.slice(1) : "";
+  const provider = row.provider ? row.provider.charAt(0).toUpperCase() + row.provider.slice(1) : "";
   const parts = [provider, row.label.toLowerCase() === row.provider?.toLowerCase() ? "" : row.label, site];
   return parts.filter(Boolean).join(", ");
 }

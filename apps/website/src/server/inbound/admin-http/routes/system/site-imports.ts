@@ -62,7 +62,7 @@ export function registerAdminSiteImportRoutes(
     if (req.params.workspaceId !== deps.workspaceId) { res.status(404).json({ code: "NOT_FOUND", message: `${importStep({ req })} failed: this workspace is not available.` }); return false; }
     if (!await authorizeOrRespond(res, deps.authorize, { principalId: getAuthedPrincipal(res).id, workspaceId: deps.workspaceId, permission, entityType: "site-registry" })) return false;
     if (!deps.siteImportBackend) { res.status(503).json({ code: "UNAVAILABLE", message: `${importStep({ req })} requires local site creation and a configured sites home.` }); return false; }
-    return true;
+    return deps.siteImportBackend;
   };
   const requestSignal = (req: Request, res: Response) => {
     const controller = new AbortController();
@@ -71,15 +71,16 @@ export function registerAdminSiteImportRoutes(
     return controller.signal;
   };
   app.get(root, async (req, res) => {
-    try { if (await gate(req, res, "system.read")) res.json({ imports: await deps.siteImportBackend!.list({ principalId: getAuthedPrincipal(res).id }) }); }
+    try { const backend = await gate(req, res, "system.read"); if (backend) res.json({ imports: await backend.list({ principalId: getAuthedPrincipal(res).id }) }); }
     catch (error) { fail(res, error, req); }
   });
   app.post(root, async (req, res) => {
     try {
-      if (!await gate(req, res, "system.write")) return;
+      const backend = await gate(req, res, "system.write");
+      if (!backend) return;
       const input = parseSiteImportInput({ input: req.body });
       const principalId = getAuthedPrincipal(res).id;
-      const imported = await deps.siteImportBackend!.importBackup({ ...input, principalId }, { signal: requestSignal(req, res) });
+      const imported = await backend.importBackup({ ...input, principalId }, { signal: requestSignal(req, res) });
       res.json(imported);
     } catch (error) { fail(res, error, req); }
   });
@@ -99,19 +100,23 @@ export function registerAdminSiteImportRoutes(
   }, async (req, res) => {
     try {
       if (!Buffer.isBuffer(req.body)) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Upload raw application/zip bytes, not a filesystem path or base64 JSON." });
-      res.status(201).json(await deps.siteImportBackend!.upload({ principalId: getAuthedPrincipal(res).id, archive: req.body }));
+      const backend = deps.siteImportBackend;
+      if (!backend) throw new Error("site import ZIP upload has no import backend");
+      res.status(201).json(await backend.upload({ principalId: getAuthedPrincipal(res).id, archive: req.body }));
     } catch (error) { fail(res, error, req); }
   });
   const ownerGate = async (req: Request, res: Response) => {
     if (!rejectUnlessSessionCredential(res, { message: "Open owner setup in your signed-in browser; passwords are never submitted through an agent tool.", permission: "system.write" })) return false;
-    if (!await gate(req, res, "system.write")) return false;
-    deps.siteImportBackend!.get({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId) });
-    return true;
+    const backend = await gate(req, res, "system.write");
+    if (!backend) return false;
+    backend.get({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId) });
+    return backend;
   };
   app.get(root + "/:importId/owner", async (req, res) => {
     try {
-      if (!await ownerGate(req, res)) return;
-      const imported = deps.siteImportBackend!.get({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId) });
+      const backend = await ownerGate(req, res);
+      if (!backend) return;
+      const imported = backend.get({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId) });
       res.json({ ...imported, ownerSetup: { method: "POST", field: "adminPassword", username: "admin", sessionRequired: true, ...(imported.hasEncryptedKeys ? { savedKeysPasswordField: "savedKeysPassword" } : {}) } });
     } catch (error) { fail(res, error, req); }
   });
@@ -130,7 +135,9 @@ export function registerAdminSiteImportRoutes(
   }, async (req, res) => {
     try {
       if (!req.body || Object.keys(req.body).some(key => !["adminPassword", "savedKeysPassword"].includes(key))) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Only the new owner password and optional saved keys password are accepted." });
-      res.json(await deps.siteImportBackend!.completeOwner({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId), adminPassword: req.body.adminPassword, ...(req.body.savedKeysPassword === undefined ? {} : { savedKeysPassword: req.body.savedKeysPassword }) }, { signal: requestSignal(req, res) }));
+      const backend = deps.siteImportBackend;
+      if (!backend) throw new Error("site import owner setup has no import backend");
+      res.json(await backend.completeOwner({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId), adminPassword: req.body.adminPassword, ...(req.body.savedKeysPassword === undefined ? {} : { savedKeysPassword: req.body.savedKeysPassword }) }, { signal: requestSignal(req, res) }));
     } catch (error) { fail(res, error, req); }
   });
 }

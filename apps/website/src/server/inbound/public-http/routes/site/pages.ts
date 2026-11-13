@@ -2635,8 +2635,9 @@ function resolvePerVisitorResponse(req: Request, res: Response): PerVisitorRespo
  */
 /** The page's report-only policy names what its plugin exports declared; nothing is added otherwise. O(hosts). */
 function addPluginExportHostsToResponse({ req, hosts }: { req: Request; hosts: import("#src/contracts/core/public-page-security-headers").DeclaredPageHosts | undefined }, _optional: Record<string, never> = {}): void {
-  const policy = req.res?.getHeader?.(REPORT_ONLY_HEADER);
-  if (hosts && typeof policy === "string") req.res!.setHeader(REPORT_ONLY_HEADER, addDeclaredHostsToPolicy({ policy, hosts }));
+  const response = req.res;
+  const policy = response?.getHeader?.(REPORT_ONLY_HEADER);
+  if (hosts && response && typeof policy === "string") response.setHeader(REPORT_ONLY_HEADER, addDeclaredHostsToPolicy({ policy, hosts }));
 }
 
 async function finalizePublicPageHtml(req: Request, html: string, formResult: FormSubmissionRedirectResult | undefined, deps: RouteDeps): Promise<string> {

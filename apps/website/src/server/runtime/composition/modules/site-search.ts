@@ -153,7 +153,11 @@ function pickCredentials(provider: SearchProvider, saved: SearchVaultCredential)
   const available: Record<string, string> = { host: saved.baseUrl, apiKey: saved.token };
   const unknown = provider.credentialKeys.find(key => !Object.hasOwn(available, key));
   if (unknown !== undefined) return `search provider '${provider.id}' declares credential key '${unknown}', which a saved credential cannot supply (only host and apiKey)`;
-  return Object.fromEntries(provider.credentialKeys.map(key => [key, available[key]!]));
+  return Object.fromEntries(provider.credentialKeys.map(key => {
+    const value = available[key];
+    if (value === undefined) throw new Error(`search provider '${provider.id}' has no value for credential '${key}'`);
+    return [key, value];
+  }));
 }
 
 /**

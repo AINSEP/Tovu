@@ -26,7 +26,8 @@ async function resolveFile(required: { source: PluginExportSource; workspaceId: 
   const packages = await required.source.list({ workspaceId: required.workspaceId });
   const owners = packages.filter(item => item.enabled && item.plugin.pluginId === required.pluginId);
   if (owners.length !== 1) return undefined;
-  const owner = owners[0]!;
+  const owner = owners[0];
+  if (!owner) return undefined;
   const entry = Object.entries(owner.exports).find(([name]) => name === required.component)?.[1];
   if (!entry) return undefined;
   // A remote script is declared by URL and loaded from its own host; only package files are served here.

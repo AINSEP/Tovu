@@ -176,8 +176,10 @@ export function createLocalSiteProcessPort(
       readSiteDir({ dir: siteDir });
       // Encode ownership atomically with creation so a restart can reclaim only dead hosts' builds.
       buildRoot ??= mkdtempSync(path.join(os.tmpdir(), `tovu-local-sites-${process.pid}-`));
-      const childEnv = localSiteChildEnv({ parent: env, name, siteDir, port, daemonPort, repoRoot, buildRoot });
-      childEnv.TOVU_DEV_RETIRE_TOKEN = randomBytes(32).toString("hex");
+      const childBuildRoot = buildRoot;
+      const childEnv = localSiteChildEnv({ parent: env, name, siteDir, port, daemonPort, repoRoot, buildRoot: childBuildRoot });
+      const retireToken = randomBytes(32).toString("hex");
+      childEnv.TOVU_DEV_RETIRE_TOKEN = retireToken;
       childEnv.TOVU_API_URL = `${scheme}://localhost:${port}`;
       // Match packaged journeys: a supplied production admin bundle can be shared without rebuilding.
       if (env.TOVU_ADMIN_DIST) childEnv.TOVU_ADMIN_DIST = env.TOVU_ADMIN_DIST;
@@ -197,7 +199,7 @@ export function createLocalSiteProcessPort(
       child.on({ event: "error", listener: () => { exited = true; for (const listener of listeners) listener(); } });
       let daemon: SpawnedDaemonProcess | undefined;
       const retirementRequest = (method: string) => requestLoopbackHttp({ url: `${scheme}://localhost:${port}/internal/dev-site-retire`,
-        method, headers: { "x-tovu-retire": childEnv.TOVU_DEV_RETIRE_TOKEN! } }, { certificate: tls.credentials?.cert });
+        method, headers: { "x-tovu-retire": retireToken } }, { certificate: tls.credentials?.cert });
       async function discoverDaemon() {
         const record = await readLiveDaemonRegistryRecord({ registryPath: path.join(siteDir, "ops/assistant-daemon.json") });
         const pid = record?.port === daemonPort ? record.pid : daemon?.pid;
@@ -228,7 +230,7 @@ export function createLocalSiteProcessPort(
         },
         onExit({ listener }) { listeners.add(listener); if (exited) listener(); },
         async ready() {
-          if (!childEnv.TOVU_ADMIN_DIST) await waitForLocalAdminBuild({ runtimeDir: buildRoot!, exited: () => exited });
+          if (!childEnv.TOVU_ADMIN_DIST) await waitForLocalAdminBuild({ runtimeDir: childBuildRoot, exited: () => exited });
           if (exited) return false;
           try { await discoverDaemon(); }
           catch (error) {

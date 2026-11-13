@@ -96,11 +96,14 @@ export function providerInputOf({ declaration, saved }: { declaration: PluginPro
   // Collection plans are stateless; public per-form config stays in the form definition.
   if (declaration.contract === "form_collection" && fields.length === 0) return {};
   if (!saved || fields.length === 0) return undefined;
-  const defaults = Object.fromEntries(fields.filter((field) => !field.secret && field.default).map((field) => [field.name, field.default!]));
+  const defaults = Object.fromEntries(fields.flatMap((field) => !field.secret && field.default ? [[field.name, field.default]] : []));
   const values: Record<string, string | undefined> = { ...defaults, ...Object.fromEntries(Object.entries(saved.settings).filter(([, value]) => value.trim() !== "")), ...saved.secrets };
   const present = (name: string) => (values[name] ?? "").trim() !== "";
   if (fields.some((field) => isProviderSettingRequired({ field, values }) && !present(field.name))) return undefined;
-  return Object.fromEntries(fields.filter((field) => present(field.name)).map((field) => [field.name, values[field.name]!]));
+  return Object.fromEntries(fields.flatMap((field) => {
+    const value = values[field.name];
+    return value !== undefined && value.trim() !== "" ? [[field.name, value]] : [];
+  }));
 }
 
 export interface ProviderPluginRuntime {
@@ -205,7 +208,7 @@ function gatedPort({ slot, contract, testProbe }: { slot: ProviderSlot; contract
     const lease = slot.lease;
     const port = lease?.port as Record<string, unknown> | undefined;
     const live = port?.[name];
-    if (!lease?.isCurrent({}) || typeof live !== "function") return noop[name]?.(...args);
+    if (!lease?.isCurrent({}) || !port || typeof live !== "function") return noop[name]?.(...args);
     if (name === 'browserAnalytics') {
       const surface = (args[0] as { surface: string }).surface;
       const cached = browserCache.get(surface);
@@ -215,7 +218,7 @@ function gatedPort({ slot, contract, testProbe }: { slot: ProviderSlot; contract
       return contribution;
     }
     const result = live.apply(port, args);
-    testProbe.accepted({ providerId: `${slot.pluginId}/${slot.id}`, method: name, input: args[0], supportsMetric: port!.supportsMetric === true });
+    testProbe.accepted({ providerId: `${slot.pluginId}/${slot.id}`, method: name, input: args[0], supportsMetric: port.supportsMetric === true });
     return result;
   }]));
   if (contract === "observability") Object.defineProperty(gated, "supportsMetric", {

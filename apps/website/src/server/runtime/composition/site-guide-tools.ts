@@ -115,7 +115,10 @@ export function buildSiteGuideRegistrations({ deps }: { deps: TovuSiteGuideDeps 
       try {
         const guide = createTovuSiteGuide({ deps }, options);
         const caller = { principalId: ctx.principal.id };
-        if (parsed.operation === "search") return await searchGuide({ guide, caller, topic: parsed.topic! });
+        if (parsed.operation === "search") {
+          if (parsed.topic === undefined) throw new Error("site guide search has no topic");
+          return await searchGuide({ guide, caller, topic: parsed.topic });
+        }
         return await guide.run({ caller, operation: parsed.operation, topic: parsed.topic });
       } catch (error) {
         if (error instanceof Error && error.name === "SiteGuideInputError") throw new ToolInputError({ message: error.message });

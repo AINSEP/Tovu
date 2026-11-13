@@ -204,7 +204,9 @@ async function pullResult(
   };
   const base = { message: pullMessage({ destinations }), destinations, forms, totals };
   // `pullAll` returns before this when no receiver is saved, so there is always a first report.
-  const refusal = destinations[0]!.refused;
+  const first = destinations[0];
+  if (!first) throw new Error("form submission pull has no destination report");
+  const refusal = first.refused;
   return refusal && destinations.every((report) => report.refused) ? { ...base, ran: false, reason: refusal } : { ...base, ran: true };
 }
 

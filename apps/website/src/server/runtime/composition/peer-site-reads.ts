@@ -383,17 +383,18 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
         FROM identity_users u JOIN principal_roles pr ON pr.principal_id=u.principal_id AND pr.workspace_id=u.workspace_id
         JOIN roles r ON r.id=pr.role_id AND r.workspace_id=pr.workspace_id
         WHERE u.workspace_id=${workspaceId} AND r.name='owner' LIMIT 2`);
-      if (owners.length !== 1) throw new ToolInputError({ message: 'The target site must have exactly one owner to read it.' });
+      const owner = owners[0];
+      if (owners.length !== 1 || !owner) throw new ToolInputError({ message: 'The target site must have exactly one owner to read it.' });
       if (!fs.existsSync(paths.chatDbPath)) throw new ToolInputError({ message: "This site's chat database is missing. Open the site in Tovu first." });
       const chatOptions = { readonly: true, fileMustExist: true, timeout: 5000 };
       chat = openChat(paths.chatDbPath, chatOptions);
       const journalPath = path.join(path.dirname(paths.contentDbPath), 'ops', 'database-journal.db');
       if (!fs.existsSync(journalPath)) throw new ToolInputError({ message: "This site's database journal is missing. Open the site in Tovu first." });
       journal = openContent<JournalDatabase>(journalPath, { readOnly: true });
-      const deps = await composePeer({ source, contentDbPath: paths.contentDbPath, kernel, chat, journal, introspection, ownerId: owners[0]!.principal_id, workspaceId });
+      const deps = await composePeer({ source, contentDbPath: paths.contentDbPath, kernel, chat, journal, introspection, ownerId: owner.principal_id, workspaceId });
       const registrations = new Map(request.buildRegistrations(deps).filter(registration => isReadOnlyTool({ descriptor: registration.descriptor })).map(registration => [registration.descriptor.id, registration]));
       const peerChat = chat, peerJournal = journal;
-      const entry: PeerBag = { deps, registrations, usedAt: now(), busy: 0, principal: constrainPrincipalToReadOnlyTools({ principal: { id: owners[0]!.principal_id } }),
+      const entry: PeerBag = { deps, registrations, usedAt: now(), busy: 0, principal: constrainPrincipalToReadOnlyTools({ principal: { id: owner.principal_id } }),
         close: async () => { try { peerChat.close(); } finally { try { await peerJournal?.close(); } finally { await kernel.close(); } } } };
       return entry;
     } catch (error) {
@@ -422,8 +423,8 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
         if (isCurrentSite({ siteName: required.siteName })) return 'current' as const;
         const active = resolveSiteDatabasePaths({ dir: currentSiteDir }, { workspace: catalog(), reserveIdentity: false });
         const matches = registeredSources({ workspace: catalog(), targetSiteId: active.siteId, targetSiteDir: currentSiteDir, targetFile: active.contentDbPath }).filter(source => source.name === required.siteName);
-        if (matches.length !== 1) throw new ToolInputError({ message: 'No readable local site has that name. Use sites_list to find a site.' });
-        const source = matches[0]!;
+        const source = matches[0];
+        if (matches.length !== 1 || !source) throw new ToolInputError({ message: 'No readable local site has that name. Use sites_list to find a site.' });
         if (resolveSiteStorage(source.dir).kind !== 'sqlite') throw new ToolInputError({ message: 'Only local SQLite sites can be read.' });
         const paths = resolveSiteDatabasePaths({ dir: source.dir }, { workspace: catalog(), reserveIdentity: false });
         const key = `${source.siteId}:${paths.contentDbPath}`;

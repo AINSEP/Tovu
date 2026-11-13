@@ -59,7 +59,9 @@ export const PRODUCT_EVENTS: Readonly<Record<string, Rules>> = Object.freeze(Obj
  */
 export function productAdminScreen({ route }: { route: unknown }, _options = {}): string | undefined {
   if (typeof route !== 'string') return undefined;
-  const parts = route.split(/[?#]/, 1)[0]!.split('/');
+  const pathname = route.split(/[?#]/, 1)[0];
+  if (pathname === undefined) throw new Error('product admin route has no path');
+  const parts = pathname.split('/');
   if (parts[1] !== 'admin') return undefined;
   return parts[2] ? `/admin/${parts[2]}` : '/admin';
 }
@@ -83,7 +85,9 @@ export function projectProductEvent({ event, installationId }: { event: ProductE
     const screen = productAdminScreen({ route: event.properties?.route });
     return screen ? { name: 'admin_screen_viewed', userId: installationId, properties: { screen } } : undefined;
   }
-  const properties = declaredProperties({ rules: PRODUCT_EVENTS[event.name]!, properties: event.properties });
+  const rules = PRODUCT_EVENTS[event.name];
+  if (!rules) throw new Error(`product event ${event.name} has no declared rules`);
+  const properties = declaredProperties({ rules, properties: event.properties });
   return properties ? { name: event.name, userId: installationId, properties } : undefined;
 }
 

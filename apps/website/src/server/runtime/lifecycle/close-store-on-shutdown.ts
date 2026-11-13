@@ -126,8 +126,9 @@ export function closeStoreOnShutdown(
   let requestedExitCode: number | undefined;
   const stop = ({ exitCode }: { exitCode: number }): void => {
     requestedExitCode ??= exitCode;
+    const finalExitCode = requestedExitCode;
     daemonStopped = onShutdown();
-    void closeBounded().then(() => proc.exit(requestedExitCode!));
+    void closeBounded().then(() => proc.exit(finalExitCode));
   };
   optional.registerStop?.(stop);
   const stopNormally = () => stop({ exitCode: 0 });

@@ -8,7 +8,8 @@ function text(node: Node): string {
   let result = "";
   const stack: Node[] = [node];
   while (stack.length) {
-    const current = stack.pop()!;
+    const current = stack.pop();
+    if (!current) throw new Error("form validation text traversal has an empty stack");
     if (current.nodeName === "#text" && "value" in current) result += current.value;
     else {
       if ("tagName" in current && !["input", "textarea", "select", "script", "style", "template"].includes(current.tagName)) stack.push(...[...current.childNodes].reverse());
@@ -20,7 +21,8 @@ function elements(nodes: readonly Node[]): Element[] {
   const found: Element[] = [];
   const stack = [...nodes].reverse();
   while (stack.length) {
-    const node = stack.pop()!;
+    const node = stack.pop();
+    if (!node) throw new Error("form validation element traversal has an empty stack");
     if (!("tagName" in node) || ["script", "style", "template"].includes(node.tagName)) continue;
     found.push(node);
     stack.push(...[...node.childNodes].reverse());

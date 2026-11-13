@@ -460,7 +460,8 @@ async function attachTurnMessagesOrRespond({ attachmentIds, messages, principalI
     }
     try {
       const prepared = await prepareByokMessageAttachments({ refs: attachmentIds, principalId, uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }, {});
-      const last = messages[messages.length - 1]!;
+      const last = messages[messages.length - 1];
+      if (!last) throw new Error("assistant attachment preparation has no message");
       messages[messages.length - 1] = { ...last, content: last.content + prepared.notice, images: prepared.images };
     } catch {
       res.status(400).json({ error: "Attachment is unavailable. Reattach it before sending.", code: "VALIDATION_ERROR" });
@@ -534,10 +535,10 @@ export function createAssistantByokModule(
     const current = admittedToolSources({ tools: resolvedToolSurface.registry.list({}) });
     for (const run of selected.values()) rememberByokSources(run, current);
     const result = await stopRunsForToolAccessChange({ runs: [...selected.values()], change,
-      revoke: ({ runId }) => { const entry = selected.get(runId)!; entry.lowered = true; entry.abort.abort(); },
+      revoke: ({ runId }) => { const entry = selected.get(runId); if (!entry) throw new Error("tool access change has no selected run to revoke"); entry.lowered = true; entry.abort.abort(); },
       cancel: async ({ runId }) => { automaticPluginRuns.forget({ runId }); },
-      waitForCleanup: ({ runId }) => awaitByokCleanup(selected.get(runId)!.done),
-      notice: async ({ runId, message }) => { const response = selected.get(runId)!.res; sse(response, 'agent', { type: 'status', label: message }); sse(response, 'agent', { type: 'text_delta', delta: `\n\n${message}` }); },
+      waitForCleanup: ({ runId }) => { const entry = selected.get(runId); if (!entry) throw new Error("tool access change has no selected run to await"); return awaitByokCleanup(entry.done); },
+      notice: async ({ runId, message }) => { const entry = selected.get(runId); if (!entry) throw new Error("tool access change has no selected run to notify"); const response = entry.res; sse(response, 'agent', { type: 'status', label: message }); sse(response, 'agent', { type: 'text_delta', delta: `\n\n${message}` }); },
     }, {});
     if (result.failedRunIds.length) throw new ToolAccessLoweringError();
   }

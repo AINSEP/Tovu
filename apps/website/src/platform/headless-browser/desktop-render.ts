@@ -13,6 +13,8 @@ export function desktopRenderForHost({ env }: { env: NodeJS.ProcessEnv }, _optio
   const privateEnv = startupSecretEnvironment({ env });
   if (privateEnv.JINI_DESKTOP_RENDER_URL === undefined && privateEnv.JINI_DESKTOP_RENDER_TOKEN === undefined) return null;
   return { async captureUrl(request, options) {
-    return renderBridgeFromEnv({ env: privateEnv })!.captureUrl(request, options);
+    const bridge = renderBridgeFromEnv({ env: privateEnv });
+    if (!bridge) throw new Error('desktop capture has no render bridge');
+    return bridge.captureUrl(request, options);
   } };
 }

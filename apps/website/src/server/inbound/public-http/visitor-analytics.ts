@@ -35,7 +35,9 @@ export async function captureVisitorEvent(
   if (!provenance) return;
   try {
     if (provenance.consentProof && !await deps.visitorAnalyticsDeliveryAllowed?.({ proof: provenance.consentProof })) return;
-    await (deps.visitorTracker ?? deps.tracker)!.capture({ name, userId: optional.subjectId ?? provenance.subjectId }, { properties });
+    const tracker = deps.visitorTracker ?? deps.tracker;
+    if (!tracker) throw new Error("visitor analytics has no tracker for event capture");
+    await tracker.capture({ name, userId: optional.subjectId ?? provenance.subjectId }, { properties });
   }
   catch { /* Product analytics cannot turn a committed public operation into a failure. */ }
 }

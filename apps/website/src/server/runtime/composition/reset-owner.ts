@@ -33,14 +33,15 @@ export async function resetSelfHostedOwner(
       FROM identity_users u JOIN principal_roles pr ON pr.principal_id=u.principal_id AND pr.workspace_id=u.workspace_id
       JOIN roles r ON r.id=pr.role_id AND r.workspace_id=pr.workspace_id
       WHERE u.workspace_id=${workspaceId} AND r.name='owner' AND r.is_builtin=1 LIMIT 2`);
-    if (owners.length !== 1) throw new Error('The site must have exactly one stored owner');
+    const owner = owners[0];
+    if (owners.length !== 1 || !owner) throw new Error('The site must have exactly one stored owner');
     const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() }, idGen = { newId: () => randomUUID() };
     const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen,
       permissionGrants: createAppPermissionGrants({}), ownerCredentials: DEFAULT_OWNER_CREDENTIALS,
-      reconcileGrantsOnBoot: false, readOnlyOwnerPrincipalId: owners[0]!.principal_id });
+      reconcileGrantsOnBoot: false, readOnlyOwnerPrincipalId: owner.principal_id });
     await identity.identityReady;
     if (!identity.recoveryCodes) throw new Error('Owner recovery storage is unavailable');
     return await applyOwnerPasswordReset({ workspaceId, password, ...(username === undefined ? {} : { username }),
-      deps: { auth: identityServiceDepsFrom({ ...identity, clock, idGen }), codes: identity.recoveryCodes, seededOwnerPrincipalId: owners[0]!.principal_id } }, {});
+      deps: { auth: identityServiceDepsFrom({ ...identity, clock, idGen }), codes: identity.recoveryCodes, seededOwnerPrincipalId: owner.principal_id } }, {});
   } finally { await client.close(); }
 }

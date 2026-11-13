@@ -20,7 +20,8 @@ export function registerCommerceWebhooks({ app, deps }: { app: Express; deps: Ro
  * @complexity O(1) wiring and one activation/readiness check per storefront request.
  */
 export function registerCommerceHttp({ app, deps }: { app: Express; deps: RouteDeps }, _optional = {}): void {
-  if (!deps.commerce) return;
+  const commerce = deps.commerce;
+  if (!commerce) return;
   // A router, not a second Express app: an app called directly gets its own defaults, so behind a
   // proxy every buyer would share the proxy's address and one rate budget. Requests stay on the host app.
   const storefront = express.Router();
@@ -43,7 +44,7 @@ export function registerCommerceHttp({ app, deps }: { app: Express; deps: RouteD
     const productPath = requestPath === "/products" || requestPath.startsWith("/products/");
     if (!productPath && !["/commerce/return", "/commerce/cancel", "/commerce/checkout.js"].includes(requestPath.replace(/\/$/, ""))) { next(); return; }
     try {
-      const status = await deps.commerce!.storefrontStatus();
+      const status = await commerce.storefrontStatus();
       if (!status.active) { next(); return; }
       if (productPath && !status.ready) {
         res.status(404).type("html").send("<h1>This shop is not accepting purchases.</h1>"); return;

@@ -627,6 +627,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     locate: ({ entityId }) => pluginRuntime.locatePluginPackageDirs(entityId),
     forget: ({ entityId }) => forgetPluginActivations({ pluginId: entityId, deps: { repo: pluginActivationRepo } }),
   });
+  const termTrashEntry = trashRegistry.get("term");
+  const taxonomyTrashEntry = trashRegistry.get("taxonomy");
+  const formTrashEntry = trashRegistry.get("form");
+  if (!termTrashEntry || !taxonomyTrashEntry || !formTrashEntry) throw new Error("memory trash registry is missing a term, taxonomy, or form entry");
   const trashAdapters = new Map<string, TrashAdapter>([
     [PLUGIN_ENTITY_TYPE, pluginTrashAdapter],
     [
@@ -842,7 +846,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       "term",
       withFollowUps({
         adapter: createTableTrashAdapter({
-          entry: trashRegistry.get("term")!,
+          entry: termTrashEntry,
           db: sqliteTrashDb,
         })
       }, createTermPurgeFollowUp({
@@ -857,7 +861,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       "taxonomy",
       withFollowUps({
         adapter: createTableTrashAdapter({
-          entry: trashRegistry.get("taxonomy")!,
+          entry: taxonomyTrashEntry,
           db: sqliteTrashDb,
         })
       }, createTaxonomyPurgeFollowUp({
@@ -870,7 +874,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     ],
   ]);
   for (const entityType of ["form", "form_submission"] as const) {
-    const adapter = trashAdapters.get(entityType)!;
+    const adapter = trashAdapters.get(entityType);
+    if (!adapter) throw new Error(`memory trash has no ${entityType} adapter`);
     trashAdapters.set(entityType, withFollowUps({ adapter }, createFormAttachmentPurgeHooks({
       readSubmissions: async ({ workspaceId, entityId, after, limit }) => {
         const rows = entityType === "form" ? await formSubmissionRepo.listAllForDefinition({ workspaceId, formDefinitionId: entityId })
@@ -1165,7 +1170,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const agentPluginLayout = resolveAgentPluginLayout({ siteDir: siteBinding.dir });
   const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {
     bundledSourceRoot: bundledAgentPluginsDir(),
-    identityAdmission: ({ id, localId, run }) => routeDeps.pluginHost!.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run }),
+    identityAdmission: ({ id, localId, run }) => {
+      const host = routeDeps.pluginHost;
+      if (!host) throw new Error("agent plugin installation has no plugin host");
+      return host.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run });
+    },
     // Boot recovery re-provisions a restored revision's MCP servers through the same store; read
     // lazily because that store is composed below.
     mcpProvisioning: createDeferredAgentPluginUpdateEffects({ resolveDeps: () => routeDeps }),
@@ -1197,7 +1206,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `POST /trash/items` (the admin Forms list's delete) reaches these memory-backed forms here:
     // `sqliteTrashDb` has no form row for `moveToTrash`'s snapshot read.
     trashMovers: new Map<string, TrashKindMover>([["form", {
-      permission: trashRegistry.get("form")!.permission,
+      permission: formTrashEntry.permission,
       move: async ({ workspaceId, entityId, actor }) => {
         const form = await formDefinitionRepo.findById({ workspaceId, id: entityId });
         if (!form) return { ok: false, reason: "not-found" };

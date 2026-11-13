@@ -146,11 +146,12 @@ export function registerSiteSearchRoute(app: Pick<Express, "get">, deps: SiteSea
       const sessionToken = readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE });
       const audiences = await runtime.audiencesForSession(sessionToken === undefined ? {} : { sessionToken });
       const { siteId, workspaceId } = runtime;
-      const startedAt = deps.clock?.nowMs();
+      const clock = deps.clock;
+      const startedAt = clock?.nowMs();
       const result = await runtime.service.query({ siteId, workspaceId, query: parsed.query }, { audiences });
       if (result.status === "ok") void captureVisitorEvent({ deps, request: req, name: "site_search_performed", properties: {
         resultCountBucket: searchResultCountBucket({ count: result.page.hits.length }),
-        ...(startedAt === undefined ? {} : { durationBucket: searchDurationBucket({ elapsedMs: deps.clock!.nowMs() - startedAt }) }),
+        ...(startedAt === undefined || !clock ? {} : { durationBucket: searchDurationBucket({ elapsedMs: clock.nowMs() - startedAt }) }),
       } });
       send(res, result);
     } catch (error) {

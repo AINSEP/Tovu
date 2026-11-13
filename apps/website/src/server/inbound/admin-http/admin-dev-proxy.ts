@@ -138,7 +138,12 @@ export function createAdminDevProxyRequestHandler(devProxyUrl: string): RequestH
     const proxyReq = upstream.requestFn(buildProxyRequestOptions(upstream, req), (proxyRes) => {
       // A client-side `IncomingMessage` handed to a `request()` response callback always carries the
       // parsed status line, so `statusCode` is set here (it is only optional on the server-side type).
-      res.writeHead(proxyRes.statusCode!, stripHopByHopHeaders(proxyRes.headers));
+      if (proxyRes.statusCode === undefined) {
+        proxyRes.resume();
+        proxyReq.destroy(new Error("admin dev proxy response has no status code"));
+        return;
+      }
+      res.writeHead(proxyRes.statusCode, stripHopByHopHeaders(proxyRes.headers));
       proxyRes.pipe(res);
     });
     proxyReq.on("error", (error) => {
@@ -205,7 +210,12 @@ function proxyAdminUpgrade(upstream: AdminDevProxyUpstream, req: IncomingMessage
   const proxyReq = upstream.requestFn(buildProxyRequestOptions(upstream, { method: req.method, headers: req.headers, url: req.url }));
 
   proxyReq.on("upgrade", (proxyRes, proxySocket, proxyHead) => {
-    clientSocket.write(formatUpgradeResponseHead(proxyRes.statusCode!, proxyRes.statusMessage!, proxyRes.rawHeaders));
+    if (proxyRes.statusCode === undefined || proxyRes.statusMessage === undefined) {
+      proxySocket.destroy();
+      clientSocket.destroy(new Error("admin dev proxy upgrade response has no status line"));
+      return;
+    }
+    clientSocket.write(formatUpgradeResponseHead(proxyRes.statusCode, proxyRes.statusMessage, proxyRes.rawHeaders));
     if (proxyHead.length > 0) clientSocket.write(proxyHead);
     if (head.length > 0) proxySocket.write(head);
     proxySocket.pipe(clientSocket);

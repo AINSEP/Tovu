@@ -11,10 +11,11 @@ export function registerPublicShareRoutes(required: { app: Express; registry?: S
   required.app.get("/_share/:token/:file", async (req, res) => {
     res.set({ ...SHARE_DOWNLOAD_HEADERS });
     try {
-      const row = await required.registry?.findToken({ token: String(req.params.token), file: String(req.params.file) });
-      if (!row || row.storage?.provider !== undefined && row.storage.provider !== "tovu-server") { res.sendStatus(404); return; }
+      const registry = required.registry;
+      const row = await registry?.findToken({ token: String(req.params.token), file: String(req.params.file) });
+      if (!registry || !row || row.storage?.provider !== undefined && row.storage.provider !== "tovu-server") { res.sendStatus(404); return; }
       res.set("Content-Disposition", `attachment; filename="${row.file}"`);
-      res.sendFile(`${row.shareId}.tovu.zip`, { root: required.registry!.directory, cacheControl: false, lastModified: false, acceptRanges: false, dotfiles: "deny" }, (error) => {
+      res.sendFile(`${row.shareId}.tovu.zip`, { root: registry.directory, cacheControl: false, lastModified: false, acceptRanges: false, dotfiles: "deny" }, (error) => {
         if (error && !res.headersSent) res.sendStatus(404);
         else {
           if (error) res.destroy();

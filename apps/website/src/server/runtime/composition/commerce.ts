@@ -125,7 +125,11 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   const alerts: PaymentsAlertPort = { raise: async ({ alert }) => {
     const key = JSON.stringify([alert.kind, alert.paymentId ?? alert.detail]);
     if (alerted.has(key)) return;
-    if (alerted.size >= 1000) alerted.delete(alerted.values().next().value!);
+    if (alerted.size >= 1000) {
+      const oldest = alerted.values().next();
+      if (oldest.done) throw new Error('payment alert cache has no oldest entry');
+      alerted.delete(oldest.value);
+    }
     alerted.add(key); warn(`Payment settlement needs attention: ${JSON.stringify(alert)}`);
   } };
   const sharedPayments = createPaymentsService(sharedDeps, { alerts });

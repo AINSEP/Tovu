@@ -64,7 +64,8 @@ async function requireTrustedSchemaObjects(required: { source: ImportKernel; tar
   const ordinaryUndeclared = new Set(undeclaredTables.filter(table => /^CREATE TABLE\b/i.test(table.sql ?? "")).map(table => table.name));
   for (const object of required.actual) await requireTrustedObject({ ...required, object, trusted: expected.get(key(object)), ordinaryUndeclared });
   await refuseUnknownShareTables({ source: required.source, trusted: new Set(required.expected.filter(object => object.type === "table").map(object => object.name)) });
-  if (undeclaredTables.length) refuseSchemaObject({ object: undeclaredTables[0]! });
+  const undeclared = undeclaredTables[0];
+  if (undeclared) refuseSchemaObject({ object: undeclared });
   // An index/trigger missing with its whole table is table drift; a missing object on a
   // surviving table is an independent unsafe-schema refusal and must win over version advice.
   const missing = required.expected.find(object => object.type !== "table" && actual.has(`table/${object.tbl_name}`) && !actual.has(key(object)));
@@ -124,7 +125,8 @@ async function run(required: { root: string }, _options: Record<string, never> =
   const documentKeys = new Map<string, string>();
   try {
     const workspaces = await fresh.query<{ id: string }>(sql`SELECT id FROM workspaces LIMIT 2`);
-    if (workspaces.length !== 1) throw new Error("Import requires exactly one workspace");
+    const workspace = workspaces[0];
+    if (workspaces.length !== 1 || !workspace) throw new Error("Import requires exactly one workspace");
     const recipient = readTemplate({ templateId: "starter" }).seed.workspace.id;
     // Runtime queries use the recipient template workspace. Content/media IDs stay stable.
     // Defer FKs while both sides change, then validate before commit through the kernel owner.
@@ -132,7 +134,7 @@ async function run(required: { root: string }, _options: Record<string, never> =
       for (const table of [...SHARE_TABLES, ...portablePluginTables, "setting_values_workspace"]) {
         const columns = await listColumns(fresh, table);
         if (!columns.some(column => column.name === "workspace_id")) continue;
-        if ((await fresh.query(sql`SELECT 1 FROM ${sql.table(table)} WHERE workspace_id <> ${workspaces[0]!.id} LIMIT 1`)).length) throw new Error("Portable row belongs to a missing workspace");
+        if ((await fresh.query(sql`SELECT 1 FROM ${sql.table(table)} WHERE workspace_id <> ${workspace.id} LIMIT 1`)).length) throw new Error("Portable row belongs to a missing workspace");
         // Identifiers come exclusively from the trusted core allowlist and bundled declarations.
         await fresh.execute(sql`UPDATE ${sql.table(table)} SET workspace_id = ${recipient}`);
       }
@@ -153,21 +155,26 @@ async function run(required: { root: string }, _options: Record<string, never> =
       }
     } });
     await validatePortableReferences({ db: fresh });
-    if (!verifySqliteIntegrity({ db: sqliteConnectionOf(fresh)!, quick: true }).ok) throw new Error("Invalid rebuilt database");
+    const connection = sqliteConnectionOf(fresh);
+    if (!connection) throw new Error("rebuilt import database has no SQLite connection");
+    if (!verifySqliteIntegrity({ db: connection, quick: true }).ok) throw new Error("Invalid rebuilt database");
   } finally { await fresh.close(); }
   const media = projection.media.map(blob => documentKeys.has(blob.storageKey) ? { ...blob, destinationStorageKey: documentKeys.get(blob.storageKey) } : blob);
   await writeFile(path.join(required.root, "media.json"), JSON.stringify(media), { flag: "wx", mode: 0o600 });
   await writeFile(path.join(required.root, "credential-warnings.json"), JSON.stringify(projection.credentialWarnings ?? []), { flag: "wx", mode: 0o600 });
   await writeFile(path.join(required.root, "notices.json"), JSON.stringify(projection.notices ?? []), { flag: "wx", mode: 0o600 });
   // sanitizeShareDatabase() always returns both lists; they are optional only on the shared projection type.
-  await writeFile(path.join(required.root, "documents.json"), JSON.stringify(projection.documents!), { flag: "wx", mode: 0o600 });
+  if (!projection.documents) throw new Error("import projection has no document list");
+  await writeFile(path.join(required.root, "documents.json"), JSON.stringify(projection.documents), { flag: "wx", mode: 0o600 });
 }
 
 // The helper writes only application-owned refusal text. Raw SQLite errors and source SQL
 // stay private; version advice has its own exit code rather than swallowing every schema error.
-run({ root: process.argv[2]! }).then(() => process.exit(0), async error => {
+const root = process.argv[2];
+if (root === undefined) { console.error("import database helper has no root directory"); process.exit(1); }
+run({ root }).then(() => process.exit(0), async error => {
   if (!(error instanceof SiteShareRefusal)) process.exit(1);
   if (error.code === "SCHEMA_VERSION_MISMATCH") process.exit(IMPORT_SCHEMA_MISMATCH_EXIT_CODE);
-  await writeFile(path.join(process.argv[2]!, "refusal.txt"), error.message, { flag: "wx", mode: 0o600 });
+  await writeFile(path.join(root, "refusal.txt"), error.message, { flag: "wx", mode: 0o600 });
   process.exit(IMPORT_REFUSAL_EXIT_CODE);
 });

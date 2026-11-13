@@ -177,7 +177,10 @@ async function proxyAcceptedRun(
     const client = createHttpRunDaemonClient({ observability: deps.observability }, { ensureReady: deps.assistantDaemonDemand?.ensureReady });
     const acceptance = createRunAcceptance({ store: durable, now: Date.now, mintRunId: randomUUID,
       onAccepted: ({ run }) => deps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.messageId, eventId: `assistant-start:${run.messageId}` } }),
-      launch: (required, optional) => client.launch!(required, optional),
+      launch: (required, optional) => {
+        if (!client.launch) throw new Error("assistant daemon has no launch operation");
+        return client.launch(required, optional);
+      },
       attach: (run) => finalizer.watch({ principalId: principal.id, conversationId: run.conversationId, message: run.message }),
     }, {});
     const run = await acceptance.accept({ principalId: principal.id, workspaceId: deps.workspaceId,
@@ -221,7 +224,8 @@ async function ownedDurableRun({ req, res, deps }: { req: Request; res: Response
   if (!store) return null;
   const principalId = getAuthedPrincipal(res).id;
   const messageId = req.method === "GET" ? req.query.messageId : (req.body as { messageId?: unknown } | undefined)?.messageId;
-  const run = typeof messageId === "string" ? await (store.head ?? store.load)({ messageId }, {}) : await store.find({ runId: req.params.runId!, principalId }, {});
+  const runId = req.params.runId;
+  const run = typeof messageId === "string" ? await (store.head ?? store.load)({ messageId }, {}) : runId === undefined ? null : await store.find({ runId, principalId }, {});
   return run?.principalId === principalId && run.workspaceId === deps.workspaceId ? run : null;
 }
 
@@ -261,7 +265,8 @@ async function recoverDurableRun({ req, res, deps }: { req: Request; res: Respon
   if (!run) { res.status(404).json({ error: "not found" }); return; }
   const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {});
   await finalizer.recover({ messageId: run.messageId, trigger: "browser" }, {});
-  const store = deps.chatRunLedger.durable!;
+  const store = deps.chatRunLedger.durable;
+  if (!store) throw new Error("assistant recovery has no durable run store");
   const current = await (store.head ?? store.load)({ messageId: run.messageId }, {});
   if (!current) { res.status(404).json({ error: "not found" }); return; }
   res.json({ message: current.message, conversationId: current.conversationId });
@@ -271,7 +276,9 @@ async function cancelDurableRun({ req, res, deps, daemon }: { req: Request; res:
   let run = await ownedDurableRun({ req, res, deps }, {});
   if (!run) run = await cancelBeforeAcceptance({ req, res, deps }, {});
   if (!run) { await proxyPassthrough(req, res, daemon); return; }
-  await deps.chatRunLedger.durable!.cancel({ runId: run.runId, reason: "user-stop" }, {});
+  const store = deps.chatRunLedger.durable;
+  if (!store) throw new Error("assistant cancellation has no durable run store");
+  await store.cancel({ runId: run.runId, reason: "user-stop" }, {});
   await assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {})
     .recover({ messageId: run.messageId, trigger: "browser" }, {});
   res.json({ run: { id: run.runId, state: "cancelled" } });

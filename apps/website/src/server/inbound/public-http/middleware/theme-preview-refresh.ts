@@ -77,7 +77,11 @@ export function registerThemePreviewRefresh(
       authenticate: requireAdminSession(deps),
       rememberRevision: ({ revision }) => {
         authenticatedRevisions.add(revision);
-        if (authenticatedRevisions.size > 512) authenticatedRevisions.delete(authenticatedRevisions.values().next().value!);
+        if (authenticatedRevisions.size > 512) {
+          const oldest = authenticatedRevisions.values().next();
+          if (oldest.done) throw new Error("theme preview revision cache has no oldest entry");
+          authenticatedRevisions.delete(oldest.value);
+        }
       },
       syncThemes: () => {
         syncThemeRoster({ themes: deps.themes, themesDir: deps.themesDir });

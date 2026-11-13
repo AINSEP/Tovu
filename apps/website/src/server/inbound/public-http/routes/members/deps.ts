@@ -73,9 +73,10 @@ export interface MemberPublicRouteDeps extends VisitorAnalyticsDeps {
 
 /** Assemble the `MembersWriteServiceDeps` bundle from `MemberPublicRouteDeps`. */
 export function toPublicMembersWriteServiceDeps(deps: MemberPublicRouteDeps, optional: { request?: Request } = {}): MembersWriteServiceDeps {
+  const request = optional.request;
   return {
-    onMemberCreated: optional.request ? ({ workspaceId, memberId, creationSource, initialState }) => {
-      void captureVisitorEvent({ deps, request: optional.request!, name: "member_registered", properties: {
+    onMemberCreated: request ? ({ workspaceId, memberId, creationSource, initialState }) => {
+      void captureVisitorEvent({ deps, request, name: "member_registered", properties: {
         eventId: `member-registered:${workspaceId}:${memberId}`, creationSource, initialState,
       } }, { subjectId: `member:${workspaceId}:${memberId}` });
     } : undefined,

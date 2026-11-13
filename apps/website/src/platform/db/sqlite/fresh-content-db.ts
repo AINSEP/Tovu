@@ -249,7 +249,9 @@ export function bootstrapFreshContentDb(
     client.exec("CREATE TABLE tovu_migrations (id TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TEXT NOT NULL)");
     const record = client.prepare("INSERT INTO tovu_migrations (id, checksum, applied_at) VALUES (?, ?, ?)");
     for (const step of migrations) {
-      operations[step.id]!();
+      const operation = operations[step.id];
+      if (!operation) throw new Error(`fresh content bootstrap has no operation for ${step.id}`);
+      operation();
       record.run(step.id, step.checksum, new Date().toISOString());
     }
     return true;

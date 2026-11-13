@@ -50,42 +50,46 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
     if (trust && !artifact) { res.status(403).json({ code: "FORBIDDEN", message: `${step} requires an authorized admin session.` }); return false; }
     if (!await authorizeOrRespond(res, trust ? publishTrustAuthorizeFor(trust) : deps.authorize, { principalId: getAuthedPrincipal(res).id, workspaceId: deps.workspaceId, permission: trust ? "publish_content.apply" : "site-backup.push", entityType: "site-backup" })) return false;
     if (!deps.siteShareBackend) { res.status(503).json({ code: "UNAVAILABLE", message: `${step} requires a site folder and private artifact storage.` }); return false; }
-    return true;
+    return deps.siteShareBackend;
   };
   const fail = (res: Response, error: unknown, req: Request) => sendSiteShareFailure({ res, error, tracker: deps.tracker }, { step: shareStep({ req }) });
   app.get(root, async (req, res) => {
-    try { if (await gate(req, res)) res.json({ shares: await deps.siteShareBackend!.list({}) }); }
+    try { const backend = await gate(req, res); if (backend) res.json({ shares: await backend.list({}) }); }
     catch (error) { fail(res, error, req); }
   });
   app.post(root, async (req, res) => {
     try {
-      if (!await gate(req, res)) return;
+      const backend = await gate(req, res);
+      if (!backend) return;
       const input = readShareInput({ body: req.body });
-      res.json(await deps.siteShareBackend!.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, ...input }));
+      res.json(await backend.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, ...input }));
     } catch (error) { fail(res, error, req); }
   });
   app.get(`${root}/static/options`, async (req, res) => {
-    try { if (await gate(req, res)) res.json(await deps.siteShareBackend!.staticOptions({})); }
+    try { const backend = await gate(req, res); if (backend) res.json(await backend.staticOptions({})); }
     catch (error) { fail(res, error, req); }
   });
   app.post(`${root}/static`, async (req, res) => {
     try {
-      if (!await gate(req, res)) return;
+      const backend = await gate(req, res);
+      if (!backend) return;
       const input = parseStaticExportInput({ input: req.body === undefined ? {} : req.body });
-      res.json(await deps.siteShareBackend!.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, format: "static", ...input }));
+      res.json(await backend.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, format: "static", ...input }));
     } catch (error) { fail(res, error, req); }
   });
   app.post(`${root}/:shareId/password`, createSiteSharePasswordHandler({ deps }));
   app.post(`${root}/:shareId/acknowledge`, async (req, res) => {
     try {
-      if (!await gate(req, res)) return;
-      res.json(await deps.siteShareBackend!.acknowledge({ shareId: String(req.params.shareId) }));
+      const backend = await gate(req, res);
+      if (!backend) return;
+      res.json(await backend.acknowledge({ shareId: String(req.params.shareId) }));
     } catch (error) { fail(res, error, req); }
   });
   app.get(`${root}/:shareId/download`, async (req, res) => {
     try {
-      if (!await gate(req, res)) return;
-      const registry = deps.siteShareBackend!.registry;
+      const backend = await gate(req, res);
+      if (!backend) return;
+      const registry = backend.registry;
       const row = await registry.get({ shareId: String(req.params.shareId), site: deps.workspaceId });
       if (!row || row.status === "revoked") { res.status(404).json({ code: "NOT_FOUND", message: "Export download failed: this export is missing or was revoked." }); return; }
       if (row.needsAcknowledgement) {
@@ -107,7 +111,7 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
     } catch (error) { fail(res, error, req); }
   });
   app.delete(`${root}/:shareId`, async (req, res) => {
-    try { if (await gate(req, res)) res.json(await deps.siteShareBackend!.revoke({ shareId: String(req.params.shareId) })); }
+    try { const backend = await gate(req, res); if (backend) res.json(await backend.revoke({ shareId: String(req.params.shareId) })); }
     catch (error) { fail(res, error, req); }
   });
   // Raw ZIP parsing runs AFTER authentication and authorization. A base64 JSON upload would
@@ -126,7 +130,9 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
       const validIdentity = SHARE_TOKEN.test(token) && SHARE_FILE.test(file);
       const validArchive = validIdentity && Buffer.isBuffer(req.body) && req.body.length >= 4 && req.body.readUInt32LE(0) === 0x04034b50;
       if (!validArchive) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Expected a .tovu.zip artifact with a 16-letter token and application/zip body." });
-      const registry = deps.siteShareBackend!.registry;
+      const backend = deps.siteShareBackend;
+      if (!backend) throw new Error("site share artifact upload has no share backend");
+      const registry = backend.registry;
       // Tokens are never reused, including revoked uploads. A replay may not resurrect access.
       const row = await receiveSiteShareArtifact({ registry, site: deps.workspaceId, token, file, archive: req.body });
       res.status(201).json({ shareId: row.shareId, bytes: row.bytes, sha256: row.sha256 });
@@ -134,8 +140,9 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
   });
   app.delete(`${root}/artifacts/:token/:file`, async (req, res) => {
     try {
-      if (!await gate(req, res, true)) return;
-      const registry = deps.siteShareBackend!.registry;
+      const backend = await gate(req, res, true);
+      if (!backend) return;
+      const registry = backend.registry;
       const row = (await registry.list({ site: deps.workspaceId })).find(row => row.token === req.params.token && row.file === req.params.file);
       if (!row) { res.status(404).json({ code: "NOT_FOUND", message: "Share artifact deletion failed: this export was not found." }); return; }
       await registry.disable({ shareId: row.shareId, site: deps.workspaceId });

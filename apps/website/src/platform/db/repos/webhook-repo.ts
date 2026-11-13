@@ -288,7 +288,7 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
         .where("workspace_id", "=", required.workspaceId)
         .where("id", "=", required.id)
         // Ownership fence: a stale claimer's outcome must not overwrite a newer claim.
-        .$if(claimedAttempts !== undefined, (qb) => qb.where("attempts", "=", claimedAttempts!))
+        .$if(claimedAttempts !== undefined, (qb) => claimedAttempts === undefined ? qb : qb.where("attempts", "=", claimedAttempts))
         .execute()
     );
   }
@@ -318,7 +318,7 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
         })
         .where("workspace_id", "=", required.workspaceId)
         .where("id", "=", required.id)
-        .$if(claimedAttempts !== undefined, (qb) => qb.where("attempts", "=", claimedAttempts!))
+        .$if(claimedAttempts !== undefined, (qb) => claimedAttempts === undefined ? qb : qb.where("attempts", "=", claimedAttempts))
         .execute()
     );
   }

@@ -60,6 +60,7 @@ export function registerDurableToolGuard(
     if (!isRegistered({ toolId }, {})) { next(); return; }
     const store = ledger.durable;
     if (!store) { next(); return; }
+    const activeStore = store;
     // The daemon either verifies a constrained call is read-only or refuses it before execution.
     // Ledgering a refusal would leave an orphan that blocks the advised unrestricted retry.
     const readOnly = body.requireReadOnly === true || isReadOnly({ toolId }, {});
@@ -73,14 +74,14 @@ export function registerDurableToolGuard(
         message: unknown ? UNKNOWN_MUTATION_ERROR : "This execution attempt no longer owns the answer." } });
     }).catch(next);
     async function guard(required: { runId: string; toolId: string; input: unknown; toolUseId?: string }, _options = {}) {
-      const run = await store!.find({ runId: required.runId }, {});
+      const run = await activeStore.find({ runId: required.runId }, {});
       // Non-chat clients retain their existing lifecycle-owned execution policy.
       if (!run) {
         return await messageIdForAttempt({ runId: required.runId }, {}) ? "stale" : "allowed";
       }
       if (run.cancelReason || !["queued", "running"].includes(run.message.runStatus ?? "")) return "stale";
       if (readOnly) return "allowed";
-      return store!.guardTool(required, {});
+      return activeStore.guardTool(required, {});
     }
   });
 }
