@@ -236,7 +236,11 @@ function failureFixture(t: TestContext) {
 test("a former sites folder that cannot be read is reported once, and startup carries on", async (t) => {
   const f = failureFixture(t);
   await f.migrate(f.workspace({ root: path.join(f.base, "gone") }));
-  assert.deepEqual(f.reports, ["Tovu could not inspect the former sites folder; existing website paths remain available."]);
+  assert.equal(f.reports.length, 1);
+  // The report names what failed and keeps the redacted cause (code, path and stack) for the log.
+  assert.match(f.reports[0]!, /^Tovu could not inspect the former sites folder; existing website paths remain available\. Cause: /);
+  assert.match(f.reports[0]!, /ENOENT/);
+  assert.match(f.reports[0]!, /nested-sites-migration\.ts/);
   assert.deepEqual(f.moved, []);
 });
 

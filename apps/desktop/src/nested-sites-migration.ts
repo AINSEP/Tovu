@@ -1,6 +1,8 @@
 /** Reverse the shipped 0.1.14 nesting at startup through the existing stopped-site CLI owner. */
 import fs from "node:fs";
 import path from "node:path";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { moveSiteHome } from "./move-site-home.ts";
 import type { CliMode } from "./tovu-server.ts";
 
@@ -76,7 +78,7 @@ export async function migrateNestedSitesHome(
     }
     removeDisposableNestedCache({ root });
     removeNestedSitesContainer({ root }, { report, removeDir });
-  } catch {
-    report("Tovu could not inspect the former sites folder; existing website paths remain available.");
+  } catch (error) {
+    report(`Tovu could not inspect the former sites folder; existing website paths remain available. Cause: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`);
   }
 }
