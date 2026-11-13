@@ -5,7 +5,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Express, Response } from "express";
 import type { MediaRouteDeps } from "./deps.js";
 import type { MediaWhereUsedDeps } from "./where-used.js";
-import { readRouteParam, rejectForeignWorkspace } from "./route-guards.js";
+import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * DELETE hard-purges a media asset — second rung of the ADR-027 §5 deletion

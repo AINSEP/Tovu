@@ -6,7 +6,8 @@ import { findMediaByIdOrSlug, sanitizeSvg, sniffContentType, type MediaRecord } 
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { parseRangeHeader, type ParsedRange } from "#src/server/inbound/admin-http/range";
 import type { MediaRouteDeps, MediaRouteRegistrar } from "./deps.js";
-import { authorizeMediaOrRespond, readRouteParam, rejectForeignWorkspace } from "./route-guards.js";
+import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file GET a media asset's ORIGINAL bytes for the admin UI's `<img>`/`<video>`
@@ -195,7 +196,7 @@ export const registerAdminMediaOriginalRoute: MediaRouteRegistrar = (app, deps) 
     try {
       const principal = getAuthedPrincipal(res);
       const mediaId = readRouteParam({ req, name: "mediaId" });
-      const authorized = await authorizeMediaOrRespond({ res, authorize: deps.authorize, params: {
+      const authorized = await authorizeDirectOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "media.read",
         workspaceId: deps.workspaceId,
