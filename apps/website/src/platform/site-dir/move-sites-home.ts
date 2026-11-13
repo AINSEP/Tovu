@@ -250,8 +250,9 @@ export async function moveLegacySite({ dir }: { dir: string }, { workspace = cre
   const from = fs.realpathSync(dir), root = path.dirname(from);
   if (root !== workspace.nestedSitesRoot({})) throw new Error("Only sites inside the former default sites/ folder can be moved to Documents/Tovu.");
   const moved = await moveSitesHome({ repoRoot }, { apply: true, workspace, sites: [path.basename(from)], sourceRoots: [root], projectsPaths });
-  if (moved.length !== 1) throw new Error("No site matched this move. Check its folder and the default Documents/Tovu home.");
-  return moved[0]!.to;
+  const result = moved[0];
+  if (moved.length !== 1 || !result) throw new Error("No site matched this move. Check its folder and the default Documents/Tovu home.");
+  return result.to;
 }
 
 /** Rename a direct child of the configured sites home, preserving display name and identity.

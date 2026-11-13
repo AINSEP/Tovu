@@ -208,11 +208,13 @@ export function createHttpRunDaemonClient(
   return {
     release(required, _options = {}) { replayOrigins.delete(replayKey(required)); },
     async launch({ run, request }, _options) {
+      const principalId = run.principalId;
+      if (!principalId) throw new Error("assistant continuation has no principal id");
       await (optional.ensureReady ?? ensureAssistantDaemonReady)({}, {});
       const response = await fetchWithDaemonParkRecovery({ send: () => {
         const address = current();
         return send(`${address.url}/api/runs`, {
-          method: "POST", headers: { ...daemonHeaders(run.principalId!, address.token), "Content-Type": "application/json" },
+          method: "POST", headers: { ...daemonHeaders(principalId, address.token), "Content-Type": "application/json" },
           body: JSON.stringify({ ...request, runId: run.runId, idempotencyKey: run.runId }), signal: AbortSignal.timeout(10_000),
         });
       } }, optional);
@@ -378,11 +380,12 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   const recovery = recoveryStore ? createDurableRecovery({
     store: recoveryStore, now, mintRunId: randomUUID,
     async probe(run, _options) {
-      const status = await probe({ runId: run.runId, principalId: run.principalId! }, { client: newAttempts.has(run.runId) ? daemon : options.recoveryDaemon ?? daemon });
+      if (!run.principalId) throw new Error("assistant recovery probe has no principal id");
+      const status = await probe({ runId: run.runId, principalId: run.principalId }, { client: newAttempts.has(run.runId) ? daemon : options.recoveryDaemon ?? daemon });
       if (status === 404) return "dead";
       return status === 200 ? "live" : "uncertain";
     },
-    attach(run, _options) { finalizer.watch({ principalId: run.principalId!, conversationId: run.conversationId, message: run.message }, {
+    attach(run, _options) { if (!run.principalId) throw new Error("assistant recovery watch has no principal id"); finalizer.watch({ principalId: run.principalId, conversationId: run.conversationId, message: run.message }, {
       attemptBase: [...run.attemptBase], daemon: newAttempts.has(run.runId) ? daemon : options.recoveryDaemon ?? daemon,
     }); },
     async launch(required, optional) {
@@ -390,7 +393,12 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       newAttempts.add(required.run.runId);
       await daemon.launch(required, optional);
     },
-    cancelAttempt: async (run, optional) => (newAttempts.has(run.runId) ? daemon : options.recoveryDaemon ?? daemon).cancel?.({ runId: run.runId, principalId: run.principalId! }, optional),
+    cancelAttempt: async (run, optional) => {
+      const client = newAttempts.has(run.runId) ? daemon : options.recoveryDaemon ?? daemon;
+      if (!client.cancel) return;
+      if (!run.principalId) throw new Error("assistant recovery cancellation has no principal id");
+      return client.cancel({ runId: run.runId, principalId: run.principalId }, optional);
+    },
     // No process identity is guessed from daemon PID existence. Until the executor provides a
     // verified child identity, reconstruction is the safe universal continuation path.
     verifyChildDead: options.verifyChildDead ?? ((required, _options) => verifyAttemptChildDead(required, {})),
@@ -704,7 +712,8 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     watch({ principalId, conversationId, message }, optional = {}) {
       const runId = message.runId;
       if (!watchable({ message }) || !runId) return;
-      if (active.has(runId) && !active.get(runId)!.watch.terminal) return;
+      const existing = active.get(runId);
+      if (existing && !existing.watch.terminal) return;
 
       const watch = makeWatch({ principalId, conversationId, message, runId,
         daemon: optional.daemon ?? daemon, attemptBase: optional.attemptBase ?? [], now: now(), resolutionTimeoutMs,

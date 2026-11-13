@@ -479,7 +479,8 @@ export function legacyTargetProvider(
   { record, legacy, policy }: { record: VaultRecord; legacy: VaultLegacyContext; policy: TovuVaultPolicy },
   _options: VaultOptions = {},
 ): { provider: string | null; tokenField?: string } {
-  const spec = policy.legacyPublishCredential({ workspaceId: record.workspaceId, providerId: legacy.provider! });
+  if (legacy.provider === undefined || legacy.provider === null) throw new Error("legacy publish credential has no provider");
+  const spec = policy.legacyPublishCredential({ workspaceId: record.workspaceId, providerId: legacy.provider });
   if (!spec) throw new Error("VAULT_CATALOG_UNAVAILABLE");
   return { provider: spec.vendorId, tokenField: spec.tokenField };
 }

@@ -236,7 +236,9 @@ export function mountSettingsJsonRoute<Output>(required: {
       if (method !== "get" && await touchesAssistantSubagents({ body: input.body, repo: deps.settingsRepo, workspaceId: deps.workspaceId })) {
         rejectSettingsRequest({ status: 403, code: "FORBIDDEN", error: ASSISTANT_SUBAGENTS_WRITE_REASON + " " + ASSISTANT_PERMANENT_DELETES_WRITE_REASON });
       }
-      return ok({ value: await handle({ request: input, principal: context!, authorize: authorize! }) });
+      if (!context) throw new Error("settings route has no authenticated principal");
+      if (!authorize) throw new Error("settings route has no authorizer");
+      return ok({ value: await handle({ request: input, principal: context, authorize }) });
     },
   }, { ports: {
     workspace: ({ raw, deps }) => {
@@ -246,7 +248,8 @@ export function mountSettingsJsonRoute<Output>(required: {
     },
     authenticate: async ({ res, deps }) => { await deps.settingsReady; return getAuthedPrincipal(res); },
     authorize: async ({ context, deps, permission, entityType }) => {
-      const principal = context!;
+      const principal = context;
+      if (!principal) throw new Error("settings authorization has no authenticated principal");
       const result = await deps.authorize({ principalId: principal.id, permission, workspaceId: deps.workspaceId, entityType });
       if (!result.allowed) rejectSettingsRequest({
         status: 403, error: `principal '${principal.id}' is not authorized for '${permission}' (${result.reason})`,

@@ -59,8 +59,9 @@ export function createTovuPluginHost(
   const resolveWorkspaceRoot = () => deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root;
   const listInstalled = async () => (deps.listInstalledAgentPlugins ?? listInstalledPlugins)({ workspaceRoot: resolveWorkspaceRoot() });
   const warn = optional.warn ?? ((message: string) => console.warn(`[plugins] ${message}`));
-  const readAgentIdentity = optional.readAgentManifest
-    ? async ({ plugin }: { plugin: InstalledAgentPlugin }) => readPluginIdentity({ manifest: await optional.readAgentManifest!({ plugin }), name: plugin.pluginId, namespace: 'tovu' })
+  const readAgentManifest = optional.readAgentManifest;
+  const readAgentIdentity = readAgentManifest
+    ? async ({ plugin }: { plugin: InstalledAgentPlugin }) => readPluginIdentity({ manifest: await readAgentManifest({ plugin }), name: plugin.pluginId, namespace: 'tovu' })
     : readInstalledAgentPluginIdentity;
 
   // Thin Tovu binder: every runtime owner, path, namespace and product text is bound here; the

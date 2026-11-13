@@ -1075,7 +1075,11 @@ async function composeSiteRouteDeps(
   const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {
     bundledSourceRoot: bundledAgentPluginsDir(),
     productTracker: () => lifecycleTracker,
-    identityAdmission: ({ id, localId, run }) => routeDeps.pluginHost!.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run }),
+    identityAdmission: ({ id, localId, run }) => {
+      const host = routeDeps.pluginHost;
+      if (!host) throw new Error("agent plugin installation has no plugin host");
+      return host.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run });
+    },
     // Boot recovery re-provisions a restored revision's MCP servers through the same store; read
     // lazily because that store is composed below.
     mcpProvisioning: createDeferredAgentPluginUpdateEffects({ resolveDeps: () => routeDeps }),
@@ -1963,7 +1967,10 @@ async function composeSiteRouteDeps(
     return projectStore ? createProjectKeys({ vault: projectStore.vault.repo, attachments: projectStore.attachments,
       describeOAuth: createSharedOAuthLabels({ scope: projectStore.vault, clock }),
       siteId: projectSiteId, siteName: resolvedSiteBinding.name, providerUsage: input => providerConfigSource.usage(input), reapply: input => providerPlugins.reapply(input),
-      transaction: input => projectStore.transaction(input), inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined, references: projectKeyReferences,
+      transaction: input => projectStore.transaction(input), inventory: projectStore.inventory ? () => {
+        if (!projectStore.inventory) throw new Error("project keys have no inventory service");
+        return projectStore.inventory({});
+      } : undefined, references: projectKeyReferences,
       // The site registry exists only on a desktop or self-hosted multi-site install.
       ...(projectSiteId && isLocalTovuHost({}, {}) ? { siteKeys: createOtherSiteKeys({ target: { siteId: projectSiteId, name: resolvedSiteBinding.name, dir: resolvedSiteBinding.dir, file: sqliteConnectionOf(kernel)?.name }, project: projectStore.vault }) } : {}),
       bindOAuth: input => {
@@ -2887,7 +2894,10 @@ async function composeSiteRouteDeps(
         bindings: createSiteOAuthBindings({ workspaceId, repo: siteReferenceRepo,
           vault: createApiConnectionVault({ repo: siteReferenceRepo, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }),
         attachments: projectStore.attachments, transaction: projectStore.transaction, siteId: projectSiteId, siteName: resolvedSiteBinding.name,
-        ownerPrincipalId: identity.ownerPrincipalId, inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined } } : {};
+        ownerPrincipalId: identity.ownerPrincipalId, inventory: projectStore.inventory ? () => {
+          if (!projectStore.inventory) throw new Error("shared OAuth has no project inventory service");
+          return projectStore.inventory({});
+        } : undefined } } : {};
   }
 
   const commerceBinding = compositionCommerce();
@@ -2927,7 +2937,8 @@ async function composeSiteRouteDeps(
   configureSiteSharing({}, {});
 
   function configureSiteSharing(_required: Record<string, never>, _options = {}): void {
-    if (routeDeps.siteBackupSources) {
+    const sources = routeDeps.siteBackupSources;
+    if (sources) {
       try {
         const contentRoots = [resolvedThemesDir, resolvedUploadsDir, agentPluginLayout.root, skillLayout.root, join(resolvedSiteBinding.dir, "plugins"), join(resolvedSiteBinding.dir, "overrides")];
         const registry = new SiteShareRegistry({ directory: resolveShareDirectory({ siteDir: resolvedSiteBinding.dir, dbPath, contentRoots }) });
@@ -2951,7 +2962,7 @@ async function composeSiteRouteDeps(
         // Token-bearing verification requests use the guarded HTTP owner without telemetry. Never
         // infer a recipient-facing URL from localhost, Host, or ephemeral deployment storage.
         routeDeps.siteShareBackend = createSiteShareBackend({ registry, site: workspaceId, zip: zipFolderFiles, savedKeys, ownerPrincipalId: identity.ownerPrincipalId,
-          prepare: ({ signal, ...selection }) => prepareShareContent({ dbOps: routeDeps.dbOps, snapshotRoot: tmpdir(), sources: routeDeps.siteBackupSources!, sanitize: sanitizeShareDatabase, blobStore, imageTransformer: routeDeps.imageTransformer!, rewriteMedia: rewriteArchiveMedia, savedKeys, ...selection }, { signal, packageThemesRoot: routeDeps.packageThemesDir }),
+          prepare: ({ signal, ...selection }) => prepareShareContent({ dbOps: routeDeps.dbOps, snapshotRoot: tmpdir(), sources, sanitize: sanitizeShareDatabase, blobStore, imageTransformer: routeDeps.imageTransformer, rewriteMedia: rewriteArchiveMedia, savedKeys, ...selection }, { signal, packageThemesRoot: routeDeps.packageThemesDir }),
           staticSite: {
             render: input => routeDeps.exportSiteBound({ ...input, includeThemePreviews: false }),
             now: () => new Date(routeDeps.clock.nowMs()),
@@ -2975,7 +2986,11 @@ async function composeSiteRouteDeps(
               return { credential, httpClient: publishContentPeerHttpClient };
             },
             ...(process.env.TOVU_SHARE_PUBLIC_ORIGIN && process.env.TOVU_SHARE_PERSISTENT_STORAGE === "1" ? {
-              runtime: () => createRuntimeShareDelivery({ registry, site: workspaceId, publicOrigin: process.env.TOVU_SHARE_PUBLIC_ORIGIN!, http: guardedOutboundHttpClient }),
+              runtime: () => {
+                const publicOrigin = process.env.TOVU_SHARE_PUBLIC_ORIGIN;
+                if (!publicOrigin) throw new Error("site share delivery has no public origin");
+                return createRuntimeShareDelivery({ registry, site: workspaceId, publicOrigin, http: guardedOutboundHttpClient });
+              },
             } : {}),
             objectStore: async () => {
               // Any object-store provider that can deliver artifacts (not one hard-coded deploy target);

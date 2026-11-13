@@ -758,7 +758,8 @@ export function topologicalTableCopyOrder(allExportNames: readonly string[], edg
   const order: string[] = [];
   const remaining = new Map(inDegree);
   while (ready.length) {
-    const next = ready.shift()!; // already sorted; shifting keeps output deterministic
+    const next = ready.shift(); // already sorted; shifting keeps output deterministic
+    if (next === undefined) throw new Error("table copy order has an empty ready queue");
     order.push(next);
     for (const dependent of dependents.get(next) ?? []) {
       const updated = (remaining.get(dependent) ?? 0) - 1;

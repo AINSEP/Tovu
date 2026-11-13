@@ -19,7 +19,10 @@ export async function runPublicSiteGuide({ input }: { input: unknown }, options:
     facts: { read: async () => ({ content: { status: "ok", data: { visibility: "published-only", administration: false } } }) },
   });
   const caller = { principalId: "anonymous-visitor" };
-  if (parsed.operation === "search") return searchGuide({ guide: service, caller, topic: parsed.topic! });
+  if (parsed.operation === "search") {
+    if (parsed.topic === undefined) throw new Error("public site guide search has no topic");
+    return searchGuide({ guide: service, caller, topic: parsed.topic });
+  }
   return service.run({ caller, operation: parsed.operation, topic: parsed.topic });
 }
 

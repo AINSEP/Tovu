@@ -126,7 +126,8 @@ async function packSelection(run: BackstopRun): Promise<{ entities: PackedEntity
   for (const contributor of [contributeRawRowPublish(), contributeRawFilePublish()]) {
     const handler = contributor.build({ ...run.projection, backstop: run.backstop });
     for await (const entity of handler.pack()) entities.push(entity);
-    skipped.push(...await handler.listSkipped!());
+    if (!handler.listSkipped) throw new Error("backstop contributor has no skipped-items listing");
+    skipped.push(...await handler.listSkipped());
   }
   return { entities, skipped };
 }
@@ -146,7 +147,8 @@ async function planSelection(res: Response, run: BackstopRun, overwriteEntityKey
   if (entities.length === 0) { res.json({ entities: [], skipped, logId: null }); return; }
   const metadata = { mode: "backstop" as const, reason: target.request.reason, sourceActor: actorId, destinationHost: target.host, gapLabels: [] };
   const carrying = entities.map((entity) => ({ ...entity, backstop: metadata }));
-  const verifiedMetadata = readBackstopMetadata({ entities: carrying })!;
+  const verifiedMetadata = readBackstopMetadata({ entities: carrying });
+  if (!verifiedMetadata) throw new Error("backstop plan has no verified metadata");
   const auditedEntities = entities.map((entity) => ({ ...entity, backstop: verifiedMetadata }));
   if (!overwriteKeysAreSelected(overwriteEntityKeys, entities)) {
     res.status(400).json({ error: "Only selected items can be overwritten.", code: "VALIDATION_ERROR" }); return;
@@ -176,7 +178,8 @@ async function handleBackstopRequest(req: Request, res: Response, deps: PublishC
   const target = await readBackstopTarget(body, deps);
   if ("status" in target) { sendRefusal(res, target); return; }
   const projection = toPublishContentDeps(deps);
-  const backstop = { ...projection.backstop!, selection: target.request.selection };
+  if (!projection.backstop) { res.status(503).json({ error: "Send by hand needs its audit storage installed before it can send anything.", code: "BACKSTOP_NOT_INSTALLED" }); return; }
+  const backstop = { ...projection.backstop, selection: target.request.selection };
   const audit = await readyAudit(backstop.audit);
   if (!audit) { res.status(503).json({ error: "Send by hand needs its audit storage installed before it can send anything.", code: "BACKSTOP_NOT_INSTALLED" }); return; }
   const run: BackstopRun = { deps, actorId, target, audit, projection, backstop };
@@ -204,8 +207,10 @@ async function handleUndoRequest(req: Request, res: Response, deps: PublishConte
   const projection = toPublishContentDeps(deps);
   // `files` is always present here: `PublishContentRouteDeps` requires `siteBinding`, which is
   // what `buildPublishBackstopPorts` builds the file port from.
-  const { audit, rows, files } = projection.backstop!;
-  if (!audit || !rows || !(await audit.ready())) { res.status(503).json({ error: "Send by hand needs its audit storage installed." }); return; }
+  const backstop = projection.backstop;
+  if (!backstop) { res.status(503).json({ error: "Send by hand needs its audit storage installed." }); return; }
+  const { audit, rows, files } = backstop;
+  if (!audit || !rows || !files || !(await audit.ready())) { res.status(503).json({ error: "Send by hand needs its audit storage installed." }); return; }
   const log = await audit.get({ workspaceId: deps.workspaceId, id: String(req.params.runId) });
   if (!log || log.direction !== "destination" || !hasUndo(log)) { res.status(404).json({ error: "This send has no undo available." }); return; }
   const skipped: string[] = [];
@@ -213,7 +218,7 @@ async function handleUndoRequest(req: Request, res: Response, deps: PublishConte
   try {
     await rows.transaction({ work: async () => {
       for (const inverse of [...log.inverses].reverse()) {
-        const reason = await undoInverse({ inverse, projection, files: files!, fileRollbacks });
+        const reason = await undoInverse({ inverse, projection, files, fileRollbacks });
         if (reason) skipped.push(reason);
       }
       await audit.save({ record: { ...log, result: "undone", details: { ...log.details, undoSkipped: skipped } } });

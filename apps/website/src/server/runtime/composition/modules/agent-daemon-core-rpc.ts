@@ -52,7 +52,7 @@ async function retainedRunOperation({ deps, request, run, store }: {
   run: Awaited<ReturnType<NonNullable<CoreDeps["chatRunLedger"]["durable"]>["find"]>>;
   store: NonNullable<CoreDeps["chatRunLedger"]["durable"]>;
 }): Promise<unknown> {
-  if (request.operation === "cliConsentSnapshot" || request.operation === "cliConsentAllow") return cliConsent({ deps, request, run });
+  if (request.operation === "cliConsentSnapshot" || request.operation === "cliConsentAllow") return cliConsent({ deps, request, run, store });
   if (request.operation === "sessionForAttempt") {
     return sessionForAttempt({ deps, run });
   }
@@ -61,13 +61,14 @@ async function retainedRunOperation({ deps, request, run, store }: {
 }
 
 /** Resolve the actor from the accepted attempt. Wire callers cannot select a principal or site. */
-async function cliConsent({ deps, request, run }: {
+async function cliConsent({ deps, request, run, store }: {
   deps: CoreDeps;
   request: Extract<DaemonCoreRequest, { operation: "cliConsentSnapshot" | "cliConsentAllow" }>;
   run: Awaited<ReturnType<NonNullable<CoreDeps["chatRunLedger"]["durable"]>["find"]>>;
+  store: NonNullable<CoreDeps["chatRunLedger"]["durable"]>;
 }): Promise<unknown> {
-  if (!isLiveConsentRun({ deps, run })) throw new DaemonCoreError({ reason: "tool consent requires this site's live accepted answer" });
-  const principalId = run!.principalId!;
+  if (!run || !run.principalId || !isLiveConsentRun({ deps, run })) throw new DaemonCoreError({ reason: "tool consent requires this site's live accepted answer" });
+  const principalId = run.principalId;
   const person = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: principalId });
   if (person?.kind !== 'user' || person.status !== 'active') throw new DaemonCoreError({ reason: "tool consent requires an active person" });
   if (!getAgentDef({ id: request.input.agentId })) throw new DaemonCoreError({ reason: "tool consent names an unknown agent" });
@@ -75,8 +76,8 @@ async function cliConsent({ deps, request, run }: {
   if (request.operation === "cliConsentSnapshot") return readAssistantToolConsentSnapshot(input);
   return allowAssistantRunTools({ ...input, keys: request.input.keys, expectedRevisionSeq: request.input.expectedRevisionSeq,
     isLive: async () => {
-      const fresh = await deps.chatRunLedger.durable!.find({ runId: request.input.runId }, {});
-      return isLiveConsentRun({ deps, run: fresh }) && fresh!.principalId === principalId;
+      const fresh = await store.find({ runId: request.input.runId }, {});
+      return !!fresh && isLiveConsentRun({ deps, run: fresh }) && fresh.principalId === principalId;
     },
   });
 }

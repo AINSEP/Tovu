@@ -29,9 +29,10 @@ export function resolveLocalOwnerSignIn(
   if (listenerRefusal) return deny(listenerRefusal);
   const originRefusal = localPublicOriginRefusal({ env });
   if (originRefusal) return deny(originRefusal);
+  if (desktop && capability === undefined) return deny("missing desktop capability");
   return desktop ? { enabled: true, acceptsCapability: ({ capability: presented }) =>
-    typeof presented === "string" && presented.length === 64 && timingSafeTokenMatch({
-      presented, expected: capability!, timingSafeEqual: ({ left, right }) => timingSafeEqual(left, right),
+    capability !== undefined && typeof presented === "string" && presented.length === 64 && timingSafeTokenMatch({
+      presented, expected: capability, timingSafeEqual: ({ left, right }) => timingSafeEqual(left, right),
     }),
   } : { enabled: true };
 }

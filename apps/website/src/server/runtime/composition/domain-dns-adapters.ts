@@ -156,8 +156,9 @@ export function readBundledPublicDnsResolverUrl(required: { readonly sourceRoot:
     const url = publicDnsDeclarationUrl({ manifest });
     if (url !== undefined) urls.push(url);
   }
-  if (urls.length !== 1) throw dnsUnavailable();
-  return urls[0]!;
+  const url = urls[0];
+  if (urls.length !== 1 || url === undefined) throw dnsUnavailable();
+  return url;
 }
 
 /** Validate endpoint data while leaving request bounds, parsing and egress in the resolver. */

@@ -23,7 +23,8 @@ export async function resolveMediaByteSizes(
   let cursor = 0;
   const worker = async () => {
     while (cursor < sha256s.length) {
-      const sha256 = sha256s[cursor]!;
+      const sha256 = sha256s[cursor];
+      if (sha256 === undefined) throw new Error("media byte-size worker has no hash at its cursor");
       cursor += 1;
       let size: number | null = null;
       try {

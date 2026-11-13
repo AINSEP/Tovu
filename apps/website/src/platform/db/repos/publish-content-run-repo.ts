@@ -42,7 +42,10 @@ export class SqlPublishContentRunRepo implements PublishContentRunRepoPort {
   async inFlightRestorePointIds({ workspaceId }: { workspaceId: string }, _options = {}): Promise<ReadonlySet<string>> {
     const rows = await this.kernel.run(db => db.selectFrom("publish_content_runs").select("restore_point_id")
       .where("workspace_id", "=", workspaceId).where("phase", "in", ["planned", "applying"]).where("restore_point_id", "is not", null).execute());
-    return new Set(rows.map(row => row.restore_point_id!));
+    return new Set(rows.map(row => {
+      if (row.restore_point_id === null) throw new Error("in-flight publish run has no restore point id");
+      return row.restore_point_id;
+    }));
   }
 
   async save(record: PublishContentRunRecord): Promise<void> {

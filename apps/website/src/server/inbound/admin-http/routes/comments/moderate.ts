@@ -21,7 +21,7 @@ interface ActionSpec {
   path: string;
   permission: string;
   action: ModerationAction;
-  toStatus: CommentStatus | null; // null = purge, which has no toStatus
+  toStatus: CommentStatus; // purge is registered separately and has no toStatus
 }
 
 /**
@@ -102,7 +102,7 @@ export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCom
           id: req.params.commentId,
           expectedVersion: parsedBody.expectedVersion,
           action: spec.action,
-          toStatus: spec.toStatus!,
+          toStatus: spec.toStatus,
           actorPrincipalId: principal.id,
           note: parsedBody.note,
         });

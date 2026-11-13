@@ -145,7 +145,8 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
     }
     // No stamp: compare against this runtime's bundled journal head (the injected journal). A
     // runtime identity is only ever matched within this same journal, so that journal has a head.
-    const head = journal!.entries.at(-1)!;
+    const head = journal?.entries.at(-1);
+    if (!head) throw new Error("database schema comparison has no migration journal head");
     const expected = siteMeta ?? { version: head.idx, tag: head.tag };
     return { status: getDriftStatus({ siteMeta: expected, runtime }), siteMeta, runtime };
   }

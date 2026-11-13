@@ -300,7 +300,10 @@ export async function siteConsentExportAssets({ deps }: { deps: Pick<RouteDeps, 
   const declared = await documentDeclarations({ consent: deps.cookieConsent });
   const local = declared.filter(script => script.src.startsWith('/') && (config || script.consent === undefined)).map(script => script.src);
   if (!config || siteBannerMode({ config }) === 'off') return local;
-  return [...(documentStates.get(deps.cookieConsent!)?.client ? [documentStates.get(deps.cookieConsent!)!.client!.src] : []), EXTENSION_SRC, ...local];
+  const consent = deps.cookieConsent;
+  if (!consent) throw new Error('cookie consent export has no consent configuration');
+  const client = documentStates.get(consent)?.client;
+  return [...(client ? [client.src] : []), EXTENSION_SRC, ...local];
 }
 
 /** Public context shares the site's publication retry window and keeps visitor state out of HTML caches. */

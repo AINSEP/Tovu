@@ -63,7 +63,8 @@ export const registerSkillsManagementRoutes = (
     const source = sources.find(s => s.id === req.params.toolId);
     if (!source) { res.status(404).json({ error: "Skill was not found or is disabled.", code: "NOT_FOUND" }); return; }
     const [registration] = buildSkillToolRegistrations({ sources: [source], withExtensionApprovalPolicy: deps.withExtensionApprovalPolicy });
+    if (!registration) throw new Error("selected skill has no tool registration for preview");
     // The selected skill's read-only handler and the browser share exactly the same payload.
-    res.json(await registration!.handler({ executionId: "skill-preview", principal: { id: getAuthedPrincipal(res).id }, run: { id: "skill-preview" }, input: {}, signal: new AbortController().signal }));
+    res.json(await registration.handler({ executionId: "skill-preview", principal: { id: getAuthedPrincipal(res).id }, run: { id: "skill-preview" }, input: {}, signal: new AbortController().signal }));
   }));
 };

@@ -135,10 +135,12 @@ export function createDaemonSiteTools({ baseUrl, token, localRegistry, contextFo
    * The audit wrapper owns recording; constructing it adds no index or background resource. O(1). */
   function scopedCatalog() {
     const entry = live();
+    const runId = scope.getStore();
+    if (runId === undefined) throw new Error("site tool catalog has no active run id");
     const query = principals.get(entry.principalId)?.query;
     if (!query) throw new Error("site tool catalog is unavailable");
     return audit ? withToolCatalogAudit({ catalog: query, sink: audit.sink, identity: {
-      workspaceId: audit.workspaceId, runId: scope.getStore()!, principalId: entry.principalId,
+      workspaceId: audit.workspaceId, runId, principalId: entry.principalId,
     } }, {}) : query;
   }
   const catalog = {

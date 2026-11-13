@@ -642,7 +642,8 @@ async function resolveAttachmentRunFields(
     const def = getAgentDef({ id: agentId });
     const byPath = new Map(claimed.attachments.map(attachment => [attachment.path, attachment]));
     const prepared = await prepareMessageAttachments({ refs: [...byPath.keys()], read: async ({ ref }) => {
-      const attachment = byPath.get(ref)!;
+      const attachment = byPath.get(ref);
+      if (!attachment) throw new Error(`agent attachment was not staged: ${ref}`);
       const bytes = await readFile(attachment.path);
       return { name: attachment.name, path: attachment.path, bytes, mimeType: sniffContentType({ bytes }) };
     } }, { fileAccess: true, imageAccess: agentReceivesImageAttachments({ def }, {}) });
@@ -827,10 +828,10 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       // at best, and per this repo's own daemon-restarted-from-a-different-cwd hazard, frequently
       // dead. Clear it so the NEXT turn falls back to a cold start instead of retrying the same
       // dead id forever. See `shouldClearSessionOnFailedResume`'s own doc for the full condition.
-      if (shouldClearSessionOnFailedResume({ event: event, attemptedResumeSessionId: attemptedResumeSessionId }, {})) {
+      if (attemptedResumeSessionId !== null && shouldClearSessionOnFailedResume({ event: event, attemptedResumeSessionId: attemptedResumeSessionId }, {})) {
         const releaseSessionClear = idlePark.hold({}, {});
         const cleared = durableMessageId && routeDeps.chatRunLedger.durable
-          ? routeDeps.chatRunLedger.durable.clearSession({ runId: run.id, sessionId: attemptedResumeSessionId! }, {})
+          ? routeDeps.chatRunLedger.durable.clearSession({ runId: run.id, sessionId: attemptedResumeSessionId }, {})
           : routeDeps.agentSessions.clearSessionId({ conversationId: resolvedConversationId, agentId: agentId });
         void cleared.catch((error: unknown) => {
           console.error(`[agent-daemon] run ${run.id}: failed to clear dead agent session id`, error);
@@ -1007,7 +1008,9 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       const selectedAgent = await prepareRunToolAccess({ selectedAgentId: agentId });
       if (selectedAgent === null) return;
       agentId = selectedAgent;
-      toolAccessRuns.set(run.id, { ...toolAccessRuns.get(run.id)!, agentId });
+      const toolAccessRun = toolAccessRuns.get(run.id);
+      if (!toolAccessRun) throw new Error("agent run has no tool access record after preparation");
+      toolAccessRuns.set(run.id, { ...toolAccessRun, agentId });
       startupStage = 'session binding';
       const sessionBinding = await conversationStartLock.run({ conversationId: conversationId, critical: resolveSessionBinding }, {});
       if (sessionBinding === null) return;
@@ -1260,7 +1263,8 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>; keys: readonly string[];
     inventory: Awaited<ReturnType<typeof assistantInventory.listAssistantAgents>>;
   }) {
-    const selected = snapshot.def!;
+    const selected = snapshot.def;
+    if (!selected) throw new Error('agent tool access has no selected agent definition');
     const alternatives = await qualifiedRunAlternatives({ inventory, selectedAgentId: selected.id, snapshot });
     const assertAccessApprover = async ({ principalId }: { principalId: string }) => {
       if (principalId !== principal.id || !(await runToolAccessIsLive())) throw new Error('Tool access requires the person in this live chat.');

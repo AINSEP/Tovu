@@ -168,6 +168,8 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
       });
 
       app.patch("/api/assistant/chats/:id", (req, res, next) => {
+        const id = req.params.id;
+        if (id === undefined) { res.status(404).json({ error: "not found" }); return; }
         const body = bodyOf(req);
         const title = typeof body.title === "string" ? body.title.trim() : "";
         if (!title) {
@@ -182,7 +184,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
         // agent-produced title, which the store then refuses to apply over a manual rename.
         const source = body.source === "generated" ? ("generated" as const) : ("manual" as const);
         storeFor(res)
-          .rename({ id: req.params.id!, title }, { source })
+          .rename({ id, title }, { source })
           .then((conversation) =>
             // `null` means the id does not exist *or* belongs to someone else. Both answer 404, on
             // purpose: distinguishing them would confirm the existence of another admin's chat.
@@ -192,26 +194,30 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
       });
 
       app.delete("/api/assistant/chats/:id", (req, res, next) => {
+        const id = req.params.id;
+        if (id === undefined) { res.status(404).json({ error: "not found" }); return; }
         // Cancel before deleting the binding. Once cascaded away, recovery cannot recreate it.
         const store = storeFor(res);
-        store.messages({ conversationId: req.params.id! }, { includeEvents: false }).then(async (messages) => {
+        store.messages({ conversationId: id }, { includeEvents: false }).then(async (messages) => {
           for (const message of messages) {
             if (!message.runId || !["queued", "running"].includes(message.runStatus ?? "")) continue;
             await deps.chatRunLedger.durable?.cancel({ runId: message.runId, reason: "conversation-deleted" }, {});
             await finalizer.recover({ messageId: message.id, trigger: "browser" }, {});
           }
-          await store.delete({ id: req.params.id! });
+          await store.delete({ id });
         })
           .then(() => res.status(204).end())
           .catch(next);
       });
 
       app.get("/api/assistant/chats/:id/messages", (req, res, next) => {
+        const id = req.params.id;
+        if (id === undefined) { res.status(404).json({ error: "not found" }); return; }
         const store = storeFor(res);
         // Resolve the cheap validator before borrowing any raw history strings. Keep the version
         // read before the payload read: a racing write then invalidates the next refresh safely.
         void (async () => {
-          const version = await store.messagesVersion?.({ conversationId: req.params.id! }, {});
+          const version = await store.messagesVersion?.({ conversationId: id }, {});
           if (version != null) {
             const etag = '"' + encodeURIComponent(version) + '"';
             res.setHeader('ETag', etag);
@@ -220,17 +226,19 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
           }
           if (store.messagesJson) {
             // Native stream piping honors socket backpressure without building one enormous JSON body.
-            const chunks = await store.messagesJson({ conversationId: req.params.id! }, {});
+            const chunks = await store.messagesJson({ conversationId: id }, {});
             pipeline(Readable.from(chunks, { objectMode: false }), res.type("json"), error => {
               if (error && (error as NodeJS.ErrnoException).code !== 'ERR_STREAM_PREMATURE_CLOSE') next(error);
             });
             return;
           }
-          res.json({ messages: await store.messages({ conversationId: req.params.id! }) });
+          res.json({ messages: await store.messages({ conversationId: id }) });
         })().catch(next);
       });
 
       app.put("/api/assistant/chats/:id/messages/:messageId", (req, res, next) => {
+        const { id, messageId } = req.params;
+        if (id === undefined || messageId === undefined) { res.status(404).json({ error: "not found" }); return; }
         const body = bodyOf(req);
         if (body.role !== "user" && body.role !== "assistant") {
           res.status(400).json({ error: "'role' must be 'user' or 'assistant'", code: "VALIDATION_ERROR" });
@@ -245,11 +253,10 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
         const sent = body as unknown as ChatMessage;
         const message: ChatMessage = redactUserMessage({ message: {
           ...sent,
-          id: req.params.messageId!,
+          id: messageId,
           // Streamed text deltas saved as one event per run, the same shape the server finalizer writes.
           ...(Array.isArray(sent.events) ? { events: runEventsForSave(sent.events) } : {}),
         } }).message;
-        const id = req.params.id!;
         const store = storeFor(res);
         store
           .appendMessage({ conversationId: id, message })

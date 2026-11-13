@@ -87,8 +87,9 @@ function isSeededStockPath(required: { stockDir: string; path: string }): boolea
   const parts = rel.split(sep);
   const inCatalog = parts[0] === CATALOG_DIR_NAME;
   const scoped = inCatalog ? parts.slice(1) : parts;
-  if (scoped.length === 0) return true;
-  const topLevelTheme = existsSync(join(required.stockDir, ...(inCatalog ? [CATALOG_DIR_NAME] : []), scoped[0]!, "theme.json"));
+  const first = scoped[0];
+  if (first === undefined) return true;
+  const topLevelTheme = existsSync(join(required.stockDir, ...(inCatalog ? [CATALOG_DIR_NAME] : []), first, "theme.json"));
   const themeId = topLevelTheme ? scoped[0] : scoped[1];
   // A tier folder itself, or a file at the root/catalog root.
   if (themeId === undefined) return true;

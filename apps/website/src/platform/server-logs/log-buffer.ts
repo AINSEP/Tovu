@@ -100,7 +100,9 @@ export function createLogBuffer(required: CreateLogBufferRequired, optional: Cre
   const listeners = new Set<(entry: ServerLogEntry) => void>();
 
   function dropOldest(): void {
-    bytes -= items[head]!.message.length;
+    const oldest = items[head];
+    if (!oldest) throw new Error("server log buffer has no oldest entry to drop");
+    bytes -= oldest.message.length;
     head += 1;
     // Compact once the dead prefix outweighs the live part, keeping memory bounded.
     if (head > 1_024 && head * 2 > items.length) {

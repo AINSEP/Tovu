@@ -101,7 +101,7 @@ async function importModule({ specifier }: { specifier: string }, _optional = {}
 /** Boots one local site as the owner's child: a watchdog reaps this tree once the owner is gone
  * (checked first, then every second), then the shared admin bundle is built when none was supplied,
  * then the ordinary site entrypoint is imported.
- * @throws When the owner pid is missing or invalid (before any timer or build starts).
+ * @throws When the owner pid is invalid, or a required admin build directory is missing.
  * @complexity O(1) besides the bundle build and the site boot.
  */
 export async function runLocalSiteChild(
@@ -122,8 +122,14 @@ export async function runLocalSiteChild(
   watchdog.unref();
   if (parentGone({ proc, ownerPid })) { timers.clearInterval({ handle: watchdog }); await reap(); return; }
   if (!proc.env.TOVU_ADMIN_DIST) {
+    const runtimeDir = proc.env.TOVU_LOCAL_ADMIN_BUILD_ROOT;
+    const repoRoot = proc.env.TOVU_REPO_ROOT;
+    if (runtimeDir === undefined || repoRoot === undefined) {
+      timers.clearInterval(watchdog);
+      throw new Error(runtimeDir === undefined ? "local site child has no admin build root" : "local site child has no repository root");
+    }
     proc.env.TOVU_ADMIN_DIST = await buildAdminBundle({
-      runtimeDir: proc.env.TOVU_LOCAL_ADMIN_BUILD_ROOT!, repoRoot: proc.env.TOVU_REPO_ROOT!,
+      runtimeDir, repoRoot,
     }, { env: proc.env });
   }
   if (ownerLost) return;

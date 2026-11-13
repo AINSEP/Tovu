@@ -608,9 +608,10 @@ export function installFirstPartyToolContributors(
           } }) } : {}),
         } satisfies import("#src/features/custom-credentials/credential-save-tool").CredentialSaveAdapters;
       };
+      const projectKeys = originalDeps.projectKeys;
       return buildCredentialSaveRegistrations({
         adapters: adaptersFor(loadPluginCredentialCards),
-        savedResult: originalDeps.projectKeys ? input => originalDeps.projectKeys!.savedResult(input) : undefined,
+        savedResult: projectKeys ? input => projectKeys.savedResult(input) : undefined,
         loadPluginCredentialCards: () => loadPluginCredentialCards(originalDeps.workspaceId),
         authorizePluginProvider: ctx => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: originalDeps.authorize }), workspaceId: originalDeps.workspaceId, principalId: ctx.principal.id, permission: 'custom-credentials.write' }, { entityType: 'custom-credentials' }),
         adaptersForCards: ({ cards }) => adaptersFor(async () => cards),

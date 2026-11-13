@@ -14,7 +14,11 @@ import type { LoadSourceControlProviders } from '#src/features/source-control/pr
 export function sourceControlKeyBinding({ credentials, loadProviders }: {
   credentials: CustomCredentialWriteDeps; loadProviders: LoadSourceControlProviders;
 }, _optional = {}): CanonicalSourceControlKeys {
-  const labelFor = (providerId: string) => sourceControlSavedApiKeyLabels.get(providerId)!;
+  const labelFor = (providerId: string) => {
+    const label = sourceControlSavedApiKeyLabels.get(providerId);
+    if (label === undefined) throw new Error(`source control provider ${providerId} has no saved key label`);
+    return label;
+  };
   return {
     supports: ({ providerId }) => sourceControlSavedApiKeyLabels.has(providerId),
     describe: async ({ workspaceId, providerId }) => {
