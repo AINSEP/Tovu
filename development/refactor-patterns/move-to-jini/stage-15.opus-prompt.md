@@ -10,16 +10,23 @@ EXECUTOR: Opus writes a split spec per package batch; Terra applies each spec wi
 - If this job edits Jini, the runner must give you `/Users/la/Programming/jini-terra-d1` as a writable directory; if it is read-only, stop and say so.
 
 Preconditions (check each; stop and report if one fails):
-1. Stages 04, 06-14 landed (the ratchet below exits 0; their reports exist). 2. Tovu `node_modules` linked to `/Users/la/Programming/jini-terra-d1`. 3. Owner decision D2 answered for the 40 rows naming `core` (default: send them to the nearest domain package instead).
+1. Stages 04, 06-14 landed (the ratchet below exits 0; their reports exist). 2. Tovu `node_modules` linked to `/Users/la/Programming/jini-terra-d1`.
+
+## Owner gate D2 (persistent; applies to every row, symbol and fallback in this job)
+Owner decision D2 (may `@jini-ai/core` hold runtime helpers outside `core/contracts/`?) is OPEN; its default is WAIT. Until the coordinator replaces this block with the owner's answer:
+- A row or symbol whose destination is `@jini-ai/core` outside a `contracts` subpath, or whose survey text names core as its home for runtime code, WAITS: do not move it, do not split it, and do NOT choose another package for it (not "the nearest domain package", not a new package). Report it as WAITING with `waits_on: owner:D2`.
+- Not affected: types and interfaces under `@jini-ai/core/contracts/*`, and IMPORTING an existing `@jini-ai/core` export.
+
+The 40 rows naming `core` are covered by this gate: while it stands, their core symbols are not specced (list them as WAITING, `waits_on: owner:D2`); their other symbols may still be specced.
 
 ## Input
 `development/refactor-patterns/move-to-jini/stage-15.files.tsv`. Batch order = fewest host contracts first, by package: http-kit, diagnostics, agent-runtime, agentic, mcp, desktop-host, plugins, integrations, db, user-management, daemon, agent-plugins, devops, chat, platform, admin, ui, cms, core (D2), then the 96 rows with no package (home decision per row, like stage 12 kind B). At most ~40 files per batch.
 
 ## Opus: the split spec (per batch), no code edits
-Write `development/refactor-patterns/move-to-jini/stage-15/<batch>.split.tsv` with one row per symbol that moves: `path`, `symbol`, `kind` (function/type/const/class), `jini_pkg`, `export_key` (existing only; new = list separately as stage-12 kind D), `port` (name + members, `(required, optional = {})` shape, declared by the consumer, doc comment naming the binder), `stays` (the Tovu part that stays and calls the Jini symbol), `tests` (Tovu tests that cover the symbol). Rules: a symbol moves only with everything it needs (same-file helpers, types); never move a symbol that reads Tovu config, routes, env vars or feature modules unless that dependency becomes a port; keep the Tovu file as the product part plus the port binding. Then generate a Terra prompt for the batch: copy `development/refactor-patterns/move-to-jini/stage-06.terra-prompt.md`, replace its Input/table section with the spec (symbol-level), and keep every other section unchanged. Commit the spec and prompt (explicit paths).
+Write `development/refactor-patterns/move-to-jini/stage-15/<batch>.split.tsv` with one row per symbol that moves: `path`, `symbol`, `kind` (function/type/const/class), `closure` (every same-file declaration the symbol needs, transitively, comma-separated; each closure member is either also a moving symbol row or is listed here and moves with it), `jini_pkg`, `export_key` (existing only; new = list separately as stage-12 kind D), `jini_file` (destination file path in Jini), `port` (name + members, `(required, optional = {})` shape, declared by the consumer, doc comment naming the binder), `api` (the public signature after the move; must be `(required, optional = {})`), `stays` (the Tovu symbols that stay in that file and call the Jini symbol), `tests` (Tovu tests that cover the symbol). Rules: a symbol moves only with its whole closure; a closure member that is also used by a `stays` symbol is NOT moved twice: it moves and the staying code imports it from Jini; never move a symbol that reads Tovu config, routes, env vars, `console.*` or feature modules unless that dependency becomes a port; the Tovu file keeps the product part plus the port binding and is never deleted by a split. Then generate the Terra prompt for the batch with the SPLIT template (never by copying the stage-06 MOVE prompt, which deletes whole files): `cd /Users/la/Programming/tovu-terra-d1 && python3 development/refactor-patterns/move-to-jini/write-prompts.py --split-batch <batch> --input development/refactor-patterns/move-to-jini/stage-15/<batch>.split.tsv`, which writes `development/refactor-patterns/move-to-jini/stage-15/<batch>.terra-prompt.md`. Commit the spec and prompt (explicit paths).
 
 ## Terra: apply the spec
-Same as stages 06-11, at symbol level: move the listed symbols (and their doc comments) into the Jini file at the export's folder (one Jini file per Tovu file, same basename unless it clashes), export them, declare the ports, then in Tovu import the symbols from Jini and bind the ports at the call sites the spec names. The ratchet gate must stay at 0.
+The generated split prompt (symbol level): copy only the listed declarations and their closure into the Jini file, export them, declare the ports; in Tovu remove ONLY those declarations, import what the staying code still uses from Jini, keep every `stays` symbol byte-identical, keep the file. The ratchet gate must stay at 0. After each batch lands the coordinator appends `15-<batch>` to `development/refactor-patterns/move-to-jini/stages-landed.txt` and runs the stage-13 retry (rows waiting on that batch come back).
 
 ## Ratchet gate (stage 04 has landed: every count must be 0; run before and after, paste both)
 ```
@@ -44,7 +51,8 @@ Exit code 1 = you added a feature cycle. Find it with `--edges` and undo the imp
 - Commit with explicit paths: `git add -- <paths> && git commit -F msg -- <paths>` (one commit per repo per stage; message given below; end it with the line `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`). If `.git` is read-only in your sandbox, do not commit; list every changed path in the report instead. Never push.
 
 ## Report (your final message)
-1. Per row/edge: DONE, BLOCKED (with the exact blocking `file:line` and import), or SKIPPED (why). Use the row's path as the key.
+1. Per row/edge: DONE, BLOCKED (with the exact blocking `file:line` and import), WAITING, or SKIPPED (why). Use the row's `was` path if set, else its path, as the key. Every row that is not DONE also gets `waits_on:` = what must land first: `path:<tovu path>` (a file that must be gone), `stage:<id>` (e.g. `stage:15-cms`), `owner:<Dn>`, or `design:<one line>`. The coordinator copies these into `development/refactor-patterns/move-to-jini/ledger.tsv`; rows come back automatically when their dependency lands (`stage-lists.mjs --retry`).
+   Every file or symbol you moved or renamed: one line `SUCCESSOR <old path>[#symbol] -> <new path or @jini-ai specifier>[#symbol]` (the coordinator copies them into `successors.tsv` so later stage lists follow the code).
 2. The gate outputs (before/after).
 3. Commits (sha + repo) or, if `.git` was read-only, the changed paths.
 4. Anything surprising, in one line each. Do not paste diffs.

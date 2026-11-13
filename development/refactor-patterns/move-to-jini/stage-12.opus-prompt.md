@@ -16,15 +16,27 @@ Preconditions (check each; stop and report if one fails):
 4. Tovu `node_modules` is the APFS copy linked to `/Users/la/Programming/jini-terra-d1` (same check as the stage 06 prompt's Preflight 2).
 
 ## Input
-`development/refactor-patterns/move-to-jini/stage-12.files.tsv` (23 rows: Express-bound, no package named, or a package outside 06-11: server, sandbox, commerce, cookie-consent, capability-providers) plus `stage-12.blocked.tsv`.
+`development/refactor-patterns/move-to-jini/stage-12.files.tsv` (24 rows: Express-bound, no package named, a package outside 06-11: server, sandbox, commerce, cookie-consent, capability-providers; plus one stage-02 row the designer routed here, see its `route` column) plus `stage-12.blocked.tsv`.
+
+## Owner gate D2 (persistent; applies to every row, symbol and fallback in this job)
+Owner decision D2 (may `@jini-ai/core` hold runtime helpers outside `core/contracts/`?) is OPEN; its default is WAIT. Until the coordinator replaces this block with the owner's answer:
+- A row or symbol whose destination is `@jini-ai/core` outside a `contracts` subpath, or whose survey text names core as its home for runtime code, WAITS: do not move it, do not split it, and do NOT choose another package for it (not "the nearest domain package", not a new package). Report it as WAITING with `waits_on: owner:D2`.
+- Not affected: types and interfaces under `@jini-ai/core/contracts/*`, and IMPORTING an existing `@jini-ai/core` export.
+
 
 ## Per row, decide the kind, then act
 - A. Express-bound: rewrite the handler to the `{ app: Server }` contract exactly as `server-port.md` section 2 says (web Request -> Response, `ServerMiddleware` + `withServerMiddleware`, `readJsonBody`, errors by throwing, cookies via `headers.append`). The Express adapter stays in Tovu. Behaviour pins first: before rewriting, make sure a Tovu test pins status, body and headers of each route (write it if missing, run it green on the old code), then it must stay green on the new code.
-- B. No package named: pick the home (an existing package and subpath; a new package is an owner decision: report it instead). One line of reasoning per row in the report.
+- B. No package named: pick the home (an existing package and subpath; a new package is an owner decision: report it instead). One line of reasoning per row in the report. Never pick `@jini-ai/core` for runtime code, and never re-home a row the D2 gate holds (it stays WAITING).
+- F. Blocked for logging (`console.*`): apply "Logging in moved code" below (the test pinning today's output through the host's redacting binding comes first, red/green), then move as usual. `features/site-inspection/section-collector.ts` is such a row AND a D2 row: it stays WAITING until D2 is answered, and its port is specified then.
+- G. Blocked for API shape: write the `(required, optional)` mapping and convert every call site; a protocol hook or a function passed as a value keeps its shape behind a small conforming wrapper export (the wrapper is the public API).
 - C. Package outside 06-11: if the package exists in `/Users/la/Programming/jini-terra-d1/packages`, move as in stages 06-11; if not (e.g. `server`, `commerce`, `cookie-consent`, `capability-providers`, `sandbox`), check the owner rules (no vendor code in core; commerce is future agent plugins; a new package is an owner decision) and report a recommendation instead of creating it.
 - D. Needs a new subpath: add the export key to the package's `package.json` `exports` (dist + types, same shape as its neighbours) and its entry file; this is additive. Name it after what it does, not after the host.
 - E. Visual (from stage 09): move it, then LOOK at the admin screen that renders it in the real running admin via Claude in Chrome (never a headless screenshot); the coordinator says which local site to use.
-- Mechanics for every move (destination, tests to `__tests__` with node:test -> vitest, typecheck + build the package, changeset file, Tovu repoint and delete, `Jini-Base:` trailer): read and follow `development/refactor-patterns/move-to-jini/stage-06.terra-prompt.md` sections "Label check", "READY check", "Ports", "Jini half", "Tovu half".
+- Mechanics for every move (destination, tests to `__tests__` with node:test -> vitest, typecheck + module-cycle check + build the package, changeset file, Tovu repoint and delete, `Jini-Base:` trailer): read and follow `development/refactor-patterns/move-to-jini/stage-06.terra-prompt.md` sections "Label check", "READY check", "Ports", "Public API shape", "Imports of the target package itself", "Jini half", "Tovu half".
+
+## Logging in moved code
+A moved file (or symbol) that calls `console.error|warn|log|info|debug` is BLOCKED here ("needs a log port": stage 12). Stage 12 replaces the call with an injected reporting port in the function's `required` object, e.g. `report: (required: { label: string; error: unknown }, optional?: Record<string, never>) => void`, documented "the host binds this to its redacting logger"; Jini code never falls back to `console`. Before changing that behaviour, a Tovu test pins today's logged output through the host binding (redaction included) and must stay green after.
+
 
 ## Ratchet gate (stage 04 has landed: every count must be 0; run before and after, paste both)
 ```
@@ -51,7 +63,8 @@ Exit code 1 = you added a feature cycle. Find it with `--edges` and undo the imp
 Commit messages: Jini `feat(<pkgs>): server-contract and remaining moves from the host app (move-to-jini stage 12)`; Tovu `refactor(tovu): import stage-12 moves from Jini (move-to-jini stage 12)` + `Jini-Base:` trailer.
 
 ## Report (your final message)
-1. Per row/edge: DONE, BLOCKED (with the exact blocking `file:line` and import), or SKIPPED (why). Use the row's path as the key.
+1. Per row/edge: DONE, BLOCKED (with the exact blocking `file:line` and import), WAITING, or SKIPPED (why). Use the row's `was` path if set, else its path, as the key. Every row that is not DONE also gets `waits_on:` = what must land first: `path:<tovu path>` (a file that must be gone), `stage:<id>` (e.g. `stage:15-cms`), `owner:<Dn>`, or `design:<one line>`. The coordinator copies these into `development/refactor-patterns/move-to-jini/ledger.tsv`; rows come back automatically when their dependency lands (`stage-lists.mjs --retry`).
+   Every file or symbol you moved or renamed: one line `SUCCESSOR <old path>[#symbol] -> <new path or @jini-ai specifier>[#symbol]` (the coordinator copies them into `successors.tsv` so later stage lists follow the code).
 2. The gate outputs (before/after).
 3. Commits (sha + repo) or, if `.git` was read-only, the changed paths.
 4. Anything surprising, in one line each. Do not paste diffs.

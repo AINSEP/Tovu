@@ -12,10 +12,16 @@ All moves landed while Tovu used the linked Jini clone. This job prepares the si
 - BOOTSTRAP: `AI-Dev-Shop/AGENTS.md` is missing in these clones. That is expected: do not look for it, do not stop, proceed with this prompt.
 - If this job edits Jini, the runner must give you `/Users/la/Programming/jini-terra-d1` as a writable directory; if it is read-only, stop and say so.
 
+## Owner gate D2 (persistent; applies to every row, symbol and fallback in this job)
+Owner decision D2 (may `@jini-ai/core` hold runtime helpers outside `core/contracts/`?) is OPEN; its default is WAIT. Until the coordinator replaces this block with the owner's answer:
+- A row or symbol whose destination is `@jini-ai/core` outside a `contracts` subpath, or whose survey text names core as its home for runtime code, WAITS: do not move it, do not split it, and do NOT choose another package for it (not "the nearest domain package", not a new package). Report it as WAITING with `waits_on: owner:D2`.
+- Not affected: types and interfaces under `@jini-ai/core/contracts/*`, and IMPORTING an existing `@jini-ai/core` export.
+
 ## Preconditions (stop and report if one fails)
 1. `ls /Users/la/Programming/jini-terra-d1/.changeset/move-to-jini-stage-*.md` lists the stage release notes.
 2. Ratchet gate (below) exits 0 for website and admin.
 3. `git -C /Users/la/Programming/jini-terra-d1 status --short` and `git -C /Users/la/Programming/tovu-terra-d1 status --short` show nothing staged or modified (untracked files are fine).
+4. Every row of every stage list has a final disposition: `cd /Users/la/Programming/tovu-terra-d1 && node development/refactor-patterns/move-to-jini/stage-lists.mjs --check-disposition` exits 0 (ledger status DONE, STAYS, DEFERRED with the todos.md entry, RECLASSIFIED, or OWNER with `waits_on: owner:<Dn>`). Any WAITING or missing row: stop and paste the list; the coordinator runs one more stage-13 retry or records a disposition. Nothing is silently left behind.
 
 ## Do
 1. Removals (the only breaking part of 0.8.0): only the exports listed in `development/refactor-patterns/move-to-jini/stage-16.remove-exports.tsv` (written by the coordinator: package, export key, symbol, proof that no Tovu or Jini code imports it). If the file is missing, remove nothing. For each row: `rg -n -w "<symbol>" /Users/la/Programming/jini-terra-d1/packages /Users/la/Programming/tovu-terra-d1/apps` must show only the declaration; then delete the export line (and the declaration if nothing else uses it). Add a `major`-free note to `.changeset/move-to-jini-stage-16.md` (`"@jini-ai/<pkg>": minor`, "Removed `<symbol>` from `<export key>`; it only served a host shim.").
@@ -49,7 +55,8 @@ Exit code 1 = you added a feature cycle. Find it with `--edges` and undo the imp
 Change summaries for the coordinator's commits: Jini `chore(release): version packages 0.8.0 (move-to-jini)`; Tovu `chore(deps): @jini-ai/* ^0.8.0 (move-to-jini stage 16)`.
 
 ## Report (your final message)
-1. Per row/edge: DONE, BLOCKED (with the exact blocking `file:line` and import), or SKIPPED (why). Use the row's path as the key.
+1. Per row/edge: DONE, BLOCKED (with the exact blocking `file:line` and import), WAITING, or SKIPPED (why). Use the row's `was` path if set, else its path, as the key. Every row that is not DONE also gets `waits_on:` = what must land first: `path:<tovu path>` (a file that must be gone), `stage:<id>` (e.g. `stage:15-cms`), `owner:<Dn>`, or `design:<one line>`. The coordinator copies these into `development/refactor-patterns/move-to-jini/ledger.tsv`; rows come back automatically when their dependency lands (`stage-lists.mjs --retry`).
+   Every file or symbol you moved or renamed: one line `SUCCESSOR <old path>[#symbol] -> <new path or @jini-ai specifier>[#symbol]` (the coordinator copies them into `successors.tsv` so later stage lists follow the code).
 2. The gate outputs (before/after).
 3. Changed, added and deleted paths per repo (you do not commit).
 4. Anything surprising, in one line each. Do not paste diffs.

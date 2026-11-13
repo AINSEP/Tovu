@@ -103,6 +103,48 @@ def destination(row, pj):
     return cands[0], None
 
 
+# Vitest has no node:test context object. The only context call with an exact vitest twin is
+# `t.after(fn)` -> `onTestFinished(fn)`; any other `t.<x>` use or a test options object keeps the
+# test in Tovu (review d1 #7: `t.after` left in a converted test calls a method that does not exist).
+TEST_CB = re.compile(r"""\b(?:test|it)\(\s*(?:"[^"]*"|'[^']*'|`[^`]*`)\s*,\s*(?:async\s+)?(?:\(\s*(\w+)\s*\)|(\w+))\s*=>""")
+TEST_OPTS = re.compile(r"""\b(?:test|it|describe)\(\s*(?:"[^"]*"|'[^']*'|`[^`]*`)\s*,\s*\{""")
+
+
+def node_test_context(src):
+    """'' when the test converts as written; 'after' when only t.after is used; else the reason it stays."""
+    if TEST_OPTS.search(src):
+        return "stay:node test options"
+    used = set()
+    for m in TEST_CB.finditer(src):
+        name = m.group(1) or m.group(2)
+        used |= set(re.findall(r"\b%s\.(\w+)" % re.escape(name), src))
+    if not used:
+        return ""
+    return "after" if used == {"after"} else "stay:t." + ",t.".join(sorted(used))
+
+
+# Owner rule: public functions take (required, optional = {}) objects. A moved file's exported
+# function becomes public Jini API, so a positional/scalar signature is flagged (review d1 #11).
+EXPORT_FN = re.compile(r"export\s+(?:async\s+)?function\s+(\w+)\s*(?:<[^>]*>)?\s*\(([^)]*)\)|export\s+const\s+(\w+)\s*=\s*(?:async\s*)?\(([^)]*)\)\s*(?::[^=]*)?=>")
+
+
+def api_shape_flags(src):
+    out = []
+    for m in EXPORT_FN.finditer(src):
+        name, params = (m.group(1), m.group(2)) if m.group(1) else (m.group(3), m.group(4))
+        flat = " ".join(params.split())
+        if not flat or flat.startswith("{") or re.match(r"_?required\b[^,]*(,\s*_?optional\w*\b[^,]*)?$", flat):
+            continue
+        first_type = flat.split(":", 1)[1].strip() if ":" in flat.split(",")[0] else ""
+        scalar = re.match(r"(readonly\s+)?(string|number|boolean|bigint|unknown|any|Date|RegExp|Uint8Array|Buffer)\b|.*\[\]\s*$|Array<", first_type.split(",")[0].strip())
+        # a second parameter other than the optional object is positional too
+        second = re.search(r",\s*(\w+)\??\s*[:=]", flat)
+        extra = second is not None and not re.match(r"_?(optional|options|opts)\w*$", second.group(1))
+        if scalar or extra or not first_type:
+            out.append(f"API `{name}({flat[:60]})`")
+    return out
+
+
 def table(stage, idx):
     return table_from(f"{D}/stage-{stage}.files.tsv", stage, idx)
 
@@ -146,18 +188,30 @@ def table_from(tsv, stage, idx):
         code = "\n".join(l for l in src.split("\n") if not re.match(r"\s*(//|\*|/\*)", l))
         if re.search(r"\bTovu\b|\btovu\b|TOVU_", code):
             flags.append("Tovu string in code")
+        if re.search(r"\bconsole\.(error|warn|log|info|debug)\(", code):
+            flags.append("console.* call: needs an injected log port (BLOCKED -> stage 12)")
+        if r["pkg"] == "core" and not (r.get("subpath") or "").startswith("/contracts"):
+            flags.append("WAITS D2 (runtime code into core)")
+        for spec, _ in specs(r["path"]):
+            if spec.startswith(f"@jini-ai/{r['pkg']}/") or spec == f"@jini-ai/{r['pkg']}":
+                flags.append(f"own-pkg `{spec}`: import the declaring leaf file, never the entry")
+        flags.extend(api_shape_flags(code))
         if stage == "09" and re.search(r"className|style=|\.css['\"]", src):
             flags.append("visual (className/CSS): stage 12")
-        imps = sorted(idx.get(r["path"], ()))
+        # `was` = the survey path before a landed successor (successors.tsv); a shim left there
+        # still has importers to repoint.
+        imps = sorted(idx.get(r["path"], set()) | idx.get(r.get("was") or "", set()))
         tests = [t for t in imps if is_test(t)]
         prods = [p for p in imps if not is_test(p)]
         tcol = []
         for t in tests:
             local = {resolve(os.path.join(TOVU, t), s) for s, _ in specs(t)} - {None}
-            mocks = re.search(r"\bmock\b", open(os.path.join(TOVU, t), encoding="utf8").read()) is not None
+            tsrc = open(os.path.join(TOVU, t), encoding="utf8").read()
+            mocks = re.search(r"\bmock\b", tsrc) is not None
             other = sorted(x.split("/")[-1] for x in local - stage_set)
-            why = "mock" if mocks else ("also " + ",".join(other[:3]) if other else "")
-            tcol.append(("M " if not why else f"S({why}) ") + t)
+            ctx = node_test_context(tsrc)
+            why = "mock" if mocks else ("also " + ",".join(other[:3]) if other else (ctx[5:] if ctx.startswith("stay:") else ""))
+            tcol.append(("M " if not why else f"S({why}) ") + ("[t.after->onTestFinished] " if ctx == "after" and not why else "") + t)
             flags = list(dict.fromkeys(flags))
         print(f"| {i} | `{r['path']}` ({r['loc']}) | {r['pkg']} | `{sub}` -> `{entry or '-'}` | {'<br>'.join(tcol) or 'none'} | {len(prods)}: {', '.join(p.split('/')[-1] for p in prods[:6])}{' ...' if len(prods) > 6 else ''} | {'; '.join(flags) or 'clean'} |")
 

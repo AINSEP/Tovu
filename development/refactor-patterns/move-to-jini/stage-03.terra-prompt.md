@@ -12,6 +12,11 @@ The website features form one import cycle of 24 features. Five runtime imports 
 - BOOTSTRAP: `AI-Dev-Shop/AGENTS.md` is missing in these clones. That is expected: do not look for it, do not stop, proceed with this prompt.
 - If this job edits Jini, the runner must give you `/Users/la/Programming/jini-terra-d1` as a writable directory; if it is read-only, stop and say so.
 
+## Owner gate D2 (persistent; applies to every row, symbol and fallback in this job)
+Owner decision D2 (may `@jini-ai/core` hold runtime helpers outside `core/contracts/`?) is OPEN; its default is WAIT. Until the coordinator replaces this block with the owner's answer:
+- A row or symbol whose destination is `@jini-ai/core` outside a `contracts` subpath, or whose survey text names core as its home for runtime code, WAITS: do not move it, do not split it, and do NOT choose another package for it (not "the nearest domain package", not a new package). Report it as WAITING with `waits_on: owner:D2`.
+- Not affected: types and interfaces under `@jini-ai/core/contracts/*`, and IMPORTING an existing `@jini-ai/core` export.
+
 ## Gate numbers (measured on `design-d1`, 2026-11-13; re-run first and paste)
 ```
 cd /Users/la/Programming/tovu-terra-d1
@@ -40,7 +45,25 @@ a) `features/project-keys/site-references.ts:4` imports `apiConnectionVaultScope
    - `site-references.ts:4`: import both names from `"#src/platform/secrets/vault-api-connection-meta"`.
    - Check: `grep -n "^import" apps/website/src/platform/secrets/vault-api-connection-meta.ts` shows no `#src/features` import.
    - Test: `apps/website/src/features/api-connections/__tests__/plugin-state-format.pin.unit.test.ts` (single-file command below).
-b) `features/project-keys/shared-oauth-disconnect.ts:4` `import type { SharedOAuthOwnerStorage }` from `../api-connections/shared-owner.js` (declared `shared-owner.ts:79`): apply the TYPE-DOWN recipe (step 4).
+b) `features/project-keys/shared-oauth-disconnect.ts:4` `import type { SharedOAuthOwnerStorage }` from `../api-connections/shared-owner.js`. Do NOT apply the TYPE-DOWN recipe here: that name is declared as `ReturnType<typeof createSharedOAuthOwnerStorage>` (`shared-owner.ts:79`), a runtime-value reference, so moving it would drag the factory (and the edge) along. The designer has specified an explicit contract instead; write exactly this:
+   - New file `apps/website/src/contracts/core/api-connections/shared-owner.ts` (`@file` one line: "The shared OAuth owner storage contract; the api-connections factory implements it, project-keys consumes it."). Move into it, with their doc comments, `SharedOAuthIssuingContext` (`shared-owner.ts:10-17`) and `ApiConnectionVaultRecordStore` (`vault-stores.ts:42-46`), then declare:
+```ts
+/** The owner store for one shared (project-scope) OAuth connection: sealed issuing context, the
+ *  connection record store and the token store. Implemented by `createSharedOAuthOwnerStorage`. */
+export interface SharedOAuthOwnerStorage {
+  readonly vault: SecretsVaultService;
+  readonly records: ApiConnectionVaultRecordStore;
+  readContext(required: { credentialId: string }): Promise<SharedOAuthIssuingContext | null>;
+  saveContext(required: { credentialId: string; context: SharedOAuthIssuingContext }): Promise<void>;
+  tokensFor(required: { context: SharedOAuthIssuingContext }): ApiConnectionTokenStore;
+  readConnection(required: { credentialId: string }): Promise<SharedOAuthConnection | null>;
+}
+```
+     Its imports are type-only and Jini-only: `SecretsVaultService` from `@jini-ai/platform/secrets/credential-sets`; `ApiConnectionRecordStore`, `ApiConnectionAttempt`, `ApiConnectionTokenStore`, `SharedOAuthConnection`, `ApiConnectionClientKind`, `ApiConnectionDescriptor` from `@jini-ai/integrations/api-connections`; `OAuthClient` from `@jini-ai/oauth` (prove each in the installed `.d.ts` with `grep -rn -w`; one missing = BLOCKED, leave all files as they were).
+   - `api-connections/shared-owner.ts`: annotate the factory's return type `): SharedOAuthOwnerStorage {`, replace line 79 by `export type { SharedOAuthOwnerStorage, SharedOAuthIssuingContext } from "#src/contracts/core/api-connections/shared-owner";` plus an `import type` of the names it still uses. `api-connections/vault-stores.ts`: `import type` + `export type { ApiConnectionVaultRecordStore }` from the new file. Every other importer keeps its import.
+   - Check each member signature against the factory's object literal (`shared-owner.ts:53-77`) by reading it; a member whose parameter or return type differs from the list above: stop on this edge and report BLOCKED with the line (the coordinator's cloud typecheck is the final proof).
+   - `shared-oauth-disconnect.ts:4` imports `type { SharedOAuthOwnerStorage }` from `"#src/contracts/core/api-connections/shared-owner"`.
+   - SUCCESSOR lines for the report: `apps/website/src/features/api-connections/shared-owner.ts#SharedOAuthOwnerStorage -> apps/website/src/contracts/core/api-connections/shared-owner.ts#SharedOAuthOwnerStorage` (same for `SharedOAuthIssuingContext`, `ApiConnectionVaultRecordStore`).
 
 ## Step 3. C4a: delete the source-control repository-target pass-through
 `apps/website/src/features/source-control/repository-target.ts` is a 20-line wrapper: `repositoryTargetError(target, validateTarget)` calls `@jini-ai/devops/source-control` `repositoryTargetError(target, { validateTarget })`. Prove the Jini export: `grep -rn "repositoryTargetError" node_modules/@jini-ai/devops/dist/source-control/*.d.ts`.
@@ -81,7 +104,7 @@ Edges (file:line -> names; "decl" = where the name is declared today, a hint: ve
 | site-inspection->deployments | `features/site-inspection/live-url.ts:5` | `PublishHistoryStore` | as above |
 | theme->site-guide | `features/theme/capability-card.ts:2` | `CapabilityCard` | `site-guide/contracts.ts:3` (25 lines; R2 if types only, else R3) |
 | vendor-credentials->source-control | `features/vendor-credentials/vault-adapter.ts:4` | `SourceControlCredentialSetRecord` | `source-control/types.ts:23` (R3). It references `SealedSecret` (`../webhooks/index.js`: follow, expect Jini) and `CredentialProjectHalf<R>` (`vendor-credentials/project-scope.ts:19`, references `SecretSealerPort` from `../webhooks/index.js`). Move `CredentialProjectHalf` down too, to `contracts/core/vendor-credentials/project-scope.ts` (R3), so `contracts/core/source-control/types.ts` imports it from contracts/core, never from a feature. If `webhooks/index.js` does not lead to Jini for those two names: BLOCKED. |
-| project-keys->api-connections | `features/project-keys/shared-oauth-disconnect.ts:4` | `SharedOAuthOwnerStorage` | `api-connections/shared-owner.ts:79` (R3) |
+| project-keys->api-connections | `features/project-keys/shared-oauth-disconnect.ts:4` | `SharedOAuthOwnerStorage` | NOT this recipe: step 2b (explicit contract; the name is a `ReturnType<typeof factory>`) |
 
 After this step, `node development/refactor-patterns/move-to-jini/feature-cycles.mjs --include-type --edges` must not list any of these importing file:line pairs. The 4 remaining type edges of the 5-feature SCC (`custom-credentials/tool-registrations.ts:9`, `:49`, ...) belong to stage 04: leave them.
 
@@ -93,7 +116,14 @@ Tests: run each admin test file that imports a moved file once (admin single-fil
 
 ## Step 6. Jini: 2 module cycles (Jini clone, `/Users/la/Programming/jini-terra-d1`)
 a) `packages/cms/src/forms/errors.ts:51,53` uses inline `import('./stale-form.js').FormRetryDraft`, and `stale-form.ts` imports `errors.ts`. Move `FormRetryAnswer` and `FormRetryDraft` (`stale-form.ts:7-8`) into `packages/cms/src/forms/types.ts`. `stale-form.ts` imports them from `./types.js` and keeps exporting them (`export type { FormRetryAnswer, FormRetryDraft } from './types.js';`) so the public surface is unchanged; `errors.ts` uses a top-level `import type { FormRetryDraft } from './types.js';` in place of the two inline imports. Check: `grep -n "stale-form" packages/cms/src/forms/errors.ts` prints nothing.
-b) `packages/admin/src/comments/react/hooks/QueueSection.hooks.ts:8` imports the component file that imports these hooks. Move the `QueueActionsCell` component (`components/QueueSection.tsx:52-` to its end) to a new `components/QueueActionsCell.tsx`, and `useQueueActionsCell` (`hooks/QueueSection.hooks.ts:23-` to its end) to a new `hooks/QueueActionsCell.hooks.ts`. The original files import from the new ones and re-export the moved names (the package's public exports must not change: `grep -rn "QueueActionsCell\|useQueueActionsCell" packages/admin/src --include=index.ts` before and after must resolve). Check: neither new file imports `QueueSection`.
+b) `packages/admin/src/comments/react/hooks/QueueSection.hooks.ts:8` imports `QueueActionsCell` (a value) from the component file that imports these hooks. Move exactly two declarations; everything else stays where it is (`QueueToolbar`, `QueueTable`, `QueueItemsView`, `QueuePurgeDialog`, `QueueSectionProps`, `QueueSection`, `useQueueSection`, `useQueueToolbar`, `queueColumns`, `useQueueTable`):
+   - `useQueueActionsCell` = `hooks/QueueSection.hooks.ts:23-31` (from `export function useQueueActionsCell(` to its closing `}` on line 31; it has no doc comment) -> new `hooks/QueueActionsCell.hooks.ts`. Its imports: `import type { AdminComment, CommentModerationAction, CommentStatus } from '../../../core/ports/comments.js';`, `import { commentRowMenuItems } from '../../rules.js';`, `import type { CommentsTranslator } from '../../messages.en.js';`.
+   - `QueueActionsCell` = `components/QueueSection.tsx:47-83` (its 4-line doc comment at 47-50, then the function to its closing `}` on line 83) -> new `components/QueueActionsCell.tsx`. Its imports: the `AdminComment, CommentModerationAction, CommentStatus` types, `CommentsTranslator`, `RowActionState` (type, `../../rules.js`), `RowMenu` (`../../../react/components/RowMenu/RowMenu.js`), `interpolate` (`@jini-ai/ui/panel-kit`), and `useQueueActionsCell` from `'../hooks/QueueActionsCell.hooks.js'`.
+   - `hooks/QueueSection.hooks.ts:8` becomes `import { QueueActionsCell } from '../components/QueueActionsCell.js';` plus `import type { QueueSectionProps } from '../components/QueueSection.js';` (type-only: no runtime edge). Delete the moved function; drop imports it alone used (`commentRowMenuItems` stays if `queueColumns`/others still use it: check each name with `grep -n -w`).
+   - `components/QueueSection.tsx`: delete the moved function; `useQueueActionsCell` leaves its line-10 import (only `QueueActionsCell` used it); drop `RowMenu`/`interpolate` imports only if nothing else in the file uses them (`grep -n -w`).
+   - Re-exports, so any importer of the old file keeps working: `QueueSection.tsx` adds `export { QueueActionsCell } from './QueueActionsCell.js';` and `QueueSection.hooks.ts` adds `export { useQueueActionsCell } from './QueueActionsCell.hooks.js';`. Neither name is in a package `index.ts` today (`grep -rn "QueueActionsCell" packages/admin/src --include=index.ts` prints nothing before and after).
+   - Check: `grep -n "QueueSection" components/QueueActionsCell.tsx hooks/QueueActionsCell.hooks.ts` prints nothing; `grep -n "^import" hooks/QueueSection.hooks.ts` shows no VALUE import of `../components/QueueSection.js`.
+   - Module-cycle check: `python3 /Users/la/Programming/tovu-terra-d1/development/refactor-patterns/move-to-jini/jini-cycles.py admin > /Users/la/Programming/tovu-terra-d1/development/refactor-patterns/move-to-jini/.cycles-admin-before.txt` BEFORE the edit, and `python3 /Users/la/Programming/tovu-terra-d1/development/refactor-patterns/move-to-jini/jini-cycles.py admin --baseline /Users/la/Programming/tovu-terra-d1/development/refactor-patterns/move-to-jini/.cycles-admin-before.txt` after (must exit 0; it needs `/Users/la/Programming/jini-terra-d1/node_modules`: if missing, say so in the report and skip only this check). Same for `cms` around step 6a.
 Checks: `pnpm --filter @jini-ai/cms exec tsc -p tsconfig.json --noEmit` and the same for `@jini-ai/admin`; run the existing tests of those files one at a time (`ls packages/cms/src/forms/__tests__ packages/admin/src/comments/react/**/__tests__ 2>/dev/null`, pick the ones naming errors/stale-form/QueueSection). Do NOT build or publish Jini; this stage changes no export.
 
 ## Rules for every edit
@@ -118,7 +148,8 @@ Checks: `pnpm --filter @jini-ai/cms exec tsc -p tsconfig.json --noEmit` and the 
 Change summary for the coordinator's commits (Tovu, then Jini): `refactor(tovu): cut feature import cycles, move shared types down (move-to-jini stage 03)` and `refactor(jini): break two module cycles in cms forms and admin comments (move-to-jini stage 03)`.
 
 ## Report (your final message)
-1. Per row/edge: DONE, BLOCKED (with the exact blocking `file:line` and import), or SKIPPED (why). Use the row's path as the key.
+1. Per row/edge: DONE, BLOCKED (with the exact blocking `file:line` and import), WAITING, or SKIPPED (why). Use the row's `was` path if set, else its path, as the key. Every row that is not DONE also gets `waits_on:` = what must land first: `path:<tovu path>` (a file that must be gone), `stage:<id>` (e.g. `stage:15-cms`), `owner:<Dn>`, or `design:<one line>`. The coordinator copies these into `development/refactor-patterns/move-to-jini/ledger.tsv`; rows come back automatically when their dependency lands (`stage-lists.mjs --retry`).
+   Every file or symbol you moved or renamed: one line `SUCCESSOR <old path>[#symbol] -> <new path or @jini-ai specifier>[#symbol]` (the coordinator copies them into `successors.tsv` so later stage lists follow the code).
 2. The gate outputs (before/after).
 3. Changed, added and deleted paths per repo (you do not commit).
 4. Anything surprising, in one line each. Do not paste diffs.
