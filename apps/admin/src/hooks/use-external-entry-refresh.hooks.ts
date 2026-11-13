@@ -22,7 +22,7 @@ export interface ExternalEntryRefreshInput<Row extends ExternalEntryRevision> {
   /** The row the editor treats as its saved basis; `null` before load. */
   loaded: Row | null;
   /** Re-reads the row by id through the editor's own injected port. */
-  fetchLatest: (required: { id: string }) => Promise<Row>;
+  fetchLatest: (input: { id: string }, options?: Record<string, never>) => Promise<Row>;
   /** Called when the fetch SETTLES — must reflect the working copy at that instant, not at the
    *  moment the fetch started. */
   isDirty: () => boolean;

@@ -22,10 +22,10 @@ import type { PublishContentPort } from "./publish-content-port.hooks";
 export const defaultPublishContentPort: PublishContentPort = {
   listPeers: () => api.listPublishContentPeers(),
   getDestination: () => api.getPublishDestination(),
-  connectDestination: (input) => api.connectPublishDestination(input),
-  planPublish: (input) => api.planPublishContent(input),
-  confirmPublish: (input) => api.confirmPublishContent(input),
-  executePublish: (input) => api.executePublishContent(input),
+  connectDestination: (_input, options = {}) => api.connectPublishDestination(options),
+  planPublish: (input, _options = {}) => api.planPublishContent(input),
+  confirmPublish: (input, _options = {}) => api.confirmPublishContent(input),
+  executePublish: (input, _options = {}) => api.executePublishContent(input),
 };
 
 /** Seed state for {@link createFakePublishContentPort}. Every stage can be made to fail
@@ -176,7 +176,7 @@ export function createFakePublishContentPort(
       if (options.destinationError) throw options.destinationError;
       return options.destination ?? DEFAULT_DESTINATION;
     },
-    async connectDestination(input = {}): Promise<AdminPublishDestinationView> {
+    async connectDestination(_required, input = {}): Promise<AdminPublishDestinationView> {
       calls.connectDestination.push(input);
       if (options.connectError) throw options.connectError;
       if (options.connectResult) return options.connectResult;

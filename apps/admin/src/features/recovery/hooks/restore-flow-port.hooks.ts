@@ -6,8 +6,8 @@ import type { AdminDisclosureResult, GatedConfirmResult, GatedPlanResult, Restor
  * `apps/admin/INFO.md`'s Hooks section.
  */
 export interface RestoreFlowPort {
-  computeRecoveryDisclosure(restorePointId: string): Promise<AdminDisclosureResult>;
-  planRestore(restorePointId: string): Promise<GatedPlanResult>;
+  computeRecoveryDisclosure(input: { restorePointId: string }): Promise<AdminDisclosureResult>;
+  planRestore(input: { restorePointId: string }): Promise<GatedPlanResult>;
   confirmRestore(input: { planId: string; planHash: string; disclosureAcknowledged: boolean }): Promise<GatedConfirmResult>;
   executeRestore(input: { confirmationToken: string; restorePointId: string }): Promise<RestoreExecuteResult>;
 }

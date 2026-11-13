@@ -56,10 +56,10 @@ export function createRedirectsTranslator({ locale }: { locale: string }, _optio
   return (key, vars = {}) => {
     if (vars.serverLabel !== undefined) return serverLabel({ value: String(vars.serverLabel), locale });
     switch (key) {
-      case '{created} created, {failed} failed.': return importResultSummary(locale, Number(vars.created), Number(vars.failed));
-      case 'Created': return createdLabel(locale);
-      case 'Item {index} ({code})': return failedItemLabel(locale, Number(vars.index), String(vars.code));
-      case 'Actions for redirect rule from "{fromPattern}"': return actionsForRedirectLabel(locale, String(vars.fromPattern));
+      case '{created} created, {failed} failed.': return importResultSummary({ locale: locale, created: Number(vars.created), failed: Number(vars.failed) });
+      case 'Created': return createdLabel({ locale: locale });
+      case 'Item {index} ({code})': return failedItemLabel({ locale: locale, index: Number(vars.index), code: String(vars.code) });
+      case 'Actions for redirect rule from "{fromPattern}"': return actionsForRedirectLabel({ locale: locale, fromPattern: String(vars.fromPattern) });
       default: return interpolate({ template: translateRedirects({ locale, key }), vars });
     }
   };

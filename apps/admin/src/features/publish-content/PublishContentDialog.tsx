@@ -123,7 +123,7 @@ export function PublishContentDialog({
           <select
             value={view.selectedPeerId ?? ""}
             disabled={!view.peerSelectionEnabled}
-            onChange={(e) => view.onSelectPeer(e.target.value)}
+            onChange={(e) => view.onSelectPeer({ peerId: e.target.value })}
             {...agentHandle(
               { handle: "dashboard-publish-content-peer" },
               {

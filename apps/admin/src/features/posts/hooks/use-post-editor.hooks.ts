@@ -128,9 +128,9 @@ export interface PostEditorController extends PostEditorUiController {
   /** `null` until TipTap has mounted; the toolbar and `EditorContent` both gate on it. */
   editor: Editor | null;
   title: string;
-  setTitle: (title: string) => void;
+  setTitle: (input: { next: string }, options?: Record<string, never>) => void;
   slug: string;
-  setSlug: (slug: string) => void;
+  setSlug: (input: { value: string }, options?: Record<string, never>) => void;
   status: "draft" | "published";
   setStatus: (status: "draft" | "published") => void;
   templateChoice: string | null;
@@ -275,7 +275,7 @@ export interface PostEditorController extends PostEditorUiController {
   /** Stable name shared by the hidden form's `target` and the iframe it submits into. `""` before
    *  `post` loads — `PostPreview` never renders that early. */
   previewFormTarget: string;
-  save: (statusOverride?: "draft" | "published") => Promise<void>;
+  save: (input: Record<string, never>, options?: { statusOverride?: "draft" | "published" }) => Promise<void>;
   /**
    * Optimistic concurrency (2026-09-06) — non-null once a save was rejected because another
    * operator's save superseded the version this editor loaded. The caller renders an explicit
@@ -367,8 +367,11 @@ const lowlight = createLowlight(common);
  * `||` chain scores independently of `usePostEditor`'s complexity.
  */
 function computeContentDirty(
-  current: { title: string; slug: string; status: "draft" | "published"; bodyJson: unknown; overridesThemePage: boolean | null; author: string; showAuthor: boolean },
-  original: PostFormState | null,
+  { current, original }: {
+    current: { title: string; slug: string; status: "draft" | "published"; bodyJson: unknown; overridesThemePage: boolean | null; author: string; showAuthor: boolean };
+    original: PostFormState | null;
+  },
+  _options: Record<string, never> = {},
 ): boolean {
   if (original === null) return false;
   const fieldsChanged = (["title", "slug", "status", "overridesThemePage", "author", "showAuthor"] as const)
@@ -462,7 +465,7 @@ export async function uploadDroppedFile(port: PostEditorPort, file: File): Promi
  * so `save`'s own cognitive-complexity score doesn't carry this string's branching on top of the
  * stale-settlement guard added the same day.
  */
-function formatSaveSuccessMessage(statusOverride: SaveStatusOverride, saved: AdminPost, t: Translate, expectedVersion?: number): string {
+function formatSaveSuccessMessage({ statusOverride, saved, t }: { statusOverride: SaveStatusOverride; saved: AdminPost; t: Translate }, { expectedVersion }: { expectedVersion?: number } = {}): string {
   // The server skips a save whose content matches what's stored and answers with the SAME version
   // (2026-10-10, no-op save guard), so an unchanged version means nothing new was written.
   if (statusOverride === undefined && expectedVersion !== undefined && saved.version === expectedVersion) {
@@ -470,9 +473,9 @@ function formatSaveSuccessMessage(statusOverride: SaveStatusOverride, saved: Adm
   }
   // A Publish whose time is still ahead does not go live yet (2026-10-05) — saying "Published" next
   // to the "Scheduled" badge contradicted it. The time is shown in local time, as the operator typed it.
-  if (statusOverride === "published" && isScheduledPost({ status: saved.status, publishAt: saved.publishAt ?? null }, Date.now())) {
+  if (statusOverride === "published" && isScheduledPost({ input: { status: saved.status, publishAt: saved.publishAt ?? null }, nowMs: Date.now() })) {
     return interpolate({ template: t("Scheduled for {time} · version {version}"), vars: {
-      time: isoToLocalDateTimeInput(saved.publishAt).replace("T", " "),
+      time: isoToLocalDateTimeInput({ iso: saved.publishAt }).replace("T", " "),
       version: saved.version,
     } });
   }
@@ -484,7 +487,7 @@ function formatSaveSuccessMessage(statusOverride: SaveStatusOverride, saved: Adm
  * stored one. Without it the line kept naming this editor's own last save ("Saved · version 2")
  * after the assistant had saved versions 3 and 4 (UI check 2026-10-31).
  */
-function formatOutsideChangeMessage(version: number, t: Translate): string {
+function formatOutsideChangeMessage({ version, t }: { version: number; t: Translate }, _options: Record<string, never> = {}): string {
   return interpolate({ template: t("Changed outside the editor · version {version}"), vars: { version } });
 }
 
@@ -494,10 +497,7 @@ function formatOutsideChangeMessage(version: number, t: Translate): string {
  * operator hears "publish failed" rather than the generic "save failed" when the Publish button is
  * what triggered this call.
  */
-function formatSaveErrorMessage(
-  error: unknown,
-  statusOverride: SaveStatusOverride,
-  t: Translate,
+function formatSaveErrorMessage({ error, statusOverride, t }: { error: unknown; statusOverride: SaveStatusOverride; t: Translate }, _options: Record<string, never> = {}
 ): string {
   // A server or network failure already raised the shared failure notice with plain words and
   // copyable details; repeating its raw message here would show the same string twice.
@@ -529,7 +529,7 @@ function formatSaveErrorMessage(
  * synchronous callback) — a multi-file drop with one slow or failing upload still lands every other
  * file rather than blocking on the slowest or losing the whole batch to one failure.
  */
-export function handleFileDrop(port: PostEditorPort, editor: Editor, files: File[], pos: number): void {
+export function handleFileDrop({ port, editor, files, pos }: { port: PostEditorPort; editor: Editor; files: File[]; pos: number }, _options: Record<string, never> = {}): void {
   for (const file of files) {
     uploadDroppedFile(port, file).then((result) => {
       if (!result) return;
@@ -552,7 +552,7 @@ export function handleFileDrop(port: PostEditorPort, editor: Editor, files: File
  * does with no position argument (after the selected node when a node is selected, see
  * `lib/block-atom-insert.ts`).
  */
-export function handleFilePaste(port: PostEditorPort, editor: Editor, files: File[]): void {
+export function handleFilePaste({ port, editor, files }: { port: PostEditorPort; editor: Editor; files: File[] }, _options: Record<string, never> = {}): void {
   for (const file of files) {
     uploadDroppedFile(port, file).then((result) => {
       if (!result) return;
@@ -565,22 +565,22 @@ export function handleFilePaste(port: PostEditorPort, editor: Editor, files: Fil
  * The loaded post when it is a real, saved row; `null` before the load settles and for a new
  * post's local working copy, whose id is still `""` until its first Save creates the row.
  *
- * @param post The editor's loaded post, if any.
+ * @param input.post The editor's loaded post, if any.
  * @returns `post` when it carries a non-empty id, otherwise `null`.
  * @complexity O(1).
  */
-function persistedPost(post: AdminPost | null): AdminPost | null {
+function persistedPost({ post }: { post: AdminPost | null }, _options: Record<string, never> = {}): AdminPost | null {
   return post?.id ? post : null;
 }
 
-export function usePostEditor(postId: string, deps: PostEditorDependencies): PostEditorController {
+export function usePostEditor({ postId, deps }: { postId: string; deps: PostEditorDependencies }, _options: Record<string, never> = {}): PostEditorController {
   const { port, navigate, t } = deps;
   const [post, setPost] = useState<AdminPost | null>(null);
   const [title, setTitle] = useState("");
   const [storedSlug, setStoredSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
   const { followsTitle, slug } = resolveEditorSlug({ post, title, storedSlug, slugEdited });
-  function setSlug(value: string) { setSlugEdited(true); setStoredSlug(value); }
+  function setSlug({ value }: { value: string }, _options: Record<string, never> = {}) { setSlugEdited(true); setStoredSlug(value); }
   const [status, setStatus] = useState<"draft" | "published">("draft");
   const [templateChoice, setTemplateChoice] = useState<string | null>(null);
   // The active static theme's own declared template list (theme.json's `templates`) — fetched
@@ -671,7 +671,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   const { entryId, loadedId, scheduled, previewFormTarget } = loadedPostHandles({ post, postId, nowMs: Date.now() });
   // The loaded row only once it exists server-side — a new post's local working copy (id `""`)
   // has no row to autosave against, name to the assistant, refresh or preview yet.
-  const savedPost = persistedPost(post);
+  const savedPost = persistedPost({ post: post });
   const autosave = useStandingDraftAutosave({ port, entryId: loadedId, enabled: savedPost !== null, serverUpdatedAt: post?.updatedAt });
   // The slug this editor's own save just moved the URL to — the load effect skips that `postId` change:
   // it is the record already on screen, not a new one to fetch (see `runSave`).
@@ -802,8 +802,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // logic living inside `usePostEditor` itself.
       FileHandler.configure({
         allowedMimeTypes: FILE_HANDLER_ALLOWED_MIME_TYPES,
-        onDrop: (currentEditor, files, pos) => handleFileDrop(port, currentEditor, files, pos),
-        onPaste: (currentEditor, files) => handleFilePaste(port, currentEditor, files),
+        onDrop: (currentEditor, files, pos) => handleFileDrop({ port: port, editor: currentEditor, files: files, pos: pos }),
+        onPaste: (currentEditor, files) => handleFilePaste({ port: port, editor: currentEditor, files: files }),
       }),
       MediaImage,
       // Media (2026-09-11, generic media node) — see `lib/media-embed-extension.tsx`'s own file
@@ -824,7 +824,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // `role="textbox"` only at view creation — a later `setOptions` re-applies these attributes
       // as-is, so omitting it here drops the role.
       attributes: { role: "textbox", "aria-label": t("Content") },
-      handleDrop: (view, event, _slice, moved) => handleImageDrop(view, event, moved),
+      handleDrop: (view, event, _slice, moved) => handleImageDrop({ view: view, event: event, moved: moved }),
     },
     // The title-node half of the title's two-way sync with the standalone title `<input>` (see
     // `setTitleAndSyncEditor` below for the input's own half): every keystroke anywhere in the doc
@@ -835,7 +835,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     // (post.title)` already set, so that extra call is an idempotent no-op, not a race.
     onUpdate: ({ editor: current }) => {
       setBodyVersion((v) => v + 1);
-      setTitle(titleNodeText(current.getJSON()));
+      setTitle(titleNodeText({ bodyJson: current.getJSON() }));
     },
   });
 
@@ -844,7 +844,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   const loadedTemplates = useRef<string[]>([]);
   /** Seeds every editable field, the TipTap doc and the dirty baseline from one server row — shared
    *  by the load effect and an external (assistant) write landing while the editor is clean. */
-  function applyLoadedPost(post: AdminPost, activeThemeTemplates: string[]): void {
+  function applyLoadedPost({ post, activeThemeTemplates }: { post: AdminPost; activeThemeTemplates: string[] }, _options: Record<string, never> = {}): void {
     const form = loadedPostForm({ post, activeThemeTemplates });
     setPost(post);
     setTitle(post.title);
@@ -853,7 +853,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     setStatus(post.status);
     setTemplateChoice(form.templateChoice);
     setOverridesThemePage(form.overridesThemePage);
-    setPublishAtInput(isoToLocalDateTimeInput(post.publishAt));
+    setPublishAtInput(isoToLocalDateTimeInput({ iso: post.publishAt }));
     setFeaturedMediaId(form.featuredMediaId);
     setAuthor(form.author);
     setShowAuthor(form.showAuthor);
@@ -865,7 +865,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     // synthesized from this SAME `post.title` just set above, so `original.title` (below) and
     // the doc's own title node agree from the first render — no false-dirty on an untouched,
     // freshly-opened pre-migration post.
-    editor.commands.setContent(withTitleNode(post.bodyJson, post.title) as never);
+    editor.commands.setContent(withTitleNode({ bodyJson: post.bodyJson, title: post.title }) as never);
     // Captured via `editor.getJSON()` right after `setContent`, not `post.bodyJson` as
     // loaded — both sides of the later dirty comparison are then produced by the exact same
     // serialization, so a schema-normalization difference between the server's stored JSON
@@ -908,7 +908,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         // The template default and the tri-state `overridesThemePage` normalization live in
         // `loadedPostForm` (`post-editor-state.rules.ts`), with their own reasoning.
         loadedTemplates.current = activeThemeTemplates;
-        applyLoadedPost(post, activeThemeTemplates);
+        applyLoadedPost({ post: post, activeThemeTemplates: activeThemeTemplates });
         // readable-slugs S6a: an old id-based bookmark quietly catches up to the slug URL, same
         // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule `use-widget-instance-editor.hooks.ts`
         // and `use-page-editor.hooks.ts` already apply. No root-slug exception here — unlike Pages,
@@ -977,7 +977,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // same as `usePageEditor`.
   useAgentScreenEntry(savedPost === null ? null : { kind: savedPost.kind, id: savedPost.id, title: savedPost.title, slug: savedPost.slug, status: savedPost.status });
 
-  const publishAt = localDateTimeInputToIso(publishAtInput);
+  const publishAt = localDateTimeInputToIso({ value: publishAtInput });
   const { isDirty, confirmLeave } = useDirtyGuard<PostFormState>(
     {
       current: { title, slug, status, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId, author, showAuthor, hideCoverImageInBody },
@@ -989,7 +989,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // Inlined rather than a second `useDirtyGuard` call so this doesn't register its own redundant
   // `beforeunload` listener for a value nothing reads for that purpose — see `computeContentDirty`
   // above for the comparison itself.
-  const contentDirty = computeContentDirty({ title, slug, status, bodyJson, overridesThemePage, author, showAuthor }, original);
+  const contentDirty = computeContentDirty({ current: { title, slug, status, bodyJson, overridesThemePage, author, showAuthor }, original: original });
 
   // Assistant edits (todos.md:367, 09-24): `content_post_update` and friends publish on the content
   // bus when a tool result or run lands (`AssistantDock.hooks.tsx`), and this editor never re-read
@@ -1010,15 +1010,15 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // A newer version waiting on the operator's Load latest / Keep my edits is the stored one now.
   const pendingExternalVersion = externalRefresh.pendingExternalVersion;
   useEffect(() => {
-    if (pendingExternalVersion !== null) setMessage(formatOutsideChangeMessage(pendingExternalVersion, t));
+    if (pendingExternalVersion !== null) setMessage(formatOutsideChangeMessage({ version: pendingExternalVersion, t: t }));
   }, [pendingExternalVersion, t]);
 
   /** {@link externalRefresh}'s apply half: the new row, plus the address bar following a slug the
    *  assistant changed (same replace-navigate and remount guard as `runSave`'s rename). */
   function applyExternalPost(fresh: AdminPost): void {
-    applyLoadedPost(fresh, loadedTemplates.current);
+    applyLoadedPost({ post: fresh, activeThemeTemplates: loadedTemplates.current });
     setSaveConflict(null);
-    setMessage(formatOutsideChangeMessage(fresh.version, t));
+    setMessage(formatOutsideChangeMessage({ version: fresh.version, t: t }));
     if (postId !== fresh.slug && postId !== fresh.id) {
       savedRouteSlug.current = fresh.slug;
       rememberPostEditorRouteRename({ from: postId, to: fresh.slug });
@@ -1077,7 +1077,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
    * Re-baselines `original` either way, so a publish also clears the dirty guard, same as an
    * ordinary save.
    */
-  async function runSave(statusOverride: SaveStatusOverride, expectedVersion: number | undefined) {
+  async function runSave({ statusOverride, expectedVersion }: { statusOverride: SaveStatusOverride; expectedVersion: number | undefined }, _options: Record<string, never> = {}) {
     // Claim this call's generation BEFORE the first `await` — see `useSettlementGeneration`'s own
     // doc for why a synchronous ref bump, not `useState`, is what makes two same-tick calls (a
     // double-click, or Save then Publish before either disables) each see the other's claim.
@@ -1103,7 +1103,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       applySavedPost({ saved, statusOverride, expectedVersion, nextStatus, bodyJson });
     } catch (e) {
       if (!settlement.isCurrent({ generation })) return;
-      applySaveFailure(e, statusOverride);
+      applySaveFailure({ e: e, statusOverride: statusOverride });
     } finally {
       // Same generation check as the two branches above: only the call that is still current should
       // flip the shared `saving` flag back off, or an older call's own settlement could briefly
@@ -1158,7 +1158,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     setStatus(nextStatus);
     setAuthor(keepNewerEdit(author, fields.author));
     setShowAuthor(keepNewerEdit(showAuthor, fields.showAuthor));
-    setMessage(formatSaveSuccessMessage(outcome.statusOverride, saved, t, outcome.expectedVersion));
+    setMessage(formatSaveSuccessMessage({ statusOverride: outcome.statusOverride, saved: saved, t: t }, { expectedVersion: outcome.expectedVersion }));
     setOriginal({ title, slug: fields.slug, status: nextStatus, bodyJson: outcome.bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId, author: fields.author, showAuthor: fields.showAuthor, hideCoverImageInBody: fields.hideCoverImageInBody });
     // The save can move the slug (it follows the title until first publish, `0e8ca8ac7`, or the
     // operator renamed it) — the old slug in the address bar then 404s on reload or in a new tab.
@@ -1175,18 +1175,18 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   }
 
   /** {@link runSave}'s failure half, for the call that is still current. */
-  function applySaveFailure(e: unknown, statusOverride: SaveStatusOverride): void {
+  function applySaveFailure({ e, statusOverride }: { e: unknown; statusOverride: SaveStatusOverride }, _options: Record<string, never> = {}): void {
     if (post?.id) autosave.preserveFailedSave({ error: e, draft: buildPostAutosaveDraft(post, { title, slug, bodyJson: editor.getJSON() as Record<string, unknown>, author, showAuthor }) });
     // The version conflict is NOT folded into the generic error line. The two need opposite
     // reactions from the operator (a slug collision or a network blip: fix it and press Save
     // again; this: pressing Save again erases somebody's document), and the whole point of the
     // route's distinct `code` is that the client no longer has to guess which it got.
-    const conflict = readPostVersionConflict(e, statusOverride);
+    const conflict = readPostVersionConflict({ e: e, attemptedStatus: statusOverride });
     if (conflict) {
       setSaveConflict(conflict);
       return;
     }
-    setError(formatSaveErrorMessage(e, statusOverride, t));
+    setError(formatSaveErrorMessage({ error: e, statusOverride: statusOverride, t: t }));
   }
 
   /**
@@ -1195,8 +1195,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
    * Persisted rows use their loaded version as the basis. A local working copy has no basis;
    * its first Save creates the complete snapshot rather than updating an Untitled placeholder.
    */
-  async function save(statusOverride?: "draft" | "published") {
-    await runSave(statusOverride, post?.id ? post.version : undefined);
+  async function save(_input: Record<string, never>, { statusOverride }: { statusOverride?: "draft" | "published" } = {}) {
+    await runSave({ statusOverride: statusOverride, expectedVersion: post?.id ? post.version : undefined });
   }
 
   /**
@@ -1215,7 +1215,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       return;
     }
     setPost(fresh);
-    await runSave(attemptedStatus, fresh.version);
+    await runSave({ statusOverride: attemptedStatus, expectedVersion: fresh.version });
   }
 
   /** Hides the conflict banner without saving — see {@link PostEditorController.dismissSaveConflict}. */
@@ -1275,9 +1275,9 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   function restoreRecoveredDraft(): void {
     const draft: (NonNullable<typeof autosave.recoverableDraft> & { author?: string | null; showAuthor?: boolean }) | null = autosave.recoverableDraft;
     if (!draft || draft.bodyJson === undefined) return;
-    editor.commands.setContent(withTitleNode(draft.bodyJson, draft.title) as never);
+    editor.commands.setContent(withTitleNode({ bodyJson: draft.bodyJson, title: draft.title }) as never);
     setTitle(draft.title);
-    setSlug(draft.slug);
+    setSlug({ value: draft.slug });
     if (draft.author !== undefined) setAuthor(draft.author ?? "");
     if (draft.showAuthor !== undefined) setShowAuthor(draft.showAuthor);
     autosave.dismissRecoverable();
@@ -1297,10 +1297,10 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
    * value, an idempotent no-op rather than a second source of truth fighting this one.
    *
    * Kept under the PUBLIC name `setTitle` (returned as `setTitle` below) so `PostEditor.tsx`'s
-   * existing `<input onChange={(e) => setTitle(e.target.value)}>` needs no change at all — the sync
-   * is an internal wiring change, not a new prop this screen's markup has to know about.
+   * existing title control can keep using the controller's `setTitle` action; synchronization
+   * stays an internal wiring detail rather than a separate screen prop.
    */
-  function setTitleAndSyncEditor(next: string): void {
+  function setTitleAndSyncEditor({ next }: { next: string }, _options: Record<string, never> = {}): void {
     setTitle(next);
     editor.commands.setPostTitleText(next);
   }
@@ -1386,12 +1386,12 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
  * composes this and a test composes {@link usePostEditor} with `createFakePostEditorPort` and a fake
  * `navigate`/`t`.
  */
-export function useWiredPostEditor(postId: string): PostEditorController {
+export function useWiredPostEditor({ postId }: { postId: string }, _options: Record<string, never> = {}): PostEditorController {
   const locale = useAdminLocale();
   // The reused Pages notice and its load-error copy keep their existing translation owner.
   const t = (key: string): string => {
     const text = translate({ locale, key });
     return text === key ? translatePageEditor({ locale, key }) : text;
   };
-  return usePostEditor(postId, { port: defaultPostEditorPort, navigate: realNavigate, t });
+  return usePostEditor({ postId: postId, deps: { port: defaultPostEditorPort, navigate: realNavigate, t } });
 }

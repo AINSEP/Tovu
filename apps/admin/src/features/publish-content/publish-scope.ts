@@ -23,8 +23,8 @@ import { publishSectionForEntityTypes, type PublishScope, type PublishSection } 
  *
  * @complexity O(sections × types).
  */
-export function publishScopeTitleKey(scope: PublishScope | undefined): string {
-  const section = scopeSection(scope);
+export function publishScopeTitleKey({ scope }: { scope: PublishScope | undefined }, _options: Record<string, never> = {}): string {
+  const section = scopeSection({ scope: scope });
   if (section === ITEM) return "Publish item";
   return section === ALL ? "Publish all content" : section.labelKey;
 }
@@ -40,8 +40,8 @@ const ALL_CONTENT_DESCRIPTION = "Sends your posts, pages and media to the live s
  *
  * @complexity O(sections × types).
  */
-export function publishScopeDescriptionKey(scope: PublishScope | undefined): string {
-  const section = scopeSection(scope);
+export function publishScopeDescriptionKey({ scope }: { scope: PublishScope | undefined }, _options: Record<string, never> = {}): string {
+  const section = scopeSection({ scope: scope });
   if (section === ITEM) return "Sends this item to the live site.";
   return section === ALL ? ALL_CONTENT_DESCRIPTION : section.descriptionKey;
 }
@@ -55,7 +55,7 @@ const ALL = Symbol("all");
  *
  * @complexity O(sections × types).
  */
-function scopeSection(scope: PublishScope | undefined): typeof ITEM | typeof ALL | PublishSection {
+function scopeSection({ scope }: { scope: PublishScope | undefined }, _options: Record<string, never> = {}): typeof ITEM | typeof ALL | PublishSection {
   if (scope?.entityKeys !== undefined && scope.entityKeys.length > 0) return ITEM;
   if (scope?.entityTypes === undefined) return ALL;
   return publishSectionForEntityTypes(scope.entityTypes) ?? ALL;

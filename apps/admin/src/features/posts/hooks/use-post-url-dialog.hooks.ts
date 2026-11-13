@@ -26,7 +26,7 @@ const URL_TITLES: Record<UrlKind, string> = {
 /** Post command input policy: absolute HTTP(S), plus the installed embed parser for YouTube.
  * Returns inline copy, never fetches the URL. O(n) time/space for n URL characters.
  */
-function urlError(kind: UrlKind | null, url: string): UrlError {
+function urlError({ kind, url }: { kind: UrlKind | null; url: string }, _options: Record<string, never> = {}): UrlError {
   if (/\s/.test(url) || !/^https?:\/\//i.test(url)) return "Enter an HTTP or HTTPS URL.";
   // The regex above already pins the scheme to http(s); the WHATWG parser then rejects an empty
   // host for those special schemes, so a successful parse always has an http(s) protocol and a
@@ -56,7 +56,7 @@ export function usePostUrlDialog({ editor }: { editor: PostUrlEditorPort | null 
   const [touched, setTouched] = useState(false);
   const focusAfterInsert = useRef(false);
   const errorId = useId();
-  const validationError = urlError(kind, url);
+  const validationError = urlError({ kind: kind, url: url });
   const error = touched ? validationError : "";
   useEffect(() => {
     if (kind !== null || !focusAfterInsert.current) return;

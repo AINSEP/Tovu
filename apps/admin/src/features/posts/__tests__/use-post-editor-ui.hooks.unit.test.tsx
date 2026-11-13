@@ -9,7 +9,7 @@ afterEach(() => { vi.restoreAllMocks(); document.querySelectorAll("iframe").forE
 // payloads, state readback, and rerender/unmount controls. Source mutations are forbidden.
 it("saves with the requested status and opens and closes each dialog independently", async () => {
   // Reject: onPublish calls save() or cancel sets true instead of false.
-  const save = vi.fn(async (_status?: "draft" | "published") => {});
+  const save = vi.fn(async (_input: Record<string, never>, _options?: { statusOverride?: "draft" | "published" }) => {});
   const { result } = renderHook(() => {
     const [deleting, setConfirmingDelete] = useState(false);
     const [template, setShowTemplateModal] = useState(false);
@@ -18,7 +18,7 @@ it("saves with the requested status and opens and closes each dialog independent
   });
   await act(async () => { await result.current.onPublish(); });
   await act(async () => { await result.current.onSave(); });
-  expect(save.mock.calls).toEqual([["published"], []]);
+  expect(save.mock.calls).toEqual([[{}, { statusOverride: "published" }], [{}]]);
   act(() => result.current.onDeleteClick());
   expect([result.current.deleting, result.current.template]).toEqual([true, false]);
   act(() => result.current.onDeleteCancel());
@@ -31,7 +31,7 @@ it("saves with the requested status and opens and closes each dialog independent
 // Owner, 2026-10-10: Save is never disabled. With nothing changed it opens a warning instead of
 // saving; "Save anyway" closes it and saves (the server writes nothing if it's truly identical).
 it("with nothing changed, Save opens the warning; Save anyway saves once; Cancel saves nothing", async () => {
-  const save = vi.fn(async (_status?: "draft" | "published") => {});
+  const save = vi.fn(async (_input: Record<string, never>, _options?: { statusOverride?: "draft" | "published" }) => {});
   const { result } = renderHook(() => {
     const [, setConfirmingDelete] = useState(false);
     const [, setShowTemplateModal] = useState(false);
@@ -47,7 +47,7 @@ it("with nothing changed, Save opens the warning; Save anyway saves once; Cancel
   act(() => { void result.current.onSave(); });
   await act(async () => { result.current.onUnchangedSaveConfirm(); });
   expect(result.current.warning).toBe(false);
-  expect(save.mock.calls).toEqual([[]]);
+  expect(save.mock.calls).toEqual([[{}]]);
 });
 
 it("rebinds Escape after frame navigation and callback changes, and detaches on collapse and unmount", async () => {
@@ -57,7 +57,7 @@ it("rebinds Escape after frame navigation and callback changes, and detaches on 
   const firstDocument = frame.contentDocument!;
   const first = vi.fn();
   const second = vi.fn();
-  const { result, rerender, unmount } = renderHook(({ expanded, collapse }) => usePostPreviewIframeEscape(expanded, collapse), {
+  const { result, rerender, unmount } = renderHook(({ expanded, collapse }) => usePostPreviewIframeEscape({ expanded: expanded, onCollapse: collapse }), {
     initialProps: { expanded: false, collapse: first },
   });
   act(() => result.current(frame));
@@ -103,7 +103,7 @@ it("tolerates an inaccessible frame document and binds when a same-origin docume
   const doc = frame.contentDocument!;
   const getter = vi.spyOn(frame, "contentDocument", "get").mockReturnValue(null);
   const collapse = vi.fn();
-  const { result } = renderHook(() => usePostPreviewIframeEscape(true, collapse));
+  const { result } = renderHook(() => usePostPreviewIframeEscape({ expanded: true, onCollapse: collapse }));
   act(() => result.current(frame));
   act(() => { doc.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); });
   expect(collapse).not.toHaveBeenCalled();
@@ -159,9 +159,9 @@ it("measures a narrow toolbar and marks only the controls that fit as primary", 
 
   const { result } = renderHook(() => useToolbarOverflow());
   act(() => result.current.toolbarRef(toolbar));
-  const primaries = () => ranked.map((_, rank) => result.current.slot(rank)["data-tb"] === "primary");
+  const primaries = () => ranked.map((_, rank) => result.current.slot({ rank: rank })["data-tb"] === "primary");
   expect(primaries()).toEqual([true, true, true, true, false, false]);
-  expect(result.current.slot(4)).toEqual({ "data-tb-rank": 4, "data-tb": undefined });
+  expect(result.current.slot({ rank: 4 })).toEqual({ "data-tb-rank": 4, "data-tb": undefined });
 
   // The demoted controls are now display:none (0 wide); widening uses their remembered widths.
   ranked[4].dataset.hidden = ranked[5].dataset.hidden = "1";
@@ -195,7 +195,7 @@ it.each(["absent", "hidden"])("keeps all controls primary when More is %s and Re
     }
     const { result, unmount } = renderHook(() => useToolbarOverflow());
     act(() => result.current.toolbarRef(toolbar));
-    expect(Array.from({ length: 6 }, (_, rank) => result.current.slot(rank)["data-tb"]))
+    expect(Array.from({ length: 6 }, (_, rank) => result.current.slot({ rank: rank })["data-tb"]))
       .toEqual(["primary", "primary", "primary", "primary", "primary", "primary"]);
     unmount();
   } finally {
@@ -220,12 +220,12 @@ it("measures an initially hidden control on its first appearance with no column 
     toolbar.append(control, more);
     const { result, unmount } = renderHook(() => useToolbarOverflow());
     act(() => result.current.toolbarRef(toolbar));
-    expect(result.current.slot(0)["data-tb"]).toBe("primary");
+    expect(result.current.slot({ rank: 0 })["data-tb"]).toBe("primary");
 
     width = 80;
     act(() => result.current.toggle());
     expect(result.current.open).toBe(true);
-    expect(result.current.slot(0)["data-tb"]).toBeUndefined();
+    expect(result.current.slot({ rank: 0 })["data-tb"]).toBeUndefined();
     unmount();
   } finally {
     vi.unstubAllGlobals();
@@ -238,7 +238,7 @@ it("cleans up an opaque preview and ignores navigation after unmount", () => {
   const doc = frame.contentDocument!;
   vi.spyOn(frame, "contentDocument", "get").mockReturnValue(null);
   const collapse = vi.fn();
-  const { result, unmount } = renderHook(() => usePostPreviewIframeEscape(true, collapse));
+  const { result, unmount } = renderHook(() => usePostPreviewIframeEscape({ expanded: true, onCollapse: collapse }));
   act(() => result.current(frame));
   unmount();
   frame.dispatchEvent(new Event("load"));

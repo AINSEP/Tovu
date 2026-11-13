@@ -1146,7 +1146,7 @@ const SINCE_DISCARD_FRAGMENTS: Record<string, { before: string; after: string }>
   bn: { before: "তারিখ ", after: " থেকে হওয়া পরিবর্তনগুলির মধ্যে এখানে পুনরুদ্ধার করলে অন্তত নিচেরগুলি হারিয়ে যাবে:" },
 };
 
-export function sinceDiscardMessage(locale: string, createdAt: string): ReactNode {
+export function sinceDiscardMessage({ locale, createdAt }: { locale: string; createdAt: string }, _options: Record<string, never> = {}): ReactNode {
   const f = localeEntry({ table: SINCE_DISCARD_FRAGMENTS, locale });
   return (
     <>
@@ -1201,7 +1201,7 @@ const UNKNOWN_DISCARD_COUNT_PREFIX: Record<string, string> = {
  * INV-05 requires (an `"unknown"` is never a `0`) is now visible in the type itself and not only
  * in the words.
  */
-export function discardCountLine(locale: string, count: number | "unknown", categoryLabelText: string): ReactNode {
+export function discardCountLine({ locale, count, categoryLabelText }: { locale: string; count: number | "unknown"; categoryLabelText: string }, _options: Record<string, never> = {}): ReactNode {
   if (count === "unknown") {
     const prefix = localeEntry({ table: UNKNOWN_DISCARD_COUNT_PREFIX, locale });
     return (
@@ -1251,7 +1251,7 @@ const BASELINE_UNAVAILABLE_TEXT: Record<string, string> = {
   bn: 'এই সাইটের জন্য বাতিল করা লেখা-উইন্ডোর বেসলাইন এখনই গণনা করা যায়নি — উপরের প্রতিটি গণনা "অজানা" হিসেবে দেখানো হয়েছে, যাচাইকৃত শূন্য হিসেবে নয়।',
 };
 
-export function baselineUnavailableMessage(locale: string): ReactNode {
+export function baselineUnavailableMessage({ locale }: { locale: string }, _options: Record<string, never> = {}): ReactNode {
   return <>{localeEntry({ table: BASELINE_UNAVAILABLE_TEXT, locale })}</>;
 }
 
@@ -1348,7 +1348,7 @@ const RESTORE_PLAN_READY_FRAGMENTS: Record<string, { before: string; after: stri
   },
 };
 
-export function restorePlanReadyMessage(locale: string, planId: string): ReactNode {
+export function restorePlanReadyMessage({ locale, planId }: { locale: string; planId: string }, _options: Record<string, never> = {}): ReactNode {
   const f = localeEntry({ table: RESTORE_PLAN_READY_FRAGMENTS, locale });
   return (
     <>
@@ -1387,7 +1387,7 @@ const RESTORE_DONE_FRAGMENTS: Record<string, { before: string; middle: string; a
   bn: { before: "পুনরুদ্ধার রান ", middle: "-এর অবস্থা ", after: "-এ শেষ হয়েছে।" },
 };
 
-export function restoreDoneMessage(locale: string, restoreRunId: string, stateNode: ReactNode): ReactNode {
+export function restoreDoneMessage({ locale, restoreRunId, stateNode }: { locale: string; restoreRunId: string; stateNode: ReactNode }, _options: Record<string, never> = {}): ReactNode {
   const f = localeEntry({ table: RESTORE_DONE_FRAGMENTS, locale });
   return (
     <>

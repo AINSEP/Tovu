@@ -557,12 +557,12 @@ describe("usePosts — content refresh bus", () => {
 // `<Posts />` render.
 describe("usePostRowMenuHandleMap", () => {
   it("keys the handle by post id, matching buildPostRowMenuHandleMap", () => {
-    const { result } = renderHook(() => usePostRowMenuHandleMap([POST]));
+    const { result } = renderHook(() => usePostRowMenuHandleMap({ posts: [POST] }));
     expect(result.current.get(POST.id)).toBe(`posts-row-${POST.id}`);
   });
 
   it("returns an empty map for null posts", () => {
-    const { result } = renderHook(() => usePostRowMenuHandleMap(null));
+    const { result } = renderHook(() => usePostRowMenuHandleMap({ posts: null }));
     expect(result.current.size).toBe(0);
   });
 

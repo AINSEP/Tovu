@@ -18,10 +18,10 @@ it.each([
   ["unlisted-locale", "17 created, 3 failed.", "Created", "Item 9 (DUPLICATE)", 'Actions for redirect rule from "/old/<script>"'],
 ])("keeps counts, item codes and redirect identities in %s", (locale, summary, created, failed, actions) => {
   // Reject: swap created/failed interpolation or discard fromPattern.
-  expect(importResultSummary(locale, 17, 3)).toBe(summary);
-  expect(createdLabel(locale)).toBe(created);
-  expect(failedItemLabel(locale, 9, "DUPLICATE")).toBe(failed);
-  expect(actionsForRedirectLabel(locale, "/old/<script>")).toBe(actions);
+  expect(importResultSummary({ locale: locale, created: 17, failed: 3 })).toBe(summary);
+  expect(createdLabel({ locale: locale })).toBe(created);
+  expect(failedItemLabel({ locale: locale, index: 9, code: "DUPLICATE" })).toBe(failed);
+  expect(actionsForRedirectLabel({ locale: locale, fromPattern: "/old/<script>" })).toBe(actions);
 });
 
 it.each([
@@ -30,9 +30,9 @@ it.each([
 ])("renders the one-line import hint with its fields tip, and treats the redirect pattern as text for %s", (locale, hint, fields, deletion) => {
   // Reject: inline the rule shape back into the hint, or render the pattern as HTML.
   const { container } = render(<>
-    <label htmlFor="json">{importRulesLabel(locale, <code>SHAPE</code>)}</label>
+    <label htmlFor="json">{importRulesLabel({ locale: locale }, { _shapeCode: <code>SHAPE</code> })}</label>
     <textarea id="json" />
-    {deleteRedirectBody(locale, "/old/<script>")}
+    {deleteRedirectBody({ locale: locale, fromPattern: "/old/<script>" })}
   </>);
   const label = container.querySelector("label")!;
   expect(label.firstChild?.textContent).toBe(hint);

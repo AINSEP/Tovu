@@ -10,44 +10,44 @@ import { publishScopeDescriptionKey, publishScopeTitleKey } from "../publish-sco
  */
 describe("publishScopeTitleKey", () => {
   it("no scope at all reads as publishing everything", () => {
-    expect(publishScopeTitleKey(undefined)).toBe("Publish all content");
+    expect(publishScopeTitleKey({ scope: undefined })).toBe("Publish all content");
   });
 
   it("a single-type scope with no entityKeys reads as that type's section label", () => {
-    expect(publishScopeTitleKey({ entityTypes: ["page"] })).toBe("Publish pages");
-    expect(publishScopeTitleKey({ entityTypes: ["post"] })).toBe("Publish posts");
-    expect(publishScopeTitleKey({ entityTypes: ["media"] })).toBe("Publish media");
-    expect(publishScopeTitleKey({ entityTypes: ["menu"] })).toBe("Publish menus");
-    expect(publishScopeTitleKey({ entityTypes: ["redirect"] })).toBe("Publish redirects");
-    expect(publishScopeTitleKey({ entityTypes: ["theme-files", "active-theme"] })).toBe("Publish themes");
+    expect(publishScopeTitleKey({ scope: { entityTypes: ["page"] } })).toBe("Publish pages");
+    expect(publishScopeTitleKey({ scope: { entityTypes: ["post"] } })).toBe("Publish posts");
+    expect(publishScopeTitleKey({ scope: { entityTypes: ["media"] } })).toBe("Publish media");
+    expect(publishScopeTitleKey({ scope: { entityTypes: ["menu"] } })).toBe("Publish menus");
+    expect(publishScopeTitleKey({ scope: { entityTypes: ["redirect"] } })).toBe("Publish redirects");
+    expect(publishScopeTitleKey({ scope: { entityTypes: ["theme-files", "active-theme"] } })).toBe("Publish themes");
   });
 
   it("entityKeys present reads as a single-item publish, regardless of entityTypes", () => {
-    expect(publishScopeTitleKey({ entityTypes: ["page"], entityKeys: ["page:1"] })).toBe("Publish item");
+    expect(publishScopeTitleKey({ scope: { entityTypes: ["page"], entityKeys: ["page:1"] } })).toBe("Publish item");
   });
 
   it("more than one entityType with no entityKeys falls back to the all-content label", () => {
-    expect(publishScopeTitleKey({ entityTypes: ["page", "post"] })).toBe("Publish all content");
+    expect(publishScopeTitleKey({ scope: { entityTypes: ["page", "post"] } })).toBe("Publish all content");
   });
 
   it("an empty entityKeys array is treated as absent, not as a single-item publish", () => {
-    expect(publishScopeTitleKey({ entityTypes: ["page"], entityKeys: [] })).toBe("Publish pages");
+    expect(publishScopeTitleKey({ scope: { entityTypes: ["page"], entityKeys: [] } })).toBe("Publish pages");
   });
 });
 
 describe("multi-type sections (plan G1)", () => {
   it("a scope equal to one section's whole type set, in any order, reads as that section", () => {
-    expect(publishScopeTitleKey({ entityTypes: ["form"] })).toBe("Publish forms");
-    expect(publishScopeTitleKey({ entityTypes: ["content-type", "collection-entry"] })).toBe("Publish collections");
-    expect(publishScopeTitleKey({ entityTypes: ["term", "taxonomy"] })).toBe("Publish categories & tags");
-    expect(publishScopeTitleKey({ entityTypes: ["widget", "widget-area"] })).toBe("Publish widgets");
-    expect(publishScopeDescriptionKey({ entityTypes: ["widget", "widget-area"] })).toBe(
+    expect(publishScopeTitleKey({ scope: { entityTypes: ["form"] } })).toBe("Publish forms");
+    expect(publishScopeTitleKey({ scope: { entityTypes: ["content-type", "collection-entry"] } })).toBe("Publish collections");
+    expect(publishScopeTitleKey({ scope: { entityTypes: ["term", "taxonomy"] } })).toBe("Publish categories & tags");
+    expect(publishScopeTitleKey({ scope: { entityTypes: ["widget", "widget-area"] } })).toBe("Publish widgets");
+    expect(publishScopeDescriptionKey({ scope: { entityTypes: ["widget", "widget-area"] } })).toBe(
       "Sends your widgets and widget regions to the live site.",
     );
   });
 
   it("part of a section's type set is not that section", () => {
-    expect(publishScopeTitleKey({ entityTypes: ["taxonomy"] })).toBe("Publish all content");
+    expect(publishScopeTitleKey({ scope: { entityTypes: ["taxonomy"] } })).toBe("Publish all content");
   });
 });
 
@@ -56,20 +56,20 @@ describe("multi-type sections (plan G1)", () => {
 describe("publishScopeDescriptionKey", () => {
   it("keeps the all-content sentence when nothing is narrowed", () => {
     const all = "Sends your posts, pages and media to the live site. Deploy ships code; publish ships content.";
-    expect(publishScopeDescriptionKey(undefined)).toBe(all);
-    expect(publishScopeDescriptionKey({ entityTypes: ["page", "post"] })).toBe(all);
+    expect(publishScopeDescriptionKey({ scope: undefined })).toBe(all);
+    expect(publishScopeDescriptionKey({ scope: { entityTypes: ["page", "post"] } })).toBe(all);
   });
 
   it("names the section a single-type scope sends", () => {
-    expect(publishScopeDescriptionKey({ entityTypes: ["page"] })).toBe("Sends your pages to the live site.");
-    expect(publishScopeDescriptionKey({ entityTypes: ["post"] })).toBe("Sends your posts to the live site.");
-    expect(publishScopeDescriptionKey({ entityTypes: ["media"] })).toBe("Sends your media to the live site.");
-    expect(publishScopeDescriptionKey({ entityTypes: ["menu"] })).toBe("Sends your menus to the live site.");
-    expect(publishScopeDescriptionKey({ entityTypes: ["redirect"] })).toBe("Sends your redirects to the live site.");
-    expect(publishScopeDescriptionKey({ entityTypes: ["theme-files", "active-theme"] })).toBe("Sends your themes to the live site.");
+    expect(publishScopeDescriptionKey({ scope: { entityTypes: ["page"] } })).toBe("Sends your pages to the live site.");
+    expect(publishScopeDescriptionKey({ scope: { entityTypes: ["post"] } })).toBe("Sends your posts to the live site.");
+    expect(publishScopeDescriptionKey({ scope: { entityTypes: ["media"] } })).toBe("Sends your media to the live site.");
+    expect(publishScopeDescriptionKey({ scope: { entityTypes: ["menu"] } })).toBe("Sends your menus to the live site.");
+    expect(publishScopeDescriptionKey({ scope: { entityTypes: ["redirect"] } })).toBe("Sends your redirects to the live site.");
+    expect(publishScopeDescriptionKey({ scope: { entityTypes: ["theme-files", "active-theme"] } })).toBe("Sends your themes to the live site.");
   });
 
   it("reads as one item for an entityKeys scope", () => {
-    expect(publishScopeDescriptionKey({ entityTypes: ["page"], entityKeys: ["page:1"] })).toBe("Sends this item to the live site.");
+    expect(publishScopeDescriptionKey({ scope: { entityTypes: ["page"], entityKeys: ["page:1"] } })).toBe("Sends this item to the live site.");
   });
 });

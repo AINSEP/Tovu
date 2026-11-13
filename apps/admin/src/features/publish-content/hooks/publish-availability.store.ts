@@ -29,7 +29,7 @@ export function readPublishToLiveAvailability(me: { readonly canPublishToLive?: 
   return me.canPublishToLive !== false;
 }
 
-export function setPublishToLiveAvailable(next: boolean): void {
+export function setPublishToLiveAvailable({ next }: { next: boolean }, _options: Record<string, never> = {}): void {
   if (next === available) return;
   available = next;
   for (const listener of listeners) listener();

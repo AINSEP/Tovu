@@ -24,7 +24,7 @@ afterEach(() => {
   cleanup();
   for (const scope of scopes.splice(0)) { scope.admin.dispose(); scope.overlays.dispose(); }
   resetContentRefreshBus(); vi.unstubAllGlobals();
-  setPublishToLiveAvailable(true);
+  setPublishToLiveAvailable({ next: true });
   window.history.replaceState(null, '', '/');
 });
 
@@ -57,7 +57,7 @@ describe('Jini widgets host switch', () => {
   });
 
   it('mounts the library loading notice, row handles, create route and publish contribution', async () => {
-    setPublishToLiveAvailable(true);
+    setPublishToLiveAvailable({ next: true });
     const { node } = fixture();
     render(node(<WidgetsLibrary />));
     expect(screen.getByText('Loading widgets…')).toHaveClass('notice');

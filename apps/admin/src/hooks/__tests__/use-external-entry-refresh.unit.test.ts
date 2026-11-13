@@ -30,7 +30,7 @@ function setup(overrides?: {
   loaded?: TestRow | null;
   dirty?: boolean;
   saving?: boolean;
-  fetchLatest?: (required: { id: string }) => Promise<TestRow>;
+  fetchLatest?: (input: { id: string }) => Promise<TestRow>;
 }) {
   const callLog: string[] = [];
   const applyLatest = vi.fn((row: TestRow) => {
@@ -46,7 +46,7 @@ function setup(overrides?: {
   let loaded: TestRow | null = overrides?.loaded ?? { id: "a", version: 1 };
   // Always a real mock (never a bare function) so every caller can chain `.mockReturnValueOnce`
   // etc. regardless of whether `overrides.fetchLatest` was supplied.
-  const fetchLatest = overrides?.fetchLatest ? vi.fn(overrides.fetchLatest) : vi.fn<(required: { id: string }) => Promise<TestRow>>();
+  const fetchLatest = overrides?.fetchLatest ? vi.fn(overrides.fetchLatest) : vi.fn<(input: { id: string }) => Promise<TestRow>>();
 
   const { result, rerender } = renderHook<ReturnType<typeof useExternalEntryRefresh<TestRow>>, { loaded: TestRow | null }>(
     (props) =>

@@ -16,12 +16,12 @@ export interface AlwaysAllowPanelProps {
   useAlwaysAllowHook?: typeof useWiredAlwaysAllow;
 }
 
-function resolveAlwaysAllowHook(override: typeof useWiredAlwaysAllow | undefined): typeof useWiredAlwaysAllow {
+function resolveAlwaysAllowHook({ override }: { override: typeof useWiredAlwaysAllow | undefined }, _options: Record<string, never> = {}): typeof useWiredAlwaysAllow {
   return override ?? useWiredAlwaysAllow;
 }
 
 export function AlwaysAllowPanel(props: AlwaysAllowPanelProps) {
-  const useAlwaysAllowHook = resolveAlwaysAllowHook(props.useAlwaysAllowHook);
+  const useAlwaysAllowHook = resolveAlwaysAllowHook({ override: props.useAlwaysAllowHook });
   const { groups, loadError, revokeError, pendingKey, revoke, rowKey, formatDate, t } = useAlwaysAllowHook();
 
   if (loadError) return <div className="notice error">{loadError}</div>;
@@ -51,19 +51,19 @@ export function AlwaysAllowPanel(props: AlwaysAllowPanelProps) {
           <table className="list-table">
             <tbody>
               {group.tools.map((tool) => {
-                const key = rowKey(group.serverId, tool.toolName);
+                const key = rowKey({ serverId: group.serverId, toolName: tool.toolName });
                 return (
                   <tr key={key}>
                     <td>
                       <code>{tool.toolName}</code>
                     </td>
-                    <td className="muted-cell">{formatDate(tool.grantedAt)}</td>
+                    <td className="muted-cell">{formatDate({ grantedAt: tool.grantedAt })}</td>
                     <td className="always-allow-actions">
                       <button
                         type="button"
                         className="btn-secondary"
                         disabled={pendingKey === key}
-                        onClick={() => revoke(group.serverId, tool.toolName)}
+                        onClick={() => revoke({ serverId: group.serverId, toolName: tool.toolName })}
                         {...agentHandle({ handle: tool.revokeHandle }, {
                           role: "button",
                           label: `Revoke Always allow for ${tool.toolName} on ${group.label}; it will ask again`,

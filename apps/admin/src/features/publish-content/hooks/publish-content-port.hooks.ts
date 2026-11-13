@@ -46,7 +46,7 @@ export interface PublishContentPort {
    * 2026-09-19-publish-zero-setup-auth-design.md`). `siteUrl` is optional; omitted, the server uses
    * its own candidate, which is the only path the dialog's connect action takes.
    */
-  connectDestination(input?: { siteUrl?: string }): Promise<AdminPublishDestinationView>;
+  connectDestination(input: Record<string, never>, options?: { siteUrl?: string }): Promise<AdminPublishDestinationView>;
   /**
    * `publish_content.read` — pure planning, zero writes (`features/publish-content/planner.ts`).
    *

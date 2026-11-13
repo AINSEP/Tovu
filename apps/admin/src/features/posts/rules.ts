@@ -68,15 +68,15 @@ export interface PostRowMenuHandlers {
  *
  * @complexity Time/space: O(1) — exactly three entries, no iteration.
  */
-export function postRowMenuItems(post: AdminPost, handlers: PostRowMenuHandlers, locale: string): RowMenuItem[] {
-  const t = (key: string): string => translate({ locale: locale, key: key });
-  const items: RowMenuItem[] = [{ key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit({ post }) }];
+export function postRowMenuItems({ post, handlers, locale }: { post: AdminPost; handlers: PostRowMenuHandlers; locale: string }, _options: Record<string, never> = {}): RowMenuItem[] {
+  const t = ({ key }: { key: string }, _options: Record<string, never> = {}): string => translate({ locale, key });
+  const items: RowMenuItem[] = [{ key: "edit", label: t({ key: "Edit" }), onSelect: () => handlers.onEdit({ post }) }];
   items.push(
     post.status === "published"
-      ? { key: "unpublish", label: t("Unpublish"), onSelect: () => handlers.onTogglePublish(post) }
-      : { key: "publish", label: t("Publish"), onSelect: () => handlers.onTogglePublish(post) }
+      ? { key: "unpublish", label: t({ key: "Unpublish" }), onSelect: () => handlers.onTogglePublish(post) }
+      : { key: "publish", label: t({ key: "Publish" }), onSelect: () => handlers.onTogglePublish(post) }
   );
-  items.push({ key: "delete", label: t("Delete"), destructive: true, onSelect: () => handlers.onDelete(post) });
+  items.push({ key: "delete", label: t({ key: "Delete" }), destructive: true, onSelect: () => handlers.onDelete(post) });
   return items;
 }
 
@@ -90,7 +90,7 @@ export function postRowMenuItems(post: AdminPost, handlers: PostRowMenuHandlers,
  *
  * @complexity Time/space: O(n) in post count.
  */
-export function buildPostRowMenuHandleMap(posts: AdminPost[] | null): Map<string, string> {
+export function buildPostRowMenuHandleMap({ posts }: { posts: AdminPost[] | null }, _options: Record<string, never> = {}): Map<string, string> {
   if (!posts) return new Map();
   const handles = buildAgentListHandles({ prefix: "posts-row", ids: posts.map((post) => post.id) }
   );
@@ -120,7 +120,7 @@ export function buildPostAutosaveDraft(
  *  see `PostRepoPort.writeAutosave`'s own server-side doc for why `baseVersion` is the signal.
  *  Mirrors `features/pages/rules.ts`'s identical predicate (kept feature-local rather than shared,
  *  same "no cross-feature import" boundary every other rule in this file already respects). */
-export function isAutosaveDraftStale(draftBaseVersion: number, currentVersion: number): boolean {
+export function isAutosaveDraftStale({ draftBaseVersion, currentVersion }: { draftBaseVersion: number; currentVersion: number }, _options: Record<string, never> = {}): boolean {
   return draftBaseVersion !== currentVersion;
 }
 
@@ -131,7 +131,7 @@ export function isAutosaveDraftStale(draftBaseVersion: number, currentVersion: n
  * dynamic-message convention leaves those untranslated rather than half-templating them through the
  * static `POSTS_DICT[locale][key]` lookup, which has no interpolation mechanism at all.
  */
-export function postAutosaveBannerMessage(savedAt: string, nowMs: number, stale: boolean): string {
+export function postAutosaveBannerMessage({ savedAt, nowMs, stale }: { savedAt: string; nowMs: number; stale: boolean }, _options: Record<string, never> = {}): string {
   const when = formatRelativeMinutesAgo({ iso: savedAt, nowMs: nowMs });
   return stale ? `Unsaved changes from before a newer save (captured ${when})` : `Unsaved changes from ${when}`;
 }
@@ -171,9 +171,7 @@ export interface PostSaveConflict {
  *
  * @complexity Time/space: O(1).
  */
-export function readPostVersionConflict(
-  e: unknown,
-  attemptedStatus: "draft" | "published" | undefined
+export function readPostVersionConflict({ e, attemptedStatus }: { e: unknown; attemptedStatus: "draft" | "published" | undefined }, _options: Record<string, never> = {}
 ): PostSaveConflict | null {
   if (!isVersionConflict(e)) return null;
   const details = (e.body?.details ?? {}) as Record<string, unknown>;
@@ -259,7 +257,7 @@ export function readFileAsDataUrl(file: File): Promise<string> {
  * out of {@link handleImageDrop} so this precedence and the trim are independently testable and no
  * longer count toward that function's own branch count.
  */
-export function droppedUri(dataTransfer: DataTransfer | null): string {
+export function droppedUri({ dataTransfer }: { dataTransfer: DataTransfer | null }, _options: Record<string, never> = {}): string {
   return (dataTransfer?.getData("text/uri-list") || dataTransfer?.getData("text/plain") || "").trim();
 }
 
@@ -271,13 +269,13 @@ export function droppedUri(dataTransfer: DataTransfer | null): string {
  * `usePostEditorUi` (`hooks/use-post-editor-ui.hooks.ts`) and that hook's own test fixture, rather
  * than being hand-typed a second time wherever a test needs to drive the same control.
  */
-export function overridesThemePageFromSelectValue(value: string): boolean | null {
+export function overridesThemePageFromSelectValue({ value }: { value: string }, _options: Record<string, never> = {}): boolean | null {
   if (value === "default") return null;
   return value === "post";
 }
 
 /** The inverse of {@link overridesThemePageFromSelectValue}: the `<select>` value for a tri-state. */
-export function overridesThemePageSelectValue(overridesThemePage: boolean | null): "default" | "post" | "theme" {
+export function overridesThemePageSelectValue({ overridesThemePage }: { overridesThemePage: boolean | null }, _options: Record<string, never> = {}): "default" | "post" | "theme" {
   if (overridesThemePage === null) return "default";
   return overridesThemePage ? "post" : "theme";
 }
@@ -286,7 +284,7 @@ export function overridesThemePageSelectValue(overridesThemePage: boolean | null
  *  formatting button in `PostEditor.tsx`'s `Toolbar`. Extracted so the eleven
  *  `${active ? " on" : ""}` ternaries that used to live inline in `Toolbar`'s JSX (its entire branch
  *  count) collapse to eleven calls to this one single-branch function instead. */
-export function toolbarBtnClass(active: boolean): string {
+export function toolbarBtnClass({ active }: { active: boolean }, _options: Record<string, never> = {}): string {
   return `tb-btn${active ? " on" : ""}`;
 }
 
@@ -298,7 +296,7 @@ export function toolbarBtnClass(active: boolean): string {
  *  what gets applied on change (`chain().setColor(e.target.value)` always reads straight off the
  *  native input, which itself can only ever emit a valid hex). */
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
-export function hexOrDefault(value: string | null, fallback: string): string {
+export function hexOrDefault({ value, fallback }: { value: string | null; fallback: string }, _options: Record<string, never> = {}): string {
   return value !== null && HEX_COLOR_PATTERN.test(value) ? value : fallback;
 }
 
@@ -468,7 +466,7 @@ export function comparePostsByUpdated(a: AdminPost, b: AdminPost): number {
  *
  * @complexity Time/space: O(1).
  */
-export function postColumnSortLabel(t: Translate, columnName: string, direction: DataTableSortDirection | null): string {
+export function postColumnSortLabel({ t, columnName, direction }: { t: Translate; columnName: string; direction: DataTableSortDirection | null }, _options: Record<string, never> = {}): string {
   if (direction === null) return t("Not sorted by {columnName}. Activate to sort ascending.").replace("{columnName}", () => columnName);
   return direction === "asc"
     ? t("Sorted by {columnName}, ascending. Activate to sort descending.").replace("{columnName}", () => columnName)
@@ -478,7 +476,7 @@ export function postColumnSortLabel(t: Translate, columnName: string, direction:
 /** Same contract as {@link postColumnSortLabel}, phrased in the Updated column's own "newest"/
  *  "oldest" vocabulary rather than generic "ascending"/"descending" — mirrors `pages/rules.ts`'s
  *  `updatedPageColumnSortLabel` verbatim. */
-export function updatedColumnSortLabel(t: Translate, direction: DataTableSortDirection | null): string {
+export function updatedColumnSortLabel({ t, direction }: { t: Translate; direction: DataTableSortDirection | null }, _options: Record<string, never> = {}): string {
   if (direction === null) return t("Not sorted by updated date. Activate to sort newest first.");
   return direction === "desc"
     ? t("Sorted by updated date, newest first. Activate to sort oldest first.")
@@ -511,10 +509,10 @@ export function updatedColumnSortLabel(t: Translate, direction: DataTableSortDir
  *
  * @complexity Time/space: O(1) — a single `DataTransfer` read, no iteration.
  */
-export function handleImageDrop(view: EditorView, event: DragEvent, moved: boolean): boolean {
+export function handleImageDrop({ view, event, moved }: { view: EditorView; event: DragEvent; moved: boolean }, _options: Record<string, never> = {}): boolean {
   if (moved) return false; // internal content reorder, not an external drop
 
-  const uri = droppedUri(event.dataTransfer ?? null);
+  const uri = droppedUri({ dataTransfer: event.dataTransfer ?? null });
   if (/^https?:\/\//i.test(uri)) {
     event.preventDefault();
     const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
@@ -543,7 +541,7 @@ function isLooseNode(value: unknown): value is LooseNode {
 /** A `title`-type node carrying `text` as its sole content — `[]` (no text child) when `text` is
  *  empty, matching how TipTap represents an empty node (an empty `content` array, never a text node
  *  with `text: ""`, which ProseMirror's own schema rejects). */
-function titleNode(text: string): LooseNode {
+function titleNode({ text }: { text: string }, _options: Record<string, never> = {}): LooseNode {
   return { type: "title", content: text ? [{ type: "text", text }] : [] };
 }
 
@@ -567,21 +565,21 @@ function titleNode(text: string): LooseNode {
  * @complexity O(n) in `bodyJson`'s own top-level content length (one array copy/prepend, no
  * recursion into nested content).
  */
-export function withTitleNode(bodyJson: unknown, title: string): LooseNode {
+export function withTitleNode({ bodyJson, title }: { bodyJson: unknown; title: string }, _options: Record<string, never> = {}): LooseNode {
   const doc = isLooseNode(bodyJson) ? bodyJson : null;
   const content = doc && Array.isArray(doc.content) ? doc.content : [];
   const first = content[0];
   if (isLooseNode(first) && first.type === "title") {
-    if (titleNodeText(doc) === title) return doc as LooseNode;
+    if (titleNodeText({ bodyJson: doc }) === title) return doc as LooseNode;
     // The stored title wins (owner bug 11-01): the assistant/API can rename a post without
     // rewriting its body's title node, and keeping the stale node let the editor's `onUpdate`
     // flip `title` back to it — dirty on open, "Leave site?" on exit, a Save reverting the rename.
     // Only the text changes; the node's attrs (alignment) and every other block are kept.
-    return { ...(doc as LooseNode), content: [{ ...first, content: titleNode(title).content }, ...content.slice(1)] };
+    return { ...(doc as LooseNode), content: [{ ...first, content: titleNode({ text: title }).content }, ...content.slice(1)] };
   }
 
   const blocks = content.length > 0 ? content : [{ type: "paragraph" }];
-  return { type: "doc", content: [titleNode(title), ...blocks] };
+  return { type: "doc", content: [titleNode({ text: title }), ...blocks] };
 }
 
 /**
@@ -593,7 +591,7 @@ export function withTitleNode(bodyJson: unknown, title: string): LooseNode {
  *
  * @complexity O(t) in the title node's own inline content length.
  */
-export function titleNodeText(bodyJson: unknown): string {
+export function titleNodeText({ bodyJson }: { bodyJson: unknown }, _options: Record<string, never> = {}): string {
   const doc = isLooseNode(bodyJson) ? bodyJson : null;
   const content = doc && Array.isArray(doc.content) ? doc.content : [];
   const first = content[0];
@@ -647,12 +645,12 @@ export function resolvePostPreviewBranches(input: {
  *
  * @complexity O(1).
  */
-export function isoToLocalDateTimeInput(iso: string | null | undefined): string {
+export function isoToLocalDateTimeInput({ iso }: { iso: string | null | undefined }, _options: Record<string, never> = {}): string {
   if (!iso) return "";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const pad = ({ n }: { n: number }, _options: Record<string, never> = {}) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad({ n: date.getMonth() + 1 })}-${pad({ n: date.getDate() })}T${pad({ n: date.getHours() })}:${pad({ n: date.getMinutes() })}`;
 }
 
 /**
@@ -662,7 +660,7 @@ export function isoToLocalDateTimeInput(iso: string | null | undefined): string 
  *
  * @complexity O(1).
  */
-export function localDateTimeInputToIso(value: string): string | null {
+export function localDateTimeInputToIso({ value }: { value: string }, _options: Record<string, never> = {}): string | null {
   if (value.trim() === "") return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
@@ -670,20 +668,20 @@ export function localDateTimeInputToIso(value: string): string | null {
 
 /** Whether a published row is still waiting for its go-live time — the admin mirror of the server's
  *  `isScheduledAt` (`contracts/core/scheduled-publish.ts`). @complexity O(1). */
-export function isScheduledPost(input: { status: "draft" | "published"; publishAt: string | null }, nowMs: number): boolean {
+export function isScheduledPost({ input, nowMs }: { input: { status: "draft" | "published"; publishAt: string | null }; nowMs: number }, _options: Record<string, never> = {}): boolean {
   return input.status === "published" && input.publishAt !== null && Date.parse(input.publishAt) > nowMs;
 }
 
 /** Whether the editor shows the cover-image slot above the title node: only for a TipTap body
  *  (`bodyFormat` "doc", the default when absent), never an html page. @complexity O(1). */
-export function showsCoverImageSlot(bodyFormat: "doc" | "html" | undefined): boolean {
+export function showsCoverImageSlot({ bodyFormat }: { bodyFormat: "doc" | "html" | undefined }, _options: Record<string, never> = {}): boolean {
   return (bodyFormat ?? "doc") === "doc";
 }
 
 /** Whether the cover slot carries the "Hide the cover image in the body" toggle (owner, 2026-10-11,
  *  moved there from the settings modal's Image tab): posts only, as it was in that tab.
  *  @complexity O(1). */
-export function showsHideCoverInBodyToggle(kind: "post" | "page"): boolean {
+export function showsHideCoverInBodyToggle({ kind }: { kind: "post" | "page" }, _options: Record<string, never> = {}): boolean {
   return kind === "post";
 }
 

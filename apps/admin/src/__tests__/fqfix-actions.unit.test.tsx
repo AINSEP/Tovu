@@ -146,7 +146,7 @@ describe('accepted writes with failed refreshes', () => {
     const read = port.listRecoveryRestorePoints;
     let writes = 0;
     const create = port.createRestorePoint;
-    port.createRestorePoint = async options => { writes++; return create(options); };
+    port.createRestorePoint = async (input, options) => { writes++; return create(input, options); };
     port.listRecoveryRestorePoints = async () => { throw new Error('Recovery refresh failed'); };
     await act(async () => { await result.current.recovery.createRestorePoint(); });
     await waitFor(() => expect(result.current.recovery.error).toBe('Recovery refresh failed'));

@@ -24,24 +24,24 @@ afterEach(() => localStorage.clear());
 it("a failed post Save preserves the exact working document before re-login", async () => {
   const fake = createFakePostEditorPort({ post: row });
   const port = { ...fake, getBackupPrincipalId: () => scope.principalId, updatePost: expired, putAutosave: expired };
-  const first = renderHook(() => usePostEditor(row.id, { port, navigate: () => {}, t: key => key }));
+  const first = renderHook(() => usePostEditor({ postId: row.id, deps: { port, navigate: () => {}, t: key => key } }));
   await waitFor(() => expect(first.result.current.post).not.toBeNull());
   await waitFor(() => expect(first.result.current.editor).not.toBeNull());
   act(() => {
-    first.result.current.setTitle("Unsaved post title");
-    first.result.current.setSlug("unsaved-post-slug");
-    first.result.current.editor!.commands.setContent(withTitleNode({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Exact typed body" }] }] }, "Unsaved post title") as JSONContent);
+    first.result.current.setTitle({ next: "Unsaved post title" });
+    first.result.current.setSlug({ value: "unsaved-post-slug" });
+    first.result.current.editor!.commands.setContent(withTitleNode({ bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Exact typed body" }] }] }, title: "Unsaved post title" }) as JSONContent);
   });
   const document = first.result.current.editor!.getJSON();
-  await act(async () => first.result.current.save());
+  await act(async () => first.result.current.save({}));
   expect(readStandingDraftLocalBackup(row.id, scope)).toMatchObject({ title: "Unsaved post title", slug: "unsaved-post-slug", bodyJson: document });
   first.unmount();
   const restoredPort = { ...fake, getBackupPrincipalId: () => scope.principalId };
-  const second = renderHook(() => usePostEditor(row.id, { port: restoredPort, navigate: () => {}, t: key => key }));
+  const second = renderHook(() => usePostEditor({ postId: row.id, deps: { port: restoredPort, navigate: () => {}, t: key => key } }));
   await waitFor(() => expect(second.result.current.recoverableDraft?.title).toBe("Unsaved post title"));
   expect(second.result.current.title).toBe("Saved title");
   act(() => second.result.current.restoreRecoveredDraft());
-  await act(async () => second.result.current.save());
+  await act(async () => second.result.current.save({}));
   expect(readStandingDraftLocalBackup(row.id, scope)).toBeNull();
 });
 

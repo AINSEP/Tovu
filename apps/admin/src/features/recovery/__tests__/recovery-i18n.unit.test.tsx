@@ -15,9 +15,9 @@ it.each([
   ["unlisted-locale", "Since stamp-17, restoring here would discard at least:", "Restore plan ready (plan plan-42). Confirming issues a one-time execution token — nothing is restored yet.", "Restore run run-83 finished in state refused."],
 ])("preserves interpolated identities and caller markup for %s", (locale, since, plan, done) => {
   const { container } = render(<>
-    <p data-testid="since">{sinceDiscardMessage(locale, "stamp-17")}</p>
-    <p data-testid="plan">{restorePlanReadyMessage(locale, "plan-42")}</p>
-    <p data-testid="done">{restoreDoneMessage(locale, "run-83", <span role="status">refused</span>)}</p>
+    <p data-testid="since">{sinceDiscardMessage({ locale: locale, createdAt: "stamp-17" })}</p>
+    <p data-testid="plan">{restorePlanReadyMessage({ locale: locale, planId: "plan-42" })}</p>
+    <p data-testid="done">{restoreDoneMessage({ locale: locale, restoreRunId: "run-83", stateNode: <span role="status">refused</span> })}</p>
   </>);
   expect(screen.getByTestId("since").textContent).toBe(since);
   expect(container.querySelector("strong")?.textContent).toBe("stamp-17");
@@ -33,10 +33,10 @@ it.each([
 ])("distinguishes unknown from verified zero for %s", (locale, unknown, baseline) => {
   // Reject: count === "unknown" returns numeric zero.
   render(<>
-    <div data-testid="unknown">{discardCountLine(locale, "unknown", "posts/pages writes")}</div>
-    <div data-testid="zero">{discardCountLine(locale, 0, "plugin-table rows")}</div>
-    <div data-testid="count">{discardCountLine(locale, 17, "redirect writes")}</div>
-    <p role="alert">{baselineUnavailableMessage(locale)}</p>
+    <div data-testid="unknown">{discardCountLine({ locale: locale, count: "unknown", categoryLabelText: "posts/pages writes" })}</div>
+    <div data-testid="zero">{discardCountLine({ locale: locale, count: 0, categoryLabelText: "plugin-table rows" })}</div>
+    <div data-testid="count">{discardCountLine({ locale: locale, count: 17, categoryLabelText: "redirect writes" })}</div>
+    <p role="alert">{baselineUnavailableMessage({ locale: locale })}</p>
   </>);
   expect(screen.getByTestId("unknown").textContent).toBe(unknown);
   expect(screen.getByTestId("unknown").querySelector("[data-unknown=true]")?.textContent).toBe(unknown.replace("posts/pages writes", ""));

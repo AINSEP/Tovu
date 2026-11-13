@@ -41,16 +41,16 @@ afterEach(() => {
 
 describe("showsCoverImageSlot", () => {
   it("shows for a TipTap body (or no format recorded), never for an html page", () => {
-    expect(showsCoverImageSlot("doc")).toBe(true);
-    expect(showsCoverImageSlot(undefined)).toBe(true);
-    expect(showsCoverImageSlot("html")).toBe(false);
+    expect(showsCoverImageSlot({ bodyFormat: "doc" })).toBe(true);
+    expect(showsCoverImageSlot({ bodyFormat: undefined })).toBe(true);
+    expect(showsCoverImageSlot({ bodyFormat: "html" })).toBe(false);
   });
 });
 
 describe("showsHideCoverInBodyToggle", () => {
   it("posts carry the toggle, pages do not", () => {
-    expect(showsHideCoverInBodyToggle("post")).toBe(true);
-    expect(showsHideCoverInBodyToggle("page")).toBe(false);
+    expect(showsHideCoverInBodyToggle({ kind: "post" })).toBe(true);
+    expect(showsHideCoverInBodyToggle({ kind: "page" })).toBe(false);
   });
 });
 
@@ -139,10 +139,10 @@ describe("PostCoverImage edits usePostEditor's featuredMediaId and hideCoverImag
     featuredMediaId: "m1",
   };
   const mediaPort = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
-  const useTestPicker = (value: string | null, onChange: (id: string | null) => void) => usePostFeaturedImage(value, onChange, { port: mediaPort });
+  const useTestPicker = ({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) => usePostFeaturedImage({ value, onChange, deps: { port: mediaPort } });
 
   function Harness({ port, onController }: { port: FakePostEditorPort; onController: (c: PostEditorController) => void }) {
-    const controller = usePostEditor("p1", { port, navigate: vi.fn(), t: fakeT });
+    const controller = usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } });
     onController(controller);
     return (
       <PostCoverImage
@@ -173,7 +173,7 @@ describe("PostCoverImage edits usePostEditor's featuredMediaId and hideCoverImag
     expect(screen.getByRole("button", { name: "Add cover image" })).toBeTruthy();
 
     await act(async () => {
-      await controller!.save();
+      await controller!.save({});
     });
     expect(port.updatePostCalls[0]).toMatchObject({ featuredMediaId: null });
   });
@@ -205,7 +205,7 @@ describe("PostCoverImage edits usePostEditor's featuredMediaId and hideCoverImag
     await waitFor(() => expect(controller!.hideCoverImageInBody).toBe(false));
     expect(controller!.dirty).toBe(true);
     await act(async () => {
-      await controller!.save();
+      await controller!.save({});
     });
     expect(port.updatePostCalls[0]).toMatchObject({ hideCoverImageInBody: false });
   });

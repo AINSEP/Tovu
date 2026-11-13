@@ -351,7 +351,7 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
 
   it("creates a manual restore point when request options are omitted", async () => {
     const port = createFakeRecoveryPort();
-    expect(await port.createRestorePoint()).toEqual({ restorePoint: { id: "fake-rp-1", costClass: "cheap", kind: "full" } });
+    expect(await port.createRestorePoint({})).toEqual({ restorePoint: { id: "fake-rp-1", costClass: "cheap", kind: "full" } });
     expect(await port.listRecoveryRestorePoints()).toEqual({ items: [{
       id: "fake-rp-1", costClass: "cheap", kind: "full", trigger: "manual",
       watermarkAtCapture: 0, createdAt: "1970-01-01T00:00:00.000Z",

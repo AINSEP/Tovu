@@ -15,7 +15,7 @@ afterEach(() => localStorage.clear());
 
 async function opened(post = POST) {
   const port = createFakePostEditorPort({ post });
-  const hook = renderHook(() => usePostEditor("p1", { port, navigate, t: translate }));
+  const hook = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate, t: translate } }));
   await waitFor(() => expect(hook.result.current.post?.id).toBe("p1"));
   await waitFor(() => expect(hook.result.current.editor).not.toBeNull());
   return { port, ...hook };
@@ -27,7 +27,7 @@ describe("post author editor", () => {
     expect(result.current.author).toBe("admin");
     expect(result.current.showAuthor).toBe(false);
     expect(result.current.dirty).toBe(false);
-    await act(async () => { await result.current.save(); });
+    await act(async () => { await result.current.save({}); });
     expect(port.updatePostCalls[0]).not.toHaveProperty("author");
     expect(port.updatePostCalls[0]).not.toHaveProperty("showAuthor");
   });
@@ -36,11 +36,11 @@ describe("post author editor", () => {
     const { port, result } = await opened();
     act(() => { result.current.setAuthor("Guest Writer"); result.current.setShowAuthor(true); });
     expect(result.current.dirty).toBe(true);
-    await act(async () => { await result.current.save(); });
+    await act(async () => { await result.current.save({}); });
     expect(port.updatePostCalls[0]).toMatchObject({ author: "Guest Writer", showAuthor: true, expectedVersion: 1 });
     expect(result.current.dirty).toBe(false);
     act(() => { result.current.setAuthor(""); result.current.setShowAuthor(false); });
-    await act(async () => { await result.current.save(); });
+    await act(async () => { await result.current.save({}); });
     expect(port.updatePostCalls[1]).toMatchObject({ author: null, showAuthor: false });
     expect(result.current.author).toBe("");
     expect(result.current.dirty).toBe(false);
@@ -54,7 +54,7 @@ describe("post author editor", () => {
     port.updatePost = async ({ target, patch }) => { await waiting; return save({ target, patch }); };
     act(() => result.current.setAuthor("Saved Writer"));
     let pending!: Promise<void>;
-    act(() => { pending = result.current.save(); });
+    act(() => { pending = result.current.save({}); });
     act(() => result.current.setAuthor("Newer Typing"));
     await act(async () => { finish(); await pending; });
     expect(port.post.author).toBe("Saved Writer");
@@ -73,21 +73,21 @@ describe("post author editor", () => {
     const autosave = { bodyFormat: "doc" as const, bodyJson: POST.bodyJson, title: POST.title, slug: POST.slug,
       baseVersion: 1, savedAt: "2026-10-09T01:00:00Z", savedByPrincipalId: "fake-principal", author: "Recovered Writer", showAuthor: true };
     const port = createFakePostEditorPort({ post: POST, autosave });
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate, t: translate }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate, t: translate } }));
     await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     act(() => result.current.restoreRecoveredDraft());
     expect(result.current.author).toBe("Recovered Writer");
     expect(result.current.showAuthor).toBe(true);
-    await act(async () => { await result.current.save(); });
+    await act(async () => { await result.current.save({}); });
     expect(port.post).toMatchObject({ author: "Recovered Writer", showAuthor: true });
   });
 
   it("renders accessible controls driven by hook state and saves their actual edits", async () => {
     const port = createFakePostEditorPort({ post: POST });
     function Fields() {
-      const controller = usePostEditor("p1", { port, navigate, t: translate });
-      return <><PostAuthorFields {...controller} t={translate} /><button onClick={() => { void controller.save(); }}>Save credit</button></>;
+      const controller = usePostEditor({ postId: "p1", deps: { port, navigate, t: translate } });
+      return <><PostAuthorFields {...controller} t={translate} /><button onClick={() => { void controller.save({}); }}>Save credit</button></>;
     }
     render(<Fields />);
     await waitFor(() => expect(screen.getByRole("textbox", { name: "Author" })).toHaveValue("admin"));
