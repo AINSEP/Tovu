@@ -48,7 +48,13 @@ export interface SiteKeyRecoveryController {
 
 /** Whether the tab should offer recovery: saved credentials need a key that is not in place.
  *  @complexity O(1). */
-export function isSiteKeyLocked(status: AdminSiteKeyStatus | undefined, generateError: SiteKeyGenerateFailure | null): boolean {
+export function isSiteKeyLocked(
+  { status, generateError }: {
+    status: AdminSiteKeyStatus | undefined;
+    generateError: SiteKeyGenerateFailure | null;
+  },
+  _optional: Record<string, never> = {},
+): boolean {
   if (generateError?.kind === "locked") return true;
   return status?.state === "missing-with-data" || status?.state === "mismatch";
 }
@@ -56,17 +62,24 @@ export function isSiteKeyLocked(status: AdminSiteKeyStatus | undefined, generate
 /** The status card's note for a locked site — replaces "A key is created automatically…", which
  *  is not true there (boot refuses to mint over saved credentials). `null` when not locked.
  *  @complexity O(1). */
-export function siteKeyLockedNote(status: AdminSiteKeyStatus | undefined, generateError: SiteKeyGenerateFailure | null, t: Translate): string | null {
-  return isSiteKeyLocked(status, generateError) ? t("Your credentials need their original site key — use the card above.") : null;
+export function siteKeyLockedNote(
+  { status, generateError, t }: {
+    status: AdminSiteKeyStatus | undefined;
+    generateError: SiteKeyGenerateFailure | null;
+    t: Translate;
+  },
+  _optional: Record<string, never> = {},
+): string | null {
+  return isSiteKeyLocked({ status, generateError }) ? t("Your credentials need their original site key — use the card above.") : null;
 }
 
 /** The server's own sentence for a refusal, else the shared fallback. @complexity O(1). */
-function recoveryErrorMessage(err: unknown, t: Translate): string {
+function recoveryErrorMessage({ err, t }: { err: unknown; t: Translate }, _optional: Record<string, never> = {}): string {
   if (err instanceof ApiError && typeof err.body?.detail === "string") return err.body.detail;
   return describeApiError(err, t("unknown error"));
 }
 
-function unlockedMessage(resealed: number, t: Translate): string {
+function unlockedMessage({ resealed, t }: { resealed: number; t: Translate }, _optional: Record<string, never> = {}): string {
   const base = t("Unlocked. Your saved credentials work again.");
   return resealed > 0 ? `${base} ${t("{count} saved since were moved over.").replace("{count}", () => String(resealed))}` : base;
 }
@@ -79,9 +92,17 @@ function startedFreshMessage(affectedWebhooks: readonly AdminSiteKeyAffectedWebh
 }
 
 /**
- * @param onRecovered - re-reads the tab's status after a successful recovery.
+ * @param required - The recovery port, translator, and status refresh callback.
+ * @param required.onRecovered - re-reads the tab's status after a successful recovery.
  */
-export function useSiteKeyRecovery(port: SiteKeyRecoveryPort, t: Translate, onRecovered: (() => Promise<void> | void) | undefined): SiteKeyRecoveryController {
+export function useSiteKeyRecovery(
+  { port, t, onRecovered }: {
+    port: SiteKeyRecoveryPort;
+    t: Translate;
+    onRecovered: (() => Promise<void> | void) | undefined;
+  },
+  _optional: Record<string, never> = {},
+): SiteKeyRecoveryController {
   const [siteKey, setSiteKey] = useState("");
   const [unlocking, setUnlocking] = useState(false);
   const [unlockError, setUnlockError] = useState<string | null>(null);
@@ -99,12 +120,12 @@ export function useSiteKeyRecovery(port: SiteKeyRecoveryPort, t: Translate, onRe
     setUnlocking(true);
     setUnlockError(null);
     try {
-      const result = await port.importSiteKey(pasted);
+      const result = await port.importSiteKey({ siteKey: pasted });
       setSiteKey("");
-      setResultMessage(unlockedMessage(result.resealed, t));
+      setResultMessage(unlockedMessage({ resealed: result.resealed, t }));
       await onRecovered?.();
     } catch (err) {
-      setUnlockError(recoveryErrorMessage(err, t));
+      setUnlockError(recoveryErrorMessage({ err, t }));
     } finally {
       setUnlocking(false);
     }
@@ -117,7 +138,7 @@ export function useSiteKeyRecovery(port: SiteKeyRecoveryPort, t: Translate, onRe
       setPreview(await port.previewStartFresh());
     } catch (err) {
       setPreview(null);
-      setStartFreshError(recoveryErrorMessage(err, t));
+      setStartFreshError(recoveryErrorMessage({ err, t }));
     }
     setStartFreshStep("confirm");
   }
@@ -133,13 +154,13 @@ export function useSiteKeyRecovery(port: SiteKeyRecoveryPort, t: Translate, onRe
     setStartingFresh(true);
     setStartFreshError(null);
     try {
-      const result = await port.startFresh(confirmText);
+      const result = await port.startFresh({ confirm: confirmText });
       setStartFreshStep("closed");
       setConfirmText("");
       setResultMessage(startedFreshMessage(result.affectedWebhooks, t));
       await onRecovered?.();
     } catch (err) {
-      setStartFreshError(recoveryErrorMessage(err, t));
+      setStartFreshError(recoveryErrorMessage({ err, t }));
     } finally {
       setStartingFresh(false);
     }
@@ -153,8 +174,8 @@ export function useSiteKeyRecovery(port: SiteKeyRecoveryPort, t: Translate, onRe
 }
 
 /** Binds the real port and the resolved locale — same `useWired*` shape as `useWiredSiteKey`. */
-export function useWiredSiteKeyRecovery(onRecovered: (() => Promise<void> | void) | undefined): SiteKeyRecoveryController {
+export function useWiredSiteKeyRecovery({ onRecovered }: { onRecovered: (() => Promise<void> | void) | undefined }, _optional: Record<string, never> = {}): SiteKeyRecoveryController {
   const locale = useAdminLocale();
   const boundT = (key: string): string => defaultT({ locale: locale, key: key });
-  return useSiteKeyRecovery(defaultSiteKeyPort, boundT, onRecovered);
+  return useSiteKeyRecovery({ port: defaultSiteKeyPort, t: boundT, onRecovered });
 }

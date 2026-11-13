@@ -8,18 +8,18 @@ import type { OtherCredentialsPort } from "./other-credentials-port.hooks";
  *  own header for why this page adds no new HTTP surface. */
 export const defaultOtherCredentialsPort: OtherCredentialsPort = {
   getSiteAssistantCredential: () => api.getAssistantSiteCredential(),
-  setSiteAssistantCredential: (patch) => api.setAssistantSiteCredential(patch),
+  setSiteAssistantCredential: (patch, _optional = {}) => api.setAssistantSiteCredential(patch),
   deleteSiteAssistantCredential: () => api.deleteAssistantSiteCredential(),
 
   getAdminByokCredential: () => api.getAdminExecutionCredential(),
-  setAdminByokCredential: (patch) => api.setAdminExecutionCredential(patch),
+  setAdminByokCredential: (patch, _optional = {}) => api.setAdminExecutionCredential(patch),
   deleteAdminByokCredential: () => api.deleteAdminExecutionCredential(),
 
   getMediaProviders: () => api.getMediaProviders(),
-  saveMediaProviders: (providers) => api.saveMediaProviders(providers),
+  saveMediaProviders: (providers, _optional = {}) => api.saveMediaProviders(providers),
 
   listExternalMcpServers: () => api.listExternalMcpServers(),
-  deleteExternalMcpServer: (serverId) => api.deleteExternalMcpServer(serverId),
+  deleteExternalMcpServer: ({ serverId }, _optional = {}) => api.deleteExternalMcpServer(serverId),
 };
 
 /** {@link createFakeOtherCredentialsPort}'s site-assistant slice — one small named helper per

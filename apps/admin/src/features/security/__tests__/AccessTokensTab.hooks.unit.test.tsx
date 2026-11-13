@@ -116,7 +116,7 @@ describe("useMergedSecretsOrder — the owner's literal regression case", () => 
       otherGroup("media-provider"), // Media (ranks before AI), not configured
       otherGroup("external-mcp", [otherRow("external-mcp", { itemId: "higgsfield", name: "Higgsfield" })]), // AI, configured
     ]);
-    const { result } = renderHook(() => useMergedSecretsOrder(controller, otherController, ""));
+    const { result } = renderHook(() => useMergedSecretsOrder({ controller, otherController, query: "" }));
 
     const labels = result.current.map((e) => e.info.label);
     expect(labels).toEqual(["Higgsfield", "Media provider keys"]);
@@ -132,7 +132,7 @@ describe("useMergedSecretsOrder — genuinely cross-tier, not 'Tier 2 always aft
     // still appended after all of Tier 1" even though it now passes category order too.
     const controller = makeAccessTokens([providerGroup("publish", "vercel")]); // Hosting, not connected
     const otherController = makeOtherCredentials([otherGroup("site-assistant", [otherRow("site-assistant")])]); // AI, configured
-    const { result } = renderHook(() => useMergedSecretsOrder(controller, otherController, ""));
+    const { result } = renderHook(() => useMergedSecretsOrder({ controller, otherController, query: "" }));
 
     const labels = result.current.map((e) => e.info.label);
     expect(labels).toEqual(["Site assistant model key", "Vercel"]);
@@ -142,7 +142,7 @@ describe("useMergedSecretsOrder — genuinely cross-tier, not 'Tier 2 always aft
   it("still ranks a saved Tier-1 token above an unconfigured Tier-2 placeholder (round 1's own baseline, now cross-tier)", () => {
     const controller = makeAccessTokens([providerGroup("publish", "github-pages", [rowState({ row: row({ kind: "publish", providerId: "github-pages" }) })])]);
     const otherController = makeOtherCredentials([otherGroup("admin-byok")]); // not configured
-    const { result } = renderHook(() => useMergedSecretsOrder(controller, otherController, ""));
+    const { result } = renderHook(() => useMergedSecretsOrder({ controller, otherController, query: "" }));
 
     const labels = result.current.map((e) => e.info.label);
     expect(labels).toEqual(["GitHub Pages", "Admin AI Assistant key (BYOK)"]);
@@ -159,7 +159,7 @@ describe("useMergedSecretsOrder — multi-item store explosion", () => {
         otherRow("media-provider", { itemId: "cloudinary", name: "Cloudinary" }),
       ]),
     ]);
-    const { result } = renderHook(() => useMergedSecretsOrder(controller, otherController, ""));
+    const { result } = renderHook(() => useMergedSecretsOrder({ controller, otherController, query: "" }));
 
     const labels = result.current.map((e) => e.info.label);
     expect(labels).toContain("Cloudinary");
@@ -172,7 +172,7 @@ describe("useMergedSecretsOrder — multi-item store explosion", () => {
   it("renders exactly one placeholder entry per otherwise-empty store, never zero and never more than one", () => {
     const controller = makeAccessTokens([]);
     const otherController = makeOtherCredentials([otherGroup("site-assistant"), otherGroup("admin-byok")]);
-    const { result } = renderHook(() => useMergedSecretsOrder(controller, otherController, ""));
+    const { result } = renderHook(() => useMergedSecretsOrder({ controller, otherController, query: "" }));
 
     expect(result.current).toHaveLength(2);
     expect(result.current.every((e) => e.kind === "other" && e.row === undefined)).toBe(true);
@@ -182,25 +182,25 @@ describe("useMergedSecretsOrder — multi-item store explosion", () => {
 describe("useMergedSecretsOrder — visibility (moved from OtherCredentialsSection's own suite)", () => {
   it("hides an empty Tier-2 store whose own label/purpose does not match the query", () => {
     const otherController = makeOtherCredentials([otherGroup("site-assistant")]);
-    const { result } = renderHook(() => useMergedSecretsOrder(makeAccessTokens([]), otherController, "zzz-no-match"));
+    const { result } = renderHook(() => useMergedSecretsOrder({ controller: makeAccessTokens([]), otherController, query: "zzz-no-match" }));
     expect(result.current).toHaveLength(0);
   });
 
   it("still shows an empty Tier-2 store when the query matches its own label", () => {
     const otherController = makeOtherCredentials([otherGroup("site-assistant")]);
-    const { result } = renderHook(() => useMergedSecretsOrder(makeAccessTokens([]), otherController, "site assistant"));
+    const { result } = renderHook(() => useMergedSecretsOrder({ controller: makeAccessTokens([]), otherController, query: "site assistant" }));
     expect(result.current).toHaveLength(1);
   });
 
   it("shows a Tier-2 store whose row already matched the query upstream, even if the store's own label does not", () => {
     const otherController = makeOtherCredentials([otherGroup("media-provider", [otherRow("media-provider", { itemId: "cloudinary", name: "Cloudinary" })])]);
-    const { result } = renderHook(() => useMergedSecretsOrder(makeAccessTokens([]), otherController, "cloudinary"));
+    const { result } = renderHook(() => useMergedSecretsOrder({ controller: makeAccessTokens([]), otherController, query: "cloudinary" }));
     expect(result.current).toHaveLength(1);
   });
 
   it("hides an unconnected Tier-1 provider whose own label does not match the query", () => {
     const controller = makeAccessTokens([providerGroup("publish", "netlify")]);
-    const { result } = renderHook(() => useMergedSecretsOrder(controller, makeOtherCredentials([]), "zzz-no-match"));
+    const { result } = renderHook(() => useMergedSecretsOrder({ controller, otherController: makeOtherCredentials([]), query: "zzz-no-match" }));
     expect(result.current).toHaveLength(0);
   });
 });
@@ -215,7 +215,7 @@ describe("useMergedSecretsOrder — search narrows both tiers and keeps the merg
       otherGroup("external-mcp", [otherRow("external-mcp", { itemId: "gh-app", name: "GitHub App" })]), // matches "git"
       otherGroup("admin-byok"), // no match for "git"
     ]);
-    const { result } = renderHook(() => useMergedSecretsOrder(controller, otherController, "git"));
+    const { result } = renderHook(() => useMergedSecretsOrder({ controller, otherController, query: "git" }));
 
     // Both matched entries are "filled" (saved-tier), so the tiebreak is category-chip order:
     // source-control (GitHub's own category) ranks before ai (GitHub App's, via external-mcp) —
@@ -229,13 +229,13 @@ describe("useMergedSecretsOrder — search narrows both tiers and keeps the merg
 
 describe("useMergedSecretsOrder — still loading", () => {
   it("returns an empty list while both controllers' groups are undefined", () => {
-    const { result } = renderHook(() => useMergedSecretsOrder(makeAccessTokens(undefined), makeOtherCredentials(undefined), ""));
+    const { result } = renderHook(() => useMergedSecretsOrder({ controller: makeAccessTokens(undefined), otherController: makeOtherCredentials(undefined), query: "" }));
     expect(result.current).toEqual([]);
   });
   it.each(["access", "other"])("keeps the loaded controller visible while %s groups are loading", (loading) => {
     const access = loading === "access" ? undefined : [providerGroup("publish", "vercel")];
     const other = loading === "other" ? undefined : [otherGroup("site-assistant")];
-    const { result } = renderHook(() => useMergedSecretsOrder(makeAccessTokens(access), makeOtherCredentials(other), ""));
+    const { result } = renderHook(() => useMergedSecretsOrder({ controller: makeAccessTokens(access), otherController: makeOtherCredentials(other), query: "" }));
     expect(result.current.map((entry) => entry.info.label)).toEqual(loading === "access" ? ["Site assistant model key"] : ["Vercel"]);
   });
 });

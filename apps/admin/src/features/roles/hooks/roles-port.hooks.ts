@@ -17,15 +17,15 @@ import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "@/lib/api";
 export interface RolesPort {
   listRoles(): Promise<{ roles: AdminRole[] }>;
   listPolicies(): Promise<{ policies: AdminPolicy[] }>;
-  createRole(name: string): Promise<{ role: AdminRole }>;
-  updateRole(input: { roleId: string; name: string }): Promise<{ role: AdminRole }>;
-  deleteRole(roleId: string): Promise<void>;
+  createRole(input: { name: string }, optional?: Record<string, never>): Promise<{ role: AdminRole }>;
+  updateRole(input: { roleId: string; name: string }, optional?: Record<string, never>): Promise<{ role: AdminRole }>;
+  deleteRole(input: { roleId: string }, optional?: Record<string, never>): Promise<void>;
   createPolicy(input: { name: string }, options?: { description?: string }): Promise<{ policy: AdminPolicy }>;
   updatePolicy(
     target: { policyId: string },
     options?: { name?: string; description?: string },
   ): Promise<{ policy: AdminPolicy }>;
-  deletePolicy(policyId: string): Promise<void>;
+  deletePolicy(input: { policyId: string }, optional?: Record<string, never>): Promise<void>;
   writePolicyPermission(
     input: { policyId: string; permission: string },
     options?: { resourceType?: string },
@@ -33,6 +33,6 @@ export interface RolesPort {
   /** OQ-10 — the two calls that make a policy's permission set editable rather than append-only.
    *  `listPolicyPermissions` is what yields the `id` `removePolicyPermission` needs; no other admin
    *  call exposes one. */
-  listPolicyPermissions(policyId: string): Promise<{ policyPermissions: AdminPolicyPermission[] }>;
-  removePolicyPermission(input: { policyId: string; policyPermissionId: string }): Promise<void>;
+  listPolicyPermissions(input: { policyId: string }, optional?: Record<string, never>): Promise<{ policyPermissions: AdminPolicyPermission[] }>;
+  removePolicyPermission(input: { policyId: string; policyPermissionId: string }, optional?: Record<string, never>): Promise<void>;
 }

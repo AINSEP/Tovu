@@ -88,7 +88,7 @@ export interface RolesController {
   editingRoleName: string;
   setEditingRoleName: (name: string) => void;
   startEditRole: (role: AdminRole) => void;
-  onSaveRole: (roleId: string) => Promise<void>;
+  onSaveRole: (required: { roleId: string }, optional?: Record<string, never>) => Promise<void>;
 
   editingPolicyId: string | null;
   setEditingPolicyId: (policyId: string | null) => void;
@@ -97,7 +97,7 @@ export interface RolesController {
   editingPolicyDescription: string;
   setEditingPolicyDescription: (description: string) => void;
   startEditPolicy: (policy: AdminPolicy) => void;
-  onSavePolicy: (policyId: string) => Promise<void>;
+  onSavePolicy: (required: { policyId: string }, optional?: Record<string, never>) => Promise<void>;
 
   /** In-flight row action (rename, delete, or write-permission) — one at a time. */
   rowSavingId: string | null;
@@ -107,8 +107,8 @@ export interface RolesController {
   setPermissionInput: (permission: string) => void;
   resourceTypeInput: string;
   setResourceTypeInput: (resourceType: string) => void;
-  togglePermissionForm: (policyId: string) => void;
-  onWritePermission: (policyId: string) => Promise<void>;
+  togglePermissionForm: (required: { policyId: string }, optional?: Record<string, never>) => void;
+  onWritePermission: (required: { policyId: string }, optional?: Record<string, never>) => Promise<void>;
 
   /** OQ-10 — the open policy's CURRENT permission rows, so the form can show what is already
    *  granted and offer each one a Remove. Empty whenever no form is open. Loaded on open (and
@@ -119,7 +119,7 @@ export interface RolesController {
   /** Which permission row has its removal in flight — drives that row's own busy label, not a
    *  page-wide spinner (same reasoning as `rowSavingId`). */
   removingPermissionId: string | null;
-  onRemovePermission: (policyId: string, policyPermissionId: string) => Promise<void>;
+  onRemovePermission: (required: { policyId: string; policyPermissionId: string }, optional?: Record<string, never>) => Promise<void>;
 
   /** The permission row a Remove click is asking to confirm — `null` when the dialog is closed.
    *  Same "ConfirmDialog stays mounted, this drives its `open` prop" shape as `pendingRoleDelete`/
@@ -146,7 +146,7 @@ export interface RolesController {
 
   /** Bound translator — `key` already resolved against the caller's locale, so `Roles.tsx` never
    *  imports `useAdminLocale`/`roles-i18n` itself. See this file's header. */
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
   /** Raw resolved locale — `rules.ts`'s row-menu builders and `apps/admin/src/features/roles/roles-i18n.ts`'s part-builder
    *  helpers take `locale` directly rather than a bound translator. See this file's header. */
   locale: string;
@@ -173,12 +173,15 @@ export interface RolesController {
  *  `onDeleteRole`/`onDeletePolicy` below) since only the caller knows which pending-selection state
  *  it owns. */
 async function runRowDelete(
-  id: string,
-  mutate: (required: { input: string }) => Promise<unknown>,
-  setRowSavingId: Dispatch<SetStateAction<string | null>>,
-  setRowError: Dispatch<SetStateAction<string | null>>,
-  clearPending: () => void,
-  describeError: (e: unknown) => string,
+  { id, mutate, setRowSavingId, setRowError, clearPending, describeError }: {
+    id: string;
+    mutate: (required: { input: string }) => Promise<unknown>;
+    setRowSavingId: Dispatch<SetStateAction<string | null>>;
+    setRowError: Dispatch<SetStateAction<string | null>>;
+    clearPending: () => void;
+    describeError: (e: unknown) => string;
+  },
+  _optional: Record<string, never> = {},
 ): Promise<void> {
   setRowSavingId(id);
   setRowError(null);
@@ -208,7 +211,7 @@ export interface RolesDependencies {
 export function useRoles(deps: RolesDependencies): RolesController {
   const { port } = deps;
   const locale = useAdminLocale();
-  const boundT = (key: string): string => t({ locale: locale, key: key });
+  const boundT = ({ key }: { key: string }, _optional: Record<string, never> = {}): string => t({ locale: locale, key: key });
 
   const list = useFetchQuery({
     key: KEYS.list,
@@ -219,7 +222,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
   });
   const roles = list.data?.roles ?? null;
   const policies = list.data?.policies ?? null;
-  const error = list.error ? describeApiError(list.error, t({ locale: locale, key: "failed to load roles/policies" }), locale) : null;
+  const error = list.error ? describeApiError({ e: list.error, fallback: t({ locale: locale, key: "failed to load roles/policies" }), locale }) : null;
 
   const [rowError, setRowError] = useState<string | null>(null);
 
@@ -274,7 +277,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
   const [pendingPermissionRemove, setPendingPermissionRemove] = useState<PendingPermissionRemove | null>(null);
 
   const createRoleMutation = useFetchMutation({
-    run: ({ input: name }: { input: string }) => port.createRole(name),
+    run: ({ input: name }: { input: string }) => port.createRole({ name }),
   }, {
     invalidates: [KEYS.list],
   });
@@ -290,7 +293,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
     invalidates: [KEYS.list],
   });
   const deleteRoleMutation = useFetchMutation({
-    run: ({ input: id }: { input: string }) => port.deleteRole(id),
+    run: ({ input: id }: { input: string }) => port.deleteRole({ roleId: id }),
   }, {
     invalidates: [KEYS.list],
   });
@@ -301,7 +304,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
     invalidates: [KEYS.list],
   });
   const deletePolicyMutation = useFetchMutation({
-    run: ({ input: id }: { input: string }) => port.deletePolicy(id),
+    run: ({ input: id }: { input: string }) => port.deletePolicy({ policyId: id }),
   }, {
     invalidates: [KEYS.list],
   });
@@ -352,14 +355,14 @@ export function useRoles(deps: RolesDependencies): RolesController {
    *  freely click "Edit" on another row at any time, no modal blocks it — so an unconditional reset
    *  would close a DIFFERENT, still-open and unsaved row's inline edit UI out from under the
    *  operator the moment this stale call finally settles. */
-  async function onSaveRole(roleId: string) {
+  async function onSaveRole({ roleId }: { roleId: string }, _optional: Record<string, never> = {}) {
     setRowSavingId(roleId);
     setRowError(null);
     try {
       await saveRoleMutation.mutate({ input: { roleId, name: editingRoleName } });
       setEditingRoleId((current) => (current === roleId ? null : current));
     } catch (e) {
-      setRowError(describeApiError(e, t({ locale: locale, key: "failed to rename role" }), locale));
+      setRowError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to rename role" }), locale }));
     } finally {
       setRowSavingId((current) => (current === roleId ? null : current));
     }
@@ -379,14 +382,14 @@ export function useRoles(deps: RolesDependencies): RolesController {
   async function onDeleteRole() {
     if (!pendingRoleDelete) return;
     const role = pendingRoleDelete;
-    await runRowDelete(
-      role.id,
-      deleteRoleMutation.mutate,
+    await runRowDelete({
+      id: role.id,
+      mutate: deleteRoleMutation.mutate,
       setRowSavingId,
       setRowError,
-      () => setPendingRoleDelete((current) => (current?.id === role.id ? null : current)),
-      (e) => describeApiError(e, t({ locale: locale, key: "failed to delete role" }), locale),
-    );
+      clearPending: () => setPendingRoleDelete((current) => (current?.id === role.id ? null : current)),
+      describeError: (e) => describeApiError({ e, fallback: t({ locale: locale, key: "failed to delete role" }), locale }),
+    });
   }
 
   function startEditPolicy(policy: AdminPolicy) {
@@ -398,14 +401,14 @@ export function useRoles(deps: RolesDependencies): RolesController {
 
   /** Same settle-time guard as `onSaveRole` above, keyed on `policyId` instead of `roleId` — see
    *  that function's comment for why. */
-  async function onSavePolicy(policyId: string) {
+  async function onSavePolicy({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) {
     setRowSavingId(policyId);
     setRowError(null);
     try {
       await savePolicyMutation.mutate({ input: { policyId, name: editingPolicyName, description: editingPolicyDescription } });
       setEditingPolicyId((current) => (current === policyId ? null : current));
     } catch (e) {
-      setRowError(describeApiError(e, t({ locale: locale, key: "failed to update policy" }), locale));
+      setRowError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to update policy" }), locale }));
     } finally {
       setRowSavingId((current) => (current === policyId ? null : current));
     }
@@ -416,24 +419,24 @@ export function useRoles(deps: RolesDependencies): RolesController {
   async function onDeletePolicy() {
     if (!pendingPolicyDelete) return;
     const policy = pendingPolicyDelete;
-    await runRowDelete(
-      policy.id,
-      deletePolicyMutation.mutate,
+    await runRowDelete({
+      id: policy.id,
+      mutate: deletePolicyMutation.mutate,
       setRowSavingId,
       setRowError,
-      () => setPendingPolicyDelete((current) => (current?.id === policy.id ? null : current)),
-      (e) => describeApiError(e, t({ locale: locale, key: "failed to delete policy" }), locale),
-    );
+      clearPending: () => setPendingPolicyDelete((current) => (current?.id === policy.id ? null : current)),
+      describeError: (e) => describeApiError({ e, fallback: t({ locale: locale, key: "failed to delete policy" }), locale }),
+    });
   }
 
   /** Refresh the open form's permission list. Failures land in `rowError` like every other row
    *  action rather than throwing — a list that cannot load must not take the form down with it. */
-  async function loadPermissions(policyId: string) {
+  async function loadPermissions({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) {
     permissionsGenerationRef.current += 1;
     const generation = permissionsGenerationRef.current;
     setPermissionsLoading(true);
     try {
-      const { policyPermissions } = await port.listPolicyPermissions(policyId);
+      const { policyPermissions } = await port.listPolicyPermissions({ policyId });
       // Superseded by a newer load started after this one — that later call owns
       // `permissionRows` now, and applying this stale result would let whichever policy's load
       // happens to settle LAST win regardless of which panel is actually open. See
@@ -443,7 +446,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
     } catch (e) {
       if (permissionsGenerationRef.current !== generation) return;
       setPermissionRows([]);
-      setRowError(describeApiError(e, t({ locale: locale, key: "failed to load permissions" }), locale));
+      setRowError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to load permissions" }), locale }));
     } finally {
       if (permissionsGenerationRef.current !== generation) return;
       setPermissionsLoading(false);
@@ -455,7 +458,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
   // function's body used to live inside that updater) fired `loadPermissions` twice per open. The
   // updater is now a pure `current === policyId` read; every side effect (the ref write, the row
   // clear, the load) runs once, in the function body, after the updater has been called.
-  function togglePermissionForm(policyId: string) {
+  function togglePermissionForm({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) {
     setRowError(null);
     setPermissionInput("");
     setResourceTypeInput("");
@@ -464,10 +467,10 @@ export function useRoles(deps: RolesDependencies): RolesController {
     setPermissionPolicyId(permissionPolicyIdRef.current);
     // Clear first either way, so a re-open never flashes the previous policy's permissions.
     setPermissionRows([]);
-    if (!closing) void loadPermissions(policyId);
+    if (!closing) void loadPermissions({ policyId });
   }
 
-  async function onRemovePermission(policyId: string, policyPermissionId: string) {
+  async function onRemovePermission({ policyId, policyPermissionId }: { policyId: string; policyPermissionId: string }, _optional: Record<string, never> = {}) {
     setRemovingPermissionId(policyPermissionId);
     setRowError(null);
     try {
@@ -477,9 +480,9 @@ export function useRoles(deps: RolesDependencies): RolesController {
       // same-policy loads against each other; it does not protect against a newer call for a
       // DIFFERENT policy, and this trailing call always mints the newest generation by
       // construction, so it used to win even after the operator moved to another policy's panel.
-      if (permissionPolicyIdRef.current === policyId) await loadPermissions(policyId);
+      if (permissionPolicyIdRef.current === policyId) await loadPermissions({ policyId });
     } catch (e) {
-      setRowError(describeApiError(e, t({ locale: locale, key: "failed to remove permission" }), locale));
+      setRowError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to remove permission" }), locale }));
     } finally {
       // Keyed functional update (same fix class as `runRowDelete`'s `setRowSavingId` above):
       // nothing gates starting a removal on a SECOND row while this one is still in flight, so an
@@ -498,7 +501,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
     if (!pendingPermissionRemove) return;
     const target = pendingPermissionRemove;
     try {
-      await onRemovePermission(target.policyId, target.row.id);
+      await onRemovePermission({ policyId: target.policyId, policyPermissionId: target.row.id });
     } finally {
       setPendingPermissionRemove((current) => (current?.row.id === target.row.id ? null : current));
     }
@@ -514,7 +517,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
    *  latter case — otherwise it would erase whatever the operator typed for the policy they
    *  actually have open now. `rowSavingId`'s reset (matching `onSaveRole`'s identical fix) is a
    *  functional update keyed on this call's own `policyId` for the same reason. */
-  async function onWritePermission(policyId: string) {
+  async function onWritePermission({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) {
     if (!permissionInput) return;
     const generationAtStart = permissionsGenerationRef.current;
     setRowSavingId(policyId);
@@ -531,19 +534,19 @@ export function useRoles(deps: RolesDependencies): RolesController {
       // trailing call always mints the newest generation, so `loadPermissions`'s OWN generation
       // guard cannot tell "superseded by a different policy's open" apart from "just the latest
       // load for this one"; only `permissionPolicyIdRef`'s equality check can.
-      if (permissionPolicyIdRef.current === policyId) await loadPermissions(policyId);
+      if (permissionPolicyIdRef.current === policyId) await loadPermissions({ policyId });
     } catch (e) {
-      setRowError(describeApiError(e, t({ locale: locale, key: "failed to add permission" }), locale));
+      setRowError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to add permission" }), locale }));
     } finally {
       setRowSavingId((current) => (current === policyId ? null : current));
     }
   }
 
   const roleSaving = createRoleMutation.status === "pending";
-  const roleError = createRoleMutation.error ? describeApiError(createRoleMutation.error, t({ locale: locale, key: "failed to create role" }), locale) : null;
+  const roleError = createRoleMutation.error ? describeApiError({ e: createRoleMutation.error, fallback: t({ locale: locale, key: "failed to create role" }), locale }) : null;
   const policySaving = createPolicyMutation.status === "pending";
   const policyError = createPolicyMutation.error
-    ? describeApiError(createPolicyMutation.error, t({ locale: locale, key: "failed to create policy" }), locale)
+    ? describeApiError({ e: createPolicyMutation.error, fallback: t({ locale: locale, key: "failed to create policy" }), locale })
     : null;
 
   return {

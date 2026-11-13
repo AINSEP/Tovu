@@ -77,7 +77,7 @@ function siteKeyGenerateDetail(error: ApiError, t: Translate): string {
   return typeof error.body?.detail === "string" ? error.body.detail : describeApiError(error, t(UNKNOWN_ERROR));
 }
 
-export function classifySiteKeyGenerateError(e: unknown, t: Translate): SiteKeyGenerateFailure {
+export function classifySiteKeyGenerateError({ e, t }: { e: unknown; t: Translate }, _optional: Record<string, never> = {}): SiteKeyGenerateFailure {
   if (!(e instanceof ApiError)) return { kind: "generic", detail: describeApiError(e, t(UNKNOWN_ERROR)) };
   const marker = e.code ?? e.message;
   const detail = siteKeyGenerateDetail(e, t);
@@ -87,7 +87,7 @@ export function classifySiteKeyGenerateError(e: unknown, t: Translate): SiteKeyG
   return { kind: "generic", detail: describeApiError(e, t(UNKNOWN_ERROR)) };
 }
 
-export function useSiteKey(port: SiteKeyPort, t: Translate, locale: string): SiteKeyController {
+export function useSiteKey({ port, t, locale }: { port: SiteKeyPort; t: Translate; locale: string }, _optional: Record<string, never> = {}): SiteKeyController {
   const key = useMemo(() => ["site-key", "status"] as const, []);
   const fetchStatus = useCallback(async () => {
     try { return await port.status(); }
@@ -132,7 +132,7 @@ export function useSiteKey(port: SiteKeyPort, t: Translate, locale: string): Sit
       // `.site-meta.json` stamp — the server refuses with a 409 rather than leave a mismatch.
       loader.replace({ value: { active: true, source: "file", fingerprint: result.fingerprint, keyFilePath: result.keyFilePath, runtimeMode: result.runtimeMode, state: "active" } });
     } catch (err) {
-      setGenerateError(classifySiteKeyGenerateError(err, t));
+      setGenerateError(classifySiteKeyGenerateError({ e: err, t }));
     } finally {
       setGenerating(false);
     }
@@ -157,5 +157,5 @@ export function useSiteKey(port: SiteKeyPort, t: Translate, locale: string): Sit
 export function useWiredSiteKey(): SiteKeyController {
   const locale = useAdminLocale();
   const boundT = useCallback((key: string): string => defaultT({ locale: locale, key: key }), [locale]);
-  return useSiteKey(defaultSiteKeyPort, boundT, locale);
+  return useSiteKey({ port: defaultSiteKeyPort, t: boundT, locale });
 }

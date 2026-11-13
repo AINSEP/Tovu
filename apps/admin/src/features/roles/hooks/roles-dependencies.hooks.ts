@@ -10,15 +10,15 @@ import type { RolesPort } from "./roles-port.hooks";
 export const defaultRolesPort: RolesPort = {
   listRoles: () => api.listRoles(),
   listPolicies: () => api.listPolicies(),
-  createRole: (name) => api.createRole(name),
-  updateRole: (input) => api.updateRole(input),
-  deleteRole: (roleId) => api.deleteRole(roleId),
-  createPolicy: (input, options) => api.createPolicy(input, options),
-  updatePolicy: (target, options) => api.updatePolicy(target, options),
-  deletePolicy: (policyId) => api.deletePolicy(policyId),
-  writePolicyPermission: (input, options) => api.writePolicyPermission(input, options),
-  listPolicyPermissions: (policyId) => api.listPolicyPermissions(policyId),
-  removePolicyPermission: (input) => api.removePolicyPermission(input),
+  createRole: ({ name }, _optional = {}) => api.createRole(name),
+  updateRole: (input, _optional = {}) => api.updateRole(input),
+  deleteRole: ({ roleId }, _optional = {}) => api.deleteRole(roleId),
+  createPolicy: (input, options = {}) => api.createPolicy(input, options),
+  updatePolicy: (target, options = {}) => api.updatePolicy(target, options),
+  deletePolicy: ({ policyId }, _optional = {}) => api.deletePolicy(policyId),
+  writePolicyPermission: (input, options = {}) => api.writePolicyPermission(input, options),
+  listPolicyPermissions: ({ policyId }, _optional = {}) => api.listPolicyPermissions(policyId),
+  removePolicyPermission: (input, _optional = {}) => api.removePolicyPermission(input),
 };
 
 const FAKE_WORKSPACE_ID = "fake-ws";
@@ -90,13 +90,13 @@ export function createFakeRolesPort(options: FakeRolesPortOptions = {}): RolesPo
   const policies = [...(options.policies ?? [])];
   const policyPermissions = [...(options.initialPolicyPermissions ?? [])];
 
-  function requireRole(roleId: string): AdminRole {
+  function requireRole({ roleId }: { roleId: string }, _optional: Record<string, never> = {}): AdminRole {
     const found = roles.find((r) => r.id === roleId);
     if (!found) throw new Error(`fake role not found: ${roleId}`);
     return found;
   }
 
-  function requirePolicy(policyId: string): AdminPolicy {
+  function requirePolicy({ policyId }: { policyId: string }, _optional: Record<string, never> = {}): AdminPolicy {
     const found = policies.find((p) => p.id === policyId);
     if (!found) throw new Error(`fake policy not found: ${policyId}`);
     return found;
@@ -112,13 +112,13 @@ export function createFakeRolesPort(options: FakeRolesPortOptions = {}): RolesPo
     async listPolicies() {
       return { policies: [...policies] };
     },
-    async createRole(name) {
+    async createRole({ name }, _optional = {}) {
       if (options.createRoleError) throw options.createRoleError;
       const created = fakeRole({ id: `fake-role-${roles.length + 1}`, name });
       roles.push(created);
       return { role: created };
     },
-    async updateRole(input) {
+    async updateRole(input, _optional = {}) {
       if (options.updateRoleError) throw options.updateRoleError;
       const index = roles.findIndex((r) => r.id === input.roleId);
       if (index < 0) throw new Error(`fake role not found: ${input.roleId}`);
@@ -126,13 +126,13 @@ export function createFakeRolesPort(options: FakeRolesPortOptions = {}): RolesPo
       roles[index] = updated;
       return { role: updated };
     },
-    async deleteRole(roleId) {
+    async deleteRole({ roleId }, _optional = {}) {
       if (options.deleteRoleError) throw options.deleteRoleError;
-      requireRole(roleId);
+      requireRole({ roleId });
       const index = roles.findIndex((r) => r.id === roleId);
       roles.splice(index, 1);
     },
-    async createPolicy(input, opts) {
+    async createPolicy(input, opts = {}) {
       if (options.createPolicyError) throw options.createPolicyError;
       const created = fakePolicy({
         id: `fake-policy-${policies.length + 1}`,
@@ -142,7 +142,7 @@ export function createFakeRolesPort(options: FakeRolesPortOptions = {}): RolesPo
       policies.push(created);
       return { policy: created };
     },
-    async updatePolicy(target, opts) {
+    async updatePolicy(target, opts = {}) {
       if (options.updatePolicyError) throw options.updatePolicyError;
       const index = policies.findIndex((p) => p.id === target.policyId);
       if (index < 0) throw new Error(`fake policy not found: ${target.policyId}`);
@@ -150,15 +150,15 @@ export function createFakeRolesPort(options: FakeRolesPortOptions = {}): RolesPo
       policies[index] = updated;
       return { policy: updated };
     },
-    async deletePolicy(policyId) {
+    async deletePolicy({ policyId }, _optional = {}) {
       if (options.deletePolicyError) throw options.deletePolicyError;
-      requirePolicy(policyId);
+      requirePolicy({ policyId });
       const index = policies.findIndex((p) => p.id === policyId);
       policies.splice(index, 1);
     },
-    async writePolicyPermission(input) {
+    async writePolicyPermission(input, _optional = {}) {
       if (options.writePermissionError) throw options.writePermissionError;
-      requirePolicy(input.policyId);
+      requirePolicy({ policyId: input.policyId });
       const created = {
         id: `fake-perm-${policyPermissions.length + 1}`,
         workspaceId: FAKE_WORKSPACE_ID,
@@ -170,14 +170,14 @@ export function createFakeRolesPort(options: FakeRolesPortOptions = {}): RolesPo
       policyPermissions.push(created);
       return { policyPermission: created };
     },
-    async listPolicyPermissions(policyId) {
+    async listPolicyPermissions({ policyId }, _optional = {}) {
       if (options.listPermissionsError) throw options.listPermissionsError;
-      requirePolicy(policyId);
+      requirePolicy({ policyId });
       return { policyPermissions: policyPermissions.filter((row) => row.policyId === policyId) };
     },
-    async removePolicyPermission(input) {
+    async removePolicyPermission(input, _optional = {}) {
       if (options.removePermissionError) throw options.removePermissionError;
-      requirePolicy(input.policyId);
+      requirePolicy({ policyId: input.policyId });
       // Mirrors the server's membership proof: a row is only removable through the policy it
       // actually belongs to, so a test cannot get a cross-policy delete past the fake either.
       const index = policyPermissions.findIndex(

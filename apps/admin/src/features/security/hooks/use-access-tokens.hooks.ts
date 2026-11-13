@@ -210,10 +210,13 @@ export interface AccessTokenExistingRowState {
  *  back" posture every credential form in this app already has.
  *  @complexity O(1). */
 function existingRowState(
-  row: AccessTokenRow,
-  draft: DraftFields | undefined,
-  busy: BusyState | undefined,
-  info: AccessTokenProviderInfo
+  { row, draft, busy, info }: {
+    row: AccessTokenRow;
+    draft: DraftFields | undefined;
+    busy: BusyState | undefined;
+    info: AccessTokenProviderInfo;
+  },
+  _optional: Record<string, never> = {},
 ): AccessTokenExistingRowState {
   const d = existingTokenDraft({ row, draft });
   const b = busy ?? IDLE;
@@ -235,7 +238,7 @@ export interface AccessTokenAddFormState {
   readonly error: string | null;
 }
 /** @complexity O(1). */
-function addFormState(entry: AddFormEntry | undefined, info: AccessTokenProviderInfo): AccessTokenAddFormState {
+function addFormState({ entry, info }: { entry: AddFormEntry | undefined; info: AccessTokenProviderInfo }, _optional: Record<string, never> = {}): AccessTokenAddFormState {
   const e = entry ?? blankAddFormEntry();
   const readyToSave = accessTokenRowReadyToSave({ ref: { kind: info.kind, providerId: info.providerId }, ...e.draft }, info);
   return { visible: e.visible, name: e.draft.name, token: e.draft.token, values: e.draft.values, username: e.draft.username, worksFor: e.draft.worksFor, readyToSave, saving: e.saving, error: e.error };
@@ -289,7 +292,7 @@ export interface AccessTokensController {
    *  numerator; equals {@link totalCount} when `query` is blank. */
   matchCount: number;
 
-  setExistingField: (rowId: string, patch: Partial<DraftFields>) => void;
+  setExistingField: (required: { rowId: string; patch: Partial<DraftFields> }, optional?: Record<string, never>) => void;
   replaceToken: (row: AccessTokenRow) => Promise<void>;
   removeToken: (row: AccessTokenRow) => Promise<void>;
   makeDefault: (row: AccessTokenRow) => Promise<void>;
@@ -317,7 +320,16 @@ export interface AccessTokensController {
 /** Translates a rejected create/update/delete into a form-ready string — pulled out of the hook body
  *  for the same complexity-budget reason `publishCredentialSubmitErrorMessage` documents in its own
  *  file. @complexity O(1). */
-function accessTokenSubmitErrorMessage(err: unknown, t: Translate, locale: string, providerLabel: string, attemptedName: string): string {
+function accessTokenSubmitErrorMessage(
+  { err, t, locale, providerLabel, attemptedName }: {
+    err: unknown;
+    t: Translate;
+    locale: string;
+    providerLabel: string;
+    attemptedName: string;
+  },
+  _optional: Record<string, never> = {},
+): string {
   const classified = classifyAccessTokenSubmitError({ e: err });
   if (classified.kind === "duplicate-label") return accessTokenDuplicateNameMessage({ locale, name: attemptedName, provider: providerLabel });
   if (classified.kind === "validation") return accessTokenSaveErrorMessage({ locale, error: translateCredentialMessage({ message: classified.detail, locale }) });
@@ -331,7 +343,15 @@ function accessTokenSubmitErrorMessage(err: unknown, t: Translate, locale: strin
  *  is the plain `describeApiError` extraction alone, worded per-action by the caller's own template
  *  (Terra audit MEDIUM finding, 2026-08-19: neither action surfaced a rejected call at all before
  *  this fix). @complexity O(1). */
-function accessTokenActionErrorMessage(err: unknown, t: Translate, locale: string, template: (input: { locale: string; error: string }) => string): string {
+function accessTokenActionErrorMessage(
+  { err, t, locale, template }: {
+    err: unknown;
+    t: Translate;
+    locale: string;
+    template: (input: { locale: string; error: string }) => string;
+  },
+  _optional: Record<string, never> = {},
+): string {
   return template({ locale, error: describeApiError(err, t(UNKNOWN_ERROR)) });
 }
 
@@ -339,11 +359,14 @@ function accessTokenActionErrorMessage(err: unknown, t: Translate, locale: strin
  *  user-facing message, publish taking priority — pulled out of the hook body for the same
  *  complexity-budget reason {@link accessTokenSubmitErrorMessage} documents. */
 function accessTokensLoadError(
-  publishError: unknown,
-  sourceControlError: unknown,
-  customError: unknown,
-  t: Translate,
-  locale: string
+  { publishError, sourceControlError, customError, t, locale }: {
+    publishError: unknown;
+    sourceControlError: unknown;
+    customError: unknown;
+    t: Translate;
+    locale: string;
+  },
+  _optional: Record<string, never> = {},
 ): string | null {
   if (publishError) return accessTokensLoadErrorMessage({ locale, error: describeApiError(publishError, t(UNKNOWN_ERROR)) });
   if (sourceControlError) return accessTokensLoadErrorMessage({ locale, error: describeApiError(sourceControlError, t(UNKNOWN_ERROR)) });
@@ -369,10 +392,13 @@ function firstRejectionReason(results: readonly PromiseSettledResult<unknown>[])
  *  why this is safe). Split out of {@link useAccessTokens}'s action functions purely to keep each of
  *  those under this repo's complexity gate. */
 async function writeCredential(
-  port: AccessTokensPort,
-  kind: AccessTokenKind,
-  mode: { readonly type: "create"; readonly label: string } | { readonly type: "update"; readonly id: string },
-  patch: { label?: string; connection?: AdminPublishConnectionInput | AdminSourceControlConnectionInput; isDefault?: boolean; worksFor?: string[] }
+  { port, kind, mode, patch }: {
+    port: AccessTokensPort;
+    kind: AccessTokenKind;
+    mode: { readonly type: "create"; readonly label: string } | { readonly type: "update"; readonly id: string };
+    patch: { label?: string; connection?: AdminPublishConnectionInput | AdminSourceControlConnectionInput; isDefault?: boolean; worksFor?: string[] };
+  },
+  _optional: Record<string, never> = {},
 ): Promise<AdminPublishCredentialSummary | AdminSourceControlCredentialSummary> {
   if (kind === "publish") {
     const connection = patch.connection as AdminPublishConnectionInput | undefined;
@@ -380,17 +406,17 @@ async function writeCredential(
       if (!connection) throw new Error("new publish credential has no connection");
       return port.publish.create({ label: mode.label, connection, isDefault: patch.isDefault, worksFor: patch.worksFor });
     }
-    return port.publish.update(mode.id, { ...patch, connection });
+    return port.publish.update({ id: mode.id, input: { ...patch, connection } });
   }
   const connection = patch.connection as AdminSourceControlConnectionInput | undefined;
   if (mode.type === "create") {
     if (!connection) throw new Error("new source control credential has no connection");
     return port.sourceControl.create({ label: mode.label, connection, isDefault: patch.isDefault });
   }
-  return port.sourceControl.update(mode.id, { ...patch, connection });
+  return port.sourceControl.update({ id: mode.id, input: { ...patch, connection } });
 }
 
-export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: string): AccessTokensController {
+export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t: Translate; locale: string }, _optional: Record<string, never> = {}): AccessTokensController {
   const publishQuery = useFetchQuery({ key: ["security", "publish-credentials"], fetch: () => port.publish.list() });
   const sourceControlQuery = useFetchQuery({ key: ["security", "source-control-credentials"], fetch: () => port.sourceControl.list() });
   const customQuery = useFetchQuery({ key: ["security", "custom-credentials"], fetch: () => port.custom.list() });
@@ -523,7 +549,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   // load's own three-way priority, falling back to `reloadError` (still its initial `null`).
   const loadError = hasReloadedOnce
     ? reloadError
-    : (accessTokensLoadError(publishQuery.error, sourceControlQuery.error, customQuery.error, t, locale) ?? reloadError);
+    : (accessTokensLoadError({ publishError: publishQuery.error, sourceControlError: sourceControlQuery.error, customError: customQuery.error, t, locale }) ?? reloadError);
 
   const rows = useMemo<AccessTokenRow[] | undefined>(() => {
     if (publishCredentials === undefined || sourceControlCredentials === undefined || customCredentials === undefined || !publishTargetsSettled) return undefined;
@@ -563,13 +589,13 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     }
   }
 
-  function mergeCredential(kind: AccessTokenKind, result: AdminPublishCredentialSummary | AdminSourceControlCredentialSummary, isNew: boolean): void {
+  function mergeCredential({ kind, result, isNew }: { kind: AccessTokenKind; result: AdminPublishCredentialSummary | AdminSourceControlCredentialSummary; isNew: boolean }, _optional: Record<string, never> = {}): void {
     if (kind === "publish") {
       const row = result as AdminPublishCredentialSummary;
-      setPublishCredentials((prev) => mergeRaw(prev ?? [], row, isNew));
+      setPublishCredentials((prev) => mergeRaw({ list: prev ?? [], result: row, isNew }));
     } else {
       const row = result as AdminSourceControlCredentialSummary;
-      setSourceControlCredentials((prev) => mergeRaw(prev ?? [], row, isNew));
+      setSourceControlCredentials((prev) => mergeRaw({ list: prev ?? [], result: row, isNew }));
     }
   }
 
@@ -587,7 +613,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    *  once a custom row can carry a saved {@link AccessTokenRow.username}, touching Token first (before
    *  ever touching Username) would otherwise blank a saved username out of the draft the identical way
    *  it used to blank Name. @complexity O(1). */
-  function setExistingField(rowId: string, patch: Partial<DraftFields>): void {
+  function setExistingField({ rowId, patch }: { rowId: string; patch: Partial<DraftFields> }, _optional: Record<string, never> = {}): void {
     const token = patch.token;
     if (token !== undefined) setExistingBusy(prev => ({ ...prev, [rowId]: { saving: prev[rowId]?.saving ?? false, error: credentialDraftError({ value: token }, { locale }) } }));
     setExistingDrafts((prev) => {
@@ -619,7 +645,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     const nameChanged = fields.name.trim() !== row.name.trim();
     const hasToken = fields.token.trim() !== "";
     try {
-      const result = await port.custom.update(row.id, buildCustomCredentialUpdatePatch({ fields, nameChanged, hasToken, currentUsername: row.username }, { currentWorksFor: row.worksFor }));
+      const result = await port.custom.update({ id: row.id, input: buildCustomCredentialUpdatePatch({ fields, nameChanged, hasToken, currentUsername: row.username }, { currentWorksFor: row.worksFor }) });
       // PUT returns credential metadata; retain the latest attachment snapshot from the inventory.
       setCustomCredentials(prev => (prev ?? []).map(item => item.id === result.id
         ? { ...result, usedBy: item.usedBy, usedByThisSite: item.usedByThisSite } : item));
@@ -633,7 +659,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
       setExistingDrafts((prev) => ({ ...prev, [row.id]: { ...blankDraft(), name: fields.name.trim(), username: result.username ?? "", worksFor: result.worksFor } }));
       setExistingBusy((prev) => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
-      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, t("this workspace"), fields.name) } }));
+      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenSubmitErrorMessage({ err, t, locale, providerLabel: t("this workspace"), attemptedName: fields.name }) } }));
     }
   }
 
@@ -664,15 +690,15 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     const hasToken = fields.token.trim() !== "";
     try {
       const patch = buildAccessTokenUpdatePatch({ fields, nameChanged, hasToken, info }, { currentWorksFor: row.worksFor });
-      const result = await writeCredential(port, row.kind, { type: "update", id: row.id }, patch);
-      mergeCredential(row.kind, result, false);
+      const result = await writeCredential({ port, kind: row.kind, mode: { type: "update", id: row.id }, patch });
+      mergeCredential({ kind: row.kind, result, isNew: false });
       // Same symmetry note as this function's draft fallback above: `result` (a publish/source-control
       // summary) never carries a `username` fact, so `row.username ?? ""` — not `result.username` —
       // is the only value available, and it is always "" today for these two kinds.
       setExistingDrafts((prev) => ({ ...prev, [row.id]: { ...blankDraft(), name: fields.name.trim(), username: row.username ?? "", worksFor: "worksFor" in result ? result.worksFor : [] } }));
       setExistingBusy((prev) => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
-      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, providerLabel, fields.name) } }));
+      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenSubmitErrorMessage({ err, t, locale, providerLabel, attemptedName: fields.name }) } }));
     }
   }
 
@@ -687,16 +713,16 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: true, error: null } }));
     try {
       if (row.kind === "custom") {
-        await port.custom.remove(row.id);
+        await port.custom.remove({ id: row.id });
         setCustomCredentials((await port.custom.list()).credentials);
       } else {
-        if (row.kind === "publish") await port.publish.remove(row.id);
-        else await port.sourceControl.remove(row.id);
+        if (row.kind === "publish") await port.publish.remove({ id: row.id });
+        else await port.sourceControl.remove({ id: row.id });
         await refetchStore(row.kind);
       }
       setExistingBusy((prev) => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
-      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenActionErrorMessage(err, t, locale, accessTokenRemoveErrorMessage) } }));
+      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenActionErrorMessage({ err, t, locale, template: accessTokenRemoveErrorMessage }) } }));
     }
   }
 
@@ -710,7 +736,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    *  `TokenRowDefaultIndicator` never renders a "Make default" control for a singleton custom group),
    *  so only the two branches `refetchStore` itself already handles are needed here.
    *  @complexity O(1) dispatch; O(n) inside `withPromotedDefault`. */
-  function applyPromotedDefault(kind: AccessTokenKind, result: AdminPublishCredentialSummary | AdminSourceControlCredentialSummary): void {
+  function applyPromotedDefault({ kind, result }: { kind: AccessTokenKind; result: AdminPublishCredentialSummary | AdminSourceControlCredentialSummary }, _optional: Record<string, never> = {}): void {
     if (kind === "publish") setPublishCredentials((prev) => withPromotedDefault(prev ?? [], result as AdminPublishCredentialSummary));
     else setSourceControlCredentials((prev) => withPromotedDefault(prev ?? [], result as AdminSourceControlCredentialSummary));
   }
@@ -732,12 +758,12 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     if (row.isDefault) return;
     setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: true, error: null } }));
     try {
-      const result = await writeCredential(port, row.kind, { type: "update", id: row.id }, { isDefault: true });
-      applyPromotedDefault(row.kind, result);
+      const result = await writeCredential({ port, kind: row.kind, mode: { type: "update", id: row.id }, patch: { isDefault: true } });
+      applyPromotedDefault({ kind: row.kind, result });
       await reconcileStore(row.kind);
       setExistingBusy((prev) => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
-      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenActionErrorMessage(err, t, locale, accessTokenMakeDefaultErrorMessage) } }));
+      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenActionErrorMessage({ err, t, locale, template: accessTokenMakeDefaultErrorMessage }) } }));
     }
   }
 
@@ -775,13 +801,13 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     setAddForms((prev) => ({ ...prev, [key]: { ...entry, saving: true, error: null } }));
     try {
       const connection = buildAccessTokenConnectionInput(fields, info);
-      const result = await writeCredential(port, ref.kind, { type: "create", label: fields.name.trim() }, { connection, ...(ref.kind === "publish" ? { worksFor: fields.worksFor } : {}) });
-      mergeCredential(ref.kind, result, true);
+      const result = await writeCredential({ port, kind: ref.kind, mode: { type: "create", label: fields.name.trim() }, patch: { connection, ...(ref.kind === "publish" ? { worksFor: fields.worksFor } : {}) } });
+      mergeCredential({ kind: ref.kind, result, isNew: true });
       setAddForms((prev) => ({ ...prev, [key]: blankAddFormEntry() }));
     } catch (err) {
       setAddForms((prev) => ({
         ...prev,
-        [key]: { ...entry, saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, providerLabel, fields.name) },
+        [key]: { ...entry, saving: false, error: accessTokenSubmitErrorMessage({ err, t, locale, providerLabel, attemptedName: fields.name }) },
       }));
     }
   }
@@ -797,7 +823,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
       .filter((row) => row.kind === "custom" && accessTokenCategoryMatches(row.category ?? "general", category) && accessTokenRowMatchesQuery({ row, info: accessTokenRowProviderInfo(providers, row), query }))
       .map((row) => {
         const info = accessTokenRowProviderInfo(providers, row);
-        return { info, rows: [existingRowState(row, existingDrafts[row.id], existingBusy[row.id], info)], addForm: addFormState(undefined, info) };
+        return { info, rows: [existingRowState({ row, draft: existingDrafts[row.id], busy: existingBusy[row.id], info })], addForm: addFormState({ entry: undefined, info }) };
       });
   }, [rows, existingDrafts, existingBusy, query, category, providers]);
 
@@ -810,8 +836,8 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
       const providerRows = accessTokenRowsForProvider(rows, info).filter((row) => accessTokenRowMatchesQuery({ row, info, query }));
       return {
         info,
-        rows: providerRows.map((row) => existingRowState(row, existingDrafts[row.id], existingBusy[row.id], info)),
-        addForm: addFormState(addForms[addFormKey(info)], info),
+        rows: providerRows.map((row) => existingRowState({ row, draft: existingDrafts[row.id], busy: existingBusy[row.id], info })),
+        addForm: addFormState({ entry: addForms[addFormKey(info)], info }),
       };
     });
     // Saved-before-unsaved, then category-chip order, then alphabetical by label — the owner's
@@ -859,11 +885,11 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
         additionalHosts: buildAdditionalHostsInput({ raw: fields.additionalHosts }),
         connection: buildCustomProviderConnectionInput(fields),
       });
-      setCustomCredentials((prev) => mergeRaw(prev ?? [], result, true));
+      setCustomCredentials((prev) => mergeRaw({ list: prev ?? [], result, isNew: true }));
       resetCustomAddForm();
       return true;
     } catch (err) {
-      setCustomAddBusy({ saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, t("this workspace"), fields.name) });
+      setCustomAddBusy({ saving: false, error: accessTokenSubmitErrorMessage({ err, t, locale, providerLabel: t("this workspace"), attemptedName: fields.name }) });
       return false;
     }
   }
@@ -898,7 +924,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
 }
 
 /** @complexity O(n) in the provider's own (small) saved-row count. */
-function mergeRaw<T extends { id: string }>(list: readonly T[], result: T, isNew: boolean): T[] {
+function mergeRaw<T extends { id: string }>({ list, result, isNew }: { list: readonly T[]; result: T; isNew: boolean }, _optional: Record<string, never> = {}): T[] {
   return isNew ? [...list, result] : list.map((item) => (item.id === result.id ? result : item));
 }
 
@@ -921,5 +947,5 @@ function mergeRaw<T extends { id: string }>(list: readonly T[], result: T, isNew
 export function useWiredAccessTokens(): AccessTokensController {
   const locale = useAdminLocale();
   const boundT = useCallback((key: string): string => defaultT({ locale: locale, key: key }), [locale]);
-  return useAccessTokens(defaultAccessTokensPort, boundT, locale);
+  return useAccessTokens({ port: defaultAccessTokensPort, t: boundT, locale });
 }

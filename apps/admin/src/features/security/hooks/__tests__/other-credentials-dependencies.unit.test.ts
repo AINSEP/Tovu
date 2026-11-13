@@ -179,7 +179,7 @@ describe("defaultOtherCredentialsPort — external MCP servers", () => {
 
   it("deleteExternalMcpServer forwards the server id to api.deleteExternalMcpServer", async () => {
     deleteExternalMcpServer.mockResolvedValue({ removed: true, restartRequired: true });
-    await expect(defaultOtherCredentialsPort.deleteExternalMcpServer("local-fs")).resolves.toEqual({ removed: true, restartRequired: true });
+    await expect(defaultOtherCredentialsPort.deleteExternalMcpServer({ serverId: "local-fs" })).resolves.toEqual({ removed: true, restartRequired: true });
     expect(deleteExternalMcpServer).toHaveBeenCalledWith("local-fs");
   });
 });
@@ -206,7 +206,7 @@ describe("createFakeOtherCredentialsPort — defaults", () => {
     await expect(port.setAdminByokCredential({ apiKey: "x" })).rejects.toThrow("setAdminByokCredential not stubbed for this test");
     await expect(port.deleteAdminByokCredential()).rejects.toThrow("deleteAdminByokCredential not stubbed for this test");
     await expect(port.saveMediaProviders({})).rejects.toThrow("saveMediaProviders not stubbed for this test");
-    await expect(port.deleteExternalMcpServer("x")).rejects.toThrow("deleteExternalMcpServer not stubbed for this test");
+    await expect(port.deleteExternalMcpServer({ serverId: "x" })).rejects.toThrow("deleteExternalMcpServer not stubbed for this test");
   });
 
   it("an override wins over its store's default for every one of the four stores", async () => {

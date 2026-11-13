@@ -16,22 +16,22 @@ export const defaultAccessTokensPort: AccessTokensPort = {
   sourceControlProviders: { list: () => api.listSourceControlProviders().then((res) => res.providers) },
   publish: {
     list: () => api.listPublishCredentials(),
-    create: (input) => api.createPublishCredential(input).then((res) => res.credential),
-    update: (id, input) => api.updatePublishCredential(id, input).then((res) => res.credential),
-    remove: (id) => api.deletePublishCredential(id),
+    create: (input, _optional = {}) => api.createPublishCredential(input).then((res) => res.credential),
+    update: ({ id, input }, _optional = {}) => api.updatePublishCredential(id, input).then((res) => res.credential),
+    remove: ({ id }, _optional = {}) => api.deletePublishCredential(id),
   },
   sourceControl: {
     list: () => api.listSourceControlCredentials(),
-    create: (input) => api.createSourceControlCredential(input).then((res) => res.credential),
-    update: (id, input) => api.updateSourceControlCredential(id, input).then((res) => res.credential),
-    remove: (id) => api.deleteSourceControlCredential(id),
+    create: (input, _optional = {}) => api.createSourceControlCredential(input).then((res) => res.credential),
+    update: ({ id, input }, _optional = {}) => api.updateSourceControlCredential(id, input).then((res) => res.credential),
+    remove: ({ id }, _optional = {}) => api.deleteSourceControlCredential(id),
   },
   custom: {
     list: () => api.listCustomCredentials(),
-    useKey: input => api.useProjectKey(input),
-    create: (input) => api.createCustomCredential(input).then((res) => res.credential),
-    update: (id, input) => api.updateCustomCredential(id, input).then((res) => res.credential),
-    remove: (id) => api.deleteCustomCredential(id),
+    useKey: (input, _optional = {}) => api.useProjectKey(input),
+    create: (input, _optional = {}) => api.createCustomCredential(input).then((res) => res.credential),
+    update: ({ id, input }, _optional = {}) => api.updateCustomCredential(id, input).then((res) => res.credential),
+    remove: ({ id }, _optional = {}) => api.deleteCustomCredential(id),
   },
 };
 
@@ -39,7 +39,7 @@ export const defaultAccessTokensPort: AccessTokensPort = {
  *  branch count (four `??` fallbacks per store, times two stores) stays under this repo's
  *  complexity gate; each half here is four fallbacks alone.
  *  @complexity O(1). */
-function fakePublishPort(overrides: Partial<AccessTokensPort["publish"]> | undefined): AccessTokensPort["publish"] {
+function fakePublishPort({ overrides }: { overrides: Partial<AccessTokensPort["publish"]> | undefined }, _optional: Record<string, never> = {}): AccessTokensPort["publish"] {
   const emptySnapshot: AdminPublishCredentialsSnapshot = { credentials: [], executionMode: "self-hosted-cli" };
   return {
     list: overrides?.list ?? (() => Promise.resolve(emptySnapshot)),
@@ -51,7 +51,7 @@ function fakePublishPort(overrides: Partial<AccessTokensPort["publish"]> | undef
 
 /** {@link createFakeAccessTokensPort}'s `sourceControl` half — see {@link fakePublishPort}'s own doc.
  *  @complexity O(1). */
-function fakeSourceControlPort(overrides: Partial<AccessTokensPort["sourceControl"]> | undefined): AccessTokensPort["sourceControl"] {
+function fakeSourceControlPort({ overrides }: { overrides: Partial<AccessTokensPort["sourceControl"]> | undefined }, _optional: Record<string, never> = {}): AccessTokensPort["sourceControl"] {
   const emptySnapshot: AdminSourceControlCredentialsSnapshot = { credentials: [] };
   return {
     list: overrides?.list ?? (() => Promise.resolve(emptySnapshot)),
@@ -63,7 +63,7 @@ function fakeSourceControlPort(overrides: Partial<AccessTokensPort["sourceContro
 
 /** {@link createFakeAccessTokensPort}'s `custom` half — see {@link fakePublishPort}'s own doc.
  *  @complexity O(1). */
-function fakeCustomPort(overrides: Partial<AccessTokensPort["custom"]> | undefined): AccessTokensPort["custom"] {
+function fakeCustomPort({ overrides }: { overrides: Partial<AccessTokensPort["custom"]> | undefined }, _optional: Record<string, never> = {}): AccessTokensPort["custom"] {
   const emptySnapshot: AdminCustomCredentialsSnapshot = { credentials: [] };
   const custom = overrides ?? {};
   return {
@@ -91,8 +91,8 @@ export function createFakeAccessTokensPort(
     // No hosts unless a test lists some: the admin names none of its own.
     publishTargets: { list: overrides.publishTargets?.list ?? (() => Promise.resolve([])) },
     sourceControlProviders: { list: overrides.sourceControlProviders?.list ?? (() => Promise.resolve([])) },
-    publish: fakePublishPort(overrides.publish),
-    sourceControl: fakeSourceControlPort(overrides.sourceControl),
-    custom: fakeCustomPort(overrides.custom),
+    publish: fakePublishPort({ overrides: overrides.publish }),
+    sourceControl: fakeSourceControlPort({ overrides: overrides.sourceControl }),
+    custom: fakeCustomPort({ overrides: overrides.custom }),
   };
 }
