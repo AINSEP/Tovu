@@ -99,8 +99,8 @@ const generateSchema = (imageModelIds: readonly string[]) => ({
       enum: [...imageModelIds],
       description:
         "Which image model to use — picking a model also picks its vendor; there is no separate provider field. " +
-        "Defaults to 'gpt-image-2' (OpenAI) when omitted. Other options include 'gemini-3.1-flash-image-preview' " +
-        "(Nano Banana / Google Gemini) and 'grok-imagine-image' (xAI Grok), across every registered vendor. Which " +
+        "When omitted, the first model in this list whose vendor has a credential configured is used; if no vendor " +
+        "has one, the call fails and says so. Which " +
         "ones actually work depends on which vendor has a credential configured for this workspace (Admin -> Media " +
         "-> 'Media providers') or set as an environment variable on this install — an unconfigured vendor fails " +
         "with a clear message rather than silently substituting a different one.",
