@@ -25,7 +25,8 @@ Each group below needs the owner's yes first (see PLAN.md, Owner decisions). Ski
 
 ## Recipes (exact before → after)
 
-## JR01 isRecord copies -> core `isObjectRecord` (EXTRACT, core + 11 packages) - OWNER DECISION: positional guard
+## JR01 isRecord copies -> core `isObjectRecord` (EXTRACT, core + 11 packages) - OWNER DECISION O2: positional guard
+Phase A = step 1 (core only; commit; report `JR01 PHASE A DONE (needs H6)`). Phase B = steps 2-4, only after the dispatch says "H6 done: @jini-ai/core built".
 1. `packages/core/src/records.ts`, after `isNonArrayRecord`:
 ```ts
 /**
@@ -45,7 +46,7 @@ agent-plugins/src/admin-surfaces/{surface-capabilities,surface-handlers,delivery
    - `agentic/src/core/mcp-ui-apps.ts`: its "Arrays excluded deliberately: …" comment moves to sit above the first `isObjectRecord(` call.
    - The 4 `Readonly<Record<…>>` copies (3 admin-surfaces, provider-setup) narrow to `Record<string, unknown>` now; that is assignable everywhere the readonly form was.
 3. `mcp/src/server/tool-arguments.ts` exports `isRecord`: replace its definition with `export { isObjectRecord as isRecord } from '@jini-ai/core/records';` so its importers stay unchanged.
-4. J46 step 1: `daemon/src/core/is-record.ts` becomes `export { isObjectRecord as isRecord } from '@jini-ai/core/records';` (the "Positional on purpose" comment now lives on core's doc). J46's 19 import edits stay as written.
+4. J46a (same owner gate O2; runs with JR01): new `daemon/src/core/is-record.ts` containing `export { isObjectRecord as isRecord } from '@jini-ai/core/records';` plus this moved comment: "Positional on purpose: TypeScript narrows only the argument a guard names, so core's object-arg `isNonArrayRecord` cannot narrow `input.body` in place." Then, in each of these 22 files, delete the local `isRecord` (all have the body `typeof value === 'object' && value !== null && !Array.isArray(value)` or the same with operands reordered) and import `isRecord` from the new module by relative path: `run-lifecycle.ts`, `tool-result-surfaces.ts`, `tool-result-media.ts`, `terminal-session.ts`, `remote-tool-executor.ts`, `http/remote-run-events.ts`, `http/media.ts`, `http/research.ts`, `http/db-ops.ts`, `http/frontend-sessions.ts`, `http/routines.ts`, `http/memory.ts`, `http/tool-execution-routes.ts`, `http/runs.ts`, `http/attachment-lookup-routes.ts`, `http/xai.ts`, `http/connectors.ts`, `http/delegated-tools.ts`, `http/frontend-request-route.ts` (all under `packages/daemon/src/`). The three EXPORTED copies keep their export so importers stay unchanged: `http/model-proxy-fields.ts`, `http/resource-request.ts`, `agent-executor/values.ts` each become `export { isRecord } from '<relative>/core/is-record.js';`.
 NOT touched (one line each): array-permissive copies (agent-runtime claude-segment-usage, qoder-stream, pi-rpc/internal, elevenlabs; agentic a2ui/surface-properties; chat run-activity; search registry) change behavior if replaced; shape-typed guards (commerce `Candidate`, search contribution `Shape`, agent-runtime json-event-stream `JsonObject` export); protocol/delegated-result.ts (protocol does not depend on core).
 
 ### T11 (ONLY if the owner approves): `useNativeModalDialog`

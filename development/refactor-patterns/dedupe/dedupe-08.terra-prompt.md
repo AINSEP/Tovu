@@ -34,6 +34,9 @@ READY (2026-11-13). Self-contained. Background and the reason for every decision
 - **J49** EXTRACT SHARED HELPER — risk L; est. −32 lines; divergence: none (seq = record.version, recordedAt = record.updatedAt, workspaceId = record.workspaceId in all 3 sites)
   - tests: cd packages/cms && npx vitest run --maxWorkers=2 src/redirects
 
+- **X15J** MOVE TYPE (framework-neutral home for a Tovu import) — risk L; est. 0 lines here (enables Tovu X15, −12); divergence: none (type moves, the `/express` subpath keeps re-exporting it)
+  - tests: cd packages/cms && npx tsc --noEmit -p tsconfig.json ; npx vitest run --maxWorkers=2 src/forms/express
+
 ## Recipes (exact before → after)
 
 ## J23 content-type lifecycle (EXTRACT, cms)
@@ -121,3 +124,10 @@ async function persistRedirectWrite({ deps, record, revision, change }: { deps: 
 }
 ```
 create: `return persistRedirectWrite({ deps, record, revision: redirectRevision({ record, input, tombstoned: false }), change: "created" });`. Do the same in update with "updated". tombstone: `const revision = redirectRevision({ record, input, tombstoned: true });` and the rest is unchanged. Remove `now`/`version` locals only if they become unused. path-key.ts: add `export function redirectPrefixMatches({ path, pattern }: { path: string; pattern: string }, _optional: Record<string, never> = {}): boolean { if (path === pattern) return true; return path.startsWith(pattern.endsWith("/") ? pattern : \`${pattern}/\`); }`. repo.memory.ts and sql/repo.ts lookupLongestPrefix filters call it (the memory filter keeps its status/matchType/override lines first).
+
+## X15J `FormSubmissionRedirectResult` gets a framework-neutral home (cms)
+Why: Tovu's page renderer needs this union; today it is only exported from `@jini-ai/cms/forms/express`, so a renderer would name an Express subpath (owner rule: no specific server framework in Jini public contracts a host must use).
+1. MOVE the `export type FormSubmissionRedirectResult = …` union (5 members, with any doc above it) from `packages/cms/src/forms/express/handler.ts` to the end of `packages/cms/src/forms/types.ts` (already re-exported by `src/forms/index.ts` via `export * from "./types.js"`, i.e. `@jini-ai/cms/forms`, a "universal" entry).
+2. In `handler.ts` add `import type { FormSubmissionRedirectResult } from "../types.js";` (merge into the existing `../types.js` type import) and `export type { FormSubmissionRedirectResult } from "../types.js";` so `@jini-ai/cms/forms/express` keeps exporting the same name (compatibility; removing it would be a breaking release).
+3. Type-check cms; run the listed tests. Commit. The Tovu half (X15) waits for the Jini release (gate R1) and runs in job dedupe-11.
+

@@ -2,7 +2,9 @@
 
 READY (2026-11-13). Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Jini clone you are given (Jini only; paths below are relative to the Jini repo root).
 
-J60 also names a bug (decorators drop `requireConfirmation`). Do the dedupe only; do NOT fix the bug here — it is logged separately and gets its own red-test-first job.
+J60 runs as ONE fixed sequence: first the forced-confirmation forwarding fix (its own failing test, its own commit), then the decorator extraction. Do not reorder them and do not do the extraction alone.
+
+Cross-package rule (gate handoffs, PLAN.md "Coordinator gates"): a step that imports from package P a name that this job or job 05 adds to P is Phase B. Phase B steps run only after the dispatch says the matching gate is done (P reviewed and built in this clone). In this job: J46 needs gate H1 (`@jini-ai/core` with J09's `errorMessageOf`); J42 step daemon-side and JR02 step 3-4 need gate H4 (`@jini-ai/platform`, `@jini-ai/http-kit` built).
 
 ## Rules for every group in this job (read before editing)
 - HARD: stop before ~250k tokens of context. If you get close: commit what is done (by explicit paths), list the groups you did not finish under "REMAINING" in your report, and stop.
@@ -25,9 +27,9 @@ J60 also names a bug (decorators drop `requireConfirmation`). Do the dedupe only
   - tests: cd packages/cli && npx vitest run --maxWorkers=2 src/__tests__/daemon-command.test.ts src/__tests__/run-command.test.ts src/__tests__/run-command.pins.test.ts src/__tests__/main.test.ts src/__tests__/version-command.test.ts
 - **J42** EXTRACT SHARED HELPER — risk L; est. −25 lines; divergence: JSON key order changes (projectId/resourceRef move to the end): check snapshot tests only
   - tests: cd packages/platform && npx vitest run --maxWorkers=2 src/__tests__/terminal.test.ts ; cd packages/daemon && npx vitest run --maxWorkers=2 src/__tests__/terminal-session.test.ts src/__tests__/identifier-lint.test.ts
-- **J46** EXTRACT SHARED HELPER — risk M; est. −110 lines; divergence: none in messages (each helper reproduces the exact existing text). routines parseOptionalBoolean = the same behavior as the media/xai copies. errorMessage copies (memory, routines, routines/scheduler, delegated-tool-bridge) FOLD J09
+- **J46** EXTRACT SHARED HELPER (Phase B: after gate H1) — risk M; est. −70 lines (the isRecord part moved to job 10 as J46a, owner-gated O2); divergence: none in messages (each helper reproduces the exact existing text). routines parseOptionalBoolean = the same behavior as the media/xai copies
   - tests: cd packages/daemon && npx vitest run --maxWorkers=2 src/http/__tests__
-- **J60** EXTRACT SHARED HELPER — risk M; est. −15 lines; divergence: BUG (PLAUSIBLE): all 4 decorators take only {signal, emitSurface} from execute's options and drop requireConfirmation. Tovu apps/website/src/assistant/site/visitor-executor.ts:68 passes requireConfirmation:true, so a wrapped executor may skip a forced confirmation. Separate fix with a red test first; the helper must forward the whole options object
+- **J60** BUG FIX then EXTRACT SHARED HELPER — risk M; est. −15 lines; divergence: step 1 is a deliberate behavior fix (the 4 decorators drop the per-call `requireConfirmation` option; logged in development/open-bugs.md); step 2 is a pure extraction on top of the fixed code
   - tests: cd packages/daemon && npx vitest run --maxWorkers=2 src/tool-recovery/__tests__ src/__tests__/forced-confirmation.test.ts
 - **JR02** EXTRACT SHARED HELPER — risk L; est. −18 lines; divergence: none: guardSameOrigin only returns FORBIDDEN, statusForError(FORBIDDEN)=403, so the attachments/model-proxy literal 403 and the statusForError sites send the same status and body
   - tests: cd packages/http-kit && npx vitest run --maxWorkers=2 src/__tests__/origin.test.ts src/__tests__/adapter.test.ts ; cd packages/daemon && npx vitest run --maxWorkers=2 src/http/__tests__/memory.test.ts src/http/__tests__/terminals.test.ts src/http/__tests__/frontend-sessions.test.ts src/http/__tests__/attachments.test.ts src/http/__tests__/model-proxy.test.ts
@@ -67,26 +69,27 @@ export function terminalSessionState({ session }: { session: TerminalSessionStat
   return { id: session.id, cwd: session.cwd, shell: session.shell, cols: session.cols, rows: session.rows, status: session.status, createdAt: session.createdAt, updatedAt: session.updatedAt, exitCode: session.exitCode, signal: session.signal };
 }
 ```
-`toPublicSession` becomes `({ ...terminalSessionState({ session }), projectId: session.projectId })`. Export both names from the platform terminal entry. daemon terminal-session.ts: `export interface TerminalSessionInfo extends TerminalSessionState { readonly resourceRef: string | null; }` (keep its long doc comment) and `toSessionInfo = ({ ...terminalSessionState({ session }), resourceRef })`. The identifier-lint test must stay green: the daemon source must still not mention the platform grouping-key name.
+`toPublicSession` becomes `({ ...terminalSessionState({ session }), projectId: session.projectId })`. Export both names from the platform terminal entry. Type-check platform, run its test, commit, report `J42 PHASE A DONE (needs H4)`. Phase B (only after "H4 done: @jini-ai/platform built"): daemon terminal-session.ts: `export interface TerminalSessionInfo extends TerminalSessionState { readonly resourceRef: string | null; }` (keep its long doc comment) and `toSessionInfo = ({ ...terminalSessionState({ session }), resourceRef })`. The identifier-lint test must stay green: the daemon source must still not mention the platform grouping-key name.
 
-## J46 daemon http request helpers (EXTRACT + MERGE)
-1. New `daemon/src/core/is-record.ts`:
-```ts
-import { isNonArrayRecord } from '@jini-ai/core/records';
-/** A plain JSON object (not null, not an array). Positional on purpose: TypeScript narrows only the argument a guard names, so core's object-arg `isNonArrayRecord` cannot narrow `input.body` in place (same adapter as core's tool-input-normalization.ts). */
-export const isRecord = (value: unknown): value is Record<string, unknown> => isNonArrayRecord({ value });
-```
-Delete every `function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null && !Array.isArray(value); }` in daemon/src (19 files; `rg -n "^function isRecord" packages/daemon/src`, including frontend-request-route.ts, whose operand order differs but whose meaning is the same) and import it from the new module with the right relative path.
-2. New `daemon/src/http/body-fields.ts`. MOVE `readOptionalNonEmptyString` and `readOptionalNumber` (with their docs) from resource-request.ts. Delete resource-request's isRecord and update its importers (host-tools.ts, terminals.ts) to import from body-fields / core/is-record. MOVE `nonEmptyString` from model-proxy-fields.ts here and keep `export { nonEmptyString } from './body-fields.js'` in model-proxy-fields.ts. Add, using the existing `(body, field)` naming:
+## J46 daemon http request helpers (EXTRACT + MERGE) — Phase B: needs gate H1 (core built with J09)
+1. The 22 daemon `isRecord` copies are NOT touched in this job. A shared positional type guard is the args-rule exception the owner has not approved (O2); it is J46a in job dedupe-10, gated with JR01.
+2. New `daemon/src/http/body-fields.ts`. MOVE `readOptionalNonEmptyString` and `readOptionalNumber` (with their docs; both already take `({ body, field })`) from resource-request.ts, and keep `export { readOptionalNonEmptyString, readOptionalNumber } from './body-fields.js';` in resource-request.ts so its importers stay unchanged. resource-request's `isRecord` and model-proxy-fields' `isRecord`/`nonEmptyString` stay where they are (positional; see step 1). Every NEW reader below takes `(required, _optional: Record<string, never> = {})`:
    - `readRequiredNonEmptyString({ body, field }): Result<string>`: `typeof v === 'string' && v.trim().length > 0 ? ok({ value: v }) : err({ error: validationError({ message: \`${field} must be a non-empty string\` }, { issues: [{ path: field, message: 'required non-empty string' }] }) })`.
    - `readOptionalString`, `readOptionalFiniteNumber`, `readOptionalBoolean`: the bodies of media.ts parseOptionalString/parseOptionalNumber/parseOptionalBoolean, with messages unchanged (`must be a string when provided`, `must be a finite number when provided`, `must be a boolean when provided`).
    - `readPathParam({ input, name }: { input: RouteInputContext; name: string }): Result<string>`: `const v = input.params[name]; return typeof v === 'string' && v.length > 0 ? ok({ value: v }) : err({ error: validationError({ message: \`${name} must be a non-empty path parameter\` }) });`
 3. Replace copies: requireNonEmptyString(+undefined check+issues error) in delegated-tools.ts and remote-run-events.ts becomes `const x = readRequiredNonEmptyString({ body: input.body, field: 'x' }); if (!x.ok) return x;`. Apply this only where the error literal matches exactly. Replace media.ts `requireNonEmptyString` call sites in the same way only where that exact message follows; otherwise keep a local one-liner. parseOptionalString/Number/Boolean (media, xai, routines) are replaced by the readers. parseRunId (runs, remote-run-events), parseTerminalId, parseTaskId, memory/routines id parsers and connectors key parser become `readPathParam({ input, name })`. KEEP remote-run-events `requireString` and its long why-comment (empty content allowed).
 4. New `http/tool-result-api.ts#toolResultToApiResult<T>({ result, reportInternalError }: { result: ToolExecutionResult; reportInternalError: (required: { correlationId: string; error: unknown }) => void }, _optional = {}): Result<T>`. The body is db-ops' switch: the `completed` cast stays as it is, the internal branch calls `reportInternalError({ correlationId, error: result.status === 'failed' ? result.error : result.status })`, and the "Unreachable" comment moves with it. db-ops and terminals call it with a closure that resolves `deps.onInternalError ?? default…Sink` and adds their `source`. delegated-tools stays (its cases differ).
-5. errorMessage copies FOLD J09.
+5. errorMessage copies (memory, routines, routines/scheduler, delegated-tool-bridge): replace each private `errorMessage(x)` with `errorMessageOf({ error: x })` from `@jini-ai/core/primitives` (added by J09 in job 05; this is why J46 waits for gate H1). Delete a copy only if its body is exactly `error instanceof Error ? error.message : String(error)`; otherwise keep it and report it.
 The 5 SSE `guardSameOrigin` blocks (#277) are handled by group JR02 (same job), not here.
 
-## J60 tool-executor decorators (EXTRACT, daemon) + BUG
+## J60 tool-executor decorators: forwarding fix FIRST, then extraction (daemon)
+Step 1 — forwarding fix (own commit, test first):
+1. New test `packages/daemon/src/tool-recovery/__tests__/forced-confirmation-forwarding.test.ts`. For each of `withToolCallAnalytics` (analytics.ts), the observability wrapper (observability.ts), the federated-refusal wrapper (federated-refusal.ts) and the redaction wrapper (redaction.ts): wrap a fake inner `ToolExecutor` whose `execute` records its second argument; call the wrapper's `execute(args, { requireConfirmation: true, signal })`; assert the inner call received `requireConfirmation: true` and the same `signal`. Use each wrapper's existing test file for how to construct it (fakes only, no `as any`).
+2. Run it: it must FAIL (RED) for all four. If any passes, STALE J60 and report which.
+3. In each of the 4 files change only the `execute` options plumbing: the second parameter becomes `options: Parameters<ToolExecutor['execute']>[1] = {}`; the inner call becomes `inner.execute({ principal, run, toolId, input }, options)`. Where the wrapper body itself reads `signal`/`emitSurface`, read them from `options`. Keep every comment.
+4. Run the new test (GREEN), then `src/tool-recovery/__tests__` and `src/__tests__/forced-confirmation.test.ts` one file at a time. Commit "fix(daemon): tool decorators forward the per-call confirmation option". Report the fix in the job report (the coordinator updates development/open-bugs.md).
+
+Step 2 — extraction (separate commit, after step 1 is GREEN):
 New `tool-recovery/decorate-executor.ts`:
 ```ts
 /** A ToolExecutor that replaces only `execute`; confirmation, cancel and audit reads pass straight through to `inner`. */
@@ -94,27 +97,39 @@ export function decorateToolExecutor({ inner, execute }: { inner: ToolExecutor; 
   return { execute, resumeConfirmation: (args) => inner.resumeConfirmation(args), cancel: (args) => inner.cancel(args), getAuditRecord: (args) => inner.getAuditRecord(args) };
 }
 ```
-analytics/observability/federated-refusal/redaction return `decorateToolExecutor({ inner, execute: async (args, options = {}) => { … } })`. BUG (fix separately, red test first per owner rule): their `execute` destructures only `{ signal, emitSurface }` and forwards only those, so `requireConfirmation: true` is lost through any decorator. The fix forwards `options` whole. Log the bug in development/open-bugs.md.
+The 4 wrappers return `decorateToolExecutor({ inner, execute: async (args, options = {}) => { … } })`, keeping step 1's whole-`options` forwarding. Each wrapper's doc sentence that says `resumeConfirmation`/`cancel`/`getAuditRecord` delegate straight through stays on the wrapper. Re-run the same test files. Commit.
 
-## JR02 SSE same-origin guard -> http-kit `passesSameOriginGuard` (EXTRACT)
-1. `http-kit/src/origin.ts`: change `import type { Request } from 'express';` to `import type { Request, Response } from 'express';`, add `import { sendApiError, statusForError } from './response.js';` and:
+## JR02 SSE same-origin guard -> http-kit `passesSameOriginGuard` (EXTRACT, framework-neutral ports)
+No new Express type in a public signature. The new helper takes two structural ports; an Express `Request`/`Response` satisfies both, so callers pass `req`/`res` unchanged.
+Phase A (http-kit only):
+1. `http-kit/src/response.ts`: add, above `sendJson`:
+```ts
+/** The one response capability an API error write needs. Express's `Response` satisfies it structurally; a host on another server framework adapts its own response object to it. */
+export interface ApiErrorResponseWriter { status(code: number): { json(body: unknown): unknown } }
+```
+   Widen ONLY `sendApiError`'s `res` parameter type from `Response` to `ApiErrorResponseWriter` (body unchanged). Parameter widening is backward compatible: every existing caller passes an Express `Response`.
+2. `http-kit/src/origin.ts`: widen `guardSameOrigin`'s `req` from Express `Request` to `RequestWithOriginHeaders` (import type from `@jini-ai/core`; it is what `isLocalSameOrigin` already takes, `packages/core/src/origin-validation.ts:27`). Remove the `import type { Request } from 'express'` line if nothing else in the file uses it. Add `import { sendApiError, statusForError, type ApiErrorResponseWriter } from './response.js';` and:
 ```ts
 /**
  * The same-origin check for a raw route (one not mounted through `mountJsonRoute`, e.g. an SSE
  * stream): answers a cross-origin request with the guard's own error and status and returns
  * `false`, so the caller only has to `return`. `mountJsonRoute` routes get this from `requireSameOrigin`.
+ * Framework-neutral: `req` needs only the origin headers, `res` only `status().json()`.
  * @complexity O(1) plus the origin check.
  */
-export function passesSameOriginGuard({ req, res, origin }: { readonly req: Request; readonly res: Response; readonly origin: OriginContext }, _optional: Record<string, never> = {}): boolean {
+export function passesSameOriginGuard({ req, res, origin }: { readonly req: RequestWithOriginHeaders; readonly res: ApiErrorResponseWriter; readonly origin: OriginContext }, _optional: Record<string, never> = {}): boolean {
   const verdict = guardSameOrigin({ req, origin });
   if (verdict.ok) return true;
   sendApiError({ res, status: statusForError({ error: verdict.error }), error: verdict.error });
   return false;
 }
 ```
-2. `http-kit/src/adapter.ts` `allowRouteOrigin`: replace its last 4 lines (`const origin = …` to `return false;`) with `return passesSameOriginGuard({ req, res, origin: adapter });`; import it from `./origin.js` (drop `guardSameOrigin`/`statusForError` imports only if now unused).
-3. daemon/src/http: in `memory.ts` registerMemoryEventStream and `terminals.ts` registerTerminalEventStream replace the 5-line `const origin = guardSameOrigin(…); if (!origin.ok) { sendApiError(…); return; }` with `if (!passesSameOriginGuard({ req, res, origin: adapter })) return;`. `frontend-sessions.ts` stream route: `if (!deps.resolveOwner && !passesSameOriginGuard({ req, res, origin: adapter })) return;` keeping the "Scoped hosts authenticate origin …" comment above it. `attachments.ts` passesOriginGuard body: `return deps.requireSameOrigin === false || passesSameOriginGuard({ req, res, origin: adapter });` (keep its doc). `model-proxy.ts` (both the fixed-route runner and the catch-all): same one-liner inside the existing `try`.
-4. model-proxy.ts comments that name `guardSameOrigin` as the call that might throw (around the `catch` docs, ~L242, ~L411, ~L446, ~L607-610): rename the call to `passesSameOriginGuard` in the text; keep every comment. Drop `guardSameOrigin`, `statusForError`, `ok` from each daemon import only if unused.
+   Export `passesSameOriginGuard` and `type ApiErrorResponseWriter` from the http-kit root wherever `guardSameOrigin` / `sendApiError` are exported. The import is one-way (`origin.ts` -> `response.ts`); `response.ts` must not import `origin.ts`.
+3. `http-kit/src/adapter.ts` `allowRouteOrigin`: replace its last 4 lines (`const origin = …` to `return false;`) with `return passesSameOriginGuard({ req, res, origin: adapter });`; drop `guardSameOrigin`/`statusForError` imports only if now unused.
+4. Type-check http-kit; run `src/__tests__/origin.test.ts`, `src/__tests__/adapter.test.ts`. Add one origin.test.ts case: `passesSameOriginGuard` with a plain `{ status(code) { … return { json(body) { … } } } }` object (no Express) records 403 and the FORBIDDEN envelope. Commit. Report `JR02 PHASE A DONE (needs H4)`.
+Phase B (only after "H4 done: @jini-ai/http-kit built"):
+5. daemon/src/http: in `memory.ts` registerMemoryEventStream and `terminals.ts` registerTerminalEventStream replace the 5-line `const origin = guardSameOrigin(…); if (!origin.ok) { sendApiError(…); return; }` with `if (!passesSameOriginGuard({ req, res, origin: adapter })) return;`. `frontend-sessions.ts` stream route: `if (!deps.resolveOwner && !passesSameOriginGuard({ req, res, origin: adapter })) return;` keeping the "Scoped hosts authenticate origin …" comment above it. `attachments.ts` passesOriginGuard body: `return deps.requireSameOrigin === false || passesSameOriginGuard({ req, res, origin: adapter });` (keep its doc). `model-proxy.ts` (both the fixed-route runner and the catch-all): same one-liner inside the existing `try`.
+6. model-proxy.ts comments that name `guardSameOrigin` as the call that might throw (around the `catch` docs, ~L242, ~L411, ~L446, ~L607-610): rename the call to `passesSameOriginGuard` in the text; keep every comment. Drop `guardSameOrigin`, `statusForError`, `ok` from each daemon import only if unused. Run the daemon test files listed for JR02.
 
 ## J20 authorized identity transaction (EXTRACT, user-management)
 grant-service.ts, after assertCallerHasAnyPermission:

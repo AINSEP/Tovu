@@ -21,7 +21,7 @@ Order: X (import swaps) first, then T/TR groups. Groups that name a Jini export 
 - **X06** REPOINT-NOW — risk -; est. −95 lines; divergence: 2nd arg is a port object {getPathForFile} in Jini vs bare function in Tovu; logic identical. (Tovu captureFolderDrop joins paths with a space; Jini captureFolderPathDrop quotes whitespace paths - not part of this swap)
 - **X10** REPOINT-NOW — risk -; est. −20 lines; divergence: Tovu adds assistant_conversation_tool_approvals table; shared tables identical
 - **X11** REPOINT-NOW — risk -; est. −16 lines; divergence: none (field-for-field)
-- **X15** REPOINT-NOW — risk -; est. −12 lines; divergence: none (identical union)
+- **X15** moved to job dedupe-11 (waits for X15J + Jini release R1)
 - **X17** REPOINT-NOW — risk -; est. −14 lines; divergence: none (Tovu adds unused _optional param)
 - **X19** REPOINT-NOW — risk -; est. −30 lines; divergence: none (Tovu adds unused _optional param)
 - **X21** REPOINT-NOW — risk -; est. −22 lines; divergence: only mailer field type differs (Tovu MailerPort via toTovuMailer); all other members identical and their types already come from @jini-ai/platform/mail
@@ -92,13 +92,8 @@ Order: X (import swaps) first, then T/TR groups. Groups that name a Jini export 
 - Optional: add `LedgerAppendPort` to the class `implements` list.
 - Importers: none change.
 
-## X15: form redirect result type -> `@jini-ai/cms/forms/express#FormSubmissionRedirectResult`
-- `website/src/server/inbound/public-http/http/site/form-render.ts` lines 280-290, the `export type FormSubmissionRedirectResult = ... | { kind: "error"; slug: string };` block:
-  - after: `export type { FormSubmissionRedirectResult } from "@jini-ai/cms/forms/express";`
-  - If the file uses the type itself, also add `import type { FormSubmissionRedirectResult } from "@jini-ai/cms/forms/express";`
-- The union is identical. The import is type-only, so Express is not loaded into the render path.
-- Importers: unchanged (`routes/site/pages.ts`, `http/site/render.ts`, `http/site/__tests__/render.test.ts`).
-- Follow-up: ask Jini to also export this type from `@jini-ai/cms/forms`, so a renderer does not name an `/express` subpath.
+## X15: moved to job dedupe-11
+It must import from the framework-neutral `@jini-ai/cms/forms` (Jini job 08, X15J), which exists only after the Jini release (gate R1). Skip it here.
 
 ## X17: owner-wildcard check -> `@jini-ai/user-management/server#principalHoldsOwnerWildcard`
 - `website/src/features/identity/delete-user-service.ts`:
