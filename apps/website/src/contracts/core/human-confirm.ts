@@ -280,17 +280,12 @@ function renderHumanConfirmation(
     toolName: toolId,
     params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision, ...(choice === undefined ? {} : { [HUMAN_CONFIRM_CHOICE_PARAM]: choice }) },
   });
-  const description = spec.description ?? nativeToolMetadata.byId[toolId]?.summary;
   return buildConfirmationSurface({
     uri: `ui://tovu/${toolId.replaceAll("_", "-")}/${exchange.id}` as UIResourceUri,
     title: spec.title,
     // Redemption acknowledges receipt; the held-open tool still owns execution and its outcome.
     text: { done: "Response received." },
-    ...(description ? { description } : {}),
-    details: confirmationDetails({ spec }),
-    ...(spec.detailDisclosure ? { detailDisclosure: spec.detailDisclosure } : {}),
-    ...(spec.warning ? { warning: spec.warning } : {}),
-    ...(spec.notice ? { notice: spec.notice } : {}),
+    ...confirmationCopy({ spec }),
     danger: spec.danger ?? false,
     confirm: { label: spec.confirmLabel, ...action("confirm") },
     ...(alternatives.length > 0
@@ -303,6 +298,18 @@ function renderHumanConfirmation(
     // exchange has stopped waiting on.
     expiresAtMs: exchange.expiresAtMs(),
   });
+}
+
+/** The card's explanatory copy: description (the tool's own summary by default), details, disclosure, warning, notice. */
+function confirmationCopy({ spec }: { spec: HumanConfirmSpec }, _optional: Record<string, never> = {}) {
+  const description = spec.description ?? nativeToolMetadata.byId[spec.toolId]?.summary;
+  return {
+    ...(description ? { description } : {}),
+    details: confirmationDetails({ spec }),
+    ...(spec.detailDisclosure ? { detailDisclosure: spec.detailDisclosure } : {}),
+    ...(spec.warning ? { warning: spec.warning } : {}),
+    ...(spec.notice ? { notice: spec.notice } : {}),
+  };
 }
 
 /** Keep access rows fixed while preserving the domain's existing warnings and context. */
