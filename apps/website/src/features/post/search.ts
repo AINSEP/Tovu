@@ -113,12 +113,12 @@ const MAX_BODY_DEPTH = 64;
  * operator, so no caller-supplied string is ever interpreted as anything but literal terms. This is
  * the injection boundary for every adapter, which is why it lives here and not in one of them.
  *
- * @param query - The raw caller-supplied search string.
+ * @param required.query - The raw caller-supplied search string.
  * @returns Lowercased alphanumeric terms, in order, possibly empty.
  * @complexity O(n) in the query length.
  * @overallScore 100
  */
-export function toSearchTerms(query: string): string[] {
+export function toSearchTerms({ query }: { query: string }, _optional: Record<string, never> = {}): string[] {
   return query.toLowerCase().normalize("NFC").match(/[\p{L}\p{N}]+/gu) ?? [];
 }
 
@@ -142,18 +142,18 @@ function isNode(value: unknown): value is Record<string, unknown> {
  * Block boundaries become a single space, so "…end of paragraph" and "Start of next…" do not fuse
  * into one bogus token.
  *
- * @param bodyJson - A post's `bodyJson`. Any shape is tolerated: a non-document value yields "".
+ * @param required.bodyJson - A post's `bodyJson`. Any shape is tolerated: a non-document value yields "".
  * @returns The concatenated text, collapsed to single spaces and truncated at
  * {@link MAX_INDEXED_BODY_CHARS}.
  * @complexity O(n) in the node count, O(d) stack in the nesting depth (bounded by
  * {@link MAX_BODY_DEPTH}).
  * @overallScore 100
  */
-export function extractPostPlainText(bodyJson: unknown): string {
+export function extractPostPlainText({ bodyJson }: { bodyJson: unknown }, _optional: Record<string, never> = {}): string {
   const parts: string[] = [];
   let budget = MAX_INDEXED_BODY_CHARS;
 
-  const visit = (node: unknown, depth: number): void => {
+  const visit = ({ node, depth }: { node: unknown; depth: number }, _optional: Record<string, never> = {}): void => {
     if (budget <= 0 || depth > MAX_BODY_DEPTH || !isNode(node)) return;
 
     if (node.type === "text" && typeof node.text === "string") {
@@ -164,14 +164,14 @@ export function extractPostPlainText(bodyJson: unknown): string {
     }
 
     if (Array.isArray(node.content)) {
-      for (const child of node.content) visit(child, depth + 1);
+      for (const child of node.content) visit({ node: child, depth: depth + 1 });
       // One separator per container, not per child: a paragraph's own text runs are adjacent by
       // construction (`"bold" + " word"`), so separating them would insert spaces mid-sentence.
       parts.push(" ");
     }
   };
 
-  visit(bodyJson, 0);
+  visit({ node: bodyJson, depth: 0 });
   // The budget above bounds the TEXT collected; the block separators are added on top of it, so the
   // final slice is what makes the documented cap exact rather than approximate.
   return parts.join("").replace(/\s+/g, " ").trim().slice(0, MAX_INDEXED_BODY_CHARS);
@@ -205,8 +205,8 @@ export function toPostSearchDocument(post: {
     title: post.title,
     slug: post.slug,
     bodyText: post.bodyFormat === "html"
-      ? extractPlainTextFromHtml(post.bodyHtml ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_INDEXED_BODY_CHARS)
-      : extractPostPlainText(post.bodyJson),
+      ? extractPlainTextFromHtml({ html: post.bodyHtml ?? "" }).replace(/\s+/g, " ").trim().slice(0, MAX_INDEXED_BODY_CHARS)
+      : extractPostPlainText({ bodyJson: post.bodyJson }),
   };
 }
 
@@ -249,7 +249,7 @@ export async function searchAdminPosts(
 ): Promise<{ hits: PostSearchHit[] }> {
   const { deps, input } = required;
 
-  const terms = toSearchTerms(input.query);
+  const terms = toSearchTerms({ query: input.query });
   if (terms.length === 0) {
     throw new PostValidationError(
       "query must contain at least one letter or digit — punctuation-only queries match nothing"
@@ -259,7 +259,7 @@ export async function searchAdminPosts(
   if (input.limit !== undefined && !Number.isFinite(input.limit)) {
     throw new PostValidationError("limit must be a finite number");
   }
-  const limit = clampLimit(input.limit ?? DEFAULT_POST_SEARCH_LIMIT);
+  const limit = clampLimit({ limit: input.limit ?? DEFAULT_POST_SEARCH_LIMIT });
 
   const hits = await deps.search.search({
     workspaceId: input.workspaceId,
@@ -274,6 +274,6 @@ export async function searchAdminPosts(
 
 /** Clamps into `[1, MAX_POST_SEARCH_LIMIT]`, flooring fractions — see {@link MAX_POST_SEARCH_LIMIT}
  * for why an out-of-range request is clamped rather than rejected. */
-function clampLimit(limit: number): number {
+function clampLimit({ limit }: { limit: number }, _optional: Record<string, never> = {}): number {
   return Math.min(Math.max(Math.floor(limit), 1), MAX_POST_SEARCH_LIMIT);
 }

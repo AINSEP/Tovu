@@ -128,12 +128,12 @@ test("page-body render paths keep every element and attribute (page <script> inc
       post: buildPostRecord({ workspaceId: "ws-drops", kind: "page", bodyFormat: "html", bodyHtml }) })],
     ["renderViaTemplate saved", bodyHtml => {
       const post = buildPostRecord({ workspaceId: deps.workspaceId, kind: "page", bodyFormat: "html", bodyHtml });
-      deps.postRepo = new InMemoryPostRepo([post]);
+      deps.postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
       return renderViaTemplate(deps, theme, post, undefined);
     }],
     ["renderViaTemplate pending", bodyHtml => {
       const post = buildPostRecord({ workspaceId: deps.workspaceId, kind: "page", bodyFormat: "html", bodyHtml: "" });
-      deps.postRepo = new InMemoryPostRepo([post]);
+      deps.postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
       return renderViaTemplate(deps, theme, post, undefined, undefined, bodyHtml);
     }],
   ];

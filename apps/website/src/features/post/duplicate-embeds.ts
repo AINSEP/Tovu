@@ -52,7 +52,7 @@ function refreshEmbedPlacement(
     : node;
 }
 
-type EmbedCopyFrame = { node: unknown; place: (value: unknown) => void };
+type EmbedCopyFrame = { node: unknown; place: (required: { value: unknown }, optional?: Record<string, never>) => void };
 
 function queueEmbedObject(
   { node, place, stack, newPlacementId }: { node: Record<string, unknown>; place: EmbedCopyFrame["place"]; stack: EmbedCopyFrame[]; newPlacementId: () => string },
@@ -60,33 +60,33 @@ function queueEmbedObject(
 ): void {
   const source = refreshEmbedPlacement({ node, newPlacementId });
   const copy: Record<string, unknown> = {};
-  place(copy);
+  place({ value: copy });
   // Clone every field, including leaf text nodes, marks and nested attrs; walking only content
   // would leave the copy sharing mutable objects with its source.
   const entries = Object.entries(source);
   for (let i = entries.length - 1; i >= 0; i--) {
     const [key, value] = entries[i]!;
-    stack.push({ node: value, place: (cloned) => { copy[key] = cloned; } });
+    stack.push({ node: value, place: ({ value: cloned }, _optional = {}) => { copy[key] = cloned; } });
   }
 }
 
-function walk(root: unknown, newPlacementId: () => string): unknown {
+function walk({ root, newPlacementId }: { root: unknown; newPlacementId: () => string }, _optional: Record<string, never> = {}): unknown {
   // An explicit stack, not recursion: a duplicated page's nesting depth is caller/import-controlled
   // and a 5000-deep body overflowed the call stack here (same class as f646ba397's GET-path
   // walkers). Each frame carries where its copied value goes; children are pushed in reverse so
   // the walk stays pre-order and `newPlacementId` is called in document order, exactly as the
   // recursive version did.
   let result: unknown;
-  const stack: EmbedCopyFrame[] = [{ node: root, place: (value) => { result = value; } }];
+  const stack: EmbedCopyFrame[] = [{ node: root, place: ({ value }, _optional = {}) => { result = value; } }];
   while (stack.length > 0) {
     const { node, place } = stack.pop()!;
     if (Array.isArray(node)) {
       const copy: unknown[] = [];
       copy.length = node.length;
-      place(copy);
-      for (let i = node.length - 1; i >= 0; i--) stack.push({ node: node[i], place: (value) => { copy[i] = value; } });
+      place({ value: copy });
+      for (let i = node.length - 1; i >= 0; i--) stack.push({ node: node[i], place: ({ value }, _optional = {}) => { copy[i] = value; } });
     } else if (!isPlainObject(node)) {
-      place(node);
+      place({ value: node });
     } else {
       queueEmbedObject({ node, place, stack, newPlacementId });
     }
@@ -105,6 +105,6 @@ function walk(root: unknown, newPlacementId: () => string): unknown {
  *
  * @complexity O(n) in the size of `bodyJson` — one iterative walk, no repeated work, no backtracking.
  */
-export function copyBodyJsonWithFreshEmbedPlacements(bodyJson: JsonObject, newPlacementId: () => string): JsonObject {
-  return walk(bodyJson, newPlacementId) as JsonObject;
+export function copyBodyJsonWithFreshEmbedPlacements({ bodyJson, newPlacementId }: { bodyJson: JsonObject; newPlacementId: () => string }, _optional: Record<string, never> = {}): JsonObject {
+  return walk({ root: bodyJson, newPlacementId }) as JsonObject;
 }

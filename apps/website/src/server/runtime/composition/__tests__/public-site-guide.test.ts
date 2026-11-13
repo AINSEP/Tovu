@@ -69,7 +69,7 @@ test("reduced guide cards include every allowed CMS action and preserve the oper
   assert.doesNotMatch(JSON.stringify(result), /Read a published entry/);
 });
 test("visitor registry grants only the explicitly injected guide and still denies unknown names/callers", async () => {
-  const deps = { workspaceId: "public-site", postRepo: new InMemoryPostRepo(), listPublishedPosts, memberAccess: anonymousMemberAccess() };
+  const deps = { workspaceId: "public-site", postRepo: new InMemoryPostRepo({}), listPublishedPosts, memberAccess: anonymousMemberAccess() };
   const without = createSiteCapabilityRegistry(deps);
   assert.ok(!without.schemas.some(schema => schema.name === "site_guide"));
   let calls = 0;

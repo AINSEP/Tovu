@@ -86,7 +86,7 @@ function harness(): Harness {
 
   return {
     client,
-    postRepo: new SqlitePostRepo(db),
+    postRepo: new SqlitePostRepo({ store: db }),
     trashRepo,
     outbox: recordingOutbox(),
     removePost: removeEntityWithoutBlocker({ remove: bindRemoveEntity({

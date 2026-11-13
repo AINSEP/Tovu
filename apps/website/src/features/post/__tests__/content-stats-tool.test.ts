@@ -11,11 +11,11 @@ function harness(denied?: string) {
   const deps: ContentStatsToolDeps = {
     workspaceId: "ws",
     authorize: async ({ permission }) => ({ allowed: permission !== denied, reason: "fixture grant" }),
-    postRepo: new InMemoryPostRepo([
+    postRepo: new InMemoryPostRepo({}, { initialRows: [
       post("short", "one two"), post("long", "one\n two   three four", { status: "published" }), post("empty", ""),
       post("page", "ignored", { kind: "page", status: "published", bodyFormat: "html", bodyHtml: "<style>hidden words</style><p>Page has three</p>" }),
       post("trash", "should be excluded", { deletedAt: "2026-10-01T00:00:00Z" }), post("foreign", "other workspace", { workspaceId: "other" }),
-    ]),
+    ] }),
     contentTypeRepo: { listByWorkspace: async ({ workspaceId }) => { assert.equal(workspaceId, "ws"); return [{ key: "recipe", status: "active" }, { key: "empty", status: "active" }, { key: "widget", status: "active" }]; } },
     entryRepo: { listByWorkspace: async ({ workspaceId }) => { assert.equal(workspaceId, "ws"); return [{ type: "recipe", status: "draft" }, { type: "recipe", status: "published" }, { type: "widget", status: "published" }]; } },
     mediaRepo: { list: async ({ workspaceId }) => { assert.equal(workspaceId, "ws"); return [{ status: "active", source: { sha256: "image" } }, { status: "active", source: { sha256: "video" } }, { status: "active", source: { sha256: "pdf" } }, { status: "trashed", source: { sha256: "image" } }]; } },
@@ -80,7 +80,7 @@ test("stats registration is readOnly with independent none risk", () => {
 
 test("empty inventory has zero average, and ties have stable id order", async () => {
   const { deps, tool } = harness();
-  deps.postRepo = new InMemoryPostRepo([post("b", "one two"), post("a", "one two")]);
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: [post("b", "one two"), post("a", "one two")] });
   const result = await tool.handler(ctx()) as any;
   assert.deepEqual(result.pages, { total: 0, byStatus: {}, words: { total: 0, average: 0, longest: [] } });
   assert.deepEqual(result.posts.words.longest.map((row: any) => row.id), ["a", "b"]);
@@ -132,14 +132,14 @@ test("the contributor installs the stats builder under its own domain with the n
 
 test("an HTML-format page with no stored HTML counts zero words", async () => {
   const { deps, tool } = harness();
-  deps.postRepo = new InMemoryPostRepo([post("blank", "ignored", { kind: "page", bodyFormat: "html", bodyHtml: null })]);
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: [post("blank", "ignored", { kind: "page", bodyFormat: "html", bodyHtml: null })] });
   const result = await tool.handler(ctx()) as { pages: unknown };
   assert.deepEqual(result.pages, { total: 1, byStatus: { draft: 1 }, words: { total: 0, average: 0, longest: [{ id: "blank", title: "blank", slug: "blank", words: 0 }] } });
 });
 
 test("longest defaults to five rows when omitted", async () => {
   const { deps, tool } = harness();
-  deps.postRepo = new InMemoryPostRepo(["a", "b", "c", "d", "e", "f"].map(id => post(id, "word")));
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: ["a", "b", "c", "d", "e", "f"].map(id => post(id, "word")) });
   const result = await tool.handler(ctx()) as { posts: { words: { longest: Array<{ id: string }> } } };
   assert.deepEqual(result.posts.words.longest.map(row => row.id), ["a", "b", "c", "d", "e"]);
 });

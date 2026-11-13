@@ -30,7 +30,7 @@ function makeDeps() {
   };
   const deps = {
     mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }),
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
     settingsRepo,
     transformDefinitionRepo,
     originRegistry: { marker: "origins" },

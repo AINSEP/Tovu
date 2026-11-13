@@ -163,7 +163,7 @@ test("C: end-to-end — a real HTTP request for a 5000-deep post serves bounded 
     updatedAt: "2026-08-12T00:00:00.000Z",
     version: 1,
   };
-  deps.postRepo = new InMemoryPostRepo([CRASH_POST]);
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: [CRASH_POST] });
   const app = express();
   registerSiteRoutes(app, deps);
   const baseUrl = await startTestServer(app, t);

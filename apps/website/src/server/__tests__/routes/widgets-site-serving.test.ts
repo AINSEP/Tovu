@@ -55,7 +55,7 @@ function buildTestApp(theme: DiscoveredTheme): { app: express.Express; deps: Rou
   // widget regions at all (see that handler's own comment). `createRouteDeps()`'s default seed
   // (`seed.ts`'s `seededPosts`) now includes such a page, so drop it here to keep this suite's real
   // subject — theme-declared home regions — reachable, without touching the seed default itself.
-  deps.postRepo = new InMemoryPostRepo(seededPosts.filter((post) => post.slug !== ROOT_SLUG));
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: seededPosts.filter((post) => post.slug !== ROOT_SLUG) });
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);

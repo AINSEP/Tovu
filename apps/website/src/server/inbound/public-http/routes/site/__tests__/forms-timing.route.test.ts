@@ -21,7 +21,7 @@ test("live GET and POST share issuance: fast retries preserve text, 1000 ms admi
   const form = renderHtmlForm({ slug: "contact", fields, action: "/forms/contact/submit", hooks: {
     form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error", field: "data-tovu-field",
   } }, {});
-  const deps = { ...base, clock, postRepo: new InMemoryPostRepo([]), themes: [{ ...theme, pages: { ...theme.pages, index: `<html><body>${form}</body></html>` } }] };
+  const deps = { ...base, clock, postRepo: new InMemoryPostRepo({}, { initialRows: [] }), themes: [{ ...theme, pages: { ...theme.pages, index: `<html><body>${form}</body></html>` } }] };
   await deps.formDefinitionRepo.create({ id: "timed-form", workspaceId: deps.workspaceId, name: "Contact", slug: "contact", fields,
     status: "active", notify: { enabled: false, recipients: [] }, version: 1, createdAt: clock.nowIso(), updatedAt: clock.nowIso(),
   });

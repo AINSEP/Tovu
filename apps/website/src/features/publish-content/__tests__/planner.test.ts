@@ -961,7 +961,7 @@ test("real post contributor: created + byte-identical destination", async () => 
     updatedAt: "2026-09-01T00:00:00.000Z",
     version: 1,
   };
-  const repo = new InMemoryPostRepo([existing]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [existing] });
   const before = JSON.stringify(await repo.list({ workspaceId }));
 
   const newPostState = { ...existing, id: "post-2", slug: "new-post", title: "New Post" };
@@ -1009,7 +1009,7 @@ test("real post contributor: blocked on a genuine slug collision against a DIFFE
     updatedAt: "2026-09-01T00:00:00.000Z",
     version: 1,
   };
-  const repo = new InMemoryPostRepo([existing]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [existing] });
   const before = JSON.stringify(await repo.list({ workspaceId }));
 
   const incomingState = { ...existing, id: "post-2", slug: "taken-slug" };

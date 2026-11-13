@@ -80,7 +80,7 @@ const SNIPPET_COLUMN_BODY_TEXT = 2;
  */
 export const sqlitePostSearch: PostSearchDialect = {
   // Migration 0022 owns the table, the index and the triggers.
-  async upsert(kernel, document) {
+  async upsert({ kernel, document }, _optional = {}) {
     await kernel.run((db) =>
       db
         .withTables<SearchProjectionTables>()
@@ -97,7 +97,7 @@ export const sqlitePostSearch: PostSearchDialect = {
     );
   },
 
-  async remove(kernel, postId) {
+  async remove({ kernel, postId }, _optional = {}) {
     await kernel.run((db) =>
       db.withTables<SearchProjectionTables>().deleteFrom("post_search_document").where("post_id", "=", postId).execute()
     );

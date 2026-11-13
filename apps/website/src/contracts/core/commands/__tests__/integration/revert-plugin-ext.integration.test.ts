@@ -72,7 +72,7 @@ function buildAppliedChangeSet(): { changeSet: ChangeSetRecord; item: ChangeSetI
 }
 
 test("CIC U-005-B1 (Binding): reverting a post-update change set must NOT call postRepo.findBySlug — a save-path-only side effect that reveals an illegal pass-through via updatePost() instead of a raw PostRepoPort.save()", async () => {
-  const inner = new InMemoryPostRepo([
+  const inner = new InMemoryPostRepo({}, { initialRows: [
     buildPostRecord({
       id: "post-1",
       workspaceId: WORKSPACE,
@@ -84,7 +84,7 @@ test("CIC U-005-B1 (Binding): reverting a post-update change set must NOT call p
       updatedAt: "2026-07-28T00:00:00.000Z",
       version: 2,
     }),
-  ]);
+  ] });
   const { repo: postRepo, findBySlugCalls, otherReadCalls } = findBySlugSpy(inner);
 
   const { changeSet, item } = buildAppliedChangeSet();
@@ -119,7 +119,7 @@ test("CIC U-005-B1 (Binding): reverting a post-update change set must NOT call p
 
 for (const inverseExt of [undefined, { "word-count": { words: 17, computedAt: "historical" } }]) {
   test(`AC-17: reverting a post-update restores bodyJson/title/slug/status, increments version by 1, and ${inverseExt ? "restores historical ext" : "removes newly introduced ext"}`, async () => {
-    const postRepo = new InMemoryPostRepo([
+    const postRepo = new InMemoryPostRepo({}, { initialRows: [
       buildPostRecord({
         id: "post-1",
         workspaceId: WORKSPACE,
@@ -132,7 +132,7 @@ for (const inverseExt of [undefined, { "word-count": { words: 17, computedAt: "h
         updatedAt: "2026-07-28T00:00:00.000Z",
         version: 2,
       }),
-    ]);
+    ] });
     const { changeSet, item } = buildAppliedChangeSet();
     if (inverseExt !== undefined) item.inversePayload = { ...item.inversePayload as Record<string, unknown>, ext: inverseExt };
     const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);

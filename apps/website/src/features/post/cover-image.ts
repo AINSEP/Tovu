@@ -50,12 +50,12 @@ function isMediaNode(node: Record<string, unknown>): node is Record<string, unkn
 }
 
 /** Pushes children last-to-first so popping the stack visits them in document order. */
-function pushReversed<T, U>(stack: U[], items: readonly T[], wrap: (item: T) => U): void {
+function pushReversed<T, U>({ stack, items, wrap }: { stack: U[]; items: readonly T[]; wrap: (item: T) => U }, _optional: Record<string, never> = {}): void {
   for (let i = items.length - 1; i >= 0; i--) stack.push(wrap(items[i]!));
 }
 
 /** A public rendition src can point back to a library id/slug; originals are never covers. */
-function renditionRef(src: string): string | undefined {
+function renditionRef({ src }: { src: string }, _optional: Record<string, never> = {}): string | undefined {
   const match = /^\/m\/([^/]+)\/[^/]+\.v\d+\/[^/?#]+(?:[?#].*)?$/.exec(src);
   const encoded = match?.[1];
   if (encoded === undefined) return undefined;
@@ -66,7 +66,7 @@ function renditionRef(src: string): string | undefined {
 function candidate(attrs: Record<string, unknown>): Candidate {
   const src = typeof attrs.src === "string" ? attrs.src.trim() : undefined;
   let mediaRef = typeof attrs.assetId === "string" ? attrs.assetId : undefined;
-  if (mediaRef === undefined && src) mediaRef = renditionRef(src);
+  if (mediaRef === undefined && src) mediaRef = renditionRef({ src });
   return { mediaRef, src, alt: typeof attrs.alt === "string" ? attrs.alt : undefined };
 }
 
@@ -75,13 +75,13 @@ function queueDocContent({ node, stack }: { node: Record<string, unknown>; stack
 }
 
 /** Pre-order document traversal stays iterative because imported nesting is not bounded. */
-function* docCandidates(root: unknown): Generator<Candidate> {
+function* docCandidates({ root }: { root: unknown }, _optional: Record<string, never> = {}): Generator<Candidate> {
   const stack: unknown[] = [root];
   let occurrence = 0;
   while (stack.length) {
     const node = stack.pop();
     if (Array.isArray(node)) {
-      pushReversed(stack, node, item => item);
+      pushReversed({ stack, items: node, wrap: item => item });
       continue;
     }
     if (object(node)) {
@@ -111,7 +111,7 @@ function* htmlElementCandidates(
     if (image) yield image;
   } else {
     if (node.tagName === "img") yield candidate(attrs);
-    pushReversed(stack, node.childNodes, child => child);
+    pushReversed({ stack, items: node.childNodes, wrap: child => child });
   }
 }
 
@@ -119,7 +119,7 @@ function* htmlElementCandidates(
  * Source offsets align each rendered element with its marker without re-parsing marker JSON.
  * Inert content and a media marker's authored fallback are not independent body images.
  */
-function* htmlCandidates(html: string): Generator<Candidate> {
+function* htmlCandidates({ html }: { html: string }, _optional: Record<string, never> = {}): Generator<Candidate> {
   const markers = new Map(scanEmbedMarkers({ html }).markers.map((marker) => [marker.index, marker]));
   const stack: HtmlNode[] = [...parseFragment(html, { sourceCodeLocationInfo: true }).childNodes].reverse();
   while (stack.length) {
@@ -132,13 +132,13 @@ function* htmlCandidates(html: string): Generator<Candidate> {
 /** Featured selection is final even if missing; only an unset slot enables the body fallback. */
 function candidates(post: CoverImagePost): Iterable<Candidate> {
   if (post.featuredMediaId) return [{ mediaRef: post.featuredMediaId }];
-  return post.bodyFormat === "html" ? htmlCandidates(post.bodyHtml ?? "") : docCandidates(post.bodyJson);
+  return post.bodyFormat === "html" ? htmlCandidates({ html: post.bodyHtml ?? "" }) : docCandidates({ root: post.bodyJson });
 }
 
 /** Strict external OG policy. Body rendering has a wider HTTP allowlist; social fallback does not.
  * Credentials and authenticated originals never become a public crawler URL. No fetch occurs.
  */
-function externalHttps(src: string | undefined): string | null {
+function externalHttps({ src }: { src: string | undefined }, _optional: Record<string, never> = {}): string | null {
   if (!src || !/^https:\/\/[^\s]+$/i.test(src)) return null;
   try {
     const url = new URL(src);
@@ -164,7 +164,7 @@ function candidateCover(
     return { mediaId: media.id ?? image.mediaRef, alt, width: media.width, height: media.height, ...(image.bodyOccurrence !== undefined ? { bodyOccurrence: image.bodyOccurrence } : {}) };
   }
   if (!optional.allowExternalHttps) return null;
-  const url = externalHttps(image.src);
+  const url = externalHttps({ src: image.src });
   return url ? { url, alt, width: null, height: null } : null;
 }
 
@@ -199,7 +199,7 @@ export function resolveCoverImage(
 /** Pages, HTML bodies, hosts without the public transform, and an explicit
  * hideCoverImageInBody: false all render the stored body as-is.
  */
-function keepsStoredBody(post: CoverImagePost, hasPublicTransform: boolean): boolean {
+function keepsStoredBody({ post, hasPublicTransform }: { post: CoverImagePost; hasPublicTransform: boolean }, _optional: Record<string, never> = {}): boolean {
   const presentation = post.ext?.["post-presentation"];
   if (post.kind === "page" || post.bodyFormat !== "doc" || !hasPublicTransform) return true;
   return object(presentation) && presentation.hideCoverImageInBody === false;
@@ -215,7 +215,7 @@ function copyBodyFrame(
   if (Array.isArray(source)) {
     const copy: unknown[] = [];
     target.push(copy);
-    pushReversed(stack, source, item => ({ source: item, target: copy }));
+    pushReversed({ stack, items: source, wrap: item => ({ source: item, target: copy }) });
     return occurrence;
   }
   if (!object(source)) { target.push(source); return occurrence; }
@@ -229,7 +229,7 @@ function copyBodyFrame(
   if (Array.isArray(source.content)) {
     const content: unknown[] = [];
     copy.content = content;
-    pushReversed(stack, source.content, item => ({ source: item, target: content }));
+    pushReversed({ stack, items: source.content, wrap: item => ({ source: item, target: content }) });
   }
   return occurrence;
 }
@@ -253,7 +253,7 @@ export function projectPostBody(
   { post }: { post: CoverImagePost },
   optional: { mediaLookup: (required: { ref: string }) => CoverMedia | null; hasPublicTransform: boolean },
 ): unknown {
-  if (keepsStoredBody(post, optional.hasPublicTransform)) return post.bodyJson;
+  if (keepsStoredBody({ post, hasPublicTransform: optional.hasPublicTransform })) return post.bodyJson;
   const selected = resolveCoverImage({ post }, optional)?.bodyOccurrence;
   if (selected === undefined || !object(post.bodyJson)) return post.bodyJson;
   return withoutOccurrence({ body: post.bodyJson, selected });

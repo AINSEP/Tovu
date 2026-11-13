@@ -229,7 +229,7 @@ test("every core, public and bundled guide tool pointer resolves to a currently 
     const parsed = resolveSiteGuideEngine({}).parseGuideTopics({ raw: await readFile(path.join(bundle.root, "how-tovu-works", "tovu-site-guide.json"), "utf8") });
     if (!parsed.ok) throw new Error(parsed.reason);
     const cards = [...TOVU_CAPABILITY_CARDS, ...parsed.descriptors];
-    const visitor = createSiteCapabilityRegistry({ workspaceId: WORKSPACE_ID, postRepo: new InMemoryPostRepo(), listPublishedPosts, memberAccess: anonymousMemberAccess() });
+    const visitor = createSiteCapabilityRegistry({ workspaceId: WORKSPACE_ID, postRepo: new InMemoryPostRepo({}), listPublishedPosts, memberAccess: anonymousMemberAccess() });
     const publicIds = new Set(visitor.schemas.map(tool => tool.name));
     let checked = 0;
     for (const [topics, registeredIds] of [[cards, ids], [[publicCapabilityCard], publicIds]] as const) {

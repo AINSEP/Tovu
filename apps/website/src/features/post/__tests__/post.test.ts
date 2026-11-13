@@ -48,7 +48,7 @@ const seedPost = buildPostRecord({
 });
 
 test("updatePost stores edits and increments version", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await updatePost({
@@ -70,14 +70,14 @@ test("updatePost stores edits and increments version", async () => {
 });
 
 test("updatePost rejects duplicate slug", async () => {
-  const repo = new InMemoryPostRepo([
+  const repo = new InMemoryPostRepo({}, { initialRows: [
     seedPost,
     buildPostRecord({
       ...seedPost,
       id: "post-2",
       slug: "another-post",
     }),
-  ]);
+  ] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   await assert.rejects(
@@ -98,7 +98,7 @@ test("updatePost rejects duplicate slug", async () => {
 });
 
 test("updatePost rejects invalid title", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   await assert.rejects(
@@ -119,7 +119,7 @@ test("updatePost rejects invalid title", async () => {
 });
 
 test("createPost stores a blank draft with a title-derived slug", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await createPost({
@@ -140,7 +140,7 @@ test("createPost stores a blank draft with a title-derived slug", async () => {
 });
 
 test("createPost uses the caller-supplied slug instead of deriving one from the title", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await createPost({
@@ -152,7 +152,7 @@ test("createPost uses the caller-supplied slug instead of deriving one from the 
 });
 
 test("createPost normalizes a caller-supplied slug to lowercase and trims it", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await createPost({
@@ -164,7 +164,7 @@ test("createPost normalizes a caller-supplied slug to lowercase and trims it", a
 });
 
 test("createPost rejects a caller-supplied slug with an invalid format", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   await assert.rejects(
@@ -184,7 +184,7 @@ test("createPost rejects a caller-supplied slug with an invalid format", async (
 // `"post"` when omitted, so the rejection must fire on that default too, not only on an explicit
 // `kind: "post"`.
 test("createPost rejects a caller-supplied slug of '/' for a post (kind defaults to 'post')", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   await assert.rejects(
@@ -205,7 +205,7 @@ test("createPost rejects a caller-supplied slug of '/' for a post (kind defaults
 });
 
 test("createPost rejects a caller-supplied slug of '/' for an explicit kind: 'post'", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   await assert.rejects(
@@ -223,7 +223,7 @@ test("createPost rejects a caller-supplied slug of '/' for an explicit kind: 'po
 });
 
 test("createPost accepts a caller-supplied slug of '/' for kind: 'page'", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await createPost({
@@ -236,7 +236,7 @@ test("createPost accepts a caller-supplied slug of '/' for kind: 'page'", async 
 });
 
 test("createPost rejects a caller-supplied slug already used in the workspace (SLUG_CONFLICT)", async () => {
-  const repo = new InMemoryPostRepo([seedPost]); // seedPost.slug === "hello-world"
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] }); // seedPost.slug === "hello-world"
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   await assert.rejects(
@@ -253,7 +253,7 @@ test("createPost rejects a caller-supplied slug already used in the workspace (S
 });
 
 test("createPost allows the same explicit slug in a different workspace (uniqueness is per-workspace)", async () => {
-  const repo = new InMemoryPostRepo([seedPost]); // workspace-1, slug "hello-world"
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] }); // workspace-1, slug "hello-world"
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await createPost({
@@ -265,7 +265,7 @@ test("createPost allows the same explicit slug in a different workspace (uniquen
 });
 
 test("createPost uses the caller-supplied bodyJson instead of the default empty doc", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
   const bodyJson = { type: "doc", content: [{ type: "paragraph" }] };
 
@@ -278,7 +278,7 @@ test("createPost uses the caller-supplied bodyJson instead of the default empty 
 });
 
 test("createPost rejects a non-object caller-supplied bodyJson", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   await assert.rejects(
@@ -300,7 +300,7 @@ test("createPost rejects a non-object caller-supplied bodyJson", async () => {
 });
 
 test("createPost uses the caller-supplied status instead of always defaulting to draft", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await createPost({
@@ -312,7 +312,7 @@ test("createPost uses the caller-supplied status instead of always defaulting to
 });
 
 test("createPost rejects an invalid caller-supplied status", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   await assert.rejects(
@@ -334,7 +334,7 @@ test("createPost rejects an invalid caller-supplied status", async () => {
 });
 
 test("createPost disambiguates a slug collision", async () => {
-  const repo = new InMemoryPostRepo([seedPost]); // seedPost.slug === "hello-world"
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] }); // seedPost.slug === "hello-world"
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await createPost({
@@ -346,7 +346,7 @@ test("createPost disambiguates a slug collision", async () => {
 });
 
 test("createPost defaults an empty title to 'Untitled'", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await createPost({
@@ -362,7 +362,7 @@ test("createPost defaults an empty title to 'Untitled'", async () => {
 // it is handled, then the response is HTTP 400 VALIDATION_ERROR and nothing is written."
 // errors.spec.md's documented VALIDATION_ERROR message for this case is `slug 'admin' is reserved`.
 test("createPost rejects a caller-supplied slug equal to the reserved word 'admin' (AC-04)", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   await assert.rejects(
@@ -384,7 +384,7 @@ test("createPost rejects a caller-supplied slug equal to the reserved word 'admi
 
 // behavior.spec.md BR-02/BR-03 name both reserved slugs explicitly (`admin`, `api`) — not just one.
 test("createPost rejects a caller-supplied slug equal to the reserved word 'api'", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   await assert.rejects(
@@ -406,7 +406,7 @@ test("createPost rejects a caller-supplied slug equal to the reserved word 'api'
 
 // api.spec.md §4 / behavior.spec.md §4: caller-supplied slug maxLength is 120 chars.
 test("createPost rejects a caller-supplied slug longer than 120 characters", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
   const overLongSlug = "a".repeat(121);
 
@@ -425,7 +425,7 @@ test("createPost rejects a caller-supplied slug longer than 120 characters", asy
 
 // Boundary check (RT-004 in behavior.spec.md): exactly 120 chars must still succeed.
 test("createPost accepts a caller-supplied slug exactly 120 characters long", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
   const boundarySlug = "a".repeat(120);
 
@@ -439,7 +439,7 @@ test("createPost accepts a caller-supplied slug exactly 120 characters long", as
 
 // api.spec.md §4 / behavior.spec.md §4: title maxLength is 200 chars.
 test("createPost rejects a title longer than 200 characters", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
   const overLongTitle = "a".repeat(201);
 
@@ -458,7 +458,7 @@ test("createPost rejects a title longer than 200 characters", async () => {
 
 // Boundary check: exactly 200 chars must still succeed.
 test("createPost accepts a title exactly 200 characters long", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
   const boundaryTitle = "a".repeat(200);
 
@@ -471,7 +471,7 @@ test("createPost accepts a title exactly 200 characters long", async () => {
 });
 
 test("getPublishedPostBySlug hides drafts", async () => {
-  const repo = new InMemoryPostRepo([{ ...seedPost, status: "draft" }]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [{ ...seedPost, status: "draft" }] });
 
   await assert.rejects(
     () =>
@@ -492,31 +492,31 @@ test("getPublishedPostBySlug hides drafts", async () => {
  * route lookup never had.
  */
 test("findPublishedPostById returns the row for a published id", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
   const found = await findPublishedPostById({ deps: { repo }, input: { workspaceId: "workspace-1", id: "post-1" } });
   assert.equal(found?.id, "post-1");
 });
 
 test("GUARD 2: findPublishedPostById returns null for a draft row — never leaks it by id", async () => {
-  const repo = new InMemoryPostRepo([{ ...seedPost, status: "draft" }]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [{ ...seedPost, status: "draft" }] });
   const found = await findPublishedPostById({ deps: { repo }, input: { workspaceId: "workspace-1", id: "post-1" } });
   assert.equal(found, null, "a draft must not be returned even when its exact id is known");
 });
 
 test("GUARD 2: findPublishedPostById returns null for a trashed row, even if published", async () => {
-  const repo = new InMemoryPostRepo([{ ...seedPost, status: "published", deletedAt: "2026-08-11T00:00:00.000Z" }]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [{ ...seedPost, status: "published", deletedAt: "2026-08-11T00:00:00.000Z" }] });
   const found = await findPublishedPostById({ deps: { repo }, input: { workspaceId: "workspace-1", id: "post-1" } });
   assert.equal(found, null);
 });
 
 test("findPublishedPostById returns null for a nonexistent id — same shape as \"not visible\", never throws", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
   const found = await findPublishedPostById({ deps: { repo }, input: { workspaceId: "workspace-1", id: "does-not-exist" } });
   assert.equal(found, null);
 });
 
 test("findPublishedPostById is workspace-scoped — a published row in a DIFFERENT workspace is invisible", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
   const found = await findPublishedPostById({ deps: { repo }, input: { workspaceId: "workspace-2", id: "post-1" } });
   assert.equal(found, null);
 });
@@ -525,7 +525,7 @@ test("GUARD 2 NEGATIVE VERIFICATION: stubbing out the status/trash filter would 
   // Same discipline the design doc's guard 2 calls for: don't just assert the guarded behavior,
   // prove the guard is the reason it holds. A bare `repo.findById` call (what this function replaced)
   // WOULD return the draft below — that is the exact hole this function exists to close.
-  const repo = new InMemoryPostRepo([{ ...seedPost, status: "draft" }]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [{ ...seedPost, status: "draft" }] });
   const unguarded = await repo.findById({ workspaceId: "workspace-1", id: "post-1" });
   assert.ok(unguarded, "sanity check: the raw, unfiltered repo call DOES return the draft");
   const guarded = await findPublishedPostById({ deps: { repo }, input: { workspaceId: "workspace-1", id: "post-1" } });
@@ -533,7 +533,7 @@ test("GUARD 2 NEGATIVE VERIFICATION: stubbing out the status/trash filter would 
 });
 
 test("getAdminPostByIdOrSlug resolves by real id", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
 
   const { post } = await getAdminPostByIdOrSlug({
     deps: { repo },
@@ -544,7 +544,7 @@ test("getAdminPostByIdOrSlug resolves by real id", async () => {
 });
 
 test("getAdminPostByIdOrSlug falls back to slug when the value is not a known id", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
 
   const { post } = await getAdminPostByIdOrSlug({
     deps: { repo },
@@ -555,7 +555,7 @@ test("getAdminPostByIdOrSlug falls back to slug when the value is not a known id
 });
 
 test("getAdminPostByIdOrSlug normalizes the slug fallback the same way getPublishedPostBySlug does", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
 
   const { post } = await getAdminPostByIdOrSlug({
     deps: { repo },
@@ -569,7 +569,7 @@ test("getAdminPostByIdOrSlug accepts a leading slash while preserving home and s
   const page = buildPostRecord({ ...seedPost, id: "page-about", kind: "page", slug: "about" });
   const home = buildPostRecord({ ...seedPost, id: "page-home", kind: "page", slug: "/" });
   const collision = buildPostRecord({ ...seedPost, id: "/about", slug: "other" });
-  const repo = new InMemoryPostRepo([page, home, collision]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [page, home, collision] });
   for (const selector of ["about", "/about", " /ABOUT "]) {
     const result = await getAdminPostByIdOrSlug({ deps: { repo }, input: { workspaceId: "workspace-1", idOrSlug: selector } });
     assert.equal(result.post.id, page.id);
@@ -579,7 +579,7 @@ test("getAdminPostByIdOrSlug accepts a leading slash while preserving home and s
 });
 
 test("getAdminPostByIdOrSlug 404s, trash-blind, for a value that matches neither an id nor a slug", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
 
   await assert.rejects(
     () =>
@@ -592,7 +592,7 @@ test("getAdminPostByIdOrSlug 404s, trash-blind, for a value that matches neither
 });
 
 test("createPost defaults kind to 'post' when not given", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await createPost({
@@ -604,7 +604,7 @@ test("createPost defaults kind to 'post' when not given", async () => {
 });
 
 test("createPost sets kind to 'page' when explicitly requested", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await createPost({
@@ -619,7 +619,7 @@ test("createPost sets kind to 'page' when explicitly requested", async () => {
 });
 
 test("updatePost preserves the existing record's kind (not editable after creation)", async () => {
-  const repo = new InMemoryPostRepo([{ ...seedPost, id: "page-1", kind: "page" }]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [{ ...seedPost, id: "page-1", kind: "page" }] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await updatePost({
@@ -638,12 +638,12 @@ test("updatePost preserves the existing record's kind (not editable after creati
 });
 
 test("listAdminPosts and listAdminPages are disjoint lenses over the same table", async () => {
-  const repo = new InMemoryPostRepo([
+  const repo = new InMemoryPostRepo({}, { initialRows: [
     seedPost, // kind: "post"
     { ...seedPost, id: "post-2", slug: "second-post", kind: "post" },
     { ...seedPost, id: "page-1", slug: "about", kind: "page" },
     { ...seedPost, id: "page-2", slug: "contact", kind: "page" },
-  ]);
+  ] });
 
   const { posts: postsOnly } = await listAdminPosts({
     deps: { repo },
@@ -665,7 +665,7 @@ test("listAdminPosts and listAdminPages are disjoint lenses over the same table"
 });
 
 test("getAdminPostById returns the post for a valid, non-trashed id", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
 
   const { post } = await getAdminPostById({
     deps: { repo },
@@ -681,7 +681,7 @@ test("getAdminPostById returns the post for a valid, non-trashed id", async () =
 // (the zero-plugin path), so this is the only place the hook is actually invoked and its patch
 // merged into `ext`.
 test("createPost runs the beforeSaveHook and merges its returned patch into ext", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
   let receivedDraft: unknown;
   const beforeSaveHook: BeforeSaveHookPort = async (draft) => {
@@ -700,7 +700,7 @@ test("createPost runs the beforeSaveHook and merges its returned patch into ext"
 });
 
 test("updatePost runs the beforeSaveHook and merges its patch onto the entry's existing ext", async () => {
-  const repo = new InMemoryPostRepo([{ ...seedPost, ext: { "plugin-a": { seen: 1 } } }]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [{ ...seedPost, ext: { "plugin-a": { seen: 1 } } }] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
   let receivedDraft: unknown;
   const beforeSaveHook: BeforeSaveHookPort = async (draft) => {
@@ -729,7 +729,7 @@ test("updatePost runs the beforeSaveHook and merges its patch onto the entry's e
 // The `slugify(title) || "untitled"` fallback: a title that survives the empty-title default
 // (it is not blank) but has no a-z0-9 characters at all still slugifies to "".
 test("createPost falls back to 'untitled' when the title has no alphanumeric characters to slugify", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await createPost({
@@ -742,7 +742,7 @@ test("createPost falls back to 'untitled' when the title has no alphanumeric cha
 });
 
 test("updatePost rejects an invalid slug format", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   await assert.rejects(
@@ -769,7 +769,7 @@ test("updatePost rejects an invalid slug format", async () => {
 // Content-owned homepage (SPEC-0XX) — same root-slug exception `createPost`'s explicit-slug path
 // enforces, gated here on `existing.kind` (immutable, so this is the only kind that can matter).
 test("updatePost rejects a slug of '/' when the existing row's kind is 'post'", async () => {
-  const repo = new InMemoryPostRepo([seedPost]); // seedPost.kind === "post"
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] }); // seedPost.kind === "post"
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   await assert.rejects(
@@ -795,7 +795,7 @@ test("updatePost rejects a slug of '/' when the existing row's kind is 'post'", 
 
 test("updatePost accepts a slug of '/' when the existing row's kind is 'page'", async () => {
   const seedPage = { ...seedPost, id: "page-1", kind: "page" as const, slug: "about" };
-  const repo = new InMemoryPostRepo([seedPage]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPage] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await updatePost({
@@ -814,7 +814,7 @@ test("updatePost accepts a slug of '/' when the existing row's kind is 'page'", 
 });
 
 test("updatePost rejects a non-object bodyJson on a doc-format row", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   await assert.rejects(
@@ -839,7 +839,7 @@ test("updatePost rejects a non-object bodyJson on a doc-format row", async () =>
 });
 
 test("updatePost rejects an invalid status", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   await assert.rejects(
@@ -867,7 +867,7 @@ test("updatePost rejects an invalid status", async () => {
 // unchanged, explicit value to set" contract, exercised together since they're independent
 // conditional spreads in the same record-assembly step.
 test("updatePost sets templateChoice and overridesThemePage when the caller provides them", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await updatePost({
@@ -890,23 +890,23 @@ test("updatePost sets templateChoice and overridesThemePage when the caller prov
 
 test("getAdminPostByIdOrSlug prefers the slug holder when another row has the same id", async () => {
   const slugHolder = { ...seedPost, id: "slug-holder", slug: "post-1" };
-  const repo = new InMemoryPostRepo([seedPost, slugHolder]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost, slugHolder] });
   const { post } = await getAdminPostByIdOrSlug({ deps: { repo }, input: { workspaceId: "workspace-1", idOrSlug: "post-1" } });
   assert.equal(post.id, "slug-holder");
 });
 
 test("getAdminPostByIdOrSlug rejects trashed matches by either handle, including a trashed slug colliding with a live id", async () => {
   const trashed = { ...seedPost, deletedAt: "2026-08-11T00:00:00.000Z" };
-  const repo = new InMemoryPostRepo([trashed]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [trashed] });
   for (const idOrSlug of [trashed.id, trashed.slug]) {
     await assert.rejects(() => getAdminPostByIdOrSlug({ deps: { repo }, input: { workspaceId: "workspace-1", idOrSlug } }), PostNotFoundError);
   }
-  const collisionRepo = new InMemoryPostRepo([seedPost, { ...trashed, id: "trashed-slug-holder", slug: "post-1" }]);
+  const collisionRepo = new InMemoryPostRepo({}, { initialRows: [seedPost, { ...trashed, id: "trashed-slug-holder", slug: "post-1" }] });
   await assert.rejects(() => getAdminPostByIdOrSlug({ deps: { repo: collisionRepo }, input: { workspaceId: "workspace-1", idOrSlug: "post-1" } }), PostNotFoundError);
 });
 
 test("rejecting create/update hooks leave rows, revisions, slugs and events untouched", async () => {
-  const repo = new InMemoryPostRepo();
+  const repo = new InMemoryPostRepo({});
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
   await createPost({ deps: { repo, clock }, input: { workspaceId: "workspace-1", id: "post-1", title: "Existing", slug: "existing", status: "draft" } });
   const before = await repo.list({ workspaceId: "workspace-1" });
@@ -929,7 +929,7 @@ test("rejecting create/update hooks leave rows, revisions, slugs and events unto
 });
 
 test("updatePost preserves omitted template/theme choices and honors explicit null and false", async () => {
-  const repo = new InMemoryPostRepo([{ ...seedPost, templateChoice: "x", overridesThemePage: true }]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [{ ...seedPost, templateChoice: "x", overridesThemePage: true }] });
   const deps = { repo, clock: { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") }, outbox: noopOutbox };
   const input = { workspaceId: "workspace-1", id: "post-1", title: "Edited", slug: "hello-world", bodyJson: { type: "doc", content: [] }, status: "published" as const };
   const kept = await updatePost({ deps, input });
@@ -947,7 +947,7 @@ test("updatePost preserves omitted template/theme choices and honors explicit nu
 });
 
 test("postpolish: post collisions number from 1, pages retain 2, and trashed slots remain reusable", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const deps = { repo, clock: { nowMs: () => 0 } };
   const slugs: string[] = [];
   for (let i = 0; i < 3; i++) slugs.push((await createPost({ deps, input: { id: `untitled-${i}`, workspaceId: "w", title: "" } })).post.slug);
@@ -960,13 +960,13 @@ test("postpolish: post collisions number from 1, pages retain 2, and trashed slo
   await repo.save(trashed);
   assert.equal((await createPost({ deps, input: { id: "reuse", workspaceId: "w", title: "Free" } })).post.slug, "free");
   await assert.rejects(createPost({ deps, input: { id: "explicit", workspaceId: "w", title: "x", slug: "untitled" } }), { message: "slug 'untitled' already exists" });
-  const pageRepo = new InMemoryPostRepo([buildPostRecord({ slug: "page", kind: "page" })]);
+  const pageRepo = new InMemoryPostRepo({}, { initialRows: [buildPostRecord({ slug: "page", kind: "page" })] });
   assert.equal((await createPost({ deps: { ...deps, repo: pageRepo }, input: { id: "page-2", workspaceId: "workspace-1", title: "Page", kind: "page" } })).post.slug, "page-2");
 });
 
 test("postpolish: title derivation shares collision search and never renames a manual or ever-published post", async () => {
   const draft = buildPostRecord({ status: "draft", slug: "untitled" });
-  const repo = new InMemoryPostRepo([draft, buildPostRecord({ id: "taken", slug: "new-title" }), buildPostRecord({ id: "taken-1", slug: "new-title-1" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [draft, buildPostRecord({ id: "taken", slug: "new-title" }), buildPostRecord({ id: "taken-1", slug: "new-title-1" })] });
   const deps = { repo, clock: { nowMs: () => 0 }, outbox: noopOutbox };
   const input = { workspaceId: draft.workspaceId, id: draft.id, title: "New title", slugFromTitle: true, bodyJson: draft.bodyJson, status: "draft" as const };
   const derived = await updatePost({ deps, input });
@@ -985,7 +985,7 @@ test("postpolish: title derivation shares collision search and never renames a m
 
 test("postpolish: cover preference validates before writes and merges only its namespace through hooks", async () => {
   const stored = buildPostRecord({ ext: { other: { keep: "value" }, "post-presentation": { another: 7 } } });
-  const repo = new InMemoryPostRepo([stored]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [stored] });
   const deps = { repo, clock: { nowMs: () => 0 }, outbox: noopOutbox,
     beforeSaveHook: (async () => ({ plugin: { added: "hook" } })) satisfies BeforeSaveHookPort };
   const input = { workspaceId: stored.workspaceId, id: stored.id, title: stored.title, slug: stored.slug, status: stored.status, bodyJson: stored.bodyJson };
@@ -1001,7 +1001,7 @@ test("postpolish: cover preference validates before writes and merges only its n
 
 test("postpolish: exhausted derived slugs write no post or revision", async () => {
   const occupied = Array.from({ length: 999 }, (_, i) => buildPostRecord({ id: `taken-${i}`, slug: i ? `busy-${i}` : "busy" }));
-  const repo = new InMemoryPostRepo(occupied);
+  const repo = new InMemoryPostRepo({}, { initialRows: occupied });
   await assert.rejects(createPost({ deps: { repo, clock: { nowMs: () => 0 } }, input: { workspaceId: "workspace-1", id: "new", title: "Busy" } }), { message: "slug 'busy' already exists" });
   assert.equal(await repo.findById({ workspaceId: "workspace-1", id: "new" }), null);
   assert.deepEqual(await repo.listRevisions({ workspaceId: "workspace-1", postId: "new" }), []);

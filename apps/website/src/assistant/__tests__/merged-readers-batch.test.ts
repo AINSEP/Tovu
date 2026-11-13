@@ -43,7 +43,7 @@ function context(input: unknown, principalId = PRINCIPAL): ToolExecutionContext 
 
 /** Actual repositories and contributors; only the authorization outcome is controlled. */
 async function harness() {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const newsletterCampaignRepo = new InMemoryNewsletterCampaignRepo();
   const redirects: RedirectRecord[] = [];
   for (const id of ["first", "second", "third", "foreign"]) {

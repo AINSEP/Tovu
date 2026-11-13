@@ -40,9 +40,9 @@ describeEachDialect<PostRepoPort>(
     test("a transaction's save + appendRevision roll back together; a nested one joins", async () => {
       const repo = makeRepo();
       await assert.rejects(
-        repo.transaction(async () => {
+        repo.transaction({ fn: async () => {
           await repo.save(post("p1"));
-          await repo.transaction(async () => {
+          await repo.transaction({ fn: async () => {
             await repo.appendRevision({
               postId: "p1",
               workspaceId: WS,
@@ -52,9 +52,9 @@ describeEachDialect<PostRepoPort>(
               actorId: "a",
               recordedAt: "2026-09-28T00:00:00.000Z",
             });
-          });
+          } });
           throw new Error("boom");
-        }),
+        } }),
         /boom/
       );
       assert.equal(await repo.findById({ workspaceId: WS, id: "p1" }), null);

@@ -120,7 +120,7 @@ test('chat-input regression: media lookup retains the peer site selector and ref
 
 test('raw page writers leave slug resolution to the shared host adapter', async () => {
   let reads = 0;
-  const registrations = buildPagesRegistrations({ workspaceId: 'ws', postRepo: new InMemoryPostRepo([]),
+  const registrations = buildPagesRegistrations({ workspaceId: 'ws', postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     authorize: async () => ({ allowed: true, reason: 'test' }),
     pagesHtmlStore: () => { reads++; throw new Error('no store should open'); },
   });

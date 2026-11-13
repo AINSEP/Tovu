@@ -108,7 +108,7 @@ async function startServer(theme: DiscoveredTheme) {
   const deps = {
     ...createRouteDeps(),
     themes: [theme],
-    postRepo: new InMemoryPostRepo([publishedPost()]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [publishedPost()] }),
     menuRepo: new InMemoryMenuRepo({}, { initialRows: [menuEntry()] }),
   };
   const server = createServer(createApp(deps));
@@ -251,7 +251,7 @@ test("GET /doc-a and /doc-b: the reserved docs-sidebar sentinel resolves to a DI
   const deps = {
     ...createRouteDeps(),
     themes: [theme],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     menuRepo: new InMemoryMenuRepo({}, { initialRows: [
       sidebarMenuEntry("docs-doc-a-sidebar", "Menu A Item"),
       sidebarMenuEntry("docs-doc-b-sidebar", "Menu B Item"),
@@ -282,7 +282,7 @@ test("GET /doc-a: the docs-sidebar sentinel degrades to the theme's authored fal
   const deps = {
     ...createRouteDeps(),
     themes: [theme],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     // No `docs-doc-a-sidebar` menu seeded at all — same "not authored yet" case a brand-new doc page
     // is in before anyone creates its sidebar menu.
     menuRepo: new InMemoryMenuRepo({}, { initialRows: [] }),
@@ -410,7 +410,7 @@ test("GET /quickstart: docs-section resolves to the header nav's Docs subtree on
   const deps = {
     ...createRouteDeps(),
     themes: [theme],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     menuRepo: new InMemoryMenuRepo({}, { initialRows: [headerNavMenuWithDocsSubtree()] }),
   };
   const server = createServer(createApp(deps));
@@ -440,7 +440,7 @@ test("GET /install: docs-section marks Install (not Quickstart) as current on th
   const deps = {
     ...createRouteDeps(),
     themes: [theme],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     menuRepo: new InMemoryMenuRepo({}, { initialRows: [headerNavMenuWithDocsSubtree()] }),
   };
   const server = createServer(createApp(deps));
@@ -477,7 +477,7 @@ test("GET /quickstart: docs-section resolves when the header nav menu's slug is 
   const deps = {
     ...createRouteDeps(),
     themes: [theme],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     menuRepo: new InMemoryMenuRepo({}, { initialRows: [headerNavWithMismatchedSlug] }),
   };
   const server = createServer(createApp(deps));
@@ -510,7 +510,7 @@ test("GET /quickstart: docs-section degrades to the theme's authored fallback wh
   const deps = {
     ...createRouteDeps(),
     themes: [theme],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     menuRepo: new InMemoryMenuRepo({}, { initialRows: [headerNavWithoutDocs] }),
   };
   const server = createServer(createApp(deps));
@@ -530,7 +530,7 @@ test("GET /quickstart: docs-section degrades to the theme's authored fallback wh
   const deps = {
     ...createRouteDeps(),
     themes: [theme],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     menuRepo: new InMemoryMenuRepo({}, { initialRows: [] }),
   };
   const server = createServer(createApp(deps));
@@ -591,7 +591,7 @@ test("GET /quickstart: docs-prev-next has no Previous (first page in the subtree
   const deps = {
     ...createRouteDeps(),
     themes: [theme],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     menuRepo: new InMemoryMenuRepo({}, { initialRows: [headerNavMenuWithDocsSubtree()] }),
   };
   const server = createServer(createApp(deps));
@@ -617,7 +617,7 @@ test("GET /install: docs-prev-next crosses the group boundary — Previous is Qu
   const deps = {
     ...createRouteDeps(),
     themes: [theme],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     menuRepo: new InMemoryMenuRepo({}, { initialRows: [headerNavMenuWithDocsSubtree()] }),
   };
   const server = createServer(createApp(deps));
@@ -642,7 +642,7 @@ test("GET /not-a-doc-page: docs-prev-next degrades to the theme's authored fallb
   const deps = {
     ...createRouteDeps(),
     themes: [theme],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     menuRepo: new InMemoryMenuRepo({}, { initialRows: [headerNavMenuWithDocsSubtree()] }),
   };
   const server = createServer(createApp(deps));
@@ -665,7 +665,7 @@ function assertResolvedPrimaryMenu(html: string): void {
 }
 
 test("menu resolution renders exact links for slugs and legacy ids without HTTP", async () => {
-  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo([publishedPost()]), menuRepo: new InMemoryMenuRepo({}, { initialRows: [menuEntry()] }) };
+  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo({}, { initialRows: [publishedPost()] }), menuRepo: new InMemoryMenuRepo({}, { initialRows: [menuEntry()] }) };
   for (const id of [MENU_SLUG, "menu-primary-nav-id"]) {
     const theme = themeWithMenuMarker("about");
     theme.pages.about = theme.pages.about!.replace(MENU_SLUG, id);
@@ -677,7 +677,7 @@ test("menu resolution renders exact links for slugs and legacy ids without HTTP"
 });
 
 test("reserved menu markers preserve authored fallback and mark the correct group and pager links", async () => {
-  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo([]), menuRepo: new InMemoryMenuRepo({}, { initialRows: [headerNavMenuWithDocsSubtree()] }) };
+  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo({}, { initialRows: [] }), menuRepo: new InMemoryMenuRepo({}, { initialRows: [headerNavMenuWithDocsSubtree()] }) };
   const section = themeWithDocsSectionPages();
   const sectionMenus = await resolveStaticMenusForRender(deps, section, "/quickstart");
   const html = renderStaticPage({ theme: section, pageId: "quickstart", menus: sectionMenus });
@@ -718,7 +718,7 @@ test("static menu assignment and reassignment shadow legacy names, preserve HTML
     type: NAV_DOC_TYPE, version: 1, mode: "html", html: '<a href="/replacement">Replacement</a>', items: [],
   } };
   const bindingRepo = new InMemoryNavLocationBindingRepo({});
-  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo([publishedPost()]),
+  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo({}, { initialRows: [publishedPost()] }),
     navLocationBindingRepo: bindingRepo, menuRepo: new InMemoryMenuRepo({}, { initialRows: [menuEntry(), first, second] }) };
   const render = async () => renderStaticPage({ theme, pageId: "about", menus: await resolveStaticMenusForRender(deps, theme, "/about") });
   await bindingRepo.upsert({ workspaceId: "another-workspace", locationKey: MENU_SLUG, menuId: "assigned", boundAt: "2026-10-25" });
@@ -739,7 +739,7 @@ test("Docs header-derived markers follow the assigned header menu", async () => 
   const original = headerNavMenuWithDocsSubtree();
   const assigned = { ...original, id: "assigned-docs", slug: "assigned-docs" };
   const bindingRepo = new InMemoryNavLocationBindingRepo({});
-  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo([]), navLocationBindingRepo: bindingRepo,
+  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo({}, { initialRows: [] }), navLocationBindingRepo: bindingRepo,
     menuRepo: new InMemoryMenuRepo({}, { initialRows: [assigned] }) };
   await bindingRepo.upsert({ workspaceId: WORKSPACE_ID, locationKey: "menu-header-nav", menuId: assigned.id, boundAt: "2026-10-25" });
   const theme = themeWithDocsSectionPages();

@@ -131,7 +131,7 @@ test("buildWidgetHostPorts: error classifiers recognise only their own error cla
   const host = buildWidgetHostPorts({});
   assert.equal(host.entries.isVersionConflict(new VersionConflictError({ message: "stale" })), true);
   assert.equal(host.entries.isVersionConflict(new Error("other")), false);
-  assert.equal(host.posts.isVersionConflict(new PostVersionConflictError("stale", 1, 2)), true);
+  assert.equal(host.posts.isVersionConflict(new PostVersionConflictError({ message: "stale", expectedVersion: 1, currentVersion: 2 })), true);
   assert.equal(host.posts.isVersionConflict(new Error("other")), false);
   assert.equal(host.posts.isNotFound(new PostNotFoundError("gone")), true);
   assert.equal(host.posts.isNotFound(new Error("other")), false);

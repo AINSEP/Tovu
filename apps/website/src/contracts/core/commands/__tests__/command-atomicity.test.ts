@@ -103,7 +103,7 @@ class FailingChangeSetRepo implements ChangeSetRepoPort {
 }
 
 test("AC-17: injected change-set persist failure rolls back the post, no change set, no event", async () => {
-  const repo = new InMemoryPostRepo([seededPost()]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seededPost()] });
   const before = await repo.findById({ workspaceId: WORKSPACE, id: POST_ID });
 
   const enqueued: DomainEvent[] = [];
@@ -134,7 +134,7 @@ test("AC-17: injected change-set persist failure rolls back the post, no change 
 });
 
 test("happy path: record commits, post updated, exactly one change set + one event", async () => {
-  const repo = new InMemoryPostRepo([seededPost()]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seededPost()] });
 
   const enqueued: DomainEvent[] = [];
   const outbox = { enqueue: async (e: DomainEvent) => void enqueued.push(e) } as never;

@@ -151,7 +151,7 @@ test("integration: GET /:slug 500s with 'No themes installed' when resolveActive
 });
 
 test("integration: GET /:slug a static theme's own pages/404.html renders instead of the bare fallback 404", async (t) => {
-  const app = createApp(testDeps({ themes: [staticThemeWithThemed404()], postRepo: new InMemoryPostRepo([]) }));
+  const app = createApp(testDeps({ themes: [staticThemeWithThemed404()], postRepo: new InMemoryPostRepo({}, { initialRows: [] }) }));
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/does-not-exist-anywhere`);
@@ -163,7 +163,7 @@ test("integration: GET /about a static theme's own menu marker resolves through 
   const app = createApp(
     testDeps({
       themes: [themeWithMenuMarker("about")],
-      postRepo: new InMemoryPostRepo([publishedPost()]),
+      postRepo: new InMemoryPostRepo({}, { initialRows: [publishedPost()] }),
       menuRepo: new InMemoryMenuRepo({}, { initialRows: [menuEntry()] }),
     })
   );
@@ -222,7 +222,7 @@ test("integration: GET /:slug a normal published post renders through the generi
     id: "integration-public-transform", workspaceId: WORKSPACE_ID, name: "public", version: 7,
     params: { format: "webp" }, owner: "core", createdAt: "2026-08-17T00:00:00.000Z",
   }] });
-  const deps = testDeps({ postRepo: new InMemoryPostRepo([post]), transformDefinitionRepo });
+  const deps = testDeps({ postRepo: new InMemoryPostRepo({}, { initialRows: [post] }), transformDefinitionRepo });
   await deps.mediaRepo.save({
     id: "asset-int-1", workspaceId: WORKSPACE_ID, title: "Integration asset", slug: "integration-asset",
     alt: "Stored alt", caption: "", credit: "", source: { sha256: "sha-integration-asset" },
@@ -283,7 +283,7 @@ test("integration: GET /:slug a static theme with an empty templateChoice render
     version: 1,
   } as unknown as PostRecord;
 
-  const app = createApp(testDeps({ themes: [theme], postRepo: new InMemoryPostRepo([post]) }));
+  const app = createApp(testDeps({ themes: [theme], postRepo: new InMemoryPostRepo({}, { initialRows: [post] }) }));
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/diagnostic-post-int`);
@@ -307,7 +307,7 @@ test("integration: GET /:slug (post route) buildExtraHead's canonical falls back
     version: 1,
   } as unknown as PostRecord;
 
-  const app = createApp(testDeps({ postRepo: new UnresolvableCanonicalPostRepo([post]) }));
+  const app = createApp(testDeps({ postRepo: new UnresolvableCanonicalPostRepo({}, { initialRows: [post] }) }));
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/broken-canonical-int`);
@@ -324,7 +324,7 @@ class ThrowsUnexpectedErrorOnListPostRepo extends InMemoryPostRepo {
 }
 
 test("integration: GET / 500s with a generic 'Site error' when an unexpected exception is thrown", async (t) => {
-  const deps = testDeps({ postRepo: new ThrowsUnexpectedErrorOnListPostRepo([]) });
+  const deps = testDeps({ postRepo: new ThrowsUnexpectedErrorOnListPostRepo({}, { initialRows: [] }) });
   await deps.siteConsentReady;
   // c5e98fea6's linked privacy page is a production bootstrap effect; this fixture seeds the link.
   const definition = await deps.settingsRepo.findActiveDefinition({ namespace: "core.consent", key: "privacyPolicyUrl", workspaceId: null });
@@ -374,7 +374,7 @@ function staticThemeWithEmptyPage(): DiscoveredTheme {
 }
 
 test("integration: GET /empty-page-int falls through to the ordinary post lookup (404s) instead of rendering an empty 200", async (t) => {
-  const app = createApp(testDeps({ themes: [staticThemeWithEmptyPage()], postRepo: new InMemoryPostRepo([]) }));
+  const app = createApp(testDeps({ themes: [staticThemeWithEmptyPage()], postRepo: new InMemoryPostRepo({}, { initialRows: [] }) }));
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/empty-page-int`);

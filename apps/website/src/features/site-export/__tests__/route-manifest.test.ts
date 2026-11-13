@@ -117,7 +117,7 @@ test("buildRouteManifest: a published PostRecord with kind 'page' is enumerated 
     updatedAt: new Date().toISOString(),
     version: 1,
   };
-  const postRepo = new InMemoryPostRepo([pageRecord]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [pageRecord] });
   const manifest = await buildRouteManifest(baseDeps({ postRepo }));
 
   const route = manifest.routes.find((r) => r.path === "/a-real-page");
@@ -144,7 +144,7 @@ test("buildRouteManifest: a published page claiming slug '/' replaces the seeded
     updatedAt: new Date().toISOString(),
     version: 1,
   };
-  const postRepo = new InMemoryPostRepo([rootPage]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [rootPage] });
   const manifest = await buildRouteManifest(baseDeps({ postRepo }));
 
   const rootRoutes = manifest.routes.filter((r) => r.path === "/");
@@ -237,7 +237,7 @@ test("buildRouteManifest: a post that overridesThemePage wins over the theme's s
     version: 1,
     overridesThemePage: true,
   };
-  const postRepo = new InMemoryPostRepo([overridingPost]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [overridingPost] });
   const themes = base.themes.map((theme) => theme.manifest.id === "tovu-theme" ? withPublishedPages(theme, ["pricing"]) : theme);
   const manifest = await buildRouteManifest(baseDeps({ postRepo, themes, resolveActiveThemeId: async () => "tovu-theme" }));
 
@@ -265,7 +265,7 @@ test("buildRouteManifest: a post that never decided (overridesThemePage omitted)
     updatedAt: new Date().toISOString(),
     version: 1,
   };
-  const postRepo = new InMemoryPostRepo([neverDecidedPost]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [neverDecidedPost] });
   const themes = base.themes.map((theme) => theme.manifest.id === "tovu-theme" ? withPublishedPages(theme, ["pricing"]) : theme);
   const manifest = await buildRouteManifest(baseDeps({ postRepo, themes, resolveActiveThemeId: async () => "tovu-theme" }));
 
@@ -295,7 +295,7 @@ test("buildRouteManifest: a post explicitly kept at false still loses to the the
     version: 1,
     overridesThemePage: false,
   };
-  const postRepo = new InMemoryPostRepo([explicitlyKeptPost]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [explicitlyKeptPost] });
   const manifest = await buildRouteManifest(
     baseDeps({ postRepo, themes: publishedBasicThemes, resolveActiveThemeId: async () => "tovu-theme" })
   );
@@ -470,7 +470,7 @@ test("buildRouteManifest: the 404 probe retries past a collision when a real rou
     updatedAt: new Date().toISOString(),
     version: 1,
   };
-  const postRepo = new InMemoryPostRepo([collidingPost]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [collidingPost] });
   const manifest = await buildRouteManifest(baseDeps({ postRepo }));
 
   const realPaths = new Set(manifest.routes.filter((r) => r.kind !== "not-found").map((r) => r.path));

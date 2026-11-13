@@ -31,7 +31,7 @@ const WORKSPACE_ID = "ws-list-compact";
 const NOW = "2026-09-28T00:00:00.000Z";
 
 function fakeRouteDeps() {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const deps = {
     workspaceId: WORKSPACE_ID,
     clock: { nowIso: () => NOW },

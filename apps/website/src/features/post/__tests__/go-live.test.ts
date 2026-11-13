@@ -53,7 +53,7 @@ function fakeTimers() {
   return {
     state,
     timers: {
-      setInterval: (fn: () => void, ms: number) => { state.tick = fn; state.ms = ms; return { unref: () => { state.unrefed = true; } }; },
+      setInterval: ({ fn, ms }: { fn: () => void; ms: number }) => { state.tick = fn; state.ms = ms; return { unref: () => { state.unrefed = true; } }; },
       clearInterval: () => { state.cleared = true; },
     },
   };
@@ -151,7 +151,7 @@ test("a failed pass reports, keeps its window, and a throwing reporter is swallo
   const { state, timers } = fakeTimers();
   const sweep = startPostGoLiveSweep(
     { deps: { repo, outbox: new RecordingOutbox(), clock: { nowMs: () => Date.parse(LATER) } }, workspaceId: "ws" },
-    { timers, onError: (error) => { errors.push(error); throw new Error("reporter broke"); } }
+    { timers, onError: ({ error }) => { errors.push(error); throw new Error("reporter broke"); } }
   );
   await settle();
   state.tick?.();

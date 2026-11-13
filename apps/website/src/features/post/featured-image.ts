@@ -50,11 +50,11 @@ export async function resolveFeaturedImageRef(required: {
   return { ok: true, id: asset.id };
 }
 
-const FEATURED_MEDIA_ID_REFUSALS: Record<"missing" | "trashed" | "not-image", (ref: string, contentType?: string) => string> = {
-  missing: (ref) => `featuredMediaId: no media asset has the id '${ref}'.`,
-  trashed: (ref) => `featuredMediaId: media asset '${ref}' is in Trash. Restore it first, or pick another image.`,
+const FEATURED_MEDIA_ID_REFUSALS: Record<"missing" | "trashed" | "not-image", (required: { ref: string }, optional?: { contentType?: string }) => string> = {
+  missing: ({ ref }, _optional = {}) => `featuredMediaId: no media asset has the id '${ref}'.`,
+  trashed: ({ ref }, _optional = {}) => `featuredMediaId: media asset '${ref}' is in Trash. Restore it first, or pick another image.`,
   // `resolveFeaturedImageRef` only reports "not-image" together with the known type it judged.
-  "not-image": (ref, contentType) => `featuredMediaId: media asset '${ref}' is ${contentType}, not an image. A featured image must be an image.`,
+  "not-image": ({ ref }, { contentType } = {}) => `featuredMediaId: media asset '${ref}' is ${contentType}, not an image. A featured image must be an image.`,
 };
 
 /**
@@ -74,6 +74,6 @@ export async function resolveFeaturedMediaIdForWrite(required: {
   const value = input.featuredMediaId;
   if (typeof value !== "string" || value.trim() === "") return value;
   const resolution = await resolveFeaturedImageRef({ deps, input: { workspaceId: input.workspaceId, ref: value } });
-  if (!resolution.ok) throw new PostValidationError(FEATURED_MEDIA_ID_REFUSALS[resolution.reason](value.trim(), resolution.contentType));
+  if (!resolution.ok) throw new PostValidationError(FEATURED_MEDIA_ID_REFUSALS[resolution.reason]({ ref: value.trim() }, { contentType: resolution.contentType }));
   return resolution.id;
 }

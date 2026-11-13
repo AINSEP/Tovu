@@ -50,7 +50,7 @@ function refusingHook(): BeforeSaveHookPort {
 /** Deps carrying one seeded source row of `kind`, so the only thing that can refuse is the hook. */
 async function makeDeps(hook: BeforeSaveHookPort, kind: "post" | "page") {
   let counter = 0;
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   await postRepo.save({
     id: "source-1", workspaceId: WORKSPACE_ID, title: "Landing", slug: "landing", bodyJson: EMPTY_DOC,
     bodyFormat: "doc", bodyHtml: null, status: "draft", kind, updatedAt: NOW, version: 1,

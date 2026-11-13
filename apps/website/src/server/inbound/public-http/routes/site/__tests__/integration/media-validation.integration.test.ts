@@ -23,7 +23,7 @@ async function fixture(t: test.TestContext, storage: 'memory' | 'sqlite' = 'memo
     assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}), blobStore: new InMemoryBlobStore(),
     clock: { nowMs: () => now, nowIso: () => new Date(now).toISOString() }, idGen: { newId: randomUUID },
-    postRepo: db ? new SqlitePostRepo(db) : new InMemoryPostRepo(), entryRepo: db ? new SqliteEntryRepo(db) : new TrashAwareInMemoryEntryRepo(), imageTransformer: { transform: async () => { throw new Error('SVG needs no raster transform'); } },
+    postRepo: db ? new SqlitePostRepo({ store: db }) : new InMemoryPostRepo({}), entryRepo: db ? new SqliteEntryRepo(db) : new TrashAwareInMemoryEntryRepo(), imageTransformer: { transform: async () => { throw new Error('SVG needs no raster transform'); } },
   };
   const { media } = await uploadMedia({ deps: { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo },
     input: { workspaceId: deps.workspaceId, bytes: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10z"/></svg>'),

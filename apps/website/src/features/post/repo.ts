@@ -156,7 +156,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
           .onConflict((oc) => oc.column("id").doUpdateSet(updatableColumns(row)))
           .execute()
       );
-      await this.search.upsert(this.kernel, toPostSearchDocument(record));
+      await this.search.upsert({ kernel: this.kernel, document: toPostSearchDocument(record) });
     });
     invalidateMediaAccessEvidence({ owner: this });
   }
@@ -184,7 +184,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
           .execute()
       );
       if (updated.length === 0) return { applied: false };
-      await this.search.upsert(this.kernel, toPostSearchDocument(required.record));
+      await this.search.upsert({ kernel: this.kernel, document: toPostSearchDocument(required.record) });
       return { applied: true };
     });
     if (result.applied) invalidateMediaAccessEvidence({ owner: this });
@@ -242,7 +242,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       );
       // Keyed on the post id alone (no workspace column on the projection), so it is dropped only
       // when the scoped delete above actually removed the row it projects.
-      if (removed.length > 0) await this.search.remove(this.kernel, required.id);
+      if (removed.length > 0) await this.search.remove({ kernel: this.kernel, postId: required.id });
     });
     invalidateMediaAccessEvidence({ owner: this });
   }
@@ -324,7 +324,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
           .executeTakeFirst()
       );
       const id = randomUUID();
-      await this.kernel.run((db) => db.insertInto("post_revisions").values(toRevisionRow(input, id)).execute());
+      await this.kernel.run((db) => db.insertInto("post_revisions").values(toRevisionRow({ input, id })).execute());
       return { id, previousId: prior?.id ?? null };
     });
   }
@@ -346,7 +346,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
 
   /** See `PostRepoPort.transaction`'s own doc: repo calls made inside `fn` join ONE transaction
    *  (the post write, then `appendRevision`). Nested calls join the outer one. */
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+  async transaction<T>({ fn }: { fn: () => Promise<T> }, _optional: Record<string, never> = {}): Promise<T> {
     try { return await this.kernel.transaction(fn); }
     finally { invalidateMediaAccessEvidence({ owner: this }); }
   }

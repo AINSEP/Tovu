@@ -48,7 +48,7 @@ const EMPTY_DOC = { type: "doc", content: [] };
  *  real `InMemoryPostSearchIndex` (the same FTS5/BM25-shaped adapter `tool-registrations.post.test.ts`
  *  uses) so `content_post_search` is certified against real ranking, not a hand-fed result list. */
 function buildRealPostToolExecutor() {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const changeSets = new InMemoryChangeSetRepo();
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();

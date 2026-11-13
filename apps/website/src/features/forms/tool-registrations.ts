@@ -543,7 +543,7 @@ async function deriveDefaultDuplicateFormName(routeDeps: FormsToolDeps, source: 
   );
   return deriveDuplicateName(
     { sourceName: source.name },
-    { isTaken: async (candidate) => existingNames.has(candidate) }
+    { isTaken: async ({ candidate }) => existingNames.has(candidate) }
   );
 }
 

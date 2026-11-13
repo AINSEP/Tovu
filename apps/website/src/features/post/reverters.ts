@@ -88,11 +88,11 @@ async function saveRevertedPost(
   if (!applied) {
     const current = await deps.postRepo.findById({ workspaceId: restored.workspaceId, id: restored.id });
     const currentVersion = current?.version ?? existing.version;
-    throw new PostVersionConflictError(
-      `post '${restored.id}' was modified while it was being reverted (expected version ${existing.version}, current version ${currentVersion})`,
-      existing.version,
-      currentVersion
-    );
+    throw new PostVersionConflictError({
+      message: `post '${restored.id}' was modified while it was being reverted (expected version ${existing.version}, current version ${currentVersion})`,
+      expectedVersion: existing.version,
+      currentVersion,
+    });
   }
   await deps.postRepo.appendRevision({
     postId: restored.id,
@@ -215,7 +215,7 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
           : {}),
       };
 
-      await deps.postRepo.transaction(async () => {
+      await deps.postRepo.transaction({ fn: async () => {
         await saveRevertedPost({ deps, existing, restored });
 
         // Preserved from the previous `updatePost`-based implementation, deliberately: BR-08 forbids
@@ -226,7 +226,7 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
         // a publication yet (the go-live sweep announces it), and a pending go-live of `existing` is
         // announced before this save moves `updatedAt` past it. Same transaction as the save.
         await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: restored, nowIso: restored.updatedAt });
-      });
+      } });
     },
   };
 }
@@ -292,7 +292,7 @@ function createPostDeleteReverter(deps: PostReverterDeps): EntityReverter {
         version: existing.version + 1,
       };
 
-      await deps.postRepo.transaction(async () => {
+      await deps.postRepo.transaction({ fn: async () => {
         await saveRevertedPost({ deps, existing, restored });
 
         // Symmetric to the marker clear above, and conditional on the same thing `restorePostForward`
@@ -309,7 +309,7 @@ function createPostDeleteReverter(deps: PostReverterDeps): EntityReverter {
         // shared schedule-aware emitter (2026-10-21): a trashed row reads as not public, and a
         // restored row still scheduled stays not public until the go-live sweep announces it.
         await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: restored, nowIso: restored.updatedAt });
-      });
+      } });
     },
   };
 }

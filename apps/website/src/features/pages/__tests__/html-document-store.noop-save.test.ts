@@ -108,7 +108,7 @@ function saveContract(make: () => Harness): void {
 }
 
 describe("HTML no-op saves: memory", () => saveContract(() => {
-  const repo = new InMemoryPostRepo();
+  const repo = new InMemoryPostRepo({});
   const refs = new CountingEntryRefs();
   return { repo, refs, store: () => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock, entryRefsRepo: refs }) };
 }));

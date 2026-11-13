@@ -59,7 +59,7 @@ function nameOf(theme: DiscoveredTheme | undefined): string | null {
 }
 
 /** @complexity one indexed read plus O(themes). */
-async function findActiveTheme(ports: Ports, workspaceId: string, id: string): Promise<ActiveThemeRow | null> {
+async function findActiveTheme({ ports, workspaceId, id }: { ports: Ports; workspaceId: string; id: string }, _optional: Record<string, never> = {}): Promise<ActiveThemeRow | null> {
   if (id !== ACTIVE_THEME_ID) return null;
   const record = await ports.presentation.findByWorkspaceId({ workspaceId });
   if (!record) return null;
@@ -78,8 +78,8 @@ export const contributeActiveThemePublish = (): PublishContentContributor =>
     permission: "theme.set",
     dependsOn: ["theme-files"],
     ports: (deps) => deps.ports["active-theme"],
-    list: async (p, workspaceId) => {
-      const row = await findActiveTheme(p, workspaceId, ACTIVE_THEME_ID);
+    list: async ({ ports: p, workspaceId }) => {
+      const row = await findActiveTheme({ ports: p, workspaceId, id: ACTIVE_THEME_ID });
       return row ? [row] : [];
     },
     find: findActiveTheme,

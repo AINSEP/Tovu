@@ -33,7 +33,7 @@ const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-09-24T00:00:00.000Z";
 const EMPTY_DOC = { type: "doc", content: [] };
 
-function fakeRouteDeps(postRepo: InMemoryPostRepo = new InMemoryPostRepo()) {
+function fakeRouteDeps(postRepo: InMemoryPostRepo = new InMemoryPostRepo({})) {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
@@ -254,7 +254,7 @@ function staleReadPostRepo(inner: InMemoryPostRepo, frozenVersion: number): Post
 }
 
 test("content_post_update: a partial patch with no expectedVersion is still CAS-checked — VERSION_CONFLICT, not a silent clobber", async () => {
-  const inner = new InMemoryPostRepo();
+  const inner = new InMemoryPostRepo({});
   // The row a concurrent human save already landed on — real, current version 2.
   await inner.save({
     id: "p1",
@@ -349,7 +349,7 @@ test("content_post_update: an empty title or slug on a partial patch is rejected
  * ---------------------------------------------------------------------------------------------- */
 
 test("content_post_update: a FULL four-field call with no expectedVersion is NOT auto-guarded — same last-write-wins save as before S7", async () => {
-  const inner = new InMemoryPostRepo();
+  const inner = new InMemoryPostRepo({});
   await inner.save({
     id: "p1",
     workspaceId: WORKSPACE_ID,

@@ -146,7 +146,7 @@ for (const storage of ["local", "s3"] as const) test(`L3 ${storage}: share/impor
   assert.equal(fs.existsSync(path.join(site.path, "uploads", trashed.storageKey)), false);
   const { deps: defaults } = libraryFixture();
   const deps = { ...defaults, workspaceId, mediaRepo, assetBlobRepo, assetRenditionRepo: new SqliteAssetRenditionRepo(imported), blobStore: new LocalFsBlobStore({ rootDir: path.join(site.path, "uploads") }),
-    postRepo: new InMemoryPostRepo(), memberSessionRepo: new InMemoryMemberSessionRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(), memberTierRepo: new InMemoryMemberTierRepo(),
+    postRepo: new InMemoryPostRepo({}), memberSessionRepo: new InMemoryMemberSessionRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(), memberTierRepo: new InMemoryMemberTierRepo(),
   } satisfies MediaRenditionRouteDeps;
   const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: "recipient" }; next(); });
   registerAdminMediaListRoute(app, deps);
@@ -255,7 +255,7 @@ test("L3 forged ordinary rendition cannot expose a private document through anon
   const workspaceId = readTemplate({ templateId: "starter" }).seed.workspace.id;
   await registerTransform({ deps: { transformRepo: defaults.transformDefinitionRepo, clock: defaults.clock, idGen: defaults.idGen },
     input: { workspaceId, name: "public", params: { format: "png" }, owner: "core" } });
-  registerMediaRenditionRoute(app, { ...defaults, workspaceId, postRepo: new InMemoryPostRepo(),
+  registerMediaRenditionRoute(app, { ...defaults, workspaceId, postRepo: new InMemoryPostRepo({}),
     memberSessionRepo: new InMemoryMemberSessionRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(), memberTierRepo: new InMemoryMemberTierRepo(),
     mediaRepo: new SqliteMediaRepo(imported), assetBlobRepo: new SqliteAssetBlobRepo(imported), assetRenditionRepo: new SqliteAssetRenditionRepo(imported),
     blobStore: new LocalFsBlobStore({ rootDir: path.join(site.path, "uploads") }) } satisfies MediaRenditionRouteDeps);

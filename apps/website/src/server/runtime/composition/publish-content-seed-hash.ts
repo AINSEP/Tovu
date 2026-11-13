@@ -83,7 +83,7 @@ export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInpu
   const seedBytes = inMemoryReadableBytes({ bytes: readFileSync(input.seedDbPath) }, {});
   const seedDb = openContentDb(":memory:", { open: (_file, options) => openNativeSqlite(seedBytes, options) });
   const redirectRepo = SqliteRedirectRepo({ store: seedDb }, {});
-  const seedPostRepo = new SqlitePostRepo(seedDb);
+  const seedPostRepo = new SqlitePostRepo({ store: seedDb });
   const { workspaceId } = input;
   return {
     workspaceId: input.workspaceId,

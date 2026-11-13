@@ -39,7 +39,7 @@ async function callAnalyzerTool(extra: Partial<InstalledExtensionToolDeps>): Pro
     testSiteLayoutContext({
       authorize: async () => ({ allowed: true }) as never,
       workspaceId,
-      postRepo: new InMemoryPostRepo([
+      postRepo: new InMemoryPostRepo({}, { initialRows: [
         {
           id: "post-1",
           workspaceId,
@@ -54,7 +54,7 @@ async function callAnalyzerTool(extra: Partial<InstalledExtensionToolDeps>): Pro
           version: 1,
           ext: { "content-analyzer": { score: 12 } },
         },
-      ]),
+      ] }),
       pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [
         { pluginId: "content-analyzer", workspaceId, version: "1.0.0", enabled: true, updatedAt: "2026-10-04T00:00:00.000Z" },
       ] }),

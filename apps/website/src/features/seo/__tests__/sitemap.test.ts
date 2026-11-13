@@ -39,7 +39,7 @@ function post(overrides: Partial<PostRecord>): PostRecord {
 
 
 async function makeDeps(posts: PostRecord[]) {
-  const postRepo = new InMemoryPostRepo(posts);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: posts });
   const settingsRepo = new InMemorySettingsRepo();
   const settingsDeps = { settingsRepo, clock, ids, authorize: alwaysAllow, principals: { findById: async () => null } as never };
   await ensureSeoSettingDefinitions(settingsDeps, { workspaceId: WORKSPACE, systemPrincipalId: "system-seo" });

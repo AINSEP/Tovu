@@ -70,7 +70,7 @@ function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
 /** Wraps a real `InMemoryPostRepo` to count `list()` calls — the N+1 regression check below needs
  *  to prove the detail route calls it exactly ONCE per request, not once per theme page file. */
 function countingPostRepo(posts: PostRecord[]): { repo: ContentRouteDeps["postRepo"]; listCalls: () => number } {
-  const inner = new InMemoryPostRepo(posts);
+  const inner = new InMemoryPostRepo({}, { initialRows: posts });
   let calls = 0;
   return {
     repo: {

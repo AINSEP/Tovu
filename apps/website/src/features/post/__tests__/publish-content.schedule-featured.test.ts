@@ -26,7 +26,7 @@ const FEATURED_MEDIA_ID = "33333333-3333-3333-3333-333333333333";
 
 function makeDeps(rows: PostRecord[]) {
   const outbox = new InMemoryOutbox();
-  const postRepo = new InMemoryPostRepo(rows);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: rows });
   return {
     workspaceId: WORKSPACE_ID,
     postRepo,

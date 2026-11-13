@@ -58,7 +58,7 @@ function parsePostUpdateBody(
     // arms that accept a basis (this route and the `content_post_update` agent tool). Every other
     // field above is either coerced (`title`/`slug`) or handed to `updatePost`'s own validation;
     // this one has no downstream validator at all, because `undefined` is a legitimate value there.
-    expectedVersion: parseExpectedVersion(body.expectedVersion),
+    expectedVersion: parseExpectedVersion({ raw: body.expectedVersion }),
   };
 }
 

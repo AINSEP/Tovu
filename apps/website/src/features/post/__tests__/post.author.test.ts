@@ -9,7 +9,7 @@ const clock = { nowMs: () => Date.parse("2026-10-09T00:00:00Z") };
 const input = { workspaceId: "ws", id: "p1", title: "Hello", actorId: "human" };
 
 test("creation defaults to the actor username once, stays hidden, and records the whole credit in revisions", async () => {
-  const repo = new InMemoryPostRepo();
+  const repo = new InMemoryPostRepo({});
   const lookups: unknown[] = [];
   const authorAccounts = { findByPrincipalId: async (required: unknown) => { lookups.push(required); return { username: "admin" }; } };
   const created = (await createPost({ deps: { repo, clock, authorAccounts }, input })).post;
@@ -30,13 +30,13 @@ test("creation defaults to the actor username once, stays hidden, and records th
 
 test("explicit credit, including null, skips account lookup; unknown actors remain unknown", async () => {
   for (const [author, expected] of [["  By Another Name  ", "By Another Name"], [null, null], ["", null]] as const) {
-    const post = (await createPost({ deps: { repo: new InMemoryPostRepo(), clock,
+    const post = (await createPost({ deps: { repo: new InMemoryPostRepo({}), clock,
       authorAccounts: { findByPrincipalId: async () => { throw new Error("must not resolve an explicit credit"); } },
     }, input: { ...input, author, showAuthor: true } })).post;
     assert.equal(post.author, expected);
     assert.equal(post.showAuthor, true);
   }
-  const post = (await createPost({ deps: { repo: new InMemoryPostRepo(), clock }, input: { ...input, actorId: undefined } })).post;
+  const post = (await createPost({ deps: { repo: new InMemoryPostRepo({}), clock }, input: { ...input, actorId: undefined } })).post;
   assert.equal(post.author, null);
   assert.equal(post.showAuthor, false);
 });
@@ -48,7 +48,7 @@ test("invalid author or toggle fails before writing or account lookup, with exac
     [{ showAuthor: "false" }, "showAuthor must be a boolean"],
     [{ showAuthor: null }, "showAuthor must be a boolean"],
   ] as const) {
-    const repo = new InMemoryPostRepo();
+    const repo = new InMemoryPostRepo({});
     await assert.rejects(createPost({ deps: { repo, clock, authorAccounts: {
       findByPrincipalId: async () => { throw new Error("invalid input reached account lookup"); },
     } }, input: { ...input, ...patch } as CreatePostInput }),
@@ -58,7 +58,7 @@ test("invalid author or toggle fails before writing or account lookup, with exac
 });
 
 test("author accepts 200 display characters and rejects a longer edit without changing the post or revisions", async () => {
-  const repo = new InMemoryPostRepo();
+  const repo = new InMemoryPostRepo({});
   const created = (await createPost({ deps: { repo, clock }, input: { ...input, author: `  ${"A".repeat(200)}  ` } })).post;
   assert.equal(created.author, "A".repeat(200));
   const revisions = await repo.listRevisions({ workspaceId: "ws", postId: "p1" });
@@ -70,7 +70,7 @@ test("author accepts 200 display characters and rejects a longer edit without ch
 });
 
 test("author counts Unicode code points across creation and edits, with no write on overflow", async () => {
-  const repo = new InMemoryPostRepo();
+  const repo = new InMemoryPostRepo({});
   const author = "😀".repeat(200);
   const created = (await createPost({ deps: { repo, clock }, input: { ...input, author: `  ${author}  ` } })).post;
   assert.equal(created.author, author);
@@ -87,7 +87,7 @@ test("author counts Unicode code points across creation and edits, with no write
 });
 
 test("undo restores the captured credit and toggle, while older inverses preserve current byline fields", async () => {
-  const repo = new InMemoryPostRepo();
+  const repo = new InMemoryPostRepo({});
   const created = (await createPost({ deps: { repo, clock }, input: { ...input, author: "Current Writer", showAuthor: true } })).post;
   const reverter = createPostReverters({ postRepo: repo, clock, outbox: new InMemoryOutbox(), forgetRemoved: async () => {} }).update;
   const inverse = { title: created.title, slug: created.slug, bodyJson: created.bodyJson, status: created.status };

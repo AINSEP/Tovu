@@ -5,8 +5,8 @@ import type { PostSearchDocument, PostSearchHit, PostSearchQuery } from "./searc
 
 /** Where a dialect keeps post search text. Written in the same transaction as the post. */
 export interface PostSearchProjection {
-  upsert(kernel: ContentKernel, document: PostSearchDocument): Promise<void>;
-  remove(kernel: ContentKernel, postId: string): Promise<void>;
+  upsert(required: { kernel: ContentKernel; document: PostSearchDocument }, optional?: Record<string, never>): Promise<void>;
+  remove(required: { kernel: ContentKernel; postId: string }, optional?: Record<string, never>): Promise<void>;
 }
 
 /** One dialect's post search: the repo's projection writes plus the ranked query. */

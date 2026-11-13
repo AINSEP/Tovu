@@ -159,11 +159,11 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
       findById: repo.findById.bind(repo),
       listRevisions: repo.listRevisions.bind(repo),
       appendRevision: repo.appendRevision.bind(repo),
-      transaction: async <T>(fn: () => Promise<T>): Promise<T> => {
+      transaction: async <T>({ fn }: { fn: () => Promise<T> }): Promise<T> => {
         // Another writer commits after ensureHtmlFormat's SELECT, before its transaction.
         await db.run((q) => q.updateTable("posts").set({ version: 2, title: "winning edit" }).where("id", "=", id).execute());
         winningRow = await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", id).executeTakeFirstOrThrow());
-        return repo.transaction(fn);
+        return repo.transaction({ fn });
       },
     };
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: id }, { kernel: db, clock, revisions });
@@ -198,9 +198,9 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
     await insertPage(db, { id });
     const revisions = {
       findById: repo.findById.bind(repo), listRevisions: repo.listRevisions.bind(repo), appendRevision: repo.appendRevision.bind(repo),
-      transaction: async <T>(fn: () => Promise<T>): Promise<T> => {
+      transaction: async <T>({ fn }: { fn: () => Promise<T> }): Promise<T> => {
         await repo.hardDelete({ workspaceId: WS, id });
-        return repo.transaction(fn);
+        return repo.transaction({ fn });
       },
     };
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: id }, { kernel: db, clock, revisions });

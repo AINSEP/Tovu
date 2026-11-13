@@ -27,7 +27,7 @@ const TEXT_DOC = { type: "doc", content: [{ type: "paragraph", content: [{ type:
 /** Fresh composition per test; fixed domain time/IDs make persisted effects deterministic. */
 function harness(_required: Record<string, never>, { allowed = true }: { allowed?: boolean } = {}) {
   let counter = 0;
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const changeSets = new InMemoryChangeSetRepo();
   const deps = {
     workspaceId: WORKSPACE_ID,

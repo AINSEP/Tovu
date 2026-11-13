@@ -23,7 +23,7 @@ test("comments: the Starter post template shows approved comments + the no-JS fo
   assert.equal(theme.status, "valid", JSON.stringify(theme.errors));
   const deps = createRouteDeps();
   const post = buildPostRecord({ workspaceId: deps.workspaceId, templateChoice: "posts-default.html", status: "published" });
-  deps.postRepo = new InMemoryPostRepo([post]);
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
   await deps.commentsSettingsReady;
   await deps.commentRepo.create({ record: comment({ id: "c-ok", workspaceId: deps.workspaceId, entryId: post.id }) });
   await deps.commentRepo.create({ record: comment({ id: "c-held", workspaceId: deps.workspaceId, entryId: post.id, status: "pending", bodyText: "HELD_BODY" }) });

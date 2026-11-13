@@ -232,10 +232,10 @@ test("site profile route: '?sections=' scopes the response to exactly what was a
 
 test("site profile route: an unknown section or a bad pageLimit is a 400, never a silent default", async (t) => {
   const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
-  deps.postRepo = new InMemoryPostRepo(["a", "b", "c"].map((id) => ({
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: ["a", "b", "c"].map((id) => ({
     id, workspaceId: deps.workspaceId, title: `Page ${id}`, slug: `page-${id}`, kind: "page" as const, status: "published" as const,
     bodyFormat: "doc" as const, bodyJson: { type: "doc", content: [] }, bodyHtml: null, version: 1, updatedAt: "2026-10-01T00:00:00.000Z",
-  })));
+  })) });
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

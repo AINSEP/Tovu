@@ -106,7 +106,7 @@ function makeGate(): { parked: Promise<void>; release: () => void; hook: () => P
 }
 
 test("C01: a save that passed the version compare must NOT land after another save won the row while it sat in the before-save hook", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
   const gate = makeGate();
 
   // Operator A opened the post at version 1 and saves. Its before-save hook parks: A has already
@@ -146,7 +146,7 @@ test("C01: a save that passed the version compare must NOT land after another sa
 });
 
 test("C01: two saves from the same basis interleaved through the hook produce exactly one winner, not two 200s", async () => {
-  const repo = new InMemoryPostRepo([seedPost]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
   const gateA = makeGate();
   const gateB = makeGate();
 
@@ -171,7 +171,7 @@ test("C01: two saves from the same basis interleaved through the hook produce ex
 
 for (const removal of ["delete", "trash"] as const) {
   test(`row ${removal} while the hook is parked rejects as not-found without a revision or resurrection`, { timeout: 5000 }, async () => {
-    const repo = new InMemoryPostRepo([seedPost]);
+    const repo = new InMemoryPostRepo({}, { initialRows: [seedPost] });
     const gate = makeGate();
     const pending = operatorSave(repo, "losing body", 1, gate.hook);
     const rejected = assert.rejects(pending, (error) => error instanceof PostNotFoundError && error.message === "post 'post-1' was not found");

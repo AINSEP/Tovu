@@ -112,7 +112,7 @@ test("post-sitemap-regenerate: returns 202 on successful regeneration", async (t
     kind: "post" as const, status: "published" as const, bodyJson: { type: "doc", content: [] }, bodyFormat: "doc" as const, bodyHtml: null,
     version: 1, updatedAt: "2026-09-01T00:00:00.000Z", seoExtJson: null,
   };
-  const postRepo = new InMemoryPostRepo([original]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [original] });
   const originRegistry = {
     isAllowedRedirectTarget: base.originRegistry.isAllowedRedirectTarget.bind(base.originRegistry),
     isAllowedEgressTarget: base.originRegistry.isAllowedEgressTarget.bind(base.originRegistry),

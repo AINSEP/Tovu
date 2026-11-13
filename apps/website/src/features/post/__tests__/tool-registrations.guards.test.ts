@@ -38,7 +38,7 @@ function harness(
     forgetRemovedPost?: ForgetRemovedPostFn;
   } = {},
 ) {
-  const postRepo = optional.postRepo ?? new InMemoryPostRepo([buildPostRecord({ status: "draft" })]);
+  const postRepo = optional.postRepo ?? new InMemoryPostRepo({}, { initialRows: [buildPostRecord({ status: "draft" })] });
   const searches: PostSearchQuery[] = [];
   let counter = 0;
   const deps: PostToolDeps = {
@@ -141,7 +141,7 @@ test("content_post_update: a featuredImage-only patch is accepted, not refused a
 });
 
 test("content_post_update: a patch omitting only the title is pinned to the row it read", async () => {
-  const postRepo = new InMemoryPostRepo([buildPostRecord({ status: "draft" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [buildPostRecord({ status: "draft" })] });
   const pluginBeforeSaveHook = async () => {
     const row = await postRepo.findById({ workspaceId: WS, id: "post-1" });
     if (row) await postRepo.save({ ...row, version: row.version + 1 });
@@ -155,7 +155,7 @@ test("content_post_update: a patch omitting only the title is pinned to the row 
 });
 
 test("content_post_update: the recorded inverse carries the stored schedule and byline, and templateChoice only when sent", async () => {
-  const postRepo = new InMemoryPostRepo([buildPostRecord({ status: "draft", publishAt: "2027-01-01T00:00:00.000Z", author: "Ada", showAuthor: true, templateChoice: "wide.html" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [buildPostRecord({ status: "draft", publishAt: "2027-01-01T00:00:00.000Z", author: "Ada", showAuthor: true, templateChoice: "wide.html" })] });
   const { changeSets, update } = harness(new InMemoryChangeSetRepo(), { postRepo });
   const inverses = async () => Promise.all((await changeSets.listByWorkspace({ workspaceId: WS })).map(async (record) => (await changeSets.findById({ workspaceId: WS, id: record.id }))?.items[0]?.inversePayload));
   await call(update, { id: "post-1", kind: "post", title: "Renamed" });
@@ -172,7 +172,7 @@ test("content_post_search: omitted kind, status and limit are left for the searc
 });
 
 test("content_post_delete: a failed change-set record restores the trashed post and forgets its Trash row", async () => {
-  const postRepo = new InMemoryPostRepo([buildPostRecord({ status: "draft" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [buildPostRecord({ status: "draft" })] });
   const forgotten: Parameters<ForgetRemovedPostFn>[0][] = [];
   const forgetRemovedPost: ForgetRemovedPostFn = async (required) => { forgotten.push(required); };
   const { tool } = harness(new RefusingChangeSetRepo(), { postRepo, removePost: removeVia(postRepo), forgetRemovedPost });
@@ -184,7 +184,7 @@ test("content_post_delete: a failed change-set record restores the trashed post 
 
 test("content_post_list: a body with no word break near the cut is cut hard at the per-row budget", async () => {
   const word = "x".repeat(30_010);
-  const postRepo = new InMemoryPostRepo([buildPostRecord({ bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: word }] }] } })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [buildPostRecord({ bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: word }] }] } })] });
   const { tool } = harness(new InMemoryChangeSetRepo(), { postRepo });
   const result = await call(tool("content_post_list"), { kind: "post" }) as { posts: Array<{ excerpt: string; bodyChars: number }> };
   assert.deepEqual(result.posts.map(({ excerpt, bodyChars }) => ({ excerpt, bodyChars })), [{ excerpt: `${"x".repeat(30_000)}…`, bodyChars: 30_010 }]);

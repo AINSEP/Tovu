@@ -54,7 +54,7 @@ interface Harness {
 
 function harness(): Harness {
   const db = openContentDb(":memory:");
-  const repo = new SqlitePostRepo(db);
+  const repo = new SqlitePostRepo({ store: db });
   const search = new SqlitePostSearchIndex({ kernel: contentKernel(db) });
 
   return {

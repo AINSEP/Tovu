@@ -40,11 +40,11 @@ export async function ensureSitePrivacyDefaults(deps: PrivacyDefaultsDeps, _opti
     slug = await availableSlug({ rows });
     const id = deps.ids.newId();
     // Only new Pages enter ensureHtmlFormat; converting an existing Page would replace owner content.
-    await deps.post.repo.transaction(async () => {
+    await deps.post.repo.transaction({ fn: async () => {
       await createPost({ deps: deps.post, input: { workspaceId: deps.workspaceId, id, slug,
         title: 'Privacy Policy', kind: 'page', status: 'published', actorId: identity.principalId } });
       await deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: id }).ensureHtmlFormat(privacyPageTemplate(identity));
-    });
+    } });
     // Boot runs before createApp subscribes; the serving drainer delivers the go-live event.
   }
   // Re-read immediately before Jini's write chokepoint so a newly saved owner URL wins.

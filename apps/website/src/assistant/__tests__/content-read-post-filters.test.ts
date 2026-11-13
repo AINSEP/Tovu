@@ -30,7 +30,7 @@ function fixture() {
       routeDeps: {
         ...createRouteDeps(),
         workspaceId: "ws",
-        postRepo: new InMemoryPostRepo(),
+        postRepo: new InMemoryPostRepo({}),
         authorize: async () => ({ allowed: true, reason: "matched" }),
       },
     }),

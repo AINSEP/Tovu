@@ -54,7 +54,7 @@ test("the Testimonials + FAQ sample: install (no code) -> turn on -> FAQ accordi
     id: "help", workspaceId: createRouteDeps().workspaceId, title: "Help", slug: "help", bodyJson: { type: "doc", content: [] },
     bodyFormat: "html", bodyHtml: `${FAQ_MARKER}${TESTIMONIAL_MARKER}`, status: "published", kind: "post", templateChoice: null, updatedAt: NOW, version: 1,
   } as PostRecord;
-  const deps = { ...createRouteDeps({ installDir: path.join(root, "plugins") }), themes: [theme()], postRepo: new InMemoryPostRepo([post]) };
+  const deps = { ...createRouteDeps({ installDir: path.join(root, "plugins") }), themes: [theme()], postRepo: new InMemoryPostRepo({}, { initialRows: [post] }) };
   const { workspaceId } = deps;
 
   // Install: the preview is honest about having no code, then the package lands as-is.

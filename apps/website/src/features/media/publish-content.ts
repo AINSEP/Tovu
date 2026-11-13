@@ -195,8 +195,8 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     ports: (deps) => deps.ports.media,
     // Library sharing has its own private archive flow. Ordinary publishing never carries documents.
     include: row => row.kind !== "document",
-    list: (p, workspaceId) => p.repo.list({ workspaceId }),
-    find: (p, workspaceId, id) => p.repo.findById({ workspaceId, id }),
+    list: ({ ports: p, workspaceId }) => p.repo.list({ workspaceId }),
+    find: ({ ports: p, workspaceId, id }) => p.repo.findById({ workspaceId, id }),
     fields: MEDIA_FIELDS,
     // Packed exactly as the row holds it: an absent field stays absent rather than becoming `null`.
     omitWhenAbsent: Object.keys(MEDIA_FIELDS),
@@ -261,7 +261,7 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     undo: {
       // An update restores the prior record verbatim; a create removes its row. The blob row and bytes
       // stay: they are append-only and content-addressed, and an orphan is reclaimable by GC.
-      restore: ({ ports, deps }, prior) => restoreImportedMedia({ deps: { mediaRepo: ports.repo,
+      restore: ({ ctx: { ports, deps }, prior }) => restoreImportedMedia({ deps: { mediaRepo: ports.repo,
         assetBlobRepo: ports.assetBlobRepo, blobStore: ports.blobStore, idGen: deps.idGen,
         clock: { nowIso: () => clockNowIso({ clock: deps.clock }) } }, prior }),
       remove: ({ ports, workspaceId, id }) => ports.repo.remove({ workspaceId, id }),

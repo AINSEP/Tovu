@@ -28,7 +28,7 @@ const NOW = "2026-08-30T00:00:00.000Z";
 const EMPTY_DOC = { type: "doc", content: [] };
 
 function fakeRouteDeps() {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const changeSets = new InMemoryChangeSetRepo();
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();

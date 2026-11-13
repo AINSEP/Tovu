@@ -128,7 +128,7 @@ function makeSharedRepos() {
     entryRepo: trash.entryRepo,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
     changeSets: new InMemoryChangeSetRepo(),
   };
 }

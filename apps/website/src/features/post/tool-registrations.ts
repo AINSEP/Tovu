@@ -243,7 +243,7 @@ export const postDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSid
  * disclosed kind-mismatch 404) or a `PostConflictError` (slug taken) is not a shape problem —
  * retrying the SAME input would never resolve either.
  */
-function isPostShapeRejection(error: unknown): boolean {
+function isPostShapeRejection({ error }: { error: unknown }, _optional: Record<string, never> = {}): boolean {
   return error instanceof PostValidationError;
 }
 
@@ -340,7 +340,7 @@ function optionalPostStatus(input: Record<string, unknown>): PostStatus | undefi
  *
  * @complexity O(1).
  */
-function clampPostListLimit(limit: number | undefined): number {
+function clampPostListLimit({ limit }: { limit: number | undefined }, _optional: Record<string, never> = {}): number {
   if (limit === undefined) return DEFAULT_POST_LIST_LIMIT;
   return Math.min(Math.max(Math.floor(limit), 1), MAX_POST_LIST_LIMIT);
 }
@@ -349,7 +349,7 @@ function clampPostListLimit(limit: number | undefined): number {
  * `bodyJson` is typed as `JsonObject` (`post.ts`), so this narrows the one field that differs.
  * `post.ts`'s own `isJsonObject` check (inside `createPost`/`updatePost`) is the actual runtime
  * shape gate — this cast does not weaken that, it only aligns the caller-facing TS type. */
-function requireBodyJson(input: Record<string, unknown>, key: string): JsonObject {
+function requireBodyJson({ input, key }: { input: Record<string, unknown>; key: string }, _optional: Record<string, never> = {}): JsonObject {
   return requireObject({ input: input, key: key }) as unknown as JsonObject;
 }
 
@@ -358,16 +358,16 @@ function requireBodyJson(input: Record<string, unknown>, key: string): JsonObjec
  *  handler, not here), but a caller who SENDS a non-object one is still rejected with the exact
  *  same "(object) is required" message `requireObject` always threw — a present-but-malformed
  *  `bodyJson` is a shape error whether or not the field is required. */
-function optionalBodyJson(input: Record<string, unknown>, key: string): JsonObject | undefined {
+function optionalBodyJson({ input, key }: { input: Record<string, unknown>; key: string }, _optional: Record<string, never> = {}): JsonObject | undefined {
   if (input[key] === undefined) return undefined;
-  return requireBodyJson(input, key);
+  return requireBodyJson({ input, key });
 }
 
 /** Optional counterpart to `requireString`, for the same S7 partial patch: an omitted field keeps
  *  the stored value, but a SENT one must still be a non-empty string, rejected with the exact
  *  message the full-record shape always gave. The kit's `optionalString` accepts `""`, which would
  *  let an empty title or slug through where the full-record call rejected it. */
-function optionalNonEmptyString(input: Record<string, unknown>, key: string): string | undefined {
+function optionalNonEmptyString({ input, key }: { input: Record<string, unknown>; key: string }, _optional: Record<string, never> = {}): string | undefined {
   if (input[key] === undefined) return undefined;
   return requireString({ input: input, key: key });
 }
@@ -378,13 +378,13 @@ function optionalNonEmptyString(input: Record<string, unknown>, key: string): st
  *  before the write even starts. A malformed value throws `PostValidationError`, which
  *  `withSchemaOnRejection` decorates with the schema. */
 function optionalPublishAt(input: Record<string, unknown>): string | null | undefined {
-  return normalizePublishAt(input.publishAt);
+  return normalizePublishAt({ value: input.publishAt });
 }
 
-const FEATURED_IMAGE_REFUSALS: Record<"missing" | "trashed" | "not-image", (ref: string, contentType?: string) => string> = {
-  missing: (ref) => `featuredImage: no media asset has the id or slug '${ref}'. Find one with content_read.media_asset, or upload one first.`,
-  trashed: (ref) => `featuredImage: media asset '${ref}' is in Trash. Restore it first, or pick another image.`,
-  "not-image": (ref, contentType) => `featuredImage: media asset '${ref}' is ${contentType ?? "not an image"}, not an image. A featured image must be an image.`,
+const FEATURED_IMAGE_REFUSALS: Record<"missing" | "trashed" | "not-image", (required: { ref: string }, optional?: { contentType?: string }) => string> = {
+  missing: ({ ref }, _optional = {}) => `featuredImage: no media asset has the id or slug '${ref}'. Find one with content_read.media_asset, or upload one first.`,
+  trashed: ({ ref }, _optional = {}) => `featuredImage: media asset '${ref}' is in Trash. Restore it first, or pick another image.`,
+  "not-image": ({ ref }, { contentType } = {}) => `featuredImage: media asset '${ref}' is ${contentType ?? "not an image"}, not an image. A featured image must be an image.`,
 };
 
 /**
@@ -407,7 +407,7 @@ async function resolveFeaturedImageInput(routeDeps: PostToolDeps, input: Record<
     deps: { mediaRepo: routeDeps.mediaRepo, mediaContentTypeStore: routeDeps.mediaContentTypeStore },
     input: { workspaceId: routeDeps.workspaceId, ref: value },
   });
-  if (!resolution.ok) throw new ToolInputError({ message: FEATURED_IMAGE_REFUSALS[resolution.reason](value.trim(), resolution.contentType) });
+  if (!resolution.ok) throw new ToolInputError({ message: FEATURED_IMAGE_REFUSALS[resolution.reason]({ ref: value.trim() }, { contentType: resolution.contentType }) });
   return resolution.id;
 }
 
@@ -655,12 +655,12 @@ function matchesPostListFilters(post: PostRecord, filters: { query?: string; sta
 
 /**
  * Copies only selected listing keys, always retaining id; never mutates the source row.
- * @param row - The compact row to project.
- * @param fields - Validated keys (duplicates are harmless).
+ * @param required.row - The compact row to project.
+ * @param required.fields - Validated keys (duplicates are harmless).
  * @returns An id-bearing row with no unrequested keys.
  * @complexity O(f) time and space in selected fields.
  */
-function projectPostListRow(row: PostListRow, fields: PostListField[]): Partial<PostListRow> & { id: string } {
+function projectPostListRow({ row, fields }: { row: PostListRow; fields: PostListField[] }, _optional: Record<string, never> = {}): Partial<PostListRow> & { id: string } {
   return { id: row.id, ...Object.fromEntries(fields.map((field) => [field, row[field]])) };
 }
 
@@ -669,7 +669,7 @@ function projectPostListRow(row: PostListRow, fields: PostListField[]): Partial<
  * appends "…" when anything was cut, so a cut excerpt never reads as the whole body.
  * @complexity O(n) in the text length.
  */
-function toExcerpt(text: string, maxChars: number): string {
+function toExcerpt({ text, maxChars }: { text: string; maxChars: number }, _optional: Record<string, never> = {}): string {
   if (text.length <= maxChars) return text;
   const head = text.slice(0, maxChars);
   const lastSpace = head.lastIndexOf(" ");
@@ -678,18 +678,18 @@ function toExcerpt(text: string, maxChars: number): string {
 }
 
 /** Per-row excerpt length for a listing of `rowCount` rows: see {@link POST_LIST_TEXT_BUDGET}. */
-function excerptCharsFor(rowCount: number): number {
+function excerptCharsFor({ rowCount }: { rowCount: number }, _optional: Record<string, never> = {}): number {
   return Math.max(POST_LIST_MIN_EXCERPT_CHARS, Math.floor(POST_LIST_TEXT_BUDGET / Math.max(1, rowCount)));
 }
 
 /** The compact listing row: {@link toPostToolViewWithPublicUrl} minus `bodyJson`, plus a plain-text
  *  `excerpt` and the full plain-text length as `bodyChars`. An `"html"`-format Page's text comes from
  *  `bodyHtml` — its `bodyJson` is only the empty placeholder (`repo.rows.ts`'s `toRecord`). */
-function toPostListRow(routeDeps: PostToolDeps, post: PostRecord, excerptChars: number): PostListRow {
+function toPostListRow({ routeDeps, post, excerptChars }: { routeDeps: PostToolDeps; post: PostRecord; excerptChars: number }, _optional: Record<string, never> = {}): PostListRow {
   const text =
     post.bodyFormat === "html"
-      ? extractPlainTextFromHtml(post.bodyHtml ?? "").replace(/\s+/g, " ").trim()
-      : extractPostPlainText(post.bodyJson);
+      ? extractPlainTextFromHtml({ html: post.bodyHtml ?? "" }).replace(/\s+/g, " ").trim()
+      : extractPostPlainText({ bodyJson: post.bodyJson });
   return {
     id: post.id,
     kind: post.kind,
@@ -700,7 +700,7 @@ function toPostListRow(routeDeps: PostToolDeps, post: PostRecord, excerptChars: 
     version: post.version,
     publicUrl: resolvePublicUrl(routeDeps, post),
     adminUrl: resolveAdminUrl(post),
-    excerpt: toExcerpt(text, excerptChars),
+    excerpt: toExcerpt({ text, maxChars: excerptChars }),
     bodyChars: text.length,
     author: post.author ?? null,
     showAuthor: post.showAuthor ?? false,
@@ -735,7 +735,7 @@ async function loadDeletablePost(
  * inline history: this replaces the former token-bound version check (ADR-055
  * Decision 3 removed the token, not the need for the check).
  */
-function assertFreshVersion(current: PostRecord | null, existing: PostRecord, kind: PostKind): void {
+function assertFreshVersion({ current, existing, kind }: { current: PostRecord | null; existing: PostRecord; kind: PostKind }, _optional: Record<string, never> = {}): void {
   if (current && !isTrashed(current) && current.version !== existing.version) {
     // A `ToolInputError`, not a bare `Error`: that marker is the only thing keeping this out of the
     // `errorKind: 'internal'` bucket the delegated-tool transport SEC-005-redacts, and a model told
@@ -771,9 +771,9 @@ interface PostUpdatePatch {
  * @complexity O(1).
  */
 function parseUpdatePatch(input: Record<string, unknown>): PostUpdatePatch {
-  const title = optionalNonEmptyString(input, "title");
-  const slug = optionalNonEmptyString(input, "slug");
-  const bodyJson = optionalBodyJson(input, "bodyJson");
+  const title = optionalNonEmptyString({ input, key: "title" });
+  const slug = optionalNonEmptyString({ input, key: "slug" });
+  const bodyJson = optionalBodyJson({ input, key: "bodyJson" });
   const status = optionalPostStatus(input);
   // Tri-state, forwarded as-is: `updatePost` itself keeps the stored value for `undefined`
   // and clears on `null`, so these need no fill-in from `existing` the way the four above do.
@@ -918,7 +918,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: CONTENT_READ_PERMISSION }, { entityType: "post" });
 
-      return withSchemaOnRejection({ toolId: "content_post_search", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isPostShapeRejection(error), fn: async () => {
+      return withSchemaOnRejection({ toolId: "content_post_search", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isPostShapeRejection({ error }), fn: async () => {
         const query = requireString({ input: input, key: "query" });
         const kind = input.kind !== undefined ? requirePostKind(input) : undefined;
         const status = optionalPostStatus(input);
@@ -955,7 +955,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: CONTENT_READ_PERMISSION }, { entityType: "post" });
 
       const kind = input.kind === undefined ? undefined : requirePostKind(input);
-      const limit = clampPostListLimit(optionalNumber({ input: input, key: "limit" }));
+      const limit = clampPostListLimit({ limit: optionalNumber({ input: input, key: "limit" }) });
       const includeBody = optionalBoolean({ input: input, key: "includeBody" }) === true;
       const query = optionalString({ input: input, key: "query" })?.toLowerCase();
       const status = optionalPostStatus(input);
@@ -972,8 +972,8 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       const posts = filteredPosts.slice(0, limit);
       return {
         posts: posts.map((post) => {
-          if (fields !== undefined) return projectPostListRow(toPostListRow(routeDeps, post, excerptCharsFor(posts.length)), fields);
-          return includeBody ? toPostToolViewWithPublicUrl(routeDeps, post) : toPostListRow(routeDeps, post, excerptCharsFor(posts.length));
+          if (fields !== undefined) return projectPostListRow({ row: toPostListRow({ routeDeps, post, excerptChars: excerptCharsFor({ rowCount: posts.length }) }), fields });
+          return includeBody ? toPostToolViewWithPublicUrl(routeDeps, post) : toPostListRow({ routeDeps, post, excerptChars: excerptCharsFor({ rowCount: posts.length }) });
         }),
         total,
         hasMore: total > posts.length,
@@ -1000,11 +1000,11 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
 
     content_post_create: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      return withSchemaOnRejection({ toolId: "content_post_create", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isPostShapeRejection(error), fn: async () => {
+      return withSchemaOnRejection({ toolId: "content_post_create", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isPostShapeRejection({ error }), fn: async () => {
         const kind = input.kind === undefined ? "post" : requirePostKind(input);
         const title = requireString({ input: input, key: "title" });
         const slug = optionalString({ input: input, key: "slug" });
-        const bodyJson = input.bodyJson !== undefined ? requireBodyJson(input, "bodyJson") : undefined;
+        const bodyJson = input.bodyJson !== undefined ? requireBodyJson({ input, key: "bodyJson" }) : undefined;
         const status = optionalPostStatus(input);
         const author = input.author === undefined ? undefined : normalizePostAuthor({ author: input.author });
         const showAuthor = normalizeShowPostAuthor({ showAuthor: input.showAuthor });
@@ -1079,7 +1079,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
 
     content_post_update: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      return withSchemaOnRejection({ toolId: "content_post_update", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isPostShapeRejection(error), fn: async () => {
+      return withSchemaOnRejection({ toolId: "content_post_update", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isPostShapeRejection({ error }), fn: async () => {
         const id = requireString({ input: input, key: "id" });
         const kind = input.kind === undefined ? undefined : requirePostKind(input);
         // S7 (fix-plan-tool-design-2026-09-24.md) — a PARTIAL patch: each of these four is now
@@ -1095,7 +1095,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         // sent" and be written through as an unguarded save, re-opening the very clobber the guard
         // closes. `PostValidationError` reaches `withSchemaOnRejection` above, which turns it into a
         // schema-decorated `ToolInputError` — a 400 the model can act on, not a silent downgrade.
-        const expectedVersion = parseExpectedVersion(input.expectedVersion);
+        const expectedVersion = parseExpectedVersion({ raw: input.expectedVersion });
 
         // Captured by `captureInverse` below, reused verbatim by `rollback` — mirrors
         // `posts/update.ts`/`pages/update.ts`'s identical unit-of-work compensation.
@@ -1242,7 +1242,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
 
       // Keep the version check before the reversible removal.
       const current = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
-      assertFreshVersion(current, existing, kind);
+      assertFreshVersion({ current, existing, kind });
 
       const { result } = await executeCommand<{ post: PostRecord }>({
         deps: postCommandDeps(routeDeps),
@@ -1347,7 +1347,7 @@ async function deriveDefaultDuplicateTitle(routeDeps: PostToolDeps, source: Post
   );
   return deriveDuplicateName(
     { sourceName: source.title },
-    { isTaken: async (candidate) => existingTitles.has(candidate) }
+    { isTaken: async ({ candidate }, _optional = {}) => existingTitles.has(candidate) }
   );
 }
 
@@ -1372,9 +1372,8 @@ async function deriveDefaultDuplicateTitle(routeDeps: PostToolDeps, source: Post
  * O(1) repo/command-gateway calls.
  */
 async function duplicatePostOrPage(
-  routeDeps: PostToolDeps,
-  guardKind: PostKind,
-  input: { principalId: string; id: string; overrides: { title?: string; slug?: string; status?: string } }
+  { routeDeps, guardKind, input }: { routeDeps: PostToolDeps; guardKind: PostKind; input: { principalId: string; id: string; overrides: { title?: string; slug?: string; status?: string } } },
+  _optional: Record<string, never> = {}
 ): Promise<Record<string, unknown>> {
   const sourceId = input.id;
 
@@ -1423,7 +1422,7 @@ async function duplicatePostOrPage(
   } else {
     // The one piece of real design work this tool exists for — see duplicate-embeds.ts's own header
     // for why widgetEntryId is kept and placementId is regenerated, never the reverse.
-    bodyJsonForCreate = copyBodyJsonWithFreshEmbedPlacements(source.bodyJson, () => routeDeps.idGen.newId());
+    bodyJsonForCreate = copyBodyJsonWithFreshEmbedPlacements({ bodyJson: source.bodyJson, newPlacementId: () => routeDeps.idGen.newId() });
   }
 
   const newId = routeDeps.idGen.newId();
@@ -1441,7 +1440,7 @@ async function duplicatePostOrPage(
       entityId: newId,
       operation: "create",
       captureInverse: async () => null,
-      execute: () => routeDeps.postRepo.transaction(async () => {
+      execute: () => routeDeps.postRepo.transaction({ fn: async () => {
         const created = await createPost({
           deps: {
             repo: routeDeps.postRepo,
@@ -1478,7 +1477,7 @@ async function duplicatePostOrPage(
         // row's real, post-conversion state.
         await routeDeps.pagesHtmlStore!({ workspaceId: routeDeps.workspaceId, postId: newId }).ensureHtmlFormat(sourceHtml);
         return getAdminPostById({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId, id: newId } });
-      }),
+      } }),
       captureEntityVersion: ({ result }) => result.post.version,
     },
   });
@@ -1514,14 +1513,14 @@ export function contributePostDuplicateHandlers(): DuplicateResourceHandlerContr
       resource: "post",
       build: (routeDeps) => ({
         permission: CONTENT_WRITE_PERMISSION,
-        duplicate: (input) => duplicatePostOrPage(routeDeps, "post", input),
+        duplicate: (input) => duplicatePostOrPage({ routeDeps, guardKind: "post", input }),
       }),
     },
     {
       resource: "page",
       build: (routeDeps) => ({
         permission: CONTENT_WRITE_PERMISSION,
-        duplicate: (input) => duplicatePostOrPage(routeDeps, "page", input),
+        duplicate: (input) => duplicatePostOrPage({ routeDeps, guardKind: "page", input }),
       }),
     },
   ];

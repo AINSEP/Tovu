@@ -38,7 +38,7 @@ async function events(outbox: InMemoryOutbox): Promise<string[]> {
 }
 
 function setup(rows: PostRecord[] = []) {
-  const repo = new InMemoryPostRepo(rows);
+  const repo = new InMemoryPostRepo({}, { initialRows: rows });
   const outbox = new InMemoryOutbox();
   const clock = fakeClock(SAVED);
   const sweep = (nowIso: string) => announceDueGoLives({ deps: { repo, outbox }, input: { workspaceId: WS, nowIso } });
@@ -199,7 +199,7 @@ const failingWrites: Array<[string, (deps: { repo: InMemoryPostRepo; clock: Retu
 
 for (const [name, write] of failingWrites) {
   test(`${name}: a failed event enqueue rolls the write back, so a restart's catch-up sweep still announces the go-live`, async () => {
-    const repo = new InMemoryPostRepo([scheduledRow()]);
+    const repo = new InMemoryPostRepo({}, { initialRows: [scheduledRow()] });
     const clock = fakeClock(LATER);
     const outbox = new FailingOutbox();
     await assert.rejects(write({ repo, clock, outbox }), /outbox unavailable/);
@@ -215,7 +215,7 @@ for (const [name, write] of failingWrites) {
 }
 
 test("createPost: a failed event enqueue leaves no row behind", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   await assert.rejects(
     createPost({ deps: { repo, clock: fakeClock(LATER), outbox: new FailingOutbox() }, input: { workspaceId: WS, id: "p1", title: "Live now", status: "published" } }),
     /outbox unavailable/

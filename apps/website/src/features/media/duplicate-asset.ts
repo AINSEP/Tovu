@@ -103,7 +103,7 @@ async function resolveDuplicateTitle(
   );
   return deriveDuplicateName(
     { sourceName: source.title },
-    { isTaken: async (candidate) => existingTitles.has(candidate) }
+    { isTaken: async ({ candidate }) => existingTitles.has(candidate) }
   );
 }
 

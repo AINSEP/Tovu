@@ -282,7 +282,7 @@ type PostPorts = PublishContentPorts["post"] & { readonly term?: TaxonomyPublish
  * @throws Taxonomy repository failures propagate before a publish write.
  * @complexity One indexed term read plus O(t log t) time/O(t) space for t assigned terms.
  */
-async function withTerms(termPorts: TaxonomyPublishPorts | undefined, row: PostRecord): Promise<PostRow> {
+async function withTerms({ termPorts, row }: { termPorts: TaxonomyPublishPorts | undefined; row: PostRecord }, _optional: Record<string, never> = {}): Promise<PostRow> {
   const termIds = await readTermIds({ ports: termPorts, contentType: row.kind, contentId: row.id });
   // The gateway captures this row as its inverse: preserve the stored byline defaults too.
   const publishRow = { ...row };
@@ -290,12 +290,12 @@ async function withTerms(termPorts: TaxonomyPublishPorts | undefined, row: PostR
 }
 
 /** The packed state of `row` (what `pack` ships and hashes), for `planRetire`/`retire`'s hashes. */
-async function packedStateOf(termPorts: TaxonomyPublishPorts | undefined, row: PostRecord): Promise<Record<string, unknown>> {
+async function packedStateOf({ termPorts, row }: { termPorts: TaxonomyPublishPorts | undefined; row: PostRecord }, _optional: Record<string, never> = {}): Promise<Record<string, unknown>> {
   return withTermIds({ state: toPublishableState(row), termIds: await readTermIds({ ports: termPorts, contentType: row.kind, contentId: row.id }) });
 }
 
 /** The apply-time ports, or the error that names what is missing. */
-function applyPorts(ports: PostPorts, deps: PublishContentDeps, kind: PostKind) {
+function applyPorts({ ports, deps, kind }: { ports: PostPorts; deps: PublishContentDeps; kind: PostKind }, _optional: Record<string, never> = {}) {
   const { forgetRemoved } = ports;
   if (!forgetRemoved) {
     throw new Error(
@@ -321,7 +321,7 @@ async function undoPostImport(
   _options: Record<string, never> = {}
 ): Promise<void> {
   if (prior) {
-    await restorePostForward({ deps: applyPorts(ports, deps, kind), input: { prior, actorId: principalId } });
+    await restorePostForward({ deps: applyPorts({ ports, deps, kind }), input: { prior, actorId: principalId } });
     return;
   }
   if (await ports.repo.findById({ workspaceId, id })) await ports.repo.hardDelete({ workspaceId, id });
@@ -330,7 +330,7 @@ async function undoPostImport(
 /** Why an entity of type `kind` is refused when its packed `kind` differs, or `null`. `kind` is
  *  transferred, so without this a `page` entity could create a post: a publishing grant limited to
  *  `page` authorizes through the `page` handler and would never see the post it wrote. */
-function packedKindMismatch(kind: PostKind, id: string, state: Record<string, unknown>): string | null {
+function packedKindMismatch({ kind, id, state }: { kind: PostKind; id: string; state: Record<string, unknown> }, _optional: Record<string, never> = {}): string | null {
   return state.kind === kind ? null : `${kind} entity '${id}' is packed as a '${String(state.kind)}' — a ${kind} publish writes only ${kind}s`;
 }
 
@@ -346,15 +346,15 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     dependsOn: POST_AND_PAGE_DEPENDS_ON,
     ports: (deps) => deps.ports.post && { ...deps.ports.post, term: deps.ports.term },
     portsKey: "post",
-    list: async (p, workspaceId) => {
+    list: async ({ ports: p, workspaceId }, _optional = {}) => {
       const rows = (await p.repo.list({ workspaceId })).filter((row) => row.kind === kind && !isTrashed(row));
       // SQL supplies null/false defaults for older rows. Omit those defaults from the wire/hash;
       // import still clears a destination's old byline when the source leaves these fields absent.
-      return Promise.all(rows.map((row) => withTerms(p.term, { ...row, author: row.author ?? undefined, showAuthor: row.showAuthor || undefined })));
+      return Promise.all(rows.map((row) => withTerms({ termPorts: p.term, row: { ...row, author: row.author ?? undefined, showAuthor: row.showAuthor || undefined } })));
     },
-    find: async (p, workspaceId, id) => {
+    find: async ({ ports: p, workspaceId, id }, _optional = {}) => {
       const row = await p.repo.findById({ workspaceId, id });
-      return row && row.kind === kind ? withTerms(p.term, row) : null;
+      return row && row.kind === kind ? withTerms({ termPorts: p.term, row }) : null;
     },
     isTrashed,
     fields: { ...POST_FIELD_DISPOSITIONS, termIds: "transferred" },
@@ -365,7 +365,7 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     // Not the factory's `address`: a slug held by a trashed row keeps this sentence, and the slug
     // checks run before the kind check on an unfiltered read, as before the migration.
     validate: async ({ ports, workspaceId, entity }) => {
-      const wrongKind = packedKindMismatch(kind, entity.id, entity.state);
+      const wrongKind = packedKindMismatch({ kind, id: entity.id, state: entity.state });
       if (wrongKind) return wrongKind;
       const slug = entity.state.slug;
       if (typeof slug !== "string" || slug.length === 0) return `${kind} entity '${entity.id}' has no usable slug to check for a collision`;
@@ -379,9 +379,9 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
       return null;
     },
     write: async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, onRollback }) => {
-      const wrongKind = packedKindMismatch(kind, id, state);
+      const wrongKind = packedKindMismatch({ kind, id, state });
       if (wrongKind) throw new PublishContentApplyRowError("blocked", wrongKind);
-      const { repo, outbox } = applyPorts(ports, deps, kind);
+      const { repo, outbox } = applyPorts({ ports, deps, kind });
       const terms = await prepareTermSync({ ports: ports.term, deps, entityType: kind, entityId: id, principalId, contentType: kind, wanted: state.termIds });
       // Terms first on rollback: Jini resolves the post to (un)assign, and a create's undo deletes it.
       onRollback(terms.revert);
@@ -404,7 +404,7 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     },
     undo: {
       // Forward, not verbatim: see `restorePostForward`'s doc. A create's undo removes the row.
-      restore: async ({ ports, deps, workspaceId, id, principalId }, prior) => {
+      restore: async ({ ctx: { ports, deps, workspaceId, id, principalId }, prior }, _optional = {}) => {
         await undoPostImport({ ports, deps, kind, workspaceId, id, prior, principalId });
       },
       remove: async ({ ports, deps, workspaceId, id, principalId }) => {
@@ -425,7 +425,7 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
 function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
   const entityType = kind;
   const postRepo = deps.ports.post?.repo;
-  const stateOf = (row: PostRecord) => packedStateOf(deps.ports.term, row);
+  const stateOf = (row: PostRecord) => packedStateOf({ termPorts: deps.ports.term, row });
 
   /**
    * S4's read half (`publish-overwrite-live-plan-2026-09-24.md` §4/§5) — reports the live row a
@@ -548,7 +548,7 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
               workspaceId: deps.workspaceId,
               id: target.entityId,
               expectedVersion: holder!.version,
-              today: todayStamp(clockNowIso({ clock: deps.clock })),
+              today: todayStamp({ nowIso: clockNowIso({ clock: deps.clock }) }),
               actorId: input.principalId,
             },
           }),
@@ -567,7 +567,7 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
  * (`post.ts`'s own doc: "supplied by the caller rather than derived from `clockNowIso({ clock: deps.clock })`'s ISO
  * format"). The one place that derivation happens, so `retire()` above stays a pure caller of it.
  */
-function todayStamp(nowIso: string): string {
+function todayStamp({ nowIso }: { nowIso: string }, _optional: Record<string, never> = {}): string {
   return nowIso.slice(0, 10).replace(/-/g, "");
 }
 

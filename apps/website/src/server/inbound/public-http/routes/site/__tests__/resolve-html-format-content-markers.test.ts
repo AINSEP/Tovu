@@ -54,7 +54,7 @@ function postRecord(overrides: Partial<PostRecord> = {}): PostRecord {
 /** Wraps `InMemoryPostRepo.findById` to count real lookups — the guard-3 budget's own claim ("bounds
  * total DB work") is only proven by watching the call count, not by watching wall-clock time alone. */
 function countingPostRepo(rows: PostRecord[]): { repo: InMemoryPostRepo; callCount: () => number } {
-  const repo = new InMemoryPostRepo(rows);
+  const repo = new InMemoryPostRepo({}, { initialRows: rows });
   let calls = 0;
   const originalFindById = repo.findById.bind(repo);
   repo.findById = async (required) => {

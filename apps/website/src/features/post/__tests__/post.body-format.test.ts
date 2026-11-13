@@ -31,7 +31,7 @@ const noopOutbox: OutboxPort = {
 };
 
 test("createPost: a new post always carries bodyFormat 'doc' and bodyHtml null, with no caller input accepted for either", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
 
   const { post } = await createPost({
     deps: { repo, clock },
@@ -43,7 +43,7 @@ test("createPost: a new post always carries bodyFormat 'doc' and bodyHtml null, 
 });
 
 test("createPost: a Post can never carry body_format 'html', even if a caller-supplied input smuggles it in", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
 
   // `as unknown as CreatePostInput` stands in for an untyped caller (a raw JS route handler, or one
   // trusting `req.body` past the type system) — the property below is not part of `CreatePostInput`
@@ -68,7 +68,7 @@ test("createPost: a Post can never carry body_format 'html', even if a caller-su
 });
 
 test("createPost: a kind:'page' input also gets bodyFormat 'doc' in v1 through this chokepoint — html Pages are written only through PagesHtmlDocumentStore, never here", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
 
   const { post } = await createPost({
     deps: { repo, clock },
@@ -80,7 +80,7 @@ test("createPost: a kind:'page' input also gets bodyFormat 'doc' in v1 through t
 });
 
 test("updatePost: an existing row's bodyFormat stays 'doc' after an update, even if a caller-supplied input smuggles bodyFormat:'html'", async () => {
-  const repo = new InMemoryPostRepo([
+  const repo = new InMemoryPostRepo({}, { initialRows: [
     {
       id: "post-1",
       workspaceId: "ws-1",
@@ -94,7 +94,7 @@ test("updatePost: an existing row's bodyFormat stays 'doc' after an update, even
       updatedAt: "2026-08-03T00:00:00.000Z",
       version: 1,
     },
-  ]);
+  ] });
 
   const smuggledInput = {
     workspaceId: "ws-1",

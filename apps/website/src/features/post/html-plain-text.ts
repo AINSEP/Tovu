@@ -17,7 +17,7 @@ const HTML_NAMED_ENTITIES: Record<string, string> = {
 
 /** Decodes `&amp;`/`&#39;`/`&#x27;`-style entities left over after tag-stripping. Unknown or
  *  malformed entities pass through unchanged rather than being dropped. */
-function decodeHtmlEntities(text: string): string {
+function decodeHtmlEntities({ text }: { text: string }, _optional: Record<string, never> = {}): string {
   return text.replace(/&(#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g, (match, entity: string) => {
     if (entity[0] !== "#") {
       const name = entity.toLowerCase();
@@ -45,7 +45,7 @@ const POST_DETAIL_HEADER_OPEN = /<([a-z][a-z0-9]*)\b[^>]*\sclass\s*=\s*(["'])((?
  *  same-name opens/closes so a nested `<div class="post-meta">` inside a `<div>` header does not end
  *  the block early; -1 when the element is never closed.
  *  @complexity O(n) over the remaining html. */
-function findBalancedCloseEnd(html: string, tag: string, from: number): number {
+function findBalancedCloseEnd({ html, tag, from }: { html: string; tag: string; from: number }, _optional: Record<string, never> = {}): number {
   const tagPattern = new RegExp(`<(/?)${tag}\\b[^>]*>`, "gi");
   tagPattern.lastIndex = from;
   let depth = 1;
@@ -63,7 +63,7 @@ function findBalancedCloseEnd(html: string, tag: string, from: number): number {
  *  Media is…"). The close is found by depth-counting same-name tags, not a lazy `</\1>` match, since
  *  the real header nests a `<div>`. An unclosed header is left in place (same as before).
  *  @complexity O(n·h) for h class-bearing elements scanned. */
-function stripPostDetailHeader(html: string): string {
+function stripPostDetailHeader({ html }: { html: string }, _optional: Record<string, never> = {}): string {
   let kept = "";
   let rest = html;
   for (let open = POST_DETAIL_HEADER_OPEN.exec(rest); open; open = POST_DETAIL_HEADER_OPEN.exec(rest)) {
@@ -75,7 +75,7 @@ function stripPostDetailHeader(html: string): string {
       rest = rest.slice(contentStart);
       continue;
     }
-    const end = findBalancedCloseEnd(rest, tag, contentStart);
+    const end = findBalancedCloseEnd({ html: rest, tag, from: contentStart });
     kept += end === -1 ? rest.slice(0, contentStart) : `${rest.slice(0, open.index)} `;
     rest = rest.slice(end === -1 ? contentStart : end);
   }
@@ -86,8 +86,8 @@ function stripPostDetailHeader(html: string): string {
  *  excerpts, SPEC-047 gap): drops the `.post-detail-header` title/date block and `<style>`/`<script>` blocks wholesale
  *  (never prose) before stripping the remaining tags, so a leading stylesheet — real `bodyHtml` rows
  *  start with one, see `/quickstart` — or the injected header can never surface as the description. */
-export function extractPlainTextFromHtml(html: string): string {
-  const withoutHeader = stripPostDetailHeader(html);
+export function extractPlainTextFromHtml({ html }: { html: string }, _optional: Record<string, never> = {}): string {
+  const withoutHeader = stripPostDetailHeader({ html });
   const withoutNonProse = withoutHeader.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, " ");
   const parts = withoutNonProse.split(">");
   const withoutTags = parts.map((part, index) => {
@@ -95,5 +95,5 @@ export function extractPlainTextFromHtml(html: string): string {
     const open = part.indexOf("<");
     return open !== -1 && open < part.length - 1 ? `${part.slice(0, open)} ` : `${part}>`;
   }).join("");
-  return decodeHtmlEntities(withoutTags);
+  return decodeHtmlEntities({ text: withoutTags });
 }

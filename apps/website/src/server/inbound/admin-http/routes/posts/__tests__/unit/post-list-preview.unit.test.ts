@@ -59,7 +59,7 @@ test("preview fills a batch after excluding gated, corrupt, draft, scheduled and
     { ...posts[0]!, id: "hidden-page", slug: "hidden-page", kind: "page" as const },
   ];
   // Seed a new DI repo, so fixture setup is not confused with a preview write.
-  const repo = new InMemoryPostRepo([post, ...excluded, ...posts]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [post, ...excluded, ...posts] });
   deps.postRepo.listPublishedPreviews = input => repo.listPublishedPreviews(input);
   deps.memberSessionRepo.findByTokenHash = async () => { throw new Error("preview must not read a member session"); };
   const { html } = await renderPostPreview(deps, { post, bodyHtml: MORE_LIST });

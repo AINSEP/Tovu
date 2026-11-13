@@ -130,7 +130,7 @@ export class InMemoryPagesHtmlDocumentStore {
     const nextVersion = row.version + 1;
     const updatedAt = clockNowIso({ clock: this.deps.clock });
 
-    await this.deps.repo.transaction(async () => {
+    await this.deps.repo.transaction({ fn: async () => {
       // Pre-conversion snapshot — see the real store's `ensureHtmlFormat` for why this is skipped
       // when a revision at this exact `seq` already exists.
       const existing = await this.deps.repo.listRevisions({ workspaceId: this.scope.workspaceId, postId: this.scope.postId });
@@ -146,7 +146,7 @@ export class InMemoryPagesHtmlDocumentStore {
       });
       await this.appendRevision(nextVersion, updatedAt);
       await this.catchUpGoLive(row, updatedAt);
-    });
+    } });
     this.lastReadVersion = nextVersion;
     await this.reindexEntryRefs(seedHtml);
   }

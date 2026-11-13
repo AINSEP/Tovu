@@ -110,7 +110,7 @@ export async function backfillPostSearchIndex({ kernel }: { kernel: ContentKerne
           .limit(batchSize)
           .execute()
       );
-      for (const row of missing) await search.upsert(kernel, projectPostRow(row));
+      for (const row of missing) await search.upsert({ kernel, document: projectPostRow(row) });
       return missing.length;
     });
     indexed += written;
@@ -178,7 +178,7 @@ export async function reindexStalePostSearchIndex({ kernel }: { kernel: ContentK
           .$if(kernel.dialect === "postgres", (qb) => qb.forUpdate())
           .execute()
       );
-      for (const row of rows) await search.upsert(kernel, projectPostRow(row));
+      for (const row of rows) await search.upsert({ kernel, document: projectPostRow(row) });
       return rows.map((row) => row.id);
     });
     reindexed += ids.length;
@@ -251,7 +251,7 @@ function projectPostRow(row: {
   id: string; title: string; slug: string; body_json: unknown; body_format: string | null; body_html: string | null;
 }) {
   return toPostSearchDocument({
-    id: row.id as UUID, title: row.title, slug: row.slug, bodyJson: parseBodyJson(row.body_json),
+    id: row.id as UUID, title: row.title, slug: row.slug, bodyJson: parseBodyJson({ raw: row.body_json }),
     bodyFormat: row.body_format === "html" ? "html" : "doc", bodyHtml: row.body_html,
   });
 }
@@ -264,7 +264,7 @@ function projectPostRow(row: {
  * it is a boot-time sweep over EVERY existing row, so one unparseable legacy body must not stop the
  * server from starting. The post still gets indexed by title and slug; only its body text is lost.
  */
-function parseBodyJson(raw: unknown): unknown {
+function parseBodyJson({ raw }: { raw: unknown }, _optional: Record<string, never> = {}): unknown {
   if (typeof raw !== "string") return raw;
   try {
     return JSON.parse(raw) as unknown;

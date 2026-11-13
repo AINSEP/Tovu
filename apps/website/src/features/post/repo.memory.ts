@@ -29,11 +29,11 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
    *  (see `PostRepoPort.appendRevision`'s doc for the append-only contract both adapters share). */
   private revisions: PostRevisionRecord[] = [];
 
-  constructor(initialRows: PostRecord[] = []) {
+  constructor(_required: Record<string, never>, { initialRows = [] }: { initialRows?: PostRecord[] } = {}) {
     this.rows = [...initialRows];
   }
 
-  private autosaveKey(workspaceId: string, id: string): string {
+  private autosaveKey({ workspaceId, id }: { workspaceId: string; id: string }, _optional: Record<string, never> = {}): string {
     return `${workspaceId}:${id}`;
   }
 
@@ -169,12 +169,12 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     this.revisions = this.revisions.filter(
       (revision) => !(revision.workspaceId === required.workspaceId && revision.postId === required.id)
     );
-    this.autosaves.delete(this.autosaveKey(required.workspaceId, required.id));
+    this.autosaves.delete(this.autosaveKey({ workspaceId: required.workspaceId, id: required.id }));
   }
 
   /** See `PostRepoPort.readAutosave`'s own doc. */
   async readAutosave(required: { workspaceId: string; id: string }): Promise<PostAutosaveSnapshot | null> {
-    return this.autosaves.get(this.autosaveKey(required.workspaceId, required.id)) ?? null;
+    return this.autosaves.get(this.autosaveKey({ workspaceId: required.workspaceId, id: required.id })) ?? null;
   }
 
   /** See `PostRepoPort.writeAutosave`'s own doc for the staleness contract this mirrors from
@@ -187,13 +187,13 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   }): Promise<{ applied: boolean }> {
     const row = await this.findById(required);
     if (!row || row.version !== required.snapshot.baseVersion) return { applied: false };
-    this.autosaves.set(this.autosaveKey(required.workspaceId, required.id), required.snapshot);
+    this.autosaves.set(this.autosaveKey({ workspaceId: required.workspaceId, id: required.id }), required.snapshot);
     return { applied: true };
   }
 
   /** See `PostRepoPort.clearAutosave`'s own doc — unconditional, no version guard. */
   async clearAutosave(required: { workspaceId: string; id: string }): Promise<void> {
-    this.autosaves.delete(this.autosaveKey(required.workspaceId, required.id));
+    this.autosaves.delete(this.autosaveKey({ workspaceId: required.workspaceId, id: required.id }));
   }
 
   /** See `PostRepoPort.appendRevision`'s own doc. Mirrors `repo.sqlite.ts`'s adapter exactly:
@@ -242,7 +242,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
    * real concurrent access to these arrays between the snapshot and the restore (single-threaded,
    * no I/O yields a competing writer could land in).
    */
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+  async transaction<T>({ fn }: { fn: () => Promise<T> }, _optional: Record<string, never> = {}): Promise<T> {
     const rowsSnapshot = [...this.rows];
     const revisionsSnapshot = [...this.revisions];
     const autosavesSnapshot = new Map(this.autosaves);

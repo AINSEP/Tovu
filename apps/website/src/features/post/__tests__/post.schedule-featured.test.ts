@@ -95,20 +95,20 @@ function runContract(name: string, withRepo: () => Promise<{ repo: PostRepoPort;
   });
 }
 
-runContract("memory", async () => ({ repo: new InMemoryPostRepo(), teardown: () => {} }));
+runContract("memory", async () => ({ repo: new InMemoryPostRepo({}), teardown: () => {} }));
 
 describeEachDialect<PostRepoPort>("post schedule/featured", { tables: ["posts", "post_revisions"], make: postRepoFor }, (makeRepo) => {
   runContract("sql", async () => ({ repo: makeRepo(), teardown: () => {} }));
 });
 
 test("publishAt must carry a timezone offset; a bad value writes nothing", async () => {
-  assert.throws(() => normalizePublishAt("2026-10-12T09:00"), PostValidationError);
-  assert.throws(() => normalizePublishAt("next monday"), PostValidationError);
-  assert.throws(() => normalizePublishAt(1760284800000), PostValidationError);
-  assert.equal(normalizePublishAt(undefined), undefined);
-  assert.equal(normalizePublishAt(null), null);
-  assert.equal(normalizePublishAt(""), null);
-  const repo = new InMemoryPostRepo();
+  assert.throws(() => normalizePublishAt({ value: "2026-10-12T09:00" }), PostValidationError);
+  assert.throws(() => normalizePublishAt({ value: "next monday" }), PostValidationError);
+  assert.throws(() => normalizePublishAt({ value: 1760284800000 }), PostValidationError);
+  assert.equal(normalizePublishAt({ value: undefined }), undefined);
+  assert.equal(normalizePublishAt({ value: null }), null);
+  assert.equal(normalizePublishAt({ value: "" }), null);
+  const repo = new InMemoryPostRepo({});
   await assert.rejects(
     createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "p1", title: "x", publishAt: "tomorrow 9am" } }),
     /publishAt must be an ISO 8601 date-time with a timezone offset/

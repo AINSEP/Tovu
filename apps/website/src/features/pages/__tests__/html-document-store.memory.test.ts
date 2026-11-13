@@ -38,7 +38,7 @@ const clock = { nowMs: () => Date.parse("2026-09-09T00:00:00.000Z") };
 const WS = "ws-mem-cas";
 
 async function harness(): Promise<{ repo: InMemoryPostRepo }> {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "T", kind: "page" } });
   return { repo };
 }
@@ -172,7 +172,7 @@ test("write() rejects when the row was trashed between this instance's read() an
 // F6.2/F6.3: exercise this adapter, not only the SQL sibling.
 test("ensureHtmlFormat refuses a post without changing its body or revision ledger", async () => {
   const clock = { nowMs: () => Date.parse("2026-09-09T00:00:00.000Z"), nowIso: () => "2026-09-09T00:00:00.000Z" };
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "T", kind: "page" } });
   await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Article", kind: "post" } });
   const before = structuredClone(await repo.findById({ workspaceId: WS, id: "post-1" }));
@@ -185,7 +185,7 @@ test("ensureHtmlFormat refuses a post without changing its body or revision ledg
 
 test("conversion and write append recoverable original, converted, and edited snapshots with sequence and actor", async () => {
   const clock = { nowMs: () => Date.parse("2026-09-09T00:00:00.000Z"), nowIso: () => "2026-09-09T00:00:00.000Z" };
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "T", kind: "page" } });
   const row = await repo.findById({ workspaceId: WS, id: "page-1" });
   assert.ok(row);
@@ -208,7 +208,7 @@ test("conversion and write append recoverable original, converted, and edited sn
 
 test("conversion, replacement, and removal reindex exact HTML embed references without disturbing another page", async () => {
   const clock = { nowMs: () => Date.parse("2026-09-09T00:00:00.000Z"), nowIso: () => "2026-09-09T00:00:00.000Z" };
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "T", kind: "page" } });
   const refs = new InMemoryEntryRefsRepo();
   const sibling = { workspaceId: WS, sourceEntryId: "other-page", sourceKind: "page-html-embed" as const, targetKind: "entry" as const, targetId: "keep-widget", fieldPath: "bodyHtml[embed:widget#1]" };

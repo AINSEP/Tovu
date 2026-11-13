@@ -31,7 +31,7 @@ function menu(doc: Partial<NavMenuEntry["doc"]>): NavMenuEntry {
 }
 
 async function render(page: string, row: NavMenuEntry): Promise<string> {
-  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo([]), menuRepo: new InMemoryMenuRepo({}, { initialRows: [row] }) };
+  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo({}, { initialRows: [] }), menuRepo: new InMemoryMenuRepo({}, { initialRows: [row] }) };
   const t = theme(page);
   const menus = await resolveStaticMenusForRender(deps, t, "/");
   return renderStaticPage({ theme: t, pageId: "index", menus }) ?? "";

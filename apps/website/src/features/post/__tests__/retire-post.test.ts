@@ -47,7 +47,7 @@ function seed(overrides: Partial<PostRecord> = {}): PostRecord {
 }
 
 test("retirePostForReplacement frees the slug and trashes the row under a renamed slug", async () => {
-  const repo = new InMemoryPostRepo([seed()]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed()] });
 
   const { post } = await retirePostForReplacement({
     deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) },
@@ -69,7 +69,7 @@ test("retirePostForReplacement frees the slug and trashes the row under a rename
 });
 
 test("a second retire on the same day gets -2 rather than colliding with the first retirement's renamed slug", async () => {
-  const repo = new InMemoryPostRepo([seed({ id: "post-1", slug: "about", version: 3 })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed({ id: "post-1", slug: "about", version: 3 })] });
 
   await retirePostForReplacement({
     deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) },
@@ -89,7 +89,7 @@ test("a second retire on the same day gets -2 rather than colliding with the fir
 });
 
 test("retiring the root slug is refused with the exact reason", async () => {
-  const repo = new InMemoryPostRepo([seed({ id: "home", slug: ROOT_SLUG, kind: "page", version: 1 })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed({ id: "home", slug: ROOT_SLUG, kind: "page", version: 1 })] });
 
   await assert.rejects(
     () =>
@@ -103,7 +103,7 @@ test("retiring the root slug is refused with the exact reason", async () => {
 });
 
 test("a stale expectedVersion is refused and nothing is renamed", async () => {
-  const repo = new InMemoryPostRepo([seed({ id: "post-1", slug: "about", version: 3 })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed({ id: "post-1", slug: "about", version: 3 })] });
 
   await assert.rejects(
     () =>
@@ -120,7 +120,7 @@ test("a stale expectedVersion is refused and nothing is renamed", async () => {
 });
 
 test("restoring from Trash brings the row back at its renamed slug, not the original", async () => {
-  const repo = new InMemoryPostRepo([seed({ id: "post-1", slug: "about", version: 3 })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed({ id: "post-1", slug: "about", version: 3 })] });
 
   const { post } = await retirePostForReplacement({
     deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) },
@@ -141,7 +141,7 @@ for (const [label, overrides, emits, operations] of [
   ["draft", { status: "draft" }, false, ["update", "delete"]],
 ] as const) {
   test(`retiring a ${label} holder records revisions and emits only its public transition`, async () => {
-    const repo = new InMemoryPostRepo([seed(overrides)]);
+    const repo = new InMemoryPostRepo({}, { initialRows: [seed(overrides)] });
     const events: Parameters<OutboxPort["enqueue"]>[0][] = [];
     const outbox = { ...noopOutbox, enqueue: async (event: Parameters<OutboxPort["enqueue"]>[0]) => { events.push(event); } };
     const { post, revisionId } = await retirePostForReplacement({
@@ -164,7 +164,7 @@ for (const [label, overrides, emits, operations] of [
 test("retiring an ALREADY-trashed holder only moves it aside: same version, no revision, no event", async () => {
   // The Trash index recorded version 3 at trash time; Restore and purge compare against it, so a
   // bump here would strand the row in the Trash (2026-10-08).
-  const repo = new InMemoryPostRepo([seed({ deletedAt: "2026-09-01T00:00:00.000Z" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seed({ deletedAt: "2026-09-01T00:00:00.000Z" })] });
   const events: Parameters<OutboxPort["enqueue"]>[0][] = [];
   const outbox = { ...noopOutbox, enqueue: async (event: Parameters<OutboxPort["enqueue"]>[0]) => { events.push(event); } };
 

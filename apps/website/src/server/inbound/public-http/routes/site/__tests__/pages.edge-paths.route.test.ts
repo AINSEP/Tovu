@@ -88,7 +88,7 @@ async function withQuietConsole<T>(fn: () => Promise<T>): Promise<T> {
 /** A post repo whose slug lookup fails for one slug the way a broken database would. */
 class FailingSlugPostRepo extends InMemoryPostRepo {
   constructor(rows: PostRecord[], private readonly failingSlug: string, readonly failure: Error) {
-    super(rows);
+    super({}, { initialRows: rows });
   }
 
   override async findBySlug(required: { workspaceId: string; slug: string }): Promise<PostRecord | null> {
@@ -142,7 +142,7 @@ test("docs pager: a neighbour page's authored cssClass is kept beside the docs-p
 // --- html-format content markers ----------------------------------------------------------------
 
 function contentMarkerDeps(rows: PostRecord[]) {
-  return { ...createRouteDeps(), postRepo: new InMemoryPostRepo(rows) };
+  return { ...createRouteDeps(), postRepo: new InMemoryPostRepo({}, { initialRows: rows }) };
 }
 
 test("content marker: an html-format entity whose bodyHtml is null resolves exactly like an empty body", async () => {
@@ -270,13 +270,13 @@ async function lastJsonItem(t: TestContext, overrides: Partial<Deps>): Promise<R
 }
 
 test("see-more JSON: an html-format post's excerpt is the plain text of its HTML body", async (t) => {
-  const item = await lastJsonItem(t, { postRepo: new InMemoryPostRepo(thirteenPosts({ bodyFormat: "html", bodyHtml: "<p>Html <em>body</em> text</p>" })) });
+  const item = await lastJsonItem(t, { postRepo: new InMemoryPostRepo({}, { initialRows: thirteenPosts({ bodyFormat: "html", bodyHtml: "<p>Html <em>body</em> text</p>" }) }) });
 
   assert.equal(item.excerpt, "Html body text");
 });
 
 test("see-more JSON: a post with no body text carries no excerpt field", async (t) => {
-  const item = await lastJsonItem(t, { postRepo: new InMemoryPostRepo(thirteenPosts({})) });
+  const item = await lastJsonItem(t, { postRepo: new InMemoryPostRepo({}, { initialRows: thirteenPosts({}) }) });
 
   assert.deepEqual(Object.keys(item).sort(), ["cover", "date", "dateLabel", "href", "terms", "title"]);
 });
@@ -285,7 +285,7 @@ test("see-more JSON: a post's assigned terms are listed by name", async (t) => {
   const terms: readonly AssignedTermView[] = [{ termId: "term-1", termName: "Recipes", taxonomyName: "category" }];
   const entryTermReadRepo: EntryTermReadPort = { listForContent: async () => terms };
 
-  const item = await lastJsonItem(t, { postRepo: new InMemoryPostRepo(thirteenPosts({})), entryTermReadRepo });
+  const item = await lastJsonItem(t, { postRepo: new InMemoryPostRepo({}, { initialRows: thirteenPosts({}) }), entryTermReadRepo });
 
   assert.deepEqual(item.terms, ["Recipes"]);
 });
@@ -306,8 +306,8 @@ test("GET /: a members-only page claiming / is not shown to an anonymous visitor
     id: "gated-home", slug: ROOT_SLUG, kind: "page", bodyFormat: "html", bodyHtml: "<p>Members-only home body</p>",
     memberAccessJson: JSON.stringify({ visibility: "members" }),
   });
-  const gatedUrl = await boot(t, { postRepo: new InMemoryPostRepo([gatedHome]) });
-  const defaultUrl = await boot(t, { postRepo: new InMemoryPostRepo([]) });
+  const gatedUrl = await boot(t, { postRepo: new InMemoryPostRepo({}, { initialRows: [gatedHome] }) });
+  const defaultUrl = await boot(t, { postRepo: new InMemoryPostRepo({}, { initialRows: [] }) });
 
   const gated = await fetch(`${gatedUrl}/`);
   const gatedHtml = await gated.text();
@@ -330,7 +330,7 @@ function homePosts(): PostRecord[] {
 
 function unstyledSite(): Partial<Deps> {
   return {
-    postRepo: new InMemoryPostRepo(homePosts()),
+    postRepo: new InMemoryPostRepo({}, { initialRows: homePosts() }),
     presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: WORKSPACE_ID, activeThemeId: NO_THEME_ID, updatedAt: NOW }] }),
   };
 }

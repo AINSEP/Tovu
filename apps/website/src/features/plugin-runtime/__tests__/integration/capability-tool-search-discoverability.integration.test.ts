@@ -47,7 +47,7 @@ async function buildCatalogDescriptors(withRegistration: boolean, suppliedSource
     const registrations = buildPluginCapabilityToolRegistrations({ sources: sources, deps: {
       authorize: async () => ({ allowed: true }) as never,
       workspaceId: WORKSPACE,
-      postRead: requiredPostReader({ repo: new InMemoryPostRepo() }),
+      postRead: requiredPostReader({ repo: new InMemoryPostRepo({}) }),
       pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [enabledActivation()] }),
     }, withExtensionApprovalPolicy });
     for (const registration of registrations) registry.register(registration);

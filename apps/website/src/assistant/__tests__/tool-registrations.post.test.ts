@@ -55,7 +55,7 @@ const NOW = "2026-07-30T00:00:00.000Z";
 
 function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const allow = options.allow ?? true;
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const changeSets = new InMemoryChangeSetRepo();
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();

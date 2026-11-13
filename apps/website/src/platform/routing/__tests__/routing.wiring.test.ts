@@ -22,7 +22,7 @@ test('Tovu binds its existing publication, scheduling and Trash policy to Jini r
   ];
   for (const { post, expected } of cases) {
     assert.deepEqual(entryPublicPath({ post, ctx }), expected);
-    const repo = new InMemoryPostRepo([post]);
+    const repo = new InMemoryPostRepo({}, { initialRows: [post] });
     assert.deepEqual(await urlFor({ deps: { postRepo: repo }, target: { kind: 'entryRef', entryId: post.id }, ctx }), expected);
     assert.equal(await urlFor({ deps: { postRepo: repo }, target: { kind: 'entryRef', entryId: post.id }, ctx: { workspaceId: 'other' } }), null);
   }

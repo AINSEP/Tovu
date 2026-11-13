@@ -2527,7 +2527,7 @@ function toListingJsonItem(
   { post, preview, terms }: { post: PostRecord; preview: StaticPostPreview; terms: readonly AssignedTermView[] },
   _optional: Record<string, never> = {}
 ): ListingJsonItem {
-  const excerpt = deriveExcerpt({ post, postRepo: { extractPlainText: ({ html }) => extractPlainTextFromHtml(html) } });
+  const excerpt = deriveExcerpt({ post, postRepo: { extractPlainText: ({ html }) => extractPlainTextFromHtml({ html }) } });
   const author = postAuthorForDisplay({ post });
   return {
     title: preview.title,

@@ -46,7 +46,7 @@ export const contentStatsDerivedRisk: DerivedRiskByToolId = new Map<string, Agen
 ]);
 
 /** Counts each status without interpreting it. O(records) time, O(statuses) space. */
-function countStatuses(rows: ReadonlyArray<{ status: string }>): Record<string, number> {
+function countStatuses({ rows }: { rows: ReadonlyArray<{ status: string }> }, _optional: Record<string, never> = {}): Record<string, number> {
   const counts = new Map<string, number>();
   for (const row of rows) counts.set(row.status, (counts.get(row.status) ?? 0) + 1);
   return Object.fromEntries(counts);
@@ -55,11 +55,11 @@ function countStatuses(rows: ReadonlyArray<{ status: string }>): Record<string, 
 /** Uses exactly the HTML/TipTap extractors used for content_post_list's excerpt/bodyChars.
  * @complexity O(body text + n log n) time and O(n + body text) space for n posts.
  */
-function summarizePosts(rows: PostRecord[], includeWordCounts: boolean, longest: number) {
-  const counts = { total: rows.length, byStatus: countStatuses(rows) };
+function summarizePosts({ rows, includeWordCounts, longest }: { rows: PostRecord[]; includeWordCounts: boolean; longest: number }, _optional: Record<string, never> = {}) {
+  const counts = { total: rows.length, byStatus: countStatuses({ rows }) };
   if (!includeWordCounts) return counts;
   const lengths = rows.map(post => {
-    const text = (post.bodyFormat === "html" ? extractPlainTextFromHtml(post.bodyHtml ?? "") : extractPostPlainText(post.bodyJson)).trim();
+    const text = (post.bodyFormat === "html" ? extractPlainTextFromHtml({ html: post.bodyHtml ?? "" }) : extractPostPlainText({ bodyJson: post.bodyJson })).trim();
     return { id: post.id, title: post.title, slug: post.slug, words: text === "" ? 0 : text.split(/\s+/u).length };
   });
   const total = lengths.reduce((sum, row) => sum + row.words, 0);
@@ -68,7 +68,7 @@ function summarizePosts(rows: PostRecord[], includeWordCounts: boolean, longest:
 }
 
 /** Checks an optional section's permission before any of its reads. */
-async function canRead(deps: ContentStatsToolDeps, principalId: string, permission: string, entityType: string): Promise<boolean> {
+async function canRead({ deps, principalId, permission, entityType }: { deps: ContentStatsToolDeps; principalId: string; permission: string; entityType: string }, _optional: Record<string, never> = {}): Promise<boolean> {
   return (await deps.authorize({ principalId, permission, workspaceId: deps.workspaceId, entityType })).allowed;
 }
 
@@ -78,7 +78,7 @@ async function canRead(deps: ContentStatsToolDeps, principalId: string, permissi
  * @complexity O(assets + missing blob bytes) time, O(assets + largest missing blob) space;
  * two bulk metadata reads at most, with sequential byte reads only for unrecorded legacy types.
  */
-async function readMediaTypes(deps: ContentStatsToolDeps, assets: ReadonlyArray<{ source: { sha256: string } }>): Promise<Map<string, string>> {
+async function readMediaTypes({ deps, assets }: { deps: ContentStatsToolDeps; assets: ReadonlyArray<{ source: { sha256: string } }> }, _optional: Record<string, never> = {}): Promise<Map<string, string>> {
   const scope = { workspaceId: deps.workspaceId };
   const sha256s = [...new Set(assets.map(asset => asset.source.sha256))];
   const types = new Map(await deps.mediaContentTypeStore.getMany({ ...scope, sha256s }));
@@ -118,7 +118,7 @@ async function summarizeEntries(deps: ContentStatsToolDeps, scope: { workspaceId
   }
   return types.sort((a, b) => a.key.localeCompare(b.key)).map(type => {
     const rows = grouped.get(type.key) ?? [];
-    return { contentType: type.key, total: rows.length, byStatus: countStatuses(rows) };
+    return { contentType: type.key, total: rows.length, byStatus: countStatuses({ rows }) };
   });
 }
 
@@ -128,7 +128,7 @@ async function summarizeEntries(deps: ContentStatsToolDeps, scope: { workspaceId
  */
 async function summarizeMedia(deps: ContentStatsToolDeps, scope: { workspaceId: string }) {
   const assets = (await deps.mediaRepo.list(scope)).filter(asset => asset.status === "active");
-  const types = await readMediaTypes(deps, assets);
+  const types = await readMediaTypes({ deps, assets });
   const media = { total: assets.length, images: 0, videos: 0, other: 0 };
   for (const asset of assets) {
     const mime = types.get(asset.source.sha256)!;
@@ -152,13 +152,13 @@ export function buildContentStatsRegistrations(deps: ContentStatsToolDeps): Tool
       const scope = { workspaceId: deps.workspaceId };
       const posts = (await deps.postRepo.list(scope)).filter(post => !post.deletedAt);
       const result: Record<string, unknown> = {
-        posts: summarizePosts(posts.filter(post => post.kind === "post"), includeWordCounts, longest),
-        pages: summarizePosts(posts.filter(post => post.kind === "page"), includeWordCounts, longest),
+        posts: summarizePosts({ rows: posts.filter(post => post.kind === "post"), includeWordCounts, longest }),
+        pages: summarizePosts({ rows: posts.filter(post => post.kind === "page"), includeWordCounts, longest }),
       };
       const omitted: string[] = [];
-      if (await canRead(deps, ctx.principal.id, "admin.collections.read", "entry")) result.entries = await summarizeEntries(deps, scope);
+      if (await canRead({ deps, principalId: ctx.principal.id, permission: "admin.collections.read", entityType: "entry" })) result.entries = await summarizeEntries(deps, scope);
       else omitted.push("entries");
-      if (await canRead(deps, ctx.principal.id, "media.read", "media")) result.media = await summarizeMedia(deps, scope);
+      if (await canRead({ deps, principalId: ctx.principal.id, permission: "media.read", entityType: "media" })) result.media = await summarizeMedia(deps, scope);
       else omitted.push("media");
       if (omitted.length) result.omitted = omitted;
       return result;

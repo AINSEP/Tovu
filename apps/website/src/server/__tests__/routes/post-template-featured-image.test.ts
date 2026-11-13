@@ -88,7 +88,7 @@ function staticTheme(): DiscoveredTheme {
 function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   // The demo /blog page wins over the test theme; this fixture owns only its seeded posts.
-  deps.postRepo = new InMemoryPostRepo();
+  deps.postRepo = new InMemoryPostRepo({});
   deps.themes = [staticTheme()];
   const app = express();
   registerSiteRoutes(app, deps);

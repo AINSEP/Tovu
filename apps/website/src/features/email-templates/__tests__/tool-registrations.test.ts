@@ -11,7 +11,7 @@ const WS = "ws-1";
 const HTML = '<html><head><meta name="email-fields" content="name=Ada"><title>Hi {{name}}</title></head><body><p>Hello {{name}}</p></body></html>';
 
 function harness(granted: ReadonlySet<string>) {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-10-22T00:00:00.000Z") };
   const asked: string[] = [];
   let n = 0;

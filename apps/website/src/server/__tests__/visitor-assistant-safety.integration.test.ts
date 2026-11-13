@@ -87,10 +87,10 @@ for (const categoryNames of [[], ["Travel", "News"]]) {
       await f.deps.termRepo.insert({ ...common, id: `category-${name}`, name, taxonomyId: "topics", parentId: null });
     }
     await f.deps.termRepo.insert({ ...common, id: "tag", name: "Tag only", taxonomyId: "labels", parentId: null });
-    f.deps.postRepo = new InMemoryPostRepo([
+    f.deps.postRepo = new InMemoryPostRepo({}, { initialRows: [
       buildPostRecord({ id: "post", workspaceId: f.deps.workspaceId, slug: "post", status: "published", kind: "post" }),
       buildPostRecord({ id: "page", workspaceId: f.deps.workspaceId, slug: "page", status: "published", kind: "page" }),
-    ]);
+    ] });
     const response = await post({ baseUrl: f.baseUrl, message: "What categories does this site have?" });
     assert.equal(response.status, 200);
     await response.text();
@@ -185,12 +185,12 @@ test("visitorsafe: real route tools never give a provider gated titles, body tex
       { functionCall: { name: "list_categories", args: {}, id: "categories" } },
     ] : [{ text: "Public content only" }] });
   } });
-  f.deps.postRepo = new InMemoryPostRepo([
+  f.deps.postRepo = new InMemoryPostRepo({}, { initialRows: [
     buildPostRecord({ id: "secret-id", workspaceId: f.deps.workspaceId, slug: "secret", title: "Members Private Title",
       status: "published", kind: "page", memberAccessJson: '{"visibility":"members"}', bodyJson: { text: "Members Private Body" } }),
     buildPostRecord({ id: "public-id", workspaceId: f.deps.workspaceId, slug: "open", title: "Public Control",
       status: "published", kind: "post" }),
-  ]);
+  ] });
   const response = await post({ baseUrl: f.baseUrl, message: "take me to secret" });
   const wire = await response.text();
   assert.equal(response.status, 200);

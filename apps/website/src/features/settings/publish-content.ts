@@ -92,7 +92,7 @@ async function publishableDefinition(ports: Ports, workspaceId: string, id: stri
 
 /** The workspace row, set or cleared; `null` when the key was never written here.
  *  @complexity two indexed reads. */
-async function findSetting(ports: Ports, workspaceId: string, id: string): Promise<SiteSettingRow | null> {
+async function findSetting({ ports, workspaceId, id }: { ports: Ports; workspaceId: string; id: string }, _optional: Record<string, never> = {}): Promise<SiteSettingRow | null> {
   const definition = await publishableDefinition(ports, workspaceId, id);
   if (!definition) return null;
   const row = await ports.settings.getWorkspaceValue({ workspaceId, settingId: definition.settingId });
@@ -114,8 +114,8 @@ export const contributeSiteSettingPublish = (): PublishContentContributor =>
     // The share image may name a media item.
     dependsOn: ["media"],
     ports: (deps) => deps.ports["site-setting"],
-    list: async (p, workspaceId) => {
-      const rows = await Promise.all(Object.keys(PUBLISHABLE_SETTINGS).map((id) => findSetting(p, workspaceId, id)));
+    list: async ({ ports: p, workspaceId }) => {
+      const rows = await Promise.all(Object.keys(PUBLISHABLE_SETTINGS).map((id) => findSetting({ ports: p, workspaceId, id })));
       return rows.filter((row): row is SiteSettingRow => row !== null);
     },
     find: findSetting,

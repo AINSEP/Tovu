@@ -11,7 +11,7 @@ const clock = { nowMs: () => Date.parse("2026-10-24T00:00:00.000Z") };
 
 test("T1: invalid known props reject seed/save with a typed editor error and preserve content/version", async () => {
   const { runtime } = harness();
-  const repo = new InMemoryPostRepo();
+  const repo = new InMemoryPostRepo({});
   await createPost({ deps: { repo, clock }, input: { workspaceId, id: "page", title: "Page", kind: "page" } });
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId, postId: "page" }, { repo, clock, validatePluginEmbeds: runtime.validateHtml });
   const invalid = embedMarkerSnippetFromConfig({ config: { ...config, props: { label: 42 } } });
@@ -59,7 +59,7 @@ test("T1: a mixed batch cannot hide invalid props behind an earlier valid occurr
 });
 
 test("T1: asynchronous validation cannot recapture a newer write's concurrency basis", async () => {
-  const repo = new InMemoryPostRepo();
+  const repo = new InMemoryPostRepo({});
   await createPost({ deps: { repo, clock }, input: { workspaceId, id: "page", title: "Page", kind: "page" } });
   let release!: () => void;
   const secondGate = new Promise<void>(resolve => { release = resolve; });

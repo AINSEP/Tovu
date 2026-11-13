@@ -211,7 +211,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),
     reconcileGrantsOnBoot: false, readOnlyOwnerPrincipalId: ownerId }, { apiKeyRepo: unavailable({ field: 'apiKeyRepo' }) });
   await identity.identityReady;
-  const postRepo = new SqlitePostRepo(kernel), settingsRepo = new SqliteSettingsRepo(kernel);
+  const postRepo = new SqlitePostRepo({ store: kernel }), settingsRepo = new SqliteSettingsRepo(kernel);
   const presentationRepo = new SqlitePresentationSettingsRepo(kernel);
   const entryRefsRepo = new SqliteEntryRefsRepo(kernel), mediaRepo = new SqliteMediaRepo(kernel);
   const mediaContentTypeStore = new SqliteMediaContentTypeStore(kernel);

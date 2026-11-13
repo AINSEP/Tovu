@@ -187,7 +187,7 @@ function makeHarness(
   registerPublishContentContributor(contributePostPublish());
   registerTermTypes(); // post dependsOn term (termIds, plan §3.7)
 
-  const postRepo = new InMemoryPostRepo(rows);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: rows });
   const clock = makeClock();
   const outbox = new InMemoryOutbox();
   const changeSets = new InMemoryChangeSetRepo([], [], outbox);
@@ -1000,7 +1000,7 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
   registerTermTypes(); // post dependsOn term (termIds, plan §3.7)
   registerPublishContentContributor(contributeMediaPublish());
 
-  const postRepo = new InMemoryPostRepo([]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   const mediaRepo = new InMemoryVersionedMediaRepo();
   const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const blobStore = new InMemoryBlobStore();
@@ -1222,7 +1222,7 @@ test("a write refused permission blocks that ONE row with the refusal as its rea
   registerTermTypes();
   registerPublishContentContributor(contributeMediaPublish());
 
-  const postRepo = new InMemoryPostRepo([]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   const mediaRepo = new InMemoryVersionedMediaRepo();
   const blobStore = new InMemoryBlobStore();
   const clock = makeClock();
@@ -1409,7 +1409,7 @@ function makeMenuHarness(rows: PostRecord[] = [], options: { menuRepo?: MenuRepo
   registerPublishContentContributor(contributePagePublish()); // menu's own MENU_DEPENDS_ON names it
   registerPublishContentContributor(contributeMenusPublish());
 
-  const postRepo = new InMemoryPostRepo(rows);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: rows });
   const clock = makeClock();
   const outbox = new InMemoryOutbox();
   const changeSets = new InMemoryChangeSetRepo([], [], outbox);

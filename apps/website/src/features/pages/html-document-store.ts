@@ -283,7 +283,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    * @complexity O(1) besides `fn`.
    */
   private inTransaction<T>(fn: () => Promise<T>): Promise<T> {
-    return this.deps.revisions ? this.deps.revisions.transaction(fn) : this.deps.kernel.transaction(fn);
+    return this.deps.revisions ? this.deps.revisions.transaction({ fn }) : this.deps.kernel.transaction(fn);
   }
 
   /**

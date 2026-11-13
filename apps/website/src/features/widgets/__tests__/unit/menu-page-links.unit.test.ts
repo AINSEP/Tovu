@@ -13,7 +13,7 @@ import type { JsonValue } from "@jini-ai/core/primitives";
 
 test("public dynamic menu widgets resolve renamed pages and omit unpublished page leaves", async () => {
   const page = { ...seededPosts[0]!, id: "about", workspaceId: "ws", kind: "page" as const, slug: "our-story", status: "published" as const, deletedAt: null };
-  const posts = new InMemoryPostRepo([page]);
+  const posts = new InMemoryPostRepo({}, { initialRows: [page] });
   const menuRepo = new InMemoryMenuRepo({});
   await menuRepo.save({ id: "footer", workspaceId: "ws", slug: "footer-nav", title: "Footer", status: "published", locations: [], updatedAt: "2026-10-04", version: 1,
     doc: { type: "menu", version: 1, items: [{ id: "about", label: "About", target: { kind: "entryRef", entryId: "about" } }] },

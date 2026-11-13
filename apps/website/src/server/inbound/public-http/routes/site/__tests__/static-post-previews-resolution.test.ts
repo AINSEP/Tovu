@@ -139,8 +139,8 @@ class CountingPostRepo implements PostRepoPort {
   listRevisions(required: Parameters<PostRepoPort["listRevisions"]>[0]) {
     return this.inner.listRevisions(required);
   }
-  transaction<T>(fn: () => Promise<T>) {
-    return this.inner.transaction(fn);
+  transaction<T>({ fn }: { fn: () => Promise<T> }, _optional: Record<string, never> = {}) {
+    return this.inner.transaction({ fn });
   }
 }
 
@@ -169,7 +169,7 @@ test("GET /blog: the post-previews marker renders real published posts, replacin
     publishedPost({ id: "post-a", slug: "post-a", title: "Post A", updatedAt: "2026-09-01T00:00:00.000Z" }),
     publishedPost({ id: "post-b", slug: "post-b", title: "Post B", updatedAt: "2026-08-01T00:00:00.000Z" }),
   ];
-  const { server, baseUrl } = await startServer({ themes: [themeWithPostPreviewsMarker()], postRepo: new InMemoryPostRepo(posts) });
+  const { server, baseUrl } = await startServer({ themes: [themeWithPostPreviewsMarker()], postRepo: new InMemoryPostRepo({}, { initialRows: posts }) });
   t.after(() => closeServer(server));
 
   const res = await fetch(`${baseUrl}/blog`);
@@ -186,7 +186,7 @@ test("GET /blog: a draft post never appears in the marker's output", async (t) =
     publishedPost({ id: "published", slug: "published", title: "Published Title" }),
     publishedPost({ id: "draft", slug: "draft", title: "Draft Title", status: "draft" }),
   ];
-  const { server, baseUrl } = await startServer({ themes: [themeWithPostPreviewsMarker()], postRepo: new InMemoryPostRepo(posts) });
+  const { server, baseUrl } = await startServer({ themes: [themeWithPostPreviewsMarker()], postRepo: new InMemoryPostRepo({}, { initialRows: posts }) });
   t.after(() => closeServer(server));
 
   const res = await fetch(`${baseUrl}/blog`);
@@ -203,7 +203,7 @@ test("GET /blog: a members-only post is excluded from an anonymous visitor's pre
     memberAccessJson: JSON.stringify({ visibility: "members" }),
   });
   const publicPost = publishedPost({ id: "public", slug: "public-post", title: "Public Preview Post" });
-  const { server, baseUrl } = await startServer({ themes: [themeWithPostPreviewsMarker()], postRepo: new InMemoryPostRepo([gated, publicPost]) });
+  const { server, baseUrl } = await startServer({ themes: [themeWithPostPreviewsMarker()], postRepo: new InMemoryPostRepo({}, { initialRows: [gated, publicPost] }) });
   t.after(() => closeServer(server));
 
   const anonRes = await fetch(`${baseUrl}/blog`);
@@ -213,7 +213,7 @@ test("GET /blog: a members-only post is excluded from an anonymous visitor's pre
 
   const { server: memberServer, baseUrl: memberBaseUrl } = await startServer({
     themes: [themeWithPostPreviewsMarker()],
-    postRepo: new InMemoryPostRepo([gated, publicPost]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [gated, publicPost] }),
     memberSessionRepo: new InMemoryMemberSessionRepo([activeMemberSession()]),
   });
   t.after(() => closeServer(memberServer));
@@ -228,7 +228,7 @@ test("GET /blog: the marker's own limit bounds how many posts render", async (t)
   );
   const { server, baseUrl } = await startServer({
     themes: [themeWithPostPreviewsMarker('{"type":"post-previews","limit":2}')],
-    postRepo: new InMemoryPostRepo(posts),
+    postRepo: new InMemoryPostRepo({}, { initialRows: posts }),
   });
   t.after(() => closeServer(server));
 
@@ -242,7 +242,7 @@ test("GET /blog: the marker's own limit bounds how many posts render", async (t)
 
 test("GET /blog: malformed, oversized and distinct marker limits stay bounded independently", async (t) => {
   const posts = Array.from({ length: 30 }, (_, i) => publishedPost({ id: `bounded-${i}`, slug: `bounded-${i}`, title: `Bounded Post ${i}`, updatedAt: new Date(Date.UTC(2026, 0, i + 1)).toISOString() }));
-  const repo = new CountingPostRepo(new InMemoryPostRepo(posts));
+  const repo = new CountingPostRepo(new InMemoryPostRepo({}, { initialRows: posts }));
   const theme = themeWithPostPreviewsMarker();
   theme.pages.blog = '<html><body><section id="small" data-embed-config=\'{"type":"post-previews","limit":2}\'>small fallback</section><section id="invalid" data-embed-config=\'{"type":"post-previews","limit":"bad"}\'>invalid fallback</section><section id="large" data-embed-config=\'{"type":"post-previews","limit":999999}\'>large fallback</section></body></html>';
   const { server, baseUrl } = await startServer({ themes: [theme], postRepo: repo });
@@ -261,9 +261,9 @@ test("GET /blog: malformed, oversized and distinct marker limits stay bounded in
 });
 
 test("GET /blog: zero visible previews preserve the authored fallback", async (t) => {
-  const repo = new CountingPostRepo(new InMemoryPostRepo([
+  const repo = new CountingPostRepo(new InMemoryPostRepo({}, { initialRows: [
     publishedPost({ memberAccessJson: JSON.stringify({ visibility: "members" }) }),
-  ]));
+  ] }));
   const { server, baseUrl } = await startServer({ themes: [themeWithPostPreviewsMarker()], postRepo: repo });
   t.after(() => closeServer(server));
   const res = await fetch(`${baseUrl}/blog`);
@@ -275,7 +275,7 @@ test("GET /blog: zero visible previews preserve the authored fallback", async (t
 });
 
 test("GET /about: a page WITHOUT the post-previews marker triggers NO bounded query and renders unaffected", async (t) => {
-  const countingRepo = new CountingPostRepo(new InMemoryPostRepo([publishedPost()]));
+  const countingRepo = new CountingPostRepo(new InMemoryPostRepo({}, { initialRows: [publishedPost()] }));
   const { server, baseUrl } = await startServer({ themes: [themeWithPostPreviewsMarker()], postRepo: countingRepo });
   t.after(() => closeServer(server));
 
@@ -294,7 +294,7 @@ test("GET /blog: a Page claiming the reserved '/' root slug never appears in the
     kind: "page",
   });
   const realPost = publishedPost({ id: "real-post", slug: "real-post", title: "Real Post Title" });
-  const { server, baseUrl } = await startServer({ themes: [themeWithPostPreviewsMarker()], postRepo: new InMemoryPostRepo([rootPage, realPost]) });
+  const { server, baseUrl } = await startServer({ themes: [themeWithPostPreviewsMarker()], postRepo: new InMemoryPostRepo({}, { initialRows: [rootPage, realPost] }) });
   t.after(() => closeServer(server));
 
   const res = await fetch(`${baseUrl}/blog`);
@@ -307,7 +307,7 @@ test("GET /blog: a preview card dates a post by its publishAt (go-live time), no
   const posts = [
     publishedPost({ id: "went-live", slug: "went-live", title: "Went Live", publishAt: "2026-07-04T12:00:00.000Z", updatedAt: "2026-09-01T12:00:00.000Z" }),
   ];
-  const { server, baseUrl } = await startServer({ themes: [themeWithPostPreviewsMarker()], postRepo: new InMemoryPostRepo(posts) });
+  const { server, baseUrl } = await startServer({ themes: [themeWithPostPreviewsMarker()], postRepo: new InMemoryPostRepo({}, { initialRows: posts }) });
   t.after(() => closeServer(server));
 
   const html = await (await fetch(`${baseUrl}/blog`)).text();
@@ -321,7 +321,7 @@ test("GET /blog: a see-more listing pages 12 at a time through /blog/_more/<key>
   posts.push(publishedPost({ id: "gated", slug: "gated", title: "Gated", publishAt: "2026-03-01T00:00:00.000Z", memberAccessJson: JSON.stringify({ visibility: "members" }) }));
   const theme = themeWithPostPreviewsMarker();
   theme.pages.blog = `<html><body><div class="grid" data-jini-see-more data-embed-config='{"type":"post-previews","limit":12}'>fallback card</div></body></html>`;
-  const { server, baseUrl } = await startServer({ themes: [theme], postRepo: new InMemoryPostRepo(posts) });
+  const { server, baseUrl } = await startServer({ themes: [theme], postRepo: new InMemoryPostRepo({}, { initialRows: posts }) });
   t.after(() => closeServer(server));
   const slugsIn = (html: string) => [...html.matchAll(/href="\/(more-\d+|gated)"/g)].map((m) => m[1]);
   const range = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => `more-${from + i}`);
@@ -358,7 +358,7 @@ test("GET /blog: a listing with a <template data-jini-card> pages as JSON throug
   const card = '<template data-jini-card><article class="post-card"><h3><a data-field="title" data-field-href="href"></a></h3></article></template>';
   const theme = themeWithPostPreviewsMarker();
   theme.pages.blog = `<html><body><div class="grid" data-jini-see-more data-embed-config='{"type":"post-previews","limit":12}'>${card}fallback card</div></body></html>`;
-  const { server, baseUrl } = await startServer({ themes: [theme], postRepo: new InMemoryPostRepo(posts) });
+  const { server, baseUrl } = await startServer({ themes: [theme], postRepo: new InMemoryPostRepo({}, { initialRows: posts }) });
   t.after(() => closeServer(server));
 
   const page = await (await fetch(`${baseUrl}/blog`)).text();

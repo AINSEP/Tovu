@@ -112,9 +112,9 @@ export const contributeWidgetPublish = (): PublishContentContributor =>
     alsoAuthorizes: ["widgets.create"],
     dependsOn: ["form"],
     ports: (deps) => deps.ports.widget,
-    list: async (p, workspaceId) =>
+    list: async ({ ports: p, workspaceId }) =>
       Promise.all((await p.entries.listByWorkspace({ workspaceId }, { type: WIDGET_CONTENT_TYPE })).map((entry) => portableRow(p, workspaceId, toWidgetRow(entry)))),
-    find: async (p, workspaceId, id) => {
+    find: async ({ ports: p, workspaceId, id }) => {
       const row = await p.entries.findAnyById({ workspaceId, id });
       return row && row.type === WIDGET_CONTENT_TYPE ? portableRow(p, workspaceId, toWidgetRow(row)) : null;
     },
@@ -187,7 +187,7 @@ interface WidgetAreaRow {
 }
 
 /** One row per region; a region on two area entries resolves last-wins, as the binding rebuild does. */
-async function listAreas(p: WidgetPublishPorts, workspaceId: string): Promise<WidgetAreaRow[]> {
+async function listAreas({ ports: p, workspaceId }: { ports: WidgetPublishPorts; workspaceId: string }, _optional: Record<string, never> = {}): Promise<WidgetAreaRow[]> {
   const byRegion = new Map<string, WidgetAreaRow>();
   for (const entry of await p.entries.listByWorkspace({ workspaceId }, { type: WIDGET_AREA_CONTENT_TYPE })) {
     const { regionKey, doc } = parseWidgetAreaPayload({ fieldsJson: entry.fieldsJson });
@@ -204,7 +204,7 @@ export const contributeWidgetAreaPublish = (): PublishContentContributor =>
     dependsOn: ["widget"],
     ports: (deps) => deps.ports["widget-area"],
     list: listAreas,
-    find: async (p, workspaceId, regionKey) => (await listAreas(p, workspaceId)).find((row) => row.regionKey === regionKey) ?? null,
+    find: async ({ ports: p, workspaceId, id: regionKey }) => (await listAreas({ ports: p, workspaceId })).find((row) => row.regionKey === regionKey) ?? null,
     idOf: (row) => row.regionKey,
     fields: {
       regionKey: "transferred",

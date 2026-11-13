@@ -45,7 +45,7 @@ test('page and post body rendering retains every leading stylesheet byte', async
 test('static content splicing retains the leading stylesheet in saved and pending HTML bodies', async () => {
   const post = buildPostRecord({ workspaceId, kind: 'page', bodyFormat: 'html', bodyHtml: body });
   const deps: ContentMarkerResolutionDeps = {
-    workspaceId, postRepo: new InMemoryPostRepo([post]),
+    workspaceId, postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
     entryRepo: new TrashAwareInMemoryEntryRepo(), mediaRepo: new InMemoryVersionedMediaRepo(),
     mediaContentTypeStore: new InMemoryMediaContentTypeStore(),
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),

@@ -17,7 +17,7 @@ import type { BatchResult } from "../batch-tool-inputs.js";
 async function harness({ resolveTargets = false } = {}) {
   const workspaceId = "page-batch", principalId = "page-reader";
   const clock = { nowMs: () => Date.parse("2026-10-17T00:00:00.000Z") };
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const pagesHtmlStore = (scope: { workspaceId: string; postId: string; actorId?: string }) =>
     new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
   for (const id of ["first", "second", "third", "home"]) {

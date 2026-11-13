@@ -36,7 +36,7 @@ const BODY_B = { type: "doc", content: [{ type: "paragraph", content: [{ type: "
 
 function fakeRouteDeps() {
   let counter = 0;
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const deps = {
     workspaceId: WORKSPACE_ID,
     clock: { nowMs: () => Date.parse(NOW) },
