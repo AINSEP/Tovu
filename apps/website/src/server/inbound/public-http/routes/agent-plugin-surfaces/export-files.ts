@@ -4,6 +4,7 @@ import type { Clock } from "@jini-ai/core/primitives";
 import { ADMIN_SURFACE_FILES_PER_IP, createRateLimiter, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { TovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { createPluginExportSource, PLUGIN_EXPORT_FILES_PREFIX, type PluginExportSource } from "#src/features/agent-plugins/exports/source";
+import type { AgentPluginExport } from "@jini-ai/agent-plugins/manifest";
 
 interface ExportFilesDeps {
   readonly workspaceId: string;
@@ -29,15 +30,24 @@ async function resolveFile(required: { source: PluginExportSource; workspaceId: 
   const owner = owners[0]!;
   const entry = Object.entries(owner.exports).find(([name]) => name === required.component)?.[1];
   if (!entry) return undefined;
+  const type = servedFileType({ entry, path: required.path });
+  if (!type) return undefined;
+  const body = await required.source.readAsset({ plugin: owner.plugin, filename: required.path });
+  return { body, type };
+}
+
+/** The content type for a path this export declares as a servable package file; undefined refuses it.
+ * @complexity O(e + a) over the export's declared scripts and assets.
+ */
+function servedFileType({ entry, path }: { entry: AgentPluginExport; path: string }, _options = {}): string | undefined {
   // A remote script is declared by URL and loaded from its own host; only package files are served here.
   const scripts = (entry.scripts ?? []).filter(script => !script.startsWith("https://"));
   const declared = [entry.styles, ...Object.values(entry.assets ?? {}), ...scripts];
-  const type = EXPORT_FILE_TYPES[required.path.slice(required.path.lastIndexOf(".")).toLowerCase()];
+  const type = EXPORT_FILE_TYPES[path.slice(path.lastIndexOf(".")).toLowerCase()];
   // An unknown extension (e.g. a declared .html) is refused, never served under an image type.
   // JavaScript is served only from `scripts`; a .js path declared under assets is still refused.
-  if (!type || !declared.includes(required.path) || (type.startsWith("text/javascript") && !scripts.includes(required.path))) return undefined;
-  const body = await required.source.readAsset({ plugin: owner.plugin, filename: required.path });
-  return { body, type };
+  if (!type || !declared.includes(path) || (type.startsWith("text/javascript") && !scripts.includes(path))) return undefined;
+  return type;
 }
 
 /** Rate-limit before catalog I/O. SVG is an inert image even when navigated to directly.
