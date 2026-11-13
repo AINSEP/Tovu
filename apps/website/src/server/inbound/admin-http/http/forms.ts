@@ -1,4 +1,6 @@
 import type { Response } from "express";
+import { ToolInputError } from "@jini-ai/core";
+import { RecordVersionConflictError, versionConflictBody } from "@jini-ai/core/optimistic-concurrency";
 
 import {
   FormDefinitionNotFoundError,
@@ -40,6 +42,7 @@ export interface AdminFormDefinitionDto {
   status: string;
   createdAt: string;
   updatedAt: string;
+  version: number;
 }
 
 export interface AdminFormSubmissionDto {
@@ -69,6 +72,7 @@ export function toAdminFormDefinitionDto(definition: FormDefinitionRecord): Admi
     status: definition.status,
     createdAt: definition.createdAt,
     updatedAt: definition.updatedAt,
+    version: definition.version,
   };
 }
 
@@ -113,6 +117,14 @@ export function toAdminFormSubmissionListResponse(page: {
  * (caller falls through to its own generic 500).
  */
 export function mapFormsWriteError(err: unknown, res: Response): boolean {
+  if (err instanceof ToolInputError) {
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return true;
+  }
+  if (err instanceof RecordVersionConflictError) {
+    res.status(409).json(versionConflictBody({ error: err }));
+    return true;
+  }
   if (err instanceof CommandForbiddenError) {
     res.status(403).json({
       error: err.message,

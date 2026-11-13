@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
 import { sql } from "kysely";
+import { encodeListCursor } from "@jini-ai/core/list-page";
 
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
@@ -141,7 +142,7 @@ describeEachDialect(
         const detail = await reopened.findById({ workspaceId: WS, id: first.id });
         assert.deepEqual(detail?.bodyJson, latest.bodyJson);
         assert.equal(detail?.counters.delivered, 1);
-        assert.equal((await reopened.list({ workspaceId: WS, limit: 1 }))[0]?.bodyJson, undefined);
+        assert.equal((await reopened.list({ workspaceId: WS }, { limit: 1 })).items[0]?.bodyJson, undefined);
         assert.equal(await reopened.findById({ workspaceId: OTHER, id: first.id }), null);
       });
       test("list queries never select revision bodies, and a corrupt latest body does not break detail", async (t) => {
@@ -215,10 +216,10 @@ describeEachDialect(
         const { campaigns } = makeRepos();
         for (const id of ["c3", "c1", "c2"]) await campaigns.saveCampaignRow(campaign(id));
         await campaigns.saveCampaignRow(campaign("x1", { workspaceId: OTHER }));
-        assert.deepEqual((await campaigns.list({ workspaceId: WS })).map((c) => c.id), ["c1", "c2", "c3"]);
-        assert.deepEqual((await campaigns.list({ workspaceId: WS, limit: 2 })).map((c) => c.id), ["c1", "c2"]);
-        assert.deepEqual((await campaigns.list({ workspaceId: WS, afterId: "c1", limit: 1 })).map((c) => c.id), ["c2"]);
-        assert.deepEqual(await campaigns.list({ workspaceId: "empty" }), []);
+        assert.deepEqual((await campaigns.list({ workspaceId: WS })).items.map((c) => c.id), ["c1", "c2", "c3"]);
+        assert.deepEqual((await campaigns.list({ workspaceId: WS }, { limit: 2 })).items.map((c) => c.id), ["c1", "c2"]);
+        assert.deepEqual((await campaigns.list({ workspaceId: WS }, { cursor: encodeListCursor({ position: ["c1"] }), limit: 1 })).items.map((c) => c.id), ["c2"]);
+        assert.deepEqual((await campaigns.list({ workspaceId: "empty" })).items, []);
       });
 
       test("revisions append in seq order, are scoped, and carry the JSON state", async () => {
@@ -363,10 +364,10 @@ describeEachDialect(
         for (const id of ["s3", "s1", "s2"]) await subscriptions.save(subscription(id));
         await subscriptions.save(subscription("s9", { listId: "list-2" }));
         await subscriptions.save(subscription("sx", { workspaceId: OTHER }));
-        assert.deepEqual((await subscriptions.list({ workspaceId: WS, listId: "list-1" })).map((s) => s.id), ["s1", "s2", "s3"]);
-        assert.deepEqual((await subscriptions.list({ workspaceId: WS, listId: "list-1", limit: 2 })).map((s) => s.id), ["s1", "s2"]);
-        assert.deepEqual((await subscriptions.list({ workspaceId: WS, listId: "list-1", afterId: "s1", limit: 1 })).map((s) => s.id), ["s2"]);
-        assert.deepEqual(await subscriptions.list({ workspaceId: OTHER, listId: "list-2" }), []);
+        assert.deepEqual((await subscriptions.list({ workspaceId: WS, listId: "list-1" })).items.map((s) => s.id), ["s1", "s2", "s3"]);
+        assert.deepEqual((await subscriptions.list({ workspaceId: WS, listId: "list-1" }, { limit: 2 })).items.map((s) => s.id), ["s1", "s2"]);
+        assert.deepEqual((await subscriptions.list({ workspaceId: WS, listId: "list-1" }, { cursor: encodeListCursor({ position: ["s1"] }), limit: 1 })).items.map((s) => s.id), ["s2"]);
+        assert.deepEqual((await subscriptions.list({ workspaceId: OTHER, listId: "list-2" })).items, []);
       });
 
       test("listSubscribed returns only subscribed rows of that workspace and list", async () => {

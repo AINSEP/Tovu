@@ -80,6 +80,26 @@ export async function readPreviewSwitcher({ settingsRepo, workspaceId, themes, a
   return { ...config, enabled: choices.length >= 2, themes: choices };
 }
 
+/** Read the rendered configuration and the revision of the same workspace value row.
+ * Capturing the row inside the existing effective-value read keeps a concurrent write from pairing
+ * an older configuration with a newer revision. @complexity As readPreviewSwitcher, O(1) extra space. */
+export async function readPreviewSwitcherWithRevision(required: PreviewThemeRoster & {
+  settingsRepo: SettingsRepoPort; workspaceId: string;
+}, _options = {}): Promise<PreviewSwitcher & { revisionSeq: number }> {
+  let revisionSeq = 0;
+  const repo = new Proxy(required.settingsRepo, { get(target, key) {
+    if (key === "getWorkspaceValue") return async (input: Parameters<SettingsRepoPort["getWorkspaceValue"]>[0]) => {
+      const row = await target.getWorkspaceValue(input);
+      revisionSeq = row?.seq ?? 0;
+      return row;
+    };
+    const value = Reflect.get(target, key, target);
+    return typeof value === "function" ? value.bind(target) : value;
+  } });
+  const config = await readPreviewSwitcher({ ...required, settingsRepo: repo });
+  return { ...config, revisionSeq };
+}
+
 /** Host write policy for canonical coordinates (aliases resolve in the settings chokepoint).
  * Uses exactly the active-theme permission. Reuses ledger validation, transactions and revisions.
  * @throws ForbiddenError or ValueValidationFailedError before any durable effect. */

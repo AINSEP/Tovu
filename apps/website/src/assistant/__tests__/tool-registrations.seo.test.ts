@@ -272,7 +272,7 @@ test("seo_set_entry_overrides: self-enforcing chokepoint — a denied principal 
   const before = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
 
   await assert.rejects(
-    () => wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", title: "New title" })),
+    () => wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", expectedVersion: 1, title: "New title" })),
     (error: unknown) => {
       assert.ok(error instanceof ForbiddenError, `expected a ForbiddenError, got ${String(error)}`);
       return true;
@@ -307,7 +307,7 @@ test("seo_set_settings: self-enforcing chokepoint — a denied principal is reje
 test("seo_set_entry_overrides: rejects an unregistered field the same way the chokepoint does, with the schema attached for retry", async () => {
   const { deps } = await fakeRouteDeps();
   await assert.rejects(
-    () => wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", notAField: "x" })),
+    () => wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", expectedVersion: 1, notAField: "x" })),
     /Fix the input and retry/,
   );
 });
@@ -331,7 +331,7 @@ test("seo_set_settings: a denied principal naming a video gets the permission er
 test("seo_set_entry_overrides and seo_set_settings refuse a video as a share image, nothing written", async () => {
   const { deps, postRepo, settingsRepo } = await fakeRouteDeps();
   await assert.rejects(
-    () => wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", ogImage: "m-clip:og" })),
+    () => wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", expectedVersion: 1, ogImage: "m-clip:og" })),
     /ogImage: media asset 'm-clip' is video\/mp4, not an image\. A social share image must be an image\./,
   );
   assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" }))?.seoExtJson, null);
@@ -341,7 +341,7 @@ test("seo_set_entry_overrides and seo_set_settings refuse a video as a share ima
     /defaultOgImage: media asset 'm-clip' is video\/mp4, not an image\. A social share image must be an image\./,
   );
   assert.deepEqual(await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID }), before);
-  await wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", ogImage: "m-share:og" }));
+  await wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", expectedVersion: 1, ogImage: "m-share:og" }));
   assert.equal((await wired(deps, "seo_set_settings").handler(executionContext({ defaultOgImage: "m-share:og" })) as { settings: { defaultOgImage?: string } }).settings.defaultOgImage, "m-share:og");
 });
 
@@ -368,7 +368,7 @@ test("workflow: set entry overrides, get entry meta to confirm the override is r
   assert.ok(before.analysis.issues.some((issue) => (issue as { code: string }).code === "missing_description"));
 
   await wired(deps, "seo_set_entry_overrides").handler(
-    executionContext({ entryId: "post-1", title: "Custom Title", description: "A hand-written description." }),
+    executionContext({ entryId: "post-1", expectedVersion: 1, title: "Custom Title", description: "A hand-written description." }),
   );
 
   const meta = (await wired(deps, "content_read.seo_entry_meta").handler(executionContext({ entryId: "post-1" }))) as {
@@ -425,10 +425,10 @@ test("SEO tools reject invalid settings without writes and clear an override bac
   const before = await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID });
   await assert.rejects(wired(deps, "seo_set_settings").handler(executionContext({ titleTemplate: "no placeholder" })), /titleTemplate must contain '%s'/);
   assert.deepEqual(await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID }), before);
-  await wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", title: "Override Title" }));
+  await wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", expectedVersion: 1, title: "Override Title" }));
   const read = () => wired(deps, "content_read.seo_entry_meta").handler(executionContext({ entryId: "post-1" })) as Promise<{ meta: { title: string } }>;
   assert.equal((await read()).meta.title, "Override Title");
-  await wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", title: null }));
+  await wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", expectedVersion: 2, title: null }));
   assert.equal((await read()).meta.title, "Hello World");
 });
 

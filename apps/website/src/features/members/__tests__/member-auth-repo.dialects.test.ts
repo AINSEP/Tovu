@@ -75,7 +75,7 @@ for (const adapter of adapters) {
     await assert.rejects(members.setPasswordHash({ workspaceId: "other", memberId: member.id, passwordHash: "foreign-hash" }));
     await assert.rejects(members.setPasswordHash({ workspaceId: "w", memberId: "missing", passwordHash: "missing-hash" }));
     const views = [await members.findById({ workspaceId: "w", id: member.id }),
-      await members.findByEmail({ workspaceId: "w", email: member.email }), ...(await members.list({ workspaceId: "w" }))];
+      await members.findByEmail({ workspaceId: "w", email: member.email }), ...(await members.list({ workspaceId: "w" })).items];
     for (const view of views) {
       assert.ok(view);
       assert.equal(Object.hasOwn(view, "passwordHash"), false);

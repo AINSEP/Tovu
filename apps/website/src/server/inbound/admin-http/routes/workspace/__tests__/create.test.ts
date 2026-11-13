@@ -58,7 +58,7 @@ test("create: returns 201 with id on success", async (t) => {
   assert.equal(body.id, "id-1");
   assert.deepEqual(authorizationCalls, [{ principalId: "test-principal", workspaceId: "ws-1", permission: "workspace.manage" }]);
   assert.deepEqual(await workspaceRepo.findBySlug({ slug: "acme" }), {
-    id: body.id, name: "Acme", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z",
+    id: body.id, name: "Acme", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z", version: 1,
   });
   assert.deepEqual(events, [{
     id: "id-1", name: "workspace.created", occurredAt: "2026-01-01T00:00:00.000Z",
@@ -96,7 +96,7 @@ test("create: returns 400 when name/slug fail validation", async (t) => {
 });
 
 test("create: returns 409 when slug already exists", async (t) => {
-  const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [{ id: "existing", name: "Existing", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z" }] });
+  const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [{ id: "existing", name: "Existing", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z", version: 1 }] });
   const app = buildApp({ workspaceRepo });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces`, {

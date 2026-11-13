@@ -1,4 +1,5 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
+import { listPageForModel, parseListPageRequest } from "@jini-ai/core/list-page";
 import { toolMetadata } from '../../contracts/core/tool-metadata/newsletter.js';
 /**
  * @file Newsletter's half of ADR-049 Decision 4 (ADR-PIPE-011/SPEC-011): maps `agent-tools.ts`'s
@@ -342,9 +343,11 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, _surfaces
 
       await deps.newsletterReady;
       const status = typeof input.status === "string" ? input.status : undefined;
-      const campaigns = await deps.newsletterCampaignRepo.list({ workspaceId: deps.workspaceId });
-      const filtered = status ? campaigns.filter((campaign) => campaign.status === status) : campaigns;
-      return { campaigns: filtered.map(toCampaignToolView) };
+      const paging = parseListPageRequest({ value: input }, { defaultLimit: 100, maxLimit: 100 });
+      const page = await deps.newsletterCampaignRepo.list({ workspaceId: deps.workspaceId }, paging);
+      const items = status ? page.items.filter(campaign => campaign.status === status) : page.items;
+      const { items: campaigns, ...continuation } = listPageForModel({ page: { ...page, items }, toolId: "newsletter_list_campaigns" });
+      return { campaigns: campaigns.map(toCampaignToolView), ...continuation };
     },
 
     newsletter_get_campaign: async (ctx) => {
@@ -367,12 +370,15 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, _surfaces
     },
 
     newsletter_list_subscriptions: async (ctx) => {
-      const listId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "listId" });
+      const input = requireInputRecord({ input: ctx.input });
+      const listId = requireString({ input, key: "listId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.read" }, { entityType: "newsletter_subscription" });
 
       await deps.newsletterReady;
-      const subscriptions = await deps.newsletterSubscriptionRepo.list({ workspaceId: deps.workspaceId, listId });
-      return { subscriptions: subscriptions.map(toSubscriptionToolView) };
+      const paging = parseListPageRequest({ value: input }, { defaultLimit: 100, maxLimit: 100 });
+      const page = await deps.newsletterSubscriptionRepo.list({ workspaceId: deps.workspaceId, listId }, paging);
+      const { items, ...continuation } = listPageForModel({ page, toolId: "newsletter_list_subscriptions" });
+      return { subscriptions: items.map(toSubscriptionToolView), ...continuation };
     },
 
     newsletter_list_send_log: async (ctx) => {

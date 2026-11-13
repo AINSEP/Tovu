@@ -224,7 +224,7 @@ test("forms_update_definition persists name, fields and notify while preserving 
   const formId = (created.output as { definition: { id: string } }).definition.id;
   const fields = [{ id: "email", label: "Contact email", type: "email", required: false }, { id: "message", label: "Message", type: "textarea", required: true }];
   const notify = { enabled: true, recipients: ["notify@example.com"] };
-  const result = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: "forms_update_definition", input: { formId, name: "After", fields, notify } });
+  const result = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: "forms_update_definition", input: { formId, name: "After", fields, notify, expectedVersion: 1 } });
   assert.equal(result.status, "completed", JSON.stringify(result));
   const persisted = await routeDeps.formDefinitionRepo.findById({ workspaceId: routeDeps.workspaceId, id: formId });
   assert.ok(persisted);
@@ -246,7 +246,7 @@ const INPUT_REJECTIONS: ReadonlyArray<{ toolId: string; input: (formId: string) 
   { toolId: "forms_list_submissions", input: (formId) => ({ formId, limit: 0 }), message: /'limit' must be an integer between 1 and 100/, schemaAttached: false },
   { toolId: "forms_list_submissions", input: (formId) => ({ formId, limit: 1.5 }), message: /'limit' must be an integer between 1 and 100/, schemaAttached: false },
   { toolId: "forms_set_definition_status", input: (formId) => ({ formId, status: "archived" }), message: /'status' must be exactly 'active' or 'disabled'/, schemaAttached: true },
-  { toolId: "forms_update_definition", input: (formId) => ({ formId }), message: /at least one of 'name', 'fields', or 'notify' is required/, schemaAttached: true },
+  { toolId: "forms_update_definition", input: (formId) => ({ formId, expectedVersion: 1 }), message: /at least one of 'name', 'fields', or 'notify' is required/, schemaAttached: true },
 ];
 
 for (const row of INPUT_REJECTIONS) {

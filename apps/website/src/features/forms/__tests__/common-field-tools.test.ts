@@ -29,7 +29,7 @@ test("assistant tools create/edit a dropdown with options and persist only decla
   assert.equal(created.ok, true);
   const definition = (await deps.formDefinitionRepo.list({ workspaceId: "ws" }))[0]!;
   assert.equal(definition.fields[0]!.type, "select");
-  const updated = await call("forms_update_definition", { formId: definition.id, fields: [{ ...field, options: [...field.options, { value: "help", label: "Help" }], helpText: "Pick a topic" }] });
+  const updated = await call("forms_update_definition", { formId: definition.id, expectedVersion: definition.version, fields: [{ ...field, options: [...field.options, { value: "help", label: "Help" }], helpText: "Pick a topic" }] });
   assert.equal(updated.ok, true);
   const submitDeps = { definitionRepo: deps.formDefinitionRepo, submissionRepo: deps.formSubmissionRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, bus: new InMemoryEventBus(), rateLimiter: { check: async () => ({ allowed: true as const }) } };
   const input = { workspaceId: "ws", slug: "contact", sourceIp: "127.0.0.1", body: { topic: "help" } };

@@ -17,8 +17,8 @@ import { registerAdminWorkspaceUpdateRoute } from "../update.js";
  */
 
 const base = "/api/admin/v1/workspaces";
-const own = { id: "ws-7", name: "Original Site", slug: "original-site", createdAt: "2026-09-01T00:00:00Z" };
-const other = { id: "ws-8", name: "Other Site", slug: "other-site", createdAt: "2026-09-02T00:00:00Z" };
+const own = { id: "ws-7", name: "Original Site", slug: "original-site", createdAt: "2026-09-01T00:00:00Z", version: 1 };
+const other = { id: "ws-8", name: "Other Site", slug: "other-site", createdAt: "2026-09-02T00:00:00Z", version: 1 };
 
 function harness(repo: unknown, allowed = true) {
   const app = express();

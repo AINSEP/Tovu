@@ -1,3 +1,4 @@
+import { optimisticConcurrencyVersions } from './0042_optimistic_concurrency_versions.js';
 import { ownerPasskeys } from './0041_owner_passkeys.js';
 import { ownerMfa } from './0040_owner_mfa.js';
 import { ownerRecoveryCodes } from './0039_owner_recovery_codes.js';
@@ -118,6 +119,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   ownerRecoveryCodes({ checksum: pinned('0039_owner_recovery_codes') }),
   ownerMfa({ checksum: pinned('0040_owner_mfa') }),
   ownerPasskeys({ checksum: pinned('0041_owner_passkeys') }),
+  optimisticConcurrencyVersions({ checksum: pinned('0042_optimistic_concurrency_versions') }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

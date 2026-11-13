@@ -132,6 +132,7 @@ async function seedOtherTenantWorkspaceValue(deps: RouteDeps, settingId: string)
     name: OTHER_WORKSPACE_ID,
     slug: OTHER_WORKSPACE_ID,
     createdAt: deps.clock.nowIso(),
+    version: 1,
   });
   await deps.settingsRepo.saveWorkspaceValue({
     settingId,

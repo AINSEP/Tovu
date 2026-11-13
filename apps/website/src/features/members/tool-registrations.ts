@@ -16,6 +16,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, readToolLimit, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
+import { encodeListCursor, listPageForModel } from "@jini-ai/core/list-page";
 
 import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
@@ -221,14 +222,21 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member" });
 
       const afterId = optionalString({ input, key: "afterId" });
+      const cursor = optionalString({ input, key: "cursor" });
+      if (afterId !== undefined && cursor !== undefined) throw new ToolInputError({ message: "pass cursor or afterId, not both" });
       const limit = readToolLimit({ input, max: MEMBERS_LIST_MAX_LIMIT, fallback: MEMBERS_LIST_MAX_LIMIT });
-      // The repo treats an afterId it cannot find as "first page" (the admin list relies on that);
-      // a model that passed one meant a real member, so a miss is its mistake to hear about.
+      // The repo pages by position, so an afterId naming no member would quietly page from wherever
+      // that id sorts; a model that passed one meant a real member, so a miss is its mistake to hear about.
       if (afterId !== undefined && !(await deps.memberRepo.findById({ workspaceId: deps.workspaceId, id: afterId }))) {
         throw new ToolInputError({ message: `unknown afterId '${afterId}'` });
       }
-      const members = await deps.memberRepo.list({ workspaceId: deps.workspaceId, afterId, limit });
-      return { members: members.map(toMemberToolView) };
+      const page = await deps.memberRepo.list({ workspaceId: deps.workspaceId }, {
+        limit, cursor: afterId === undefined ? cursor ?? null : encodeListCursor({ position: [afterId] }),
+      });
+      // `members` keeps the key the description and callers already use; `more` tells the model the
+      // list is incomplete (a capped array alone read as "all members").
+      const { items, ...paging } = listPageForModel({ page, toolId: "members_list" });
+      return { members: items.map(toMemberToolView), ...paging };
     },
 
     members_get_by_id: async (ctx) => {

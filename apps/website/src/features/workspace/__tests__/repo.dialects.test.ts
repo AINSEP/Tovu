@@ -8,8 +8,8 @@ import { workspaceRepoFor } from "../repo.js";
 
 /** @file The workspace repo's one Kysely body on SQLite and PGlite (storage plan §4). */
 
-const ACME = { id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z" };
-const GLOBEX = { id: "ws-2", name: "Globex", slug: "globex", createdAt: "2026-07-15T00:00:01.000Z" };
+const ACME = { id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z", version: 1 };
+const GLOBEX = { id: "ws-2", name: "Globex", slug: "globex", createdAt: "2026-07-15T00:00:01.000Z", version: 1 };
 
 describeEachDialect<WorkspaceRepoPort>("workspace repo", { tables: ["workspaces"], make: workspaceRepoFor }, (makeRepo) => {
   test("insert, find by id and slug, list", async () => {

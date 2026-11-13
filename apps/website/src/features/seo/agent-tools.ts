@@ -122,9 +122,10 @@ const SEO_URL_FIELD = {
 const SET_ENTRY_OVERRIDES_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["entryId"],
+  required: ["entryId", "expectedVersion"],
   properties: {
     entryId: ENTRY_ID_PROPERTY,
+    expectedVersion: { type: "integer", minimum: 0, description: "The record's version from content_read.seo_entry_meta. Required." },
     title: { ...SEO_STRING_FIELD, description: `Meta title override. ${SEO_STRING_FIELD.description}` },
     description: { ...SEO_STRING_FIELD, description: `Meta description override. ${SEO_STRING_FIELD.description}` },
     canonical: { ...SEO_URL_FIELD, description: `Canonical URL override (absolute). ${SEO_URL_FIELD.description}` },
@@ -241,7 +242,7 @@ export function getSeoAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "seo_set_entry_overrides",
       description:
-        "Sets one or more per-entry SEO field overrides, merged onto the entry's existing overrides (omitted fields are left unchanged; an unregistered field name is rejected). Pass null for a field to clear that override back to inheriting the site default / derived value. If the patch touches 'noindex' or 'canonical', the sitemap cache is invalidated so the next sitemap read reflects the change.",
+        "Sets one or more per-entry SEO field overrides, merged onto the entry's existing overrides (omitted fields are left unchanged; an unregistered field name is rejected). Pass null for a field to clear that override back to inheriting the site default / derived value. If the patch touches 'noindex' or 'canonical', the sitemap cache is invalidated so the next sitemap read reflects the change. Pass expectedVersion from content_read.seo_entry_meta; if someone changed it since, nothing is saved and you must re-read.",
       sideEffects: "mutates-durable-state",
       authorization: { permission: MANAGE_SEO_PERMISSION },
       inputSchema: SET_ENTRY_OVERRIDES_SCHEMA,

@@ -90,8 +90,8 @@ test("assistant tools sync the roster from the site folder first, and pass unexp
   const registrations = buildPreviewSwitcherRegistrations({ deps: { ...f.deps, authorize: f.authorize, principalRepo: f.principals, set: async () => { throw fault; } } });
   const call = (id: string, input: unknown = {}) => registrations.find(registration => registration.descriptor.id === id)!
     .handler({ principal: { id: "owner" }, input } as ToolExecutionContext);
-  assert.deepEqual(await call("theme_get_preview_switcher"), { enabled: false, themes: [], position: "top" });
-  await assert.rejects(call("theme_update_preview_switcher", f.config), error => error === fault);
+  assert.deepEqual(await call("theme_get_preview_switcher"), { enabled: false, themes: [], position: "top", revisionSeq: 0 });
+  await assert.rejects(call("theme_update_preview_switcher", { ...f.config, expectedRevisionSeq: 0 }), error => error === fault);
 });
 
 test("assistant get/update use the ledger and active-theme permission; denied and invalid tools never write", async t => {
@@ -103,11 +103,13 @@ test("assistant get/update use the ledger and active-theme permission; denied an
     return tool.handler({ executionId: "preview-test", principal: { id: "owner" }, run: { id: "run" }, input, signal: new AbortController().signal } as ToolExecutionContext);
   };
   assert.equal((await call("theme_get_preview_switcher") as { enabled: boolean }).enabled, false);
-  await call("theme_update_preview_switcher", f.config);
-  assert.deepEqual(await call("theme_get_preview_switcher"), f.config);
+  await call("theme_update_preview_switcher", { ...f.config, expectedRevisionSeq: 0 });
+  const snapshot = await call("theme_get_preview_switcher");
+  assert.ok(snapshot && typeof snapshot === "object" && "revisionSeq" in snapshot && typeof snapshot.revisionSeq === "number");
+  assert.deepEqual(snapshot, { ...f.config, revisionSeq: snapshot.revisionSeq });
   const before = await f.deps.settingsRepo.maxRevisionSeq();
-  await assert.rejects(call("theme_update_preview_switcher", { ...f.config, themes: [] }), { name: "ToolInputError" });
-  await assert.rejects(call("theme_update_preview_switcher", { ...f.config, themes: [f.config.themes[0], { themeId: "absent", label: "No" }] }), { name: "ToolInputError" });
+  await assert.rejects(call("theme_update_preview_switcher", { ...f.config, themes: [], expectedRevisionSeq: snapshot.revisionSeq }), { name: "ToolInputError" });
+  await assert.rejects(call("theme_update_preview_switcher", { ...f.config, themes: [f.config.themes[0], { themeId: "absent", label: "No" }], expectedRevisionSeq: snapshot.revisionSeq }), { name: "ToolInputError" });
   const denied = buildPreviewSwitcherRegistrations({ deps: { ...f.deps, authorize: async () => ({ allowed: false, reason: "no_grant" }), themesDir: undefined, principalRepo: f.principals } });
   const update = denied.find(registration => registration.descriptor.id === "theme_update_preview_switcher")!;
   await assert.rejects(update.handler({ principal: { id: "owner" }, input: f.config } as ToolExecutionContext), /theme.set/);

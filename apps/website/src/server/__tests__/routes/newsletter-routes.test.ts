@@ -267,7 +267,7 @@ test("subscriptions: create -> list -> import (partial success, 207) -> remove -
   assert.equal(imported.created.length, 1);
   assert.equal(imported.failed.length, 1);
   assert.equal(imported.failed[0].code, "NEWSLETTER_SUBSCRIBER_NOT_FOUND");
-  const importedRows = await deps.newsletterSubscriptionRepo.list({ workspaceId: deps.workspaceId, listId: list.id });
+  const importedRows = (await deps.newsletterSubscriptionRepo.list({ workspaceId: deps.workspaceId, listId: list.id })).items;
   const importedRow = importedRows.find((row) => row.subscriberId === secondMemberId);
   assert.ok(importedRow, "the successful import must persist the requested subscriber");
   assert.deepEqual({ subscriberId: importedRow.subscriberId, listId: importedRow.listId, status: importedRow.status, source: importedRow.source },

@@ -119,10 +119,10 @@ export async function createFormDefinition({ deps, input }: CreateFormDefinition
 }
 
 /** Authoring authorization/pre-read ordering and the single gateway decision belong to Jini. */
-export function updateFormDefinition({ deps, input }: UpdateFormDefinitionRequired, _optional = {}) {
+export function updateFormDefinition({ deps, input }: UpdateFormDefinitionRequired, optional: { expectedVersion?: number } = {}) {
   const { idempotencyKey, ...values } = input;
   return updatePackageFormDefinition({ deps: packageDeps(deps), input: values }, {
-    authoring, idempotencyKey, outbox: deps.outbox,
+    authoring, idempotencyKey, outbox: deps.outbox, ...optional,
   });
 }
 

@@ -13,6 +13,8 @@
  * follow-up build. Repos enforce persistence invariants; the write service and
  * resolver own member lifecycle and authentication decisions.
  */
+import { pageFromArray, type ListPage } from "@jini-ai/core/list-page";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { matchesRecordFields, upsertRecord } from "@jini-ai/core/records";
 import { MemberAuthError, MemberConflictError } from "./types.js";
 import type {
@@ -141,8 +143,8 @@ function assertIdentityUpdate({ existing, record, allowRelink }: { existing: Mem
  * In-memory `MemberRepoPort`. Keyset-paginates `list()` by lexicographic id order
  * (ids are ULIDs, so this is also creation order).
  *
- * @complexity `findById`/`findByEmail` O(n); `list` O(n log n) (sort) + O(limit)
- * slice; `save` O(n). n = members in the workspace, expected small-to-moderate.
+ * @complexity `findById`/`findByEmail` O(n); `list` O(n log n) (sort, in `pageFromArray`) +
+ * O(limit) page; `save` O(n). n = members in the workspace, expected small-to-moderate.
  * @overallScore 100
  */
 export class InMemoryMemberRepo implements MemberRepoPort {
@@ -186,24 +188,10 @@ export class InMemoryMemberRepo implements MemberRepoPort {
     this.passwordHashes.set(member.id, required.passwordHash);
   }
 
-  async list(required: {
-    workspaceId: string;
-    afterId?: string;
-    limit?: number;
-  }): Promise<MemberRecord[]> {
-    const rows = this.rows
-      .filter((row) => row.workspaceId === required.workspaceId && row.status !== "trash")
-      .sort((a, b) => {
-        if (a.id < b.id) return -1;
-        if (a.id > b.id) return 1;
-        return 0;
-      });
-
-    const afterIndex = required.afterId ? rows.findIndex((row) => row.id === required.afterId) : -1;
-    const start = afterIndex === -1 ? 0 : afterIndex + 1;
-    const limit = Math.min(required.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT);
-
-    return rows.slice(start, start + limit);
+  async list(required: { workspaceId: string }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<MemberRecord>> {
+    const rows = this.rows.filter((row) => row.workspaceId === required.workspaceId && row.status !== "trash");
+    const limit = Math.min(optional.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT);
+    return pageFromArray({ rows, limit, cursor: optional.cursor ?? null, positionOf: (member) => [member.id] });
   }
 
   async save(record: MemberRecord): Promise<void> {
@@ -256,7 +244,14 @@ export class InMemoryMemberTierRepo implements MemberTierRepoPort {
     return this.rows.filter((row) => row.workspaceId === required.workspaceId);
   }
 
-  async save(record: MemberTierRecord): Promise<void> {
+  /** See {@link MemberTierRepoPort.save}. @complexity O(n) over tiers. */
+  async save(record: MemberTierRecord, optional: { expectedVersion?: number } = {}): Promise<void> {
+    const { expectedVersion } = optional;
+    if (expectedVersion !== undefined) {
+      const current = this.rows.find((row) => row.workspaceId === record.workspaceId && row.id === record.id);
+      await assertVersionedWrite({ changedRows: current?.version === expectedVersion ? 1 : 0, recordKind: "membership tier", recordId: record.id,
+        expectedVersion, readCurrentVersion: async () => current?.version ?? null });
+    }
     upsertRecord({ records: this.rows, record, identity: { id: record.id } });
   }
 }

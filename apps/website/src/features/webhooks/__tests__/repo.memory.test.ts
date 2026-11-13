@@ -24,6 +24,7 @@ function makeSubscription(overrides: Partial<WebhookSubscriptionRecord> = {}): W
     createdAt: "2026-07-10T00:00:00.000Z",
     updatedAt: "2026-07-10T00:00:00.000Z",
     disabledAt: null,
+    version: 1,
     ...overrides,
   };
 }

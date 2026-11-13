@@ -48,7 +48,7 @@ test("zero workspace rows: resolveWorkspace throws a SiteCorruptError naming zer
 
 test("exactly one workspace row: resolveWorkspace returns that row's WorkspaceRecord unchanged", async () => {
   const db = openContentDb(":memory:");
-  const record = { id: "ws-only-one", name: "Only Workspace", slug: "only-workspace", createdAt: "2026-07-28T00:00:00.000Z" };
+  const record = { id: "ws-only-one", name: "Only Workspace", slug: "only-workspace", createdAt: "2026-07-28T00:00:00.000Z", version: 7 };
   db.insert(workspaces).values(record).run();
 
   const resolved = await resolveWorkspace({ kernel: contentKernel({ store: db }) });

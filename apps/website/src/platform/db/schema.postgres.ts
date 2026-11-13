@@ -259,6 +259,7 @@ export const externalMcpServers = pgTable("external_mcp_servers", {
   oauthRefreshLeaseUntil: text("oauth_refresh_lease_until"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+  version: bigint("version", { mode: "number" }).notNull().default(1),
 }, (t) => [
     primaryKey({ columns: [t.workspaceId, t.serverId] }),
     foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
@@ -366,6 +367,7 @@ export const identityUsers = pgTable("identity_users", {
   email: text("email"),
   passwordHash: text("password_hash").notNull(),
   lastLoginAt: text("last_login_at"),
+  version: bigint("version", { mode: "number" }).notNull().default(1),
 }, (t) => [
     uniqueIndex("idx_identity_users_workspace_username").on(t.workspaceId, t.username),
   ]);
@@ -705,6 +707,7 @@ export const policies = pgTable("policies", {
   description: text("description"),
   isBuiltin: bigint("is_builtin", { mode: "number" }).notNull(),
   isFrozen: bigint("is_frozen", { mode: "number" }).notNull(),
+  version: bigint("version", { mode: "number" }).notNull().default(1),
 }, (t) => [
     uniqueIndex("idx_policies_workspace_name").on(t.workspaceId, t.name),
   ]);
@@ -958,6 +961,7 @@ export const roles = pgTable("roles", {
   workspaceId: text("workspace_id").notNull(),
   name: text("name").notNull(),
   isBuiltin: bigint("is_builtin", { mode: "number" }).notNull(),
+  version: bigint("version", { mode: "number" }).notNull().default(1),
 }, (t) => [
     uniqueIndex("idx_roles_workspace_name").on(t.workspaceId, t.name),
   ]);
@@ -1217,6 +1221,7 @@ export const webhookSubscriptions = pgTable("webhook_subscriptions", {
   createdByPluginId: text("created_by_plugin_id"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+  version: bigint("version", { mode: "number" }).notNull().default(1),
   disabledAt: text("disabled_at"),
 }, (t) => [
     index("idx_webhook_subscriptions_workspace").on(t.workspaceId),
@@ -1237,4 +1242,5 @@ export const workspaces = pgTable("workspaces", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   createdAt: text("created_at").notNull(),
+  version: bigint("version", { mode: "number" }).notNull().default(1),
 });

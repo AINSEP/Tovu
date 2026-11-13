@@ -1,4 +1,5 @@
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { parseExpectedVersion } from "@jini-ai/core/optimistic-concurrency";
 import { updateFormDefinition } from "#src/features/forms/index";
 import type { FieldDescriptor, NotifyConfig } from "@jini-ai/cms/forms";
 import type { FormAuthoring } from "@jini-ai/cms/forms/html";
@@ -41,6 +42,7 @@ export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = (app, deps)
         entityId: formId,
       });
       if (!authorized) return;
+      const expectedVersion = parseExpectedVersion({ value: body.expectedVersion });
       const { definition } = await updateFormDefinition({
         deps: { ...deps, repo: deps.formDefinitionRepo },
         input: {
@@ -50,7 +52,7 @@ export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = (app, deps)
           idempotencyKey: req.get("Idempotency-Key") || undefined,
           patch: authoringPatch({ body }, {}),
         },
-      });
+      }, expectedVersion === undefined ? {} : { expectedVersion });
       res.json(toAdminFormDefinitionResponse(definition));
     } catch (error) {
       if (mapFormsWriteError(error, res)) return;

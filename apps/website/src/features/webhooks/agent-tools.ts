@@ -150,9 +150,10 @@ export function getWebhooksAgentToolCatalog(): AgentToolDefinition[] {
   return [
     {
       name: "webhooks_update_subscription",
-      description: "Replaces a webhook subscription's label, HTTPS targetUrl and topics by subscriptionId. Supply all three fields; use content_read.webhook_subscription to read current values first. Returns {subscription}, with signing version metadata but no secret. Status and signing generation stay unchanged. Missing ids, empty labels/topics, malformed targets, denied permission and disallowed egress are refused. Requires admin.integrations.manage.",
+      description: "Replaces a webhook subscription's label, HTTPS targetUrl and topics by subscriptionId. Supply all three fields; use content_read.webhook_subscription to read current values first. Returns {subscription}, with signing version metadata but no secret. Status and signing generation stay unchanged. Missing ids, empty labels/topics, malformed targets, denied permission and disallowed egress are refused. Requires admin.integrations.manage. Pass expectedVersion from content_read.webhook_subscription; if someone changed it since, nothing is saved and you must re-read.",
       sideEffects: "mutates-durable-state", authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
-      inputSchema: { type: "object", additionalProperties: false, required: ["subscriptionId", "label", "targetUrl", "topics"], properties: {
+      inputSchema: { type: "object", additionalProperties: false, required: ["subscriptionId", "label", "targetUrl", "topics", "expectedVersion"], properties: {
+        expectedVersion: { type: "integer", minimum: 0, description: "The record's version from content_read.webhook_subscription. Required." },
         subscriptionId: { type: "string", minLength: 1 }, label: { type: "string", minLength: 1 }, targetUrl: { type: "string", minLength: 1 }, topics: { type: "array", minItems: 1, items: { type: "string" } },
       } },
     },

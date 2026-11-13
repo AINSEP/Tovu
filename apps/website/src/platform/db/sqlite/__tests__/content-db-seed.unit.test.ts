@@ -21,7 +21,7 @@ function seedContentDb(required: { db: ContentDb; seed: ContentDbSeedData }): Pr
 
 function seedData(overrides: Partial<ContentDbSeedData> = {}): ContentDbSeedData {
   return {
-    workspace: { id: "ws-1", name: "Test Workspace", slug: "test-workspace", createdAt: "2026-08-21T00:00:00.000Z" },
+    workspace: { id: "ws-1", name: "Test Workspace", slug: "test-workspace", createdAt: "2026-08-21T00:00:00.000Z", version: 1 },
     posts: [
       {
         id: "post-1",
@@ -102,7 +102,7 @@ test("never re-seeds (or overwrites) once a workspace with the same slug already
   await seedContentDb({
     db,
     seed: seedData({
-      workspace: { id: "ws-2", name: "Different Workspace", slug: "test-workspace", createdAt: "2026-08-21T01:00:00.000Z" },
+      workspace: { id: "ws-2", name: "Different Workspace", slug: "test-workspace", createdAt: "2026-08-21T01:00:00.000Z", version: 1 },
       posts: [
         {
           id: "post-2",

@@ -2,14 +2,14 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { type ToolExecutionContext } from "@jini-ai/core";
-import { WorkspaceNotFoundError } from "@jini-ai/cms/workspace";
+import { WorkspaceNotFoundError, buildWorkspaceRegistrations as buildSharedWorkspaceRegistrations } from "@jini-ai/cms/workspace";
 import { buildWorkspaceRegistrations } from "../tool-registrations.js";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 /** @file The host `workspace_get` wrapper: optional input, served-id check, and the narrow missing-row translation. */
 
-const workspace = { id: "ws", name: "Site", slug: "site", createdAt: "now" };
+const workspace = { id: "ws", name: "Site", slug: "site", createdAt: "now", version: 1 };
 const ctx = (input: unknown) => ({ input, principal: { id: "owner" } } as ToolExecutionContext);
 
 function getTool(findById: (input: { id: string }) => Promise<typeof workspace | null>) {
@@ -48,4 +48,14 @@ test("workspace_get rethrows other repository failures unchanged, Error or not",
 test("buildWorkspaceRegistrations fails fast when the shared builder registers no workspace_get read owner", () => {
   const deps = toAssistantRegistryDeps({ routeDeps: { ...createRouteDeps(), workspaceId: "ws" } });
   assert.throws(() => buildWorkspaceRegistrations(deps, { buildShared: () => [] }), /workspace read owner is not registered/);
+});
+
+test("workspace version guidance names the host's published read tool", () => {
+  const deps = toAssistantRegistryDeps({ routeDeps: { ...createRouteDeps(), workspaceId: "ws" } });
+  let readToolId: string | undefined;
+  buildWorkspaceRegistrations(deps, { buildShared: (sharedDeps, optional) => {
+    readToolId = optional?.readToolId;
+    return buildSharedWorkspaceRegistrations(sharedDeps);
+  } });
+  assert.equal(readToolId, "content_read.workspace");
 });

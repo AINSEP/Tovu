@@ -39,7 +39,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const allow = options.allow ?? true;
   const authorizeCalls: Array<Record<string, unknown>> = [];
 
-  const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [{ id: WORKSPACE_ID, name: "Original Name", slug: "original-slug", createdAt: NOW }] });
+  const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [{ id: WORKSPACE_ID, name: "Original Name", slug: "original-slug", createdAt: NOW, version: 1 }] });
 
   const deps = {
     workspaceId: WORKSPACE_ID,
@@ -169,7 +169,7 @@ test("the ToolPolicy layer is a pass-through 'allow' for both wired workspace re
 
 const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   "content_read.workspace": {},
-  workspace_update: { name: "Renamed" },
+  workspace_update: { name: "Renamed", expectedVersion: 1 },
 };
 
 test("every wired workspace tool has a known input fixture", () => {
@@ -210,14 +210,14 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
 
 test("workspace_update: rejects an empty update the same way the domain function does", async () => {
   const { deps } = fakeRouteDeps();
-  await assert.rejects(() => wired(deps, "workspace_update").handler(executionContext({})), /WORKSPACE_VALIDATION: .*at least one of name or slug is required/);
+  await assert.rejects(() => wired(deps, "workspace_update").handler(executionContext({ expectedVersion: 1 })), /WORKSPACE_VALIDATION: .*at least one of name or slug is required/);
 });
 
 test("workspace_update: rejects a slug collision the same way the domain function does", async () => {
   const { deps, workspaceRepo } = fakeRouteDeps();
-  await workspaceRepo.insert({ id: "ws-other", name: "Other", slug: "taken-slug", createdAt: NOW });
+  await workspaceRepo.insert({ id: "ws-other", name: "Other", slug: "taken-slug", createdAt: NOW, version: 1 });
 
-  await assert.rejects(() => wired(deps, "workspace_update").handler(executionContext({ slug: "taken-slug" })), /WORKSPACE_CONFLICT: .*already exists/);
+  await assert.rejects(() => wired(deps, "workspace_update").handler(executionContext({ slug: "taken-slug", expectedVersion: 1 })), /WORKSPACE_CONFLICT: .*already exists/);
 });
 
 // ---------------------------------------------------------------------------
@@ -231,7 +231,7 @@ test("workflow: get the current workspace, rename it, get again to confirm the r
   assert.equal(before.workspace.id, WORKSPACE_ID);
   assert.equal(before.workspace.name, "Original Name");
 
-  await wired(deps, "workspace_update").handler(executionContext({ name: "New Name", slug: "new-slug" }));
+  await wired(deps, "workspace_update").handler(executionContext({ name: "New Name", slug: "new-slug", expectedVersion: 1 }));
 
   const after = (await wired(deps, "content_read.workspace").handler(executionContext({ workspaceId: WORKSPACE_ID }))) as { workspace: { id: string; name: string; slug: string } };
   assert.equal(after.workspace.id, before.workspace.id, "id is immutable across the rename");

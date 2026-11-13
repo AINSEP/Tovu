@@ -32,6 +32,7 @@ export const seededWorkspace: WorkspaceRecord = {
   name: "Local Tovu Workspace",
   slug: "local-tovu",
   createdAt: "2026-04-06T00:00:00.000Z",
+  version: 1,
 };
 
 // --- Tiny doc-authoring helpers (build TipTap-style bodyJson without raw JSON) ---

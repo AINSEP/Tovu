@@ -250,7 +250,7 @@ test("newsletter_update_campaign on an unknown campaign id refuses as NEWSLETTER
   const missing = makeRouteDeps();
   await seedList(missing);
   await expectBadRequest(missing, "newsletter_update_campaign", { campaignId: "ghost", subject: "New" }, "NEWSLETTER_CAMPAIGN_NOT_FOUND: campaign ghost was not found");
-  assert.deepEqual(await missing.newsletterCampaignRepo.list({ workspaceId: WORKSPACE_ID }), []);
+  assert.deepEqual((await missing.newsletterCampaignRepo.list({ workspaceId: WORKSPACE_ID })).items, []);
 });
 
 test("authorized list and campaign tools return exact views and persist edits", async () => {
@@ -292,7 +292,7 @@ test("authorized subscription, archive, cancel and pause tools persist and retur
   }
   const pending = { id: "id-1", listId: "l-1", subscriberId: "subscriber-1", status: "pending", source: "admin", subscribedAt: null, unsubscribedAt: null };
   assert.deepEqual(await output("newsletter_create_subscription", { listId: "l-1", subscriberId: "subscriber-1" }), { subscription: pending });
-  assert.deepEqual(await output("newsletter_list_subscriptions", { listId: "l-1" }), { subscriptions: [pending] });
+  assert.deepEqual(await output("newsletter_list_subscriptions", { listId: "l-1" }), { subscriptions: [pending], nextCursor: null });
   assert.equal(sentEmails.length, 1);
   assert.equal(sentEmails[0].to.email, "reader@example.com");
   assert.match(sentEmails[0].html ?? "", /href="https:\/\/example.com\/newsletter\/confirm\?token=/);
@@ -307,7 +307,7 @@ test("authorized subscription, archive, cancel and pause tools persist and retur
   const campaign = { id: "c-1", workspaceId: WORKSPACE_ID, status: "draft" as const, subject: "Hello", preheader: null, fromName: "Sender", fromEmail: "sender@example.com", replyTo: "replies@example.com", listId: "l-1", scheduledAt: null, sendStartedAt: null, audienceSnapshotId: null, counters: { recipients: 0, delivered: 0, failed: 0, bounced: 0, complained: 0, unsubscribed: 0 }, version: 1, createdByPrincipal: PRINCIPAL_ID, createdAt: NOW, updatedAt: NOW };
   await deps.newsletterCampaignRepo.saveCampaignRow(campaign);
   const view = { id: campaign.id, status: campaign.status, subject: campaign.subject, preheader: null, fromName: campaign.fromName, fromEmail: campaign.fromEmail, replyTo: campaign.replyTo, listId: "l-1", scheduledAt: null, counters: campaign.counters, version: 1, createdAt: NOW, updatedAt: NOW };
-  assert.deepEqual(await output("newsletter_list_campaigns", { status: "draft" }), { campaigns: [view] });
+  assert.deepEqual(await output("newsletter_list_campaigns", { status: "draft" }), { campaigns: [view], nextCursor: null });
   assert.deepEqual(await output("newsletter_cancel_campaign", { campaignId: "c-1" }), { campaign: { ...view, status: "canceled" } });
   assert.equal((await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: "c-1" }))?.status, "canceled");
   await deps.newsletterCampaignRepo.saveCampaignRow({ ...campaign, id: "c-2", status: "sending" });
