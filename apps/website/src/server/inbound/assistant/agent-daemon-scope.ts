@@ -1,4 +1,3 @@
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { assistantRunToolFacts } from './assistant-run-tool-facts.js';
 import { readAssistantRunToolPolicy, assistantRunPlan, assistantToolSetupMessage } from './assistant-run-tool-policy.js';
 import { requestAssistantToolConsent, requestAssistantToolAlternative } from './assistant-tool-consent.js';
@@ -1063,7 +1062,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     try { return await siteTools.preflight({ runId: run.id, signal: pluginAbort.signal }); }
     catch (err) {
       let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+      try { errorDiagnostic = describeErrorForLog(err); } catch { /* Keep the original failure path if diagnostics fail. */ }
       console.warn('[agent-plugins] automatic preflight unavailable', errorDiagnostic);
       return { prefix: pluginRefIds.length ? null : "", refusalPrefix: "", pluginIds: [] };
     }
