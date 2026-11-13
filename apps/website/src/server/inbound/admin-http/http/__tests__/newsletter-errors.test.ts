@@ -13,17 +13,17 @@ import { mapNewsletterErrorToResponse, newsletterErrorToResponse, toDataResponse
 // F1.2/F4.1/F4.4: exact external status/code/details fixtures, never computed with a mapper.
 // Mutation for each row: drop that class's mapping or any of its diagnostic details.
 const cases = [
-  { name: "validation", error: new NewsletterValidationError("bad subject", "subject", "required"), status: 400,
+  { name: "validation", error: new NewsletterValidationError({ message: "bad subject", field: "subject", reason: "required" }), status: 400,
     body: { error: "bad subject", code: "NEWSLETTER_VALIDATION_ERROR", details: { field: "subject", reason: "required" } } },
-  { name: "subscriber missing", error: new NewsletterSubscriberNotFoundError("member absent", "member-7"), status: 400,
+  { name: "subscriber missing", error: new NewsletterSubscriberNotFoundError({ message: "member absent", subscriberId: "member-7" }), status: 400,
     body: { error: "member absent", code: "NEWSLETTER_SUBSCRIBER_NOT_FOUND", details: { subscriberId: "member-7" } } },
-  { name: "campaign not editable", error: new NewsletterCampaignNotEditableError("already sent", "sent", "update"), status: 409,
+  { name: "campaign not editable", error: new NewsletterCampaignNotEditableError({ message: "already sent", currentStatus: "sent", attemptedAction: "update" }), status: 409,
     body: { error: "already sent", code: "NEWSLETTER_CAMPAIGN_NOT_EDITABLE", details: { currentStatus: "sent", attemptedAction: "update" } } },
-  { name: "default list protected", error: new NewsletterDefaultListProtectedError("protected list", "list-3"), status: 409,
+  { name: "default list protected", error: new NewsletterDefaultListProtectedError({ message: "protected list", listId: "list-3" }), status: 409,
     body: { error: "protected list", code: "NEWSLETTER_DEFAULT_LIST_PROTECTED", details: { listId: "list-3" } } },
-  { name: "version conflict", error: new NewsletterConflictError("stale campaign", "campaign", "campaign-8", 2, 5), status: 409,
+  { name: "version conflict", error: new NewsletterConflictError({ message: "stale campaign", entity: "campaign", id: "campaign-8", expectedVersion: 2, actualVersion: 5 }), status: 409,
     body: { error: "stale campaign", code: "NEWSLETTER_CONFLICT", details: { entity: "campaign", id: "campaign-8", expectedVersion: 2, actualVersion: 5 } } },
-  { name: "launch gate", error: new NewsletterLaunchGateBlockedError("launch blocked", ["mailer_adapter_not_production", "consent_not_ready"]), status: 409,
+  { name: "launch gate", error: new NewsletterLaunchGateBlockedError({ message: "launch blocked", unmetPreconditions: ["mailer_adapter_not_production", "consent_not_ready"] }), status: 409,
     body: { error: "launch blocked", code: "NEWSLETTER_LAUNCH_GATE_BLOCKED", details: { unmetPreconditions: ["mailer_adapter_not_production", "consent_not_ready"] } } },
   { name: "campaign missing", error: new NewsletterCampaignNotFoundError("campaign absent"), status: 404,
     body: { error: "campaign absent", code: "NEWSLETTER_CAMPAIGN_NOT_FOUND" } },

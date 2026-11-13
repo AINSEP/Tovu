@@ -1,9 +1,9 @@
 /**
  * @file In-memory adapters for all 6 Newsletter repo ports (ADR-PIPE-011 File Map).
  *
- * One class per port, matching `apps/website/src/features/members/repo.memory.ts`'s convention: `private rows: X[];
- * constructor(initialRows: X[] = []) { this.rows = [...initialRows]; }`, then plain array
- * find/filter/push-or-replace methods. Rule-of-two adapter #1 (`repo.sqlite.ts` is #2).
+ * One class per port, matching `apps/website/src/features/members/repo.memory.ts`'s private rows and
+ * plain array find/filter/push-or-replace methods. Each constructor copies its optional initial rows.
+ * Rule-of-two adapter #1 (`repo.sqlite.ts` is #2).
  */
 import { upsertRecord } from "@jini-ai/core/records";
 import type {
@@ -76,7 +76,7 @@ export class InMemoryNewsletterCampaignRepo implements NewsletterCampaignRepoPor
       .sort((a, b) => a.seq - b.seq);
   }
 
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+  async transaction<T>({ fn }: { fn: () => Promise<T> }, _options = {}): Promise<T> {
     // In-process, single-threaded: mutations are already atomic — no-op, mirrors
     // `InMemorySettingsRepo.transaction`. A forced mid-transaction failure test (AC-08) therefore
     // proves the SQLite adapter's real transaction, not this one — see `repo.contract.test.ts`.
@@ -102,7 +102,7 @@ export class InMemoryNewsletterCampaignRepo implements NewsletterCampaignRepoPor
 export class InMemoryNewsletterListRepo implements NewsletterListRepoPort {
   private rows: NewsletterListRow[];
 
-  constructor(initialRows: NewsletterListRow[] = []) {
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: NewsletterListRow[] } = {}) {
     this.rows = [...initialRows];
   }
 
@@ -126,7 +126,7 @@ export class InMemoryNewsletterListRepo implements NewsletterListRepoPort {
 export class InMemoryNewsletterSubscriptionRepo implements NewsletterSubscriptionRepoPort {
   private rows: SubscriptionRow[];
 
-  constructor(initialRows: SubscriptionRow[] = []) {
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: SubscriptionRow[] } = {}) {
     this.rows = [...initialRows];
   }
 
@@ -184,7 +184,7 @@ export class InMemoryNewsletterSubscriptionRepo implements NewsletterSubscriptio
 export class InMemoryNewsletterAudienceSnapshotRepo implements NewsletterAudienceSnapshotRepoPort {
   private rows: AudienceSnapshotRow[];
 
-  constructor(initialRows: AudienceSnapshotRow[] = []) {
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: AudienceSnapshotRow[] } = {}) {
     this.rows = [...initialRows];
   }
 
@@ -209,7 +209,7 @@ export class InMemoryNewsletterAudienceSnapshotRepo implements NewsletterAudienc
 export class InMemoryNewsletterSendRepo implements NewsletterSendRepoPort {
   private rows: SendRow[];
 
-  constructor(initialRows: SendRow[] = []) {
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: SendRow[] } = {}) {
     this.rows = [...initialRows];
   }
 
@@ -322,7 +322,7 @@ export class InMemoryNewsletterSendRepo implements NewsletterSendRepoPort {
 export class InMemoryNewsletterConfirmationTokenRepo implements NewsletterConfirmationTokenRepoPort {
   private rows: ConfirmationTokenRecord[];
 
-  constructor(initialRows: ConfirmationTokenRecord[] = []) {
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: ConfirmationTokenRecord[] } = {}) {
     this.rows = [...initialRows];
   }
 

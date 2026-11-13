@@ -114,7 +114,7 @@ export interface NewsletterCampaignRepoPort {
   appendRevision(revision: CampaignRevision): Promise<void>;
   listRevisions(required: { workspaceId: UUID; campaignId: UUID }): Promise<CampaignRevision[]>;
   /** Repo-port-level atomic boundary — mirrors `SettingsRepoPort.transaction`. */
-  transaction<T>(fn: () => Promise<T>): Promise<T>;
+  transaction<T>(required: { fn: () => Promise<T> }, optional?: {}): Promise<T>;
   /**
    * Atomically adds 1 to one delivery counter of one campaign and sets its `updatedAt` (2026-09-16). The only writer of
    * `counters` once the row exists; touches no other field (status, version and editorial fields stay as stored). A missing

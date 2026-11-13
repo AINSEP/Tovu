@@ -91,19 +91,19 @@ export async function authorizeSend(required: {
   input: { workspaceId: string; campaignId: string };
 }): Promise<{ campaign: CampaignRecord; launchGateSnapshot: Awaited<ReturnType<typeof evaluateLaunchGate>> }> {
   const { deps, input } = required;
-  return deps.campaignRepo.transaction(async () => {
+  return deps.campaignRepo.transaction({ fn: async () => {
     const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
     if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${input.campaignId} was not found`);
 
     // evaluateLaunchGate (T018) called EXACTLY ONCE, inside this transaction (INV-05).
     const launchGateSnapshot = await evaluateLaunchGate({ deps: deps.launchGateDeps, workspaceId: input.workspaceId, isTestSend: false });
     if (!launchGateSnapshot.met) {
-      throw new NewsletterLaunchGateBlockedError("the Launch Readiness Gate is not satisfied", launchGateSnapshot.unmetPreconditions);
+      throw new NewsletterLaunchGateBlockedError({ message: "the Launch Readiness Gate is not satisfied", unmetPreconditions: launchGateSnapshot.unmetPreconditions });
     }
 
     const decision = transitionCampaignStatus({ from: campaign.status, to: "sending", actorTier: "pipeline" });
     if (!decision.allowed) {
-      throw new NewsletterCampaignNotEditableError(decision.reason, campaign.status, "send");
+      throw new NewsletterCampaignNotEditableError({ message: decision.reason, currentStatus: campaign.status, attemptedAction: "send" });
     }
 
     const now = deps.clock.nowIso();
@@ -114,7 +114,7 @@ export async function authorizeSend(required: {
     await deps.campaignRepo.appendRevision({ campaignId: updated.id, workspaceId: updated.workspaceId, seq, state: updated, actorId: "system:send-pipeline", recordedAt: now });
 
     return { campaign: updated, launchGateSnapshot };
-  });
+  } });
 }
 
 /**
@@ -184,13 +184,13 @@ export async function freezeAudience(required: {
 
   // Contact lookup can overlap a human pause. Attach the snapshot to the current row without
   // restoring an earlier status; paused batches remain pending until an approved resume.
-  const updatedCampaign = await deps.campaignRepo.transaction(async () => {
+  const updatedCampaign = await deps.campaignRepo.transaction({ fn: async () => {
     const current = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
     if (!current) throw new NewsletterCampaignNotFoundError(`campaign ${input.campaignId} was not found`);
     const updated: CampaignRecord = { ...current, audienceSnapshotId: snapshotId, updatedAt: now };
     await deps.campaignRepo.saveCampaignRow(updated);
     return updated;
-  });
+  } });
 
   const sendIds = sendRows.map((row) => row.id);
   await enqueueSendBatches({ deps, campaign: updatedCampaign, audienceSnapshotId: snapshotId, sendIds });
@@ -365,7 +365,7 @@ export async function pauseCampaign(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; campaignId: string };
 }): Promise<{ campaign: CampaignRecord }> {
-  return transitionAndSave(required.deps, required.input, "paused");
+  return transitionAndSave({ deps: required.deps, input: required.input, to: "paused" });
 }
 
 /**
@@ -378,7 +378,7 @@ export async function resumeCampaign(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; campaignId: string };
 }): Promise<{ campaign: CampaignRecord; requeueFailed?: true }> {
-  const result = await transitionAndSave(required.deps, required.input, "sending");
+  const result = await transitionAndSave({ deps: required.deps, input: required.input, to: "sending" });
   // A paused batch may already have been acknowledged. Requeue its remaining ledger rows;
   // the existing per-row leases and idempotency keys make overlapping/redelivered jobs safe.
   if (!result.campaign.audienceSnapshotId) return result;
@@ -409,20 +409,19 @@ async function requeuePendingSends(required: { deps: SendPipelineDeps; campaign:
 }
 
 async function transitionAndSave(
-  deps: SendPipelineDeps,
-  input: { workspaceId: string; campaignId: string },
-  to: "paused" | "sending"
+  { deps, input, to }: { deps: SendPipelineDeps; input: { workspaceId: string; campaignId: string }; to: "paused" | "sending" },
+  _options = {},
 ): Promise<{ campaign: CampaignRecord }> {
-  return deps.campaignRepo.transaction(async () => {
+  return deps.campaignRepo.transaction({ fn: async () => {
     const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
     if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${input.campaignId} was not found`);
     const decision = transitionCampaignStatus({ from: campaign.status, to, actorTier: "send" });
-    if (!decision.allowed) throw new NewsletterCampaignNotEditableError(decision.reason, campaign.status, to);
+    if (!decision.allowed) throw new NewsletterCampaignNotEditableError({ message: decision.reason, currentStatus: campaign.status, attemptedAction: to });
     const now = deps.clock.nowIso();
     const updated: CampaignRecord = { ...campaign, status: to, updatedAt: now };
     await deps.campaignRepo.saveCampaignRow(updated);
     return { campaign: updated };
-  });
+  } });
 }
 
 /** SEND_TEST_CAMPAIGN — hits only the 1-10 given addresses, no snapshot/send-ledger rows created (AC-26). */
@@ -432,14 +431,14 @@ export async function sendTestCampaign(required: {
 }): Promise<{ results: { email: string; outcome: "sent" | "failed"; error: string | null; errorCode?: string }[] }> {
   const { deps, input } = required;
   if (input.testAddresses.length < TEST_SEND_MIN || input.testAddresses.length > TEST_SEND_MAX) {
-    throw new NewsletterValidationError(`test-send address count must be between ${TEST_SEND_MIN} and ${TEST_SEND_MAX}`, "testAddresses", "length");
+    throw new NewsletterValidationError({ message: `test-send address count must be between ${TEST_SEND_MIN} and ${TEST_SEND_MAX}`, field: "testAddresses", reason: "length" });
   }
   const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
   if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${input.campaignId} was not found`);
 
   const launchGateSnapshot = await evaluateLaunchGate({ deps: deps.launchGateDeps, workspaceId: input.workspaceId, isTestSend: true });
   if (!launchGateSnapshot.met) {
-    throw new NewsletterLaunchGateBlockedError("the Launch Readiness Gate is not satisfied for a test send", launchGateSnapshot.unmetPreconditions);
+    throw new NewsletterLaunchGateBlockedError({ message: "the Launch Readiness Gate is not satisfied for a test send", unmetPreconditions: launchGateSnapshot.unmetPreconditions });
   }
 
   const results: { email: string; outcome: "sent" | "failed"; error: string | null; errorCode?: string }[] = [];

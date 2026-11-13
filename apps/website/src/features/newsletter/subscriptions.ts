@@ -48,7 +48,7 @@ export async function saveSubscription(required: {
 
   const contact = await deps.subscriberDirectory.getContact({ workspaceId: input.workspaceId, subscriberId: input.subscriberId });
   if (!contact) {
-    throw new NewsletterSubscriberNotFoundError(`subscriber ${input.subscriberId} was not found`, input.subscriberId);
+    throw new NewsletterSubscriberNotFoundError({ message: `subscriber ${input.subscriberId} was not found`, subscriberId: input.subscriberId });
   }
 
   const existing = await deps.subscriptionRepo.findBySubscriberAndList({
@@ -131,11 +131,11 @@ export async function importSubscriptions(required: {
 }): Promise<{ created: SubscriptionRow[]; failed: { index: number; code: string; message: string }[] }> {
   const { deps, input } = required;
   if (input.subscribers.length < 1 || input.subscribers.length > IMPORT_BATCH_MAX) {
-    throw new NewsletterValidationError(
-      `import batch must be between 1 and ${IMPORT_BATCH_MAX} rows`,
-      "subscribers",
-      "length"
-    );
+    throw new NewsletterValidationError({
+      message: `import batch must be between 1 and ${IMPORT_BATCH_MAX} rows`,
+      field: "subscribers",
+      reason: "length",
+    });
   }
   // Checked ONCE for the whole batch (the same `listId` applies to every row) rather than letting
   // every row independently fail — an unknown list is a malformed-request condition, not a

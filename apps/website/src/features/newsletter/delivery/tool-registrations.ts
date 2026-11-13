@@ -85,7 +85,7 @@ function mailOffResult(deps: NewsletterToolDeps) {
 }
 
 /** Reports committed launch state without claiming that downstream processing finished. @complexity O(1). */
-function processingAttentionResult(campaignId: string, status: string) {
+function processingAttentionResult({ campaignId, status }: { campaignId: string; status: string }, _options = {}) {
   return { confirmed: true, started: true, campaignId, status, delivered: false, mailDeliveryAvailable: true, note: "The issue started, but audience processing needs attention. Inspect the send log before retrying; delivery is not confirmed." };
 }
 
@@ -134,7 +134,7 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
       const existing = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
       if (!existing) throw new NewsletterCampaignNotFoundError(`campaign ${campaignId} was not found`);
       const scheduledAt = toolId === "newsletter_schedule_campaign" ? requireString({ input: input, key: "scheduledAt" }) : null;
-      if (scheduledAt !== null && !isValidScheduleTimestamp(scheduledAt)) throw new NewsletterValidationError("scheduledAt must be a valid ISO date-time string with an explicit timezone", "scheduledAt", "format");
+      if (scheduledAt !== null && !isValidScheduleTimestamp({ value: scheduledAt })) throw new NewsletterValidationError({ message: "scheduledAt must be a valid ISO date-time string with an explicit timezone", field: "scheduledAt", reason: "format" });
       return { campaignId, existing: structuredClone(existing), scheduledAt };
     }, describe: ({ prepared }) => {
       let title = "Send this newsletter?";
@@ -156,7 +156,7 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
       if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
       const currentMailOff = mailOffResult(deps);
       if (currentMailOff) return currentMailOff;
-      const transition = await deps.newsletterCampaignRepo.transaction(async () => {
+      const transition = await deps.newsletterCampaignRepo.transaction({ fn: async () => {
         const current = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
         // Pipeline transitions do not always increment version; compare the complete snapshot as well.
         if (JSON.stringify(current) !== JSON.stringify(existing)) throw new ToolInputError({ message: "NEWSLETTER_STALE_CONFIRMATION: The campaign changed while the card was open. Review it and request a new confirmation." });
@@ -168,11 +168,11 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
           return resumeCampaign({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
         }
         return authorizeSend({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
-      });
+      } });
       if ("abandoned" in transition) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
       const { campaign } = transition;
       if (scheduledAt !== null) return { confirmed: true, scheduled: true, campaignId, status: campaign.status, scheduledAt: campaign.scheduledAt, delivered: false, mailDeliveryAvailable: true, note: "The issue's scheduled date was saved. Automatic delivery at that time is not wired; launch it with newsletter_send_campaign when due." };
-      if ("requeueFailed" in transition && transition.requeueFailed) return processingAttentionResult(campaignId, campaign.status);
+      if ("requeueFailed" in transition && transition.requeueFailed) return processingAttentionResult({ campaignId, status: campaign.status });
       // The campaign status has committed, so a later fan-out failure must not imply no launch occurred.
       try {
         await freezeAudience({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId, listId: campaign.listId } });
@@ -183,7 +183,7 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
         let errorDiagnostic = "[diagnostic unavailable]";
         try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
         console.error("[newsletter] delivery fan-out failed after launch; inspect the send log before retrying", errorDiagnostic);
-        return processingAttentionResult(campaignId, campaign.status);
+        return processingAttentionResult({ campaignId, status: campaign.status });
       }
       return { confirmed: true, started: true, campaignId, status: campaign.status, delivered: false, mailDeliveryAvailable: true };
     } }, { ask: ({ prepared }) => !("refusal" in prepared),

@@ -54,9 +54,9 @@ function makeDeps(): SubscriptionsDeps & { sentEmails: OutboundEmail[] } {
   };
   const subscriptionRepo = new InMemoryNewsletterSubscriptionRepo();
   confirmationDeps.subscriptionRepo = subscriptionRepo;
-  const listRepo = new InMemoryNewsletterListRepo([
+  const listRepo = new InMemoryNewsletterListRepo({}, { initialRows: [
     { id: "list-1", workspaceId: WS, name: "Fixture list", slug: "fixture-list", isDefault: false, status: "active", createdAt: NOW, updatedAt: NOW },
-  ]);
+  ] });
   return { subscriptionRepo, listRepo, subscriberDirectory, confirmationDeps, clock, ids, sentEmails };
 }
 

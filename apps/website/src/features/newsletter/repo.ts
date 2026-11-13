@@ -148,7 +148,7 @@ export class SqlNewsletterCampaignRepo implements NewsletterCampaignRepoPort {
   }
 
   /** The kernel's transaction: nested calls join, other requests wait their turn. Takes the campaign write lock first. */
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+  async transaction<T>({ fn }: { fn: () => Promise<T> }, _options = {}): Promise<T> {
     return this.kernel.transaction(async () => {
       await this.kernel.lockKey("newsletter:campaigns");
       return fn();

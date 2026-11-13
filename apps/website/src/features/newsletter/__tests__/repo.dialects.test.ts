@@ -261,11 +261,11 @@ describeEachDialect(
       test("transaction commits its writes and returns the callback's value", async () => {
         const { campaigns } = makeRepos();
         const c = campaign("c1");
-        const value = await campaigns.transaction(async () => {
+        const value = await campaigns.transaction({ fn: async () => {
           await campaigns.saveCampaignRow(c);
           await campaigns.appendRevision(revision(c));
           return "done";
-        });
+        } });
         assert.equal(value, "done");
         assert.ok(await campaigns.findById({ workspaceId: WS, id: "c1" }));
         assert.equal((await campaigns.listRevisions({ workspaceId: WS, campaignId: "c1" })).length, 1);
@@ -275,11 +275,11 @@ describeEachDialect(
         const { campaigns } = makeRepos();
         const c = campaign("c1");
         await assert.rejects(
-          campaigns.transaction(async () => {
+          campaigns.transaction({ fn: async () => {
             await campaigns.saveCampaignRow(c);
             await campaigns.appendRevision(revision(c));
             throw new Error("boom");
-          }),
+          } }),
           /boom/
         );
         assert.equal(await campaigns.findById({ workspaceId: WS, id: "c1" }), null);

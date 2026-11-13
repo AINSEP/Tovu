@@ -517,9 +517,9 @@ function sendAuthFailure(
  */
 export async function redeemOwnerBootSession(
   { deps, res, token }: { deps: SessionAuthDeps; res: Response; token: unknown },
-  { redeem = redeemBootSessionToken, cookieName = SESSION_COOKIE }: { redeem?: (token: unknown) => boolean; cookieName?: string } = {},
+  { redeem = redeemBootSessionToken, cookieName = SESSION_COOKIE }: { redeem?: (required: { rawToken: unknown }) => boolean; cookieName?: string } = {},
 ): Promise<OperatorPrincipalRecord | null> {
-  if (!redeem(token)) {
+  if (!redeem({ rawToken: token })) {
     res.status(401).json({ error: "invalid or spent boot token", code: "UNAUTHENTICATED" });
     return null;
   }

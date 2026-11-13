@@ -30,7 +30,7 @@ test("boot redemption rejects an invalid token before reading the boot owner or 
   const response = bootResponse({});
   const token = {};
   const result = await redeemOwnerBootSession({ deps, res: response.res, token }, {
-    redeem: presented => { assert.strictEqual(presented, token); return false; },
+    redeem: ({ rawToken: presented }) => { assert.strictEqual(presented, token); return false; },
   });
   assert.equal(result, null);
   assert.deepEqual(response.capture, { statusCode: 401, jsonBody: { error: "invalid or spent boot token", code: "UNAUTHENTICATED" } });

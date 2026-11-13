@@ -54,7 +54,7 @@ export const USER_CREATE_DESCRIPTION_SUFFIX =
  * Validates `input` against the tool's published schema BEFORE any dialog is drawn, with the same
  * schema-bearing message Jini's own handlers give, so a malformed call never reaches the human.
  */
-function validated(toolId: string, schema: unknown, input: unknown): Readonly<Record<string, string>> {
+function validated({ toolId, schema, input }: { toolId: string; schema: unknown; input: unknown }, _options = {}): Readonly<Record<string, string>> {
   const parsed = parseIdentityToolInput({ schema: schema as Record<string, unknown>, input });
   if (!parsed.ok) {
     throw new ToolInputError({ message: `${parsed.error.message}. Fix the input and retry — this will not resolve on retry without an input change. ` +
@@ -70,7 +70,7 @@ function validated(toolId: string, schema: unknown, input: unknown): Readonly<Re
  * hand-copied expectation (which could silently drift from this function) or a blind id-based skip
  * (which would stop catching a real regression, e.g. `password` ceasing to be stripped).
  */
-export function withoutPassword(schema: unknown): unknown {
+export function withoutPassword({ schema }: { schema: unknown }, _options = {}): unknown {
   const { properties, required, ...rest } = schema as { properties: Record<string, unknown>; required?: string[] };
   const { password: _password, ...kept } = properties;
   return { ...rest, required: (required ?? []).filter((key) => key !== "password"), properties: kept };
@@ -112,11 +112,11 @@ export function buildGatedIdentityRegistrations(
       return 0;
     })]));
   };
-  const confirmedDelete = (registration: ToolRegistration, kind: "role" | "policy"): ToolRegistration => ({
+  const confirmedDelete = ({ registration, kind }: { registration: ToolRegistration; kind: "role" | "policy" }, _options = {}): ToolRegistration => ({
     ...registration,
     handler: approvalToolHandler({ surfaces,
       prepare: async ({ ctx }) => {
-        const input = validated(registration.descriptor.id, registration.descriptor.inputSchema, ctx.input);
+        const input = validated({ toolId: registration.descriptor.id, schema: registration.descriptor.inputSchema, input: ctx.input });
         await assertCallerHasAnyPermission({ deps: identity, workspaceId: routeDeps.workspaceId,
           // Jini owns both role and policy deletion under role.manage.
           callerPrincipalId: ctx.principal.id, permissions: ["role.manage"] });
@@ -144,12 +144,12 @@ export function buildGatedIdentityRegistrations(
     }, { flag: "deleted", batch: true }),
   });
 
-  const createUserWithHumanPassword = (inner: ToolHandler, publishedSchema: unknown): ToolHandler => async (ctx, options = {}) => {
+  const createUserWithHumanPassword = ({ inner, publishedSchema }: { inner: ToolHandler; publishedSchema: unknown }, _options = {}): ToolHandler => async (ctx, options = {}) => {
     if (typeof ctx.input === "object" && ctx.input !== null && "password" in ctx.input) {
       throw new ToolInputError({ message: `IDENTITY_PASSWORD_NOT_ACCEPTED: ${USER_CREATE_TOOL_ID}: do not pass a password. The user types the new ` +
           "user's first password into the form this tool shows. Nothing was created." });
     }
-    const input = validated(USER_CREATE_TOOL_ID, publishedSchema, ctx.input);
+    const input = validated({ toolId: USER_CREATE_TOOL_ID, schema: publishedSchema, input: ctx.input });
     const username = input["username"]!;
     const emailSuffix = input["email"] ? ` (${input["email"]})` : "";
     let failureMessage: string | undefined;
@@ -218,7 +218,7 @@ export function buildGatedIdentityRegistrations(
     switch (registration.descriptor.id) {
       case "identity_user_disable":
         return { ...registration, handler: async (ctx, options = {}) => {
-          const input = validated(registration.descriptor.id, registration.descriptor.inputSchema, ctx.input);
+          const input = validated({ toolId: registration.descriptor.id, schema: registration.descriptor.inputSchema, input: ctx.input });
           try {
             return await routeDeps.transactions.run({ workspaceId: routeDeps.workspaceId, execute: async () => {
               await assertUserAccountAction({ deps: identity, workspaceId: routeDeps.workspaceId, principalId: input["principalId"]!, action: "disable" },
@@ -235,11 +235,11 @@ export function buildGatedIdentityRegistrations(
         } };
 
       case ROLE_DELETE_TOOL_ID:
-        return confirmedDelete(registration, "role");
+        return confirmedDelete({ registration, kind: "role" });
       case POLICY_DELETE_TOOL_ID:
-        return confirmedDelete(registration, "policy");
+        return confirmedDelete({ registration, kind: "policy" });
       case USER_CREATE_TOOL_ID: {
-        const inputSchema = withoutPassword(registration.descriptor.inputSchema);
+        const inputSchema = withoutPassword({ schema: registration.descriptor.inputSchema });
         return {
           ...registration,
           descriptor: {
@@ -247,7 +247,7 @@ export function buildGatedIdentityRegistrations(
             description: `${registration.descriptor.description ?? ""}${USER_CREATE_DESCRIPTION_SUFFIX}`,
             inputSchema,
           },
-          handler: createUserWithHumanPassword(registration.handler, inputSchema),
+          handler: createUserWithHumanPassword({ inner: registration.handler, publishedSchema: inputSchema }),
         };
       }
       default:

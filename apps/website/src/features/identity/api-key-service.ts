@@ -53,7 +53,7 @@ export interface ApiKeyServiceDeps extends AuthServiceDeps {
 // Repo-bag assembly and its sharing rationale now live in Jini user-management/server (grant-service.ts).
 
 /** Trim-and-bound one of the two name fields, or throw `IdentityValidationError`. */
-function requireBoundedName(value: unknown, field: string): string {
+function requireBoundedName({ value, field }: { value: unknown; field: string }, _options = {}): string {
   const trimmed = typeof value === "string" ? value.trim() : "";
   if (trimmed.length < NAME_MIN_LENGTH || trimmed.length > NAME_MAX_LENGTH) {
     throw new IdentityValidationError({ message: `'${field}' must be ${NAME_MIN_LENGTH}..${NAME_MAX_LENGTH} characters after trimming` });
@@ -63,10 +63,10 @@ function requireBoundedName(value: unknown, field: string): string {
 
 /** True iff `rows` carries `permission` with BOTH `resourceType` and `constraintJson` null — or the
  *  owner wildcard, which is an unconstrained hold of every permission (INV-07). */
-function holdsUnconstrained(rows: readonly PolicyPermissionRecord[], permission: string): boolean {
-  const unconstrained = (row: PolicyPermissionRecord, id: string) =>
+function holdsUnconstrained({ rows, permission }: { rows: readonly PolicyPermissionRecord[]; permission: string }, _options = {}): boolean {
+  const unconstrained = ({ row, id }: { row: PolicyPermissionRecord; id: string }, _options = {}) =>
     row.permission === id && row.resourceType == null && row.constraintJson == null;
-  return rows.some((row) => unconstrained(row, "*")) || rows.some((row) => unconstrained(row, permission));
+  return rows.some((row) => unconstrained({ row, id: "*" })) || rows.some((row) => unconstrained({ row, id: permission }));
 }
 
 /**
@@ -94,7 +94,7 @@ async function assertGrantClamp(required: {
     workspaceId: required.workspaceId,
   });
 
-  const offending = distinct.filter((permission) => !holdsUnconstrained(effectiveRows, permission));
+  const offending = distinct.filter((permission) => !holdsUnconstrained({ rows: effectiveRows, permission }));
   if (offending.length > 0) {
     throw new GrantExceedsIssuerError({ message: `principal '${required.callerPrincipalId}' cannot grant permission(s) it does not hold unconstrained: ${offending.join(", ")}`, offendingPermissions: offending });
   }
@@ -153,7 +153,7 @@ export async function createApiKeyPrincipal(required: {
   if (input.kind !== undefined && input.kind !== "api_key") {
     throw new IdentityValidationError({ message: `'kind' must be 'api_key', got '${String(input.kind)}'` });
   }
-  const displayName = requireBoundedName(input.displayName, "displayName");
+  const displayName = requireBoundedName({ value: input.displayName, field: "displayName" });
 
   const principal: PrincipalRecord = {
     id: deps.idGen.newId(),
@@ -178,7 +178,7 @@ export interface IssueApiKeyInput {
 }
 
 /** Read `policyIds` off an untyped body: a non-empty array of non-blank strings, or 400. */
-function requirePolicyIds(value: unknown): string[] {
+function requirePolicyIds({ value }: { value: unknown }, _options = {}): string[] {
   if (!Array.isArray(value) || value.length === 0) {
     throw new IdentityValidationError({ message: "'policyIds' must be a non-empty array of policy ids" });
   }
@@ -242,7 +242,7 @@ async function collectSnapshotSourceRows(required: {
 }
 
 /** Optional `expiresAt`: absent/null means no expiry; anything else must parse as a real date. */
-function readOptionalExpiry(value: unknown): ISODateTime | undefined {
+function readOptionalExpiry({ value }: { value: unknown }, _options = {}): ISODateTime | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   const parsed = new Date(String(value)).getTime();
   if (Number.isNaN(parsed)) {
@@ -289,9 +289,9 @@ export async function issueApiKey(required: {
       callerPrincipalId: input.callerPrincipalId,
     });
 
-    const label = requireBoundedName(input.label, "label");
-    const policyIds = requirePolicyIds(input.policyIds);
-    const expiresAt = readOptionalExpiry(input.expiresAt);
+    const label = requireBoundedName({ value: input.label, field: "label" });
+    const policyIds = requirePolicyIds({ value: input.policyIds });
+    const expiresAt = readOptionalExpiry({ value: input.expiresAt });
     const boundPrincipalId = typeof input.principalId === "string" ? input.principalId.trim() : "";
     if (boundPrincipalId.length === 0) {
       throw new IdentityValidationError({ message: "'principalId' is required" });
@@ -347,7 +347,7 @@ export async function issueApiKey(required: {
       workspaceId,
       principalId: boundPrincipalId,
       label,
-      keyHash: await deps.secretHasher.hash(minted.secret),
+      keyHash: await deps.secretHasher.hash({ secret: minted.secret }),
       prefix: minted.prefix,
       issuedPolicyId: snapshotPolicyId,
       createdAt: new Date(deps.clock.nowMs()).toISOString(),
@@ -443,7 +443,7 @@ export async function authenticateApiKey(required: {
 }): Promise<{ principal: PrincipalRecord; apiKey: ApiKeyRecord } | null> {
   const { deps, input } = required;
 
-  const parsed = parseApiKey(input.rawKey);
+  const parsed = parseApiKey({ rawKey: input.rawKey });
   if (!parsed) return null;
 
   const candidate = await deps.apiKeys.findByPrefix({
@@ -451,11 +451,11 @@ export async function authenticateApiKey(required: {
     prefix: parsed.prefix,
   });
   if (!candidate) {
-    await deps.secretHasher.verify(await decoyKeyHash(deps.secretHasher), parsed.secret);
+    await deps.secretHasher.verify({ storedHash: await decoyKeyHash(deps.secretHasher), secret: parsed.secret });
     return null;
   }
 
-  const matches = await deps.secretHasher.verify(candidate.keyHash, parsed.secret);
+  const matches = await deps.secretHasher.verify({ storedHash: candidate.keyHash, secret: parsed.secret });
   if (!matches) return null;
 
   const now = new Date(deps.clock.nowMs()).toISOString();

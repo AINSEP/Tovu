@@ -46,26 +46,25 @@ const ZERO_COUNTERS: CampaignCounters = {
 
 function validateFields(fields: { subject: string; preheader?: string | null }): void {
   if (fields.subject.length < SUBJECT_MIN || fields.subject.length > SUBJECT_MAX) {
-    throw new NewsletterValidationError(
-      `subject must be between ${SUBJECT_MIN} and ${SUBJECT_MAX} characters`,
-      "subject",
-      "length"
-    );
+    throw new NewsletterValidationError({
+      message: `subject must be between ${SUBJECT_MIN} and ${SUBJECT_MAX} characters`,
+      field: "subject",
+      reason: "length",
+    });
   }
   if (fields.preheader != null && fields.preheader.length > PREHEADER_MAX) {
-    throw new NewsletterValidationError(`preheader must be at most ${PREHEADER_MAX} characters`, "preheader", "length");
+    throw new NewsletterValidationError({ message: `preheader must be at most ${PREHEADER_MAX} characters`, field: "preheader", reason: "length" });
   }
 }
 
-async function requireEditableListId(deps: CampaignWriteServiceDeps, workspaceId: UUID, listId: UUID): Promise<void> {
+async function requireEditableListId({ deps, workspaceId, listId }: { deps: CampaignWriteServiceDeps; workspaceId: UUID; listId: UUID }, _options = {}): Promise<void> {
   const list = await deps.listRepo.findById({ workspaceId, id: listId });
   if (!list) throw new NewsletterListNotFoundError(`list ${listId} was not found`);
 }
 
 async function writeRevision(
-  deps: CampaignWriteServiceDeps,
-  campaign: CampaignRecord,
-  actorId: UUID
+  { deps, campaign, actorId }: { deps: CampaignWriteServiceDeps; campaign: CampaignRecord; actorId: UUID },
+  _options = {},
 ): Promise<void> {
   const priorRevisions = await deps.campaignRepo.listRevisions({ workspaceId: campaign.workspaceId, campaignId: campaign.id });
   const seq = priorRevisions.length > 0 ? Math.max(...priorRevisions.map((r) => r.seq)) + 1 : 1;
@@ -108,9 +107,9 @@ export async function saveCampaign(required: {
 }, _options = {}): Promise<{ campaign: CampaignRecord; revisionSeq: number }> {
   const { deps, input } = required;
   validateFields(input.fields);
-  await requireEditableListId(deps, input.workspaceId, input.fields.listId);
+  await requireEditableListId({ deps, workspaceId: input.workspaceId, listId: input.fields.listId });
 
-  return deps.campaignRepo.transaction(async () => {
+  return deps.campaignRepo.transaction({ fn: async () => {
     const now = deps.clock.nowIso();
     let campaign: CampaignRecord;
 
@@ -118,20 +117,20 @@ export async function saveCampaign(required: {
       const existing = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.id });
       if (!existing) throw new NewsletterCampaignNotFoundError(`campaign ${input.id} was not found`);
       if (existing.status !== "draft") {
-        throw new NewsletterCampaignNotEditableError(
-          `campaign is '${existing.status}' and cannot be edited`,
-          existing.status,
-          "update"
-        );
+        throw new NewsletterCampaignNotEditableError({
+          message: `campaign is '${existing.status}' and cannot be edited`,
+          currentStatus: existing.status,
+          attemptedAction: "update",
+        });
       }
       if (input.expectedVersion !== undefined && input.expectedVersion !== existing.version) {
-        throw new NewsletterConflictError(
-          "campaign was modified concurrently (EC-06)",
-          "campaign",
-          existing.id,
-          input.expectedVersion,
-          existing.version
-        );
+        throw new NewsletterConflictError({
+          message: "campaign was modified concurrently (EC-06)",
+          entity: "campaign",
+          id: existing.id,
+          expectedVersion: input.expectedVersion,
+          actualVersion: existing.version,
+        });
       }
       campaign = {
         ...existing,
@@ -167,29 +166,29 @@ export async function saveCampaign(required: {
     }
 
     if (input.fields.bodyJson !== undefined) campaign = { ...campaign, bodyJson: input.fields.bodyJson };
-    await writeRevision(deps, campaign, input.actorId);
+    await writeRevision({ deps, campaign, actorId: input.actorId });
     const revisions = await deps.campaignRepo.listRevisions({ workspaceId: campaign.workspaceId, campaignId: campaign.id });
     return { campaign, revisionSeq: Math.max(...revisions.map((r) => r.seq)) };
-  });
+  } });
 }
 
 async function transitionAndWrite(
   deps: CampaignWriteServiceDeps,
   required: { workspaceId: UUID; id: UUID; actorId: UUID; to: CampaignRecord["status"]; actorTier: CampaignActorTier }
 ): Promise<CampaignRecord> {
-  return deps.campaignRepo.transaction(async () => {
+  return deps.campaignRepo.transaction({ fn: async () => {
     const existing = await deps.campaignRepo.findById({ workspaceId: required.workspaceId, id: required.id });
     if (!existing) throw new NewsletterCampaignNotFoundError(`campaign ${required.id} was not found`);
 
     const decision = transitionCampaignStatus({ from: existing.status, to: required.to, actorTier: required.actorTier });
     if (!decision.allowed) {
-      throw new NewsletterCampaignNotEditableError(decision.reason, existing.status, `transition-to-${required.to}`);
+      throw new NewsletterCampaignNotEditableError({ message: decision.reason, currentStatus: existing.status, attemptedAction: `transition-to-${required.to}` });
     }
 
     const campaign: CampaignRecord = { ...existing, status: required.to, updatedAt: deps.clock.nowIso() };
-    await writeRevision(deps, campaign, required.actorId);
+    await writeRevision({ deps, campaign, actorId: required.actorId });
     return campaign;
-  });
+  } });
 }
 
 /** C-010 — cancel a campaign (`admin.newsletter.campaign.compose` tier). */
@@ -202,10 +201,10 @@ export async function cancelCampaign(required: {
 }
 
 /** Validates a timezone-qualified ISO timestamp, including the calendar date that Date.parse normalizes.
- * @param value - Caller-supplied schedule timestamp, shared by routes, tools and the write service.
+ * @param required.value - Caller-supplied schedule timestamp, shared by routes, tools and the write service.
  * @returns False for malformed dates, missing timezone or impossible calendar dates.
  * @complexity O(n) in timestamp length, O(1) auxiliary space. */
-export function isValidScheduleTimestamp(value: string): boolean {
+export function isValidScheduleTimestamp({ value }: { value: string }, _options = {}): boolean {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return false;
   if (!Number.isFinite(Date.parse(value))) return false;
   const datePart = value.slice(0, 10);
@@ -218,18 +217,18 @@ export async function scheduleCampaign(required: {
   input: { workspaceId: UUID; id: UUID; actorId: UUID; scheduledAt: string };
 }): Promise<{ campaign: CampaignRecord }> {
   const { deps, input } = required;
-  if (!isValidScheduleTimestamp(input.scheduledAt)) {
-    throw new NewsletterValidationError("scheduledAt must be a valid ISO date-time string", "scheduledAt", "format");
+  if (!isValidScheduleTimestamp({ value: input.scheduledAt })) {
+    throw new NewsletterValidationError({ message: "scheduledAt must be a valid ISO date-time string", field: "scheduledAt", reason: "format" });
   }
-  const campaign = await deps.campaignRepo.transaction(async () => {
+  const campaign = await deps.campaignRepo.transaction({ fn: async () => {
     const existing = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.id });
     if (!existing) throw new NewsletterCampaignNotFoundError(`campaign ${input.id} was not found`);
 
-    await requireEditableListId(deps, input.workspaceId, existing.listId);
+    await requireEditableListId({ deps, workspaceId: input.workspaceId, listId: existing.listId });
 
     const decision = transitionCampaignStatus({ from: existing.status, to: "scheduled", actorTier: "schedule" });
     if (!decision.allowed) {
-      throw new NewsletterCampaignNotEditableError(decision.reason, existing.status, "schedule");
+      throw new NewsletterCampaignNotEditableError({ message: decision.reason, currentStatus: existing.status, attemptedAction: "schedule" });
     }
 
     const updated: CampaignRecord = {
@@ -238,8 +237,8 @@ export async function scheduleCampaign(required: {
       scheduledAt: input.scheduledAt,
       updatedAt: deps.clock.nowIso(),
     };
-    await writeRevision(deps, updated, input.actorId);
+    await writeRevision({ deps, campaign: updated, actorId: input.actorId });
     return updated;
-  });
+  } });
   return { campaign };
 }

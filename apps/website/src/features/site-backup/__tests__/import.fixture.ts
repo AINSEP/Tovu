@@ -219,7 +219,7 @@ export async function seedPluginShareData({ db }: { db: ReturnType<typeof openCo
       db.$client.prepare(`INSERT INTO "p_${decl.pluginId}__${table.name}" (${columns}) VALUES (${values.map(() => "?").join(",")})`).run(...values);
     }
   }
-  await ensureDefaultList({ deps: { listRepo: new SqliteNewsletterListRepo(db), clock: { nowIso: () => stamp }, ids: { newId: () => "default-list" } }, input: { workspaceId: "ws" } });
+  await ensureDefaultList({ deps: { listRepo: new SqliteNewsletterListRepo({ store: db }), clock: { nowIso: () => stamp }, ids: { newId: () => "default-list" } }, input: { workspaceId: "ws" } });
   // Historical/additive per-person fields must not travel with otherwise portable lists.
   db.$client.exec("ALTER TABLE p_newsletter__lists ADD COLUMN owner_email TEXT");
   db.$client.prepare("UPDATE p_newsletter__lists SET owner_email=?").run("private-visitor@example.test");

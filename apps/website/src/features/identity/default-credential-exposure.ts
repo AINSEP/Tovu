@@ -61,20 +61,20 @@ export interface DefaultCredentialHit {
 const SKIPPED_ENTRY_NAMES = new Set(["node_modules", "dist", ".vite", "__tests__"]);
 
 /** True iff `entry` is a scannable source file this check must inspect. */
-function isScannableFile(entry: string): boolean {
+function isScannableFile({ entry }: { entry: string }, _options = {}): boolean {
   return SCANNED_EXTENSIONS.has(path.extname(entry)) && !/\.(test|spec)\.[jt]sx?$/.test(entry);
 }
 
 /** Enumeration errors must fail the credential gate: an unreadable or missing source tree
  * cannot establish that the shipped UI is free of the default password. */
-function readDirEntries(dir: string): string[] {
+function readDirEntries({ dir }: { dir: string }, _options = {}): string[] {
   return readdirSync(dir);
 }
 
 /** `true`/`false`/`null` for "is a directory" / "is a file" / "could not stat" (deleted between
  *  listing and stat, a broken symlink, or a permission error) — `null` tells the caller to skip the
  *  entry entirely rather than mis-scan it as either shape. */
-function statIsDirectory(fullPath: string): boolean | null {
+function statIsDirectory({ fullPath }: { fullPath: string }, _options = {}): boolean | null {
   try {
     return statSync(fullPath).isDirectory();
   } catch {
@@ -83,15 +83,15 @@ function statIsDirectory(fullPath: string): boolean | null {
 }
 
 /** Recursively lists scannable files under `dir`, skipping build output and dependencies. */
-function listFiles(dir: string): string[] {
+function listFiles({ dir }: { dir: string }, _options = {}): string[] {
   const out: string[] = [];
-  for (const entry of readDirEntries(dir)) {
+  for (const entry of readDirEntries({ dir })) {
     if (SKIPPED_ENTRY_NAMES.has(entry)) continue;
 
     const full = path.join(dir, entry);
-    const isDir = statIsDirectory(full);
-    if (isDir) out.push(...listFiles(full));
-    if (isDir === false && isScannableFile(entry)) out.push(full);
+    const isDir = statIsDirectory({ fullPath: full });
+    if (isDir) out.push(...listFiles({ dir: full }));
+    if (isDir === false && isScannableFile({ entry })) out.push(full);
   }
   return out;
 }
@@ -102,7 +102,7 @@ function listFiles(dir: string): string[] {
  *
  * @complexity O(n) in the text length.
  */
-export function findSecretInText(text: string, secret: string): number[] {
+export function findSecretInText({ text, secret }: { text: string; secret: string }, _options = {}): number[] {
   const lines: number[] = [];
   text.split("\n").forEach((line, index) => {
     if (line.includes(secret)) lines.push(index + 1);
@@ -119,14 +119,14 @@ export function scanForDefaultCredentialExposure(): DefaultCredentialHit[] {
   const hits: DefaultCredentialHit[] = [];
   for (const root of SCANNED_ROOTS) {
     const abs = path.join(REPO_ROOT, root);
-    for (const file of listFiles(abs)) {
+    for (const file of listFiles({ dir: abs })) {
       let text: string;
       try {
         text = readFileSync(file, "utf8");
       } catch {
         continue;
       }
-      for (const line of findSecretInText(text, DEFAULT_OWNER_PASSWORD)) {
+      for (const line of findSecretInText({ text, secret: DEFAULT_OWNER_PASSWORD })) {
         hits.push({ file: path.relative(REPO_ROOT, file), line });
       }
     }

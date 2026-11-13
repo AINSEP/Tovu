@@ -31,9 +31,9 @@ const validFields = {
 };
 
 function makeMemoryDeps(): CampaignWriteServiceDeps {
-  const listRepo = new InMemoryNewsletterListRepo([
+  const listRepo = new InMemoryNewsletterListRepo({}, { initialRows: [
     { id: "list-1", workspaceId: WS, name: "All", slug: "all", isDefault: true, status: "active" as const, createdAt: clock.nowIso(), updatedAt: clock.nowIso() } as NewsletterListRow,
-  ]);
+  ] });
   return { campaignRepo: new InMemoryNewsletterCampaignRepo(), listRepo, clock, ids };
 }
 
@@ -242,8 +242,8 @@ class ThrowingAppendRevisionRepo implements NewsletterCampaignRepoPort {
   listRevisions(required: { workspaceId: string; campaignId: string }) {
     return this.real.listRevisions(required);
   }
-  transaction<T>(fn: () => Promise<T>): Promise<T> {
-    return this.real.transaction(fn);
+  transaction<T>({ fn }: { fn: () => Promise<T> }, _options = {}): Promise<T> {
+    return this.real.transaction({ fn });
   }
   incrementCounter(required: Parameters<NewsletterCampaignRepoPort["incrementCounter"]>[0]) {
     return this.real.incrementCounter(required);
@@ -252,10 +252,10 @@ class ThrowingAppendRevisionRepo implements NewsletterCampaignRepoPort {
 
 test("saveCampaign: AC-08 — a forced mid-tx failure at the REAL SQLite adapter leaves zero campaign rows and zero revision rows (INV-01)", async () => {
   const db = openContentDb(":memory:");
-  const realCampaignRepo = new SqliteNewsletterCampaignRepo(db);
-  const memoryListRepo = new InMemoryNewsletterListRepo([
+  const realCampaignRepo = new SqliteNewsletterCampaignRepo({ store: db });
+  const memoryListRepo = new InMemoryNewsletterListRepo({}, { initialRows: [
     { id: "list-1", workspaceId: WS, name: "All", slug: "all", isDefault: true, status: "active" as const, createdAt: clock.nowIso(), updatedAt: clock.nowIso() },
-  ]);
+  ] });
   const throwingRepo = new ThrowingAppendRevisionRepo(realCampaignRepo);
 
   const deps: CampaignWriteServiceDeps = {
@@ -276,10 +276,10 @@ test("saveCampaign: AC-08 — a forced mid-tx failure at the REAL SQLite adapter
 
 test("saveCampaign: at the REAL SQLite adapter, a successful save writes exactly 1 campaign row + 1 revision row in the same tx", async () => {
   const db = openContentDb(":memory:");
-  const memoryListRepo = new InMemoryNewsletterListRepo([
+  const memoryListRepo = new InMemoryNewsletterListRepo({}, { initialRows: [
     { id: "list-1", workspaceId: WS, name: "All", slug: "all", isDefault: true, status: "active" as const, createdAt: clock.nowIso(), updatedAt: clock.nowIso() },
-  ]);
-  const deps: CampaignWriteServiceDeps = { campaignRepo: new SqliteNewsletterCampaignRepo(db), listRepo: memoryListRepo, clock, ids };
+  ] });
+  const deps: CampaignWriteServiceDeps = { campaignRepo: new SqliteNewsletterCampaignRepo({ store: db }), listRepo: memoryListRepo, clock, ids };
 
   await saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: validFields } });
 
