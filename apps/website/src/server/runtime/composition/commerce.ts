@@ -332,6 +332,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
         } catch { warn('The catalog is unavailable; the rest of the site remains online.'); return null; }
       },
     },
+    // Schema failures are reported by the operation that started migration; close only waits for it.
     close: async () => { closed = true; await warming; await worker.close(); await schema?.catch(() => {}); },
   };
 }

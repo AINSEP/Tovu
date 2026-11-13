@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { ChatMessage } from '@jini-ai/chat/core';
 /** Thin Tovu host over Jini's shared frontend bridge and DOM driver. Both widgets use this. */
 import { PAGE_CAPABILITIES } from '@jini-ai/agentic';
@@ -30,7 +31,7 @@ export function createVisitorPageControl({ document, beforeNavigate }: { documen
     const submit = acceptedSubmission; acceptedSubmission = undefined;
     close();
     if (path) assign({ path });
-    else void submit?.().catch(() => undefined);
+    else void submit?.().catch((error: unknown) => console.error("[site-chat] Could not submit the page form", describeErrorForLog({ err: error })));
   };
   let ready: Promise<void> | undefined;
   const ensureAttached = () => ready ??= attach().catch(error => {

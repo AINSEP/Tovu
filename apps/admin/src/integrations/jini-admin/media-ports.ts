@@ -127,6 +127,7 @@ export function createMediaProvidersPort(_required: Record<string, never>, _opti
       const next = change({ current: await read({ signal }) });
       return present({ values: await authenticatedAdminRequest<AdminMediaProviderMap>({ path, method: 'PUT', body: next }, { signal }) });
     });
+    // The caller receives operation, while this recovery keeps later writes runnable.
     writes = operation.catch(() => undefined);
     return operation;
   }

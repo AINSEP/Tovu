@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -241,15 +242,14 @@ function useRestartAction(
 ): () => void {
   return useCallback(() => {
     setOutcome(null);
-    // `.catch` is required, not defensive: `mutate`'s own promise already carries a handler, but
-    // `.then` derives a NEW promise that would reject unhandled. The failure itself is not
-    // swallowed — it is read back off `restartCall.error` by the caller.
+    // `mutate` reports a rejected restart through `restartCall.error`, but `.then` derives a new
+    // promise that needs a handler too; a failure in its success callback needs its own diagnostic.
     void mutate({ input: undefined })
       .then((result) => {
         setOutcome(result);
         if (result.ok) beginRestartWatch();
-      })
-      .catch(() => undefined);
+      }, () => { /* restartCall.error exposes the failed restart. */ })
+      .catch((error: unknown) => console.error("[external-mcp] Could not handle the restart result", describeErrorForLog({ err: error })));
   }, [mutate, setOutcome, beginRestartWatch]);
 }
 

@@ -12,6 +12,7 @@ export async function startQueuedDaemonRun(
     if (signal?.aborted) throw new DOMException("The queued turn was stopped.", "AbortError");
     const response = await ports.post({ body }, {});
     if (response.status !== 409) return response;
+    // A non-JSON conflict is returned unchanged for the caller to handle.
     const payload = await response.clone().json().catch(() => null) as { code?: string } | null;
     if (payload?.code !== "CHAT_RUN_BUSY") return response;
     await ports.wait({ signal }, {});

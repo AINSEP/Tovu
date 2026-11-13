@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /**
  * Tovu daemon wiring over @jini-ai/sidecar/supervisor and its /node process adapter.
  * Tovu owns environment,
@@ -595,7 +596,7 @@ function registerDelegatedDaemon({ input, parent }: {
     isReady: () => ready && parent.connected === true,
     parking(pid) {
       ready = false;
-      void channel.request({ payload: { operation: "parking", pid } }, {}).catch(() => {});
+      void channel.request({ payload: { operation: "parking", pid } }, {}).catch((error: unknown) => console.error("[daemon-supervisor] Could not report daemon parking", describeErrorForLog({ err: error })));
     },
     async stop() {
       ready = false;

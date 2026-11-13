@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /**
  * @file One project tab's toolbar: which surface the tab asked for, where its guest actually is,
  * whether it can go back or forward, and how Reload, the view toggle and Cmd+[ / Cmd+] reach the
@@ -282,11 +283,17 @@ export function createWorkspaceActions(input: {
       // `loadURL` rejects when a newer navigation aborts it, which is ordinary, not a failure.
       const url = siteSurfaceUrl({ port: input.port, view: option, externalUrl: input.externalUrl });
       if (!url) return;
-      loadOrRemount((target) => void target.loadURL(url).catch(() => undefined));
+      loadOrRemount((target) => void target.loadURL(url).catch((error: unknown) => {
+        if (!(error instanceof Error && error.message.includes("ERR_ABORTED"))) console.error("[workspace] Could not load the site", describeErrorForLog({ err: error }));
+      }));
     },
-    // An id and a surface, never a url: main rebuilds the url from the registry row. A rejection
-    // means the project stopped existing, and the next poll takes the tab away.
-    openInBrowser: () => void input.bridge?.openSiteExternal({ siteId: input.siteId, view: surface }).catch(() => undefined),
+    // An id and a surface, never a url: main rebuilds the url from the registry row. If the project
+    // has stopped existing, the next poll takes the tab away; other failures need a diagnostic.
+    openInBrowser: () => void input.bridge?.openSiteExternal({ siteId: input.siteId, view: surface }).catch((error: unknown) => {
+      if (!(error instanceof Error && error.message.includes("That project is not open. Open it first, then try again."))) {
+        console.error("[workspace] Could not open the site in a browser", describeErrorForLog({ err: error }));
+      }
+    }),
   };
 }
 

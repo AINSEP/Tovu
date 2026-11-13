@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { isVaultRestoreArtifact, SEALED_COLUMN_SUFFIX } from "./vault-credential-inventory.js";
 import { sql } from "kysely";
 
@@ -100,6 +101,6 @@ export async function scanOpenedKernel(open: () => StorageKernel<unknown>): Prom
   } catch {
     return true;
   } finally {
-    await kernel.close().catch(() => {});
+    await kernel.close().catch((error: unknown) => console.error("[site-key] Could not close the scanned database", describeErrorForLog({ err: error })));
   }
 }

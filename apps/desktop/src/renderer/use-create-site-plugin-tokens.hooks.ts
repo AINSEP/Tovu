@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CreateSiteInput, CreatedSiteRecord, TokenSignInPlugin } from '../contracts/project.js';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
@@ -85,7 +86,7 @@ export function useCreateSitePluginTokens(
         if (live) setPlugins(found);
       })
       // Main already turns a failure into `[]`; this covers a bridge that rejects anyway.
-      .catch(() => undefined);
+      .catch((error: unknown) => console.error("[create-site] Could not load sign-in services", describeErrorForLog({ err: error })));
     return () => {
       live = false;
     };

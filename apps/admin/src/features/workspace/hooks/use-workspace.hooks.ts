@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -87,7 +88,8 @@ export function useWorkspace({ port }: WorkspaceDependencies): WorkspaceControll
       hydrated.current = true;
       setName(workspace.name);
       setSlug(workspace.slug);
-    }).catch(() => {}); // The reactive query exposes this read's error.
+    }, () => { /* The reactive query exposes this read's error. */ })
+      .catch((error: unknown) => console.error("[workspace] Could not apply the loaded settings", describeErrorForLog({ err: error })));
     return () => { cancelled = true; };
   }, [loader]);
 

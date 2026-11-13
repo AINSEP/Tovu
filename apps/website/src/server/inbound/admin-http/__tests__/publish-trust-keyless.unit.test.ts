@@ -38,6 +38,25 @@ test("a keyless instance passes a bearer request on to the session gate instead 
   assert.equal(nextArg, undefined);
 });
 
+test("missing site keys stay quiet while unexpected identity failures are redacted", async (t) => {
+  const errors = t.mock.method(console, "error", () => {});
+  async function attempt(error: Error) {
+    const middleware = requirePublishTrust({
+      keyring: {} as never, workspaceId: "w-1", clock: { nowIso: () => "2026-09-26T00:00:00Z" },
+      targetInstallationId: Promise.reject(error),
+      grants: async () => { throw new Error("grants must not be read"); },
+      revocations: async () => { throw new Error("revocations must not be read"); },
+    });
+    let passed = false;
+    await middleware({ headers: { authorization: "Bearer key" } } as Request, {} as Response, () => { passed = true; });
+    assert.equal(passed, true);
+  }
+  await attempt(new Error("no site key: none of the configured sources resolved (/private/path)"));
+  assert.equal(errors.mock.callCount(), 0);
+  await attempt(new TypeError("sensitive-token"));
+  assert.deepEqual(errors.mock.calls.map(call => call.arguments), [["[publish-trust] Could not derive the site's publishing identity:", "TypeError"]]);
+});
+
 // The id was derived at boot, but the session key is derived per request: a site key that goes
 // missing afterwards must not turn into a rejected middleware either.
 test("a keyring that fails at verify time passes the request on instead of hanging", async () => {

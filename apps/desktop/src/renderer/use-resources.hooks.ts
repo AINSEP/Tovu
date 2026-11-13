@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Pull-only Tovu resource readings. Main owns sampling policy and process attribution. */
 import { useEffect, useRef, useState } from 'react';
 import { runnerInventoryBridge } from './runner-api.js';
@@ -62,7 +63,10 @@ export function useResources({ panelOpen }: ResourcesRequest, { ports = browserP
       if (!active || ports.document.hidden) { pending = false; return; }
       const version = visibilityVersion;
       // Resolve failures locally: raw native/IPC messages may contain sensitive process details.
-      const request = Promise.resolve().then(() => bridge!.getResources!({ panelOpen })).catch(() => null);
+      const request = Promise.resolve().then(() => bridge!.getResources!({ panelOpen })).catch((error: unknown) => {
+        console.error("[resources] Could not read resource usage", describeErrorForLog({ err: error }));
+        return null;
+      });
       inFlight.current = request;
       const next = await request;
       inFlight.current = null;

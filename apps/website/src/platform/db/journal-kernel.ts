@@ -108,6 +108,7 @@ export function gateJournalKernel(kernel: JournalKernel, ready: Promise<void>): 
       await kernel.backupTo(destPath);
     },
     close: async () => {
+      // Readiness errors reach kernel callers; close must still release the underlying handle.
       await ready.catch(() => {});
       await kernel.close();
     },

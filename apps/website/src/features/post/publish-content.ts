@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { executeCommand } from "@jini-ai/cms/core";
 
@@ -395,7 +396,7 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
         // `executeCommand` compensates only a failed change-set record, never a failed `execute`, and
         // the import above is already committed: undo it here (terms first, as on rollback) and
         // rethrow. A revert failure must not hide the original error or skip the post's undo.
-        await terms.revert().catch(() => undefined);
+        await terms.revert().catch((rollbackError: unknown) => console.error("[publish-content] Could not revert imported terms", describeErrorForLog({ err: rollbackError })));
         await undoPostImport({ ports, deps, kind, workspaceId, id, prior: existing, principalId });
         throw error;
       }

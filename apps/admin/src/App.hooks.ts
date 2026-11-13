@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { directPageAction } from "../../website/src/assistant/assistant-tool-approval-policy.js";
 import { PAGE_CAPABILITIES as APPROVAL_PAGE_CAPABILITIES } from "@jini-ai/agentic";
 import { adminFailureChannel } from "./lib/admin-failure-channel";
@@ -139,7 +140,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
     if (initialSession.current === null) {
       const bootToken = takeBootToken(location, history);
       if (bootToken) {
-        initialSession.current = sessionApi.redeemBootSession(bootToken).catch(() => undefined).then(() => sessionApi.me());
+        initialSession.current = sessionApi.redeemBootSession(bootToken).catch((error: unknown) => { console.error("[admin] Could not redeem the boot session", describeErrorForLog({ err: error })); }).then(() => sessionApi.me());
       } else {
         initialSession.current = readInitialAdminSession({ hostname: location.hostname, port: sessionApi }, { onLocalSignIn: publishSettingsRefresh });
       }
@@ -236,7 +237,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
         setPublishToLiveAvailable(readPublishToLiveAvailability(r));
         setEffectivePermissions(r.effectivePermissions);
       })
-      .catch(() => undefined);
+      .catch((error: unknown) => console.error("[admin] Could not refresh the signed-in session", describeErrorForLog({ err: error })));
   }
 
   async function logout() {
@@ -246,7 +247,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
     sessionEpoch.current++;
     setChecking(false);
     setEffectivePermissions([]);
-    await sessionApi.logout().catch(() => undefined);
+    await sessionApi.logout().catch((error: unknown) => console.error("[admin] Could not end the server session", describeErrorForLog({ err: error })));
     setAdminDraftIdentity({ id: null });
     adminFailureChannel.reset();
     setUser(null);

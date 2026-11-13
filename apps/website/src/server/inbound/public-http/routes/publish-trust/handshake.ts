@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from "express";
-import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 
 import { createRateLimiter, resolveClientIp, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
 import {
@@ -127,8 +127,10 @@ function asChallengeResponse(body: unknown): PublishChallengeResponse | null {
  */
 export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishTrustHandshakeDeps): void {
   const targetInstallationId = deps.targetInstallationId.catch((error: unknown) => {
+    // A site without a configured key is an ordinary state, not a boot failure.
+    if (error instanceof Error && (error.message === "no site key" || error.message.startsWith("no site key: none of the configured sources resolved ("))) return null;
     console.error("[publish-trust] Could not derive the site's publishing identity for the handshake:",
-      redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text);
+      describeErrorForLog(error));
     return null;
   });
   const limiter = createRateLimiter({
@@ -163,7 +165,7 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
       try {
         await handler(req, res);
       } catch (err) {
-        console.error(`[publish-trust] handshake ${req.method} ${req.path} failed:`, err);
+        console.error(`[publish-trust] handshake ${req.method} ${req.path} failed:`, describeErrorForLog(err));
         res.status(500).json(HANDSHAKE_FAILED);
       }
     };

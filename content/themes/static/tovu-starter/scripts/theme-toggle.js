@@ -17,7 +17,7 @@
   }
 
   var saved = null;
-  try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+  try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) { /* Storage can be unavailable; the current theme still works. */ }
   var chosen = saved === "light" || saved === "dark";
   apply(chosen ? saved : byClock());
 
@@ -35,7 +35,7 @@
         var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
         chosen = true;
         apply(next);
-        try { localStorage.setItem(STORAGE_KEY, next); } catch (e) {}
+        try { localStorage.setItem(STORAGE_KEY, next); } catch (e) { /* Storage can be unavailable; the current theme still works. */ }
       });
     }
     apply(root.getAttribute("data-theme") === "light" ? "light" : "dark");

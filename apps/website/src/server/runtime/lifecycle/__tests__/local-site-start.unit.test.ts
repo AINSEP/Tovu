@@ -2,6 +2,7 @@ import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import type { ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
+import { createServer } from "node:http";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -64,3 +65,32 @@ for (const outcome of ["ready", "exit", "supplied", "delayed-lock"] as const) {
     assert.equal(probes, outcome !== "exit" ? 2 : 0);
   });
 }
+
+test("retirement cancellation rejects when the site refuses to reopen intake", async (t) => {
+  let status = 503;
+  const server = createServer((_req, res) => { res.statusCode = status; res.end(); });
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+  t.after(() => new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+
+  const switcherBase = fs.mkdtempSync(path.join(os.tmpdir(), "site-retirement-"));
+  t.after(() => fs.rmSync(switcherBase, { recursive: true, force: true }));
+  const siteDir = path.join(switcherBase, "sites/slow");
+  fs.mkdirSync(siteDir, { recursive: true });
+  fs.writeFileSync(path.join(siteDir, "config.json"), JSON.stringify({ name: "slow" }));
+  fs.writeFileSync(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "slow-retirement", templateId: "blank",
+    templateVersion: "1", schemaTag: "test", schemaVersion: 0, createdAt: "2026-10-31" }));
+  const child = Object.assign(new EventEmitter(), { pid: 4242, stdout: new PassThrough(), stderr: new PassThrough() });
+  t.after(() => { child.stdout.end(); child.stderr.end(); });
+  const local = createLocalSiteProcessPort({ switcherBase }, {
+    env: { TOVU_SITES_HOME: path.join(switcherBase, "sites"), TOVU_DISABLE_DEV_TLS: "1" },
+    processOptions: { spawn: () => child as unknown as ChildProcess },
+  });
+  t.after(() => local.dispose?.());
+  const launched = await local.launch({ name: "slow", port: address.port, daemonPort: 3102 });
+  assert.ok(launched.cancelRetirement);
+  await assert.rejects(launched.cancelRetirement(), /Could not cancel site retirement: HTTP 503/);
+  status = 204;
+  await launched.cancelRetirement();
+});

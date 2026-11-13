@@ -271,7 +271,7 @@ test("a failed logout never blocks the stop", async () => {
   await h.tracker.drain();
   assert.equal(h.openSites.size, 0);
   assert.ok(h.log.includes("row-closed /registry /a 1"));
-  assert.equal(h.log.some((step) => step.startsWith("error")), false);
+  assert.ok(h.log.includes("error [tovu-desktop] Could not end the site session: Error"));
 });
 
 test("a stop that cannot confirm exit is logged and keeps its recovery row", async () => {
@@ -280,7 +280,7 @@ test("a stop that cannot confirm exit is logged and keeps its recovery row", asy
   window.closed!(); // `!`: registered by openSiteWindow.
   await h.tracker.drain();
   assert.equal(h.log.some((step) => step.startsWith("row-closed")), false);
-  assert.ok(h.log.includes("error [tovu-desktop] site shutdown failed: exit not observed"));
+  assert.ok(h.log.includes("error [tovu-desktop] site shutdown failed: Error"));
 });
 
 test("closing a stale window stops ITS server but never deletes the replacement entry", async () => {

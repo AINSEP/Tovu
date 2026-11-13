@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -151,9 +152,12 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
             navigate("/recovery?tab=restore", { replace: true });
           }
         }
-      })
-      .catch(() => undefined); // a failed re-verification falls back to the plain list, no alarm
-  }, [points, port]);
+      }, () => undefined) // a failed re-verification falls back to the plain list, no alarm
+      .catch((error: unknown) => {
+        console.error("[recovery] Could not apply the recovery link", describeErrorForLog({ err: error }));
+        setError(t({ locale, key: "Failed to open recovery link" }));
+      });
+  }, [points, port, locale]);
 
   return { status, points, error, creating, createRestorePoint, selected, setSelected, t: boundT, locale };
 }

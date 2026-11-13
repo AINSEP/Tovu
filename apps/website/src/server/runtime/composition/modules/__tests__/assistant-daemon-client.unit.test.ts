@@ -304,6 +304,22 @@ test("forwardToAgentDaemon passes its observability port through to the call it 
   assert.equal((await finishedSpans(exporter, 1))[0].name, "GET 127.0.0.1");
 });
 
+test("cancelDaemonRunBestEffort ignores an unknown run but reports an unexpected HTTP failure", async (t) => {
+  withEnv(t, { JINI_AGENT_DAEMON_URL: "http://127.0.0.1:4319" });
+  let status = 404;
+  t.mock.method(globalThis, "fetch", async () => new Response(null, { status }));
+  const errors = t.mock.method(console, "error", () => {});
+  const request = fakeReq({ originalUrl: "/x", method: "GET" });
+  const { res } = fakeRes();
+  cancelDaemonRunBestEffort(request, res, "run-1");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(errors.mock.callCount(), 0);
+  status = 500;
+  cancelDaemonRunBestEffort(request, res, "run-1");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(errors.mock.calls.map(call => call.arguments), [["[assistant] Could not cancel the daemon run: HTTP 500"]]);
+});
+
 test("cancelDaemonRunBestEffort traces its fire-and-forget POST without the run id", async (t) => {
   const daemon = await startDaemon(t, (_s, res) => res.end("{}"));
   withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin, [TOKEN_ENV]: "tok-otel-123" });

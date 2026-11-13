@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { rmSync } from "node:fs";
 import path from "node:path";
@@ -546,7 +547,10 @@ async function publishStaticSiteSteps(deps: StaticPublishDeps, input: StaticPubl
   if (!forms.ok) return forms.outcome;
   const publishInput: DeployPublishInput = { files: filesForReceiver({ files, submitUrl: forms.submitUrl }), projectName: input.projectName };
   // Report-only data: a catalog read failure must not stop a publish.
-  const hosts = await deps.pluginExportHosts?.().catch(() => undefined);
+  const hosts = await deps.pluginExportHosts?.().catch((error: unknown) => {
+    console.warn("[static-publish] Could not read plugin export hosts", describeErrorForLog({ err: error }));
+    return undefined;
+  });
   const baseHeaders = deps.publicPageSecurityHeaders ?? (() => publicPageSecurityHeaders({}));
   const outcome = await publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath, forms.hosting, () => hosts ? withDeclaredHosts({ headers: baseHeaders(), hosts }) : baseHeaders());
   await saveReceiverKey({ outcome, save: forms.save });

@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connection.js";
 /**
  * @file Shared plumbing for talking to the standalone agent daemon
@@ -256,12 +257,10 @@ export async function forwardToAgentDaemon(req: Request, res: Response, body?: u
  * failure (`respondIfDaemonKnownFailed`'s 503, or a genuinely-unreachable daemon's 502) — exactly
  * the kind of write this function's callers can no longer make.
  *
- * Every outcome the daemon's own `/api/runs/:runId/cancel` route can produce is safe to ignore here
- * (`@jini-ai/http-kit`'s `runCancelRoute`/`@jini-ai/daemon`'s `RunLifecycle.cancel` — confirmed
- * against the real packages): a run already finished is an explicitly documented no-op (still
- * `200`), an unknown run id is a well-formed `404`, and neither ever rejects the `fetch()` itself —
- * only a genuine network failure (daemon down, connection reset) does that, which `.catch()` below
- * swallows for the same "nothing left to report it to" reason.
+ * The normal outcomes of the daemon's `/api/runs/:runId/cancel` route need no further action
+ * (`@jini-ai/http-kit`'s `runCancelRoute`/`@jini-ai/daemon`'s `RunLifecycle.cancel`): a finished
+ * run is a no-op (still `200`), and an unknown run id is a well-formed `404`. Other HTTP failures
+ * and network failures are logged because this response has already closed and cannot report them.
  *
  * @complexity O(1) — one fire-and-forget HTTP request, not awaited by the caller.
  */
@@ -269,7 +268,9 @@ export function cancelDaemonRunBestEffort(req: Request, res: Response, daemonRun
   daemonFetch(optional)(`${getAgentDaemonUrl()}/api/runs/${encodeURIComponent(daemonRunId)}/cancel`, {
     method: "POST",
     headers: outboundHeaders(req, res),
-  }).catch(() => undefined);
+  }).then((response) => {
+    if (!response.ok && response.status !== 404) console.error(`[assistant] Could not cancel the daemon run: HTTP ${response.status}`);
+  }).catch((error: unknown) => console.error("[assistant] Could not cancel the daemon run", describeErrorForLog({ err: error })));
 }
 
 /** The socket-level code from a raw `node:http` request error (`error.code` directly) — the

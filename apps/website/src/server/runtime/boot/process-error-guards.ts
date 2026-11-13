@@ -125,6 +125,7 @@ export function installProcessErrorReporting(
     try {
       tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "process.uncaught_exception", attributes: { process: processRole } } });
     } catch { /* A broken diagnostic sink must not skip the fatal drain and exit. */ } finally {
+      // Fatal shutdown still exits if the already-reported crash prevents telemetry flushing.
       void Promise.resolve().then(() => optional.flush?.()).catch(() => {}).finally(finish);
     }
   };

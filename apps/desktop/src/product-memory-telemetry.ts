@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Tovu labels and consent policy over the existing Resources monitor and Jini growth owner. */
 import { aggregateProcessMemory, createMemoryGrowthDetector, type ProcessMemoryReading } from '@jini-ai/diagnostics';
 import type { Tracker } from '@jini-ai/diagnostics/observability';
@@ -74,7 +75,7 @@ export function startProductMemoryTelemetry({ monitor, tracker, readConsent, des
   function tick(): Promise<void> {
     if (disposed) return Promise.resolve();
     // Measurement failures are advisory; no rejected background task may become a product error.
-    pending ??= sample().catch(() => {}).finally(() => { pending = undefined; });
+    pending ??= sample().catch((error: unknown) => console.error("[desktop] Could not sample memory", describeErrorForLog({ err: error }))).finally(() => { pending = undefined; });
     return pending;
   }
   const cancel = schedule(() => { void tick(); }, cadenceMs);

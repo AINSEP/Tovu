@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 
 import {
   grantAllowsCapability,
@@ -224,8 +224,10 @@ function acceptedKeyFor(
  */
 export function requirePublishTrust(deps: PublishTrustAuthDeps) {
   const targetInstallationId = deps.targetInstallationId.catch((error: unknown) => {
+    // A site without a configured key is an ordinary state, not a boot failure.
+    if (error instanceof Error && (error.message === "no site key" || error.message.startsWith("no site key: none of the configured sources resolved ("))) return null;
     console.error("[publish-trust] Could not derive the site's publishing identity:",
-      redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text);
+      describeErrorForLog(error));
     return null;
   });
   return async function requirePublishTrustMiddleware(
@@ -252,8 +254,10 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
       { keyring: deps.keyring, workspaceId: deps.workspaceId, clock: deps.clock },
       { token, expectedAudience: installationId }
     ).catch((error: unknown) => {
+      // Losing the site key is also a normal unconfigured state after boot.
+      if (error instanceof Error && (error.message === "no site key" || error.message.startsWith("no site key: none of the configured sources resolved ("))) return null;
       console.error("[publish-trust] Could not verify the publishing session:",
-        redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text);
+        describeErrorForLog(error));
       return null;
     });
     if (verified === null || !verified.ok) {

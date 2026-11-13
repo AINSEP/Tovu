@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /**
  * @file Live site views: how many open project tabs keep a running `<webview>` guest at once.
  *
@@ -191,7 +192,12 @@ export function restoreParkedScroll({ guest, parked }: {
   const script = scrollScript({ parked });
   const onLoad = () => {
     detach();
-    try { void target.executeJavaScript(script).catch(() => undefined); } catch { /* Guest gone. */ }
+    try {
+      void target.executeJavaScript(script).catch((error: unknown) => {
+        // Closing the guest while restoring scroll is expected.
+        if (!(error instanceof Error && /destroyed|not attached/i.test(error.message))) console.error("[live-views] Could not restore scroll position", describeErrorForLog({ err: error }));
+      });
+    } catch { /* Guest gone. */ }
   };
   const detach = () => { try { target.removeEventListener('did-finish-load', onLoad); } catch { /* Guest already gone. */ } };
   try { target.addEventListener('did-finish-load', onLoad); } catch { return undefined; }

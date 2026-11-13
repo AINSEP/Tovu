@@ -35,6 +35,7 @@ function createKeyedSerializer(): KeyedSerializer {
    */
   function run<T>(key: string, fn: () => T | PromiseLike<T>): Promise<T> {
     const previous = chains.get(key) ?? Promise.resolve();
+    // The previous caller receives its own rejection; the queue must continue.
     const next = previous.catch(() => {}).then(fn);
     chains.set(key, next);
     const clearSlot = () => {

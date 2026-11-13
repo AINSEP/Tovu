@@ -178,6 +178,7 @@ async function runProbe(connect: ExternalMcpProbeSessionFactory, target: ProbeTa
     const fallbackKind = timeout ? 'timeout' : 'unreachable';
     return { ok: false, kind: auth ? 'auth' : fallbackKind };
   } finally {
+    // The probe result is already decided; closing its optional session is best effort.
     await session?.close({}).catch(() => undefined);
   }
 }

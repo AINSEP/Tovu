@@ -15,6 +15,7 @@ export async function activateAssistantDaemon(
     throw new Error(`The assistant could not reach its page service. Retry your message; if it keeps failing, restart the site. Details: POST /api/frontend-sessions/activate; ${detail}`);
   });
   if (!response.ok) {
+    // A non-JSON refusal still surfaces the HTTP status and recovery guidance below.
     const body = await response.json().catch(() => undefined) as { error?: unknown; code?: unknown; detail?: unknown } | undefined;
     throw new Error(activationRefusalMessage({ status: response.status, body }));
   }

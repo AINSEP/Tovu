@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/catalog";
 
 /**
@@ -496,7 +497,7 @@ async function restoreLedgerKeys(keys: readonly string[], previousValues: Readon
   for (const key of [...keys].reverse()) {
     await api
       .setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: executionSettingScope(key), valueJson: previousValues.get(key) })
-      .catch(() => undefined);
+      .catch((error: unknown) => console.error("[execution-settings] Could not restore a setting", describeErrorForLog({ err: error })));
   }
 }
 

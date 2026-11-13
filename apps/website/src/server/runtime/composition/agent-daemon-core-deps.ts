@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** ADR-070 retained daemon composition. No site routes, migrations, plugin lifecycle or outbox.
  * The server owns durable attempts and provider plugins; a client opens only already-migrated
  * content/chat kernels for the retained local repositories. Memory never opens a database. */
@@ -90,7 +91,7 @@ export async function createAgentDaemonCoreDeps(required: { env: NodeJS.ProcessE
     return deps;
   } catch (error) {
     // Preserve the composition error even if a failing server also refuses the final telemetry drain.
-    await close().catch(() => {});
+    await close().catch((cleanupError: unknown) => console.error("[agent-daemon] Could not close the failed composition", describeErrorForLog({ err: cleanupError })));
     throw error;
   }
 }

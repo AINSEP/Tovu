@@ -2,7 +2,7 @@ import type { DocumentAssets } from '@jini-ai/cms/presentation';
 import type { DeclaredScript } from '@jini-ai/cookie-consent';
 import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
 import type { ConsentConfig } from '@jini-ai/cookie-consent';
-import { redactSecretShapes } from '@tovu/contracts/secret-redaction';
+import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
 /** Public declared-script assets, published context, receipts and plugin admission.
  * Documents receive asset contributions during construction; public responses are never scanned. */
 import { createHash, randomBytes } from 'node:crypto';
@@ -356,7 +356,7 @@ function refreshDocumentState({ state, deps, consent }: { state: DocumentState; 
   state.nextReadAt = state.now() + 60_000;
   const policy = readSiteConsentPolicy({ deps }).then(config => { state.policy = config; }, error => {
     console.warn('[consent] Cookie preferences could not refresh. The last loaded preferences remain in use; a later request will try again:',
-      redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text);
+      describeErrorForLog(error));
     throw error;
   });
   const lastGoodScripts = state.scripts;

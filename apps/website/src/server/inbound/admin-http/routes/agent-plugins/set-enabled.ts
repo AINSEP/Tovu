@@ -1,6 +1,6 @@
 import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
-import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import type { Request, Response } from "express";
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
@@ -166,7 +166,7 @@ async function provisionAgentPluginMcpServersBestEffort(
     }, { skipServerKeys: result.failed.map((failure) => failure.serverKey) });
   } catch (error) {
     console.warn(
-      `[agent-plugins] '${input.pluginId}': MCP provisioning could not run — ${redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text}`,
+      `[agent-plugins] '${input.pluginId}': MCP provisioning could not run — ${describeErrorForLog(error)}`,
     );
   }
 }

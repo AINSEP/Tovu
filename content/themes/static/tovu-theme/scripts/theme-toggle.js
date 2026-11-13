@@ -8,7 +8,7 @@
   }
 
   var saved = null;
-  try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+  try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) { /* Storage can be unavailable; the current theme still works. */ }
   if (saved === "light" || saved === "dark") apply(saved);
 
   // Every [data-theme-toggle] is wired, not only the first: the header has one and the mobile menu
@@ -24,7 +24,7 @@
         var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
         apply(next);
         syncLabels();
-        try { localStorage.setItem(STORAGE_KEY, next); } catch (e) {}
+        try { localStorage.setItem(STORAGE_KEY, next); } catch (e) { /* Storage can be unavailable; the current theme still works. */ }
       });
     }
     syncLabels();

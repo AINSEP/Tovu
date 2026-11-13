@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { ToolAccessChange } from '@jini-ai/daemon';
 import { lowerAssistantToolAccess } from './assistant-tool-access-lowering.js';
 import type { ByokToolSurface } from "#src/assistant/byok-tool-surface";
@@ -43,7 +44,7 @@ export function createAssistantServerFederation(
       if (lowered) {
         await Promise.all([lowerAssistantToolAccess(lowered, {}), optional.lowerLocal?.(lowered)]);
         // Stop/cleanup certifies OFF; optional discovery latency must not turn that into a failure.
-        void reload({}, {}).catch(() => {});
+        void reload({}, {}).catch((error: unknown) => console.error("[assistant] Could not reload the tool federation", describeErrorForLog({ err: error })));
         return;
       }
       await reload({}, {});

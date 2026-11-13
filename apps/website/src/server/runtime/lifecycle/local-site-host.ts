@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Serving-host ownership: one supervisor per binding, not one per HTTP request or route import. */
 import { createLocalSiteIntentStore, createLocalSiteSupervisor, type LocalSiteSupervisorPort } from "#src/platform/site-dir/index";
 import { switcherBaseForBinding, type SiteBinding, isSiteSwitcherEnabled } from "#src/platform/site-dir/index";
@@ -56,7 +57,7 @@ export function localSiteSupervisorForHost({ binding, workspaceId }: { binding: 
       ...(process.env.TOVU_DEV_SUPERVISOR_PID ? { devSession: process.env.TOVU_DEV_SUPERVISOR_PID,
         intentPort: createLocalSiteIntentStore({ servingSiteDir: binding.dir }) } : {}) });
   // Run before daemon/store exit handlers can call process.exit; the adapter signals synchronously.
-  const shutdown = () => { void supervisor.shutdown().catch(() => {}); };
+  const shutdown = () => { void supervisor.shutdown().catch((error: unknown) => console.error("[local-sites] Could not shut down the supervisor", describeErrorForLog({ err: error }))); };
   const killNow = () => supervisor.killNow();
   for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.prependOnceListener(signal, shutdown);
   process.once("exit", killNow);

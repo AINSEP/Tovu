@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** CMS local-site lifecycle policy. Effects stay behind the host process port; no spawn on import.
  * Capacity and folder mutations share one lane so concurrent requests cannot trash a starting site.
  */
@@ -76,6 +77,7 @@ export function createLocalSiteSupervisor(
   let lane: Promise<unknown> = Promise.resolve();
   function serial<T>(task: () => Promise<T>): Promise<T> {
     const next = lane.then(task);
+    // The caller receives next; only the scheduling lane must recover for later work.
     lane = next.catch(() => {});
     return next;
   }
@@ -113,7 +115,7 @@ export function createLocalSiteSupervisor(
     entry.cancel?.();
     const child = entry.child;
     // A Stop queued ahead of this reaper may already have reaped this child: its "stopped" stands.
-    void serial(async () => { if (entry.child === child) await reap(entry, "crashed"); }).catch(() => {});
+    void serial(async () => { if (entry.child === child) await reap(entry, "crashed"); }).catch((error: unknown) => console.error("[local-sites] Could not reap a crashed site", describeErrorForLog({ err: error })));
   }
   function canProbe(entry: Entry) {
     return !closed && (entry.state.status === "starting" || entry.state.status === "running");

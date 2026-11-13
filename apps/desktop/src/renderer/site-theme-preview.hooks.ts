@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Reload only this tab's public guest; Electron can throw from calls on detached webviews. */
 import type { SiteThemePreviewRefresh } from '../contracts/project.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
@@ -37,7 +38,10 @@ export function subscribeWorkspaceThemePreview(
       // Navigation may precede React's next render; check the actual guest before touching it.
       if (!ownPublicUrl(guest.getURL?.() ?? url)) return;
       if (frame.path === undefined) guest.reloadIgnoringCache();
-      else void guest.loadURL(new URL(frame.path, origin).href, { extraHeaders: 'pragma: no-cache\n' }).catch(() => undefined);
+      else void guest.loadURL(new URL(frame.path, origin).href, { extraHeaders: 'pragma: no-cache\n' }).catch((error: unknown) => {
+        // Another navigation can supersede this preview refresh.
+        if (!(error instanceof Error && error.message.includes('ERR_ABORTED'))) console.error('[theme-preview] Could not refresh the page', describeErrorForLog({ err: error }));
+      });
       dispatch({ type: 'soft-load' });
     } catch { /* An unattached guest must never blank the host window; its normal load will recover. */ }
   } });
