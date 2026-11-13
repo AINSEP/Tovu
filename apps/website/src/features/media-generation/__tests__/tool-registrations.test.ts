@@ -188,7 +188,7 @@ test("generated assets stamp the acting principal independently of the model and
   const stored = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id });
   assert.ok(stored);
   assert.equal((stored as { createdBy?: string }).createdBy, PRINCIPAL_ID);
-  assert.deepEqual(stored.source.provenance, { kind: 'generated' });
+  assert.deepEqual(stored.source.provenance, { kind: 'generated', model: "gpt-image-2", provider: "openai" });
   assert.equal(stored.credit, "Editorial credit");
   assert.deepEqual(fixture.captures.map(([event]) => event), [{ name: "media_uploaded", userId: PRINCIPAL_ID }]);
 });
@@ -359,6 +359,59 @@ test("an unsupported model id is rejected with the schema attached for retry, an
   assert.match(error.message, /'model' must be a registered image model — got 'some-other-vendor-model'/);
   assert.match(error.message, /"additionalProperties":false/, "the published schema must travel with the failure, per withSchemaOnRejection");
   assert.equal(generateCalls.length, 0, "an invalid model must never reach the vendor call");
+});
+
+// ---------------------------------------------------------------------------
+// 3a. Which model and vendor made the image (owner request 2026-11-13)
+// ---------------------------------------------------------------------------
+
+type ModelReport = { media: { id: string; placeholder: boolean }; model: string; provider: string };
+
+async function storedProvenance(fixture: ReturnType<typeof fakeRouteDeps>, id: string): Promise<unknown> {
+  const stored = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id });
+  assert.ok(stored, "the generated asset must be stored");
+  return stored.source.provenance;
+}
+
+test("the result and the stored asset name the default-resolved model and its vendor", async () => {
+  const fixture = fakeRouteDeps();
+  await seedOpenAiCredential(fixture);
+  const out = await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "a red bicycle" })) as ModelReport;
+  assert.equal(out.model, "gpt-image-2");
+  assert.equal(out.provider, "openai");
+  assert.deepEqual(await storedProvenance(fixture, out.media.id), { kind: "generated", model: "gpt-image-2", provider: "openai" });
+});
+
+test("the result and the stored asset name an explicitly chosen model and its vendor", async () => {
+  const fixture = fakeRouteDeps({ env: { GEMINI_API_KEY: "env-gemini-key" } });
+  const out = await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "a red circle", model: "gemini-3.1-flash-image-preview" })) as ModelReport;
+  assert.equal(out.model, "gemini-3.1-flash-image-preview");
+  assert.equal(out.provider, "nanobanana");
+  assert.deepEqual(await storedProvenance(fixture, out.media.id), { kind: "generated", model: "gemini-3.1-flash-image-preview", provider: "nanobanana" });
+});
+
+test("the vendor reported is the one the engine actually used, not only the catalog's guess", async () => {
+  const fixture = fakeRouteDeps({ generateMedia: async () => ({ bytes: FAKE_PNG_BYTES, providerNote: "override", providerId: "custom-image", usedStubFallback: false, warnings: [] }) });
+  await seedOpenAiCredential(fixture);
+  const out = await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "a logo", model: "gpt-image-2" })) as ModelReport;
+  assert.equal(out.provider, "custom-image");
+  assert.deepEqual(await storedProvenance(fixture, out.media.id), { kind: "generated", model: "gpt-image-2", provider: "custom-image" });
+});
+
+test("a placeholder says so: the result names what was asked for, and the library never credits the model with the stand-in", async () => {
+  const fixture = fakeRouteDeps({ generateMedia: async (_request, _credentials, options) => ({ bytes: FAKE_PNG_BYTES, providerNote: "stub", providerId: options.providerId, usedStubFallback: true, warnings: [] }) });
+  const out = await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "Placeholder", model: "gpt-image-2", allowStubFallback: true })) as ModelReport;
+  assert.equal(out.media.placeholder, true);
+  assert.equal(out.model, "gpt-image-2");
+  assert.equal(out.provider, "openai");
+  assert.deepEqual(await storedProvenance(fixture, out.media.id), { kind: "generated" });
+});
+
+test("the tool description tells the assistant to name the model and vendor it used", () => {
+  const { description } = catalogEntry("media_generate_asset");
+  assert.match(description, /`model`/);
+  assert.match(description, /`provider`/);
+  assert.match(description, /tell the user which model and vendor/i);
 });
 
 // ---------------------------------------------------------------------------
