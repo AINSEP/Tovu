@@ -19,7 +19,7 @@ test('editor saves a user note through its port and keeps learned facts separate
   };
   const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
   await waitFor(() => expect(result.current.text).toBe('Original note'));
-  act(() => result.current.setText('User brand rule'));
+  act(() => result.current.setText({ text: 'User brand rule' }));
   await act(async () => { await result.current.save(); });
   expect(calls).toEqual([{ pluginId: 'example', entryPath: 'project.md', text: 'User brand rule' }]);
   expect(result.current.listing?.learned).toEqual(state.learned);
@@ -63,7 +63,7 @@ test('empty-state messages wait for a successful read and update after saving th
   expect(result.current.editorDisabled).toBe(false);
   expect(result.current.notesEmptyMessage).toBe('No note files yet. Save a project note to get started.');
   expect(result.current.learnedEmptyMessage).toBe('Nothing learned yet. The assistant saves what it verifies here.');
-  act(() => result.current.setText('First note'));
+  act(() => result.current.setText({ text: 'First note' }));
   await act(async () => { await result.current.save(); });
   expect(result.current.notesEmptyMessage).toBeNull();
   expect(result.current.learnedEmptyMessage).toBe('Nothing learned yet. The assistant saves what it verifies here.');
@@ -127,9 +127,9 @@ test('choosing a note file loads that file into the editor, and a new path start
   const port: AgentPluginMemoryPort = { read: async () => state, saveNote: async () => state };
   const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
   await waitFor(() => expect(result.current.text).toBe('Project text'));
-  act(() => result.current.setPath('brand.md'));
+  act(() => result.current.setPath({ entryPath: 'brand.md' }));
   expect(result.current).toMatchObject({ entryPath: 'brand.md', text: 'Brand text' });
-  act(() => result.current.setPath('new-file.md'));
+  act(() => result.current.setPath({ entryPath: 'new-file.md' }));
   expect(result.current).toMatchObject({ entryPath: 'new-file.md', text: '' });
 });
 

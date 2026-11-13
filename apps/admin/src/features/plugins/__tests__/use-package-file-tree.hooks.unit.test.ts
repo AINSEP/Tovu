@@ -53,9 +53,9 @@ describe("usePackageFileTree keyboard", () => {
 
   it("expands a collapsed folder with ArrowRight", () => {
     const { result } = renderHook(() => usePackageFileTree({ paths: ["docs/a.md"], selectedPath: null, onOpenFile: vi.fn() }));
-    expect(result.current.isExpanded("docs")).toBe(false);
+    expect(result.current.isExpanded({ folderPath: "docs" })).toBe(false);
     act(() => result.current.onKeyDown(key("ArrowRight").event));
-    expect(result.current.isExpanded("docs")).toBe(true);
+    expect(result.current.isExpanded({ folderPath: "docs" })).toBe(true);
   });
 });
 
@@ -83,7 +83,7 @@ describe("applyPackageFileTreeKeyAction", () => {
   it("an action that only toggles a folder toggles it without moving focus", () => {
     const port = effects();
     expect(applyPackageFileTreeKeyAction({ setExpanded: { path: "skills", expanded: false } }, port)).toBe(true);
-    expect(port.setExpanded).toHaveBeenCalledWith("skills", false);
+    expect(port.setExpanded).toHaveBeenCalledWith({ path: "skills", expanded: false });
     expect(port.focus).not.toHaveBeenCalled();
     expect(port.openFile).not.toHaveBeenCalled();
   });

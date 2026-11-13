@@ -7,12 +7,12 @@ import type { AgentPluginSurfaceActionAnswer, AgentPluginSurfacesPort, AgentPlug
  * cookie. The two POSTs carry the browser's own `Origin`, which the server's CSRF gate requires.
  */
 
-const base = (pluginId: string) => `/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}/surfaces`;
+const base = ({ pluginId }: { pluginId: string }, _optional = {}) => `/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}/surfaces`;
 
 export const defaultAgentPluginSurfacesPort: AgentPluginSurfacesPort = {
-  list: ({ pluginId }, _optional = {}) => authenticatedAdminRequest<{ surfaces: AgentPluginSurfaceSummary[] }>({ path: base(pluginId), method: "GET" }),
-  bootstrap: ({ pluginId, surfaceId }, _optional = {}) => authenticatedAdminRequest<AdminSurfaceBootstrap>({ path: `${base(pluginId)}/${encodeURIComponent(surfaceId)}/bootstrap`, method: "POST", body: {} }),
+  list: ({ pluginId }, _optional = {}) => authenticatedAdminRequest<{ surfaces: AgentPluginSurfaceSummary[] }>({ path: base({ pluginId }), method: "GET" }),
+  bootstrap: ({ pluginId, surfaceId }, _optional = {}) => authenticatedAdminRequest<AdminSurfaceBootstrap>({ path: `${base({ pluginId })}/${encodeURIComponent(surfaceId)}/bootstrap`, method: "POST", body: {} }),
   action: ({ pluginId, surfaceId, action, payload }, _optional = {}) => authenticatedAdminRequest<AgentPluginSurfaceActionAnswer>({
-    path: `${base(pluginId)}/${encodeURIComponent(surfaceId)}/actions`, method: "POST", body: { action, payload },
+    path: `${base({ pluginId })}/${encodeURIComponent(surfaceId)}/actions`, method: "POST", body: { action, payload },
   }),
 };

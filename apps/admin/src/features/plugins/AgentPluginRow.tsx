@@ -117,7 +117,7 @@ function AgentPluginRowStateArea({
     return (
       <>
         <span className="agent-plugin-state">{t("Disabled")}</span>
-        <button type="button" role="switch" aria-checked={false} aria-label={agentPluginToggleAriaLabel(plugin, locale)} disabled className="agent-plugin-switch">
+        <button type="button" role="switch" aria-checked={false} aria-label={agentPluginToggleAriaLabel({ plugin, locale })} disabled className="agent-plugin-switch">
           <span className="agent-plugin-switch-knob" aria-hidden="true" />
         </button>
         <span className="agent-plugin-linked-lock">
@@ -141,7 +141,7 @@ function AgentPluginRowStateArea({
           type="button"
           role="switch"
           aria-checked={plugin.enabled}
-          aria-label={agentPluginToggleAriaLabel(plugin, locale)}
+          aria-label={agentPluginToggleAriaLabel({ plugin, locale })}
           aria-busy={busy}
           disabled={busy}
           className="agent-plugin-switch"
@@ -172,7 +172,7 @@ function AgentPluginRowStateArea({
       aria-busy={busy}
       disabled={busy}
       onClick={enabled ? stateControl.onRemove : stateControl.onEnable}
-      aria-label={agentPluginRemoveOrEnableAriaLabel(plugin, locale)}
+      aria-label={agentPluginRemoveOrEnableAriaLabel({ plugin, locale })}
       {...agentHandle({ handle: `${agentHandleBase}-${enabled ? "remove" : "enable"}` }, {
         role: "button",
         label: `${actionWord} the "${displayName}" Agent Plugin`,

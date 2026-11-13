@@ -784,7 +784,7 @@ describe("row expanders and tab edge states (injected controller)", () => {
     renderTab(tabId, { onToggleExpanded });
     const row = screen.getByRole("listitem", { name: "Word Count" });
     fireEvent.click(within(row).getByRole("button", { expanded: false }));
-    expect(onToggleExpanded).toHaveBeenCalledWith("word-count");
+    expect(onToggleExpanded).toHaveBeenCalledWith({ id: "word-count" });
   });
 
   it("Marketplace drops the install-directory hint when this server accepts folder installs", () => {

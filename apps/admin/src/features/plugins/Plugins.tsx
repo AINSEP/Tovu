@@ -98,7 +98,7 @@ function InstalledPluginRows({
   plugins: AdminPlugin[];
   controller: PluginsController;
   expandedIds: ReadonlySet<string>;
-  onToggleExpanded: (id: string) => void;
+  onToggleExpanded: (required: { id: string }, optional?: Record<string, never>) => void;
   rowHandleById: Map<string, string>;
   focusPluginId?: string | null;
 }) {
@@ -106,7 +106,7 @@ function InstalledPluginRows({
   return (
     <ul className="plugin-rows">
       {plugins.map((plugin) => {
-        const control = pluginToggleControl(plugin, rowSavingId, locale);
+        const control = pluginToggleControl({ plugin, rowSavingId, locale });
         const handle = rowHandleById.get(plugin.id);
         if (handle === undefined) throw new Error(`plugin ${plugin.id} has no row handle`);
         return (
@@ -115,7 +115,7 @@ function InstalledPluginRows({
             plugin={plugin}
             t={t}
             expanded={expandedIds.has(plugin.id)}
-            onToggleExpanded={() => onToggleExpanded(plugin.id)}
+            onToggleExpanded={() => onToggleExpanded({ id: plugin.id })}
             agentHandleBase={handle}
             onInspect={() => controller.onInspectPlugin(plugin.id)}
             {...(plugin.providerSettings ? { onSettings: () => controller.onOpenSettings(plugin.id) } : {})}
@@ -125,7 +125,7 @@ function InstalledPluginRows({
                 type="button"
                 disabled={control.disabled}
                 onClick={() => onToggleEnabled(plugin)}
-                aria-label={pluginToggleAriaLabel(plugin, locale)}
+                aria-label={pluginToggleAriaLabel({ plugin, locale })}
               >
                 {control.label}
               </button>
@@ -158,7 +158,7 @@ function DownloadedPluginRows({
   plugins: AdminPlugin[];
   controller: PluginsController;
   expandedIds: ReadonlySet<string>;
-  onToggleExpanded: (id: string) => void;
+  onToggleExpanded: (required: { id: string }, optional?: Record<string, never>) => void;
   rowHandleById: Map<string, string>;
   onRequestRemove: (plugin: AdminPlugin) => void;
 }) {
@@ -173,7 +173,7 @@ function DownloadedPluginRows({
         const action = (
           <>
             {plugin.enabled ? null : (
-              <button type="button" disabled={busy} onClick={() => onToggleEnabled(plugin)} aria-label={pluginToggleAriaLabel(plugin, locale)}>
+              <button type="button" disabled={busy} onClick={() => onToggleEnabled(plugin)} aria-label={pluginToggleAriaLabel({ plugin, locale })}>
                 {t("Enable")}
               </button>
             )}
@@ -182,7 +182,7 @@ function DownloadedPluginRows({
               className="plugin-icon-btn"
               disabled={removeBlocker !== null || busy}
               onClick={() => onRequestRemove(plugin)}
-              aria-label={pluginRemoveAriaLabel(plugin, locale)}
+              aria-label={pluginRemoveAriaLabel({ plugin, locale })}
               aria-describedby={removeBlocker ? PLUGINS_REMOVE_NOTE_IDS[removeBlocker] : undefined}
             >
               <PluginTrashIcon />
@@ -195,7 +195,7 @@ function DownloadedPluginRows({
             plugin={plugin}
             t={t}
             expanded={expandedIds.has(plugin.id)}
-            onToggleExpanded={() => onToggleExpanded(plugin.id)}
+            onToggleExpanded={() => onToggleExpanded({ id: plugin.id })}
             agentHandleBase={handle}
             onInspect={() => controller.onInspectPlugin(plugin.id)}
             {...(plugin.providerSettings ? { onSettings: () => controller.onOpenSettings(plugin.id) } : {})}

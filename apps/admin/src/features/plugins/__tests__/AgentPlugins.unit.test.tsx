@@ -318,7 +318,7 @@ describe("AgentPlugins", () => {
 
     await userEvent.click(within(row("Tovu Deploy Example")).getByRole("button", { name: "Tovu Deploy Example" }));
 
-    expect(onToggleExpanded).toHaveBeenCalledWith("tovu-deploy-example");
+    expect(onToggleExpanded).toHaveBeenCalledWith({ pluginId: "tovu-deploy-example" });
   });
 
   it("shows a loading note while agentPlugins has not yet loaded, and no rows", () => {
@@ -676,7 +676,7 @@ describe("assistant admin navigation regression", () => {
     function useController() {
       const [expandedIds, setExpandedIds] = useState(new Set<string>());
       return fakeController({ agentPlugins: [plugin], expandedIds,
-        onToggleExpanded: (id: string) => setExpandedIds(new Set([id])),
+        onToggleExpanded: ({ pluginId }) => setExpandedIds(new Set([pluginId])),
       });
     }
     const view = render(<AgentPlugins tabId="installed" useAgentPluginsHook={useController} />);

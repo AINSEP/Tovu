@@ -36,8 +36,8 @@ export interface PostFeaturedImageController {
 const FEATURED_IMAGE_ACCEPT: readonly string[] = ["image/*"];
 
 /** The preview for a chosen image: its rendition when one is offered, else the original. */
-function featuredPreviewUrl(value: string, rendition: ((id: string) => string) | undefined, port: Pick<MediaPickerPort, "mediaOriginalUrl">): string {
-  return rendition ? rendition(value) : port.mediaOriginalUrl(value);
+function featuredPreviewUrl(value: string, rendition: ((required: { id: string }, optional?: Record<string, never>) => string) | undefined, port: Pick<MediaPickerPort, "mediaOriginalUrl">): string {
+  return rendition ? rendition({ id: value }) : port.mediaOriginalUrl(value);
 }
 
 export function usePostFeaturedImage(
@@ -47,7 +47,7 @@ export function usePostFeaturedImage(
     port: Pick<MediaPickerPort, "mediaOriginalUrl">;
     /** A resized rendition's URL, tried before the original (2026-10-10: the cover slot downloaded a
      *  2.7 MB, 3749 × 5623 original to fill ~751 × 220px). Omitted, the preview is the original. */
-    renditionUrl?: (id: string) => string;
+    renditionUrl?: (required: { id: string }, optional?: Record<string, never>) => string;
   },
 ): PostFeaturedImageController {
   const [pickerOpen, setPickerOpen] = useState(false);

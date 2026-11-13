@@ -99,7 +99,7 @@ describe("postRowMenuItems", () => {
     items.find((i) => i.key === "edit")!.onSelect();
     items.find((i) => i.key === "unpublish")!.onSelect();
     items.find((i) => i.key === "delete")!.onSelect();
-    expect(onEdit).toHaveBeenCalledWith(p);
+    expect(onEdit).toHaveBeenCalledWith({ post: p });
     expect(onTogglePublish).toHaveBeenCalledWith(p);
     expect(onDelete).toHaveBeenCalledWith(p);
   });

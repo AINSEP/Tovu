@@ -6,11 +6,11 @@ export function AgentPluginMemoryPanel({ controller: c }: { controller: AgentPlu
     <p className="field-hint">{c.t("Notes load automatically when this plugin is used.")}</p>
     <div className="field">
       <label className="field-label" htmlFor={c.pathInputId}>{c.t("Note file")}</label>
-      <input id={c.pathInputId} value={c.entryPath} onChange={event => c.setPath(event.target.value)} disabled={c.editorDisabled} />
+      <input id={c.pathInputId} value={c.entryPath} onChange={event => c.setPath({ entryPath: event.target.value })} disabled={c.editorDisabled} />
     </div>
     <div className="field">
       <label className="field-label" htmlFor={c.notesInputId}>{c.t("Project notes")}</label>
-      <textarea id={c.notesInputId} rows={12} value={c.text} onChange={event => c.setText(event.target.value)} disabled={c.editorDisabled} />
+      <textarea id={c.notesInputId} rows={12} value={c.text} onChange={event => c.setText({ text: event.target.value })} disabled={c.editorDisabled} />
     </div>
     <div>
       <button className="btn-primary" type="button" onClick={c.save} disabled={c.editorDisabled}>{c.t("Save note")}</button>
@@ -19,7 +19,7 @@ export function AgentPluginMemoryPanel({ controller: c }: { controller: AgentPlu
     <section className="field-group" aria-labelledby={c.noteFilesHeadingId}>
       <h3 className="card-title" id={c.noteFilesHeadingId}>{c.t("Note files")}</h3>
       {c.notesEmptyMessage ? <p className="field-hint">{c.notesEmptyMessage}</p> : null}
-      {c.listing?.notes.map(file => <div key={file.relativePath}><button className="btn-secondary" type="button" onClick={() => c.setPath(file.relativePath)} disabled={c.saving}>{file.relativePath}</button></div>)}
+      {c.listing?.notes.map(file => <div key={file.relativePath}><button className="btn-secondary" type="button" onClick={() => c.setPath({ entryPath: file.relativePath })} disabled={c.saving}>{file.relativePath}</button></div>)}
     </section>
     <section className="field-group" aria-labelledby={c.learnedHeadingId}>
       <h3 className="card-title" id={c.learnedHeadingId}>{c.t("Learned knowledge")}</h3>

@@ -72,13 +72,13 @@ describe("useAgentPlugins — injected port (no fetch stub, no api spy)", () => 
     const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.agentPlugins).toHaveLength(2));
     expect([...result.current.expandedIds]).toEqual([]);
-    act(() => result.current.onToggleExpanded("site-compliance"));
+    act(() => result.current.onToggleExpanded({ pluginId: "site-compliance" }));
     expect([...result.current.expandedIds]).toEqual(["site-compliance"]);
-    act(() => result.current.onToggleExpanded("tovu-deploy-example"));
+    act(() => result.current.onToggleExpanded({ pluginId: "tovu-deploy-example" }));
     expect(new Set(result.current.expandedIds)).toEqual(new Set(["site-compliance", "tovu-deploy-example"]));
-    act(() => result.current.onToggleExpanded("site-compliance"));
+    act(() => result.current.onToggleExpanded({ pluginId: "site-compliance" }));
     expect([...result.current.expandedIds]).toEqual(["tovu-deploy-example"]);
-    act(() => result.current.onToggleExpanded("tovu-deploy-example"));
+    act(() => result.current.onToggleExpanded({ pluginId: "tovu-deploy-example" }));
     expect([...result.current.expandedIds]).toEqual([]);
   });
 
@@ -142,7 +142,7 @@ describe("useAgentPlugins — onToggleEnabled", () => {
     const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.agentPlugins).toHaveLength(2));
     await act(async () => { await result.current.onToggleEnabled(result.current.agentPlugins![0]!); });
-    expect(toggle).toHaveBeenCalledExactlyOnceWith("site-compliance", { enabled: false });
+    expect(toggle).toHaveBeenCalledExactlyOnceWith({ pluginId: "site-compliance", input: { enabled: false } });
     expect(result.current.agentPlugins).toEqual([serverRow, OTHER_PLUGIN]);
     expect(result.current.toggleError).toBeNull();
     expect(result.current.togglingIds.size).toBe(0);

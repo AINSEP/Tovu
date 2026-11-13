@@ -12,18 +12,18 @@ function isSelectedComposerSkill(skill: unknown): skill is SelectedComposerSkill
   return typeof fields.toolId === "string" && typeof fields.name === "string" && typeof fields.guidance === "string";
 }
 
-export function selectedSkillsFromContext(context: Record<string, unknown> | undefined): readonly SelectedComposerSkill[] {
+export function selectedSkillsFromContext({ context }: { context: Record<string, unknown> | undefined }, _optional = {}): readonly SelectedComposerSkill[] {
   const skills = context?.selectedSkills;
   if (!Array.isArray(skills)) return [];
   return skills.filter(isSelectedComposerSkill);
 }
 
-export function promptWithSelectedSkills(prompt: string, context: Record<string, unknown> | undefined): string {
-  const skills = selectedSkillsFromContext(context);
+export function promptWithSelectedSkills({ prompt, context }: { prompt: string; context: Record<string, unknown> | undefined }, _optional = {}): string {
+  const skills = selectedSkillsFromContext({ context });
   return skills.length === 0 ? prompt : `${skills.map(skill => skill.guidance).join("\n\n")}${prompt}`;
 }
 
 /** Plus selections keep the entire draft; slash selections remove only the active /query. */
-export function draftAfterSkillSelection(draft: string, source: "plus" | "slash"): string {
+export function draftAfterSkillSelection({ draft, source }: { draft: string; source: "plus" | "slash" }, _optional = {}): string {
   return source === "slash" ? draft.replace(/^\/[^\s/]*\s*/, "") : draft;
 }

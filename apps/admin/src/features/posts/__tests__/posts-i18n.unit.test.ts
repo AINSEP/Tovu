@@ -247,7 +247,7 @@ for (const copy of LOCALIZED) {
           fireEvent.click(within(dialog).getByRole("button", { name: translate("Move to trash") }));
         }
         else {
-          port.simulateConcurrentSave();
+          port.simulateConcurrentSave({});
           await act(() => controller.save());
           expect(controller.saveConflict).not.toBeNull();
           vi.spyOn(port, "getPost").mockRejectedValue(null);

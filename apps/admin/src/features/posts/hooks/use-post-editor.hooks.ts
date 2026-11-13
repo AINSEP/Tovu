@@ -678,7 +678,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   const savedRouteSlug = useRef<string | null>(null);
   // First Save has no row id for compare-and-set yet. Share its request synchronously so
   // same-tick Save/Publish clicks use one record, then apply the latest intent to its real id.
-  const firstSaveRequest = useRef<{ patch: Parameters<PostEditorPort["updatePost"]>[1]; response: Promise<{ post: AdminPost }> } | null>(null);
+  const firstSaveRequest = useRef<{ patch: Parameters<PostEditorPort["updatePost"]>[0]["patch"]; response: Promise<{ post: AdminPost }> } | null>(null);
 
   const editor = useEditor({
     // Link and Underline ship as part of StarterKit already (verified against its own bundle) —
@@ -892,7 +892,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     // even though it rarely changes) — an acceptable trade for a local admin panel.
     // An empty route identity is a local working copy. Its empty id keeps autosave,
     // external refresh and persisted-only panels off until the first explicit Save.
-    const row: Promise<{ post: AdminPost }> = postId ? port.getPost(postId) : Promise.resolve({ post: {
+    const row: Promise<{ post: AdminPost }> = postId ? port.getPost({ id: postId }) : Promise.resolve({ post: {
       id: "", workspaceId: "", kind: "post", title: "Untitled", slug: "untitled", bodyJson: { type: "doc", content: [{ type: "paragraph" }] },
       bodyFormat: "doc", status: "draft", updatedAt: "", version: 0,
     } satisfies AdminPost });
@@ -998,7 +998,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // (`use-external-entry-refresh.hooks.ts`): a clean editor takes the new row; a dirty one is left alone.
   const externalRefresh = useExternalEntryRefresh<AdminPost>({
     loaded: savedPost,
-    fetchLatest: (id) => port.getPost(id).then((loaded) => loaded.post),
+    fetchLatest: (id) => port.getPost({ id }).then((loaded) => loaded.post),
     isDirty: () => isDirty,
     isSaving: () => saving,
     applyLatest: applyExternalPost,
@@ -1044,7 +1044,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // loaded, unlike the original's "stable per mount" ref, which existed only because `PostPreview`
   // itself remounts on every tab switch). Both `""` before `post` loads — `PostPreview` never renders
   // that early. `previewFormTarget` itself is built by `loadedPostHandles` above.
-  const templatePreviewUrl = post?.id ? port.templatePreviewUrl(post.id, templateChoice) : "";
+  const templatePreviewUrl = post?.id ? port.templatePreviewUrl({ id: post.id, templateChoice }) : "";
 
   // Pending-content preview (2026-08-12, moved from `PostPreview`; widened 2026-09-09 to a DIRTY
   // draft and 2026-09-11 to a CLEAN draft — see `PostPreview`'s own doc in `PostEditor.tsx`,
@@ -1117,14 +1117,14 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
    * Identical double-clicks reuse the create result. Failed creates release the request for retry.
    * @complexity O(snapshot bytes) comparison, at most one create and one subsequent update. */
   async function persistWorkingPost({ patch, generation }: {
-    patch: Parameters<PostEditorPort["updatePost"]>[1]; generation: ReturnType<typeof settlement.next>;
+    patch: Parameters<PostEditorPort["updatePost"]>[0]["patch"]; generation: ReturnType<typeof settlement.next>;
   }, _options = {}): Promise<{ post: AdminPost }> {
-    if (entryId) return port.updatePost({ id: entryId }, patch);
+    if (entryId) return port.updatePost({ target: { id: entryId }, patch });
     const first = firstSaveRequest.current;
     if (first) {
       const created = await first.response;
       if (!settlement.isCurrent({ generation }) || JSON.stringify(first.patch) === JSON.stringify(patch)) return created;
-      return port.updatePost({ id: created.post.id }, { ...patch, expectedVersion: created.post.version });
+      return port.updatePost({ target: { id: created.post.id }, patch: { ...patch, expectedVersion: created.post.version } });
     }
     // Create derives an automatic slug itself. Do not send a version basis for a row
     // that does not exist, and do not create a blank row followed by a fallible PUT.
@@ -1209,7 +1209,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
    */
   async function saveOverwritingConflict(): Promise<void> {
     const attemptedStatus = saveConflict?.attemptedStatus;
-    const fresh = await port.getPost(entryId).then(({ post: p }) => p, () => null);
+    const fresh = await port.getPost({ id: entryId }).then(({ post: p }) => p, () => null);
     if (!fresh) {
       setError(t("could not re-read the current version — your changes are still here, try again"));
       return;
@@ -1256,7 +1256,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     setError(null);
     setDeleting(true);
     try {
-      await port.deletePost(entryId);
+      await port.deletePost({ id: entryId });
       navigate(post.kind === "page" ? "/pages" : "/posts");
     } catch (e) {
       setError(e instanceof Error ? e.message : t("delete failed"));

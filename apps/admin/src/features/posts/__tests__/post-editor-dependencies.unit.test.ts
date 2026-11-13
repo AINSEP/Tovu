@@ -22,7 +22,7 @@ describe("post editor dependencies", () => {
   it("builds real template preview URLs with encoded ids and the three template choices", () => {
     const base = "/api/admin/v1/workspaces/workspace-local/posts/post%2Fone/template-preview";
     for (const [choice, suffix] of [[null, ""], ["", "?templateChoice="], ["long form.html", "?templateChoice=long%20form.html"]] as const) {
-      const url = new URL(defaultPostEditorPort.templatePreviewUrl("post/one", choice), window.location.origin);
+      const url = new URL(defaultPostEditorPort.templatePreviewUrl({ id: "post/one", templateChoice: choice }), window.location.origin);
       expect(url.pathname + url.search).toBe(base + suffix);
     }
   });
@@ -31,8 +31,8 @@ describe("post editor dependencies", () => {
     const port = createFakePostEditorPort();
     const replacement = { ...port.post, id: "replacement", title: "Replacement", version: 7 };
     port.post = replacement;
-    await expect(port.getPost(replacement.id)).resolves.toEqual({ post: replacement });
-    const saved = await port.updatePost({ id: replacement.id }, { title: "Updated", expectedVersion: 7 });
+    await expect(port.getPost({ id: replacement.id })).resolves.toEqual({ post: replacement });
+    const saved = await port.updatePost({ target: { id: replacement.id }, patch: { title: "Updated", expectedVersion: 7 } });
     expect(saved.post).toEqual({ ...replacement, title: "Updated", version: 8 });
     expect(port.post).toEqual(saved.post);
   });
@@ -41,21 +41,21 @@ describe("post editor dependencies", () => {
     const port = createFakePostEditorPort();
     const original = { ...port.post };
     const action = operation === "update"
-      ? () => port.updatePost({ id: "missing" }, { title: "Must not persist" })
+      ? () => port.updatePost({ target: { id: "missing" }, patch: { title: "Must not persist" } })
       : operation === "delete"
-        ? () => port.deletePost("missing")
-        : () => port.putAutosave("missing", { baseVersion: original.version, title: "Unsaved", slug: "unsaved",
-          bodyFormat: "doc", bodyJson: { type: "doc", content: [] } });
+        ? () => port.deletePost({ id: "missing" })
+        : () => port.putAutosave({ id: "missing", draft: { baseVersion: original.version, title: "Unsaved", slug: "unsaved",
+          bodyFormat: "doc", bodyJson: { type: "doc", content: [] } } });
     await expect(action()).rejects.toThrow("fake post not found: missing");
     expect(port.post).toEqual(original);
     expect(port.putAutosaveCalls).toEqual([]);
-    await expect(port.getAutosave(original.id)).resolves.toEqual({ autosave: null });
+    await expect(port.getAutosave({ id: original.id })).resolves.toEqual({ autosave: null });
   });
 
   it("derives a slug from the stored title when the patch requests a slug without replacing the title", async () => {
     const port = createFakePostEditorPort();
     port.post = { ...port.post, title: "A New Title", slug: "old-slug" };
-    await port.updatePost({ id: port.post.id }, { slugFromTitle: true });
+    await port.updatePost({ target: { id: port.post.id }, patch: { slugFromTitle: true } });
     expect(port.post.title).toBe("A New Title");
     expect(port.post.slug).toBe("a-new-title");
     expect(port.post).not.toHaveProperty("slugFromTitle");
@@ -89,7 +89,7 @@ describe("post editor dependencies — live list and rendition bindings, fake li
   });
 
   it("builds the cover preview's resized rendition URL with an encoded id", () => {
-    expect(defaultFeaturedImageRenditionUrl("media/1")).toMatch(/\/m\/media%2F1\/public\.v1\/image\.jpg$/);
+    expect(defaultFeaturedImageRenditionUrl({ id: "media/1" })).toMatch(/\/m\/media%2F1\/public\.v1\/image\.jpg$/);
   });
 
   it("the fake lists its mentionable posts (none by default) and uploads a default media row", async () => {

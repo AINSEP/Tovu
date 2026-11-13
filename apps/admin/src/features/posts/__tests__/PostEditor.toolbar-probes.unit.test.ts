@@ -60,7 +60,7 @@ function fakeEditor(options: {
 
 describe("probeToolbar", () => {
   it("returns every field's default when editor is null", () => {
-    const state = probeToolbar(null);
+    const state = probeToolbar({ editor: null });
 
     expect(state).toEqual(TOOLBAR_DEFAULTS);
     // Diffed one at a time (not just the aggregate `toEqual` above) — a wrong default here is a
@@ -117,7 +117,7 @@ describe("probeToolbar", () => {
       characters: 42, // storage.characterCount?.characters()
     });
 
-    expect(probeToolbar(editor)).toEqual({
+    expect(probeToolbar({ editor })).toEqual({
       ...TOOLBAR_DEFAULTS,
       bold: true,
       h1: true,
@@ -136,7 +136,7 @@ describe("probeToolbar", () => {
     // each still carry their own `?? <default>`.
     const editor = fakeEditor({ isActive: () => false });
 
-    const state = probeToolbar(editor);
+    const state = probeToolbar({ editor });
     expect(state.codeBlockLanguage).toBe("plaintext");
     expect(state.color).toBeNull();
     expect(state.backgroundColor).toBeNull();
@@ -151,16 +151,16 @@ describe("probeToolbar", () => {
     // (`storage.characterCount` is missing entirely), not just return 0 from a present extension.
     // `fakeEditor` always installs a `storage.characterCount` stub, so this constructs the editor
     // stand-in directly rather than through that helper.
-    const editor = { isActive: () => false, getAttributes: () => ({}), can: () => ({ undo: () => false, redo: () => false }), storage: {} } as unknown as Parameters<typeof probeToolbar>[0];
+    const editor = { isActive: () => false, getAttributes: () => ({}), can: () => ({ undo: () => false, redo: () => false }), storage: {} } as unknown as Parameters<typeof probeToolbar>[0]["editor"];
 
-    expect(probeToolbar(editor).characterCount).toBe(0);
+    expect(probeToolbar({ editor }).characterCount).toBe(0);
   });
 });
 
 describe("probeBubbleMenu", () => {
   it("returns every field's default when editor is null", () => {
-    expect(probeBubbleMenu(null)).toEqual(BUBBLE_MENU_DEFAULTS);
-    expect(probeBubbleMenu(null)).toEqual({
+    expect(probeBubbleMenu({ editor: null })).toEqual(BUBBLE_MENU_DEFAULTS);
+    expect(probeBubbleMenu({ editor: null })).toEqual({
       bold: false,
       italic: false,
       underline: false,
@@ -174,7 +174,7 @@ describe("probeBubbleMenu", () => {
       isActive: (name) => name === "italic" || name === "link",
     });
 
-    expect(probeBubbleMenu(editor)).toEqual({
+    expect(probeBubbleMenu({ editor })).toEqual({
       ...BUBBLE_MENU_DEFAULTS,
       italic: true,
       link: true,

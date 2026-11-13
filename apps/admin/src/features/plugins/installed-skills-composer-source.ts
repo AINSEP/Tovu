@@ -50,7 +50,7 @@ async function readSkillsSnapshot(
   try {
     const body = await request<InstalledSkillsResponse>({ path: INSTALLED_SKILLS_PATH, method: "GET" }, {
       headers: cached?.etag ? { "If-None-Match": cached.etag } : {},
-      onOk: response => { etag = response.headers?.get("ETag") ?? undefined; },
+      onOk: ({ response }, _optional = {}) => { etag = response.headers?.get("ETag") ?? undefined; },
     });
     return skillsSnapshotFromBody({ body, cached, etag });
   } catch (error) {

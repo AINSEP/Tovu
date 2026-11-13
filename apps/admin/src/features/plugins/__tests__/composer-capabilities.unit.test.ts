@@ -52,7 +52,7 @@ describe("projectComposerCapabilities", () => {
     // nothing behind it would be worse than declaring none.
     expect(search?.item.needsConfirmation).toBeUndefined();
 
-    expect(search?.resolve?.("aria listbox")).toEqual({
+    expect(search?.resolve?.({ argument: "aria listbox" })).toEqual({
       kind: "allowlisted-tool-call",
       toolName: "content_post_search",
       params: { query: "aria listbox" },
@@ -60,7 +60,7 @@ describe("projectComposerCapabilities", () => {
     // Defensive fallback for a caller (e.g. this test) that invokes `resolve` directly, bypassing
     // Jini's own grammar — through the real composer, `argument.required: true` means `resolve`
     // is never reached with a blank/undefined argument in the first place.
-    expect(search?.resolve?.(undefined)).toEqual({
+    expect(search?.resolve?.({ argument: undefined })).toEqual({
       kind: "allowlisted-tool-call",
       toolName: "content_post_search",
       params: { query: "" },
@@ -124,8 +124,8 @@ describe("bundled catalog label uniqueness", () => {
 
 describe("resolveTovuComposerDiscoveryRoute", () => {
   it("routes only the mcp:settings id, unchanged from before the async projection", () => {
-    expect(resolveTovuComposerDiscoveryRoute("mcp:settings")).toBe("/settings?tab=external-mcp");
-    expect(resolveTovuComposerDiscoveryRoute("agent-plugin:ui-ux-design")).toBeNull();
+    expect(resolveTovuComposerDiscoveryRoute({ itemId: "mcp:settings" })).toBe("/settings?tab=external-mcp");
+    expect(resolveTovuComposerDiscoveryRoute({ itemId: "agent-plugin:ui-ux-design" })).toBeNull();
   });
 });
 

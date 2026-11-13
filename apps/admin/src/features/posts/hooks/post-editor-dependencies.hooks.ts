@@ -11,22 +11,22 @@ import type { PostEditorPort } from "./post-editor-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultPostEditorPort: PostEditorPort = {
-  getPost: (id) => api.getPost(id),
+  getPost: ({ id }, _optional = {}) => api.getPost(id),
   createPost: (input, options = {}) => api.createPost(input, options),
   getPresentation: () => api.getPresentation({ kind: "post" }),
-  updatePost: (target, patch) => api.updatePost(target, patch),
-  deletePost: (id) => api.deletePost(id),
+  updatePost: ({ target, patch }, _optional = {}) => api.updatePost(target, patch),
+  deletePost: ({ id }, _optional = {}) => api.deletePost(id),
   listPosts: () => api.listPosts(),
-  uploadMedia: (input) => api.uploadMedia(input),
-  templatePreviewUrl: (id, templateChoice) => api.templatePreviewUrl(id, templateChoice),
-  putAutosave: (id, draft, options) => api.putAutosave(id, draft, options),
+  uploadMedia: (input, _optional = {}) => api.uploadMedia(input),
+  templatePreviewUrl: ({ id, templateChoice }, _optional = {}) => api.templatePreviewUrl(id, templateChoice),
+  putAutosave: ({ id, draft }, options = {}) => api.putAutosave(id, draft, options),
   getBackupPrincipalId: () => getAdminDraftIdentity(),
-  getAutosave: (id) => api.getAutosave(id),
-  discardAutosave: (id) => api.discardAutosave(id),
+  getAutosave: ({ id }, _optional = {}) => api.getAutosave(id),
+  discardAutosave: ({ id }, _optional = {}) => api.discardAutosave(id),
 };
 
 /** The featured/cover image preview's resized URL — `usePostFeaturedImage`'s `renditionUrl` seam. */
-export const defaultFeaturedImageRenditionUrl = (id: string): string => api.mediaPreviewRenditionUrl(id);
+export const defaultFeaturedImageRenditionUrl = ({ id }: { id: string }, _optional = {}): string => api.mediaPreviewRenditionUrl(id);
 
 /** Seed state for {@link createFakePostEditorPort}. */
 export interface FakePostEditorPortOptions {
@@ -117,11 +117,11 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
   /** Every `updatePost` patch this fake received, in call order — the assertion surface for "did
    *  the editor actually SEND the basis version", which `post` alone cannot show (a patch the fake
    *  applied and a patch it merely received look identical in the stored row). */
-  readonly updatePostCalls: Array<Parameters<PostEditorPort["updatePost"]>[1]>;
+  readonly updatePostCalls: Array<Parameters<PostEditorPort["updatePost"]>[0]["patch"]>;
   /** Advances the stored row as though a DIFFERENT operator had just saved it, without the editor
    *  under test knowing — the only way to reach a genuine stale-basis conflict rather than faking
    *  the rejection. */
-  simulateConcurrentSave(title?: string): void;
+  simulateConcurrentSave(required: Record<string, never>, optional?: { title?: string }): void;
 } {
   const state = { post: options.post ?? { ...DEFAULT_POST } };
   const settings: PresentationSettings = {
@@ -133,7 +133,7 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
   let autosave: StandingDraftAutosaveSnapshot | null = options.autosave ?? null;
   const putAutosaveCalls: StandingDraftAutosaveInput[] = [];
   let discardAutosaveCalled = false;
-  const updatePostCalls: Array<Parameters<PostEditorPort["updatePost"]>[1]> = [];
+  const updatePostCalls: Array<Parameters<PostEditorPort["updatePost"]>[0]["patch"]> = [];
 
   return {
     get post() {
@@ -148,7 +148,7 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
       return discardAutosaveCalled;
     },
 
-    simulateConcurrentSave(title = "Saved by someone else") {
+    simulateConcurrentSave(_required, { title = "Saved by someone else" } = {}) {
       state.post = { ...state.post, title, version: state.post.version + 1 };
     },
 
@@ -171,7 +171,7 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
       };
     },
 
-    async updatePost(target, patch) {
+    async updatePost({ target, patch }, _optional = {}) {
       updatePostCalls.push(patch);
       if (options.updatePostError) throw new Error(options.updatePostError);
       if (target.id !== state.post.id) throw new Error(`fake post not found: ${target.id}`);
@@ -198,7 +198,7 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
       return { post: state.post };
     },
 
-    async deletePost(id) {
+    async deletePost({ id }, _optional = {}) {
       if (options.deletePostError) throw new Error(options.deletePostError);
       if (id !== state.post.id) throw new Error(`fake post not found: ${id}`);
       return { post: state.post };
@@ -216,7 +216,7 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
     // A distinct `fake://` scheme, not `api.templatePreviewUrl`'s real `siteUrl(...)`-wrapped
     // `/api/admin/...` shape — same "the fake proves the seam, not just the shape" reasoning
     // `createFakePageEditorPort`'s identical member documents.
-    templatePreviewUrl(id, templateChoice) {
+    templatePreviewUrl({ id, templateChoice }, _optional = {}) {
       return `fake://template-preview/${id}?templateChoice=${templateChoice ?? ""}`;
     },
 
@@ -227,7 +227,7 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
     // `simulateConcurrentSave` instead of stubbing the answer, which would pass whether or not the
     // editor reads `applied` at all. The call is still recorded: "the editor sent a write the
     // server threw away" is exactly the observation a stale-basis test needs.
-    async putAutosave(id, draft) {
+    async putAutosave({ id, draft }, _options = {}) {
       if (id !== state.post.id) throw new Error(`fake post not found: ${id}`);
       putAutosaveCalls.push(draft);
       if (draft.baseVersion !== state.post.version) return { applied: false };

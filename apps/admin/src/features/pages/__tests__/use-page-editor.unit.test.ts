@@ -955,17 +955,17 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
       get discardAutosaveCalled() {
         return base.discardAutosaveCalled;
       },
-      async putAutosave(id, draft) {
+      async putAutosave({ id, draft }) {
         ops.push("put:start");
         await new Promise<void>((resolve) => {
           releasePut = resolve;
         });
         ops.push("put:end");
-        return base.putAutosave(id, draft);
+        return base.putAutosave({ id, draft });
       },
-      async discardAutosave(id) {
+      async discardAutosave({ id }) {
         ops.push("discard");
-        return base.discardAutosave(id);
+        return base.discardAutosave({ id });
       },
     };
 

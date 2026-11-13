@@ -11,7 +11,7 @@ import type { PostFormState } from "./post-editor-state.rules";
  */
 
 /** The patch `port.updatePost` takes. */
-export type PostUpdatePatch = Parameters<PostEditorPort["updatePost"]>[1];
+export type PostUpdatePatch = Parameters<PostEditorPort["updatePost"]>[0]["patch"];
 
 /**
  * Scheduled publishing / featured image (2026-10-05) — only the fields the operator actually changed
@@ -20,10 +20,10 @@ export type PostUpdatePatch = Parameters<PostEditorPort["updatePost"]>[1];
  *
  * @complexity O(1).
  */
-export function scheduleFieldsPatch(
+export function scheduleFieldsPatch({ original, current }: {
   original: PostFormState | null,
   current: { publishAt: string | null; featuredMediaId: string | null },
-): { publishAt?: string | null; featuredMediaId?: string | null } {
+}, _optional = {}): { publishAt?: string | null; featuredMediaId?: string | null } {
   return {
     ...(current.publishAt !== (original?.publishAt ?? null) ? { publishAt: current.publishAt } : {}),
     ...(current.featuredMediaId !== (original?.featuredMediaId ?? null) ? { featuredMediaId: current.featuredMediaId } : {}),
@@ -64,7 +64,7 @@ export function buildPostUpdatePatch(required: {
   return {
     title, ...(working.followsTitle ? { slugFromTitle: true } : { slug }), status, bodyJson, templateChoice, overridesThemePage, expectedVersion,
     ...(hideCoverImageInBody !== original?.hideCoverImageInBody ? { hideCoverImageInBody } : {}),
-    ...scheduleFieldsPatch(original, { publishAt: working.publishAt, featuredMediaId: working.featuredMediaId }),
+    ...scheduleFieldsPatch({ original, current: { publishAt: working.publishAt, featuredMediaId: working.featuredMediaId } }),
     ...authorFieldsPatch({ original, author: working.author, showAuthor: working.showAuthor }),
   };
 }

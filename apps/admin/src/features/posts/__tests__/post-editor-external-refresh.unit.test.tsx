@@ -56,7 +56,7 @@ describe("usePostEditor — assistant edits while the editor is open", () => {
     await waitFor(() => expect(result.current.post?.version).toBe(3));
     act(() => result.current.setTitle("My unsaved title"));
 
-    port.simulateConcurrentSave("Assistant Title");
+    port.simulateConcurrentSave({}, { title: "Assistant Title" });
     act(() => publishContentRefresh());
 
     await waitFor(() => expect(result.current.pendingExternalVersion).toBe(POST.version + 1));
@@ -77,7 +77,7 @@ describe("usePostEditor — assistant edits while the editor is open", () => {
     await act(async () => { await result.current.save(); });
     expect(result.current.message).toBe("Saved · version 4");
 
-    port.simulateConcurrentSave("Assistant Title");
+    port.simulateConcurrentSave({}, { title: "Assistant Title" });
     act(() => publishContentRefresh());
     await waitFor(() => expect(result.current.post?.version).toBe(5));
     expect(result.current.message).toMatch(/version 5/);
@@ -92,7 +92,7 @@ describe("usePostEditor — assistant edits while the editor is open", () => {
     await act(async () => { await result.current.save(); });
     act(() => result.current.setTitle("More unsaved typing"));
 
-    port.simulateConcurrentSave("Assistant Title");
+    port.simulateConcurrentSave({}, { title: "Assistant Title" });
     act(() => publishContentRefresh());
     await waitFor(() => expect(result.current.pendingExternalVersion).toBe(5));
     expect(result.current.message).toMatch(/version 5/);
@@ -103,7 +103,7 @@ describe("usePostEditor — assistant edits while the editor is open", () => {
     const { result } = renderHook(() => usePostEditor("hello-world", { port, navigate: vi.fn(), t: (k: string) => k }));
     await waitFor(() => expect(result.current.post?.version).toBe(3));
     act(() => result.current.setTitle("My unsaved title"));
-    port.simulateConcurrentSave("Assistant Title");
+    port.simulateConcurrentSave({}, { title: "Assistant Title" });
     act(() => publishContentRefresh());
     await waitFor(() => expect(result.current.pendingExternalVersion).toBe(4));
     await act(async () => { await result.current.loadExternalChange(); });

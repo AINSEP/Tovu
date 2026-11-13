@@ -324,23 +324,23 @@ describe("delete confirmation dialog", () => {
  */
 describe("postsListNotice", () => {
   it("returns the error notice when there is an error and no list yet", () => {
-    const notice = postsListNotice(null, "boom", (key) => key);
+    const notice = postsListNotice({ posts: null, error: "boom", t: (key) => key });
     expect(notice).not.toBeNull();
   });
 
   it("returns the loading notice when there is no list and no error", () => {
-    const notice = postsListNotice(null, null, (key) => key);
+    const notice = postsListNotice({ posts: null, error: null, t: (key) => key });
     expect(notice).not.toBeNull();
   });
 
   it("prioritizes the error branch over the loading branch when both conditions could apply", () => {
-    render(<>{postsListNotice(null, "boom", (key) => key)}</>);
+    render(<>{postsListNotice({ posts: null, error: "boom", t: (key) => key })}</>);
     expect(screen.getByText("boom")).toBeInTheDocument();
     expect(screen.queryByText("Loading posts…")).not.toBeInTheDocument();
   });
 
   it("returns null once the list has loaded, even with an error set (the inline-banner case)", () => {
-    expect(postsListNotice([], "a later error", (key) => key)).toBeNull();
+    expect(postsListNotice({ posts: [], error: "a later error", t: (key) => key })).toBeNull();
   });
 });
 

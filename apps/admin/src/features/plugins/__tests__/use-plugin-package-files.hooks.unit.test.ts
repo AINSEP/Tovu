@@ -83,7 +83,7 @@ describe("usePluginPackageFiles", () => {
     let resolveFirst!: (value: AdminPluginFiles) => void;
     const port = createFakePluginsPort({ packageFiles: { second: listing("second", { files: [] }) } });
     const realGet = port.getPluginFiles.bind(port);
-    port.getPluginFiles = (id) => (id === "first" ? new Promise((resolve) => (resolveFirst = resolve)) : realGet(id));
+    port.getPluginFiles = ({ id }) => (id === "first" ? new Promise((resolve) => (resolveFirst = resolve)) : realGet({ id }));
 
     const { result, rerender } = renderHook(({ pluginId }) => usePluginPackageFiles({ pluginId, port, t: identity }), {
       initialProps: { pluginId: "first" },
@@ -99,7 +99,7 @@ describe("usePluginPackageFiles", () => {
   it("a listing already settled for the previous plugin reads as loading under the next one", async () => {
     const port = createFakePluginsPort({ packageFiles: { first: listing("first", { truncated: true }) } });
     const realGet = port.getPluginFiles.bind(port);
-    port.getPluginFiles = (id) => (id === "second" ? new Promise(() => {}) : realGet(id));
+    port.getPluginFiles = ({ id }) => (id === "second" ? new Promise(() => {}) : realGet({ id }));
 
     const { result, rerender } = renderHook(({ pluginId }) => usePluginPackageFiles({ pluginId, port, t: identity }), {
       initialProps: { pluginId: "first" },

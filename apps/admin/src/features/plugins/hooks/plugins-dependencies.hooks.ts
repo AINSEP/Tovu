@@ -10,13 +10,13 @@ import type { PluginsPort } from "./plugins-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultPluginsPort: PluginsPort = {
-  useProjectKey: input => api.useProjectKey(input),
+  useProjectKey: (input, _optional = {}) => api.useProjectKey(input),
   listPlugins: () => authenticatedAdminRequest({ path: `/workspaces/${WORKSPACE_ID}/plugins`, method: "GET" }),
-  setPluginEnabled: (id, patch) => api.setPluginEnabled(id, patch),
-  uninstallPlugin: (id) => api.uninstallPlugin(id),
-  getPluginFiles: (id) => api.getPluginFiles(id),
-  getProviderSettings: (id) => api.getPluginProviderSettings(id),
-  saveProviderSettings: (id, values) => api.savePluginProviderSettings(id, values),
+  setPluginEnabled: ({ id, patch }, _optional = {}) => api.setPluginEnabled(id, patch),
+  uninstallPlugin: ({ id }, _optional = {}) => api.uninstallPlugin(id),
+  getPluginFiles: ({ id }, _optional = {}) => api.getPluginFiles(id),
+  getProviderSettings: ({ id }, _optional = {}) => api.getPluginProviderSettings(id),
+  saveProviderSettings: ({ id, values }, _optional = {}) => api.savePluginProviderSettings(id, values),
 };
 
 /** Seed state for {@link createFakePluginsPort}. */
@@ -50,7 +50,7 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
 
   return {
     plugins,
-    async useProjectKey({ keyId, use }) {
+    async useProjectKey({ keyId, use }, _optional = {}) {
       const card = Object.values(options.providerSettings ?? {}).find(card => card.keyId === keyId);
       if (!card) throw new ApiError("project key not found", 404, "KEY_NOT_FOUND");
       card.usedByThisSite = use;
@@ -62,7 +62,7 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       return { plugins: [...plugins], ...(options.installSources ? { installSources: options.installSources } : {}) };
     },
 
-    async setPluginEnabled(id, patch) {
+    async setPluginEnabled({ id, patch }, _optional = {}) {
       const index = plugins.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake plugin not found: ${id}`);
       // The real enable gate (`onPluginEnabled`, 2026-10-04): a plugin whose row lists conflicts is
@@ -76,7 +76,7 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       return { plugin: { id: updated.id, version: "1", enabled: updated.enabled, updatedAt: new Date(0).toISOString() }, changeSetId: "fake-cs-1" };
     },
 
-    async uninstallPlugin(id) {
+    async uninstallPlugin({ id }, _optional = {}) {
       if (trashedPluginIds.has(id)) {
         throw new ApiError("plugin is already in Trash", 409, "PLUGIN_IN_TRASH");
       }
@@ -94,41 +94,41 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       return { pluginId: id, trashed: true };
     },
 
-    async getPluginFiles(id) {
+    async getPluginFiles({ id }, _optional = {}) {
       const listing = options.packageFiles?.[id];
       if (!listing) throw new ApiError("plugin was not found", 404, "PLUGIN_NOT_FOUND");
       return listing;
     },
 
-    async getProviderSettings(id) {
+    async getProviderSettings({ id }, _optional = {}) {
       const card = options.providerSettings?.[id];
       if (!card) throw new ApiError("this plugin declares no provider settings", 404, "PLUGIN_NOT_FOUND");
       return card;
     },
 
-    async saveProviderSettings(id, values) {
-      const card = await this.getProviderSettings(id);
+    async saveProviderSettings({ id, values }, _optional = {}) {
+      const card = await this.getProviderSettings({ id });
       if (Object.entries(values).some(([name]) => !card.fields.some((field) => field.name === name))) {
         throw new ApiError("values must map declared setting names to text", 400, "PROVIDER_SETTINGS_INVALID");
       }
       // Like the server: a blank secret is kept only while every public field is unchanged (a blank
       // public field means its declared default, so filling in that default is no change).
-      const effective = (field: (typeof card.fields)[number], value: string | undefined) => value || field.default || "";
-      const effectiveFieldValue = (field: (typeof card.fields)[number], entered: string | undefined) => {
-        if (!field.secret) return effective(field, entered ?? field.value);
+      const effective = ({ field, value }: { field: (typeof card.fields)[number]; value: string | undefined }, _optional = {}) => value || field.default || "";
+      const effectiveFieldValue = ({ field, entered }: { field: (typeof card.fields)[number]; entered: string | undefined }, _optional = {}) => {
+        if (!field.secret) return effective({ field, value: entered ?? field.value });
         if (entered) return entered;
         return field.saved ? "saved" : "";
       };
       const changed = card.fields.filter((field) => {
         const value = values[field.name];
-        return !field.secret && value !== undefined && effective(field, value.trim()) !== effective(field, field.value);
+        return !field.secret && value !== undefined && effective({ field, value: value.trim() }) !== effective({ field, value: field.value });
       });
       const kept = card.fields.filter((field) => field.secret && field.saved && !values[field.name]?.trim());
       if (changed.length > 0 && kept.length > 0) {
         const labels = (list: typeof kept) => list.map((field) => field.label).join(", ");
         throw new ApiError(`Changing ${labels(changed)} needs ${labels(kept)} entered again.`, 400, "PROVIDER_SETTINGS_SECRET_REENTRY");
       }
-      const effectiveValues = Object.fromEntries(card.fields.map((field) => [field.name, effectiveFieldValue(field, values[field.name]?.trim())]));
+      const effectiveValues = Object.fromEntries(card.fields.map((field) => [field.name, effectiveFieldValue({ field, entered: values[field.name]?.trim() })]));
       const missing = card.fields.find((field) => providerSettingRequiredHere({ field, fields: card.fields, entered: values, values: effectiveValues }) && !effectiveValues[field.name]);
       if (missing) throw new ApiError(`${missing.label} is required.${missing.hint ? " " + missing.hint : ""}`, 400, "PROVIDER_SETTINGS_REQUIRED");
       const fields = card.fields.map((field) => {

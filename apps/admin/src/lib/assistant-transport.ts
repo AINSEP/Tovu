@@ -18,7 +18,7 @@ const client = createAssistantTransportClient({ ports: {
  runsUrl: RUNS_URL, byokTurnUrl: "/api/admin/v1/assistant/byok-turn", byokRunIdPrefix: "byok:", notices: RUN_NOTICES,
  fetch: (url, init) => fetch(url, init),
  mintId: () => uniqueId(),
- projectPrompt: ({ prompt, context }) => promptWithSelectedSkills(prompt, context),
+ projectPrompt: ({ prompt, context }) => promptWithSelectedSkills({ prompt, context }),
  projectInput: ({ input }) => withSelectedSkillGuidance(input),
  bindRun: ({ runId, binding }) => { durableRunBindings.set(runId, binding); },
  runBinding: ({ runId }) => durableRunBindings.get(runId),
@@ -155,5 +155,5 @@ function jiniHostOptions(options: CreateTovuAssistantTransportOptions): JiniHost
 function withSelectedSkillGuidance(input: StartRunInput): StartRunInput {
   // Jini refuses a turn with no user message before projecting, so the newest user message exists.
   const userIndex = input.history.map((message) => message.role).lastIndexOf("user");
-  return { ...input, history: input.history.map((message, index) => index === userIndex ? { ...message, content: promptWithSelectedSkills(message.content, input.context) } : message) };
+  return { ...input, history: input.history.map((message, index) => index === userIndex ? { ...message, content: promptWithSelectedSkills({ prompt: message.content, context: input.context }) } : message) };
 }

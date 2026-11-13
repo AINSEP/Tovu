@@ -111,7 +111,7 @@ export function useAdminSurfaceFrame(
   // The surface follows the admin's look: every theme or light/dark change after init is re-sent.
   useEffect(() => {
     if (!initialized || status !== "open") return undefined;
-    return watchAdminTheme({ onChange: (theme) => liveFrame()?.postMessage(adminSurfaceThemeMessage({ mountId: mount.mountId, theme }), "*") });
+    return watchAdminTheme({ onChange: ({ theme }, _optional = {}) => liveFrame()?.postMessage(adminSurfaceThemeMessage({ mountId: mount.mountId, theme }), "*") });
   }, [initialized, status, mount.mountId, liveFrame]);
 
   useEffect(() => {

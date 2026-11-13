@@ -30,9 +30,9 @@ function multiPostPort() {
       rows.set(slug, post);
       return { post };
     },
-    async getPost(target: string) {
-      const post = rows.get(target);
-      if (!post) throw new Error(`fake post not found: ${target}`);
+    async getPost({ id }: { id: string }) {
+      const post = rows.get(id);
+      if (!post) throw new Error(`fake post not found: ${id}`);
       return { post };
     },
   };

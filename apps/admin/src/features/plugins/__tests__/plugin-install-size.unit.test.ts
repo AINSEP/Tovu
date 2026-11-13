@@ -15,7 +15,7 @@ describe("plugin add archive size", () => {
         port: createFakeAgentPluginInstallPort({ row: { pluginId: "fixture", version: "1.0.0", enabled: false, description: null, keywords: [], skills: [], mcpServerIds: [] } }),
         t: (key) => key, onInstalled: () => {},
       }));
-      act(() => site.result.current.setZipFile(file));
+      act(() => site.result.current.setZipFile({ file }));
       expect(site.result.current.zipSizeLabel).toBe(label);
       // Empty agent archives are rejected; the other sizes exercise its real file-change handler.
       if (bytes > 0) {

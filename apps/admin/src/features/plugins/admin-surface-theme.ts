@@ -49,14 +49,14 @@ export function readAdminTheme(): AdminSurfaceTheme {
  * the system colour scheme change (once per frame, and only when a value actually changed).
  * @returns The function that stops watching.
  */
-export function watchAdminTheme(required: { readonly onChange: (theme: AdminSurfaceTheme) => void }, _optional: Record<string, never> = {}): () => void {
+export function watchAdminTheme(required: { readonly onChange: (required: { theme: AdminSurfaceTheme }, optional?: Record<string, never>) => void }, _optional: Record<string, never> = {}): () => void {
   let last = JSON.stringify(readAdminTheme());
   let scheduled = 0;
   const check = () => {
     scheduled = 0;
     const theme = readAdminTheme();
     const text = JSON.stringify(theme);
-    if (text !== last) { last = text; required.onChange(theme); }
+    if (text !== last) { last = text; required.onChange({ theme }); }
   };
   const schedule = () => { if (scheduled === 0) scheduled = requestAnimationFrame(check); };
   const observer = new MutationObserver(schedule);

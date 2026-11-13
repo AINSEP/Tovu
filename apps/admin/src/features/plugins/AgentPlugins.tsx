@@ -154,7 +154,7 @@ function AgentPluginList({
           locale={controller.locale}
           expanded={controller.expandedIds.has(plugin.pluginId)}
           busy={controller.togglingIds.has(plugin.pluginId)}
-          onToggleExpanded={() => controller.onToggleExpanded(plugin.pluginId)}
+          onToggleExpanded={() => controller.onToggleExpanded({ pluginId: plugin.pluginId })}
           stateControl={stateControlFor(plugin)}
           onInspect={() =>
             controller.inspectPlugin({ id: plugin.pluginId, displayName: agentPluginDisplayName(plugin), maturity: plugin.maturity })

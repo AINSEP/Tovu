@@ -2653,7 +2653,7 @@ function buildRequestFailedError({
  * The single fetch seam every `api.*` call goes through: sends JSON, parses JSON, and turns any
  * non-2xx into an {@link ApiError}.
  *
- * `onOk`, when passed, is called with the raw `Response` immediately before this function resolves
+ * `onOk`, when passed, is called with the raw `Response` in `response` immediately before this function resolves
  * on a 2xx — the ONE hook a caller needing something off the wire that isn't in the JSON body (e.g.
  * `getDockerfileSource`/`setDockerfileSource` reading the `ETag` response header, 2026-08-15) can
  * use without reimplementing this function's own fetch/parse/error-shaping. Deliberately not called
@@ -2669,7 +2669,7 @@ function buildRequestFailedError({
  */
 /** One send through the fetch seam, no restart retry. Exported for `server-reconnect` tests only. */
 export async function requestOnce<T>(
-  { path, init, onOk }: { path: string; init?: RequestInit; onOk?: (res: Response) => void },
+  { path, init, onOk }: { path: string; init?: RequestInit; onOk?: (required: { response: Response }, optional?: Record<string, never>) => void },
   options: AuthenticatedAdminRequestOptions = {},
 ): Promise<T> {
   const res = await fetchOrThrowUnreachable(`${options.basePath ?? BASE}${path}`, buildFetchInit(init));
@@ -2682,7 +2682,7 @@ export async function requestOnce<T>(
     if (res.headers.get(UPSTREAM_REFUSED_HEADER) === UPSTREAM_REFUSED_VALUE) upstreamRefusedErrors.add(error);
     throw error;
   }
-  onOk?.(res);
+  onOk?.({ response: res });
   return body as T;
 }
 
@@ -2716,7 +2716,7 @@ export async function requestRidingOutRestart<T>(
  * @complexity O(1) orchestration plus existing request/retry and bounded failure formatting.
  * @overallScore 98 — approved backend copy remains a server disclosure contract.
  */
-async function request<T>(path: string, init?: RequestInit, onOk?: (res: Response) => void, options: AuthenticatedAdminRequestOptions = {}): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, onOk?: (required: { response: Response }, optional?: Record<string, never>) => void, options: AuthenticatedAdminRequestOptions = {}): Promise<T> {
   const generation = adminFailureChannel.getGeneration();
   const method = init?.method ?? "GET";
   try {
@@ -2757,7 +2757,7 @@ export interface AuthenticatedAdminRequestOptions {
   signal?: AbortSignal;
   headers?: Record<string, string>;
   keepalive?: boolean;
-  onOk?: (response: Response) => void;
+  onOk?: (required: { response: Response }, optional?: Record<string, never>) => void;
   retryWrites?: boolean;
   /** Transcript/inventory readers reject malformed successful JSON instead of accepting `{}`. */
   requireJson?: boolean;
@@ -4126,8 +4126,8 @@ export const api = {
     let etag = "";
     return authenticatedAdminRequest<{ exists: boolean; contents: string | null }>(
       { method: "GET", path: `/workspaces/${WORKSPACE_ID}/system/dockerfile` },
-      { onOk: (res) => {
-        etag = res.headers.get("ETag") ?? "";
+      { onOk: ({ response }, _optional = {}) => {
+        etag = response.headers.get("ETag") ?? "";
       } }
     ).then((body) => ({ ...body, etag }));
   },
@@ -4144,8 +4144,8 @@ export const api = {
     let etag = "";
     return authenticatedAdminRequest<{ exists: boolean; contents: string | null }>(
       { method: "PUT", path: `/workspaces/${WORKSPACE_ID}/system/dockerfile`, body: { contents } },
-      { headers: { "If-Match": ifMatch }, onOk: (res) => {
-        etag = res.headers.get("ETag") ?? "";
+      { headers: { "If-Match": ifMatch }, onOk: ({ response }, _optional = {}) => {
+        etag = response.headers.get("ETag") ?? "";
       } }
     ).then((body) => ({ ...body, etag }));
   },

@@ -144,14 +144,14 @@ describe("pluginRowDetailView", () => {
 
 describe("describeApiError — PLUGIN_CONFLICT (409 from PLUGIN_SET_ENABLED)", () => {
   it("points the operator at the row's conflict list and the fix", () => {
-    expect(describeApiError(new ApiError("server sentence", 409, "PLUGIN_CONFLICT"), "fallback")).toBe(
+    expect(describeApiError({ e: new ApiError("server sentence", 409, "PLUGIN_CONFLICT"), fallback: "fallback" })).toBe(
       "This plugin uses names that core or another plugin already has. Open its details to see which, and turn the other plugin off first.",
     );
   });
 
   it("translates an override when given a translator", () => {
     expect(
-      describeApiError(new ApiError("server sentence", 409, "PLUGIN_CONFLICT"), "fallback", { translate: (key) => translatePlugins({ locale: "es", key: key }) }),
+      describeApiError({ e: new ApiError("server sentence", 409, "PLUGIN_CONFLICT"), fallback: "fallback" }, { translate: (key) => translatePlugins({ locale: "es", key: key }) }),
     ).toBe("Este plugin usa nombres que ya tiene el núcleo u otro plugin. Abre sus detalles para ver cuáles y desactiva primero el otro plugin.");
   });
 });

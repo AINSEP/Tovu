@@ -51,7 +51,7 @@ describe("post author editor", () => {
     const save = port.updatePost;
     let finish!: () => void;
     const waiting = new Promise<void>(resolve => { finish = resolve; });
-    port.updatePost = async (target, patch) => { await waiting; return save(target, patch); };
+    port.updatePost = async ({ target, patch }) => { await waiting; return save({ target, patch }); };
     act(() => result.current.setAuthor("Saved Writer"));
     let pending!: Promise<void>;
     act(() => { pending = result.current.save(); });

@@ -10,8 +10,8 @@ import type { PostsListPort } from "./posts-list-port.hooks";
 /** The live implementation, as a module-level singleton. */
 export const defaultPostsListPort: PostsListPort = {
   listPosts: () => api.listPosts(),
-  updatePost: (target, patch) => api.updatePost(target, patch),
-  deletePost: (id) => api.deletePost(id),
+  updatePost: ({ target, patch }, _optional = {}) => api.updatePost(target, patch),
+  deletePost: ({ id }, _optional = {}) => api.deletePost(id),
 };
 
 /** Seed state for {@link createFakePostsListPort}. */
@@ -37,13 +37,13 @@ export function createFakePostsListPort(options: FakePostsListPortOptions = {}):
    *  list action) had just saved it, without the caller under test knowing — the only way to reach a
    *  genuine stale-basis conflict rather than seeding a canned rejection. Mirrors
    *  `post-editor-dependencies.hooks.ts`'s identical `simulateConcurrentSave`. */
-  simulateConcurrentSave(id: string, title?: string): void;
+  simulateConcurrentSave(required: { id: string }, optional?: { title?: string }): void;
 } {
   const posts = [...(options.posts ?? [])];
 
   return {
     posts,
-    simulateConcurrentSave(id, title = "Saved by someone else") {
+    simulateConcurrentSave({ id }, { title = "Saved by someone else" } = {}) {
       const index = posts.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake post not found: ${id}`);
       posts[index] = { ...posts[index], title, version: posts[index].version + 1 };
@@ -51,7 +51,7 @@ export function createFakePostsListPort(options: FakePostsListPortOptions = {}):
     async listPosts() {
       return { posts: posts.map((post) => ({ post })) };
     },
-    async updatePost({ id }, patch) {
+    async updatePost({ target: { id }, patch }, _optional = {}) {
       if (options.updateError) throw options.updateError;
       const index = posts.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake post not found: ${id}`);
@@ -73,7 +73,7 @@ export function createFakePostsListPort(options: FakePostsListPortOptions = {}):
       posts[index] = updated;
       return { post: updated };
     },
-    async deletePost(id) {
+    async deletePost({ id }, _optional = {}) {
       if (options.deleteError) throw options.deleteError;
       const index = posts.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake post not found: ${id}`);

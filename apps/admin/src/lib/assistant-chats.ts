@@ -88,7 +88,7 @@ const readHistory = createConditionalHistoryRead({ read: async ({ conversationId
   const query = version ? '?ifVersion=' + encodeURIComponent(version) : '';
   const result = await authenticatedAdminRequest<{ messages?: ChatMessage[]; unchanged?: boolean }>(
     { path: `/${encodeURIComponent(conversationId)}/messages${query}`, method: 'GET' },
-    { ...CHAT_REQUEST_OPTIONS, onOk: response => { nextVersion = response.headers.get('ETag') ?? undefined; } },
+    { ...CHAT_REQUEST_OPTIONS, onOk: ({ response }, _optional = {}) => { nextVersion = response.headers.get('ETag') ?? undefined; } },
   );
   return { ...result, version: nextVersion };
 } });
