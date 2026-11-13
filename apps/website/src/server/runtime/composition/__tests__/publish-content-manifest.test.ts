@@ -198,7 +198,7 @@ test("the registered raw-file contributor creates the exact bytes on disk", asyn
     await blobs.putIfAbsent({ workspaceId: WORKSPACE_ID, sha256, bytes });
     // f6de81431 requires real ownership repos even for staged, ordinary non-media files.
     const deps: PublishContentDeps = { ...makeSite({ media: {
-      repo: new InMemoryVersionedMediaRepo(), assetBlobRepo: new InMemoryAssetBlobRepo({}),
+      repo: new InMemoryVersionedMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}),
       blobStore: blobs, contentTypeStore: new InMemoryMediaContentTypeStore(),
     } }, "raw-file-registry"),
       backstop: { files: createRawFileSitePort({ siteDir: root }), blobs, fileBlobIndex: createFileBlobIndex(),
@@ -244,7 +244,7 @@ test("the registered media contributor's apply() is a real write path, not a thr
     htmlAttributes: null,
   };
 
-  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo({});
   const blobStore = new InMemoryBlobStore();
   await blobStore.putIfAbsent({ workspaceId, sha256, bytes });
   const outbox = new InMemoryOutbox();
@@ -429,7 +429,7 @@ test("the registered theme-files contributor's apply() is a real write path, not
       authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
       ports: {
         // Use the real ownership guard introduced by f6de81431, not undefined policy ports.
-        media: { repo: new InMemoryVersionedMediaRepo(), assetBlobRepo: new InMemoryAssetBlobRepo({}), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() },
+        media: { repo: new InMemoryVersionedMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() },
         "theme-files": { themesDir: destThemes },
       },
     };

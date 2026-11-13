@@ -19,7 +19,7 @@ async function fixture(t: test.TestContext, storage: 'memory' | 'sqlite' = 'memo
   const db = storage === 'sqlite' ? openContentDb(':memory:') : null;
   if (db) t.after(() => db.$client.close());
   let now = 1_800_000_000_000;
-  const deps = { workspaceId: 'workspace', mediaRepo: new InMemoryVersionedMediaRepo(),
+  const deps = { workspaceId: 'workspace', mediaRepo: new InMemoryVersionedMediaRepo({}),
     assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}), blobStore: new InMemoryBlobStore(),
     clock: { nowMs: () => now, nowIso: () => new Date(now).toISOString() }, idGen: { newId: randomUUID },

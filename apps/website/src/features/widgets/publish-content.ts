@@ -112,9 +112,9 @@ export const contributeWidgetPublish = (): PublishContentContributor =>
     alsoAuthorizes: ["widgets.create"],
     dependsOn: ["form"],
     ports: (deps) => deps.ports.widget,
-    list: async (p, workspaceId) =>
+    list: async ({ ports: p, workspaceId }) =>
       Promise.all((await p.entries.listByWorkspace({ workspaceId }, { type: WIDGET_CONTENT_TYPE })).map((entry) => portableRow(p, workspaceId, toWidgetRow(entry)))),
-    find: async (p, workspaceId, id) => {
+    find: async ({ ports: p, workspaceId, id }) => {
       const row = await p.entries.findAnyById({ workspaceId, id });
       return row && row.type === WIDGET_CONTENT_TYPE ? portableRow(p, workspaceId, toWidgetRow(row)) : null;
     },
@@ -132,7 +132,7 @@ export const contributeWidgetPublish = (): PublishContentContributor =>
     },
     address: {
       field: "slug",
-      holder: async (p, workspaceId, slug) => {
+      holder: async ({ ports: p, workspaceId, value: slug }) => {
         // Trash included: a trashed widget keeps its slug.
         const row = await p.entries.findAnyBySlug({ workspaceId, type: WIDGET_CONTENT_TYPE, slug });
         return row ? toWidgetRow(row) : null;
@@ -203,8 +203,8 @@ export const contributeWidgetAreaPublish = (): PublishContentContributor =>
     permission: "widgets.place",
     dependsOn: ["widget"],
     ports: (deps) => deps.ports["widget-area"],
-    list: listAreas,
-    find: async (p, workspaceId, regionKey) => (await listAreas(p, workspaceId)).find((row) => row.regionKey === regionKey) ?? null,
+    list: ({ ports, workspaceId }) => listAreas(ports, workspaceId),
+    find: async ({ ports: p, workspaceId, id: regionKey }) => (await listAreas(p, workspaceId)).find((row) => row.regionKey === regionKey) ?? null,
     idOf: (row) => row.regionKey,
     fields: {
       regionKey: "transferred",

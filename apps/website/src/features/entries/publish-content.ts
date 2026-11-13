@@ -62,11 +62,11 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
     // The owning type and assigned terms are checked at write time; media and relation ids resolve at render.
     dependsOn: ["content-type", "term"],
     ports: (deps) => deps.ports["collection-entry"],
-    list: async (p, workspaceId) => {
+    list: async ({ ports: p, workspaceId }) => {
       const rows = await p.entries.listByWorkspaceExcludingTypes({ workspaceId, excludeTypes: WIDGET_TYPES });
       return Promise.all(rows.map((row) => withTerms(p, { ...row, deletedAt: null })));
     },
-    find: async (p, workspaceId, id) => {
+    find: async ({ ports: p, workspaceId, id }) => {
       const row = await p.entries.findAnyById({ workspaceId, id });
       return row ? withTerms(p, row) : null;
     },
@@ -91,7 +91,7 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
     address: {
       field: "slug",
       // Trash included: a trashed row keeps its slug (`entries_workspace_type_slug_unique`).
-      holder: (p, workspaceId, slug, state) => p.entries.findAnyBySlug({ workspaceId, type: state.type as string, slug }),
+      holder: ({ ports: p, workspaceId, value: slug, state }) => p.entries.findAnyBySlug({ workspaceId, type: state.type as string, slug }),
     },
     // A tombstone is terminal, so nothing in the bundle can fix it. A missing type is left to apply:
     // the same bundle may carry it.

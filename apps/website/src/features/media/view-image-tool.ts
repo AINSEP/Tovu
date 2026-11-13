@@ -101,7 +101,7 @@ export const mediaViewImageDerivedRisk: DerivedRiskByToolId = new Map<string, Ag
 const CATALOG_BY_ID = indexCatalogById({ catalog: mediaViewImageAgentToolCatalog });
 
 /** Prefixes every refusal with the tool id, so the model can tell which call it came from. */
-function refusal(message: string): ToolInputError {
+function refusal({ message }: { message: string }, _optional: Record<string, never> = {}): ToolInputError {
   return new ToolInputError({ message: `${MEDIA_VIEW_IMAGE_TOOL_ID}: ${message}` });
 }
 
@@ -110,7 +110,7 @@ async function findAsset({ deps, mediaId }: { deps: MediaViewImageToolDeps; medi
   // The shared assistant adapter resolves slugs; this domain reads only the authorized id.
   const found = await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: mediaId });
   if (!found) {
-    throw refusal(`no media asset with id or slug '${mediaId}'. Use content_read.media_asset to list the library and find the right id or slug.`);
+    throw refusal({ message: `no media asset with id or slug '${mediaId}'. Use content_read.media_asset to list the library and find the right id or slug.` });
   }
   return found;
 }
@@ -124,7 +124,7 @@ interface RenderedImage {
 }
 
 /** EXIF orientations 5-8 rotate by 90°, so the stored width/height are swapped relative to what a viewer sees. */
-function isQuarterTurn(orientation: number | undefined): boolean {
+function isQuarterTurn({ orientation }: { orientation: number | undefined }, _optional: Record<string, never> = {}): boolean {
   return orientation !== undefined && orientation >= 5;
 }
 
@@ -140,7 +140,7 @@ async function renderForModel({ asset, bytes, contentType, imageCodec }: { asset
     const metadata = await imageCodec.inspect({ source });
     const encoded = await imageCodec.encode({ source, autoOrient: true, format: "webp", quality: WEBP_QUALITY,
       resize: { width: VIEW_IMAGE_MAX_EDGE_PX, height: VIEW_IMAGE_MAX_EDGE_PX, fit: "inside", withoutEnlargement: true } });
-    const swap = isQuarterTurn(metadata.orientation);
+    const swap = isQuarterTurn({ orientation: metadata.orientation });
     return {
       data: Buffer.from(encoded.bytes).toString("base64"),
       width: encoded.width,
@@ -151,7 +151,7 @@ async function renderForModel({ asset, bytes, contentType, imageCodec }: { asset
       originalHeight: swap ? metadata.width : metadata.height,
     };
   } catch {
-    throw refusal(`media asset '${asset.id}' could not be decoded as an image (${contentType}) — its stored file may be damaged.`);
+    throw refusal({ message: `media asset '${asset.id}' could not be decoded as an image (${contentType}) — its stored file may be damaged.` });
   }
 }
 
@@ -160,14 +160,14 @@ async function renderForModel({ asset, bytes, contentType, imageCodec }: { asset
  *
  * @throws {ToolInputError} For a video, or for bytes that are not a raster image type.
  */
-function assertStillImage(asset: MediaRecord, contentType: string): void {
+function assertStillImage({ asset, contentType }: { asset: MediaRecord; contentType: string }, _optional: Record<string, never> = {}): void {
   if (contentType.startsWith("video/")) {
     throw refusal(
-      `media asset '${asset.id}' is a video (${contentType}). This tool only shows still images. Use media_view_video with this mediaId to see sampled video frames.`,
+      { message: `media asset '${asset.id}' is a video (${contentType}). This tool only shows still images. Use media_view_video with this mediaId to see sampled video frames.` },
     );
   }
   if (!contentType.startsWith("image/") || contentType === "image/svg+xml") {
-    throw refusal(`media asset '${asset.id}' is not a viewable image (its stored bytes are ${contentType}).`);
+    throw refusal({ message: `media asset '${asset.id}' is not a viewable image (its stored bytes are ${contentType}).` });
   }
 }
 
@@ -185,7 +185,7 @@ export function buildMediaViewImageRegistrations(deps: MediaViewImageToolDeps): 
       const asset = await findAsset({ deps, mediaId });
       const bytes = await readStoredBytes({ deps, asset });
       const contentType = sniffContentType({ bytes });
-      assertStillImage(asset, contentType);
+      assertStillImage({ asset, contentType });
       const rendered = await renderForModel({ asset, bytes, contentType, imageCodec: deps.imageCodec });
 
       const metadata = {

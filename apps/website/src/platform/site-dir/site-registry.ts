@@ -179,7 +179,7 @@ export interface CreateSiteResult extends InitSiteResult {
   name: string;
 }
 
-export type CreateSiteOptions = ListSitesOptional & { initSite?: InitSitePort; workspace?: SitesWorkspace; verifiedRestore?: InitSiteRestorePort; collisionSafe?: boolean; onAllocated?: (required: SiteCreationAllocation) => void; beforeRegister?: (required: CreateSiteResult) => void };
+export type CreateSiteOptions = ListSitesOptional & { initSite?: InitSitePort; workspace?: SitesWorkspace; verifiedRestore?: InitSiteRestorePort; collisionSafe?: boolean; onAllocated?: (required: SiteCreationAllocation, optional?: Record<string, never>) => void; beforeRegister?: (required: CreateSiteResult) => void };
 export type CreateSitePort = (required: CreateSiteRequired, optional?: CreateSiteOptions) => Promise<CreateSiteResult>;
 
 /**
@@ -207,7 +207,7 @@ export async function createSite(required: CreateSiteRequired & { deps: { initSi
     const dir = path.join(home, picked);
     return withFileLock({ lockPath: `${dir}.creation.lock`, run: async () => {
       if (optional.collisionSafe && fs.existsSync(dir)) throw new InitDirNotEmptyError("Import target was occupied while waiting for its creation lock.");
-      const result = await (optional.initSite ?? required.deps.initSite)({ dir, name: required.displayName ?? picked, adminPassword: required.adminPassword }, { workspace, onAllocated: allocation => optional.onAllocated?.({ ...allocation, name: picked }), ...(optional.verifiedRestore ? { verifiedRestore: optional.verifiedRestore } : {}) });
+      const result = await (optional.initSite ?? required.deps.initSite)({ dir, name: required.displayName ?? picked, adminPassword: required.adminPassword }, { workspace, onAllocated: (allocation, _optional = {}) => optional.onAllocated?.({ ...allocation, name: picked }), ...(optional.verifiedRestore ? { verifiedRestore: optional.verifiedRestore } : {}) });
       try {
         optional.beforeRegister?.({ ...result, name: picked });
         workspace.registry({}).merge({ entries: [{ id: result.siteId, name: picked, path: result.dir, createdBy: "Web", lastOpened: null }] });

@@ -121,7 +121,7 @@ export interface HydrateBlobStoreFromSeedRequired {
  *   error, mirrors `hydrateContentDbFromSeed`'s `no-seed-source` treatment of an absent stock file.
  * @complexity O(n) in the number of files and directories under `root`.
  */
-async function listSeedBlobRelativePaths(root: string, dir: string = root): Promise<string[]> {
+async function listSeedBlobRelativePaths({ root }: { root: string }, { dir = root }: { dir?: string } = {}): Promise<string[]> {
   let entries: Dirent[];
   try {
     entries = await readdir(dir, { withFileTypes: true });
@@ -134,7 +134,7 @@ async function listSeedBlobRelativePaths(root: string, dir: string = root): Prom
   for (const entry of entries) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
-      results.push(...(await listSeedBlobRelativePaths(root, full)));
+      results.push(...(await listSeedBlobRelativePaths({ root }, { dir: full })));
       continue;
     }
     if (entry.isFile()) {
@@ -159,9 +159,8 @@ type SeedBlobOutcome =
  *   "never fail the whole run over one bad seed file" contract.
  */
 async function resolveOneSeedBlob(
-  seedUploadsDir: string,
-  blobStore: Pick<BlobStorePort, "putIfAbsent">,
-  relativePath: string
+  { seedUploadsDir, blobStore, relativePath }: { seedUploadsDir: string; blobStore: Pick<BlobStorePort, "putIfAbsent">; relativePath: string },
+  _optional: Record<string, never> = {}
 ): Promise<SeedBlobOutcome> {
   const match = SEED_BLOB_PATH_PATTERN.exec(relativePath);
   const [, workspaceId, sha256] = match ?? [];
@@ -187,7 +186,7 @@ async function resolveOneSeedBlob(
 }
 
 /** Derives the run-level status from the tallies — see {@link HydrateBlobStoreFromSeedStatus}'s own doc. */
-function computeHydrateStatus(copied: number, failedCount: number): HydrateBlobStoreFromSeedStatus {
+function computeHydrateStatus({ copied, failedCount }: { copied: number; failedCount: number }, _optional: Record<string, never> = {}): HydrateBlobStoreFromSeedStatus {
   if (failedCount > 0) return "partial";
   return copied > 0 ? "seeded" : "already-present";
 }
@@ -212,7 +211,7 @@ export async function hydrateBlobStoreFromSeed(
 ): Promise<HydrateBlobStoreFromSeedResult> {
   const { seedUploadsDir, blobStore } = required;
 
-  const relativePaths = await listSeedBlobRelativePaths(seedUploadsDir);
+  const relativePaths = await listSeedBlobRelativePaths({ root: seedUploadsDir });
   if (relativePaths.length === 0) {
     return { status: "no-seed-source", copied: 0, skipped: 0, failed: [] };
   }
@@ -222,11 +221,11 @@ export async function hydrateBlobStoreFromSeed(
   const failed: HydrateBlobStoreFromSeedFailure[] = [];
 
   for (const relativePath of relativePaths) {
-    const outcome = await resolveOneSeedBlob(seedUploadsDir, blobStore, relativePath);
+    const outcome = await resolveOneSeedBlob({ seedUploadsDir, blobStore, relativePath });
     if (outcome.kind === "copied") copied++;
     else if (outcome.kind === "skipped") skipped++;
     else failed.push(outcome.failure);
   }
 
-  return { status: computeHydrateStatus(copied, failed.length), copied, skipped, failed };
+  return { status: computeHydrateStatus({ copied, failedCount: failed.length }), copied, skipped, failed };
 }

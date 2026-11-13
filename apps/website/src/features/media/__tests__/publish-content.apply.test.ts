@@ -117,7 +117,7 @@ interface Fixture {
 async function makeFixture(
   options: { mediaRows?: MediaRecord[]; blobRows?: AssetBlobRecord[]; mediaRepo?: VersionedMediaRepoPort } = {}
 ): Promise<Fixture> {
-  const mediaRepo = options.mediaRepo ?? new InMemoryVersionedMediaRepo(options.mediaRows ? [...options.mediaRows] : []);
+  const mediaRepo = options.mediaRepo ?? new InMemoryVersionedMediaRepo({}, { initialRows: options.mediaRows ? [...options.mediaRows] : [] });
   if (options.mediaRepo && options.mediaRows) {
     for (const row of options.mediaRows) await mediaRepo.save(row);
   }
@@ -469,7 +469,7 @@ function gateBlobGets(store: InMemoryBlobStore, expected: number) {
 
 for (const [label, makeRepo] of [
   ["sqlite", () => new SqliteMediaRepo(openContentDb(":memory:"))],
-  ["memory", () => new InMemoryVersionedMediaRepo()],
+  ["memory", () => new InMemoryVersionedMediaRepo({})],
 ] as const) {
   test(`[${label}] apply(): two concurrent updates planned against the same version cannot both land — one wins, the other is a conflict`, async () => {
     const seeded = makeMediaRecord({ title: "Old Title", version: 3 });

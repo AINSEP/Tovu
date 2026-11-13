@@ -95,7 +95,7 @@ async function writeSidecar(
   // Persisted format is specified independently of the reader helper.
   const fileName = options.ref === undefined
     ? "attachment_11111111-2222-3333-4444-555555555555.json"
-    : chatAttachmentSidecarFileName(options.ref);
+    : chatAttachmentSidecarFileName({ ref: options.ref });
   await writeFile(resolve(staged.sidecarDirectory, fileName), JSON.stringify(record));
 }
 
@@ -123,7 +123,7 @@ test("read-chat-attachment: the recorded owner gets the exact bytes on disk", as
 test("read-chat-attachment: legacy sidecars without timestamps remain readable without mutation", async (t) => {
   const staged = await stage(t);
   await writeSidecar(staged, { mtimeMs: undefined, ctimeMs: undefined });
-  const sidecarPath = resolve(staged.sidecarDirectory, chatAttachmentSidecarFileName(REF));
+  const sidecarPath = resolve(staged.sidecarDirectory, chatAttachmentSidecarFileName({ ref: REF }));
   const before = await readFile(sidecarPath, "utf8");
 
   assert.deepEqual(await read(staged), { ok: true, bytes: Buffer.from(BYTES) });
@@ -247,10 +247,10 @@ test("read-chat-attachment: a sidecar filename is not enough — the record must
 
 test("read-chat-attachment: a sidecar that is not JSON, or not the right shape, is refused", async (t) => {
   const staged = await stage(t);
-  await writeFile(resolve(staged.sidecarDirectory, chatAttachmentSidecarFileName(REF)), "{not json");
+  await writeFile(resolve(staged.sidecarDirectory, chatAttachmentSidecarFileName({ ref: REF })), "{not json");
   assert.deepEqual(await read(staged), { ok: false, refusal: "no-record" });
 
-  await writeFile(resolve(staged.sidecarDirectory, chatAttachmentSidecarFileName(REF)), JSON.stringify({ id: REF }));
+  await writeFile(resolve(staged.sidecarDirectory, chatAttachmentSidecarFileName({ ref: REF })), JSON.stringify({ id: REF }));
   assert.deepEqual(await read(staged), { ok: false, refusal: "record-unreadable" });
 });
 
@@ -310,11 +310,11 @@ test("read-chat-attachment: containment is parent-EQUALITY — a nested path ins
 test("read-chat-attachment: containment resolution is pure and rejects the same records without any disk", () => {
   const root = "/srv/site/uploads/chat-attachments";
   const base = { id: REF, filePath: `${root}/${BATCH}/f.bin`, size: 1, batchId: BATCH, dev: 1, ino: 2 };
-  assert.equal(resolveContainedAttachmentPath(base, root), `${root}/${BATCH}/f.bin`);
-  assert.equal(resolveContainedAttachmentPath({ ...base, filePath: "/etc/hosts" }, root), undefined);
-  assert.equal(resolveContainedAttachmentPath({ ...base, batchId: "../etc" }, root), undefined);
-  assert.equal(resolveContainedAttachmentPath({ ...base, batchId: "short" }, root), undefined);
-  assert.equal(resolveContainedAttachmentPath({ ...base, filePath: `${root}/f.bin` }, root), undefined);
+  assert.equal(resolveContainedAttachmentPath({ record: base, canonicalUploadDirectory: root }), `${root}/${BATCH}/f.bin`);
+  assert.equal(resolveContainedAttachmentPath({ record: { ...base, filePath: "/etc/hosts" }, canonicalUploadDirectory: root }), undefined);
+  assert.equal(resolveContainedAttachmentPath({ record: { ...base, batchId: "../etc" }, canonicalUploadDirectory: root }), undefined);
+  assert.equal(resolveContainedAttachmentPath({ record: { ...base, batchId: "short" }, canonicalUploadDirectory: root }), undefined);
+  assert.equal(resolveContainedAttachmentPath({ record: { ...base, filePath: `${root}/f.bin` }, canonicalUploadDirectory: root }), undefined);
 });
 
 // ---------------------------------------------------------------------------
@@ -582,7 +582,7 @@ test("read-chat-attachment: an infinite cap cannot admit non-finite recorded met
 test("read-chat-attachment: no ref, however hostile, maps to a sidecar outside the sidecar directory", () => {
   const sidecarDirectory = resolve("/uploads", ".records");
   for (const ref of ["", ".", "..", "../../etc/passwd", "a/b", "a\\b", "x\0y", "attachment:..", ".json", "%2e%2e%2f"]) {
-    const sidecarPath = resolve(sidecarDirectory, chatAttachmentSidecarFileName(ref));
+    const sidecarPath = resolve(sidecarDirectory, chatAttachmentSidecarFileName({ ref }));
     assert.equal(dirname(sidecarPath), sidecarDirectory, `ref ${JSON.stringify(ref)} escaped to ${sidecarPath}`);
   }
 });

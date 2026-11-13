@@ -88,7 +88,7 @@ export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
 
   private readonly renditionRepo: InMemoryAssetRenditionRepo;
 
-  constructor(initialRows: MediaRecord[] = [], { renditionRepo = new InMemoryAssetRenditionRepo({}) }: { renditionRepo?: InMemoryAssetRenditionRepo } = {}) {
+  constructor(_required: Record<string, never>, { initialRows = [], renditionRepo = new InMemoryAssetRenditionRepo({}) }: { initialRows?: MediaRecord[]; renditionRepo?: InMemoryAssetRenditionRepo } = {}) {
     this.renditionRepo = renditionRepo;
     this.rows = [...initialRows];
     this.retired = [];
@@ -115,7 +115,7 @@ export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
   /** Reclaiming its own old slug removes it from {@link retired} (S2a: "an asset may take back its
    *  own old slug"). A DIFFERENT asset's claim on a slug still in {@link retired} throws
    *  `MediaConflictError`, same as a live-row collision. */
-  private reclaimOwnSlug(workspaceId: UUID, mediaId: UUID, slug: string): void {
+  private reclaimOwnSlug({ workspaceId, mediaId, slug }: { workspaceId: UUID; mediaId: UUID; slug: string }, _optional: Record<string, never> = {}): void {
     const claimant = this.retired.find((row) => row.workspaceId === workspaceId && row.slug === slug);
     if (!claimant) return;
     if (claimant.mediaId !== mediaId) {
@@ -126,14 +126,14 @@ export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
 
   /** Moves `oldSlug` into {@link retired} for `mediaId`, unless the rename is a no-op or there was
    *  no prior slug (a brand-new row). */
-  private retireSlug(workspaceId: UUID, mediaId: UUID, oldSlug: string | null | undefined, newSlug: string, retiredAt: string): void {
+  private retireSlug({ workspaceId, mediaId, oldSlug, newSlug, retiredAt }: { workspaceId: UUID; mediaId: UUID; oldSlug: string | null | undefined; newSlug: string; retiredAt: string }, _optional: Record<string, never> = {}): void {
     if (!oldSlug || oldSlug === newSlug) return;
     this.retired.push({ workspaceId, slug: oldSlug, mediaId, retiredAt });
   }
 
   async save(record: MediaRecord): Promise<void> {
     const index = this.rows.findIndex((row) => row.id === record.id);
-    this.reclaimOwnSlug(record.workspaceId, record.id, record.slug);
+    this.reclaimOwnSlug({ workspaceId: record.workspaceId, mediaId: record.id, slug: record.slug });
     const original = this.rows[index];
     const priorSlug = original === undefined ? null : original.slug;
     if (original === undefined) {
@@ -141,7 +141,7 @@ export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
     } else {
       this.rows[index] = preserveMediaCreator({ record, original });
     }
-    this.retireSlug(record.workspaceId, record.id, priorSlug, record.slug, record.updatedAt);
+    this.retireSlug({ workspaceId: record.workspaceId, mediaId: record.id, oldSlug: priorSlug, newSlug: record.slug, retiredAt: record.updatedAt });
   }
 
   async remove(required: { workspaceId: UUID; id: UUID }): Promise<void> {
@@ -169,17 +169,17 @@ export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
     const index = this.rows.findIndex((row) => row.workspaceId === record.workspaceId && row.id === record.id);
     const original = this.rows[index];
     if (original === undefined || original.version !== ifVersion) return { applied: false };
-    this.reclaimOwnSlug(record.workspaceId, record.id, record.slug);
+    this.reclaimOwnSlug({ workspaceId: record.workspaceId, mediaId: record.id, slug: record.slug });
     const priorSlug = original.slug;
     this.rows[index] = preserveMediaCreator({ record, original });
-    this.retireSlug(record.workspaceId, record.id, priorSlug, record.slug, record.updatedAt);
+    this.retireSlug({ workspaceId: record.workspaceId, mediaId: record.id, oldSlug: priorSlug, newSlug: record.slug, retiredAt: record.updatedAt });
     return { applied: true };
   }
 
   /** No `await` in this body — see {@link saveIfVersion}'s doc for why that is what makes it atomic. */
   async insertIfAbsent(record: MediaRecord): Promise<{ applied: boolean }> {
     if (this.rows.some((row) => row.id === record.id)) return { applied: false };
-    this.reclaimOwnSlug(record.workspaceId, record.id, record.slug);
+    this.reclaimOwnSlug({ workspaceId: record.workspaceId, mediaId: record.id, slug: record.slug });
     this.rows.push(record);
     return { applied: true };
   }

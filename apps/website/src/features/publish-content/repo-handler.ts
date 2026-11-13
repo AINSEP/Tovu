@@ -65,18 +65,18 @@ export interface RepoPublishTypeConfig<Row, Ports> {
 
   /** `undefined` = not wired on this instance: pack yields nothing, inspect is `null`, precheck
    *  refuses, apply throws. */
-  readonly ports: (deps: PublishContentDeps) => Ports | undefined;
+  readonly ports: (deps: PublishContentDeps, optional?: Record<string, never>) => Ports | undefined;
   /** The `PublishContentDeps.ports` key the not-wired messages name. Defaults to `entityType`. */
   readonly portsKey?: string;
-  readonly list: (ports: Ports, workspaceId: string) => Promise<readonly Row[]>;
+  readonly list: (required: { ports: Ports; workspaceId: string }, optional?: Record<string, never>) => Promise<readonly Row[]>;
   /** Must also return a trashed row, so precheck can refuse it rather than plan a create. */
-  readonly find: (ports: Ports, workspaceId: string, id: string) => Promise<Row | null>;
+  readonly find: (required: { ports: Ports; workspaceId: string; id: string }, optional?: Record<string, never>) => Promise<Row | null>;
   /** Defaults to `row.id`. */
   readonly idOf?: (row: Row) => string;
   /** Defaults to `row.version`. */
   readonly versionOf?: (row: Row) => number;
   /** Pack filter beyond trash (kind, active status, excluded keys). */
-  readonly include?: (row: Row) => boolean;
+  readonly include?: (row: Row, optional?: Record<string, never>) => boolean;
   /** Pack skips a trashed row; precheck refuses a trashed destination row. */
   readonly isTrashed?: (row: Row) => boolean;
   /** e.g. parent-first for a tree-shaped type. */
@@ -89,9 +89,9 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   readonly omitWhenAbsent?: readonly string[];
   /** Only for a MIGRATED type whose existing `contentHash` must stay byte-identical (plan §7): replaces
    *  the default hash input (the `"transferred"` fields). A new type never sets it. */
-  readonly legacyHashState?: (row: Row, packedState: Record<string, unknown>) => Record<string, unknown>;
+  readonly legacyHashState?: (required: { row: Row; packedState: Record<string, unknown> }, optional?: Record<string, never>) => Record<string, unknown>;
   /** Defaults to `[]`. */
-  readonly requiredBlobs?: (row: Row) => readonly string[];
+  readonly requiredBlobs?: (row: Row, optional?: Record<string, never>) => readonly string[];
   /** A better on-screen name than any packed field (`PackedEntity.displayLabel`). Display only:
    *  never hashed or applied. `undefined` leaves the row named from its state. */
   readonly displayLabel?: (row: Row) => string | undefined;
@@ -101,10 +101,10 @@ export interface RepoPublishTypeConfig<Row, Ports> {
    *  `holder` must return that row too (and `isTrashed` say so), or the create collides at apply. */
   readonly address?: {
     readonly field: string;
-    readonly holder: (ports: Ports, workspaceId: string, value: string, state: Record<string, unknown>) => Promise<Row | null>;
+    readonly holder: (required: { ports: Ports; workspaceId: string; value: string; state: Record<string, unknown> }, optional?: Record<string, never>) => Promise<Row | null>;
   };
   /** What a packed entity uses, carried along by a scoped publish ({@link PublishContentHandler.references}). */
-  readonly references?: (entity: PackedEntity) => readonly PublishContentReference[];
+  readonly references?: (entity: PackedEntity, optional?: Record<string, never>) => readonly PublishContentReference[];
   /** Type-specific refusals, after the generic ones. Returns a reason or `null`. */
   readonly validate?: (input: { ports: Ports; workspaceId: string; entity: PackedEntity; existing: Row | null }) => ReturnType<PublishContentHandler["precheck"]>;
 
@@ -114,7 +114,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   /** When set, `write` runs inside `executeCommand` (inverse = the prior row; rollback = `restore`
    *  or, for a create, `remove`). When unset, the domain write keeps its own revision (redirect, menu). */
   readonly undo?: {
-    readonly restore: (ctx: RepoWriteContext<Row, Ports>, prior: Row) => Promise<void>;
+    readonly restore: (required: { ctx: RepoWriteContext<Row, Ports>; prior: Row }, optional?: Record<string, never>) => Promise<void>;
     readonly remove: (ctx: RepoWriteContext<Row, Ports>) => Promise<void>;
     /** Defaults to `Import <type> '<id>' via publish-content`. `ctx.existing` is not read yet. */
     readonly summary?: (ctx: RepoWriteContext<Row, Ports>) => string | Promise<string>;
@@ -125,7 +125,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   readonly errors?: { readonly blocked?: readonly ErrorClass[]; readonly conflict?: readonly ErrorClass[] };
   /** Builds every conflict this type reports (the version checks and `errors.conflict`). Defaults to a
    *  plain `PublishContentApplyRowError`; a migrated type may keep its own exported subclass. */
-  readonly conflictError?: (message: string) => PublishContentApplyRowError;
+  readonly conflictError?: (required: { message: string }, optional?: Record<string, never>) => PublishContentApplyRowError;
 
   /** Type-specific handler methods, passed through unchanged. */
   readonly extend?: (ctx: { deps: PublishContentDeps; ports: () => Ports | undefined }) => Partial<
@@ -173,11 +173,11 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
         .map((field) => [field, (row as Record<string, unknown>)[field] ?? null])
     );
   const hashOf = (row: Row) =>
-    contentHash(entityType, config.legacyHashState ? config.legacyHashState(row, pick(row, packedFields)) : pick(row, hashedFields));
+    contentHash(entityType, config.legacyHashState ? config.legacyHashState({ row, packedState: pick(row, packedFields) }) : pick(row, hashedFields));
 
   const conflict = (id: string, detail: string) => {
     const message = changedSincePlan(entityType, id, detail);
-    return config.conflictError?.(message) ?? new PublishContentApplyRowError("conflict", message);
+    return config.conflictError?.({ message }) ?? new PublishContentApplyRowError("conflict", message);
   };
 
   function toRowError(err: unknown, id: string): unknown {
@@ -196,7 +196,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
     async function* pack(): AsyncIterable<PackedEntity> {
       const p = ports();
       if (!p) return;
-      const rows = (await config.list(p, workspaceId)).filter((row) => !config.isTrashed?.(row) && (config.include?.(row) ?? true));
+      const rows = (await config.list({ ports: p, workspaceId })).filter((row) => !config.isTrashed?.(row) && (config.include?.(row) ?? true));
       for (const row of config.packOrder ? config.packOrder(rows) : rows) {
         const displayLabel = config.displayLabel?.(row);
         yield {
@@ -214,7 +214,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
 
     async function inspect(id: string): Promise<{ version: number; hash: string } | null> {
       const p = ports();
-      const row = p ? await config.find(p, workspaceId, id) : null;
+      const row = p ? await config.find({ ports: p, workspaceId, id }) : null;
       return row ? { version: versionOf(row), hash: hashOf(row) } : null;
     }
 
@@ -225,7 +225,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       const { address } = config;
       const value = address ? entity.state[address.field] : undefined;
       if (address && typeof value === "string" && value) {
-        const holder = await address.holder(p, workspaceId, value, entity.state);
+        const holder = await address.holder({ ports: p, workspaceId, value, state: entity.state });
         if (holder && idOf(holder) !== entity.id) {
           const held = config.isTrashed?.(holder) ? addressHeldInTrash : addressHeldByOther;
           return held(entityType, address.field, value, idOf(holder));
@@ -240,7 +240,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       if (!p) return notWired(entityType, entity.id, `${portsKey} port`);
       const addressReason = await precheckAddress({ entity, p });
       if (addressReason !== null) return addressReason;
-      const existing = await config.find(p, workspaceId, entity.id);
+      const existing = await config.find({ ports: p, workspaceId, id: entity.id });
       if (existing && config.isTrashed?.(existing)) return trashedAtDestination(entityType, entity.id);
       return (await config.validate?.({ ports: p, workspaceId, entity, existing })) ?? null;
     }
@@ -293,7 +293,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
 
       const { undo } = config;
       if (!undo) {
-        const written = await write(await config.find(p, workspaceId, entity.id));
+        const written = await write(await config.find({ ports: p, workspaceId, id: entity.id }));
         return { ...written, changeSetId: written.changeSetId ?? entity.id };
       }
       const { changeSets, authorize, outbox } = deps;
@@ -315,14 +315,14 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
           operation: expectedVersion === undefined ? "create" : "update",
           // Read inside the gateway so the CAS check and the inverse are the same, freshest read.
           captureInverse: async () => {
-            prior = await config.find(p, workspaceId, entity.id);
+            prior = await config.find({ ports: p, workspaceId, id: entity.id });
             return prior ? ({ ...prior } as unknown as JsonObject) : null;
           },
           execute: () => write(prior),
           captureEntityVersion: ({ result: written }) => written.version ?? null,
           rollback: async () => {
             for (const sideEffect of rollbacks.reverse()) await sideEffect();
-            await (prior ? undo.restore(ctx(prior), prior) : undo.remove(ctx(null)));
+            await (prior ? undo.restore({ ctx: ctx(prior), prior }) : undo.remove(ctx(null)));
           },
         },
       });

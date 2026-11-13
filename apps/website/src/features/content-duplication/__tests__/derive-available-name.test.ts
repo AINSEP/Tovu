@@ -22,7 +22,7 @@ function neverTaken() {
 
 function takenSet(...names: string[]) {
   const taken = new Set(names);
-  return async (name: string) => taken.has(name);
+  return async ({ candidate }: { candidate: string }) => taken.has(candidate);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -47,7 +47,7 @@ test("deriveAvailableName uses a custom withSuffix instead of the default when o
 test("deriveAvailableName gives up after MAX_SUFFIX_ATTEMPTS rather than looping forever", async () => {
   const attempted: string[] = [];
   await assert.rejects(
-    deriveAvailableName({ base: "x" }, { isTaken: async (candidate) => { attempted.push(candidate); return true; } }),
+    deriveAvailableName({ base: "x" }, { isTaken: async ({ candidate }) => { attempted.push(candidate); return true; } }),
     new RegExp(`no free name.*after ${MAX_SUFFIX_ATTEMPTS} attempts`),
   );
   assert.deepEqual(attempted, ["x", ...Array.from({ length: 999 }, (_, i) => `x ${i + 2}`)]);
@@ -82,7 +82,7 @@ test("a name with no trailing number starts its search at ' 2' (the source itsel
 
 test("copying the same source repeatedly increments: '... 2', then '... 3'", async () => {
   const taken = new Set(["Landing sample — xai"]);
-  const isTaken = async (name: string) => taken.has(name);
+  const isTaken = async ({ candidate }: { candidate: string }) => taken.has(candidate);
 
   const first = await deriveDuplicateName({ sourceName: "Landing sample — xai" }, { isTaken });
   taken.add(first);
@@ -109,7 +109,7 @@ test("a bare number with nothing to strip is treated as a literal name, not a co
 
 test("deriveAvailableName succeeds on the final permitted candidate", async () => {
   const attempted: string[] = [];
-  const result = await deriveAvailableName({ base: "x" }, { isTaken: async (candidate) => {
+  const result = await deriveAvailableName({ base: "x" }, { isTaken: async ({ candidate }) => {
     attempted.push(candidate);
     return candidate !== "x 1000";
   } });

@@ -20,7 +20,7 @@ export interface StaticDownloadCopy {
 }
 type Copy = StaticDownloadCopy;
 type File = Copy["files"][number];
-type RewriteUrl = (value: string) => string;
+type RewriteUrl = (required: { value: string }, optional?: Record<string, never>) => string;
 const LOCAL_ORIGIN = "https://static-copy.invalid";
 
 /** Resolve local references against their original file; foreign URLs and fragments stay intact. */
@@ -51,7 +51,7 @@ function rewriteSrcset({ value, rewrite }: { value: string; rewrite: RewriteUrl 
   for (const { url } of refs) {
     const start = value.indexOf(url, cursor);
     if (start < 0) continue;
-    parts.push(value.slice(cursor, start), rewrite(url));
+    parts.push(value.slice(cursor, start), rewrite({ value: url }));
     cursor = start + url.length;
   }
   return parts.join("") + value.slice(cursor);
@@ -65,7 +65,7 @@ function rewriteCss({ body, rewrite }: { body: string; rewrite: RewriteUrl }, _o
     const inner = body.slice(start + 4, end - 1).trim();
     const quote = /^["']/.test(inner) ? inner[0]! : "";
     const value = quote ? inner.slice(1, -1) : inner;
-    parts.push(body.slice(cursor, start), `url(${quote}${rewrite(value)}${quote})`);
+    parts.push(body.slice(cursor, start), `url(${quote}${rewrite({ value })}${quote})`);
     cursor = end;
   }
   return parts.join("") + body.slice(cursor);
@@ -73,7 +73,7 @@ function rewriteCss({ body, rewrite }: { body: string; rewrite: RewriteUrl }, _o
 
 /** HTML edits use parser-backed source ranges, preserving theme scripts and surrounding bytes. */
 function rewriteHtml({ body, rewrite }: { body: string; rewrite: RewriteUrl }, _options = {}): string {
-  body = downloadDocumentBase({ html: body, rewrite });
+  body = downloadDocumentBase({ html: body, rewrite: value => rewrite({ value }) });
   const parts: string[] = [];
   let cursor = 0;
   for (const { start, end, kind, identity } of exportUrlLocations({ body, contentType: "text/html" })) {
@@ -90,14 +90,14 @@ function rewriteHtml({ body, rewrite }: { body: string; rewrite: RewriteUrl }, _
 function rewriteHtmlValue({ value, kind, rewrite }: { value: string; kind: string; rewrite: RewriteUrl }, _options = {}): string {
   if (kind === "css") return rewriteCss({ body: value, rewrite });
   if (kind === "srcset") return rewriteSrcset({ value, rewrite });
-  return rewrite(value);
+  return rewrite({ value });
 }
 
 /** Rewrite manifest link fields structurally; malformed manifests retain their original bytes. */
 function rewriteManifest({ body, rewrite }: { body: string; rewrite: RewriteUrl }, _options = {}): string {
   try {
     return JSON.stringify(JSON.parse(body), (key, value: unknown) =>
-      typeof value === "string" && ["src", "href", "url", "start_url", "scope"].includes(key) ? rewrite(value) : value);
+      typeof value === "string" && ["src", "href", "url", "start_url", "scope"].includes(key) ? rewrite({ value }) : value);
   } catch { return body; }
 }
 
@@ -117,7 +117,7 @@ function rewriteMarkdown({ body, rewrite }: { body: string; rewrite: RewriteUrl 
   const parts: string[] = [];
   let cursor = 0;
   for (const { start, end } of exportUrlLocations({ body, contentType: "text/markdown" })) {
-    parts.push(body.slice(cursor, start), rewrite(body.slice(start, end)));
+    parts.push(body.slice(cursor, start), rewrite({ value: body.slice(start, end) }));
     cursor = end;
   }
   return parts.join("") + body.slice(cursor);
@@ -140,7 +140,7 @@ function referencedFiles({ copy }: { copy: Copy }, _options = {}): Set<string> {
   for (const name of reached) {
     const file = files.get(name);
     if (!file) continue;
-    rewriteFile({ file, rewrite: value => {
+    rewriteFile({ file, rewrite: ({ value }, _optional = {}) => {
       const url = localUrl({ value, file: name, publicOrigin: copy.publicOrigin, basePath: copy.basePath });
       if (url && files.has(url.pathname.slice(1))) reached.add(url.pathname.slice(1));
       return value;
@@ -299,7 +299,7 @@ function relocatedFiles({ copy, theme, paths, deliveredMedia }: { copy: Copy; th
     if (target.startsWith("media/")) {
       deliveredMedia.add(target);
     }
-    const content = downloadRobots({ file: file.path, content: rewriteFile({ file, rewrite: value => relocatedUrl({ value, file: file.path, target, paths, copy, theme }) }) });
+    const content = downloadRobots({ file: file.path, content: rewriteFile({ file, rewrite: ({ value }, _optional = {}) => relocatedUrl({ value, file: file.path, target, paths, copy, theme }) }) });
     entries.push({ path: target, content });
   }
   return entries;

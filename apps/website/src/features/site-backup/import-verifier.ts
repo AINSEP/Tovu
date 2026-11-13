@@ -30,7 +30,7 @@ export interface VerifiedSiteImport {
  */
 export async function verifySiteImport(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; sanitize: ShareDatabaseSanitizer; schema: { index: number; tag: string } }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string> } = {}): Promise<VerifiedSiteImport & { credentialWarnings: readonly CredentialWarning[] }> {
   const { archive, reader } = required;
-  if (archive.length > SHARE_LIMITS.maxArchiveBytes) refuseArchive("Import exceeds the 300 MiB archive cap.");
+  if (archive.length > SHARE_LIMITS.maxArchiveBytes) refuseArchive({ message: "Import exceeds the 300 MiB archive cap." });
   optional.signal?.throwIfAborted();
   const scan = await scanArchiveMetadata({ archive, reader }, optional);
   const manifest = parseShareManifest({ manifestBytes: scan.manifestBytes, schema: required.schema });
@@ -63,5 +63,5 @@ function bundledIdentical(required: { plugin: ArchivePlugin; files: ReadonlyMap<
   if (!expected) return false;
   const prefix = `agent-plugins/${plugin.id}/package/`;
   const actual = [...required.files].filter(([path]) => path.startsWith(prefix));
-  return actual.length === expected.size && actual.every(([path, bytes]) => expected.get(path.slice(prefix.length)) === sha256Hex(bytes));
+  return actual.length === expected.size && actual.every(([path, bytes]) => expected.get(path.slice(prefix.length)) === sha256Hex({ bytes }));
 }

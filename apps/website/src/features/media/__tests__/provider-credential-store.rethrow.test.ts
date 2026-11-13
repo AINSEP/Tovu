@@ -38,7 +38,7 @@ async function assertRethrown(providers: Record<string, Record<string, string>>)
   const repo = new InMemoryMediaProviderCredentialRepo();
   await assert.rejects(saveMediaProviderCredentials({ repo, keyring, sealer: new AesGcmSecretSealer(keyring), clock },
     { workspaceId: "workspace-1", providers }), (err: unknown) => err === unexpected);
-  assert.deepEqual(await repo.listByWorkspaceId("workspace-1"), []);
+  assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: "workspace-1" }), []);
 }
 
 test("an unexpected failure checking the provider id is rethrown unchanged", async () => {

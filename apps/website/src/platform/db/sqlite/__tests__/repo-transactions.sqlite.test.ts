@@ -71,7 +71,7 @@ test("media provider credentials: replaceWorkspace survives another caller's rol
   await writeDuringOthersRollback(db, () =>
     repo.replaceWorkspace({ workspaceId: WORKSPACE, plan: () => ({ upserts: [record], tombstoneProviderIds: [] }) })
   );
-  assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), [record]);
+  assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: WORKSPACE }), [record]);
 });
 
 test("change sets: insert survives another caller's rollback", async () => {

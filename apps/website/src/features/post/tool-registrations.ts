@@ -1347,7 +1347,7 @@ async function deriveDefaultDuplicateTitle(routeDeps: PostToolDeps, source: Post
   );
   return deriveDuplicateName(
     { sourceName: source.title },
-    { isTaken: async (candidate) => existingTitles.has(candidate) }
+    { isTaken: async ({ candidate }) => existingTitles.has(candidate) }
   );
 }
 
@@ -1512,16 +1512,16 @@ export function contributePostDuplicateHandlers(): DuplicateResourceHandlerContr
   return [
     {
       resource: "post",
-      build: (routeDeps) => ({
+      build: (routeDeps, _optional = {}) => ({
         permission: CONTENT_WRITE_PERMISSION,
-        duplicate: (input) => duplicatePostOrPage(routeDeps, "post", input),
+        duplicate: (input, _optional = {}) => duplicatePostOrPage(routeDeps, "post", input),
       }),
     },
     {
       resource: "page",
-      build: (routeDeps) => ({
+      build: (routeDeps, _optional = {}) => ({
         permission: CONTENT_WRITE_PERMISSION,
-        duplicate: (input) => duplicatePostOrPage(routeDeps, "page", input),
+        duplicate: (input, _optional = {}) => duplicatePostOrPage(routeDeps, "page", input),
       }),
     },
   ];

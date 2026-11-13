@@ -31,7 +31,7 @@ function labelOf(entity: PackedEntity): string {
 }
 
 /** Records a sniffed type for `sha256` from the stored bytes. `false` when the bytes can't be read. */
-async function repairContentType(ports: MediaPorts, workspaceId: string, sha256: string): Promise<boolean> {
+async function repairContentType({ ports, workspaceId, sha256 }: { ports: MediaPorts; workspaceId: string; sha256: string }, _optional: Record<string, never> = {}): Promise<boolean> {
   try {
     const bytes = await ports.blobStore.get({ storageKey: computeBlobStorageKey({ workspaceId, sha256 }) });
     await ports.contentTypeStore.set({ workspaceId, sha256, contentType: sniffContentType({ bytes }) });
@@ -44,10 +44,8 @@ async function repairContentType(ports: MediaPorts, workspaceId: string, sha256:
 /** Problems with one media item, in the order an operator would fix them; stops at the first one
  *  that makes the rest meaningless (no row, no bytes). */
 async function verifyOne(
-  ports: MediaPorts,
-  workspaceId: string,
-  entity: PackedEntity,
-  recordedTypes: ReadonlyMap<string, string>
+  { ports, workspaceId, entity, recordedTypes }: { ports: MediaPorts; workspaceId: string; entity: PackedEntity; recordedTypes: ReadonlyMap<string, string> },
+  _optional: Record<string, never> = {}
 ): Promise<string[]> {
   const label = labelOf(entity);
   const record = await ports.repo.findById({ workspaceId, id: entity.id });
@@ -59,7 +57,7 @@ async function verifyOne(
     return [`Media '${label}' is on the site without its file, so it cannot be shown.`];
   }
   const problems: string[] = [];
-  if (!recordedTypes.has(sha256) && !(await repairContentType(ports, workspaceId, sha256))) {
+  if (!recordedTypes.has(sha256) && !(await repairContentType({ ports, workspaceId, sha256 }))) {
     problems.push(`Media '${label}': the site could not read its file type, so a video may show as a broken image.`);
   }
   for (const key of collectMediaUrlKeys(record.htmlAttributes ?? "")) {
@@ -77,9 +75,8 @@ async function verifyOne(
  * per item still missing a type.
  */
 export async function verifyPublishedMedia(
-  ports: MediaPorts,
-  workspaceId: string,
-  entities: readonly PackedEntity[]
+  { ports, workspaceId, entities }: { ports: MediaPorts; workspaceId: string; entities: readonly PackedEntity[] },
+  _optional: Record<string, never> = {}
 ): Promise<string[]> {
   if (entities.length === 0) return [];
   const sha256s = entities.flatMap((entity) => {
@@ -91,7 +88,7 @@ export async function verifyPublishedMedia(
   for (const entity of entities) {
     // A storage fault on one item is that item's problem; it must not hide the checks for the rest.
     try {
-      problems.push(...(await verifyOne(ports, workspaceId, entity, recordedTypes)));
+      problems.push(...(await verifyOne({ ports, workspaceId, entity, recordedTypes })));
     } catch {
       problems.push(`Media '${labelOf(entity)}' could not be checked on the site, so it may not show.`);
     }

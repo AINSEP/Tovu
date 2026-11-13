@@ -594,7 +594,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // read — constructed twice they would be two disconnected in-memory stores — and the media
   // `TrashAdapter` just below needs the same instance.
   const assetRenditionRepo = new InMemoryAssetRenditionRepo({}, { initialRows: [] });
-  const mediaRepo = new InMemoryVersionedMediaRepo([], { renditionRepo: assetRenditionRepo });
+  const mediaRepo = new InMemoryVersionedMediaRepo({}, { initialRows: [], renditionRepo: assetRenditionRepo });
   // Hoisted for the same reason: the `form_submission` `TrashAdapter` below must flip the marker on
   // the very store the Forms routes read.
   const formSubmissionRepo = new InMemoryFormSubmissionRepo();

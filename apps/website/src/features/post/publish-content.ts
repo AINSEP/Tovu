@@ -346,13 +346,13 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     dependsOn: POST_AND_PAGE_DEPENDS_ON,
     ports: (deps) => deps.ports.post && { ...deps.ports.post, term: deps.ports.term },
     portsKey: "post",
-    list: async (p, workspaceId) => {
+    list: async ({ ports: p, workspaceId }) => {
       const rows = (await p.repo.list({ workspaceId })).filter((row) => row.kind === kind && !isTrashed(row));
       // SQL supplies null/false defaults for older rows. Omit those defaults from the wire/hash;
       // import still clears a destination's old byline when the source leaves these fields absent.
       return Promise.all(rows.map((row) => withTerms(p.term, { ...row, author: row.author ?? undefined, showAuthor: row.showAuthor || undefined })));
     },
-    find: async (p, workspaceId, id) => {
+    find: async ({ ports: p, workspaceId, id }) => {
       const row = await p.repo.findById({ workspaceId, id });
       return row && row.kind === kind ? withTerms(p.term, row) : null;
     },
@@ -360,7 +360,7 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     fields: { ...POST_FIELD_DISPOSITIONS, termIds: "transferred" },
     omitWhenAbsent: ["termIds", ...OMIT_WHEN_ABSENT],
     // Hash the established transport projection while find() retains the full compensation row.
-    legacyHashState: (row) => withTermIds({ state: toPublishableState(row), termIds: row.termIds }),
+    legacyHashState: ({ row }) => withTermIds({ state: toPublishableState(row), termIds: row.termIds }),
     references: (entity) => postReferences(entity.state),
     // Not the factory's `address`: a slug held by a trashed row keeps this sentence, and the slug
     // checks run before the kind check on an unfiltered read, as before the migration.
@@ -404,7 +404,7 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     },
     undo: {
       // Forward, not verbatim: see `restorePostForward`'s doc. A create's undo removes the row.
-      restore: async ({ ports, deps, workspaceId, id, principalId }, prior) => {
+      restore: async ({ ctx: { ports, deps, workspaceId, id, principalId }, prior }) => {
         await undoPostImport({ ports, deps, kind, workspaceId, id, prior, principalId });
       },
       remove: async ({ ports, deps, workspaceId, id, principalId }) => {

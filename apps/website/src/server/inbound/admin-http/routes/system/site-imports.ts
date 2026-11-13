@@ -52,7 +52,7 @@ export function registerAdminSiteImportRoutes(
     const parserMessage = parserMessages.get(type ?? "");
     if (tooLarge || parserMessage) {
       res.status(tooLarge ? 413 : 400).json({ code: tooLarge ? "LIMIT_EXCEEDED" : "IMPORT_FAILED",
-        message: `${step} failed: ${tooLarge ? `the request is over the ${formatByteSize(limit)} limit for this step.` : parserMessage}` });
+        message: `${step} failed: ${tooLarge ? `the request is over the ${formatByteSize({ bytes: limit })} limit for this step.` : parserMessage}` });
       return;
     }
     sendAdminFailure({ res, error, tracker: deps.tracker }, { operation: `site-import:${step}`, code: "IMPORT_FAILED", message: `${step} failed. No existing site was changed.`, field: "message" });

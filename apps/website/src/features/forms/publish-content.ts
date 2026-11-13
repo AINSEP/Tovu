@@ -28,8 +28,8 @@ export const contributeFormPublish = (): PublishContentContributor =>
     coversTables: [FORMS_TABLES.definitions],
     permission: "admin.forms.manage",
     ports: (deps) => deps.ports.form,
-    list: async (p, workspaceId) => (await p.repo.list({ workspaceId })).map(publishableForm),
-    find: async (p, workspaceId, slug) => {
+    list: async ({ ports: p, workspaceId }) => (await p.repo.list({ workspaceId })).map(publishableForm),
+    find: async ({ ports: p, workspaceId, id: slug }) => {
       const row = await p.repo.findBySlug({ workspaceId, slug });
       return row ? publishableForm(row) : null;
     },

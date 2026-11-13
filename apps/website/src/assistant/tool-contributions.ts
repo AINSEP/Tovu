@@ -22,7 +22,7 @@ export interface DuplicateResourceHandler {
     readonly principalId: string;
     readonly id: string;
     readonly overrides: { readonly title?: string; readonly slug?: string; readonly status?: string };
-  }) => Promise<Record<string, unknown>>;
+  }, optional?: Record<string, never>) => Promise<Record<string, unknown>>;
 }
 
 /**
@@ -37,6 +37,6 @@ export interface DuplicateResourceHandler {
  */
 export interface DuplicateResourceHandlerContributor<TDeps> {
   readonly resource: string;
-  readonly build: (routeDeps: TDeps) => DuplicateResourceHandler;
+  readonly build: (routeDeps: TDeps, optional?: Record<string, never>) => DuplicateResourceHandler;
 }
 

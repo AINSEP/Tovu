@@ -97,7 +97,7 @@ function makeDeps(overrides: Partial<ImportMediaEntityDeps> = {}): ImportMediaEn
   blobStore: InMemoryBlobStore;
 } {
   return {
-    mediaRepo: new InMemoryVersionedMediaRepo(),
+    mediaRepo: new InMemoryVersionedMediaRepo({}),
     assetBlobRepo: new InMemoryAssetBlobRepo({}),
     blobStore: new InMemoryBlobStore(),
     clock: makeClock(),

@@ -51,12 +51,12 @@ export const contributeTaxonomyPublish = (): PublishContentContributor =>
     coversTables: ["taxonomies", "terms", "entry_terms", "taxonomy_revisions"],
     permission: "admin.taxonomy.manage",
     ports: (deps) => deps.ports.taxonomy,
-    list: (p) => p.taxonomies.list(),
-    find: (p, _workspaceId, id) => p.taxonomies.findAnyById({ id }),
+    list: ({ ports: p }) => p.taxonomies.list(),
+    find: ({ ports: p, workspaceId: _workspaceId, id }) => p.taxonomies.findAnyById({ id }),
     isTrashed: (row) => row.status === TRASH,
     fields: { name: "transferred", hierarchical: "transferred", id: "local", status: "local", updatedAt: "local", version: "local" },
     // Not unique in the schema; two same-named groups would read as one on screen.
-    address: { field: "name", holder: async (p, _workspaceId, name) => (await p.taxonomies.list()).find((t) => t.name === name) ?? null },
+    address: { field: "name", holder: async ({ ports: p, workspaceId: _workspaceId, value: name }) => (await p.taxonomies.list()).find((t) => t.name === name) ?? null },
     write: async (ctx) => {
       const { id, state, expectedVersion, principalId } = ctx;
       const deps = writeDeps({ ctx, entityType: "taxonomy" });
@@ -89,8 +89,8 @@ export const contributeTermPublish = (): PublishContentContributor =>
     permission: "admin.taxonomy.manage",
     dependsOn: ["taxonomy"],
     ports: (deps) => deps.ports.term,
-    list: async (p) => (await Promise.all((await p.taxonomies.list()).map((t) => p.terms.listByTaxonomy({ taxonomyId: t.id })))).flat(),
-    find: (p, _workspaceId, id) => p.terms.findAnyById({ id }),
+    list: async ({ ports: p }) => (await Promise.all((await p.taxonomies.list()).map((t) => p.terms.listByTaxonomy({ taxonomyId: t.id })))).flat(),
+    find: ({ ports: p, workspaceId: _workspaceId, id }) => p.terms.findAnyById({ id }),
     isTrashed: (row) => row.status === TRASH,
     packOrder: parentFirst,
     fields: { taxonomyId: "transferred", parentId: "transferred", name: "transferred", id: "local", status: "local", updatedAt: "local", version: "local" },
@@ -102,7 +102,7 @@ export const contributeTermPublish = (): PublishContentContributor =>
     // A name is taken only among its siblings (same taxonomy, same parent).
     address: {
       field: "name",
-      holder: async (p, _workspaceId, name, state) =>
+      holder: async ({ ports: p, workspaceId: _workspaceId, value: name, state }) =>
         (await p.terms.listByTaxonomy({ taxonomyId: state.taxonomyId as string })).find((t) => t.name === name && t.parentId === (state.parentId ?? null)) ?? null,
     },
     write: async (ctx) => {

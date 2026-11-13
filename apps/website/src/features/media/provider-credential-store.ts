@@ -84,7 +84,7 @@ export async function getMediaProviderCredentials(
   deps: MediaProviderCredentialReadDeps,
   input: { workspaceId: UUID }
 ): Promise<MediaProviderCredentialMap> {
-  return toMap(await deps.repo.listByWorkspaceId(input.workspaceId));
+  return toMap(await deps.repo.listByWorkspaceId({ workspaceId: input.workspaceId }));
 }
 
 /** One provider's incoming edit. `apiKey` present and non-blank sets a new key; absent or blank
@@ -126,7 +126,7 @@ export type MediaProviderCredentialSaveDeps = Omit<MediaProviderCredentialWriteD
   repo: Pick<MediaProviderCredentialRepoPort, "replaceWorkspace" | "vault">;
 };
 
-function trimmedOrNull(value: string | undefined): string | null {
+function trimmedOrNull({ value }: { value: string | undefined }, _optional: Record<string, never> = {}): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
 }
@@ -141,18 +141,18 @@ function rethrowAsValidation<T>({ run }: { run: () => T }, _options = {}): T {
 }
 
 /** An exact (never alias-resolved) non-built-in id the injected registry holds. @complexity O(m). */
-function isPluginProviderId(providerId: string, catalog: MediaProviderIdCatalog | undefined): boolean {
+function isPluginProviderId({ providerId, catalog }: { providerId: string; catalog: MediaProviderIdCatalog | undefined }, _optional: Record<string, never> = {}): boolean {
   return !KNOWN_PROVIDER_IDS.has(providerId) && catalog?.findProvider({ id: providerId })?.id === providerId;
 }
 
 /** Built-in ids, or a plugin vendor id the injected registry holds. @complexity O(m). */
-function isKnownProviderId(providerId: string, catalog: MediaProviderIdCatalog | undefined): boolean {
-  return KNOWN_PROVIDER_IDS.has(providerId) || isPluginProviderId(providerId, catalog);
+function isKnownProviderId({ providerId, catalog }: { providerId: string; catalog: MediaProviderIdCatalog | undefined }, _optional: Record<string, never> = {}): boolean {
+  return KNOWN_PROVIDER_IDS.has(providerId) || isPluginProviderId({ providerId, catalog });
 }
 
 function assertKnownProviderId({ providerId }: { providerId: string }, { catalog }: { catalog?: MediaProviderIdCatalog } = {}): void {
   rethrowAsValidation({ run: () => assertCredentialFreeField({ value: providerId, field: 'providerId' }) });
-  if (!isKnownProviderId(providerId, catalog)) {
+  if (!isKnownProviderId({ providerId, catalog })) {
     throw new MediaProviderCredentialValidationError(
       `unknown media provider "${providerId}" — expected an engine-canonical id from @jini-ai/integrations/media-providers`
     );
@@ -175,7 +175,7 @@ function assertEntryField({ providerId, field, value }: { providerId: string; fi
 }
 
 /** Rejects anything the row cannot faithfully hold, before a single write happens. */
-function assertValidEntry(providerId: string, entry: MediaProviderCredentialInput, catalog: MediaProviderIdCatalog | undefined): void {
+function assertValidEntry({ providerId, entry, catalog }: { providerId: string; entry: MediaProviderCredentialInput; catalog: MediaProviderIdCatalog | undefined }, _optional: Record<string, never> = {}): void {
   assertKnownProviderId({ providerId }, { catalog });
   if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
     throw new MediaProviderCredentialValidationError(`provider "${providerId}" must be an object`);
@@ -202,7 +202,7 @@ async function sealNewProviderKeys(
     const existing = (await deps.repo.vault!.list(scope))[0];
     fresh.set(providerId, await vault.prepare({ ...scope,
       id: existing?.id ?? mediaVaultId({ providerId }), expectedRevision: existing?.revision ?? null,
-      provider: providerId, label: providerId, meta: { ...existing?.meta, baseUrl: trimmedOrNull(entry.baseUrl), model: trimmedOrNull(entry.model) },
+      provider: providerId, label: providerId, meta: { ...existing?.meta, baseUrl: trimmedOrNull({ value: entry.baseUrl }), model: trimmedOrNull({ value: entry.model }) },
       payload: { apiKey }, hintToken: apiKey }));
   }
   return fresh;
@@ -219,7 +219,7 @@ function buildProviderUpsertRow(input: {
   // only) is re-sent by every whole-map save, so refusing it would block every other provider's edit.
   if (!credential) throw new MediaProviderCredentialValidationError('Enter a token. Spaces alone are not a token.');
   const row: MediaProviderCredentialRecord = { workspaceId, providerId,
-    baseUrl: trimmedOrNull(entry.baseUrl), model: trimmedOrNull(entry.model),
+    baseUrl: trimmedOrNull({ value: entry.baseUrl }), model: trimmedOrNull({ value: entry.model }),
     sealed: credential.sealed, keyTail: credential.keyTail, aadVersion: credential.aadVersion,
     createdAt: existing?.createdAt ?? now, updatedAt: now };
   Object.defineProperty(row, "vaultRecord", { value: credential.vaultRecord });
@@ -265,7 +265,7 @@ export async function saveMediaProviderCredentials(
   }
 
   const entries = Object.entries(providers);
-  for (const [providerId, entry] of entries) assertValidEntry(providerId, entry, deps.providerCatalog);
+  for (const [providerId, entry] of entries) assertValidEntry({ providerId, entry, catalog: deps.providerCatalog });
 
   const now = clockNowIso({ clock: deps.clock });
 
@@ -277,7 +277,7 @@ export async function saveMediaProviderCredentials(
 
   /** Merges the submitted payload against whatever rows the transaction just read. Synchronous and
    *  pure by contract — it runs inside the open transaction. */
-  const plan: MediaProviderCredentialReplacePlanner = (existingRows) => {
+  const plan: MediaProviderCredentialReplacePlanner = ({ existing: existingRows }, _optional = {}) => {
     const existingByProviderId = new Map(existingRows.map((row) => [row.providerId, row]));
     const upserts = entries.map(([providerId, entry]) =>
       buildProviderUpsertRow({ workspaceId: input.workspaceId, providerId, entry,

@@ -1,7 +1,7 @@
 import { ToolInputError } from "@jini-ai/core";
 import type { AssetBlobRepoPort, BlobStorePort, MediaRecord } from "@jini-ai/cms/media";
 
-function refusal(message: string): ToolInputError {
+function refusal({ message }: { message: string }, _optional: Record<string, never> = {}): ToolInputError {
   return new ToolInputError({ message: `media_view_image: ${message}` });
 }
 
@@ -12,12 +12,12 @@ function refusal(message: string): ToolInputError {
  */
 export async function readStoredBytes({ deps, asset }: { deps: { workspaceId: string; assetBlobRepo: AssetBlobRepoPort; blobStore: BlobStorePort }; asset: MediaRecord }, { maxBytes }: { maxBytes?: number } = {}): Promise<Uint8Array> {
   const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: asset.source.sha256 });
-  if (!blob) throw refusal(`media asset '${asset.id}' has no stored file, so there is nothing to show.`);
+  if (!blob) throw refusal({ message: `media asset '${asset.id}' has no stored file, so there is nothing to show.` });
   if (maxBytes !== undefined) {
     const size = await deps.blobStore.sizeOf?.({ storageKey: blob.storageKey });
-    if (size == null || size > maxBytes) throw refusal(`media asset '${asset.id}' has unknown size or exceeds ${maxBytes} bytes`);
+    if (size == null || size > maxBytes) throw refusal({ message: `media asset '${asset.id}' has unknown size or exceeds ${maxBytes} bytes` });
   }
   const bytes = await deps.blobStore.get({ storageKey: blob.storageKey });
-  if (maxBytes !== undefined && bytes.byteLength > maxBytes) throw refusal(`media asset '${asset.id}' exceeds ${maxBytes} bytes`);
+  if (maxBytes !== undefined && bytes.byteLength > maxBytes) throw refusal({ message: `media asset '${asset.id}' exceeds ${maxBytes} bytes` });
   return bytes;
 }

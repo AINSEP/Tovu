@@ -67,7 +67,7 @@ export type MediaApplyBlockedCode = "blocked:missing-blob" | "blocked:slug-taken
 export class MediaApplyBlockedError extends PublishContentApplyRowError {
   readonly code: MediaApplyBlockedCode;
 
-  constructor(code: MediaApplyBlockedCode, message: string) {
+  constructor({ code, message }: { code: MediaApplyBlockedCode; message: string }) {
     super("blocked", message);
     this.name = "MediaApplyBlockedError";
     this.code = code;
@@ -81,7 +81,7 @@ export class MediaApplyBlockedError extends PublishContentApplyRowError {
  * `rowOutcome: "conflict"`, so the row downgrades and the run continues. Thrown before any write.
  */
 export class MediaApplyConflictError extends PublishContentApplyRowError {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super("conflict", message);
     this.name = "MediaApplyConflictError";
   }
@@ -141,11 +141,11 @@ async function assertPublishableMedia(
   _options = {}
 ): Promise<void> {
   if (isLibraryDocument({ kind: state.kind, existing })) {
-    throw new MediaApplyBlockedError("blocked:precondition", LIBRARY_DOCUMENT_REFUSAL);
+    throw new MediaApplyBlockedError({ code: "blocked:precondition", message: LIBRARY_DOCUMENT_REFUSAL });
   }
   const record = state as unknown as MediaRecord; // this handler's own pack() produced it
   if (await isDocumentOnlyBlob({ deps: { mediaRepo: ports.repo, blobRepo: ports.assetBlobRepo }, input: { workspaceId, sha256: record.source?.sha256 ?? "" } })) {
-    throw new MediaApplyBlockedError("blocked:precondition", LIBRARY_DOCUMENT_REFUSAL);
+    throw new MediaApplyBlockedError({ code: "blocked:precondition", message: LIBRARY_DOCUMENT_REFUSAL });
   }
 }
 
@@ -175,10 +175,10 @@ function importedOrThrow(
   _options = {}
 ): Extract<ImportMediaEntityResult, { status: "imported" }> {
   if (outcome.status === "conflict") {
-    throw new MediaApplyConflictError(`media '${id}' changed on the destination during apply: ${outcome.reason}`);
+    throw new MediaApplyConflictError({ message: `media '${id}' changed on the destination during apply: ${outcome.reason}` });
   }
   if (outcome.status === "blocked") {
-    throw new MediaApplyBlockedError(`blocked:${outcome.code}`, `media '${id}' cannot be applied — ${outcome.reason}`);
+    throw new MediaApplyBlockedError({ code: `blocked:${outcome.code}`, message: `media '${id}' cannot be applied — ${outcome.reason}` });
   }
   return outcome;
 }
@@ -192,27 +192,27 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     coversTables: ["media", "asset_blobs", "asset_renditions", "media_slug_history"],
     // The same permission `post`/`page` declare; media has no write permission of its own.
     permission: "content.write",
-    ports: (deps) => deps.ports.media,
+    ports: (deps, _optional = {}) => deps.ports.media,
     // Library sharing has its own private archive flow. Ordinary publishing never carries documents.
-    include: row => row.kind !== "document",
-    list: (p, workspaceId) => p.repo.list({ workspaceId }),
-    find: (p, workspaceId, id) => p.repo.findById({ workspaceId, id }),
+    include: (row, _optional = {}) => row.kind !== "document",
+    list: ({ ports: p, workspaceId }, _optional = {}) => p.repo.list({ workspaceId }),
+    find: ({ ports: p, workspaceId, id }, _optional = {}) => p.repo.findById({ workspaceId, id }),
     fields: MEDIA_FIELDS,
     // Packed exactly as the row holds it: an absent field stays absent rather than becoming `null`.
     omitWhenAbsent: Object.keys(MEDIA_FIELDS),
-    legacyHashState: (row) => {
+    legacyHashState: ({ row }, _optional = {}) => {
       const { createdBy: _creator, kind: _kind, originalFilename: _filename, ...legacyState } = row;
       return legacyState;
     },
-    requiredBlobs: (row) => [row.source.sha256],
+    requiredBlobs: (row, _optional = {}) => [row.source.sha256],
     // Other media this item names by a `/m/{key}/` URL in its own `htmlAttributes` — a video's
     // `poster`, chiefly — travel with it, or the destination renders a poster URL that 404s.
-    references: (entity) =>
+    references: (entity, _optional = {}) =>
       typeof entity.state.htmlAttributes === "string"
         ? [...collectMediaUrlKeys(entity.state.htmlAttributes)].map((key) => ({ entityType: "media", key }))
         : [],
     // `media.slug` may be empty on pre-backfill rows; the factory skips an empty address.
-    address: { field: "slug", holder: (p, workspaceId, slug) => p.repo.findBySlug({ workspaceId, slug }) },
+    address: { field: "slug", holder: ({ ports: p, workspaceId, value: slug }, _optional = {}) => p.repo.findBySlug({ workspaceId, slug }) },
     // Also checked by the planner's `hasBlob` pass, but that depends on the caller wiring the probe;
     // media is the one type whose entity IS its blob.
     validate: async ({ ports, workspaceId, entity, existing }) => {
@@ -234,7 +234,7 @@ export const contributeMediaPublish = (): PublishContentContributor =>
       const record = state as unknown as MediaRecord; // this handler's own pack() produced it
       // Same shape check as `validate`, again here: apply must not trust that precheck ran.
       const sha256 = record.source?.sha256;
-      if (sha256 && !isValidSha256Hex(sha256)) throw new MediaApplyBlockedError("blocked:precondition", `media '${id}' cannot be applied — malformed source sha256 '${sha256}'`);
+      if (sha256 && !isValidSha256Hex(sha256)) throw new MediaApplyBlockedError({ code: "blocked:precondition", message: `media '${id}' cannot be applied — malformed source sha256 '${sha256}'` });
       const bytes = await stagedBytes({ blobStore, workspaceId, record });
       const outcome = importedOrThrow({ id, outcome: await importMediaEntity({
         deps: { mediaRepo, assetBlobRepo, blobStore, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, idGen: deps.idGen },
@@ -261,7 +261,7 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     undo: {
       // An update restores the prior record verbatim; a create removes its row. The blob row and bytes
       // stay: they are append-only and content-addressed, and an orphan is reclaimable by GC.
-      restore: ({ ports, deps }, prior) => restoreImportedMedia({ deps: { mediaRepo: ports.repo,
+      restore: ({ ctx: { ports, deps }, prior }, _optional = {}) => restoreImportedMedia({ deps: { mediaRepo: ports.repo,
         assetBlobRepo: ports.assetBlobRepo, blobStore: ports.blobStore, idGen: deps.idGen,
         clock: { nowIso: () => clockNowIso({ clock: deps.clock }) } }, prior }),
       remove: ({ ports, workspaceId, id }) => ports.repo.remove({ workspaceId, id }),
@@ -273,11 +273,11 @@ export const contributeMediaPublish = (): PublishContentContributor =>
           : `Import media '${id}' via publish-content (new blob ${sha256})`;
       },
     },
-    conflictError: (message) => new MediaApplyConflictError(message),
+    conflictError: ({ message }, _optional = {}) => new MediaApplyConflictError({ message }),
     extend: ({ deps, ports }) => ({
       verifyApplied: async ({ entities }) => {
         const p = ports();
-        return p ? verifyPublishedMedia(p, deps.workspaceId, entities) : [];
+        return p ? verifyPublishedMedia({ ports: p, workspaceId: deps.workspaceId, entities }) : [];
       },
     }),
   });

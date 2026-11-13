@@ -158,7 +158,7 @@ interface MediaOwners {
 }
 
 /** Workspace-scoped identity key for an owner lookup. O(1). */
-function ownerKey(workspace: unknown, identity: unknown): string {
+function ownerKey({ workspace, identity }: { workspace: unknown; identity: unknown }, _optional: Record<string, never> = {}): string {
   return JSON.stringify([workspace, identity]);
 }
 
@@ -173,7 +173,7 @@ async function mediaRowProjection(required: { target: Kernel; table: string }, _
   if (required.table === "asset_blobs") return row => projectAssetBlob({ row, owners });
   const ownerColumn = required.table === "media_slug_history" ? "media_id" : "asset_id";
   return row => {
-    const owner = owners.byId.get(ownerKey(row.workspace_id, row[ownerColumn]));
+    const owner = owners.byId.get(ownerKey({ workspace: row.workspace_id, identity: row[ownerColumn] }));
     if (!owner) return null;
     return required.table === "asset_renditions" ? projectRendition({ row, owner, privateKeys: owners.privateKeys }) : row;
   };
@@ -190,10 +190,10 @@ function projectMediaRow(row: Row): Row | null {
 /** Indexes the retained media rows by id and by content hash, and derives document-only blob keys.
  * O(media rows) time and space. */
 function indexMediaOwners(required: { owners: Row[] }, _options: Record<string, never> = {}): MediaOwners {
-  const byId = new Map(required.owners.map(row => [ownerKey(row.workspace_id, row.id), row]));
+  const byId = new Map(required.owners.map(row => [ownerKey({ workspace: row.workspace_id, identity: row.id }), row]));
   const byHash = new Map<string, { document: boolean; media: boolean }>();
   for (const row of required.owners) {
-    const hash = ownerKey(row.workspace_id, row.source_sha256);
+    const hash = ownerKey({ workspace: row.workspace_id, identity: row.source_sha256 });
     const kinds = byHash.get(hash) ?? { document: false, media: false };
     if (row.kind === "document") kinds.document = true;
     else if (row.status === "active") kinds.media = true;
@@ -202,14 +202,14 @@ function indexMediaOwners(required: { owners: Row[] }, _options: Record<string, 
     }
     byHash.set(hash, kinds);
   }
-  const privateKeys = new Set(required.owners.filter(row => row.kind === "document" && !byHash.get(ownerKey(row.workspace_id, row.source_sha256))?.media)
+  const privateKeys = new Set(required.owners.filter(row => row.kind === "document" && !byHash.get(ownerKey({ workspace: row.workspace_id, identity: row.source_sha256 }))?.media)
     .map(row => computeBlobStorageKey({ workspaceId: String(row.workspace_id), sha256: String(row.source_sha256) })));
   return { byId, byHash, privateKeys };
 }
 
 /** A blob travels only with a retained owner of its bytes; document bytes stay marked share-owned. O(1). */
 function projectAssetBlob(required: { row: Row; owners: MediaOwners }, _options: Record<string, never> = {}): Row | null {
-  const kinds = required.owners.byHash.get(ownerKey(required.row.workspace_id, required.row.sha256));
+  const kinds = required.owners.byHash.get(ownerKey({ workspace: required.row.workspace_id, identity: required.row.sha256 }));
   if (!kinds) return null;
   return { ...required.row, ...(kinds.document || required.row.document_owned === 1 ? { document_owned: 1, created_by_principal: "share" } : {}) };
 }
@@ -235,11 +235,11 @@ function projectRendition(required: { row: Row; owner: Row; privateKeys: Readonl
  */
 async function documentReferences(required: { target: Kernel }, _options: Record<string, never> = {}): Promise<NonNullable<ShareDatabaseProjection["documents"]>> {
   const blobs = await required.target.run(db => db.selectFrom("asset_blobs").selectAll().execute());
-  const byHash = new Map(blobs.map(row => [ownerKey(row.workspace_id, row.sha256), row]));
+  const byHash = new Map(blobs.map(row => [ownerKey({ workspace: row.workspace_id, identity: row.sha256 }), row]));
   const documents = await required.target.run(db => db.selectFrom("media").selectAll().where("kind", "=", "document").execute());
   return documents.map(row => {
     const sha256 = String(row.source_sha256);
-    const blob = byHash.get(ownerKey(row.workspace_id, row.source_sha256));
+    const blob = byHash.get(ownerKey({ workspace: row.workspace_id, identity: row.source_sha256 }));
     const storageKey = computeBlobStorageKey({ workspaceId: String(row.workspace_id), sha256 });
     const invalidBlob = !/^[a-f0-9]{64}$/.test(sha256) || !blob || blob.storage_key !== storageKey || blob.status !== "active";
     if (invalidBlob || typeof row.original_filename !== "string") throw new SiteShareRefusal({ code: "INVALID_DOCUMENT", message: "Document source blob is missing or has an invalid key/hash." });
@@ -370,15 +370,15 @@ async function archiveMediaSources({ target }: { target: Kernel }): Promise<Arch
   const blobs = await target.run(db => db.selectFrom("asset_blobs").selectAll().execute());
   const renditions = await target.run(db => db.selectFrom("asset_renditions").selectAll().where("transform_name", "=", "public").execute());
   const transforms = await target.run(db => db.selectFrom("transform_registry").selectAll().where("name", "=", "public").orderBy("version", "asc").execute());
-  const byHash = new Map(blobs.map(row => [ownerKey(row.workspace_id, row.sha256), row]));
+  const byHash = new Map(blobs.map(row => [ownerKey({ workspace: row.workspace_id, identity: row.sha256 }), row]));
   const byKey = new Map(blobs.map(row => [String(row.storage_key), row]));
   const definitions = new Map(transforms.map(row => [String(row.workspace_id), row]));
-  const publics = new Map(renditions.map(row => [ownerKey(row.workspace_id, [row.asset_id, row.version]), row]));
+  const publics = new Map(renditions.map(row => [ownerKey({ workspace: row.workspace_id, identity: [row.asset_id, row.version] }), row]));
   return rows.map(row => {
-    const blob = byHash.get(ownerKey(row.workspace_id, row.source_sha256));
+    const blob = byHash.get(ownerKey({ workspace: row.workspace_id, identity: row.source_sha256 }));
     if (!blob) throw new SiteShareRefusal({ code: "MISSING_MEDIA", message: `Media '${archiveRefusalName({ name: String(row.id) })}' has no source blob.` });
     const definition = definitions.get(String(row.workspace_id));
-    const rendition = definition && publics.get(ownerKey(row.workspace_id, [row.id, definition.version]));
+    const rendition = definition && publics.get(ownerKey({ workspace: row.workspace_id, identity: [row.id, definition.version] }));
     return { id: String(row.id), workspaceId: String(row.workspace_id), slug: String(row.slug ?? row.id), kind: String(row.kind),
       originalFilename: row.original_filename === null ? null : String(row.original_filename), storageKey: String(blob.storage_key), sha256: String(blob.sha256), documentOwned: Boolean(blob.document_owned),
       ...(definition ? { public: { version: Number(definition.version), params: JSON.parse(String(definition.params_json)),
@@ -407,19 +407,19 @@ export async function rewriteArchiveMedia(required: { bytes: Buffer; copies: rea
 async function rewriteMediaRows(required: { target: Kernel; copies: readonly ArchiveMediaCopy[] }, optional: { signal?: AbortSignal }): Promise<void> {
   const { target } = required;
   const media = await target.run(db => db.selectFrom("media").selectAll().execute());
-  const byId = new Map(media.map(row => [ownerKey(row.workspace_id, row.id), row]));
+  const byId = new Map(media.map(row => [ownerKey({ workspace: row.workspace_id, identity: row.id }), row]));
   const blobs = await target.run(db => db.selectFrom("asset_blobs").selectAll().execute());
-  const byHash = new Map(blobs.map(row => [ownerKey(row.workspace_id, row.sha256), row]));
+  const byHash = new Map(blobs.map(row => [ownerKey({ workspace: row.workspace_id, identity: row.sha256 }), row]));
   if (byId.size !== required.copies.length) throw new SiteShareRefusal({ code: "INVALID_MEDIA", message: "Archive media does not cover the snapshot." });
   await target.transaction(async () => {
     await target.run(db => db.deleteFrom("asset_renditions").execute());
     await target.run(db => db.deleteFrom("asset_blobs").execute());
     for (const copy of required.copies) {
       optional.signal?.throwIfAborted();
-      const row = byId.get(ownerKey(copy.workspaceId, copy.id));
+      const row = byId.get(ownerKey({ workspace: copy.workspaceId, identity: copy.id }));
       if (!row) throw new SiteShareRefusal({ code: "INVALID_MEDIA", message: "Unknown archive media item." });
       await target.run(db => db.updateTable("media").set({ source_sha256: copy.sha256 }).where("id", "=", copy.id).where("workspace_id", "=", copy.workspaceId).execute());
-      await target.run(db => db.insertInto("asset_blobs").values(archiveBlobRow({ copy, media: row, existing: byHash.get(ownerKey(copy.workspaceId, copy.sha256)) }))
+      await target.run(db => db.insertInto("asset_blobs").values(archiveBlobRow({ copy, media: row, existing: byHash.get(ownerKey({ workspace: copy.workspaceId, identity: copy.sha256 })) }))
         .onConflict(oc => oc.columns(["workspace_id", "sha256"]).doUpdateSet({ document_owned: sql`max(document_owned, excluded.document_owned)` })).execute());
       for (const rendition of [{ name: "original", version: 1 }, ...(copy.publicVersion === undefined ? [] : [{ name: "public", version: copy.publicVersion }])]) {
         await target.run(db => db.insertInto("asset_renditions").values({ id: copy.id + ":" + rendition.name, workspace_id: copy.workspaceId, asset_id: copy.id, transform_name: rendition.name, version: rendition.version, storage_key: copy.storageKey, created_at: row.created_at }).execute());

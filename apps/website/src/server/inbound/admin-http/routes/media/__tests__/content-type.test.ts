@@ -112,8 +112,8 @@ test("readRecordedContentType: returns the recorded type, or null without backfi
     bytes: { "key-new": PNG },
   });
 
-  assert.equal(await readRecordedContentType(deps, "sha-known"), "image/webp");
-  assert.equal(await readRecordedContentType(deps, "sha-new"), null);
+  assert.equal(await readRecordedContentType({ deps, sha256: "sha-known" }), "image/webp");
+  assert.equal(await readRecordedContentType({ deps, sha256: "sha-new" }), null);
   assert.deepEqual(reads, [], "the write-path reader must never touch blob bytes");
   assert.deepEqual(sets, []);
 });

@@ -59,18 +59,18 @@ export function createSiteImportBackend(required: {
   };
   const put = (row: SiteImportRecord) => { registry.put({ row }); optional.report?.({ importId: row.importId, status: row.status }); };
   let active = false;
-  const exclusive = async <T>(run: () => Promise<T>): Promise<T> => {
-    if (active) refusal("BUSY", "Another import is running. Retry after it finishes.");
+  const exclusive = async <T>({ run }: { run: () => Promise<T> }, _optional: Record<string, never> = {}): Promise<T> => {
+    if (active) refusal({ code: "BUSY", message: "Another import is running. Retry after it finishes." });
     active = true;
     try { return await registry.exclusive({ run: async () => { await reconcileInterruptedImports({ registry, workspace, put }); return run(); } }); } finally { active = false; }
   };
 
   /** Reads or downloads the archive; records the consumed upload before reading so it is always removed. */
-  const fetchArchive = async (input: { parsed: ParsedSiteImportInput; principalId: string; importId: string; signal: AbortSignal; consumed: (uploadId: string) => void }): Promise<Buffer> => {
+  const fetchArchive = async (input: { parsed: ParsedSiteImportInput; principalId: string; importId: string; signal: AbortSignal; consumed: (required: { uploadId: string }, optional?: Record<string, never>) => void }): Promise<Buffer> => {
     const { source } = input.parsed;
     if ("url" in source) { input.signal.throwIfAborted(); return downloadShareArchive({ http: required.http, url: source.url, signal: input.signal }); }
     const uploadId = consumeUpload({ registry, uploadId: source.uploadId, principalId: input.principalId, importId: input.importId });
-    input.consumed(uploadId);
+    input.consumed({ uploadId });
     input.signal.throwIfAborted();
     return fs.readFileSync(registry.uploadPath({ uploadId }));
   };
@@ -80,7 +80,7 @@ export function createSiteImportBackend(required: {
     let consumedUpload: string | undefined;
     let row = input.row;
     try {
-      const archive = await fetchArchive({ parsed: input.parsed, principalId: input.row.principalId, importId: input.row.importId, signal: input.signal, consumed: uploadId => { consumedUpload = uploadId; } });
+      const archive = await fetchArchive({ parsed: input.parsed, principalId: input.row.principalId, importId: input.row.importId, signal: input.signal, consumed: ({ uploadId }, _optional = {}) => { consumedUpload = uploadId; } });
       const verified = await verifySiteImport({ archive, reader: required.reader, sanitize: required.sanitize, schema: required.schema }, { signal: input.signal });
       input.signal.throwIfAborted();
       stageVerifiedImport({ root: registry.stagePath(input.row), verified });
@@ -100,7 +100,7 @@ export function createSiteImportBackend(required: {
     let row = input.row;
     try {
       const created = await (optional.createSite ?? required.createSite)({ name: importSiteSlug(row), displayName: row.displayName, adminPassword: input.adminPassword }, { ...required.creationOptions, workspace, collisionSafe: true,
-        onAllocated: allocation => {
+        onAllocated: (allocation, _optional = {}) => {
           signal.throwIfAborted();
           // Persist idempotency before shared registration. A registry failure is still inside
           // createSite's compensation boundary, so a new site's identity never gets lost.
@@ -125,44 +125,44 @@ export function createSiteImportBackend(required: {
 
   const backend: SiteImportBackend = {
     async upload(input) {
-      return exclusive(async () => {
+      return exclusive({ run: async () => {
         requireStagingBudget({ registry });
-        if (!Buffer.isBuffer(input.archive) || input.archive.length > SHARE_LIMITS.maxArchiveBytes) refusal("LIMIT_EXCEEDED", "Upload exceeds the 300 MiB ZIP cap.");
+        if (!Buffer.isBuffer(input.archive) || input.archive.length > SHARE_LIMITS.maxArchiveBytes) refusal({ code: "LIMIT_EXCEEDED", message: "Upload exceeds the 300 MiB ZIP cap." });
         const uploadId = randomUUID();
         try {
           fs.writeFileSync(registry.uploadPath({ uploadId }), input.archive, { flag: "wx", mode: 0o600 });
           registry.saveUpload({ row: { uploadId, principalId: input.principalId, createdAt: Date.now() } });
           return { uploadId };
         } catch (error) { fs.rmSync(registry.uploadPath({ uploadId }), { force: true }); throw error; }
-      });
+      } });
     },
     async importBackup(input, options = {}) {
       const parsed = parseSiteImportInput({ input: { ...input.source, displayName: input.displayName, requestId: input.requestId } });
-      return exclusive(async () => {
+      return exclusive({ run: async () => {
         registry.expire({});
         const existing = parsed.requestId ? registry.list(input).find(row => row.requestId === parsed.requestId) : undefined;
         if (existing) {
           const sameSource = existing.sourceDigest !== undefined
             ? existing.sourceDigest === importSourceDigest({ source: parsed.source })
             : JSON.stringify(withoutQuery({ source: existing.source })) === JSON.stringify(withoutQuery({ source: parsed.source }));
-          if (!sameSource) refusal("REQUEST_CONFLICT", "requestId already belongs to another source.");
+          if (!sameSource) refusal({ code: "REQUEST_CONFLICT", message: "requestId already belongs to another source." });
           return view(existing);
         }
         if ("url" in parsed.source) requireStagingBudget({ registry });
         const row: SiteImportRecord = { importId: randomUUID(), principalId: input.principalId, requestId: parsed.requestId, source: parsed.source, sourceDigest: importSourceDigest({ source: parsed.source }), displayName: parsed.displayName ?? "Imported site", newSiteId: null, newSiteName: null, status: "verifying", createdAt: new Date().toISOString(), expiresAt: Date.now() + 3600_000 };
         put(row);
         return verifyAndStage({ row, parsed, signal: deadlineSignal({ timeoutMs: 5 * 60_000 }, options) });
-      });
+      } });
     },
     async completeOwner(input, options = {}) {
       const signal = deadlineSignal({ timeoutMs: 120_000 }, options);
-      return exclusive(async () => {
+      return exclusive({ run: async () => {
         registry.expire({});
         const pending = registry.get(input);
         if (pending.status === "ready") return view(pending);
         requireOwnerSetup({ row: pending, adminPassword: input.adminPassword });
         const adminPassword = resolveNewSiteAdminPassword({ adminPassword: input.adminPassword });
-        if (input.savedKeysPassword !== undefined && (typeof input.savedKeysPassword !== "string" || input.savedKeysPassword.length > 1024)) refusal("INVALID_INPUT", "Saved keys password must be text of at most 1024 characters.");
+        if (input.savedKeysPassword !== undefined && (typeof input.savedKeysPassword !== "string" || input.savedKeysPassword.length > 1024)) refusal({ code: "INVALID_INPUT", message: "Saved keys password must be text of at most 1024 characters." });
         const home = workspace.home({});
         try {
           requireFreeSpace({ dir: fs.existsSync(home) ? home : path.dirname(home), message: "Import requires 900 MiB of free space on the sites-home volume." });
@@ -183,11 +183,11 @@ export function createSiteImportBackend(required: {
         const started = await startImportedSite({ row: ready, name: created.name, startSite: required.startSite });
         put(started);
         return view(started);
-      });
+      } });
     },
-    async list(input) { return exclusive(async () => { registry.expire({}); return registry.list(input).map(view); }); },
+    async list(input) { return exclusive({ run: async () => { registry.expire({}); return registry.list(input).map(view); } }); },
     get(input) { return view(registry.get(input)); },
-    async tidy() { await exclusive(async () => { registry.expire({}); await tidyImportDatabases({}); }); },
+    async tidy() { await exclusive({ run: async () => { registry.expire({}); await tidyImportDatabases({}); } }); },
   };
   return backend;
 }

@@ -19,7 +19,7 @@ test("admin upload stamps its actor, PATCH preserves it, and list exposes it", a
     tracker: createNoopTracker({}),
     workspaceId: "creator-ws", clock: { nowIso: () => "2026-10-04T00:00:00Z", nowMs: () => Date.parse("2026-10-04T00:00:00Z") },
     idGen: { newId: () => `creator-http-${++id}` }, authorize: async () => ({ allowed: true, reason: "matched" }),
-    mediaRepo: new InMemoryVersionedMediaRepo(), assetBlobRepo: new InMemoryAssetBlobRepo({}),
+    mediaRepo: new InMemoryVersionedMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}),
     assetRenditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(),
     mediaContentTypeStore: new InMemoryMediaContentTypeStore(), transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}),
     imageTransformer: new InMemoryImageTransformer(), imageCodec: new SharpImageTransformer(),

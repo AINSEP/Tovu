@@ -27,7 +27,7 @@ const { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo } =
 const { importMediaEntity } = await import("../import-media-entity.js");
 
 test("importMediaEntity rethrows an unexpected write-once guard failure unchanged and writes nothing", async () => {
-  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo({});
   const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const deps = { mediaRepo, assetBlobRepo, blobStore: new InMemoryBlobStore(),
     clock: { nowIso: () => "2026-09-18T00:00:00.000Z" }, idGen: { newId: () => "blob-1" } };

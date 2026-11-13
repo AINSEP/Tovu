@@ -117,7 +117,7 @@ export function requireShareSecretFree(required: { path: string; bytes: Uint8Arr
   return true;
 }
 
-function unsafeSharePath(message: string): never { throw new SiteShareRefusal({ code: "UNSAFE_PATH", message }); }
+function unsafeSharePath({ message }: { message: string }, _optional: Record<string, never> = {}): never { throw new SiteShareRefusal({ code: "UNSAFE_PATH", message }); }
 
 /** Upper/lower expansion also catches sharp-s/SS and final-sigma aliases, including ancestors. */
 export function sharePathAlias(required: { path: string }, _options: Record<string, never> = {}): string { return required.path.normalize("NFKC").toUpperCase().toLowerCase().normalize("NFC"); }
@@ -133,13 +133,13 @@ export function claimSharePath(required: { path: string; directory: boolean; ali
     const spelling = parts.slice(0, index).join("/");
     const alias = sharePathAlias({ path: spelling });
     const prior = required.aliases.get(alias);
-    if (prior !== undefined && prior !== spelling) unsafeSharePath("ZIP contains unsafe case or Unicode aliases.");
+    if (prior !== undefined && prior !== spelling) unsafeSharePath({ message: "ZIP contains unsafe case or Unicode aliases." });
     required.aliases.set(alias, spelling);
-    if (index < parts.length && required.files.has(alias)) unsafeSharePath("ZIP file/directory collision.");
+    if (index < parts.length && required.files.has(alias)) unsafeSharePath({ message: "ZIP file/directory collision." });
   }
   const key = sharePathAlias(required);
   if (!required.directory) {
-    if (required.files.has(key) || [...required.aliases.keys()].some(alias => alias.startsWith(key + "/"))) unsafeSharePath("Duplicate file or file/directory collision.");
+    if (required.files.has(key) || [...required.aliases.keys()].some(alias => alias.startsWith(key + "/"))) unsafeSharePath({ message: "Duplicate file or file/directory collision." });
     required.files.add(key);
   }
 }

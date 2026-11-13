@@ -161,7 +161,7 @@ test("put-providers: valid apiKey saves and never echoes the key back (200)", as
   const fetched = await get(t, app);
   assert.equal(fetched.status, 200);
   assert.deepEqual(fetched.json, expected);
-  const [stored] = await base.mediaProviderCredentialRepo.listByWorkspaceId(WORKSPACE_ID);
+  const [stored] = await base.mediaProviderCredentialRepo.listByWorkspaceId({ workspaceId: WORKSPACE_ID });
   assert.ok(stored?.sealed);
   for (const response of [json, fetched.json]) {
     assert.equal(JSON.stringify(response).includes("sk-secret-value"), false);

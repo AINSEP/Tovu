@@ -57,7 +57,7 @@ export class SiteBackupPushJobs<T> {
   }
 
   /** Starts `run` now; it keeps running whether or not anyone waits. @complexity O(jobs). */
-  start(key: PushJobKey, progress: SiteBackupPushProgress, run: (signal: AbortSignal, progress: SiteBackupPushProgress) => Promise<T>): PushJob<T> {
+  start({ key, progress, run }: { key: PushJobKey; progress: SiteBackupPushProgress; run: (signal: AbortSignal, progress: SiteBackupPushProgress) => Promise<T> }): PushJob<T> {
     this.sweep();
     const controller = new AbortController();
     const job: PushJob<T> = {

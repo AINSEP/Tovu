@@ -30,7 +30,7 @@ function row(optional: Partial<MediaRecord> = {}): MediaRecord {
 test("canonical upload attributes separate assets sharing bytes to their own actors", async () => {
   let id = 0;
   const deps = { clock: { nowMs: () => Date.parse("2026-10-04T00:00:00Z") },
-    idGen: { newId: () => `created-by-${++id}` }, mediaRepo: new InMemoryVersionedMediaRepo(),
+    idGen: { newId: () => `created-by-${++id}` }, mediaRepo: new InMemoryVersionedMediaRepo({}),
     blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}),
     blobStore: new InMemoryBlobStore() };
   for (const principal of ["owner", "user", "assistant-agent", "plugin-key"]) {
@@ -48,7 +48,7 @@ test("canonical upload attributes separate assets sharing bytes to their own act
 test("media copies attribute the new library entry to the copier while retaining one shared blob", async () => {
   let id = 0;
   const deps = { clock: { nowMs: () => Date.parse("2026-10-04T00:00:00Z") },
-    idGen: { newId: () => `copy-creator-${++id}` }, mediaRepo: new InMemoryVersionedMediaRepo(),
+    idGen: { newId: () => `copy-creator-${++id}` }, mediaRepo: new InMemoryVersionedMediaRepo({}),
     blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}),
     blobStore: new InMemoryBlobStore() };
   const { media: original } = await uploadMedia({ deps, input: { workspaceId: "creator-ws",
@@ -65,7 +65,7 @@ test("media copies attribute the new library entry to the copier while retaining
 });
 
 test("versioned memory writes preserve the original creator, including unknown legacy attribution", async () => {
-  const repo = new InMemoryVersionedMediaRepo();
+  const repo = new InMemoryVersionedMediaRepo({});
   await repo.save(row({ createdBy: "owner" }));
   await repo.save(row({ createdBy: "forged", version: 2 }));
   assert.equal((await repo.findById({ workspaceId: "creator-ws", id: "asset" }))?.createdBy, "owner");
@@ -79,7 +79,7 @@ test("versioned memory writes preserve the original creator, including unknown l
 test("one registered upload handler isolates attribution between concurrent actor calls", async () => {
   let id = 0;
   const deps = { workspaceId: "creator-ws", clock: { nowMs: () => Date.parse("2026-10-04T00:00:00Z") },
-    idGen: { newId: () => `concurrent-creator-${++id}` }, mediaRepo: new InMemoryVersionedMediaRepo(),
+    idGen: { newId: () => `concurrent-creator-${++id}` }, mediaRepo: new InMemoryVersionedMediaRepo({}),
     assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     blobStore: new InMemoryBlobStore(), authorize: async () => ({ allowed: true, reason: "matched" }),
     removeMedia: async () => { assert.fail("unexpected removal"); },

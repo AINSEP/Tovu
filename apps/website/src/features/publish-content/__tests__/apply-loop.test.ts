@@ -1001,7 +1001,7 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
   registerPublishContentContributor(contributeMediaPublish());
 
   const postRepo = new InMemoryPostRepo([]);
-  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo({});
   const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const blobStore = new InMemoryBlobStore();
   const clock = makeClock();
@@ -1140,7 +1140,7 @@ test("after applying, the run reports a published media item whose poster is not
   resetPublishContentContributorsForTests();
   registerPublishContentContributor(contributeMediaPublish());
 
-  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo({});
   const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const blobStore = new InMemoryBlobStore();
   const contentTypeStore = new InMemoryMediaContentTypeStore();
@@ -1223,7 +1223,7 @@ test("a write refused permission blocks that ONE row with the refusal as its rea
   registerPublishContentContributor(contributeMediaPublish());
 
   const postRepo = new InMemoryPostRepo([]);
-  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo({});
   const blobStore = new InMemoryBlobStore();
   const clock = makeClock();
   const outbox = new InMemoryOutbox();

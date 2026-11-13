@@ -79,7 +79,7 @@ function fakeResource(resource: string, permission: string): FakeResource {
       resource,
       build: () => ({
         permission,
-        duplicate: async (input) => {
+        duplicate: async (input, _optional = {}) => {
           calls.push({ principalId: input.principalId, id: input.id, overrides: { ...input.overrides } });
           return { copiedResource: resource, copiedFrom: input.id };
         },

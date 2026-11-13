@@ -42,18 +42,18 @@ export const SHARE_FILE = /^[a-z0-9][a-z0-9-]{0,79}(?:\.tovu|-static-\d{4}-\d{2}
 export class SiteShareRegistry {
   readonly directory: string;
   constructor(required: { directory: string }, _optional: Record<string, never> = {}) { this.directory = required.directory; }
-  private meta(id: string): string {
+  private meta({ id }: { id: string }, _optional: Record<string, never> = {}): string {
     if (!ID.test(id)) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Invalid shareId." });
     return path.join(this.directory, `${id}.json`);
   }
   artifactPath(required: { shareId: string }, _optional: Record<string, never> = {}): string {
-    this.meta(required.shareId);
+    this.meta({ id: required.shareId });
     return path.join(this.directory, `${required.shareId}.tovu.zip`);
   }
   /** Immutable token-to-id claim gives O(1) public lookups and forbids replay after revocation. */
   async reserveToken(required: { token: string; shareId: string }, _optional: Record<string, never> = {}): Promise<void> {
     if (!SHARE_TOKEN.test(required.token)) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Invalid share token." });
-    this.meta(required.shareId);
+    this.meta({ id: required.shareId });
     await mkdir(this.directory, { recursive: true, mode: 0o700 });
     const file = path.join(this.directory, `${required.token}.token`);
     try { await writeFile(file, required.shareId, { flag: "wx", mode: 0o600 }); }
@@ -72,12 +72,12 @@ export class SiteShareRegistry {
     const temp = path.join(this.directory, `.${randomUUID()}.tmp`);
     try {
       await writeFile(temp, JSON.stringify(record), { flag: "wx", mode: 0o600 });
-      await rename(temp, this.meta(record.shareId));
+      await rename(temp, this.meta({ id: record.shareId }));
     } finally { await unlink(temp).catch(error => { if (error.code !== "ENOENT") throw error; }); }
   }
   async get(required: { shareId: string; site?: string }, _optional: Record<string, never> = {}): Promise<SiteShareRecord | null> {
     let row: SiteShareRecord;
-    try { row = JSON.parse(await readFile(this.meta(required.shareId), "utf8")) as SiteShareRecord; }
+    try { row = JSON.parse(await readFile(this.meta({ id: required.shareId }), "utf8")) as SiteShareRecord; }
     catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") { return null; } throw error; }
     row = { ...row, credentialWarnings: row.credentialWarnings ?? [], needsAcknowledgement: row.needsAcknowledgement ?? false };
     if (required.site !== undefined && row.site !== required.site) return null;

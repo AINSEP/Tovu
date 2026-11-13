@@ -69,7 +69,7 @@ function deps(postRepo: InMemoryPostRepo): ContentMarkerResolutionDeps {
     workspaceId: WORKSPACE_ID,
     postRepo,
     entryRepo: new TrashAwareInMemoryEntryRepo(),
-    mediaRepo: new InMemoryVersionedMediaRepo(),
+    mediaRepo: new InMemoryVersionedMediaRepo({}),
     mediaContentTypeStore: new InMemoryMediaContentTypeStore(),
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),
   };

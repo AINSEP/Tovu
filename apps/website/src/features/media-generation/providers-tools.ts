@@ -128,13 +128,13 @@ export async function saveMediaCredential(required: { ctx: ToolExecutionContext;
       const store = deps.mediaProviderCredentialRepo;
       const repo: MediaProviderCredentialRepoPort = {
         vault: store.vault,
-        listByWorkspaceId: workspaceId => store.listByWorkspaceId(workspaceId),
+        listByWorkspaceId: input => store.listByWorkspaceId(input),
         upsert: record => store.upsert(record),
         deleteByProviderIds: input => store.deleteByProviderIds(input),
         // The planner runs inside the transaction, after sealing and any lock wait. Abort rolls it back.
-        replaceWorkspace: input => store.replaceWorkspace({ ...input, plan: current => {
+        replaceWorkspace: input => store.replaceWorkspace({ ...input, plan: ({ existing: current }) => {
           signal.throwIfAborted();
-          return input.plan(current);
+          return input.plan({ existing: current });
         } }),
       };
       return saveMediaProviderKey({

@@ -76,7 +76,7 @@ async function deps(opts: { wired?: boolean; staged?: boolean } = {}): Promise<P
     ports:
       opts.wired === false
         ? {}
-        : { media: { repo: new InMemoryVersionedMediaRepo([structuredClone(PHOTO), structuredClone(BARE)]), assetBlobRepo: new InMemoryAssetBlobRepo({}, { initialRows: [] }), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() } },
+        : { media: { repo: new InMemoryVersionedMediaRepo({}, { initialRows: [structuredClone(PHOTO), structuredClone(BARE)] }), assetBlobRepo: new InMemoryAssetBlobRepo({}, { initialRows: [] }), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() } },
   };
 }
 
@@ -95,7 +95,7 @@ test("creation attribution travels in packed state without changing legacy conte
     const base = await deps();
     const ports = base.ports.media!;
     const fixture: PublishContentDeps = { ...base, ports: { ...base.ports,
-      media: { ...ports, repo: new InMemoryVersionedMediaRepo([{ ...PHOTO, createdBy }, BARE]) },
+      media: { ...ports, repo: new InMemoryVersionedMediaRepo({}, { initialRows: [{ ...PHOTO, createdBy }, BARE] }) },
     } };
     const handler = contributeMediaPublish().build(fixture);
     assert.deepEqual(await handler.inspect("media-photo"), { version: 4, hash: PINNED_HASHES["media-photo"] });

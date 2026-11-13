@@ -79,7 +79,7 @@ const POSTER = mediaRecord({ id: "poster-asset-1", slug: "promo-poster", alt: "P
 
 /** One site's media ports, with every blob in `blobs` stored and typed the way an upload leaves it. */
 async function mediaSite(records: MediaRecord[], blobs: readonly Uint8Array[], typed: boolean) {
-  const repo = new InMemoryVersionedMediaRepo(records);
+  const repo = new InMemoryVersionedMediaRepo({}, { initialRows: records });
   const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const blobStore = new InMemoryBlobStore();
   const contentTypeStore = new InMemoryMediaContentTypeStore();
