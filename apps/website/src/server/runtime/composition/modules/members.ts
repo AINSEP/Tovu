@@ -85,7 +85,7 @@ function registerOidcRoutes({ app, deps, members }: { app: Express; deps?: Membe
  * adds DELETE-to-Trash alongside Disable.
  *
  * Genuinely needs TWO deps objects, not one: `MembersRouteDeps`/`MemberPublicRouteDeps` already
- * existed pre-slice as a deliberate split (`routes/admin/members/deps.ts`/`routes/members/deps.ts`)
+ * existed pre-slice as a deliberate split (`apps/website/src/server/inbound/admin-http/routes/members/deps.ts`/`routes/members/deps.ts`)
  * — the public sign-in family must never carry an `authorize`/session field (ADR-PIPE-013
  * Enforcement: "no route in either family may read the other's cookie"), while the admin family
  * needs the full session-gated surface. This module does not force them into one shape; see those

@@ -35,7 +35,7 @@ export const seededWorkspace: WorkspaceRecord = {
 };
 
 // --- Tiny doc-authoring helpers (build TipTap-style bodyJson without raw JSON) ---
-// Only nodes/marks the renderer supports (src/server/http/site/render.ts).
+// Only nodes/marks the renderer supports (apps/website/src/server/inbound/public-http/http/site/render.ts).
 
 type Node = JsonObject;
 
@@ -320,7 +320,7 @@ export const seededPresentation: PresentationSettingsRecord = {
 
 /**
  * The trusted boot-time actor settings-definition writes are
- * attributed to (mirrors `identity/seed.ts`'s well-known `system` principal
+ * attributed to (mirrors `Jini packages/user-management/src/server/seed.ts`'s well-known `system` principal
  * convention — kept here rather than importing from `identity` so `settings`
  * doesn't need a real, resolved identity principal row to run this migration
  * before `identity`'s own async seed completes).

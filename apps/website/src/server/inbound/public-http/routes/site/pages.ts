@@ -390,7 +390,7 @@ const CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE = "private, no-store";
  * (`active-theme.ts`). Splitting them, rather than bundling both into one file because every real
  * call site uses them together, avoided a measured `check:architecture` regression a combined home
  * would have caused — see `active-theme.ts`'s own file header for the SCC trace. Both re-exported
- * below, unchanged in behavior, so `routes/admin/posts/template-preview.ts`'s existing
+ * below, unchanged in behavior, so `apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts`'s existing
  * `from "../../site/pages"` import of `resolveActiveTheme` keeps working — only `route-manifest.ts`
  * was updated to import both new homes directly.
  */
@@ -1222,7 +1222,7 @@ export function resolveSiteTimeZoneForRender(deps: Pick<RouteDeps, "workspaceId"
  * `#src/features/theme/index` 2026-08-16 — its own `ActiveThemeResolutionDeps` only needs `themes`,
  * which this type is still a structural superset of, so every call site below that passes a
  * `TemplateRenderDeps`-shaped `deps` to the now-imported `resolveActiveTheme` keeps type-checking
- * unchanged). Exported (2026-08-11 template-preview fix) so `routes/admin/posts/template-preview.ts`
+ * unchanged). Exported (2026-08-11 template-preview fix) so `apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts`
  * can call these real-pipeline functions with `ContentRouteDeps` — a `Pick` in its own right —
  * without needing the full `RouteDeps` shape neither one actually reads down to. `RouteDeps` remains
  * a structural supertype of this, so every pre-existing call site in this file keeps passing its own
@@ -1373,7 +1373,7 @@ async function fetchHtmlFormatBody(
  * reaches for an id this pass already consumed). Checked BEFORE {@link findPublishedPostById} for a
  * matching id — or, for a slug-only ref, a matching `slug` (review of S3, 2026-09-23; never by slug
  * for a ref carrying an id) — same order `pendingContentOverride` uses and for the same reason: an authenticated,
- * `content.read`-authorized caller (`routes/admin/posts/template-preview.ts`) previewing their own
+ * `content.read`-authorized caller (`apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts`) previewing their own
  * unsaved edit to a row they already fetched by id should see that pending body, whether the row is
  * published or not — this is the one bypass of `findPublishedPostById`'s visibility guard, scoped to
  * exactly the ONE id the caller resolved and authorized, never a caller-supplied id. Only ever
@@ -1388,8 +1388,8 @@ async function fetchHtmlFormatBody(
  * recursive call), each followed by an O(n) `resolveHtmlPageEmbeds`/`renderHtmlPageBody` pass over
  * that one fetched entity's own body length. Never unbounded, regardless of the input's shape.
  *
- * Exported for direct testing of guard 3's termination property (`resolve-html-format-content-
- * markers.test.ts`) — the testability seam this function's own dependency shape
+ * Exported for direct testing of guard 3's termination property (`apps/website/src/server/inbound/public-http/routes/site/__tests__/resolve-html-format-content-markers.test.ts`)
+ * — the testability seam this function's own dependency shape
  * ({@link ContentMarkerResolutionDeps}) was narrowed for.
  */
 export async function resolveHtmlFormatContentMarkers(
@@ -1512,7 +1512,7 @@ export function placeAfterCurrentContent(
  * disclosed, unchanged limitation — see that function's own doc) is simply unaffected, the same
  * no-op-when-absent contract it already had.
  *
- * Exported (2026-08-11 template-preview fix) for `routes/admin/posts/template-preview.ts`, the
+ * Exported (2026-08-11 template-preview fix) for `apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts`, the
  * admin-only "preview this row through a PENDING, not-yet-saved template choice" endpoint —
  * `resolveTemplate` reads `post.templateChoice` alone, so that caller passes a shallow clone of the
  * real record with only `templateChoice` overridden, never persisting the override. Reusing this
@@ -1549,7 +1549,7 @@ export function placeAfterCurrentContent(
  * tags on it would tell a crawler the broken diagnostic page IS the entry, worse than the drop this
  * fixes. Same reasoning `registerSiteRoutes`'s themed-404 branch is left out for (see that call
  * site's own comment). Optional and omitted by both existing callers that don't render the live
- * public page (`routes/admin/posts/template-preview.ts`'s pending-preview endpoint), matching every
+ * public page (`apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts`'s pending-preview endpoint), matching every
  * other optional parameter's "omit = unchanged prior behavior" contract in this file.
  *
  * `siteAssistantEnabled` (ADR-054 gap fix) — this function's own `renderStaticPage` call has the
@@ -1673,7 +1673,7 @@ export async function renderViaTemplate(
  * Deliberately does NOT scan `post.bodyJson` for every distinct `transformName` an author's doc
  * might reference (the way `resolveHtmlPageEmbeds` scans a Page's `body_html` for embed ids):
  * `registerTransform` has exactly one caller anywhere in this codebase
- * (`ensureCoreMediaTransform`, `server/deps.ts`'s boot chain), which only ever registers
+ * (`ensureCoreMediaTransform`, `apps/website/src/server/runtime/composition/deps.ts`'s boot chain), which only ever registers
  * `CORE_PUBLIC_TRANSFORM_NAME` — there is no OTHER registered name a real ref could resolve
  * against yet, so a single-name lookup is behavior-identical to a full scan at today's real
  * scale. A second core-declared transform (`thumb`, `hero`, ...) would need this widened to a
@@ -1934,7 +1934,7 @@ function resolveRequestedSlug(req: Request, next: NextFunction): string | undefi
 // short-circuited straight past this check).
 //
 // The "is this page id actually its own public URL" half is `isStandaloneThemePage` (see its own
-// doc in `features/theme/theme.ts`) — shared with `export/route-manifest.ts` rather than respelled
+// doc in `features/theme/theme.ts`) — shared with `apps/website/src/features/site-export/route-manifest.ts` rather than respelled
 // here, which is what let this route serve `/blog-post` and `/404` as 200s while the exporter
 // correctly omitted both.
 function isMarketingPageSlug(theme: DiscoveredTheme, slug: string): boolean {

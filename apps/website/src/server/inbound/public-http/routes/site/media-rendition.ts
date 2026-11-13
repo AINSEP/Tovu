@@ -689,7 +689,7 @@ export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = (app, d
  * passthrough rendition row already is, just without a transform-definition lookup gating it.
  *
  * So this route bypasses the transform system entirely: {@link resolveMediaOriginalBlob} +
- * {@link sendMediaOriginalResponse} are the SAME functions `routes/admin/media/original.ts`'s
+ * {@link sendMediaOriginalResponse} are the SAME functions `apps/website/src/server/inbound/admin-http/routes/media/original.ts`'s
  * authenticated admin-preview route already uses (content-type sniffed fresh from bytes, SVG sanitized, HTML
  * forced to `application/octet-stream` + `attachment`, `nosniff`/CSP/CORP headers, `Range` support
  * for video seeking) — reused, not reimplemented, so the two routes' security posture can't drift

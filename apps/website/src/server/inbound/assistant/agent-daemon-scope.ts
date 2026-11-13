@@ -43,13 +43,13 @@ import { ensureToolExecToken, registerDaemonAttachmentLookup, TOOL_EXEC_TOKEN_EN
  *
  * Authorization: the bearer gate below establishes that a caller is Tovu's proxy, not which admin
  * the proxy speaks for — so on its own it lets any logged-in admin read, stream, or cancel any
- * other admin's run by id. `run-ownership.ts` closes that: the proxy asserts its verified principal
+ * other admin's run by id. `apps/website/src/assistant/daemon-access.ts` closes that: the proxy asserts its verified principal
  * in a header on every forwarded request, and this process compares it against the run's recorded
  * owner. Enforcement is here rather than in the proxy because this is the process that owns run
  * state, so the ownership record and the run it protects live and die together.
  *
  * Authentication: the relay claim POST has its own live-run credential gate; all other routes use
- * `daemon-auth.ts`'s `requireAgentDaemonToken()`. Both gates run before their `express.json()`,
+ * `apps/website/src/assistant/daemon-access.ts`'s `requireAgentDaemonToken()`. Both gates run before their `express.json()`,
  * so an unauthenticated caller's body is never even parsed. It requires an exact
  * `Authorization: Bearer <TOVU_AGENT_DAEMON_TOKEN>` match, has no loopback exemption (binding to
  * `127.0.0.1` keeps remote hosts out but does nothing about other local processes, which is the
@@ -58,7 +58,7 @@ import { ensureToolExecToken, registerDaemonAttachmentLookup, TOOL_EXEC_TOKEN_EN
  * through inherited IPC with a distinct proxy credential; standalone boot adopts its existing
  * per-boot token. The runtime environment omits both proxy and site-tool credentials before any
  * CLI probes or agent processes can launch. Deliberately NOT the generic API bearer middleware — see
- * `daemon-auth.ts`'s header for why its loopback short-circuit makes it a no-op here.
+ * `Jini packages/http-kit/src/api-security-middleware.ts`'s header for why its loopback short-circuit makes it a no-op here.
  *
  * `/api/delegated-tool-calls` also requires a bearer: the Claude/Codex `jini-mcp` subprocess
  * receives its per-run `JINI_DAEMON_TOKEN` through `mcp-injection.ts` and forwards it on callbacks.
@@ -380,7 +380,7 @@ const frontendControl = createFrontendControl({
   },
 }, {
   // Pass-through `allow`, matching ADR-021 §2 and every other Tovu registration (see
-  // `tool-registration-kit.ts`). It is not a missing check: these verbs carry no Tovu permission
+  // `Jini packages/core/src/registration-kit.ts`). It is not a missing check: these verbs carry no Tovu permission
   // of their own, and the authorization that matters already happened twice before a call gets
   // here — Tovu's proxy required an admin session to start the run at all, and the daemon will
   // only route the invocation to the one surface bound to THAT run. An agent therefore cannot
@@ -415,7 +415,7 @@ for (const registration of withPageNavigateErrorRewrap(withReadOnlyFrontendCapab
 // authorization leaves no trace at all, and everything else is lost on restart. The decorator
 // appends a `requested` row before delegating, which is the only ordering under which those cases
 // are recorded. Audit is observation — a sink failure can never change a tool call's outcome.
-// See `tool-executor-audit.ts`.
+// See `Jini packages/daemon/src/core/tool-audit.ts`.
 // The retained root chooses this same site's content-kernel sink once (or the bounded local
 // memory sink). Reuse that connection: a second openContentDb here used to open/migrate a second
 // content.db solely for audit. Site tool audit runs at the server owner; this sink observes local
@@ -494,7 +494,7 @@ const assistantPromptAugmenter: PromptAugmenter = {
 };
 
 // Each run's bridge gets its own credential, resolved back to that run's principal; see
-// `run-scoped-credential.ts`. A closure because `runCredentials` is declared further down.
+// `Jini packages/daemon/src/run-credentials.ts`. A closure because `runCredentials` is declared further down.
 const bridgeInjection = {
   toolApprovalOwner: "host" as const,
   ...resolveMcpJsonInjection(daemonUrl, (runId) => runCredentials.mint({ runId: runId }, {}), {
@@ -557,7 +557,7 @@ const agentExecutor = createAgentExecutor({
 
 /** Populated by `onStarted`, read by `resolveDelegatedPrincipal` — see module doc. Deleted on
  * terminal transition on purpose: the exempt `/api/delegated-tool-calls` route's remaining defence
- * is that a `runId` only resolves while its run is in flight (`daemon-auth.ts`). */
+ * is that a `runId` only resolves while its run is in flight (`Jini packages/daemon/src/run-credentials.ts`). */
 const principalByRunId = new Map<string, Principal>();
 /** Accepted-message refs decoded by `onStarted`, keyed by the SAME lifecycle id used by claim()
  * and delegated tools. `lifecycle.get()` returns public RunStatus without contextRef; parsing it
@@ -567,7 +567,7 @@ const messageAttachmentRefsByRunId = new Map<string, readonly string[]>();
  * advanced. Public RunStatus has no contextRef, so retain the decoded message id until terminal. */
 const durableMessageIdsByRunId = new Map<string, string>();
 /** Per-run bridge credentials. Valid only while `principalByRunId` tracks the run, so they share its
- * lifetime; `revoke` on terminal only keeps the map small. See `run-scoped-credential.ts`. */
+ * lifetime; `revoke` on terminal only keeps the map small. See `Jini packages/daemon/src/run-credentials.ts`. */
 const runCredentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => disposed || revokedToolRuns.has(runId) ? undefined : principalByRunId.get(runId)?.id }, {});
 
 /**
@@ -584,7 +584,7 @@ const stagedAttachmentCleanupByRunId = new Map<string, () => Promise<void>>();
 
 
 /** The same fact with the opposite lifetime — a finished run is still readable, so its owner must
- * stay known. See `run-ownership.ts` for why the two maps are not redundant. */
+ * stay known. See `Jini packages/daemon/src/run-credentials.ts` for why the two maps are not redundant. */
 const runOwners = createRunOwnerRegistry({}, {});
 /** Each live run's admin screen, recorded at run start and forgotten at run end — what `GET /api/active`
  * (`@jini-ai/mcp`'s `get_active_context`) answers from. See `run-active-context.ts`. */
@@ -593,11 +593,11 @@ const runActiveContexts = createRunActiveContextStore();
  *  runs with: how long a terminal run stays readable, and so how long its owner must stay known. */
 const RUN_OWNER_RETENTION_MS = 24 * 60 * 60 * 1000;
 
-/** H2 fix — see `agent-run-concurrency.ts`'s own doc. One instance for this process's whole
+/** H2 fix — see `Jini packages/daemon/src/session-coordination.ts`'s own doc. One instance for this process's whole
  * lifetime, registered/unregistered per run inside `onStarted` below. */
 const liveRunTracker = createLiveRunTracker({}, {});
 
-/** Defect 1 fix (2026-09-11) — see `conversation-start-lock.ts`'s own doc. One instance for this
+/** Defect 1 fix (2026-09-11) — see `Jini packages/daemon/src/session-coordination.ts`'s own doc. One instance for this
  * process's whole lifetime; `onStarted` runs its read-decide-write session-binding section through
  * it so two near-simultaneous turns on one conversation cannot both mint a session. */
 const conversationStartLock = createConversationStartLock({}, {});
@@ -739,7 +739,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     } });
   }
 
-  // H2 fix (`agent-run-concurrency.ts`): registered synchronously, in this same
+  // H2 fix (`Jini packages/daemon/src/session-coordination.ts`): registered synchronously, in this same
   // never-`await`-ed-yet prefix, so a second `onStarted` call for the same conversation — however
   // close together the two requests arrive — is guaranteed to observe this run as already live.
   // A no-op when `conversationId` is absent, matching the stream subscription below: there is
@@ -924,7 +924,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
         // means at most one process ever holds `--resume <id>` for that CLI session at a time,
         // closing the two-live-`--resume`-processes-on-one-transcript-file hazard even though the
         // two runs' `end` events can still race each other for the store's last write — see
-        // `agent-run-concurrency.ts`'s own module doc for the full reasoning and why an in-process
+        // `Jini packages/daemon/src/session-coordination.ts`'s own module doc for the full reasoning and why an in-process
         // tracker needs no special handling across a daemon restart.
         const hasConcurrentLiveRun = conversationId !== undefined && liveRunTracker.hasConcurrentLiveRun({ conversationId: conversationId, runId: run.id }, {});
 
@@ -994,7 +994,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
           sessionFields: { ...resolveResumeSessionField({ storedSessionId: effectiveResumeSessionId }, {}), ...resolveNewSessionField({ hostMintedSessionId: hostMintedSessionId }, {}) },
         };
       }
-      // Serialized per conversation (`conversation-start-lock.ts`): `resolveSessionBinding` is a
+      // Serialized per conversation (`Jini packages/daemon/src/session-coordination.ts`): `resolveSessionBinding` is a
       // read-modify-write over `assistant_agent_sessions` with an `await` in the middle, so two
       // near-simultaneous turns on one conversation could otherwise both observe an empty session
       // slot and both mint — forking the conversation exactly the way the terminal-event-only write
@@ -1338,7 +1338,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
 };
 
 /** Fails closed: an untracked `runId` throws rather than fabricating a principal — see
- * `src/server/modules/assistant.ts`'s identical guard for the full rationale.
+ * `apps/website/src/server/runtime/composition/modules/assistant.ts`'s identical guard for the full rationale.
  *
  * A `requireReadOnly` request (the wire flag `@jini-ai/mcp`'s `execute_readonly_delegated_tool`
  * sets, and which `@jini-ai/http-kit` hands to this host-owned resolver verbatim) resolves to an
@@ -1382,12 +1382,12 @@ app.post("/api/runs/:runId/messages/claim", createDaemonAuthMiddleware({
 registerMessageRelayRoutes({ app, agentExecutor, runScopedCallers: runCredentials });
 
 // Before every other route's `express.json()` — an unauthenticated caller's body is never parsed. See this
-// file's module doc and `daemon-auth.ts` for the fail-closed contract. No exemptions: the spawned
+// file's module doc and `apps/website/src/assistant/daemon-access.ts` for the fail-closed contract. No exemptions: the spawned
 // bridge now presents JINI_DAEMON_TOKEN on delegated calls too. BYOK dispatches in process, and
-// the proxy does not expose the delegated route (`daemon-auth.ts`'s DELEGATED_TOOL_CALLS_PATH).
+// the proxy does not expose the delegated route (`apps/website/src/assistant/daemon-access.ts`'s DELEGATED_TOOL_CALLS_PATH).
 // `runScopedCallers`: each run's bridge presents its own per-run credential, which reaches only the
 // bridge's routes and stands for that run's principal, never one the caller asserts
-// (`run-scoped-credential.ts`). The proxy token alone still carries a proxy-asserted principal.
+// (`Jini packages/daemon/src/run-credentials.ts`). The proxy token alone still carries a proxy-asserted principal.
 app.use(requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials }, {}));
 // Default (100kb) is too small for `admin.capture_screenshot`'s answer: a base64-encoded JPEG of an
 // admin viewport, posted back to `/api/frontend-sessions/:id/responses`
@@ -1434,7 +1434,7 @@ const adapter: AdapterContext = { resolvedPortRef: { current: port }, env: env,
 // which is the question neither the gate nor the proxy's own session check can answer. Both must
 // precede `registerRunRoutes`: the middleware so it runs first, and the list handler so it shadows
 // http-kit's unscoped `runListRoute` under Express's first-match-wins routing. See
-// `run-ownership.ts` for the ownership model and the 404-not-403 rationale.
+// `Jini packages/daemon/src/run-credentials.ts` for the ownership model and the 404-not-403 rationale.
 app.use("/api/runs/:runId", requireRunOwnership({ registry: runOwners, lifecycle: lifecycle }, {}));
 app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }, {}));
 
@@ -1520,7 +1520,7 @@ registerDelegatedToolRoutes({ app, deps: delegatedToolRouteDeps, adapter });
 // like every other forwarded route, so no `exemptPaths` entry is needed or wanted. See
 // `mcp-ui-tool-calls-route.ts` for why this must live in THIS process (it is the one holding the
 // `ToolExecutor`/`SurfaceExchangeStore` an exchange delivery actually needs) and
-// `src/server/modules/assistant.ts` for the proxy half.
+// `apps/website/src/server/runtime/composition/modules/assistant.ts` for the proxy half.
 registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
 // A2UI's own inbound channel (ADR-055 Decision 1, generalized) — a rendered surface's `action`/
 // `functionResponse`/`error` re-entering the process that holds the exchange it answers. Unlike
@@ -1534,7 +1534,7 @@ registerA2uiActionsRoute(app, { surfaceExchanges });
 // `exemptPaths` — unlike `/api/delegated-tool-calls` (whose caller is a spawned `jini-mcp`
 // subprocess that holds no token), these two are reached by the browser through Tovu's own
 // session-authenticated proxy, which attaches the bearer like every other forwarded route. See
-// `src/server/modules/assistant.ts`.
+// `apps/website/src/server/runtime/composition/modules/assistant.ts`.
 frontendControl.httpExtension({ app, context: { adapter } });
 // Runless WebMCP uses the same policy/exchange/audit stack as a daemon run. The proxy supplies
 // the authenticated principal; the bind token and tab id constrain the effect to its own screen.
@@ -1567,7 +1567,7 @@ registerFrontendRequestRoute({ app, path: "/api/frontend-sessions/request", cont
   // `retainAcrossRestarts` is NOT optional for this host, and the reason is specific to how this
   // process is started. The daemon is a `spawn()` child of `src/index.ts`, which dev runs under
   // `tsx watch` — so every save anywhere in `apps/website/src` kills and respawns it (see
-  // `agent-daemon-supervisor.ts`). Without this option the store empties `uploadDirectory` on each
+  // `apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts`). Without this option the store empties `uploadDirectory` on each
   // of those constructions, which means an unrelated source edit silently destroys every chat
   // attachment a user has staged but not yet sent. That is not a hypothetical: an upload was
   // observed erased by an API reload ~90 seconds later. The store's default is deliberately the
@@ -1590,7 +1590,7 @@ registerFrontendRequestRoute({ app, path: "/api/frontend-sessions/request", cont
   // global body parser" note) even though call order here is necessarily after it (`express.json()`
   // is synchronous module-scope code above; this file's own body-parser-skip behavior for a
   // non-JSON `content-type` is what actually protects the upload route — see
-  // `src/server/modules/assistant.ts#forwardAttachmentUpload`'s doc for the full trace of why an
+  // `apps/website/src/server/runtime/composition/modules/assistant.ts#forwardAttachmentUpload`'s doc for the full trace of why an
   // `application/octet-stream` POST survives `express.json()` regardless of registration order).
   registerAttachmentRoutes({ app, deps: {
       store: attachmentStore,

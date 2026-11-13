@@ -35,7 +35,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * privilege-escalation bypass this design exists to prevent.
  *
  * The route is still authenticated: `requireAdminSession` is mounted on `/api/admin`
- * (`server/modules/core.ts`), so `getAuthedPrincipal(res)` always resolves a real principal, and
+ * (`apps/website/src/server/runtime/composition/modules/core.ts`), so `getAuthedPrincipal(res)` always resolves a real principal, and
  * that principal is what every section is authorized as. A principal with no grants gets a
  * well-formed 200 in which every section is `forbidden` — which discloses nothing it could not
  * learn by calling the five underlying admin routes and being refused by each.

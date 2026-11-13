@@ -70,12 +70,12 @@ import {
  * tool invocation makes, which is what makes THAT shape "reuse the handler" rather than "reimplement
  * its logic." Shape 1 never calls the handler a second time at all — see below.
  *
- * Covered by the daemon's existing global bearer gate (`daemon-auth.ts`'s
+ * Covered by the daemon's existing global bearer gate (`apps/website/src/assistant/daemon-access.ts`'s
  * `requireAgentDaemonToken`, mounted ahead of every route in `agent-daemon-server.ts`) — this
- * module adds no exemption, so only Tovu's own proxy (`server/modules/assistant.ts`) can reach it.
+ * module adds no exemption, so only Tovu's own proxy (`apps/website/src/server/runtime/composition/modules/assistant.ts`) can reach it.
  * The admin-session check that actually authenticates the human happens one hop earlier, in that
  * proxy; this route trusts the bearer gate plus {@link RUN_PRINCIPAL_HEADER} the same way every
- * other daemon route already does (`run-ownership.ts`).
+ * other daemon route already does (`apps/website/src/assistant/daemon-access.ts`).
  *
  * Deliberately NOT run-scoped. Unlike `/api/delegated-tool-calls`, this call carries no `runId` —
  * `@jini-ai/chat`'s `create-mcp-ui-tool-caller.ts` module doc explains why: the run that raised the
@@ -87,7 +87,7 @@ import {
  */
 
 /** Mounted at the same path Tovu's proxy exposes to the browser, so `forwardToAgentDaemon`'s
- * verbatim `req.originalUrl` passthrough (`server/modules/assistant.ts`) reaches this route with no
+ * verbatim `req.originalUrl` passthrough (`apps/website/src/server/runtime/composition/modules/assistant.ts`) reaches this route with no
  * separate path-rewrite to keep in sync. */
 export const MCP_UI_TOOL_CALLS_PATH = "/api/admin/v1/mcp-ui/tool-calls";
 
@@ -117,7 +117,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * `policy.authorize: () => "allow"` (ADR-021 §2 — the domain's OWN inline `authorize()`/
  * `requireToolPermission` call is the real gate, and it throws rather than returning a denial
  * `ToolExecutor` would see), and `requiresConfirmation` is never set on a catalog entry (see
- * `tool-registration-kit.ts`'s explanation of the missing confirmation delegate). So `'denied'`/`'confirmation-denied'` are handled for
+ * `Jini packages/core/src/registration-kit.ts`'s explanation of the missing confirmation delegate). So `'denied'`/`'confirmation-denied'` are handled for
  * completeness and to keep this switch exhaustive against `ToolExecutionStatus`, not because a live
  * path reaches them today. `'cancelled'` is similarly unreachable from this call site specifically —
  * nothing here holds the `executionId` an external `toolExecutor.cancel()` would need. `'failed'`
@@ -189,7 +189,7 @@ function parseMcpUiToolCallRequest(req: Request, res: Response): ParsedMcpUiTool
     return null;
   }
   // The security-critical check this whole route exists to enforce — see `mcp-ui-tool-calls.ts`.
-  // Checked again here even though Tovu's proxy (`server/modules/assistant.ts`) already checks it,
+  // Checked again here even though Tovu's proxy (`apps/website/src/server/runtime/composition/modules/assistant.ts`) already checks it,
   // because this route — not the proxy — is the one call site that can actually reach
   // `toolExecutor.execute`. A proxy-only check would be a suggestion, not a boundary.
   const params = isPlainObject(body.params) ? body.params : {};

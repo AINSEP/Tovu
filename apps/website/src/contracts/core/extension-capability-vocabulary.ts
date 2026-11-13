@@ -3,7 +3,7 @@
  * `plugin-runtime` and `site-glue` — declared exactly once.
  *
  * Both mechanisms' own manifest validators (`Jini/packages/plugins/src/host/manifest.ts`,
- * `features/site-glue/manifest.ts`) independently need `content.read` / `content.extend` /
+ * `Jini packages/plugins/src/glue/manifest.ts`) independently need `content.read` / `content.extend` /
  * `hooks.attach`: `plugin-runtime`'s is its entire v1 capability vocabulary; `site-glue`'s is the
  * first three members of its own eight-member superset (the remaining five —
  * `tools.register`, `events.subscribe`, `admin.nav.register`, `render.contribute`,

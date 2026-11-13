@@ -12,13 +12,13 @@ import type { RemovePluginFn } from "@jini-ai/plugins/host";
 
 /**
  * @file Narrow `RouteDeps` slice for the `plugins` admin HTTP surface (SPEC-005 REQ-10, C-016) —
- * mirrors `routes/admin/content/deps.ts`'s `ContentRouteDeps` narrowing pattern exactly (a genuine
+ * mirrors `apps/website/src/server/inbound/admin-http/routes/content/deps.ts`'s `ContentRouteDeps` narrowing pattern exactly (a genuine
  * narrowing to the fields these 2 registrars actually read, not a widening extension).
  *
  * `discoverPlugins`/`onEnabled`/`onDisabled` are pre-bound closures (installDir/builtIns already
  * captured, hook-registry attach/detach already captured) — the route layer itself never
  * constructs a `discoverPlugins()`/`loadPlugin()` call directly; the composition root
- * (`server/app.ts`/`server/deps.ts`, Programmer's Phase 1 Track D work) builds these closures once
+ * (`apps/website/src/server/runtime/composition/app.ts`/`apps/website/src/server/runtime/composition/deps.ts`, Programmer's Phase 1 Track D work) builds these closures once
  * and threads them through.
  *
  * Architectural role: TDD-owned type/wiring surface (implementation outline C-016). Not itself a

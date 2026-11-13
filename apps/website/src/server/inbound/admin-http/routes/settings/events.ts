@@ -24,7 +24,7 @@
  * for that, and both used to get it wrong in the same way: the page query took `limit` rows
  * globally and filtered afterwards in JS, so a busy tenant's writes crowded out a quiet one's, and
  * the resume cursor accepted any client-supplied `Last-Event-ID` without bounding it to the ledger.
- * The query is now workspace-predicated (see `features/settings/ports.ts`) and the cursor is
+ * The query is now workspace-predicated (see `Jini packages/core/src/settings/ports.ts`) and the cursor is
  * clamped to the head below. Disclosure was never the issue and is unchanged — `change-feed.ts`
  * remains the only thing that decides what a subscriber is told.
  *
@@ -38,7 +38,7 @@
  * ## Disclosure
  *
  * Frames carry namespace NAMES only, never values, and only for revisions
- * `features/settings/change-feed.ts` deems visible to the subscribing principal. A client re-reads
+ * `Jini packages/core/src/settings/change-feed.ts` deems visible to the subscribing principal. A client re-reads
  * through the ordinary authorized `getSettingsEffective` path, so this endpoint cannot become a
  * way to obtain a value the caller could not already fetch. `settings.read` gates the subscription
  * itself, matching `get-effective.ts`.

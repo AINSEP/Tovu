@@ -12,7 +12,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * Serializes `redirects` library read models (`RedirectRecord`,
  * `RedirectHitStats`) into the stable admin JSON envelopes api.spec.md §5
  * defines (`{ data: ... }`, NOT the `{ menu: ... }`-style envelope
- * `server/http/admin/menus.ts` uses — this feature's own api.spec.md is
+ * `apps/website/src/server/inbound/admin-http/http/menus.ts` uses — this feature's own api.spec.md is
  * explicit about the `data` envelope key, so it is followed exactly rather
  * than copied from the Menus precedent).
  *

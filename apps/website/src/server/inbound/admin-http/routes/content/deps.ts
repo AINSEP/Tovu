@@ -9,8 +9,8 @@ import type { RouteDeps } from "#src/server/routes/types";
  *
  * Purpose:
  * The 11 posts/pages/change-sets/presentation registrars only ever read a fixed subset of
- * `RouteDeps` — this is a genuine narrowing (mirrors `routes/admin/media/deps.ts`'s/
- * `routes/admin/taxonomy/deps.ts`'s identical rationale from SPEC-034), not a widening extension.
+ * `RouteDeps` — this is a genuine narrowing (mirrors `apps/website/src/server/inbound/admin-http/routes/media/deps.ts`'s/
+ * `apps/website/src/server/inbound/admin-http/routes/taxonomy/deps.ts`'s identical rationale from SPEC-034), not a widening extension.
  *
  * Each field's real reader, confirmed by reading all 11 registrar files directly rather than
  * guessing:

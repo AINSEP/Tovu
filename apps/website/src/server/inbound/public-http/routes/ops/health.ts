@@ -28,7 +28,7 @@ export const registerHealthzRoute: NoDepsRouteRegistrar = (app) => {
  * ADR-046 Phase 2 (SPEC-030 REQ-09) — 200 when every CRITICAL module in the current readiness
  * snapshot is `ready`, else 503 listing only critical failures' `name`/`reasonCode` (no
  * remediation hints, no owner — a lower-trust operational endpoint; the full detail lives behind
- * `system.read` admin auth, see `routes/admin/system/module-status.ts`).
+ * `system.read` admin auth, see `apps/website/src/server/inbound/admin-http/routes/system/module-status.ts`).
  *
  * `assistantDaemonKnownFailed` (degraded-boot defect fix) is the one deliberate, narrow exception
  * to "no optional-module detail here": a plain boolean, present only when true, naming no reason,

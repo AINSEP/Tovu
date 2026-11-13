@@ -166,7 +166,7 @@ export function stockThemesDir(): string {
  * root — gitignored site data (`sites/README.md`), populated by extraction, and frozen read-only
  * per digest. Product-shipped source cannot live there: it would not be tracked, would not ship in
  * a release, and would collide with the content-addressed tree the installer owns. Bundled source
- * is an INPUT to installation (`features/agent-plugins/seed-bundled.ts`), not a location within it.
+ * is an INPUT to installation (`Jini packages/agent-plugins/src/lifecycle/seed-bundled.ts`), not a location within it.
  * @complexity O(depth) filesystem checks via {@link resolveProductRoot}; O(1) when the env names it.
  */
 export function bundledAgentPluginsDir(_required: Record<string, never> = {}, optional: { env?: NodeJS.ProcessEnv } = {}): string {

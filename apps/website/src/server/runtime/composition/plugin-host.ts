@@ -64,7 +64,7 @@ export function createTovuPluginHost(
     : readInstalledAgentPluginIdentity;
 
   // Thin Tovu binder: every runtime owner, path, namespace and product text is bound here; the
-  // decisions live in `portable-plugin-host.ts`. The projection pair is resolved once per binding:
+  // decisions live in the portable plugin host. The projection pair is resolved once per binding:
   // preview, provisioning grant and status share it (legacy no-ports fallback stays Tovu-only).
   return createPluginHost<Parameters<AgentPluginHostCapability['uninstall']>[0], TovuPluginHostDeps['agentPluginLayout']>({ deps: {
     workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, clock: deps.clock, namespace: 'tovu',

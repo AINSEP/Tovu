@@ -14,7 +14,7 @@ import { contentTypeWriteErrorStatus } from "./write-error-status.js";
  * content type, ADR-043 §4). Gated by `admin.collections.manage`; the write-service's own
  * `registerContentType` re-checks the same permission internally (chokepoint discipline) — this
  * route's own pre-check exists only for a fast, structured 403 before touching the body at all,
- * mirroring `routes/admin/settings/register-definitions.ts`'s identical pattern.
+ * mirroring `apps/website/src/server/inbound/admin-http/routes/settings/register-definitions.ts`'s identical pattern.
  */
 export function registerAdminContentTypeRegisterRoute(app: Express, deps: ContentTypesRouteDeps): void {
   app.post("/api/admin/v1/content-types", async (req, res) => {

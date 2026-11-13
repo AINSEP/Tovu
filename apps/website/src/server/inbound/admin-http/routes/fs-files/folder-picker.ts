@@ -16,7 +16,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * computer, it can ask the OS instead.
  *
  * The dialog appears on the server's screen, so this exists only when that screen is the caller's:
- * - `localHost` (`isLocalTovuHost`, the same host decision `local-credential-copy.ts` uses): a
+ * - `localHost` (`isLocalTovuHost`, the same host decision local credential copying uses): a
  *   local launch, never a deployed/hosted runtime. Otherwise 404, as if the route did not exist.
  * - the picker has a chooser on this OS. Otherwise 404 too.
  * - `isLocalAdminRequest`: loopback sockets, no forwarding headers, a loopback Host, same Origin.

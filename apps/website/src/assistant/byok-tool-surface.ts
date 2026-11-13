@@ -80,8 +80,8 @@ export interface ByokToolSurface {
   readonly metaTools: readonly ToolDescriptor[];
   /**
    * Backs the held-open-call return path for a BYOK-mode tool call (mirrors `agent-daemon-server.ts`'s
-   * identical exposure of its own store). `server/modules/assistant-byok.ts` composes this surface
-   * once at boot and hands this SAME reference to `server/modules/assistant.ts` so its redemption
+   * identical exposure of its own store). `apps/website/src/server/runtime/composition/modules/assistant-byok.ts` composes this surface
+   * once at boot and hands this SAME reference to `apps/website/src/server/runtime/composition/modules/assistant.ts` so its redemption
    * proxy can deliver into it directly — a second, independent store here would leave every BYOK-mode
    * confirmation exchange unreachable from the browser.
    */
@@ -427,7 +427,7 @@ export interface ByokToolSurfaceOptions {
   readonly prepareGuidance?: import("@jini-ai/daemon").PrepareToolGuidance;
   /**
    * Where every tool-execution attempt is logged, for BOTH halves of this surface: the two
-   * meta-tools (`search_tools`/`describe_tool`, via `tool-catalog-audit.ts`'s own
+   * meta-tools (`search_tools`/`describe_tool`, via `apps/website/src/assistant/tool-audit-preset.ts`'s own
    * `appendToolCatalogAttempt` — a single "completed"-phase row per call, there being no
    * two-phase lifecycle for a catalog read) AND every real tool `execute_delegated_tool` resolves
    * to (via `withToolAttemptAudit` wrapping `executor` below — the same `requested`-then-final-phase
@@ -600,7 +600,7 @@ function composeSurfaceExecutor(
  * `agent-daemon-server.ts:172-183`'s identical note on why this is computed, not stored on
  * `routeDeps`), and building a second, independent limiter instance here is correct: it is a
  * per-process request-rate counter, not shared state that would need to be the SAME instance as
- * `server/app.ts`'s own `membersDeps` limiter to behave correctly — two admins hitting
+ * `apps/website/src/server/runtime/composition/app.ts`'s own `membersDeps` limiter to behave correctly — two admins hitting
  * `members_request_magic_link` through two different entry points (the ordinary members route vs. a
  * BYOK-run tool call) sharing one counter would be a coupling this module has no reason to introduce.
  *

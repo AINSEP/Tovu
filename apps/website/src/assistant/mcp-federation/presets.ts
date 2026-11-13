@@ -11,8 +11,8 @@ export function registerDesktopMcpPreset({ registry, runtime }: { registry: Fede
 
 /**
  * @file Host-owned federation identity and operator-facing messages. Ordered per-host preset
- * registration, replacement and null/throw resolution contracts live in Jini's
- * `mcp/federation/presets.ts`: vendors register there so bootstrap never imports them by name.
+ * registration, replacement and null/throw resolution contracts live in
+ * `Jini packages/mcp/src/federation/presets.ts`: vendors register there so bootstrap never imports them by name.
  */
 
 /** The desktop/website wire identity stays host-owned; the transport advertises no capabilities. */

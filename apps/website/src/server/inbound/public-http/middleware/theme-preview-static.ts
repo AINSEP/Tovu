@@ -12,7 +12,7 @@ import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";
  * `python3 -m http.server`.
  *
  * This is NOT the real theme loader. The `static` tier is not wired into
- * `src/features/theme/theme.ts` or `server/http/site/render.ts` — there is no active-theme
+ * `src/features/theme/theme.ts` or `apps/website/src/server/inbound/public-http/http/site/render.ts` — there is no active-theme
  * selection here, no `data-tovu-slot` resolution happening server-side, nothing DB-backed. Each
  * theme's own `build-preview.mjs` already does the slot/token stitching ahead of time; this
  * middleware only serves the resulting static files. Mirrors `site-chat-static.ts`'s

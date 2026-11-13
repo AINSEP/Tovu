@@ -8,8 +8,8 @@ import type { RouteDeps } from "#src/server/routes/types";
 /**
  * @file Admin "Restart assistant" action — `POST /api/admin/v1/workspaces/:workspaceId/system/
  * assistant-daemon/restart`, the manual recovery seam for the locally-spawned agent daemon
- * (`src/assistant/daemon-supervisor.ts`). Sibling to the on-demand recovery wired into
- * `server/modules/assistant.ts`'s daemon-proxy code (`respondIfDaemonKnownFailed` now calls
+ * (`apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts`). Sibling to the on-demand recovery wired into
+ * `apps/website/src/server/runtime/composition/modules/assistant.ts`'s daemon-proxy code (`respondIfDaemonKnownFailed` now calls
  * `ensureAssistantDaemonStarted()` automatically on every known-failed request) — this route exists
  * for the case an operator wants to force it NOW rather than wait for the next request to trigger
  * it, or wants to recover a daemon whose crash-loop cap has already tripped (on-demand recovery

@@ -29,7 +29,7 @@ import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH, externalMcpOAuthCallbackUrl } from ".
  * ## Everything on this request is untrusted
  *
  * `state`, `code` and `error` arrive from a third party. They are narrowed to strings here and
- * validated (length, authentication, expiry and binding) in `oauth/authorization-code.ts` before any of
+ * validated (length, authentication, expiry and binding) in `Jini packages/oauth/src/authorization-code.ts` before any of
  * them reaches a token endpoint. Nothing from the request reaches the response body — see
  * `routes/oauth/callback-page.ts`.
  *
@@ -49,7 +49,7 @@ import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH, externalMcpOAuthCallbackUrl } from ".
  * `completeAuthorizationCallback` durably persists a completed sign-in, `notifyExternalMcpRosterChanged`
  * tells every registered federation runtime (the agent daemon, over HTTP; BYOK, in-process) to admit it
  * without a restart — see `external-mcp-roster-change.ts`'s own doc for the fan-out and
- * `mcp-federation/reload.ts` for why this is safe to call for ANY completed OAuth connection, not only
+ * `Jini packages/mcp/src/federation/reload.ts` for why this is safe to call for ANY completed OAuth connection, not only
  * a first-time one (an already-admitted connectionId is a no-op, never a re-admission).
  *
  * Why THIS route is the right trigger, rather than `external-mcp-oauth.ts`'s

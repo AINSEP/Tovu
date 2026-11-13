@@ -49,7 +49,7 @@ import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
  * `handleTurn` below builds a real `SurfaceEmitter` per tool call, writing each emission onto this
  * SAME SSE response as an `agent` event shaped exactly like the daemon path's own wire format (see
  * `toWireSurfacePayload`'s doc), so the already-shipped client-side `translateRunAgentPayload`
- * switch renders it with no new frontend branching. Redemption is `server/modules/assistant.ts`'s
+ * switch renders it with no new frontend branching. Redemption is `apps/website/src/server/runtime/composition/modules/assistant.ts`'s
  * job: it holds the SAME `toolSurface.surfaceExchanges` reference this module composed and exposes
  * on its own returned handle (see {@link createAssistantByokModule}'s doc for why `app.ts` captures
  * it that way rather than importing `byok-tool-surface.ts` directly) and tries local delivery before

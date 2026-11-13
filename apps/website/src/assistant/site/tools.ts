@@ -26,7 +26,7 @@
  * That predicate is not reimplemented in this file. `readPublished()` below calls
  * `deps.listPublishedPosts` — INJECTED (see `SiteAssistantToolDeps.listPublishedPosts`'s own doc),
  * not statically imported from `features/post` — but wired at the one production composition root
- * (`server/modules/site-assistant.ts`) to the real `features/post`'s own `listPublishedPosts`, the
+ * (`apps/website/src/server/runtime/composition/modules/site-assistant.ts`) to the real `features/post`'s own `listPublishedPosts`, the
  * SAME function `routes/site/pages.ts` calls to decide what a visitor's browser renders. "What is
  * publicly visible" has exactly one definition in this codebase; this file consumes it rather than
  * keeping a second copy that happens to agree today. A second copy is exactly how the assistant would
@@ -92,7 +92,7 @@ export interface SiteAssistantToolDeps {
    * (see this file's header for the security reasoning behind calling that exact function, and the
    * `ListPublishedPosts` type doc above for the module-cycle reason it is injected rather than
    * imported). Wired to the real implementation at the one production composition root,
-   * `server/modules/site-assistant.ts`. Tests may pass the real `features/post` export directly (test
+   * `apps/website/src/server/runtime/composition/modules/site-assistant.ts`. Tests may pass the real `features/post` export directly (test
    * files are exempt from `check:architecture`'s module-cycle graph) or a fake with the same shape —
    * either way, this field is never reimplemented locally.
    */

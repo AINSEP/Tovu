@@ -3,12 +3,12 @@ import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
  * @file Deps bundle for the 2 PUBLIC (unauthenticated) newsletter routes — `newsletter-confirm.ts`/
  * `newsletter-unsubscribe.ts` (api.spec.md §1a). Mirrors `routes/members/deps.ts`'s
  * `MemberPublicRouteDeps` split rationale exactly: deliberately narrower than the admin
- * `NewsletterRouteDeps` (`routes/admin/newsletter/deps.ts`) — no `authorize`, no session/principal
+ * `NewsletterRouteDeps` (`apps/website/src/server/inbound/admin-http/routes/newsletter/deps.ts`) — no `authorize`, no session/principal
  * field at all. These two routes must never touch a session cookie (REQ-30/AC-39/INV-09) — a
  * visitor clicking an email link has no admin session, and must never be required to have one.
  *
  * Architectural role:
- * Composition-boundary glue only — no business logic. Mirrors `routes/admin/newsletter/deps.ts`'s
+ * Composition-boundary glue only — no business logic. Mirrors `apps/website/src/server/inbound/admin-http/routes/newsletter/deps.ts`'s
  * `toConfirmationDeps`/`toUnsubscribeDeps` helpers, over this narrower deps shape.
  */
 import type { UUID } from "@jini-ai/core/primitives";

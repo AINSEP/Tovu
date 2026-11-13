@@ -2,7 +2,7 @@ import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
 
 /**
  * @file A `ToolCatalogQuery` whose backing snapshot can be swapped after construction — the
- * discovery-side half of federation hot-reload (`mcp-federation/reload.ts`'s execution-side
+ * discovery-side half of federation hot-reload (`Jini packages/mcp/src/federation/reload.ts`'s execution-side
  * counterpart).
  *
  * `buildToolCatalogQuery` (`tool-catalog-query.ts`) seeds a disposable, one-shot in-memory FTS index

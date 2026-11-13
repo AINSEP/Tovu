@@ -6,7 +6,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { CommentsModerationRouteDeps } from "./deps.js";
 
 /** GET workspace-level `comments.*` settings (SPEC-035, ADR-028 Settings Layered Ledger wiring
- * for Comments). Mirrors `routes/admin/seo/get-settings.ts`'s exact shape.
+ * for Comments). Mirrors `apps/website/src/server/inbound/admin-http/routes/seo/get-settings.ts`'s exact shape.
  *
  * Retyped from the generic `RouteRegistrar` to `CommentsModerationRouteDeps` (ADR-046 Phase 3,
  * SPEC-040) — a genuine narrowing, not a widening; see `deps.ts`'s file header for the confirmed

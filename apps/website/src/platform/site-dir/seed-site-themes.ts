@@ -12,7 +12,7 @@ import { seedStarterTitle } from "./seed-starter-title.js";
  * which replace the package's stock tree.
  *
  * A site now owns `<site>/themes/`. The package keeps a read-only STOCK tree
- * (`server/deps.ts`'s `builtInThemesDir()`), and this function copies it into the site the first
+ * (`apps/website/src/server/runtime/composition/deps.ts`'s `builtInThemesDir()`), and this function copies it into the site the first
  * time that site boots. After that the site's copy is the only one anything reads or writes
  * (`RouteDeps.themesDir`), so an upgrade can replace the package tree freely.
  *

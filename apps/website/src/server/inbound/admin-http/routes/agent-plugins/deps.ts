@@ -6,7 +6,7 @@ import type { UUID } from "@jini-ai/core/primitives";
 
 /**
  * @file Narrow `RouteDeps` slice for the `agent-plugins` admin HTTP surface (2026-09-09) — mirrors
- * `routes/admin/plugins/deps.ts`'s `PluginsRouteDeps` narrowing pattern.
+ * `apps/website/src/server/inbound/admin-http/routes/plugins/deps.ts`'s `PluginsRouteDeps` narrowing pattern.
  *
  * Deliberately smaller than `PluginsRouteDeps`: this domain's read model,
  * `loadAgentPluginSearchCandidates()` (`features/agent-plugins/tool-registrations.ts`, shared with

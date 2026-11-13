@@ -6,7 +6,7 @@ import { guardExternalMcpRequest } from "./guard.js";
  * @file The Integrations "Always allow" list (owner call 2026-09-28): which remote tools the site
  * owner told the approval card to stop asking about, per external MCP server, and a revoke for each.
  *
- * Reads and deletes `external_mcp_tool_approvals` rows (`assistant/external-mcp-tool-approvals.ts`).
+ * Reads and deletes `external_mcp_tool_approvals` rows (`Jini packages/mcp/src/federation/tool-approvals.ts`).
  * Revoking is reversible — the tool's next call just shows the card again — so there is no confirm
  * step anywhere on this path. Granting stays on the card: a grant is pinned to a fingerprint of the
  * tool exactly as the running daemon admitted it, which only the card's own call path has.

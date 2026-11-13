@@ -19,7 +19,7 @@ import {
 
 /**
  * @file Response DTOs + typed-error -> HTTP mapping for the admin `newsletter` HTTP surface
- * (SPEC-011, ADR-PIPE-011). Mirrors `server/http/admin/widgets.ts`'s split: HTTP-facing
+ * (SPEC-011, ADR-PIPE-011). Mirrors `apps/website/src/server/inbound/admin-http/http/widgets.ts`'s split: HTTP-facing
  * serialization + error mapping only — no newsletter business logic lives here (that stays in
  * `newsletter/*.ts`).
  *
@@ -27,8 +27,8 @@ import {
  * `NewsletterForbiddenError` themselves (api.spec.md's Purpose section: "principal resolved from
  * the authenticated dev-session ... permission checked directly via `deps.authorize()` — not a
  * Bearer-JWT profile"). Every admin route therefore calls `requireNewsletterPermissionOrRespond`
- * as its own first line, mirroring `routes/admin/menus/create.ts`'s inline `authorize()`+403
- * pattern (the same convention `http/admin/widgets.ts`'s doc comment cites for its own handful of
+ * as its own first line, mirroring `apps/website/src/server/inbound/admin-http/routes/menus/create.ts`'s inline `authorize()`+403
+ * pattern (the same convention `apps/website/src/server/inbound/admin-http/http/widgets.ts`'s doc comment cites for its own handful of
  * no-domain-wrapper routes).
  */
 

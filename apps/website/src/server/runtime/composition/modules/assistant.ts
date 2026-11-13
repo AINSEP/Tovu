@@ -6,12 +6,12 @@ import { tryRestoreSurface } from '@jini-ai/daemon/http';
 /**
  * @file ADR-049 (process-shape correction) — Tovu never spawns a coding-agent CLI itself. This
  * module is a thin, session-authenticated reverse proxy in front of the standalone agent daemon
- * (`src/assistant/agent-daemon-server.ts`, a separate OS process `src/index.ts` spawns after its
+ * (`apps/website/src/server/inbound/assistant/agent-daemon-server.ts`, a separate OS process `src/index.ts` spawns after its
  * own boot completes). It owns exactly one thing the daemon cannot: verifying the browser's admin
  * session. Everything downstream of that is the daemon's to decide, so this module's job is to
  * report the verified principal accurately and nothing more — stamped into a new run's
  * `contextRef` at creation, and asserted in `RUN_PRINCIPAL_HEADER` on every request thereafter so
- * the daemon can compare it against the run's recorded owner (`src/assistant/run-ownership.ts`).
+ * the daemon can compare it against the run's recorded owner (`apps/website/src/assistant/daemon-access.ts`).
  * Authorization deliberately does NOT live here: the daemon owns run state, so it is the only
  * process where an ownership record and the run it protects share a lifetime.
  *
@@ -23,7 +23,7 @@ import { tryRestoreSurface } from '@jini-ai/daemon/http';
  *
  * Authentication, both directions: inbound, `requireAdminSession` gates every route below.
  * Outbound, `forwardToAgentDaemon` attaches `Authorization: Bearer <TOVU_AGENT_DAEMON_TOKEN>` —
- * the daemon rejects any request without it (`src/assistant/daemon-auth.ts`), so this proxy is the
+ * the daemon rejects any request without it (`apps/website/src/assistant/daemon-access.ts`), so this proxy is the
  * only thing on the machine that can reach it. That env var is read INSIDE the request path, never
  * at module scope: ES module imports are all evaluated before `src/index.ts`'s own top-level
  * `main()` call runs, and `main()` is what mints the token — a module-scope read would capture
@@ -93,7 +93,7 @@ type AssistantRouteDeps = RouteDeps & {
  *
  * Cancels on `res`'s `"close"`, not `req`'s. Node's `IncomingMessage` ("`req`") emits `"close"` once
  * its body has been fully consumed — for a request with a JSON body (e.g. `POST /api/runs`, whose
- * body Express's global `express.json()` parser (`src/server/app.ts`) already reads in full before
+ * body Express's global `express.json()` parser (`apps/website/src/server/inbound/shared/json-body-parsers.ts`) already reads in full before
  * this function ever runs), that happens almost immediately, independent of the actual client
  * connection. A listener attached here — necessarily AFTER the `await fetch(...)` to the daemon in
  * `forwardToAgentDaemon`, itself after body-parsing — is registered too late to ever observe that
@@ -353,7 +353,7 @@ export async function respondWithEnrichedAgentList(
  *    reports `unknown-or-closed` (including every request with no `exchangeId` at all, which never
  *    reaches the local branch below): `forwardToAgentDaemon` attaches the daemon bearer token and
  *    {@link RUN_PRINCIPAL_HEADER} exactly like every other route in this module, and the daemon-side
- *    route trusts both the same way `run-ownership.ts`'s routes do.
+ *    route trusts both the same way `apps/website/src/assistant/daemon-access.ts`'s routes do.
  */
 /**
  * Tries LOCAL delivery against `byokSurfaceExchanges` for a redeemable `exchangeId`. Returns
@@ -516,7 +516,7 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
  * did not parse) instead of the file.
  *
  * That `content-type` mismatch is exactly what keeps this safe to read directly: Tovu's app-wide
- * `app.use(express.json({limit:"15mb"}))` (`server/app.ts`) only consumes a request whose
+ * `app.use(express.json({limit:"15mb"}))` (`apps/website/src/server/inbound/shared/json-body-parsers.ts`) only consumes a request whose
  * `content-type` it recognizes as JSON — for anything else it calls `next()` without touching the
  * stream at all, so `req` (a `http.IncomingMessage`, itself an async-iterable readable stream)
  * reaches this handler completely intact regardless of where in the middleware stack this route
@@ -527,7 +527,7 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
  * `RUN_PRINCIPAL_HEADER` IS stamped here, even though (unlike every other forwarded route) an
  * attachment upload has no `runId` yet to compare it against (a run doesn't exist until
  * `POST /api/runs`, which happens after the composer has already staged its uploads) — so it is not
- * for `run-ownership.ts`'s own check. `agent-daemon-server.ts` instead reads it via
+ * for `apps/website/src/assistant/daemon-access.ts`'s own check. `agent-daemon-server.ts` instead reads it via
  * `AttachmentsHttpDeps.resolveOwnerId` and records it as the attachment's `ownerId`
  * (`@jini-ai/http-kit`'s `attachments.ts`), which is what lets `chat_list_pending_attachments`
  * later find an attachment the model was never told about in-run. Safe to assert here for the same
@@ -536,7 +536,7 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
  * is always a server-verified session principal, never anything the browser chose. Authentication
  * is still enforced twice: `requireAdminSession` (browser session) and the bearer token this
  * function still attaches (proves the call came from Tovu's own proxy, not an arbitrary local
- * process) — see `daemon-auth.ts`.
+ * process) — see `apps/website/src/assistant/daemon-access.ts`.
  */
 async function forwardAttachmentUpload(req: Request, res: Response, daemon: DaemonCallOptions): Promise<void> {
   if (!(await awaitDaemonForResponse({ res }, daemon))) return;

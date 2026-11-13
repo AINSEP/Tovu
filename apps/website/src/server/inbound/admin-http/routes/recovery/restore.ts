@@ -15,7 +15,7 @@ const RESTORE_PERMISSION = "backup.restore";
  * @file SPEC-019 C-301/C-302/C-303 — `POST /api/admin/v1/recovery/restore/{plan,confirm,execute}`
  * (ADR-045 §3's restore ceremony). Gated by `backup.read` (`plan`/`confirm`) / `backup.restore`
  * (`execute`, enforced inside `gateway.ts`'s own fixed check-sequence). Mirrors
- * `routes/admin/taxonomy/merge-term.ts`'s 3-endpoint shape, composed directly over
+ * `apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts`'s 3-endpoint shape, composed directly over
  * `features/recovery/recovery-orchestrator.ts`'s already-built `planRestore`/`confirmRestore`/
  * `executeRestore` wrappers (this file supplies the `Result`-wrapped gateway binding + the real
  * `core/operation-lock.ts` primitive those wrappers were built to receive from a composition root

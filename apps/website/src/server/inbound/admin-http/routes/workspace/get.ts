@@ -7,7 +7,7 @@ import type { WorkspaceRouteRegistrar } from "./deps.js";
 /**
  * GET workspaces/:workspaceId — SPEC-044 REQ-03. `:workspaceId` must equal the caller's own
  * (boot-wired) workspace, else `404` (INV-04 — matches every other admin route's existing
- * mismatched-workspaceId convention, e.g. `routes/admin/users/list.ts`; checked before
+ * mismatched-workspaceId convention, e.g. `apps/website/src/server/inbound/admin-http/routes/users/list.ts`; checked before
  * authorization so a mismatched id never discloses whether a permission grant exists). Gated by
  * `workspace.manage`.
  */

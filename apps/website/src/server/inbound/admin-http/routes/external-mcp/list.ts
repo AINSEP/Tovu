@@ -13,7 +13,7 @@ import { guardExternalMcpRequest } from "./guard.js";
  * are set. That property is asserted in `external-mcp-store.test.ts`, not merely intended.
  *
  * Never decrypts, so it cannot fail on a rotated or missing site key — the same property
- * `connectors/get-config.ts` and `media/get-providers.ts` rely on.
+ * the connector configuration reader and `media/get-providers.ts` rely on.
  * Owner 2026-10-07: safe hints now unseal on the server, without returning secret values. Missing
  * keys still degrade to metadata-only reads; they must not make this settings list unavailable.
  */

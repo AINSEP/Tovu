@@ -16,7 +16,7 @@ import { nativeToolMetadata } from '../contracts/core/tool-metadata/index.js';
  * "worse than no gate" outcome ADR-053's Context section names for a confirmation the model can
  * route around. This module is that allowlist, shared by both halves of the redemption path (the
  * daemon-side execution route and Tovu's session-authenticated proxy in front of it — see
- * `mcp-ui-tool-calls-route.ts` and `server/modules/assistant.ts`) so the two cannot drift apart.
+ * `mcp-ui-tool-calls-route.ts` and `apps/website/src/server/runtime/composition/modules/assistant.ts`) so the two cannot drift apart.
  */
 
 // This host callback policy recognizes the wire namespace without loading federation clients

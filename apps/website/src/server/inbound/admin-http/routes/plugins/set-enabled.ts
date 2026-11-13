@@ -88,7 +88,7 @@ function sendSetPluginEnabledError(res: Response, err: unknown): void {
  * @file `PLUGIN_SET_ENABLED` — `PATCH /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId`
  * (SPEC-005 REQ-07/REQ-10, api.spec.md §1/§4/§5/§6; C-016).
  *
- * Mirrors `admin/posts/update.ts`'s `executeCommand`-wrapped shape (ADR API/Event Contract
+ * Mirrors `apps/website/src/server/inbound/admin-http/routes/posts/update.ts`'s `executeCommand`-wrapped shape (ADR API/Event Contract
  * Summary): `captureInverse` snapshots the prior `PluginActivationRecord` (or `null` — a plugin
  * enabled for the first time has no prior row), `execute` calls `setPluginEnabled()`. Route-level
  * guards run BEFORE the gateway (errors.spec.md §4): unknown id ⇒ 404 `PLUGIN_NOT_FOUND`; invalid/
@@ -122,7 +122,7 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
     }
 
     // Full pre-transition activation row, captured in captureInverse and reused verbatim by
-    // rollback — mirrors `admin/posts/update.ts`'s `priorPost` shape exactly (ADR API/Event
+    // rollback — mirrors `apps/website/src/server/inbound/admin-http/routes/posts/update.ts`'s `priorPost` shape exactly (ADR API/Event
     // Contract Summary: this route is thin, `executeCommand`-wrapped, same as that one).
     let priorActivation: PluginActivationRecord | null = null;
 

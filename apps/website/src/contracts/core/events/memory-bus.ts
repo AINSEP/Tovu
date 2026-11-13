@@ -11,7 +11,7 @@ import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "./outbox-worker.js";
  *
  * How it relates to the project:
  * - Implements interfaces from `src/contracts/core/ports.ts`.
- * - Used by `src/server/app.ts` as the concrete runtime wiring in development.
+ * - Used by `apps/website/src/server/runtime/composition/app.ts` as the concrete runtime wiring in development.
  * - Works with `src/contracts/core/events/outbox-worker.ts` to demonstrate hybrid sync + async flow.
  * - Used by tests to validate behavior without external dependencies.
  *

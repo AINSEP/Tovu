@@ -1,7 +1,7 @@
 import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connection.js";
 /**
  * @file Shared plumbing for talking to the standalone agent daemon
- * (`src/assistant/agent-daemon-server.ts`) over HTTP — extracted from `assistant.ts` (2026-08-18,
+ * (`apps/website/src/server/inbound/assistant/agent-daemon-server.ts`) over HTTP — extracted from `assistant.ts` (2026-08-18,
  * ADR-059) so `assistant-ag-ui.ts` can reach the SAME daemon process without either duplicating
  * this file's retry/known-failed/token-header logic or building a second one. `assistant.ts`
  * itself is the only other caller and its behavior is unchanged by this extraction — every
@@ -64,7 +64,7 @@ export function outboundHeaders(req: Request, res: Response): Record<string, str
 
   // Who the daemon is being asked to act for. The bearer token above says "this is Tovu's proxy";
   // this says "and it is speaking for this admin", which is what the daemon compares against the
-  // run's recorded owner (`src/assistant/run-ownership.ts`). Safe to assert here and nowhere else:
+  // run's recorded owner (`apps/website/src/assistant/daemon-access.ts`). Safe to assert here and nowhere else:
   // every caller of this function sits behind `requireAdminSession`, so the value is always a
   // server-verified session principal and never anything the browser chose.
   headers[RUN_PRINCIPAL_HEADER] = getAuthedPrincipal(res).id;
@@ -303,7 +303,7 @@ function requestDaemonEventStream(
  *
  * Node's `fetch` (undici) applies a default ~300s IDLE-body timeout to every request, refreshed only
  * by actual bytes received; the daemon's own SSE channel sends none while a tool call is parked
- * waiting on a human (`tool-surface-exchanges.ts`'s `DEFAULT_SURFACE_IDLE_TTL_MS` alone is 5 minutes,
+ * waiting on a human (`Jini packages/daemon/src/surface-exchanges.ts`'s `DEFAULT_SURFACE_IDLE_TTL_MS` alone is 5 minutes,
  * right at that default, with no heartbeat/ping anywhere in the channel to reset it) — so a
  * genuinely-still-open wait was being torn down by `fetch` as if the connection had stalled, well
  * before the daemon ever produced the model's post-tool-call answer. `node:http`'s classic

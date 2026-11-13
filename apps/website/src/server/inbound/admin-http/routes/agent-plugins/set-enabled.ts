@@ -22,7 +22,7 @@ import { agentPluginLifecycleFields } from "./install-response.js";
  * plugin on from the admin at all.
  *
  * This is a real gate, not a cosmetic flag. `resolveAgentPluginRefs`
- * (`features/agent-plugins/resolve-agent-plugin-refs.ts`) re-reads `activations.json` on EVERY run
+ * (`Jini packages/agent-plugins/src/lifecycle/resolve-agent-plugin-refs.ts`) re-reads `activations.json` on EVERY run
  * and refuses a run that pins a disabled plugin, and `tool-registrations.ts` filters the dynamic
  * per-plugin tools through the same record.
  *

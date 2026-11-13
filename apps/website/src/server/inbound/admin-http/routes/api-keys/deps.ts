@@ -13,7 +13,7 @@ import type { IdentityRouteDepsSlice } from "#src/features/identity/wiring";
  * two guards all three routes share.
  *
  * Purpose:
- * Mirrors `routes/admin/users/deps.ts` exactly — same `Pick<RouteDeps, ...>` narrowing, same
+ * Mirrors `apps/website/src/server/inbound/admin-http/routes/users/deps.ts` exactly — same `Pick<RouteDeps, ...>` narrowing, same
  * "assemble the nested repo bag here so no route repeats the field mapping" role. The two extra
  * fields over `UsersRouteDeps` (`apiKeyRepo`, `apiKeySecretHasher`) are what `api-key-service.ts`
  * needs on top of the nine identity repos.

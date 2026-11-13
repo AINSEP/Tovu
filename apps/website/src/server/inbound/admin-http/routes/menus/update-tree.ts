@@ -42,7 +42,7 @@ function parseMenuTreeRequestBody(rawBody: unknown): {
  * The three typed cases, and a trashed menu (409 via `entityNotLiveResponse`), carry their own
  * message through to the caller. Anything else is a genuine
  * server fault and is flattened to an opaque "internal error" — but logged first, matching
- * `routes/connectors/errors.ts`'s `sendConnectorError`. Without that log the flattening is total:
+ * `sendConnectorError`. Without that log the flattening is total:
  * an unmapped throw (the `TypeError` a missing menu-item `target` used to raise before
  * `@jini-ai/cms`'s `e467f5c4` guarded it) reached an operator as "something broke" with no
  * message, no stack, and no way to tell a client-shaped bug from a real outage. The response

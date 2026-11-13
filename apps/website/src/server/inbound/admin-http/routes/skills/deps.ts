@@ -6,7 +6,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * @file C-003a `SkillsRouteDeps` — narrow `RouteDeps` slice for the `skills` admin HTTP surface
  * (implementation-outline.md, skills-composer-typeahead).
  *
- * A genuine narrowing, mirroring `routes/admin/system/module-status.ts`'s
+ * A genuine narrowing, mirroring `apps/website/src/server/inbound/admin-http/routes/system/module-status.ts`'s
  * `AdminModuleStatusDeps` — the registrars this module owns read `workspaceId`
  * (the path-param guard, and the input to `loadInstalledSkillToolSources`) and `authorize`
  * (the `admin.assistant.use` gate, D-3), plus the booted `skillLayout` and `siteBinding`.

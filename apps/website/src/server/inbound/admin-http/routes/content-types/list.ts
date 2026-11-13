@@ -9,7 +9,7 @@ import type { ContentTypesRouteDeps } from "./deps.js";
  * @file design-spec.md §1.9 — `GET /api/admin/v1/content-types` (Collections' content-type
  * registry list, ADR-022/ADR-043). Gated by `admin.collections.read` (ADR-043 §permissions).
  *
- * Follows `routes/admin/database/timeline.ts`'s exact shape: `getAuthedPrincipal` ->
+ * Follows `apps/website/src/server/inbound/admin-http/routes/database/timeline.ts`'s exact shape: `getAuthedPrincipal` ->
  * `deps.authorize()` -> 403 on denial -> call the domain read function -> `res.json()`.
  */
 export function registerAdminContentTypeListRoute(app: Express, deps: ContentTypesRouteDeps): void {

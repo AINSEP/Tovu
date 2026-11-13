@@ -613,7 +613,7 @@ const FORM_OPENING_TAG = new RegExp(`<form\\b[^>]*\\b${FORM_SLUG_ATTR}="([^"]*)"
 /**
  * Puts a fresh hidden `_attempt` token first inside every public form on a page being served, so the
  * submit route can tell a double-clicked Send (one token, twice) from two real submissions (two
- * page loads). See `features/forms/submission-attempts.ts` for the dedupe it feeds and its fallback.
+ * page loads). See `Jini packages/cms/src/forms/submission-attempts.ts` for the dedupe it feeds and its fallback.
  *
  * Applied per response, after rendering, because neither form renderer has a request in scope and
  * a rendered body must stay identical for every visitor up to this point. A page a shared cache

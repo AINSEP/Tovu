@@ -42,7 +42,7 @@ import {
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 // The one production wiring for `SiteAssistantToolDeps.listPublishedPosts` (`assistant/site/tools.ts`'s
 // own doc). `server/` already imports `features/post` directly and safely elsewhere in this codebase
-// (`server/routes/site/pages.ts`, `server/middleware/theme-page-preview.ts`) — this is the same edge,
+// (`apps/website/src/server/inbound/public-http/routes/site/pages.ts`, `apps/website/src/server/inbound/public-http/middleware/theme-page-preview.ts`) — this is the same edge,
 // added here so `assistant/site/*` can depend on the FUNCTION via injection instead of a static
 // import, which is what let `post` convert to the tool-contribution registry without closing a
 // `[assistant, features/post]` module cycle. See

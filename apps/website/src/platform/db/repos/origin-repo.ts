@@ -15,13 +15,13 @@ import type { OriginSettingsTable } from "../content-database.generated.js";
 /**
  * @file ADR-046 Phase 1 — THE durable `OriginSettingRepoPort` adapter: one Kysely query body for
  * every dialect (storage plan §4, ADR-066); ADR-006 rule-of-two "second adapter" half,
- * `origin/repo.memory.ts`'s `InMemoryOriginSettingRepo` is the first.
+ * `Jini packages/http-kit/src/verified-origin/repo.memory.ts`'s `InMemoryOriginSettingRepo` is the first.
  * `sqlite/origin-repo.sqlite.ts` is the thin layer the composition root builds from the content db
  * handle.
  *
  * Purpose:
  * The workspace's verified origin and its two allowlists previously lived only in-memory in the
- * real running server (`server/deps.ts`) — worse, hardcoded fresh into the constructor's seed
+ * real running server (`apps/website/src/server/runtime/composition/deps.ts`) — worse, hardcoded fresh into the constructor's seed
  * array on every boot, not even genuinely "seeded once." This adapter makes the row durable.
  *
  * The READ adapter is read-only by design (matches `OriginSettingRepoPort`, which declares no write

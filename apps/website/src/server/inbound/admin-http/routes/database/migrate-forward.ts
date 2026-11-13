@@ -19,7 +19,7 @@ const MIGRATE_PERMISSION = "database.migrate";
 /**
  * @file SPEC-017 C-103/C-105 — `POST /api/admin/v1/database/migrate-forward/{plan,confirm,execute}`
  * (ADR-041 §3's forward-migrate ceremony). Gated by `database.read` (`plan`) / `database.migrate`
- * (`confirm`/`execute`). Mirrors `routes/admin/taxonomy/merge-term.ts`'s 3-endpoint shape — the
+ * (`confirm`/`execute`). Mirrors `apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts`'s 3-endpoint shape — the
  * `/execute` step additionally wires `core/operation-lock.ts`'s cross-domain lock via
  * `migrate-forward/execute.ts`'s own `executeMigrateForward` orchestration wrapper (U-003-ORD1:
  * lock acquired strictly before the gateway's own `execute()` runs).

@@ -10,7 +10,7 @@ import { guardExternalMcpRequest } from "./guard.js";
 /**
  * @file `POST .../mcp-servers/:serverId/probe` (C-007) — connects to ONE configured server, once,
  * lists its tools, describes the surface, and closes. Registers nothing into any `ToolRegistry`, so
- * R5 (`mcp-federation/trust.ts`'s "frozen at connect") is untouched by this route — see the
+ * R5 (`Jini packages/mcp/src/federation/trust.ts`'s "frozen at connect") is untouched by this route — see the
  * write-tools implementation outline §3.1/C-4 for the full argument that a probe run in the admin
  * web server cannot un-freeze anything the daemon holds.
  *
@@ -33,7 +33,7 @@ import { guardExternalMcpRequest } from "./guard.js";
  * ## INV-006 — no secret in the response
  *
  * The response body is built ONLY from `describeRemoteToolSurface`'s output — a pure function over
- * the remote's `tools/list` reply and the two operator name lists (`mcp-federation/trust.ts`). It
+ * the remote's `tools/list` reply and the two operator name lists (`Jini packages/mcp/src/federation/trust.ts`). It
  * never touches the resolved launch spec's headers/env, so there is no code path by which a bearer
  * token, a client secret, or an env value could reach this route's response. Any other error this
  * route can raise is either fixed, Tovu-authored copy, or a stored failure REASON string that

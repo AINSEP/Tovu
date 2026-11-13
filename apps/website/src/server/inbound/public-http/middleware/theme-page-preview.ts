@@ -49,7 +49,7 @@ const PREVIEW_SANDBOX = "sandbox allow-scripts allow-forms";
  * (only published content ever flows in, products are always empty, the render pipeline's own
  * escaping never changes) — conditions that are correct today but are each independently a decision
  * someone could change later without revisiting this file. Every OTHER route on this resource
- * (`routes/admin/themes/explore.ts`) is gated on `theme.set`; an ungated new route would be the one
+ * (`apps/website/src/server/inbound/admin-http/routes/themes/explore.ts`) is gated on `theme.set`; an ungated new route would be the one
  * anomaly a future reader has to re-derive the justification for. Gating it costs one line
  * (`requireAdminSession` + the same `authorizeThemeSetPermission` check `explore.ts` already shares
  * across its own routes) and removes the whole question.

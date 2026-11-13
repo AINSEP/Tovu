@@ -66,7 +66,7 @@ function toHistoryRole(role: unknown): SiteAssistantHistoryTurn["role"] | null {
  * @complexity O(`maxMessages`) — bounded to the most recent RAW entries BEFORE validating any of
  *   them (see the `recent` slice below), so this function's cost never scales with an attacker-
  *   supplied `history` array's true length, only with the cap. `express.json()`'s own 15MB body limit
- *   (`server/app.ts`) is the outer bound on how big `rawHistory` can even arrive as; this is a second,
+ *   (`apps/website/src/server/inbound/shared/json-body-parsers.ts`) is the outer bound on how big `rawHistory` can even arrive as; this is a second,
  *   narrower bound specific to this function's own surface.
  * @overallScore 100
  */

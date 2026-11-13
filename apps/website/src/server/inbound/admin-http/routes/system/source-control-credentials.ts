@@ -37,8 +37,8 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `publish-credentials.ts`'s own header gives for its single-permission-on-every-verb shape, which
  * this route mirrors with its own dedicated permission string instead. Matches the established
  * per-feature permission convention `deployments.read`/`deployments.credentials.write` and
- * `analytics.read`/`backup.read`/`comments.read` already set (`routes/admin/deployments/list.ts`'s
- * own header traces the precedent): a NEW dot-namespaced permission, not a reused one, and the
+ * `analytics.read`/`backup.read`/`comments.read` already set (the deployments permission
+ * precedent): a NEW dot-namespaced permission, not a reused one, and the
  * seeded owner's wildcard grant authorizes it immediately with no seed edit required.
  *
  * See `CredentialsDeps` in `server/routes/types.ts` for why each route picks only its own repo.

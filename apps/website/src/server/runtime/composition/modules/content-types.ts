@@ -13,7 +13,7 @@ import type { ServerModuleHandle } from "./types.js";
  * @file ADR-046 Phase 3 (SPEC-042, final slice) — the `content-types` server module (ADR-043
  * Collections backend: content-types + entries).
  *
- * NAME COLLISION WARNING (disclosed, per SPEC-042 REQ-04): `src/server/modules/content.ts`
+ * NAME COLLISION WARNING (disclosed, per SPEC-042 REQ-04): `apps/website/src/server/runtime/composition/modules/content.ts`
  * already exists (SPEC-038's posts/pages/change-sets/presentation module) and is unrelated to
  * this domain. This file is deliberately named `content-types.ts`, not `content.ts`, to avoid
  * silently overwriting that file.

@@ -23,7 +23,7 @@ import type { ServerModuleHandle } from "./types.js";
  * via `resolveMediaRendition`) — moved here verbatim from `app.ts`'s `createApp()`, same registrar
  * function bodies, no behavior change.
  *
- * `registerAdminMediaOriginalRoute` (`routes/admin/media/original.ts`) is new: an authenticated,
+ * `registerAdminMediaOriginalRoute` (`apps/website/src/server/inbound/admin-http/routes/media/original.ts`) is new: an authenticated,
  * workspace-scoped `GET .../media/:mediaId/original` that serves an asset's ORIGINAL bytes with a
  * server-sniffed `Content-Type` — distinct from, and not a replacement for, the public rendition
  * route above (which only serves named/registered TRANSFORMS, and 404s for every asset today since
@@ -48,12 +48,12 @@ import type { ServerModuleHandle } from "./types.js";
  * `ServerModuleHandle` factories receive already-built ports, per the ADR-046 Phase 3 convention
  * established by `modules/forms.ts`/`modules/integrations.ts` — this module does not construct
  * `SharpImageTransformer`/`InMemoryImageTransformer` itself; the composition root
- * (`server/app.ts`/`server/deps.ts`) still selects which concrete adapter `imageTransformer` is.
+ * (`apps/website/src/server/runtime/composition/app.ts`/`apps/website/src/server/runtime/composition/deps.ts`) still selects which concrete adapter `imageTransformer` is.
  *
  * 2026-09-03 member-gating sweep: the deps parameter widened from `MediaRouteDeps` alone to also
  * include `MediaRenditionRouteDeps`'s `postRepo`/member-repo fields, needed by
  * `registerMediaRenditionRoute`/`registerMediaOriginalVideoRoute` (see that type's own doc). No
- * new plumbing at the call site: `server/app.ts` already passes this factory the full `routeDeps`
+ * new plumbing at the call site: `apps/website/src/server/runtime/composition/app.ts` already passes this factory the full `routeDeps`
  * object, which has carried `postRepo` and the three member repos since ADR-030.
  */
 export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps & MediaRenditionRouteDeps & MediaImportUrlRouteDeps & MediaWhereUsedDeps): ServerModuleHandle {

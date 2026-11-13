@@ -4,11 +4,11 @@
  * Purpose:
  * `src/server/routes/types.ts` is being extended by several parallel agents right now (each wiring
  * a different admin section) — this file follows the exact precedent
- * `src/server/routes/admin/members/deps.ts` established: define `NewsletterRouteDeps` here
+ * `apps/website/src/server/inbound/admin-http/routes/members/deps.ts` established: define `NewsletterRouteDeps` here
  * (`RouteDeps` intersected with what Newsletter's routes/domain layer need) rather than editing the
  * shared file directly. Each route in this directory narrows its `RouteDeps` argument via a cast
- * (safe: `NewsletterRouteDeps` is a strict extension, never a widening). `server/deps.ts`/
- * `server/app.ts`'s composition roots widen their OWN return-type annotation to
+ * (safe: `NewsletterRouteDeps` is a strict extension, never a widening). `apps/website/src/server/runtime/composition/deps.ts`/
+ * `apps/website/src/server/runtime/composition/app.ts`'s composition roots widen their OWN return-type annotation to
  * `NewsletterRouteDeps` (not `RouteDeps`) so the extra fields type-check without an unsafe cast at
  * the construction site — once `RouteDeps` is amended upstream to declare these fields directly,
  * that widened annotation becomes provably redundant and can be deleted with no behavior change.
@@ -57,7 +57,7 @@ export interface NewsletterRouteDeps extends RouteDeps {
    *    (`members/subscriber-directory.ts`'s `MembersSubscriberDirectory`), NOT a local stand-in.
    *  - `newsletterKeyring`: the real `KeyringPort` (`webhooks/ports.ts`) `unsubscribe.ts` needs
    *    for `derive()` — reuses the SAME process-lifetime keyring instance `webhookSigner` is built
-   *    from in `server/app.ts`/`server/deps.ts` (one site key, purpose-namespaced, per that port's
+   *    from in `apps/website/src/server/runtime/composition/app.ts`/`apps/website/src/server/runtime/composition/deps.ts` (one site key, purpose-namespaced, per that port's
    *    own contract), not a second independent instance.
    *  - `newsletterHooks`: one process-lifetime `HookRegistry` (`hooks.ts`'s `createHookRegistry()`)
    *    shared by every `SendPipelineDeps` composition (route-triggered and the `newsletter.send.

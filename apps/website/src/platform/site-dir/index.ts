@@ -4,12 +4,12 @@
  *
  * Boot-only functions (`boot-site-dir.ts`, `init-site.ts`, `read-site-dir.ts`,
  * `resolve-install-dir-target.ts`, `resolve-workspace.ts`, `schema-guard.ts`'s guard) are deliberately
- * NOT re-exported here — each has exactly one caller in `cli/**`/`server/deps.ts`'s own boot
+ * NOT re-exported here — each has exactly one caller in `cli/**`/`apps/website/src/server/runtime/composition/deps.ts`'s own boot
  * sequence, so there is nothing to consolidate behind a door. Only the typed exit-code errors
  * and `ConfigJson` — the shapes `cli/errors.ts` and `cli/commands/serve.ts` need — live here.
  *
  * `site-root.ts` IS re-exported, unlike the boot-only files above, because it is the opposite
- * case: three independent callers in three different top-level modules (`server/deps.ts`,
+ * case: three independent callers in three different top-level modules (`apps/website/src/server/runtime/composition/deps.ts`,
  * `features/skills/layout.ts`, `features/agent-plugins/layout.ts`) that each used to compute
  * `<cwd>/infra/...` for themselves. That is exactly the "cross-module data contract" this barrel
  * exists for, and routing the two feature callers through the door keeps them off a deep import

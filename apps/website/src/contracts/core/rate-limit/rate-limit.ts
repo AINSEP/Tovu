@@ -94,7 +94,7 @@ export const SITE_ASSISTANT_PER_IP: RateLimitProfile = {
 
 /**
  * Admin routes that make a real outbound call to a third-party service on every hit, today the
- * external-MCP probe (`routes/admin/external-mcp/probe.ts`). Session auth alone does not bound how
+ * external-MCP probe (`apps/website/src/server/inbound/admin-http/routes/external-mcp/probe.ts`). Session auth alone does not bound how
  * often they can be called, and a retry storm (a double-clicked button, a buggy client retry loop)
  * can get the workspace's own credential rate-limited or blocked provider-side: a self-inflicted
  * denial of service against every admin, not just the caller. Keyed by `resolveClientIp(req)`,
@@ -108,7 +108,7 @@ export const OUTBOUND_CALL_PER_IP: RateLimitProfile = {
 
 /**
  * `POST .../mcp-servers/:serverId/oauth/connect` and its device-poll sibling
- * (`routes/admin/external-mcp/oauth-connect.ts`, `.../oauth-device-poll.ts`).
+ * (`apps/website/src/server/inbound/admin-http/routes/external-mcp/oauth.ts`, `.../oauth-device-poll.ts`).
  *
  * Same self-DoS class {@link OUTBOUND_CALL_PER_IP} closes, with one addition specific to OAuth:
  * every hit mints a pending `state` (or starts a device authorization) and makes a real outbound

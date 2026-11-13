@@ -46,7 +46,7 @@ export function sendResetPasswordError(res: Response, err: unknown): void {
  * by **`user.manage`** only (stricter than `UPDATE_USER`). No response body — the raw new password
  * is never echoed back (INV-05); revokes every one of the target's active sessions (AC-29). Refuses
  * a THIRD-PARTY caller resetting the seeded owner's password (REQ-11/REQ-13) — the owner may still
- * reset its own — see `identity/admin-crud-service.ts`'s `resetUserPassword` for the full contract;
+ * reset its own — see `Jini packages/user-management/src/server/admin-crud-service.ts`'s `resetUserPassword` for the full contract;
  * `seededOwnerPrincipalId` is resolved here exactly as `disable.ts` resolves it for
  * `DISABLE_PRINCIPAL`.
  */

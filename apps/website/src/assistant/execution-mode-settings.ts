@@ -8,7 +8,7 @@ import { type EnsureSettingDefinitionsDeps, type SettingDefinitionSpec } from ".
 /**
  * @file Boot-time `core.execution.*` setting-definition registration for the
  * admin "Execution mode" tab (Local CLI vs. BYOK — `@jini-ai/ui`'s
- * `ExecutionTab`, mounted by `apps/admin/src/sections/SettingsUi.tsx`).
+ * `ExecutionTab`, mounted by `apps/admin/src/features/settings/SettingsUi.tsx`).
  *
  * This is deliberately the ONLY piece of custom server code the execution
  * tab's ledger persistence needs. Unlike `comments/settings.ts` /
@@ -27,7 +27,7 @@ import { type EnsureSettingDefinitionsDeps, type SettingDefinitionSpec } from ".
  *
  * OWNER KIND: `core`, not `site`. Execution mode is a platform-level
  * capability (which agent runtime backs the ADMIN's own assistant), not
- * per-site content — mirrors `features/settings/migration.ts`'s
+ * per-site content — mirrors the settings migration's
  * `core.presentation.activeThemeId` (the one other `ownerKind: "core"`
  * registration in this codebase): `workspaceId: null` at the DEFINITION
  * level (the namespace-fence CHECK requires this for `owner_kind='core'`),
@@ -63,15 +63,15 @@ export const EXECUTION_NAMESPACE = "core.execution";
 
 /**
  * Sentinel for `maxTokens: undefined` ("use the model's own default").
- * `validateDefinitionInput` (`features/settings/settings.ts`) rejects a null
+ * `validateDefinitionInput` (`Jini packages/core/src/settings/settings.ts`) rejects a null
  * `default_json` for EVERY non-secret definition, full stop — there is no
  * nullable-schema carve-out in the actual write-service check, whatever the
  * ADR-028 §6 prose says about "may be JSON null iff nullable" (confirmed by
- * `features/settings/__tests__/settings.registration.test.ts`'s own
+ * `Jini packages/core/src/settings/__tests__/settings.registration.test.ts`'s own
  * "rejects a null default for a non-secret definition (totality)" case).
  * Mirrors `comments/settings.ts`'s identical `CLOSE_AFTER_DAYS_NEVER_SENTINEL`
  * pattern; `0` is the natural sentinel here because `@jini-ai/ui`'s
- * `parseMaxTokens` (`tabs/execution/rules.ts`) already treats 0 as
+ * `parseMaxTokens` (`Jini packages/ui/src/features/execution/rules.ts`) already treats 0 as
  * meaningless — it rejects zero, negatives, and non-integers alike as
  * `undefined` rather than storing them — so `0` can never collide with a
  * real user-entered cap.
@@ -127,7 +127,7 @@ const EXECUTION_DEFINITIONS: readonly SettingDefinitionSpec<ExecutionSettingKey>
   // normative that this variant is reserved for genuinely unbounded,
   // list-shaped data with no scalar decomposition available (as of this
   // comment: `site.seo.robots_rules`, `core.analytics.excludedPaths`,
-  // `core.analytics.excludedIpRanges` — see `features/settings/types.ts`'s
+  // `core.analytics.excludedIpRanges` — see `Jini packages/core/src/settings/types.ts`'s
   // `SettingValueSchema` doc comment) — a per-agent map keyed by an operator's
   // own agent ids is not that; it is a scalar-decomposable field encoded as
   // JSON to skip the decomposition work, which is exactly what the rule
@@ -185,7 +185,7 @@ export interface EnsureExecutionSettingDefinitionsInput {
  * Idempotently registers the 9 `core.execution.*` definitions. Safe to call on
  * every boot. The skip-if-registered loop, the `ownerKind: "core"` /
  * `workspaceId: null` namespace-fence handling, and the boot-trust shim all
- * live in `features/settings/ensure-definitions.ts` — this module owns only
+ * live in `Jini packages/core/src/settings/ensure-definitions.ts` — this module owns only
  * the definition list above.
  *
  * @complexity O(1) — bounded execution and owner-grant definitions, each a skip-if-registered

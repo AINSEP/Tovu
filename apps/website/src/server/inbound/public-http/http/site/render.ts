@@ -100,7 +100,7 @@ export {
  * registry). No theme code executes — the theme is data.
  *
  * How it relates to the project:
- * - Used by `server/routes/site/pages.ts`.
+ * - Used by `apps/website/src/server/inbound/public-http/routes/site/pages.ts`.
  * - Theme look switches with the presentation feature's `activeThemeId`; the
  *   route resolves that id to a `DiscoveredTheme` and passes it here.
  *
@@ -1710,7 +1710,7 @@ function productEntryList(ctx: SiteRenderContext): string {
       const folio = String(i + 1).padStart(2, "0");
       const price = escapeHtml(formatProductMoney({ amount: product.price, currency: product.currency }));
       // `|| product.id`: defensive, not the normal path — every real `SiteProduct` source
-      // (`storefront.ts`'s `toSiteProduct`, `store-plugin.ts`'s `listProducts`) always sets a real
+      // (`storefront.ts`'s `toSiteProduct`, `Jini packages/commerce/src/store/store-plugin.ts`'s `listProducts`) always sets a real
       // `slug`. Falls back rather than crashing `escapeHtml` on a caller/test double built against
       // an older, slug-less `SiteProduct` shape.
       return `<li class="entry"><a class="entry-link" href="/products/${escapeHtml(product.slug || product.id)}"><span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml(product.title)}</h2><p class="entry-meta">${price}</p></a></li>`;
@@ -2739,7 +2739,7 @@ function readInlineWidgets(value: JsonValue | undefined): ReadonlyMap<string, Wi
 /**
  * Owner-reported bug (2026-08-12): a ref-based image dropped into a post's body rendered as a
  * labelled placeholder box showing the filename — everywhere this function's output reaches (the
- * editor's own "Preview" tab, which renders through `routes/admin/posts/template-preview.ts` ->
+ * editor's own "Preview" tab, which renders through `apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts` ->
  * `renderViaTemplate` -> this same "post-content" IR, AND the published public page) — even though
  * the asset, its `"public"` transform registration, and the `/m/` rendition route were all
  * confirmed live and working. Root cause: this function called `renderDocNode(bodyJson)` with only

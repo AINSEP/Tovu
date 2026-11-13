@@ -18,7 +18,7 @@ import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, c
  * follows the codebase's established `/api/admin/v1/workspaces/:workspaceId/...`
  * mount convention rather than api.spec.md's literal (workspace-less) path.
  *
- * `getEffective`/`resolveDefinition` (`features/settings/settings.ts`) are
+ * `getEffective`/`resolveDefinition` (`Jini packages/core/src/settings/settings.ts`) are
  * pure reads with no `authorize()` call of their own (unlike `write-service.ts`),
  * so this route does the explicit authorize-then-call dance itself, mirroring
  * `presentation/get.ts`.
@@ -27,7 +27,7 @@ import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, c
  * as a request param, but it is NOT honored — the workspace always comes from the
  * authorized `deps.workspaceId`. `principalId` naming another principal requires
  * `settings.user.read`, which is what the Settings admin screen's target-principal
- * selector (`apps/admin/src/sections/Settings.tsx`, AC-23) gates itself on too.
+ * selector (AC-23) gates itself on too.
  *
  * Enumerates every active key in the requested namespace across both the
  * platform partition (`workspaceId=null`, core/theme owners) and this

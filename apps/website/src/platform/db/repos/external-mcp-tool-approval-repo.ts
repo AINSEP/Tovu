@@ -8,7 +8,7 @@ import type { ExternalMcpToolApprovalsTable } from "../content-database.generate
 
 /**
  * @file `external_mcp_tool_approvals` (migration 0077): the G3 "Always allow" rows, one per site +
- * connection + remote tool. See `assistant/external-mcp-tool-approvals.ts`. One Kysely query body
+ * connection + remote tool. See `Jini packages/mcp/src/federation/tool-approvals.ts`. One Kysely query body
  * for every dialect (storage plan §4, ADR-066); `sqlite/external-mcp-tool-approval-repo.sqlite.ts`
  * is the thin subclass the composition root builds from the content db handle.
  */

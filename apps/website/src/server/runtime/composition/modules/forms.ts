@@ -6,7 +6,7 @@
  * Subscribes `form.submission.received`; on a notify-enabled definition, calls `MailerPort.send()`
  * per configured recipient through an isolated durable job. The one piece of Forms-owned business logic riding the outbox — kept
  * separate from the webhook-fanout forwarding (which is not Forms-owned logic; see
- * `server/app.ts`'s wiring). Legacy hosts log failures; durable recipient jobs propagate
+ * `apps/website/src/server/runtime/composition/app.ts`'s wiring). Legacy hosts log failures; durable recipient jobs propagate
  * failures to their own outbox row, outside the source `EventBusPort.publish()` subscriber loop (`core/events/memory-bus.ts`'s `publish`
  * does not catch handler errors itself — a subscriber that fails to catch its own errors would
  * break every OTHER subscriber to the same event, including the webhook fan-out). Recipient jobs

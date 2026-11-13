@@ -2,7 +2,7 @@
  * @file The `chat.db` half of G3 remembered approvals: "Allow for this chat", stored with the
  * conversation (`assistant_conversation_tool_approvals`, created by `platform/db/sqlite/chat-db.ts`)
  * so it survives a daemon/API restart and is deleted with the chat. See
- * `assistant/external-mcp-tool-approvals.ts` for the fingerprint and the "Always" half.
+ * `Jini packages/mcp/src/federation/tool-approvals.ts` for the fingerprint and the "Always" half.
  */
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
 import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";

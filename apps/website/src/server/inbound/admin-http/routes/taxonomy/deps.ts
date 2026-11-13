@@ -6,7 +6,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * Purpose:
  * The 5 plain taxonomy CRUD/list routes (list, create-taxonomy, create-term, rename-term,
  * assign-terms) only ever read `workspaceId`/`authorize`/`clock`/`idGen`/`outbox` plus the 4
- * taxonomy repo ports — this is a genuine narrowing (mirrors `routes/admin/media/deps.ts`'s
+ * taxonomy repo ports — this is a genuine narrowing (mirrors `apps/website/src/server/inbound/admin-http/routes/media/deps.ts`'s
  * identical rationale), not a `RouteDeps`-widening extension.
  *
  * `postRepo` (2026-07-16, ADR-041/043/044/045 re-audit, TM-adr041-043-044-045-audit-001, Finding
