@@ -133,7 +133,7 @@ describe("site transfer port", () => {
   });
 
   it("the download href is the share's admin zip route", () => {
-    expect(defaultSiteTransferPort.shareDownloadHref(share({ shareId: "s 1" }))).toBe("/api/admin/v1/workspaces/workspace-local/site-shares/s%201/download");
+    expect(defaultSiteTransferPort.shareDownloadHref({ share: share({ shareId: "s 1" }) })).toBe("/api/admin/v1/workspaces/workspace-local/site-shares/s%201/download");
   });
 
   it.each(["site-static-2026-10-30-1015.zip", "site.tovu.zip"])("downloads with the supplied filename %s", file => {
@@ -188,7 +188,7 @@ describe("useSiteExport", () => {
     let listed: SiteShare[] = [];
     const port = createFakeSiteTransferPort({
       listShares: async () => ({ shares: listed }),
-      createShare: async (input) => {
+      createShare: async (input, _options = {}) => {
         calls.push(input);
         if (calls.length < 3) return { jobId: "job-1", phase: "packing" };
         listed = [share()];

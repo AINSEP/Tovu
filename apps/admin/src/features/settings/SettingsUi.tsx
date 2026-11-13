@@ -202,7 +202,7 @@ const MEMORY_HOOK_FLAGS: Record<MemoryConfigFlagKey, boolean> = {
  * @complexity O(1) — fixed-shape render, no iteration, no branching.
  * @overallScore 100 — no branches, no I/O, no state.
  */
-function AboutPanel({ t, tCap }: { t: Translate; tCap: (key: string) => string }) {
+function AboutPanel({ t, tCap }: { t: Translate; tCap: (input: { key: string }, options?: Record<string, never>) => string }) {
   return (
     <section className="jini-settings-section">
       <div className="jini-settings-section-card">
@@ -211,7 +211,7 @@ function AboutPanel({ t, tCap }: { t: Translate; tCap: (key: string) => string }
           <strong>{`Tovu Admin ${TOVU_ADMIN_VERSION}`}</strong>
         </div>
         <p className="jini-hint">
-          {tCap("Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.")}
+          {tCap({ key: "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater." })}
         </p>
       </div>
     </section>
@@ -271,15 +271,18 @@ const READ_ONLY_MEMORY_ACTION = (): void => {};
  * cyclomatic-complexity rule counts a default parameter value inside a function's OWN body as one
  * of that function's own branches — a call out to a separately-scoped resolver does not.
  */
-function resolveSettingsUiHook(override: typeof useSettingsUi | undefined): typeof useSettingsUi {
+function resolveSettingsUiHook({ override }: { override: typeof useSettingsUi | undefined }, _options = {}): typeof useSettingsUi {
   return override ?? useSettingsUi;
 }
 function resolveSettingsExecutionCredentialHook(
-  override: typeof useWiredAdminExecutionCredential | undefined
+  { override }: {
+    override: typeof useWiredAdminExecutionCredential | undefined;
+  },
+  _options = {},
 ): typeof useWiredAdminExecutionCredential {
   return override ?? useWiredAdminExecutionCredential;
 }
-function resolveTabId(override: string | null | undefined): string | null {
+function resolveTabId({ override }: { override: string | null | undefined }, _options = {}): string | null {
   return override ?? null;
 }
 
@@ -289,9 +292,9 @@ export function SettingsUi(props: SettingsUiProps) {
   // `App.tsx`'s own removal): every real call site is JSX, which always constructs an actual props
   // object — `{}` when no attributes are given, never `undefined` — and every field here is
   // optional, so `{}` still satisfies the type.
-  const useSettingsUiHook = resolveSettingsUiHook(props.useSettingsUiHook);
-  const useAdminExecutionCredentialHook = resolveSettingsExecutionCredentialHook(props.useAdminExecutionCredentialHook);
-  const tabId = resolveTabId(props.tabId);
+  const useSettingsUiHook = resolveSettingsUiHook({ override: props.useSettingsUiHook });
+  const useAdminExecutionCredentialHook = resolveSettingsExecutionCredentialHook({ override: props.useAdminExecutionCredentialHook });
+  const tabId = resolveTabId({ override: props.tabId });
   useEffect(() => {
     if (props.tabId === "skills") navigate("/addons/skills", { replace: true });
     if (props.tabId === "appearance") navigate("/admin-ui?tab=appearance", { replace: true });
@@ -314,7 +317,7 @@ export function SettingsUi(props: SettingsUiProps) {
   // press, and the tab this feeds isn't rendered until past the gate anyway. Pulled out to `rules.ts`
   // (2026-09-04, complexity-ceiling pass) — see `resolveByokConfig`'s own doc comment.
   const adminCredential = useAdminExecutionCredentialHook({
-    byok: resolveByokConfig(s.execution.value as ExecutionConfig | null),
+    byok: resolveByokConfig({ executionConfig: s.execution.value as ExecutionConfig | null }),
     onByokChange: (byok) => s.execution.onChange({ ...(s.execution.value as ExecutionConfig), byok }),
   });
 
@@ -432,7 +435,7 @@ export function SettingsUi(props: SettingsUiProps) {
       id: "privacy",
       label: t("Privacy"),
       title: t("Privacy"),
-      subtitle: tCap("Product analytics consent."),
+      subtitle: tCap({ key: "Product analytics consent." }),
       icon: (
         <TabIcon>
           <path d="M9 2.5 14 4.5v4c0 3.2-2.1 6-5 7-2.9-1-5-3.8-5-7v-4z" />
@@ -518,9 +521,9 @@ export function SettingsUi(props: SettingsUiProps) {
       panel: (
         <div className="settings-ui-inert-wrap">
           <p className="settings-ui-inert-note" role="note">
-            {tCap(
-              "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.",
-            )}
+            {tCap({
+              key: "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.",
+            })}
           </p>
           <div className="settings-ui-inert-control" inert>
             {/* Nested provider: the outer one's dictionaries lack every memory-panel key (see
@@ -529,7 +532,7 @@ export function SettingsUi(props: SettingsUiProps) {
             <I18nProvider
               key={settingsLocale}
               initialLocale={settingsLocale}
-              dictionaries={memoryPanelDictionaries(settingsLocale)}
+              dictionaries={memoryPanelDictionaries({ locale: settingsLocale })}
               syncDocumentAttributes={false}
             >
             <MemorySettingsPanel

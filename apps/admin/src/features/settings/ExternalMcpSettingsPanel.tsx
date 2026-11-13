@@ -263,7 +263,7 @@ function ExternalMcpConnectButton(props: { cardHandle: string; rowLabel: string;
 }
 
 /** The verification page's host, for the device-code line; the raw string if it won't parse. */
-function displayHost(uri: string): string {
+function displayHost({ uri }: { uri: string }, _options = {}): string {
   try { return new URL(uri).host; } catch { return uri; }
 }
 
@@ -280,7 +280,7 @@ function ExternalMcpConnectStatus(props: { state: ReturnType<typeof useExternalM
       {state.phase === "device" ? (
         <span>
           {tDrift("Enter this code on the sign-in page:")} <code>{state.userCode}</code>{" "}
-          <a href={state.verificationUri} target="_blank" rel="noreferrer">{displayHost(state.verificationUri)}</a>
+          <a href={state.verificationUri} target="_blank" rel="noreferrer">{displayHost({ uri: state.verificationUri })}</a>
         </span>
       ) : (
         <span>{tDrift("Finish signing in in the new window.")}</span>
@@ -314,7 +314,7 @@ function ExternalMcpSourceRow(props: {
   const [toolsOpen, setToolsOpen] = useState(false);
   const fieldSpecs = buildExternalMcpFieldSpecs(source.fields, tDrift);
   // The SAVED count, not the picker's own draft — see this file's header on why.
-  const enabledToolCount = parseSavedToolNames(source.fields["allowedToolNames"]).length;
+  const enabledToolCount = parseSavedToolNames({ value: source.fields["allowedToolNames"] }).length;
   const rowLabel = sourceDisplayLabel(source, fieldSpecs);
   // Idle (no listeners, no timers) for every row until its Connect is pressed.
   const signIn = useConnect(
@@ -556,7 +556,7 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
         t={tDrift}
         onRequestRemove={setConfirmRemoveId}
         onAllowWrite={(connectionId, remoteName) => {
-          const patch = buildAllowWritePatch(list.sources, connectionId, remoteName);
+          const patch = buildAllowWritePatch({ sources: list.sources, connectionId, remoteName });
           if (patch) void list.update(connectionId, patch);
         }}
       />

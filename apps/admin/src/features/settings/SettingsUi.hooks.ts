@@ -37,7 +37,7 @@ export function createSettingsUiTranslators({ settingsLocale }: { settingsLocale
   };
   /** The 4 "no backend yet" capability-status notes below — see `settings-capabilities-i18n.ts`'s
    *  header for why these live in Tovu's own dictionary rather than `SETTINGS_DIALOG_DICTIONARIES`. */
-  const tCap = (key: string): string => tCapability({ locale: settingsLocale, key: key });
+  const tCap = ({ key }: { key: string }, _options = {}): string => tCapability({ locale: settingsLocale, key });
   /** The Execution tab's own copy — the two stored-key asks (`lib/stored-credential-endpoint.ts`'s copy
    *  constants), the `AdminByokKeyFooter` status lines, and the Local CLI scope label — none of which
    *  either settings-dialog dictionary behind `t` carries. See `settings-execution-i18n.ts`'s header. */

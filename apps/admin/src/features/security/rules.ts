@@ -264,8 +264,10 @@ function sourceControlTargetProviderInfo(descriptor: AdminSourceControlProviderD
  * @complexity O(t + s) in the host and source-control provider counts.
  */
 export function accessTokenProviders(
-  publishTargets: readonly AdminPublishTargetDescriptor[] | undefined,
-  sourceControlProviders?: readonly AdminSourceControlProviderDescriptor[]
+  { publishTargets }: {
+    publishTargets: readonly AdminPublishTargetDescriptor[] | undefined;
+  },
+  { sourceControlProviders }: { sourceControlProviders?: readonly AdminSourceControlProviderDescriptor[] } = {},
 ): AccessTokenProviderInfo[] {
   return [
     ...(publishTargets ?? []).flatMap((target) => (target.credential === undefined ? [] : [publishTargetProviderInfo(target, target.credential)])),
@@ -364,13 +366,13 @@ export function extraFieldsAroundToken(info: AccessTokenProviderInfo): {
  *  file's other label/fact builders (house rule: no functions in a `.tsx` component; a pure
  *  formatter with no hook state belongs in `rules.ts`, not `*.hooks.ts`, matching
  *  {@link maskedTailFact}/{@link connectedAsFact}'s own placement below). */
-export function providerGroupHandleLabel(info: AccessTokenProviderInfo, connectedCount: number): string {
+export function providerGroupHandleLabel({ info, connectedCount }: { info: AccessTokenProviderInfo; connectedCount: number }, _options = {}): string {
   return `${info.label}'s saved access tokens — ${connectedCount} connected`;
 }
 
 /** `TokenRow`'s own `agentHandle` label (`AccessTokensTab.tsx`) — see {@link providerGroupHandleLabel}
  *  for why this lives here rather than in the component. */
-export function tokenRowHandleLabel(name: string, providerLabel: string): string {
+export function tokenRowHandleLabel({ name, providerLabel }: { name: string; providerLabel: string }, _options = {}): string {
   return `${name} — ${providerLabel}, connected`;
 }
 
@@ -389,7 +391,7 @@ function legacySentinelLabel(kind: AccessTokenKind): string {
  *  today, but the naming scheme must not collide if a future migration ever runs against more than
  *  one) get "{Provider} token 2", "{Provider} token 3", ...
  *  @complexity O(1). */
-function friendlyLegacyName(providerLabel: string, indexAmongLegacyRows: number): string {
+function friendlyLegacyName({ providerLabel, indexAmongLegacyRows }: { providerLabel: string; indexAmongLegacyRows: number }, _options = {}): string {
   return indexAmongLegacyRows === 0 ? `${providerLabel} token` : `${providerLabel} token ${indexAmongLegacyRows + 1}`;
 }
 
@@ -453,9 +455,12 @@ export interface AccessTokenRow {
  *   `VendorCredentialSetRepoPort.listByWorkspace`'s own doc for why no cap is needed).
  */
 export function buildAccessTokenRows(
-  kind: AccessTokenKind,
-  raws: readonly RawCredentialSummary[],
-  providers: readonly AccessTokenProviderInfo[]
+  { kind, raws, providers }: {
+    kind: AccessTokenKind;
+    raws: readonly RawCredentialSummary[];
+    providers: readonly AccessTokenProviderInfo[];
+  },
+  _options = {},
 ): AccessTokenRow[] {
   const sentinel = legacySentinelLabel(kind);
   const legacyIndexByProvider = new Map<string, number>();
@@ -466,7 +471,7 @@ export function buildAccessTokenRows(
     if (isLegacy) {
       const index = legacyIndexByProvider.get(raw.providerId) ?? 0;
       legacyIndexByProvider.set(raw.providerId, index + 1);
-      name = friendlyLegacyName(accessTokenProviderInfo(providers, { kind, providerId: raw.providerId }).label, index);
+      name = friendlyLegacyName({ providerLabel: accessTokenProviderInfo(providers, { kind, providerId: raw.providerId }).label, indexAmongLegacyRows: index });
     }
     return { kind, ...(raw.credentialType ? { credentialType: raw.credentialType } : {}), ...(raw.worksFor ? { worksFor: raw.worksFor } : {}), providerId: raw.providerId, id: raw.id, ...(raw.tokenHint ? { tokenHint: raw.tokenHint } : {}), name, rawLabel: raw.label, isDefault: raw.isDefault, createdAt: raw.createdAt, updatedAt: raw.updatedAt };
   });
@@ -531,7 +536,7 @@ export function buildCustomCredentialRows(raws: readonly RawCustomCredentialSumm
  *  row's own display name ("Production", "30-day test token"). Case-insensitive, whitespace-trimmed;
  *  an empty query matches everything (the "no filter active" state).
  *  @complexity O(1) per row — three substring checks against already-short strings. */
-export function accessTokenRowMatchesQuery(row: AccessTokenRow, info: AccessTokenProviderInfo, query: string): boolean {
+export function accessTokenRowMatchesQuery({ row, info, query }: { row: AccessTokenRow; info: AccessTokenProviderInfo; query: string }, _options = {}): boolean {
   const q = query.trim().toLowerCase();
   if (q === "") return true;
   return info.label.toLowerCase().includes(q) || info.purposeLabel.toLowerCase().includes(q) || row.name.toLowerCase().includes(q);
@@ -542,7 +547,7 @@ export function accessTokenRowMatchesQuery(row: AccessTokenRow, info: AccessToke
  *  unconnected provider is still findable by searching its name (e.g. searching "Netlify" before
  *  ever connecting it should still surface the row inviting a first connection).
  *  @complexity O(1). */
-export function accessTokenProviderMatchesQuery(info: AccessTokenProviderInfo, query: string): boolean {
+export function accessTokenProviderMatchesQuery({ info, query }: { info: AccessTokenProviderInfo; query: string }, _options = {}): boolean {
   const q = query.trim().toLowerCase();
   if (q === "") return true;
   return info.label.toLowerCase().includes(q) || info.purposeLabel.toLowerCase().includes(q);
@@ -554,7 +559,14 @@ export function accessTokenProviderMatchesQuery(info: AccessTokenProviderInfo, q
  *  `.field-error` before a round trip, not a replacement for the server's own 409). `excludeId` is
  *  the row being edited — replacing a row's OWN current name is not a collision with itself.
  *  @complexity O(n) in this provider's own (small) saved-row count. */
-export function accessTokenNameTaken(rows: readonly AccessTokenRow[], ref: AccessTokenProviderRef, name: string, excludeId?: string): boolean {
+export function accessTokenNameTaken(
+  { rows, ref, name }: {
+    rows: readonly AccessTokenRow[];
+    ref: AccessTokenProviderRef;
+    name: string;
+  },
+  { excludeId }: { excludeId?: string } = {},
+): boolean {
   const trimmed = name.trim().toLowerCase();
   return rows.some(
     (row) => row.kind === ref.kind && row.providerId === ref.providerId && row.id !== excludeId && row.name.trim().toLowerCase() === trimmed
@@ -610,7 +622,14 @@ export function accessTokenRowReadyToSave(fields: AccessTokenFormFields, info: A
  * because a fresh `connection` object is a full replacement, not a per-field patch.
  * @complexity O(k) in this provider's own required-field count (at most one).
  */
-export function accessTokenReplaceReadyToSave(fields: AccessTokenFormFields, currentName: string, info: AccessTokenProviderInfo): boolean {
+export function accessTokenReplaceReadyToSave(
+  { fields, currentName, info }: {
+    fields: AccessTokenFormFields;
+    currentName: string;
+    info: AccessTokenProviderInfo;
+  },
+  _options = {},
+): boolean {
   if (fields.name.trim() === "") return false;
   const nameChanged = fields.name.trim() !== currentName.trim();
   const hasToken = fields.token.trim() !== "";
@@ -640,7 +659,7 @@ export function buildAccessTokenConnectionInput(
 
 /** The DOM/agent id suffix of one extra field's input. `accountId` keeps its old `account` suffix
  *  (pinned by agent tooling); every other field uses its own name, hyphenated. @complexity O(n). */
-export function accessTokenExtraFieldIdSuffix(fieldName: string): string {
+export function accessTokenExtraFieldIdSuffix({ fieldName }: { fieldName: string }, _options = {}): string {
   return fieldName === "accountId" ? "account" : fieldNameHandleSegment({ fieldName });
 }
 
@@ -705,10 +724,12 @@ export function sortAccessTokenGroups<T extends AccessTokenGroupSortInput>(group
  *  {@link accessTokenReplaceReadyToSave}'s own doc for why either can be true alone.
  *  @complexity O(1). */
 export function buildAccessTokenUpdatePatch(
-  fields: AccessTokenFormFields,
-  nameChanged: boolean,
-  hasToken: boolean,
-  info: AccessTokenProviderInfo,
+  { fields, nameChanged, hasToken, info }: {
+    fields: AccessTokenFormFields;
+    nameChanged: boolean;
+    hasToken: boolean;
+    info: AccessTokenProviderInfo;
+  },
   { currentWorksFor = [] }: { currentWorksFor?: readonly string[] } = {},
 ): { label?: string; connection?: AdminPublishConnectionInput | AdminSourceControlConnectionInput; worksFor?: string[] } {
   return {
@@ -733,7 +754,7 @@ export type AccessTokenSubmitFailure = { kind: "duplicate-label" } | { kind: "va
  * known markers, same reasoning `classifyPublishCredentialSubmitError` documents.
  * @complexity O(1).
  */
-export function classifyAccessTokenSubmitError(e: unknown): AccessTokenSubmitFailure {
+export function classifyAccessTokenSubmitError({ e }: { e: unknown }, _options = {}): AccessTokenSubmitFailure {
   if (!(e instanceof ApiError)) return { kind: "generic" };
   const marker = e.code ?? e.message;
   if (marker === "DUPLICATE_LABEL") return { kind: "duplicate-label" };
@@ -769,7 +790,7 @@ export interface CustomCredentialFormFields {
  *  explicitly rather than trusting "`new URL()` did not throw" — that constructor accepts far more
  *  schemes than this field should (`javascript:`, `mailto:`, a bare `file:`).
  *  @complexity O(1). */
-export function isValidHttpUrl(value: string): boolean {
+export function isValidHttpUrl({ value }: { value: string }, _options = {}): boolean {
   try {
     const parsed = new URL(value);
     return parsed.protocol === "http:" || parsed.protocol === "https:";
@@ -785,7 +806,7 @@ export function isValidHttpUrl(value: string): boolean {
  *  separate so a caller that only needs the parsed list (e.g. building the wire payload) does not
  *  pay for a validation pass it does not need.
  *  @complexity O(n) in the raw text's own length. */
-export function parseAdditionalHostsInput(raw: string): string[] {
+export function parseAdditionalHostsInput({ raw }: { raw: string }, _options = {}): string[] {
   return raw
     .split(/[\n,]/)
     .map((entry) => entry.trim())
@@ -796,8 +817,8 @@ export function parseAdditionalHostsInput(raw: string): string[] {
  *  own inline `.field-error`, the same pattern `baseUrlInvalid` already uses for Base URL. An empty
  *  field parses to zero entries and is never invalid (this field is entirely optional).
  *  @complexity O(n) in the number of parsed entries. */
-export function invalidAdditionalHostsEntries(raw: string): string[] {
-  return parseAdditionalHostsInput(raw).filter((entry) => !isValidHttpUrl(entry));
+export function invalidAdditionalHostsEntries({ raw }: { raw: string }, _options = {}): string[] {
+  return parseAdditionalHostsInput({ raw }).filter((entry) => !isValidHttpUrl({ value: entry }));
 }
 
 /** Whether the "Add custom provider" dialog has enough typed to save — Name, a valid `http(s)`
@@ -810,8 +831,8 @@ export function invalidAdditionalHostsEntries(raw: string): string[] {
 export function customCredentialReadyToSave(fields: CustomCredentialFormFields): boolean {
   if (fields.name.trim() === "") return false;
   if (fields.token.trim() === "") return false;
-  if (!isValidHttpUrl(fields.baseUrl.trim())) return false;
-  return invalidAdditionalHostsEntries(fields.additionalHosts).length === 0;
+  if (!isValidHttpUrl({ value: fields.baseUrl.trim() })) return false;
+  return invalidAdditionalHostsEntries({ raw: fields.additionalHosts }).length === 0;
 }
 
 /** Whether `name` collides with another saved custom credential — workspace-wide (unlike
@@ -821,7 +842,7 @@ export function customCredentialReadyToSave(fields: CustomCredentialFormFields):
  *  scoping by it the way {@link accessTokenNameTaken} does would never find a real collision). Same
  *  client-side-pre-check-not-a-replacement-for-the-server's-409 posture as that function.
  *  @complexity O(n) in this workspace's own (small) custom-credential count. */
-export function customCredentialNameTaken(rows: readonly AccessTokenRow[], name: string, excludeId?: string): boolean {
+export function customCredentialNameTaken({ rows, name }: { rows: readonly AccessTokenRow[]; name: string }, { excludeId }: { excludeId?: string } = {}): boolean {
   const trimmed = name.trim().toLowerCase();
   return rows.some((row) => row.kind === "custom" && row.id !== excludeId && row.name.trim().toLowerCase() === trimmed);
 }
@@ -850,7 +871,14 @@ export function customCredentialNameTaken(rows: readonly AccessTokenRow[], name:
  *
  * @complexity O(1).
  */
-export function customCredentialReplaceReadyToSave(fields: AccessTokenFormFields, currentName: string, currentUsername: string | undefined): boolean {
+export function customCredentialReplaceReadyToSave(
+  { fields, currentName, currentUsername }: {
+    fields: AccessTokenFormFields;
+    currentName: string;
+    currentUsername: string | undefined;
+  },
+  _options = {},
+): boolean {
   if (fields.name.trim() === "") return false;
   if (fields.token.trim() !== "") return true;
   const nameChanged = fields.name.trim() !== currentName.trim();
@@ -875,15 +903,18 @@ function accessTokenWorksForChanged({ draft, saved = [] }: { draft?: string[]; s
  *  controller would have sent it. Works-for-only edits also enable Save without a token.
  *  @complexity O(draft + saved) time/space for compatibility membership. */
 export function accessTokenExistingRowReadyToSave(
-  fields: AccessTokenFormFields,
-  row: Pick<AccessTokenRow, "kind" | "name" | "username" | "worksFor">,
-  info: AccessTokenProviderInfo
+  { fields, row, info }: {
+    fields: AccessTokenFormFields;
+    row: Pick<AccessTokenRow, "kind" | "name" | "username" | "worksFor">;
+    info: AccessTokenProviderInfo;
+  },
+  _options = {},
 ): boolean {
   // Metadata edits use the same secret-preserving update path as a rename. A supplied token
   // still requires the provider's complete connection fields.
   if (row.kind !== SOURCE_CONTROL && fields.name.trim() && !fields.token.trim() && accessTokenWorksForChanged({ draft: fields.worksFor, saved: row.worksFor })) return true;
-  if (row.kind === "custom") return customCredentialReplaceReadyToSave(fields, row.name, row.username);
-  return accessTokenReplaceReadyToSave(fields, row.name, info);
+  if (row.kind === "custom") return customCredentialReplaceReadyToSave({ fields, currentName: row.name, currentUsername: row.username });
+  return accessTokenReplaceReadyToSave({ fields, currentName: row.name, info });
 }
 
 /** Builds the wire connection input for a custom-provider create/update call — just
@@ -912,10 +943,12 @@ export function buildCustomProviderConnectionInput(fields: Pick<CustomCredential
  * @complexity O(1).
  */
 export function buildCustomCredentialUpdatePatch(
-  fields: AccessTokenFormFields,
-  nameChanged: boolean,
-  hasToken: boolean,
-  currentUsername: string | undefined,
+  { fields, nameChanged, hasToken, currentUsername }: {
+    fields: AccessTokenFormFields;
+    nameChanged: boolean;
+    hasToken: boolean;
+    currentUsername: string | undefined;
+  },
   { currentWorksFor = [] }: { currentWorksFor?: readonly string[] } = {},
 ): { label?: string; connection?: AdminCustomConnectionInput; username?: string | null; worksFor?: string[] } {
   const trimmedUsername = fields.username.trim();
@@ -933,8 +966,8 @@ export function buildCustomCredentialUpdatePatch(
  *  sending `[]` (matches `buildCustomProviderConnectionInput`'s own "omit rather than send an
  *  empty/blank value" convention, and the server's own "omitted = no extra hosts" contract).
  *  @complexity O(n) in the raw text's own length. */
-export function buildAdditionalHostsInput(raw: string): readonly string[] | undefined {
-  const parsed = parseAdditionalHostsInput(raw);
+export function buildAdditionalHostsInput({ raw }: { raw: string }, _options = {}): readonly string[] | undefined {
+  const parsed = parseAdditionalHostsInput({ raw });
   return parsed.length > 0 ? parsed : undefined;
 }
 
@@ -1035,7 +1068,14 @@ export function otherCredentialStoreInfo(id: OtherCredentialStoreId): OtherCrede
  *  search `query` — mirrors {@link accessTokenProviderMatchesQuery} exactly: the store's generic
  *  label, its purpose subtitle, or (when given) the specific configured item's own name.
  *  @complexity O(1). */
-export function otherCredentialMatchesQuery(store: OtherCredentialStoreInfo, itemName: string | undefined, query: string): boolean {
+export function otherCredentialMatchesQuery(
+  { store, itemName, query }: {
+    store: OtherCredentialStoreInfo;
+    itemName: string | undefined;
+    query: string;
+  },
+  _options = {},
+): boolean {
   const q = query.trim().toLowerCase();
   if (q === "") return true;
   if (store.label.toLowerCase().includes(q) || store.purposeLabel.toLowerCase().includes(q)) return true;
@@ -1048,7 +1088,7 @@ export function otherCredentialMatchesQuery(store: OtherCredentialStoreInfo, ite
  *  back to the raw provider id for one this workspace has a stored key under but the catalog no
  *  longer lists (a removed vendor) — a stale id is still a fact worth showing, not a reason to hide
  *  the row. @complexity O(n) in the catalog's own (small, fixed) size. */
-export function mediaProviderLabel(providerId: string): string {
+export function mediaProviderLabel({ providerId }: { providerId: string }, _options = {}): string {
   return MEDIA_PROVIDER_CATALOG.find((provider) => provider.id === providerId)?.label ?? providerId;
 }
 
@@ -1057,7 +1097,7 @@ export function mediaProviderLabel(providerId: string): string {
  *  visual spec §10: "that's ALL they ever return"). `tail` is already the last 4 characters with no
  *  leading `••••` — those API shapes agree on the bare-tail contract, so this is the one place
  *  that prefix gets added. @complexity O(1). */
-export function maskedTailFact(tail: string): string {
+export function maskedTailFact({ tail }: { tail: string }, _options = {}): string {
   return `••••${tail}`;
 }
 
@@ -1081,7 +1121,14 @@ export function envNamesFact(envNames: readonly string[], t: Translate = (key) =
  *  callers for why the visible noun stays anchored to the total, not the filtered subset. `query` is
  *  interpolated raw (not trimmed) to match the box's own display of what was typed.
  *  @complexity O(1). */
-export function accessTokensCountText(totalCount: number, matchCount: number, query: string, t: Translate = (key) => key): string {
+export function accessTokensCountText(
+  { totalCount, matchCount, query }: {
+    totalCount: number;
+    matchCount: number;
+    query: string;
+  },
+  { t = (key) => key }: { t?: Translate } = {},
+): string {
   if (query.trim() === "") {
     return t(totalCount === 1 ? "{count} token saved" : "{count} tokens saved").replace("{count}", String(totalCount));
   }

@@ -16,7 +16,7 @@ function fakeWindow() {
   const popup = { location: { href: "about:blank" }, close: vi.fn() };
   const opened: string[] = [];
   const win: ExternalMcpOAuthConnectWindow = {
-    open: (url) => { opened.push(url); return popup; },
+    open: ({ url }, _options = {}) => { opened.push(url); return popup; },
     addEventListener: ((type: string, fn: EventListener) => listeners.set(type, fn)) as Window["addEventListener"],
     removeEventListener: ((type: string) => listeners.delete(type)) as Window["removeEventListener"],
     origin: "https://localhost:3000",

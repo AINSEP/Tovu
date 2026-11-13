@@ -2206,7 +2206,7 @@ export function copyKeysResultText({ result, t }: {
 const ACCESS_TOKENS_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't load saved access tokens: {error}",
 };
-export function accessTokensLoadErrorMessage(locale: string, error: string): string {
+export function accessTokensLoadErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: ACCESS_TOKENS_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2214,7 +2214,7 @@ export function accessTokensLoadErrorMessage(locale: string, error: string): str
 const ACCESS_TOKEN_SAVE_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't save this token: {error}",
 };
-export function accessTokenSaveErrorMessage(locale: string, error: string): string {
+export function accessTokenSaveErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: ACCESS_TOKEN_SAVE_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2225,7 +2225,7 @@ export function accessTokenSaveErrorMessage(locale: string, error: string): stri
 const ACCESS_TOKEN_REMOVE_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't remove this token: {error}",
 };
-export function accessTokenRemoveErrorMessage(locale: string, error: string): string {
+export function accessTokenRemoveErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: ACCESS_TOKEN_REMOVE_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2233,7 +2233,7 @@ export function accessTokenRemoveErrorMessage(locale: string, error: string): st
 const ACCESS_TOKEN_MAKE_DEFAULT_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't make this token the default: {error}",
 };
-export function accessTokenMakeDefaultErrorMessage(locale: string, error: string): string {
+export function accessTokenMakeDefaultErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: ACCESS_TOKEN_MAKE_DEFAULT_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2243,7 +2243,7 @@ export function accessTokenMakeDefaultErrorMessage(locale: string, error: string
 const ACCESS_TOKEN_DUPLICATE_NAME_TEMPLATE: Record<string, string> = {
   en: 'A token named "{name}" already exists for {provider}.',
 };
-export function accessTokenDuplicateNameMessage(locale: string, name: string, provider: string): string {
+export function accessTokenDuplicateNameMessage({ locale, name, provider }: { locale: string; name: string; provider: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: ACCESS_TOKEN_DUPLICATE_NAME_TEMPLATE, locale }), vars: { name, provider } });
 }
 
@@ -2254,7 +2254,7 @@ export function accessTokenDuplicateNameMessage(locale: string, name: string, pr
  *  flat-dictionary boundary and risk a future translator reordering it into something that drops or
  *  inverts the claim. */
 const REMOVE_DIALOG_TITLE_TEMPLATE: Record<string, string> = { en: 'Remove "{name}" from Tovu?' };
-export function removeDialogTitle(locale: string, name: string): string {
+export function removeDialogTitle({ locale, name }: { locale: string; name: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: REMOVE_DIALOG_TITLE_TEMPLATE, locale }), vars: { name } });
 }
 
@@ -2266,7 +2266,7 @@ export function removeDialogTitle(locale: string, name: string): string {
 const REMOVE_DIALOG_BODY_TEMPLATE: Record<string, string> = {
   en: "This deletes Tovu's saved copy of this {credentialLabel} token. It does NOT revoke the token on {vendor} — it stays valid there until you revoke it yourself.",
 };
-export function removeDialogBody(locale: string, credentialLabel: string, vendor: string): string {
+export function removeDialogBody({ locale, credentialLabel, vendor }: { locale: string; credentialLabel: string; vendor: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: REMOVE_DIALOG_BODY_TEMPLATE, locale }), vars: { credentialLabel, vendor } });
 }
 
@@ -2303,15 +2303,15 @@ const REMOVE_DIALOG_EXTERNAL_MCP_BODY: Record<string, string> = {
  *  wording (above), the other three keep {@link removeDialogBody} with `purposeLabel` for both
  *  placeholders, exactly as before (Tier 2 has no vendor/destination split — its deep links go to
  *  Tovu's own screens). @complexity O(1). */
-export function otherCredentialRemoveDialogBody(locale: string, store: Pick<OtherCredentialStoreInfo, "id" | "purposeLabel">): string {
+export function otherCredentialRemoveDialogBody({ locale, store }: { locale: string; store: Pick<OtherCredentialStoreInfo, "id" | "purposeLabel"> }, _options = {}): string {
   if (store.id === "external-mcp") return localeEntry({ table: REMOVE_DIALOG_EXTERNAL_MCP_BODY, locale });
-  return removeDialogBody(locale, store.purposeLabel, store.purposeLabel);
+  return removeDialogBody({ locale, credentialLabel: store.purposeLabel, vendor: store.purposeLabel });
 }
 
 const REMOVE_DIALOG_LAST_ROW_TEMPLATE: Record<string, string> = {
   en: "This is the only saved {provider} token — after removing it, nothing here will be marked as connected.",
 };
-export function removeDialogLastRowNote(locale: string, provider: string): string {
+export function removeDialogLastRowNote({ locale, provider }: { locale: string; provider: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: REMOVE_DIALOG_LAST_ROW_TEMPLATE, locale }), vars: { provider } });
 }
 
@@ -2341,7 +2341,7 @@ const SITE_KEY_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   "zh-CN": "无法加载站点密钥状态：{error}",
   "zh-TW": "無法載入網站金鑰狀態：{error}",
 };
-export function siteKeyLoadErrorMessage(locale: string, error: string): string {
+export function siteKeyLoadErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: SITE_KEY_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2372,7 +2372,7 @@ const SITE_KEY_GENERATE_ERROR_TEMPLATE: Record<string, string> = {
   "zh-CN": "无法生成站点密钥：{error}",
   "zh-TW": "無法產生網站金鑰：{error}",
 };
-export function siteKeyGenerateErrorMessage(locale: string, error: string): string {
+export function siteKeyGenerateErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: SITE_KEY_GENERATE_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2403,6 +2403,6 @@ const SITE_KEY_REVEAL_ERROR_TEMPLATE: Record<string, string> = {
   "zh-CN": "无法显示站点密钥：{error}",
   "zh-TW": "無法顯示網站金鑰：{error}",
 };
-export function siteKeyRevealErrorMessage(locale: string, error: string): string {
+export function siteKeyRevealErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: SITE_KEY_REVEAL_ERROR_TEMPLATE, locale }), vars: { error } });
 }

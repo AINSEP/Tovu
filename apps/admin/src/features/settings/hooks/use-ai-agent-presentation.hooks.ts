@@ -16,7 +16,7 @@ export function useAiAgentPresentation(
   const presentationPort = useMemo(() => createAgentPresentationPort({
     port,
     // Detection can finish after navigating away; no state should be written to an unmounted tab.
-    onAgents: (next) => { if (live.current) setAgents((previous) => JSON.stringify(previous) === JSON.stringify(next) ? previous : next); },
+    onAgents: ({ agents: next }, _options = {}) => { if (live.current) setAgents((previous) => JSON.stringify(previous) === JSON.stringify(next) ? previous : next); },
   }), [port]);
   return {
     port: presentationPort,

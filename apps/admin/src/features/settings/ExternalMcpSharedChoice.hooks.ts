@@ -14,7 +14,7 @@ export function useExternalMcpSharedChoice({ serverId, onChanged }: { serverId: 
     catch (cause) { setError(describeApiError(cause, 'Saved connections could not be opened. Try opening them again.')); }
     finally { setPending(false); }
   }
-  async function useSaved(credentialId: string) {
+  async function useSaved({ credentialId }: { credentialId: string }, _options = {}) {
     if (!credentialId) return;
     setPending(true); setError('');
     try { await api.useSharedMcpConnection({ serverId, credentialId }); await load(); onChanged(); }

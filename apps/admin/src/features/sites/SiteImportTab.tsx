@@ -68,7 +68,7 @@ export function SiteImportTab({ t, useImport = useWiredSiteImport, useLiveSite =
 }
 
 /** Opens the drop zone's own file picker, so the button and a click on the zone are one flow. */
-function openZonePicker(zone: HTMLElement | null): void {
+function openZonePicker({ zone }: { zone: HTMLElement | null }, _options = {}): void {
   zone?.querySelector<HTMLInputElement>('input[type="file"]')?.click();
 }
 
@@ -105,7 +105,7 @@ function ArchiveSource({ controller, t }: { controller: SiteImportController; t:
             helper={t("Up to 300 MB")}
             onFiles={controller.chooseFiles}
           />
-          <button type="button" className="btn-secondary" disabled={controller.importing} onClick={() => openZonePicker(zone.current)}
+          <button type="button" className="btn-secondary" disabled={controller.importing} onClick={() => openZonePicker({ zone: zone.current })}
             {...agentHandle({ handle: "sites-import-file-choose" }, { role: "button", label: "Choose a .tovu.zip file to import" })}>
             {t("Choose file…")}
           </button>

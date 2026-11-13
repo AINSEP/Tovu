@@ -254,7 +254,7 @@ export function useSiteExport(
     revoke,
     copiedId,
     copyLink,
-    downloadHref: (share) => port.shareDownloadHref(share),
+    downloadHref: (share) => port.shareDownloadHref({ share }),
     credentialGate: credentials.credentialGate,
     acknowledge: credentials.acknowledge,
     download: credentials.download,

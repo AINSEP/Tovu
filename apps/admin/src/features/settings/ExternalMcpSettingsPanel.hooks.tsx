@@ -79,13 +79,16 @@ export function useExternalMcpDriftCopy(): Translate {
  * @returns The patch, or `null` when the id names no configured card (nothing to write).
  */
 export function buildAllowWritePatch(
-  sources: readonly SourceConfigItem[],
-  connectionId: string,
-  remoteName: string,
+  { sources, connectionId, remoteName }: {
+    sources: readonly SourceConfigItem[];
+    connectionId: string;
+    remoteName: string;
+  },
+  _options = {},
 ): { fields: Record<string, string> } | null {
   const source = sources.find((candidate) => candidate.id === connectionId);
   if (!source) return null;
-  return { fields: { writeAllowedToolNames: grantWriteFieldValue(source.fields["writeAllowedToolNames"], remoteName) } };
+  return { fields: { writeAllowedToolNames: grantWriteFieldValue({ currentWriteAllowedToolNames: source.fields["writeAllowedToolNames"], remoteName }) } };
 }
 
 /** Everything `ExternalMcpSettingsPanel` renders its "Add server" button and form from. */

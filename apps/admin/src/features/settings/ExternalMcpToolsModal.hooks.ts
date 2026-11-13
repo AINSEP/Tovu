@@ -42,7 +42,7 @@ export interface ExternalMcpToolsModalController {
  *  restoring it to whatever had focus beforehand on unmount — see this file's header.
  *
  *  @complexity O(1) per keypress; one listener for the lifetime of the mount. */
-export function useExternalMcpToolsModalEscape(onClose: () => void): ExternalMcpToolsModalController {
+export function useExternalMcpToolsModalEscape({ onClose }: { onClose: () => void }, _options = {}): ExternalMcpToolsModalController {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   useFocusTrap(dialogRef);

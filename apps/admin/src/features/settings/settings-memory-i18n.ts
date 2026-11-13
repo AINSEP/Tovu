@@ -864,6 +864,6 @@ const MEMORY_PANEL_KEYS: readonly string[] = [
  *
  * @complexity O(k) in the key count.
  */
-export function memoryPanelDictionaries(locale: string): Record<string, Record<string, string>> {
+export function memoryPanelDictionaries({ locale }: { locale: string }, _options = {}): Record<string, Record<string, string>> {
   return { [locale]: Object.fromEntries(MEMORY_PANEL_KEYS.map((key) => [key, t({ locale: locale, key: key })])) };
 }

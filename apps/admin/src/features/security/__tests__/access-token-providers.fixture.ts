@@ -43,4 +43,4 @@ export const SOURCE_CONTROL_TEST_DESCRIPTORS: readonly AdminSourceControlProvide
   },
 ];
 
-export const ACCESS_TOKEN_TEST_PROVIDERS = accessTokenProviders(PUBLISH_TARGETS, SOURCE_CONTROL_TEST_DESCRIPTORS);
+export const ACCESS_TOKEN_TEST_PROVIDERS = accessTokenProviders({ publishTargets: PUBLISH_TARGETS }, { sourceControlProviders: SOURCE_CONTROL_TEST_DESCRIPTORS });

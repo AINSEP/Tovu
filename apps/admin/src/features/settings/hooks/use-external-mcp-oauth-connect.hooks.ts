@@ -32,14 +32,14 @@ export type ExternalMcpOAuthConnectState =
 
 /** Browser seams, so a test drives the flow without a real window. */
 export interface ExternalMcpOAuthConnectWindow {
-  open: (url: string) => { location: { href: string }; close: () => void } | null;
+  open: (input: { url: string }, options?: Record<string, never>) => { location: { href: string }; close: () => void } | null;
   addEventListener: Window["addEventListener"];
   removeEventListener: Window["removeEventListener"];
   origin: string;
 }
 
 const browserWindow = (): ExternalMcpOAuthConnectWindow => ({
-  open: (url) => window.open(url, "_blank", "popup,width=520,height=720"),
+  open: ({ url }, _options = {}) => window.open(url, "_blank", "popup,width=520,height=720"),
   addEventListener: window.addEventListener.bind(window),
   removeEventListener: window.removeEventListener.bind(window),
   origin: window.location.origin,
@@ -114,19 +114,19 @@ export function useExternalMcpOAuthConnect(
   const connect = useCallback(async (options: { destination?: "shared" } = {}) => {
     stop();
     const w = win();
-    const popup = grant === "device_code" ? null : w.open("about:blank");
+    const popup = grant === "device_code" ? null : w.open({ url: "about:blank" });
     setState({ phase: "starting" });
     try {
       const { auth } = await startConnection({ port, serverId, options });
       if (auth.kind === "redirect_required") {
         if (popup) popup.location.href = auth.authorizationUrl;
-        else w.open(auth.authorizationUrl);
+        else w.open({ url: auth.authorizationUrl });
         awaitRedirect(w);
         return;
       }
       popup?.close();
       const verificationUri = auth.verificationUriComplete ?? auth.verificationUri;
-      w.open(verificationUri);
+      w.open({ url: verificationUri });
       setState({ phase: "device", userCode: auth.userCode, verificationUri });
       pollDevice(auth.intervalSeconds);
     } catch (error) {

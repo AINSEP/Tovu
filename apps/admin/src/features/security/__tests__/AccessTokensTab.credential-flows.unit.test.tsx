@@ -152,7 +152,7 @@ function groupFor(
   const ref = { kind: info.kind, providerId: info.providerId };
   return {
     info,
-    rows: rows.map((state) => ({ ...state, readyToSave: accessTokenExistingRowReadyToSave({ ref, ...state }, state.row, info) })),
+    rows: rows.map((state) => ({ ...state, readyToSave: accessTokenExistingRowReadyToSave({ fields: { ref, ...state }, row: state.row, info }) })),
     addForm: { ...addFormState, readyToSave: accessTokenRowReadyToSave({ ref, ...addFormState }, info) },
   };
 }

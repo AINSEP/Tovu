@@ -19,8 +19,8 @@ export function UserInterfaceSettingsPanel(props: { slice: UserInterfaceTabSlice
     <>
       <InterfaceSwitchRow
         id="settings-interface-hide-fab-label"
-        label={t("Hide the chat button while the chat is open")}
-        hint={t("On: the chat panel's ✕ closes it. Off: the button stays on screen above the open panel and closes it.")}
+        label={t({ key: "Hide the chat button while the chat is open" })}
+        hint={t({ key: "On: the chat panel's ✕ closes it. Off: the button stays on screen above the open panel and closes it." })}
         checked={tab.hideChatFabWhileOpen}
         onToggle={tab.toggleHideChatFabWhileOpen}
         handle="settings-interface-hide-chat-fab"
@@ -28,8 +28,8 @@ export function UserInterfaceSettingsPanel(props: { slice: UserInterfaceTabSlice
       />
       <InterfaceSwitchRow
         id="settings-interface-wrap-tabs-label"
-        label={t("Wrap tabs instead of scrolling")}
-        hint={t("On: on narrow screens, tab rows wrap onto more lines so every tab is visible. Off: they stay on one row you swipe sideways.")}
+        label={t({ key: "Wrap tabs instead of scrolling" })}
+        hint={t({ key: "On: on narrow screens, tab rows wrap onto more lines so every tab is visible. Off: they stay on one row you swipe sideways." })}
         checked={tab.wrapTabs}
         onToggle={tab.toggleWrapTabs}
         handle="settings-interface-wrap-tabs"

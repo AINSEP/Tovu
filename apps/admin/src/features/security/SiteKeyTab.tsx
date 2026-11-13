@@ -273,7 +273,7 @@ function siteKeyGenerateFailureText(failure: SiteKeyGenerateFailure, translate: 
   if (failure.kind === "already-exists") {
     return translate("A key file already exists. This tab only creates a new key — it never overwrites one.");
   }
-  return failure.kind === "generic" ? siteKeyGenerateErrorMessage(locale, failure.detail) : failure.detail;
+  return failure.kind === "generic" ? siteKeyGenerateErrorMessage({ locale, error: failure.detail }) : failure.detail;
 }
 
 function SiteKeyGenerateErrorNote({ failure, t: translate }: { failure: SiteKeyGenerateFailure; t: Translate }) {

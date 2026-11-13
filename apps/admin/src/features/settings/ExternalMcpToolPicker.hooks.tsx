@@ -21,7 +21,7 @@ import { displayToolDescription, isToolRowLocked, type ToolPickerRow } from "./e
  *  card's own base so the two never collide and an agent reading `page.find_elements` sees one
  *  obvious namespace per server. Mirrors `@jini-ai/ui`'s `sourceConfigActionHandle` scheme
  *  (`<base>-<action>`) without importing a function that package does not export to hosts. */
-export function toolPickerHandle(cardHandle: string): string {
+export function toolPickerHandle({ cardHandle }: { cardHandle: string }, _options = {}): string {
   return `${cardHandle}-tools`;
 }
 
@@ -35,7 +35,7 @@ export function toolPickerHandle(cardHandle: string): string {
  *
  * @complexity See `buildAgentListHandles`.
  */
-export function useToolRowHandles(base: string, rows: readonly ToolPickerRow[]): string[] {
+export function useToolRowHandles({ base, rows }: { base: string; rows: readonly ToolPickerRow[] }, _options = {}): string[] {
   const names = rows.map((row) => row.remoteName);
   // `names` is rebuilt every render by design (the `.map()` above); the join is the stable
   // identity that should actually gate the recompute, so it — not the array itself — is the
@@ -86,7 +86,7 @@ export function describeToolRowLock(row: ToolPickerRow, t: Translate): string | 
  *  glance, which is the same class of quiet failure as an inert write grant.
  *
  *  @complexity O(1). */
-export function describeToolCount(enabled: number, total: number, t: Translate): string {
+export function describeToolCount({ enabled, total, t }: { enabled: number; total: number; t: Translate }, _options = {}): string {
   if (enabled === 0) return interpolate({ template: t("0 of {total} tools enabled — this connection contributes nothing"), vars: { total } });
   return interpolate({ template: t("{enabled} of {total} tools enabled"), vars: { enabled, total } });
 }
@@ -114,9 +114,9 @@ export interface ToolPickerFilter {
 
 /** Case-insensitive match on the tool's name or the description the row actually shows.
  *  @complexity O(n) in the name plus description length. */
-export function matchesToolQuery(row: ToolPickerRow, needle: string): boolean {
+export function matchesToolQuery({ row, needle }: { row: ToolPickerRow; needle: string }, _options = {}): boolean {
   if (!needle) return true;
-  return row.remoteName.toLowerCase().includes(needle) || displayToolDescription(row.description).toLowerCase().includes(needle);
+  return row.remoteName.toLowerCase().includes(needle) || displayToolDescription({ description: row.description }).toLowerCase().includes(needle);
 }
 
 /**
@@ -139,7 +139,7 @@ export function useToolPickerFilter(
     () =>
       rows
         .map((row, index) => ({ row, handle: handles[index] ?? `${base}-tool-${index}` }))
-        .filter(({ row }) => matchesToolQuery(row, needle)),
+        .filter(({ row }) => matchesToolQuery({ row, needle })),
     [rows, handles, base, needle],
   );
   const selectable = visible.filter(({ row }) => !isToolRowLocked(row));

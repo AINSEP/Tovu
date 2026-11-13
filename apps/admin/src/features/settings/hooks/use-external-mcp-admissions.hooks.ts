@@ -85,7 +85,7 @@ export const defaultExternalMcpAdmissionsPort: ExternalMcpAdmissionsPort = {
  *  {@link useExternalMcpAdmissions} stays under the shop complexity ceiling; the fallback sentence
  *  is `describeApiError`'s job, so the route's own 503 body reaches the operator rather than being
  *  replaced by a generic one. */
-function resolveUnavailable(error: unknown, t: Translate): string | null {
+function resolveUnavailable({ error, t }: { error: unknown; t: Translate }, _options = {}): string | null {
   if (!error) return null;
   return describeApiError(error, t("The assistant is not reporting what it loaded — it may not be running."));
 }
@@ -107,7 +107,7 @@ const AGENT_DAEMON_UNAVAILABLE_CODE = "AGENT_DAEMON_UNAVAILABLE";
  *
  * @complexity O(1).
  */
-export function isAssistantStartingError(error: unknown): boolean {
+export function isAssistantStartingError({ error }: { error: unknown }, _options = {}): boolean {
   if (!(error instanceof ApiError)) return false;
   if (error.code === AGENT_DAEMON_UNAVAILABLE_CODE || error.code === API_UNREACHABLE_CODE || error.code === REQUEST_TIMEOUT_CODE) return true;
   return error.status >= 500;
@@ -131,7 +131,14 @@ export const UNAVAILABLE_RETRY_ATTEMPTS = 60;
  * @returns `true` while still waiting — the caller shows a calm "starting" line instead of the error.
  * @complexity O(1) per attempt; at most {@link UNAVAILABLE_RETRY_ATTEMPTS} attempts per outage.
  */
-function useUnavailableRetry(failingTransiently: boolean, isFetching: boolean, refetch: () => void): boolean {
+function useUnavailableRetry(
+  { failingTransiently, isFetching, refetch }: {
+    failingTransiently: boolean;
+    isFetching: boolean;
+    refetch: () => void;
+  },
+  _options = {},
+): boolean {
   const [attempts, setAttempts] = useState(0);
   const refetchRef = useRef(refetch);
   useEffect(() => {
@@ -191,12 +198,12 @@ const RESTART_WATCH_ATTEMPTS = 8;
  * the count is the state the UI already needs to render (`watching`), so deriving the schedule from
  * it keeps one source of truth and makes React's own cleanup cancel the pending read on unmount.
  *
- * @param refetch - The admissions query's `refetch`. Read through a ref so a change of query
+ * @param input.refetch - The admissions query's `refetch`. Read through a ref so a change of query
  *   identity cannot re-arm the timer on every render — a spin, not a schedule. Jini keeps
  *   the callable stable while the cache entry stays the same.
  * @complexity O(1) per attempt; at most {@link RESTART_WATCH_ATTEMPTS} attempts per accepted restart.
  */
-function useRestartWatch(refetch: () => void): { watching: boolean; begin: () => void } {
+function useRestartWatch({ refetch }: { refetch: () => void }, _options = {}): { watching: boolean; begin: () => void } {
   const [attemptsLeft, setAttemptsLeft] = useState(0);
   const refetchRef = useRef(refetch);
   useEffect(() => {
@@ -236,9 +243,12 @@ type RestartOutcome = { ok: boolean; reason?: string };
  * @complexity O(1).
  */
 function useRestartAction(
-  mutate: (required: { input: undefined }) => Promise<RestartOutcome>,
-  setOutcome: (outcome: RestartOutcome | null) => void,
-  beginRestartWatch: () => void,
+  { mutate, setOutcome, beginRestartWatch }: {
+    mutate: (required: { input: undefined }) => Promise<RestartOutcome>;
+    setOutcome: (outcome: RestartOutcome | null) => void;
+    beginRestartWatch: () => void;
+  },
+  _options = {},
 ): () => void {
   return useCallback(() => {
     setOutcome(null);
@@ -256,7 +266,7 @@ function useRestartAction(
 /** The route's own refusal reason, or `null`. Its 409 body carries `reason`; an older build that
  *  refuses without one still has to say something, so the fallback is a sentence rather than a
  *  silent `null` that would render as "the restart worked". */
-function resolveRefusal(outcome: RestartOutcome | null, t: Translate): string | null {
+function resolveRefusal({ outcome, t }: { outcome: RestartOutcome | null; t: Translate }, _options = {}): string | null {
   if (!outcome || outcome.ok) return null;
   return outcome.reason ?? t("the restart was refused");
 }
@@ -285,19 +295,19 @@ export function useExternalMcpAdmissions(deps: {
   const [outcome, setOutcome] = useState<RestartOutcome | null>(null);
 
   const connections = useMemo(
-    () => describeAdmissionDrift(admissions.data, savedAllowedToolNamesById),
+    () => describeAdmissionDrift({ snapshot: admissions.data, savedById: savedAllowedToolNamesById }),
     [admissions.data, savedAllowedToolNamesById],
   );
 
-  const { watching, begin: beginRestartWatch } = useRestartWatch(admissions.refetch);
-  const restart = useRestartAction(restartCall.mutate, setOutcome, beginRestartWatch);
-  const waitingForAssistant = useUnavailableRetry(isAssistantStartingError(admissions.error), admissions.isFetching, admissions.refetch);
+  const { watching, begin: beginRestartWatch } = useRestartWatch({ refetch: admissions.refetch });
+  const restart = useRestartAction({ mutate: restartCall.mutate, setOutcome, beginRestartWatch });
+  const waitingForAssistant = useUnavailableRetry({ failingTransiently: isAssistantStartingError({ error: admissions.error }), isFetching: admissions.isFetching, refetch: admissions.refetch });
 
-  const refusal = resolveRefusal(outcome, t);
+  const refusal = resolveRefusal({ outcome, t });
 
   return {
     loading: admissions.status === "loading",
-    unavailable: waitingForAssistant ? null : resolveUnavailable(admissions.error, t),
+    unavailable: waitingForAssistant ? null : resolveUnavailable({ error: admissions.error, t }),
     waitingForAssistant,
     connections,
     restartHelps: admissionRestartHelps({ connections }),

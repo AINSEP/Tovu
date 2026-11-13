@@ -91,7 +91,7 @@ export function useSiteKey(port: SiteKeyPort, t: Translate, locale: string): Sit
   const key = useMemo(() => ["site-key", "status"] as const, []);
   const fetchStatus = useCallback(async () => {
     try { return await port.status(); }
-    catch (error) { throw new Error(siteKeyLoadErrorMessage(locale, describeApiError(error, t(UNKNOWN_ERROR)))); }
+    catch (error) { throw new Error(siteKeyLoadErrorMessage({ locale, error: describeApiError(error, t(UNKNOWN_ERROR)) })); }
   }, [port, locale, t]);
   const query = useFetchQuery({ key, fetch: fetchStatus }, { staleTime: 0 });
   const loader = useCachedLoader({ key, fetch: fetchStatus }, { staleTime: 0 });
@@ -112,7 +112,7 @@ export function useSiteKey(port: SiteKeyPort, t: Translate, locale: string): Sit
       const result = await port.reveal();
       if (result.hex) setRevealedHex(result.hex);
     } catch (err) {
-      setRevealError(siteKeyRevealErrorMessage(locale, describeApiError(err, t(UNKNOWN_ERROR))));
+      setRevealError(siteKeyRevealErrorMessage({ locale, error: describeApiError(err, t(UNKNOWN_ERROR)) }));
     } finally {
       setRevealing(false);
     }

@@ -163,7 +163,7 @@ export type SitesTabId = (typeof SITES_TAB_IDS)[number];
 /** Falls back to the list for an absent or unrecognized `?tab=` value, through the same shared
  *  guard `Deployment.tsx`/`Database.tsx`/`Themes.tsx` use — a stale bookmark or a typo must open the
  *  list, never a blank panel. */
-export function resolveSitesTabId(tabId: string | null | undefined): SitesTabId {
+export function resolveSitesTabId({ tabId }: { tabId: string | null | undefined }, _options = {}): SitesTabId {
   return resolveActiveTabId({ tabId: tabId, validIds: SITES_TAB_IDS, defaultId: "all" });
 }
 

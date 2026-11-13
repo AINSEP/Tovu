@@ -269,7 +269,7 @@ function AccessTokensSearch({ controller, otherController }: { controller: Acces
   const translate = controller.t;
   const totalCount = controller.totalCount + otherController.totalCount;
   const matchCount = controller.matchCount + otherController.matchCount;
-  const countText = accessTokensCountText(totalCount, matchCount, controller.query, translate);
+  const countText = accessTokensCountText({ totalCount, matchCount, query: controller.query }, { t: translate });
   return (
     <div className="access-tokens-search">
       <label className="visually-hidden" htmlFor="access-tokens-search">
@@ -303,7 +303,7 @@ function ProviderGroup({ group, controller }: { group: AccessTokenProviderGroupS
       className="access-tokens-provider-group"
       {...agentHandle({ handle: `security-access-tokens-group-${group.info.kind}-${agentHandleSegment({ value: group.info.providerId })}` }, {
         role: "region",
-        label: providerGroupHandleLabel(group.info, group.rows.length),
+        label: providerGroupHandleLabel({ info: group.info, connectedCount: group.rows.length }),
       })}
     >
       <h3 className="access-tokens-provider-heading">
@@ -392,7 +392,7 @@ function TokenRow({
       className="access-tokens-row access-tokens-row-done"
       {...agentHandle({ handle: `security-access-tokens-row-${state.row.kind}-${agentHandleSegment({ value: state.row.providerId })}-${agentHandleSegment({ value: state.row.id })}` }, {
         role: "region",
-        label: tokenRowHandleLabel(state.name, info.label),
+        label: tokenRowHandleLabel({ name: state.name, providerLabel: info.label }),
       })}
     >
       <summary className="access-tokens-row-summary">
@@ -627,7 +627,7 @@ function ExtraFieldInputs({
       {fields.map((field) => (
         <ExtraFieldInput
           key={field.name}
-          id={`${idPrefix}-${accessTokenExtraFieldIdSuffix(field.name)}`}
+          id={`${idPrefix}-${accessTokenExtraFieldIdSuffix({ fieldName: field.name })}`}
           field={field}
           value={values[field.name] ?? ""}
           onChange={(value) => onFieldChange(field.name, value)}
@@ -846,8 +846,8 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
     const titleId = `security-access-tokens-remove-title-${agentHandleSegment({ value: row.id })}`;
     return (
       <dialog ref={ref} className="confirm-dialog" aria-labelledby={titleId}>
-        <h2 id={titleId}>{removeDialogTitle(locale, row.name)}</h2>
-        <p className="confirm-dialog-body">{removeDialogBody(locale, info.label, info.vendorLabel)}</p>
+        <h2 id={titleId}>{removeDialogTitle({ locale, name: row.name })}</h2>
+        <p className="confirm-dialog-body">{removeDialogBody({ locale, credentialLabel: info.label, vendor: info.vendorLabel })}</p>
         {info.tokenPageUrl === "" ? null : <p>
           {/* `info.vendorLabel`, NOT `info.label` — this line says WHERE to revoke, and "GitHub
               Pages"/"Cloudflare Pages" are destinations with no revoke console of their own. See
@@ -862,7 +862,7 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
             {translate("Revoke it on")} <span translate="no">{info.vendorLabel}</span> ↗
           </a>
         </p>}
-        {isLastForProvider ? <p className="confirm-dialog-body">{removeDialogLastRowNote(locale, info.label)}</p> : null}
+        {isLastForProvider ? <p className="confirm-dialog-body">{removeDialogLastRowNote({ locale, provider: info.label })}</p> : null}
         <div className="confirm-dialog-actions">
           <button
             type="button"
@@ -898,7 +898,7 @@ function RequiredFieldMarker() {
  *  more decision point to whichever function renders it, and `AddCustomCredentialDialog` already
  *  carries a full field set's worth. */
 function AdditionalHostsField({ value, onChange, translate }: { value: string; onChange: (value: string) => void; translate: Translate }) {
-  const invalid = invalidAdditionalHostsEntries(value);
+  const invalid = invalidAdditionalHostsEntries({ raw: value });
   return (
     <div className="field">
       <label className="field-label" htmlFor="security-add-custom-additional-hosts">

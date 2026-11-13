@@ -100,11 +100,11 @@ describe('D-21 AI agent presentation', () => {
     const snapshots: (readonly DetectedAgent[])[] = [];
     const port = createAgentPresentationPort({ port: {
       ...fakePort([claude]), rescanLocalAgents: async () => [{ ...claude, authStatus: 'ok' }],
-    }, onAgents: (agents) => snapshots.push(agents) });
+    }, onAgents: ({ agents }, _options = {}) => snapshots.push(agents) });
     await port.detectLocalAgents();
     await port.rescanLocalAgents!();
     expect(snapshots.map((agents) => agents[0]?.authStatus)).toEqual(['missing', 'ok']);
-    const failed = createAgentPresentationPort({ port: { ...fakePort([]), detectLocalAgents: async () => { throw new Error('Detection unavailable'); } }, onAgents: (agents) => snapshots.push(agents) });
+    const failed = createAgentPresentationPort({ port: { ...fakePort([]), detectLocalAgents: async () => { throw new Error('Detection unavailable'); } }, onAgents: ({ agents }, _options = {}) => snapshots.push(agents) });
     await expect(failed.detectLocalAgents()).rejects.toThrow('Detection unavailable');
     expect(snapshots).toHaveLength(2);
   });
@@ -137,7 +137,7 @@ it('ignores an older scan finishing after a successful sign-in rescan', async ()
   const snapshots: (readonly DetectedAgent[])[] = [];
   const port = createAgentPresentationPort({
     port: { ...fakePort([]), detectLocalAgents: () => slow, rescanLocalAgents: async () => [{ ...claude, authStatus: 'ok' }] },
-    onAgents: (agents) => snapshots.push(agents),
+    onAgents: ({ agents }, _options = {}) => snapshots.push(agents),
   });
   const initial = port.detectLocalAgents();
   await port.rescanLocalAgents!();

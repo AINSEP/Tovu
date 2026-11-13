@@ -136,7 +136,7 @@ it("renders destructive and undeclared warnings on their own rows and saves the 
 it("keeps tool handles attached to names after reorder and changes their server namespace", () => {
   // F1.3/F6.2: reject memoizing by row count or mapping to index-based handles.
   const row = (remoteName: string): ToolPickerRow => ({ remoteName, description: "", enabled: false, mayWrite: false, writeDeclared: false, destructiveDeclared: false, hintsAbsent: false, kind: "advertised" });
-  const { result, rerender } = renderHook(({ base, rows }) => useToolRowHandles(base, rows), { initialProps: { base: "atlas-tools", rows: [row("read"), row("write")] } });
+  const { result, rerender } = renderHook(({ base, rows }) => useToolRowHandles({ base, rows }), { initialProps: { base: "atlas-tools", rows: [row("read"), row("write")] } });
   expect(result.current).toEqual(["atlas-tools-read", "atlas-tools-write"]);
   rerender({ base: "atlas-tools", rows: [row("write"), row("read")] });
   expect(result.current).toEqual(["atlas-tools-write", "atlas-tools-read"]);

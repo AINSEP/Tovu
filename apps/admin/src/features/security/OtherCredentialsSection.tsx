@@ -248,10 +248,10 @@ const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCr
     const titleId = `security-other-credentials-remove-title-${rowHandleBase({ row })}`;
     return (
       <dialog ref={ref} className="confirm-dialog" aria-labelledby={titleId}>
-        <h2 id={titleId}>{removeDialogTitle(locale, row.name)}</h2>
+        <h2 id={titleId}>{removeDialogTitle({ locale, name: row.name })}</h2>
         {/* Per-store body — `otherCredentialRemoveDialogBody`'s own doc: the shared "does NOT
             revoke" sentence is kept for the replaceable stores; External MCP gets its own. */}
-        <p className="confirm-dialog-body">{otherCredentialRemoveDialogBody(locale, row.store)}</p>
+        <p className="confirm-dialog-body">{otherCredentialRemoveDialogBody({ locale, store: row.store })}</p>
         <div className="confirm-dialog-actions">
           <button
             type="button"

@@ -82,7 +82,7 @@ export function useAddCustomCredentialDialog(
 ): AddCustomCredentialDialogState {
   const form = controller.customAddForm;
   const readyToSave = customCredentialReadyToSave(form);
-  const baseUrlInvalid = form.baseUrl.trim() !== "" && !isValidHttpUrl(form.baseUrl.trim());
+  const baseUrlInvalid = form.baseUrl.trim() !== "" && !isValidHttpUrl({ value: form.baseUrl.trim() });
 
   function close(): void {
     (ref as RefObject<HTMLDialogElement>).current?.close();
@@ -178,10 +178,10 @@ export function useMergedSecretsOrder(
   const otherGroups = otherController.groups;
   return useMemo(() => {
     const visibleProviders = (providerGroups ?? []).filter(
-      (group) => accessTokenProviderMatchesQuery(group.info, query) || group.rows.length > 0
+      (group) => accessTokenProviderMatchesQuery({ info: group.info, query }) || group.rows.length > 0
     );
     const visibleOther = (otherGroups ?? []).filter(
-      (group) => otherCredentialMatchesQuery(group.store, undefined, query) || group.rows.length > 0
+      (group) => otherCredentialMatchesQuery({ store: group.store, itemName: undefined, query }) || group.rows.length > 0
     );
     const providerEntries: MergedSecretsEntry[] = visibleProviders.map((group) => ({
       kind: "provider",

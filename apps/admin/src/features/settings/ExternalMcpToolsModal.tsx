@@ -63,7 +63,7 @@ export function ExternalMcpToolsModal({
   saving,
   onSave,
 }: ExternalMcpToolsModalProps) {
-  const { dialogRef, closeRef } = useExternalMcpToolsModalEscape(onClose);
+  const { dialogRef, closeRef } = useExternalMcpToolsModalEscape({ onClose });
   const t = useT();
   const tDrift = useExternalMcpDriftCopy();
   const titleId = `${cardHandle}-tools-modal-title`;

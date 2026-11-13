@@ -25,11 +25,11 @@ const LOCALES = [
 
 describe("site key generation errors", () => {
   it("includes the failure detail in the selected language", () => {
-    expect(siteKeyGenerateErrorMessage("es", "disk full")).toBe("No se pudo generar una clave del sitio: disk full");
+    expect(siteKeyGenerateErrorMessage({ locale: "es", error: "disk full" })).toBe("No se pudo generar una clave del sitio: disk full");
   });
 
   it.each(["en", "xx", "constructor"])("uses English generation copy for %s", (locale) => {
-    expect(siteKeyGenerateErrorMessage(locale, "disk full")).toBe("Couldn't generate a site key: disk full");
+    expect(siteKeyGenerateErrorMessage({ locale, error: "disk full" })).toBe("Couldn't generate a site key: disk full");
   });
 });
 
@@ -89,13 +89,13 @@ describe('t(locale, "A key is created automatically when this site starts.")', (
 describe.each(["constructor", "toString", "__proto__"])("templated copy for inherited locale name %s", (locale) => {
   // Pins security-i18n.ts:1989: inherited locales retain the external-MCP deletion warning.
   it("falls back to the English templates", () => {
-    expect(accessTokensLoadErrorMessage(locale, "boom")).toBe("Couldn't load saved access tokens: boom");
-    expect(accessTokenDuplicateNameMessage(locale, "Main", "GitHub")).toBe(
-      accessTokenDuplicateNameMessage("en", "Main", "GitHub"),
+    expect(accessTokensLoadErrorMessage({ locale, error: "boom" })).toBe("Couldn't load saved access tokens: boom");
+    expect(accessTokenDuplicateNameMessage({ locale, name: "Main", provider: "GitHub" })).toBe(
+      accessTokenDuplicateNameMessage({ locale: "en", name: "Main", provider: "GitHub" }),
     );
-    expect(removeDialogTitle(locale, "Main")).toBe(removeDialogTitle("en", "Main"));
-    expect(siteKeyRevealErrorMessage(locale, "boom")).toBe(siteKeyRevealErrorMessage("en", "boom"));
-    expect(otherCredentialRemoveDialogBody(locale, { id: "external-mcp", purposeLabel: "MCP" })).toBe(
+    expect(removeDialogTitle({ locale, name: "Main" })).toBe(removeDialogTitle({ locale: "en", name: "Main" }));
+    expect(siteKeyRevealErrorMessage({ locale, error: "boom" })).toBe(siteKeyRevealErrorMessage({ locale: "en", error: "boom" }));
+    expect(otherCredentialRemoveDialogBody({ locale, store: { id: "external-mcp", purposeLabel: "MCP" } })).toBe(
       "This deletes the server and its saved credentials. It can't be undone — you'd have to set it up again, and sign in again if it uses OAuth.",
     );
   });
@@ -151,14 +151,14 @@ describe("other credential removal copy", () => {
     ["es", "Esto elimina el servidor y sus credenciales guardadas. No se puede deshacer: tendrías que configurarlo de nuevo y volver a iniciar sesión si usa OAuth."],
     ["ja", "サーバーと保存済みの認証情報を削除します。元に戻せません。再度使うにはセットアップし直す必要があり、OAuth を使う場合はもう一度サインインが必要です。"],
   ])("warns that external MCP removal cannot be undone in %s", (locale, expected) => {
-    const body = otherCredentialRemoveDialogBody(locale, { id: "external-mcp", purposeLabel: "MCP" });
+    const body = otherCredentialRemoveDialogBody({ locale, store: { id: "external-mcp", purposeLabel: "MCP" } });
     expect(body).toBe(expected);
     expect(body).not.toContain("does NOT revoke");
   });
 
   // Pins security-i18n.ts:1989's non-external-MCP branch: replaceable stores keep the shared body.
   it("warns that removing a media token does not revoke it", () => {
-    expect(otherCredentialRemoveDialogBody("en", { id: "media-provider", purposeLabel: "Media" })).toBe(
+    expect(otherCredentialRemoveDialogBody({ locale: "en", store: { id: "media-provider", purposeLabel: "Media" } })).toBe(
       "This deletes Tovu's saved copy of this Media token. It does NOT revoke the token on Media — it stays valid there until you revoke it yourself.",
     );
   });

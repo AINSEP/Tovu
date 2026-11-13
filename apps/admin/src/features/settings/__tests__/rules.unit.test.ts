@@ -33,23 +33,23 @@ function slice(value: unknown, loadError: string | null = null): SliceLoadState 
 
 describe("mergeSourceUpdate", () => {
   it("defaults an unknown source to empty fields and enabled", () => {
-    expect(mergeSourceUpdate(undefined, {})).toEqual({ fields: {}, enabled: true, label: undefined });
+    expect(mergeSourceUpdate({ previous: undefined, patch: {} })).toEqual({ fields: {}, enabled: true, label: undefined });
   });
 
   it("defaults missing previous fields and enabled while retaining its label", () => {
-    expect(mergeSourceUpdate({ label: "Local" }, {})).toEqual({ fields: {}, enabled: true, label: "Local" });
+    expect(mergeSourceUpdate({ previous: { label: "Local" }, patch: {} })).toEqual({ fields: {}, enabled: true, label: "Local" });
   });
 
   it("keeps explicit false and blank labels and merges fields without mutating the prior source", () => {
     const previous = { fields: { command: "node", args: "old" }, enabled: true, label: "Local" };
     const patch = { fields: { args: "new" }, enabled: false, label: "" };
-    expect(mergeSourceUpdate(previous, patch)).toEqual({ fields: { command: "node", args: "new" }, enabled: false, label: "" });
+    expect(mergeSourceUpdate({ previous, patch })).toEqual({ fields: { command: "node", args: "new" }, enabled: false, label: "" });
     expect(previous).toEqual({ fields: { command: "node", args: "old" }, enabled: true, label: "Local" });
     expect(patch).toEqual({ fields: { args: "new" }, enabled: false, label: "" });
   });
 
   it("preserves a disabled source when the patch omits enabled", () => {
-    expect(mergeSourceUpdate({ fields: { command: "node" }, enabled: false, label: "Local" }, {}))
+    expect(mergeSourceUpdate({ previous: { fields: { command: "node" }, enabled: false, label: "Local" }, patch: {} }))
       .toEqual({ fields: { command: "node" }, enabled: false, label: "Local" });
   });
 });
@@ -97,7 +97,7 @@ describe("describeSaveStatus", () => {
 
 describe("resolveByokConfig", () => {
   it("falls back to DEFAULT_EXECUTION_CONFIG.byok while executionConfig is still null", () => {
-    expect(resolveByokConfig(null)).toBe(DEFAULT_EXECUTION_CONFIG.byok);
+    expect(resolveByokConfig({ executionConfig: null })).toBe(DEFAULT_EXECUTION_CONFIG.byok);
   });
 
   it("passes a loaded config's own byok through unchanged", () => {
@@ -105,7 +105,7 @@ describe("resolveByokConfig", () => {
       ...DEFAULT_EXECUTION_CONFIG,
       byok: { ...DEFAULT_EXECUTION_CONFIG.byok, model: "claude-opus-5" },
     };
-    expect(resolveByokConfig(executionConfig)).toEqual({ ...DEFAULT_EXECUTION_CONFIG.byok, model: "claude-opus-5" });
+    expect(resolveByokConfig({ executionConfig })).toEqual({ ...DEFAULT_EXECUTION_CONFIG.byok, model: "claude-opus-5" });
   });
 });
 

@@ -135,7 +135,7 @@ function ToolPickerRowItem(props: {
           toggleAriaLabel={`See more of ${row.remoteName}'s description`}
           agentHandle={`${handle}-description-toggle`}
         >
-          {displayToolDescription(row.description)}
+          {displayToolDescription({ description: row.description })}
         </SeeMore>
       ) : null}
 
@@ -334,10 +334,10 @@ export function ExternalMcpToolPicker(props: ExternalMcpToolPickerProps) {
   const t = useExternalMcpDriftCopy();
   const tUi = useT();
   const picker = useWiredExternalMcpToolPicker({ serverId, active, allowedToolNames, writeAllowedToolNames, t });
-  const base = toolPickerHandle(cardHandle);
-  const handles = useToolRowHandles(base, picker.rows);
+  const base = toolPickerHandle({ cardHandle });
+  const handles = useToolRowHandles({ base, rows: picker.rows });
   const filter = useToolPickerFilter(picker.rows, { handles, base, setEnabled: picker.setEnabled });
-  const countLabel = describeToolCount(picker.enabledCount, picker.advertisedCount || picker.rows.length, t);
+  const countLabel = describeToolCount({ enabled: picker.enabledCount, total: picker.advertisedCount || picker.rows.length, t });
 
   return (
     <section className="external-mcp-tool-picker" {...agentHandle({ handle: base }, { role: "region", label: "External tool permissions" })}>

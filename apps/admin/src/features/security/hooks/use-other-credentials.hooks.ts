@@ -121,11 +121,11 @@ function singleKeyItems(store: OtherCredentialStoreInfo, isSet: boolean, valueFa
 
 async function readSiteAssistant(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, locale: string): Promise<RawStoreItem[]> {
   const { data } = await port.getSiteAssistantCredential();
-  return singleKeyItems(store, data.isSet, formatCredentialHint({ hint: data.tokenHint, locale }) || maskedTailFact(data.masked?.replace(/^••••/, "") ?? ""), data.updatedAt);
+  return singleKeyItems(store, data.isSet, formatCredentialHint({ hint: data.tokenHint, locale }) || maskedTailFact({ tail: data.masked?.replace(/^••••/, "") ?? "" }), data.updatedAt);
 }
 async function readAdminByok(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, locale: string): Promise<RawStoreItem[]> {
   const { data } = await port.getAdminByokCredential();
-  return singleKeyItems(store, data.isSet, formatCredentialHint({ hint: data.tokenHint, locale }) || maskedTailFact(data.masked?.replace(/^••••/, "") ?? ""), data.updatedAt);
+  return singleKeyItems(store, data.isSet, formatCredentialHint({ hint: data.tokenHint, locale }) || maskedTailFact({ tail: data.masked?.replace(/^••••/, "") ?? "" }), data.updatedAt);
 }
 /** Every configured media-provider key — one row per provider whose `apiKeyConfigured` is true, not
  *  one row for the whole store (the owner's own mock names a SPECIFIC provider, "Cloudinary (media)",
@@ -138,8 +138,8 @@ async function readMediaProviders(port: OtherCredentialsPort, locale = 'en'): Pr
     .filter(([, credentials]) => credentials.apiKeyConfigured)
     .map(([providerId, credentials]) => ({
       itemId: providerId,
-      name: mediaProviderLabel(providerId),
-      valueFact: formatCredentialHint({ hint: credentials.apiKeyHint, locale }) || maskedTailFact(credentials.apiKeyTail ?? ""),
+      name: mediaProviderLabel({ providerId }),
+      valueFact: formatCredentialHint({ hint: credentials.apiKeyHint, locale }) || maskedTailFact({ tail: credentials.apiKeyTail ?? "" }),
       updatedAt: null,
     }));
 }
@@ -202,7 +202,7 @@ function keptMediaProviderSettings(credentials: AdminMediaProviderMap[string] | 
  *  duplicate-label case here (nothing on this tier is named), so this is the plain
  *  `describeApiError`-wrapped base case only. @complexity O(1). */
 function otherCredentialSaveErrorMessage(err: unknown, t: Translate, locale: string): string {
-  return accessTokenSaveErrorMessage(locale, translateCredentialMessage({ message: describeApiError(err, t("unknown error")), locale }));
+  return accessTokenSaveErrorMessage({ locale, error: translateCredentialMessage({ message: describeApiError(err, t("unknown error")), locale }) });
 }
 
 export function useOtherCredentials(
@@ -290,7 +290,7 @@ export function useOtherCredentials(
   const totalCount = OTHER_CREDENTIAL_STORES.reduce((sum, store) => sum + (storeStates[store.id]?.items?.length ?? 0), 0);
   const matchCount = OTHER_CREDENTIAL_STORES.reduce((sum, store) => {
     const items = storeStates[store.id]?.items ?? [];
-    return sum + items.filter((item) => otherCredentialMatchesQuery(store, item.name, filter.query)).length;
+    return sum + items.filter((item) => otherCredentialMatchesQuery({ store, itemName: item.name, query: filter.query })).length;
   }, 0);
 
   return { groups, loadError: firstLoadError, totalCount, matchCount, setDraftToken, replace, remove, t };
@@ -307,7 +307,7 @@ function buildGroup(
   query: string
 ): OtherCredentialGroupState {
   const rows = items
-    .filter((item) => otherCredentialMatchesQuery(store, item.name, query))
+    .filter((item) => otherCredentialMatchesQuery({ store, itemName: item.name, query }))
     .map((item): OtherCredentialRowState => {
       const key = `${store.id}:${item.itemId}`;
       const draft = drafts[key];
@@ -354,7 +354,7 @@ async function refetchOneOrRecordFailure(
   try {
     await refetchOne(port, store, setStoreStates, t, locale);
   } catch (err: unknown) {
-    const loadError = accessTokensLoadErrorMessage(locale, translateCredentialMessage({ message: describeApiError(err, t("unknown error")), locale }));
+    const loadError = accessTokensLoadErrorMessage({ locale, error: translateCredentialMessage({ message: describeApiError(err, t("unknown error")), locale }) });
     setStoreStates((prev) => ({ ...prev, [store.id]: { items: [], loadError } }));
   }
 }

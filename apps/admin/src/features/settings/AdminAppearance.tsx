@@ -62,7 +62,7 @@ function AdminAccentFields({ accentColor, defaultAccent, defaultPickerAccent, on
       <div className="jini-accent-swatches" role="radiogroup" aria-label={t("Accent color")}>
         {swatches.map((color, index) => {
           // A colour name, not the hex (owner bug 11-01); the hex stays in the tooltip below.
-          const label = color === defaultAccent ? t("Default accent color") : settingsT({ locale, key: accentSwatchName(color) });
+          const label = color === defaultAccent ? t("Default accent color") : settingsT({ locale, key: accentSwatchName({ color }) });
           const selected = color === defaultAccent ? accentColor === undefined : accentColor !== undefined && resolvedAccent === color;
           return (
             <button

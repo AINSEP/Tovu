@@ -38,17 +38,17 @@ function entry(name: string): AdminSiteListEntry {
 
 describe("resolveSitesTabId", () => {
   it("returns each known tab id unchanged", () => {
-    for (const id of SITES_TAB_IDS) expect(resolveSitesTabId(id)).toBe(id);
+    for (const id of SITES_TAB_IDS) expect(resolveSitesTabId({ tabId: id })).toBe(id);
   });
 
   it("falls back to the list, not the form, for absent/unknown values", () => {
-    expect(resolveSitesTabId(null)).toBe("all");
-    expect(resolveSitesTabId(undefined)).toBe("all");
-    expect(resolveSitesTabId("")).toBe("all");
+    expect(resolveSitesTabId({ tabId: null })).toBe("all");
+    expect(resolveSitesTabId({ tabId: undefined })).toBe("all");
+    expect(resolveSitesTabId({ tabId: "" })).toBe("all");
     // A stale bookmark from an earlier layout, and a plausible near-miss for the real id.
-    expect(resolveSitesTabId("create")).toBe("all");
-    expect(resolveSitesTabId("New")).toBe("all");
-    expect(resolveSitesTabId("Export")).toBe("all");
+    expect(resolveSitesTabId({ tabId: "create" })).toBe("all");
+    expect(resolveSitesTabId({ tabId: "New" })).toBe("all");
+    expect(resolveSitesTabId({ tabId: "Export" })).toBe("all");
   });
 });
 

@@ -402,7 +402,7 @@ describe("isAssistantStartingError", () => {
     ["a request that timed out", new ApiError("x", 0, "REQUEST_TIMEOUT")],
     ["a bare 500 from the dev proxy", new ApiError("", 500)],
   ])("treats %s as 'still starting'", (_label, error) => {
-    expect(isAssistantStartingError(error)).toBe(true);
+    expect(isAssistantStartingError({ error })).toBe(true);
   });
 
   it.each([
@@ -411,7 +411,7 @@ describe("isAssistantStartingError", () => {
     ["a plain Error", new Error("x")],
     ["nothing", null],
   ])("does not wait on %s", (_label, error) => {
-    expect(isAssistantStartingError(error)).toBe(false);
+    expect(isAssistantStartingError({ error })).toBe(false);
   });
 });
 

@@ -66,7 +66,7 @@ export interface MergedSourceUpdate {
  *
  * @complexity Time/space: O(k) in the patch's own field count — one shallow merge, no iteration.
  */
-export function mergeSourceUpdate(previous: PreviousSourceFields | undefined, patch: SourceUpdatePatch): MergedSourceUpdate {
+export function mergeSourceUpdate({ previous, patch }: { previous: PreviousSourceFields | undefined; patch: SourceUpdatePatch }, _options = {}): MergedSourceUpdate {
   return {
     fields: { ...(previous?.fields ?? {}), ...(patch.fields ?? {}) },
     enabled: patch.enabled ?? previous?.enabled ?? true,
@@ -150,7 +150,7 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues, t: Transla
     },
   ];
 
-  if (authMode === "static_env") specs.push(...buildAccessTokenFieldSpecs(isStdio, t));
+  if (authMode === "static_env") specs.push(...buildAccessTokenFieldSpecs({ isStdio, t }));
 
   if (isStdio) {
     specs.push(
@@ -190,7 +190,7 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues, t: Transla
     });
   }
 
-  if (isOAuth) specs.push(...buildOAuthFieldSpecs(isStdio, t));
+  if (isOAuth) specs.push(...buildOAuthFieldSpecs({ isStdio, t }));
 
   return specs;
 }
@@ -207,7 +207,7 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues, t: Transla
  *
  * @complexity O(1).
  */
-function buildAccessTokenFieldSpecs(isStdio: boolean, t: Translate): SourceFieldSpec[] {
+function buildAccessTokenFieldSpecs({ isStdio, t }: { isStdio: boolean; t: Translate }, _options = {}): SourceFieldSpec[] {
   const specs: SourceFieldSpec[] = [
     { key: "accessToken", label: t("Access token"), kind: "password", placeholder: t("leave blank to keep the stored token") },
   ];
@@ -231,7 +231,7 @@ function buildAccessTokenFieldSpecs(isStdio: boolean, t: Translate): SourceField
  *
  * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
  */
-function buildOAuthFieldSpecs(isStdio: boolean, t: Translate): SourceFieldSpec[] {
+function buildOAuthFieldSpecs({ isStdio, t }: { isStdio: boolean; t: Translate }, _options = {}): SourceFieldSpec[] {
   const specs: SourceFieldSpec[] = [
     {
       key: "oauthProviderId",
@@ -408,7 +408,7 @@ export function describeSaveStatus(save: SaveState): string {
  *
  * @complexity O(1).
  */
-export function resolveByokConfig(executionConfig: ExecutionConfig | null): ByokConfig {
+export function resolveByokConfig({ executionConfig }: { executionConfig: ExecutionConfig | null }, _options = {}): ByokConfig {
   return executionConfig?.byok ?? DEFAULT_EXECUTION_CONFIG.byok;
 }
 
@@ -481,6 +481,6 @@ export const ACCENT_SWATCH_NAMES: Readonly<Record<string, string>> = {
 
 /** A preset's English name key, or its hex for a colour this table doesn't know (a new upstream
  *  preset or a custom colour still gets a usable, if technical, name). @complexity O(1). */
-export function accentSwatchName(color: string): string {
+export function accentSwatchName({ color }: { color: string }, _options = {}): string {
   return ACCENT_SWATCH_NAMES[color.toLowerCase()] ?? color;
 }

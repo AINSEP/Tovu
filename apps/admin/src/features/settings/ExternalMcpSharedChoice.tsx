@@ -8,17 +8,17 @@ export function ExternalMcpSharedChoice({ serverId, busy, signIn, onChanged, t }
   const { view, error, pending, load, useSaved, stopHere, useLocal } = useExternalMcpSharedChoice({ serverId, onChanged });
   return <div className="external-mcp-shared-choice">
     <button type="button" disabled={busy || pending} onClick={() => void load()}>{t('Use a saved connection on this Mac')}</button>
-    <SharedChoices view={view} disabled={busy || pending} signIn={signIn} useSaved={credentialId => void useSaved(credentialId)} stopHere={() => void stopHere()} useLocal={() => void useLocal()} t={t} />
+    <SharedChoices view={view} disabled={busy || pending} signIn={signIn} useSaved={({ credentialId }, _options = {}) => void useSaved({ credentialId })} stopHere={() => void stopHere()} useLocal={() => void useLocal()} t={t} />
     {error && <p role="alert">{error}</p>}
   </div>;
 }
 
-function SharedChoices({ view, disabled, signIn, useSaved, stopHere, useLocal, t }: { view: SharedView | undefined; disabled: boolean; signIn: () => void; useSaved: (id: string) => void; stopHere: () => void; useLocal: () => void; t: Translate }) {
+function SharedChoices({ view, disabled, signIn, useSaved, stopHere, useLocal, t }: { view: SharedView | undefined; disabled: boolean; signIn: () => void; useSaved: (input: { credentialId: string }, options?: Record<string, never>) => void; stopHere: () => void; useLocal: () => void; t: Translate }) {
   if (!view) return null;
   if (!view.available) return <p>{t('Saved connections are available in the desktop owner profile.')}</p>;
   return <>
     <button type="button" disabled={disabled} onClick={signIn}>{t('Sign in and save on this Mac')}</button>
-    <label>{t('Saved connection')} <select aria-label={t('Saved MCP connection')} disabled={disabled} value="" onChange={event => useSaved(event.target.value)}>
+    <label>{t('Saved connection')} <select aria-label={t('Saved MCP connection')} disabled={disabled} value="" onChange={event => useSaved({ credentialId: event.target.value })}>
       <option value="">{t('Choose a saved connection')}</option>
       {view.connections.map(item => <option key={item.credentialId} value={item.credentialId}>{item.label}</option>)}
     </select></label>
