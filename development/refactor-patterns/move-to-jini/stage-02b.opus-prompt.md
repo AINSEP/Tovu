@@ -6,7 +6,7 @@ EXECUTOR: Opus (not Terra). Why: each row is two Tovu copies that may have diver
 
 ## Repos
 - Tovu clone: `/Users/la/Programming/tovu-terra-d1` (branch `design-d1`). Jini clone: `/Users/la/Programming/jini-terra-d1`. Work ONLY in these two. Never read-modify-write `/Users/la/Programming/Tovu` or `/Users/la/Programming/Jini` (the live trees); never run `npm run link:jini`, `npm install` or `pnpm install` yourself.
-- The Tovu clone has no AI-Dev-Shop bootstrap; that is expected, proceed.
+- BOOTSTRAP: `AI-Dev-Shop/AGENTS.md` is missing in these clones. That is expected: do not look for it, do not stop, proceed with this prompt.
 - If this job edits Jini, the runner must give you `/Users/la/Programming/jini-terra-d1` as a writable directory; if it is read-only, stop and say so.
 
 ## Input
@@ -14,7 +14,7 @@ EXECUTOR: Opus (not Terra). Why: each row is two Tovu copies that may have diver
 
 ## Do
 Per row: find the twin, diff behaviour (read both, not just names). Survivor = the copy that is generic enough for both callers and already follows `(required, optional = {})`; if both are generic and the code is not Tovu-specific, put the survivor where the survey says (some name a Jini home: then it is a stage-12 MOVE instead, report it and skip). Merge differences only when one copy has a verified bug fix the other lacks (write the failing test first: red, then green). Repoint callers, delete the other copy, keep comments.
-Write a 1-line decision per row in your report (survivor, why). Same rules, checks and commit discipline as Terra stage 02 (`development/refactor-patterns/move-to-jini/stage-02.terra-prompt.md` sections "Rules" and "Done check").
+Write a 1-line decision per row in your report (survivor, why). Same rules and checks as Terra stage 02 (`development/refactor-patterns/move-to-jini/stage-02.terra-prompt.md` sections "Rules" and "Done check"), with one difference: you DO commit, `git add -- <paths> && git commit -F msg -- <paths>`, ending the message with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`; never push.
 ## Cycle gate (run before and after; paste both outputs)
 ```
 cd /Users/la/Programming/tovu-terra-d1

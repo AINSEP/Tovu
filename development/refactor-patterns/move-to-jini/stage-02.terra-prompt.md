@@ -1,4 +1,4 @@
-HARD RULE (first): stop before ~250k tokens of context. If you get close, commit what is done (explicit paths), write a REMAINING list in your report, and stop. Stopping early at a committed point is always correct.
+HARD RULE (first): stop before ~250k tokens of context. If you get close, stop at a consistent point (no half-done row), list DONE rows and a REMAINING list in your report, and stop. Stopping early at a consistent point is always correct.
 
 # Terra job, stage 02: replace Tovu copies with the existing Jini export (DEDUPE)
 
@@ -9,7 +9,7 @@ The survey found Tovu code that duplicates something Jini already publishes. Tov
 
 ## Repos
 - Tovu clone: `/Users/la/Programming/tovu-terra-d1` (branch `design-d1`). Jini clone: `/Users/la/Programming/jini-terra-d1`. Work ONLY in these two. Never read-modify-write `/Users/la/Programming/Tovu` or `/Users/la/Programming/Jini` (the live trees); never run `npm run link:jini`, `npm install` or `pnpm install` yourself.
-- The Tovu clone has no AI-Dev-Shop bootstrap; that is expected, proceed.
+- BOOTSTRAP: `AI-Dev-Shop/AGENTS.md` is missing in these clones. That is expected: do not look for it, do not stop, proceed with this prompt.
 - If this job edits Jini, the runner must give you `/Users/la/Programming/jini-terra-d1` as a writable directory; if it is read-only, stop and say so.
 
 ## Input
@@ -33,8 +33,8 @@ The survey found Tovu code that duplicates something Jini already publishes. Tov
   - Jini test: `cd /Users/la/Programming/jini-terra-d1 && pnpm --filter @jini-ai/<pkg> exec vitest run <one test file> --maxWorkers=2`
   - Jini typecheck of a package you touched: `cd /Users/la/Programming/jini-terra-d1 && pnpm --filter @jini-ai/<pkg> exec tsc -p tsconfig.json --noEmit`
   - Lint: `npx eslint <changed files>` (no new errors).
-  Leave nothing running; if a command hangs past 5 minutes, kill only the process you started.
-- Commit with explicit paths: `git add -- <paths> && git commit -F msg -- <paths>` (one commit per repo per stage; message given below; end it with the line `Co-Authored-By: Codex Terra <noreply@openai.com>`). If `.git` is read-only in your sandbox, do not commit; list every changed path in the report instead. Never push.
+  Single-file tests only: never run a whole suite, a glob or a directory. Leave nothing running (no watchers, servers or background jobs); if a command hangs past 5 minutes, kill only the process you started.
+- Do NOT commit and do NOT push, in either repo: the coordinator reviews and commits. Your report lists every changed, added and deleted path per repo.
 
 ## Done check
 - `rg -n -w <TovuName> apps` shows no declaration left for each DONE pair.
@@ -48,10 +48,10 @@ node development/refactor-patterns/move-to-jini/feature-cycles.mjs --app admin -
 ```
 The SCC sizes and mutual-pair counts after your change must be equal or smaller than before, in all three. If one grows, find the new edge with `--edges` and undo the import that made it.
 
-Commit message: `refactor(tovu): import Jini instead of duplicate Tovu copies (move-to-jini stage 02)`.
+Change summary for the coordinator's commit: `refactor(tovu): import Jini instead of duplicate Tovu copies (move-to-jini stage 02)`.
 
 ## Report (your final message)
 1. Per row/edge: DONE, BLOCKED (with the exact blocking `file:line` and import), or SKIPPED (why). Use the row's path as the key.
 2. The gate outputs (before/after).
-3. Commits (sha + repo) or, if `.git` was read-only, the changed paths.
+3. Changed, added and deleted paths per repo (you do not commit).
 4. Anything surprising, in one line each. Do not paste diffs.

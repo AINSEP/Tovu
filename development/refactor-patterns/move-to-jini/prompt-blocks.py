@@ -7,7 +7,7 @@ BUDGET = """HARD RULE (first): stop before ~250k tokens of context. If you get c
 
 REPOS = f"""## Repos
 - Tovu clone: `{TOVU}` (branch `design-d1`). Jini clone: `{JINI}`. Work ONLY in these two. Never read-modify-write `/Users/la/Programming/Tovu` or `/Users/la/Programming/Jini` (the live trees); never run `npm run link:jini`, `npm install` or `pnpm install` yourself.
-- The Tovu clone has no AI-Dev-Shop bootstrap; that is expected, proceed.
+- BOOTSTRAP: `AI-Dev-Shop/AGENTS.md` is missing in these clones. That is expected: do not look for it, do not stop, proceed with this prompt.
 - If this job edits Jini, the runner must give you `{JINI}` as a writable directory; if it is read-only, stop and say so.
 """
 
@@ -24,6 +24,37 @@ RULES = """## Rules for every edit
   - Lint: `npx eslint <changed files>` (no new errors).
   Leave nothing running; if a command hangs past 5 minutes, kill only the process you started.
 - Commit with explicit paths: `git add -- <paths> && git commit -F msg -- <paths>` (one commit per repo per stage; message given below; end it with the line `Co-Authored-By: Codex Terra <noreply@openai.com>`). If `.git` is read-only in your sandbox, do not commit; list every changed path in the report instead. Never push.
+"""
+
+# Terra jobs never commit (the coordinator does); Opus/Fable jobs commit with explicit paths.
+RULES_TERRA = """## Rules for every edit
+- Keep every comment. A comment that explains WHY moves with the code it explains; never delete one to make a move fit. Do not add new comments except the doc comments this prompt asks for.
+- No new `as any`, `@ts-ignore`, `@ts-expect-error`, `eslint-disable`, non-null `!`, no lazy `await import()`.
+- Do not change behaviour, error text, signatures or argument order unless this prompt says so. Functions keep the `(required, optional = {})` shape they have.
+- Never `git add -A`, `git stash`, `git checkout -- <file>` or `git reset`. Other agents may share the tree.
+- Run NO test suites and no repo-wide `tsc`. Allowed checks, one file at a time:
+  - Tovu website/assistant/server test: `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-concurrency=1 --experimental-test-module-mocks <one test file>`
+  - Tovu admin test: `cd apps/admin && npx vitest run <one test file> --maxWorkers=2`
+  - Jini test: `cd /Users/la/Programming/jini-terra-d1 && pnpm --filter @jini-ai/<pkg> exec vitest run <one test file> --maxWorkers=2`
+  - Jini typecheck of a package you touched: `cd /Users/la/Programming/jini-terra-d1 && pnpm --filter @jini-ai/<pkg> exec tsc -p tsconfig.json --noEmit`
+  - Lint: `npx eslint <changed files>` (no new errors).
+  Single-file tests only: never run a whole suite, a glob or a directory. Leave nothing running (no watchers, servers or background jobs); if a command hangs past 5 minutes, kill only the process you started.
+- Do NOT commit and do NOT push, in either repo: the coordinator reviews and commits. Your report lists every changed, added and deleted path per repo.
+"""
+
+RULES_OPUS = """## Rules for every edit
+- Keep every comment. A comment that explains WHY moves with the code it explains; never delete one to make a move fit. Do not add new comments except the doc comments this prompt asks for.
+- No new `as any`, `@ts-ignore`, `@ts-expect-error`, `eslint-disable`, non-null `!`, no lazy `await import()`.
+- Do not change behaviour, error text, signatures or argument order unless this prompt says so. Functions keep the `(required, optional = {})` shape they have.
+- Never `git add -A`, `git stash`, `git checkout -- <file>` or `git reset`. Other agents may share the tree.
+- Run NO test suites and no repo-wide `tsc`. Allowed checks, one file at a time:
+  - Tovu website/assistant/server test: `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-concurrency=1 --experimental-test-module-mocks <one test file>`
+  - Tovu admin test: `cd apps/admin && npx vitest run <one test file> --maxWorkers=2`
+  - Jini test: `cd /Users/la/Programming/jini-terra-d1 && pnpm --filter @jini-ai/<pkg> exec vitest run <one test file> --maxWorkers=2`
+  - Jini typecheck of a package you touched: `cd /Users/la/Programming/jini-terra-d1 && pnpm --filter @jini-ai/<pkg> exec tsc -p tsconfig.json --noEmit`
+  - Lint: `npx eslint <changed files>` (no new errors).
+  Single-file tests only. Leave nothing running; if a command hangs past 5 minutes, kill only the process you started.
+- Commit with explicit paths: `git add -- <paths> && git commit -F msg -- <paths>` (one commit per repo per stage; message given below; end it with the line `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`). If `.git` is read-only in your sandbox, do not commit; list every changed path in the report instead. Never push.
 """
 
 CYCLE_GATE = f"""## Cycle gate (run before and after; paste both outputs)
