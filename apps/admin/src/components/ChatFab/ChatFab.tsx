@@ -66,6 +66,9 @@ const FAB_ACTION_TEMPLATE: Record<string, { open: string; close: string }> = {
   tr: { open: "{label} aç", close: "{label} kapat" },
   th: { open: "เปิด {label}", close: "ปิด {label}" },
   it: { open: "Apri {label}", close: "Chiudi {label}" },
+  hi: { open: "{label} खोलें", close: "{label} बंद करें" },
+  ur: { open: "{label} کھولیں", close: "{label} بند کریں" },
+  bn: { open: "{label} খুলুন", close: "{label} বন্ধ করুন" },
 };
 
 /** "Open {label}"/"Close {label}" in the caller's locale — `label` itself is already translated

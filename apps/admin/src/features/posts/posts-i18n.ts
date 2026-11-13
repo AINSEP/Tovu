@@ -16,13 +16,11 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  *
  * `t()` falls back to `COMMON_I18N` via `createDictionaryTranslator`, same as `trash-i18n.ts`.
  *
- * `Move` is deliberately the empty string in `ja`, `ko`, `tr`, `hi`, `ur`, and `bn` — the confirm
- * dialog body composes `{t("Move")} "{title}" {t("to trash? It will disappear…")}` (see
- * `Posts.tsx`/`PostEditor.tsx`), and all six of those locales are object-before-verb constructions:
- * the verb ("move to trash?") is already embedded in the second (trailing) fragment right after the
- * quoted title, e.g. `ja`'s trailing fragment is `をゴミ箱に移動しますか？…`. A prefix word here would
- * read as a stray leading verb before the sentence's real subject. Not a missing-translation bug —
- * `posts-i18n.unit.test.ts`'s non-empty-value check excludes this one key for this reason.
+ * The confirm dialog composes `{t("Move")} "{title}" {t("to trash? It will disappear…")}` (see
+ * `Posts.tsx`/`PostEditor.tsx`). In `ja`, `ko`, `tr`, `hi`, `ur`, and `bn`, the verb is embedded
+ * in the trailing fragment after the quoted title (for example, `ja` has `をゴミ箱に移動しますか？…`).
+ * `Move` therefore supplies a contextual prefix rather than a stray leading verb before the
+ * sentence's subject. The parity test still excludes this key because the prefixes were once empty.
  */
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
@@ -1246,7 +1244,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     More: "その他",
     "Move to trash?": "ゴミ箱に移動しますか？",
     "Move to trash": "ゴミ箱に移動",
-    Move: "",
+    Move: "次の項目",
     "to trash? It will disappear from the site and from this list.":
       "をゴミ箱に移動しますか？サイトとこの一覧から削除されます。",
     "Edit page": "ページを編集",
@@ -1377,9 +1375,9 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     More: "더 보기",
     "Move to trash?": "휴지통으로 이동할까요?",
     "Move to trash": "휴지통으로 이동",
-    Move: "",
+    Move: "선택한",
     "to trash? It will disappear from the site and from this list.":
-      "휴지통으로 이동할까요? 사이트와 이 목록에서 사라집니다.",
+      "항목을 휴지통으로 이동할까요? 사이트와 이 목록에서 사라집니다.",
     "Edit page": "페이지 편집",
     "Edit post": "게시물 편집",
     "Update this page's title, body, and publish status.":
@@ -2032,9 +2030,9 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     More: "Daha fazla",
     "Move to trash?": "Çöp kutusuna taşınsın mı?",
     "Move to trash": "Çöp kutusuna taşı",
-    Move: "",
+    Move: "Seçilen",
     "to trash? It will disappear from the site and from this list.":
-      "çöp kutusuna taşınsın mı? Siteden ve bu listeden kaybolacak.",
+      "öğesi çöp kutusuna taşınsın mı? Siteden ve bu listeden kaybolacak.",
     "Edit page": "Sayfayı Düzenle",
     "Edit post": "Gönderiyi Düzenle",
     "Update this page's title, body, and publish status.":
@@ -2425,7 +2423,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     More: "अधिक",
     "Move to trash?": "ट्रैश में भेजें?",
     "Move to trash": "ट्रैश में भेजें",
-    Move: "",
+    Move: "क्या",
     "to trash? It will disappear from the site and from this list.":
       "को ट्रैश में भेजें? यह साइट और इस सूची से हट जाएगा।",
     "Edit page": "पेज संपादित करें",
@@ -2556,7 +2554,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     More: "مزید",
     "Move to trash?": "ردی کی ٹوکری میں بھیجیں؟",
     "Move to trash": "ردی کی ٹوکری میں بھیجیں",
-    Move: "",
+    Move: "کیا",
     "to trash? It will disappear from the site and from this list.":
       "کو ردی کی ٹوکری میں بھیجیں؟ یہ سائٹ اور اس فہرست سے غائب ہو جائے گا۔",
     "Edit page": "صفحہ میں ترمیم کریں",
@@ -2687,7 +2685,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     More: "আরও",
     "Move to trash?": "ট্র্যাশে সরাবেন?",
     "Move to trash": "ট্র্যাশে সরান",
-    Move: "",
+    Move: "আপনি কি",
     "to trash? It will disappear from the site and from this list.":
       "কে ট্র্যাশে সরাবেন? এটি সাইট এবং এই তালিকা থেকে অদৃশ্য হয়ে যাবে।",
     "Edit page": "পেজ সম্পাদনা করুন",

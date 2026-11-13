@@ -15,11 +15,10 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * `rules.ts`'s own header for why) reuses `features/collections/collections-i18n.ts`'s translations
  * verbatim, the same word for the same action on a different entity type.
  *
- * `Move` is deliberately the empty string in `ja`, `ko`, `tr`, `hi`, `ur`, and `bn` — same reason
- * `posts-i18n.ts`'s header documents for its own identical key: the confirm dialog composes
- * `{t("Move")} "{title}" {t("to trash? It will disappear…")}`, and all six of those locales already
- * embed the verb in the trailing fragment right after the quoted title. Not a missing-translation
- * bug — `pages-i18n.unit.test.ts`'s non-empty-value check excludes this one key for this reason.
+ * The confirm dialog composes `{t("Move")} "{title}" {t("to trash? It will disappear…")}`.
+ * In `ja`, `ko`, `tr`, `hi`, `ur`, and `bn`, the verb is in the trailing fragment after the
+ * quoted title, so `Move` supplies a contextual prefix instead of repeating the verb. The parity
+ * test still excludes this key in these locales because the prefixes were previously empty.
  */
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
@@ -663,7 +662,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     More: "その他",
     "Move to trash?": "ゴミ箱に移動しますか？",
     "Move to trash": "ゴミ箱に移動",
-    Move: "",
+    Move: "次の項目",
     "to trash? It will disappear from the site and from this list.":
       "をゴミ箱に移動しますか？サイトとこの一覧から削除されます。",
     "Loading theme pages…": "テーマページを読み込み中…",
@@ -731,9 +730,9 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     More: "더 보기",
     "Move to trash?": "휴지통으로 이동할까요?",
     "Move to trash": "휴지통으로 이동",
-    Move: "",
+    Move: "선택한",
     "to trash? It will disappear from the site and from this list.":
-      "휴지통으로 이동할까요? 사이트와 이 목록에서 사라집니다.",
+      "항목을 휴지통으로 이동할까요? 사이트와 이 목록에서 사라집니다.",
     "Loading theme pages…": "테마 페이지 로드 중…",
     "No theme pages.": "테마 페이지가 없습니다.",
     "The active theme doesn't ship any of its own static pages.":
@@ -1071,9 +1070,9 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     More: "Daha fazla",
     "Move to trash?": "Çöp kutusuna taşınsın mı?",
     "Move to trash": "Çöp kutusuna taşı",
-    Move: "",
+    Move: "Seçilen",
     "to trash? It will disappear from the site and from this list.":
-      "çöp kutusuna taşınsın mı? Siteden ve bu listeden kaybolacak.",
+      "öğesi çöp kutusuna taşınsın mı? Siteden ve bu listeden kaybolacak.",
     "Loading theme pages…": "Tema sayfaları yükleniyor…",
     "No theme pages.": "Tema sayfası yok.",
     "The active theme doesn't ship any of its own static pages.":
@@ -1275,7 +1274,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     More: "अधिक",
     "Move to trash?": "ट्रैश में भेजें?",
     "Move to trash": "ट्रैश में भेजें",
-    Move: "",
+    Move: "क्या",
     "to trash? It will disappear from the site and from this list.":
       "को ट्रैश में भेजें? यह साइट और इस सूची से हट जाएगा।",
     "Loading theme pages…": "थीम पेज लोड हो रहे हैं…",
@@ -1343,7 +1342,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     More: "مزید",
     "Move to trash?": "ردی کی ٹوکری میں بھیجیں؟",
     "Move to trash": "ردی کی ٹوکری میں بھیجیں",
-    Move: "",
+    Move: "کیا",
     "to trash? It will disappear from the site and from this list.":
       "کو ردی کی ٹوکری میں بھیجیں؟ یہ سائٹ اور اس فہرست سے غائب ہو جائے گا۔",
     "Loading theme pages…": "تھیم صفحات لوڈ ہو رہے ہیں…",
@@ -1411,7 +1410,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     More: "আরও",
     "Move to trash?": "ট্র্যাশে সরাবেন?",
     "Move to trash": "ট্র্যাশে সরান",
-    Move: "",
+    Move: "আপনি কি",
     "to trash? It will disappear from the site and from this list.":
       "কে ট্র্যাশে সরাবেন? এটি সাইট এবং এই তালিকা থেকে অদৃশ্য হয়ে যাবে।",
     "Loading theme pages…": "থিম পেজ লোড হচ্ছে…",
