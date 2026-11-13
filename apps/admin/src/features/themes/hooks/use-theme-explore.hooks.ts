@@ -400,7 +400,7 @@ export function dispatchPublishToggle(
  * @complexity O(1).
  */
 export function lockedPublishReason(pageLabel: string, t: Translate): { on: boolean; reason: string } {
-  if (pageLabel === "index") return homeFallbackPublishReason(null, t);
+  if (pageLabel === "index") return homeFallbackPublishReason({ homePage: null, t });
   if (pageLabel === "404") return { on: true, reason: t("Always published — error page") };
   return { on: false, reason: t("Not a standalone page — used as a content template") };
 }
@@ -430,7 +430,7 @@ export function selectedFilePublishState(
   if (file.kind !== "page") return null;
   // `index` is the home fallback: OFF once a content Page is the home page — see
   // `homeFallbackPublishReason` (`features/pages/lib/theme-page-publish-state.ts`).
-  if (file.label === "index") return { kind: "locked", ...homeFallbackPublishReason(file.collidingContent, t) };
+  if (file.label === "index") return { kind: "locked", ...homeFallbackPublishReason({ homePage: file.collidingContent, t }) };
   return { kind: "locked", ...lockedPublishReason(file.label, t) };
 }
 

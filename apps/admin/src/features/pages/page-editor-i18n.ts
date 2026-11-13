@@ -417,7 +417,7 @@ const markupKeys = new Set(Object.keys(pageEditorMarkupTranslations.es));
  * translator for identical editor controls. No raw locale dictionary is read here: each source
  * dictionary is consumed only by the translator exported from its own module.
  */
-export function t(locale: string, key: string): string {
+export function t({ locale, key }: { locale: string; key: string }, _options = {}): string {
   if (scriptBlockKeys.has(key)) return scriptBlockT({ locale, key });
   if (postEditorKeys.has(key as never)) return postT({ locale: locale, key: key });
   if (["Move", "Desktop", "Tablet", "Mobile", "Interactive", "Preview"].includes(key)) return controlT({ locale: locale, key: key });

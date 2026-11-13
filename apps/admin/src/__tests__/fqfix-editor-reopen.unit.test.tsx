@@ -31,13 +31,13 @@ describe.each(['tanstack', 'builtin'] as const)('fresh form hydration with %s', 
     const page: AdminPost = { id: 'p1', workspaceId: 'ws1', kind: 'page', slug: 'landing', title: 'Cached page',
       status: 'draft', bodyFormat: 'html', bodyHtml: '<p>Cached</p>', bodyJson: {}, version: 1, updatedAt: '2026-10-01T00:00:00Z' };
     const port = createFakePageEditorPort({ page });
-    const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: () => {}, t: (_locale: string, key: string) => key, locale: 'en' };
+    const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: () => {}, t: ({ key }: { locale: string; key: string }) => key, locale: 'en' };
     let current!: ReturnType<typeof usePageEditor>;
-    function Probe() { current = usePageEditor('landing', deps); return null; }
+    function Probe() { current = usePageEditor({ routeSlug: 'landing', deps }); return null; }
     const view = render(<Scope><Probe /></Scope>);
     await waitFor(() => expect(current.title).toBe('Cached page'));
     view.rerender(<Scope />);
-    port.simulateExternalWrite({ title: 'Fresh page', bodyHtml: '<p>Fresh</p>' });
+    port.simulateExternalWrite({ patch: { title: 'Fresh page', bodyHtml: '<p>Fresh</p>' } });
     const fresh = deferred<{ post: AdminPost }>();
     port.getPage = () => fresh.promise;
     view.rerender(<Scope><Probe /></Scope>);

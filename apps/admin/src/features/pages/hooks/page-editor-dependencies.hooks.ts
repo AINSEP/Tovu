@@ -13,7 +13,7 @@ import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
  *  `redirectsHostPorts`. `getPresentation` narrows `api.getPresentation()`'s wider response down to
  *  the fields this port promises. */
 export const defaultPageEditorPort: PageEditorPort = {
-  getPage: (routeSlug) => api.getPage(routeSlug),
+  getPage: ({ routeSlug }, _options = {}) => api.getPage(routeSlug),
   getPresentation: async () => {
     const { activeThemeTemplates, settings, availableThemes } = await api.getPresentation({ kind: "page" });
     const activeTheme = availableThemes.find((theme) => theme.id === settings.activeThemeId);
@@ -26,15 +26,15 @@ export const defaultPageEditorPort: PageEditorPort = {
       activeThemeTier: activeTheme?.tier ?? null,
     };
   },
-  updatePageHtml: (id, html) => api.updatePageHtml(id, html),
+  updatePageHtml: ({ id, html }, _options = {}) => api.updatePageHtml(id, html),
   // The shared posts route saves pages too; `entry` makes a failure notice say "page".
-  updatePost: (target, patch) => api.updatePost(target, patch, { entry: "page" }),
-  deletePage: (id) => api.deletePage(id),
-  templatePreviewUrl: (id, templateChoice) => api.templatePreviewUrl(id, templateChoice),
-  putAutosave: (id, draft, options) => api.putAutosave(id, draft, options),
+  updatePost: ({ target, patch }, _options = {}) => api.updatePost(target, patch, { entry: "page" }),
+  deletePage: ({ id }, _options = {}) => api.deletePage(id),
+  templatePreviewUrl: ({ id, templateChoice }, _options = {}) => api.templatePreviewUrl(id, templateChoice),
+  putAutosave: ({ id, draft }, options = {}) => api.putAutosave(id, draft, options),
   getBackupPrincipalId: () => getAdminDraftIdentity(),
-  getAutosave: (id) => api.getAutosave(id),
-  discardAutosave: (id) => api.discardAutosave(id),
+  getAutosave: ({ id }, _options = {}) => api.getAutosave(id),
+  discardAutosave: ({ id }, _options = {}) => api.discardAutosave(id),
 };
 
 /** Seed state for {@link createFakePageEditorPort}. */
@@ -81,13 +81,13 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
   /** Advances the stored row as though a DIFFERENT operator had just saved it, without the editor
    *  under test knowing — the only way to reach a genuine stale-basis refusal from `putAutosave`
    *  rather than stubbing the rejection. Mirrors `createFakePostEditorPort`'s identical member. */
-  simulateConcurrentSave(title?: string): void;
+  simulateConcurrentSave(required: {}, optional?: { title?: string }): void;
   /** Advances the stored row as though an agent tool (`pages_write_html` / `pages_write_region`)
    *  wrote it — the content-refresh background check's own trigger, distinct from
    *  {@link simulateConcurrentSave} only in NAME (both bump `version` the identical way); kept as a
    *  separate method so a test reads as "the assistant changed this" rather than "another operator's
    *  Save", matching the scenario `use-external-entry-refresh.hooks.ts` is testing for. */
-  simulateExternalWrite(patch: Partial<AdminPost>): void;
+  simulateExternalWrite(required: { patch: Partial<AdminPost> }): void;
   /** Count of `getPage` calls this fake has served — the assertion surface for "a notification that
    *  named other resources cost no fetch", which `current` alone cannot show. */
   readonly getPageCalls: number;
@@ -118,11 +118,11 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
       return getPageCalls;
     },
 
-    simulateConcurrentSave(title = "Saved by someone else") {
+    simulateConcurrentSave({}, { title = "Saved by someone else" } = {}) {
       page = { ...page, title, version: page.version + 1 };
     },
 
-    simulateExternalWrite(patch) {
+    simulateExternalWrite({ patch }) {
       page = { ...page, ...patch, version: page.version + 1 };
     },
 
@@ -147,7 +147,7 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
     // here rather than only storing `bodyHtml`, so a test that saves twice sees the same row shape the
     // server would hand back on the second load — without it this fake would report a converted page
     // as still `doc`-format forever, which is exactly the state `pageAcceptsHtmlBody` branches on.
-    async updatePageHtml(id, html) {
+    async updatePageHtml({ id, html }) {
       if (id !== page.id) throw new Error(`fake page editor port: unknown page id ${id}`);
       updatePageHtmlCalls.push(html);
       // `version` is bumped because the real writer bumps it: `PagesHtmlDocumentStore.write()`
@@ -160,7 +160,7 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
       return { post: page };
     },
 
-    async updatePost({ id }, patch) {
+    async updatePost({ target: { id }, patch }) {
       if (id !== page.id) throw new Error(`fake page editor port: unknown page id ${id}`);
       updatePostCalls.push(patch);
       // The real route's optimistic-concurrency guard, modeled rather than stubbed: the same opt-in
@@ -182,7 +182,7 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
       return { post: page };
     },
 
-    async deletePage(id) {
+    async deletePage({ id }) {
       if (id !== page.id) throw new Error(`fake page editor port: unknown page id ${id}`);
       deleteCalled = true;
       return { post: page };
@@ -191,7 +191,7 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
     // A distinct `fake://` scheme, not `api.templatePreviewUrl`'s real `siteUrl(...)`-wrapped
     // `/api/admin/...` shape — so a test asserting the rendered iframe's `src` came from THIS fake
     // fails if `PageEditor.tsx`'s preview ever goes back to calling the real `api` directly.
-    templatePreviewUrl(id, templateChoice) {
+    templatePreviewUrl({ id, templateChoice }) {
       return `fake://template-preview/${id}?templateChoice=${templateChoice ?? ""}`;
     },
 
@@ -200,7 +200,7 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
     // baseVersion`, so a draft built on a superseded basis is refused and nothing is parked. The
     // call is still recorded, because "the editor sent a write the server threw away" is the
     // observation a stale-basis test needs.
-    async putAutosave(id, draft) {
+    async putAutosave({ id, draft }) {
       if (id !== page.id) throw new Error(`fake page editor port: unknown page id ${id}`);
       putAutosaveCalls.push(draft);
       if (draft.baseVersion !== page.version) return { applied: false };

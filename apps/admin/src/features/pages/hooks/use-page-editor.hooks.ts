@@ -436,13 +436,11 @@ function applyLoadedPage(
  *  savable, and therefore has to count as dirty — otherwise the Save button never shows its pending
  *  dot, `useDirtyGuard` lets a navigate-away discard the work without asking, and the standing-draft
  *  autosave below never fires at all. */
-function computeContentDirty(
-  page: AdminPost | null,
-  draft: { title: string; slug: string; status: "draft" | "published"; html: string; savedHtml: string },
+function computeContentDirty({ page, draft }: { page: AdminPost | null; draft: { title: string; slug: string; status: "draft" | "published"; html: string; savedHtml: string } }, _options = {}
 ): boolean {
   if (page === null) return false;
   const metaDirty = draft.title !== page.title || draft.slug !== page.slug || draft.status !== page.status;
-  return metaDirty || (pageAcceptsHtmlBody(page, draft.html) && draft.html !== draft.savedHtml);
+  return metaDirty || (pageAcceptsHtmlBody({ page, html: draft.html }) && draft.html !== draft.savedHtml);
 }
 
 /**
@@ -475,19 +473,22 @@ function schedulePendingHtmlPreviewSubmit(input: { active: boolean; form: HTMLFo
  *  once `save` has confirmed this call's generation is still current — see `save`'s own
  *  `settlement` doc — so every branch here runs unconditionally once reached. */
 function applySavedPage(
-  updated: AdminPost,
-  form: { templateChoice: string | null; html: string; nextStatus?: "draft" | "published"; basisVersion: number },
-  canSaveHtml: boolean,
-  setters: {
-    setPage: (page: AdminPost) => void;
-    setSlug: (slug: string) => void;
-    setStatus: (status: "draft" | "published") => void;
-    setSavedTemplateChoice: (value: string | null) => void;
-    setSavedHtml: (value: string) => void;
-    setMessage: (value: string) => void;
+  { updated, form, canSaveHtml, setters, t, locale }: {
+    updated: AdminPost;
+    form: { templateChoice: string | null; html: string; nextStatus?: "draft" | "published"; basisVersion: number };
+    canSaveHtml: boolean;
+    setters: {
+      setPage: (page: AdminPost) => void;
+      setSlug: (slug: string) => void;
+      setStatus: (status: "draft" | "published") => void;
+      setSavedTemplateChoice: (value: string | null) => void;
+      setSavedHtml: (value: string) => void;
+      setMessage: (value: string) => void;
+    };
+    t: (required: { locale: string; key: string }) => string;
+    locale: string;
   },
-  t: (locale: string, key: string) => string,
-  locale: string,
+  _options = {},
 ): void {
   setters.setPage(updated);
   setters.setSlug(updated.slug);
@@ -498,7 +499,7 @@ function applySavedPage(
   // The server skips a save whose content matches what's stored and answers with the SAME version
   // (2026-10-10, no-op save guard), so an unchanged version means nothing new was written.
   const unchanged = form.nextStatus === undefined && updated.version === form.basisVersion;
-  setters.setMessage(unchanged ? pageUnchangedSaveMessage(t, locale, updated.version) : pageSaveSuccessMessage(t, locale, canSaveHtml));
+  setters.setMessage(unchanged ? pageUnchangedSaveMessage({ t, locale, version: updated.version }) : pageSaveSuccessMessage({ t, locale, canSaveHtml }));
 }
 
 /**
@@ -522,22 +523,18 @@ function applySavedPage(
  *   otherwise. Reading the earlier one would hand the caller a `version` already one behind.
  * @complexity Time O(1) plus one or two requests; space O(1).
  */
-async function writePage(
-  port: PageEditorPort,
-  pageId: string,
-  plan: PageSavePlan,
-  html: string,
+async function writePage({ port, pageId, plan, html }: { port: PageEditorPort; pageId: string; plan: PageSavePlan; html: string }, _options = {}
 ): Promise<AdminPost> {
-  const { post: updated } = await port.updatePost({ id: pageId }, plan.updatePostPayload);
+  const { post: updated } = await port.updatePost({ target: { id: pageId }, patch: plan.updatePostPayload });
   if (!plan.canSaveHtml) return updated;
   try {
-    const { post: withBody } = await port.updatePageHtml(pageId, html);
+    const { post: withBody } = await port.updatePageHtml({ id: pageId, html });
     return withBody;
   } catch (e) {
     // The metadata write above already landed — losing that fact here is exactly the partial-success
     // bug this wraps against (H1, 2026-09-20). See `PageBodyWriteError`'s own doc and
     // `applySaveFailure`'s handling of it.
-    throw new PageBodyWriteError(updated, e);
+    throw new PageBodyWriteError({ savedRow: updated, reason: e });
   }
 }
 
@@ -546,11 +543,13 @@ async function writePage(
  *  the time this is thrown — so `applySaveFailure` can apply it without a second round-trip, and
  *  `reason`, whatever the body write itself threw, for the message shown to the operator. */
 class PageBodyWriteError extends Error {
-  constructor(
-    readonly savedRow: AdminPost,
-    readonly reason: unknown,
-  ) {
+  readonly savedRow: AdminPost;
+  readonly reason: unknown;
+
+  constructor({ savedRow, reason }: { savedRow: AdminPost; reason: unknown }, _options = {}) {
     super("page body write failed after its metadata write already landed");
+    this.savedRow = savedRow;
+    this.reason = reason;
   }
 }
 
@@ -562,14 +561,17 @@ class PageBodyWriteError extends Error {
  *  no `nextStatus` override (the metadata write already wrote whatever status this attempt asked
  *  for, since it is what succeeded). */
 function applyPartialSave(
-  updated: AdminPost,
-  form: { templateChoice: string | null },
-  setters: {
-    setPage: (page: AdminPost) => void;
-    setSlug: (slug: string) => void;
-    setStatus: (status: "draft" | "published") => void;
-    setSavedTemplateChoice: (value: string | null) => void;
+  { updated, form, setters }: {
+    updated: AdminPost;
+    form: { templateChoice: string | null };
+    setters: {
+      setPage: (page: AdminPost) => void;
+      setSlug: (slug: string) => void;
+      setStatus: (status: "draft" | "published") => void;
+      setSavedTemplateChoice: (value: string | null) => void;
+    };
   },
+  _options = {},
 ): void {
   setters.setPage(updated);
   setters.setSlug(updated.slug);
@@ -590,33 +592,36 @@ function applyPartialSave(
  *  this: pressing Save again replaces somebody's page), and the whole point of the route's distinct
  *  `code` is that the client no longer has to guess which it got — see `readPageVersionConflict`. */
 function applySaveFailure(
-  e: unknown,
-  attemptedStatus: "draft" | "published" | undefined,
-  form: { templateChoice: string | null },
-  setters: {
-    setPage: (page: AdminPost) => void;
-    setSlug: (slug: string) => void;
-    setStatus: (status: "draft" | "published") => void;
-    setSavedTemplateChoice: (value: string | null) => void;
-    setSaveConflict: (value: PageSaveConflict) => void;
-    setError: (value: string) => void;
+  { e, attemptedStatus, form, setters, t, locale }: {
+    e: unknown;
+    attemptedStatus: "draft" | "published" | undefined;
+    form: { templateChoice: string | null };
+    setters: {
+      setPage: (page: AdminPost) => void;
+      setSlug: (slug: string) => void;
+      setStatus: (status: "draft" | "published") => void;
+      setSavedTemplateChoice: (value: string | null) => void;
+      setSaveConflict: (value: PageSaveConflict) => void;
+      setError: (value: string) => void;
+    };
+    t: (required: { locale: string; key: string }) => string;
+    locale: string;
   },
-  t: (locale: string, key: string) => string,
-  locale: string,
+  _options = {},
 ): void {
   if (e instanceof PageBodyWriteError) {
-    applyPartialSave(e.savedRow, form, setters);
-    setters.setError(pagePartialSaveMessage(t, locale, e.reason));
+    applyPartialSave({ updated: e.savedRow, form, setters });
+    setters.setError(pagePartialSaveMessage({ t, locale, reason: e.reason }));
     return;
   }
-  const conflict = readPageVersionConflict(e, attemptedStatus);
+  const conflict = readPageVersionConflict({ e, attemptedStatus });
   if (conflict) {
     setters.setSaveConflict(conflict);
     return;
   }
   // A server or network failure already raised the shared failure notice (plain words, copyable details); repeating its raw message here would show it twice.
-  if (isUnexpectedServerFailure(e)) { setters.setError(t(locale, "Not saved. Your edits are still here.")); return; }
-  setters.setError(e instanceof Error ? e.message : refusalMessage({ base: t(locale, "failed to save page"), e }));
+  if (isUnexpectedServerFailure(e)) { setters.setError(t({ locale, key: "Not saved. Your edits are still here." })); return; }
+  setters.setError(e instanceof Error ? e.message : refusalMessage({ base: t({ locale, key: "failed to save page" }), e }));
 }
 
 /** The fallback sentence plus the real content of a thrown non-Error, so the person (and whoever they paste it to) sees why. With nothing thrown there is nothing to add. @complexity O(size of e), capped at 300 characters. */
@@ -636,7 +641,7 @@ export interface PageEditorDependencies {
    *  URL that resolved by raw id to that same page's slug — same shape
    *  `use-widget-instance-editor.hooks.ts`'s own `navigate` dependency already documents. */
   navigate: (path: string, options?: { replace?: boolean }) => void;
-  t: (locale: string, key: string) => string;
+  t: (required: { locale: string; key: string }) => string;
   locale: string;
 }
 
@@ -667,18 +672,18 @@ function isPublishedUnchanged({ status, contentDirty, templateChoice, savedTempl
   return status === "published" && !contentDirty && templateChoice === savedTemplateChoice;
 }
 
-function canonicalPageRedirect(post: AdminPost, routeSlug: string): string | null {
+function canonicalPageRedirect({ post, routeSlug }: { post: AdminPost; routeSlug: string }, _options = {}): string | null {
   if (post.slug === "/") return routeSlug === post.id ? pageAdminPath(post) : null;
   if (post.slug === HOME_PAGE_HANDLE) return null;
   return slugRedirectPath("/pages", routeSlug, post);
 }
 
-export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): PageEditorController {
+export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: PageEditorDependencies }, _options = {}): PageEditorController {
   const { port, themeCanvasPort, navigate, t, locale } = deps;
   // Memoized (not a plain `const` closure) so `embedPlaceholderDescriber` below has a stable
   // dependency to key its own `useMemo` off: `deps.t` is a stable module-level singleton in
   // production (see this function's own doc), so this identity only changes when `locale` does.
-  const boundT: Translate = useMemo(() => (key: string) => t(locale, key), [t, locale]);
+  const boundT: Translate = useMemo(() => (key: string) => t({ locale, key }), [t, locale]);
   /**
    * Bug A (2026-09-23 interactive-bugs plan, Slice A3): built once here, not in `PageEditor.tsx`, so
    * the `.tsx` stays markup-only (this feature's own "no logic in `.tsx`" rule — see
@@ -692,13 +697,13 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const embedPlaceholderDescriber = useMemo(() => createEmbedPlaceholderDescriber({ t: boundT }, { pluginEmbeds: () => pluginEmbeds.current }), [boundT]);
   const pageKey = useMemo(() => ["pages", "detail", routeSlug] as const, [routeSlug]);
   const fetchPage = useCallback(async () => {
-    const result = await port.getPage(routeSlug === HOME_PAGE_HANDLE ? "/" : routeSlug);
+    const result = await port.getPage({ routeSlug: routeSlug === HOME_PAGE_HANDLE ? "/" : routeSlug });
     pluginEmbeds.current = result.pluginEmbeds ?? [];
     return result;
   }, [port, routeSlug]);
   const pageLoader = useCachedLoader({ key: pageKey, fetch: fetchPage }, { staleTime: 0 });
   const readPage = useCallback((id: string) => pageLoader.load({ key: ["pages", "detail", id], fetch: async () => {
-    const result = await port.getPage(id);
+    const result = await port.getPage({ routeSlug: id });
     pluginEmbeds.current = result.pluginEmbeds ?? [];
     return result;
   } }), [port, pageLoader]);
@@ -706,7 +711,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const fetchInitial = useCallback(async () => {
     // Loaded together: an empty template picker must not flash while presentation lags the page.
     try { return await Promise.all([pageLoader.load(), port.getPresentation()]); }
-    catch (error) { throw new Error(error instanceof Error ? error.message : t(locale, "failed to load page")); }
+    catch (error) { throw new Error(error instanceof Error ? error.message : t({ locale, key: "failed to load page" })); }
   }, [port, pageLoader, routeSlug, locale]);
   const initialKey = useMemo(() => ["pages", "editor", routeSlug] as const, [routeSlug]);
   const initial = useCachedLoader({ key: initialKey, fetch: fetchInitial }, { staleTime: 0 });
@@ -747,7 +752,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const [savedHtml, setSavedHtml] = useState("");
   const [view, setView] = useState<PageEditorView>("preview");
   // Interactive flush (2026-09-23 plan) — see `PageEditorController.interactiveEditorRef`'s own doc.
-  const { interactiveEditorRef, flushInteractiveEdits, setHtmlFromCanvas } = useInteractiveEditorFlush(setHtml);
+  const { interactiveEditorRef, flushInteractiveEdits, setHtmlFromCanvas } = useInteractiveEditorFlush({ setHtml });
   const { device, setDevice } = useDevicePreviewDevice();
   // Preview fullscreen (2026-09-16) — see `PageEditorController.previewExpanded`'s own doc for why
   // this lives here instead of `App.tsx` or a bus. `false` by default: opening a Page must never
@@ -805,11 +810,11 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         // Old id bookmarks catch up to the canonical URL. Keep the root page out of the generic
         // slug redirect (`/pages//` cannot match), and keep a real `home` page on its id so it
         // cannot redirect into the root alias.
-        const canonicalPath = canonicalPageRedirect(post, routeSlug);
+        const canonicalPath = canonicalPageRedirect({ post, routeSlug });
         if (canonicalPath) navigate(canonicalPath, { replace: true });
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : t(locale, "failed to load page"));
+        if (!cancelled) setError(e instanceof Error ? e.message : t({ locale, key: "failed to load page" }));
       });
     return () => {
       cancelled = true;
@@ -826,7 +831,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // way the prettified whitespace becomes part of the saved page is if the operator actually edits on
   // top of it. `prevViewRef` is what makes this fire only on the TRANSITION into the HTML tab, never on
   // every render while already on it — reformatting mid-edit would fight the operator's cursor position.
-  const [draftHtml, setDraftHtml] = useState(() => prettifyHtml(html));
+  const [draftHtml, setDraftHtml] = useState(() => prettifyHtml({ html }));
 
   // Per-tab scroll memory (2026-09-16) — see `PageEditorController.htmlTextareaRef`'s own doc for the
   // full "why a ref, why here" reasoning. A `useRef`, not `useState`: a scroll position changing must
@@ -873,7 +878,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
    */
   const applyExternalPage = useCallback((fresh: AdminPost) => {
     applyLoadedPage(fresh, { setPage, setTitle, setSlug, setStatus, setTemplateChoice, setSavedTemplateChoice, setHtml, setSavedHtml });
-    setDraftHtml(prettifyHtml(pageEditableHtml(fresh)));
+    setDraftHtml(prettifyHtml({ html: pageEditableHtml(fresh) }));
     setSaveConflict(null);
     // Bug B, Slice B3 (dev-only instrumentation, pages-redo plan): this bump remounts the Interactive
     // surface (`PageEditorPane`'s `key={contentRevision}`) with no loading state of its own — logged so
@@ -888,7 +893,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const prevViewRef = useRef(view);
   useEffect(() => {
     // A jump into the HTML view keeps the caller's own formatting; any other entry prettifies.
-    if (view === "html" && prevViewRef.current !== "html" && !consumeJumpFormatting()) setDraftHtml(prettifyHtml(html));
+    if (view === "html" && prevViewRef.current !== "html" && !consumeJumpFormatting()) setDraftHtml(prettifyHtml({ html }));
     prevViewRef.current = view;
   }, [view, html, consumeJumpFormatting]);
 
@@ -971,21 +976,21 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       // unchanged satisfies the requirement without touching it — the alternative (omitting it)
       // throws "bodyJson must be a JSON object" and leaves title/slug/status stuck un-editable for
       // every doc-format Page.
-      const plan = buildPageSavePlan(basis, { title, slug, status, templateChoice, html: bodyHtml }, nextStatus);
+      const plan = buildPageSavePlan({ page: basis, form: { title, slug, status, templateChoice, html: bodyHtml } }, { nextStatus });
       try {
-        const updated = await write.mutate({ input: () => writePage(port, basis.id, plan, bodyHtml) }) as AdminPost;
+        const updated = await write.mutate({ input: () => writePage({ port, pageId: basis.id, plan, html: bodyHtml }) }) as AdminPost;
         // A newer save/publish claimed a later generation while this call was awaiting — that call
         // owns the outcome now, so this stale response must not paint over it (2026-09-05
         // stale-settlement sweep: "last-to-settle wins" rather than "last-clicked wins").
         if (!settlement.isCurrent({ generation })) return;
-        applySavedPage(
+        applySavedPage({
           updated,
-          { templateChoice, html: bodyHtml, nextStatus, basisVersion: basis.version },
-          plan.canSaveHtml,
-          { setPage, setSlug, setStatus, setSavedTemplateChoice, setSavedHtml, setMessage },
+          form: { templateChoice, html: bodyHtml, nextStatus, basisVersion: basis.version },
+          canSaveHtml: plan.canSaveHtml,
+          setters: { setPage, setSlug, setStatus, setSavedTemplateChoice, setSavedHtml, setMessage },
           t,
           locale,
-        );
+        });
         // The real content just landed — any parked standing draft is now obsolete. Not awaited:
         // this is best-effort background bookkeeping (errors are already caught inside the hook),
         // not part of what "Save succeeded" means to the operator.
@@ -995,14 +1000,14 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       } catch (e) {
         if (!settlement.isCurrent({ generation })) return;
         autosave.preserveFailedSave({ error: e, draft: buildPageAutosaveDraft(basis, { title, slug, html: bodyHtml }) });
-        applySaveFailure(
+        applySaveFailure({
           e,
-          nextStatus,
-          { templateChoice },
-          { setPage, setSlug, setStatus, setSavedTemplateChoice, setSaveConflict, setError },
+          attemptedStatus: nextStatus,
+          form: { templateChoice },
+          setters: { setPage, setSlug, setStatus, setSavedTemplateChoice, setSaveConflict, setError },
           t,
           locale,
-        );
+        });
       } finally {
         // Same generation check as the two branches above: only the call that is still current
         // should flip the shared `saving` flag back off, or an older call's own settlement could
@@ -1049,7 +1054,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     const attemptedStatus = saveConflict?.attemptedStatus;
     const fresh = await readPage(page.id).then(({ post }) => post, () => null);
     if (!fresh) {
-      setError(t(locale, "could not re-read the current version — your changes are still here, try again"));
+      setError(t({ locale, key: "could not re-read the current version — your changes are still here, try again" }));
       return;
     }
     setPage(fresh);
@@ -1068,10 +1073,10 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     setDeleting(true);
     setError(null);
     try {
-      await write.mutate({ input: () => port.deletePage(page.id) }) as Awaited<ReturnType<typeof port.deletePage>>;
+      await write.mutate({ input: () => port.deletePage({ id: page.id }) }) as Awaited<ReturnType<typeof port.deletePage>>;
       navigate("/pages");
     } catch (e) {
-      setError(e instanceof Error ? e.message : t(locale, "failed to delete page"));
+      setError(e instanceof Error ? e.message : t({ locale, key: "failed to delete page" }));
       setDeleting(false);
       setConfirmingDelete(false);
     }
@@ -1083,7 +1088,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // that early.
   // Node in state, not a `RefObject` — see `PageEditorController.previewFormRef`'s own doc.
   const [previewForm, previewFormRef] = useState<HTMLFormElement | null>(null);
-  const previewFormTarget = pagePreviewFormTarget(page);
+  const previewFormTarget = pagePreviewFormTarget({ page });
 
   // Per-tab scroll memory, Preview half — see `PageEditorController.onPreviewFrameLoad`'s own doc.
   const previewScrollYRef = useRef(0);
@@ -1109,7 +1114,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   useAgentScreenEntry(page === null ? null : { kind: page.kind, id: page.id, title: page.title, slug: page.slug, status: page.status });
 
   // Template-preview fix (2026-08-11) — see `contentDirty`'s doc on `PageEditorController`.
-  const contentDirty = computeContentDirty(page, { title, slug, status, html, savedHtml });
+  const contentDirty = computeContentDirty({ page, draft: { title, slug, status, html, savedHtml } });
   // The Save button's own "is there anything unsaved" signal — split out to a named variable (was
   // previously inlined at the return statement) so `useExternalEntryRefresh`'s `isDirty` below reads
   // the SAME value `dirty` reports, rather than a second copy of this expression that could drift.
@@ -1123,13 +1128,13 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // `isDirty` is wider than `dirty` on the Interactive tab — see `pageRefreshMayHaveUnsavedEdits`.
   const externalRefresh = useExternalEntryRefresh<AdminPost>({
     loaded: page,
-    fetchLatest: (id) => readPage(id).then(({ post }) => post),
+    fetchLatest: ({ id }, _options = {}) => readPage(id).then(({ post }) => post),
     isDirty: () => pageRefreshMayHaveUnsavedEdits({ dirty, view }),
     isSaving: () => saving,
     applyLatest: applyExternalPage,
     discardStandingDraft: autosave.clearStandingDraft,
     supersedeStandingDraftBasis: autosave.supersedeBasis,
-    onLoadLatestFailed: () => setError(t(locale, "could not re-read the current version — your changes are still here, try again")),
+    onLoadLatestFailed: () => setError(t({ locale, key: "could not re-read the current version — your changes are still here, try again" })),
   });
   useContentRefreshSubscription(PAGES_RESOURCE, externalRefresh.checkForExternalChange);
 
@@ -1141,7 +1146,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const { confirmLeave } = useDirtyGuard(
     {
       current: { title, slug, status, html, templateChoice },
-      original: pageDirtyGuardBaseline(page, savedHtml, savedTemplateChoice),
+      original: pageDirtyGuardBaseline({ page, savedHtml, savedTemplateChoice }),
     },
     { host: window, translate: (key) => key },
   );
@@ -1210,7 +1215,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       // Same two re-seeds `applyExternalPage` makes: the HTML tab shows `draftHtml`, not `html`, and
       // the Interactive canvas reads `html` only at mount. Without them, restoring on either tab
       // left the old body on screen and the next edit wrote it back over the restored draft.
-      setDraftHtml(prettifyHtml(draft.bodyHtml));
+      setDraftHtml(prettifyHtml({ html: draft.bodyHtml }));
       setContentRevision((n) => n + 1);
     }
     autosave.dismissRecoverable();
@@ -1259,7 +1264,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
 
   // See `templatePreviewUrl`'s own doc on `PageEditorController` for why this is a plain per-render
   // expression rather than state or a `useMemo`.
-  const templatePreviewUrl = page ? port.templatePreviewUrl(page.id, templateChoice) : "";
+  const templatePreviewUrl = page ? port.templatePreviewUrl({ id: page.id, templateChoice }) : "";
 
   // `templateChoice` (not `savedTemplateChoice`): the Interactive canvas must mirror the template the
   // operator is CURRENTLY looking at in the picker, the same one `templatePreviewUrl` above resolves —
@@ -1279,10 +1284,8 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // `page?.bodyFormat ?? "doc"` is the same "nothing risky before load" default `templatePreviewUrl`
   // above and `contentDirty` below already use for a not-yet-loaded page.
   const canvasStyling = useThemeCanvasStyling(
-    activeThemeId,
-    activeThemeApiVersion,
-    themeCanvasPort,
-    resolveCanvasTemplateChoice(templateChoice, pageBodyFormat(page)),
+    { themeId: activeThemeId, apiVersion: activeThemeApiVersion, port: themeCanvasPort },
+    { templateChoice: resolveCanvasTemplateChoice({ templateChoice, bodyFormat: pageBodyFormat({ page }) }) },
   );
 
   return {
@@ -1374,21 +1377,24 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
  * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `PageEditor.tsx`
  * composes this and a test composes {@link usePageEditor} with `createFakePageEditorPort`.
  * `useAdminLocale()` is called here, not injected as a hook reference — its resolved `locale` value
- * is what `usePageEditor` actually consumes (every internal use is `t(locale, ...)`), and there is no
+ * is what `usePageEditor` actually consumes (every internal use supplies `{ locale, key }`), and there is no
  * precedent in this codebase for injecting a hook reference instead of the value it resolves to.
  */
-export function useWiredPageEditor(routeSlug: string): PageEditorController {
+export function useWiredPageEditor({ routeSlug }: { routeSlug: string }, _options = {}): PageEditorController {
   const locale = useAdminLocale();
-  return usePageEditor(routeSlug, {
-    port: defaultPageEditorPort,
-    themeCanvasPort: defaultThemeCanvasPort,
-    navigate: defaultNavigate,
-    t: defaultT,
-    locale,
+  return usePageEditor({
+    routeSlug,
+    deps: {
+      port: defaultPageEditorPort,
+      themeCanvasPort: defaultThemeCanvasPort,
+      navigate: defaultNavigate,
+      t: defaultT,
+      locale,
+    },
   });
 }
 
 /** Before load, the canvas retains the same safe document-format fallback. */
-function pageBodyFormat(page: AdminPost | null) {
+function pageBodyFormat({ page }: { page: AdminPost | null }, _options = {}) {
   return page?.bodyFormat ?? "doc";
 }

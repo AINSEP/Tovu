@@ -45,14 +45,14 @@ export interface ThemePageDetailsModalController {
  * (Escape, backdrop click) — the close button itself stays a plain `onClick={onClose}` in the
  * component, since it needs no state of its own.
  *
- * @param open - Whether the dialog should be showing.
- * @param onClose - Called on any dismiss path (close button, backdrop click, Escape).
+ * @param required.open - Whether the dialog should be showing.
+ * @param required.onClose - Called on any dismiss path (close button, backdrop click, Escape).
  * @returns `dialogRef` to attach to the `<dialog>` element, plus its `cancel`/backdrop-click
  *   handlers.
  * @complexity Time/space: O(1) per open/close transition — one `showModal`/`close` call, no other
  *   state.
  */
-export function useThemePageDetailsModal(open: boolean, onClose: () => void): ThemePageDetailsModalController {
+export function useThemePageDetailsModal({ open, onClose }: { open: boolean; onClose: () => void }, _options = {}): ThemePageDetailsModalController {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {

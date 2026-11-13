@@ -7,17 +7,19 @@ import type { AdminPost } from "@/lib/api";
  */
 export interface PagesPort {
   listPages(): Promise<{ posts: Array<{ post: AdminPost }> }>;
-  createPage(title: string): Promise<{ post: AdminPost }>;
+  createPage(required: { title: string }): Promise<{ post: AdminPost }>;
   /**
    * `expectedVersion` (2026-09-18, multi-author hardening) — mirrors `posts-list-port.hooks.ts`'s
    * identical member exactly (Pages and Posts share this one route). `togglePagePublish`
    * (`use-pages.hooks.ts`) always sends it.
    */
   updatePost(
-    target: { id: string },
-    patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & {
-      expectedVersion?: number;
+    required: {
+      target: { id: string };
+      patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & {
+        expectedVersion?: number;
+      };
     }
   ): Promise<{ post: AdminPost }>;
-  deletePage(id: string): Promise<{ post: AdminPost }>;
+  deletePage(required: { id: string }): Promise<{ post: AdminPost }>;
 }

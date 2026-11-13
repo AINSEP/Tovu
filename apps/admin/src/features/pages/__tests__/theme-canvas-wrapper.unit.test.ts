@@ -41,7 +41,7 @@ const GRACIOUS_TIMING_PROJECT = `<!doctype html>
 
 describe("deriveContentWrapperChain", () => {
   it("derives basic theme's real ancestor chain: <main>, <article class=... data-reveal>, then the marker's own bare <div>", () => {
-    const chain = deriveContentWrapperChain(BASIC_PAGE_SHELL);
+    const chain = deriveContentWrapperChain({ templateHtml: BASIC_PAGE_SHELL });
     expect(chain).toEqual([
       { tagName: "main", attributes: {} },
       { tagName: "article", attributes: { class: "wrap post-detail", "data-reveal": "" } },
@@ -50,7 +50,7 @@ describe("deriveContentWrapperChain", () => {
   });
 
   it("derives gracious-timing's shallower chain — no <main>, just article then the marker's own bare <div>", () => {
-    const chain = deriveContentWrapperChain(GRACIOUS_TIMING_PROJECT);
+    const chain = deriveContentWrapperChain({ templateHtml: GRACIOUS_TIMING_PROJECT });
     expect(chain).toEqual([
       { tagName: "article", attributes: { class: "post-detail wrap", "data-reveal": "" } },
       { tagName: "div", attributes: {} },
@@ -62,7 +62,7 @@ describe("deriveContentWrapperChain", () => {
     // render as a bare `<div>` — see file header. A derivation that discarded the marker's own tag
     // and started from its PARENT would under-wrap relative to what the page actually publishes.
     const html = `<body><section><div id="content-slot" data-embed-config='{"type":"content"}'></div></section></body>`;
-    const chain = deriveContentWrapperChain(html);
+    const chain = deriveContentWrapperChain({ templateHtml: html });
     expect(chain).toEqual([
       { tagName: "section", attributes: {} },
       { tagName: "div", attributes: { id: "content-slot" } },
@@ -71,11 +71,11 @@ describe("deriveContentWrapperChain", () => {
 
   it("returns null when the template has no content marker at all", () => {
     const html = `<body><main><div data-embed-config='{"type":"partial","id":"nav"}'></div></main></body>`;
-    expect(deriveContentWrapperChain(html)).toBeNull();
+    expect(deriveContentWrapperChain({ templateHtml: html })).toBeNull();
   });
 
   it("returns null for a template with no data-embed-config anywhere", () => {
-    expect(deriveContentWrapperChain(`<body><main><p>static</p></main></body>`)).toBeNull();
+    expect(deriveContentWrapperChain({ templateHtml: `<body><main><p>static</p></main></body>` })).toBeNull();
   });
 
   it("ignores markers of a different type and finds the real content marker among them", () => {
@@ -84,7 +84,7 @@ describe("deriveContentWrapperChain", () => {
       <main><article class="wrap"><div data-embed-config='{"type":"content"}'></div></article></main>
       <div data-embed-config='{"type":"partial","id":"footer"}'></div>
     </body>`;
-    expect(deriveContentWrapperChain(html)).toEqual([
+    expect(deriveContentWrapperChain({ templateHtml: html })).toEqual([
       { tagName: "main", attributes: {} },
       { tagName: "article", attributes: { class: "wrap" } },
       { tagName: "div", attributes: {} },
@@ -93,22 +93,22 @@ describe("deriveContentWrapperChain", () => {
 
   it("returns a single-node chain when the marker is a direct child of body", () => {
     const html = `<body><div data-embed-config='{"type":"content"}'></div></body>`;
-    expect(deriveContentWrapperChain(html)).toEqual([{ tagName: "div", attributes: {} }]);
+    expect(deriveContentWrapperChain({ templateHtml: html })).toEqual([{ tagName: "div", attributes: {} }]);
   });
 
   it("treats invalid JSON in data-embed-config as not-a-marker rather than throwing", () => {
     const html = `<body><main><div data-embed-config='{not valid json'></div></main></body>`;
-    expect(deriveContentWrapperChain(html)).toBeNull();
+    expect(deriveContentWrapperChain({ templateHtml: html })).toBeNull();
   });
 
   it("treats a non-object data-embed-config value as not-a-marker", () => {
     const html = `<body><main><div data-embed-config='"content"'></div></main></body>`;
-    expect(deriveContentWrapperChain(html)).toBeNull();
+    expect(deriveContentWrapperChain({ templateHtml: html })).toBeNull();
   });
 
   it("treats an array data-embed-config value as not-a-marker", () => {
     const html = `<body><main><div data-embed-config='["content"]'></div></main></body>`;
-    expect(deriveContentWrapperChain(html)).toBeNull();
+    expect(deriveContentWrapperChain({ templateHtml: html })).toBeNull();
   });
 
   it("treats a literal JSON null data-embed-config value as not-a-marker, without throwing", () => {
@@ -117,12 +117,12 @@ describe("deriveContentWrapperChain", () => {
     // `.type` on `null` itself THROWS — this is the one disjunct that actually guards the caller
     // from a crash rather than merely duplicating what `.type === "content"` already returns.
     const html = `<body><main><div data-embed-config='null'></div></main></body>`;
-    expect(() => deriveContentWrapperChain(html)).not.toThrow();
-    expect(deriveContentWrapperChain(html)).toBeNull();
+    expect(() => deriveContentWrapperChain({ templateHtml: html })).not.toThrow();
+    expect(deriveContentWrapperChain({ templateHtml: html })).toBeNull();
   });
 
   it("works from a bare fragment with no explicit <html>/<body> — DOMParser supplies both", () => {
-    const chain = deriveContentWrapperChain(`<main><article class="wrap"><div data-embed-config='{"type":"content"}'></div></article></main>`);
+    const chain = deriveContentWrapperChain({ templateHtml: `<main><article class="wrap"><div data-embed-config='{"type":"content"}'></div></article></main>` });
     expect(chain).toEqual([
       { tagName: "main", attributes: {} },
       { tagName: "article", attributes: { class: "wrap" } },

@@ -49,15 +49,15 @@ it("a failed HTML page Save preserves the exact working HTML, title and slug", a
   const page: AdminPost = { ...row, kind: "page", bodyFormat: "html", bodyHtml: "<p>Saved HTML</p>", bodyJson: {} };
   const fake = createFakePageEditorPort({ page });
   const port = { ...fake, getBackupPrincipalId: () => scope.principalId, updatePost: expired, putAutosave: expired };
-  const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: () => {}, t: (_locale: string, key: string) => key, locale: "en" };
-  const first = renderHook(() => usePageEditor(page.slug, deps));
+  const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: () => {}, t: ({ key }: { locale: string; key: string }) => key, locale: "en" };
+  const first = renderHook(() => usePageEditor({ routeSlug: page.slug, deps }));
   await waitFor(() => expect(first.result.current.page).not.toBeNull());
   act(() => { first.result.current.setTitle("Unsaved page title"); first.result.current.setSlug("unsaved-page-slug"); first.result.current.setHtml("<p>Exact typed HTML</p>"); });
   await act(async () => first.result.current.save());
   expect(readStandingDraftLocalBackup(page.id, scope)).toMatchObject({ title: "Unsaved page title", slug: "unsaved-page-slug", bodyHtml: "<p>Exact typed HTML</p>" });
   first.unmount();
   const restoredDeps = { ...deps, port: { ...fake, getBackupPrincipalId: () => scope.principalId } };
-  const second = renderHook(() => usePageEditor(page.slug, restoredDeps));
+  const second = renderHook(() => usePageEditor({ routeSlug: page.slug, deps: restoredDeps }));
   await waitFor(() => expect(second.result.current.recoverableDraft?.title).toBe("Unsaved page title"));
   expect(second.result.current.title).toBe("Saved title");
   await act(async () => second.result.current.discardRecoveredDraft());

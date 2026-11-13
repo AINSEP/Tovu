@@ -8,7 +8,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 const source = '\n<p>before</p>\n<div id="same" data-kui title="a > b"></div>\n<div id="same" data-kui title="a > b"></div>';
-function harness(flush: () => Promise<string | undefined> = async () => source, measureCaretTop?: (node: HTMLTextAreaElement, index: number) => number | null) {
+function harness(flush: () => Promise<string | undefined> = async () => source, measureCaretTop?: typeof measureTextareaCaretTop) {
   const setView = vi.fn();
   const setDraftHtml = vi.fn();
   const onError = vi.fn();
@@ -89,7 +89,7 @@ describe("locked block Edit HTML navigation", () => {
     vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(function (this: HTMLElement) {
       return this.tagName === "SPAN" ? 54 : 0;
     });
-    expect(measureTextareaCaretTop(node, 18)).toBe(54);
+    expect(measureTextareaCaretTop({ node, index: 18 })).toBe(54);
     expect(mirror?.textContent).toBe("first line\nwrapped\u200b");
     expect(mirror?.style.width).toBe("240px");
     expect(mirror?.style.fontSize).toBe("18px");

@@ -15,12 +15,12 @@ export const MARKETPLACE_TAB_SOON = true;
  * The tag text for the "Add a plugin" tab: the admin sidebar's own translated "Soon" word, so the
  * tab and the sidebar badge read the same in every locale.
  *
- * @param locale Admin locale code; an unknown one falls back to English.
- * @param enabled Defaults to {@link ADD_PLUGIN_TAB_SOON}; passed explicitly by tests, and by Plugins
+ * @param required.locale Admin locale code; an unknown one falls back to English.
+ * @param optional.enabled Defaults to {@link ADD_PLUGIN_TAB_SOON}; passed explicitly by tests, and by Plugins
  *   on a server that refuses local installs.
  * @returns The tag text, or `undefined` (an untagged tab) when the flag is off.
  */
-export function addPluginTabSoonTag(locale: string, enabled: boolean = ADD_PLUGIN_TAB_SOON): string | undefined {
+export function addPluginTabSoonTag({ locale }: { locale: string }, { enabled = ADD_PLUGIN_TAB_SOON }: { enabled?: boolean } = {}): string | undefined {
   return enabled ? translateAdminNavLabel({ locale: locale, key: "Soon" }) : undefined;
 }
 
@@ -28,10 +28,10 @@ export function addPluginTabSoonTag(locale: string, enabled: boolean = ADD_PLUGI
  * The tag text for the "Marketplace" tab — the same translated "Soon" word as
  * {@link addPluginTabSoonTag}.
  *
- * @param locale Admin locale code; an unknown one falls back to English.
- * @param enabled Defaults to {@link MARKETPLACE_TAB_SOON}; passed explicitly only by tests.
+ * @param required.locale Admin locale code; an unknown one falls back to English.
+ * @param optional.enabled Defaults to {@link MARKETPLACE_TAB_SOON}; passed explicitly only by tests.
  * @returns The tag text, or `undefined` (an untagged tab) when the flag is off.
  */
-export function marketplaceTabSoonTag(locale: string, enabled: boolean = MARKETPLACE_TAB_SOON): string | undefined {
-  return addPluginTabSoonTag(locale, enabled);
+export function marketplaceTabSoonTag({ locale }: { locale: string }, { enabled = MARKETPLACE_TAB_SOON }: { enabled?: boolean } = {}): string | undefined {
+  return addPluginTabSoonTag({ locale }, { enabled });
 }

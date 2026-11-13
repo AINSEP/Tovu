@@ -19,10 +19,10 @@ export const defaultPostEditorPort: PostEditorPort = {
   listPosts: () => api.listPosts(),
   uploadMedia: (input) => api.uploadMedia(input),
   templatePreviewUrl: (id, templateChoice) => api.templatePreviewUrl(id, templateChoice),
-  putAutosave: (id, draft, options) => api.putAutosave(id, draft, options),
+  putAutosave: ({ id, draft }, options = {}) => api.putAutosave(id, draft, options),
   getBackupPrincipalId: () => getAdminDraftIdentity(),
-  getAutosave: (id) => api.getAutosave(id),
-  discardAutosave: (id) => api.discardAutosave(id),
+  getAutosave: ({ id }, _options = {}) => api.getAutosave(id),
+  discardAutosave: ({ id }, _options = {}) => api.discardAutosave(id),
 };
 
 /** The featured/cover image preview's resized URL — `usePostFeaturedImage`'s `renditionUrl` seam. */
@@ -227,7 +227,7 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
     // `simulateConcurrentSave` instead of stubbing the answer, which would pass whether or not the
     // editor reads `applied` at all. The call is still recorded: "the editor sent a write the
     // server threw away" is exactly the observation a stale-basis test needs.
-    async putAutosave(id, draft) {
+    async putAutosave({ id, draft }) {
       if (id !== state.post.id) throw new Error(`fake post not found: ${id}`);
       putAutosaveCalls.push(draft);
       if (draft.baseVersion !== state.post.version) return { applied: false };

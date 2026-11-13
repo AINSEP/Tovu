@@ -6,9 +6,9 @@ import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "
 export type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot, StandingDraftAutosaveController, StandingDraftStaleBasis } from "@jini-ai/ui/panel-kit";
 export interface StandingDraftAutosavePort {
   getBackupPrincipalId?: JiniPort["getBackupPrincipalId"];
-  putAutosave(id: string, draft: StandingDraftAutosaveInput, options?: { keepalive?: boolean }): Promise<{ applied: boolean }>;
-  getAutosave(id: string): Promise<{ autosave: StandingDraftAutosaveSnapshot | null }>;
-  discardAutosave(id: string): Promise<{ ok: boolean }>;
+  putAutosave(required: { id: string; draft: StandingDraftAutosaveInput }, options?: { keepalive?: boolean }): Promise<{ applied: boolean }>;
+  getAutosave(required: { id: string }): Promise<{ autosave: StandingDraftAutosaveSnapshot | null }>;
+  discardAutosave(required: { id: string }): Promise<{ ok: boolean }>;
 }
 /** Memoize the converted port: a new identity would repeat recovery and flush pending edits on render. */
 export function useStandingDraftAutosave(input: Omit<StandingDraftAutosaveOptions, "port" | "backup"> & { port: StandingDraftAutosavePort }, _options = {}) {
@@ -17,9 +17,9 @@ export function useStandingDraftAutosave(input: Omit<StandingDraftAutosaveOption
     const getBackupPrincipalId = port.getBackupPrincipalId;
     return {
       ...(getBackupPrincipalId ? { getBackupPrincipalId: (required: Record<string, never>, options: Record<string, never> = {}) => getBackupPrincipalId.call(port, required, options) } : {}),
-      putAutosave: ({ id, draft }, options) => port.putAutosave(id, draft, options),
-      getAutosave: ({ id }) => port.getAutosave(id),
-      discardAutosave: ({ id }) => port.discardAutosave(id),
+      putAutosave: ({ id, draft }, options) => port.putAutosave({ id, draft }, options),
+      getAutosave: ({ id }) => port.getAutosave({ id }),
+      discardAutosave: ({ id }) => port.discardAutosave({ id }),
     };
   }, [port]);
   return useAutosave({ ...input, port: adapted, backup: standingDraftLocalBackup }, {});

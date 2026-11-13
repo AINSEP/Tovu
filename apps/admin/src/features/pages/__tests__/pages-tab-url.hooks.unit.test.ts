@@ -11,27 +11,27 @@ import { resolvePagesTabFromUrl, writePagesTabToUrl } from "../hooks/pages-tab-u
 
 describe("resolvePagesTabFromUrl", () => {
   it("resolves 'theme' from ?tab=themes", () => {
-    expect(resolvePagesTabFromUrl("?tab=themes")).toBe("theme");
+    expect(resolvePagesTabFromUrl({}, { search: "?tab=themes" })).toBe("theme");
   });
 
   it("resolves 'mine' when the param is absent", () => {
-    expect(resolvePagesTabFromUrl("")).toBe("mine");
+    expect(resolvePagesTabFromUrl({}, { search: "" })).toBe("mine");
   });
 
   it("resolves 'mine' for an unrecognized value — a typo or stale link must not open the wrong tab", () => {
-    expect(resolvePagesTabFromUrl("?tab=theme")).toBe("mine"); // the internal id, not the URL word
-    expect(resolvePagesTabFromUrl("?tab=bogus")).toBe("mine");
-    expect(resolvePagesTabFromUrl("?tab=")).toBe("mine");
+    expect(resolvePagesTabFromUrl({}, { search: "?tab=theme" })).toBe("mine"); // the internal id, not the URL word
+    expect(resolvePagesTabFromUrl({}, { search: "?tab=bogus" })).toBe("mine");
+    expect(resolvePagesTabFromUrl({}, { search: "?tab=" })).toBe("mine");
   });
 
   it("ignores other, unrelated params", () => {
-    expect(resolvePagesTabFromUrl("?foo=bar&tab=themes")).toBe("theme");
+    expect(resolvePagesTabFromUrl({}, { search: "?foo=bar&tab=themes" })).toBe("theme");
   });
 
   it("defaults to window.location.search when no argument is given", () => {
     window.history.replaceState(null, "", "/admin/pages?tab=themes");
     try {
-      expect(resolvePagesTabFromUrl()).toBe("theme");
+      expect(resolvePagesTabFromUrl({})).toBe("theme");
     } finally {
       window.history.replaceState(null, "", "/");
     }

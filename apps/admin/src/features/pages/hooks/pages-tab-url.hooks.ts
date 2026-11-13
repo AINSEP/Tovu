@@ -31,7 +31,7 @@ const THEME_TAB_PARAM_VALUE = "themes";
  *
  * @complexity O(1).
  */
-export function resolvePagesTabFromUrl(search: string = window.location.search): PagesTabId {
+export function resolvePagesTabFromUrl({}: {}, { search = window.location.search }: { search?: string } = {}): PagesTabId {
   return new URLSearchParams(search).get(TAB_PARAM) === THEME_TAB_PARAM_VALUE ? "theme" : "mine";
 }
 

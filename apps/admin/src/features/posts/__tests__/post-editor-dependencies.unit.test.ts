@@ -44,12 +44,12 @@ describe("post editor dependencies", () => {
       ? () => port.updatePost({ id: "missing" }, { title: "Must not persist" })
       : operation === "delete"
         ? () => port.deletePost("missing")
-        : () => port.putAutosave("missing", { baseVersion: original.version, title: "Unsaved", slug: "unsaved",
-          bodyFormat: "doc", bodyJson: { type: "doc", content: [] } });
+        : () => port.putAutosave({ id: "missing", draft: { baseVersion: original.version, title: "Unsaved", slug: "unsaved",
+          bodyFormat: "doc", bodyJson: { type: "doc", content: [] } } });
     await expect(action()).rejects.toThrow("fake post not found: missing");
     expect(port.post).toEqual(original);
     expect(port.putAutosaveCalls).toEqual([]);
-    await expect(port.getAutosave(original.id)).resolves.toEqual({ autosave: null });
+    await expect(port.getAutosave({ id: original.id })).resolves.toEqual({ autosave: null });
   });
 
   it("derives a slug from the stored title when the patch requests a slug without replacing the title", async () => {

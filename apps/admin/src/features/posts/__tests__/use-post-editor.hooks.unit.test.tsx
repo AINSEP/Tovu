@@ -1047,11 +1047,11 @@ describe("usePostEditor — writes target the loaded row's id, not the route slu
       act(() => result.current.setSlug("renamed-twice"));
       await act(async () => vi.advanceTimersByTimeAsync(3001));
       expect(putAutosave).toHaveBeenCalledTimes(1);
-      expect(putAutosave).toHaveBeenCalledWith(POST.id, expect.objectContaining({
+      expect(putAutosave).toHaveBeenCalledWith({ id: POST.id, draft: expect.objectContaining({
         slug: "renamed-twice", baseVersion: POST.version + 1,
-      }), { keepalive: false });
+      }) }, { keepalive: false });
       expect(await putAutosave.mock.results[0].value).toEqual({ applied: true });
-      expect((await port.getAutosave(POST.id)).autosave?.slug).toBe("renamed-twice");
+      expect((await port.getAutosave({ id: POST.id })).autosave?.slug).toBe("renamed-twice");
     } finally {
       vi.useRealTimers();
     }
@@ -1420,17 +1420,17 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
       get discardAutosaveCalled() {
         return base.discardAutosaveCalled;
       },
-      async putAutosave(id, draft) {
+      async putAutosave({ id, draft }) {
         ops.push("put:start");
         await new Promise<void>((resolve) => {
           releasePut = resolve;
         });
         ops.push("put:end");
-        return base.putAutosave(id, draft);
+        return base.putAutosave({ id, draft });
       },
-      async discardAutosave(id) {
+      async discardAutosave({ id }) {
         ops.push("discard");
-        return base.discardAutosave(id);
+        return base.discardAutosave({ id });
       },
     };
 

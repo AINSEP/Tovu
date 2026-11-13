@@ -9,8 +9,8 @@ import type { ThemePagesFileEntry, ThemePagesPort } from "./theme-pages-port.hoo
 /** The live implementation, as a module-level singleton. */
 export const defaultThemePagesPort: ThemePagesPort = {
   getPresentation: () => api.getPresentation(),
-  getThemeDetail: (themeId) => api.getThemeDetail(themeId),
-  setPagePublished: (themeId, page, published) => api.setThemePagePublished(themeId, page, published),
+  getThemeDetail: ({ themeId }, _options = {}) => api.getThemeDetail(themeId),
+  setPagePublished: ({ themeId, page, published }, _options = {}) => api.setThemePagePublished(themeId, page, published),
 };
 
 /** Seed state for {@link createFakeThemePagesPort}. */
@@ -56,7 +56,7 @@ export function createFakeThemePagesPort(options: FakeThemePagesPortOptions = {}
       return { files: [...files] };
     },
 
-    async setPagePublished(_themeId, page, published) {
+    async setPagePublished({ page, published }) {
       if (options.setPagePublishedError) throw options.setPagePublishedError;
       // Same basename-minus-`.html` derivation `theme-explore-dependencies.hooks.ts`'s own fake
       // uses for this route — a fake stand-in for the server's lookup, not a second copy of the

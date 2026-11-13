@@ -31,28 +31,28 @@ import { deriveContentWrapperChain } from "./theme-canvas-wrapper";
  *  rule. `encodeURIComponent` on the theme id only: a theme id containing a space or `?` would
  *  otherwise 404 or be parsed as a query string, while `relativePath`'s own `/` separators are real
  *  path segments and must stay unencoded. */
-function themeAssetUrl(themeId: string, relativePath: string): string {
+function themeAssetUrl({ themeId, relativePath }: { themeId: string; relativePath: string }, _options = {}): string {
   return `/theme-assets/${encodeURIComponent(themeId)}/${relativePath}`;
 }
 
 /** The active theme's one required stylesheet, at the path its own `apiVersion` puts it
  *  (`css/theme.css` for v2, `css/styles.css` for v1) — resolved through `@tovu/theme-layout`, the
  *  same resolver the server render uses, rather than a second independently-spelled literal. */
-export function themeStylesheetUrl(themeId: string, apiVersion: 2 | undefined): string {
-  return themeAssetUrl(themeId, resolveThemeLayout(apiVersion).stylesheetPath);
+export function themeStylesheetUrl({ themeId, apiVersion }: { themeId: string; apiVersion: 2 | undefined }, _options = {}): string {
+  return themeAssetUrl({ themeId, relativePath: resolveThemeLayout(apiVersion).stylesheetPath });
 }
 
 /** The theme's default-mode token file. Required — `theme.ts` treats its absence as a load failure
  *  that invalidates the whole theme. */
-export function themeTokensUrl(themeId: string): string {
-  return themeAssetUrl(themeId, "tokens.json");
+export function themeTokensUrl({ themeId }: { themeId: string }, _options = {}): string {
+  return themeAssetUrl({ themeId, relativePath: "tokens.json" });
 }
 
 /** The theme's light-mode token file. Optional by contract (`theme.ts`: "absent is not an error, it
  *  just means the theme ships no light variant"), so a rejected fetch for this one is expected, not
  *  a failure. */
-export function themeLightTokensUrl(themeId: string): string {
-  return themeAssetUrl(themeId, "tokens.light.json");
+export function themeLightTokensUrl({ themeId }: { themeId: string }, _options = {}): string {
+  return themeAssetUrl({ themeId, relativePath: "tokens.light.json" });
 }
 
 /** A theme template's own raw markup — same `render/pages`(v2)/`pages`(v1) folder
@@ -61,8 +61,8 @@ export function themeLightTokensUrl(themeId: string): string {
  *  this is fed into. `templateChoice` is encoded (unlike `pagesDir`'s own `/`, a real path segment):
  *  it is one filename, never a path, so `encodeURIComponent` cannot legitimately need to leave
  *  anything in it unencoded the way `themeAssetUrl`'s `relativePath` sometimes does. */
-export function templateMarkupUrl(themeId: string, apiVersion: 2 | undefined, templateChoice: string): string {
-  return themeAssetUrl(themeId, `${resolveThemeLayout(apiVersion).pagesDir}/${encodeURIComponent(templateChoice)}`);
+export function templateMarkupUrl({ themeId, apiVersion, templateChoice }: { themeId: string; apiVersion: 2 | undefined; templateChoice: string }, _options = {}): string {
+  return themeAssetUrl({ themeId, relativePath: `${resolveThemeLayout(apiVersion).pagesDir}/${encodeURIComponent(templateChoice)}` });
 }
 
 /** The Tovu-owned canonical document-shell filename(s) a `static`-tier theme ships for a
@@ -104,14 +104,14 @@ export const STATIC_TIER_PAGE_SHELL_TEMPLATES: readonly string[] = ["pages-defau
  * wrapper" — the exact pre-existing behavior for this case. No theme-tier check is needed here for
  * that reason; the failed fetch(es) ARE the tier check.
  *
- * @param templateChoice - The page's own live template choice, same tri-state contract as
+ * @param required.templateChoice - The page's own live template choice, same tri-state contract as
  *   {@link useThemeCanvasStyling}'s own parameter.
- * @param bodyFormat - The page's `bodyFormat`. `"doc"` — including "page not loaded yet", the
+ * @param required.bodyFormat - The page's `bodyFormat`. `"doc"` — including "page not loaded yet", the
  *   caller's own conservative default — never triggers the fallback.
  * @returns The `templateChoice` to actually pass to {@link useThemeCanvasStyling}.
  * @complexity O(1) — one truthiness check, no I/O.
  */
-export function resolveCanvasTemplateChoice(templateChoice: string | null, bodyFormat: "doc" | "html"): string | null {
+export function resolveCanvasTemplateChoice({ templateChoice, bodyFormat }: { templateChoice: string | null; bodyFormat: "doc" | "html" }, _options = {}): string | null {
   // `""` (bare page, owner ruling 2026-09-23) is deliberately excluded from the `if (templateChoice)`
   // falsy check below: unlike `null`, it must NOT resolve to the page-shell fallback any more — it
   // renders NO theme chrome at all, and `useThemeCanvasStyling`'s own bare short-circuit (above)
@@ -142,18 +142,18 @@ function isSafeToken([name, value]: [string, string]): boolean {
  * document sets no `data-theme`, so it renders in the theme's default mode, exactly as an
  * un-toggled first visit to the live site does.
  *
- * @param tokens - The theme's default-mode tokens (`tokens.json`).
- * @param lightTokens - The theme's light-mode tokens, or `undefined` when it ships none.
+ * @param required.tokens - The theme's default-mode tokens (`tokens.json`).
+ * @param required.lightTokens - The theme's light-mode tokens, or `undefined` when it ships none.
  * @returns One CSS string. Empty when `tokens` holds nothing usable, which the caller treats as
  *   "this theme cannot style the canvas" rather than emitting an empty rule.
  * @complexity O(n) in the total number of tokens.
  */
-export function tokensToCanvasCss(tokens: ThemeTokens, lightTokens: ThemeTokens | undefined): string {
-  const block = (selector: string, entries: [string, string][]) =>
+export function tokensToCanvasCss({ tokens, lightTokens }: { tokens: ThemeTokens; lightTokens: ThemeTokens | undefined }, _options = {}): string {
+  const block = ({ selector, entries }: { selector: string; entries: [string, string][] }, _options = {}) =>
     entries.length === 0 ? "" : `${selector}{${entries.map(([k, v]) => k + ":" + v + ";").join("")}}`;
-  const defaultBlock = block(":root", Object.entries(tokens).filter(isSafeToken));
+  const defaultBlock = block({ selector: ":root", entries: Object.entries(tokens).filter(isSafeToken) });
   if (!defaultBlock) return "";
-  return defaultBlock + block(':root[data-theme="light"]', Object.entries(lightTokens ?? {}).filter(isSafeToken));
+  return defaultBlock + block({ selector: ':root[data-theme="light"]', entries: Object.entries(lightTokens ?? {}).filter(isSafeToken) });
 }
 
 /** Pending until the token fetch settles, because `InteractiveHtmlEditor` reads its canvas styling
@@ -181,44 +181,12 @@ const CANVAS_STYLING_TIMEOUT_MS = 8000;
  *  failure), so the next occurrence is diagnosable from the console instead of guessed at. Removed
  *  once Bug B is closed; not covered by a test for that reason — it is logging only, with no behavior
  *  for a test to assert. */
-function logCanvasStylingSettle(phase: string): void {
+function logCanvasStylingSettle({ phase }: { phase: string }, _options = {}): void {
   if (import.meta.env.DEV) {
     console.debug("[page-editor] interactive", { phase, ms: Math.round(performance.now()) });
   }
 }
 
-/**
- * Fetches the active theme's tokens and pairs them with its stylesheet URL, as the `canvasStyling`
- * `@jini-ai/ui`'s `InteractiveHtmlEditor` accepts.
- *
- * @param themeId - The active theme's id, or `null` before presentation settings have loaded (stays
- *   `pending` until it arrives — the editor must not mount unstyled and then learn the theme). `""`
- *   (settings loaded, no theme configured) resolves to {@link NO_CANVAS_STYLING} immediately — there is
- *   nothing to fetch, so it does not wait out the Slice B2 timeout below.
- * @param apiVersion - The active theme's manifest `apiVersion`, used only to locate its stylesheet.
- *   Unknown is treated as v1, matching `resolveThemeLayout`'s own default.
- * @param port - Injected {@link ThemeCanvasPort} — see `theme-canvas-port.hooks.ts`.
- * @param templateChoice - The page's own selected template (same tri-state contract as
- *   `PageEditorController.templateChoice`: `null`/`""` both mean "no template", a filename fetches
- *   that template's markup) — appended as a 4th, DEFAULTED parameter rather than inserted earlier, so
- *   `use-page-editor.hooks.ts`'s existing 3-argument call site keeps compiling and behaving exactly as
- *   before (no wrapper) until it is deliberately updated to pass one. When given, this hook derives
- *   the real ancestor chain the template wraps `{"type":"content"}` in
- *   (`theme-canvas-wrapper.ts`'s `deriveContentWrapperChain`) and includes it as the returned
- *   styling's `contentWrapper` — see that module's own file header for what it does and why. Any
- *   failure along this path (fetch rejects, no marker found, markup unparseable) degrades to no
- *   wrapper rather than failing the whole canvas: `contentWrapper` is optional on `CanvasStyling`, and
- *   its absence reproduces the exact pre-existing "no wrapper" canvas.
- * @returns The current {@link ThemeCanvasStylingState}.
- * @complexity Three-or-four requests per theme (token, light-token, and stylesheet-warm always; plus
- *   template markup when `templateChoice` is set, up to two when it is the page-shell shim's primary
- *   candidate and the active theme only ships the legacy one), no unbounded retry; O(n) in the token
- *   count to build the CSS, O(m) in the template markup's size to derive the wrapper. The stylesheet
- *   warm (Bug B, Slice B1) is fire-and-forget and never affects this count's success/failure outcome.
- *   Bug B, Slice B2: bounded by {@link CANVAS_STYLING_TIMEOUT_MS} — a fetch that never settles resolves
- *   to {@link NO_CANVAS_STYLING} once the timer fires, so `pending` can never last forever, and the
- *   timer is cleared on both a normal settle and unmount so it never fires or leaks after either.
- */
 /**
  * Fetches `templateChoice`'s markup, same single request as before, UNLESS `templateChoice` is
  * exactly {@link STATIC_TIER_PAGE_SHELL_TEMPLATES}`[0]` — the synthetic value
@@ -237,15 +205,15 @@ function logCanvasStylingSettle(phase: string): void {
  *   `STATIC_TIER_PAGE_SHELL_TEMPLATES.length` in the worst case — never unbounded.
  */
 async function fetchTemplateMarkupWithPageShellFallback(
-  port: ThemeCanvasPort,
-  themeId: string,
-  apiVersion: 2 | undefined,
-  templateChoice: string,
+  { port, themeId, apiVersion, templateChoice }: {
+    port: ThemeCanvasPort; themeId: string; apiVersion: 2 | undefined; templateChoice: string;
+  },
+  _options = {},
 ): Promise<string | null> {
   const candidates = templateChoice === STATIC_TIER_PAGE_SHELL_TEMPLATES[0] ? STATIC_TIER_PAGE_SHELL_TEMPLATES : [templateChoice];
   for (const candidate of candidates) {
     try {
-      return await port.fetchTemplateMarkup(templateMarkupUrl(themeId, apiVersion, candidate));
+      return await port.fetchTemplateMarkup({ url: templateMarkupUrl({ themeId, apiVersion, templateChoice: candidate }) });
     } catch {
       // Try the next ordered candidate; the loop's own fall-through to `null` below is the "every
       // candidate failed" outcome, matching the pre-existing single-fetch `.catch(() => null)`.
@@ -254,11 +222,41 @@ async function fetchTemplateMarkupWithPageShellFallback(
   return null;
 }
 
+/**
+ * Fetches the active theme's tokens and pairs them with its stylesheet URL, as the `canvasStyling`
+ * `@jini-ai/ui`'s `InteractiveHtmlEditor` accepts.
+ *
+ * @param required.themeId - The active theme's id, or `null` before presentation settings have loaded (stays
+ *   `pending` until it arrives — the editor must not mount unstyled and then learn the theme). `""`
+ *   (settings loaded, no theme configured) resolves to {@link NO_CANVAS_STYLING} immediately — there is
+ *   nothing to fetch, so it does not wait out the Slice B2 timeout below.
+ * @param required.apiVersion - The active theme's manifest `apiVersion`, used only to locate its stylesheet.
+ *   Unknown is treated as v1, matching `resolveThemeLayout`'s own default.
+ * @param required.port - Injected {@link ThemeCanvasPort} — see `theme-canvas-port.hooks.ts`.
+ * @param optional.templateChoice - The page's own selected template (same tri-state contract as
+ *   `PageEditorController.templateChoice`: `null`/`""` both mean "no template", a filename fetches
+ *   that template's markup). This was originally appended as a defaulted fourth argument so older
+ *   callers retained the no-wrapper behavior; it still defaults to no wrapper until the caller
+ *   deliberately passes a template. When given, this hook derives
+ *   the real ancestor chain the template wraps `{"type":"content"}` in
+ *   (`theme-canvas-wrapper.ts`'s `deriveContentWrapperChain`) and includes it as the returned
+ *   styling's `contentWrapper` — see that module's own file header for what it does and why. Any
+ *   failure along this path (fetch rejects, no marker found, markup unparseable) degrades to no
+ *   wrapper rather than failing the whole canvas: `contentWrapper` is optional on `CanvasStyling`, and
+ *   its absence reproduces the exact pre-existing "no wrapper" canvas.
+ * @returns The current {@link ThemeCanvasStylingState}.
+ * @complexity Three-or-four requests per theme (token, light-token, and stylesheet-warm always; plus
+ *   template markup when `templateChoice` is set, up to two when it is the page-shell shim's primary
+ *   candidate and the active theme only ships the legacy one), no unbounded retry; O(n) in the token
+ *   count to build the CSS, O(m) in the template markup's size to derive the wrapper. The stylesheet
+ *   warm (Bug B, Slice B1) is fire-and-forget and never affects this count's success/failure outcome.
+ *   Bug B, Slice B2: bounded by {@link CANVAS_STYLING_TIMEOUT_MS} — a fetch that never settles resolves
+ *   to {@link NO_CANVAS_STYLING} once the timer fires, so `pending` can never last forever, and the
+ *   timer is cleared on both a normal settle and unmount so it never fires or leaks after either.
+ */
 export function useThemeCanvasStyling(
-  themeId: string | null,
-  apiVersion: 2 | undefined,
-  port: ThemeCanvasPort,
-  templateChoice: string | null = null,
+  { themeId, apiVersion, port }: { themeId: string | null; apiVersion: 2 | undefined; port: ThemeCanvasPort },
+  { templateChoice = null }: { templateChoice?: string | null } = {},
 ): ThemeCanvasStylingState {
   const [state, setState] = useState<ThemeCanvasStylingState>({ status: "pending" });
 
@@ -268,7 +266,7 @@ export function useThemeCanvasStyling(
       // Presentation settings have landed but no theme is configured (`themeId === ""`) — there is
       // nothing to fetch, so this resolves immediately instead of sitting `pending` until the Slice B2
       // timeout below, which exists to bound a real in-flight fetch, not an empty theme id.
-      logCanvasStylingSettle("styling:empty-theme");
+      logCanvasStylingSettle({ phase: "styling:empty-theme" });
       setState(NO_CANVAS_STYLING);
       return undefined;
     }
@@ -278,7 +276,7 @@ export function useThemeCanvasStyling(
       // fetching this theme's tokens/stylesheet/template markup only to discard them. Deliberately
       // NOT reached via `themeId = null` (that means "still pending", per this function's own doc) —
       // a real, loaded theme with a bare Page selected is a settled state, not a waiting one.
-      logCanvasStylingSettle("styling:bare-page");
+      logCanvasStylingSettle({ phase: "styling:bare-page" });
       setState(NO_CANVAS_STYLING);
       return undefined;
     }
@@ -298,19 +296,19 @@ export function useThemeCanvasStyling(
       // runs while neither is set.
       settled = true;
       // Same outcome a fetch REJECTION already produces — see `CANVAS_STYLING_TIMEOUT_MS`'s own doc.
-      logCanvasStylingSettle("styling:timeout");
+      logCanvasStylingSettle({ phase: "styling:timeout" });
       setState(NO_CANVAS_STYLING);
     }, CANVAS_STYLING_TIMEOUT_MS);
     // `null` (no fetch at all) for "no template chosen" — resolved immediately rather than left out of
     // the `Promise.all` below, so readiness always waits on exactly one settle shape regardless of
     // whether a template is selected.
     const templateMarkup: Promise<string | null> = templateChoice
-      ? fetchTemplateMarkupWithPageShellFallback(port, themeId, apiVersion, templateChoice)
+      ? fetchTemplateMarkupWithPageShellFallback({ port, themeId, apiVersion, templateChoice })
       : Promise.resolve(null);
     Promise.all([
-      port.fetchThemeTokens(themeTokensUrl(themeId)),
+      port.fetchThemeTokens({ url: themeTokensUrl({ themeId }) }),
       // A theme with no light variant is normal, not an error — see `themeLightTokensUrl`.
-      port.fetchThemeTokens(themeLightTokensUrl(themeId)).catch((error: unknown) => {
+      port.fetchThemeTokens({ url: themeLightTokensUrl({ themeId }) }).catch((error: unknown) => {
         if (!(error instanceof Error && error.message === "the theme server responded with 404")) {
           console.error("[theme-canvas] Could not load light theme tokens", describeErrorForLog({ err: error }));
         }
@@ -323,32 +321,32 @@ export function useThemeCanvasStyling(
       // and-braces `.catch` alongside the real port's own internal swallow (`ThemeCanvasPort.
       // warmStylesheet`'s doc) — a rejection here must never turn a perfectly good token+CSS resolution
       // into "no canvas styling at all".
-      port.warmStylesheet(themeStylesheetUrl(themeId, apiVersion)).catch(() => undefined),
+      port.warmStylesheet({ url: themeStylesheetUrl({ themeId, apiVersion }) }).catch(() => undefined),
     ])
       .then(([tokens, lightTokens, markup]) => {
         if (cancelled || settled) return;
         settled = true;
         clearTimeout(timeoutId);
-        const css = tokensToCanvasCss(tokens, lightTokens);
+        const css = tokensToCanvasCss({ tokens, lightTokens });
         if (!css) {
-          logCanvasStylingSettle("styling:no-usable-tokens");
+          logCanvasStylingSettle({ phase: "styling:no-usable-tokens" });
           setState(NO_CANVAS_STYLING);
           return;
         }
         // `null` covers both "no template chosen" and "the fetch/derivation above found nothing
         // usable" — both fall back to no wrapper identically, per this function's own doc.
-        const contentWrapper = markup ? (deriveContentWrapperChain(markup) ?? undefined) : undefined;
-        logCanvasStylingSettle("styling:ready");
+        const contentWrapper = markup ? (deriveContentWrapperChain({ templateHtml: markup }) ?? undefined) : undefined;
+        logCanvasStylingSettle({ phase: "styling:ready" });
         setState({
           status: "ready",
-          styling: { stylesheets: [themeStylesheetUrl(themeId, apiVersion)], css, contentWrapper },
+          styling: { stylesheets: [themeStylesheetUrl({ themeId, apiVersion })], css, contentWrapper },
         });
       })
       .catch(() => {
         if (cancelled || settled) return;
         settled = true;
         clearTimeout(timeoutId);
-        logCanvasStylingSettle("styling:fetch-error");
+        logCanvasStylingSettle({ phase: "styling:fetch-error" });
         setState(NO_CANVAS_STYLING);
       });
     return () => {

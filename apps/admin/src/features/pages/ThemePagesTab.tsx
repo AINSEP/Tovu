@@ -349,7 +349,7 @@ export function ThemePagesTab({
             // a second tab.
             cell: (row, index) => (
               <a
-                href={themeStudioHref(themeId, row.pageId)}
+                href={themeStudioHref({ themeId, pageId: row.pageId })}
                 {...agentHandle({ handle: `${rowHandles[index]}-edit` }, { role: "link", label: "Open this theme page in Theme Studio" })}
               >
                 {row.pageId}
@@ -381,11 +381,11 @@ export function ThemePagesTab({
               <RowMenu
                 triggerLabel={t('Actions for "{title}"').replace("{title}", () => row.pageId)}
                 agentHandle={`${rowHandles[index]}-menu`}
-                items={themePageRowMenuItems(
+                items={themePageRowMenuItems({
                   row,
-                  { onOpenDetails: setDetailPageId, onEdit: (pageId) => navigate(themeStudioRoutePath(themeId, pageId)) },
-                  t
-                )}
+                  handlers: { onOpenDetails: setDetailPageId, onEdit: ({ pageId }, _options = {}) => navigate(themeStudioRoutePath({ themeId, pageId })) },
+                  t,
+                })}
               />
             ),
           },

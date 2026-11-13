@@ -628,7 +628,7 @@ function PageEditorToolbarEnd({
   onViewTemplateClick: () => void;
   t: Translate;
 }) {
-  const pickerValue = pagePickerValue(templateChoice, availableTemplates);
+  const pickerValue = pagePickerValue({ templateChoice, availableTemplates });
   return (
     <div className="page-editor-toolbar-end">
       {view === "preview" ? <WiredThemePreviewReloadButton /> : null}
@@ -647,7 +647,7 @@ function PageEditorToolbarEnd({
               // `pickerValueToChoice`, not the raw `e.target.value` — translates the synthetic
               // `THEME_DEFAULT_SENTINEL` option back to `null`; every other value (a real filename, or
               // the bare `""`) already IS the `templateChoice` to store, see that function's own doc.
-              onChange={(e) => setTemplateChoice(pickerValueToChoice(e.target.value))}
+              onChange={(e) => setTemplateChoice(pickerValueToChoice({ value: e.target.value }))}
               {...agentHandle({ handle: "page-template-choice" }, {
                 role: "field",
                 label:
@@ -795,7 +795,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     onInteractiveSourceError,
     interactiveEditorRef,
     setHtmlFromCanvas,
-  } = usePageEditorHook(routeSlug);
+  } = usePageEditorHook({ routeSlug });
   // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
   // lint even though this one holds no state of its own.
   const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as PageEditorView) });
@@ -811,7 +811,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         setTitle={setTitle}
         slug={slug}
         setSlug={setSlug}
-        livePath={pagePublicPath(page.slug)}
+        livePath={pagePublicPath({ slug: page.slug })}
         t={t}
       />
 

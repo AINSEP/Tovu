@@ -14,7 +14,7 @@ export function useEditorHtmlJump(
   { onError, measureCaretTop = measureTextareaCaretTop }: {
     onError: () => void;
     /** Pixel top of `index` inside the textarea's wrapped content, or `null` without layout. */
-    measureCaretTop?: (node: HTMLTextAreaElement, index: number) => number | null;
+    measureCaretTop?: typeof measureTextareaCaretTop;
   },
 ): { requestEditHtml: RequestEditHtml; htmlTextareaRef: (node: HTMLTextAreaElement | null) => void; consumeJumpFormatting: () => boolean } {
   const current = useRef({ html, contentRevision });
@@ -54,7 +54,7 @@ export function useEditorHtmlJump(
     node.setSelectionRange(jump.start, jump.end);
     // The HTML tab soft-wraps long lines, so a newline count lands far above the tag on real pages;
     // the measured wrapped position wins, and the line estimate only stands in without layout.
-    const measured = measureCaretTop(node, jump.start);
+    const measured = measureCaretTop({ node, index: jump.start });
     const line = node.value.slice(0, jump.start).split("\n").length - 1;
     const metrics = node.ownerDocument.defaultView?.getComputedStyle(node);
     const lineHeight = Number.parseFloat(metrics?.lineHeight ?? "") || 20;
@@ -82,7 +82,7 @@ const MIRRORED_STYLES = [
  *
  * @complexity O(index) to copy the text before the caret, plus one layout.
  */
-export function measureTextareaCaretTop(node: HTMLTextAreaElement, index: number): number | null {
+export function measureTextareaCaretTop({ node, index }: { node: HTMLTextAreaElement; index: number }, _options = {}): number | null {
   const doc = node.ownerDocument;
   const style = doc.defaultView?.getComputedStyle(node);
   if (!style) return null;
