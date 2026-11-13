@@ -59,7 +59,7 @@ async function installFirst(layout: Layout, archive: Buffer) {
 }
 
 async function setEnabled(layout: Layout, enabled: boolean, origin?: "bundled" | "operator-installed") {
-  await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(WORKSPACE).root, pluginId: PLUGIN, enabled, actor: "owner" }, origin ? { origin } : {});
+  await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE }).root, pluginId: PLUGIN, enabled, actor: "owner" }, origin ? { origin } : {});
 }
 
 function recordingMcp() {
@@ -90,18 +90,18 @@ function update(layout: Layout, archive: Buffer, expectedOldDigest: string, opti
 }
 
 async function liveDigests(layout: Layout): Promise<string[]> {
-  return (await readdir(layout.forWorkspace(WORKSPACE).pluginPackagesDir({ pluginId: PLUGIN }))).filter((name) => /^[a-f0-9]{64}$/.test(name));
+  return (await readdir(layout.forWorkspace({ workspaceId: WORKSPACE }).pluginPackagesDir({ pluginId: PLUGIN }))).filter((name) => /^[a-f0-9]{64}$/.test(name));
 }
 
 async function readActivation(layout: Layout) {
-  return JSON.parse(await readFile(path.join(layout.forWorkspace(WORKSPACE).root, "activations.json"), "utf8")).plugins[PLUGIN];
+  return JSON.parse(await readFile(path.join(layout.forWorkspace({ workspaceId: WORKSPACE }).root, "activations.json"), "utf8")).plugins[PLUGIN];
 }
 
 test("update: an enabled plugin moves to the newer package, stays enabled, keeps memory, re-provisions MCP and snapshots settings", async () => {
   await withLayout(async (layout) => {
     const old = await installFirst(layout, await packageZip("1.0.0"));
     await setEnabled(layout, true);
-    const notes = layout.forWorkspace(WORKSPACE).pluginMemoryDir({ pluginId: PLUGIN, kind: "notes" });
+    const notes = layout.forWorkspace({ workspaceId: WORKSPACE }).pluginMemoryDir({ pluginId: PLUGIN, kind: "notes" });
     await mkdir(notes, { recursive: true });
     await writeFile(path.join(notes, "kept.md"), "remember me");
     const mcp = recordingMcp();
@@ -270,7 +270,7 @@ test("install: an ordinary install or replacement is refused while an update jou
     // What an incomplete rollback leaves: an unfinished journal naming the installed revision.
     const journal = { schemaVersion: 1, state: "published", transactionId: "tx-1", pluginId: PLUGIN, actor: "owner", enabled: false,
       fromDigest: old.archiveDigest, toDigest: "f".repeat(64), settingsSnapshot: { keys: [] }, startedAt: new Date(0).toISOString() };
-    await writeFile(path.join(layout.forWorkspace(WORKSPACE).pluginRootDir({ pluginId: PLUGIN }), "update-journal.json"), JSON.stringify(journal));
+    await writeFile(path.join(layout.forWorkspace({ workspaceId: WORKSPACE }).pluginRootDir({ pluginId: PLUGIN }), "update-journal.json"), JSON.stringify(journal));
     const replacement = await packageZip("1.1.0");
     await assert.rejects(installUploadedAgentPlugin({ archive: replacement, expectedSha256: sha(replacement), workspaceId: WORKSPACE, actor: "owner", replace: true }, { layout }),
       (error: unknown) => error instanceof AgentPluginUpdateError && error.code === "PLUGIN_UPDATE_PENDING");

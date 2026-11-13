@@ -612,7 +612,7 @@ export function createAssistantByokModule(
       plugins: { controller: automaticPluginRuns, emit: publishDaemonPluginEvent,
         pinnedPrefix: async ({ pluginRefIds }) => {
           await Promise.all([routeDeps.pluginRuntimeReady, routeDeps.siteTitleReady]);
-          const result = await resolveAgentPluginRefs(translateRetiredPluginRefs(pluginRefIds), routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId), 'inject');
+          const result = await resolveAgentPluginRefs({ pluginRefIds: translateRetiredPluginRefs(pluginRefIds), workspaceLayout: routeDeps.agentPluginLayout.forWorkspace({ workspaceId: routeDeps.workspaceId }) }, { deliveryMode: 'inject' });
           return result.ok ? result.promptPrefix : null;
         },
         refusalPrefix: () => resolvedToolSurface.federation?.refusalPrefix() ?? "",
@@ -644,7 +644,7 @@ export function createAssistantByokModule(
       // Explicit attachments bypass relevance matching, but a failed attachment must not end a run
       // or discard guidance from the other picks. The lifecycle still enforces activation and trust.
       try {
-        const resolved = await resolveAgentPluginRefs([pluginId], routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId), 'inject');
+        const resolved = await resolveAgentPluginRefs({ pluginRefIds: [pluginId], workspaceLayout: routeDeps.agentPluginLayout.forWorkspace({ workspaceId: routeDeps.workspaceId }) }, { deliveryMode: 'inject' });
         if (resolved.ok) prefix += `\n\n${resolved.promptPrefix}`;
         else skippedPinned = true;
       } catch { skippedPinned = true; }

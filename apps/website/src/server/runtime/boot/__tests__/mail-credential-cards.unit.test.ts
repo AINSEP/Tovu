@@ -131,11 +131,11 @@ async function submitKey({ h, token, fields = {}, input = { kind: "plugin-provid
 test("a combined descriptor feeds both plugin cards and provider setup's secure credential_save prefill", async () => {
   const label = "Merged sending key";
   const baseUrl = "https://api.merged.test";
-  const parsed = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{
+  const parsed = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [{
     id: "merged", label: "Merged", module: "mail.mjs", credentialLabel: label, credentialKeys: ["token"], feedback: false,
     credentialCard: { title: "Connect merged mail", baseUrl },
     setup: { fields: [{ key: "baseUrl", label: "Endpoint", type: "url", defaultValue: baseUrl }] },
-  }] }));
+  }] }) });
   assert.ok(parsed.ok);
   const descriptor = parsed.descriptors[0]!;
   const registry: MailAdapterRegistry = { refusals: [], list: () => [{ pluginId: "merged-plugin", descriptor,

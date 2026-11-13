@@ -65,7 +65,7 @@ export interface AgentPluginUninstallToolDeps extends Pick<HostUninstallDeps, 'a
  * anything beyond the plugin id the caller already sent and, for the bundled case, the name of the
  * tool to call instead — nothing internal leaks.
  */
-function toModelFacingUninstallError(error: unknown): unknown {
+function toModelFacingUninstallError({ error }: { error: unknown }, _optional: Record<string, never> = {}): unknown {
   if (error instanceof AgentPluginNotFoundError || error instanceof AgentPluginNotUninstallableError) {
     return new ToolInputError({ message: error.message });
   }
@@ -112,7 +112,7 @@ function updateJournalNextStep({ error }: { error: AgentPluginUpdateError }, _op
  * @throws The re-classified error for every other rejection.
  * @complexity O(1).
  */
-function uninstallRefusedResult(pluginId: string, error: unknown): unknown {
+function uninstallRefusedResult({ pluginId, error }: { pluginId: string; error: unknown }, _optional: Record<string, never> = {}): unknown {
   if (error instanceof AgentPluginUpdateError) return updateJournalRefusedResult({ pluginId, error });
   if (error instanceof AgentPluginActivationsBusyError) {
     console.warn(`[agent-plugins] '${pluginId}': plugins_uninstall (family agent-plugin) refused — ${error.message}`);
@@ -148,7 +148,7 @@ function uninstallRefusedResult(pluginId: string, error: unknown): unknown {
         "keeps happening, the server log names the lock file.",
     };
   }
-  if (!(error instanceof AgentPluginActivationsUnreadableError)) throw toModelFacingUninstallError(error);
+  if (!(error instanceof AgentPluginActivationsUnreadableError)) throw toModelFacingUninstallError({ error });
   console.warn(`[agent-plugins] '${pluginId}': plugins_uninstall (family agent-plugin) refused — ${error.message}`);
   return {
     uninstalled: false,
@@ -172,7 +172,7 @@ async function previewOrRefusal(
   try {
     return { preview: await previewAgentPluginUninstall(request) };
   } catch (error) {
-    return { refusal: uninstallRefusedResult(request.pluginId, error) };
+    return { refusal: uninstallRefusedResult({ pluginId: request.pluginId, error }) };
   }
 }
 
@@ -190,7 +190,10 @@ async function previewOrRefusal(
  * `uninstallRefusedResult`, like the preview's.
  * @complexity O(1) beyond `uninstallAgentPlugin`.
  */
-async function uninstallConfirmedAgentPlugin(request: UninstallAgentPluginRequired, preview: AgentPluginUninstallPreview, deleteMemory = false, uninstall = uninstallAgentPlugin): Promise<unknown> {
+async function uninstallConfirmedAgentPlugin(
+  { request, preview }: { request: UninstallAgentPluginRequired; preview: AgentPluginUninstallPreview },
+  { deleteMemory = false, uninstall = uninstallAgentPlugin }: { deleteMemory?: boolean; uninstall?: typeof uninstallAgentPlugin } = {},
+): Promise<unknown> {
   try {
     const result = await uninstall(request, { confirmedPreview: preview, deleteMemory });
     return {
@@ -220,7 +223,7 @@ async function uninstallConfirmedAgentPlugin(request: UninstallAgentPluginRequir
           "Nothing was removed. Call plugins_uninstall again with family 'agent-plugin' so the user can review and confirm what is installed now.",
       };
     }
-    return uninstallRefusedResult(request.pluginId, error);
+    return uninstallRefusedResult({ pluginId: request.pluginId, error });
   }
 }
 
@@ -262,7 +265,7 @@ export async function runAgentPluginUninstall(
     run: async ({ ctx: approvedCtx, prepared, choice }) => {
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: approvedCtx.principal.id, permission: "admin.plugins.enable" }, { entityType: "agent-plugin", entityId: pluginId });
       if (approvedCtx.signal.aborted) return { uninstalled: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
-      return uninstallConfirmedAgentPlugin(request, prepared, choice === "delete-memory", routeDeps.uninstallAgentPlugin);
+      return uninstallConfirmedAgentPlugin({ request, preview: prepared }, { deleteMemory: choice === "delete-memory", uninstall: routeDeps.uninstallAgentPlugin });
     },
   }, { flag: "uninstalled", declined: ({ reason }) => ({ uninstalled: false, pluginId, restartRequired: false, ...notConfirmedResult({ confirmed: false, reason }) }) })(ctx, optional);
 }

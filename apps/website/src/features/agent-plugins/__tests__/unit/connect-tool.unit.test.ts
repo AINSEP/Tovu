@@ -582,7 +582,7 @@ test("agent_plugin_connect resolves the installed package without an injected re
     await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE_ID, sourceRoot: bundledSource.root });
     // Bundled plugins seed disabled; this resolver test starts after the operator enables Supabase.
     await agentPluginActivations.setAgentPluginActivation({
-      workspaceRoot: resolveAgentPluginLayout({ siteDir: dir }).forWorkspace(WORKSPACE_ID).root,
+      workspaceRoot: resolveAgentPluginLayout({ siteDir: dir }).forWorkspace({ workspaceId: WORKSPACE_ID }).root,
       pluginId: "supabase", enabled: true, actor: PRINCIPAL_ID,
     });
     const store = makeStoreDeps();

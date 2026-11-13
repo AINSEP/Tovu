@@ -37,7 +37,7 @@ function isValidTokenEntry(
  * `{ [pluginId]: token }`, trimmed, blanks dropped. `null`/`undefined` is "none given".
  * @complexity O(n) in the entry count (bounded).
  */
-export function parseNewSiteAgentPluginTokens(raw: unknown): { ok: true; tokens: Record<string, string> } | { ok: false; error: string } {
+export function parseNewSiteAgentPluginTokens({ raw }: { raw: unknown }, _optional: Record<string, never> = {}): { ok: true; tokens: Record<string, string> } | { ok: false; error: string } {
   if (raw === undefined || raw === null) return { ok: true, tokens: {} };
   const invalid = { ok: false as const, error: NEW_SITE_AGENT_PLUGIN_TOKENS_SHAPE_ERROR };
   if (typeof raw !== "object" || Array.isArray(raw) || Object.keys(raw).length > MAX_AGENT_PLUGIN_TOKENS) return invalid;
@@ -52,11 +52,9 @@ export function parseNewSiteAgentPluginTokens(raw: unknown): { ok: true; tokens:
 
 /** Why a token given at create time stops the create, or `null` when it may be stored. A token the
  *  vendor could not be reached to check is still stored: the new site's first use tells. */
-export function describeNewSiteAgentPluginTokenRefusal(
-  pluginId: string,
-  outcome: TokenCheckOutcome,
+export function describeNewSiteAgentPluginTokenRefusal({ pluginId, outcome }: { pluginId: string; outcome: TokenCheckOutcome }, _optional: Record<string, never> = {}
 ): { code: "AGENT_PLUGIN_TOKEN_INVALID" | "AGENT_PLUGIN_TOKEN_REFUSED" | "AGENT_PLUGIN_TOKEN_UNSUPPORTED"; error: string } | null {
-  const name = titleCaseFromPluginId(pluginId);
+  const name = titleCaseFromPluginId({ pluginId });
   // A purpose refusal must still stop a pre-save check, without mislabelling a usable key.
   if (outcome === "refused") {
     return { code: "AGENT_PLUGIN_TOKEN_REFUSED", error: `That ${name} access token was refused for this purpose. Check its permissions, or leave it empty and connect ${name} later from chat. No site was created.` };
@@ -74,19 +72,17 @@ export function describeNewSiteAgentPluginTokenRefusal(
  * The first refusal across `tokens`, checked in order, or `null` when every token may be stored.
  * @complexity One check (at most one outbound GET) per token.
  */
-export async function firstNewSiteAgentPluginTokenRefusal(
-  check: (input: { pluginId: string; token: string }) => Promise<TokenCheckOutcome>,
-  tokens: Readonly<Record<string, string>>,
+export async function firstNewSiteAgentPluginTokenRefusal({ check, tokens }: { check: (input: { pluginId: string; token: string }) => Promise<TokenCheckOutcome>; tokens: Readonly<Record<string, string>> }, _optional: Record<string, never> = {}
 ): Promise<{ pluginId: string; code: string; error: string } | null> {
   for (const [pluginId, token] of Object.entries(tokens)) {
-    const refusal = describeNewSiteAgentPluginTokenRefusal(pluginId, await check({ pluginId, token }));
+    const refusal = describeNewSiteAgentPluginTokenRefusal({ pluginId, outcome: await check({ pluginId, token }) });
     if (refusal) return { pluginId, ...refusal };
   }
   return null;
 }
 
 /** The plugin's manifest `name`, or `null` when `plugin.json` is missing or unreadable. */
-async function readBundledPluginId(pluginDir: string): Promise<string | null> {
+async function readBundledPluginId({ pluginDir }: { pluginDir: string }, _optional: Record<string, never> = {}): Promise<string | null> {
   try {
     const manifest = JSON.parse(await readFile(path.join(pluginDir, "plugin.json"), "utf8")) as { name?: unknown };
     return typeof manifest.name === "string" && PLUGIN_ID_PATTERN.test(manifest.name) ? manifest.name : null;
@@ -119,8 +115,8 @@ export async function listBundledAgentPluginServers(
     // Same skip as `seed-bundled.ts`: a retired id is never seeded, so it is never offered.
     if (!entry.isDirectory() || RETIRED_BUNDLED_AGENT_PLUGINS.has(entry.name)) continue;
     const pluginDir = path.join(sourceRoot, entry.name);
-    const pluginId = await readBundledPluginId(pluginDir);
-    if (pluginId !== null) out.push({ pluginId, servers: await readInstalledMcpServers(pluginDir) });
+    const pluginId = await readBundledPluginId({ pluginDir });
+    if (pluginId !== null) out.push({ pluginId, servers: await readInstalledMcpServers({ packageRoot: pluginDir }) });
   }
   return out;
 }
@@ -147,5 +143,5 @@ export function listNewSiteAgentPluginTokenSignInPlugins(
   paths: Pick<AgentPluginPathsPort, "bundledSourceRoot">,
   _optional = {},
 ): Promise<readonly TokenSignInPlugin[]> {
-  return listTokenSignInPlugins("new-site", () => listBundledAgentPluginServers(paths));
+  return listTokenSignInPlugins({ workspaceId: "new-site", listPlugins: () => listBundledAgentPluginServers(paths) });
 }

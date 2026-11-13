@@ -75,7 +75,7 @@ test("an activation-write failure after staging restores every package tree, fro
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-uninstall-rollback-"));
   try {
     const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
-    const workspace = layout.forWorkspace(WORKSPACE_ID);
+    const workspace = layout.forWorkspace({ workspaceId: WORKSPACE_ID });
     const first = await installTestPackage(layout, "multi-digest", "archive-rollback-a");
     const second = await installLegacyRevision({ packagesDir: workspace.pluginPackagesDir({ pluginId: "multi-digest" }), install: () => installTestPackage(layout, "multi-digest", "archive-rollback-b") });
     await setAgentPluginActivation({ workspaceRoot: workspace.root, pluginId: "multi-digest", enabled: true, actor: "op-1" });

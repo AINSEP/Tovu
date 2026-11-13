@@ -73,11 +73,11 @@ export async function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, o
   readonly unlessOperatorDisabled?: boolean;
 } = {}): Promise<SetAgentPluginEnabledResult> {
   // A provider plugin's assistant face has no switch of its own (`provider-plugin-link.ts`).
-  const links = options.links ?? bindProviderFacePorts({ workspaceRoot: () => input.agentPluginLayout.forWorkspace(input.workspaceId).root });
+  const links = options.links ?? bindProviderFacePorts({ workspaceRoot: () => input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root });
   const providerPluginId = await linkedProviderOf({ ports: links, pluginId: input.pluginId });
   if (providerPluginId !== undefined) {
     // A Soon face says it isn't ready rather than pointing at a provider switch that can't help.
-    if (input.enabled) await assertAgentPluginReady({ catalog: explicitRootSoonCatalog, workspaceRoot: input.agentPluginLayout.forWorkspace(input.workspaceId).root, pluginId: input.pluginId });
+    if (input.enabled) await assertAgentPluginReady({ catalog: explicitRootSoonCatalog, workspaceRoot: input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root, pluginId: input.pluginId });
     throw new AgentPluginLinkedError({ pluginId: input.pluginId, providerPluginId });
   }
   const conditional = options.unlessOperatorDisabled ? { unlessOperatorDisabled: true } : {};

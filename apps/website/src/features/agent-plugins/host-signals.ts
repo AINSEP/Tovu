@@ -41,7 +41,8 @@ export function readBundledHostSignalDeclaration(
   catch { return { signals: [] }; }
   const declarations = sources.flatMap(source => {
     try {
-      const text = (optional.readText ?? readManifestText)(path.join(source.packageRoot, "plugin.json"));
+      const file = path.join(source.packageRoot, "plugin.json");
+      const text = optional.readText === undefined || optional.readText === null ? readManifestText({ file }) : optional.readText(file);
       const declaration = parseHostSignalDeclaration({ manifest: JSON.parse(text) });
       return declaration === undefined ? [] : [declaration];
     } catch { return []; }
@@ -60,7 +61,7 @@ function combineDeclarations({ declarations }: { declarations: readonly HostSign
 }
 
 /** Node's text-only manifest read; errors are caught at the bundled adapter boundary. */
-function readManifestText(file: string): string { return readFileSync(file, "utf8"); }
+function readManifestText({ file }: { file: string }, _optional: Record<string, never> = {}): string { return readFileSync(file, "utf8"); }
 
 /**
  * Bind the host's bundled-source fact to the pure evaluator; no plugin imports, DB or activation needed.

@@ -157,7 +157,7 @@ describe("a site composed with an explicit binding, while env/cwd name another s
     const previous = process.env.TOVU_SITE_DIR;
     try {
       process.env.TOVU_SITE_DIR = path.join(siteA, "another-site");
-      assert.equal(deps!.agentPluginLayout.forWorkspace(deps!.workspaceId).root, path.join(siteA, "agent-plugins", "ws", deps!.workspaceId));
+      assert.equal(deps!.agentPluginLayout.forWorkspace({ workspaceId: deps!.workspaceId }).root, path.join(siteA, "agent-plugins", "ws", deps!.workspaceId));
       assert.equal(deps!.skillLayout.forWorkspace(deps!.workspaceId).root, path.join(siteA, "skills", "ws", deps!.workspaceId));
     } finally {
       if (previous === undefined) delete process.env.TOVU_SITE_DIR; else process.env.TOVU_SITE_DIR = previous;

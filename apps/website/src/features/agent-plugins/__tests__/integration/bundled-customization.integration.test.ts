@@ -34,8 +34,8 @@ test('H1: owner customizes bundled tovu-theme through chat into a saved site cop
   assert.equal(result.installed, true);
   assert.equal(result.enabled, false);
   assert.equal(result.plugin.id, 'my-theme');
-  const workspaceRoot = layout.forWorkspace('site').root;
-  const installed = await listInstalledPlugins(workspaceRoot);
+  const workspaceRoot = layout.forWorkspace({ workspaceId: 'site' }).root;
+  const installed = await listInstalledPlugins({ workspaceRoot });
   const copy = installed.find(plugin => plugin.pluginId === 'my-theme')!;
   assert.equal(await readFile(path.join(copy.packageRoot, input.path), 'utf8'), '# Theme\nUse green.\n');
   assert.deepEqual(await readFile(path.join(copy.packageRoot, 'logo.png')), binary);
@@ -43,15 +43,15 @@ test('H1: owner customizes bundled tovu-theme through chat into a saved site cop
   const original = installed.find(plugin => plugin.pluginId === 'tovu-theme')!;
   assert.equal(await readFile(path.join(original.packageRoot, input.path), 'utf8'), '# Theme\nUse blue.\n');
   assert.equal(await readFile(path.join(source, 'plugin.json'), 'utf8'), manifest);
-  assert.equal((await readBundledAgentPluginDigests(workspaceRoot)).has('my-theme'), false);
+  assert.equal((await readBundledAgentPluginDigests({ workspaceRoot })).has('my-theme'), false);
   const activation = JSON.parse(await readFile(path.join(workspaceRoot, 'activations.json'), 'utf8')).plugins['my-theme'];
   assert.equal(activation.origin, 'operator-installed');
   // Repeat customization is idempotent; a denied call cannot create another copy.
   assert.equal((await tool.handler(context(input), {}) as { alreadyInstalled: boolean }).alreadyInstalled, true);
   const denied = buildRegistrations({ ...deps, authorize: async () => ({ allowed: false as const, reason: 'insufficient_permission' as const }) }).find(entry => entry.descriptor.id === tool.descriptor.id)!;
   await assert.rejects(denied.handler(context({ ...input, newId: 'denied' }), {}));
-  assert.equal((await listInstalledPlugins(workspaceRoot)).some(plugin => plugin.pluginId === 'denied'), false);
+  assert.equal((await listInstalledPlugins({ workspaceRoot })).some(plugin => plugin.pluginId === 'denied'), false);
   // A malformed edit must not leave a half-installed copy behind.
   await assert.rejects(tool.handler(context({ ...input, newId: 'bad-edit', oldString: 'absent' }), {}), /exactly once/);
-  assert.equal((await listInstalledPlugins(workspaceRoot)).some(plugin => plugin.pluginId === 'bad-edit'), false);
+  assert.equal((await listInstalledPlugins({ workspaceRoot })).some(plugin => plugin.pluginId === 'bad-edit'), false);
 });

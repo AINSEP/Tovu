@@ -70,7 +70,7 @@ function manifest(name: string, version = "1.1.0"): string {
 async function freshLayout() {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-resolve-agent-plugin-refs-test-"));
   const instanceLayout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
-  return { cwd, layout: instanceLayout.forWorkspace(WORKSPACE_ID) };
+  return { cwd, layout: instanceLayout.forWorkspace({ workspaceId: WORKSPACE_ID }) };
 }
 
 /** Installs one real package (via the production `installAgentPlugin` pipeline) with the given
@@ -100,10 +100,10 @@ async function installRealPackage(
 test("resolves to an empty promptPrefix and touches no filesystem when pluginRefIds is empty", async () => {
   // Both paths are deliberately nonexistent: the empty-refs fast path must return before it touches
   // EITHER `packages` (to list installs) or `root` (to read the activation record, added 2026-08-26).
-  const result = await resolveAgentPluginRefs([], {
+  const result = await resolveAgentPluginRefs({ pluginRefIds: [], workspaceLayout: {
     packages: "/does-not-exist-and-is-never-read",
     root: "/does-not-exist-and-is-never-read-either",
-  });
+  } });
   assert.deepEqual(result, { ok: true, promptPrefix: "" });
 });
 
@@ -112,7 +112,7 @@ test("resolves a real, genuinely installed plugin's SKILL.md content verbatim in
   try {
     await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-real-1");
 
-    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+    const result = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout });
 
     assert.equal(result.ok, true);
     assert.ok(result.ok);
@@ -132,7 +132,7 @@ test("does not include the SKILL.md content when pluginRefIds is absent (regress
   try {
     await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-real-2");
 
-    const result = await resolveAgentPluginRefs([], layout);
+    const result = await resolveAgentPluginRefs({ pluginRefIds: [], workspaceLayout: layout });
 
     assert.equal(result.ok, true);
     assert.ok(result.ok);
@@ -161,7 +161,7 @@ test("lists readable supporting files relative to the skill and never exposes an
       workspaceId: WORKSPACE_ID,
     });
 
-    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+    const result = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout });
 
     assert.equal(result.ok, true);
     assert.ok(result.ok);
@@ -180,7 +180,7 @@ test("fails closed with an exact 'not installed' reason when zero packages match
   try {
     await installRealPackage(cwd, "some-other-plugin", "# Other\n", "archive-real-4");
 
-    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+    const result = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout });
 
     assert.deepEqual(result, {
       ok: false,
@@ -195,7 +195,7 @@ test("fails closed with an exact 'not installed' reason when zero packages match
 test("fails closed with an exact 'not installed' reason when the packages directory does not exist at all", async () => {
   const { cwd, layout } = await freshLayout();
   try {
-    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+    const result = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout });
 
     assert.deepEqual(result, {
       ok: false,
@@ -214,7 +214,7 @@ test("fails closed with an exact ambiguity reason naming both digests when two i
     const second = await installLegacyRevision({ packagesDir: layout.pluginPackagesDir({ pluginId: "ui-ux-design" }), install: () => installRealPackage(cwd, "ui-ux-design", "# Variant B\n", "archive-real-5b") });
     const sortedDigests = [first.archiveDigest, second.archiveDigest].sort();
 
-    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+    const result = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout });
 
     assert.deepEqual(result, {
       ok: false,
@@ -241,7 +241,7 @@ test("refuses a pinned ref when the activation record cannot be read — and nev
     await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-refs-corrupt-1");
     await writeFile(path.join(layout.root, "activations.json"), '{"schemaVersion":1,"plugins":{"ui-ux-design":{"enabled":false}}', "utf8");
 
-    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+    const result = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout });
 
     assert.equal(result.ok, false);
     assert.ok(result.ok === false);
@@ -261,7 +261,7 @@ test("GUARD: a well-formed file with enabled:false still gives the existing 'not
     await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-refs-corrupt-2");
     await setAgentPluginActivation({ workspaceRoot: layout.root, pluginId: "ui-ux-design", enabled: false, actor: "op-1" });
 
-    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+    const result = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout });
 
     assert.deepEqual(result, {
       ok: false,
@@ -280,7 +280,7 @@ test("resolves multiple pluginRefIds and joins their sections in pin order", asy
     await installRealPackage(cwd, "ui-ux-design", "# First plugin\n", "archive-real-6a");
     await installRealPackage(cwd, "second-plugin", "# Second plugin\n", "archive-real-6b");
 
-    const result = await resolveAgentPluginRefs(["ui-ux-design", "second-plugin"], layout);
+    const result = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design", "second-plugin"], workspaceLayout: layout });
 
     assert.equal(result.ok, true);
     assert.ok(result.ok);
@@ -303,7 +303,7 @@ test("aborts on the first unresolvable ref rather than silently dropping it from
   try {
     await installRealPackage(cwd, "ui-ux-design", "# First plugin\n", "archive-real-7");
 
-    const result = await resolveAgentPluginRefs(["ui-ux-design", "never-installed"], layout);
+    const result = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design", "never-installed"], workspaceLayout: layout });
 
     assert.equal(result.ok, false);
     assert.ok(!result.ok);
@@ -330,7 +330,7 @@ test("frames the file inventory as instructions to follow, never as an optional 
       workspaceId: WORKSPACE_ID,
     });
 
-    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+    const result = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout });
     assert.equal(result.ok, true);
     assert.ok(result.ok);
 
@@ -377,7 +377,7 @@ test("pointer mode emits the exact agent_plugin_<pluginId> tool id tool-registra
   try {
     await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-pointer-1");
 
-    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout, "pointer");
+    const result = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout }, { deliveryMode: "pointer" });
 
     assert.ok(result.ok);
     // The install digest plays no part in this id (see `tool-registrations.ts`'s own header on why
@@ -397,7 +397,7 @@ test("pointer mode names the proxied bridge call, because the plugin tool is not
   try {
     await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-pointer-2");
 
-    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout, "pointer");
+    const result = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout }, { deliveryMode: "pointer" });
 
     assert.ok(result.ok);
     // Measured live 2026-08-22: the spawned agent reaches Tovu tools only through Jini's MCP proxy
@@ -415,7 +415,7 @@ test("pointer mode keeps the instruction MANDATORY and never calls the content o
   try {
     await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-pointer-3");
 
-    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout, "pointer");
+    const result = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout }, { deliveryMode: "pointer" });
 
     assert.ok(result.ok);
     assert.ok(result.promptPrefix.includes("MANDATORY"));
@@ -435,8 +435,8 @@ test("pointer mode omits the SKILL.md body entirely — the payload is what move
   try {
     await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-pointer-4");
 
-    const injected = await resolveAgentPluginRefs(["ui-ux-design"], layout, "inject");
-    const pointed = await resolveAgentPluginRefs(["ui-ux-design"], layout, "pointer");
+    const injected = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout }, { deliveryMode: "inject" });
+    const pointed = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout }, { deliveryMode: "pointer" });
 
     assert.ok(injected.ok);
     assert.ok(pointed.ok);
@@ -470,8 +470,8 @@ test("pointer mode fails closed with the same reason as inject when the eponymou
       workspaceId: WORKSPACE_ID,
     });
 
-    const pointed = await resolveAgentPluginRefs(["ui-ux-design"], layout, "pointer");
-    const injected = await resolveAgentPluginRefs(["ui-ux-design"], layout, "inject");
+    const pointed = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout }, { deliveryMode: "pointer" });
+    const injected = await resolveAgentPluginRefs({ pluginRefIds: ["ui-ux-design"], workspaceLayout: layout }, { deliveryMode: "inject" });
 
     assert.equal(pointed.ok, false);
     assert.equal(injected.ok, false);

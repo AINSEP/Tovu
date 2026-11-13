@@ -41,7 +41,7 @@ async function packedNotes(dir: string, lifecycle: ReturnType<typeof createTovuA
   await mkdir(path.join(source, "skills", "notes"), { recursive: true });
   await writeFile(path.join(source, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "notes", version: "1.0.0", description: "Keeps notes.", extensions: { tovu: { maturity } } }));
   await writeFile(path.join(source, "skills", "notes", "SKILL.md"), "---\nname: notes\ndescription: Take notes.\n---\nWrite things down.");
-  return lifecycle.packAgentPluginDirectory(source);
+  return lifecycle.packAgentPluginDirectory({ sourceDir: source });
 }
 
 test("delivery mode is pointer only when asked for exactly; unset or a typo stays inject", () => {
@@ -52,7 +52,7 @@ test("delivery mode is pointer only when asked for exactly; unset or a typo stay
 
 test("the import-time layout never selects a site: every workspace lookup refuses", () => {
   assert.equal(unboundSiteAgentPluginLayout.root, "");
-  assert.throws(() => unboundSiteAgentPluginLayout.forWorkspace(WORKSPACE), /must be supplied by the booted site binding/);
+  assert.throws(() => unboundSiteAgentPluginLayout.forWorkspace({ workspaceId: WORKSPACE }), /must be supplied by the booted site binding/);
 });
 
 test("pack, bundled reader and install round-trip through the binding's positional wrappers", async t => {
@@ -62,15 +62,15 @@ test("pack, bundled reader and install round-trip through the binding's position
   const installed = await lifecycle.installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
   assert.equal(installed.pluginId, "notes");
   assert.equal(installed.archiveDigest, packed.sha256);
-  const workspace = layout.forWorkspace(WORKSPACE);
-  assert.deepEqual((await lifecycle.listInstalledPlugins(workspace.root)).map(plugin => plugin.pluginId), ["notes"]);
+  const workspace = layout.forWorkspace({ workspaceId: WORKSPACE });
+  assert.deepEqual((await lifecycle.listInstalledPlugins({ workspaceRoot: workspace.root })).map(plugin => plugin.pluginId), ["notes"]);
   const packagesDir = workspace.pluginPackagesDir({ pluginId: "notes" });
-  assert.equal(await lifecycle.isInstalledDigestPresent(packagesDir, packed.sha256), true);
-  assert.equal(await lifecycle.isInstalledDigestPresent(packagesDir, "0".repeat(64)), false);
-  const indexed = await lifecycle.indexInstalledRoot(installed.packageRoot, packed.sha256);
+  assert.equal(await lifecycle.isInstalledDigestPresent({ packagesDir, archiveDigest: packed.sha256 }), true);
+  assert.equal(await lifecycle.isInstalledDigestPresent({ packagesDir, archiveDigest: "0".repeat(64) }), false);
+  const indexed = await lifecycle.indexInstalledRoot({ packageRoot: installed.packageRoot, archiveDigest: packed.sha256 });
   assert.equal(indexed.pluginId, "notes");
   assert.deepEqual(indexed.skills.map(skill => skill.name), ["notes"]);
-  const refs = await lifecycle.resolveAgentPluginRefs(["notes", "missing"], workspace, "inject");
+  const refs = await lifecycle.resolveAgentPluginRefs({ pluginRefIds: ["notes", "missing"], workspaceLayout: workspace }, { deliveryMode: "inject" });
   assert.ok(JSON.stringify(refs).includes("missing"), "an unknown ref is reported, not dropped");
 });
 
@@ -80,7 +80,7 @@ for (const maturity of ['untested', 'soon', undefined] as const) {
       const { dir, layout, lifecycle } = await boundLifecycle(t);
       const packed = await packedNotes(dir, lifecycle, maturity);
       await lifecycle.installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
-      const result = await lifecycle.resolveAgentPluginRefs(['notes'], layout.forWorkspace(WORKSPACE), deliveryMode);
+      const result = await lifecycle.resolveAgentPluginRefs({ pluginRefIds: ['notes'], workspaceLayout: layout.forWorkspace({ workspaceId: WORKSPACE }) }, { deliveryMode: deliveryMode });
       assert.equal(result.ok, true);
       if (!result.ok) return;
       assert.equal(result.promptPrefix.includes("Before saving keys or acting with this plugin"), maturity !== undefined);
@@ -104,12 +104,12 @@ async function installedNotes(t: TestContext, optional: { maturity?: 'untested';
   const { dir, layout, lifecycle } = await boundLifecycle(t, { hostOverlaysDir });
   const packed = await packedNotes(dir, lifecycle, optional.maturity);
   await lifecycle.installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
-  return { layout, lifecycle, workspace: layout.forWorkspace(WORKSPACE) };
+  return { layout, lifecycle, workspace: layout.forWorkspace({ workspaceId: WORKSPACE }) };
 }
 
 test("inject run references put maturity first, then the overlay GUIDANCE, then the plugin's section", async t => {
   const { lifecycle, workspace } = await installedNotes(t, { maturity: 'untested' });
-  const result = await lifecycle.resolveAgentPluginRefs(['notes'], workspace, 'inject');
+  const result = await lifecycle.resolveAgentPluginRefs({ pluginRefIds: ['notes'], workspaceLayout: workspace }, { deliveryMode: 'inject' });
   assert.equal(result.ok, true);
   if (!result.ok) return;
   const caution = result.promptPrefix.indexOf("Before saving keys or acting with this plugin");
@@ -120,7 +120,7 @@ test("inject run references put maturity first, then the overlay GUIDANCE, then 
 
 test("pointer run references add no overlay guidance (the tool call carries it); a selected skill in pointer mode does", async t => {
   const { lifecycle, workspace } = await installedNotes(t);
-  const pointer = await lifecycle.resolveAgentPluginRefs(['notes'], workspace, 'pointer');
+  const pointer = await lifecycle.resolveAgentPluginRefs({ pluginRefIds: ['notes'], workspaceLayout: workspace }, { deliveryMode: 'pointer' });
   assert.equal(pointer.ok, true);
   assert.equal(pointer.ok && pointer.promptPrefix.includes("HOST RULES"), false);
   const skill = await lifecycle.resolveAgentPluginGuidance({ pluginRefIds: ['notes'], workspaceLayout: workspace }, { deliveryMode: 'pointer', skill: 'notes' });
@@ -161,23 +161,23 @@ test('explicit read-only discovery loads an off plugin and its host guidance whi
   assert.match(result.promptPrefix, /tools are unavailable/);
   assert.match(result.promptPrefix, /HOST RULES/);
   assert.match(result.promptPrefix, /Write things down/);
-  assert.equal((await lifecycle.resolveAgentPluginRefs(['notes'], workspace, 'inject')).ok, false);
+  assert.equal((await lifecycle.resolveAgentPluginRefs({ pluginRefIds: ['notes'], workspaceLayout: workspace }, { deliveryMode: 'inject' })).ok, false);
 });
 
 test("a plugin without an overlay keeps the owner's prefix unchanged", async t => {
   const bare = await installedNotes(t, { overlay: false });
-  const result = await bare.lifecycle.resolveAgentPluginRefs(['notes'], bare.workspace, 'inject');
+  const result = await bare.lifecycle.resolveAgentPluginRefs({ pluginRefIds: ['notes'], workspaceLayout: bare.workspace }, { deliveryMode: 'inject' });
   assert.equal(result.ok, true);
   if (result.ok) assert.match(result.promptPrefix, /^<<AGENT_PLUGIN pluginId="notes">>\n---\nname: notes/);
 });
 
 test("pure helpers delegate unchanged: entry paths, digest ledgers, archive cap and ranking", async t => {
   const { lifecycle } = await boundLifecycle(t);
-  assert.equal(lifecycle.normalizePackageEntryPath("skills/notes/SKILL.md"), "skills/notes/SKILL.md");
-  assert.throws(() => lifecycle.normalizePackageEntryPath("../escape"), { name: "Error", message: "package entry path escapes the package root: '../escape'", constructor: PackagePathViolation });
+  assert.equal(lifecycle.normalizePackageEntryPath({ rawEntryPath: "skills/notes/SKILL.md" }), "skills/notes/SKILL.md");
+  assert.throws(() => lifecycle.normalizePackageEntryPath({ rawEntryPath: "../escape" }), { name: "Error", message: "package entry path escapes the package root: '../escape'", constructor: PackagePathViolation });
   assert.ok(lifecycle.maxAgentPluginInstallArchiveBytes() > 0);
-  assert.equal(lifecycle.normalizeBundledDigests("not a ledger").size, 0);
-  assert.deepEqual(lifecycle.rankInstalledAgentPlugins("notes", [], 5), []);
+  assert.equal(lifecycle.normalizeBundledDigests({ value: "not a ledger" }).size, 0);
+  assert.deepEqual(lifecycle.rankInstalledAgentPlugins({ query: "notes", candidates: [], limit: 5 }), []);
   const bundledDigest = "b".repeat(64);
   const installed = [{ pluginId: "notes", archiveDigest: "c".repeat(64) }, { pluginId: "notes", archiveDigest: bundledDigest }, { pluginId: "other", archiveDigest: "d".repeat(64) }];
   assert.deepEqual(lifecycle.preferBundledAgentPluginDigests(installed, new Map([["notes", bundledDigest]])).map(entry => entry.archiveDigest), [bundledDigest, "d".repeat(64)]);
@@ -185,13 +185,13 @@ test("pure helpers delegate unchanged: entry paths, digest ledgers, archive cap 
 
 test("recordBundledAgentPluginDigests passes an injected clock through and the ledger reads back", async t => {
   const { layout, lifecycle } = await boundLifecycle(t);
-  const root = layout.forWorkspace(WORKSPACE).root;
+  const root = layout.forWorkspace({ workspaceId: WORKSPACE }).root;
   await mkdir(root, { recursive: true });
   const digest = "a".repeat(64);
   let clockReads = 0;
-  await lifecycle.recordBundledAgentPluginDigests({ workspaceRoot: root, seeded: [{ pluginId: "notes", archiveDigest: digest }], now: () => { clockReads += 1; return new Date("2026-10-22T00:00:00.000Z"); } });
+  await lifecycle.recordBundledAgentPluginDigests({ workspaceRoot: root, seeded: [{ pluginId: "notes", archiveDigest: digest }] }, { now: () => { clockReads += 1; return new Date("2026-10-22T00:00:00.000Z"); } });
   assert.ok(clockReads >= 1, "the injected clock was consulted");
-  assert.equal((await lifecycle.readBundledAgentPluginDigests(root)).get("notes"), digest);
+  assert.equal((await lifecycle.readBundledAgentPluginDigests({ workspaceRoot: root })).get("notes"), digest);
 });
 
 test("uninstall preview and uninstall go through the caller's layout", async t => {
@@ -201,14 +201,14 @@ test("uninstall preview and uninstall go through the caller's layout", async t =
   const preview = await lifecycle.previewAgentPluginUninstall({ layout, workspaceId: WORKSPACE, pluginId: "notes" });
   assert.equal(preview.pluginId, "notes");
   await lifecycle.uninstallAgentPlugin({ layout, workspaceId: WORKSPACE, pluginId: "notes", ...("previewToken" in preview ? { previewToken: preview.previewToken } : {}) } as Parameters<typeof lifecycle.uninstallAgentPlugin>[0]);
-  assert.deepEqual(await lifecycle.listInstalledPlugins(layout.forWorkspace(WORKSPACE).root), []);
+  assert.deepEqual(await lifecycle.listInstalledPlugins({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE }).root }), []);
 });
 
 test("trusted-package lookup reports switched-off packages to onInactive", async t => {
   const { dir, layout, lifecycle } = await boundLifecycle(t);
   const packed = await packedNotes(dir, lifecycle);
   await lifecycle.installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
-  await explicitRootAgentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(WORKSPACE).root, pluginId: "notes", enabled: false, actor: "owner" });
+  await explicitRootAgentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE }).root, pluginId: "notes", enabled: false, actor: "owner" });
   const inactive: string[] = [];
   const verdicts = await lifecycle.findTrustedPluginPackages({ workspaceId: WORKSPACE, filename: "plugin.json", contribution: "test seams", requireActive: true, onInactive: async plugin => { inactive.push(plugin.pluginId); } });
   assert.deepEqual(inactive, ["notes"]);
@@ -226,7 +226,7 @@ test("a seeded bundled plugin refuses uninstall with Tovu's disable recovery, an
     /cannot be uninstalled[\s\S]*disable it instead: call plugins_set_enabled with family 'agent-plugin', pluginId 'plain-bundled', enabled false/);
   const retired = await lifecycle.retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE }, { retiredBundledPlugins: new Set<string>() } as Parameters<typeof lifecycle.retireBundledAgentPlugins>[1]);
   assert.ok(retired);
-  assert.deepEqual((await lifecycle.listInstalledPlugins(layout.forWorkspace(WORKSPACE).root)).map(plugin => plugin.pluginId), ["plain-bundled"]);
+  assert.deepEqual((await lifecycle.listInstalledPlugins({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE }).root })).map(plugin => plugin.pluginId), ["plain-bundled"]);
 });
 
 test("a host archive reader's non-file entries pass through the positional adapter unchanged", async t => {
@@ -235,9 +235,9 @@ test("a host archive reader's non-file entries pass through the positional adapt
   const bundledReader = lifecycle.createBundledSourceArchiveReader();
   const seen: string[] = [];
   const installed = await lifecycle.installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, layout, workspaceId: WORKSPACE, archiveReader: {
-    async *entries(archive) {
+    async *entries({ archive }) {
       yield { kind: "directory" as const, entryPath: "skills/" };
-      for await (const entry of bundledReader.entries(archive)) { seen.push(entry.entryPath); yield entry; }
+      for await (const entry of bundledReader.entries({ archive })) { seen.push(entry.entryPath); yield entry; }
     },
   } });
   assert.equal(installed.pluginId, "notes");
@@ -256,9 +256,9 @@ test("a trusted bundled package's files and modules are read through the binding
   const verdicts = await lifecycle.findTrustedPluginPackages({ workspaceId: WORKSPACE, filename: "seam.json", contribution: "test seams", requireActive: false });
   const trusted = verdicts.flatMap(verdict => "trusted" in verdict ? [verdict.trusted] : []);
   assert.deepEqual(trusted.map(plugin => plugin.pluginId), ["seam-bundled"], JSON.stringify(verdicts));
-  assert.equal(JSON.parse(String(await lifecycle.readTrustedPluginFile(trusted[0]!, "seam.json"))).hello, "world");
-  assert.deepEqual(await lifecycle.importContainedModule(trusted[0]!, "seam.mjs"), { exported: { answer: 42 } });
-  assert.match(String(await lifecycle.importContainedModule(trusted[0]!, "../escape.mjs")), /escapes the plugin root/);
+  assert.equal(JSON.parse(String(await lifecycle.readTrustedPluginFile({ plugin: trusted[0]!, filename: "seam.json" }))).hello, "world");
+  assert.deepEqual(await lifecycle.importContainedModule({ plugin: trusted[0]!, modulePath: "seam.mjs" }), { exported: { answer: 42 } });
+  assert.match(String(await lifecycle.importContainedModule({ plugin: trusted[0]!, modulePath: "../escape.mjs" })), /escapes the plugin root/);
 });
 
 /** Seeds three bundled packages that all ship `seam.json`: a successor whose manifest carries

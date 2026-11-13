@@ -56,8 +56,8 @@ export function createTovuPluginHost(
     provisionMcpServers?: typeof provisionAgentPluginMcpServers;
   } = {},
 ): PluginHostPort {
-  const resolveWorkspaceRoot = () => deps.agentPluginLayout.forWorkspace(deps.workspaceId).root;
-  const listInstalled = async () => (deps.listInstalledAgentPlugins ?? listInstalledPlugins)(resolveWorkspaceRoot());
+  const resolveWorkspaceRoot = () => deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root;
+  const listInstalled = async () => (deps.listInstalledAgentPlugins ?? listInstalledPlugins)({ workspaceRoot: resolveWorkspaceRoot() });
   const warn = optional.warn ?? ((message: string) => console.warn(`[plugins] ${message}`));
   const readAgentIdentity = optional.readAgentManifest
     ? async ({ plugin }: { plugin: InstalledAgentPlugin }) => readPluginIdentity({ manifest: await optional.readAgentManifest!({ plugin }), name: plugin.pluginId, namespace: 'tovu' })
@@ -72,7 +72,7 @@ export function createTovuPluginHost(
     getActivation: input => deps.pluginActivationRepo.getActivation(input),
     lifecycle: {
       listInstalled,
-      preferInstalled: async ({ installed }) => preferBundledAgentPluginDigests([...installed], await readBundledAgentPluginDigests(resolveWorkspaceRoot())),
+      preferInstalled: async ({ installed }) => preferBundledAgentPluginDigests([...installed], await readBundledAgentPluginDigests({ workspaceRoot: resolveWorkspaceRoot() })),
       readIdentity: readAgentIdentity,
       isEnabled: async ({ pluginId }) => {
         const workspaceRoot = resolveWorkspaceRoot();

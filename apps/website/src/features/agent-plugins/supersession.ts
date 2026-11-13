@@ -46,20 +46,20 @@ export interface SupersessionManifestsPort {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-function stringList(value: unknown): readonly string[] | undefined {
+function stringList({ value }: { value: unknown }, _optional: Record<string, never> = {}): readonly string[] | undefined {
   return Array.isArray(value) && value.every(item => typeof item === "string") ? value : undefined;
 }
-function parseContribution(value: unknown): SupersededContribution | undefined {
+function parseContribution({ value }: { value: unknown }, _optional: Record<string, never> = {}): SupersededContribution | undefined {
   if (!isRecord(value)) return undefined;
-  const fromPlugins = stringList(value.fromPlugins);
+  const fromPlugins = stringList({ value: value.fromPlugins });
   const { descriptorId, label } = value;
   if (fromPlugins === undefined || typeof descriptorId !== "string" || typeof label !== "string") return undefined;
   return { fromPlugins, descriptorId, label };
 }
-function parseJson(text: string): unknown {
+function parseJson({ text }: { text: string }, _optional: Record<string, never> = {}): unknown {
   try { return JSON.parse(text); } catch { return undefined; }
 }
-function declaredSupersedes(manifest: unknown): unknown {
+function declaredSupersedes({ manifest }: { manifest: unknown }, _optional: Record<string, never> = {}): unknown {
   return readAgentPluginPortableExtension({ value: manifest })?.supersedes;
 }
 
@@ -67,28 +67,28 @@ function declaredSupersedes(manifest: unknown): unknown {
  *  half-understood declaration must never refuse contributions it did not clearly name.
  *  @complexity O(n) in the declaration's entries. */
 export function parseSupersedes(required: { readonly manifestText: string | undefined }): Omit<PluginSupersession, "successorId"> | undefined {
-  const declared = declaredSupersedes(required.manifestText === undefined ? undefined : parseJson(required.manifestText));
+  const declared = declaredSupersedes({ manifest: required.manifestText === undefined ? undefined : parseJson({ text: required.manifestText }) });
   if (!isRecord(declared)) return undefined;
-  const packages = stringList(declared.packages ?? []);
+  const packages = stringList({ value: declared.packages ?? [] });
   const rawContributions: unknown = declared.contributions ?? [];
   if (packages === undefined || !Array.isArray(rawContributions)) return undefined;
-  const contributions = rawContributions.map(parseContribution);
+  const contributions = rawContributions.map((value) => parseContribution({ value }));
   if (contributions.some(entry => entry === undefined)) return undefined;
   return { packages, contributions: contributions as readonly SupersededContribution[] };
 }
 
-async function readOrUndefined(read: () => Promise<string>): Promise<string | undefined> {
+async function readOrUndefined({ read }: { read: () => Promise<string> }, _optional: Record<string, never> = {}): Promise<string | undefined> {
   try { return await read(); } catch { return undefined; }
 }
 
 async function declaredBy(required: { readonly plugin: TrustedPluginPackage; readonly manifests: SupersessionManifestsPort }) {
   const { plugin, manifests } = required;
-  const installed = parseSupersedes({ manifestText: await readOrUndefined(() => manifests.readInstalled({ plugin })) });
+  const installed = parseSupersedes({ manifestText: await readOrUndefined({ read: () => manifests.readInstalled({ plugin }) }) });
   if (installed !== undefined) return installed;
   // A trusted package can predate its own declaration: the trust gate accepts the digest the
   // bundled-digest ledger last recorded, and a boot whose seed of the new version failed keeps the
   // previous one. The build's own source manifest for the same id is then the declaration.
-  return parseSupersedes({ manifestText: await readOrUndefined(() => manifests.readBundledSource({ pluginId: plugin.pluginId })) });
+  return parseSupersedes({ manifestText: await readOrUndefined({ read: () => manifests.readBundledSource({ pluginId: plugin.pluginId }) }) });
 }
 
 /** Every trusted verdict's declaration, in verdict order. Refusal verdicts never supersede.
@@ -109,13 +109,13 @@ export function supersededPackageRefusal(required: { readonly supersessions: rea
   return successor === undefined ? undefined : `contributions from '${required.pluginId}' were superseded by trusted '${successor.successorId}'`;
 }
 
-function descriptorIdOf(descriptor: unknown): unknown {
+function descriptorIdOf({ descriptor }: { descriptor: unknown }, _optional: Record<string, never> = {}): unknown {
   return isRecord(descriptor) ? descriptor.id : undefined;
 }
 
 /** The refusal for one superseded descriptor from a named package, or `undefined`. */
 export function supersededDescriptorRefusal(required: { readonly supersessions: readonly PluginSupersession[]; readonly pluginId: string; readonly descriptor: unknown }): string | undefined {
-  const id = descriptorIdOf(required.descriptor);
+  const id = descriptorIdOf({ descriptor: required.descriptor });
   for (const successor of required.supersessions) {
     const hit = successor.contributions.find(entry => entry.descriptorId === id && entry.fromPlugins.includes(required.pluginId));
     if (hit !== undefined) return `${hit.label} '${hit.descriptorId}' is provided by the trusted '${successor.successorId}' replacement`;

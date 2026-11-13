@@ -110,7 +110,7 @@ test("real manifest resolver grants only a build-seeded plugin at the exact endp
   try {
     // Paths come from the product layout so the fixture installs where the resolver reads
     // (Layout B moved packages to <workspace>/<pluginId>/package/sha256 in 852d711e6).
-    const workspaceLayout = siteLayouts.deps.agentPluginLayout.forWorkspace(workspaceId);
+    const workspaceLayout = siteLayouts.deps.agentPluginLayout.forWorkspace({ workspaceId });
     const workspaceRoot = workspaceLayout.root;
     const digest = "a".repeat(64);
     const packageRoot = path.join(workspaceLayout.pluginPackagesDir({ pluginId }), digest);
@@ -120,11 +120,11 @@ test("real manifest resolver grants only a build-seeded plugin at the exact endp
       mcpServers: { remote: { type: "streamable-http", url } } }));
     const input = testSiteLayoutContext({ ...siteLayouts.deps, workspaceId, pluginId, serverId: "remote", url });
     assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames(input)], [], "an arbitrary installed plugin is not an operator-reviewed bundled declaration");
-    await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: digest }], now: () => new Date("2026-10-01T12:00:00.000Z") });
+    await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: digest }] }, { now: () => new Date("2026-10-01T12:00:00.000Z") });
     assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames(input)], ["inspect"]);
     assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames(testSiteLayoutContext({ ...siteLayouts.deps, ...input, url: "https://changed.example/mcp" }))], []);
     assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames(testSiteLayoutContext({ ...siteLayouts.deps, ...input, serverId: "other" }))], []);
-    await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: "b".repeat(64) }], now: () => new Date("2026-10-01T12:00:00.000Z") });
+    await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: "b".repeat(64) }] }, { now: () => new Date("2026-10-01T12:00:00.000Z") });
     assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames(input)], [], "a stale or missing bundled digest must not trust a different installed package");
   } finally {
     await rm(root, { recursive: true, force: true });

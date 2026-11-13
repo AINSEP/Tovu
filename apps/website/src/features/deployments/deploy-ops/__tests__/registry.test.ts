@@ -107,7 +107,7 @@ for (const { pluginId, packageRoot } of bundledContributionSources({ sourceRoot:
       const files = Object.fromEntries(await Promise.all(["plugin.json", "tovu-deploy-ops.json", ...descriptors.map(d => d.module)].map(async name => [name, await readFile(path.join(packageRoot, name), "utf8")])));
       const archive = new Uint8Array(Buffer.from(JSON.stringify(files)));
       const installed = await installAgentPlugin({ archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), archiveReader: { async *entries() { for (const [entryPath, content] of Object.entries(files)) { const bytes = Buffer.from(content as string); yield { kind: "file" as const, entryPath, declaredSize: bytes.length, executable: false, async *openReadStream() { yield bytes; } }; } } }, layout, workspaceId: "ws" });
-      const workspaceRoot = layout.forWorkspace("ws").root;
+      const workspaceRoot = layout.forWorkspace({ workspaceId: "ws" }).root;
       await setAgentPluginActivation({ workspaceRoot, pluginId, enabled: true, actor: "test" }, { origin: "bundled" });
       const untrusted = await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: lifecycle.loadPluginContributions });
       assert.deepEqual(untrusted.list(), []);
@@ -149,9 +149,9 @@ test("a digest-trusted package outside the ops owners cannot become a parallel o
     await writeFile(path.join(source, "ops.mjs"), "export default { status() {}, logs() {} };\n");
     const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "state") } });
     const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
-    const packed = await lifecycle.packAgentPluginDirectory(source);
+    const packed = await lifecycle.packAgentPluginDirectory({ sourceDir: source });
     const installed = await lifecycle.installAgentPlugin({ layout, workspaceId: "ws", archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader() });
-    const workspaceRoot = layout.forWorkspace("ws").root;
+    const workspaceRoot = layout.forWorkspace({ workspaceId: "ws" }).root;
     await lifecycle.setAgentPluginActivation({ workspaceRoot, pluginId: "example-pages", enabled: true, actor: "test" }, { origin: "bundled" });
     await lifecycle.recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "example-pages", archiveDigest: installed.archiveDigest }] });
     const { loadDeployOpsRegistry } = await import("../registry.js");

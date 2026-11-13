@@ -53,7 +53,7 @@ export function testSiteLayoutContext<T extends object>(input: T, _options = {})
     bundledSourceRoot: { enumerable: true, configurable: true, get: () => bundledAgentPluginsDir() },
     mcp: { enumerable: true, configurable: true, get: () => composeAgentPluginMcp({ repo: services.externalMcpServerRepo!, sealer: services.siteAssistantSecretSealer!, keyring: services.siteAssistantSecretKeyring!, clock: services.clock! }) },
     preferences: { enumerable: true, configurable: true, get: () => composeAgentPluginPreferences({ settings: { repo: services.settingsRepo!, clock: services.clock!, ids: services.idGen!, authorize: services.authorize!, principals: createSettingsPrincipalLookup({ repo: services.principalRepo! }) }, read: services.getEffective, write: services.set }) },
-    providerFaces: { enumerable: true, configurable: true, get: () => composePluginProviderFaces({ workspaceRoot: () => context.agentPluginLayout.forWorkspace(services.workspaceId!).root }) },
+    providerFaces: { enumerable: true, configurable: true, get: () => composePluginProviderFaces({ workspaceRoot: () => context.agentPluginLayout.forWorkspace({ workspaceId: services.workspaceId! }).root }) },
     bundledAgentPluginsSourceRoot: { enumerable: true, configurable: true, get: () => bundledAgentPluginsDir() },
     notifyRosterChanged: { enumerable: true, configurable: true, value: notifyExternalMcpRosterChanged },
     agentPluginLayout: { enumerable: true, configurable: true, get: () => resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) },
@@ -75,5 +75,5 @@ export function testSiteLayoutContext<T extends object>(input: T, _options = {})
 export const deferredTestAgentPluginLayout: ReturnType<typeof resolveAgentPluginLayout> = {
   get root() { return resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).root; },
   get workspacesDir() { return resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).workspacesDir; },
-  forWorkspace(workspaceId) { return resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(workspaceId); },
+  forWorkspace({ workspaceId }) { return resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId }); },
 };

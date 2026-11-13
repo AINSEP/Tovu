@@ -44,7 +44,7 @@ const WORKSPACE_ID = "workspace-local";
 const PLUGIN_ID = "ui-ux-design";
 
 test("resolveAgentPluginRefs injects the REAL installed ui-ux-design SKILL.md verbatim (production install, this machine)", { skip: process.env.TOVU_RUN_REAL_INSTALL_CHECK !== "1" ? "environment acceptance: opt in after installing and activating ui-ux-design" : false }, async () => {
-  const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: REPO_ROOT }) }, { env: {} }).forWorkspace(WORKSPACE_ID);
+  const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: REPO_ROOT }) }, { env: {} }).forWorkspace({ workspaceId: WORKSPACE_ID });
 
   let digestDirs: string[];
   try {
@@ -75,7 +75,7 @@ test("resolveAgentPluginRefs injects the REAL installed ui-ux-design SKILL.md ve
   const realSkillMarkdown = await readFile(skillPath, "utf8");
   assert.ok(realSkillMarkdown.length > 0, `real SKILL.md at ${skillPath} was unexpectedly empty`);
 
-  const result = await resolveAgentPluginRefs([PLUGIN_ID], layout);
+  const result = await resolveAgentPluginRefs({ pluginRefIds: [PLUGIN_ID], workspaceLayout: layout });
 
   assert.equal(result.ok, true, `expected resolution to succeed, got: ${JSON.stringify(result)}`);
   assert.ok(result.ok);
@@ -89,14 +89,14 @@ test("resolveAgentPluginRefs injects the REAL installed ui-ux-design SKILL.md ve
 
   // The composer's un-pinned state (no chip selected) must inject nothing from this same real
   // package — the regression this whole feature chain exists to prevent.
-  const noRefsResult = await resolveAgentPluginRefs([], layout);
+  const noRefsResult = await resolveAgentPluginRefs({ pluginRefIds: [], workspaceLayout: layout });
   assert.deepEqual(noRefsResult, { ok: true, promptPrefix: "" });
 });
 
 test("resolveAgentPluginRefs fails closed with an exact reason for a pluginRefId absent from the real installed packages", { skip: process.env.TOVU_RUN_REAL_INSTALL_CHECK !== "1" ? "environment acceptance: opt in after installing and activating ui-ux-design" : false }, async () => {
-  const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: REPO_ROOT }) }, { env: {} }).forWorkspace(WORKSPACE_ID);
+  const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: REPO_ROOT }) }, { env: {} }).forWorkspace({ workspaceId: WORKSPACE_ID });
 
-  const result = await resolveAgentPluginRefs(["not-a-real-installed-plugin-id"], layout);
+  const result = await resolveAgentPluginRefs({ pluginRefIds: ["not-a-real-installed-plugin-id"], workspaceLayout: layout });
 
   assert.deepEqual(result, {
     ok: false,

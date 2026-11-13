@@ -41,8 +41,8 @@ export function classifyAgentPluginMcpServerTrust(server: Pick<McpServerConfig, 
  * ever populates from paths it already walked inside an already-contained tree — defense in depth
  * for a caller that constructs one by hand).
  */
-export async function readInstalledSkillMarkdown(packageRoot: string, skillPath: string): Promise<string> {
-  const absolute = await assertContainedOnDisk(packageRoot, skillPath);
+export async function readInstalledSkillMarkdown({ packageRoot, skillPath }: { packageRoot: string; skillPath: string }, _optional: Record<string, never> = {}): Promise<string> {
+  const absolute = await assertContainedOnDisk({ packageRoot, entryPath: skillPath });
   return readFile(absolute, "utf8");
 }
 
@@ -66,10 +66,10 @@ export async function readInstalledSkillMarkdown(packageRoot: string, skillPath:
  * @complexity O(s) in the declared server count (`parseAgentPluginMcpConfig`'s own bound) plus one
  * file read.
  */
-async function readInstalledMcpConfig(packageRoot: string): Promise<AgentPluginMcpConfig | null> {
+async function readInstalledMcpConfig({ packageRoot }: { packageRoot: string }, _optional: Record<string, never> = {}): Promise<AgentPluginMcpConfig | null> {
   let raw: string;
   try {
-    const absolute = await assertContainedOnDisk(packageRoot, "mcp.json");
+    const absolute = await assertContainedOnDisk({ packageRoot, entryPath: "mcp.json" });
     raw = await readFile(absolute, "utf8");
   } catch {
     return null;
@@ -84,7 +84,7 @@ async function readInstalledMcpConfig(packageRoot: string): Promise<AgentPluginM
 
   let manifest: unknown;
   try {
-    const absolute = await assertContainedOnDisk(packageRoot, "plugin.json");
+    const absolute = await assertContainedOnDisk({ packageRoot, entryPath: "plugin.json" });
     manifest = JSON.parse(await readFile(absolute, "utf8"));
   } catch {
     // Missing/malformed extensions cannot supply read trust; transport discovery still works.
@@ -104,8 +104,8 @@ async function readInstalledMcpConfig(packageRoot: string): Promise<AgentPluginM
  *
  * @complexity See {@link readInstalledMcpConfig}.
  */
-export async function readInstalledMcpServerIds(packageRoot: string): Promise<readonly string[]> {
-  const config = await readInstalledMcpConfig(packageRoot);
+export async function readInstalledMcpServerIds({ packageRoot }: { packageRoot: string }, _optional: Record<string, never> = {}): Promise<readonly string[]> {
+  const config = await readInstalledMcpConfig({ packageRoot });
   return config?.serverIds ?? [];
 }
 
@@ -123,7 +123,7 @@ export async function readInstalledMcpServerIds(packageRoot: string): Promise<re
  * takes with `[]`.
  * @complexity See {@link readInstalledMcpConfig}.
  */
-export async function readInstalledMcpServers(packageRoot: string): Promise<Readonly<Record<string, McpServerConfig>>> {
-  const config = await readInstalledMcpConfig(packageRoot);
+export async function readInstalledMcpServers({ packageRoot }: { packageRoot: string }, _optional: Record<string, never> = {}): Promise<Readonly<Record<string, McpServerConfig>>> {
+  const config = await readInstalledMcpConfig({ packageRoot });
   return config?.servers ?? {};
 }

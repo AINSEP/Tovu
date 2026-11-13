@@ -93,7 +93,7 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
   const deps: PluginsToolDeps & TovuPluginHostDeps = testSiteLayoutContext({ ...siteLayouts.deps,
     preferences: { locale: async () => "en" },
     notifyRosterChanged: notifyExternalMcpRosterChanged,
-    providerFaces: composePluginProviderFaces({ workspaceRoot: () => siteLayouts.deps.agentPluginLayout.forWorkspace(WORKSPACE_ID).root }),
+    providerFaces: composePluginProviderFaces({ workspaceRoot: () => siteLayouts.deps.agentPluginLayout.forWorkspace({ workspaceId: WORKSPACE_ID }).root }),
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };

@@ -43,7 +43,7 @@ function isPlainObject(value: unknown): value is Readonly<Record<string, unknown
 }
 
 /** One descriptor entry, or why it is invalid. The id grammar is the registry's (checked before import). @complexity O(1). */
-function parseDescriptor(entry: unknown, at: string): AnalyticsProviderDescriptor | string {
+function parseDescriptor({ entry, at }: { entry: unknown; at: string }, _optional: Record<string, never> = {}): AnalyticsProviderDescriptor | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
   const { id, module, label } = entry;
   if (typeof id !== "string") return `${at}.id must be a string`;
@@ -68,7 +68,7 @@ export function parseAnalyticsProvidersFile(required: { readonly raw: string }, 
   if (!Array.isArray(value.providers)) return { ok: false, reason: "providers must be an array" };
   const descriptors: AnalyticsProviderDescriptor[] = [];
   for (const [index, entry] of value.providers.entries()) {
-    const result = parseDescriptor(entry, `providers[${index}]`);
+    const result = parseDescriptor({ entry, at: `providers[${index}]` });
     if (typeof result === "string") return { ok: false, reason: result };
     if (descriptors.some((seen) => seen.id === result.id)) return { ok: false, reason: `providers[${index}].id '${result.id}' is declared twice` };
     descriptors.push(result);

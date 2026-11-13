@@ -161,8 +161,8 @@ async function checkTokensBeforeCreate(
   const resolveInstalledPlugin = resolveBundledAgentPlugin({ bundledSourceRoot: ports.bundledSourceRoot });
   const refusal = await firstNewSiteAgentPluginTokenRefusal(
     // Checked against the bundled plugin the NEW site's first boot seeds, not this site's install.
-    async (input) => (httpClient && ports.credentials ? check({ workspaceId, credentials: ports.credentials, resolveInstalledPlugin }, input) : "unsupported"),
-    tokens,
+    { check: async (input) => (httpClient && ports.credentials ? check({ workspaceId, credentials: ports.credentials, resolveInstalledPlugin }, input) : "unsupported"),
+    tokens },
   );
   return refusal ? { ok: false, ...refusal, code: refusal.code as SiteAdminRefusalCode } : null;
 }
@@ -207,7 +207,7 @@ export async function createSiteForOwner(
 ): Promise<CreateSiteForOwnerResult | SiteAdminRefusal> {
   try {
     const adminPassword = resolveNewSiteAdminPassword(required);
-    const parsedTokens = parseNewSiteAgentPluginTokens(required.agentPluginTokens);
+    const parsedTokens = parseNewSiteAgentPluginTokens({ raw: required.agentPluginTokens });
     if (!parsedTokens.ok) return { ok: false, code: "VALIDATION_ERROR", error: parsedTokens.error };
     if (Object.keys(parsedTokens.tokens).length > 0 && !ports.sealPendingAgentPluginTokens) {
       return { ok: false, code: "VALIDATION_ERROR", error: "access tokens can't be stored from here — create the site without them and connect later from chat" };

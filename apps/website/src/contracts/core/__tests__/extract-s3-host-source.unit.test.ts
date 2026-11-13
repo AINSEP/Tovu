@@ -4,8 +4,8 @@ import { test } from 'node:test';
 
 const read = (file: string) => readFileSync(new URL('../../../' + file, import.meta.url), 'utf8');
 
-test('F4 positional mail parser retains its exact parser-location and host-label rationale', () => {
-  const expected = '/**\n * Parses a plugin\'s {@link MAIL_ADAPTERS_FILENAME}. Pure. Unknown keys are ignored.\n * The parser lives in `@jini-ai/agent-plugins/lifecycle/mail`; this keeps the host\'s positional\n * signature and supplies this host\'s {@link defaultCredentialLabel}.\n *\n * @complexity O(a) in the declared adapter count.\n */\nexport function parseMailAdaptersFile';
+test('F4 mail parser retains its exact parser-location and host-label rationale', () => {
+  const expected = '/**\n * Parses a plugin\'s {@link MAIL_ADAPTERS_FILENAME}. Pure. Unknown keys are ignored.\n * The parser lives in `@jini-ai/agent-plugins/lifecycle/mail`; this supplies the host\'s\n * {@link defaultCredentialLabel}.\n *\n * @complexity O(a) in the declared adapter count.\n */\nexport function parseMailAdaptersFile';
   assert.ok(read('features/agent-plugins/mail-adapter-registry.ts').includes(expected));
 });
 

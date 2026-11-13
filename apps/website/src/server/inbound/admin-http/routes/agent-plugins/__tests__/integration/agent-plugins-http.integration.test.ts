@@ -62,7 +62,7 @@ test('Agent Plugins HTTP response exposes saved sign-in independently of the ena
     const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_A, serverId: 'example' });
     assert.ok(row);
     await deps.externalMcpServerRepo.upsert({ ...row, oauthStatus: 'connected' });
-    await setAgentPluginActivation({ workspaceRoot: deps.agentPluginLayout.forWorkspace(WORKSPACE_A).root,
+    await setAgentPluginActivation({ workspaceRoot: deps.agentPluginLayout.forWorkspace({ workspaceId: WORKSPACE_A }).root,
       pluginId: 'example-media', enabled: false, actor: 'owner' });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_A}/agent-plugins`, { headers: { cookie } });
@@ -175,7 +175,7 @@ test("AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keyw
     // `isAgentPluginActive`'s "absent means active" default: that default exists to keep an
     // OPERATOR-installed plugin usable without an extra step, which is a different case from the
     // one this test needs (a plugin whose activation record explicitly says disabled).
-    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "site-compliance", enabled: true, actor: "test" });
     await setAgentPluginActivation({ workspaceRoot, pluginId: "example-host-deploy", enabled: false, actor: "test" });
 

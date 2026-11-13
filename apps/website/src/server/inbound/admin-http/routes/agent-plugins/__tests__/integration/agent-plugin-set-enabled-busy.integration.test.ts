@@ -147,7 +147,7 @@ function timeoutBehavior(pid: number): typeof behavior {
 test("AGENT_PLUGIN_SET_ENABLED: another process holding the write lock is 409 AGENT_PLUGIN_ACTIVATIONS_BUSY — nothing is written, no host or lock path leaks", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-busy-a");
-    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).root;
     behavior = timeoutBehavior(9101);
 
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
@@ -172,7 +172,7 @@ test("AGENT_PLUGIN_SET_ENABLED: another process holding the write lock is 409 AG
 test("AGENT_PLUGIN_SET_ENABLED: a lock lost right before commit is also 409 AGENT_PLUGIN_ACTIVATIONS_BUSY, not a 500", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-busy-b");
-    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).root;
     behavior = async (...args) => {
       const handle = await realFsp.open(...args);
       const target = String(args[0]);

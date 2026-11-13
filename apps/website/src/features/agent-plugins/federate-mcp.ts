@@ -23,10 +23,10 @@ export {
 
 /** Tovu's lifecycle owner, adapted to the portable object-argument reads (same functions, same order). */
 export const tovuInstalledMcpReads: AgentPluginInstalledMcpReads = {
-  listInstalledPlugins: ({ workspaceRoot }) => listInstalledPlugins(workspaceRoot),
-  readBundledAgentPluginDigests: ({ workspaceRoot }) => readBundledAgentPluginDigests(workspaceRoot),
+  listInstalledPlugins: ({ workspaceRoot }) => listInstalledPlugins({ workspaceRoot }),
+  readBundledAgentPluginDigests: ({ workspaceRoot }) => readBundledAgentPluginDigests({ workspaceRoot }),
   preferBundledAgentPluginDigests: ({ installed, bundled }) => preferBundledAgentPluginDigests(installed, bundled),
-  readInstalledMcpServers: ({ packageRoot }) => readInstalledMcpServers(packageRoot),
+  readInstalledMcpServers: ({ packageRoot }) => readInstalledMcpServers({ packageRoot }),
 };
 
 /** Tovu's skip-reason copy (names Tovu's store). Bytes unchanged from the pre-move body. */
@@ -57,11 +57,11 @@ export function provisionAgentPluginMcpServers(
   return provisionWithPorts(withAgentPluginMcpPorts(deps), withOverrides(input, { classifyTrust: input.classifyTrust ?? classifyAgentPluginMcpServerTrust, messages: tovuFederationMessages }));
 }
 
-/** Preserve the host's positional compatibility signatures; portable APIs take object arguments. */
-export function deriveAgentPluginConnectionId(serverKey: string): string | null {
+/** Keep the host entry points bound to the portable implementations. */
+export function deriveAgentPluginConnectionId({ serverKey }: { serverKey: string }, _optional: Record<string, never> = {}): string | null {
   return deriveConnectionId({ serverKey });
 }
 
-export function isEmptyJsonList(raw: string | null): boolean {
+export function isEmptyJsonList({ raw }: { raw: string | null }, _optional: Record<string, never> = {}): boolean {
   return emptyJsonList({ raw });
 }

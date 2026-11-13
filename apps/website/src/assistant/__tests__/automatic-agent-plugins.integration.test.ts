@@ -34,7 +34,7 @@ async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 
   t.after(site.cleanup);
   const workspaceId = 'workspace-auto';
   const layout = site.deps.agentPluginLayout;
-  const workspace = layout.forWorkspace(workspaceId);
+  const workspace = layout.forWorkspace({ workspaceId });
   const pluginIds = Array.from({ length: count }, (_, i) => count === 1 ? pluginId : `synthetic-${String(i).padStart(2, '0')}`);
   for (const id of pluginIds) {
     const packageDir = path.join(workspace.pluginPackagesDir({ pluginId: id }), 'a'.repeat(64));
@@ -360,7 +360,7 @@ test('inactive plugin returns setup guidance and the activation call while tools
   assert.equal((stillInactive.output as { status: string }).status, 'installed-but-inactive');
   assert.equal((stillInactive.output as { guidance: string }).guidance, output.guidance);
   assert.equal(f.published.length, 0, 'repeated off guidance must not publish active plugin usage');
-  const stillOff = await resolveAgentPluginRefs([f.pluginId], f.workspace, 'inject');
+  const stillOff = await resolveAgentPluginRefs({ pluginRefIds: [f.pluginId], workspaceLayout: f.workspace }, { deliveryMode: 'inject' });
   assert.equal(stillOff.ok, false);
   if (!stillOff.ok) assert.match(stillOff.reason, /is not enabled/);
   await setAgentPluginEnabled({ agentPluginLayout: f.layout, workspaceId: f.workspaceId, pluginId: f.pluginId, enabled: true, actor: 'fixture' });
@@ -481,7 +481,7 @@ for (const denied of ['ask', 'off', 'untrusted', 'unavailable'] as const) {
     assert.doesNotMatch(JSON.stringify(write.output), /Use holographic layout discipline|agentPluginGuidance/);
     assert.ok(f.published.every(event => event.plugins.length === 0), 'denied guidance never appears as loaded');
     if (denied === 'untrusted') {
-      const resolved = await resolveAgentPluginRefs([f.pluginId], f.workspace, 'inject');
+      const resolved = await resolveAgentPluginRefs({ pluginRefIds: [f.pluginId], workspaceLayout: f.workspace }, { deliveryMode: 'inject' });
       assert.equal(resolved.ok, false, 'the shared lifecycle resolver must refuse active-but-untrusted guidance');
       if (!resolved.ok) assert.match(resolved.reason, /only plugins shipped with/);
     }

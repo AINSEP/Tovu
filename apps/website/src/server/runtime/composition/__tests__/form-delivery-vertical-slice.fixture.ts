@@ -192,7 +192,7 @@ export async function installFixturePlugin(required: { deps: SiteDeps }): Promis
     };
     for (const [name, content] of Object.entries(files)) fs.writeFileSync(path.join(pluginRoot, name), content);
     await deps.agentPluginLifecycle.seedBundledAgentPlugins({ layout: deps.agentPluginLayout, workspaceId: deps.workspaceId, sourceRoot });
-    await deps.agentPluginLifecycle.setAgentPluginActivation({ workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root, pluginId: PLUGIN_ID, enabled: true, actor: "test" });
+    await deps.agentPluginLifecycle.setAgentPluginActivation({ workspaceRoot: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root, pluginId: PLUGIN_ID, enabled: true, actor: "test" });
   } finally {
     fs.rmSync(sourceRoot, { recursive: true, force: true });
   }

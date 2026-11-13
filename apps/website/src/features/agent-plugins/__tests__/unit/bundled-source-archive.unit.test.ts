@@ -27,7 +27,7 @@ async function fixtureDir(files: Readonly<Record<string, string>>): Promise<stri
 
 async function readBack(bytes: Uint8Array): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
-  for await (const entry of createBundledSourceArchiveReader().entries(bytes)) {
+  for await (const entry of createBundledSourceArchiveReader().entries({ archive: bytes })) {
     assert.equal(entry.kind, "file");
     if (entry.kind !== "file") continue;
     const chunks: Uint8Array[] = [];
@@ -49,7 +49,7 @@ test("packs and unpacks every file losslessly, including nested and non-ASCII co
   };
   const dir = await fixtureDir(files);
   try {
-    const packed = await packAgentPluginDirectory(dir);
+    const packed = await packAgentPluginDirectory({ sourceDir: dir });
     assert.deepEqual(await readBack(packed.bytes), files);
     assert.deepEqual([...packed.files], Object.keys(files).sort());
   } finally {
@@ -62,9 +62,9 @@ test("binary assets round-trip without UTF-8 decoding", async () => {
   const expected = Buffer.from([0, 0xff, 0xfe, 0xc3, 0x28, 0x80, 10, 13, 0]);
   try {
     await writeFile(path.join(dir, "asset.bin"), expected);
-    const packed = await packAgentPluginDirectory(dir);
+    const packed = await packAgentPluginDirectory({ sourceDir: dir });
     const returned = new Map<string, Buffer>();
-    for await (const entry of createBundledSourceArchiveReader().entries(packed.bytes)) {
+    for await (const entry of createBundledSourceArchiveReader().entries({ archive: packed.bytes })) {
       assert.equal(entry.kind, "file");
       if (entry.kind !== "file") assert.fail("expected regular file");
       const chunks: Buffer[] = [];
@@ -100,12 +100,12 @@ test("packed plugins omit tests and their fixtures while preserving runtime file
     "mcp/server.spec.js.map": "test source map",
   });
   try {
-    const packed = await packAgentPluginDirectory(dir);
+    const packed = await packAgentPluginDirectory({ sourceDir: dir });
     assert.deepEqual([...packed.files], Object.keys(runtimeFiles).sort());
     // Check the encoded archive too: filtering only the reported file list cannot pass.
     assert.deepEqual(await readBack(packed.bytes), runtimeFiles);
     await writeFile(path.join(dir, "__tests__/plain.mjs"), "changed test helper");
-    assert.equal((await packAgentPluginDirectory(dir)).sha256, packed.sha256,
+    assert.equal((await packAgentPluginDirectory({ sourceDir: dir })).sha256, packed.sha256,
       "test-only edits must not republish installed runtime packages");
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -116,11 +116,11 @@ test("the source-tree cap accepts 2048 files and refuses 2049", async () => {
   const dir = await fixtureDir({});
   try {
     for (let index = 0; index < 2048; index += 1) await writeFile(path.join(dir, `file-${index}.txt`), "x");
-    const packed = await packAgentPluginDirectory(dir);
+    const packed = await packAgentPluginDirectory({ sourceDir: dir });
     assert.equal(packed.files.length, 2048);
     assert.equal(Object.keys(await readBack(packed.bytes)).length, 2048);
     await writeFile(path.join(dir, "over-cap.txt"), "x");
-    await assert.rejects(() => packAgentPluginDirectory(dir), {
+    await assert.rejects(() => packAgentPluginDirectory({ sourceDir: dir }), {
       message: `bundled agent plugin at '${dir}' has 2049 files, over the 2048-file cap — is this the right directory?`,
     });
   } finally {
@@ -131,8 +131,8 @@ test("the source-tree cap accepts 2048 files and refuses 2049", async () => {
 test("the digest is a real SHA-256 of the archive bytes and is deterministic across packs", async () => {
   const dir = await fixtureDir({ "plugin.json": '{"name":"x"}', "a.md": "a" });
   try {
-    const first = await packAgentPluginDirectory(dir);
-    const second = await packAgentPluginDirectory(dir);
+    const first = await packAgentPluginDirectory({ sourceDir: dir });
+    const second = await packAgentPluginDirectory({ sourceDir: dir });
     assert.match(first.sha256, /^[a-f0-9]{64}$/);
     assert.equal(first.sha256, second.sha256, "seeding relies on this to hit the content-addressed dedup path");
 
@@ -147,7 +147,7 @@ test("changing one byte of content changes the digest", async () => {
   const before = await fixtureDir({ "plugin.json": '{"name":"x"}', "a.md": "a" });
   const after = await fixtureDir({ "plugin.json": '{"name":"x"}', "a.md": "b" });
   try {
-    assert.notEqual((await packAgentPluginDirectory(before)).sha256, (await packAgentPluginDirectory(after)).sha256);
+    assert.notEqual((await packAgentPluginDirectory({ sourceDir: before })).sha256, (await packAgentPluginDirectory({ sourceDir: after })).sha256);
   } finally {
     await rm(before, { recursive: true, force: true });
     await rm(after, { recursive: true, force: true });
@@ -158,7 +158,7 @@ test("a symlink is skipped rather than followed — the installer would reject o
   const dir = await fixtureDir({ "plugin.json": '{"name":"x"}' });
   try {
     await symlink("/etc/passwd", path.join(dir, "sneaky"));
-    const packed = await packAgentPluginDirectory(dir);
+    const packed = await packAgentPluginDirectory({ sourceDir: dir });
     assert.deepEqual([...packed.files], ["plugin.json"]);
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -168,17 +168,17 @@ test("a symlink is skipped rather than followed — the installer would reject o
 test("the reader refuses bytes that are not this format", async () => {
   const reader = createBundledSourceArchiveReader();
   await assert.rejects(async () => {
-    for await (const _entry of reader.entries(new TextEncoder().encode("PK a real zip"))) void _entry;
+    for await (const _entry of reader.entries({ archive: new TextEncoder().encode("PK a real zip") })) void _entry;
   }, /bad magic/);
 });
 
 test("the reader refuses a truncated archive rather than yielding a partial file", async () => {
   const dir = await fixtureDir({ "plugin.json": '{"name":"x"}', "a.md": "a long enough body to truncate" });
   try {
-    const packed = await packAgentPluginDirectory(dir);
+    const packed = await packAgentPluginDirectory({ sourceDir: dir });
     const truncated = packed.bytes.slice(0, packed.bytes.byteLength - 10);
     await assert.rejects(async () => {
-      for await (const _entry of createBundledSourceArchiveReader().entries(truncated)) void _entry;
+      for await (const _entry of createBundledSourceArchiveReader().entries({ archive: truncated })) void _entry;
     }, /truncated entry body/);
   } finally {
     await rm(dir, { recursive: true, force: true });

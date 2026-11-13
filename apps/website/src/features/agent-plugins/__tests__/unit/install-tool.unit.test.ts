@@ -45,12 +45,12 @@ test("agent attachment and local ZIP paths install via the real upload service, 
     assert.equal(result.enabled, false);
     assert.match(result.warning, /unverified/);
     assert.deepEqual(reads, [{ required: { ref: "attachment:agent123", ownerId: "owner", runId: "run" }, optional: { maxBytes: 32 * 1024 * 1024 } }]);
-    const record = JSON.parse(await readFile(path.join(layout.forWorkspace("workspace-local").root, "activations.json"), "utf8")).plugins["chat-test"];
+    const record = JSON.parse(await readFile(path.join(layout.forWorkspace({ workspaceId: "workspace-local" }).root, "activations.json"), "utf8")).plugins["chat-test"];
     assert.equal(record.enabled, false);
     const zip = path.join(dir, "again.zip");
     await writeFile(zip, bytes);
     assert.equal((await tool!.handler(context({ source: { kind: "zip", path: zip } }), {}) as { alreadyInstalled: boolean }).alreadyInstalled, true);
-    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace("workspace-local").root, pluginId: "chat-test", enabled: true, actor: "owner" });
+    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace({ workspaceId: "workspace-local" }).root, pluginId: "chat-test", enabled: true, actor: "owner" });
     const unchanged = await tool!.handler(context(), {}) as { alreadyInstalled: boolean; enabled: boolean };
     assert.equal(unchanged.alreadyInstalled, true);
     assert.equal(unchanged.enabled, true, "a byte-identical no-op must report the preserved activation accurately");

@@ -56,9 +56,9 @@ interface Ownership {
 const NOTHING_OWNED: Ownership = { all: [], adapterIds: new Set(), refByConnectionId: new Map(), connectionIdByRef: new Map(), slugByFormId: new Map(), formIdBySlug: new Map() };
 
 /** Names in messages come from plugin code: cut them so a message stays a message. */
-const named = (value: string) => JSON.stringify(value.slice(0, 64));
+const named = ({ value }: { value: string }, _optional: Record<string, never> = {}) => JSON.stringify(value.slice(0, 64));
 
-function refusal(code: string, message: string): AdminSurfaceActionError {
+function refusal({ code, message }: { code: string; message: string }, _optional: Record<string, never> = {}): AdminSurfaceActionError {
   return new AdminSurfaceActionError({ code, message });
 }
 
@@ -79,7 +79,7 @@ function ownEntries(ownership: Ownership): { readonly binding: FormDeliveryBindi
  * (an id whose form is gone is left out).
  * @complexity O(f) form ids.
  */
-function toView(ownership: Ownership, binding: FormDeliveryBinding, connectionId: string): AdminSurfaceDeliveryBinding {
+function toView({ ownership, binding, connectionId }: { ownership: Ownership; binding: FormDeliveryBinding; connectionId: string }, _optional: Record<string, never> = {}): AdminSurfaceDeliveryBinding {
   // A stored binding without `formIds` delivers every form (the forms build's meaning); the port
   // states that explicitly, so the plugin never has to infer it from a missing field.
   const forms = binding.formIds === undefined ? { allForms: true as const } : { formIds: binding.formIds.flatMap((formId) => ownership.slugByFormId.get(formId) ?? []) };
@@ -95,7 +95,7 @@ function toView(ownership: Ownership, binding: FormDeliveryBinding, connectionId
 function storedFormIds(ownership: Ownership, slugs: readonly string[]): string[] {
   return slugs.map((slug) => {
     const formId = ownership.formIdBySlug.get(slug);
-    if (formId === undefined) throw refusal("form-not-found", `No form with the short name ${named(slug)} exists on this site. Check the form's short name and save again.`);
+    if (formId === undefined) throw refusal({ code: "form-not-found", message: `No form with the short name ${named({ value: slug })} exists on this site. Check the form's short name and save again.` });
     return formId;
   });
 }
@@ -105,10 +105,10 @@ function storedFormIds(ownership: Ownership, slugs: readonly string[]): string[]
  * @throws AdminSurfaceActionError `adapter-not-owned`, `connection-not-declared` or `form-not-found`.
  * @complexity O(f) form ids.
  */
-function toStored(ownership: Ownership, draft: AdminSurfaceDeliveryBindingDraft, bindingId: string): FormDeliveryBinding {
-  if (!ownership.adapterIds.has(draft.adapterId)) throw refusal("adapter-not-owned", `This plugin does not provide the delivery adapter ${named(draft.adapterId)} here, so it cannot save its bindings.`);
+function toStored({ ownership, draft, bindingId }: { ownership: Ownership; draft: AdminSurfaceDeliveryBindingDraft; bindingId: string }, _optional: Record<string, never> = {}): FormDeliveryBinding {
+  if (!ownership.adapterIds.has(draft.adapterId)) throw refusal({ code: "adapter-not-owned", message: `This plugin does not provide the delivery adapter ${named({ value: draft.adapterId })} here, so it cannot save its bindings.` });
   const connectionRef = ownership.refByConnectionId.get(draft.connectionId);
-  if (connectionRef === undefined) throw refusal("connection-not-declared", `This plugin has no connection ${named(draft.connectionId)} here. Reopen the plugin's settings from this site's admin and retry.`);
+  if (connectionRef === undefined) throw refusal({ code: "connection-not-declared", message: `This plugin has no connection ${named({ value: draft.connectionId })} here. Reopen the plugin's settings from this site's admin and retry.` });
   return {
     bindingId, adapterId: draft.adapterId, connectionRef, enabled: draft.enabled,
     // `allForms: true` is stored as no `formIds`, which the forms build reads as every form.
@@ -122,16 +122,16 @@ function toStored(ownership: Ownership, draft: AdminSurfaceDeliveryBindingDraft,
  * the plugin only ever saw the visible slugs, so a re-save must not drop a form that comes back.
  * @complexity O(f) form ids.
  */
-function keepHiddenFormIds(ownership: Ownership, stored: FormDeliveryBinding, previous: FormDeliveryBinding | undefined): FormDeliveryBinding {
+function keepHiddenFormIds({ ownership, stored, previous }: { ownership: Ownership; stored: FormDeliveryBinding; previous: FormDeliveryBinding | undefined }, _optional: Record<string, never> = {}): FormDeliveryBinding {
   if (stored.formIds === undefined || previous?.formIds === undefined) return stored;
   const hidden = previous.formIds.filter((formId) => !ownership.slugByFormId.has(formId) && !stored.formIds!.includes(formId));
   return hidden.length === 0 ? stored : { ...stored, formIds: [...stored.formIds, ...hidden] };
 }
 
 /** The index of one of this plugin's stored bindings. @throws AdminSurfaceActionError `binding-not-found`. @complexity O(b). */
-function ownIndex(ownership: Ownership, bindingId: string): number {
+function ownIndex({ ownership, bindingId }: { ownership: Ownership; bindingId: string }, _optional: Record<string, never> = {}): number {
   const own = ownEntries(ownership).find((entry) => entry.binding.bindingId === bindingId);
-  if (own === undefined) throw refusal("binding-not-found", `No delivery binding ${named(bindingId)} belongs to this plugin here. List the bindings again and retry.`);
+  if (own === undefined) throw refusal({ code: "binding-not-found", message: `No delivery binding ${named({ value: bindingId })} belongs to this plugin here. List the bindings again and retry.` });
   return own.index;
 }
 
@@ -149,7 +149,7 @@ export function createSurfaceDeliveryBindings(
   const { pluginId, workspaceId, principalId } = required;
 
   function admin(): string {
-    if (principalId === undefined) throw refusal("admin-required", "Delivery settings need a signed-in admin. Open the plugin's settings from this site's admin and retry.");
+    if (principalId === undefined) throw refusal({ code: "admin-required", message: "Delivery settings need a signed-in admin. Open the plugin's settings from this site's admin and retry." });
     return principalId;
   }
 
@@ -175,11 +175,11 @@ export function createSurfaceDeliveryBindings(
    * @complexity At most two ownership reads and guarded writes; O(b + f) merge time/space per try.
    */
   async function update<T>(
-    input: { callerPrincipalId: string; merge: (owned: Ownership) => { value: readonly FormDeliveryBinding[]; result: T } },
+    input: { callerPrincipalId: string; merge: (required: { owned: Ownership }, optional?: Record<string, never>) => { value: readonly FormDeliveryBinding[]; result: T } },
     optional: { retry?: boolean } = {},
   ): Promise<T> {
     const owned = await ownership();
-    const { value, result } = input.merge(owned);
+    const { value, result } = input.merge({ owned });
     try {
       await required.bindings.write({ workspaceId, callerPrincipalId: input.callerPrincipalId, value, expectedValue: owned.all });
       return result;
@@ -197,21 +197,21 @@ export function createSurfaceDeliveryBindings(
     async list() {
       admin();
       const owned = await ownership();
-      return ownEntries(owned).map((entry) => toView(owned, entry.binding, entry.connectionId));
+      return ownEntries(owned).map((entry) => toView({ ownership: owned, binding: entry.binding, connectionId: entry.connectionId }));
     },
     async save(draft) {
       const callerPrincipalId = admin();
       const bindingId = draft.bindingId ?? required.newBindingId();
-      return update({ callerPrincipalId, merge: (owned) => {
-        const replaced = draft.bindingId === undefined ? owned.all.length : ownIndex(owned, draft.bindingId);
-        const stored = keepHiddenFormIds(owned, toStored(owned, draft, bindingId), owned.all[replaced]);
-        return { value: [...owned.all.slice(0, replaced), stored, ...owned.all.slice(replaced + 1)], result: toView(owned, stored, draft.connectionId) };
+      return update({ callerPrincipalId, merge: ({ owned }, _optional = {}) => {
+        const replaced = draft.bindingId === undefined ? owned.all.length : ownIndex({ ownership: owned, bindingId: draft.bindingId });
+        const stored = keepHiddenFormIds({ ownership: owned, stored: toStored({ ownership: owned, draft, bindingId }), previous: owned.all[replaced] });
+        return { value: [...owned.all.slice(0, replaced), stored, ...owned.all.slice(replaced + 1)], result: toView({ ownership: owned, binding: stored, connectionId: draft.connectionId }) };
       } });
     },
     async remove({ bindingId }) {
       const callerPrincipalId = admin();
-      return update({ callerPrincipalId, merge: (owned) => {
-        const index = ownIndex(owned, bindingId);
+      return update({ callerPrincipalId, merge: ({ owned }, _optional = {}) => {
+        const index = ownIndex({ ownership: owned, bindingId });
         return { value: owned.all.filter((_binding, at) => at !== index), result: undefined };
       } });
     },

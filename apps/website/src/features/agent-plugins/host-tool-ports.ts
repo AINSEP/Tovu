@@ -35,15 +35,15 @@ export const AGENT_PLUGIN_HOST_TOOL_MESSAGES = {
 
 /** Today's positional lifecycle functions, called with the object arguments the port names. */
 const lifecycle: HostToolsLifecyclePort = {
-  listInstalledPlugins: ({ workspaceRoot }) => listInstalledPlugins(workspaceRoot),
-  readBundledAgentPluginDigests: ({ workspaceRoot }) => readBundledAgentPluginDigests(workspaceRoot),
+  listInstalledPlugins: ({ workspaceRoot }) => listInstalledPlugins({ workspaceRoot }),
+  readBundledAgentPluginDigests: ({ workspaceRoot }) => readBundledAgentPluginDigests({ workspaceRoot }),
   preferBundledAgentPluginDigests: ({ installed, bundled }) => preferBundledAgentPluginDigests(installed, bundled),
-  isInstalledDigestPresent: ({ packagesDir, archiveDigest }) => isInstalledDigestPresent(packagesDir, archiveDigest),
-  readInstalledSkillMarkdown: ({ packageRoot, skillPath }) => readInstalledSkillMarkdown(packageRoot, skillPath),
+  isInstalledDigestPresent: ({ packagesDir, archiveDigest }) => isInstalledDigestPresent({ packagesDir, archiveDigest }),
+  readInstalledSkillMarkdown: ({ packageRoot, skillPath }) => readInstalledSkillMarkdown({ packageRoot, skillPath }),
   readInstalledSkillFile: (input, options) => readInstalledSkillFile(input, options),
-  readInstalledMcpServerIds: ({ packageRoot }) => readInstalledMcpServerIds(packageRoot),
-  rankInstalledAgentPlugins: ({ query, candidates, limit }) => rankInstalledAgentPlugins(query, candidates, limit),
-  normalizePackageEntryPath: ({ rawEntryPath }) => normalizePackageEntryPath(rawEntryPath),
+  readInstalledMcpServerIds: ({ packageRoot }) => readInstalledMcpServerIds({ packageRoot }),
+  rankInstalledAgentPlugins: ({ query, candidates, limit }) => rankInstalledAgentPlugins({ query, candidates, limit }),
+  normalizePackageEntryPath: ({ rawEntryPath }) => normalizePackageEntryPath({ rawEntryPath }),
 };
 
 /**
@@ -56,11 +56,11 @@ export function agentPluginHostToolPorts(required: { readonly agentPluginLayout:
   return {
     lifecycle,
     activations: agentPluginActivations,
-    layout: { forWorkspace: ({ workspaceId }) => layout.forWorkspace(workspaceId) },
+    layout: { forWorkspace: ({ workspaceId }) => layout.forWorkspace({ workspaceId }) },
     memory: {
       pluginMemory: ({ workspaceId, pluginId }) => pluginMemory({ contain: containAgentPluginStatePath, workspaceId, pluginId }, { layout }),
       appendNotes: ({ workspaceId, pluginId, guidance }) => appendPluginNotes({ contain: containAgentPluginStatePath,
-        workspaceRoot: layout.forWorkspace(workspaceId).root, pluginId, guidance }),
+        workspaceRoot: layout.forWorkspace({ workspaceId }).root, pluginId, guidance }),
     },
     permissions: AGENT_PLUGIN_HOST_TOOL_PERMISSIONS,
     readFrontmatterField: ({ markdown, key }) => readFrontmatterField(markdown, key),

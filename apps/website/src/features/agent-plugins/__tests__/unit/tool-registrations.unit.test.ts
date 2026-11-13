@@ -262,7 +262,7 @@ test("registerInstalledAgentPluginTools registers one guidance tool plus its sco
 
     const registry = createToolRegistry({});
     const classify = mock.fn(withExtensionApprovalPolicy);
-    await registerInstalledAgentPluginTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy: classify });
+    await registerInstalledAgentPluginTools({ registry, ctx: { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy: classify } });
 
     // Layout B (852d711e6) gives every plugin its own learned-memory read/write tools beside the
     // guidance tool (`memory-tools.ts`), each closed over that one plugin.
@@ -476,7 +476,7 @@ test("two installed digests of the same plugin id refuse that plugin loudly, wit
     // Install prunes prior revisions since 96cdc6638. Restore the legacy coexistence state
     // explicitly so this tests the ambiguity guard, rather than a successful current upgrade.
     await installLegacyRevision({
-      packagesDir: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).pluginPackagesDir({ pluginId: "ui-ux-design" }),
+      packagesDir: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).pluginPackagesDir({ pluginId: "ui-ux-design" }),
       install: () => installRealPackage(WORKSPACE_A, "ui-ux-design", { "ui-ux-design": "# Variant B\n" }, "archive-digest-b"),
     });
 
@@ -493,7 +493,7 @@ test("a per-plugin resolution failure (digest ambiguity) is isolated to that plu
     await installRealPackage(WORKSPACE_A, "healthy-before", { "healthy-before": "# Healthy Before\n" }, "archive-isolation-before");
     await installRealPackage(WORKSPACE_A, "conflicted-plugin", { "conflicted-plugin": "# Variant A\n" }, "archive-isolation-conflict-a");
     await installLegacyRevision({
-      packagesDir: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).pluginPackagesDir({ pluginId: "conflicted-plugin" }),
+      packagesDir: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).pluginPackagesDir({ pluginId: "conflicted-plugin" }),
       install: () => installRealPackage(WORKSPACE_A, "conflicted-plugin", { "conflicted-plugin": "# Variant B\n" }, "archive-isolation-conflict-b"),
     });
     await installRealPackage(WORKSPACE_A, "healthy-after", { "healthy-after": "# Healthy After\n" }, "archive-isolation-after");
@@ -548,11 +548,11 @@ for (const revocation of ["disable", "uninstall", "unreadable-activation"] as co
     await withAgentPluginsDir(async () => {
       await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, `archive-policy-${revocation}`);
       const registry = createToolRegistry({});
-      await registerInstalledAgentPluginTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy });
+      await registerInstalledAgentPluginTools({ registry, ctx: { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy } });
       const executor = createToolExecutor({ registry });
       const invoke = () => executor.execute({ principal: { id: "principal-1" }, run: { id: "run-1" }, toolId: "agent_plugin_coffee_roastery", input: {} });
       assert.equal((await invoke()).status, "completed");
-      const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
+      const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).root;
       if (revocation === "disable") await setAgentPluginActivation({ workspaceRoot, pluginId: "coffee-roastery", enabled: false, actor: "owner" });
       else if (revocation === "uninstall") await uninstallAgentPlugin({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE_A, pluginId: "coffee-roastery" });
       else await writeFile(path.join(workspaceRoot, "activations.json"), "{broken-json");
@@ -575,7 +575,7 @@ async function roasteryOverlay(dir: string): Promise<string> {
 
 async function registeredRoastery(overlaysDir: string) {
   const registry = createToolRegistry({});
-  await registerInstalledAgentPluginTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy }, { overlaysDir });
+  await registerInstalledAgentPluginTools({ registry, ctx: { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy } }, { overlaysDir });
   const executor = createToolExecutor({ registry });
   return async (input: Record<string, unknown>) => {
     const outcome = await executor.execute({ principal: { id: "principal-1" }, run: { id: "run-1" }, toolId: "agent_plugin_coffee_roastery", input });
@@ -631,7 +631,7 @@ test("a disabled plugin's call is denied before the overlay is read, and no over
     const invoke = await registeredRoastery(await roasteryOverlay(dir));
     assert.equal((await invoke({})).output.guidance, `HOST RULES\n\n${withoutOverlay.output.guidance}`);
     assert.deepEqual((await invoke({})).output.files, [...(withoutOverlay.output.files ?? []), "host/brew-ratios.md"]);
-    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "coffee-roastery", enabled: false, actor: "owner" });
     for (const input of [{}, { file: "host/brew-ratios.md" }]) {
       const denied = await invoke(input);
@@ -655,7 +655,7 @@ test("the registered connect handler resolves a real installed plugin and reuses
       await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_A, sourceRoot: source.root });
     } finally { await source.dispose(); }
     // Installation does not grant activation; the saved-sign-in fixture explicitly enables it.
-    await setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(WORKSPACE_A).root, pluginId: "supabase", enabled: true, actor: "test" });
+    await setAgentPluginActivation({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE_A }).root, pluginId: "supabase", enabled: true, actor: "test" });
     const repo = new InMemoryExternalMcpServerRepo();
     const keyring = new InMemoryKeyring();
     const sealer = new AesGcmSecretSealer(keyring);

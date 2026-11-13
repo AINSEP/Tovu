@@ -119,7 +119,7 @@ function entries(manifest: string, pluginId = PLUGIN_ID): readonly AgentPluginAr
  *  registry for the rest of the process's life. */
 async function bootDaemonToolSurface(): Promise<ToolRegistry> {
   const registry = createToolRegistry({});
-  await registerInstalledAgentPluginTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_ID }), withExtensionApprovalPolicy });
+  await registerInstalledAgentPluginTools({ registry, ctx: { ...testSiteLayoutContext({ workspaceId: WORKSPACE_ID }), withExtensionApprovalPolicy } });
   assert.equal(registry.has({ toolId: TOOL_ID }), true, "precondition: an enabled plugin must register its tool at boot");
   return registry;
 }
@@ -160,7 +160,7 @@ test("revocation follows the activation RECORD, not the caller: a bare setAgentP
   await withAgentPluginsDir(async () => {
     await installReal("archive-revoke-bare-writer");
     const registry = await bootDaemonToolSurface();
-    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID }).root;
 
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: false, actor: "operator-1" });
     assert.equal((await callPluginTool(registry)).status, "denied", "any writer of the activation record revokes the tool");
@@ -226,7 +226,7 @@ test("the gate's INSTALLED half stands on its own: the package bytes disappearin
   await withAgentPluginsDir(async () => {
     const installed = await installReal("archive-uninstall-bytes-only");
     const registry = await bootDaemonToolSurface();
-    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID }).root;
 
     // An explicit enabled:true record, so the activation half of the gate cannot be what denies.
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "operator-1" });
@@ -251,7 +251,7 @@ test("revocation is scoped to the plugin and workspace in an already-booted regi
     await installReal("isolation-other-workspace", { workspaceId: otherWorkspace });
     const mine = await bootDaemonToolSurface();
     const other = createToolRegistry({});
-    await registerInstalledAgentPluginTools(other, { ...testSiteLayoutContext({ workspaceId: otherWorkspace }), withExtensionApprovalPolicy });
+    await registerInstalledAgentPluginTools({ registry: other, ctx: { ...testSiteLayoutContext({ workspaceId: otherWorkspace }), withExtensionApprovalPolicy } });
     const execute = (registry: ToolRegistry, toolId: string) => createToolExecutor({ registry }).execute({
       principal: PRINCIPAL, run: { id: "isolation-run" }, toolId, input: {},
     });

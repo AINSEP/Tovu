@@ -25,7 +25,7 @@ const workspaceId = "workspace-local";
 async function fixture() {
   const temporary = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "plugin-layout-b-")));
   const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: temporary } });
-  const workspace = layout.forWorkspace(workspaceId);
+  const workspace = layout.forWorkspace({ workspaceId });
   const memory = (pluginId = "example") => pluginMemory({ contain: containAgentPluginStatePath, workspaceId, pluginId }, { layout });
   const install = async (pluginId = "example", version = "1.0.0", seedText?: string) => {
     const archive = Buffer.from(`${pluginId}:${version}:${seedText ?? ""}`);
@@ -79,7 +79,7 @@ test("Layout B isolates two packages and keeps mutable state outside the indexed
     assert.equal(first.packageRoot, path.join(f.workspace.root, "example", "package", "sha256", first.archiveDigest));
     await f.memory().learned.write({ entryPath: "account.json", text: '{"model":"observed"}' });
     await f.memory().writeNote({ entryPath: "project.md", text: "User’s brand rule" });
-    await fs.writeFile(path.join(f.workspace.pluginDataDir("example"), "cache.bin"), Buffer.from([0, 1, 2]));
+    await fs.writeFile(path.join(f.workspace.pluginDataDir({ pluginId: "example" }), "cache.bin"), Buffer.from([0, 1, 2]));
     const duplicate = await f.install();
     assert.deepEqual(duplicate, first);
     const mode = (await fs.stat(first.packageRoot)).mode & 0o777;
@@ -89,12 +89,12 @@ test("Layout B isolates two packages and keeps mutable state outside the indexed
     assert.notEqual(updated.packageRoot, first.packageRoot);
     assert.equal(await f.memory().read({ kind: "notes", entryPath: "project.md" }), "User’s brand rule");
     assert.equal(await f.memory().learned.read({ entryPath: "account.json" }), '{"model":"observed"}');
-    assert.deepEqual(await fs.readFile(path.join(f.workspace.pluginDataDir("example"), "cache.bin")), Buffer.from([0, 1, 2]));
-    const installed = await listInstalledPlugins(f.workspace.root);
+    assert.deepEqual(await fs.readFile(path.join(f.workspace.pluginDataDir({ pluginId: "example" }), "cache.bin")), Buffer.from([0, 1, 2]));
+    const installed = await listInstalledPlugins({ workspaceRoot: f.workspace.root });
     assert.deepEqual(installed.map(p => p.pluginId).sort(), ["example", "second"]);
     assert.equal(installed.find(p => p.pluginId === "example")?.archiveDigest, updated.archiveDigest);
     await assert.rejects(fs.stat(first.packageRoot), { code: "ENOENT" });
-    const indexed = await indexInstalledRoot(updated.packageRoot, updated.archiveDigest);
+    const indexed = await indexInstalledRoot({ packageRoot: updated.packageRoot, archiveDigest: updated.archiveDigest });
     // The approved dev.tovu.memory namespace contains immutable package guidance; only
     // actual memory/ or data/ path components represent mutable state excluded from this index.
     assert.equal(indexed.files.some(file => /(?:^|\/)(?:memory|data)(?:\/|$)/.test(file)), false);
@@ -114,7 +114,7 @@ test("uninstall keeps memory/data by default; reinstall resumes it; explicit pre
     await assert.rejects(fs.stat(path.join(f.workspace.root, "example", "package")), { code: "ENOENT" });
     assert.equal(await f.memory().read({ kind: "notes", entryPath: "project.md" }), "Keep my note");
     assert.equal(await f.memory().learned.read({ entryPath: "account.txt" }), "Keep learned facts");
-    assert.deepEqual(await listInstalledPlugins(f.workspace.root), []);
+    assert.deepEqual(await listInstalledPlugins({ workspaceRoot: f.workspace.root }), []);
     await f.install();
     assert.equal(await f.memory().read({ kind: "notes", entryPath: "project.md" }), "Keep my note");
     const request = { layout: f.layout, workspaceId, pluginId: "example" };
@@ -131,7 +131,7 @@ test("notes autoload in pinned skill guidance; learned knowledge does not; packa
     assert.deepEqual(await f.memory().list({ kind: "notes" }), []);
     await f.memory().writeNote({ entryPath: "project.md", text: "USER-NOTE-CONTEXT" });
     await f.memory().learned.write({ entryPath: "account.md", text: "LEARNED-ON-DEMAND" });
-    const result = await resolveAgentPluginRefs(["example"], f.workspace, "inject");
+    const result = await resolveAgentPluginRefs({ pluginRefIds: ["example"], workspaceLayout: f.workspace }, { deliveryMode: "inject" });
     if (!result.ok) assert.fail(result.reason);
     assert.match(result.promptPrefix, /USER-NOTE-CONTEXT/);
     assert.doesNotMatch(result.promptPrefix, /LEARNED-ON-DEMAND/);
@@ -185,7 +185,7 @@ test("migration moves legacy packages, Layout A memory and PLUGIN_DATA once, pre
   try {
     const plugin = await f.install();
     await f.memory().writeNote({ entryPath: "project.md", text: "Legacy note" });
-    await fs.writeFile(path.join(f.workspace.pluginDataDir("example"), "cache"), "Legacy data");
+    await fs.writeFile(path.join(f.workspace.pluginDataDir({ pluginId: "example" }), "cache"), "Legacy data");
     await fs.writeFile(path.join(f.workspace.root, "activations.json"), '{"plugins":{}}');
     await fs.mkdir(f.workspace.packages, { recursive: true });
     await fs.chmod(plugin.packageRoot, 0o700);
@@ -198,10 +198,10 @@ test("migration moves legacy packages, Layout A memory and PLUGIN_DATA once, pre
     // Containment canonicalizes paths; a trusted workspace alias must not turn a move into traversal.
     const workspaceAlias = path.join(f.temporary, "workspace-alias");
     await fs.symlink(f.workspace.root, workspaceAlias, "dir");
-    const aliasedLayout = { ...f.layout, forWorkspace: (id: string) => ({ ...f.layout.forWorkspace(id), root: workspaceAlias }) };
+    const aliasedLayout = { ...f.layout, forWorkspace: ({ workspaceId: id }: { workspaceId: string }) => ({ ...f.layout.forWorkspace({ workspaceId: id }), root: workspaceAlias }) };
     assert.equal((await migrateAgentPluginLayout({ contain: containAgentPluginStatePath, layout: aliasedLayout, workspaceId })).complete, true);
     assert.equal(await f.memory().read({ kind: "notes", entryPath: "project.md" }), "Legacy note");
-    assert.equal(await fs.readFile(path.join(f.workspace.pluginDataDir("example"), "cache"), "utf8"), "Legacy data");
+    assert.equal(await fs.readFile(path.join(f.workspace.pluginDataDir({ pluginId: "example" }), "cache"), "utf8"), "Legacy data");
     assert.equal((await fs.stat(plugin.packageRoot)).mode & 0o777, 0o555);
     assert.equal(await fs.readFile(path.join(f.workspace.root, "activations.json"), "utf8"), '{"plugins":{}}');
     assert.deepEqual(await migrateAgentPluginLayout({ contain: containAgentPluginStatePath, layout: f.layout, workspaceId }), { complete: true, moved: 0 });
@@ -224,7 +224,7 @@ test("migration resumes after interruption, isolates malformed manifests, and se
       return fs.rename(from, to);
     }) as typeof fs.rename };
     const input = { filesystem, workspaceRoot: f.workspace.root,
-      contain: ({ root, entryPath }: { root: string; entryPath: string }) => assertContainedOnDisk(root, entryPath),
+      contain: ({ root, entryPath }: { root: string; entryPath: string }) => assertContainedOnDisk({ packageRoot: root, entryPath }),
       parsePluginId: ({ value }: { value: unknown }) => (value as { name: string }).name,
       withLock: <T>({ lockPath, run }: { lockPath: string; run(): Promise<T> }) => withFileLock({ lockPath, run }, { staleMs: Infinity, createParent: true }),
     };
@@ -238,7 +238,7 @@ test("migration resumes after interruption, isolates malformed manifests, and se
     const results = await Promise.all([migratePluginLayout({ ...input, filesystem: fs }), migratePluginLayout({ ...input, filesystem: fs })]);
     assert.equal(results.every(result => result.complete), true);
     assert.deepEqual(results.map(result => result.moved).sort(), [0, 1]);
-    assert.deepEqual((await listInstalledPlugins(f.workspace.root)).map(plugin => plugin.pluginId).sort(), ["first", "second"]);
+    assert.deepEqual((await listInstalledPlugins({ workspaceRoot: f.workspace.root })).map(plugin => plugin.pluginId).sort(), ["first", "second"]);
   } finally { await forceRemove(f.temporary); }
 });
 
@@ -272,7 +272,7 @@ test("malformed legacy entries are quarantined once and bundled seeding proceeds
     assert.equal(second.ledgerFailure, undefined);
     assert.deepEqual(await fs.readdir(quarantine), runs);
     assert.equal(await fs.readFile(savedManifest, "utf8"), "bad json");
-    assert.deepEqual((await listInstalledPlugins(f.workspace.root)).map(plugin => plugin.pluginId), ["example"]);
+    assert.deepEqual((await listInstalledPlugins({ workspaceRoot: f.workspace.root })).map(plugin => plugin.pluginId), ["example"]);
   } finally { await forceRemove(f.temporary); }
 });
 
@@ -280,15 +280,15 @@ test("site boot migrates every existing workspace before seeding the active one"
   const f = await fixture();
   try {
     for (const workspaceId of ["workspace-local", "ws-second"]) {
-      const workspace = f.layout.forWorkspace(workspaceId);
+      const workspace = f.layout.forWorkspace({ workspaceId });
       const legacy = path.join(workspace.packages, "d".repeat(64));
       await fs.mkdir(legacy, { recursive: true });
       await fs.writeFile(path.join(legacy, "plugin.json"), '{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"example"}');
     }
     assert.equal((await migrateSiteAgentPluginLayouts({ contain: containAgentPluginStatePath, layout: f.layout, workspaceId })).complete, true);
     for (const workspaceId of ["workspace-local", "ws-second"]) {
-      const workspace = f.layout.forWorkspace(workspaceId);
-      assert.equal((await listInstalledPlugins(workspace.root))[0]?.pluginId, "example");
+      const workspace = f.layout.forWorkspace({ workspaceId });
+      assert.equal((await listInstalledPlugins({ workspaceRoot: workspace.root }))[0]?.pluginId, "example");
       assert.deepEqual(JSON.parse(await fs.readFile(path.join(workspace.root, ".agent-plugin-layout-migrated"), "utf8")), { layoutVersion: 2 });
     }
   } finally { await forceRemove(f.temporary); }
@@ -308,7 +308,7 @@ test("a crash after rename but before permission restoration never leaves the mi
       if (!interrupted && String(from) === legacy) { interrupted = true; throw new Error("crash after atomic rename"); }
     }) as typeof fs.rename };
     const input = { filesystem, workspaceRoot: f.workspace.root,
-      contain: ({ root, entryPath }: { root: string; entryPath: string }) => assertContainedOnDisk(root, entryPath),
+      contain: ({ root, entryPath }: { root: string; entryPath: string }) => assertContainedOnDisk({ packageRoot: root, entryPath }),
       parsePluginId: ({ value }: { value: unknown }) => (value as { name: string }).name,
       withLock: <T>({ lockPath, run }: { lockPath: string; run(): Promise<T> }) => withFileLock({ lockPath, run }, { staleMs: Infinity, createParent: true }),
     };
@@ -316,6 +316,6 @@ test("a crash after rename but before permission restoration never leaves the mi
     const packageRoot = path.join(f.workspace.pluginPackagesDir({ pluginId: "example" }), digest);
     assert.equal((await fs.stat(packageRoot)).mode & 0o777, 0o555);
     assert.equal((await migratePluginLayout({ ...input, filesystem: fs })).complete, true);
-    assert.deepEqual((await listInstalledPlugins(f.workspace.root)).map(plugin => plugin.archiveDigest), [digest]);
+    assert.deepEqual((await listInstalledPlugins({ workspaceRoot: f.workspace.root })).map(plugin => plugin.archiveDigest), [digest]);
   } finally { await forceRemove(f.temporary); }
 });

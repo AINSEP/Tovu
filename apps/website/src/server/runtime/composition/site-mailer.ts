@@ -56,7 +56,7 @@ async function installedMailProviderIds(input: Parameters<typeof setAgentPluginE
     filename: MAIL_ADAPTERS_FILENAME, contribution: 'mail adapters', requireActive: false });
   const verdict = verdicts.find(item => 'trusted' in item && item.trusted.pluginId === input.pluginId);
   if (!verdict || !('trusted' in verdict)) return [];
-  const parsed = parseMailAdaptersFile(await lifecycle.readTrustedPluginFile(verdict.trusted, MAIL_ADAPTERS_FILENAME));
+  const parsed = parseMailAdaptersFile({ raw: await lifecycle.readTrustedPluginFile({ plugin: verdict.trusted, filename: MAIL_ADAPTERS_FILENAME }) });
   return parsed.ok ? parsed.descriptors.map(adapter => adapter.id).filter(id => id !== 'smtp' && id !== 'console') : [];
 }
 

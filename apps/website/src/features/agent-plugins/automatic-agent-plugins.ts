@@ -116,8 +116,8 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
         for (const candidate of candidates) if (candidate.enabled) maturities.set(candidate.pluginId, candidate.maturity);
         return candidates;
       },
-      rank: (input) => rankInstalledAgentPlugins(input.query.slice(0, 16000), input.candidates, input.limit, { automatic: true }),
-      resolve: ({ pluginId, ...request }) => resolveAgentPluginGuidance({ pluginRefIds: [pluginId], workspaceLayout: deps.agentPluginLayout.forWorkspace(deps.workspaceId) }, { deliveryMode: 'inject', allowInactiveGuidance: true, ...request }),
+      rank: (input) => rankInstalledAgentPlugins({ query: input.query.slice(0, 16000), candidates: input.candidates, limit: input.limit }, { automatic: true }),
+      resolve: ({ pluginId, ...request }) => resolveAgentPluginGuidance({ pluginRefIds: [pluginId], workspaceLayout: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }) }, { deliveryMode: 'inject', allowInactiveGuidance: true, ...request }),
       ask: async ({ matches }) => {
         entry.pending = true;
         try {

@@ -77,7 +77,7 @@ test('the lifecycle source reads a file through the lifecycle\'s contained read 
   const reads: Array<{ plugin: TrustedPluginPackage; filename: string }> = [];
   const lifecycle: Lifecycle = {
     loadPluginContributions: async () => ({ items: [], refusals: [] }),
-    readTrustedPluginFile: async (plugin, filename) => { reads.push({ plugin, filename }); return 'contents'; },
+    readTrustedPluginFile: async ({ plugin, filename }) => { reads.push({ plugin, filename }); return 'contents'; },
   };
   const plugin = { pluginId: 'acme-office', packageRoot: '/nonexistent/acme-office' };
   assert.equal(await createAgentPluginAdminSurfaceSource({ lifecycle }).readFile({ plugin, filename: 'surface/app.mjs' }), 'contents');

@@ -110,7 +110,7 @@ function layoutAt(root: string): AgentPluginLayout {
   const unread = (): string => assert.fail("only the workspace root is read");
   return {
     root: "/fake", workspacesDir: "/fake/ws",
-    forWorkspace: (workspaceId) => ({ root: `${root}/${workspaceId}`, packages: "", staging: "", pluginRootDir: unread, pluginPackagesDir: unread, pluginMemoryDir: unread, pluginDataDir: unread }),
+    forWorkspace: ({ workspaceId }) => ({ root: `${root}/${workspaceId}`, packages: "", staging: "", pluginRootDir: unread, pluginPackagesDir: unread, pluginMemoryDir: unread, pluginDataDir: unread }),
   };
 }
 

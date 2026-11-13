@@ -55,7 +55,7 @@ async function register(extra: { agentPluginTools?: AgentPluginExecutableToolHos
 }
 
 const loadAcme: AgentPluginExecutableToolHost["loadContributions"] = async (_input, _options) => ({ items: acmeTools([]), refusals: [] });
-const workspaceRoot = () => layout.deps.agentPluginLayout.forWorkspace(WORKSPACE).root;
+const workspaceRoot = () => layout.deps.agentPluginLayout.forWorkspace({ workspaceId: WORKSPACE }).root;
 
 test("executable plugin tools land on the process registry and are gated by the live activation record per call", async () => {
   const registry = createToolRegistry({});

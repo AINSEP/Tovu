@@ -31,8 +31,8 @@ export const customizeAgentPluginCatalog: AgentToolDefinition = {
 export async function prepareCustomizedAgentPluginArchive({ deps, ctx }: { deps: AgentPluginsInstallToolDeps; ctx: ToolExecutionContext }, _options = {}): Promise<Uint8Array> {
   const input = requireInputRecord({ input: ctx.input });
   const pluginId = requireString({ input, key: 'pluginId' });
-  const workspaceRoot = deps.agentPluginLayout.forWorkspace(deps.workspaceId).root;
-  const installed = preferBundledAgentPluginDigests(await listInstalledPlugins(workspaceRoot), await readBundledAgentPluginDigests(workspaceRoot));
+  const workspaceRoot = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root;
+  const installed = preferBundledAgentPluginDigests(await listInstalledPlugins({ workspaceRoot }), await readBundledAgentPluginDigests({ workspaceRoot }));
   const sources = installed.filter(plugin => plugin.pluginId === pluginId);
   if (sources.length !== 1) throw new ToolInputError({ message: `Source '${pluginId}' must identify exactly one installed Agent Plugin.` });
   try {

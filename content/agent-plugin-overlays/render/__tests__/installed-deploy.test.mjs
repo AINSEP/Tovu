@@ -27,7 +27,7 @@ test("installed Render deploys and observes the returned ID through the guarded 
   try {
     const layout = resolveAgentPluginLayout(); const workspaceId = "workspace-local";
     await seedBundledAgentPlugins({ layout, workspaceId, sourceRoot: await processComposedBundledSourceRoot() });
-    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(workspaceId).root, pluginId: "render", enabled: true, actor: "test:operator" }, { origin: "bundled" });
+    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace({ workspaceId }).root, pluginId: "render", enabled: true, actor: "test:operator" }, { origin: "bundled" });
     const loadContributions = createTovuAgentPluginLifecycle({ layout }).loadPluginContributions;
     const loadDeployOps = input => loadDeployOpsRegistry(input, { loadContributions });
     const registry = await loadDeployOps({ workspaceId });

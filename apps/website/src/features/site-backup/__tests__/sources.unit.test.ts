@@ -596,7 +596,7 @@ test("plugin workspace links, invalid ids and stray files are not traversed", as
 test("plugin paths that are missing or regular files are empty, and invalid plugin ids are ignored", async (t) => {
   const site = makeSite();
   t.after(site.cleanup);
-  const ws = site.sources.agentPlugins.forWorkspace("workspace-local");
+  const ws = site.sources.agentPlugins.forWorkspace({ workspaceId: "workspace-local" });
   write(path.join(ws.root, "invalid_id", "package", "sha256", "secret"), "excluded");
   write(path.join(ws.root, "empty-plugin", "package"), "not a directory");
   write(path.join(ws.root, "other-plugin", "memory"), "not a directory");
@@ -610,7 +610,7 @@ test("plugin-owned-directory lstat failures other than ENOENT abort collection",
   const site = makeSite();
   t.after(site.cleanup);
   const failure = Object.assign(new Error("package metadata unavailable"), { code: "EIO" });
-  const packagePath = path.join(site.sources.agentPlugins.forWorkspace("workspace-local").root, "packages");
+  const packagePath = path.join(site.sources.agentPlugins.forWorkspace({ workspaceId: "workspace-local" }).root, "packages");
   await assert.rejects(collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, plugins: true } }, {
     fileSystem: { ...walkFileSystem, lstat: async file => {
       if (file === packagePath) throw failure;

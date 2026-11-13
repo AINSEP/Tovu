@@ -95,7 +95,7 @@ test("production ports read the shipped links and switch the real activation rec
   for (const name of ["posthog", "sentry", "opentelemetry", "vercel"]) await cp(agentPluginSourceDir({ pluginId: name }), path.join(sourceRoot, name), { recursive: true });
   const layout = resolveAgentPluginLayout({ siteDir: root }, { env: {} });
   await createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: sourceRoot }).seedBundledAgentPlugins({ layout, workspaceId: "ws", sourceRoot });
-  const ports = bindProviderFacePorts({ workspaceRoot: () => layout.forWorkspace("ws").root });
+  const ports = bindProviderFacePorts({ workspaceRoot: () => layout.forWorkspace({ workspaceId: "ws" }).root });
   const links = await ports.links({});
   assert.deepEqual([...links].filter(([face]) => ["posthog", "sentry", "opentelemetry"].includes(face)).sort(),
     [["opentelemetry", "observability-opentelemetry"], ["posthog", "analytics-posthog"], ["sentry", "observability-sentry"]]);
@@ -148,7 +148,7 @@ test("link discovery selects the bundled revision, honors removed links, and ref
   const ports = bindProviderFacePorts({ workspaceRoot: () => "/workspace" }, { catalog: {
     list: async () => ambiguous ? installed : installed.filter(plugin => plugin.pluginId === "face"),
     bundled: async () => new Map([["face", "current"]]),
-    read: async (plugin, filename) => {
+    read: async ({ plugin, filename }) => {
       assert.equal(filename, "plugin.json");
       reads.push(plugin.packageRoot);
       return JSON.stringify({ extensions: { tovu: removed ? {} : { providerPlugin: plugin.packageRoot === "/current" ? "current-provider" : "stale-provider" } } });

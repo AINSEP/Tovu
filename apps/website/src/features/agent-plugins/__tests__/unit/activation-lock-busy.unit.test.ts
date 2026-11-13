@@ -210,7 +210,7 @@ test("B6: a busy pre-flight fails every bundled plugin with a reason naming the 
     assert.equal(outcome.pluginId, "mini-bundled");
     assert.equal(outcome.status, "failed");
     assert.match(outcome.reason ?? "", /write lock/);
-    assert.deepEqual(await listInstalledPlugins(layout.forWorkspace(WORKSPACE_ID).root), []);
+  assert.deepEqual(await listInstalledPlugins({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root }), []);
   } finally {
     behavior = realFsp.open;
     await forceRemove(cwd);

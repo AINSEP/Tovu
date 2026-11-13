@@ -1405,7 +1405,7 @@ test(`${BYOK_TURN_PATH} sends a metadata note then loads guidance through the re
       }
     } },
   });
-  await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace(deps.workspaceId).root, seeded: [{ pluginId: installed.pluginId, archiveDigest: installed.archiveDigest }] });
+  await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace({ workspaceId: deps.workspaceId }).root, seeded: [{ pluginId: installed.pluginId, archiveDigest: installed.archiveDigest }] });
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   let calls = 0;
   const providerUrl = await stubProvider(t, (count, body) => {

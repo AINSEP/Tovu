@@ -44,7 +44,7 @@ for (const deployEnabled of [false, true]) {
       const { loadSourceControlProviderRegistry } = await import("../../../source-control/provider-registry.js");
       await withAgentPluginsDir(async layout => {
         const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundle.root });
-        const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
+        const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root;
         await lifecycle.setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: deployEnabled, actor: "operator" }, { origin: "bundled" });
         await lifecycle.setAgentPluginActivation({ workspaceRoot, pluginId: "github", enabled: githubEnabled, actor: "operator" }, { origin: "bundled" });
         const githubBefore = (await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins.github;

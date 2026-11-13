@@ -58,7 +58,7 @@ function fileEntry(entryPath: string, content: string): AgentPluginArchiveEntry 
 async function freshLayout() {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-uninstall-test-"));
   const instanceLayout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
-  return { cwd, instanceLayout, workspaceLayout: instanceLayout.forWorkspace(WORKSPACE_ID) };
+  return { cwd, instanceLayout, workspaceLayout: instanceLayout.forWorkspace({ workspaceId: WORKSPACE_ID }) };
 }
 
 /** Installs a real package via `installAgentPlugin` — the same mechanism a real install-from-url

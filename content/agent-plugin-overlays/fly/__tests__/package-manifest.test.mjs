@@ -50,7 +50,7 @@ test("the eponymous skill exists and names the server host it deploys to; Tovu's
 });
 
 test("the package packs through the real packer, and ships no publish target of its own any more", async () => {
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
   for (const file of ["plugin.json", "mcp.json", "skills/fly/SKILL.md"]) {
     assert.ok(packed.files.includes(file), `${file} must survive packing`);
   }

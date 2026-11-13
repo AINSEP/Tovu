@@ -31,8 +31,8 @@ export async function restoreImportedPluginState(required: { root: string; dir: 
   const sourceRoot = optional.sourceRoot ?? bundledAgentPluginsDir();
   const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: sourceRoot });
   await lifecycle.seedBundledAgentPlugins({ layout, workspaceId, sourceRoot });
-  const workspace = layout.forWorkspace(workspaceId);
-  const installed = await lifecycle.listInstalledPlugins(workspace.root);
+  const workspace = layout.forWorkspace({ workspaceId });
+  const installed = await lifecycle.listInstalledPlugins({ workspaceRoot: workspace.root });
   const trusted = new Set(required.state.trustedPlugins.map(plugin => plugin.id));
   const enabledUnits = new Set<string>();
   for (const plugin of required.state.plugins.filter(plugin => plugin.kind === "agent")) {

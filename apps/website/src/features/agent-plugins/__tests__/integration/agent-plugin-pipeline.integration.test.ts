@@ -81,7 +81,7 @@ test("install -> parse mcp.json -> read installed files through the containment 
     // A real caller reads mcp.json THROUGH the same containment guarantee installed skills use —
     // proving `readInstalledSkillMarkdown`'s containment primitive generalizes to any installed file,
     // not only the one path shape its own unit tests exercise.
-    const mcpConfigRaw = await readInstalledSkillMarkdown(installed.packageRoot, "mcp.json");
+    const mcpConfigRaw = await readInstalledSkillMarkdown({ packageRoot: installed.packageRoot, skillPath: "mcp.json" });
     const parsedMcp = parseAgentPluginMcpConfig({ value: JSON.parse(mcpConfigRaw) });
     assert.equal(parsedMcp.ok, true);
     const mcpServerIds = parsedMcp.ok ? parsedMcp.config.serverIds : [];
@@ -89,7 +89,7 @@ test("install -> parse mcp.json -> read installed files through the containment 
 
     // The same primitive reads a skill's authored markdown back byte-for-byte, at its real
     // package-relative path.
-    const readBackSkill = await readInstalledSkillMarkdown(installed.packageRoot, "skills/ui-ux-design/SKILL.md");
+    const readBackSkill = await readInstalledSkillMarkdown({ packageRoot: installed.packageRoot, skillPath: "skills/ui-ux-design/SKILL.md" });
     assert.equal(readBackSkill, skillMarkdown);
 
     // Re-installing the SAME archive bytes into the same workspace dedups onto the already-published
@@ -113,7 +113,7 @@ test("install -> parse mcp.json -> read installed files through the containment 
     assert.deepEqual(secondInstall, installed, "a byte-identical repeat install returns the first install's result, at the same packageRoot");
     assert.equal(
       installed.packageRoot,
-      path.join(await realpath(instanceLayout.forWorkspace(workspaceId).pluginPackagesDir({ pluginId: "ui-ux-design" })), digest),
+      path.join(await realpath(instanceLayout.forWorkspace({ workspaceId }).pluginPackagesDir({ pluginId: "ui-ux-design" })), digest),
       "Layout B: the package lives under <pluginId>/package/sha256/<digest>",
     );
   } finally {

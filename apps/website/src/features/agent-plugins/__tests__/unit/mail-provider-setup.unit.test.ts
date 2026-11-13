@@ -69,13 +69,13 @@ test("the descriptor property form: {} when absent, {setup} when valid, the reas
 
 test("tovu-mail-adapters.json v2 carries setup through, and a bad setup refuses the file", () => {
   const entry = { id: "acme", label: "Acme", module: "a.mjs", credentialKeys: ["token"], feedback: false };
-  const ok = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...entry, setup: { helpUrl: "https://acme.test/keys" } }] }));
+  const ok = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [{ ...entry, setup: { helpUrl: "https://acme.test/keys" } }] }) });
   assert.ok(ok.ok);
   assert.equal(ok.descriptors[0]!.setup!.helpUrl, "https://acme.test/keys");
-  const absent = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [entry] }));
+  const absent = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [entry] }) });
   assert.ok(absent.ok);
   assert.equal("setup" in absent.descriptors[0]!, false);
-  const bad = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...entry, setup: { fields: [{ key: "token", label: "K", type: "text" }] } }] }));
+  const bad = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [{ ...entry, setup: { fields: [{ key: "token", label: "K", type: "text" }] } }] }) });
   assert.deepEqual(bad, { ok: false, reason: "adapters[0].setup.fields[0]: the token field must be type secret" });
 });
 
@@ -92,7 +92,7 @@ test("v2 preserves the credential card and setup together under an explicit or d
   const setup = { fields: [{ key: "baseUrl", label: "Endpoint", type: "url", defaultValue: "https://api.acme.test" }] };
   const entry = { id: "acme", label: "Acme", module: "a.mjs", credentialKeys: ["token"], feedback: false, credentialCard, setup };
   for (const credentialLabel of [undefined, "Acme sending key"]) {
-    const parsed = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...entry, credentialLabel }] }));
+    const parsed = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [{ ...entry, credentialLabel }] }) });
     assert.ok(parsed.ok);
     assert.deepEqual(parsed.descriptors[0], {
       schemaVersion: 2, id: "acme", label: "Acme", module: "a.mjs", credentialKeys: ["token"], feedback: false,
@@ -107,15 +107,15 @@ test("v2 preserves the credential card and setup together under an explicit or d
 
 test("a bad card keeps its refusal and valid setup; a bad setup still refuses a valid card's descriptor", () => {
   const entry = { id: "acme", label: "Acme", module: "a.mjs", credentialKeys: ["token"], feedback: false };
-  const parsed = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...entry,
+  const parsed = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [{ ...entry,
     credentialCard: { title: "Connect", baseUrl: "http://api.acme.test" }, setup: {},
-  }] }));
+  }] }) });
   assert.ok(parsed.ok);
   assert.equal(parsed.descriptors[0]!.credentialCard, undefined);
   assert.equal(parsed.descriptors[0]!.credentialCardRefusal, "adapters[0].credentialCard.baseUrl must be an https URL");
   assert.deepEqual(parsed.descriptors[0]!.setup, defaultMailProviderSetup({ credentialKeys: ["token"] }));
-  assert.deepEqual(parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...entry,
+  assert.deepEqual(parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [{ ...entry,
     credentialCard: { title: "Connect", baseUrl: "https://api.acme.test" },
     setup: { fields: [{ key: "token", label: "Key", type: "text" }] },
-  }] })), { ok: false, reason: "adapters[0].setup.fields[0]: the token field must be type secret" });
+  }] }) }), { ok: false, reason: "adapters[0].setup.fields[0]: the token field must be type secret" });
 });

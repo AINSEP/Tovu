@@ -64,7 +64,7 @@ async function install(f: Awaited<ReturnType<typeof store>>): Promise<void> {
   await writeFile(path.join(source, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'images', version: '1.0.0' }));
   await writeFile(path.join(source, 'mcp.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
     mcpServers: { media: { type: 'streamable-http', url: 'https://media.example.test/mcp', tovuAuthMode: 'oauth', tovuDefaultTools: { allow: ['models', 'generate'], write: ['generate'] } } } }));
-  const packed = await packAgentPluginDirectory(source);
+  const packed = await packAgentPluginDirectory({ sourceDir: source });
   await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: createBundledSourceArchiveReader(), layout: f.layout, workspaceId: 'site' });
 }
 

@@ -37,7 +37,7 @@ test('sentry: the skill opens that card, checks provider_status first, and never
 });
 
 test('sentry: packs as a bundled plugin with no MCP servers and no code', async () => {
-  const packed = await packAgentPluginDirectory(root);
+  const packed = await packAgentPluginDirectory({ sourceDir: root });
   assert.ok(packed.files.includes('skills/sentry/SKILL.md'));
   assert.ok(packed.files.every(file => !/\.(m?js|ts)$/.test(file) || file.startsWith('__tests__/')), 'guidance only');
   assert.deepEqual(JSON.parse(readFileSync(path.join(root, 'mcp.json'), 'utf8')).mcpServers, {});

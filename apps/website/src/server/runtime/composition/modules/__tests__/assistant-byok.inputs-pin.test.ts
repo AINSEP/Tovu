@@ -88,7 +88,7 @@ test("BYOK repeats pinned guidance while retaining good picks around failures (r
       }
     } },
   });
-  await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace(deps.workspaceId).root, seeded: [{ pluginId: installed.pluginId, archiveDigest: installed.archiveDigest }] });
+  await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace({ workspaceId: deps.workspaceId }).root, seeded: [{ pluginId: installed.pluginId, archiveDigest: installed.archiveDigest }] });
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);

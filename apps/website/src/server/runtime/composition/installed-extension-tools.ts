@@ -50,7 +50,7 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
       // A retired plugin's tool name (`agent_plugin_deploy`) stays a gated alias of its successor's.
       const registrations: ToolRegistration[] = [];
       const aliases = createRetiredPluginToolAliases({ registry: { register: registration => { registrations.push(registration); } } });
-      await registerInstalledAgentPluginTools(aliases.registry, { ...deps, withExtensionApprovalPolicy });
+      await registerInstalledAgentPluginTools({ registry: aliases.registry, ctx: { ...deps, withExtensionApprovalPolicy } });
       aliases.registerAliases();
       // The executor's core scope owns replacement and collision/revocation checks. Standalone
       // registrars without that host port retain their one-pass registration contract.
@@ -99,7 +99,7 @@ async function registerExecutableAgentPluginTools(deps: Parameters<InstalledExte
   const { agentPluginTools: host, surfaces, executablePluginToolRegistry: registry } = deps;
   if (!host || !surfaces || !registry) return;
   try {
-    const workspaceRoot = deps.agentPluginLayout.forWorkspace(deps.workspaceId).root;
+    const workspaceRoot = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root;
     const { refusals } = await registerAgentPluginExecutableTools({
       registry, workspaceId: deps.workspaceId, host, authorize: deps.authorize, withExtensionApprovalPolicy,
       // Fresh per call and fail-closed: anything but a readable "active" verdict denies.

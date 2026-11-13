@@ -90,7 +90,7 @@ test("pinned preflight always inlines text and carries its identity, even with p
   const deps = { ...createRouteDeps(), ...site.deps };
   await Promise.all([deps.pluginRuntimeReady, deps.siteTitleReady]);
   const pluginId = "preflight-notes", digest = "a".repeat(64);
-  const workspace = deps.agentPluginLayout.forWorkspace(deps.workspaceId);
+  const workspace = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId });
   const packageDir = path.join(workspace.pluginPackagesDir({ pluginId }), digest);
   await mkdir(path.join(packageDir, "skills", pluginId), { recursive: true });
   await writeFile(path.join(packageDir, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, version: "1.0.0" }));
@@ -98,7 +98,7 @@ test("pinned preflight always inlines text and carries its identity, even with p
   await writeFile(path.join(packageDir, "skills", pluginId, "SKILL.md"), guidance);
   await writeFile(path.join(workspace.root, "activations.json"), JSON.stringify({ schemaVersion: 1, plugins: { [pluginId]: { enabled: true, origin: "bundled", updatedAt: "2026-10-18T00:00:00.000Z", updatedBy: "fixture" } } }));
   await writeFile(path.join(workspace.root, "bundled-digests.json"), JSON.stringify({ schemaVersion: 1, plugins: { [pluginId]: { archiveDigest: digest } } }));
-  const expected = await resolveAgentPluginRefs([pluginId], workspace, 'inject');
+  const expected = await resolveAgentPluginRefs({ pluginRefIds: [pluginId], workspaceLayout: workspace }, { deliveryMode: 'inject' });
   assert.equal(expected.ok, true);
   if (!expected.ok) throw new Error("fixture guidance unavailable");
   assert.ok(expected.promptPrefix.includes(guidance));

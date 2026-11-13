@@ -33,7 +33,7 @@ export async function readBundledPackageFiles(_required: Record<string, never> =
   for (const folder of folders) {
     if (!folder.isDirectory()) continue;
     // An invalid bundled folder has no trusted package identity and gets ordinary file rules.
-    const packed = await packAgentPluginDirectory(path.join(sourceRoot, folder.name)).catch((error: unknown) => {
+    const packed = await packAgentPluginDirectory({ sourceDir: path.join(sourceRoot, folder.name) }).catch((error: unknown) => {
       // A folder removed during the scan simply cannot establish trusted package identity.
       if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) console.warn("[site-backup] Could not inspect a bundled package", describeErrorForLog({ err: error }));
       return null;
@@ -60,7 +60,7 @@ function bundledSourceRoot(optional: { sourceRoot?: string }): string {
 /** The packed archive read back with the installer's own reader. O(archive bytes). */
 async function packedFileHashes(required: { bytes: Uint8Array }): Promise<ReadonlyMap<string, string>> {
   const files = new Map<string, string>();
-  for await (const entry of createBundledSourceArchiveReader().entries(required.bytes)) {
+  for await (const entry of createBundledSourceArchiveReader().entries({ archive: required.bytes })) {
     if (entry.kind !== "file") continue;
     const hash = createHash("sha256");
     for await (const chunk of entry.openReadStream()) hash.update(chunk);

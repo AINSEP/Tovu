@@ -92,7 +92,7 @@ test("agent_plugins_update: catalog and risk match the install tool; approval al
 
 test("agent_plugins_update: without a human confirmation an enabled plugin is not updated", async () => {
   await withInstalled(async ({ dir, layout, oldDigest }) => {
-    const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
+    const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE }).root;
     await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: true, actor: "owner" });
     const zip = path.join(dir, "notes-2.0.0.zip");
     await writeFile(zip, await packageZip("2.0.0"));
@@ -108,7 +108,7 @@ test("agent_plugins_update: without a human confirmation an enabled plugin is no
 
 test("agent_plugins_update: a newer zip updates the plugin, keeps it enabled, and snapshots settings through the host owner", async () => {
   await withInstalled(async ({ dir, layout, oldDigest }) => {
-    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(WORKSPACE).root, pluginId: PLUGIN, enabled: true, actor: "owner" });
+    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE }).root, pluginId: PLUGIN, enabled: true, actor: "owner" });
     const snapshots: unknown[] = [];
     const tool = updateTool({ agentPluginLayout: layout, ...mcpDeps(), snapshotAgentPluginSettings: async (scope: unknown) => { snapshots.push(scope); return { keys: [] }; } });
     const result = await tool.handler(context({ source: { kind: "zip", path: await zipOnDisk(dir, "1.1.0") }, pluginId: PLUGIN, expectedOldDigest: oldDigest }), {}) as Record<string, unknown>;
@@ -182,7 +182,7 @@ test("agent_plugins_update: a host without MCP effects or a settings snapshot ow
       (error: unknown) => !(error instanceof ToolInputError) && /did not bind its MCP provisioning/.test((error as Error).message));
     await assert.rejects(() => updateTool({ agentPluginLayout: layout, ...mcpDeps() }).handler(context(input), {}),
       (error: unknown) => !(error instanceof ToolInputError) && /did not bind the plugin settings snapshot owner/.test((error as Error).message));
-    const record = JSON.parse(JSON.stringify(await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(WORKSPACE).root }))).plugins[PLUGIN];
+    const record = JSON.parse(JSON.stringify(await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE }).root }))).plugins[PLUGIN];
     assert.equal(record.enabled, false);
   });
 });

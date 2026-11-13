@@ -55,7 +55,7 @@ test("railway is a seeded-disabled package with its config and deploy-ops descri
   const registry = await loadDeployConfigGeneratorsFromSource({ pluginId: "railway", packageRoot: PLUGIN_DIR });
   assert.deepEqual(registry.refusals, []);
   assert.deepEqual(registry.list().map(item => item.descriptor.id), ["railway"]);
-  const packed = await packAgentPluginDirectory(PLUGIN_DIR);
+  const packed = await packAgentPluginDirectory({ sourceDir: PLUGIN_DIR });
   for (const file of ["plugin.json", "mcp.json", "tovu-deploy-configs.json", "deploy-configs/railway.mjs", "skills/railway/SKILL.md", "tovu-deploy-ops.json", "deploy-ops/railway.mjs"]) assert.ok(packed.files.includes(file), file);
   assert.ok(!packed.files.includes("tovu-deploy-targets.json"));
   assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has("railway"), false);

@@ -51,12 +51,12 @@ export type {
 } from "@jini-ai/agent-plugins/lifecycle";
 export { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS } from "./bundled-catalog.js";
 
-/** Compatibility with the host's positional archive ABI; the owner receives object arguments. */
+/** The host exposes zero-argument entry streams while the owner receives object arguments. */
 export type AgentPluginArchiveEntry = Exclude<JiniArchiveEntry, { readonly kind: "file" }> |
   (Omit<Extract<JiniArchiveEntry, { readonly kind: "file" }>, "openReadStream"> & { readonly openReadStream: () => AsyncIterable<Uint8Array> });
 /** Entries remain a pure function of archive bytes: metadata and extraction iterate twice. */
 export interface AgentPluginArchiveReaderPort {
-  entries(archive: Uint8Array): AsyncIterable<AgentPluginArchiveEntry>;
+  entries(required: { archive: Uint8Array }, optional?: Record<string, never>): AsyncIterable<AgentPluginArchiveEntry>;
 }
 export type InstallAgentPluginRequired = Omit<JiniInstallRequired, "layout" | "archiveReader"> & { readonly layout: AgentPluginLayout; readonly archiveReader: AgentPluginArchiveReaderPort };
 export type UninstallAgentPluginRequired = Omit<JiniUninstallRequired, "layout"> & { readonly layout: AgentPluginLayout };
@@ -64,22 +64,22 @@ export type SeedBundledAgentPluginsRequired = Omit<JiniSeedRequired, "layout"> &
 export type RetireBundledAgentPluginsRequired = Omit<JiniRetireRequired, "layout"> & { readonly layout: AgentPluginLayout };
 export type TrustedPluginPackagesQuery = Omit<JiniTrustedQuery, "onInactive"> & { readonly onInactive?: (plugin: TrustedPluginPackage) => Promise<void> };
 
-/** Preserve the host's validated workspace layout and convert only its method call shapes. */
+/** Adapt the host's validated workspace layout to the lifecycle owner's port. */
 function ownerLayout(layout: AgentPluginLayout): AgentPluginLayoutPort {
   return { root: layout.root, forWorkspace: ({ workspaceId }) => {
-    const workspace = layout.forWorkspace(workspaceId);
-    return { ...workspace, pluginDataDir: ({ pluginId }) => workspace.pluginDataDir(pluginId) };
+    const workspace = layout.forWorkspace({ workspaceId });
+    return { ...workspace, pluginDataDir: ({ pluginId }) => workspace.pluginDataDir({ pluginId }) };
   } };
 }
 function hostLayout(layout: AgentPluginLayoutPort): AgentPluginLayout {
-  return { root: layout.root, workspacesDir: path.join(layout.root, "ws"), forWorkspace: workspaceId => {
+  return { root: layout.root, workspacesDir: path.join(layout.root, "ws"), forWorkspace: ({ workspaceId }, _optional = {}) => {
     const workspace = layout.forWorkspace({ workspaceId });
-    return { ...workspace, pluginDataDir: pluginId => workspace.pluginDataDir({ pluginId }) };
+    return { ...workspace, pluginDataDir: ({ pluginId }, _optional = {}) => workspace.pluginDataDir({ pluginId }) };
   } };
 }
 function ownerReader(reader: AgentPluginArchiveReaderPort): JiniArchiveReader {
   return { async *entries({ archive }) {
-    for await (const entry of reader.entries(archive)) {
+    for await (const entry of reader.entries({ archive })) {
       yield entry.kind === "file" ? { ...entry, openReadStream: (_input = {}) => entry.openReadStream() } : entry;
     }
   } };
@@ -164,7 +164,7 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
       return readHostPluginMaturity({ manifest, pluginId: plugin.pluginId }) ? `Plugin '${plugin.pluginId}' is untested. ${UNTESTED_PLUGIN_GUIDANCE}` : '';
     }));
     const promptPrefix = [...notices, ...overlays.guidance, result.promptPrefix, ...overlays.fileSections].filter(Boolean).join('\n\n');
-    return { ...result, promptPrefix: removeChatRefusedToolPermissions(promptPrefix) };
+    return { ...result, promptPrefix: removeChatRefusedToolPermissions({ text: promptPrefix }) };
   }
   // Soon plugins are locked off (`soon-lock.ts`, owner 2026-11-10). Product policy, so it wraps the
   // owner's enable writers here: the admin switch, plugins_set_enabled and connect defaults
@@ -179,12 +179,12 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
   return {
     ...owner,
     soonCatalog,
-    setAgentPluginEnabled: async (...[input, options]: Parameters<typeof owner.setAgentPluginEnabled>) => {
-      if (input.enabled) await assertAgentPluginReady({ catalog: soonCatalog, workspaceRoot: required.layout.forWorkspace(input.workspaceId).root, pluginId: input.pluginId });
+    setAgentPluginEnabled: async (input: Parameters<typeof owner.setAgentPluginEnabled>[0], options: Parameters<typeof owner.setAgentPluginEnabled>[1] = {}) => {
+      if (input.enabled) await assertAgentPluginReady({ catalog: soonCatalog, workspaceRoot: required.layout.forWorkspace({ workspaceId: input.workspaceId }).root, pluginId: input.pluginId });
       return owner.setAgentPluginEnabled(input, options);
     },
     // A Soon face never follows its provider plugin on; one that is on is switched off.
-    reconcileAgentPluginActivation: async (...[input, options]: Parameters<typeof owner.reconcileAgentPluginActivation>) => {
+    reconcileAgentPluginActivation: async (input: Parameters<typeof owner.reconcileAgentPluginActivation>[0], options: Parameters<typeof owner.reconcileAgentPluginActivation>[1] = {}) => {
       const soon = await findSoonAgentPlugin({ catalog: soonCatalog, workspaceRoot: input.workspaceRoot, pluginId: input.pluginId });
       return owner.reconcileAgentPluginActivation(soon ? { ...input, resolveEnabled: async () => false } : input, options);
     },
@@ -206,29 +206,29 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     previewAgentPluginUninstall: (input: UninstallAgentPluginRequired) => owner.previewAgentPluginUninstall({ ...input, layout: ownerLayout(input.layout) }),
     seedBundledAgentPlugins: (input: SeedBundledAgentPluginsRequired) => owner.seedBundledAgentPlugins({ ...input, layout: ownerLayout(input.layout) }),
     retireBundledAgentPlugins: (input: RetireBundledAgentPluginsRequired, options: Parameters<typeof owner.retireBundledAgentPlugins>[1] = {}) => owner.retireBundledAgentPlugins({ ...input, layout: ownerLayout(input.layout) }, options),
-    resolveAgentPluginRefs: (pluginRefIds: readonly string[], workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages" | "root">, deliveryMode = resolveAgentPluginDeliveryMode()) => resolveHostPluginRefs({ pluginRefIds, workspaceLayout }, { deliveryMode }),
+    resolveAgentPluginRefs: ({ pluginRefIds, workspaceLayout }: { pluginRefIds: readonly string[]; workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages" | "root"> }, { deliveryMode = resolveAgentPluginDeliveryMode() }: { deliveryMode?: AgentPluginDeliveryMode } = {}) => resolveHostPluginRefs({ pluginRefIds, workspaceLayout }, { deliveryMode }),
     resolveAgentPluginGuidance: resolveHostPluginRefs,
-    listInstalledPlugins: (workspaceRoot: string) => owner.listInstalledPlugins({ workspaceRoot }),
-    isInstalledDigestPresent: (packagesDir: string, archiveDigest: string) => owner.isInstalledDigestPresent({ packagesDir, archiveDigest }),
-    indexInstalledRoot: (packageRoot: string, archiveDigest: string) => owner.indexInstalledRoot({ packageRoot, archiveDigest }),
+    listInstalledPlugins: ({ workspaceRoot }: { workspaceRoot: string }, _optional: Record<string, never> = {}) => owner.listInstalledPlugins({ workspaceRoot }),
+    isInstalledDigestPresent: ({ packagesDir, archiveDigest }: { packagesDir: string; archiveDigest: string }, _optional: Record<string, never> = {}) => owner.isInstalledDigestPresent({ packagesDir, archiveDigest }),
+    indexInstalledRoot: ({ packageRoot, archiveDigest }: { packageRoot: string; archiveDigest: string }, _optional: Record<string, never> = {}) => owner.indexInstalledRoot({ packageRoot, archiveDigest }),
     maxAgentPluginInstallArchiveBytes: () => owner.maxAgentPluginInstallArchiveBytes({}),
-    normalizePackageEntryPath: (rawEntryPath: string) => owner.normalizePackageEntryPath({ rawEntryPath }),
-    assertContainedOnDisk: (packageRoot: string, entryPath: string) => owner.assertContainedOnDisk({ packageRoot, entryPath }),
-    readBundledAgentPluginDigests: (workspaceRoot: string) => owner.readBundledAgentPluginDigests({ workspaceRoot }),
-    normalizeBundledDigests: (value: unknown) => owner.normalizeBundledDigests({ value }),
+    normalizePackageEntryPath: ({ rawEntryPath }: { rawEntryPath: string }, _optional: Record<string, never> = {}) => owner.normalizePackageEntryPath({ rawEntryPath }),
+    assertContainedOnDisk: ({ packageRoot, entryPath }: { packageRoot: string; entryPath: string }, _optional: Record<string, never> = {}) => owner.assertContainedOnDisk({ packageRoot, entryPath }),
+    readBundledAgentPluginDigests: ({ workspaceRoot }: { workspaceRoot: string }, _optional: Record<string, never> = {}) => owner.readBundledAgentPluginDigests({ workspaceRoot }),
+    normalizeBundledDigests: ({ value }: { value: unknown }, _optional: Record<string, never> = {}) => owner.normalizeBundledDigests({ value }),
     preferBundledAgentPluginDigests: <T extends { readonly pluginId: string; readonly archiveDigest: string }>(installed: readonly T[], bundled: Parameters<typeof owner.preferBundledAgentPluginDigests>[0]['bundled']) => owner.preferBundledAgentPluginDigests({ installed, bundled }),
-    recordBundledAgentPluginDigests: (input: Parameters<typeof owner.recordBundledAgentPluginDigests>[0] & { readonly now?: () => Date }) => owner.recordBundledAgentPluginDigests(input, input.now ? { now: input.now } : {}),
-    rankInstalledAgentPlugins: (query: string, candidates: Parameters<typeof owner.rankInstalledAgentPlugins>[0]['candidates'], limit: number, optional: { automatic?: boolean } = {}) => owner.rankInstalledAgentPlugins({ query, candidates, limit }, optional),
-    packAgentPluginDirectory: (sourceDir: string) => owner.packAgentPluginDirectory({ sourceDir }),
+    recordBundledAgentPluginDigests: (input: Parameters<typeof owner.recordBundledAgentPluginDigests>[0], optional: { readonly now?: () => Date } = {}) => owner.recordBundledAgentPluginDigests(input, optional),
+    rankInstalledAgentPlugins: ({ query, candidates, limit }: { query: string; candidates: Parameters<typeof owner.rankInstalledAgentPlugins>[0]['candidates']; limit: number }, optional: { automatic?: boolean } = {}) => owner.rankInstalledAgentPlugins({ query, candidates, limit }, optional),
+    packAgentPluginDirectory: ({ sourceDir }: { sourceDir: string }, _optional: Record<string, never> = {}) => owner.packAgentPluginDirectory({ sourceDir }),
     createBundledSourceArchiveReader: (): AgentPluginArchiveReaderPort => {
       const reader = owner.createBundledSourceArchiveReader({});
-      return { async *entries(archive) {
+      return { async *entries({ archive }) {
         for await (const entry of reader.entries({ archive })) yield entry.kind === "file" ? { ...entry, openReadStream: () => entry.openReadStream({}) } : entry;
       } };
     },
     findTrustedPluginPackages: ({ onInactive, ...input }: TrustedPluginPackagesQuery) => owner.findTrustedPluginPackages(input, onInactive ? { onInactive: ({ plugin }) => onInactive(plugin) } : {}),
-    readTrustedPluginFile: (plugin: TrustedPluginPackage, filename: string) => owner.readTrustedPluginFile({ plugin, filename }),
-    importContainedModule: (plugin: TrustedPluginPackage, modulePath: string) => owner.importContainedModule({ plugin, modulePath }),
+    readTrustedPluginFile: ({ plugin, filename }: { plugin: TrustedPluginPackage; filename: string }, _optional: Record<string, never> = {}) => owner.readTrustedPluginFile({ plugin, filename }),
+    importContainedModule: ({ plugin, modulePath }: { plugin: TrustedPluginPackage; modulePath: string }, _optional: Record<string, never> = {}) => owner.importContainedModule({ plugin, modulePath }),
   };
 }
 
@@ -276,5 +276,5 @@ export const explicitRootAgentPluginActivations = {
 
 /** Object-shaped state containment port over the existing lifecycle path guard. @complexity O(path depth). */
 export function containAgentPluginStatePath(required: { root: string; entryPath: string }, _optional: Record<string, never> = {}): Promise<string> {
-  return explicitRootLifecycle.assertContainedOnDisk(required.root, required.entryPath);
+  return explicitRootLifecycle.assertContainedOnDisk({ packageRoot: required.root, entryPath: required.entryPath });
 }

@@ -130,7 +130,7 @@ test("plugin.json's description tells the model to start by connecting the Supab
 });
 
 test("the package packs through the real installer's packer, the eponymous skill and its reference included", async () => {
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
   for (const file of ["plugin.json", "mcp.json", "skills/supabase/SKILL.md", "skills/supabase/references/failure-modes.md"]) {
     assert.ok(packed.files.includes(file), `${file} must survive packing`);
   }
@@ -234,7 +234,7 @@ test("the user signs up for their own account; Tovu's overlay says a sign-up lin
 });
 
 test("no file in the package carries credential material", async () => {
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
   const credentialShapes: readonly RegExp[] = [
     /\bBearer\s+[A-Za-z0-9._-]{16,}/,
     /\bsbp_[A-Za-z0-9]{16,}/,

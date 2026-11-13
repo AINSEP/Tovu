@@ -51,7 +51,7 @@ const EXTERNAL_MCP_OAUTH_CALLBACK_PATH = "/api/mcp-servers/oauth/callback";
  * thrown as a `ToolInputError` — a bad operator env var is a composition-root problem this tool did
  * not introduce and has no confirmation surface built for; the real form tool still reports it loudly.
  */
-function resolveConnectRedirectUri(serverId: string, derivedPublicOrigin: string | undefined): string | undefined {
+function resolveConnectRedirectUri({ serverId, derivedPublicOrigin }: { serverId: string; derivedPublicOrigin: string | undefined }, _optional: Record<string, never> = {}): string | undefined {
   const configured = process.env.TOVU_PUBLIC_URL?.trim();
   let origin: string | undefined;
   if (configured) {
@@ -74,21 +74,21 @@ function resolveConnectRedirectUri(serverId: string, derivedPublicOrigin: string
  *  (bundled-preferred) installed digest for a pluginId. Returns `null` for a pluginId not installed
  *  in this workspace. */
 export async function defaultResolveInstalledAgentPlugin(input: { workspaceId: string; pluginId: string; agentPluginLayout: AgentPluginLayout }, _options = {}): Promise<ResolvedAgentPluginForConnect | null> {
-  const workspaceLayout = input.agentPluginLayout.forWorkspace(input.workspaceId);
+  const workspaceLayout = input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId });
   const installed = preferBundledAgentPluginDigests(
-    await listInstalledPlugins(workspaceLayout.root),
-    await readBundledAgentPluginDigests(workspaceLayout.root),
+    await listInstalledPlugins({ workspaceRoot: workspaceLayout.root }),
+    await readBundledAgentPluginDigests({ workspaceRoot: workspaceLayout.root }),
   );
   const plugin = installed.find((candidate) => candidate.pluginId === input.pluginId);
   if (!plugin) return null;
-  const cards = parsePluginCredentialCards({ raw: await readTrustedPluginFile(plugin, "plugin.json") });
-  return { servers: await readInstalledMcpServers(plugin.packageRoot), credentialCards: cards.ok ? cards.descriptors : [] };
+  const cards = parsePluginCredentialCards({ raw: await readTrustedPluginFile({ plugin, filename: "plugin.json" }) });
+  return { servers: await readInstalledMcpServers({ packageRoot: plugin.packageRoot }), credentialCards: cards.ok ? cards.descriptors : [] };
 }
 
 /** "supabase" -> "Supabase", "higgsfield-media" -> "Higgsfield Media". There is no separate
  *  display-name field in `plugin.json` (agent-plugins.org has none) — `uninstall-confirmation-ui.ts`'s
  *  own dialog makes the identical choice, naming the plugin by its id. */
-export function titleCaseFromPluginId(pluginId: string): string {
+export function titleCaseFromPluginId({ pluginId }: { pluginId: string }, _optional: Record<string, never> = {}): string {
   return titleCaseWithPorts({ pluginId });
 }
 
@@ -175,7 +175,7 @@ export const tovuAgentPluginConnectHost: AgentPluginConnectHost<AssistantSurface
     notConfirmedResult: ({ reason }) => notConfirmedResult({ confirmed: false, reason }),
   },
   messages: tovuAgentPluginConnectMessages,
-  publicUrl: { redirectUri: ({ serverId, derivedPublicOrigin }) => resolveConnectRedirectUri(serverId, derivedPublicOrigin) },
+  publicUrl: { redirectUri: ({ serverId, derivedPublicOrigin }) => resolveConnectRedirectUri({ serverId, derivedPublicOrigin }) },
   federation: { classifyTrust: classifyAgentPluginMcpServerTrust, messages: tovuEnableAccessMessages },
   actors: { connectDeclined: CONNECT_DECLINED_ACTOR },
   waitAtSignInCard: (required, optional) => waitAtAgentPluginSignInCard(required, optional),
@@ -190,7 +190,7 @@ function tovuConnectDeps(routeDeps: AgentPluginConnectToolDeps): AgentPluginConn
   let mcp: ConnectMcp | undefined;
   const deps = withOverrides(routeDeps, {
     isPluginEnabled: (pluginId: string) => routeDeps.isPluginEnabled ? routeDeps.isPluginEnabled(pluginId)
-      : isAgentPluginEnabled({ workspaceRoot: routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId).root, pluginId }),
+      : isAgentPluginEnabled({ workspaceRoot: routeDeps.agentPluginLayout.forWorkspace({ workspaceId: routeDeps.workspaceId }).root, pluginId }),
     resolveInstalledPlugin: (pluginId: string) => routeDeps.resolveInstalledPlugin ? routeDeps.resolveInstalledPlugin(pluginId)
       : defaultResolveInstalledAgentPlugin({ workspaceId: routeDeps.workspaceId, pluginId, agentPluginLayout: routeDeps.agentPluginLayout }),
     host: tovuAgentPluginConnectHost,

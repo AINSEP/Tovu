@@ -68,11 +68,11 @@ test('activation CLI lists explicit provenance and writes the enable decision th
       }
     };
   `);
-  f.write(`${dir}layout.js`, `export const resolveAgentPluginLayout = () => ({ forWorkspace: id => {
-    if (id !== 'tenant') throw Error('wrong workspace'); return { root: 'tenant-root' };
+  f.write(`${dir}layout.js`, `export const resolveAgentPluginLayout = () => ({ forWorkspace: ({ workspaceId }) => {
+    if (workspaceId !== 'tenant') throw Error('wrong workspace'); return { root: 'tenant-root' };
   } });`);
-  f.write(`${dir}lifecycle.js`, `export const listInstalledPlugins = async root => {
-    if (root !== 'tenant-root') throw Error('wrong root');
+  f.write(`${dir}lifecycle.js`, `export const listInstalledPlugins = async ({ workspaceRoot }) => {
+    if (workspaceRoot !== 'tenant-root') throw Error('wrong root');
     return [{ pluginId: 'mail', archiveDigest: '123456789012abcdef' }];
   };`);
   const listed = f.run('agent-plugin-activation.ts', ['list', '--workspace', 'tenant']);

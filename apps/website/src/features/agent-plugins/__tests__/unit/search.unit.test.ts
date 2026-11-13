@@ -29,14 +29,14 @@ test("limit truncates the result set to the requested size", () => {
     candidate({ pluginId: "gdpr-top", keywords: ["gdpr"], description: "gdpr", skills: [] }),
     candidate({ pluginId: "gdpr-next", keywords: ["gdpr"], description: undefined, skills: [] }),
   ];
-  const matches = rankInstalledAgentPlugins("gdpr", many, 2);
+  const matches = rankInstalledAgentPlugins({ query: "gdpr", candidates: many, limit: 2 });
   assert.equal(matches.length, 2);
   assert.deepEqual(matches.map(match => match.pluginId), ["gdpr-top", "gdpr-next"]);
 });
 
 test("every field of the source candidate is carried through onto the match, plus a score", () => {
   const original = candidate();
-  const [match] = rankInstalledAgentPlugins("gdpr", [original], 10);
+  const [match] = rankInstalledAgentPlugins({ query: "gdpr", candidates: [original], limit: 10 });
   assert.ok(match);
   assert.equal(match.pluginId, "site-compliance");
   assert.equal(match.version, "1.0.0");

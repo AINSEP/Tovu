@@ -232,7 +232,7 @@ test("a DISABLED plugin is still found (unlike the dynamic agent_plugin_<id> too
       { "plugin.json": manifestJson("site-compliance", { description: "compliance screening" }) },
       "archive-disabled",
     );
-    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A });
     await setAgentPluginActivation({ workspaceRoot: layout.root, pluginId: "site-compliance", enabled: false, actor: "test-operator" });
     assert.ok(installed);
 
@@ -321,7 +321,7 @@ test("SINK: a plugin whose SKILL.md is no longer readable does not take another 
 test("two installed digests of the same plugin id do not crash search — unlike the dynamic tool loader's refusal", async () => {
   await withAgentPluginsDir(async () => {
     await installReal(WORKSPACE_A, "site-compliance", { "plugin.json": manifestJson("site-compliance", { description: "variant a compliance" }) }, "archive-a");
-    await installLegacyRevision({ packagesDir: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).pluginPackagesDir({ pluginId: "site-compliance" }), install: () => installReal(WORKSPACE_A, "site-compliance", { "plugin.json": manifestJson("site-compliance", { description: "variant b compliance" }) }, "archive-b") });
+    await installLegacyRevision({ packagesDir: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).pluginPackagesDir({ pluginId: "site-compliance" }), install: () => installReal(WORKSPACE_A, "site-compliance", { "plugin.json": manifestJson("site-compliance", { description: "variant b compliance" }) }, "archive-b") });
 
     const result = await search(WORKSPACE_A, { query: "compliance" });
     assert.equal(result.totalInstalled, 1, "one logical plugin id, even though two digests are on disk");
@@ -349,7 +349,7 @@ test("blank queries list the existing loader's enabled and disabled plugins", as
   await withAgentPluginsDir(async () => {
     await installReal(WORKSPACE_A, "zeta", { "plugin.json": manifestJson("zeta") }, "list-zeta");
     await installReal(WORKSPACE_A, "alpha", { "plugin.json": manifestJson("alpha") }, "list-alpha");
-    await setAgentPluginActivation({ workspaceRoot: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root, pluginId: "zeta", enabled: false, actor: "test-operator" });
+    await setAgentPluginActivation({ workspaceRoot: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).root, pluginId: "zeta", enabled: false, actor: "test-operator" });
     for (const input of [{}, { query: "" }, { query: " \t\n " }]) {
       const result = await search(WORKSPACE_A, input);
       assert.equal(result.totalInstalled, 2);

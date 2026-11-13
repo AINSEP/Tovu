@@ -47,9 +47,9 @@ async function installed(t: TestContext, fixture: Fixture = {}) {
   const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
   const source = path.join(dir, "source", pluginId);
   await writePluginSource(source, fixture);
-  const packed = await lifecycle.packAgentPluginDirectory(source);
+  const packed = await lifecycle.packAgentPluginDirectory({ sourceDir: source });
   await lifecycle.installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
-  const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
+  const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE }).root;
   await explicitRootAgentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId, enabled: false, actor: "owner" });
   const isActive = async () => (await explicitRootAgentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId })).verdict === "active";
   return { layout, lifecycle, workspaceRoot, isActive };
@@ -112,7 +112,7 @@ test("a backup import writes a Soon plugin off and carries the rest, without abo
   await mkdir(stage, { recursive: true });
   await restoreImportedPluginState({ root: stage, dir: siteDir, layout, files: [],
     state: { plugins: [archived("notes"), archived("plain")], trustedPlugins: [], modified: [] } }, { sourceRoot });
-  const workspaceRoot = layout.forWorkspace(readTemplate({ templateId: "starter" }).seed.workspace.id).root;
+  const workspaceRoot = layout.forWorkspace({ workspaceId: readTemplate({ templateId: "starter" }).seed.workspace.id }).root;
   const verdict = async (pluginId: string) => (await explicitRootAgentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId })).verdict;
   assert.equal(await verdict("notes"), "inactive");
   assert.equal(await verdict("plain"), "active");

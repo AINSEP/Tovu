@@ -477,7 +477,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // face follows every write of its activation row. `agentPluginLayout` is declared further down;
   // the thunk only runs on a write, after composition finishes.
   const pluginActivationRepo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: seededWorkspace.id,
-    ports: bindProviderFacePorts({ workspaceRoot: () => agentPluginLayout.forWorkspace(seededWorkspace.id).root }) });
+    ports: bindProviderFacePorts({ workspaceRoot: () => agentPluginLayout.forWorkspace({ workspaceId: seededWorkspace.id }).root }) });
   const pluginRuntime = composePluginRuntime({
     getPluginHost: () => routeDeps.pluginHost,
     workspaceId: seededWorkspace.id,
@@ -1321,7 +1321,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     bundledSourceRoot: bundledAgentPluginsDir(),
     mcp: agentPluginMcp,
     preferences: composeAgentPluginPreferences({ settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals }, read: getEffective, write: (required, optional) => routeDeps.set(required, optional) }),
-    providerFaces: composePluginProviderFaces({ workspaceRoot: () => agentPluginLayout.forWorkspace(seededWorkspace.id).root }),
+    providerFaces: composePluginProviderFaces({ workspaceRoot: () => agentPluginLayout.forWorkspace({ workspaceId: seededWorkspace.id }).root }),
     notifyRosterChanged: notifyExternalMcpRosterChanged,
     builtInExternalMcpServerIds: readBuiltInExternalMcpServerIds({ env: process.env }),
     externalMcpToolApprovalRepo: new InMemoryExternalMcpToolApprovalRepo(),

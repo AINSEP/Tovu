@@ -144,7 +144,7 @@ function createPluginEnabledReader(inputs: Pick<StoredExternalMcpConnectionSourc
   let pluginReader: Promise<(pluginId: string) => Promise<boolean>> | undefined;
   return async pluginId => {
     pluginReader ??= import('../features/agent-plugins/activation-effects.js').then(({ createAgentPluginEnabledReader }) =>
-      createAgentPluginEnabledReader({ workspaceRoot: inputs.agentPluginLayout.forWorkspace(inputs.workspaceId).root }));
+      createAgentPluginEnabledReader({ workspaceRoot: inputs.agentPluginLayout.forWorkspace({ workspaceId: inputs.workspaceId }).root }));
     return (await pluginReader)(pluginId);
   };
 }

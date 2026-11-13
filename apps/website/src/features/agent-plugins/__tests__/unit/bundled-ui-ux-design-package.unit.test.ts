@@ -45,7 +45,7 @@ for (const initial of ["new site", "untouched disabled seed", "operator disabled
     t.after(() => forceRemove(siteDir));
     const layout = resolveAgentPluginLayout({ siteDir: siteDir }, { env: {} });
     const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: source.root });
-    const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
+    const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root;
     if (initial === "untouched disabled seed") {
       await lifecycle.recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: PLUGIN_ID });
       assert.equal((await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN_ID]?.enabled, false);
@@ -58,7 +58,7 @@ for (const initial of ["new site", "untouched disabled seed", "operator disabled
     const outcome = seeded.outcomes.find((item) => item.pluginId === PLUGIN_ID);
     assert.ok(outcome && outcome.status === "seeded");
     assert.equal(seeded.ledgerFailure, undefined);
-    const installed = (await lifecycle.listInstalledPlugins(workspaceRoot)).filter((plugin) => plugin.pluginId === PLUGIN_ID);
+    const installed = (await lifecycle.listInstalledPlugins({ workspaceRoot })).filter((plugin) => plugin.pluginId === PLUGIN_ID);
     assert.deepEqual(installed.map((plugin) => plugin.version), ["0.6.3"]);
     const enabled = initial !== "operator disabled";
     const record = (await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN_ID];
@@ -87,13 +87,13 @@ test("ui-ux-design seeding selects its bundled revision over a manual install, k
   t.after(() => forceRemove(siteDir));
   const layout = resolveAgentPluginLayout({ siteDir: siteDir }, { env: {} });
   const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: source.root });
-  const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
+  const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root;
   const manualSource = path.join(siteDir, "manual-source");
   await cp(PACKAGE_ROOT, manualSource, { recursive: true });
   const manifestPath = path.join(manualSource, "plugin.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   await writeFile(manifestPath, `${JSON.stringify({ ...manifest, version: "0.0.1" })}\n`);
-  const packed = await lifecycle.packAgentPluginDirectory(manualSource);
+  const packed = await lifecycle.packAgentPluginDirectory({ sourceDir: manualSource });
   const manual = await lifecycle.installAgentPlugin({
     archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader(),
     layout, workspaceId: WORKSPACE_ID,
@@ -106,7 +106,7 @@ test("ui-ux-design seeding selects its bundled revision over a manual install, k
     assert.ok(outcome && outcome.status === "seeded");
     assert.equal(seeded.ledgerFailure, undefined);
     assert.notEqual(outcome.archiveDigest, manual.archiveDigest);
-    const installed = (await lifecycle.listInstalledPlugins(workspaceRoot)).filter((plugin) => plugin.pluginId === PLUGIN_ID);
+    const installed = (await lifecycle.listInstalledPlugins({ workspaceRoot })).filter((plugin) => plugin.pluginId === PLUGIN_ID);
     assert.deepEqual(installed.map((plugin) => plugin.archiveDigest).sort(), [outcome.archiveDigest, manual.archiveDigest].sort());
     const sources = (await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID, agentPluginLayout: layout }))
       .filter((source) => source.pluginId === PLUGIN_ID);
