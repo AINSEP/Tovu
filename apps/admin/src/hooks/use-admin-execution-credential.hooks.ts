@@ -92,9 +92,9 @@ const executionCredentialEffects: ExecutionCredentialEffects<AdminExecutionCrede
   clearLegacyCredential: () => clearLegacyLocalCredential(),
   describeError: ({ error, fallback }) => describeAdminExecutionCredentialError({ e: error, fallback }),
   hasTypedKey: ({ apiKey }) => hasTypedAdminKey({ apiKey }),
-  storedKeyIsForOtherEndpoint: ({ stored, baseUrl }) => storedKeyIsForOtherEndpointRule(stored, baseUrl),
-  hasUsableKey: ({ apiKey, stored, baseUrl }) => hasUsableKey(apiKey, stored, baseUrl),
-  storedKeyBlocksProbe: ({ apiKey, stored, baseUrl }) => storedKeyBlocksProbe(apiKey, stored, baseUrl),
+  storedKeyIsForOtherEndpoint: ({ stored, baseUrl }) => storedKeyIsForOtherEndpointRule({ stored, baseUrl }),
+  hasUsableKey: ({ apiKey, stored, baseUrl }) => hasUsableKey({ apiKey, stored, baseUrl }),
+  storedKeyBlocksProbe: ({ apiKey, stored, baseUrl }) => storedKeyBlocksProbe({ apiKey, stored, baseUrl }),
   credentialHint: ({ stored, storedKeyIsForOtherEndpoint }, options = {}) => storedCredentialHint({ stored, storedKeyIsForOtherEndpoint }, options),
 };
 /** Bind host policy and migration; the package owns save/refresh ordering and draft clearing. */

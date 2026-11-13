@@ -111,8 +111,8 @@ export function buildAdminAgentPages(
       // fetched at mount. Every other destination mounts fresh and fetches in its own mount
       // effect, so this is the only case where an agent asking to SEE a screen would otherwise
       // be shown a stale one.
-      if (currentRoutePath() === destination.path) publishContentRefresh();
-      navigate(destination.path);
+      if (currentRoutePath({}) === destination.path) publishContentRefresh();
+      navigate({ routePath: destination.path });
       return destination;
     },
   }]));

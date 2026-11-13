@@ -21,7 +21,7 @@ export function SeoMediaPickerSlot({ agentHandle, ...props }: SeoMediaPickerSlot
  */
 export function createHostSeoModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string } = {}): ReturnType<typeof seo> & { react: { loadingContent: ReactElement } } {
   // One site-URL reader for the factory default and the live options the Provider always passes.
-  const hostSiteUrl = () => siteUrl('');
+  const hostSiteUrl = () => siteUrl({ path: '' });
   const feature = seo({ siteUrl: hostSiteUrl });
   const ScopeProvider = feature.react.Provider;
   // Keep this component's identity for the scope lifetime; changing locale must not remount

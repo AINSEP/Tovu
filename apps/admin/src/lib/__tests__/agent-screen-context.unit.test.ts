@@ -63,9 +63,9 @@ describe("agent screen context store", () => {
 
   it("reads the Playground render target by default", () => {
     publishAgentScreenRoute({ path: "/playground", section: "playground", view: null });
-    setPlaygroundRenderTarget(document.createElement("div"));
+    setPlaygroundRenderTarget({ node: document.createElement("div") });
     expect(readAgentScreenContext()?.drawingSurface).toBe("canvas");
-    setPlaygroundRenderTarget(null);
+    setPlaygroundRenderTarget({ node: null });
     expect(readAgentScreenContext()?.drawingSurface).toBe("chat");
   });
 

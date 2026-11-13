@@ -568,7 +568,7 @@ const ACCESS_TOKEN_LINK_TRANSLATIONS: Record<string, Record<string, string>> = {
   bn: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "একাধিক টোকেন সংরক্ষণ, কোনোটি পুনঃনামকরণ বা সব সংরক্ষিত পরিচয়পত্র এক জায়গায় পরিচালনা করতে চান?", "Create access token": "অ্যাক্সেস টোকেন তৈরি করুন" },
 };
 
-const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays(SOURCE_CONTROL_TRANSLATIONS, ACCESS_TOKEN_LINK_TRANSLATIONS);
+const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays({ base: SOURCE_CONTROL_TRANSLATIONS }, { overlays: [ACCESS_TOKEN_LINK_TRANSLATIONS] });
 
 export const t = createDictionaryTranslator({ featureDictionary: SOURCE_CONTROL_DICT }, { commonDictionary: COMMON_I18N });
 

@@ -10,7 +10,7 @@ import { browserServerReconnectDeps, createServerReconnect, probeReadyz, serverR
 
 function fakeClock() {
   let now = 0;
-  return { now: () => now, sleep: async (ms: number) => void (now += ms) };
+  return { now: () => now, sleep: async ({ ms }: { ms: number }) => void (now += ms) };
 }
 
 function fakeReconnect(back: boolean): ServerReconnect & { waits: number; reached: number } {
@@ -247,7 +247,7 @@ describe("browser reconnect wiring", () => {
       const deps = browserServerReconnectDeps();
       expect(deps.now()).toBe(1_000);
       let slept = false;
-      const sleeping = deps.sleep(500).then(() => { slept = true; });
+      const sleeping = deps.sleep({ ms: 500 }).then(() => { slept = true; });
       await vi.advanceTimersByTimeAsync(499); expect(slept).toBe(false);
       await vi.advanceTimersByTimeAsync(1); await sleeping; expect(slept).toBe(true);
       expect(deps.now()).toBe(1_500);

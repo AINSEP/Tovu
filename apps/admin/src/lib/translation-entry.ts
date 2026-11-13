@@ -1,5 +1,5 @@
 /**
- * @file One translation entry as a spreadable object: `{ ...translationEntry(source, translated) }`
+ * @file One translation entry as a spreadable object: `{ ...translationEntry({ source, translated }) }`
  * is exactly `{ [source]: translated }` at the same position in the dictionary.
  *
  * Why it exists: `sonarjs/no-hardcoded-passwords` treats any dictionary property whose key text
@@ -8,6 +8,6 @@
  * read as hardcoded passwords. Entries about passwords are written through this helper so the
  * source string is data, not a property key, and real credential literals stay detectable.
  */
-export function translationEntry(source: string, translated: string): Record<string, string> {
+export function translationEntry({ source, translated }: { source: string; translated: string }, _options = {}): Record<string, string> {
   return { [source]: translated };
 }

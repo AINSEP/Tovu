@@ -8,7 +8,7 @@
 /** Widget types whose config is media content and so can be overridden per placement. */
 const PLACEMENT_CONTENT_TYPES: readonly string[] = ["media", "gallery"];
 
-export function supportsPlacementContent(widgetType: string | null | undefined): boolean {
+export function supportsPlacementContent({ widgetType }: { widgetType: string | null | undefined }, _options = {}): boolean {
   return typeof widgetType === "string" && PLACEMENT_CONTENT_TYPES.includes(widgetType);
 }
 

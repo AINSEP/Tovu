@@ -58,7 +58,7 @@ export function themeStudioRoutePath({ themeId, pageId }: { themeId: string; pag
  *
  *  @complexity Time/space: O(1). */
 export function themeStudioHref({ themeId, pageId }: { themeId: string; pageId: string }, _options = {}): string {
-  return adminHref(themeStudioRoutePath({ themeId, pageId }));
+  return adminHref({ routePath: themeStudioRoutePath({ themeId, pageId }) });
 }
 
 /** One of the two states a row's publish switch can render — mirrors `ThemeExplore.tsx`'s own

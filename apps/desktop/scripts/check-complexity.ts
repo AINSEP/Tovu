@@ -111,13 +111,13 @@ function toRepoRelative(results: readonly EslintFileResult[]): EslintFileResult[
 interface ComplexityGatePorts {
   lint: () => LintRun;
   exists: (target: string) => boolean;
-  readFile: (target: string) => string;
+  readFile: (required: { target: string }, optional?: Record<string, never>) => string;
   writeFile: (target: string, text: string) => void;
   out: (text: string) => void;
   err: (text: string) => void;
 }
 
-function writeBaseline(violations: readonly ComplexityViolation[], ports: ComplexityGatePorts, debtPath: string): void {
+function writeBaseline({ violations, ports, debtPath }: { violations: readonly ComplexityViolation[]; ports: ComplexityGatePorts; debtPath: string }, _options = {}): void {
   const payload = {
     _comment:
       "Grandfathered apps/desktop complexity violations, keyed PER VIOLATION (rule, file, message) " +
@@ -133,7 +133,7 @@ function writeBaseline(violations: readonly ComplexityViolation[], ports: Comple
 
 /** Prints a verdict against the debt list and returns the exit code. Split from
  *  {@link runComplexityGate} to keep both under the ceiling this gate enforces. @complexity O(n). */
-function reportAgainstBaseline(results: readonly EslintFileResult[], baseline: readonly ComplexityViolation[], ports: ComplexityGatePorts): number {
+function reportAgainstBaseline({ results, baseline, ports }: { results: readonly EslintFileResult[]; baseline: readonly ComplexityViolation[]; ports: ComplexityGatePorts }, _options = {}): number {
   const { added, removed, failures, filesLinted } = evaluateRun(results, baseline, MIN_FILES_LINTED);
 
   ports.out(`check-complexity — ${filesLinted} files linted at ${THRESHOLD}/${THRESHOLD}\n`);
@@ -160,7 +160,7 @@ function reportAgainstBaseline(results: readonly EslintFileResult[], baseline: r
  *   run, a missing debt file, or any failure along the way.
  * @complexity O(n) in ESLint results.
  */
-function runComplexityGate({ argv }: { argv: readonly string[] }, ports: ComplexityGatePorts, { debtPath = DEBT_PATH }: { debtPath?: string } = {}): number {
+function runComplexityGate({ argv, ports }: { argv: readonly string[]; ports: ComplexityGatePorts }, { debtPath = DEBT_PATH }: { debtPath?: string } = {}): number {
   try {
     const run = ports.lint();
     const unusable = rejectUnusableEslintRun(run.status, run.stdout);
@@ -172,7 +172,7 @@ function runComplexityGate({ argv }: { argv: readonly string[] }, ports: Complex
 
     const results = toRepoRelative(JSON.parse(run.stdout));
     if (argv.includes("--update")) {
-      writeBaseline(evaluateRun(results, [], MIN_FILES_LINTED).current, ports, debtPath);
+      writeBaseline({ violations: evaluateRun(results, [], MIN_FILES_LINTED).current, ports, debtPath });
       return 0;
     }
     if (!ports.exists(debtPath)) {
@@ -184,7 +184,7 @@ function runComplexityGate({ argv }: { argv: readonly string[] }, ports: Complex
       );
       return 1;
     }
-    return reportAgainstBaseline(results, JSON.parse(ports.readFile(debtPath)).violations, ports);
+    return reportAgainstBaseline({ results, baseline: JSON.parse(ports.readFile({ target: debtPath })).violations, ports });
   } catch (error) {
     ports.err(sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
     return 1;
@@ -193,14 +193,14 @@ function runComplexityGate({ argv }: { argv: readonly string[] }, ports: Complex
 
 /** Run only when this file IS the process, never when a test imports it. */
 if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  process.exitCode = runComplexityGate({ argv: process.argv.slice(2) }, {
+  process.exitCode = runComplexityGate({ argv: process.argv.slice(2), ports: {
     lint: lintAtCeiling,
     exists: existsSync,
-    readFile: (target) => readFileSync(target, "utf8"),
+    readFile: ({ target }) => readFileSync(target, "utf8"),
     writeFile: writeFileSync,
     out: process.stdout.write.bind(process.stdout),
     err: process.stderr.write.bind(process.stderr),
-  });
+  } });
 }
 
 export { MIN_FILES_LINTED, REPO_ROOT, lintAtCeiling, runComplexityGate };

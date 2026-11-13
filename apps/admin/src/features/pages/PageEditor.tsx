@@ -190,7 +190,7 @@ function PageEditorHeader({
           />
         </label>
         <a
-          href={siteUrl(livePath)}
+          href={siteUrl({ path: livePath })}
           target="_blank"
           rel="noreferrer"
           {...agentHandle({ handle: "page-view-live" }, { role: "link", label: "Open this page on the public site in a new tab" })}

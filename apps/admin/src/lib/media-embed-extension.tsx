@@ -46,7 +46,7 @@ declare module "@tiptap/core" {
     mediaEmbed: {
       /** Inserts a ref-based media node — ONLY `assetId`/`transformName`/`alt` are written to
        *  `bodyJson`; no `src`, no content-type hint. See this file's header. */
-      insertMediaEmbed: (attrs: { assetId: string; transformName: string; alt?: string }) => ReturnType;
+      insertMediaEmbed: (attrs: { assetId: string; transformName: string; alt?: string }, optional?: Record<string, never>) => ReturnType;
     };
   }
 }
@@ -72,8 +72,8 @@ export function MediaEmbedNodeView(props: NodeViewProps) {
           previewKind: view.previewKind,
         })
       ) : (
-        <span className="media-embed-node__broken-label" role="img" aria-label={view.t("Broken media reference")}>
-          ⚠ {view.t("Media unavailable")}
+        <span className="media-embed-node__broken-label" role="img" aria-label={view.t({ key: "Broken media reference" })}>
+          ⚠ {view.t({ key: "Media unavailable" })}
         </span>
       )}
       {/* Edit FIRST, before Replace (owner-directed action order) — a MODAL, not a right-click
@@ -82,13 +82,13 @@ export function MediaEmbedNodeView(props: NodeViewProps) {
           establishes rather than inventing a new one. */}
       <span className="media-embed-node__actions">
         <button type="button" onClick={view.openEdit}>
-          {view.t("Edit")}
+          {view.t({ key: "Edit" })}
         </button>
         <button type="button" onClick={view.openPicker}>
-          {view.t("Replace")}
+          {view.t({ key: "Replace" })}
         </button>
         <button type="button" onClick={view.remove}>
-          {view.t("Remove")}
+          {view.t({ key: "Remove" })}
         </button>
       </span>
       {view.editing ? <MediaEditDialog initial={view.editInitial} onSave={view.saveEdit} onCancel={view.closeEdit} /> : null}
@@ -158,7 +158,7 @@ export const Media = Node.create({
       // Through `insertBlockAtom`, not a bare `insertContent`: that left this node selected, so the
       // next Embed > Media replaced it. See `block-atom-insert.ts`.
       insertMediaEmbed:
-        (attrs) =>
+        (attrs, _options = {}) =>
         ({ chain, state }) =>
           insertBlockAtom({
             chain,

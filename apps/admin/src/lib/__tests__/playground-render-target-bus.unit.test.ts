@@ -32,7 +32,7 @@ describe("getPlaygroundRenderTarget / setPlaygroundRenderTarget", () => {
     subscribeToPlaygroundRenderTarget(listener);
     const node = document.createElement("div");
 
-    setPlaygroundRenderTarget(node);
+    setPlaygroundRenderTarget({ node });
 
     expect(getPlaygroundRenderTarget()).toBe(node);
     expect(listener).toHaveBeenCalledTimes(1);
@@ -40,11 +40,11 @@ describe("getPlaygroundRenderTarget / setPlaygroundRenderTarget", () => {
 
   it("clearing back to null (unmount) notifies subscribers and reverts the snapshot", () => {
     const node = document.createElement("div");
-    setPlaygroundRenderTarget(node);
+    setPlaygroundRenderTarget({ node });
     const listener = vi.fn();
     subscribeToPlaygroundRenderTarget(listener);
 
-    setPlaygroundRenderTarget(null);
+    setPlaygroundRenderTarget({ node: null });
 
     expect(getPlaygroundRenderTarget()).toBeNull();
     expect(listener).toHaveBeenCalledTimes(1);
@@ -52,11 +52,11 @@ describe("getPlaygroundRenderTarget / setPlaygroundRenderTarget", () => {
 
   it("registering the same node again is a no-op — no notification, no re-render storm", () => {
     const node = document.createElement("div");
-    setPlaygroundRenderTarget(node);
+    setPlaygroundRenderTarget({ node });
     const listener = vi.fn();
     subscribeToPlaygroundRenderTarget(listener);
 
-    setPlaygroundRenderTarget(node);
+    setPlaygroundRenderTarget({ node });
 
     expect(listener).not.toHaveBeenCalled();
   });
@@ -66,7 +66,7 @@ describe("getPlaygroundRenderTarget / setPlaygroundRenderTarget", () => {
     const unsubscribe = subscribeToPlaygroundRenderTarget(listener);
     unsubscribe();
 
-    setPlaygroundRenderTarget(document.createElement("div"));
+    setPlaygroundRenderTarget({ node: document.createElement("div") });
 
     expect(listener).not.toHaveBeenCalled();
   });
@@ -80,7 +80,7 @@ describe("getPlaygroundRenderTarget / setPlaygroundRenderTarget", () => {
     subscribeToPlaygroundRenderTarget(throwingListener);
     subscribeToPlaygroundRenderTarget(okListener);
 
-    setPlaygroundRenderTarget(document.createElement("div"));
+    setPlaygroundRenderTarget({ node: document.createElement("div") });
 
     expect(throwingListener).toHaveBeenCalledTimes(1);
     expect(okListener).toHaveBeenCalledTimes(1);

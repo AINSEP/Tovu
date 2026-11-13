@@ -81,15 +81,15 @@ export function previewSrcFor(
   // v2 Liquid pages share the page group with HTML, but need the gated template renderer.
   if (isLiquidTemplateFile(file)) {
     const templateId = file.label.replace(/\.liquid$/i, "");
-    return siteUrl(`/theme-explore/${theme}/template/${encodeURIComponent(templateId)}?v=${previewNonce}`);
+    return siteUrl({ path: `/theme-explore/${theme}/template/${encodeURIComponent(templateId)}?v=${previewNonce}` });
   }
   if (file.kind === "page")
-    return siteUrl(`/theme-explore/${theme}/${encodeURIComponent(file.label)}?v=${previewNonce}`);
+    return siteUrl({ path: `/theme-explore/${theme}/${encodeURIComponent(file.label)}?v=${previewNonce}` });
   if (file.kind === "partial") {
-    return siteUrl(`/theme-explore/${theme}/partial/${encodeURIComponent(file.label)}?v=${previewNonce}`);
+    return siteUrl({ path: `/theme-explore/${theme}/partial/${encodeURIComponent(file.label)}?v=${previewNonce}` });
   }
   return siteUrl(
-    `/theme-assets/${theme}/${file.path.split("/").map(encodeURIComponent).join("/")}?v=${previewNonce}`,
+    { path: `/theme-assets/${theme}/${file.path.split("/").map(encodeURIComponent).join("/")}?v=${previewNonce}` },
   );
 }
 

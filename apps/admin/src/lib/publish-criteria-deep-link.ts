@@ -50,7 +50,7 @@ export function takePublishCriteriaFromQuery(
   // unmodified, same as `boot-token-fragment.ts`'s own pathname/search preservation.
   params.delete(PUBLISH_CRITERIA_QUERY_PARAM);
   const rest = params.toString();
-  const nextUrl = `${location.pathname}${querySuffix(rest)}${location.hash}`;
+  const nextUrl = `${location.pathname}${querySuffix({ query: rest })}${location.hash}`;
   history.replaceState(null, "", nextUrl);
 
   return decodePublishCriteriaFromQuery(raw);

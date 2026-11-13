@@ -84,7 +84,7 @@ function TransferTab({ tab, useTransferTranslate, useSitesAvailable }: {
 
 /** `replace: true` so switching tabs does not grow the back stack, as Sites and Deployment do. */
 function goToImportExportTab(id: string) {
-  navigate(`/import-export?tab=${id}`, { replace: true });
+  navigate({ routePath: `/import-export?tab=${id}` }, { replace: true });
 }
 
 export function ImportExport({

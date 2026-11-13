@@ -48,7 +48,7 @@ declare module "@tiptap/core" {
        *  canvas so both editing surfaces stay in sync. A no-op (`false`) when the doc's first child
        *  isn't a `title` node, which cannot happen once `withTitleNode` has synthesized one, but is
        *  checked rather than assumed since this command runs on every keystroke of that input. */
-      setPostTitleText: (text: string) => ReturnType;
+      setPostTitleText: (required: { text: string }, optional?: Record<string, never>) => ReturnType;
     };
   }
 }
@@ -100,7 +100,7 @@ export const PostTitle = Node.create({
   addCommands() {
     return {
       setPostTitleText:
-        (text: string) =>
+        ({ text }: { text: string }, _options = {}) =>
         ({ tr, dispatch, state }) => {
           const node = state.doc.firstChild;
           if (!node || node.type.name !== this.name) return false;

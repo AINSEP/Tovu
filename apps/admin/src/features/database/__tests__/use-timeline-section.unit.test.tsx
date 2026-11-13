@@ -55,7 +55,7 @@ describe("navigateToRecoveryWithDeepLink", () => {
   it("stashes a v1 envelope carrying the row's own id/restorePointId/kind, and navigates to /recovery", () => {
     navigateToRecoveryWithDeepLink(ROW_WITH_RESTORE_POINT);
 
-    expect(navigate).toHaveBeenCalledWith("/recovery");
+    expect(navigate).toHaveBeenCalledWith({ routePath: "/recovery" });
     const raw = sessionStorage.getItem("recovery-deep-link-envelope");
     expect(raw).not.toBeNull();
     const envelope = JSON.parse(raw!);

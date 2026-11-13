@@ -73,7 +73,7 @@ export function Library({ tabId, useLibraryHook = useWiredLibrary }: LibraryProp
           tone="success"
           ttlMs={6000}
           actionLabel={t("Open Trash")}
-          onAction={() => navigate("/trash")}
+          onAction={() => navigate({ routePath: "/trash" })}
           onDismiss={controller.dismissNotice}
         />
       ) : null}

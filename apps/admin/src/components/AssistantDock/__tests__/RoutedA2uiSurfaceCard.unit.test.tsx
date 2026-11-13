@@ -63,7 +63,7 @@ describe("RoutedA2uiSurfaceCard", () => {
   it("portals into the registered Playground target and renders nothing inline, once a target exists", () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
-    setPlaygroundRenderTarget(target);
+    setPlaygroundRenderTarget({ node: target });
 
     const { container } = render(<RoutedA2uiSurfaceCard {...baseProps} />);
 
@@ -80,12 +80,12 @@ describe("RoutedA2uiSurfaceCard", () => {
   it("reverts to inline rendering once the target is cleared (e.g. navigating away from Playground)", () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
-    setPlaygroundRenderTarget(target);
+    setPlaygroundRenderTarget({ node: target });
 
     const { container, rerender } = render(<RoutedA2uiSurfaceCard {...baseProps} />);
     expect(target.querySelector(".fake-a2ui-surface-card")).toBeInTheDocument();
 
-    setPlaygroundRenderTarget(null);
+    setPlaygroundRenderTarget({ node: null });
     rerender(<RoutedA2uiSurfaceCard {...baseProps} />);
 
     expect(target.querySelector(".fake-a2ui-surface-card")).not.toBeInTheDocument();
@@ -97,7 +97,7 @@ describe("RoutedA2uiSurfaceCard", () => {
   it("shows a dismiss button only when portaled, and removes the surface from the canvas on click", () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
-    setPlaygroundRenderTarget(target);
+    setPlaygroundRenderTarget({ node: target });
 
     render(<RoutedA2uiSurfaceCard {...baseProps} />);
     expect(target.querySelector(".fake-a2ui-surface-card")).toBeInTheDocument();
@@ -121,7 +121,7 @@ describe("RoutedA2uiSurfaceCard", () => {
   it("keeps a refused surface in the chat, not on the Playground canvas, even with a target registered", () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
-    setPlaygroundRenderTarget(target);
+    setPlaygroundRenderTarget({ node: target });
 
     const { container } = render(
       <RoutedA2uiSurfaceCard {...baseProps} events={[baseProps.events[0], { __simulateError: true }]} />,
@@ -139,7 +139,7 @@ describe("RoutedA2uiSurfaceCard", () => {
   it("still relays the refusal to the host's real onAgentAction exactly once, despite the portal-to-inline remount", () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
-    setPlaygroundRenderTarget(target);
+    setPlaygroundRenderTarget({ node: target });
     const onAgentAction = vi.fn();
 
     render(
@@ -165,7 +165,7 @@ describe("RoutedA2uiSurfaceCard", () => {
     // rendering too — the chat said "it's on your screen" while the canvas stayed empty.
     const target = document.createElement("div");
     document.body.appendChild(target);
-    setPlaygroundRenderTarget(target);
+    setPlaygroundRenderTarget({ node: target });
 
     const { container } = render(
       <RoutedA2uiSurfaceCard
@@ -190,7 +190,7 @@ describe("RoutedA2uiSurfaceCard", () => {
   it("does not forward the render-target bus's own state as a prop to A2uiSurfaceCard", () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
-    setPlaygroundRenderTarget(target);
+    setPlaygroundRenderTarget({ node: target });
 
     render(<RoutedA2uiSurfaceCard {...baseProps} onAgentAction={vi.fn()} />);
 
@@ -230,7 +230,7 @@ describe("RoutedA2uiSurfaceCard", () => {
     it("follows the injected hook's hasError even when a real target IS registered, proving it overrides the real hook rather than merely supplementing it", () => {
       const target = document.createElement("div");
       document.body.appendChild(target);
-      setPlaygroundRenderTarget(target);
+      setPlaygroundRenderTarget({ node: target });
       // The real hook, given this `events` array with no error marker, would return
       // `hasError: false` and portal. The fake below claims `hasError: true` anyway.
       const fakeHook = vi.fn(() => ({

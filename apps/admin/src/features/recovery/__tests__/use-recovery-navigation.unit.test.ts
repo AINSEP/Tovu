@@ -35,7 +35,7 @@ describe("Recovery shell navigation", () => {
     const { result } = renderHook(() => useRecoveryNavigation({ setSelected }, { port }));
     act(() => result.current.onTabChange("restore"));
     expect(port.navigate).toHaveBeenCalledTimes(1);
-    expect(port.navigate).toHaveBeenCalledWith("/recovery?tab=restore", { replace: true });
+    expect(port.navigate).toHaveBeenCalledWith({ routePath: "/recovery?tab=restore" }, { replace: true });
     expect(setSelected).not.toHaveBeenCalled();
     // A controlled shell waits for the router prop, rather than showing a different tab to its URL.
     expect(result.current.activeTabId).toBe("restore-points");
@@ -44,13 +44,13 @@ describe("Recovery shell navigation", () => {
   it("selects the actual row before entering the ceremony, and clears it when backing out", () => {
     const events: unknown[] = [];
     const setSelected = vi.fn((value: AdminRestorePoint | null) => { events.push(value); });
-    const port = { navigate: vi.fn((url: string) => { events.push(url); }) };
+    const port = { navigate: vi.fn(({ routePath }: { routePath: string }) => { events.push(routePath); }) };
     const { result } = renderHook(() => useRecoveryNavigation({ setSelected }, { port }));
     act(() => result.current.onSelectPoint(point));
     expect(events).toEqual([point, "/recovery?tab=restore"]);
-    expect(port.navigate).toHaveBeenLastCalledWith("/recovery?tab=restore", { replace: true });
+    expect(port.navigate).toHaveBeenLastCalledWith({ routePath: "/recovery?tab=restore" }, { replace: true });
     act(() => result.current.onBackFromFlow());
     expect(events).toEqual([point, "/recovery?tab=restore", null, "/recovery?tab=restore-points"]);
-    expect(port.navigate).toHaveBeenLastCalledWith("/recovery?tab=restore-points", { replace: true });
+    expect(port.navigate).toHaveBeenLastCalledWith({ routePath: "/recovery?tab=restore-points" }, { replace: true });
   });
 });

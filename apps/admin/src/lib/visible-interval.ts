@@ -8,8 +8,8 @@
  *
  * Plain function, not a hook, so it is testable without a DOM; `useComposerCapabilities` is its caller.
  * The admin's copy of `apps/desktop/src/renderer/visible-interval.ts` (separate apps, no shared
- * package between them yet), kept identical so `development/scripts/check-idle-motion.ts` can allow
- * both helpers for the same reason.
+ * package between them yet), with the same behavior so `development/scripts/check-idle-motion.ts`
+ * can allow both helpers for the same reason.
  */
 
 /** The slice of `document` this reads. */
@@ -21,13 +21,13 @@ export interface VisibilitySource {
 
 /** The two timer functions this uses, injectable for tests. */
 export interface IntervalTimers {
-  setInterval(callback: () => void, ms: number): unknown;
-  clearInterval(handle: unknown): void;
+  setInterval(required: { callback: () => void; ms: number }, optional?: Record<string, never>): unknown;
+  clearInterval(required: { handle: unknown }, optional?: Record<string, never>): void;
 }
 
 const WINDOW_TIMERS: IntervalTimers = {
-  setInterval: (callback, ms) => globalThis.setInterval(callback, ms),
-  clearInterval: (handle) => globalThis.clearInterval(handle as ReturnType<typeof globalThis.setInterval>),
+  setInterval: ({ callback, ms }, _optional = {}) => globalThis.setInterval(callback, ms),
+  clearInterval: ({ handle }, _optional = {}) => globalThis.clearInterval(handle as ReturnType<typeof globalThis.setInterval>),
 };
 
 /**
@@ -38,19 +38,17 @@ const WINDOW_TIMERS: IntervalTimers = {
  * @complexity O(1) per visibility change.
  */
 export function startVisibleInterval(
-  tick: () => void,
-  periodMs: number,
-  doc: VisibilitySource = document,
-  timers: IntervalTimers = WINDOW_TIMERS,
+  { tick, periodMs }: { tick: () => void; periodMs: number },
+  { doc = document, timers = WINDOW_TIMERS }: { doc?: VisibilitySource; timers?: IntervalTimers } = {},
 ): () => void {
   let handle: unknown = null;
   // Only ever called with no timer running: at start (nothing scheduled yet) and from
   // `onVisibility` after its own `handle !== null` early return, so no second timer can stack.
   const run = () => {
-    handle = timers.setInterval(tick, periodMs);
+    handle = timers.setInterval({ callback: tick, ms: periodMs });
   };
   const halt = () => {
-    if (handle !== null) timers.clearInterval(handle);
+    if (handle !== null) timers.clearInterval({ handle });
     handle = null;
   };
   const onVisibility = () => {

@@ -195,7 +195,7 @@ describe("restore points list", () => {
     const c = renderRecovery({ points: [POINT] });
     await user.click(screen.getByRole("button", { name: "Restore… 2026-08-01 12:34" }));
     expect(c.setSelected).toHaveBeenCalledWith(POINT);
-    expect(navigate).toHaveBeenCalledWith("/recovery?tab=restore", { replace: true });
+    expect(navigate).toHaveBeenCalledWith({ routePath: "/recovery?tab=restore" }, { replace: true });
   });
 });
 
@@ -250,7 +250,7 @@ describe("tabs", () => {
     const user = userEvent.setup();
     renderRecovery();
     await user.click(screen.getByRole("button", { name: "Restore" }));
-    expect(navigate).toHaveBeenCalledWith("/recovery?tab=restore", { replace: true });
+    expect(navigate).toHaveBeenCalledWith({ routePath: "/recovery?tab=restore" }, { replace: true });
   });
 
   it("waits for the router prop when switching sections, then mounts only the requested panel", async () => {
@@ -359,7 +359,7 @@ describe("RestoreFlow shell (rendered via Recovery with a point selected)", () =
     const rc = renderFlow();
     await user.click(screen.getByRole("button", { name: "← Restore points" }));
     expect(rc.setSelected).toHaveBeenCalledWith(null);
-    expect(navigate).toHaveBeenCalledWith("/recovery?tab=restore-points", { replace: true });
+    expect(navigate).toHaveBeenCalledWith({ routePath: "/recovery?tab=restore-points" }, { replace: true });
   });
 
   it("shows the disclosure-fetch error instead of the disclosure panel on failure", async () => {

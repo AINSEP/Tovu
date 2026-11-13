@@ -54,8 +54,8 @@ Options:
 /** Where this CLI writes its two output streams — injected so the whole CLI is assertable from
  *  `node --test` without capturing the real `process.stdout`/`process.stderr`. */
 interface Io {
-  out: (text: string) => void;
-  err: (text: string) => void;
+  out: (required: { text: string }, optional?: Record<string, never>) => void;
+  err: (required: { text: string }, optional?: Record<string, never>) => void;
 }
 
 /** {@link parseArgv}'s return shape. */
@@ -72,7 +72,7 @@ interface ParsedArgv {
  *
  * @complexity O(n) in argv length.
  */
-function parseArgv(argv: string[]): ParsedArgv {
+function parseArgv({ argv }: { argv: string[] }, _options = {}): ParsedArgv {
   const positional: string[] = [];
   let userDataDir: string | undefined;
   for (let index = 0; index < argv.length; index += 1) {
@@ -101,12 +101,12 @@ function parseArgv(argv: string[]): ParsedArgv {
  *
  * @complexity O(1).
  */
-function resolveAnnouncedUserDataDir(override: string | undefined, log: (line: string) => void): string {
+function resolveAnnouncedUserDataDir({ override, log }: { override: string | undefined; log: Io["out"] }, _options = {}): string {
   const userDataDir = override?.trim() ? path.resolve(override.trim()) : resolveDesktopUserDataDir();
-  log(`Using app data: ${userDataDir}`);
+  log({ text: `Using app data: ${userDataDir}` });
   if (!fs.existsSync(userDataDir)) {
-    log("  (this directory does not exist yet — it will be created. If the Tovu app is already");
-    log("   installed and running, check the path above and pass --user-data-dir if it is wrong.)");
+    log({ text: "  (this directory does not exist yet — it will be created. If the Tovu app is already" });
+    log({ text: "   installed and running, check the path above and pass --user-data-dir if it is wrong.)" });
   }
   return userDataDir;
 }
@@ -117,30 +117,30 @@ function resolveAnnouncedUserDataDir(override: string | undefined, log: (line: s
  * @returns an exit code.
  * @complexity O(n) in the tracked-row count, plus one classification.
  */
-function runAddSite(positional: string[], userDataDirOverride: string | undefined, io: Io): number {
+function runAddSite({ positional, userDataDirOverride, io }: { positional: string[]; userDataDirOverride: string | undefined; io: Io }, _options = {}): number {
   const [rawSiteDir, ...extra] = positional;
   if (rawSiteDir === undefined) {
-    io.err("add-site needs the path to a site folder.\n");
-    io.err(USAGE);
+    io.err({ text: "add-site needs the path to a site folder.\n" });
+    io.err({ text: USAGE });
     return EXIT_USAGE;
   }
   if (extra.length > 0) {
     // Refused rather than ignored: an unquoted path with a space arrives as several arguments, and
     // silently adding only the first one would point the app at a folder the operator did not name.
-    io.err(`add-site takes one path, but got ${positional.length}: ${positional.join(" ")}\n`);
-    io.err("If the path contains spaces, quote it.\n");
+    io.err({ text: `add-site takes one path, but got ${positional.length}: ${positional.join(" ")}\n` });
+    io.err({ text: "If the path contains spaces, quote it.\n" });
     return EXIT_USAGE;
   }
 
-  const userDataDir = resolveAnnouncedUserDataDir(userDataDirOverride, io.out);
+  const userDataDir = resolveAnnouncedUserDataDir({ override: userDataDirOverride, log: io.out });
 
   try {
     const result = addSitePointer({ siteDir: rawSiteDir, projectsPath: sitesFilePath(userDataDir) });
-    io.out(describeAddSiteResult(result));
+    io.out({ text: describeAddSiteResult(result) });
     return EXIT_OK;
   } catch (err) {
     if (err instanceof AddSitePointerError) {
-      io.err(`${err.message}\n`);
+      io.err({ text: `${err.message}\n` });
       return EXIT_REFUSED;
     }
     throw err;
@@ -163,27 +163,27 @@ function describeAddSiteResult(result: ReturnType<typeof addSitePointer>): strin
  * @returns an exit code.
  * @complexity O(1) beyond the dispatched command's own cost.
  */
-function runTovuDesktopCli(argv: string[], io: Io): number {
-  const { positional, userDataDir } = parseArgv(argv);
+function runTovuDesktopCli({ argv, io }: { argv: string[]; io: Io }, _options = {}): number {
+  const { positional, userDataDir } = parseArgv({ argv });
   const [command, ...rest] = positional;
 
   if (command === undefined || command === "-h" || command === "--help" || command === "help") {
-    io.out(USAGE);
+    io.out({ text: USAGE });
     return command === undefined ? EXIT_USAGE : EXIT_OK;
   }
-  if (command === "add-site") return runAddSite(rest, userDataDir, io);
+  if (command === "add-site") return runAddSite({ positional: rest, userDataDirOverride: userDataDir, io });
 
-  io.err(`Unknown command '${command}'.\n\n`);
-  io.err(USAGE);
+  io.err({ text: `Unknown command '${command}'.\n\n` });
+  io.err({ text: USAGE });
   return EXIT_USAGE;
 }
 
 /** Run only as the process, never on import — see `apps/desktop/scripts/check-tree-quiet.ts`'s identical guard. */
 if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  process.exitCode = runTovuDesktopCli(process.argv.slice(2), {
-    out: (text) => process.stdout.write(text.endsWith("\n") ? text : `${text}\n`),
-    err: (text) => process.stderr.write(text),
-  });
+  process.exitCode = runTovuDesktopCli({ argv: process.argv.slice(2), io: {
+    out: ({ text }) => process.stdout.write(text.endsWith("\n") ? text : `${text}\n`),
+    err: ({ text }) => process.stderr.write(text),
+  } });
 }
 
 export { EXIT_OK, EXIT_REFUSED, EXIT_USAGE, USAGE, parseArgv, runTovuDesktopCli };

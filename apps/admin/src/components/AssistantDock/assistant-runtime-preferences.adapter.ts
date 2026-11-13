@@ -8,8 +8,8 @@ import {
 } from './hooks/use-assistant-runtime-preferences.hooks';
 
 const ledger: ChatDisplayLedgerPort = {
-  load: ({ namespace }) => loadNamespaceValues(namespace),
-  save: async ({ namespace, scope, candidates }) => { await saveChangedEntries(namespace, scope, candidates); },
+  load: ({ namespace }) => loadNamespaceValues({ namespace }),
+  save: async ({ namespace, scope, candidates }) => { await saveChangedEntries({ namespace, scope, candidates }); },
 };
 
 /** Ready for the gear's query controller; errors propagate like display saves. */

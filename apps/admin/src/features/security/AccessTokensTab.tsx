@@ -201,7 +201,7 @@ function HostingPluginsHint({ controller }: { controller: AccessTokensController
   if (controller.query || !["all", "hosting"].includes(controller.category) || controller.groups?.some((group) => group.info.category === "hosting")) return null;
   return <div className="empty-state">
     <p>{controller.t("Enable a hosting plugin to manage its access tokens.")}</p>
-    <a href={adminHref("/addons/agent-plugins")}>{controller.t("Plugins")}</a>
+    <a href={adminHref({ routePath: "/addons/agent-plugins" })}>{controller.t("Plugins")}</a>
   </div>;
 }
 

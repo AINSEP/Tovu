@@ -262,7 +262,7 @@ function ThemePagePublicUrlCell({ row, handle, t }: { row: ThemePageRow; handle:
   }
   return (
     <a
-      href={siteUrl(link.path)}
+      href={siteUrl({ path: link.path })}
       target="_blank"
       rel="noreferrer"
       {...agentHandle({ handle: `${handle}-view-live` }, { role: "link", label: "Open this theme page on the live public site" })}
@@ -383,7 +383,7 @@ export function ThemePagesTab({
                 agentHandle={`${rowHandles[index]}-menu`}
                 items={themePageRowMenuItems({
                   row,
-                  handlers: { onOpenDetails: setDetailPageId, onEdit: ({ pageId }, _options = {}) => navigate(themeStudioRoutePath({ themeId, pageId })) },
+                  handlers: { onOpenDetails: setDetailPageId, onEdit: ({ pageId }, _options = {}) => navigate({ routePath: themeStudioRoutePath({ themeId, pageId }) }) },
                   t,
                 })}
               />

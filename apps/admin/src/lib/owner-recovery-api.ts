@@ -7,23 +7,23 @@ import { requestOnce } from './api';
 export interface OwnerRecoveryStatus { isOwner: boolean; available: boolean; desktopOwnerReset: boolean }
 export interface OwnerRecoveryPort {
   status(): Promise<OwnerRecoveryStatus>;
-  issue(input: { password: string; code?: string }): Promise<{ codes: string[] }>;
-  reset(input: { password: string }): Promise<void>;
-  recover(input: { code: string; password: string }): Promise<void>;
+  issue(input: { password: string; code?: string }, optional?: Record<string, never>): Promise<{ codes: string[] }>;
+  reset(input: { password: string }, optional?: Record<string, never>): Promise<void>;
+  recover(input: { code: string; password: string }, optional?: Record<string, never>): Promise<void>;
 }
 
 /** Single-send client: never retry a rotation/redemption whose response may have been lost.
  * @complexity O(1), one request per action, kit responses bounded to ten 64-character codes.
  */
-const post = <T,>(path: string, body: unknown): Promise<T> => requestOnce<T>({ path: `/auth/${path}`, init: {
+const post = <T,>({ path, body }: { path: string; body: unknown }, _options = {}): Promise<T> => requestOnce<T>({ path: `/auth/${path}`, init: {
   method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store',
 } });
 
 export const ownerRecoveryPort: OwnerRecoveryPort = {
   status: () => requestOnce<OwnerRecoveryStatus>({ path: '/auth/owner-recovery', init: { cache: 'no-store' } }),
-  issue: input => post('recovery-codes', input),
-  reset: input => post('reset-owner', input),
-  recover: input => post('recover-owner', input),
+  issue: (input, _optional = {}) => post({ path: 'recovery-codes', body: input }),
+  reset: (input, _optional = {}) => post({ path: 'reset-owner', body: input }),
+  recover: (input, _optional = {}) => post({ path: 'recover-owner', body: input }),
 };
 
 

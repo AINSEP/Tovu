@@ -249,8 +249,8 @@ describe("Edit button (owner ask, 2026-09-22)", () => {
 
     await user.click(screen.getByRole("button", { name: "Edit" }));
 
-    expect(navigate).toHaveBeenCalledWith("/themes/explore?theme=basic&page=posts-default");
-    const url = new URL(vi.mocked(navigate).mock.calls[0][0], window.location.origin);
+    expect(navigate).toHaveBeenCalledWith({ routePath: "/themes/explore?theme=basic&page=posts-default" });
+    const url = new URL(vi.mocked(navigate).mock.calls[0][0].routePath, window.location.origin);
     expect(url.searchParams.get("theme")).toBe("basic");
     expect(resolveRequestedThemeExploreSelection([
       { path: "render/pages/index.html", label: "index", kind: "page" },

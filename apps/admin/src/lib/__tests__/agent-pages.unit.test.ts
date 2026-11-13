@@ -100,8 +100,8 @@ describe("buildAdminAgentPages", () => {
     await pages[pageId]!.navigate({});
 
     expect(navigateSpy).toHaveBeenCalledTimes(1);
-    expect(navigateSpy).toHaveBeenCalledWith(routePath);
-    expect(router.currentRoutePath()).toBe(routePath);
+    expect(navigateSpy).toHaveBeenCalledWith({ routePath: routePath });
+    expect(router.currentRoutePath({})).toBe(routePath);
   });
 
   it("each page's navigate function is independent — invoking one does not navigate any other page's route", async () => {
@@ -115,9 +115,9 @@ describe("buildAdminAgentPages", () => {
 
     await pages[firstPageId]!.navigate({});
 
-    expect(navigateSpy).not.toHaveBeenCalledWith(secondRoutePath);
-    expect(navigateSpy).toHaveBeenCalledExactlyOnceWith(firstRoutePath);
-    expect(router.currentRoutePath()).toBe(firstRoutePath);
+    expect(navigateSpy).not.toHaveBeenCalledWith({ routePath: secondRoutePath });
+    expect(navigateSpy).toHaveBeenCalledExactlyOnceWith({ routePath: firstRoutePath });
+    expect(router.currentRoutePath({})).toBe(firstRoutePath);
   });
 
   it("publishes a content refresh when the agent navigates to the route already displayed", async () => {

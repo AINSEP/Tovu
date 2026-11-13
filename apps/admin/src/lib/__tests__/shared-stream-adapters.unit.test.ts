@@ -16,7 +16,7 @@ describe("shared settings EventSource adapter", () => {
     const sources: StreamFake[] = [];
     const settings: unknown[][] = [[], []];
     const previews: unknown[][] = [[], []];
-    const stops = tabs.map((tab, index) => subscribeToSettingsChanges("ws", {
+    const stops = tabs.map((tab, index) => subscribeToSettingsChanges({ workspaceId: "ws" }, {
       principalId: "owner", ports: tab.ports,
       open: (url) => { const source = new StreamFake(url); sources.push(source); return source; },
       publishSettings: (namespaces) => { settings[index]!.push(namespaces); },
@@ -43,7 +43,7 @@ describe("shared settings EventSource adapter", () => {
     const tab = fakeBrowserOrigin().tab();
     const sources: StreamFake[] = [];
     const received: unknown[] = [];
-    const stop = subscribeToSettingsChanges("ws", {
+    const stop = subscribeToSettingsChanges({ workspaceId: "ws" }, {
       ports: { ...tab.ports, requestLock: undefined },
       open: (url) => { const source = new StreamFake(url); sources.push(source); return source; },
       publishSettings: (frame) => { received.push(frame); },
@@ -66,7 +66,7 @@ describe("shared settings EventSource adapter", () => {
     const origin = fakeBrowserOrigin();
     const sources: StreamFake[] = [];
     const received: string[][] = [[], []];
-    const stops = ["a", "b"].map((principalId, index) => subscribeToSettingsChanges("ws", {
+    const stops = ["a", "b"].map((principalId, index) => subscribeToSettingsChanges({ workspaceId: "ws" }, {
       principalId, ports: origin.tab().ports,
       open: (url) => { const source = new StreamFake(url); sources.push(source); return source; },
       publishSettings: (namespaces) => { received[index]!.push(...namespaces ?? []); },

@@ -620,7 +620,7 @@ function applySaveFailure(
     return;
   }
   // A server or network failure already raised the shared failure notice (plain words, copyable details); repeating its raw message here would show it twice.
-  if (isUnexpectedServerFailure(e)) { setters.setError(t({ locale, key: "Not saved. Your edits are still here." })); return; }
+  if (isUnexpectedServerFailure({ error: e })) { setters.setError(t({ locale, key: "Not saved. Your edits are still here." })); return; }
   setters.setError(e instanceof Error ? e.message : refusalMessage({ base: t({ locale, key: "failed to save page" }), e }));
 }
 
@@ -675,7 +675,7 @@ function isPublishedUnchanged({ status, contentDirty, templateChoice, savedTempl
 function canonicalPageRedirect({ post, routeSlug }: { post: AdminPost; routeSlug: string }, _options = {}): string | null {
   if (post.slug === "/") return routeSlug === post.id ? pageAdminPath(post) : null;
   if (post.slug === HOME_PAGE_HANDLE) return null;
-  return slugRedirectPath("/pages", routeSlug, post);
+  return slugRedirectPath({ base: "/pages", requestedId: routeSlug, item: post });
 }
 
 export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: PageEditorDependencies }, _options = {}): PageEditorController {
@@ -1382,12 +1382,13 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
  */
 export function useWiredPageEditor({ routeSlug }: { routeSlug: string }, _options = {}): PageEditorController {
   const locale = useAdminLocale();
+  const navigateFromPath = useCallback((routePath: string, options?: { replace?: boolean }) => options === undefined ? defaultNavigate({ routePath }) : defaultNavigate({ routePath }, options), []);
   return usePageEditor({
     routeSlug,
     deps: {
       port: defaultPageEditorPort,
       themeCanvasPort: defaultThemeCanvasPort,
-      navigate: defaultNavigate,
+      navigate: navigateFromPath,
       t: defaultT,
       locale,
     },

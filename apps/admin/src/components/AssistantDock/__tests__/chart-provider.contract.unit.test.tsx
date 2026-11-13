@@ -32,7 +32,7 @@ function card(component: string, surfaceId: string) {
 it.each([false, true])("renders all three wire aliases with boundary CSS (canvas=%s)", async (canvas) => {
   const target = document.createElement("div");
   document.body.appendChild(target);
-  if (canvas) setPlaygroundRenderTarget(target);
+  if (canvas) setPlaygroundRenderTarget({ node: target });
   try {
     const current = snapshot("plugin.reviewed", "boot");
     for (const kind of ["bar", "line", "pie"]) {

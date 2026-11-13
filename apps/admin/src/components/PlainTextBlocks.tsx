@@ -8,7 +8,7 @@ import { toPlainTextBlocks } from "@/lib/plain-text-blocks";
  * same way. Renders nothing for empty text.
  */
 export function PlainTextBlocks({ text, className }: { text: string | null | undefined; className?: string }) {
-  const blocks = toPlainTextBlocks(text);
+  const blocks = toPlainTextBlocks({ text });
   if (blocks.length === 0) return null;
   return (
     <div className={className}>

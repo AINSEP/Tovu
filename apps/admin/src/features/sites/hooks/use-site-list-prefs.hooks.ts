@@ -32,8 +32,8 @@ export interface SiteListPrefsController {
 }
 
 export const defaultSiteListPrefsPort: SiteListPrefsPort = {
-  load: async () => (await loadNamespaceValues(INTERFACE_NAMESPACE)).get(SITE_LIST_KEY),
-  save: async (next) => { await saveChangedEntries(INTERFACE_NAMESPACE, "user", [{ key: SITE_LIST_KEY, valueJson: next, changed: true }]); },
+  load: async () => (await loadNamespaceValues({ namespace: INTERFACE_NAMESPACE })).get(SITE_LIST_KEY),
+  save: async (next) => { await saveChangedEntries({ namespace: INTERFACE_NAMESPACE, scope: "user", candidates: [{ key: SITE_LIST_KEY, valueJson: next, changed: true }] }); },
 };
 
 /**

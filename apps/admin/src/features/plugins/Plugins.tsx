@@ -322,7 +322,7 @@ const PLUGINS_TAB_PANELS: Record<PluginsTabId, ComponentType<PluginsTabPanelProp
 
 /** `TabBar`'s `onChange`: the active tab lives in the URL (`?tab=`), so switching is a navigation. */
 function navigateToPluginsTab(nextTabId: string) {
-  navigate(`/addons/plugins?tab=${nextTabId}`, { replace: true });
+  navigate({ routePath: `/addons/plugins?tab=${nextTabId}` }, { replace: true });
 }
 
 export function Plugins({ tabId, focusPluginId, usePluginsHook = useWiredPlugins }: PluginsProps = {}) {

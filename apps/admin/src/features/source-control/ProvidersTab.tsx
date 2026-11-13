@@ -136,7 +136,7 @@ function ManageAccessTokensLink({ t: translate }: { t: Translate }) {
       <button
         type="button"
         className="link-button"
-        onClick={() => navigate("/access-tokens?tab=access-tokens")}
+        onClick={() => navigate({ routePath: "/access-tokens?tab=access-tokens" })}
         {...agentHandle({ handle: "source-control-manage-tokens-link" }, {
           role: "button",
           label: "Go to the Access Tokens tab on the Security page to create, rename, or manage saved tokens",

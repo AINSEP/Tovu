@@ -2434,7 +2434,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
       expect(deps.port.putAutosaveCalls).toEqual([]);
       expect(result.current.autosaveStaleBasis).toBeNull();
-      expect(readStandingDraftLocalBackup(HTML_PAGE.id)).toBeNull();
+      expect(readStandingDraftLocalBackup({ entryId: HTML_PAGE.id })).toBeNull();
     } finally {
       vi.useRealTimers();
     }

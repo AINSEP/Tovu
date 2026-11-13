@@ -13,22 +13,22 @@ describe("slugRedirectPath", () => {
   const ITEM = { id: UUID, slug: "hero-banner" };
 
   it("returns null when the URL already carries the item's slug", () => {
-    expect(slugRedirectPath("/widgets", "hero-banner", ITEM)).toBeNull();
+    expect(slugRedirectPath({ base: "/widgets", requestedId: "hero-banner", item: ITEM })).toBeNull();
   });
 
   it("returns '{base}/{slug}' when the URL carries the item's raw (UUID-shaped) id", () => {
-    expect(slugRedirectPath("/widgets", UUID, ITEM)).toBe("/widgets/hero-banner");
+    expect(slugRedirectPath({ base: "/widgets", requestedId: UUID, item: ITEM })).toBe("/widgets/hero-banner");
   });
 
   it("works for a different base, e.g. posts", () => {
-    expect(slugRedirectPath("/posts", UUID, { id: UUID, slug: "my-post" })).toBe("/posts/my-post");
+    expect(slugRedirectPath({ base: "/posts", requestedId: UUID, item: { id: UUID, slug: "my-post" } })).toBe("/posts/my-post");
   });
 
   it("returns null for a string that differs from the slug but isn't UUID-shaped (not recognizably an id link)", () => {
-    expect(slugRedirectPath("/widgets", "some-other-slug", ITEM)).toBeNull();
+    expect(slugRedirectPath({ base: "/widgets", requestedId: "some-other-slug", item: ITEM })).toBeNull();
   });
 
   it("returns null for a UUID-shaped string that isn't actually this item's own id", () => {
-    expect(slugRedirectPath("/widgets", "00000000-0000-0000-0000-000000000000", ITEM)).toBeNull();
+    expect(slugRedirectPath({ base: "/widgets", requestedId: "00000000-0000-0000-0000-000000000000", item: ITEM })).toBeNull();
   });
 });

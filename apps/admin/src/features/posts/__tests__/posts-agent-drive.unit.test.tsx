@@ -139,7 +139,7 @@ describe("driving the Posts RowMenu through page.* verbs", () => {
       for (const post of [POST, SECOND_POST]) {
         await executePageCapability({ driver, capabilityId: "page.click", input: { handle: `posts-row-${post.id}-edit` } });
         await driver.settle?.({});
-        expect(currentRoutePath()).toBe(`/posts/${post.slug}`);
+        expect(currentRoutePath({})).toBe(`/posts/${post.slug}`);
         expect(window.location.pathname).toBe(`/admin/posts/${post.slug}`);
       }
     } finally {

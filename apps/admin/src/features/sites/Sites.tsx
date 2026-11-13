@@ -340,12 +340,12 @@ function sitesTabsRow({ tabBar, snapshot, t }: { tabBar: ReactNode; snapshot: Ad
  *  {@link goToSiteList} below has to keep a stable identity for
  *  {@link useReturnToSiteListOnCreate}'s effect. */
 function goToSitesTab(id: string) {
-  navigate(`/sites?tab=${id}`, { replace: true });
+  navigate({ routePath: `/sites?tab=${id}` }, { replace: true });
 }
 
 /** Back to the first tab: Cancel's destination, and where a successful create lands. */
 function goToSiteList() {
-  navigate("/sites?tab=all", { replace: true });
+  navigate({ routePath: "/sites?tab=all" }, { replace: true });
 }
 
 /** Lifecycle and list writes retain separate visible failure messages. */

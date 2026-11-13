@@ -67,7 +67,7 @@ export function resolveLibraryTabs({ t }: { t: (key: string) => string }, { docu
 }
 
 export function goToLibraryTab({ tabId }: { tabId: string }, _optional = {}) {
-  navigate(`/library?tab=${tabId}`, { replace: true });
+  navigate({ routePath: `/library?tab=${tabId}` }, { replace: true });
 }
 
 export function createRenameKeyDown({ rename }: { rename: LibraryController["rename"] }, _options = {}) {

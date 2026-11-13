@@ -66,7 +66,7 @@ export function resolveActiveTab(tabId: string | null | undefined): MediaTabId {
 export function useMediaTabs(tabId?: string | null): MediaTabsController {
   const activeTab = resolveActiveTab(tabId);
   function setActiveTab(tab: MediaTabId) {
-    navigate(`/media?tab=${tab}`, { replace: true });
+    navigate({ routePath: `/media?tab=${tab}` }, { replace: true });
   }
   return { activeTab, setActiveTab };
 }

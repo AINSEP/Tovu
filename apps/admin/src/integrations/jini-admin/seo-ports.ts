@@ -23,7 +23,7 @@ export const seoEvents: SeoEventsPort = {
 // site server. The desktop's same-origin /admin proxy must retain relative paths instead.
 export const seoSitemapTransport: SeoSitemapTransportPort = {
   get({ path, credentials }, { signal } = {}) {
-    return fetch(siteUrl(path), { credentials, signal });
+    return fetch(siteUrl({ path }), { credentials, signal });
   },
 };
 
@@ -38,7 +38,7 @@ export const seoImageTransport = {
  * @returns The core SEO API and its filtered refresh port; transport errors propagate unchanged.
  * @example createSeoHostPorts({ transport: mediaTransport });
  */
-export function createSeoHostPorts({ transport }: { transport: SeoTransportPort }, { workspaceId = WORKSPACE_ID, sitemapTransport = seoSitemapTransport, imageTransport = seoImageTransport, siteOrigin = siteUrl('') || globalThis.location?.origin }: { workspaceId?: string; sitemapTransport?: SeoSitemapTransportPort; imageTransport?: typeof seoImageTransport; siteOrigin?: string } = {}): SeoHostPorts {
+export function createSeoHostPorts({ transport }: { transport: SeoTransportPort }, { workspaceId = WORKSPACE_ID, sitemapTransport = seoSitemapTransport, imageTransport = seoImageTransport, siteOrigin = siteUrl({ path: '' }) || globalThis.location?.origin }: { workspaceId?: string; sitemapTransport?: SeoSitemapTransportPort; imageTransport?: typeof seoImageTransport; siteOrigin?: string } = {}): SeoHostPorts {
   return {
     /** Entry reads resolve effective SEO meta (SPEC-037 REQ-06); analysis reads its score/issues
      * (REQ-07). PUT applies partial overrides; a `409`-shaped body never occurs here (this route has

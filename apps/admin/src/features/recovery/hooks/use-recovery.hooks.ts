@@ -150,7 +150,7 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
             // URL onto the "restore" tab, or the operator would land on the Restore points list with
             // no visible sign the ceremony is one click away — same silent-regression risk this
             // effect's whole existence guards against.
-            navigate("/recovery?tab=restore", { replace: true });
+            navigate({ routePath: "/recovery?tab=restore" }, { replace: true });
           }
         }
       }, () => undefined) // a failed re-verification falls back to the plain list, no alarm

@@ -420,16 +420,16 @@ describe("WidgetEmbedNodeView", () => {
 // through the parent's existing coverage above.
 describe("widgetTypeLabel", () => {
   it("returns '' for null or undefined widget (still loading, or unresolvable)", () => {
-    expect(widgetTypeLabel(null)).toBe("");
-    expect(widgetTypeLabel(undefined)).toBe("");
+    expect(widgetTypeLabel({ widget: null })).toBe("");
+    expect(widgetTypeLabel({ widget: undefined })).toBe("");
   });
 
   it("resolves the WIDGET_TYPE_OPTIONS label for a known widgetType", () => {
-    expect(widgetTypeLabel(ACTIVE_WIDGET)).toBe("Text");
+    expect(widgetTypeLabel({ widget: ACTIVE_WIDGET })).toBe("Text");
   });
 
   it("falls back to the raw widgetType string when it isn't in WIDGET_TYPE_OPTIONS", () => {
-    expect(widgetTypeLabel({ ...ACTIVE_WIDGET, widgetType: "retired-type" as unknown as typeof ACTIVE_WIDGET.widgetType })).toBe(
+    expect(widgetTypeLabel({ widget: { ...ACTIVE_WIDGET, widgetType: "retired-type" as unknown as typeof ACTIVE_WIDGET.widgetType } })).toBe(
       "retired-type",
     );
   });

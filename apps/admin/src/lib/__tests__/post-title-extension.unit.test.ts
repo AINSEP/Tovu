@@ -169,7 +169,7 @@ describe("PostTitle — setPostTitleText command", () => {
   it("replaces the title node's text wholesale when given non-empty text", () => {
     const editor = newEditorWithTitle("<h1 data-post-title>Old title</h1><p>Body</p>");
     try {
-      const applied = editor.commands.setPostTitleText("New title");
+      const applied = editor.commands.setPostTitleText({ text: "New title" });
 
       expect(applied).toBe(true);
       expect(editor.state.doc.firstChild?.textContent).toBe("New title");
@@ -183,7 +183,7 @@ describe("PostTitle — setPostTitleText command", () => {
   it("clears the title node's text when given an empty string", () => {
     const editor = newEditorWithTitle("<h1 data-post-title>Old title</h1><p>Body</p>");
     try {
-      const applied = editor.commands.setPostTitleText("");
+      const applied = editor.commands.setPostTitleText({ text: "" });
 
       expect(applied).toBe(true);
       expect(editor.state.doc.firstChild?.textContent).toBe("");
@@ -197,7 +197,7 @@ describe("PostTitle — setPostTitleText command", () => {
     try {
       const before = editor.getJSON();
 
-      const can = editor.can().setPostTitleText("Would-be new text");
+      const can = editor.can().setPostTitleText({ text: "Would-be new text" });
 
       expect(can).toBe(true);
       expect(editor.getJSON()).toEqual(before);
@@ -222,7 +222,7 @@ describe("PostTitle — setPostTitleText command", () => {
     try {
       expect(editor.state.doc.firstChild?.type.name).toBe("paragraph");
 
-      const applied = editor.commands.setPostTitleText("Should not apply");
+      const applied = editor.commands.setPostTitleText({ text: "Should not apply" });
 
       expect(applied).toBe(false);
       expect(editor.getText()).toBe("Just a paragraph");

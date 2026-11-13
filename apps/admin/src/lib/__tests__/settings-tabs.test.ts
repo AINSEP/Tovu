@@ -20,9 +20,8 @@ import { describe, expect, it, vi } from "vitest";
 
 const { loadNamespaceValues, saveChangedEntries } = vi.hoisted(() => ({
   loadNamespaceValues: vi.fn(),
-  // Typed params (even though unused) so `.mock.calls[n]` is a real 3-tuple
-  // below, not `[]` inferred from a zero-arg implementation.
-  saveChangedEntries: vi.fn(async (_namespace: string, _scope: string, _candidates: unknown[]) => [] as readonly string[]),
+  // Keep the recorded call typed so the assertions can inspect its fields.
+  saveChangedEntries: vi.fn(async (_input: { namespace: string; scope: string; candidates: unknown[] }) => [] as readonly string[]),
 }));
 
 vi.mock("../ledger-slice", async (importOriginal) => {
@@ -76,45 +75,45 @@ describe("loadInstructions", () => {
   it("reads from the instructions namespace", async () => {
     loadNamespaceValues.mockResolvedValue(new Map());
     await loadInstructions();
-    expect(loadNamespaceValues).toHaveBeenCalledWith(INSTRUCTIONS_NAMESPACE);
+    expect(loadNamespaceValues).toHaveBeenCalledWith({ namespace: INSTRUCTIONS_NAMESPACE });
   });
 });
 
 describe("saveInstructions", () => {
   it("writes the new value, workspace-scoped, when it changed", async () => {
-    await saveInstructions("New instructions", "");
-    expect(saveChangedEntries).toHaveBeenCalledWith(INSTRUCTIONS_NAMESPACE, "workspace", [
+    await saveInstructions({ next: "New instructions", previous: "" });
+    expect(saveChangedEntries).toHaveBeenCalledWith({ namespace: INSTRUCTIONS_NAMESPACE, scope: "workspace", candidates: [
       { key: "custom", valueJson: "New instructions", changed: true },
-    ]);
+    ] });
   });
 
   it("writes nothing when the value is unchanged", async () => {
-    await saveInstructions("same", "same");
-    expect(saveChangedEntries).toHaveBeenCalledWith("core.instructions", "workspace", [
+    await saveInstructions({ next: "same", previous: "same" });
+    expect(saveChangedEntries).toHaveBeenCalledWith({ namespace: "core.instructions", scope: "workspace", candidates: [
       { key: "custom", valueJson: "same", changed: false },
-    ]);
+    ] });
   });
 
   it("collapses an all-empty-textarea `undefined` to the empty string the ledger stores, not undefined", async () => {
     // `InstructionsTab.onChange` reports an all-empty textarea as `undefined` per
     // its documented collapse. A definition can't validate `undefined` as its
     // value, so it must be normalised to '' before it ever reaches the ledger.
-    await saveInstructions(undefined, "had some text");
-    expect(saveChangedEntries).toHaveBeenCalledWith("core.instructions", "workspace", [
+    await saveInstructions({ next: undefined, previous: "had some text" });
+    expect(saveChangedEntries).toHaveBeenCalledWith({ namespace: "core.instructions", scope: "workspace", candidates: [
       { key: "custom", valueJson: "", changed: true },
-    ]);
+    ] });
   });
 
   it("treats undefined-from-empty as unchanged when the previous value was already empty", async () => {
-    await saveInstructions(undefined, "");
-    expect(saveChangedEntries).toHaveBeenCalledWith("core.instructions", "workspace", [
+    await saveInstructions({ next: undefined, previous: "" });
+    expect(saveChangedEntries).toHaveBeenCalledWith({ namespace: "core.instructions", scope: "workspace", candidates: [
       { key: "custom", valueJson: "", changed: false },
-    ]);
+    ] });
   });
 
   it("returns whatever saveChangedEntries reports as written", async () => {
     saveChangedEntries.mockResolvedValueOnce(["custom"]);
-    expect(await saveInstructions("x", "")).toEqual(["custom"]);
+    expect(await saveInstructions({ next: "x", previous: "" })).toEqual(["custom"]);
   });
 });
 
@@ -159,7 +158,7 @@ describe("loadNotifications", () => {
   it("reads from the notifications namespace", async () => {
     loadNamespaceValues.mockResolvedValue(new Map());
     await loadNotifications();
-    expect(loadNamespaceValues).toHaveBeenCalledWith(NOTIFICATIONS_NAMESPACE);
+    expect(loadNamespaceValues).toHaveBeenCalledWith({ namespace: NOTIFICATIONS_NAMESPACE });
   });
 });
 
@@ -169,12 +168,12 @@ describe("saveNotifications", () => {
     const next: NotificationsPreferences = { ...previous, desktopEnabled: true };
     await saveNotifications(next, previous);
 
-    expect(saveChangedEntries).toHaveBeenCalledWith("core.notifications", "user", [
+    expect(saveChangedEntries).toHaveBeenCalledWith({ namespace: "core.notifications", scope: "user", candidates: [
       { key: "soundEnabled", valueJson: previous.soundEnabled, changed: false },
       { key: "successSoundId", valueJson: previous.successSoundId, changed: false },
       { key: "failureSoundId", valueJson: previous.failureSoundId, changed: false },
       { key: "desktopEnabled", valueJson: true, changed: true },
-    ]);
+    ] });
   });
 
   it("marks every field changed when every field differs", async () => {
@@ -189,7 +188,7 @@ describe("saveNotifications", () => {
       desktopEnabled: true,
     };
     await saveNotifications(next, previous);
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.at(-1)?.[0].candidates as Array<{ key: string; changed: boolean }>;
     expect(candidates.map((c) => c.key)).toEqual(["soundEnabled", "successSoundId", "failureSoundId", "desktopEnabled"]);
     expect(candidates.every((c) => c.changed)).toBe(true);
   });
@@ -247,22 +246,22 @@ describe("loadPrivacy — sentinel collapse", () => {
   it("reads from the privacy namespace", async () => {
     loadNamespaceValues.mockResolvedValue(new Map());
     await loadPrivacy();
-    expect(loadNamespaceValues).toHaveBeenCalledWith(PRIVACY_NAMESPACE);
+    expect(loadNamespaceValues).toHaveBeenCalledWith({ namespace: PRIVACY_NAMESPACE });
   });
 });
 
 describe("savePrivacy — sentinel round-trip on write", () => {
   it("persists a new installationId without replacing it with the empty sentinel", async () => {
     await savePrivacy({ ...DEFAULT_PRIVACY, installationId: "install-new-456" }, DEFAULT_PRIVACY);
-    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{ key: string; valueJson: unknown; changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([{ candidates: entries }]) => entries) as Array<{ key: string; valueJson: unknown; changed: boolean }>;
     expect(candidates.find((c) => c.key === "installationId")).toEqual({ key: "installationId", valueJson: "install-new-456", changed: true });
   });
 
   it("writes nothing when both sides are the 'no decision yet' null, workspace-scoped", async () => {
     await savePrivacy(DEFAULT_PRIVACY, DEFAULT_PRIVACY);
-    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{ key: string; changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([{ candidates: entries }]) => entries) as Array<{ key: string; changed: boolean }>;
     // b46eb6e29 persists metrics first, so later preference failures cannot swallow consent.
-    expect(saveChangedEntries.mock.calls.slice(-2).map(([namespace, scope, entries]) =>
+    expect(saveChangedEntries.mock.calls.slice(-2).map(([{ namespace, scope, candidates: entries }]) =>
       [namespace, scope, (entries as Array<{ key: string }>).map(({ key }) => key)]))
       .toEqual([
         ["core.privacy", "workspace", ["telemetry.metrics"]],
@@ -270,14 +269,14 @@ describe("savePrivacy — sentinel round-trip on write", () => {
       ]);
     expect(candidates.map((c) => c.key)).toEqual(["telemetry.metrics", "telemetry.content", "installationId", "decisionAt"]);
     expect(candidates.every((c) => !c.changed)).toBe(true);
-    expect(saveChangedEntries).toHaveBeenCalledWith("core.privacy", "workspace", expect.anything());
+    expect(saveChangedEntries).toHaveBeenCalledWith({ namespace: "core.privacy", scope: "workspace", candidates: expect.anything() });
   });
 
   it("persists a freshly-made decision as the real timestamp, not the sentinel", async () => {
     const previous = DEFAULT_PRIVACY;
     const next: PrivacyConsentState = { ...previous, privacyDecisionAt: 1_700_000_000_000 };
     await savePrivacy(next, previous);
-    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([{ candidates: entries }]) => entries) as Array<{
       key: string;
       valueJson: unknown;
       changed: boolean;
@@ -290,7 +289,7 @@ describe("savePrivacy — sentinel round-trip on write", () => {
     const previous: PrivacyConsentState = { ...DEFAULT_PRIVACY, privacyDecisionAt: 1_700_000_000_000 };
     const next: PrivacyConsentState = { ...previous, privacyDecisionAt: null };
     await savePrivacy(next, previous);
-    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([{ candidates: entries }]) => entries) as Array<{
       key: string;
       valueJson: unknown;
       changed: boolean;
@@ -303,7 +302,7 @@ describe("savePrivacy — sentinel round-trip on write", () => {
     const previous: PrivacyConsentState = { ...DEFAULT_PRIVACY, installationId: "install-abc" };
     const next: PrivacyConsentState = { ...previous, installationId: null };
     await savePrivacy(next, previous);
-    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([{ candidates: entries }]) => entries) as Array<{
       key: string;
       valueJson: unknown;
       changed: boolean;
@@ -316,7 +315,7 @@ describe("savePrivacy — sentinel round-trip on write", () => {
     const previous: PrivacyConsentState = { ...DEFAULT_PRIVACY, telemetry: { metrics: true, content: true } };
     const next: PrivacyConsentState = { ...previous, telemetry: {} };
     await savePrivacy(next, previous);
-    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([{ candidates: entries }]) => entries) as Array<{
       key: string;
       valueJson: unknown;
       changed: boolean;
@@ -335,7 +334,7 @@ describe("savePrivacy — sentinel round-trip on write", () => {
     const previous: PrivacyConsentState = { ...DEFAULT_PRIVACY, telemetry: {} };
     const next: PrivacyConsentState = { ...previous, telemetry: { metrics: true, content: true } };
     await savePrivacy(next, previous);
-    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([{ candidates: entries }]) => entries) as Array<{
       key: string;
       valueJson: unknown;
       changed: boolean;
@@ -353,7 +352,7 @@ describe("savePrivacy — sentinel round-trip on write", () => {
     const previous: PrivacyConsentState = { ...DEFAULT_PRIVACY, telemetry: {} };
     const next: PrivacyConsentState = { ...previous, telemetry: { metrics: false, content: false } };
     await savePrivacy(next, previous);
-    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{ key: string; changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([{ candidates: entries }]) => entries) as Array<{ key: string; changed: boolean }>;
     const metrics = candidates.find((c) => c.key === "telemetry.metrics");
     const content = candidates.find((c) => c.key === "telemetry.content");
     expect(metrics?.changed).toBe(false);
@@ -363,7 +362,7 @@ describe("savePrivacy — sentinel round-trip on write", () => {
   it("does not falsely mark decisionAt changed when a real timestamp is unchanged across saves", async () => {
     const state: PrivacyConsentState = { ...DEFAULT_PRIVACY, privacyDecisionAt: 1_700_000_000_000 };
     await savePrivacy(state, state);
-    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{ key: string; changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([{ candidates: entries }]) => entries) as Array<{ key: string; changed: boolean }>;
     const decisionCandidate = candidates.find((c) => c.key === "decisionAt");
     expect(decisionCandidate?.changed).toBe(false);
   });
@@ -386,7 +385,7 @@ describe("loadAppearance", () => {
     expect(previous).toEqual({ theme: "light", accentColor: "#d97706" });
     expect(glass.accentColors).toEqual({ glass: "#123456" });
     await saveAppearance(next, previous);
-    const candidates = saveChangedEntries.mock.calls.at(-1)![2] as Array<{ key: string; valueJson: unknown; changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.at(-1)![0].candidates as Array<{ key: string; valueJson: unknown; changed: boolean }>;
     const accent = candidates.find((candidate) => candidate.key === "accentColor")!;
     expect(accent.changed).toBe(true);
     expect(accent.valueJson).toBe("#abcdef");
@@ -398,7 +397,7 @@ describe("loadAppearance", () => {
     expect(adminThemeAccent({ appearance: loaded, themeId: "glass" })).toBe("#123456");
     expect(loaded.accentColor).toBe("#abcdef");
     await saveAppearance(loaded, loaded);
-    expect((saveChangedEntries.mock.calls.at(-1)![2] as Array<{ changed: boolean }>).every((candidate) => !candidate.changed)).toBe(true);
+    expect((saveChangedEntries.mock.calls.at(-1)![0].candidates as Array<{ changed: boolean }>).every((candidate) => !candidate.changed)).toBe(true);
   });
 
   it("preserves unknown theme choices and rejects malformed map entries", async () => {
@@ -423,7 +422,7 @@ describe("loadAppearance", () => {
     const previous = { ...DEFAULT_APPEARANCE, accentColor: "#d97706", accentColors: { glass: "#123456", removed: "#abcdef" } };
     const next = withAdminThemeAccent({ appearance: previous, themeId, accentColor: undefined });
     await saveAppearance(next, previous);
-    const candidates = saveChangedEntries.mock.calls.at(-1)![2] as Array<{ key: string; valueJson: unknown }>;
+    const candidates = saveChangedEntries.mock.calls.at(-1)![0].candidates as Array<{ key: string; valueJson: unknown }>;
     loadNamespaceValues.mockResolvedValue(new Map(candidates.map(({ key, valueJson }) => [key, valueJson])));
     const loaded = await loadAppearance();
     expect(adminThemeAccent({ appearance: loaded, themeId })).toBeUndefined();
@@ -473,8 +472,8 @@ describe("loadAppearance", () => {
   it("reads the appearance namespace", async () => {
     loadNamespaceValues.mockResolvedValue(new Map());
     await loadAppearance();
-    expect(loadNamespaceValues).toHaveBeenCalledWith(APPEARANCE_NAMESPACE);
-    expect(loadNamespaceValues).toHaveBeenLastCalledWith("core.appearance");
+    expect(loadNamespaceValues).toHaveBeenCalledWith({ namespace: APPEARANCE_NAMESPACE });
+    expect(loadNamespaceValues).toHaveBeenLastCalledWith({ namespace: "core.appearance" });
   });
 });
 
@@ -482,7 +481,7 @@ describe("saveAppearance", () => {
   it("preserves the admin-theme map when an existing scalar-only caller saves", async () => {
     const previous = { ...DEFAULT_APPEARANCE, accentColors: { glass: "#123456" } };
     await saveAppearance({ ...DEFAULT_APPEARANCE, accentColor: "#abcdef" }, previous);
-    const candidates = saveChangedEntries.mock.calls.at(-1)![2] as Array<{ key: string; valueJson: unknown; changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.at(-1)![0].candidates as Array<{ key: string; valueJson: unknown; changed: boolean }>;
     expect(candidates.find(({ key }) => key === "adminThemeAccents")).toEqual({
       key: "adminThemeAccents", valueJson: { glass: "#123456" }, changed: false,
     });
@@ -494,10 +493,8 @@ describe("saveAppearance", () => {
 
   it("writes only what changed", async () => {
     await saveAppearance({ theme: "dark", accentColor: "#111111" }, { theme: "system", accentColor: "#111111" });
-    const [namespace, scope, candidates] = saveChangedEntries.mock.calls.at(-1) as [
-      string,
-      string,
-      Array<{ key: string; changed: boolean }>,
+    const [{ namespace, scope, candidates }] = saveChangedEntries.mock.calls.at(-1) as [
+      { namespace: string; scope: string; candidates: Array<{ key: string; changed: boolean }> },
     ];
     expect(namespace).toBe(APPEARANCE_NAMESPACE);
     expect(namespace).toBe("core.appearance");
@@ -514,13 +511,13 @@ describe("saveAppearance", () => {
 
   it("marks nothing changed for an identical save", async () => {
     await saveAppearance(DEFAULT_APPEARANCE, DEFAULT_APPEARANCE);
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.at(-1)?.[0].candidates as Array<{ changed: boolean }>;
     expect(candidates.every((c) => !c.changed)).toBe(true);
   });
 
   it("detects an accent-only change", async () => {
     await saveAppearance({ theme: "light", accentColor: "#abcdef" }, { theme: "light", accentColor: "#111111" });
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.at(-1)?.[0].candidates as Array<{ key: string; changed: boolean }>;
     expect(candidates.find((c) => c.key === "accentColor")?.changed).toBe(true);
     expect(candidates).toEqual([
       { key: "theme", valueJson: "light", changed: false },
@@ -559,18 +556,16 @@ describe("loadLanguage", () => {
   it("reads the language namespace", async () => {
     loadNamespaceValues.mockResolvedValue(new Map());
     await loadLanguage();
-    expect(loadNamespaceValues).toHaveBeenCalledWith(LANGUAGE_NAMESPACE);
-    expect(loadNamespaceValues).toHaveBeenLastCalledWith("core.language");
+    expect(loadNamespaceValues).toHaveBeenCalledWith({ namespace: LANGUAGE_NAMESPACE });
+    expect(loadNamespaceValues).toHaveBeenLastCalledWith({ namespace: "core.language" });
   });
 });
 
 describe("saveLanguage", () => {
   it("writes a changed locale at user scope", async () => {
-    await saveLanguage("fr", "en");
-    const [namespace, scope, candidates] = saveChangedEntries.mock.calls.at(-1) as [
-      string,
-      string,
-      Array<{ key: string; valueJson: unknown; changed: boolean }>,
+    await saveLanguage({ next: "fr", previous: "en" });
+    const [{ namespace, scope, candidates }] = saveChangedEntries.mock.calls.at(-1) as [
+      { namespace: string; scope: string; candidates: Array<{ key: string; valueJson: unknown; changed: boolean }> },
     ];
     expect(namespace).toBe(LANGUAGE_NAMESPACE);
     expect(namespace).toBe("core.language");
@@ -579,8 +574,8 @@ describe("saveLanguage", () => {
   });
 
   it("marks nothing changed for an identical save", async () => {
-    await saveLanguage("en", "en");
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ changed: boolean }>;
+    await saveLanguage({ next: "en", previous: "en" });
+    const candidates = saveChangedEntries.mock.calls.at(-1)?.[0].candidates as Array<{ changed: boolean }>;
     expect(candidates[0]?.changed).toBe(false);
   });
 });
@@ -591,7 +586,7 @@ describe("loadInterface", () => {
   it("defaults every field (the owner-approved behaviour) when nothing is stored, reading the interface namespace", async () => {
     loadNamespaceValues.mockResolvedValue(new Map());
     expect(await loadInterface()).toEqual({ hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" });
-    expect(loadNamespaceValues).toHaveBeenCalledWith(INTERFACE_NAMESPACE);
+    expect(loadNamespaceValues).toHaveBeenCalledWith({ namespace: INTERFACE_NAMESPACE });
   });
 
   it("reads stored values back, falling back field-by-field on a wrong-typed value", async () => {
@@ -605,16 +600,16 @@ describe("saveInterface", () => {
     saveChangedEntries.mockResolvedValueOnce(["wrapTabs"]);
     const written = await saveInterface({ ...DEFAULT_INTERFACE, wrapTabs: true }, DEFAULT_INTERFACE);
     expect(written).toEqual(["wrapTabs"]);
-    expect(saveChangedEntries).toHaveBeenLastCalledWith("core.interface", "user", [
+    expect(saveChangedEntries).toHaveBeenLastCalledWith({ namespace: "core.interface", scope: "user", candidates: [
       { key: "hideChatFabWhileOpen", valueJson: true, changed: false },
       { key: "wrapTabs", valueJson: true, changed: true },
       { key: "adminTheme", valueJson: "classic", changed: false },
-    ]);
+    ] });
   });
 
   it("marks every field changed when every field differs", async () => {
     await saveInterface({ hideChatFabWhileOpen: false, wrapTabs: true, adminTheme: "glass" }, DEFAULT_INTERFACE);
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.at(-1)?.[0].candidates as Array<{ key: string; changed: boolean }>;
     expect(candidates.every((c) => c.changed)).toBe(true);
   });
 });
@@ -632,7 +627,7 @@ describe("L13 mutation gaps — privacy defaults and unchanged flags", () => {
     for (const desktopEnabled of [true, false]) {
       const prefs: NotificationsPreferences = { ...DEFAULT_NOTIFICATIONS, desktopEnabled };
       await saveNotifications(prefs, { ...prefs });
-      const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ changed: boolean }>;
+      const candidates = saveChangedEntries.mock.calls.at(-1)?.[0].candidates as Array<{ changed: boolean }>;
       expect(candidates.map(c => c.changed)).toEqual([false, false, false, false]);
     }
   });
@@ -640,14 +635,14 @@ describe("L13 mutation gaps — privacy defaults and unchanged flags", () => {
     for (const wrapTabs of [true, false]) {
       const config = { ...DEFAULT_INTERFACE, wrapTabs };
       await saveInterface(config, { ...config });
-      expect(saveChangedEntries.mock.calls.at(-1)).toEqual(["core.interface", "user", [
+      expect(saveChangedEntries.mock.calls.at(-1)).toEqual([{ namespace: "core.interface", scope: "user", candidates: [
         { key: "hideChatFabWhileOpen", valueJson: true, changed: false },
         { key: "wrapTabs", valueJson: wrapTabs, changed: false },
         { key: "adminTheme", valueJson: "classic", changed: false },
-      ]]);
+      ] }]);
     }
     await saveInterface({ ...DEFAULT_INTERFACE, wrapTabs: true }, DEFAULT_INTERFACE);
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.at(-1)?.[0].candidates as Array<{ key: string; changed: boolean }>;
     expect(candidates.filter(c => c.changed).map(c => c.key)).toEqual(["wrapTabs"]);
   });
 });

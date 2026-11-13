@@ -40,6 +40,6 @@ export function useIntegrationsRedirect(
   if (routePath === undefined) throw new Error("integrations redirect has no destination");
   if (routePath === undefined) throw new Error("integrations redirect has no destination");
   useEffect(() => {
-    navigate(routePath, { replace: true });
+    navigate({ routePath }, { replace: true });
   }, [routePath]);
 }

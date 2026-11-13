@@ -39,7 +39,7 @@ export function EmailTemplatesTab(props: { controller: EmailTemplatesController;
                 key: "name",
                 header: t({ locale, key: "Name" }),
                 cell: (template) => (
-                  <a href={adminHref(templateEditorPath({ id: template.id }))} {...agentHandle({ handle: `email-template-${template.id}-edit` }, { role: "link", label: `Open the ${template.name} template` })}>
+                  <a href={adminHref({ routePath: templateEditorPath({ id: template.id }) })} {...agentHandle({ handle: `email-template-${template.id}-edit` }, { role: "link", label: `Open the ${template.name} template` })}>
                     {template.name}
                   </a>
                 ),
@@ -59,7 +59,7 @@ export function EmailTemplatesTab(props: { controller: EmailTemplatesController;
                     triggerLabel={t({ locale, key: "Actions for \"{name}\"" }).replace("{name}", () => template.name)}
                     agentHandle={`email-template-${template.id}-menu`}
                     items={[
-                      { key: "edit", label: t({ locale, key: "Edit" }), onSelect: () => navigate(templateEditorPath({ id: template.id })) },
+                      { key: "edit", label: t({ locale, key: "Edit" }), onSelect: () => navigate({ routePath: templateEditorPath({ id: template.id }) }) },
                       { key: "rename", label: t({ locale, key: "Rename" }), onSelect: () => controller.startRename(template) },
                       { key: "trash", label: t({ locale, key: "Move to trash" }), destructive: true, onSelect: () => controller.setPendingTrash(template) },
                     ]}

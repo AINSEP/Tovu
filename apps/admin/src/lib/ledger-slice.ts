@@ -11,19 +11,19 @@ const ledgerPort: Pick<AdminSettingsPort, "getSettingsEffective" | "setSetting">
   setSetting: ({ namespace, key, scope, value }) => api.setSetting({ namespace, key, scope, valueJson: value }),
 };
 /** Preserve the API error boundary: only an unregistered namespace reads as empty, never transport failures. */
-export function loadNamespaceValues(namespace: string): Promise<Map<string, unknown>> {
+export function loadNamespaceValues({ namespace }: { namespace: string }, _options = {}): Promise<Map<string, unknown>> {
   return loadValues({ namespace, port: ledgerPort }, { isUnregisteredNamespace: ({ error }) => error instanceof ApiError && error.status === 404 });
 }
 /** Sequential diff writes retain the server's single settings transaction boundary. */
-export function saveChangedEntries(namespace: string, scope: SettingScope, candidates: readonly LedgerCandidate[]): Promise<readonly string[]> {
+export function saveChangedEntries({ namespace, scope, candidates }: { namespace: string; scope: SettingScope; candidates: readonly LedgerCandidate[] }, _options = {}): Promise<readonly string[]> {
   return saveEntries({ namespace, scope, candidates, port: ledgerPort }, {});
 }
-export function readString(values: Map<string, unknown>, key: string, fallback: string): string {
+export function readString({ values, key, fallback }: { values: Map<string, unknown>; key: string; fallback: string }, _options = {}): string {
   return stringValue({ values, key, fallback }, {});
 }
-export function readBoolean(values: Map<string, unknown>, key: string, fallback: boolean): boolean {
+export function readBoolean({ values, key, fallback }: { values: Map<string, unknown>; key: string; fallback: boolean }, _options = {}): boolean {
   return booleanValue({ values, key, fallback }, {});
 }
-export function readNumber(values: Map<string, unknown>, key: string, fallback: number): number {
+export function readNumber({ values, key, fallback }: { values: Map<string, unknown>; key: string; fallback: number }, _options = {}): number {
   return numberValue({ values, key, fallback }, {});
 }

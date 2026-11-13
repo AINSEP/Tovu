@@ -1439,7 +1439,7 @@ const WIDGETS_AUDIT_STRINGS: Record<string, Record<string, string>> = {
   bn: { "Loading widget…": "উইজেট লোড হচ্ছে…", "No widget type specified.": "কোনো উইজেটের ধরন নির্দিষ্ট করা হয়নি।", 'Unknown widget type "': 'অজানা উইজেটের ধরন "', "Loading region…": "অঞ্চল লোড হচ্ছে…", "Move up": "উপরে সরান", "Move down": "নিচে সরান", Remove: "সরান", "Loading regions…": "অঞ্চল লোড হচ্ছে…", "Loading widgets…": "উইজেট লোড হচ্ছে…", "Saved · version {version}": "সংরক্ষিত · সংস্করণ {version}" },
 };
 
-export const WIDGETS_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays(WIDGETS_TRANSLATIONS, WIDGETS_AUDIT_STRINGS);
+export const WIDGETS_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays({ base: WIDGETS_TRANSLATIONS }, { overlays: [WIDGETS_AUDIT_STRINGS] });
 
 /** `WIDGETS_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via `createDictionaryTranslator`
  *  (same fallback `trash-i18n.ts` uses) — a shared word this dict doesn't carry for a locale still

@@ -13,7 +13,7 @@ afterEach(() => {
 it.each(["shadcn", "native"])("renders the real %s table with its styling frame on canvas and inline", async (provider) => {
   const target = document.createElement("div");
   document.body.appendChild(target);
-  setPlaygroundRenderTarget(target);
+  setPlaygroundRenderTarget({ node: target });
   try {
     const { container } = render(<RoutedA2uiSurfaceCard
       name="a2ui" runId="run-table" runStreaming={false} runSucceeded={true}
@@ -29,7 +29,7 @@ it.each(["shadcn", "native"])("renders the real %s table with its styling frame 
     await waitFor(() => expect(target.querySelector(".jini-data-table")).toHaveTextContent("Ada"));
     expect(target.querySelector(".jini-data-table-frame")).toHaveAttribute("data-table-provider", provider);
     expect(container.querySelector(".jini-data-table")).toBeNull();
-    act(() => setPlaygroundRenderTarget(null));
+    act(() => setPlaygroundRenderTarget({ node: null }));
     await waitFor(() => expect(container.querySelector(".jini-data-table")).toHaveTextContent("Ada"));
     expect(target.querySelector(".jini-data-table")).toBeNull();
   } finally {
@@ -40,7 +40,7 @@ it.each(["shadcn", "native"])("renders the real %s table with its styling frame 
 it("routes a real A2uiSurfaceCard catalog refusal inline and relays its error.surfaceId exactly once", async () => {
   const target = document.createElement("div");
   document.body.appendChild(target);
-  setPlaygroundRenderTarget(target);
+  setPlaygroundRenderTarget({ node: target });
   const onAgentAction = vi.fn();
   try {
     const { container } = render(<RoutedA2uiSurfaceCard

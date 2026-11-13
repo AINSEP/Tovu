@@ -33,7 +33,7 @@ export function AdminUi({ tabId }: { tabId?: string | null }) {
         ariaLabel={t({ locale, key: "Admin UI" })}
         tabs={tabs}
         activeId={activeId}
-        onChange={(nextTabId) => navigate(`/admin-ui?tab=${nextTabId}`, { replace: true })}
+        onChange={(nextTabId) => navigate({ routePath: `/admin-ui?tab=${nextTabId}` }, { replace: true })}
         containerHandle="admin-ui-tab-bar"
       />
       {activeId === "theme" ? <AdminThemes /> : null}

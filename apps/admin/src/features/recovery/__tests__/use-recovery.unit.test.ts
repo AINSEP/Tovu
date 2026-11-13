@@ -265,7 +265,7 @@ describe("deep-link re-resolution (sessionStorage envelope)", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [POINT] }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ found: true, restorePoint: { restorePointId: "rp1", capturedAt: "2026-08-01T00:00:00.000Z" } }));
     renderHook(() => useWiredRecovery());
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith("/recovery?tab=restore", { replace: true }));
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ routePath: "/recovery?tab=restore" }, { replace: true }));
   });
 
   it("leaves selected=null when the server resolves found:true but no local point matches the id", async () => {

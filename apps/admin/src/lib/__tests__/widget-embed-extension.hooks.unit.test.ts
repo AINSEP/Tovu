@@ -174,7 +174,7 @@ describe("useWidgetEmbedNodeView — Change dialog and Remove", () => {
     await waitFor(() => expect(result.current.widget).toBeTruthy());
     act(() => result.current.openChange());
 
-    act(() => result.current.changeDialog!.onUseExisting("w2"));
+    act(() => result.current.changeDialog!.onUseExisting({ id: "w2" }));
 
     expect(updateAttributes).toHaveBeenCalledWith({ widgetEntryId: "w2" });
     expect(result.current.changeDialog).toBeNull();
@@ -189,7 +189,7 @@ describe("useWidgetEmbedNodeView — Change dialog and Remove", () => {
     act(() => result.current.openChange());
 
     await act(async () => {
-      await result.current.changeDialog!.onCreateNew("New one", { body: "x" });
+      await result.current.changeDialog!.onCreateNew({ title: "New one", config: { body: "x" } });
     });
 
     expect(createWidget).toHaveBeenCalledWith({ widgetType: "text", title: "New one", config: { body: "x" } });
@@ -207,7 +207,7 @@ describe("useWidgetEmbedNodeView — Change dialog and Remove", () => {
     act(() => result.current.openChange());
 
     await act(async () => {
-      await result.current.changeDialog!.onCreateNew("Doomed", {});
+      await result.current.changeDialog!.onCreateNew({ title: "Doomed", config: {} });
     });
 
     expect(alertSpy).toHaveBeenCalledWith("title already taken");
@@ -321,7 +321,7 @@ describe("useWidgetEmbedNodeView — placement content", () => {
   it("setCustom switches the draft to a custom override", async () => {
     const { result } = await openMediaStyle();
 
-    act(() => result.current.placementContent!.setCustom(true));
+    act(() => result.current.placementContent!.setCustom({ custom: true }));
 
     expect(result.current.placementContent).toMatchObject({ custom: true, content: { mediaId: "m1" } });
   });
@@ -329,7 +329,7 @@ describe("useWidgetEmbedNodeView — placement content", () => {
   it("setContent replaces the draft content", async () => {
     const { result } = await openMediaStyle();
 
-    act(() => result.current.placementContent!.setContent({ mediaId: "m2" }));
+    act(() => result.current.placementContent!.setContent({ content: { mediaId: "m2" } }));
 
     expect(result.current.placementContent).toMatchObject({ custom: false, content: { mediaId: "m2" } });
   });
@@ -337,8 +337,8 @@ describe("useWidgetEmbedNodeView — placement content", () => {
   it("saveStyle writes a custom override as the node's content", async () => {
     const updateAttributes = vi.fn();
     const { result } = await openMediaStyle(updateAttributes);
-    act(() => result.current.placementContent!.setCustom(true));
-    act(() => result.current.placementContent!.setContent({ mediaId: "m2" }));
+    act(() => result.current.placementContent!.setCustom({ custom: true }));
+    act(() => result.current.placementContent!.setContent({ content: { mediaId: "m2" } }));
 
     act(() => result.current.saveStyle({ alt: null, cssClass: "hero", htmlAttributes: null }));
 

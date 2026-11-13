@@ -209,10 +209,10 @@ function ThemePageDetailsCollisionWarning({
       </div>
       <a
         className="btn-warning"
-        href={adminHref(adminPath)}
+        href={adminHref({ routePath: adminPath })}
         onClick={(e) => {
           e.preventDefault();
-          navigate(adminPath);
+          navigate({ routePath: adminPath });
         }}
         {...agentHandle({ handle: "theme-page-details-collision-open" }, { role: "link", label: "Open the colliding content record" })}
       >

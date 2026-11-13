@@ -72,7 +72,7 @@ export function navigateToRecoveryWithDeepLink(row: AdminLedgerRow) {
     issuedAt: new Date().toISOString(),
   };
   sessionStorage.setItem("recovery-deep-link-envelope", JSON.stringify(envelope));
-  navigate("/recovery");
+  navigate({ routePath: "/recovery" });
 }
 
 export interface TimelineSectionController {

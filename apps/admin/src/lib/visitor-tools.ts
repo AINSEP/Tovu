@@ -48,5 +48,5 @@ const path = `/workspaces/${WORKSPACE_ID}/assistant/visitor-tools`;
 /** Thin host adapter over the shared authenticated request (session, error and reconnect boundary). */
 export const visitorToolsPort: VisitorToolsPort = {
   list: async () => (await authenticatedAdminRequest<{ data: VisitorToolsView }>({ path, method: "GET" })).data,
-  configure: async (body) => (await authenticatedAdminRequest<{ data: VisitorToolsView }>({ path, method: "PUT", body })).data,
+  configure: async (body, _optional = {}) => (await authenticatedAdminRequest<{ data: VisitorToolsView }>({ path, method: "PUT", body })).data,
 };

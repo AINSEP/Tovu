@@ -74,9 +74,9 @@ describe("navigate does not stack duplicate history entries", () => {
   it("no-ops when the target is the current URL", () => {
     at("/admin/settings");
     const before = window.history.length;
-    navigate("/settings");
-    navigate("/settings");
-    navigate("/settings");
+    navigate({ routePath: "/settings" });
+    navigate({ routePath: "/settings" });
+    navigate({ routePath: "/settings" });
     expect(window.history.length).toBe(before);
     expect(window.location.pathname).toBe("/admin/settings");
   });
@@ -85,7 +85,7 @@ describe("navigate does not stack duplicate history entries", () => {
     // `parseRoute` drops empty segments, so `/admin/settings/` and `/admin/settings` are one screen.
     at("/admin/settings/");
     const before = window.history.length;
-    navigate("/settings");
+    navigate({ routePath: "/settings" });
     expect(window.history.length).toBe(before);
   });
 
@@ -94,30 +94,30 @@ describe("navigate does not stack duplicate history entries", () => {
     // silently failed for anything containing a space or non-ASCII character.
     at("/admin/collections/my recipe");
     const before = window.history.length;
-    navigate("/collections/my recipe");
+    navigate({ routePath: "/collections/my recipe" });
     expect(window.history.length).toBe(before);
   });
 
   it("still navigates when only the query differs", () => {
     at("/admin/widgets/new?type=text");
-    navigate("/widgets/new?type=image");
+    navigate({ routePath: "/widgets/new?type=image" });
     expect(window.location.search).toBe("?type=image");
   });
 });
 
 describe("route path vs URL", () => {
   it("adminHref applies the base once", () => {
-    expect(adminHref("/settings")).toBe("/admin/settings");
-    expect(adminHref("/")).toBe("/admin/");
+    expect(adminHref({ routePath: "/settings" })).toBe("/admin/settings");
+    expect(adminHref({ routePath: "/" })).toBe("/admin/");
   });
 
   it("currentRoutePath strips the base, with or without a trailing slash", () => {
     at("/admin");
-    expect(currentRoutePath()).toBe("/");
+    expect(currentRoutePath({})).toBe("/");
     at("/admin/");
-    expect(currentRoutePath()).toBe("/");
+    expect(currentRoutePath({})).toBe("/");
     at("/admin/posts/abc");
-    expect(currentRoutePath()).toBe("/posts/abc");
+    expect(currentRoutePath({})).toBe("/posts/abc");
   });
 });
 
@@ -133,7 +133,7 @@ describe("useRouteLocation", () => {
     const { result } = renderHook(() => useRouteLocation());
     expect(result.current).toBe("/settings");
 
-    act(() => navigate("/posts/abc"));
+    act(() => navigate({ routePath: "/posts/abc" }));
 
     expect(result.current).toBe("/posts/abc");
   });
@@ -163,13 +163,13 @@ describe("installInternalLinkInterceptor", () => {
       const click = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 });
       anchor.dispatchEvent(click);
       expect(click.defaultPrevented).toBe(true);
-      expect(currentRoutePath()).toBe("/posts");
+      expect(currentRoutePath({})).toBe("/posts");
 
       at("/admin/");
       const modified = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0, metaKey: true });
       anchor.dispatchEvent(modified);
       expect(modified.defaultPrevented).toBe(false);
-      expect(currentRoutePath()).toBe("/");
+      expect(currentRoutePath({})).toBe("/");
     } finally { uninstall(); }
     const after = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 });
     anchor.dispatchEvent(after);

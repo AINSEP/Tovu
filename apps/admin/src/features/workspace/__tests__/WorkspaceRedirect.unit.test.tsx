@@ -18,7 +18,7 @@ it("replaces the retired workspace URL with the Settings workspace tab without a
   expect(window.location.pathname).toBe("/admin/settings");
   expect(window.location.search).toBe("?tab=workspace");
   expect(window.location.hash).toBe("");
-  expect(currentRoutePath()).toBe("/settings");
+  expect(currentRoutePath({})).toBe("/settings");
   expect(window.history.length).toBe(length);
   window.history.replaceState(null, "", "/admin/pages");
   rerender(<StrictMode><WorkspaceRedirect /></StrictMode>);

@@ -30,21 +30,21 @@ describe("siteUrl", () => {
   it("returns the path unchanged outside dev — same-origin production serving needs no qualification", () => {
     vi.stubEnv("DEV", false);
 
-    expect(siteUrl("/hello-world")).toBe("/hello-world");
+    expect(siteUrl({ path: "/hello-world" })).toBe("/hello-world");
   });
 
   it("in dev, prefixes the path with VITE_TOVU_SITE_URL when set", () => {
     vi.stubEnv("DEV", true);
     vi.stubEnv("VITE_TOVU_SITE_URL", "https://staging.example.com");
 
-    expect(siteUrl("/hello-world")).toBe("https://staging.example.com/hello-world");
+    expect(siteUrl({ path: "/hello-world" })).toBe("https://staging.example.com/hello-world");
   });
 
   it("in dev with no VITE_TOVU_SITE_URL set, falls back to https://localhost:3000 — the dev API server terminates TLS too (51c59f5c)", () => {
     vi.stubEnv("DEV", true);
     vi.stubEnv("VITE_TOVU_SITE_URL", undefined);
 
-    expect(siteUrl("/hello-world")).toBe("https://localhost:3000/hello-world");
+    expect(siteUrl({ path: "/hello-world" })).toBe("https://localhost:3000/hello-world");
   });
 
   it("in dev but NOT on the admin dev server's origin, stays relative — the apps/desktop same-origin /admin/* proxy", () => {
@@ -56,7 +56,7 @@ describe("siteUrl", () => {
     vi.stubEnv("VITE_TOVU_SITE_URL", undefined);
     vi.mocked(isAdminDevServerOrigin).mockReturnValue(false);
 
-    expect(siteUrl("/hello-world")).toBe("/hello-world");
+    expect(siteUrl({ path: "/hello-world" })).toBe("/hello-world");
   });
 
   it("asks the predicate about the page's PORT — the mock ignores arguments, so nothing else pins this", () => {
@@ -65,7 +65,7 @@ describe("siteUrl", () => {
     // answer false on the real admin dev server — every "View site" link then 404s at Vite.
     vi.stubEnv("DEV", true);
 
-    siteUrl("/hello-world");
+    siteUrl({ path: "/hello-world" });
 
     expect(isAdminDevServerOrigin).toHaveBeenCalledWith({ locationPort: window.location.port });
   });
@@ -74,7 +74,7 @@ describe("siteUrl", () => {
     vi.stubEnv("DEV", false);
     vi.mocked(isAdminDevServerOrigin).mockReturnValue(true);
 
-    expect(siteUrl("/hello-world")).toBe("/hello-world");
+    expect(siteUrl({ path: "/hello-world" })).toBe("/hello-world");
     expect(isAdminDevServerOrigin).not.toHaveBeenCalled();
   });
 });

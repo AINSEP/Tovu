@@ -3,7 +3,7 @@ import { t as translateForMediaImage } from "../app-i18n";
 
 /** Bind this screen's copy to the current locale. */
 export function createMediaImageTranslator({ locale }: { locale: string }, _options = {}) {
-  return (key: string): string => translateForMediaImage({ locale, key });
+  return ({ key }: { key: string }, _options = {}): string => translateForMediaImage({ locale, key });
 }
 
 /** Replace the image reference and close its picker. */
