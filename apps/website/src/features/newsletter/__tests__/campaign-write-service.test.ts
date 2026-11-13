@@ -228,8 +228,8 @@ class ThrowingAppendRevisionRepo implements NewsletterCampaignRepoPort {
   findById(required: { workspaceId: string; id: string }) {
     return this.real.findById(required);
   }
-  list(required: { workspaceId: string; afterId?: string; limit?: number }) {
-    return this.real.list(required);
+  list(required: { workspaceId: string }, optional: { limit?: number; cursor?: string | null } = {}) {
+    return this.real.list(required, optional);
   }
   async saveCampaignRow(campaign: CampaignRecord) {
     await this.real.saveCampaignRow(campaign);

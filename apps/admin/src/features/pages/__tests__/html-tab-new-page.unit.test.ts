@@ -20,17 +20,17 @@ describe("new-page HTML tab metadata validation regression", () => {
     const order: string[] = [];
     // Model the server's real doc-format validation. The previous permissive fake let
     // missing bodyJson through and concealed this failure after metadata was reordered.
-    port.updatePost = async (target, patch) => {
+    port.updatePost = async ({ target, patch }) => {
       order.push("metadata");
       if (port.current.bodyFormat !== "html" && (!patch.bodyJson || Array.isArray(patch.bodyJson))) {
         throw new Error("bodyJson must be a JSON object");
       }
-      return metadataWrite(target, patch);
+      return metadataWrite({ target, patch });
     };
     const htmlWrite = port.updatePageHtml.bind(port);
-    port.updatePageHtml = async (id, html) => {
+    port.updatePageHtml = async ({ id, html }) => {
       order.push("html");
-      return htmlWrite(id, html);
+      return htmlWrite({ id, html });
     };
     // One deps object for every render — a fresh literal per render re-fires the editor's
     // dependency-keyed effects forever (the worker ran out of heap).

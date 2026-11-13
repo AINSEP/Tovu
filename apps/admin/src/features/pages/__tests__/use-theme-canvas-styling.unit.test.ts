@@ -28,12 +28,12 @@ it("treats only a typed light-token 404 as an expected missing variant", async (
     for (const error of [new ThemeServerResponseError({ status: 404 }), new Error("the theme server responded with 404")]) {
       const port = {
         ...createFakeThemeCanvasPort(),
-        fetchThemeTokens: async (url: string) => {
+        fetchThemeTokens: async ({ url }: { url: string }) => {
           if (url.endsWith("tokens.light.json")) throw error;
           return DARK;
         },
       };
-      const hook = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+      const hook = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }));
       await waitFor(() => expect(hook.result.current.status).toBe("ready"));
       hook.unmount();
     }
