@@ -4,7 +4,7 @@ READY (2026-11-13). Self-contained. Background and the reason for every decision
 
 J60 runs as ONE fixed sequence: first the forced-confirmation forwarding fix (its own failing test, its own commit), then the decorator extraction. Do not reorder them and do not do the extraction alone.
 
-Cross-package rule (gate handoffs, PLAN.md "Coordinator gates"): a step that imports from package P a name that this job or job 05 adds to P is Phase B. Phase B steps run only after the dispatch says the matching gate is done (P reviewed and built in this clone). In this job: J46 needs gate H1 (`@jini-ai/core` with J09's `errorMessageOf`); J42 step daemon-side and JR02 step 3-4 need gate H4 (`@jini-ai/platform`, `@jini-ai/http-kit` built).
+Cross-package rule (gate handoffs, PLAN.md "Coordinator gates"): a step that imports from package P a name that this job or job 05 adds to P is Phase B. Phase B steps run only after the dispatch says the matching gate is done (P reviewed and built in this clone). In this job: J46 needs gate H1 (`@jini-ai/core` with J09's `errorMessageOf`); J42 daemon side and JR02 steps 5-6 need gate H4 (`@jini-ai/platform`, `@jini-ai/http-kit` built).
 
 ## Rules for every group in this job (read before editing)
 - HARD: stop before ~250k tokens of context. If you get close: commit what is done (by explicit paths), list the groups you did not finish under "REMAINING" in your report, and stop.

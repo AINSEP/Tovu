@@ -51,9 +51,9 @@ Cross-package rule (PLAN.md "Coordinator gates"): a step that imports from packa
 - **T16J** EXTRACT SHARED HELPER (Jini half of Tovu T16) — risk L; est. +25 here, −30 in Tovu after R1; divergence: none (same document keydown Escape + panel-kit focus trap the 3 Tovu copies use)
   - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/panel-kit/__tests__/use-escape-cancel-focus-trap.test.tsx
 - **T18J** EXTRACT SHARED HELPER (Jini half of Tovu T18) — risk M; est. +60 here, −100 in Tovu after R1; divergence: none; lifecycle pinned: effects depend on the `port` object's identity, exactly like the 3 Tovu copies
-  - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/panel-kit/__tests__/use-optimistic-stored-value.test.tsx
+  - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/panel-kit/hooks/__tests__/use-optimistic-stored-value.hooks.test.tsx
 - **T23J** EXTRACT SHARED HELPER (Jini half of Tovu T23) — risk M; est. +50 here, −70 in Tovu after R1; divergence: none; the "still running" test becomes an injected `shouldContinue`
-  - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/panel-kit/__tests__/use-bounded-status-poll.test.tsx
+  - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/panel-kit/hooks/__tests__/use-bounded-status-poll.hooks.test.tsx
 
 ## Recipes (exact before → after)
 
