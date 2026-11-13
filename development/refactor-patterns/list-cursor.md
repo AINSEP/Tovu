@@ -12,9 +12,9 @@ Every capped list returns `{ items, nextCursor }` (`nextCursor: null` on the las
 Jini `@jini-ai/core/list-page` (Jini clone branch `w3-db-main`, commit 64619ab41 on Jini main 0.7.1; `packages/core/src/list-page.ts`):
 - `interface ListPage<T> { items: readonly T[]; nextCursor: string | null }`
 - `parseListPageRequest({ value: { limit, cursor } }, { defaultLimit, maxLimit }?) → { limit, cursor: string | null }` — query strings or tool input; over-large limits are clamped, malformed ones are a `ToolInputError` (400).
-- `encodeListCursor({ position })` / `decodeListCursor({ cursor, size })` — opaque base64url of the position `[...sortValues, id]`; a foreign cursor is refused ("invalid cursor"), never restarts at page one.
+- `encodeListCursor({ position })` / `decodeListCursor({ cursor, shape })` — opaque base64url of the position `[...sortValues, id]`. `shape` is the position's component types (e.g. `['number', 'string']`), given by the caller, never learned from a row. A foreign or wrong-typed cursor is refused ("invalid cursor"), never restarts at page one.
 - `pageFromOverfetch({ rows, limit, positionOf })` — cut a page from a query that fetched `limit + 1` rows.
-- `pageFromArray({ rows, limit, cursor, positionOf })` — the in-memory twin (ascending; for a descending order make `positionOf` return the key so ascending order matches, or keep SQL ascending).
+- `pageFromArray({ rows, limit, cursor, positionOf, shape })` — the in-memory twin; it validates the cursor before anything else, even for an empty list (ascending; for a descending order make `positionOf` return the key so ascending order matches, or keep SQL ascending).
 - `listPageForModel({ page, toolId })` → `{ items, nextCursor, more? }` — `more` says "This is NOT the full list … call <tool> again with cursor set to nextCursor".
 Existing cursors stay where they are: `@jini-ai/cms` `encodeKeysetCursor` (`packages/cms/src/core/keyset-cursor.ts:17`, used by media), Tovu `platform/db/keyset-cursor.ts`, and the chat store's owner-bound `encodeCursor` (a chat list site reuses THAT one, so a cursor cannot cross owners). Every other new site uses `encodeListCursor`.
 Worked example (T1 + T2 + T3 + T4, commit b1aed55c1 in the Tovu clone): members — `apps/website/src/features/members/repo.ts` `SqlMemberRepo.list`, `repo.memory.ts`, `tool-registrations.ts` `members_list`, `server/inbound/admin-http/routes/members/list.ts`; test template `apps/website/src/features/members/__tests__/member-repo.list-cursor.test.ts`.
@@ -31,19 +31,19 @@ return rows.map(toRecord);
 after (sort key `k`, tie-breaker `id`; for id-only order the position is `[id]`):
 ```ts
 const limit = Math.min(optional.limit ?? MAX_PAGE, MAX_PAGE);
-const marker = optional.cursor ? decodeListCursor({ cursor: optional.cursor, size: 2 }) : null;
+const marker = optional.cursor ? decodeListCursor({ cursor: optional.cursor, shape: ['string', 'string'] }) : null;
 const rows = await this.kernel.run((db) => {
   let query = db.selectFrom("t").selectAll().where("workspace_id", "=", required.workspaceId);
   // `(k, id) > (?, ?)` spelled out, so no dialect's row-value support is assumed.
   if (marker) query = query.where((eb) => eb.or([eb("k", ">", marker[0]), eb.and([eb("k", "=", marker[0]), eb("id", ">", marker[1])])]));
   return query.orderBy("k").orderBy("id").limit(limit + 1).execute();
 });
-return pageFromOverfetch({ rows: rows.map(toRecord), limit, positionOf: (r) => [r.k, r.id] });
+return pageFromOverfetch({ rows: rows.map(toRecord), limit, positionOf: (r) => [r.k, r.id], shape: ['string', 'string'] });
 ```
 Keep the existing default/max constants. The repo itself takes only `cursor`; an `afterId` the tool or route already accepts stays there as an alias: `encodeListCursor({ position: [afterId] })` (id-only orders). Callers that read the old array move to `.items` in the same commit.
 
 ### T2 T-MEMORY — in-memory twin
-`return pageFromArray({ rows: filtered, limit, cursor: optional.cursor ?? null, positionOf: (r) => [r.k, r.id] });` with the same limit clamp as the SQL repo.
+`return pageFromArray({ rows: filtered, limit, cursor: optional.cursor ?? null, positionOf: (r) => [r.k, r.id], shape: ['string', 'string'] });` with the same limit clamp as the SQL repo.
 
 ### T3 T-TOOL — assistant list tool
 Input schema: add `cursor: { type: "string", description: "nextCursor from the previous call. Omit for the first page." }` and `limit` (integer, 1..max). Handler: `const { limit, cursor } = parseListPageRequest({ value: input }, { defaultLimit: X, maxLimit: X });` → call the repo → `return { ...listPageForModel({ page, toolId: "<this tool id>" }), items: page.items.map(toView) }` — keep the tool's existing array key name too if its description names it (e.g. `members: page.items.map(toView)`), so: `{ members, nextCursor, more }`. Keep an existing `afterId` input as an alias mapped to `encodeListCursor({ position: [afterId] })` (id-only orders), refusing both at once; keep any existing "unknown afterId" refusal. Add `cursor` to the schema and update the schema contract test (members: `agent-tools.contract.test.ts`).
@@ -80,7 +80,7 @@ Terra's first run: Tovu `84d9382e2` / Jini `d5680965c` (rows 1, 2, 6, 11, 12, 14
 - Rows 13/16 send log: split — the pipeline keeps `listByCampaign` (X1 drain); the tool and admin route move to a new `listByCampaignPage`.
 - Row 17 DNS host picker: not a cursor — query the latest reachable publish per target (`listLatestReachableUrls`, max-id-per-target like `listDestinationHistory`); no stable row id needed.
 - Row 18 other-site keys: keep the 50/site display cap but say so in words; `find`/`adopt` address one row by id, never through the capped list.
-- Mechanism bug C1: `pageFromArray` must validate the cursor before the empty-rows return (follow-up row C1).
+- Mechanism bug C1 (revised 2026-11-13 after Codex review): the arity came from `positionOf(first)`, so an empty list could not validate a cursor. Also, only primitive types were checked, so a string where a number belongs was accepted and could skip rows. Fix: an explicit `shape`, validated before the empty return (follow-up row C1). Callers already merged in the integration clone must be updated too.
 - Later (not scheduled): a list discriminator inside `encodeListCursor` so a cursor from another list with the same position shape is refused instead of skipping rows (queries stay workspace-scoped, so no cross-tenant read).
 - Bug logged for the owner: `features/newsletter/send-pipeline.ts:137` reads at most 100000 send rows for one campaign.
 - OWNER questions: none.
